@@ -2,7 +2,7 @@
 #
 # Sub2API Installation Script
 # Sub2API 安装脚本
-# Usage: curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | bash
+# Usage: curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/install.sh | bash
 #
 
 set -e
@@ -16,7 +16,8 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-GITHUB_REPO="Wei-Shaw/sub2api"
+DEFAULT_GITHUB_REPO="ZY4869/sub2api"
+GITHUB_REPO="${SUB2API_GITHUB_REPO:-$DEFAULT_GITHUB_REPO}"
 INSTALL_DIR="/opt/sub2api"
 SERVICE_NAME="sub2api"
 SERVICE_USER="sub2api"
@@ -308,6 +309,35 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[$(msg 'error')]${NC} $1"
+}
+
+print_help() {
+    echo "$(msg 'usage'): $0 [command] [options]"
+    echo ""
+    echo "Commands:"
+    echo "  $(msg 'cmd_none')            $(msg 'cmd_install')"
+    echo "  install              $(msg 'cmd_install')"
+    echo "  upgrade              $(msg 'cmd_upgrade')"
+    echo "  rollback <version>   $(msg 'cmd_install_version')"
+    echo "  list-versions        $(msg 'cmd_list_versions')"
+    echo "  uninstall            $(msg 'cmd_uninstall')"
+    echo ""
+    echo "Options:"
+    echo "  -v, --version <ver>  $(msg 'opt_version')"
+    echo "  -y, --yes            Skip confirmation prompts (for uninstall)"
+    echo ""
+    echo "Environment:"
+    echo "  SUB2API_GITHUB_REPO  Override release source repository (default: ${DEFAULT_GITHUB_REPO})"
+    echo ""
+    echo "Examples:"
+    echo "  $0                        # Install latest version"
+    echo "  $0 install -v v0.1.0      # Install specific version"
+    echo "  $0 upgrade                # Upgrade to latest"
+    echo "  $0 upgrade -v v0.2.0      # Upgrade to specific version"
+    echo "  $0 rollback v0.1.0        # Rollback to v0.1.0"
+    echo "  $0 list-versions          # List available versions"
+    echo "  SUB2API_GITHUB_REPO=ZY4869/sub2api $0 install"
+    echo ""
 }
 
 # Check if running interactively (can access terminal)
@@ -655,7 +685,7 @@ install_service() {
     cat > /etc/systemd/system/sub2api.service << EOF
 [Unit]
 Description=Sub2API - AI API Gateway Platform
-Documentation=https://github.com/Wei-Shaw/sub2api
+Documentation=https://github.com/${GITHUB_REPO}
 After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 
@@ -1008,6 +1038,16 @@ main() {
     # Restore positional arguments
     set -- "${positional_args[@]}"
 
+    if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+        if [ "${SUB2API_INSTALL_LANG:-zh}" = "en" ]; then
+            LANG_CHOICE="en"
+        else
+            LANG_CHOICE="zh"
+        fi
+        print_help
+        exit 0
+    fi
+
     # Select language first
     select_language
 
@@ -1102,28 +1142,7 @@ main() {
             exit 0
             ;;
         --help|-h)
-            echo "$(msg 'usage'): $0 [command] [options]"
-            echo ""
-            echo "Commands:"
-            echo "  $(msg 'cmd_none')            $(msg 'cmd_install')"
-            echo "  install              $(msg 'cmd_install')"
-            echo "  upgrade              $(msg 'cmd_upgrade')"
-            echo "  rollback <version>   $(msg 'cmd_install_version')"
-            echo "  list-versions        $(msg 'cmd_list_versions')"
-            echo "  uninstall            $(msg 'cmd_uninstall')"
-            echo ""
-            echo "Options:"
-            echo "  -v, --version <ver>  $(msg 'opt_version')"
-            echo "  -y, --yes            Skip confirmation prompts (for uninstall)"
-            echo ""
-            echo "Examples:"
-            echo "  $0                        # Install latest version"
-            echo "  $0 install -v v0.1.0      # Install specific version"
-            echo "  $0 upgrade                # Upgrade to latest"
-            echo "  $0 upgrade -v v0.2.0      # Upgrade to specific version"
-            echo "  $0 rollback v0.1.0        # Rollback to v0.1.0"
-            echo "  $0 list-versions          # List available versions"
-            echo ""
+            print_help
             exit 0
             ;;
     esac

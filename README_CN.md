@@ -10,7 +10,7 @@
 
 **AI API 网关平台 - 订阅配额分发管理**
 
-[English](README.md) | 中文
+[English](README_EN.md) | 中文
 
 </div>
 
@@ -78,7 +78,20 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅（
 #### 安装步骤
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/install.sh | sudo bash
+```
+
+如需覆盖发布源仓库，可使用环境变量：
+
+```bash
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/install.sh | \
+  SUB2API_GITHUB_REPO=ZY4869/sub2api sudo bash
+```
+
+**已安装用户请优先使用覆盖升级命令，不建议直接重复执行安装命令：**
+
+```bash
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/install.sh | sudo bash -s -- upgrade
 ```
 
 脚本会自动：
@@ -128,7 +141,7 @@ sudo journalctl -u sub2api -f
 sudo systemctl restart sub2api
 
 # 卸载
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
 ```
 
 ---
@@ -151,13 +164,20 @@ curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install
 mkdir -p sub2api-deploy && cd sub2api-deploy
 
 # 下载并运行部署准备脚本
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-deploy.sh | bash
 
 # 启动服务
 docker-compose -f docker-compose.local.yml up -d
 
 # 查看日志
 docker-compose -f docker-compose.local.yml logs -f sub2api
+```
+
+如需覆盖部署源仓库或分支，可使用环境变量：
+
+```bash
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-deploy.sh | \
+  SUB2API_GITHUB_REPO=ZY4869/sub2api SUB2API_GITHUB_REF=main bash
 ```
 
 **脚本功能：**
@@ -173,7 +193,7 @@ docker-compose -f docker-compose.local.yml logs -f sub2api
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/ZY4869/sub2api.git
 cd sub2api/deploy
 
 # 2. 复制环境配置文件
@@ -324,7 +344,7 @@ rm -rf data/ postgres_data/ redis_data/
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/ZY4869/sub2api.git
 cd sub2api
 
 # 2. 安装 pnpm（如果还没有安装）
@@ -519,6 +539,39 @@ go generate ./cmd/server
 ```
 
 ---
+
+## 在自己的仓库发布版本
+
+当前仓库已复用 `.github/workflows/release.yml` 与 `.goreleaser*.yaml`，会自动按当前 GitHub 仓库上下文生成 Release 与 GHCR 镜像。
+
+### 推荐发布流程
+
+1. 先创建 annotated tag 做预发布验证：
+   ```bash
+   git tag -a v0.0.1-rc1 -m "v0.0.1-rc1"
+   git push origin v0.0.1-rc1
+   ```
+2. 在 GitHub Actions 中确认 `Release` workflow 执行成功。
+3. 在 GitHub Releases 中确认已生成二进制压缩包与 `checksums.txt`。
+4. 在 GHCR 中确认已生成 `ghcr.io/zy4869/sub2api:v0.0.1-rc1`。
+5. 验证无误后，再发布正式 tag：
+   ```bash
+   git tag -a v0.0.1 -m "v0.0.1"
+   git push origin v0.0.1
+   ```
+
+### 可选 Secrets
+
+- `DOCKERHUB_USERNAME` 与 `DOCKERHUB_TOKEN`：启用 Docker Hub 发布。
+- `TELEGRAM_BOT_TOKEN` 与 `TELEGRAM_CHAT_ID`：启用 Telegram 发布通知。
+- 如果未配置 Docker Hub secrets，工作流仍会继续发布 GitHub Releases 与 GHCR 镜像。
+
+### 验收清单
+
+- `Release` workflow 对推送的 tag 执行成功。
+- GitHub Release 资产包含各平台压缩包与 `checksums.txt`。
+- GHCR 中出现预期版本标签。
+- 自动生成的 Release 页面安装命令指向 `ZY4869/sub2api`。
 
 ## 简易模式
 

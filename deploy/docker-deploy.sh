@@ -21,7 +21,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # GitHub raw content base URL
-GITHUB_RAW_URL="https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy"
+DEFAULT_GITHUB_REPO="ZY4869/sub2api"
+DEFAULT_GITHUB_REF="main"
+GITHUB_REPO="${SUB2API_GITHUB_REPO:-$DEFAULT_GITHUB_REPO}"
+GITHUB_REF="${SUB2API_GITHUB_REF:-$DEFAULT_GITHUB_REF}"
+GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_REF}/deploy"
 
 # Print colored message
 print_info() {
@@ -50,13 +54,32 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+print_help() {
+    cat <<EOF
+Usage: $0
+
+Environment:
+  SUB2API_GITHUB_REPO  Override deployment source repository (default: ${DEFAULT_GITHUB_REPO})
+  SUB2API_GITHUB_REF   Override deployment source ref/branch (default: ${DEFAULT_GITHUB_REF})
+
+Resolved source:
+  ${GITHUB_RAW_URL}
+EOF
+}
+
 # Main installation function
 main() {
+    if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+        print_help
+        exit 0
+    fi
+
     echo ""
     echo "=========================================="
     echo "  Sub2API Deployment Preparation"
     echo "=========================================="
     echo ""
+    print_info "Using deployment source: ${GITHUB_RAW_URL}"
 
     # Check if openssl is available
     if ! command_exists openssl; then

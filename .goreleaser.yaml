@@ -191,6 +191,11 @@ release:
     curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/install.sh | sudo bash
     ```
 
+    **In-place upgrade (Linux):**
+    ```bash
+    curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/install.sh | sudo bash -s -- upgrade
+    ```
+
     **Manual download:**
     Download the appropriate archive for your platform from the assets below.
 
