@@ -127,6 +127,9 @@ deploy/docker-compose.override.yml
 .gocache/
 vite.config.js
 docs/*
+!docs/MODEL_CATALOG_PRICING_CN.md
+tools/__pycache__/
+*.pyc
 .serena/
 .codex/
 frontend/coverage/

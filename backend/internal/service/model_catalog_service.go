@@ -53,6 +53,7 @@ func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalo
 			items = append(items, item)
 		}
 	}
+	items = dedupeModelCatalogItems(items)
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].DisplayName == items[j].DisplayName {
 			return items[i].Model < items[j].Model

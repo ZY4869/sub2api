@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	openAIModelDatePattern     = regexp.MustCompile(`-\d{8}$`)
-	openAIModelBasePattern     = regexp.MustCompile(`^(gpt-\d+(?:\.\d+)?)(?:-|$)`)
-	openAIGPT54FallbackPricing = &LiteLLMModelPricing{
+	modelDateVersionSuffixPattern = regexp.MustCompile(`-(?:\d{8}|\d{4}-\d{2}-\d{2})(?:-[^-\s]+:\d+)?$`)
+	openAIModelBasePattern        = regexp.MustCompile(`^(gpt-\d+(?:\.\d+)?)(?:-|$)`)
+	openAIGPT54FallbackPricing    = &LiteLLMModelPricing{
 		InputCostPerToken:               2.5e-06, // $2.5 per MTok
 		OutputCostPerToken:              1.5e-05, // $15 per MTok
 		CacheReadInputTokenCost:         2.5e-07, // $0.25 per MTok
@@ -701,15 +701,18 @@ func lastSegment(model string) string {
 
 // extractBaseName 提取基础模型名称（去掉日期版本号）
 func (s *PricingService) extractBaseName(model string) string {
-	// 移除日期后缀 (如 -20251101, -20241022)
-	parts := strings.Split(model, "-")
+	trimmed := strings.TrimSpace(strings.ToLower(model))
+	stripped := modelDateVersionSuffixPattern.ReplaceAllString(trimmed, "")
+	if stripped != trimmed {
+		return stripped
+	}
+
+	parts := strings.Split(trimmed, "-")
 	result := make([]string, 0, len(parts))
 	for _, part := range parts {
-		// 跳过看起来像日期的部分（8位数字）
 		if len(part) == 8 && isNumeric(part) {
 			continue
 		}
-		// 跳过版本号（如 v1:0）
 		if strings.Contains(part, ":") {
 			continue
 		}
@@ -810,7 +813,7 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 	}
 
 	// 尝试的回退变体
-	variants := s.generateOpenAIModelVariants(model, openAIModelDatePattern)
+	variants := s.generateOpenAIModelVariants(model, modelDateVersionSuffixPattern)
 
 	for _, variant := range variants {
 		if pricing, ok := s.pricingData[variant]; ok {
