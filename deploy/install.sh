@@ -340,18 +340,34 @@ print_help() {
     echo ""
 }
 
+TTY_FD=""
+
 # Check if running interactively (can access terminal)
-# When piped (curl | bash), stdin is not a terminal, but /dev/tty may still be available
+# When piped (curl | bash), stdin is not a terminal, but a controlling TTY may still be available
+ensure_tty() {
+    if [ -n "$TTY_FD" ]; then
+        return 0
+    fi
+
+    if { exec 3<> /dev/tty; } 2>/dev/null; then
+        TTY_FD="3"
+        return 0
+    fi
+
+    return 1
+}
+
 is_interactive() {
-    # Check if /dev/tty is available (works even when piped)
-    [ -e /dev/tty ] && [ -r /dev/tty ] && [ -w /dev/tty ]
+    ensure_tty
 }
 
 # Select language
 select_language() {
+    local default_lang="${SUB2API_INSTALL_LANG:-zh}"
+
     # If not interactive (piped), use default language
     if ! is_interactive; then
-        LANG_CHOICE="zh"
+        LANG_CHOICE="$default_lang"
         return
     fi
 
@@ -364,7 +380,11 @@ select_language() {
     echo "  2) $(msg 'lang_en')"
     echo ""
 
-    read -p "$(msg 'enter_choice'): " lang_input < /dev/tty
+    if ! read -r -p "$(msg 'enter_choice'): " lang_input <&3; then
+        LANG_CHOICE="$default_lang"
+        echo ""
+        return
+    fi
 
     case "$lang_input" in
         2|en|EN|english|English)
@@ -405,9 +425,10 @@ configure_server() {
 
     # Server host
     echo -e "${YELLOW}$(msg 'server_host_hint')${NC}"
-    read -p "$(msg 'server_host_prompt') [${SERVER_HOST}]: " input_host < /dev/tty
-    if [ -n "$input_host" ]; then
-        SERVER_HOST="$input_host"
+    if read -r -p "$(msg 'server_host_prompt') [${SERVER_HOST}]: " input_host <&3; then
+        if [ -n "$input_host" ]; then
+            SERVER_HOST="$input_host"
+        fi
     fi
 
     echo ""
@@ -415,7 +436,10 @@ configure_server() {
     # Server port
     echo -e "${YELLOW}$(msg 'server_port_hint')${NC}"
     while true; do
-        read -p "$(msg 'server_port_prompt') [${SERVER_PORT}]: " input_port < /dev/tty
+        if ! read -r -p "$(msg 'server_port_prompt') [${SERVER_PORT}]: " input_port <&3; then
+            break
+        fi
+
         if [ -z "$input_port" ]; then
             # Use default
             break
@@ -944,7 +968,11 @@ uninstall() {
             exit 1
         fi
     else
-        read -p "$(msg 'are_you_sure') " -n 1 -r < /dev/tty
+        if ! read -r -p "$(msg 'are_you_sure') " -n 1 <&3; then
+            echo
+            print_info "$(msg 'uninstall_cancelled')"
+            exit 0
+        fi
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             print_info "$(msg 'uninstall_cancelled')"
@@ -977,7 +1005,10 @@ uninstall() {
     if [ "${PURGE:-}" = "true" ]; then
         remove_config=true
     elif is_interactive; then
-        read -p "$(msg 'purge_prompt')" -n 1 -r < /dev/tty
+        if ! read -r -p "$(msg 'purge_prompt')" -n 1 <&3; then
+            echo
+            return
+        fi
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             remove_config=true
