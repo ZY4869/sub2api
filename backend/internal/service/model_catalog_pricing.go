@@ -11,20 +11,58 @@ import (
 	"go.uber.org/zap"
 )
 
+func cloneModelPricingOverride(override *ModelPricingOverride) *ModelPricingOverride {
+	if override == nil {
+		return nil
+	}
+	copy := *override
+	return &copy
+}
+
+func loadModelPriceOverrides(ctx context.Context, settingRepo SettingRepository) map[string]*ModelPricingOverride {
+	if settingRepo == nil {
+		return map[string]*ModelPricingOverride{}
+	}
+	raw, err := settingRepo.GetValue(ctx, SettingKeyModelPriceOverrides)
+	if err != nil || raw == "" {
+		return map[string]*ModelPricingOverride{}
+	}
+	var overrides map[string]*ModelPricingOverride
+	if err := json.Unmarshal([]byte(raw), &overrides); err != nil {
+		logger.FromContext(ctx).Warn("model catalog: invalid override json", zap.Error(err))
+		return map[string]*ModelPricingOverride{}
+	}
+	normalized := make(map[string]*ModelPricingOverride, len(overrides))
+	for model, override := range overrides {
+		key := CanonicalizeModelNameForPricing(model)
+		if key == "" || override == nil || pricingEmpty(&override.ModelCatalogPricing) {
+			continue
+		}
+		normalized[key] = cloneModelPricingOverride(override)
+	}
+	return normalized
+}
+
 func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
 	if pricing == nil {
 		return nil
 	}
 	return &ModelCatalogPricing{
-		InputCostPerToken:                   modelCatalogFloat64Ptr(pricing.InputCostPerToken),
-		InputCostPerTokenPriority:           modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriority),
-		OutputCostPerToken:                  modelCatalogFloat64Ptr(pricing.OutputCostPerToken),
-		OutputCostPerTokenPriority:          modelCatalogFloat64Ptr(pricing.OutputCostPerTokenPriority),
-		CacheCreationInputTokenCost:         modelCatalogFloat64Ptr(pricing.CacheCreationInputTokenCost),
-		CacheCreationInputTokenCostAbove1hr: modelCatalogFloat64Ptr(pricing.CacheCreationInputTokenCostAbove1hr),
-		CacheReadInputTokenCost:             modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCost),
-		CacheReadInputTokenCostPriority:     modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCostPriority),
-		OutputCostPerImage:                  modelCatalogFloat64Ptr(pricing.OutputCostPerImage),
+		InputCostPerToken:                        modelCatalogFloat64Ptr(pricing.InputCostPerToken),
+		InputCostPerTokenPriority:                modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriority),
+		InputTokenThreshold:                      modelCatalogIntPtr(pricing.InputTokenThreshold),
+		InputCostPerTokenAboveThreshold:          modelCatalogFloat64Ptr(pricing.InputCostPerTokenAboveThreshold),
+		InputCostPerTokenPriorityAboveThreshold:  modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriorityAboveThreshold),
+		OutputCostPerToken:                       modelCatalogFloat64Ptr(pricing.OutputCostPerToken),
+		OutputCostPerTokenPriority:               modelCatalogFloat64Ptr(pricing.OutputCostPerTokenPriority),
+		OutputTokenThreshold:                     modelCatalogIntPtr(pricing.OutputTokenThreshold),
+		OutputCostPerTokenAboveThreshold:         modelCatalogFloat64Ptr(pricing.OutputCostPerTokenAboveThreshold),
+		OutputCostPerTokenPriorityAboveThreshold: modelCatalogFloat64Ptr(pricing.OutputCostPerTokenPriorityAboveThreshold),
+		CacheCreationInputTokenCost:              modelCatalogFloat64Ptr(pricing.CacheCreationInputTokenCost),
+		CacheCreationInputTokenCostAbove1hr:      modelCatalogFloat64Ptr(pricing.CacheCreationInputTokenCostAbove1hr),
+		CacheReadInputTokenCost:                  modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCost),
+		CacheReadInputTokenCostPriority:          modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCostPriority),
+		OutputCostPerImage:                       modelCatalogFloat64Ptr(pricing.OutputCostPerImage),
 	}
 }
 
@@ -33,15 +71,21 @@ func pricingFromBilling(pricing *ModelPricing) *ModelCatalogPricing {
 		return nil
 	}
 	return &ModelCatalogPricing{
-		InputCostPerToken:                   modelCatalogFloat64Ptr(pricing.InputPricePerToken),
-		InputCostPerTokenPriority:           modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriority),
-		OutputCostPerToken:                  modelCatalogFloat64Ptr(pricing.OutputPricePerToken),
-		OutputCostPerTokenPriority:          modelCatalogFloat64Ptr(pricing.OutputPricePerTokenPriority),
-		CacheCreationInputTokenCost:         modelCatalogFloat64Ptr(pricing.CacheCreationPricePerToken),
-		CacheCreationInputTokenCostAbove1hr: modelCatalogFloat64Ptr(pricing.CacheCreation1hPrice),
-		CacheReadInputTokenCost:             modelCatalogFloat64Ptr(pricing.CacheReadPricePerToken),
-		CacheReadInputTokenCostPriority:     modelCatalogFloat64Ptr(pricing.CacheReadPricePerTokenPriority),
-		OutputCostPerImage:                  modelCatalogFloat64Ptr(pricing.OutputPricePerImage),
+		InputCostPerToken:                        modelCatalogFloat64Ptr(pricing.InputPricePerToken),
+		InputCostPerTokenPriority:                modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriority),
+		InputTokenThreshold:                      modelCatalogIntPtr(pricing.InputTokenThreshold),
+		InputCostPerTokenAboveThreshold:          modelCatalogFloat64Ptr(pricing.InputPricePerTokenAboveThreshold),
+		InputCostPerTokenPriorityAboveThreshold:  modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriorityAboveThreshold),
+		OutputCostPerToken:                       modelCatalogFloat64Ptr(pricing.OutputPricePerToken),
+		OutputCostPerTokenPriority:               modelCatalogFloat64Ptr(pricing.OutputPricePerTokenPriority),
+		OutputTokenThreshold:                     modelCatalogIntPtr(pricing.OutputTokenThreshold),
+		OutputCostPerTokenAboveThreshold:         modelCatalogFloat64Ptr(pricing.OutputPricePerTokenAboveThreshold),
+		OutputCostPerTokenPriorityAboveThreshold: modelCatalogFloat64Ptr(pricing.OutputPricePerTokenPriorityAboveThreshold),
+		CacheCreationInputTokenCost:              modelCatalogFloat64Ptr(pricing.CacheCreationPricePerToken),
+		CacheCreationInputTokenCostAbove1hr:      modelCatalogFloat64Ptr(pricing.CacheCreation1hPrice),
+		CacheReadInputTokenCost:                  modelCatalogFloat64Ptr(pricing.CacheReadPricePerToken),
+		CacheReadInputTokenCostPriority:          modelCatalogFloat64Ptr(pricing.CacheReadPricePerTokenPriority),
+		OutputCostPerImage:                       modelCatalogFloat64Ptr(pricing.OutputPricePerImage),
 	}
 }
 
@@ -77,10 +121,21 @@ func mergeCatalogPricing(target *ModelCatalogPricing, patch *ModelCatalogPricing
 			*dst = modelCatalogFloat64Ptr(*src)
 		}
 	}
+	assignInt := func(dst **int, src *int) {
+		if src != nil {
+			*dst = modelCatalogIntPtr(*src)
+		}
+	}
 	assignFloat(&target.InputCostPerToken, patch.InputCostPerToken)
 	assignFloat(&target.InputCostPerTokenPriority, patch.InputCostPerTokenPriority)
+	assignInt(&target.InputTokenThreshold, patch.InputTokenThreshold)
+	assignFloat(&target.InputCostPerTokenAboveThreshold, patch.InputCostPerTokenAboveThreshold)
+	assignFloat(&target.InputCostPerTokenPriorityAboveThreshold, patch.InputCostPerTokenPriorityAboveThreshold)
 	assignFloat(&target.OutputCostPerToken, patch.OutputCostPerToken)
 	assignFloat(&target.OutputCostPerTokenPriority, patch.OutputCostPerTokenPriority)
+	assignInt(&target.OutputTokenThreshold, patch.OutputTokenThreshold)
+	assignFloat(&target.OutputCostPerTokenAboveThreshold, patch.OutputCostPerTokenAboveThreshold)
+	assignFloat(&target.OutputCostPerTokenPriorityAboveThreshold, patch.OutputCostPerTokenPriorityAboveThreshold)
 	assignFloat(&target.CacheCreationInputTokenCost, patch.CacheCreationInputTokenCost)
 	assignFloat(&target.CacheCreationInputTokenCostAbove1hr, patch.CacheCreationInputTokenCostAbove1hr)
 	assignFloat(&target.CacheReadInputTokenCost, patch.CacheReadInputTokenCost)
@@ -92,8 +147,14 @@ func pricingEmpty(pricing *ModelCatalogPricing) bool {
 	return pricing == nil ||
 		(pricing.InputCostPerToken == nil &&
 			pricing.InputCostPerTokenPriority == nil &&
+			pricing.InputTokenThreshold == nil &&
+			pricing.InputCostPerTokenAboveThreshold == nil &&
+			pricing.InputCostPerTokenPriorityAboveThreshold == nil &&
 			pricing.OutputCostPerToken == nil &&
 			pricing.OutputCostPerTokenPriority == nil &&
+			pricing.OutputTokenThreshold == nil &&
+			pricing.OutputCostPerTokenAboveThreshold == nil &&
+			pricing.OutputCostPerTokenPriorityAboveThreshold == nil &&
 			pricing.CacheCreationInputTokenCost == nil &&
 			pricing.CacheCreationInputTokenCostAbove1hr == nil &&
 			pricing.CacheReadInputTokenCost == nil &&
@@ -102,24 +163,7 @@ func pricingEmpty(pricing *ModelCatalogPricing) bool {
 }
 
 func (s *ModelCatalogService) loadPriceOverrides(ctx context.Context) map[string]*ModelPricingOverride {
-	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelPriceOverrides)
-	if err != nil || raw == "" {
-		return map[string]*ModelPricingOverride{}
-	}
-	var overrides map[string]*ModelPricingOverride
-	if err := json.Unmarshal([]byte(raw), &overrides); err != nil {
-		logger.FromContext(ctx).Warn("model catalog: invalid override json", zap.Error(err))
-		return map[string]*ModelPricingOverride{}
-	}
-	normalized := make(map[string]*ModelPricingOverride, len(overrides))
-	for model, override := range overrides {
-		key := CanonicalizeModelNameForPricing(model)
-		if key == "" || override == nil || pricingEmpty(&override.ModelCatalogPricing) {
-			continue
-		}
-		normalized[key] = override
-	}
-	return normalized
+	return loadModelPriceOverrides(ctx, s.settingRepo)
 }
 
 func (s *ModelCatalogService) persistPriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
@@ -146,8 +190,12 @@ func validateOverridePricing(pricing ModelCatalogPricing) error {
 	values := []*float64{
 		pricing.InputCostPerToken,
 		pricing.InputCostPerTokenPriority,
+		pricing.InputCostPerTokenAboveThreshold,
+		pricing.InputCostPerTokenPriorityAboveThreshold,
 		pricing.OutputCostPerToken,
 		pricing.OutputCostPerTokenPriority,
+		pricing.OutputCostPerTokenAboveThreshold,
+		pricing.OutputCostPerTokenPriorityAboveThreshold,
 		pricing.CacheCreationInputTokenCost,
 		pricing.CacheCreationInputTokenCostAbove1hr,
 		pricing.CacheReadInputTokenCost,
@@ -162,13 +210,56 @@ func validateOverridePricing(pricing ModelCatalogPricing) error {
 			return infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_INVALID", "pricing override must be a non-negative number")
 		}
 	}
+	thresholds := []*int{pricing.InputTokenThreshold, pricing.OutputTokenThreshold}
+	for _, value := range thresholds {
+		if value == nil {
+			continue
+		}
+		if *value <= 0 {
+			return infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_INVALID", "token threshold must be a positive integer")
+		}
+	}
 	if pricingEmpty(&pricing) {
 		return infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_EMPTY", "at least one pricing field is required")
 	}
 	return nil
 }
 
+func validateTieredPricingConfiguration(pricing *ModelCatalogPricing) error {
+	if pricing == nil {
+		return nil
+	}
+	if err := validateTierRule(pricing.InputTokenThreshold, pricing.InputCostPerTokenAboveThreshold, pricing.InputCostPerTokenPriority, pricing.InputCostPerTokenPriorityAboveThreshold); err != nil {
+		return err
+	}
+	if err := validateTierRule(pricing.OutputTokenThreshold, pricing.OutputCostPerTokenAboveThreshold, pricing.OutputCostPerTokenPriority, pricing.OutputCostPerTokenPriorityAboveThreshold); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateTierRule(threshold *int, above *float64, priorityBase *float64, priorityAbove *float64) error {
+	if threshold == nil {
+		return nil
+	}
+	if *threshold <= 0 {
+		return infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_INVALID", "token threshold must be a positive integer")
+	}
+	if above == nil {
+		return infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_INVALID", "tiered pricing requires above-threshold price")
+	}
+	if priorityBase != nil && *priorityBase >= 0 && priorityAbove == nil {
+		return infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_INVALID", "priority tiered pricing requires above-threshold priority price")
+	}
+	return nil
+}
+
 func modelCatalogFloat64Ptr(value float64) *float64 {
+	v := value
+	return &v
+}
+
+func modelCatalogIntPtr(value int) *int {
 	v := value
 	return &v
 }

@@ -971,6 +971,7 @@ export default {
       searchPlaceholder: 'Search model name',
       unavailable: 'Unavailable',
       viewDetails: 'View Details',
+      tieredPricing: 'Tiered Pricing',
       emptyTitle: 'No models found',
       emptyDescription: 'Try adjusting the search or filters',
       loadFailed: 'Failed to load model catalog',
@@ -1031,21 +1032,37 @@ export default {
         override: 'Override Price',
         effective: 'Effective Price'
       },
+      groups: {
+        inputTier: 'Input Tiered Pricing',
+        outputTier: 'Output Tiered Pricing',
+        cache: 'Cache Pricing',
+        image: 'Image Pricing'
+      },
       editor: {
         title: 'Edit Pricing Override',
         description: 'Token prices use USD per 1M tokens; image prices use USD per image.',
         validationRequired: 'Enter a value to override this field',
-        validationNonNegative: 'Enter a non-negative number'
+        validationNonNegative: 'Enter a non-negative number',
+        validationPositiveInteger: 'Enter a positive integer',
+        validationAboveThresholdRequired: 'Enter the above-threshold price when a threshold is set',
+        validationPriorityAboveThresholdRequired: 'Enter the priority above-threshold price when priority pricing is configured'
       },
       units: {
         perMillionTokens: 'USD / 1M tokens',
-        perImage: 'USD / image'
+        perImage: 'USD / image',
+        tokens: 'tokens'
       },
       fields: {
+        inputThreshold: 'Input Threshold',
         inputCost: 'Input Price',
+        inputCostAboveThreshold: 'Input Price (> Threshold)',
         inputPriorityCost: 'Input Priority Price',
+        inputPriorityCostAboveThreshold: 'Input Priority Price (> Threshold)',
+        outputThreshold: 'Output Threshold',
         outputCost: 'Output Price',
+        outputCostAboveThreshold: 'Output Price (> Threshold)',
         outputPriorityCost: 'Output Priority Price',
+        outputPriorityCostAboveThreshold: 'Output Priority Price (> Threshold)',
         cacheCreationCost: 'Cache Create Price',
         cacheCreationCostAbove1h: 'Cache Create Price (>1h)',
         cacheReadCost: 'Cache Read Price',

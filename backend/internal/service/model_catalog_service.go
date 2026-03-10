@@ -25,13 +25,17 @@ func NewModelCatalogService(
 	pricingService *PricingService,
 	cfg *config.Config,
 ) *ModelCatalogService {
-	return &ModelCatalogService{
+	service := &ModelCatalogService{
 		settingRepo:    settingRepo,
 		adminService:   adminService,
 		billingService: billingService,
 		pricingService: pricingService,
 		cfg:            cfg,
 	}
+	if billingService != nil {
+		billingService.ReplaceModelPriceOverrides(service.loadPriceOverrides(context.Background()))
+	}
+	return service
 }
 
 func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalogListFilter) ([]ModelCatalogItem, int64, error) {
@@ -96,6 +100,14 @@ func (s *ModelCatalogService) UpsertPricingOverride(
 	if canonicalModel == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
+	records, err := s.buildCatalogRecords(ctx)
+	if err != nil {
+		return nil, err
+	}
+	record, ok := records[canonicalModel]
+	if !ok {
+		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
 	if err := validateOverridePricing(input.ModelCatalogPricing); err != nil {
 		return nil, err
 	}
@@ -104,6 +116,17 @@ func (s *ModelCatalogService) UpsertPricingOverride(
 	if override == nil {
 		override = &ModelPricingOverride{}
 	}
+	effectivePricing := cloneCatalogPricing(record.basePricing)
+	if effectivePricing == nil {
+		effectivePricing = &ModelCatalogPricing{}
+	}
+	if override != nil {
+		mergeCatalogPricing(effectivePricing, &override.ModelCatalogPricing)
+	}
+	mergeCatalogPricing(effectivePricing, &input.ModelCatalogPricing)
+	if err := validateTieredPricingConfiguration(effectivePricing); err != nil {
+		return nil, err
+	}
 	mergeCatalogPricing(&override.ModelCatalogPricing, &input.ModelCatalogPricing)
 	override.UpdatedAt = time.Now().UTC()
 	override.UpdatedByUserID = actor.UserID
@@ -111,6 +134,9 @@ func (s *ModelCatalogService) UpsertPricingOverride(
 	overrides[canonicalModel] = override
 	if err := s.persistPriceOverrides(ctx, overrides); err != nil {
 		return nil, err
+	}
+	if s.billingService != nil {
+		s.billingService.ReplaceModelPriceOverrides(overrides)
 	}
 	return s.GetModelDetail(ctx, canonicalModel)
 }
@@ -122,7 +148,13 @@ func (s *ModelCatalogService) DeletePricingOverride(ctx context.Context, _ Model
 	}
 	overrides := s.loadPriceOverrides(ctx)
 	delete(overrides, canonicalModel)
-	return s.persistPriceOverrides(ctx, overrides)
+	if err := s.persistPriceOverrides(ctx, overrides); err != nil {
+		return err
+	}
+	if s.billingService != nil {
+		s.billingService.ReplaceModelPriceOverrides(overrides)
+	}
+	return nil
 }
 
 func recordToModelCatalogItem(record *modelCatalogRecord) ModelCatalogItem {

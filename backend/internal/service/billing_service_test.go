@@ -708,3 +708,140 @@ func TestGetModelPricing_MapsDynamicPriorityFieldsIntoBillingPricing(t *testing.
 	require.InDelta(t, 1.5, pricing.LongContextInputMultiplier, 1e-12)
 	require.InDelta(t, 1.25, pricing.LongContextOutputMultiplier, 1e-12)
 }
+
+func TestCalculateCostWithServiceTier_UsesTieredPricingPerSideAndBoundary(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"tiered-model": {
+				InputCostPerToken:                1e-6,
+				InputTokenThreshold:              100,
+				InputCostPerTokenAboveThreshold:  3e-6,
+				OutputCostPerToken:               10e-6,
+				OutputTokenThreshold:             50,
+				OutputCostPerTokenAboveThreshold: 30e-6,
+			},
+		},
+	})
+
+	tests := []struct {
+		name           string
+		tokens         UsageTokens
+		expectedInput  float64
+		expectedOutput float64
+	}{
+		{
+			name:           "both sides stay low at threshold",
+			tokens:         UsageTokens{InputTokens: 100, OutputTokens: 50},
+			expectedInput:  100 * 1e-6,
+			expectedOutput: 50 * 10e-6,
+		},
+		{
+			name:           "input switches high only",
+			tokens:         UsageTokens{InputTokens: 101, OutputTokens: 50},
+			expectedInput:  101 * 3e-6,
+			expectedOutput: 50 * 10e-6,
+		},
+		{
+			name:           "output switches high only",
+			tokens:         UsageTokens{InputTokens: 100, OutputTokens: 51},
+			expectedInput:  100 * 1e-6,
+			expectedOutput: 51 * 30e-6,
+		},
+		{
+			name:           "both sides switch high",
+			tokens:         UsageTokens{InputTokens: 101, OutputTokens: 51},
+			expectedInput:  101 * 3e-6,
+			expectedOutput: 51 * 30e-6,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cost, err := svc.CalculateCost("tiered-model", tt.tokens, 1.0)
+			require.NoError(t, err)
+			require.InDelta(t, tt.expectedInput, cost.InputCost, 1e-12)
+			require.InDelta(t, tt.expectedOutput, cost.OutputCost, 1e-12)
+		})
+	}
+}
+
+func TestCalculateCostWithServiceTier_UsesPriorityTieredPricingBeforeLongContextMultiplier(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"priority-tiered-model": {
+				InputCostPerToken:                        1e-6,
+				InputCostPerTokenPriority:                2e-6,
+				InputTokenThreshold:                      100,
+				InputCostPerTokenAboveThreshold:          3e-6,
+				InputCostPerTokenPriorityAboveThreshold:  6e-6,
+				OutputCostPerToken:                       10e-6,
+				OutputCostPerTokenPriority:               20e-6,
+				OutputTokenThreshold:                     50,
+				OutputCostPerTokenAboveThreshold:         30e-6,
+				OutputCostPerTokenPriorityAboveThreshold: 60e-6,
+				LongContextInputTokenThreshold:           200,
+				LongContextInputCostMultiplier:           2.0,
+				LongContextOutputCostMultiplier:          1.5,
+			},
+		},
+	})
+
+	tokens := UsageTokens{InputTokens: 300, OutputTokens: 60}
+	cost, err := svc.CalculateCostWithServiceTier("priority-tiered-model", tokens, 1.0, "priority")
+	require.NoError(t, err)
+
+	expectedInput := 300 * (6e-6 * 2.0)
+	expectedOutput := 60 * (60e-6 * 1.5)
+	require.InDelta(t, expectedInput, cost.InputCost, 1e-12)
+	require.InDelta(t, expectedOutput, cost.OutputCost, 1e-12)
+}
+
+func TestCalculateCostWithServiceTier_FallsBackWhenAboveThresholdPriceMissing(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"missing-above-model": {
+				InputCostPerToken:          1e-6,
+				InputCostPerTokenPriority:  2e-6,
+				InputTokenThreshold:        100,
+				OutputCostPerToken:         10e-6,
+				OutputCostPerTokenPriority: 20e-6,
+				OutputTokenThreshold:       50,
+			},
+		},
+	})
+
+	baseCost, err := svc.CalculateCost("missing-above-model", UsageTokens{InputTokens: 101, OutputTokens: 51}, 1.0)
+	require.NoError(t, err)
+	require.InDelta(t, 101*1e-6, baseCost.InputCost, 1e-12)
+	require.InDelta(t, 51*10e-6, baseCost.OutputCost, 1e-12)
+
+	priorityCost, err := svc.CalculateCostWithServiceTier("missing-above-model", UsageTokens{InputTokens: 101, OutputTokens: 51}, 1.0, "priority")
+	require.NoError(t, err)
+	require.InDelta(t, 101*2e-6, priorityCost.InputCost, 1e-12)
+	require.InDelta(t, 51*20e-6, priorityCost.OutputCost, 1e-12)
+}
+
+func TestCalculateCost_UsesRuntimePricingOverridesWithoutMutatingBasePricing(t *testing.T) {
+	svc := newTestBillingService()
+	svc.ReplaceModelPriceOverrides(map[string]*ModelPricingOverride{
+		"gpt-5.4": {
+			ModelCatalogPricing: ModelCatalogPricing{
+				InputCostPerToken:               modelCatalogFloat64Ptr(9e-6),
+				InputTokenThreshold:             modelCatalogIntPtr(100),
+				InputCostPerTokenAboveThreshold: modelCatalogFloat64Ptr(12e-6),
+				OutputCostPerImage:              modelCatalogFloat64Ptr(0.5),
+			},
+		},
+	})
+
+	pricing, err := svc.GetModelPricing("gpt-5.4")
+	require.NoError(t, err)
+	require.InDelta(t, 2.5e-6, pricing.InputPricePerToken, 1e-12)
+
+	cost, err := svc.CalculateCost("gpt-5.4", UsageTokens{InputTokens: 101}, 1.0)
+	require.NoError(t, err)
+	require.InDelta(t, 101*12e-6, cost.InputCost, 1e-12)
+
+	imageCost := svc.getDefaultImagePrice("gpt-5.4", "1024x1024")
+	require.InDelta(t, 0.5, imageCost, 1e-12)
+}

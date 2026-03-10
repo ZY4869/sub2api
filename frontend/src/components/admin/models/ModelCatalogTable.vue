@@ -1,7 +1,15 @@
 <template>
   <DataTable :columns="columns" :data="items" :loading="loading">
     <template #cell-model="{ row }">
-      <span class="font-medium text-gray-900 dark:text-white">{{ row.model }}</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="font-medium text-gray-900 dark:text-white">{{ row.model }}</span>
+        <span
+          v-if="hasTieredPricing(row.effective_pricing)"
+          class="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
+        >
+          {{ t('admin.models.tieredPricing') }}
+        </span>
+      </div>
     </template>
 
     <template #cell-provider="{ row }">{{ row.provider || '-' }}</template>
@@ -44,7 +52,7 @@ import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import type { ModelCatalogItem, ModelCatalogPricing } from '@/api/admin/models'
-import { formatModelCatalogPrice } from '@/utils/modelCatalogPricing'
+import { formatModelCatalogPrice, hasTieredPricing } from '@/utils/modelCatalogPricing'
 
 defineProps<{
   items: ModelCatalogItem[]

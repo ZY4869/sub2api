@@ -993,6 +993,7 @@ export default {
       searchPlaceholder: '搜索模型名称',
       unavailable: '不可用',
       viewDetails: '查看详情',
+      tieredPricing: '分段定价',
       emptyTitle: '暂无匹配模型',
       emptyDescription: '请尝试调整搜索词或筛选条件',
       loadFailed: '加载模型库失败',
@@ -1053,21 +1054,37 @@ export default {
         override: '覆盖价',
         effective: '生效价'
       },
+      groups: {
+        inputTier: '输入分段定价',
+        outputTier: '输出分段定价',
+        cache: '缓存定价',
+        image: '图片定价'
+      },
       editor: {
         title: '编辑价格覆盖',
         description: 'Token 类价格按每百万 Token 的美元价格填写；图片价格按每张图片的美元价格填写。',
         validationRequired: '请输入用于覆盖的价格',
-        validationNonNegative: '请输入非负数'
+        validationNonNegative: '请输入非负数',
+        validationPositiveInteger: '请输入正整数',
+        validationAboveThresholdRequired: '配置阈值后必须填写高档价格',
+        validationPriorityAboveThresholdRequired: '配置优先价格后必须填写优先高档价格'
       },
       units: {
         perMillionTokens: 'USD / 1M tokens',
-        perImage: 'USD / image'
+        perImage: 'USD / image',
+        tokens: 'tokens'
       },
       fields: {
+        inputThreshold: '输入阈值',
         inputCost: '输入价',
+        inputCostAboveThreshold: '输入高档价',
         inputPriorityCost: '优先输入价',
+        inputPriorityCostAboveThreshold: '优先输入高档价',
+        outputThreshold: '输出阈值',
         outputCost: '输出价',
+        outputCostAboveThreshold: '输出高档价',
         outputPriorityCost: '优先输出价',
+        outputPriorityCostAboveThreshold: '优先输出高档价',
         cacheCreationCost: '缓存创建价',
         cacheCreationCostAbove1h: '1 小时后缓存创建价',
         cacheReadCost: '缓存读取价',

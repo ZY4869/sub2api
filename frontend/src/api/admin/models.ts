@@ -6,8 +6,14 @@ export type ModelCatalogPricingSource = 'none' | 'dynamic' | 'fallback' | 'overr
 export interface ModelCatalogPricing {
   input_cost_per_token?: number
   input_cost_per_token_priority?: number
+  input_token_threshold?: number
+  input_cost_per_token_above_threshold?: number
+  input_cost_per_token_priority_above_threshold?: number
   output_cost_per_token?: number
   output_cost_per_token_priority?: number
+  output_token_threshold?: number
+  output_cost_per_token_above_threshold?: number
+  output_cost_per_token_priority_above_threshold?: number
   cache_creation_input_token_cost?: number
   cache_creation_input_token_cost_above_1hr?: number
   cache_read_input_token_cost?: number

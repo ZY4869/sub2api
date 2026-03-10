@@ -24,7 +24,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { ModelCatalogDetail } from '@/api/admin/models'
-import { MODEL_CATALOG_PRICING_FIELDS, formatModelCatalogPrice } from '@/utils/modelCatalogPricing'
+import {
+  MODEL_CATALOG_PRICING_FIELDS,
+  formatModelCatalogPrice,
+  type ModelCatalogPricingUnit
+} from '@/utils/modelCatalogPricing'
 
 defineProps<{
   detail: ModelCatalogDetail
@@ -32,7 +36,7 @@ defineProps<{
 
 const { t } = useI18n()
 
-function renderPrice(value?: number, unit: 'token' | 'image' = 'token') {
+function renderPrice(value?: number, unit: ModelCatalogPricingUnit = 'token') {
   return formatModelCatalogPrice(value, unit)
 }
 </script>

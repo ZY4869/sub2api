@@ -2,22 +2,39 @@ import { TOKENS_PER_MILLION } from './usagePricing'
 import type { ModelCatalogPricing } from '@/api/admin/models'
 
 export type ModelCatalogPricingKey = keyof ModelCatalogPricing
-export type ModelCatalogPricingUnit = 'token' | 'image'
+export type ModelCatalogPricingUnit = 'token' | 'image' | 'threshold'
+export type ModelCatalogPricingGroup = 'inputTier' | 'outputTier' | 'cache' | 'image'
 
-export const MODEL_CATALOG_PRICING_FIELDS: Array<{
+export interface ModelCatalogPricingField {
   key: ModelCatalogPricingKey
   labelKey: string
   unit: ModelCatalogPricingUnit
-}> = [
-  { key: 'input_cost_per_token', labelKey: 'admin.models.fields.inputCost', unit: 'token' },
-  { key: 'input_cost_per_token_priority', labelKey: 'admin.models.fields.inputPriorityCost', unit: 'token' },
-  { key: 'output_cost_per_token', labelKey: 'admin.models.fields.outputCost', unit: 'token' },
-  { key: 'output_cost_per_token_priority', labelKey: 'admin.models.fields.outputPriorityCost', unit: 'token' },
-  { key: 'cache_creation_input_token_cost', labelKey: 'admin.models.fields.cacheCreationCost', unit: 'token' },
-  { key: 'cache_creation_input_token_cost_above_1hr', labelKey: 'admin.models.fields.cacheCreationCostAbove1h', unit: 'token' },
-  { key: 'cache_read_input_token_cost', labelKey: 'admin.models.fields.cacheReadCost', unit: 'token' },
-  { key: 'cache_read_input_token_cost_priority', labelKey: 'admin.models.fields.cacheReadPriorityCost', unit: 'token' },
-  { key: 'output_cost_per_image', labelKey: 'admin.models.fields.imageCost', unit: 'image' }
+  group: ModelCatalogPricingGroup
+}
+
+export const MODEL_CATALOG_PRICING_GROUPS: Array<{ key: ModelCatalogPricingGroup; labelKey: string }> = [
+  { key: 'inputTier', labelKey: 'admin.models.groups.inputTier' },
+  { key: 'outputTier', labelKey: 'admin.models.groups.outputTier' },
+  { key: 'cache', labelKey: 'admin.models.groups.cache' },
+  { key: 'image', labelKey: 'admin.models.groups.image' }
+]
+
+export const MODEL_CATALOG_PRICING_FIELDS: ModelCatalogPricingField[] = [
+  { key: 'input_token_threshold', labelKey: 'admin.models.fields.inputThreshold', unit: 'threshold', group: 'inputTier' },
+  { key: 'input_cost_per_token', labelKey: 'admin.models.fields.inputCost', unit: 'token', group: 'inputTier' },
+  { key: 'input_cost_per_token_above_threshold', labelKey: 'admin.models.fields.inputCostAboveThreshold', unit: 'token', group: 'inputTier' },
+  { key: 'input_cost_per_token_priority', labelKey: 'admin.models.fields.inputPriorityCost', unit: 'token', group: 'inputTier' },
+  { key: 'input_cost_per_token_priority_above_threshold', labelKey: 'admin.models.fields.inputPriorityCostAboveThreshold', unit: 'token', group: 'inputTier' },
+  { key: 'output_token_threshold', labelKey: 'admin.models.fields.outputThreshold', unit: 'threshold', group: 'outputTier' },
+  { key: 'output_cost_per_token', labelKey: 'admin.models.fields.outputCost', unit: 'token', group: 'outputTier' },
+  { key: 'output_cost_per_token_above_threshold', labelKey: 'admin.models.fields.outputCostAboveThreshold', unit: 'token', group: 'outputTier' },
+  { key: 'output_cost_per_token_priority', labelKey: 'admin.models.fields.outputPriorityCost', unit: 'token', group: 'outputTier' },
+  { key: 'output_cost_per_token_priority_above_threshold', labelKey: 'admin.models.fields.outputPriorityCostAboveThreshold', unit: 'token', group: 'outputTier' },
+  { key: 'cache_creation_input_token_cost', labelKey: 'admin.models.fields.cacheCreationCost', unit: 'token', group: 'cache' },
+  { key: 'cache_creation_input_token_cost_above_1hr', labelKey: 'admin.models.fields.cacheCreationCostAbove1h', unit: 'token', group: 'cache' },
+  { key: 'cache_read_input_token_cost', labelKey: 'admin.models.fields.cacheReadCost', unit: 'token', group: 'cache' },
+  { key: 'cache_read_input_token_cost_priority', labelKey: 'admin.models.fields.cacheReadPriorityCost', unit: 'token', group: 'cache' },
+  { key: 'output_cost_per_image', labelKey: 'admin.models.fields.imageCost', unit: 'image', group: 'image' }
 ]
 
 export function tokenPriceToMillion(value?: number): number | null {
@@ -32,6 +49,9 @@ export function formatModelCatalogPrice(value?: number, unit: ModelCatalogPricin
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return '-'
   }
+  if (unit === 'threshold') {
+    return `${Math.trunc(value)} tokens`
+  }
   const normalized = unit === 'token' ? value * TOKENS_PER_MILLION : value
   return `$${normalized.toFixed(normalized >= 1 ? 4 : 6)}`
 }
@@ -39,6 +59,9 @@ export function formatModelCatalogPrice(value?: number, unit: ModelCatalogPricin
 export function pricingInputValue(value: number | undefined, unit: ModelCatalogPricingUnit): string {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return ''
+  }
+  if (unit === 'threshold') {
+    return String(Math.trunc(value))
   }
   const normalized = unit === 'token' ? tokenPriceToMillion(value) : value
   return normalized == null ? '' : String(normalized)
@@ -52,5 +75,18 @@ export function parsePricingInput(value: string, unit: ModelCatalogPricingUnit):
   if (!Number.isFinite(parsed) || parsed < 0) {
     return undefined
   }
+  if (unit === 'threshold') {
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined
+  }
   return unit === 'token' ? millionPriceToToken(parsed) : parsed
+}
+
+export function hasTieredPricing(pricing?: ModelCatalogPricing): boolean {
+  if (!pricing) {
+    return false
+  }
+  return Boolean(
+    (pricing.input_token_threshold && pricing.input_cost_per_token_above_threshold) ||
+      (pricing.output_token_threshold && pricing.output_cost_per_token_above_threshold)
+  )
 }
