@@ -263,9 +263,13 @@ func (s *OpenAIGatewayService) handleAnthropicErrorResponse(
 	return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
 }
 
-// handleAnthropicNonStreamingResponse reads a Responses API JSON response,
-// converts it to Anthropic Messages format, and writes it to the client.
-func (s *OpenAIGatewayService) handleAnthropicNonStreamingResponse(
+// handleAnthropicBufferedStreamingResponse reads all Responses SSE events from
+// the upstream streaming response, finds the terminal event (response.completed
+// / response.incomplete / response.failed), converts the complete response to
+// Anthropic Messages JSON format, and writes it to the client.
+// This is used when the client requested stream=false but the upstream is always
+// streaming.
+func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 	resp *http.Response,
 	c *gin.Context,
 	originalModel string,
@@ -274,28 +278,60 @@ func (s *OpenAIGatewayService) handleAnthropicNonStreamingResponse(
 ) (*OpenAIForwardResult, error) {
 	requestID := resp.Header.Get("x-request-id")
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read upstream response: %w", err)
-	}
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 
-	var responsesResp apicompat.ResponsesResponse
-	if err := json.Unmarshal(respBody, &responsesResp); err != nil {
-		return nil, fmt.Errorf("parse responses response: %w", err)
-	}
-
-	anthropicResp := apicompat.ResponsesToAnthropic(&responsesResp, originalModel)
-
+	var finalResponse *apicompat.ResponsesResponse
 	var usage OpenAIUsage
-	if responsesResp.Usage != nil {
-		usage = OpenAIUsage{
-			InputTokens:  responsesResp.Usage.InputTokens,
-			OutputTokens: responsesResp.Usage.OutputTokens,
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if !strings.HasPrefix(line, "data: ") || line == "data: [DONE]" {
+			continue
 		}
-		if responsesResp.Usage.InputTokensDetails != nil {
-			usage.CacheReadInputTokens = responsesResp.Usage.InputTokensDetails.CachedTokens
+		payload := line[6:]
+
+		var event apicompat.ResponsesStreamEvent
+		if err := json.Unmarshal([]byte(payload), &event); err != nil {
+			logger.L().Warn("openai messages buffered: failed to parse event",
+				zap.Error(err),
+				zap.String("request_id", requestID),
+			)
+			continue
+		}
+
+		// Terminal events carry the complete ResponsesResponse with output + usage.
+		if (event.Type == "response.completed" || event.Type == "response.incomplete" || event.Type == "response.failed") &&
+			event.Response != nil {
+			finalResponse = event.Response
+			if event.Response.Usage != nil {
+				usage = OpenAIUsage{
+					InputTokens:  event.Response.Usage.InputTokens,
+					OutputTokens: event.Response.Usage.OutputTokens,
+				}
+				if event.Response.Usage.InputTokensDetails != nil {
+					usage.CacheReadInputTokens = event.Response.Usage.InputTokensDetails.CachedTokens
+				}
+			}
 		}
 	}
+
+	if err := scanner.Err(); err != nil {
+		if !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
+			logger.L().Warn("openai messages buffered: read error",
+				zap.Error(err),
+				zap.String("request_id", requestID),
+			)
+		}
+	}
+
+	if finalResponse == nil {
+		writeAnthropicError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event")
+		return nil, fmt.Errorf("upstream stream ended without terminal event")
+	}
+
+	anthropicResp := apicompat.ResponsesToAnthropic(finalResponse, originalModel)
 
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
