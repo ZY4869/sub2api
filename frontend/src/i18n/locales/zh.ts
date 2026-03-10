@@ -326,6 +326,7 @@ export default {
 
   // Navigation
   nav: {
+    models: '模型库',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',
@@ -433,7 +434,12 @@ export default {
       callbackProcessing: '正在验证登录信息，请稍候...',
       callbackHint: '如果页面未自动跳转，请返回登录页重试。',
       callbackMissingToken: '登录信息缺失，请返回重试。',
-      backToLogin: '返回登录'
+      backToLogin: '返回登录',
+      invitationRequired: '该 Linux.do 账号尚未注册，站点已开启邀请码注册，请输入邀请码以完成注册。',
+      invalidPendingToken: '注册凭证已失效，请重新使用 Linux.do 登录。',
+      completeRegistration: '完成注册',
+      completing: '正在完成注册...',
+      completeRegistrationFailed: '注册失败，请检查邀请码后重试。'
     },
     oauth: {
       code: '授权码',
@@ -979,6 +985,101 @@ export default {
       systemSettings: '系统设置',
       configureSystem: '配置系统设置',
       failedToLoad: '加载仪表盘数据失败'
+    },
+
+    models: {
+      title: '模型库',
+      description: '查看模型元数据、当前生效价格和价格覆盖配置',
+      searchPlaceholder: '搜索模型名称',
+      unavailable: '不可用',
+      viewDetails: '查看详情',
+      emptyTitle: '暂无匹配模型',
+      emptyDescription: '请尝试调整搜索词或筛选条件',
+      loadFailed: '加载模型库失败',
+      detailLoadFailed: '加载模型详情失败',
+      saveSuccess: '价格覆盖已保存',
+      saveFailed: '保存价格覆盖失败',
+      resetSuccess: '已恢复源价格',
+      resetFailed: '重置价格覆盖失败',
+      detail: '模型详情',
+      detailTitle: '模型详情 · {model}',
+      routeReferences: '分组路由引用',
+      routeReferenceCount: '共 {count} 处引用',
+      noRouteReferences: '暂无分组路由引用',
+      saveOverride: '保存覆盖价',
+      resetOverride: '恢复源价格',
+      saving: '保存中...',
+      columns: {
+        model: '模型名',
+        provider: '提供方',
+        mode: '模式',
+        defaultAvailable: '默认可用',
+        pricingSource: '价格来源',
+        inputCost: '输入价',
+        outputCost: '输出价',
+        cacheCreationCost: '缓存创建价',
+        cacheReadCost: '缓存读取价',
+        imageCost: '图片价'
+      },
+      filters: {
+        allProviders: '全部提供方',
+        allModes: '全部模式',
+        allAvailability: '全部可用状态',
+        allPricingSources: '全部价格来源'
+      },
+      sources: {
+        dynamic: '动态价格',
+        fallback: '回退价格',
+        override: '覆盖价格',
+        none: '无价格'
+      },
+      referenceTypes: {
+        model_routing: '模型路由',
+        default_mapped_model: '默认映射模型',
+        supported_model_scope: '支持模型范围'
+      },
+      meta: {
+        provider: '提供方',
+        mode: '模式',
+        defaultPlatforms: '默认可用平台',
+        pricingSource: '价格来源',
+        promptCaching: 'Prompt Caching',
+        serviceTier: 'Service Tier',
+        longContext: '长上下文阈值'
+      },
+      pricing: {
+        field: '价格字段',
+        base: '基础价',
+        override: '覆盖价',
+        effective: '生效价'
+      },
+      editor: {
+        title: '编辑价格覆盖',
+        description: 'Token 类价格按每百万 Token 的美元价格填写；图片价格按每张图片的美元价格填写。',
+        validationRequired: '请输入用于覆盖的价格',
+        validationNonNegative: '请输入非负数'
+      },
+      units: {
+        perMillionTokens: 'USD / 1M tokens',
+        perImage: 'USD / image'
+      },
+      fields: {
+        inputCost: '输入价',
+        inputPriorityCost: '优先输入价',
+        outputCost: '输出价',
+        outputPriorityCost: '优先输出价',
+        cacheCreationCost: '缓存创建价',
+        cacheCreationCostAbove1h: '1 小时后缓存创建价',
+        cacheReadCost: '缓存读取价',
+        cacheReadPriorityCost: '优先缓存读取价',
+        imageCost: '图片价'
+      },
+      modes: {
+        chat: '对话',
+        image: '图片',
+        video: '视频',
+        promptEnhance: '提示词增强'
+      }
     },
 
     dataManagement: {
@@ -1983,7 +2084,12 @@ export default {
         edit: '批量编辑账号',
         delete: '批量删除',
         enableScheduling: '批量启用调度',
-        disableScheduling: '批量停止调度'
+        disableScheduling: '批量停止调度',
+        resetStatus: '批量重置状态',
+        refreshToken: '批量刷新令牌',
+        resetStatusSuccess: '已成功重置 {count} 个账号状态',
+        refreshTokenSuccess: '已成功刷新 {count} 个账号令牌',
+        partialSuccess: '操作部分完成：{success} 成功，{failed} 失败'
       },
       bulkEdit: {
         title: '批量编辑账号',

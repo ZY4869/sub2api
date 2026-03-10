@@ -327,6 +327,7 @@ export default {
   // Navigation
   nav: {
     dashboard: 'Dashboard',
+    models: 'Models',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     usage: 'Usage',
@@ -434,7 +435,12 @@ export default {
       callbackProcessing: 'Completing login, please wait...',
       callbackHint: 'If you are not redirected automatically, go back to the login page and try again.',
       callbackMissingToken: 'Missing login token, please try again.',
-      backToLogin: 'Back to Login'
+      backToLogin: 'Back to Login',
+      invitationRequired: 'This Linux.do account is not yet registered. The site requires an invitation code — please enter one to complete registration.',
+      invalidPendingToken: 'The registration token has expired. Please sign in with Linux.do again.',
+      completeRegistration: 'Complete Registration',
+      completing: 'Completing registration…',
+      completeRegistrationFailed: 'Registration failed. Please check your invitation code and try again.'
     },
     oauth: {
       code: 'Code',
@@ -957,6 +963,101 @@ export default {
       noDataAvailable: 'No data available',
       recentUsage: 'Recent Usage',
       failedToLoad: 'Failed to load dashboard statistics'
+    },
+
+    models: {
+      title: 'Model Catalog',
+      description: 'Browse model metadata, effective pricing, and pricing overrides',
+      searchPlaceholder: 'Search model name',
+      unavailable: 'Unavailable',
+      viewDetails: 'View Details',
+      emptyTitle: 'No models found',
+      emptyDescription: 'Try adjusting the search or filters',
+      loadFailed: 'Failed to load model catalog',
+      detailLoadFailed: 'Failed to load model details',
+      saveSuccess: 'Pricing override saved',
+      saveFailed: 'Failed to save pricing override',
+      resetSuccess: 'Pricing override reset',
+      resetFailed: 'Failed to reset pricing override',
+      detail: 'Model Details',
+      detailTitle: 'Model Details · {model}',
+      routeReferences: 'Group Route References',
+      routeReferenceCount: '{count} references',
+      noRouteReferences: 'No group route references',
+      saveOverride: 'Save Override',
+      resetOverride: 'Reset to Source Price',
+      saving: 'Saving...',
+      columns: {
+        model: 'Model',
+        provider: 'Provider',
+        mode: 'Mode',
+        defaultAvailable: 'Default Availability',
+        pricingSource: 'Pricing Source',
+        inputCost: 'Input Price',
+        outputCost: 'Output Price',
+        cacheCreationCost: 'Cache Create Price',
+        cacheReadCost: 'Cache Read Price',
+        imageCost: 'Image Price'
+      },
+      filters: {
+        allProviders: 'All Providers',
+        allModes: 'All Modes',
+        allAvailability: 'All Availability',
+        allPricingSources: 'All Pricing Sources'
+      },
+      sources: {
+        dynamic: 'Dynamic',
+        fallback: 'Fallback',
+        override: 'Override',
+        none: 'No Price'
+      },
+      referenceTypes: {
+        model_routing: 'Model Routing',
+        default_mapped_model: 'Default Mapped Model',
+        supported_model_scope: 'Supported Scope'
+      },
+      meta: {
+        provider: 'Provider',
+        mode: 'Mode',
+        defaultPlatforms: 'Default Platforms',
+        pricingSource: 'Pricing Source',
+        promptCaching: 'Prompt Caching',
+        serviceTier: 'Service Tier',
+        longContext: 'Long Context Threshold'
+      },
+      pricing: {
+        field: 'Price Field',
+        base: 'Base Price',
+        override: 'Override Price',
+        effective: 'Effective Price'
+      },
+      editor: {
+        title: 'Edit Pricing Override',
+        description: 'Token prices use USD per 1M tokens; image prices use USD per image.',
+        validationRequired: 'Enter a value to override this field',
+        validationNonNegative: 'Enter a non-negative number'
+      },
+      units: {
+        perMillionTokens: 'USD / 1M tokens',
+        perImage: 'USD / image'
+      },
+      fields: {
+        inputCost: 'Input Price',
+        inputPriorityCost: 'Input Priority Price',
+        outputCost: 'Output Price',
+        outputPriorityCost: 'Output Priority Price',
+        cacheCreationCost: 'Cache Create Price',
+        cacheCreationCostAbove1h: 'Cache Create Price (>1h)',
+        cacheReadCost: 'Cache Read Price',
+        cacheReadPriorityCost: 'Cache Read Priority Price',
+        imageCost: 'Image Price'
+      },
+      modes: {
+        chat: 'Chat',
+        image: 'Image',
+        video: 'Video',
+        promptEnhance: 'Prompt Enhance'
+      }
     },
 
     dataManagement: {
@@ -1836,7 +1937,12 @@ export default {
         edit: 'Bulk Edit',
         delete: 'Bulk Delete',
         enableScheduling: 'Enable Scheduling',
-        disableScheduling: 'Disable Scheduling'
+        disableScheduling: 'Disable Scheduling',
+        resetStatus: 'Reset Status',
+        refreshToken: 'Refresh Token',
+        resetStatusSuccess: 'Successfully reset {count} account(s) status',
+        refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
+        partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
       },
       bulkEdit: {
         title: 'Bulk Edit Accounts',

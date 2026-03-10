@@ -73,6 +73,9 @@ type LiteLLMRawEntry struct {
 	CacheCreationInputTokenCostAbove1hr *float64 `json:"cache_creation_input_token_cost_above_1hr"`
 	CacheReadInputTokenCost             *float64 `json:"cache_read_input_token_cost"`
 	CacheReadInputTokenCostPriority     *float64 `json:"cache_read_input_token_cost_priority"`
+	LongContextInputTokenThreshold      *int     `json:"long_context_input_token_threshold"`
+	LongContextInputCostMultiplier      *float64 `json:"long_context_input_cost_multiplier"`
+	LongContextOutputCostMultiplier     *float64 `json:"long_context_output_cost_multiplier"`
 	SupportsServiceTier                 bool     `json:"supports_service_tier"`
 	LiteLLMProvider                     string   `json:"litellm_provider"`
 	Mode                                string   `json:"mode"`
@@ -324,7 +327,7 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 
 		// 只保留有有效价格的条目
-		if entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil {
+		if !hasAnyPricingValue(entry) {
 			continue
 		}
 
@@ -358,6 +361,15 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.CacheReadInputTokenCostPriority != nil {
 			pricing.CacheReadInputTokenCostPriority = *entry.CacheReadInputTokenCostPriority
+		}
+		if entry.LongContextInputTokenThreshold != nil {
+			pricing.LongContextInputTokenThreshold = *entry.LongContextInputTokenThreshold
+		}
+		if entry.LongContextInputCostMultiplier != nil {
+			pricing.LongContextInputCostMultiplier = *entry.LongContextInputCostMultiplier
+		}
+		if entry.LongContextOutputCostMultiplier != nil {
+			pricing.LongContextOutputCostMultiplier = *entry.LongContextOutputCostMultiplier
 		}
 		if entry.OutputCostPerImage != nil {
 			pricing.OutputCostPerImage = *entry.OutputCostPerImage
@@ -564,6 +576,43 @@ func (s *PricingService) buildModelLookupCandidates(modelLower string) []string 
 		return []string{modelLower}
 	}
 	return out
+}
+
+func hasAnyPricingValue(entry LiteLLMRawEntry) bool {
+	return entry.InputCostPerToken != nil ||
+		entry.InputCostPerTokenPriority != nil ||
+		entry.OutputCostPerToken != nil ||
+		entry.OutputCostPerTokenPriority != nil ||
+		entry.CacheCreationInputTokenCost != nil ||
+		entry.CacheCreationInputTokenCostAbove1hr != nil ||
+		entry.CacheReadInputTokenCost != nil ||
+		entry.CacheReadInputTokenCostPriority != nil ||
+		entry.OutputCostPerImage != nil
+}
+
+// GetPricingSnapshot returns a defensive copy of the in-memory pricing catalog.
+func (s *PricingService) GetPricingSnapshot() map[string]*LiteLLMModelPricing {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	snapshot := make(map[string]*LiteLLMModelPricing, len(s.pricingData))
+	for model, pricing := range s.pricingData {
+		snapshot[model] = cloneLiteLLMModelPricing(pricing)
+	}
+	return snapshot
+}
+
+func cloneLiteLLMModelPricing(pricing *LiteLLMModelPricing) *LiteLLMModelPricing {
+	if pricing == nil {
+		return nil
+	}
+	copy := *pricing
+	return &copy
+}
+
+// CanonicalizeModelNameForPricing normalizes model identifiers for pricing catalog usage.
+func CanonicalizeModelNameForPricing(model string) string {
+	return strings.ToLower(normalizeModelNameForPricing(model))
 }
 
 func normalizeModelNameForPricing(model string) string {

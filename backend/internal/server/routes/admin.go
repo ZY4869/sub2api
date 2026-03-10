@@ -78,9 +78,20 @@ func RegisterAdminRoutes(
 
 		// API Key 管理
 		registerAdminAPIKeyRoutes(admin, h)
+		registerModelCatalogRoutes(admin, h)
 
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
+	}
+}
+
+func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	models := admin.Group("/models")
+	{
+		models.GET("", h.Admin.ModelCatalog.List)
+		models.GET("/detail", h.Admin.ModelCatalog.Detail)
+		models.PUT("/pricing-override", h.Admin.ModelCatalog.UpsertPricingOverride)
+		models.DELETE("/pricing-override", h.Admin.ModelCatalog.DeletePricingOverride)
 	}
 }
 
@@ -264,6 +275,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/batch-update-credentials", h.Admin.Account.BatchUpdateCredentials)
 		accounts.POST("/batch-refresh-tier", h.Admin.Account.BatchRefreshTier)
 		accounts.POST("/bulk-update", h.Admin.Account.BulkUpdate)
+		accounts.POST("/batch-clear-error", h.Admin.Account.BatchClearError)
+		accounts.POST("/batch-refresh", h.Admin.Account.BatchRefresh)
 
 		// Antigravity 默认模型映射
 		accounts.GET("/antigravity/default-model-mapping", h.Admin.Account.GetAntigravityDefaultModelMapping)

@@ -263,5 +263,24 @@ describe('路由守卫逻辑', () => {
       const redirect = simulateGuard('/keys', {}, authState)
       expect(redirect).toBeNull()
     })
+    it('绠＄悊鍛樼畝鏄撴ā寮忎笅 /admin/models 姝ｅ父璁块棶', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: true,
+        isSimpleMode: true,
+      }
+      const redirect = simulateGuard('/admin/models', { requiresAdmin: true }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('鏅€氱敤鎴疯闂?/admin/models 閲嶅畾鍚戝埌 /dashboard', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: false,
+        isSimpleMode: false,
+      }
+      const redirect = simulateGuard('/admin/models', { requiresAdmin: true }, authState)
+      expect(redirect).toBe('/dashboard')
+    })
   })
 })

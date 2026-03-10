@@ -23,6 +23,7 @@ import errorPassthroughAPI from './errorPassthrough'
 import dataManagementAPI from './dataManagement'
 import apiKeysAPI from './apiKeys'
 import scheduledTestsAPI from './scheduledTests'
+import modelsAPI from './models'
 
 /**
  * Unified admin API object for convenient access
@@ -47,6 +48,7 @@ export const adminAPI = {
   errorPassthrough: errorPassthroughAPI,
   dataManagement: dataManagementAPI,
   apiKeys: apiKeysAPI,
+  models: modelsAPI,
   scheduledTests: scheduledTestsAPI
 }
 
@@ -70,6 +72,7 @@ export {
   errorPassthroughAPI,
   dataManagementAPI,
   apiKeysAPI,
+  modelsAPI,
   scheduledTestsAPI
 }
 
@@ -79,3 +82,4 @@ export default adminAPI
 export type { BalanceHistoryItem } from './users'
 export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from './errorPassthrough'
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
+export type { ModelCatalogItem, ModelCatalogDetail, ModelCatalogPricing, UpdatePricingOverridePayload } from './models'

@@ -27,6 +27,7 @@ type AdminHandlers struct {
 	UserAttribute    *admin.UserAttributeHandler
 	ErrorPassthrough *admin.ErrorPassthroughHandler
 	APIKey           *admin.AdminAPIKeyHandler
+	ModelCatalog     *admin.ModelCatalogHandler
 	ScheduledTest    *admin.ScheduledTestHandler
 }
 

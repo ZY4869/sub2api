@@ -1,0 +1,107 @@
+import { apiClient } from '../client'
+import type { PaginatedResponse } from '@/types'
+
+export type ModelCatalogPricingSource = 'none' | 'dynamic' | 'fallback' | 'override'
+
+export interface ModelCatalogPricing {
+  input_cost_per_token?: number
+  input_cost_per_token_priority?: number
+  output_cost_per_token?: number
+  output_cost_per_token_priority?: number
+  cache_creation_input_token_cost?: number
+  cache_creation_input_token_cost_above_1hr?: number
+  cache_read_input_token_cost?: number
+  cache_read_input_token_cost_priority?: number
+  output_cost_per_image?: number
+}
+
+export interface ModelPricingOverride extends ModelCatalogPricing {
+  updated_at: string
+  updated_by_user_id: number
+  updated_by_email?: string
+}
+
+export interface ModelCatalogRouteReference {
+  group_id: number
+  group_name: string
+  platform: string
+  reference_types: string[]
+  matched_routing_patterns?: string[]
+}
+
+export interface ModelCatalogItem {
+  model: string
+  provider?: string
+  mode?: string
+  default_available: boolean
+  default_platforms?: string[]
+  pricing_source: ModelCatalogPricingSource
+  base_pricing_source: Exclude<ModelCatalogPricingSource, 'override'>
+  has_override: boolean
+  effective_pricing?: ModelCatalogPricing
+  supports_prompt_caching: boolean
+  supports_service_tier: boolean
+  long_context_input_token_threshold?: number
+  long_context_input_cost_multiplier?: number
+  long_context_output_cost_multiplier?: number
+}
+
+export interface ModelCatalogDetail extends ModelCatalogItem {
+  base_pricing?: ModelCatalogPricing
+  override_pricing?: ModelPricingOverride
+  route_references: ModelCatalogRouteReference[]
+  route_reference_count: number
+}
+
+export interface ListModelsParams {
+  search?: string
+  provider?: string
+  mode?: string
+  availability?: 'available' | 'unavailable'
+  pricing_source?: ModelCatalogPricingSource
+  page?: number
+  page_size?: number
+}
+
+export interface UpdatePricingOverridePayload extends ModelCatalogPricing {
+  model: string
+}
+
+export async function listModels(
+  params: ListModelsParams = {}
+): Promise<PaginatedResponse<ModelCatalogItem>> {
+  const { data } = await apiClient.get<PaginatedResponse<ModelCatalogItem>>('/admin/models', {
+    params
+  })
+  return data
+}
+
+export async function getModelDetail(model: string): Promise<ModelCatalogDetail> {
+  const { data } = await apiClient.get<ModelCatalogDetail>('/admin/models/detail', {
+    params: { model }
+  })
+  return data
+}
+
+export async function updatePricingOverride(
+  payload: UpdatePricingOverridePayload
+): Promise<ModelCatalogDetail> {
+  const { data } = await apiClient.put<ModelCatalogDetail>('/admin/models/pricing-override', payload)
+  return data
+}
+
+export async function deletePricingOverride(model: string): Promise<{ model: string }> {
+  const { data } = await apiClient.delete<{ model: string }>('/admin/models/pricing-override', {
+    params: { model }
+  })
+  return data
+}
+
+export const modelsAPI = {
+  listModels,
+  getModelDetail,
+  updatePricingOverride,
+  deletePricingOverride
+}
+
+export default modelsAPI
