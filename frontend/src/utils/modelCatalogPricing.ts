@@ -1,5 +1,5 @@
+import type { ModelCatalogExchangeRate, ModelCatalogPricing } from '@/api/admin/models'
 import { TOKENS_PER_MILLION } from './usagePricing'
-import type { ModelCatalogPricing } from '@/api/admin/models'
 
 export type ModelCatalogPricingKey = keyof ModelCatalogPricing
 export type ModelCatalogPricingUnit = 'token' | 'image' | 'threshold'
@@ -45,6 +45,17 @@ export function millionPriceToToken(value?: number | null): number | undefined {
   return typeof value === 'number' ? value / TOKENS_PER_MILLION : undefined
 }
 
+function normalizeDisplayValue(value: number, unit: ModelCatalogPricingUnit): number {
+  return unit === 'token' ? value * TOKENS_PER_MILLION : value
+}
+
+const CNY_SYMBOL = '\u00A5'
+const APPROX_PREFIX = '\u2248 '
+
+function formatCurrency(amount: number, symbol: string, precision = amount >= 1 ? 4 : 6): string {
+  return `${symbol}${amount.toFixed(precision)}`
+}
+
 export function formatModelCatalogPrice(value?: number, unit: ModelCatalogPricingUnit = 'token'): string {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return '-'
@@ -52,8 +63,30 @@ export function formatModelCatalogPrice(value?: number, unit: ModelCatalogPricin
   if (unit === 'threshold') {
     return `${Math.trunc(value)} tokens`
   }
-  const normalized = unit === 'token' ? value * TOKENS_PER_MILLION : value
-  return `$${normalized.toFixed(normalized >= 1 ? 4 : 6)}`
+  return formatCurrency(normalizeDisplayValue(value, unit), '$')
+}
+
+export function formatModelCatalogCNYReference(
+  value?: number,
+  unit: ModelCatalogPricingUnit = 'token',
+  exchangeRate?: Pick<ModelCatalogExchangeRate, 'rate'> | null
+): string | null {
+  if (typeof value !== 'number' || Number.isNaN(value) || !exchangeRate?.rate || unit === 'threshold') {
+    return null
+  }
+  const cnyValue = normalizeDisplayValue(value, unit) * exchangeRate.rate
+  return `${APPROX_PREFIX}${formatCurrency(cnyValue, CNY_SYMBOL, cnyValue >= 1 ? 2 : 4)}`
+}
+
+export function formatModelCatalogPricePair(
+  value?: number,
+  unit: ModelCatalogPricingUnit = 'token',
+  exchangeRate?: Pick<ModelCatalogExchangeRate, 'rate'> | null
+) {
+  return {
+    usd: formatModelCatalogPrice(value, unit),
+    cny: formatModelCatalogCNYReference(value, unit, exchangeRate)
+  }
 }
 
 export function pricingInputValue(value: number | undefined, unit: ModelCatalogPricingUnit): string {

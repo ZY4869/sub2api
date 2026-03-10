@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <AppLayout>
     <TablePageLayout>
       <template #filters>
@@ -22,7 +22,20 @@
       </template>
 
       <template #table>
-        <ModelCatalogTable :items="items" :loading="loading" @inspect="openDetail" />
+        <div class="space-y-4">
+          <div
+            v-if="exchangeRate"
+            class="rounded-xl border border-gray-200 bg-gray-50/80 px-4 py-3 text-sm text-gray-600 dark:border-dark-700 dark:bg-dark-900/70 dark:text-gray-300"
+          >
+            {{ t('admin.models.exchangeRateHint', { rate: exchangeRate.rate.toFixed(4), date: exchangeRate.date }) }}
+          </div>
+          <ModelCatalogTable
+            :items="items"
+            :loading="loading"
+            :exchange-rate="exchangeRate"
+            @inspect="openDetail"
+          />
+        </div>
       </template>
 
       <template #pagination>
@@ -35,9 +48,12 @@
       :detail="detail"
       :loading="detailLoading"
       :saving="saving"
+      :exchange-rate="exchangeRate"
       @close="closeDetail"
-      @save="saveOverride"
-      @reset="resetOverride"
+      @save-official="saveOfficialOverride"
+      @reset-official="resetOfficialOverride"
+      @save-sale="saveSaleOverride"
+      @reset-sale="resetSaleOverride"
     />
   </AppLayout>
 </template>
@@ -52,6 +68,7 @@ import type { SelectOption } from '@/components/common/Select.vue'
 import {
   modelsAPI,
   type ModelCatalogDetail,
+  type ModelCatalogExchangeRate,
   type ModelCatalogItem,
   type ModelCatalogPricingSource,
   type UpdatePricingOverridePayload
@@ -70,6 +87,7 @@ const saving = ref(false)
 const dialogOpen = ref(false)
 const items = ref<ModelCatalogItem[]>([])
 const detail = ref<ModelCatalogDetail | null>(null)
+const exchangeRate = ref<ModelCatalogExchangeRate | null>(null)
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -133,6 +151,14 @@ async function loadModels(resetPage = false) {
   }
 }
 
+async function loadExchangeRate() {
+  try {
+    exchangeRate.value = await modelsAPI.getExchangeRate()
+  } catch {
+    exchangeRate.value = null
+  }
+}
+
 async function openDetail(model: string) {
   dialogOpen.value = true
   detailLoading.value = true
@@ -151,28 +177,55 @@ function closeDetail() {
   detail.value = null
 }
 
-async function saveOverride(payload: UpdatePricingOverridePayload) {
+async function saveOfficialOverride(payload: UpdatePricingOverridePayload) {
   saving.value = true
   try {
-    detail.value = await modelsAPI.updatePricingOverride(payload)
-    appStore.showSuccess(t('admin.models.saveSuccess'))
+    detail.value = await modelsAPI.updateOfficialPricingOverride(payload)
+    appStore.showSuccess(t('admin.models.officialSaveSuccess'))
     await loadModels()
   } catch (error) {
-    appStore.showError(extractErrorMessage(error, t('admin.models.saveFailed')))
+    appStore.showError(extractErrorMessage(error, t('admin.models.officialSaveFailed')))
   } finally {
     saving.value = false
   }
 }
 
-async function resetOverride(model: string) {
+async function resetOfficialOverride(model: string) {
+  saving.value = true
+  try {
+    await modelsAPI.deleteOfficialPricingOverride(model)
+    detail.value = await modelsAPI.getModelDetail(model)
+    appStore.showSuccess(t('admin.models.officialResetSuccess'))
+    await loadModels()
+  } catch (error) {
+    appStore.showError(extractErrorMessage(error, t('admin.models.officialResetFailed')))
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveSaleOverride(payload: UpdatePricingOverridePayload) {
+  saving.value = true
+  try {
+    detail.value = await modelsAPI.updatePricingOverride(payload)
+    appStore.showSuccess(t('admin.models.saleSaveSuccess'))
+    await loadModels()
+  } catch (error) {
+    appStore.showError(extractErrorMessage(error, t('admin.models.saleSaveFailed')))
+  } finally {
+    saving.value = false
+  }
+}
+
+async function resetSaleOverride(model: string) {
   saving.value = true
   try {
     await modelsAPI.deletePricingOverride(model)
     detail.value = await modelsAPI.getModelDetail(model)
-    appStore.showSuccess(t('admin.models.resetSuccess'))
+    appStore.showSuccess(t('admin.models.saleResetSuccess'))
     await loadModels()
   } catch (error) {
-    appStore.showError(extractErrorMessage(error, t('admin.models.resetFailed')))
+    appStore.showError(extractErrorMessage(error, t('admin.models.saleResetFailed')))
   } finally {
     saving.value = false
   }
@@ -202,5 +255,6 @@ function extractErrorMessage(error: unknown, fallback: string) {
 
 onMounted(() => {
   loadModels()
+  loadExchangeRate()
 })
 </script>

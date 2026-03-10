@@ -11,11 +11,12 @@ import (
 )
 
 type ModelCatalogService struct {
-	settingRepo    SettingRepository
-	adminService   AdminService
-	billingService *BillingService
-	pricingService *PricingService
-	cfg            *config.Config
+	settingRepo         SettingRepository
+	adminService        AdminService
+	billingService      *BillingService
+	pricingService      *PricingService
+	exchangeRateService *ModelCatalogExchangeRateService
+	cfg                 *config.Config
 }
 
 func NewModelCatalogService(
@@ -26,14 +27,16 @@ func NewModelCatalogService(
 	cfg *config.Config,
 ) *ModelCatalogService {
 	service := &ModelCatalogService{
-		settingRepo:    settingRepo,
-		adminService:   adminService,
-		billingService: billingService,
-		pricingService: pricingService,
-		cfg:            cfg,
+		settingRepo:         settingRepo,
+		adminService:        adminService,
+		billingService:      billingService,
+		pricingService:      pricingService,
+		exchangeRateService: newModelCatalogExchangeRateService(nil),
+		cfg:                 cfg,
 	}
 	if billingService != nil {
-		billingService.ReplaceModelPriceOverrides(service.loadPriceOverrides(context.Background()))
+		billingService.ReplaceModelOfficialPriceOverrides(service.loadOfficialPriceOverrides(context.Background()))
+		billingService.ReplaceModelPriceOverrides(service.loadSalePriceOverrides(context.Background()))
 	}
 	return service
 }
@@ -50,7 +53,12 @@ func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalo
 			items = append(items, item)
 		}
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Model < items[j].Model })
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].DisplayName == items[j].DisplayName {
+			return items[i].Model < items[j].Model
+		}
+		return items[i].DisplayName < items[j].DisplayName
+	})
 	total := int64(len(items))
 	page, pageSize := normalizeListPagination(filter.Page, filter.PageSize)
 	start := (page - 1) * pageSize
@@ -81,21 +89,27 @@ func (s *ModelCatalogService) GetModelDetail(ctx context.Context, model string) 
 	if err != nil {
 		return nil, err
 	}
-	detail := &ModelCatalogDetail{
-		ModelCatalogItem:    recordToModelCatalogItem(record),
-		BasePricing:         cloneCatalogPricing(record.basePricing),
-		OverridePricing:     record.overridePricing,
-		RouteReferences:     routeReferences,
-		RouteReferenceCount: len(routeReferences),
-	}
-	return detail, nil
+	return &ModelCatalogDetail{
+		ModelCatalogItem:        recordToModelCatalogItem(record),
+		UpstreamPricing:         cloneCatalogPricing(record.upstreamPricing),
+		OfficialOverridePricing: cloneModelPricingOverride(record.officialOverridePricing),
+		SaleOverridePricing:     cloneModelPricingOverride(record.saleOverridePricing),
+		BasePricing:             cloneCatalogPricing(record.officialPricing),
+		OverridePricing:         cloneModelPricingOverride(record.saleOverridePricing),
+		RouteReferences:         routeReferences,
+		RouteReferenceCount:     len(routeReferences),
+	}, nil
 }
 
-func (s *ModelCatalogService) UpsertPricingOverride(
-	ctx context.Context,
-	actor ModelCatalogActor,
-	input UpsertModelPricingOverrideInput,
-) (*ModelCatalogDetail, error) {
+func (s *ModelCatalogService) UpsertOfficialPricingOverride(ctx context.Context, actor ModelCatalogActor, input UpsertModelPricingOverrideInput) (*ModelCatalogDetail, error) {
+	return s.upsertPricingOverrideByLayer(ctx, actor, input, true)
+}
+
+func (s *ModelCatalogService) UpsertPricingOverride(ctx context.Context, actor ModelCatalogActor, input UpsertModelPricingOverrideInput) (*ModelCatalogDetail, error) {
+	return s.upsertPricingOverrideByLayer(ctx, actor, input, false)
+}
+
+func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, actor ModelCatalogActor, input UpsertModelPricingOverrideInput, official bool) (*ModelCatalogDetail, error) {
 	canonicalModel := CanonicalizeModelNameForPricing(input.Model)
 	if canonicalModel == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
@@ -111,44 +125,82 @@ func (s *ModelCatalogService) UpsertPricingOverride(
 	if err := validateOverridePricing(input.ModelCatalogPricing); err != nil {
 		return nil, err
 	}
-	overrides := s.loadPriceOverrides(ctx)
-	override := overrides[canonicalModel]
+
+	var overrides map[string]*ModelPricingOverride
+	var override *ModelPricingOverride
+	var effectivePricing *ModelCatalogPricing
+	if official {
+		overrides = s.loadOfficialPriceOverrides(ctx)
+		override = overrides[canonicalModel]
+		effectivePricing = cloneCatalogPricing(record.upstreamPricing)
+	} else {
+		overrides = s.loadSalePriceOverrides(ctx)
+		override = overrides[canonicalModel]
+		effectivePricing = cloneCatalogPricing(record.officialPricing)
+	}
 	if override == nil {
 		override = &ModelPricingOverride{}
 	}
-	effectivePricing := cloneCatalogPricing(record.basePricing)
 	if effectivePricing == nil {
 		effectivePricing = &ModelCatalogPricing{}
 	}
-	if override != nil {
-		mergeCatalogPricing(effectivePricing, &override.ModelCatalogPricing)
-	}
+	mergeCatalogPricing(effectivePricing, &override.ModelCatalogPricing)
 	mergeCatalogPricing(effectivePricing, &input.ModelCatalogPricing)
 	if err := validateTieredPricingConfiguration(effectivePricing); err != nil {
 		return nil, err
 	}
+
 	mergeCatalogPricing(&override.ModelCatalogPricing, &input.ModelCatalogPricing)
 	override.UpdatedAt = time.Now().UTC()
 	override.UpdatedByUserID = actor.UserID
 	override.UpdatedByEmail = strings.TrimSpace(actor.Email)
 	overrides[canonicalModel] = override
-	if err := s.persistPriceOverrides(ctx, overrides); err != nil {
-		return nil, err
-	}
-	if s.billingService != nil {
-		s.billingService.ReplaceModelPriceOverrides(overrides)
+
+	if official {
+		if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
+			return nil, err
+		}
+		if s.billingService != nil {
+			s.billingService.ReplaceModelOfficialPriceOverrides(overrides)
+		}
+	} else {
+		if err := s.persistSalePriceOverrides(ctx, overrides); err != nil {
+			return nil, err
+		}
+		if s.billingService != nil {
+			s.billingService.ReplaceModelPriceOverrides(overrides)
+		}
 	}
 	return s.GetModelDetail(ctx, canonicalModel)
 }
 
+func (s *ModelCatalogService) DeleteOfficialPricingOverride(ctx context.Context, _ ModelCatalogActor, model string) error {
+	return s.deletePricingOverrideByLayer(ctx, model, true)
+}
+
 func (s *ModelCatalogService) DeletePricingOverride(ctx context.Context, _ ModelCatalogActor, model string) error {
+	return s.deletePricingOverrideByLayer(ctx, model, false)
+}
+
+func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, model string, official bool) error {
 	canonicalModel := CanonicalizeModelNameForPricing(model)
 	if canonicalModel == "" {
 		return infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
-	overrides := s.loadPriceOverrides(ctx)
+	if official {
+		overrides := s.loadOfficialPriceOverrides(ctx)
+		delete(overrides, canonicalModel)
+		if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
+			return err
+		}
+		if s.billingService != nil {
+			s.billingService.ReplaceModelOfficialPriceOverrides(overrides)
+		}
+		return nil
+	}
+	overrides := s.loadSalePriceOverrides(ctx)
 	delete(overrides, canonicalModel)
-	if err := s.persistPriceOverrides(ctx, overrides); err != nil {
+	if err := s.persistSalePriceOverrides(ctx, overrides); err != nil {
 		return err
 	}
 	if s.billingService != nil {
@@ -157,25 +209,36 @@ func (s *ModelCatalogService) DeletePricingOverride(ctx context.Context, _ Model
 	return nil
 }
 
+func (s *ModelCatalogService) GetUSDCNYExchangeRate(ctx context.Context) (*ModelCatalogExchangeRate, error) {
+	if s.exchangeRateService == nil {
+		s.exchangeRateService = newModelCatalogExchangeRateService(nil)
+	}
+	return s.exchangeRateService.GetUSDCNY(ctx)
+}
+
 func recordToModelCatalogItem(record *modelCatalogRecord) ModelCatalogItem {
-	effectivePricing := applyPricingOverride(record.basePricing, record.overridePricing)
 	pricingSource := record.basePricingSource
-	if record.overridePricing != nil {
+	if record.officialOverridePricing != nil || record.saleOverridePricing != nil {
 		pricingSource = ModelCatalogPricingSourceOverride
 	}
 	if pricingSource == "" {
 		pricingSource = ModelCatalogPricingSourceNone
 	}
+	salePricing := cloneCatalogPricing(record.salePricing)
 	return ModelCatalogItem{
 		Model:                           record.model,
+		DisplayName:                     record.displayName,
+		IconKey:                         record.iconKey,
 		Provider:                        record.provider,
 		Mode:                            record.mode,
 		DefaultAvailable:                record.defaultAvailable,
 		DefaultPlatforms:                record.defaultPlatforms,
 		PricingSource:                   pricingSource,
 		BasePricingSource:               record.basePricingSource,
-		HasOverride:                     record.overridePricing != nil,
-		EffectivePricing:                effectivePricing,
+		HasOverride:                     record.officialOverridePricing != nil || record.saleOverridePricing != nil,
+		OfficialPricing:                 cloneCatalogPricing(record.officialPricing),
+		SalePricing:                     salePricing,
+		EffectivePricing:                salePricing,
 		SupportsPromptCaching:           record.supportsPromptCaching,
 		SupportsServiceTier:             record.supportsServiceTier,
 		LongContextInputTokenThreshold:  record.longContextInputTokenThreshold,
@@ -188,7 +251,7 @@ func matchesModelCatalogFilter(item ModelCatalogItem, filter ModelCatalogListFil
 	contains := func(value string, keyword string) bool {
 		return strings.Contains(strings.ToLower(value), strings.ToLower(strings.TrimSpace(keyword)))
 	}
-	if keyword := strings.TrimSpace(filter.Search); keyword != "" && !contains(item.Model, keyword) && !contains(item.Provider, keyword) {
+	if keyword := strings.TrimSpace(filter.Search); keyword != "" && !contains(item.Model, keyword) && !contains(item.DisplayName, keyword) && !contains(item.Provider, keyword) {
 		return false
 	}
 	if provider := strings.TrimSpace(filter.Provider); provider != "" && !strings.EqualFold(provider, item.Provider) {

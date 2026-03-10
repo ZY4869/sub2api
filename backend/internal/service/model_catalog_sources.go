@@ -19,13 +19,18 @@ type defaultModelMetadata struct {
 
 type modelCatalogRecord struct {
 	model                           string
+	displayName                     string
+	iconKey                         string
 	provider                        string
 	mode                            string
 	defaultAvailable                bool
 	defaultPlatforms                []string
-	basePricing                     *ModelCatalogPricing
+	upstreamPricing                 *ModelCatalogPricing
 	basePricingSource               string
-	overridePricing                 *ModelPricingOverride
+	officialOverridePricing         *ModelPricingOverride
+	officialPricing                 *ModelCatalogPricing
+	saleOverridePricing             *ModelPricingOverride
+	salePricing                     *ModelCatalogPricing
 	supportsPromptCaching           bool
 	supportsServiceTier             bool
 	longContextInputTokenThreshold  int
@@ -39,8 +44,9 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	if s.pricingService != nil {
 		pricingSnapshot = s.pricingService.GetPricingSnapshot()
 	}
-	overrides := s.loadPriceOverrides(ctx)
-	records := make(map[string]*modelCatalogRecord, len(defaultRegistry)+len(pricingSnapshot)+len(overrides))
+	officialOverrides := s.loadOfficialPriceOverrides(ctx)
+	saleOverrides := s.loadSalePriceOverrides(ctx)
+	records := make(map[string]*modelCatalogRecord, len(defaultRegistry)+len(pricingSnapshot)+len(officialOverrides)+len(saleOverrides))
 
 	for model, meta := range defaultRegistry {
 		record := ensureCatalogRecord(records, model)
@@ -49,7 +55,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	for rawModel, pricing := range pricingSnapshot {
 		model := CanonicalizeModelNameForPricing(rawModel)
 		record := ensureCatalogRecord(records, model)
-		record.basePricing = pricingFromLiteLLM(pricing)
+		record.upstreamPricing = pricingFromLiteLLM(pricing)
 		record.basePricingSource = ModelCatalogPricingSourceDynamic
 		mergeRecordMetadata(record, pricing.LiteLLMProvider, pricing.Mode)
 		record.supportsPromptCaching = pricing.SupportsPromptCaching
@@ -60,26 +66,28 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	}
 	for model, meta := range defaultRegistry {
 		record := ensureCatalogRecord(records, model)
-		if record.basePricing != nil {
-			continue
-		}
-		if s.billingService == nil {
+		if record.upstreamPricing != nil || s.billingService == nil {
 			continue
 		}
 		pricing, err := s.billingService.GetModelPricing(model)
 		if err != nil || pricing == nil {
 			continue
 		}
-		record.basePricing = pricingFromBilling(pricing)
+		record.upstreamPricing = pricingFromBilling(pricing)
 		record.basePricingSource = ModelCatalogPricingSourceFallback
 		mergeRecordMetadata(record, meta.provider, meta.mode)
 		record.longContextInputTokenThreshold = pricing.LongContextInputThreshold
 		record.longContextInputCostMultiplier = pricing.LongContextInputMultiplier
 		record.longContextOutputCostMultiplier = pricing.LongContextOutputMultiplier
 	}
-	for model, override := range overrides {
+	for model, override := range officialOverrides {
 		record := ensureCatalogRecord(records, model)
-		record.overridePricing = override
+		record.officialOverridePricing = override
+		mergeRecordMetadata(record, inferModelProvider(model), inferModelMode(model, record.mode))
+	}
+	for model, override := range saleOverrides {
+		record := ensureCatalogRecord(records, model)
+		record.saleOverridePricing = override
 		mergeRecordMetadata(record, inferModelProvider(model), inferModelMode(model, record.mode))
 	}
 	for _, record := range records {
@@ -92,6 +100,10 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		if record.basePricingSource == "" {
 			record.basePricingSource = ModelCatalogPricingSourceNone
 		}
+		record.displayName = FormatModelCatalogDisplayName(record.model)
+		record.iconKey = InferModelCatalogIconKey(record.model)
+		record.officialPricing = applyPricingOverride(record.upstreamPricing, record.officialOverridePricing)
+		record.salePricing = applyPricingOverride(record.officialPricing, record.saleOverridePricing)
 	}
 	return records, nil
 }
@@ -138,6 +150,9 @@ func (s *ModelCatalogService) buildDefaultModelRegistry() map[string]*defaultMod
 }
 
 func (s *ModelCatalogService) collectRouteReferences(ctx context.Context, model string, mode string) ([]ModelCatalogRouteReference, error) {
+	if s.adminService == nil {
+		return []ModelCatalogRouteReference{}, nil
+	}
 	groups, err := s.adminService.GetAllGroups(ctx)
 	if err != nil {
 		return nil, err
@@ -223,7 +238,7 @@ func inferModelProvider(model string) string {
 		return PlatformAnthropic
 	case strings.HasPrefix(model, "gemini"):
 		return PlatformGemini
-	case strings.HasPrefix(model, "gpt"), strings.HasPrefix(model, "sora"), strings.HasPrefix(model, "prompt-enhance"):
+	case strings.HasPrefix(model, "gpt"), strings.HasPrefix(model, "sora"), strings.HasPrefix(model, "codex"), openAIReasoningModelPattern.MatchString(model), strings.HasPrefix(model, "prompt-enhance"):
 		return PlatformOpenAI
 	default:
 		return ""

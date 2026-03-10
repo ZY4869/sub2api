@@ -967,27 +967,34 @@ export default {
 
     models: {
       title: 'Model Catalog',
-      description: 'Browse model metadata, effective pricing, and pricing overrides',
+      description: 'Browse model aliases, official pricing, sale pricing, and pricing overrides',
       searchPlaceholder: 'Search model name',
       unavailable: 'Unavailable',
       viewDetails: 'View Details',
       tieredPricing: 'Tiered Pricing',
+      officialPrice: 'Official',
+      salePrice: 'Sale',
       emptyTitle: 'No models found',
       emptyDescription: 'Try adjusting the search or filters',
       loadFailed: 'Failed to load model catalog',
       detailLoadFailed: 'Failed to load model details',
-      saveSuccess: 'Pricing override saved',
-      saveFailed: 'Failed to save pricing override',
-      resetSuccess: 'Pricing override reset',
-      resetFailed: 'Failed to reset pricing override',
+      officialSaveSuccess: 'Official pricing override saved',
+      officialSaveFailed: 'Failed to save official pricing override',
+      officialResetSuccess: 'Official pricing override reset',
+      officialResetFailed: 'Failed to reset official pricing override',
+      saleSaveSuccess: 'Sale pricing override saved',
+      saleSaveFailed: 'Failed to save sale pricing override',
+      saleResetSuccess: 'Sale pricing override reset',
+      saleResetFailed: 'Failed to reset sale pricing override',
       detail: 'Model Details',
-      detailTitle: 'Model Details · {model}',
+      detailTitle: 'Model Details ? {model}',
       routeReferences: 'Group Route References',
       routeReferenceCount: '{count} references',
       noRouteReferences: 'No group route references',
-      saveOverride: 'Save Override',
-      resetOverride: 'Reset to Source Price',
       saving: 'Saving...',
+      copyModelIdSuccess: 'Model ID copied: {model}',
+      exchangeRateTitle: 'Exchange Rate',
+      exchangeRateHint: 'USD?CNY {rate} ? {date}',
       columns: {
         model: 'Model',
         provider: 'Provider',
@@ -1028,9 +1035,11 @@ export default {
       },
       pricing: {
         field: 'Price Field',
-        base: 'Base Price',
-        override: 'Override Price',
-        effective: 'Effective Price'
+        upstream: 'Upstream',
+        officialOverride: 'Official Override',
+        official: 'Official',
+        saleOverride: 'Sale Override',
+        sale: 'Sale'
       },
       groups: {
         inputTier: 'Input Tiered Pricing',
@@ -1039,13 +1048,20 @@ export default {
         image: 'Image Pricing'
       },
       editor: {
-        title: 'Edit Pricing Override',
-        description: 'Token prices use USD per 1M tokens; image prices use USD per image.',
+        officialTitle: 'Official Pricing',
+        officialDescription: 'Edit the official reference price in USD. Runtime billing does not use this layer directly.',
+        saleTitle: 'Sale Pricing',
+        saleDescription: 'Edit the sale price in USD. Runtime billing uses this layer first and falls back to official pricing.',
+        saveOfficial: 'Save Official Price',
+        resetOfficial: 'Reset Official Price',
+        saveSale: 'Save Sale Price',
+        resetSale: 'Reset Sale Price',
         validationRequired: 'Enter a value to override this field',
         validationNonNegative: 'Enter a non-negative number',
         validationPositiveInteger: 'Enter a positive integer',
         validationAboveThresholdRequired: 'Enter the above-threshold price when a threshold is set',
-        validationPriorityAboveThresholdRequired: 'Enter the priority above-threshold price when priority pricing is configured'
+        validationPriorityAboveThresholdRequired: 'Enter the priority above-threshold price when priority pricing is configured',
+        tierHint: 'Low tier {low} ? High tier {high}'
       },
       units: {
         perMillionTokens: 'USD / 1M tokens',
@@ -1076,7 +1092,6 @@ export default {
         promptEnhance: 'Prompt Enhance'
       }
     },
-
     dataManagement: {
       title: 'Data Management',
       description: 'Manage data management agent status, object storage settings, and backup jobs in one place',

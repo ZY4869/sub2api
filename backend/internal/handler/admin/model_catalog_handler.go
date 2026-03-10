@@ -61,7 +61,24 @@ func (h *ModelCatalogHandler) Detail(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+func (h *ModelCatalogHandler) ExchangeRate(c *gin.Context) {
+	rate, err := h.modelCatalogService.GetUSDCNYExchangeRate(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rate)
+}
+
+func (h *ModelCatalogHandler) UpsertOfficialPricingOverride(c *gin.Context) {
+	h.upsertPricingOverride(c, true)
+}
+
 func (h *ModelCatalogHandler) UpsertPricingOverride(c *gin.Context) {
+	h.upsertPricingOverride(c, false)
+}
+
+func (h *ModelCatalogHandler) upsertPricingOverride(c *gin.Context, official bool) {
 	var req service.UpsertModelPricingOverrideInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -72,6 +89,7 @@ func (h *ModelCatalogHandler) UpsertPricingOverride(c *gin.Context) {
 	thresholdSummary, aboveThresholdSummary := pricingOverrideTierSummaries(req.ModelCatalogPricing)
 	log := logger.FromContext(c.Request.Context()).With(
 		zap.String("component", "handler.admin.model_catalog"),
+		zap.String("pricing_layer", pricingLayerName(official)),
 		zap.Int64("admin_user_id", actor.UserID),
 		zap.String("admin_email", actor.Email),
 		zap.String("model", req.Model),
@@ -80,7 +98,15 @@ func (h *ModelCatalogHandler) UpsertPricingOverride(c *gin.Context) {
 		zap.Strings("tier_above_threshold_prices", aboveThresholdSummary),
 	)
 	log.Info("upsert model pricing override start")
-	detail, err := h.modelCatalogService.UpsertPricingOverride(c.Request.Context(), actor, req)
+	var (
+		detail *service.ModelCatalogDetail
+		err    error
+	)
+	if official {
+		detail, err = h.modelCatalogService.UpsertOfficialPricingOverride(c.Request.Context(), actor, req)
+	} else {
+		detail, err = h.modelCatalogService.UpsertPricingOverride(c.Request.Context(), actor, req)
+	}
 	if err != nil {
 		log.Warn("upsert model pricing override failed", zap.Error(err))
 		response.ErrorFrom(c, err)
@@ -90,12 +116,21 @@ func (h *ModelCatalogHandler) UpsertPricingOverride(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+func (h *ModelCatalogHandler) DeleteOfficialPricingOverride(c *gin.Context) {
+	h.deletePricingOverride(c, true)
+}
+
 func (h *ModelCatalogHandler) DeletePricingOverride(c *gin.Context) {
+	h.deletePricingOverride(c, false)
+}
+
+func (h *ModelCatalogHandler) deletePricingOverride(c *gin.Context, official bool) {
 	model := strings.TrimSpace(c.Query("model"))
 	actor := h.resolveActor(c)
-	thresholdSummary, aboveThresholdSummary := h.overrideTierSummaries(c, model)
+	thresholdSummary, aboveThresholdSummary := h.overrideTierSummaries(c, model, official)
 	log := logger.FromContext(c.Request.Context()).With(
 		zap.String("component", "handler.admin.model_catalog"),
+		zap.String("pricing_layer", pricingLayerName(official)),
 		zap.Int64("admin_user_id", actor.UserID),
 		zap.String("admin_email", actor.Email),
 		zap.String("model", model),
@@ -103,7 +138,13 @@ func (h *ModelCatalogHandler) DeletePricingOverride(c *gin.Context) {
 		zap.Strings("tier_above_threshold_prices", aboveThresholdSummary),
 	)
 	log.Info("delete model pricing override start")
-	if err := h.modelCatalogService.DeletePricingOverride(c.Request.Context(), actor, model); err != nil {
+	var err error
+	if official {
+		err = h.modelCatalogService.DeleteOfficialPricingOverride(c.Request.Context(), actor, model)
+	} else {
+		err = h.modelCatalogService.DeletePricingOverride(c.Request.Context(), actor, model)
+	}
+	if err != nil {
 		log.Warn("delete model pricing override failed", zap.Error(err))
 		response.ErrorFrom(c, err)
 		return
@@ -123,6 +164,13 @@ func (h *ModelCatalogHandler) resolveActor(c *gin.Context) service.ModelCatalogA
 		actor.Email = user.Email
 	}
 	return actor
+}
+
+func pricingLayerName(official bool) string {
+	if official {
+		return "official"
+	}
+	return "sale"
 }
 
 func pricingOverrideFieldNames(pricing service.ModelCatalogPricing) []string {
@@ -177,10 +225,19 @@ func pricingOverrideTierSummaries(pricing service.ModelCatalogPricing) ([]string
 	return thresholds, abovePrices
 }
 
-func (h *ModelCatalogHandler) overrideTierSummaries(c *gin.Context, model string) ([]string, []string) {
+func (h *ModelCatalogHandler) overrideTierSummaries(c *gin.Context, model string, official bool) ([]string, []string) {
 	detail, err := h.modelCatalogService.GetModelDetail(c.Request.Context(), model)
-	if err != nil || detail == nil || detail.OverridePricing == nil {
+	if err != nil || detail == nil {
 		return nil, nil
 	}
-	return pricingOverrideTierSummaries(detail.OverridePricing.ModelCatalogPricing)
+	if official {
+		if detail.OfficialOverridePricing == nil {
+			return nil, nil
+		}
+		return pricingOverrideTierSummaries(detail.OfficialOverridePricing.ModelCatalogPricing)
+	}
+	if detail.SaleOverridePricing == nil {
+		return nil, nil
+	}
+	return pricingOverrideTierSummaries(detail.SaleOverridePricing.ModelCatalogPricing)
 }

@@ -136,6 +136,7 @@ const (
 	SettingKeyFallbackModelGemini      = "fallback_model_gemini"
 	SettingKeyFallbackModelAntigravity = "fallback_model_antigravity"
 	SettingKeyModelPriceOverrides      = "model_price_overrides"
+	SettingKeyModelOfficialPriceOverrides = "model_official_price_overrides"
 
 	// Request identity patch (Claude -> Gemini systemInstruction injection)
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"

@@ -27,6 +27,15 @@ export interface ModelPricingOverride extends ModelCatalogPricing {
   updated_by_email?: string
 }
 
+export interface ModelCatalogExchangeRate {
+  base: string
+  quote: string
+  rate: number
+  date: string
+  updated_at: string
+  cached: boolean
+}
+
 export interface ModelCatalogRouteReference {
   group_id: number
   group_name: string
@@ -37,6 +46,8 @@ export interface ModelCatalogRouteReference {
 
 export interface ModelCatalogItem {
   model: string
+  display_name?: string
+  icon_key?: string
   provider?: string
   mode?: string
   default_available: boolean
@@ -44,6 +55,8 @@ export interface ModelCatalogItem {
   pricing_source: ModelCatalogPricingSource
   base_pricing_source: Exclude<ModelCatalogPricingSource, 'override'>
   has_override: boolean
+  official_pricing?: ModelCatalogPricing
+  sale_pricing?: ModelCatalogPricing
   effective_pricing?: ModelCatalogPricing
   supports_prompt_caching: boolean
   supports_service_tier: boolean
@@ -53,6 +66,9 @@ export interface ModelCatalogItem {
 }
 
 export interface ModelCatalogDetail extends ModelCatalogItem {
+  upstream_pricing?: ModelCatalogPricing
+  official_override_pricing?: ModelPricingOverride
+  sale_override_pricing?: ModelPricingOverride
   base_pricing?: ModelCatalogPricing
   override_pricing?: ModelPricingOverride
   route_references: ModelCatalogRouteReference[]
@@ -89,6 +105,25 @@ export async function getModelDetail(model: string): Promise<ModelCatalogDetail>
   return data
 }
 
+export async function getExchangeRate(): Promise<ModelCatalogExchangeRate> {
+  const { data } = await apiClient.get<ModelCatalogExchangeRate>('/admin/models/exchange-rate')
+  return data
+}
+
+export async function updateOfficialPricingOverride(
+  payload: UpdatePricingOverridePayload
+): Promise<ModelCatalogDetail> {
+  const { data } = await apiClient.put<ModelCatalogDetail>('/admin/models/official-pricing-override', payload)
+  return data
+}
+
+export async function deleteOfficialPricingOverride(model: string): Promise<{ model: string }> {
+  const { data } = await apiClient.delete<{ model: string }>('/admin/models/official-pricing-override', {
+    params: { model }
+  })
+  return data
+}
+
 export async function updatePricingOverride(
   payload: UpdatePricingOverridePayload
 ): Promise<ModelCatalogDetail> {
@@ -106,6 +141,9 @@ export async function deletePricingOverride(model: string): Promise<{ model: str
 export const modelsAPI = {
   listModels,
   getModelDetail,
+  getExchangeRate,
+  updateOfficialPricingOverride,
+  deleteOfficialPricingOverride,
   updatePricingOverride,
   deletePricingOverride
 }

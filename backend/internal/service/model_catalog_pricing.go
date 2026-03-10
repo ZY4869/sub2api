@@ -19,17 +19,17 @@ func cloneModelPricingOverride(override *ModelPricingOverride) *ModelPricingOver
 	return &copy
 }
 
-func loadModelPriceOverrides(ctx context.Context, settingRepo SettingRepository) map[string]*ModelPricingOverride {
+func loadModelPricingOverridesBySetting(ctx context.Context, settingRepo SettingRepository, settingKey string) map[string]*ModelPricingOverride {
 	if settingRepo == nil {
 		return map[string]*ModelPricingOverride{}
 	}
-	raw, err := settingRepo.GetValue(ctx, SettingKeyModelPriceOverrides)
+	raw, err := settingRepo.GetValue(ctx, settingKey)
 	if err != nil || raw == "" {
 		return map[string]*ModelPricingOverride{}
 	}
 	var overrides map[string]*ModelPricingOverride
 	if err := json.Unmarshal([]byte(raw), &overrides); err != nil {
-		logger.FromContext(ctx).Warn("model catalog: invalid override json", zap.Error(err))
+		logger.FromContext(ctx).Warn("model catalog: invalid override json", zap.String("setting_key", settingKey), zap.Error(err))
 		return map[string]*ModelPricingOverride{}
 	}
 	normalized := make(map[string]*ModelPricingOverride, len(overrides))
@@ -41,6 +41,29 @@ func loadModelPriceOverrides(ctx context.Context, settingRepo SettingRepository)
 		normalized[key] = cloneModelPricingOverride(override)
 	}
 	return normalized
+}
+
+func persistModelPricingOverridesBySetting(ctx context.Context, settingRepo SettingRepository, settingKey string, overrides map[string]*ModelPricingOverride) error {
+	if settingRepo == nil {
+		return nil
+	}
+	if len(overrides) == 0 {
+		return settingRepo.Delete(ctx, settingKey)
+	}
+	keys := make([]string, 0, len(overrides))
+	for key := range overrides {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	ordered := make(map[string]*ModelPricingOverride, len(keys))
+	for _, key := range keys {
+		ordered[key] = overrides[key]
+	}
+	payload, err := json.Marshal(ordered)
+	if err != nil {
+		return err
+	}
+	return settingRepo.Set(ctx, settingKey, string(payload))
 }
 
 func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
@@ -95,6 +118,9 @@ func applyPricingOverride(base *ModelCatalogPricing, override *ModelPricingOverr
 		effective = &ModelCatalogPricing{}
 	}
 	if override == nil {
+		if pricingEmpty(effective) {
+			return nil
+		}
 		return effective
 	}
 	mergeCatalogPricing(effective, &override.ModelCatalogPricing)
@@ -162,28 +188,28 @@ func pricingEmpty(pricing *ModelCatalogPricing) bool {
 			pricing.OutputCostPerImage == nil)
 }
 
+func (s *ModelCatalogService) loadOfficialPriceOverrides(ctx context.Context) map[string]*ModelPricingOverride {
+	return loadModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelOfficialPriceOverrides)
+}
+
+func (s *ModelCatalogService) loadSalePriceOverrides(ctx context.Context) map[string]*ModelPricingOverride {
+	return loadModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelPriceOverrides)
+}
+
 func (s *ModelCatalogService) loadPriceOverrides(ctx context.Context) map[string]*ModelPricingOverride {
-	return loadModelPriceOverrides(ctx, s.settingRepo)
+	return s.loadSalePriceOverrides(ctx)
+}
+
+func (s *ModelCatalogService) persistOfficialPriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
+	return persistModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelOfficialPriceOverrides, overrides)
+}
+
+func (s *ModelCatalogService) persistSalePriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
+	return persistModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelPriceOverrides, overrides)
 }
 
 func (s *ModelCatalogService) persistPriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
-	if len(overrides) == 0 {
-		return s.settingRepo.Delete(ctx, SettingKeyModelPriceOverrides)
-	}
-	keys := make([]string, 0, len(overrides))
-	for key := range overrides {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	ordered := make(map[string]*ModelPricingOverride, len(keys))
-	for _, key := range keys {
-		ordered[key] = overrides[key]
-	}
-	payload, err := json.Marshal(ordered)
-	if err != nil {
-		return err
-	}
-	return s.settingRepo.Set(ctx, SettingKeyModelPriceOverrides, string(payload))
+	return s.persistSalePriceOverrides(ctx, overrides)
 }
 
 func validateOverridePricing(pricing ModelCatalogPricing) error {

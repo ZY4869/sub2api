@@ -1,10 +1,14 @@
-<template>
+﻿<template>
   <DataTable :columns="columns" :data="items" :loading="loading">
     <template #cell-model="{ row }">
-      <div class="flex flex-wrap items-center gap-2">
-        <span class="font-medium text-gray-900 dark:text-white">{{ row.model }}</span>
+      <div class="space-y-2">
+        <ModelCatalogModelLabel
+          :model="row.model"
+          :display-name="row.display_name"
+          :icon-key="row.icon_key"
+        />
         <span
-          v-if="hasTieredPricing(row.effective_pricing)"
+          v-if="hasTieredPricing(row.sale_pricing || row.official_pricing)"
           class="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
         >
           {{ t('admin.models.tieredPricing') }}
@@ -12,26 +16,75 @@
       </div>
     </template>
 
-    <template #cell-provider="{ row }">{{ row.provider || '-' }}</template>
+    <template #cell-provider="{ row }">
+      <div class="rounded-xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 dark:bg-sky-500/10 dark:text-sky-200">
+        {{ row.provider || '-' }}
+      </div>
+    </template>
 
-    <template #cell-mode="{ row }">{{ formatMode(row.mode) }}</template>
+    <template #cell-mode="{ row }">
+      <div class="rounded-xl bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-200">
+        {{ formatMode(row.mode) }}
+      </div>
+    </template>
 
     <template #cell-default_available="{ row }">
-      <div class="flex flex-col gap-1">
+      <div class="rounded-xl bg-emerald-50 px-3 py-2 dark:bg-emerald-500/10">
         <span :class="availabilityClass(row.default_available)">{{ row.default_available ? t('common.available') : t('admin.models.unavailable') }}</span>
-        <span class="text-xs text-gray-500 dark:text-gray-400">{{ formatPlatforms(row.default_platforms) }}</span>
+        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ formatPlatforms(row.default_platforms) }}</div>
       </div>
     </template>
 
     <template #cell-pricing_source="{ value }">
-      <span :class="sourceClass(String(value))">{{ t(`admin.models.sources.${value}`) }}</span>
+      <div class="rounded-xl bg-amber-50 px-3 py-2 dark:bg-amber-500/10">
+        <span :class="sourceClass(String(value))">{{ t(`admin.models.sources.${value}`) }}</span>
+      </div>
     </template>
 
-    <template #cell-input_cost_per_token="{ row }">{{ formatPrice(row, 'input_cost_per_token') }}</template>
-    <template #cell-output_cost_per_token="{ row }">{{ formatPrice(row, 'output_cost_per_token') }}</template>
-    <template #cell-cache_creation_input_token_cost="{ row }">{{ formatPrice(row, 'cache_creation_input_token_cost') }}</template>
-    <template #cell-cache_read_input_token_cost="{ row }">{{ formatPrice(row, 'cache_read_input_token_cost') }}</template>
-    <template #cell-output_cost_per_image="{ row }">{{ formatPrice(row, 'output_cost_per_image', 'image') }}</template>
+    <template #cell-input_cost_per_token="{ row }">
+      <ModelCatalogLayeredPriceCell
+        :sale-value="row.sale_pricing?.input_cost_per_token"
+        :official-value="row.official_pricing?.input_cost_per_token"
+        unit="token"
+        :exchange-rate="exchangeRate"
+      />
+    </template>
+
+    <template #cell-output_cost_per_token="{ row }">
+      <ModelCatalogLayeredPriceCell
+        :sale-value="row.sale_pricing?.output_cost_per_token"
+        :official-value="row.official_pricing?.output_cost_per_token"
+        unit="token"
+        :exchange-rate="exchangeRate"
+      />
+    </template>
+
+    <template #cell-cache_creation_input_token_cost="{ row }">
+      <ModelCatalogLayeredPriceCell
+        :sale-value="row.sale_pricing?.cache_creation_input_token_cost"
+        :official-value="row.official_pricing?.cache_creation_input_token_cost"
+        unit="token"
+        :exchange-rate="exchangeRate"
+      />
+    </template>
+
+    <template #cell-cache_read_input_token_cost="{ row }">
+      <ModelCatalogLayeredPriceCell
+        :sale-value="row.sale_pricing?.cache_read_input_token_cost"
+        :official-value="row.official_pricing?.cache_read_input_token_cost"
+        unit="token"
+        :exchange-rate="exchangeRate"
+      />
+    </template>
+
+    <template #cell-output_cost_per_image="{ row }">
+      <ModelCatalogLayeredPriceCell
+        :sale-value="row.sale_pricing?.output_cost_per_image"
+        :official-value="row.official_pricing?.output_cost_per_image"
+        unit="image"
+        :exchange-rate="exchangeRate"
+      />
+    </template>
 
     <template #cell-actions="{ row }">
       <button class="btn btn-secondary btn-sm" @click="emit('inspect', row.model)">
@@ -51,13 +104,21 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import type { ModelCatalogItem, ModelCatalogPricing } from '@/api/admin/models'
-import { formatModelCatalogPrice, hasTieredPricing } from '@/utils/modelCatalogPricing'
+import type { ModelCatalogExchangeRate, ModelCatalogItem } from '@/api/admin/models'
+import { hasTieredPricing } from '@/utils/modelCatalogPricing'
+import ModelCatalogLayeredPriceCell from './ModelCatalogLayeredPriceCell.vue'
+import ModelCatalogModelLabel from './ModelCatalogModelLabel.vue'
 
-defineProps<{
-  items: ModelCatalogItem[]
-  loading: boolean
-}>()
+withDefaults(
+  defineProps<{
+    items: ModelCatalogItem[]
+    loading: boolean
+    exchangeRate?: ModelCatalogExchangeRate | null
+  }>(),
+  {
+    exchangeRate: null
+  }
+)
 
 const emit = defineEmits<{
   (e: 'inspect', model: string): void
@@ -78,14 +139,6 @@ const columns = computed<Column[]>(() => [
   { key: 'output_cost_per_image', label: t('admin.models.columns.imageCost') },
   { key: 'actions', label: t('common.actions') }
 ])
-
-function formatPrice(
-  row: ModelCatalogItem,
-  key: keyof ModelCatalogPricing,
-  unit: 'token' | 'image' = 'token'
-) {
-  return formatModelCatalogPrice(row.effective_pricing?.[key], unit)
-}
 
 function availabilityClass(available: boolean) {
   return available

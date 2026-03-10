@@ -123,20 +123,22 @@ type CostBreakdown struct {
 
 // BillingService 计费服务
 type BillingService struct {
-	cfg            *config.Config
-	pricingService *PricingService
-	fallbackPrices map[string]*ModelPricing // 硬编码回退价格
-	overrideMu     sync.RWMutex
-	priceOverrides map[string]*ModelPricingOverride
+	cfg                    *config.Config
+	pricingService         *PricingService
+	fallbackPrices         map[string]*ModelPricing // ???????
+	overrideMu             sync.RWMutex
+	officialPriceOverrides map[string]*ModelPricingOverride
+	priceOverrides         map[string]*ModelPricingOverride
 }
 
 // NewBillingService 创建计费服务实例
 func NewBillingService(cfg *config.Config, pricingService *PricingService) *BillingService {
 	s := &BillingService{
-		cfg:            cfg,
-		pricingService: pricingService,
-		fallbackPrices: make(map[string]*ModelPricing),
-		priceOverrides: make(map[string]*ModelPricingOverride),
+		cfg:                    cfg,
+		pricingService:         pricingService,
+		fallbackPrices:         make(map[string]*ModelPricing),
+		officialPriceOverrides: make(map[string]*ModelPricingOverride),
+		priceOverrides:         make(map[string]*ModelPricingOverride),
 	}
 
 	// 初始化硬编码回退价格（当动态价格不可用时使用）
@@ -394,6 +396,31 @@ func (s *BillingService) ReplaceModelPriceOverrides(overrides map[string]*ModelP
 	s.overrideMu.Unlock()
 }
 
+func (s *BillingService) ReplaceModelOfficialPriceOverrides(overrides map[string]*ModelPricingOverride) {
+	normalized := make(map[string]*ModelPricingOverride, len(overrides))
+	for model, override := range overrides {
+		key := CanonicalizeModelNameForPricing(model)
+		if key == "" || override == nil || pricingEmpty(&override.ModelCatalogPricing) {
+			continue
+		}
+		normalized[key] = cloneModelPricingOverride(override)
+	}
+	s.overrideMu.Lock()
+	s.officialPriceOverrides = normalized
+	s.overrideMu.Unlock()
+}
+
+func (s *BillingService) getModelOfficialPriceOverride(model string) *ModelPricingOverride {
+	key := CanonicalizeModelNameForPricing(model)
+	if key == "" {
+		return nil
+	}
+	s.overrideMu.RLock()
+	override := s.officialPriceOverrides[key]
+	s.overrideMu.RUnlock()
+	return cloneModelPricingOverride(override)
+}
+
 func (s *BillingService) getModelPriceOverride(model string) *ModelPricingOverride {
 	key := CanonicalizeModelNameForPricing(model)
 	if key == "" {
@@ -463,7 +490,9 @@ func (s *BillingService) getPricingForBilling(model string) (*ModelPricing, erro
 	if err != nil {
 		return nil, err
 	}
-	return applyModelPricingOverride(pricing, s.getModelPriceOverride(model)), nil
+	pricing = applyModelPricingOverride(pricing, s.getModelOfficialPriceOverride(model))
+	pricing = applyModelPricingOverride(pricing, s.getModelPriceOverride(model))
+	return pricing, nil
 }
 
 // CalculateCost 计算使用费用
