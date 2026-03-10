@@ -46,7 +46,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import type { ModelCatalogItem, ModelCatalogPricing } from '@/api/admin/models'
 import { formatModelCatalogPrice } from '@/utils/modelCatalogPricing'
 
-const props = defineProps<{
+defineProps<{
   items: ModelCatalogItem[]
   loading: boolean
 }>()
