@@ -1,4 +1,4 @@
-# Sub2API
+﻿# Sub2API
 
 <div align="center">
 
