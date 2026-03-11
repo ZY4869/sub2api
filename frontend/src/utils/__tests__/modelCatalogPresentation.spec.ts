@@ -1,24 +1,30 @@
-﻿import { describe, expect, it } from 'vitest'
+﻿import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  buildModelCatalogTierDescription,
-  MODEL_CATALOG_DEFAULT_THRESHOLD,
-  resolveModelCatalogDisplayName,
-  resolveModelCatalogIcon
-} from '@/utils/modelCatalogPresentation'
+  formatModelCatalogPlatforms,
+  formatModelCatalogProvider,
+  getModelCatalogPriceDisplayMode,
+  MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY,
+  setModelCatalogPriceDisplayMode
+} from '../modelCatalogPresentation'
 
-describe('modelCatalogPresentation utils', () => {
-  it('returns display name fallback and icon urls', () => {
-    expect(resolveModelCatalogDisplayName('gpt-4o-mini', 'GPT-4o-mini')).toBe('GPT-4o-mini')
-    expect(resolveModelCatalogDisplayName('gpt-4o-mini')).toBe('gpt-4o-mini')
-    expect(resolveModelCatalogIcon('claude')).toContain('claude')
-    expect(resolveModelCatalogIcon('chatgpt')).toContain('chatgpt')
-    expect(resolveModelCatalogIcon('gemini')).toContain('gemini')
+describe('modelCatalogPresentation', () => {
+  beforeEach(() => {
+    localStorage.clear()
   })
 
-  it('builds tier description from the default threshold', () => {
-    expect(buildModelCatalogTierDescription(MODEL_CATALOG_DEFAULT_THRESHOLD)).toEqual({
-      low: '<= 200,000',
-      high: '>= 200,001'
-    })
+  it('formats provider names with expected casing', () => {
+    expect(formatModelCatalogProvider('anthropic')).toBe('Anthropic')
+    expect(formatModelCatalogProvider('openai')).toBe('OpenAI')
+    expect(formatModelCatalogProvider('custom')).toBe('Custom')
+    expect(formatModelCatalogPlatforms(['anthropic', 'gemini'])).toEqual(['Anthropic', 'Gemini'])
+  })
+
+  it('persists and restores price display mode', () => {
+    expect(getModelCatalogPriceDisplayMode()).toBe('usd')
+
+    setModelCatalogPriceDisplayMode('dual')
+
+    expect(localStorage.getItem(MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY)).toBe('dual')
+    expect(getModelCatalogPriceDisplayMode()).toBe('dual')
   })
 })

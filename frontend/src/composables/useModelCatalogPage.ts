@@ -1,4 +1,4 @@
-﻿import { computed, reactive, ref } from 'vue'
+﻿import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SelectOption } from '@/types'
 import {
@@ -9,6 +9,12 @@ import {
   type UpdatePricingOverridePayload
 } from '@/api/admin/models'
 import { useAppStore } from '@/stores'
+import {
+  getModelCatalogPriceDisplayMode,
+  MODEL_CATALOG_PAGE_SIZE,
+  setModelCatalogPriceDisplayMode,
+  type ModelCatalogPriceDisplayMode
+} from '@/utils/modelCatalogPresentation'
 
 export type ModelCatalogPricingLayer = 'official' | 'sale'
 
@@ -23,9 +29,7 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
   const dialogOpen = ref(false)
   const items = ref<ModelCatalogItem[]>([])
   const detail = ref<ModelCatalogDetail | null>(null)
-  const total = ref(0)
-  const page = ref(1)
-  const pageSize = ref(20)
+  const priceDisplayMode = ref<ModelCatalogPriceDisplayMode>(getModelCatalogPriceDisplayMode())
 
   const filters = reactive({
     search: '',
@@ -33,6 +37,10 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     mode: '',
     availability: '',
     pricingSource: ''
+  })
+
+  watch(priceDisplayMode, (mode) => {
+    setModelCatalogPriceDisplayMode(mode)
   })
 
   const providerOptions = computed<SelectOption[]>(() => [
@@ -64,10 +72,7 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     { value: 'none', label: t('admin.models.sources.none') }
   ])
 
-  async function loadModels(resetPage = false) {
-    if (resetPage) {
-      page.value = 1
-    }
+  async function loadModels(_resetPage = false) {
     loading.value = true
     try {
       const response = await modelsAPI.listModels({
@@ -76,11 +81,10 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
         mode: filters.mode || undefined,
         availability: (filters.availability || undefined) as 'available' | 'unavailable' | undefined,
         pricing_source: (filters.pricingSource || undefined) as ModelCatalogPricingSource | undefined,
-        page: page.value,
-        page_size: pageSize.value
+        page: 1,
+        page_size: MODEL_CATALOG_PAGE_SIZE
       })
       items.value = response.items
-      total.value = response.total
     } catch (error) {
       appStore.showError(extractErrorMessage(error, t('admin.models.loadFailed')))
     } finally {
@@ -157,7 +161,7 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
         detail.value = null
       }
       appStore.showSuccess(t('admin.models.catalog.deleteSuccess'))
-      await loadModels(total.value <= 1)
+      await loadModels(true)
     } catch (error) {
       appStore.showError(extractErrorMessage(error, t('admin.models.catalog.deleteFailed')))
     }
@@ -183,17 +187,6 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     }
   }
 
-  function handlePageChange(nextPage: number) {
-    page.value = nextPage
-    loadModels()
-  }
-
-  function handlePageSizeChange(nextPageSize: number) {
-    pageSize.value = nextPageSize
-    page.value = 1
-    loadModels()
-  }
-
   function closeDetail() {
     dialogOpen.value = false
     detail.value = null
@@ -207,9 +200,7 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     dialogOpen,
     items,
     detail,
-    total,
-    page,
-    pageSize,
+    priceDisplayMode,
     filters,
     providerOptions,
     modeOptions,
@@ -223,8 +214,6 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     deleteModel,
     copyOfficialToSale,
     updateFilter,
-    handlePageChange,
-    handlePageSizeChange,
     closeDetail
   }
 }
@@ -232,4 +221,3 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
 function extractErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
-

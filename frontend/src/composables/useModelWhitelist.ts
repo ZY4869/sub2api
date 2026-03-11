@@ -32,7 +32,7 @@ const openaiModels = [
   'gpt-4o-audio-preview', 'gpt-4o-realtime-preview'
 ]
 
-// Anthropic Claude
+// Claude family
 export const claudeModels = [
   'claude-opus-4.1',
   'claude-sonnet-4.5',
@@ -247,7 +247,7 @@ export const allModels = allModelsList.map(m => ({ value: m, label: m }))
 // 预设映射
 // =====================
 
-const anthropicPresetMappings = [
+const claudePresetMappings = [
   { label: 'Opus 4.1', from: 'claude-opus-4.1', to: 'claude-opus-4.1', color: 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400' },
   { label: 'Sonnet 4.5', from: 'claude-sonnet-4.5', to: 'claude-sonnet-4.5', color: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400' },
   { label: 'Haiku 4.5', from: 'claude-haiku-4.5', to: 'claude-haiku-4.5', color: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400' },
@@ -375,7 +375,7 @@ export function getPresetMappingsByPlatform(platform: string) {
   if (platform === 'gemini') return geminiPresetMappings
   if (platform === 'sora') return soraPresetMappings
   if (platform === 'antigravity') return antigravityPresetMappings
-  return anthropicPresetMappings
+  return claudePresetMappings
 }
 
 // =====================

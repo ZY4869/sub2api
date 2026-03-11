@@ -14,7 +14,12 @@
             {{ t(field.labelKey) }}
           </td>
           <td v-for="column in columns.slice(1)" :key="`${field.key}-${column.key}`" :class="column.className">
-            <ModelCatalogPriceValue :value="column.resolve(field.key)" :unit="field.unit" :exchange-rate="exchangeRate" />
+            <ModelCatalogPriceValue
+              :value="column.resolve(field.key)"
+              :unit="field.unit"
+              :exchange-rate="exchangeRate"
+              :display-mode="priceDisplayMode"
+            />
           </td>
         </tr>
       </tbody>
@@ -29,6 +34,7 @@ import type { ModelCatalogDetail, ModelCatalogExchangeRate } from '@/api/admin/m
 import type { ModelCatalogPricingKey } from '@/utils/modelCatalogPricing'
 import { MODEL_CATALOG_PRICING_FIELDS } from '@/utils/modelCatalogPricing'
 import type { ModelCatalogPricingLayer } from '@/composables/useModelCatalogPage'
+import type { ModelCatalogPriceDisplayMode } from '@/utils/modelCatalogPresentation'
 import ModelCatalogPriceValue from './ModelCatalogPriceValue.vue'
 
 const props = withDefaults(
@@ -36,9 +42,11 @@ const props = withDefaults(
     detail: ModelCatalogDetail
     view: ModelCatalogPricingLayer
     exchangeRate?: ModelCatalogExchangeRate | null
+    priceDisplayMode?: ModelCatalogPriceDisplayMode
   }>(),
   {
-    exchangeRate: null
+    exchangeRate: null,
+    priceDisplayMode: 'usd'
   }
 )
 

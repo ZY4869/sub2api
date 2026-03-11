@@ -973,6 +973,7 @@ export default {
       unavailable: 'Unavailable',
       viewDetails: 'View Details',
       tieredPricing: 'Tiered Pricing',
+      tierBadge: 'T',
       officialPrice: 'Official',
       salePrice: 'Sale',
       emptyTitle: 'No models found',
@@ -1033,7 +1034,7 @@ export default {
         model: 'Model',
         provider: 'Provider',
         mode: 'Mode',
-        defaultAvailable: 'Default Availability',
+        defaultProtocol: 'Default Protocol',
         pricingSource: 'Pricing Source',
         inputCost: 'Input Price',
         outputCost: 'Output Price',
@@ -1045,7 +1046,8 @@ export default {
         allProviders: 'All Providers',
         allModes: 'All Modes',
         allAvailability: 'All Availability',
-        allPricingSources: 'All Pricing Sources'
+        allPricingSources: 'All Pricing Sources',
+        showCnyReference: 'Show CNY Reference'
       },
       sources: {
         dynamic: 'Dynamic',
@@ -1061,7 +1063,7 @@ export default {
       meta: {
         provider: 'Provider',
         mode: 'Mode',
-        defaultPlatforms: 'Default Platforms',
+        defaultPlatforms: 'Default Protocol',
         pricingSource: 'Pricing Source',
         promptCaching: 'Prompt Caching',
         serviceTier: 'Service Tier',

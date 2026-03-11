@@ -20,11 +20,13 @@
         :mode-options="modeOptions"
         :availability-options="availabilityOptions"
         :pricing-source-options="pricingSourceOptions"
+        :price-display-mode="priceDisplayMode"
         @update:search="updateFilter('search', $event, false)"
         @update:provider="updateFilter('provider', $event)"
         @update:mode="updateFilter('mode', $event)"
         @update:availability="updateFilter('availability', $event)"
         @update:pricing-source="updateFilter('pricingSource', $event)"
+        @update:price-display-mode="priceDisplayMode = $event"
         @search="loadModels(true)"
       />
     </template>
@@ -35,13 +37,10 @@
         :loading="loading"
         :pricing-layer="pricingLayer"
         :exchange-rate="exchangeRate"
+        :price-display-mode="priceDisplayMode"
         @inspect="openDetail"
         @delete="deleteModel"
       />
-    </template>
-
-    <template #pagination>
-      <Pagination :total="total" :page="page" :page-size="pageSize" @update:page="handlePageChange" @update:page-size="handlePageSizeChange" />
     </template>
   </TablePageLayout>
 
@@ -54,6 +53,7 @@
     :saving="saving"
     :view="pricingLayer"
     :exchange-rate="exchangeRate"
+    :price-display-mode="priceDisplayMode"
     @close="closeDetail"
     @save-official="saveOverride"
     @reset-official="resetOverride"
@@ -66,7 +66,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Pagination from '@/components/common/Pagination.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import ModelCatalogAddDialog from '@/components/admin/models/ModelCatalogAddDialog.vue'
 import ModelCatalogDetailDialog from '@/components/admin/models/ModelCatalogDetailDialog.vue'
@@ -92,9 +91,7 @@ const {
   dialogOpen,
   items,
   detail,
-  total,
-  page,
-  pageSize,
+  priceDisplayMode,
   filters,
   providerOptions,
   modeOptions,
@@ -108,8 +105,6 @@ const {
   deleteModel,
   copyOfficialToSale,
   updateFilter,
-  handlePageChange,
-  handlePageSizeChange,
   closeDetail
 } = useModelCatalogPage(props.pricingLayer)
 

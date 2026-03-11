@@ -995,6 +995,7 @@ export default {
       unavailable: '不可用',
       viewDetails: '查看详情',
       tieredPricing: '分段定价',
+      tierBadge: '分',
       officialPrice: '真实价格',
       salePrice: '出售价格',
       emptyTitle: '暂无匹配模型',
@@ -1056,7 +1057,7 @@ export default {
         model: '模型',
         provider: '提供商',
         mode: '模式',
-        defaultAvailable: '默认可用',
+        defaultProtocol: '默认协议',
         pricingSource: '价格来源',
         inputCost: '输入价',
         outputCost: '输出价',
@@ -1068,7 +1069,8 @@ export default {
         allProviders: '全部提供商',
         allModes: '全部模式',
         allAvailability: '全部可用性',
-        allPricingSources: '全部价格来源'
+        allPricingSources: '全部价格来源',
+        showCnyReference: '显示 CNY 参考价'
       },
       sources: {
         dynamic: '动态',
@@ -1083,8 +1085,7 @@ export default {
       },
       meta: {
         provider: '提供商',
-        mode: '模式',
-        defaultPlatforms: '默认平台',
+        mode: '模式',        defaultPlatforms: '默认协议',
         pricingSource: '价格来源',
         promptCaching: 'Prompt Caching',
         serviceTier: 'Service Tier',

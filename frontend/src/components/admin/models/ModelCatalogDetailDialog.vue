@@ -20,25 +20,51 @@
       </section>
 
       <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-xl border border-gray-200 bg-slate-50 p-4 dark:border-dark-700 dark:bg-slate-500/10">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
           <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ t('admin.models.meta.provider') }}</p>
-          <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ detail.provider || '-' }}</p>
+          <div class="mt-2">
+            <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+              {{ formatProvider(detail.provider) }}
+            </span>
+          </div>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-indigo-50 p-4 dark:border-dark-700 dark:bg-indigo-500/10">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
           <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ t('admin.models.meta.mode') }}</p>
-          <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ detail.mode || '-' }}</p>
+          <div class="mt-2">
+            <span class="inline-flex rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+              {{ formatMode(detail.mode) }}
+            </span>
+          </div>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-emerald-50 p-4 dark:border-dark-700 dark:bg-emerald-500/10">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
           <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ t('admin.models.meta.defaultPlatforms') }}</p>
-          <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ (detail.default_platforms || []).join(', ') || '-' }}</p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <template v-if="platformLabels(detail.default_platforms).length">
+              <span
+                v-for="platform in platformLabels(detail.default_platforms)"
+                :key="`${detail.model}-${platform}`"
+                class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+              >
+                {{ platform }}
+              </span>
+            </template>
+            <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          </div>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-amber-50 p-4 dark:border-dark-700 dark:bg-amber-500/10">
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
           <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ t('admin.models.meta.pricingSource') }}</p>
-          <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">{{ t(`admin.models.sources.${detail.pricing_source}`) }}</p>
+          <div class="mt-2">
+            <span :class="sourceClass(detail.pricing_source)">{{ t(`admin.models.sources.${detail.pricing_source}`) }}</span>
+          </div>
         </div>
       </section>
 
-      <ModelCatalogPricingComparison :detail="detail" :view="view" :exchange-rate="exchangeRate" />
+      <ModelCatalogPricingComparison
+        :detail="detail"
+        :view="view"
+        :exchange-rate="exchangeRate"
+        :price-display-mode="priceDisplayMode"
+      />
 
       <ModelCatalogPricingEditorSection
         v-if="view === 'official'"
@@ -91,6 +117,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelCatalogDetail, ModelCatalogExchangeRate, UpdatePricingOverridePayload } from '@/api/admin/models'
 import type { ModelCatalogPricingLayer } from '@/composables/useModelCatalogPage'
+import type { ModelCatalogPriceDisplayMode } from '@/utils/modelCatalogPresentation'
+import { formatModelCatalogPlatforms, formatModelCatalogProvider } from '@/utils/modelCatalogPresentation'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ModelCatalogModelLabel from './ModelCatalogModelLabel.vue'
 import ModelCatalogPricingComparison from './ModelCatalogPricingComparison.vue'
@@ -104,9 +132,11 @@ const props = withDefaults(
     saving: boolean
     view: ModelCatalogPricingLayer
     exchangeRate?: ModelCatalogExchangeRate | null
+    priceDisplayMode?: ModelCatalogPriceDisplayMode
   }>(),
   {
-    exchangeRate: null
+    exchangeRate: null,
+    priceDisplayMode: 'usd'
   }
 )
 
@@ -121,4 +151,32 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const dialogTitle = computed(() => props.detail ? props.detail.display_name || props.detail.model : t('admin.models.detail'))
+
+function formatProvider(provider?: string) {
+  return formatModelCatalogProvider(provider)
+}
+
+function platformLabels(platforms?: string[]) {
+  return formatModelCatalogPlatforms(platforms)
+}
+
+function formatMode(mode?: string) {
+  const labels: Record<string, string> = {
+    chat: t('admin.models.modes.chat'),
+    image: t('admin.models.modes.image'),
+    video: t('admin.models.modes.video'),
+    prompt_enhance: t('admin.models.modes.promptEnhance')
+  }
+  return mode ? labels[mode] || mode : '-'
+}
+
+function sourceClass(source?: string) {
+  const classes: Record<string, string> = {
+    override: 'inline-flex rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-500/15 dark:text-primary-300',
+    dynamic: 'inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
+    fallback: 'inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+    none: 'inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300'
+  }
+  return classes[source || 'none'] || classes.none
+}
 </script>
