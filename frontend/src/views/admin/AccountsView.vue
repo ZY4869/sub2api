@@ -132,7 +132,7 @@
       </template>
       <template #table>
         <AccountBulkActionsBar :selected-ids="selIds" @delete="handleBulkDelete" @reset-status="handleBulkResetStatus" @refresh-token="handleBulkRefreshToken" @edit="showBulkEdit = true" @clear="clearSelection" @select-page="selectPage" @toggle-schedulable="handleBulkToggleSchedulable" />
-        <div ref="accountTableRef" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div ref="accountTableRef">
         <DataTable
           :columns="cols"
           :data="accounts"
@@ -263,7 +263,7 @@
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
     <ScheduledTestsPanel :show="showSchedulePanel" :account-id="scheduleAcc?.id ?? null" :model-options="scheduleModelOptions" @close="closeSchedulePanel" />
-    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" />
+    <AccountActionMenu :show="menu.show" :account="menu.acc" :position="menu.pos" @close="menu.show = false" @test="handleTest" @stats="handleViewStats" @schedule="handleSchedule" @reauth="handleReAuth" @refresh-token="handleRefresh" @recover-state="handleRecoverState" @reset-quota="handleResetQuota" @import-models="handleImportModels" />
     <SyncFromCrsModal :show="showSync" @close="showSync = false" @synced="reload" />
     <ImportDataModal :show="showImportData" @close="showImportData = false" @imported="handleDataImported" />
     <BulkEditAccountModal :show="showBulkEdit" :account-ids="selIds" :selected-platforms="selPlatforms" :selected-types="selTypes" :proxies="proxies" :groups="groups" @close="showBulkEdit = false" @updated="handleBulkUpdated" />
@@ -314,6 +314,7 @@ import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
+import { resolveAccountModelImportErrorMessage } from '@/utils/accountModelImport'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 
@@ -324,6 +325,7 @@ const authStore = useAuthStore()
 const proxies = ref<Proxy[]>([])
 const groups = ref<AdminGroup[]>([])
 const accountTableRef = ref<HTMLElement | null>(null)
+const importingModelsAccountId = ref<number | null>(null)
 const selPlatforms = computed<AccountPlatform[]>(() => {
   const platforms = new Set(
     accounts.value
@@ -1166,6 +1168,36 @@ const handleRecoverState = async (a: Account) => {
     appStore.showError(error?.message || t('admin.accounts.recoverStateFailed'))
   }
 }
+const handleImportModels = async (a: Account, trigger: 'manual' | 'create' = 'manual') => {
+  if (importingModelsAccountId.value === a.id) {
+    return
+  }
+  importingModelsAccountId.value = a.id
+  appStore.showInfo(t('admin.accounts.probingModels'))
+  try {
+    const result = await adminAPI.accounts.importModels(a.id, { trigger })
+    if (result.failed_models?.length) {
+      if (result.imported_count === 0) {
+        appStore.showError(t('admin.accounts.modelImportFailed'))
+        return result
+      }
+      appStore.showWarning(t('admin.accounts.modelImportPartial', {
+        imported: result.imported_count,
+        failed: result.failed_models.length
+      }))
+      return result
+    }
+    appStore.showSuccess(t('admin.accounts.modelImportSuccess', { count: result.imported_count }))
+    return result
+  } catch (error: any) {
+    console.error('Failed to import models for account:', error)
+    appStore.showError(resolveAccountModelImportErrorMessage(t, error))
+    return null
+  } finally {
+    importingModelsAccountId.value = null
+  }
+}
+
 const handleResetQuota = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.resetAccountQuota(a.id)

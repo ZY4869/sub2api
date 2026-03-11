@@ -2202,7 +2202,12 @@
     </div>
 
     <template #footer>
-      <div v-if="step === 1" class="flex justify-end gap-3">
+      <div v-if="step === 1" class="flex flex-wrap items-center justify-between gap-3">
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input v-model="autoImportModels" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          <span>{{ t('admin.accounts.autoImportModels') }}</span>
+        </label>
+        <div class="flex justify-end gap-3">
         <button @click="handleClose" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
         </button>
@@ -2241,8 +2246,14 @@
                 : t('common.create')
           }}
         </button>
+        </div>
       </div>
-      <div v-else class="flex justify-between gap-3">
+      <div v-else class="flex flex-wrap items-center justify-between gap-3">
+        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <input v-model="autoImportModels" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+          <span>{{ t('admin.accounts.autoImportModels') }}</span>
+        </label>
+        <div class="flex items-center gap-3">
         <button type="button" class="btn btn-secondary" @click="goBackToBasicInfo">
           {{ t('common.back') }}
         </button>
@@ -2279,6 +2290,7 @@
               : t('admin.accounts.oauth.completeAuth')
           }}
         </button>
+        </div>
       </div>
     </template>
   </BaseDialog>
@@ -2542,7 +2554,8 @@ import type {
   AccountPlatform,
   AccountType,
   CheckMixedChannelResponse,
-  CreateAccountRequest
+  CreateAccountRequest,
+  Account
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -2553,6 +2566,7 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
+import { resolveAccountModelImportErrorMessage } from '@/utils/accountModelImport'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -2671,6 +2685,7 @@ interface TempUnschedRuleForm {
 // State
 const step = ref(1)
 const submitting = ref(false)
+const autoImportModels = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
@@ -3301,13 +3316,47 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
   }
 }
 
-const submitCreateAccount = async (payload: CreateAccountRequest) => {
+const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
+  if (!autoImportModels.value || createdAccounts.length === 0) {
+    return
+  }
+  appStore.showInfo(t('admin.accounts.probingModels'))
+  let importedCount = 0
+  let failedCount = 0
+  let firstFailureMessage = ''
+  for (const account of createdAccounts) {
+    try {
+      const result = await adminAPI.accounts.importModels(account.id, { trigger: 'create' })
+      importedCount += result.imported_count
+      failedCount += result.failed_models?.length ?? 0
+    } catch (error) {
+      console.error('Failed to auto import models after account creation:', error)
+      if (!firstFailureMessage) {
+        firstFailureMessage = resolveAccountModelImportErrorMessage(t, error)
+      }
+      failedCount++
+    }
+  }
+  if (failedCount > 0) {
+    if (importedCount === 0) {
+      appStore.showError(firstFailureMessage || t('admin.accounts.modelImportFailed'))
+      return
+    }
+    appStore.showWarning(t('admin.accounts.modelImportPartial', { imported: importedCount, failed: failedCount }))
+    return
+  }
+  appStore.showSuccess(t('admin.accounts.modelImportSuccess', { count: importedCount }))
+}
+
+const submitCreateAccount = async (payload: CreateAccountRequest): Promise<Account | null> => {
   submitting.value = true
   try {
-    await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    const createdAccount = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
     appStore.showSuccess(t('admin.accounts.accountCreated'))
+    await maybeImportCreatedAccounts([createdAccount])
     emit('created')
     handleClose()
+    return createdAccount
   } catch (error: any) {
     if (error.response?.status === 409 && error.response?.data?.error === 'mixed_channel_warning' && needsMixedChannelCheck(form.platform)) {
       openMixedChannelDialog({
@@ -3317,9 +3366,10 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
           await submitCreateAccount(payload)
         }
       })
-      return
+      return null
     }
     appStore.showError(error.response?.data?.message || error.response?.data?.detail || t('admin.accounts.failedToCreate'))
+    return null
   } finally {
     submitting.value = false
   }
@@ -3333,6 +3383,7 @@ const resetForm = () => {
   form.platform = 'anthropic'
   form.type = 'oauth'
   form.credentials = {}
+  autoImportModels.value = false
   form.proxy_id = null
   form.concurrency = 10
   form.load_factor = null
@@ -3713,6 +3764,7 @@ const handleImportAccessToken = async (accessTokenInput: string) => {
   let successCount = 0
   let failedCount = 0
   const errors: string[] = []
+  const createdAccounts: Account[] = []
 
   try {
     for (let i = 0; i < accessTokens.length; i++) {
@@ -3723,7 +3775,7 @@ const handleImportAccessToken = async (accessTokenInput: string) => {
         const soraExtra = buildSoraExtra()
 
         const accountName = accessTokens.length > 1 ? `${form.name} #${i + 1}` : form.name
-        await adminAPI.accounts.create({
+        const createdAccount = await adminAPI.accounts.create({
           name: accountName,
           notes: form.notes,
           platform: 'sora',
@@ -3739,6 +3791,7 @@ const handleImportAccessToken = async (accessTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
+        createdAccounts.push(createdAccount)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -3753,12 +3806,14 @@ const handleImportAccessToken = async (accessTokenInput: string) => {
           ? t('admin.accounts.oauth.batchSuccess', { count: successCount })
           : t('admin.accounts.accountCreated')
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       emit('created')
       handleClose()
     } else if (successCount > 0 && failedCount > 0) {
       appStore.showWarning(
         t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       oauthClient.error.value = errors.join('\n')
       emit('created')
     } else {
@@ -3862,6 +3917,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     let openaiAccountId: string | number | undefined
+    const createdAccounts: Account[] = []
 
     if (shouldCreateOpenAI) {
       const openaiAccount = await adminAPI.accounts.create({
@@ -3881,6 +3937,7 @@ const handleOpenAIExchange = async (authCode: string) => {
         auto_pause_on_expired: autoPauseOnExpired.value
       })
       openaiAccountId = openaiAccount.id
+      createdAccounts.push(openaiAccount)
       appStore.showSuccess(t('admin.accounts.accountCreated'))
     }
 
@@ -3894,7 +3951,7 @@ const handleOpenAIExchange = async (authCode: string) => {
 
       const soraName = shouldCreateOpenAI ? `${form.name} (Sora)` : form.name
       const soraExtra = buildSoraExtra(shouldCreateOpenAI ? extra : oauthExtra, openaiAccountId)
-      await adminAPI.accounts.create({
+      const soraAccount = await adminAPI.accounts.create({
         name: soraName,
         notes: form.notes,
         platform: 'sora',
@@ -3910,9 +3967,11 @@ const handleOpenAIExchange = async (authCode: string) => {
         expires_at: form.expires_at,
         auto_pause_on_expired: autoPauseOnExpired.value
       })
+      createdAccounts.push(soraAccount)
       appStore.showSuccess(t('admin.accounts.accountCreated'))
     }
 
+    await maybeImportCreatedAccounts(createdAccounts)
     emit('created')
     handleClose()
   } catch (error: any) {
@@ -3945,6 +4004,7 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
   let successCount = 0
   let failedCount = 0
   const errors: string[] = []
+  const createdAccounts: Account[] = []
   const shouldCreateOpenAI = form.platform === 'openai'
   const shouldCreateSora = form.platform === 'sora'
 
@@ -3997,6 +4057,7 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
             auto_pause_on_expired: autoPauseOnExpired.value
           })
           openaiAccountId = openaiAccount.id
+          createdAccounts.push(openaiAccount)
         }
 
         if (shouldCreateSora) {
@@ -4008,7 +4069,7 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
           }
           const soraName = shouldCreateOpenAI ? `${accountName} (Sora)` : accountName
           const soraExtra = buildSoraExtra(shouldCreateOpenAI ? extra : oauthExtra, openaiAccountId)
-          await adminAPI.accounts.create({
+          const soraAccount = await adminAPI.accounts.create({
             name: soraName,
             notes: form.notes,
             platform: 'sora',
@@ -4024,6 +4085,7 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
             expires_at: form.expires_at,
             auto_pause_on_expired: autoPauseOnExpired.value
           })
+          createdAccounts.push(soraAccount)
         }
 
         successCount++
@@ -4041,12 +4103,14 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
           ? t('admin.accounts.oauth.batchSuccess', { count: successCount })
           : t('admin.accounts.accountCreated')
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       emit('created')
       handleClose()
     } else if (successCount > 0 && failedCount > 0) {
       appStore.showWarning(
         t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       oauthClient.error.value = errors.join('\n')
       emit('created')
     } else {
@@ -4079,6 +4143,7 @@ const handleSoraValidateST = async (sessionTokenInput: string) => {
   let successCount = 0
   let failedCount = 0
   const errors: string[] = []
+  const createdAccounts: Account[] = []
 
   try {
     for (let i = 0; i < sessionTokens.length; i++) {
@@ -4097,7 +4162,7 @@ const handleSoraValidateST = async (sessionTokenInput: string) => {
         const soraExtra = buildSoraExtra(oauthExtra)
 
         const accountName = sessionTokens.length > 1 ? `${form.name} #${i + 1}` : form.name
-        await adminAPI.accounts.create({
+        const createdAccount = await adminAPI.accounts.create({
           name: accountName,
           notes: form.notes,
           platform: 'sora',
@@ -4113,6 +4178,7 @@ const handleSoraValidateST = async (sessionTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
+        createdAccounts.push(createdAccount)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -4127,12 +4193,14 @@ const handleSoraValidateST = async (sessionTokenInput: string) => {
           ? t('admin.accounts.oauth.batchSuccess', { count: successCount })
           : t('admin.accounts.accountCreated')
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       emit('created')
       handleClose()
     } else if (successCount > 0 && failedCount > 0) {
       appStore.showWarning(
         t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       oauthClient.error.value = errors.join('\n')
       emit('created')
     } else {
@@ -4165,6 +4233,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
   let successCount = 0
   let failedCount = 0
   const errors: string[] = []
+  const createdAccounts: Account[] = []
 
   try {
     for (let i = 0; i < refreshTokens.length; i++) {
@@ -4202,7 +4271,8 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        const createdAccount = await adminAPI.accounts.create(createPayload)
+        createdAccounts.push(createdAccount)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -4218,12 +4288,14 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           ? t('admin.accounts.oauth.batchSuccess', { count: successCount })
           : t('admin.accounts.accountCreated')
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       emit('created')
       handleClose()
     } else if (successCount > 0 && failedCount > 0) {
       appStore.showWarning(
         t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
       )
+      await maybeImportCreatedAccounts(createdAccounts)
       antigravityOAuth.error.value = errors.join('\n')
       emit('created')
     } else {
@@ -4443,6 +4515,7 @@ const handleCookieAuth = async (sessionKey: string) => {
     let successCount = 0
     let failedCount = 0
     const errors: string[] = []
+    const createdAccounts: Account[] = []
 
     for (let i = 0; i < keys.length; i++) {
       try {
@@ -4510,7 +4583,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        const createdAccount = await adminAPI.accounts.create({
           name: accountName,
           notes: form.notes,
           platform: form.platform,
@@ -4527,6 +4600,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           auto_pause_on_expired: autoPauseOnExpired.value
         })
 
+        createdAccounts.push(createdAccount)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -4542,9 +4616,11 @@ const handleCookieAuth = async (sessionKey: string) => {
     if (successCount > 0) {
       appStore.showSuccess(t('admin.accounts.oauth.successCreated', { count: successCount }))
       if (failedCount === 0) {
+        await maybeImportCreatedAccounts(createdAccounts)
         emit('created')
         handleClose()
       } else {
+        await maybeImportCreatedAccounts(createdAccounts)
         emit('created')
       }
     }

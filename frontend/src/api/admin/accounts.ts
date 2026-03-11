@@ -422,6 +422,29 @@ export async function setSchedulable(id: number, schedulable: boolean): Promise<
   return data
 }
 
+export interface AccountModelImportFailure {
+  model: string
+  error: string
+}
+
+export interface AccountModelImportResult {
+  account_id: number
+  detected_models: string[]
+  imported_models: string[]
+  imported_count: number
+  skipped_count: number
+  failed_models?: AccountModelImportFailure[]
+  trigger: string
+}
+
+export async function importModels(
+  id: number,
+  payload: { trigger?: string } = {}
+): Promise<AccountModelImportResult> {
+  const { data } = await apiClient.post<AccountModelImportResult>(`/admin/accounts/${id}/import-models`, payload)
+  return data
+}
+
 /**
  * Get available models for an account
  * @param id - Account ID
@@ -641,6 +664,7 @@ export const accountsAPI = {
   resetTempUnschedulable,
   setSchedulable,
   getAvailableModels,
+  importModels,
   generateAuthUrl,
   exchangeCode,
   refreshOpenAIToken,

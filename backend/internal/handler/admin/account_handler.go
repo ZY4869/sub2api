@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -44,19 +45,20 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 
 // AccountHandler handles admin account management
 type AccountHandler struct {
-	adminService            service.AdminService
-	oauthService            *service.OAuthService
-	openaiOAuthService      *service.OpenAIOAuthService
-	geminiOAuthService      *service.GeminiOAuthService
-	antigravityOAuthService *service.AntigravityOAuthService
-	rateLimitService        *service.RateLimitService
-	accountUsageService     *service.AccountUsageService
-	accountTestService      *service.AccountTestService
-	concurrencyService      *service.ConcurrencyService
-	crsSyncService          *service.CRSSyncService
-	sessionLimitCache       service.SessionLimitCache
-	rpmCache                service.RPMCache
-	tokenCacheInvalidator   service.TokenCacheInvalidator
+	adminService              service.AdminService
+	oauthService              *service.OAuthService
+	openaiOAuthService        *service.OpenAIOAuthService
+	geminiOAuthService        *service.GeminiOAuthService
+	antigravityOAuthService   *service.AntigravityOAuthService
+	rateLimitService          *service.RateLimitService
+	accountUsageService       *service.AccountUsageService
+	accountTestService        *service.AccountTestService
+	concurrencyService        *service.ConcurrencyService
+	crsSyncService            *service.CRSSyncService
+	sessionLimitCache         service.SessionLimitCache
+	rpmCache                  service.RPMCache
+	tokenCacheInvalidator     service.TokenCacheInvalidator
+	accountModelImportService *service.AccountModelImportService
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -92,6 +94,10 @@ func NewAccountHandler(
 	}
 }
 
+func (h *AccountHandler) SetAccountModelImportService(svc *service.AccountModelImportService) {
+	h.accountModelImportService = svc
+}
+
 // CreateAccountRequest represents create account request
 type CreateAccountRequest struct {
 	Name                    string         `json:"name" binding:"required"`
@@ -109,6 +115,10 @@ type CreateAccountRequest struct {
 	ExpiresAt               *int64         `json:"expires_at"`
 	AutoPauseOnExpired      *bool          `json:"auto_pause_on_expired"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
+}
+
+type ImportAccountModelsRequest struct {
+	Trigger string `json:"trigger"`
 }
 
 // UpdateAccountRequest represents update account request
@@ -1695,6 +1705,36 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 	}
 
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+// ImportModels imports detected upstream models into model catalog for an account.
+func (h *AccountHandler) ImportModels(c *gin.Context) {
+	if h.accountModelImportService == nil {
+		response.InternalError(c, "Account model import service unavailable")
+		return
+	}
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	var req ImportAccountModelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	ctx := c.Request.Context()
+	account, err := h.adminService.GetAccount(ctx, accountID)
+	if err != nil || account == nil {
+		response.NotFound(c, "Account not found")
+		return
+	}
+	result, err := h.accountModelImportService.ImportAccountModels(ctx, account, req.Trigger)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 // GetAvailableModels handles getting available models for an account
