@@ -166,11 +166,20 @@ const activeModelRateLimits = computed(() => {
 const formatScopeName = (scope: string): string => {
   const aliases: Record<string, string> = {
     // Claude 系列
-    'claude-opus-4-6': 'COpus46',
-    'claude-opus-4-6-thinking': 'COpus46T',
-    'claude-sonnet-4-6': 'CSon46',
+    'claude-opus-4.1': 'COpus41',
+    'claude-opus-4-1': 'COpus41',
+    'claude-opus-4-1-20250805': 'COpus41',
+    'claude-opus-4-6': 'COpus41',
+    'claude-opus-4-6-thinking': 'COpus41T',
+    'claude-opus-4-5-thinking': 'COpus41T',
+    'claude-sonnet-4.5': 'CSon45',
     'claude-sonnet-4-5': 'CSon45',
+    'claude-sonnet-4-5-20250929': 'CSon45',
     'claude-sonnet-4-5-thinking': 'CSon45T',
+    'claude-sonnet-4-6': 'CSon45',
+    'claude-haiku-4.5': 'CHai45',
+    'claude-haiku-4-5': 'CHai45',
+    'claude-haiku-4-5-20251001': 'CHai45',
     // Gemini 2.5 系列
     'gemini-2.5-flash': 'G25F',
     'gemini-2.5-flash-lite': 'G25FL',

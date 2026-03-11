@@ -978,8 +978,8 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
     }
   }
   const claudeModels = {
-    'claude-opus-4-6-thinking': {
-      name: 'Claude 4.6 Opus (Thinking)',
+    'claude-opus-4.1': {
+      name: 'Claude Opus 4.1',
       limit: {
         context: 200000,
         output: 128000
@@ -995,8 +995,8 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
         }
       }
     },
-    'claude-sonnet-4-6': {
-      name: 'Claude 4.6 Sonnet',
+    'claude-sonnet-4.5': {
+      name: 'Claude Sonnet 4.5',
       limit: {
         context: 200000,
         output: 64000
@@ -1010,6 +1010,17 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
           budgetTokens: 24576,
           type: 'enabled'
         }
+      }
+    },
+    'claude-haiku-4.5': {
+      name: 'Claude Haiku 4.5',
+      limit: {
+        context: 200000,
+        output: 64000
+      },
+      modalities: {
+        input: ['text', 'image', 'pdf'],
+        output: ['text']
       }
     }
   }
