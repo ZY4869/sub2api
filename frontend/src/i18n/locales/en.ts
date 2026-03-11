@@ -995,7 +995,8 @@ export default {
       noRouteReferences: 'No group route references',
       saving: 'Saving...',
       copyModelIdSuccess: 'Model ID copied: {model}',
-      exchangeRateTitle: 'Exchange Rate',      exchangeRateHint: 'USD?CNY {rate} ? {date}',
+      exchangeRateTitle: 'Exchange Rate',
+      exchangeRateHint: 'USD?CNY {rate} ? {date}',
       copyToSale: 'Set as Sale Pricing',
       copyToSaleSuccess: 'Official pricing copied to sale pricing',
       copyToSaleFailed: 'Failed to copy official pricing to sale pricing',
@@ -1035,6 +1036,7 @@ export default {
         provider: 'Provider',
         mode: 'Mode',
         defaultProtocol: 'Default Protocol',
+        accessSource: 'Source',
         pricingSource: 'Pricing Source',
         inputCost: 'Input Price',
         outputCost: 'Output Price',
@@ -1054,6 +1056,10 @@ export default {
         fallback: 'Fallback',
         override: 'Override',
         none: 'No Price'
+      },
+      accessSources: {
+        login: 'Login',
+        key: 'Key'
       },
       referenceTypes: {
         model_routing: 'Model Routing',

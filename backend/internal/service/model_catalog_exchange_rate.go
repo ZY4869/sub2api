@@ -40,10 +40,20 @@ func newModelCatalogExchangeRateService(client modelCatalogExchangeRateHTTPClien
 }
 
 func (s *ModelCatalogExchangeRateService) GetUSDCNY(ctx context.Context) (*ModelCatalogExchangeRate, error) {
-	if cached := s.getFreshCache(); cached != nil {
-		copy := *cached
-		copy.Cached = true
-		return &copy, nil
+	return s.loadUSDCNY(ctx, false)
+}
+
+func (s *ModelCatalogExchangeRateService) RefreshUSDCNY(ctx context.Context) (*ModelCatalogExchangeRate, error) {
+	return s.loadUSDCNY(ctx, true)
+}
+
+func (s *ModelCatalogExchangeRateService) loadUSDCNY(ctx context.Context, force bool) (*ModelCatalogExchangeRate, error) {
+	if !force {
+		if cached := s.getFreshCache(); cached != nil {
+			copy := *cached
+			copy.Cached = true
+			return &copy, nil
+		}
 	}
 	rate, err := s.fetch(ctx)
 	if err == nil {

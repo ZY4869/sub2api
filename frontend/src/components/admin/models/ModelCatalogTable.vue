@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <DataTable :columns="columns" :data="items" :loading="loading">
     <template #cell-model="{ row }">
       <ModelCatalogModelLabel
@@ -37,8 +37,43 @@
       </div>
     </template>
 
+    <template #cell-access_sources="{ row }">
+      <div class="flex flex-wrap gap-2">
+        <template v-if="row.access_sources?.length">
+          <span
+            v-for="source in row.access_sources"
+            :key="`${row.model}-${source}`"
+            :class="accessSourceClass(source)"
+          >
+            {{ formatAccessSource(source) }}
+          </span>
+        </template>
+        <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+      </div>
+    </template>
+
     <template #cell-pricing_source="{ value }">
       <span :class="sourceClass(String(value))">{{ t(`admin.models.sources.${value}`) }}</span>
+    </template>
+
+    <template #header-input_cost_per_token>
+      <span :class="priceHeaderChipClass">{{ t('admin.models.columns.inputCost') }}</span>
+    </template>
+
+    <template #header-output_cost_per_token>
+      <span :class="priceHeaderChipClass">{{ t('admin.models.columns.outputCost') }}</span>
+    </template>
+
+    <template #header-cache_creation_input_token_cost>
+      <span :class="priceHeaderChipClass">{{ t('admin.models.columns.cacheCreationCost') }}</span>
+    </template>
+
+    <template #header-cache_read_input_token_cost>
+      <span :class="priceHeaderChipClass">{{ t('admin.models.columns.cacheReadCost') }}</span>
+    </template>
+
+    <template #header-output_cost_per_image>
+      <span :class="priceHeaderChipClass">{{ t('admin.models.columns.imageCost') }}</span>
     </template>
 
     <template #cell-input_cost_per_token="{ row }">
@@ -140,12 +175,14 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const priceHeaderChipClass = 'inline-flex whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-200'
 
 const columns = computed<Column[]>(() => [
   { key: 'model', label: t('admin.models.columns.model') },
   { key: 'provider', label: t('admin.models.columns.provider') },
   { key: 'mode', label: t('admin.models.columns.mode') },
   { key: 'default_available', label: t('admin.models.columns.defaultProtocol') },
+  { key: 'access_sources', label: t('admin.models.columns.accessSource') },
   { key: 'pricing_source', label: t('admin.models.columns.pricingSource') },
   { key: 'input_cost_per_token', label: t('admin.models.columns.inputCost') },
   { key: 'output_cost_per_token', label: t('admin.models.columns.outputCost') },
@@ -167,6 +204,21 @@ function sourceClass(source: string) {
     none: 'inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300'
   }
   return classes[source] || classes.none
+}
+
+function accessSourceClass(source: string) {
+  const classes: Record<string, string> = {
+    login: 'inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
+    key: 'inline-flex rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-700 dark:bg-teal-500/15 dark:text-teal-300'
+  }
+  return classes[source] || 'inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300'
+}
+
+function formatAccessSource(source: string) {
+  if (source === 'login' || source === 'key') {
+    return t(`admin.models.accessSources.${source}`)
+  }
+  return source || '-'
 }
 
 function platformLabels(platforms?: string[]) {

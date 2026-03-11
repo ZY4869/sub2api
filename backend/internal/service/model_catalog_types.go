@@ -7,6 +7,8 @@ const (
 	ModelCatalogPricingSourceDynamic  = "dynamic"
 	ModelCatalogPricingSourceFallback = "fallback"
 	ModelCatalogPricingSourceOverride = "override"
+	ModelCatalogAccessSourceLogin     = "login"
+	ModelCatalogAccessSourceKey       = "key"
 )
 
 type ModelCatalogPricing struct {
@@ -51,6 +53,7 @@ type ModelCatalogItem struct {
 	Mode                            string               `json:"mode,omitempty"`
 	DefaultAvailable                bool                 `json:"default_available"`
 	DefaultPlatforms                []string             `json:"default_platforms,omitempty"`
+	AccessSources                   []string             `json:"access_sources,omitempty"`
 	PricingSource                   string               `json:"pricing_source"`
 	BasePricingSource               string               `json:"base_pricing_source"`
 	HasOverride                     bool                 `json:"has_override"`

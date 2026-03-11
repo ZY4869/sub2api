@@ -26,14 +26,10 @@ export const useExchangeRateStore = defineStore('exchangeRate', () => {
 
     loading.value = true
     try {
-      exchangeRate.value = await metaAPI.getUSDCNYExchangeRate()
+      exchangeRate.value = await metaAPI.getUSDCNYExchangeRate(force)
       loadedAt.value = Date.now()
       return exchangeRate.value
     } catch {
-      if (force) {
-        exchangeRate.value = null
-        loadedAt.value = 0
-      }
       return exchangeRate.value
     } finally {
       loading.value = false

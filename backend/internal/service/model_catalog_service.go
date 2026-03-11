@@ -270,9 +270,12 @@ func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, 
 	return nil
 }
 
-func (s *ModelCatalogService) GetUSDCNYExchangeRate(ctx context.Context) (*ModelCatalogExchangeRate, error) {
+func (s *ModelCatalogService) GetUSDCNYExchangeRate(ctx context.Context, force bool) (*ModelCatalogExchangeRate, error) {
 	if s.exchangeRateService == nil {
 		s.exchangeRateService = newModelCatalogExchangeRateService(nil)
+	}
+	if force {
+		return s.exchangeRateService.RefreshUSDCNY(ctx)
 	}
 	return s.exchangeRateService.GetUSDCNY(ctx)
 }
@@ -293,7 +296,8 @@ func recordToModelCatalogItem(record *modelCatalogRecord) ModelCatalogItem {
 		Provider:                        record.provider,
 		Mode:                            record.mode,
 		DefaultAvailable:                record.defaultAvailable,
-		DefaultPlatforms:                record.defaultPlatforms,
+		DefaultPlatforms:                append([]string(nil), record.defaultPlatforms...),
+		AccessSources:                   append([]string(nil), record.accessSources...),
 		PricingSource:                   pricingSource,
 		BasePricingSource:               record.basePricingSource,
 		HasOverride:                     record.officialOverridePricing != nil || record.saleOverridePricing != nil,

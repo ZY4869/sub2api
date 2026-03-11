@@ -62,7 +62,11 @@ func (h *ModelCatalogHandler) Detail(c *gin.Context) {
 }
 
 func (h *ModelCatalogHandler) ExchangeRate(c *gin.Context) {
-	rate, err := h.modelCatalogService.GetUSDCNYExchangeRate(c.Request.Context())
+	force := false
+	if raw := strings.TrimSpace(c.Query("force")); raw != "" {
+		force = raw == "1" || strings.EqualFold(raw, "true")
+	}
+	rate, err := h.modelCatalogService.GetUSDCNYExchangeRate(c.Request.Context(), force)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

@@ -9,8 +9,9 @@ export interface ExchangeRateInfo {
   cached: boolean
 }
 
-export async function getUSDCNYExchangeRate(): Promise<ExchangeRateInfo> {
-  const { data } = await apiClient.get<ExchangeRateInfo>('/meta/exchange-rate/usd-cny')
+export async function getUSDCNYExchangeRate(force = false): Promise<ExchangeRateInfo> {
+  const requestConfig = force ? { params: { force: true } } : undefined
+  const { data } = await apiClient.get<ExchangeRateInfo>('/meta/exchange-rate/usd-cny', requestConfig)
   return data
 }
 

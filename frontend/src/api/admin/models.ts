@@ -46,6 +46,7 @@ export interface ModelCatalogItem {
   mode?: string
   default_available: boolean
   default_platforms?: string[]
+  access_sources?: string[]
   pricing_source: ModelCatalogPricingSource
   base_pricing_source: Exclude<ModelCatalogPricingSource, 'override'>
   has_override: boolean

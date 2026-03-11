@@ -27,6 +27,7 @@ type modelCatalogRecord struct {
 	mode                            string
 	defaultAvailable                bool
 	defaultPlatforms                []string
+	accessSources                   []string
 	upstreamPricing                 *ModelCatalogPricing
 	basePricingSource               string
 	officialOverridePricing         *ModelPricingOverride
@@ -105,6 +106,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		record.officialPricing = applyPricingOverride(record.upstreamPricing, record.officialOverridePricing)
 		record.salePricing = applyPricingOverride(record.officialPricing, record.saleOverridePricing)
 	}
+	s.populateCatalogAccessSources(ctx, records)
 	return records, nil
 }
 

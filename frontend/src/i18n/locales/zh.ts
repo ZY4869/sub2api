@@ -1058,6 +1058,7 @@ export default {
         provider: '提供商',
         mode: '模式',
         defaultProtocol: '默认协议',
+        accessSource: '来源',
         pricingSource: '价格来源',
         inputCost: '输入价',
         outputCost: '输出价',
@@ -1077,6 +1078,10 @@ export default {
         fallback: '回退',
         override: '覆盖',
         none: '无价格'
+      },
+      accessSources: {
+        login: '登录',
+        key: 'Key'
       },
       referenceTypes: {
         model_routing: '模型路由',
