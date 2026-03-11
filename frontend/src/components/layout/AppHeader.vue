@@ -44,6 +44,8 @@
         <!-- Subscription Progress (for users with active subscriptions) -->
         <SubscriptionProgressMini v-if="user" />
 
+        <ExchangeRateBadge />
+
         <!-- Balance Display -->
         <div
           v-if="user"
@@ -215,6 +217,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import ExchangeRateBadge from '@/components/common/ExchangeRateBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const router = useRouter()

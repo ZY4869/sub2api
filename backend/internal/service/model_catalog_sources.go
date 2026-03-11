@@ -19,6 +19,8 @@ type defaultModelMetadata struct {
 
 type modelCatalogRecord struct {
 	model                           string
+	canonicalModelID                string
+	pricingLookupModelID            string
 	displayName                     string
 	iconKey                         string
 	provider                        string
@@ -40,53 +42,49 @@ type modelCatalogRecord struct {
 
 func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[string]*modelCatalogRecord, error) {
 	defaultRegistry := s.buildDefaultModelRegistry()
-	pricingSnapshot := map[string]*LiteLLMModelPricing{}
-	if s.pricingService != nil {
-		pricingSnapshot = s.pricingService.GetPricingSnapshot()
-	}
+	entries := s.loadCatalogEntries(ctx)
 	officialOverrides := s.loadOfficialPriceOverrides(ctx)
 	saleOverrides := s.loadSalePriceOverrides(ctx)
-	records := make(map[string]*modelCatalogRecord, len(defaultRegistry)+len(pricingSnapshot)+len(officialOverrides)+len(saleOverrides))
+	records := make(map[string]*modelCatalogRecord, len(entries))
 
-	for model, meta := range defaultRegistry {
-		record := ensureCatalogRecord(records, model)
-		applyDefaultMetadata(record, meta)
-	}
-	for rawModel, pricing := range pricingSnapshot {
-		model := CanonicalizeModelNameForPricing(rawModel)
-		record := ensureCatalogRecord(records, model)
-		record.upstreamPricing = pricingFromLiteLLM(pricing)
-		record.basePricingSource = ModelCatalogPricingSourceDynamic
-		mergeRecordMetadata(record, pricing.LiteLLMProvider, pricing.Mode)
-		record.supportsPromptCaching = pricing.SupportsPromptCaching
-		record.supportsServiceTier = pricing.SupportsServiceTier
-		record.longContextInputTokenThreshold = pricing.LongContextInputTokenThreshold
-		record.longContextInputCostMultiplier = pricing.LongContextInputCostMultiplier
-		record.longContextOutputCostMultiplier = pricing.LongContextOutputCostMultiplier
-	}
-	for model, meta := range defaultRegistry {
-		record := ensureCatalogRecord(records, model)
-		if record.upstreamPricing != nil || s.billingService == nil {
-			continue
+	for _, entry := range entries {
+		record := ensureCatalogRecord(records, entry.Model)
+		record.canonicalModelID = entry.CanonicalModelID
+		record.pricingLookupModelID = entry.PricingLookupModelID
+		record.displayName = entry.DisplayName
+		record.provider = entry.Provider
+		record.mode = entry.Mode
+		applyDefaultMetadata(record, resolveDefaultModelMetadata(defaultRegistry, modelCatalogRecordLookupCandidates(record)...))
+		if pricing, ok := s.resolveDynamicPricing(record); ok {
+			record.upstreamPricing = pricingFromLiteLLM(pricing)
+			record.basePricingSource = ModelCatalogPricingSourceDynamic
+			mergeRecordMetadata(record, pricing.LiteLLMProvider, pricing.Mode)
+			record.supportsPromptCaching = pricing.SupportsPromptCaching
+			record.supportsServiceTier = pricing.SupportsServiceTier
+			record.longContextInputTokenThreshold = pricing.LongContextInputTokenThreshold
+			record.longContextInputCostMultiplier = pricing.LongContextInputCostMultiplier
+			record.longContextOutputCostMultiplier = pricing.LongContextOutputCostMultiplier
+		} else if pricing, ok := s.resolveFallbackPricing(record); ok {
+			record.upstreamPricing = pricingFromBilling(pricing)
+			record.basePricingSource = ModelCatalogPricingSourceFallback
+			record.longContextInputTokenThreshold = pricing.LongContextInputThreshold
+			record.longContextInputCostMultiplier = pricing.LongContextInputMultiplier
+			record.longContextOutputCostMultiplier = pricing.LongContextOutputMultiplier
 		}
-		pricing, err := s.billingService.GetModelPricing(model)
-		if err != nil || pricing == nil {
-			continue
-		}
-		record.upstreamPricing = pricingFromBilling(pricing)
-		record.basePricingSource = ModelCatalogPricingSourceFallback
-		mergeRecordMetadata(record, meta.provider, meta.mode)
-		record.longContextInputTokenThreshold = pricing.LongContextInputThreshold
-		record.longContextInputCostMultiplier = pricing.LongContextInputMultiplier
-		record.longContextOutputCostMultiplier = pricing.LongContextOutputMultiplier
 	}
 	for model, override := range officialOverrides {
-		record := ensureCatalogRecord(records, model)
+		record, ok := records[normalizeModelCatalogAlias(model)]
+		if !ok {
+			continue
+		}
 		record.officialOverridePricing = override
 		mergeRecordMetadata(record, inferModelProvider(model), inferModelMode(model, record.mode))
 	}
 	for model, override := range saleOverrides {
-		record := ensureCatalogRecord(records, model)
+		record, ok := records[normalizeModelCatalogAlias(model)]
+		if !ok {
+			continue
+		}
 		record.saleOverridePricing = override
 		mergeRecordMetadata(record, inferModelProvider(model), inferModelMode(model, record.mode))
 	}
@@ -100,7 +98,9 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		if record.basePricingSource == "" {
 			record.basePricingSource = ModelCatalogPricingSourceNone
 		}
-		record.displayName = FormatModelCatalogDisplayName(record.model)
+		if record.displayName == "" {
+			record.displayName = FormatModelCatalogDisplayName(record.model)
+		}
 		record.iconKey = InferModelCatalogIconKey(record.model)
 		record.officialPricing = applyPricingOverride(record.upstreamPricing, record.officialOverridePricing)
 		record.salePricing = applyPricingOverride(record.officialPricing, record.saleOverridePricing)
@@ -149,10 +149,98 @@ func (s *ModelCatalogService) buildDefaultModelRegistry() map[string]*defaultMod
 	return registry
 }
 
-func (s *ModelCatalogService) collectRouteReferences(ctx context.Context, model string, mode string) ([]ModelCatalogRouteReference, error) {
+func modelCatalogRecordLookupCandidates(record *modelCatalogRecord) []string {
+	if record == nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	appendCandidate := func(items []string, value string) []string {
+		value = CanonicalizeModelNameForPricing(value)
+		if value == "" {
+			return items
+		}
+		if _, ok := seen[value]; ok {
+			return items
+		}
+		seen[value] = struct{}{}
+		return append(items, value)
+	}
+	items := make([]string, 0, 6)
+	items = appendCandidate(items, record.pricingLookupModelID)
+	items = appendCandidate(items, record.canonicalModelID)
+	items = appendCandidate(items, record.model)
+	if record.model != "" {
+		items = appendCandidate(items, strings.ReplaceAll(record.model, ".", "-"))
+	}
+	return items
+}
+
+func resolveDefaultModelMetadata(registry map[string]*defaultModelMetadata, candidates ...string) *defaultModelMetadata {
+	meta := &defaultModelMetadata{platforms: map[string]struct{}{}}
+	matched := false
+	for _, candidate := range candidates {
+		candidate = CanonicalizeModelNameForPricing(candidate)
+		if candidate == "" {
+			continue
+		}
+		current, ok := registry[candidate]
+		if !ok {
+			continue
+		}
+		matched = true
+		if meta.provider == "" {
+			meta.provider = current.provider
+		}
+		if meta.mode == "" {
+			meta.mode = current.mode
+		}
+		for platform := range current.platforms {
+			meta.platforms[platform] = struct{}{}
+		}
+	}
+	if !matched {
+		return nil
+	}
+	return meta
+}
+
+func (s *ModelCatalogService) resolveDynamicPricing(record *modelCatalogRecord) (*LiteLLMModelPricing, bool) {
+	if s.pricingService == nil {
+		return nil, false
+	}
+	for _, candidate := range modelCatalogRecordLookupCandidates(record) {
+		if pricing := s.pricingService.GetModelPricing(candidate); pricing != nil {
+			return pricing, true
+		}
+	}
+	return nil, false
+}
+
+func (s *ModelCatalogService) resolveFallbackPricing(record *modelCatalogRecord) (*ModelPricing, bool) {
+	if s.billingService == nil {
+		return nil, false
+	}
+	for _, candidate := range modelCatalogRecordLookupCandidates(record) {
+		pricing, err := s.billingService.GetModelPricing(candidate)
+		if err == nil && pricing != nil {
+			return pricing, true
+		}
+	}
+	return nil, false
+}
+
+func modelCatalogRouteMatchCandidates(record *modelCatalogRecord) []string {
+	return modelCatalogRecordLookupCandidates(record)
+}
+
+func (s *ModelCatalogService) collectRouteReferences(ctx context.Context, record *modelCatalogRecord) ([]ModelCatalogRouteReference, error) {
 	if s.adminService == nil {
 		return []ModelCatalogRouteReference{}, nil
 	}
+	if record == nil {
+		return []ModelCatalogRouteReference{}, nil
+	}
+	candidates := modelCatalogRouteMatchCandidates(record)
 	groups, err := s.adminService.GetAllGroups(ctx)
 	if err != nil {
 		return nil, err
@@ -162,15 +250,21 @@ func (s *ModelCatalogService) collectRouteReferences(ctx context.Context, model 
 		types := make([]string, 0, 3)
 		patterns := make([]string, 0)
 		for pattern := range group.ModelRouting {
-			if matchModelPattern(canonicalizeRoutingPattern(pattern), model) {
-				types = append(types, "model_routing")
-				patterns = append(patterns, pattern)
+			for _, candidate := range candidates {
+				if matchModelPattern(canonicalizeRoutingPattern(pattern), candidate) {
+					types = append(types, "model_routing")
+					patterns = append(patterns, pattern)
+					break
+				}
 			}
 		}
-		if CanonicalizeModelNameForPricing(group.DefaultMappedModel) == model {
-			types = append(types, "default_mapped_model")
+		for _, candidate := range candidates {
+			if CanonicalizeModelNameForPricing(group.DefaultMappedModel) == candidate {
+				types = append(types, "default_mapped_model")
+				break
+			}
 		}
-		if supportsModelScope(group, model, mode) {
+		if supportsModelScope(group, record.model, record.mode) {
 			types = append(types, "supported_model_scope")
 		}
 		if len(types) == 0 {

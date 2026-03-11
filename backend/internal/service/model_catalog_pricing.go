@@ -34,7 +34,7 @@ func loadModelPricingOverridesBySetting(ctx context.Context, settingRepo Setting
 	}
 	normalized := make(map[string]*ModelPricingOverride, len(overrides))
 	for model, override := range overrides {
-		key := CanonicalizeModelNameForPricing(model)
+		key := NormalizeModelCatalogModelID(model)
 		if key == "" || override == nil || pricingEmpty(&override.ModelCatalogPricing) {
 			continue
 		}

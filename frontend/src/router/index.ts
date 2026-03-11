@@ -245,14 +245,53 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/models',
     name: 'AdminModels',
-    component: () => import('@/views/admin/ModelsView.vue'),
+    redirect: '/admin/models/official',
+    component: () => import('@/views/admin/models/ModelsLayoutView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
       title: 'Model Catalog',
       titleKey: 'admin.models.title',
       descriptionKey: 'admin.models.description'
-    }
+    },
+    children: [
+      {
+        path: 'official',
+        name: 'AdminModelsOfficial',
+        component: () => import('@/views/admin/models/ModelCatalogOfficialView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Official Pricing',
+          titleKey: 'admin.models.pages.official.title',
+          descriptionKey: 'admin.models.pages.official.description'
+        }
+      },
+      {
+        path: 'sale',
+        name: 'AdminModelsSale',
+        component: () => import('@/views/admin/models/ModelCatalogSaleView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Sale Pricing',
+          titleKey: 'admin.models.pages.sale.title',
+          descriptionKey: 'admin.models.pages.sale.description'
+        }
+      },
+      {
+        path: 'relay',
+        name: 'AdminModelsRelay',
+        component: () => import('@/views/admin/models/ModelCatalogRelayView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Relay Pricing',
+          titleKey: 'admin.models.pages.relay.title',
+          descriptionKey: 'admin.models.pages.relay.description'
+        }
+      }
+    ]
   },
   {
     path: '/admin/ops',

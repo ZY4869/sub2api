@@ -98,6 +98,10 @@ type ModelCatalogActor struct {
 	Email  string
 }
 
+type ModelCatalogEntryPayload struct {
+	Model string `json:"model"`
+}
+
 type UpsertModelPricingOverrideInput struct {
 	Model string `json:"model"`
 	ModelCatalogPricing

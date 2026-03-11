@@ -1,5 +1,6 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
+import type { ExchangeRateInfo } from '@/api/meta'
 
 export type ModelCatalogPricingSource = 'none' | 'dynamic' | 'fallback' | 'override'
 
@@ -27,14 +28,7 @@ export interface ModelPricingOverride extends ModelCatalogPricing {
   updated_by_email?: string
 }
 
-export interface ModelCatalogExchangeRate {
-  base: string
-  quote: string
-  rate: number
-  date: string
-  updated_at: string
-  cached: boolean
-}
+export type ModelCatalogExchangeRate = ExchangeRateInfo
 
 export interface ModelCatalogRouteReference {
   group_id: number
@@ -89,6 +83,10 @@ export interface UpdatePricingOverridePayload extends ModelCatalogPricing {
   model: string
 }
 
+export interface UpsertModelCatalogEntryPayload {
+  model: string
+}
+
 export async function listModels(
   params: ListModelsParams = {}
 ): Promise<PaginatedResponse<ModelCatalogItem>> {
@@ -138,6 +136,25 @@ export async function deletePricingOverride(model: string): Promise<{ model: str
   return data
 }
 
+export async function upsertCatalogEntry(payload: UpsertModelCatalogEntryPayload): Promise<ModelCatalogDetail> {
+  const { data } = await apiClient.put<ModelCatalogDetail>('/admin/models/catalog-entry', payload)
+  return data
+}
+
+export async function deleteCatalogEntry(model: string): Promise<{ model: string }> {
+  const { data } = await apiClient.delete<{ model: string }>('/admin/models/catalog-entry', {
+    params: { model }
+  })
+  return data
+}
+
+export async function copyOfficialPricingToSale(model: string): Promise<ModelCatalogDetail> {
+  const { data } = await apiClient.post<ModelCatalogDetail>('/admin/models/pricing-override/copy-from-official', {
+    model
+  })
+  return data
+}
+
 export const modelsAPI = {
   listModels,
   getModelDetail,
@@ -145,7 +162,10 @@ export const modelsAPI = {
   updateOfficialPricingOverride,
   deleteOfficialPricingOverride,
   updatePricingOverride,
-  deletePricingOverride
+  deletePricingOverride,
+  upsertCatalogEntry,
+  deleteCatalogEntry,
+  copyOfficialPricingToSale
 }
 
 export default modelsAPI

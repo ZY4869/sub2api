@@ -70,6 +70,67 @@ func (h *ModelCatalogHandler) ExchangeRate(c *gin.Context) {
 	response.Success(c, rate)
 }
 
+func (h *ModelCatalogHandler) UpsertCatalogEntry(c *gin.Context) {
+	var req service.UpsertModelCatalogEntryInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	log := logger.FromContext(c.Request.Context()).With(
+		zap.String("component", "handler.admin.model_catalog"),
+		zap.String("model", req.Model),
+	)
+	log.Info("upsert model catalog entry start")
+	detail, err := h.modelCatalogService.UpsertCatalogEntry(c.Request.Context(), req)
+	if err != nil {
+		log.Warn("upsert model catalog entry failed", zap.Error(err))
+		response.ErrorFrom(c, err)
+		return
+	}
+	log.Info("upsert model catalog entry success")
+	response.Success(c, detail)
+}
+
+func (h *ModelCatalogHandler) DeleteCatalogEntry(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	log := logger.FromContext(c.Request.Context()).With(
+		zap.String("component", "handler.admin.model_catalog"),
+		zap.String("model", model),
+	)
+	log.Info("delete model catalog entry start")
+	if err := h.modelCatalogService.DeleteCatalogEntry(c.Request.Context(), model); err != nil {
+		log.Warn("delete model catalog entry failed", zap.Error(err))
+		response.ErrorFrom(c, err)
+		return
+	}
+	log.Info("delete model catalog entry success")
+	response.Success(c, gin.H{"model": service.NormalizeModelCatalogModelID(model)})
+}
+
+func (h *ModelCatalogHandler) CopyOfficialPricingToSale(c *gin.Context) {
+	var req service.CopyModelCatalogPricingFromOfficialInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	actor := h.resolveActor(c)
+	log := logger.FromContext(c.Request.Context()).With(
+		zap.String("component", "handler.admin.model_catalog"),
+		zap.String("model", req.Model),
+		zap.Int64("admin_user_id", actor.UserID),
+		zap.String("admin_email", actor.Email),
+	)
+	log.Info("copy official pricing to sale start")
+	detail, err := h.modelCatalogService.CopyOfficialPricingToSale(c.Request.Context(), actor, req.Model)
+	if err != nil {
+		log.Warn("copy official pricing to sale failed", zap.Error(err))
+		response.ErrorFrom(c, err)
+		return
+	}
+	log.Info("copy official pricing to sale success")
+	response.Success(c, detail)
+}
+
 func (h *ModelCatalogHandler) UpsertOfficialPricingOverride(c *gin.Context) {
 	h.upsertPricingOverride(c, true)
 }
@@ -150,7 +211,7 @@ func (h *ModelCatalogHandler) deletePricingOverride(c *gin.Context, official boo
 		return
 	}
 	log.Info("delete model pricing override success")
-	response.Success(c, gin.H{"model": service.CanonicalizeModelNameForPricing(model)})
+	response.Success(c, gin.H{"model": service.NormalizeModelCatalogModelID(model)})
 }
 
 func (h *ModelCatalogHandler) resolveActor(c *gin.Context) service.ModelCatalogActor {

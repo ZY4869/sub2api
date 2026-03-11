@@ -91,10 +91,13 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		models.GET("", h.Admin.ModelCatalog.List)
 		models.GET("/detail", h.Admin.ModelCatalog.Detail)
 		models.GET("/exchange-rate", h.Admin.ModelCatalog.ExchangeRate)
+		models.PUT("/catalog-entry", h.Admin.ModelCatalog.UpsertCatalogEntry)
+		models.DELETE("/catalog-entry", h.Admin.ModelCatalog.DeleteCatalogEntry)
 		models.PUT("/official-pricing-override", h.Admin.ModelCatalog.UpsertOfficialPricingOverride)
 		models.DELETE("/official-pricing-override", h.Admin.ModelCatalog.DeleteOfficialPricingOverride)
 		models.PUT("/pricing-override", h.Admin.ModelCatalog.UpsertPricingOverride)
 		models.DELETE("/pricing-override", h.Admin.ModelCatalog.DeletePricingOverride)
+		models.POST("/pricing-override/copy-from-official", h.Admin.ModelCatalog.CopyOfficialPricingToSale)
 	}
 }
 

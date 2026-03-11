@@ -51,17 +51,26 @@ func (s *modelCatalogSettingRepoStub) Delete(_ context.Context, key string) erro
 }
 
 func TestModelCatalogService_ListModelsAndDetailExposeLayeredPricing(t *testing.T) {
-	model := "gpt-4o-mini-2026-03-05"
+	model := "claude-sonnet-4.5"
+	pricingLookup := "claude-sonnet-4-5-20250929"
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelCatalogEntries] = mustModelCatalogJSON(t, []ModelCatalogEntry{{
+		Model:                model,
+		DisplayName:          "Claude Sonnet 4.5",
+		Provider:             "anthropic",
+		Mode:                 "chat",
+		CanonicalModelID:     pricingLookup,
+		PricingLookupModelID: pricingLookup,
+	}})
 	repo.values[SettingKeyModelOfficialPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
-		model: {
+		pricingLookup: {
 			ModelCatalogPricing: ModelCatalogPricing{
 				InputCostPerToken: modelCatalogFloat64Ptr(1.5e-6),
 			},
 		},
 	})
 	repo.values[SettingKeyModelPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
-		model: {
+		pricingLookup: {
 			ModelCatalogPricing: ModelCatalogPricing{
 				OutputCostPerToken: modelCatalogFloat64Ptr(3.5e-6),
 			},
@@ -70,10 +79,10 @@ func TestModelCatalogService_ListModelsAndDetailExposeLayeredPricing(t *testing.
 
 	pricingService := &PricingService{
 		pricingData: map[string]*LiteLLMModelPricing{
-			model: {
+			pricingLookup: {
 				InputCostPerToken:  1e-6,
 				OutputCostPerToken: 2e-6,
-				LiteLLMProvider:    "openai",
+				LiteLLMProvider:    "anthropic",
 				Mode:               "chat",
 			},
 		},
@@ -91,8 +100,8 @@ func TestModelCatalogService_ListModelsAndDetailExposeLayeredPricing(t *testing.
 
 	item := items[0]
 	require.Equal(t, model, item.Model)
-	require.Equal(t, "GPT-4o-mini", item.DisplayName)
-	require.Equal(t, "chatgpt", item.IconKey)
+	require.Equal(t, "Claude Sonnet 4.5", item.DisplayName)
+	require.Equal(t, "claude", item.IconKey)
 	require.Equal(t, ModelCatalogPricingSourceOverride, item.PricingSource)
 	require.Equal(t, ModelCatalogPricingSourceDynamic, item.BasePricingSource)
 	require.NotNil(t, item.OfficialPricing)
@@ -121,36 +130,71 @@ func TestModelCatalogService_ListModelsAndDetailExposeLayeredPricing(t *testing.
 
 func TestModelCatalogService_ListModelsDedupesDisplayNames(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
-	pricingService := &PricingService{
-		pricingData: map[string]*LiteLLMModelPricing{
-			"gpt-4o": {
-				InputCostPerToken:  2.5e-6,
-				OutputCostPerToken: 10e-6,
-				LiteLLMProvider:    "openai",
-				Mode:               "chat",
-			},
-			"gpt-4o-2024-11-20": {
-				InputCostPerToken:  2.5e-6,
-				OutputCostPerToken: 10e-6,
-				LiteLLMProvider:    "openai",
-				Mode:               "chat",
-			},
-		},
+	pricingLookup := "claude-sonnet-4-5-20250929"
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	items, total, err := svc.ListModels(context.Background(), ModelCatalogListFilter{Search: pricingLookup, Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	require.Equal(t, "claude-sonnet-4.5", items[0].Model)
+	require.Equal(t, "Claude Sonnet 4.5", items[0].DisplayName)
+
+	items, total, err = svc.ListModels(context.Background(), ModelCatalogListFilter{Search: "claude-sonnet-4.5", Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, items, 1)
+	require.Equal(t, "claude-sonnet-4.5", items[0].Model)
+}
+
+func TestModelCatalogService_SeedFallbackUsesCuratedBaseline(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+
+	items, total, err := svc.ListModels(context.Background(), ModelCatalogListFilter{Page: 1, PageSize: 100})
+	require.NoError(t, err)
+	require.Greater(t, total, int64(0))
+
+	models := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		models[item.Model] = struct{}{}
 	}
 
-	svc := NewModelCatalogService(repo, nil, nil, pricingService, &config.Config{})
-	items, total, err := svc.ListModels(context.Background(), ModelCatalogListFilter{Search: "gpt-4o", Page: 1, PageSize: 20})
-	require.NoError(t, err)
-	require.Equal(t, int64(1), total)
-	require.Len(t, items, 1)
-	require.Equal(t, "gpt-4o", items[0].Model)
-	require.Equal(t, "GPT-4o", items[0].DisplayName)
+	_, hasAnthropicOfficial := models["claude-opus-4.1"]
+	_, hasOldAnthropic := models["claude-opus-4.6"]
+	_, hasCurrentCodex := models["gpt-5-codex"]
+	_, hasOldCodex := models["gpt-5.3-codex"]
+	require.True(t, hasAnthropicOfficial)
+	require.False(t, hasOldAnthropic)
+	require.True(t, hasCurrentCodex)
+	require.False(t, hasOldCodex)
+}
 
-	items, total, err = svc.ListModels(context.Background(), ModelCatalogListFilter{Search: "gpt-4o-2024-11-20", Page: 1, PageSize: 20})
+func TestModelCatalogService_LegacyAliasesResolveToCuratedRows(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelOfficialPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
+		"gpt-5.3-codex": {
+			ModelCatalogPricing: ModelCatalogPricing{
+				InputCostPerToken: modelCatalogFloat64Ptr(1.25e-6),
+			},
+		},
+		"claude-sonnet-4-6": {
+			ModelCatalogPricing: ModelCatalogPricing{
+				OutputCostPerToken: modelCatalogFloat64Ptr(5e-6),
+			},
+		},
+	})
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+
+	codexDetail, err := svc.GetModelDetail(context.Background(), "gpt-5-codex")
 	require.NoError(t, err)
-	require.Equal(t, int64(1), total)
-	require.Len(t, items, 1)
-	require.Equal(t, "gpt-4o-2024-11-20", items[0].Model)
+	require.NotNil(t, codexDetail.OfficialOverridePricing)
+	require.Equal(t, 1.25e-6, *codexDetail.OfficialOverridePricing.InputCostPerToken)
+
+	sonnetDetail, err := svc.GetModelDetail(context.Background(), "claude-sonnet-4.5")
+	require.NoError(t, err)
+	require.NotNil(t, sonnetDetail.OfficialOverridePricing)
+	require.Equal(t, 5e-6, *sonnetDetail.OfficialOverridePricing.OutputCostPerToken)
 }
 
 func TestModelCatalogPricingValidationRejectsInvalidOverrides(t *testing.T) {

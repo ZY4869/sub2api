@@ -2,13 +2,9 @@
   <DataTable :columns="columns" :data="items" :loading="loading">
     <template #cell-model="{ row }">
       <div class="space-y-2">
-        <ModelCatalogModelLabel
-          :model="row.model"
-          :display-name="row.display_name"
-          :icon-key="row.icon_key"
-        />
+        <ModelCatalogModelLabel :model="row.model" :display-name="row.display_name" :icon-key="row.icon_key" />
         <span
-          v-if="hasTieredPricing(row.sale_pricing || row.official_pricing)"
+          v-if="hasTieredPricing(pricingFor(row))"
           class="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
         >
           {{ t('admin.models.tieredPricing') }}
@@ -42,54 +38,34 @@
     </template>
 
     <template #cell-input_cost_per_token="{ row }">
-      <ModelCatalogLayeredPriceCell
-        :sale-value="row.sale_pricing?.input_cost_per_token"
-        :official-value="row.official_pricing?.input_cost_per_token"
-        unit="token"
-        :exchange-rate="exchangeRate"
-      />
+      <ModelCatalogPriceValue :value="pricingFor(row)?.input_cost_per_token" unit="token" :exchange-rate="exchangeRate" />
     </template>
 
     <template #cell-output_cost_per_token="{ row }">
-      <ModelCatalogLayeredPriceCell
-        :sale-value="row.sale_pricing?.output_cost_per_token"
-        :official-value="row.official_pricing?.output_cost_per_token"
-        unit="token"
-        :exchange-rate="exchangeRate"
-      />
+      <ModelCatalogPriceValue :value="pricingFor(row)?.output_cost_per_token" unit="token" :exchange-rate="exchangeRate" />
     </template>
 
     <template #cell-cache_creation_input_token_cost="{ row }">
-      <ModelCatalogLayeredPriceCell
-        :sale-value="row.sale_pricing?.cache_creation_input_token_cost"
-        :official-value="row.official_pricing?.cache_creation_input_token_cost"
-        unit="token"
-        :exchange-rate="exchangeRate"
-      />
+      <ModelCatalogPriceValue :value="pricingFor(row)?.cache_creation_input_token_cost" unit="token" :exchange-rate="exchangeRate" />
     </template>
 
     <template #cell-cache_read_input_token_cost="{ row }">
-      <ModelCatalogLayeredPriceCell
-        :sale-value="row.sale_pricing?.cache_read_input_token_cost"
-        :official-value="row.official_pricing?.cache_read_input_token_cost"
-        unit="token"
-        :exchange-rate="exchangeRate"
-      />
+      <ModelCatalogPriceValue :value="pricingFor(row)?.cache_read_input_token_cost" unit="token" :exchange-rate="exchangeRate" />
     </template>
 
     <template #cell-output_cost_per_image="{ row }">
-      <ModelCatalogLayeredPriceCell
-        :sale-value="row.sale_pricing?.output_cost_per_image"
-        :official-value="row.official_pricing?.output_cost_per_image"
-        unit="image"
-        :exchange-rate="exchangeRate"
-      />
+      <ModelCatalogPriceValue :value="pricingFor(row)?.output_cost_per_image" unit="image" :exchange-rate="exchangeRate" />
     </template>
 
     <template #cell-actions="{ row }">
-      <button class="btn btn-secondary btn-sm" @click="emit('inspect', row.model)">
-        {{ t('admin.models.viewDetails') }}
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn btn-secondary btn-sm" @click="emit('inspect', row.model)">
+          {{ t('admin.models.viewDetails') }}
+        </button>
+        <button class="btn btn-danger btn-sm" @click="emit('delete', row.model)">
+          {{ t('common.delete') }}
+        </button>
+      </div>
     </template>
 
     <template #empty>
@@ -104,15 +80,17 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import type { ModelCatalogExchangeRate, ModelCatalogItem } from '@/api/admin/models'
+import type { ModelCatalogExchangeRate, ModelCatalogItem, ModelCatalogPricing } from '@/api/admin/models'
+import type { ModelCatalogPricingLayer } from '@/composables/useModelCatalogPage'
 import { hasTieredPricing } from '@/utils/modelCatalogPricing'
-import ModelCatalogLayeredPriceCell from './ModelCatalogLayeredPriceCell.vue'
 import ModelCatalogModelLabel from './ModelCatalogModelLabel.vue'
+import ModelCatalogPriceValue from './ModelCatalogPriceValue.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     items: ModelCatalogItem[]
     loading: boolean
+    pricingLayer: ModelCatalogPricingLayer
     exchangeRate?: ModelCatalogExchangeRate | null
   }>(),
   {
@@ -122,6 +100,7 @@ withDefaults(
 
 const emit = defineEmits<{
   (e: 'inspect', model: string): void
+  (e: 'delete', model: string): void
 }>()
 
 const { t } = useI18n()
@@ -140,6 +119,10 @@ const columns = computed<Column[]>(() => [
   { key: 'actions', label: t('common.actions') }
 ])
 
+function pricingFor(row: ModelCatalogItem): ModelCatalogPricing | undefined {
+  return props.pricingLayer === 'official' ? row.official_pricing : row.sale_pricing
+}
+
 function availabilityClass(available: boolean) {
   return available
     ? 'inline-flex w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
@@ -157,10 +140,7 @@ function sourceClass(source: string) {
 }
 
 function formatPlatforms(platforms?: string[]) {
-  if (!platforms || platforms.length === 0) {
-    return '-'
-  }
-  return platforms.join(', ')
+  return !platforms?.length ? '-' : platforms.join(', ')
 }
 
 function formatMode(mode?: string) {

@@ -56,10 +56,19 @@ func (s *modelCatalogSettingRepoStub) Delete(_ context.Context, key string) erro
 
 func TestModelCatalogHandler_ListAndDetail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	model := "claude-3-5-haiku"
+	model := "claude-sonnet-4.5"
+	pricingLookup := "claude-sonnet-4-5-20250929"
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
-	repo.values[service.SettingKeyModelOfficialPriceOverrides] = `{"claude-3-5-haiku":{"input_cost_per_token":0.0000012}}`
-	repo.values[service.SettingKeyModelPriceOverrides] = `{"claude-3-5-haiku":{"output_cost_per_token":0.000006}}`
+	repo.values[service.SettingKeyModelCatalogEntries] = mustModelCatalogJSON(t, []service.ModelCatalogEntry{{
+		Model:                model,
+		DisplayName:          "Claude Sonnet 4.5",
+		Provider:             "anthropic",
+		Mode:                 "chat",
+		CanonicalModelID:     pricingLookup,
+		PricingLookupModelID: pricingLookup,
+	}})
+	repo.values[service.SettingKeyModelOfficialPriceOverrides] = `{"claude-sonnet-4-5-20250929":{"input_cost_per_token":0.0000012}}`
+	repo.values[service.SettingKeyModelPriceOverrides] = `{"claude-sonnet-4-5-20250929":{"output_cost_per_token":0.000006}}`
 
 	billingService := service.NewBillingService(&config.Config{}, nil)
 	svc := service.NewModelCatalogService(repo, nil, billingService, nil, &config.Config{})
@@ -69,7 +78,7 @@ func TestModelCatalogHandler_ListAndDetail(t *testing.T) {
 	router.GET("/api/v1/admin/models/detail", handler.Detail)
 
 	listRec := httptest.NewRecorder()
-	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/models?search=claude-3-5-haiku&page=1&page_size=20", nil)
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/models?search=claude-sonnet-4-5-20250929&page=1&page_size=20", nil)
 	router.ServeHTTP(listRec, listReq)
 	require.Equal(t, http.StatusOK, listRec.Code)
 
@@ -84,13 +93,13 @@ func TestModelCatalogHandler_ListAndDetail(t *testing.T) {
 	require.Zero(t, listResp.Code)
 	require.Equal(t, int64(1), listResp.Data.Total)
 	require.Len(t, listResp.Data.Items, 1)
-	require.Equal(t, "Claude-3-5-haiku", listResp.Data.Items[0].DisplayName)
+	require.Equal(t, "Claude Sonnet 4.5", listResp.Data.Items[0].DisplayName)
 	require.Equal(t, "claude", listResp.Data.Items[0].IconKey)
 	require.NotNil(t, listResp.Data.Items[0].OfficialPricing)
 	require.NotNil(t, listResp.Data.Items[0].SalePricing)
 
 	detailRec := httptest.NewRecorder()
-	detailReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/models/detail?model=claude-3-5-haiku", nil)
+	detailReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/models/detail?model=claude-sonnet-4-5-20250929", nil)
 	router.ServeHTTP(detailRec, detailReq)
 	require.Equal(t, http.StatusOK, detailRec.Code)
 
@@ -105,6 +114,13 @@ func TestModelCatalogHandler_ListAndDetail(t *testing.T) {
 	require.NotNil(t, detailResp.Data.SaleOverridePricing)
 	require.NotNil(t, detailResp.Data.OfficialPricing)
 	require.NotNil(t, detailResp.Data.SalePricing)
-	require.Equal(t, "Claude-3-5-haiku", detailResp.Data.DisplayName)
+	require.Equal(t, "Claude Sonnet 4.5", detailResp.Data.DisplayName)
 	require.Equal(t, "claude", detailResp.Data.IconKey)
+}
+
+func mustModelCatalogJSON(t *testing.T, value any) string {
+	t.Helper()
+	payload, err := json.Marshal(value)
+	require.NoError(t, err)
+	return string(payload)
 }

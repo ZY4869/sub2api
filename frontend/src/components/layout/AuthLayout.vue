@@ -26,6 +26,10 @@
 
     <!-- Content Container -->
     <div class="relative z-10 w-full max-w-md">
+      <div class="mb-4 flex justify-end">
+        <ExchangeRateBadge variant="auth" />
+      </div>
+
       <!-- Logo/Brand -->
       <div class="mb-8 text-center">
         <!-- Custom Logo or Default Logo -->
@@ -65,6 +69,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useAppStore } from '@/stores'
+import ExchangeRateBadge from '@/components/common/ExchangeRateBadge.vue'
 import { sanitizeUrl } from '@/utils/url'
 
 const appStore = useAppStore()

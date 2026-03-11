@@ -285,6 +285,7 @@ export default {
     disabled: '已禁用',
     total: '总计',
     balance: '余额',
+    todayExchangeRate: '今日汇率',
     available: '可用',
     copiedToClipboard: '已复制到剪贴板',
     copied: '已复制',
@@ -1016,7 +1017,41 @@ export default {
       saving: '保存中...',
       copyModelIdSuccess: '已复制模型 ID：{model}',
       exchangeRateTitle: '汇率',
-      exchangeRateHint: 'USD→CNY {rate} · {date}',
+      exchangeRateHint: 'USD?CNY {rate} ? {date}',
+      copyToSale: '设为出售价格',
+      copyToSaleSuccess: '已将真实价格复制为出售价格',
+      copyToSaleFailed: '复制真实价格到出售价格失败',
+      pages: {
+        official: {
+          nav: '真实价格',
+          title: '真实价格',
+          description: '管理模型真实价格层，并可一键同步到出售价格。'
+        },
+        sale: {
+          nav: '出售价格',
+          title: '出售价格',
+          description: '管理对外出售价格；未设置时会回退到真实价格。'
+        },
+        relay: {
+          nav: '中转价格',
+          title: '中转价格',
+          description: '预留给后续中转价格联动使用，本轮暂不开放写入。',
+          badge: '预留页面',
+          placeholder: '这里会承接你后续的联动改造。本轮仅保留路由、标题和占位容器。'
+        }
+      },
+      catalog: {
+        addModel: '新增模型',
+        createTitle: '新增模型条目',
+        modelId: '模型 ID',
+        modelPlaceholder: '输入短别名，例如 claude-sonnet-4.5',
+        modelHint: '这里只需填写模型 ID，提供商、模式和展示名称将由后端自动推导。',
+        createSuccess: '模型已加入模型库',
+        createFailed: '新增模型失败',
+        deleteConfirm: '确认从模型库删除 {model} 吗？',
+        deleteSuccess: '模型已从模型库删除',
+        deleteFailed: '删除模型失败'
+      },
       columns: {
         model: '模型',
         provider: '提供商',

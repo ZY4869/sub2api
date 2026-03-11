@@ -285,6 +285,7 @@ export default {
     disabled: 'Disabled',
     total: 'Total',
     balance: 'Balance',
+    todayExchangeRate: "Today's Rate",
     available: 'Available',
     copiedToClipboard: 'Copied to clipboard',
     copied: 'Copied',
@@ -993,8 +994,41 @@ export default {
       noRouteReferences: 'No group route references',
       saving: 'Saving...',
       copyModelIdSuccess: 'Model ID copied: {model}',
-      exchangeRateTitle: 'Exchange Rate',
-      exchangeRateHint: 'USD?CNY {rate} ? {date}',
+      exchangeRateTitle: 'Exchange Rate',      exchangeRateHint: 'USD?CNY {rate} ? {date}',
+      copyToSale: 'Set as Sale Pricing',
+      copyToSaleSuccess: 'Official pricing copied to sale pricing',
+      copyToSaleFailed: 'Failed to copy official pricing to sale pricing',
+      pages: {
+        official: {
+          nav: 'Official Pricing',
+          title: 'Official Pricing',
+          description: 'Manage the real official pricing layer and sync it to sale pricing when needed.'
+        },
+        sale: {
+          nav: 'Sale Pricing',
+          title: 'Sale Pricing',
+          description: 'Manage the pricing exposed to customers. Missing sale values fall back to official pricing.'
+        },
+        relay: {
+          nav: 'Relay Pricing',
+          title: 'Relay Pricing',
+          description: 'Reserved for future relay pricing linkage. No write operations are enabled yet.',
+          badge: 'Reserved',
+          placeholder: 'This page is ready for later linkage logic. Fields and persistence stay disabled in this round.'
+        }
+      },
+      catalog: {
+        addModel: 'Add Model',
+        createTitle: 'Add Catalog Model',
+        modelId: 'Model ID',
+        modelPlaceholder: 'Enter a short alias like claude-sonnet-4.5',
+        modelHint: 'Only the model ID is required. Provider, mode and display name are inferred by the backend.',
+        createSuccess: 'Model added to catalog',
+        createFailed: 'Failed to add model to catalog',
+        deleteConfirm: 'Delete model {model} from the catalog?',
+        deleteSuccess: 'Model removed from catalog',
+        deleteFailed: 'Failed to delete model from catalog'
+      },
       columns: {
         model: 'Model',
         provider: 'Provider',

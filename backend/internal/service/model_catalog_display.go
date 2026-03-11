@@ -6,17 +6,20 @@ import (
 )
 
 var (
-	modelCatalogDateSuffixPattern = regexp.MustCompile(`-(?:\d{8}|\d{4}-\d{2}-\d{2})$`)
-	openAIReasoningModelPattern   = regexp.MustCompile(`^o\d`)
+	modelCatalogDateVersionSuffixPattern = regexp.MustCompile(`-(?:\d{8}|\d{4}-\d{2}-\d{2})(?:-[^-\s]+:\d+)?$`)
+	openAIReasoningModelPattern          = regexp.MustCompile(`^o\d`)
 )
 
+func NormalizeModelCatalogModelID(model string) string {
+	return normalizeModelCatalogAlias(model)
+}
+
 func FormatModelCatalogDisplayName(model string) string {
-	canonical := CanonicalizeModelNameForPricing(model)
+	canonical := NormalizeModelCatalogModelID(model)
 	if canonical == "" {
 		return ""
 	}
-	trimmed := modelCatalogDateSuffixPattern.ReplaceAllString(canonical, "")
-	parts := strings.Split(trimmed, "-")
+	parts := strings.Split(canonical, "-")
 	if len(parts) == 0 {
 		return canonical
 	}
@@ -25,7 +28,7 @@ func FormatModelCatalogDisplayName(model string) string {
 }
 
 func InferModelCatalogIconKey(model string) string {
-	canonical := CanonicalizeModelNameForPricing(model)
+	canonical := NormalizeModelCatalogModelID(model)
 	switch {
 	case strings.HasPrefix(canonical, "claude"):
 		return "claude"

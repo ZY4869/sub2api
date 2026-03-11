@@ -135,6 +135,7 @@ const (
 	SettingKeyFallbackModelOpenAI      = "fallback_model_openai"
 	SettingKeyFallbackModelGemini      = "fallback_model_gemini"
 	SettingKeyFallbackModelAntigravity = "fallback_model_antigravity"
+	SettingKeyModelCatalogEntries      = "model_catalog_entries"
 	SettingKeyModelPriceOverrides      = "model_price_overrides"
 	SettingKeyModelOfficialPriceOverrides = "model_official_price_overrides"
 

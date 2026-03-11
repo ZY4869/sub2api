@@ -6,7 +6,10 @@ func dedupeModelCatalogItems(items []ModelCatalogItem) []ModelCatalogItem {
 	selected := make(map[string]ModelCatalogItem, len(items))
 	order := make([]string, 0, len(items))
 	for _, item := range items {
-		key := strings.TrimSpace(item.DisplayName)
+		key := NormalizeModelCatalogModelID(item.Model)
+		if key == "" {
+			key = strings.TrimSpace(item.DisplayName)
+		}
 		if key == "" {
 			key = item.Model
 		}
@@ -46,16 +49,16 @@ func preferModelCatalogItem(current ModelCatalogItem, candidate ModelCatalogItem
 		}
 		return current
 	}
-	currentHasDate := modelCatalogDateSuffixPattern.MatchString(current.Model)
-	candidateHasDate := modelCatalogDateSuffixPattern.MatchString(candidate.Model)
+	currentHasDate := modelCatalogDateVersionSuffixPattern.MatchString(current.Model)
+	candidateHasDate := modelCatalogDateVersionSuffixPattern.MatchString(candidate.Model)
 	if currentHasDate != candidateHasDate {
 		if !candidateHasDate {
 			return candidate
 		}
 		return current
 	}
-	currentDate := modelCatalogDateSuffixPattern.FindString(strings.ToLower(current.Model))
-	candidateDate := modelCatalogDateSuffixPattern.FindString(strings.ToLower(candidate.Model))
+	currentDate := modelCatalogDateVersionSuffixPattern.FindString(strings.ToLower(current.Model))
+	candidateDate := modelCatalogDateVersionSuffixPattern.FindString(strings.ToLower(candidate.Model))
 	if candidateDate != currentDate {
 		if candidateDate > currentDate {
 			return candidate

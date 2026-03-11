@@ -74,19 +74,18 @@ func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalo
 }
 
 func (s *ModelCatalogService) GetModelDetail(ctx context.Context, model string) (*ModelCatalogDetail, error) {
-	canonicalModel := CanonicalizeModelNameForPricing(model)
-	if canonicalModel == "" {
+	if NormalizeModelCatalogModelID(model) == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
 		return nil, err
 	}
-	record, ok := records[canonicalModel]
+	record, ok := resolveModelCatalogRecord(records, model)
 	if !ok {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
-	routeReferences, err := s.collectRouteReferences(ctx, canonicalModel, record.mode)
+	routeReferences, err := s.collectRouteReferences(ctx, record)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +101,61 @@ func (s *ModelCatalogService) GetModelDetail(ctx context.Context, model string) 
 	}, nil
 }
 
+func (s *ModelCatalogService) UpsertCatalogEntry(ctx context.Context, input UpsertModelCatalogEntryInput) (*ModelCatalogDetail, error) {
+	entry, err := s.deriveCatalogEntry(input.Model)
+	if err != nil {
+		return nil, err
+	}
+	entries := s.loadCatalogEntries(ctx)
+	if current, index := modelCatalogEntryByModel(entries, entry.Model); current != nil {
+		entries[index] = *entry
+	} else {
+		entries = append(entries, *entry)
+	}
+	if err := s.persistCatalogEntries(ctx, entries); err != nil {
+		return nil, err
+	}
+	return s.GetModelDetail(ctx, entry.Model)
+}
+
+func (s *ModelCatalogService) DeleteCatalogEntry(ctx context.Context, model string) error {
+	alias := NormalizeModelCatalogModelID(model)
+	if alias == "" {
+		return infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
+	}
+	entries := s.loadCatalogEntries(ctx)
+	_, index := modelCatalogEntryByModel(entries, alias)
+	if index < 0 {
+		return infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
+	entries = append(entries[:index], entries[index+1:]...)
+	if err := s.persistCatalogEntries(ctx, entries); err != nil {
+		return err
+	}
+	if err := s.deletePricingOverrideByLayer(ctx, alias, true); err != nil && !infraerrors.IsNotFound(err) {
+		return err
+	}
+	if err := s.deletePricingOverrideByLayer(ctx, alias, false); err != nil && !infraerrors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+func (s *ModelCatalogService) CopyOfficialPricingToSale(ctx context.Context, actor ModelCatalogActor, model string) (*ModelCatalogDetail, error) {
+	detail, err := s.GetModelDetail(ctx, model)
+	if err != nil {
+		return nil, err
+	}
+	if detail.OfficialPricing == nil || pricingEmpty(detail.OfficialPricing) {
+		return nil, infraerrors.BadRequest("MODEL_PRICE_OVERRIDE_EMPTY", "official pricing is empty")
+	}
+	payload := UpsertModelPricingOverrideInput{
+		Model:               detail.Model,
+		ModelCatalogPricing: *cloneCatalogPricing(detail.OfficialPricing),
+	}
+	return s.UpsertPricingOverride(ctx, actor, payload)
+}
+
 func (s *ModelCatalogService) UpsertOfficialPricingOverride(ctx context.Context, actor ModelCatalogActor, input UpsertModelPricingOverrideInput) (*ModelCatalogDetail, error) {
 	return s.upsertPricingOverrideByLayer(ctx, actor, input, true)
 }
@@ -111,15 +165,15 @@ func (s *ModelCatalogService) UpsertPricingOverride(ctx context.Context, actor M
 }
 
 func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, actor ModelCatalogActor, input UpsertModelPricingOverrideInput, official bool) (*ModelCatalogDetail, error) {
-	canonicalModel := CanonicalizeModelNameForPricing(input.Model)
-	if canonicalModel == "" {
+	overrideKey := NormalizeModelCatalogModelID(input.Model)
+	if overrideKey == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
 		return nil, err
 	}
-	record, ok := records[canonicalModel]
+	record, ok := resolveModelCatalogRecord(records, input.Model)
 	if !ok {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
@@ -132,11 +186,11 @@ func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, 
 	var effectivePricing *ModelCatalogPricing
 	if official {
 		overrides = s.loadOfficialPriceOverrides(ctx)
-		override = overrides[canonicalModel]
+		override = overrides[overrideKey]
 		effectivePricing = cloneCatalogPricing(record.upstreamPricing)
 	} else {
 		overrides = s.loadSalePriceOverrides(ctx)
-		override = overrides[canonicalModel]
+		override = overrides[overrideKey]
 		effectivePricing = cloneCatalogPricing(record.officialPricing)
 	}
 	if override == nil {
@@ -155,7 +209,7 @@ func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, 
 	override.UpdatedAt = time.Now().UTC()
 	override.UpdatedByUserID = actor.UserID
 	override.UpdatedByEmail = strings.TrimSpace(actor.Email)
-	overrides[canonicalModel] = override
+	overrides[overrideKey] = override
 
 	if official {
 		if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
@@ -172,7 +226,7 @@ func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, 
 			s.billingService.ReplaceModelPriceOverrides(overrides)
 		}
 	}
-	return s.GetModelDetail(ctx, canonicalModel)
+	return s.GetModelDetail(ctx, overrideKey)
 }
 
 func (s *ModelCatalogService) DeleteOfficialPricingOverride(ctx context.Context, _ ModelCatalogActor, model string) error {
@@ -184,13 +238,16 @@ func (s *ModelCatalogService) DeletePricingOverride(ctx context.Context, _ Model
 }
 
 func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, model string, official bool) error {
-	canonicalModel := CanonicalizeModelNameForPricing(model)
-	if canonicalModel == "" {
+	alias := NormalizeModelCatalogModelID(model)
+	if alias == "" {
 		return infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
 	if official {
 		overrides := s.loadOfficialPriceOverrides(ctx)
-		delete(overrides, canonicalModel)
+		if _, ok := overrides[alias]; !ok {
+			return infraerrors.NotFound("MODEL_OVERRIDE_NOT_FOUND", "official pricing override not found")
+		}
+		delete(overrides, alias)
 		if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
 			return err
 		}
@@ -200,7 +257,10 @@ func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, 
 		return nil
 	}
 	overrides := s.loadSalePriceOverrides(ctx)
-	delete(overrides, canonicalModel)
+	if _, ok := overrides[alias]; !ok {
+		return infraerrors.NotFound("MODEL_OVERRIDE_NOT_FOUND", "sale pricing override not found")
+	}
+	delete(overrides, alias)
 	if err := s.persistSalePriceOverrides(ctx, overrides); err != nil {
 		return err
 	}
@@ -227,7 +287,7 @@ func recordToModelCatalogItem(record *modelCatalogRecord) ModelCatalogItem {
 	}
 	salePricing := cloneCatalogPricing(record.salePricing)
 	return ModelCatalogItem{
-		Model:                           record.model,
+		Model:                           NormalizeModelCatalogModelID(record.model),
 		DisplayName:                     record.displayName,
 		IconKey:                         record.iconKey,
 		Provider:                        record.provider,
@@ -252,8 +312,11 @@ func matchesModelCatalogFilter(item ModelCatalogItem, filter ModelCatalogListFil
 	contains := func(value string, keyword string) bool {
 		return strings.Contains(strings.ToLower(value), strings.ToLower(strings.TrimSpace(keyword)))
 	}
-	if keyword := strings.TrimSpace(filter.Search); keyword != "" && !contains(item.Model, keyword) && !contains(item.DisplayName, keyword) && !contains(item.Provider, keyword) {
-		return false
+	if keyword := strings.TrimSpace(filter.Search); keyword != "" {
+		normalizedKeyword := NormalizeModelCatalogModelID(keyword)
+		if !contains(item.Model, keyword) && !contains(item.DisplayName, keyword) && !contains(item.Provider, keyword) && (normalizedKeyword == "" || (!contains(item.Model, normalizedKeyword) && !contains(item.DisplayName, normalizedKeyword))) {
+			return false
+		}
 	}
 	if provider := strings.TrimSpace(filter.Provider); provider != "" && !strings.EqualFold(provider, item.Provider) {
 		return false
