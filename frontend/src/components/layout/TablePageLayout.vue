@@ -42,13 +42,16 @@ withDefaults(defineProps<{
 }
 
 .table-scroll-container-page-scroll {
-  overflow-y: visible;
+  overflow: visible;
 }
 
 .table-scroll-container :deep(.table-wrapper) {
   @apply overflow-x-auto;
-  overflow-y: visible;
-  scrollbar-gutter: stable;
+}
+
+.table-scroll-container-page-scroll :deep(.table-wrapper) {
+  overflow-y: hidden;
+  scrollbar-gutter: auto;
 }
 
 .table-scroll-container :deep(table) {
