@@ -3250,6 +3250,9 @@
         refreshInterval30s: '30 秒',
         refreshInterval60s: '60 秒',
         autoRefreshCountdown: '自动刷新：{seconds}s',
+        dashboardCards: '仪表盘卡片',
+        displayOpenAITokenStats: '显示 OpenAI Token 请求统计',
+        displayOpenAITokenStatsHint: '在运维仪表盘中显示或隐藏 OpenAI Token 请求统计卡片。默认隐藏。',
         validation: {
           title: '请先修正以下问题',
           retentionDaysRange: '保留天数必须在1-365天之间',
