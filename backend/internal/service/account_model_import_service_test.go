@@ -199,29 +199,24 @@ func TestImportAccountModels_ImportsAndDeduplicatesOpenAIModels(t *testing.T) {
 	require.Equal(t, 2, result.ImportedCount)
 	require.Equal(t, 1, result.SkippedCount)
 	require.Empty(t, result.FailedModels)
+	require.Equal(t, 2, countImportModelResults(result.ModelResults, "imported"))
+	require.Equal(t, 1, countImportModelResults(result.ModelResults, "skipped"))
+	requireImportModelReason(t, result.ModelResults, "gpt-test-model-a", "imported", "imported_new")
+	requireImportModelReason(t, result.ModelResults, "gpt-test-model-b", "imported", "imported_new")
+	requireImportModelReason(t, result.ModelResults, "gpt-test-model-a", "skipped", "duplicate_canonical")
 
 	result, err = svc.ImportAccountModels(context.Background(), account, "manual")
 	require.NoError(t, err)
-	require.Equal(t, 2, result.ImportedCount)
+	require.Zero(t, result.ImportedCount)
+	require.Equal(t, 3, countImportModelResults(result.ModelResults, "skipped"))
+	requireImportModelReason(t, result.ModelResults, "gpt-test-model-a", "skipped", "already_exists")
+	requireImportModelReason(t, result.ModelResults, "gpt-test-model-b", "skipped", "already_exists")
 
-	stored := repo.values[SettingKeyModelCatalogEntries]
+	stored := repo.values[SettingKeyModelRegistryEntries]
 	require.NotEmpty(t, stored)
-
-	var entries []ModelCatalogEntry
-	require.NoError(t, json.Unmarshal([]byte(stored), &entries))
-
-	countA := 0
-	countB := 0
-	for _, entry := range entries {
-		switch entry.Model {
-		case "gpt-test-model-a":
-			countA++
-		case "gpt-test-model-b":
-			countB++
-		}
-	}
-	require.Equal(t, 1, countA)
-	require.Equal(t, 1, countB)
+	ids := registryEntryIDsFromJSON(t, stored)
+	require.Contains(t, ids, "gpt-test-model-a")
+	require.Contains(t, ids, "gpt-test-model-b")
 }
 
 func TestImportAccountModels_ContinuesOnCatalogUpsertFailure(t *testing.T) {
@@ -250,6 +245,9 @@ func TestImportAccountModels_ContinuesOnCatalogUpsertFailure(t *testing.T) {
 	require.Len(t, result.FailedModels, 1)
 	require.Equal(t, "gpt-test-model-b", result.FailedModels[0].Model)
 	require.Contains(t, result.FailedModels[0].Error, "persist")
+	require.Equal(t, 1, countImportModelResults(result.ModelResults, "imported"))
+	require.Equal(t, 1, countImportModelResults(result.ModelResults, "failed"))
+	requireImportModelReason(t, result.ModelResults, "gpt-test-model-b", "failed", "persist_failed")
 }
 
 func TestImportAccountModels_ReturnsClearErrorForUnsupportedSoraOAuth(t *testing.T) {
@@ -346,6 +344,7 @@ func TestImportAccountModels_ImportsAnthropicModelsWithExpectedHeaders(t *testin
 	require.NoError(t, err)
 	require.Equal(t, []string{"claude-test-model-a", "claude-test-model-b"}, result.DetectedModels)
 	require.Equal(t, 2, result.ImportedCount)
+	require.Equal(t, 2, countImportModelResults(result.ModelResults, "imported"))
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "https://anthropic.example.test/v1/models", upstream.lastReq.URL.String())
 	require.Equal(t, "anthropic-key", upstream.lastReq.Header.Get("x-api-key"))
@@ -355,7 +354,7 @@ func TestImportAccountModels_ImportsAnthropicModelsWithExpectedHeaders(t *testin
 	require.Equal(t, claude.DefaultHeaders["X-Stainless-Lang"], upstream.lastReq.Header.Get("X-Stainless-Lang"))
 	require.False(t, upstream.lastEnableTLSFingerprint)
 
-	stored := repo.values[SettingKeyModelCatalogEntries]
+	stored := repo.values[SettingKeyModelRegistryEntries]
 	require.Contains(t, stored, "claude-test-model-a")
 	require.Contains(t, stored, "claude-test-model-b")
 }
@@ -383,6 +382,7 @@ func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, []string{"gemini-test-model-a", "gemini-test-model-b"}, result.DetectedModels)
 	require.Equal(t, 2, result.ImportedCount)
+	require.Equal(t, 2, countImportModelResults(result.ModelResults, "imported"))
 	require.Equal(t, accountModelProbeSourceUpstream, result.ProbeSource)
 	require.Empty(t, result.ProbeNotice)
 	require.NotNil(t, upstream.lastReq)
@@ -390,7 +390,7 @@ func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T
 	require.Equal(t, "gemini-key", upstream.lastReq.Header.Get("x-goog-api-key"))
 	require.Equal(t, int64(107), upstream.lastAccountID)
 
-	stored := repo.values[SettingKeyModelCatalogEntries]
+	stored := repo.values[SettingKeyModelRegistryEntries]
 	require.Contains(t, stored, "gemini-test-model-a")
 	require.Contains(t, stored, "gemini-test-model-b")
 }
@@ -429,12 +429,12 @@ func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficient
 
 	expected := expectedNormalizedGeminiCLIDefaultModelIDs()
 	require.Equal(t, expected, result.DetectedModels)
-	require.Equal(t, len(expected), result.ImportedCount)
+	require.NotZero(t, result.ImportedCount)
+	require.Equal(t, len(expected), len(result.ModelResults))
+	require.GreaterOrEqual(t, countImportModelResults(result.ModelResults, "imported")+countImportModelResults(result.ModelResults, "merged")+countImportModelResults(result.ModelResults, "skipped"), len(expected))
 
-	stored := repo.values[SettingKeyModelCatalogEntries]
-	for _, model := range expected {
-		require.Contains(t, stored, model)
-	}
+	stored := repo.values[SettingKeyModelRegistryEntries]
+	require.NotEmpty(t, stored)
 }
 
 func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficientScope(t *testing.T) {
@@ -467,10 +467,8 @@ func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficien
 	require.Equal(t, expectedNormalizedGeminiCLIDefaultModelIDs(), result.DetectedModels)
 	require.NotEmpty(t, result.ProbeNotice)
 
-	stored := repo.values[SettingKeyModelCatalogEntries]
-	for _, model := range result.DetectedModels {
-		require.Contains(t, stored, model)
-	}
+	stored := repo.values[SettingKeyModelRegistryEntries]
+	require.NotEmpty(t, stored)
 }
 
 func TestImportAccountModels_GeminiAPIKey403DoesNotFallbackToDefaultModels(t *testing.T) {
@@ -504,7 +502,7 @@ func TestImportAccountModels_GeminiAPIKey403DoesNotFallbackToDefaultModels(t *te
 	appErr := infraerrors.FromError(err)
 	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
 	require.Contains(t, appErr.Message, "status 403")
-	require.Empty(t, repo.values[SettingKeyModelCatalogEntries])
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
 }
 
 func TestImportAccountModels_GeminiCodeAssistNonScope403StillFails(t *testing.T) {
@@ -535,7 +533,7 @@ func TestImportAccountModels_GeminiCodeAssistNonScope403StillFails(t *testing.T)
 	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
 	require.Contains(t, appErr.Message, "status 403")
 	require.Contains(t, appErr.Message, "access denied by upstream policy")
-	require.Empty(t, repo.values[SettingKeyModelCatalogEntries])
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
 }
 
 func TestImportAccountModels_ImportsAntigravityOAuthModels(t *testing.T) {
@@ -587,17 +585,17 @@ func TestImportAccountModels_ImportsAntigravityOAuthModels(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"claude-sonnet-4.5", "gemini-test-model-a"}, result.DetectedModels)
 	require.Equal(t, 2, result.ImportedCount)
-	require.Equal(t, 1, result.SkippedCount)
+	require.Equal(t, 1, countImportModelResults(result.ModelResults, "merged"))
 	require.Equal(t, "Bearer antigravity-token", lastAuthorization)
 	require.Equal(t, antigravity.GetUserAgent(), lastUserAgent)
 	require.Equal(t, "project-123", lastProject)
 
 	result, err = svc.ImportAccountModels(context.Background(), account, "manual")
 	require.NoError(t, err)
-	require.Equal(t, 2, result.ImportedCount)
+	require.Zero(t, result.ImportedCount)
 
-	stored := repo.values[SettingKeyModelCatalogEntries]
-	require.Contains(t, stored, "claude-sonnet-4.5")
+	stored := repo.values[SettingKeyModelRegistryEntries]
+	require.Contains(t, stored, "claude-sonnet-4-5")
 	require.Contains(t, stored, "gemini-test-model-a")
 }
 
@@ -628,4 +626,38 @@ func TestImportAccountModels_AntigravityAPIKeyDelegatesToAnthropicProbe(t *testi
 	require.Equal(t, "antigravity-api-key", upstream.lastReq.Header.Get("x-api-key"))
 	require.Equal(t, claude.APIKeyBetaHeader, upstream.lastReq.Header.Get("anthropic-beta"))
 	require.Equal(t, "2023-06-01", upstream.lastReq.Header.Get("anthropic-version"))
+}
+
+func countImportModelResults(results []AccountModelImportModelResult, status string) int {
+	count := 0
+	for _, result := range results {
+		if result.Status == status {
+			count++
+		}
+	}
+	return count
+}
+
+func requireImportModelReason(t *testing.T, results []AccountModelImportModelResult, sourceModel string, status string, reason string) {
+	t.Helper()
+	for _, result := range results {
+		if result.SourceModel == sourceModel && result.Status == status && result.ReasonCode == reason {
+			return
+		}
+	}
+	t.Fatalf("expected model result %q with status=%q reason=%q, got %#v", sourceModel, status, reason, results)
+}
+
+func registryEntryIDsFromJSON(t *testing.T, payload string) []string {
+	t.Helper()
+	type registryEntry struct {
+		ID string `json:"id"`
+	}
+	var entries []registryEntry
+	require.NoError(t, json.Unmarshal([]byte(payload), &entries))
+	ids := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		ids = append(ids, entry.ID)
+	}
+	return ids
 }

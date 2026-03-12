@@ -20,16 +20,25 @@ type AccountModelImportFailure struct {
 	Error string `json:"error"`
 }
 
+type AccountModelImportModelResult struct {
+	SourceModel    string `json:"source_model"`
+	CanonicalModel string `json:"canonical_model,omitempty"`
+	Status         string `json:"status"`
+	ReasonCode     string `json:"reason_code"`
+	Detail         string `json:"detail,omitempty"`
+}
+
 type AccountModelImportResult struct {
-	AccountID      int64                       `json:"account_id"`
-	DetectedModels []string                    `json:"detected_models"`
-	ImportedModels []string                    `json:"imported_models"`
-	ImportedCount  int                         `json:"imported_count"`
-	SkippedCount   int                         `json:"skipped_count"`
-	FailedModels   []AccountModelImportFailure `json:"failed_models,omitempty"`
-	ProbeSource    string                      `json:"probe_source"`
-	ProbeNotice    string                      `json:"probe_notice,omitempty"`
-	Trigger        string                      `json:"trigger"`
+	AccountID      int64                           `json:"account_id"`
+	DetectedModels []string                        `json:"detected_models"`
+	ImportedModels []string                        `json:"imported_models"`
+	ImportedCount  int                             `json:"imported_count"`
+	SkippedCount   int                             `json:"skipped_count"`
+	FailedModels   []AccountModelImportFailure     `json:"failed_models,omitempty"`
+	ModelResults   []AccountModelImportModelResult `json:"model_results,omitempty"`
+	ProbeSource    string                          `json:"probe_source"`
+	ProbeNotice    string                          `json:"probe_notice,omitempty"`
+	Trigger        string                          `json:"trigger"`
 }
 
 type accountModelProbeResult struct {
@@ -101,43 +110,103 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 	if len(probeResult.Models) == 0 {
 		return nil, infraerrors.BadRequest("MODEL_IMPORT_EMPTY", "no models detected for account")
 	}
-	if s.modelCatalogService == nil {
-		return nil, infraerrors.InternalServer("MODEL_CATALOG_SERVICE_UNAVAILABLE", "model catalog service is unavailable")
+	if s.modelRegistryService == nil {
+		if s.modelCatalogService != nil && s.modelCatalogService.settingRepo != nil {
+			s.modelRegistryService = NewModelRegistryService(s.modelCatalogService.settingRepo)
+		} else {
+			return nil, infraerrors.InternalServer("MODEL_CATALOG_SERVICE_UNAVAILABLE", "model catalog service is unavailable")
+		}
 	}
 
 	probeSource := strings.TrimSpace(probeResult.Source)
 	if probeSource == "" {
 		probeSource = accountModelProbeSourceUpstream
 	}
-	uniqueDetected, skippedCount := normalizeImportedModelIDs(probeResult.Models)
+	uniqueDetected, _ := normalizeImportedModelIDs(probeResult.Models)
 	result := &AccountModelImportResult{
 		AccountID:      account.ID,
 		DetectedModels: uniqueDetected,
-		SkippedCount:   skippedCount,
 		ProbeSource:    probeSource,
 		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
 		Trigger:        normalizeImportTrigger(trigger),
 	}
-
-	for _, model := range uniqueDetected {
-		if s.modelRegistryService != nil {
-			_, blocked, registryErr := s.modelRegistryService.UpsertDiscoveredEntry(ctx, model)
-			if registryErr != nil {
-				result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: model, Error: summarizeAccountModelImportError(registryErr)})
-				log.Warn("account model import: upsert registry entry failed", zap.Int64("account_id", account.ID), zap.String("platform", account.Platform), zap.String("model", model), zap.Error(registryErr))
-				continue
-			}
-			if blocked {
-				result.SkippedCount++
-				continue
-			}
+	seenCanonical := make(map[string]struct{}, len(probeResult.Models))
+	for _, sourceModel := range probeResult.Models {
+		sourceModel = strings.TrimSpace(sourceModel)
+		sourceRegistryID := normalizeRegistryID(sourceModel)
+		canonicalModel := normalizeModelCatalogAlias(sourceRegistryID)
+		if canonicalModel == "" {
+			canonicalModel = sourceRegistryID
 		}
-		if _, err := s.modelCatalogService.UpsertCatalogEntry(ctx, UpsertModelCatalogEntryInput{Model: model}); err != nil {
-			result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: model, Error: summarizeAccountModelImportError(err)})
-			log.Warn("account model import: upsert catalog entry failed", zap.Int64("account_id", account.ID), zap.String("platform", account.Platform), zap.String("model", model), zap.Error(err))
+		if sourceRegistryID == "" {
+			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+				SourceModel: sourceModel,
+				Status:      "failed",
+				ReasonCode:  "invalid_model_id",
+				Detail:      "model id is empty after normalization",
+			})
+			result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: sourceModel, Error: "invalid model id"})
 			continue
 		}
-		result.ImportedModels = append(result.ImportedModels, model)
+		if _, exists := seenCanonical[canonicalModel]; exists {
+			result.SkippedCount++
+			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+				SourceModel:    sourceModel,
+				CanonicalModel: canonicalModel,
+				Status:         "skipped",
+				ReasonCode:     "duplicate_canonical",
+			})
+			continue
+		}
+		seenCanonical[canonicalModel] = struct{}{}
+		registryResult, registryErr := s.modelRegistryService.UpsertDiscoveredEntry(ctx, UpsertDiscoveredEntryInput{
+			ModelID:        sourceRegistryID,
+			SourcePlatform: account.Platform,
+		})
+		if registryErr != nil {
+			detail := summarizeAccountModelImportError(registryErr)
+			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+				SourceModel:    sourceModel,
+				CanonicalModel: canonicalModel,
+				Status:         "failed",
+				ReasonCode:     inferAccountModelImportReasonCode(registryErr),
+				Detail:         detail,
+			})
+			result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: sourceModel, Error: detail})
+			log.Warn("account model import: upsert registry entry failed", zap.Int64("account_id", account.ID), zap.String("platform", account.Platform), zap.String("model", sourceRegistryID), zap.Error(registryErr))
+			continue
+		}
+		if registryResult == nil {
+			continue
+		}
+		canonicalModel = registryResult.CanonicalModel
+		if registryResult.Blocked {
+			result.SkippedCount++
+			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+				SourceModel:    sourceModel,
+				CanonicalModel: canonicalModel,
+				Status:         "skipped",
+				ReasonCode:     "blocked_tombstone",
+			})
+			continue
+		}
+		if registryResult.Changed {
+			result.ImportedModels = append(result.ImportedModels, registryResult.RegistryModelID)
+			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+				SourceModel:    sourceModel,
+				CanonicalModel: canonicalModel,
+				Status:         importResultStatus(sourceRegistryID, canonicalModel),
+				ReasonCode:     importResultReasonCode(sourceRegistryID, canonicalModel, true),
+			})
+			continue
+		}
+		result.SkippedCount++
+		result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+			SourceModel:    sourceModel,
+			CanonicalModel: canonicalModel,
+			Status:         importExistingResultStatus(sourceRegistryID, registryResult.RegistryModelID, canonicalModel),
+			ReasonCode:     importExistingReasonCode(sourceRegistryID, registryResult.RegistryModelID, canonicalModel),
+		})
 	}
 	result.ImportedCount = len(result.ImportedModels)
 
@@ -194,4 +263,51 @@ func normalizeImportedModelIDs(models []string) ([]string, int) {
 		unique = append(unique, normalized)
 	}
 	return unique, skipped
+}
+
+func importResultStatus(sourceModelID string, canonicalModel string) string {
+	if canonicalModel != "" && sourceModelID != canonicalModel {
+		return "merged"
+	}
+	return "imported"
+}
+
+func importResultReasonCode(sourceModelID string, canonicalModel string, changed bool) string {
+	if !changed {
+		return "already_exists"
+	}
+	if canonicalModel != "" && sourceModelID != canonicalModel {
+		return "merged_canonical"
+	}
+	return "imported_new"
+}
+
+func importExistingResultStatus(sourceModelID string, registryModelID string, canonicalModel string) string {
+	if registryModelID != "" && registryModelID != sourceModelID {
+		return "merged"
+	}
+	if canonicalModel != "" && canonicalModel != sourceModelID {
+		return "merged"
+	}
+	return "skipped"
+}
+
+func importExistingReasonCode(sourceModelID string, registryModelID string, canonicalModel string) string {
+	if importExistingResultStatus(sourceModelID, registryModelID, canonicalModel) == "merged" {
+		return "merged_canonical"
+	}
+	return "already_exists"
+}
+
+func inferAccountModelImportReasonCode(err error) string {
+	if err == nil {
+		return "persist_failed"
+	}
+	if infraerrors.Reason(err) == "MODEL_RUNTIME_PLATFORM_UNSUPPORTED" {
+		return "unsupported_runtime_platform"
+	}
+	if infraerrors.Reason(err) == "MODEL_REQUIRED" {
+		return "invalid_model_id"
+	}
+	return "persist_failed"
 }

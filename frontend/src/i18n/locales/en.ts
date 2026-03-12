@@ -2322,6 +2322,26 @@ export default {
       modelImportFailed: 'Failed to import models',
       modelImportUnsupported: 'Current account type does not support real model probing',
       modelImportGeminiFallback: 'Real upstream probing is limited; imported {count} Gemini CLI default model(s) instead',
+      modelImportResultTitle: 'Model import results',
+      modelImportSummary: 'Added {imported} / Merged {merged} / Skipped {skipped} / Failed {failed}',
+      modelImportCopyDetails: 'Copy details',
+      modelImportMore: '+{count} more',
+      modelImportStatus: {
+        imported: 'Imported',
+        merged: 'Merged',
+        skipped: 'Skipped',
+        failed: 'Failed'
+      },
+      modelImportReason: {
+        imported_new: 'Imported as new model',
+        merged_canonical: 'Merged into canonical model',
+        duplicate_canonical: 'Skipped duplicate canonical result',
+        already_exists: 'Model already exists',
+        blocked_tombstone: 'Blocked by deletion policy',
+        invalid_model_id: 'Invalid model ID',
+        unsupported_runtime_platform: 'Unsupported by current runtime',
+        persist_failed: 'Failed to persist model'
+      },
       soraAccountCreated: 'Sora account created simultaneously',
       soraAccountFailed: 'Failed to create Sora account, please add manually later',
       accountUpdated: 'Account updated successfully',

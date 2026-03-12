@@ -285,6 +285,8 @@ import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
+import { useModelInventoryStore } from '@/stores'
+import { invalidateModelRegistry } from '@/stores/modelRegistry'
 import { adminAPI } from '@/api/admin'
 import { useTableLoader } from '@/composables/useTableLoader'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
@@ -315,8 +317,9 @@ import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import {
+  buildAccountModelImportToastPayload,
   resolveAccountModelImportErrorMessage,
-  resolveAccountModelImportProbeNoticeMessage
+  shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
@@ -324,6 +327,7 @@ import type { Account, AccountPlatform, AccountType, Proxy, AdminGroup, WindowSt
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const modelInventoryStore = useModelInventoryStore()
 
 const proxies = ref<Proxy[]>([])
 const groups = ref<AdminGroup[]>([])
@@ -1179,24 +1183,18 @@ const handleImportModels = async (a: Account, trigger: 'manual' | 'create' = 'ma
   appStore.showInfo(t('admin.accounts.probingModels'))
   try {
     const result = await adminAPI.accounts.importModels(a.id, { trigger })
-    const probeNotice = resolveAccountModelImportProbeNoticeMessage(t, result)
-    if (result.failed_models?.length) {
-      if (result.imported_count === 0) {
-        appStore.showError(t('admin.accounts.modelImportFailed'))
-        return result
-      }
-      const partialMessage = t('admin.accounts.modelImportPartial', {
-        imported: result.imported_count,
-        failed: result.failed_models.length
-      })
-      appStore.showWarning(probeNotice ? `${probeNotice} · ${partialMessage}` : partialMessage)
-      return result
+    const toastPayload = buildAccountModelImportToastPayload(t, result)
+    if (toastPayload.type === 'error') {
+      appStore.showError(toastPayload.message, toastPayload.options)
+    } else if (toastPayload.type === 'warning') {
+      appStore.showWarning(toastPayload.message, toastPayload.options)
+    } else {
+      appStore.showSuccess(toastPayload.message, toastPayload.options)
     }
-    if (probeNotice) {
-      appStore.showWarning(probeNotice)
-      return result
+    if (shouldInvalidateModelInventory(result)) {
+      invalidateModelRegistry()
+      modelInventoryStore.invalidate()
     }
-    appStore.showSuccess(t('admin.accounts.modelImportSuccess', { count: result.imported_count }))
     return result
   } catch (error: any) {
     console.error('Failed to import models for account:', error)

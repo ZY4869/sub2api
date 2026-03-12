@@ -39,20 +39,32 @@ type modelCatalogRecord struct {
 }
 
 func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[string]*modelCatalogRecord, error) {
-	defaultRegistry := s.buildDefaultModelRegistry(ctx)
-	entries := s.loadCatalogEntries(ctx)
+	entries, err := s.catalogBaselineEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
 	officialOverrides := s.loadOfficialPriceOverrides(ctx)
 	saleOverrides := s.loadSalePriceOverrides(ctx)
 	records := make(map[string]*modelCatalogRecord, len(entries))
 
 	for _, entry := range entries {
-		record := ensureCatalogRecord(records, entry.Model)
-		record.canonicalModelID = entry.CanonicalModelID
-		record.pricingLookupModelID = entry.PricingLookupModelID
+		record := ensureCatalogRecord(records, entry.ID)
+		record.canonicalModelID = normalizeModelCatalogAlias(entry.ID)
+		if record.canonicalModelID == "" {
+			record.canonicalModelID = CanonicalizeModelNameForPricing(entry.ID)
+		}
+		record.pricingLookupModelID = firstRegistryString(entry.PricingLookupIDs...)
+		if record.pricingLookupModelID == "" {
+			record.pricingLookupModelID = firstRegistryString(entry.ProtocolIDs...)
+		}
+		if record.pricingLookupModelID == "" {
+			record.pricingLookupModelID = record.canonicalModelID
+		}
 		record.displayName = entry.DisplayName
 		record.provider = entry.Provider
-		record.mode = entry.Mode
-		applyDefaultMetadata(record, resolveDefaultModelMetadata(defaultRegistry, modelCatalogRecordLookupCandidates(record)...))
+		record.mode = inferModelMode(entry.ID, "")
+		record.defaultAvailable = true
+		record.defaultPlatforms = append([]string(nil), entry.Platforms...)
 		if pricing, ok := s.resolveDynamicPricing(record); ok {
 			record.upstreamPricing = pricingFromLiteLLM(pricing)
 			record.basePricingSource = ModelCatalogPricingSourceDynamic
@@ -71,16 +83,16 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		}
 	}
 	for model, override := range officialOverrides {
-		record, ok := records[normalizeModelCatalogAlias(model)]
-		if !ok {
+		record, ok := resolveModelCatalogRecord(records, model)
+		if !ok || record == nil {
 			continue
 		}
 		record.officialOverridePricing = override
 		mergeRecordMetadata(record, inferModelProvider(model), inferModelMode(model, record.mode))
 	}
 	for model, override := range saleOverrides {
-		record, ok := records[normalizeModelCatalogAlias(model)]
-		if !ok {
+		record, ok := resolveModelCatalogRecord(records, model)
+		if !ok || record == nil {
 			continue
 		}
 		record.saleOverridePricing = override
@@ -105,6 +117,45 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	}
 	s.populateCatalogAccessSources(ctx, records)
 	return records, nil
+}
+
+func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]modelregistry.ModelEntry, error) {
+	entries := make([]modelregistry.ModelEntry, 0)
+	if s.modelRegistryService != nil {
+		snapshot, err := s.modelRegistryService.PublicSnapshot(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range snapshot.Models {
+			if !modelregistry.HasExposure(entry, "runtime") {
+				continue
+			}
+			entries = append(entries, entry)
+		}
+	} else {
+		for _, entry := range modelregistry.SeedModels() {
+			if !modelregistry.HasExposure(entry, "runtime") {
+				continue
+			}
+			entries = append(entries, entry)
+		}
+	}
+	for _, model := range DefaultSoraModels(s.cfg) {
+		entries = append(entries, modelregistry.ModelEntry{
+			ID:               model.ID,
+			DisplayName:      model.DisplayName,
+			Provider:         PlatformOpenAI,
+			Platforms:        []string{PlatformSora},
+			ProtocolIDs:      []string{model.ID},
+			Aliases:          []string{},
+			PricingLookupIDs: []string{model.ID},
+			Modalities:       defaultModalitiesForMode(inferModelMode(model.ID, model.Type)),
+			Capabilities:     defaultCapabilitiesForMode(inferModelMode(model.ID, model.Type)),
+			UIPriority:       5000,
+			ExposedIn:        []string{"runtime"},
+		})
+	}
+	return entries, nil
 }
 
 func (s *ModelCatalogService) buildDefaultModelRegistry(ctx context.Context) map[string]*defaultModelMetadata {
@@ -406,4 +457,14 @@ func compactStrings(items []string) []string {
 		result = append(result, item)
 	}
 	return result
+}
+
+func firstRegistryString(items ...string) string {
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			return item
+		}
+	}
+	return ""
 }

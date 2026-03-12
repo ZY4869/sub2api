@@ -427,6 +427,23 @@ export interface AccountModelImportFailure {
   error: string
 }
 
+export interface AccountModelImportModelResult {
+  source_model: string
+  canonical_model?: string
+  status: 'imported' | 'merged' | 'skipped' | 'failed'
+  reason_code:
+    | 'imported_new'
+    | 'merged_canonical'
+    | 'duplicate_canonical'
+    | 'already_exists'
+    | 'blocked_tombstone'
+    | 'invalid_model_id'
+    | 'unsupported_runtime_platform'
+    | 'persist_failed'
+    | string
+  detail?: string
+}
+
 export interface AccountModelImportResult {
   account_id: number
   detected_models: string[]
@@ -434,6 +451,7 @@ export interface AccountModelImportResult {
   imported_count: number
   skipped_count: number
   failed_models?: AccountModelImportFailure[]
+  model_results?: AccountModelImportModelResult[]
   probe_source?: 'upstream' | 'gemini_cli_default_fallback'
   probe_notice?: string
   trigger: string

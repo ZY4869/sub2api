@@ -11,6 +11,8 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 type ModelRegistryListFilter struct {
@@ -40,6 +42,19 @@ type UpsertModelRegistryEntryInput struct {
 type UpdateModelRegistryVisibilityInput struct {
 	Model  string `json:"model"`
 	Hidden bool   `json:"hidden"`
+}
+
+type UpsertDiscoveredEntryInput struct {
+	ModelID        string
+	SourcePlatform string
+}
+
+type UpsertDiscoveredEntryResult struct {
+	RegistryModelID string
+	CanonicalModel  string
+	Changed         bool
+	Existing        bool
+	Blocked         bool
 }
 
 type ModelRegistryService struct {
@@ -183,39 +198,61 @@ func (s *ModelRegistryService) UpsertEntry(ctx context.Context, input UpsertMode
 	return s.GetDetail(ctx, entry.ID)
 }
 
-func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, modelID string) (bool, bool, error) {
-	modelID = normalizeModelCatalogAlias(modelID)
-	if modelID == "" {
-		return false, false, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
+func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input UpsertDiscoveredEntryInput) (*UpsertDiscoveredEntryResult, error) {
+	sourceModelID := normalizeRegistryID(input.ModelID)
+	if sourceModelID == "" {
+		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
-	tombstones, err := s.loadStringSet(ctx, SettingKeyModelRegistryTombstones)
+	canonicalModelID := normalizeModelCatalogAlias(sourceModelID)
+	if canonicalModelID == "" {
+		canonicalModelID = sourceModelID
+	}
+	entries, _, _, tombstones, err := s.mergedEntries(ctx)
 	if err != nil {
-		return false, false, err
+		return nil, err
 	}
-	if _, blocked := tombstones[modelID]; blocked {
-		return false, true, nil
+	if _, blocked := tombstones[sourceModelID]; blocked {
+		return &UpsertDiscoveredEntryResult{RegistryModelID: sourceModelID, CanonicalModel: canonicalModelID, Blocked: true}, nil
 	}
-	entries, err := s.loadRuntimeEntries(ctx)
-	if err != nil {
-		return false, false, err
+	if _, blocked := tombstones[canonicalModelID]; blocked {
+		return &UpsertDiscoveredEntryResult{RegistryModelID: sourceModelID, CanonicalModel: canonicalModelID, Blocked: true}, nil
 	}
-	for _, current := range entries {
-		if current.ID == modelID {
-			return false, false, nil
+	mergedEntries := make([]modelregistry.ModelEntry, 0, len(entries))
+	for _, entry := range entries {
+		mergedEntries = append(mergedEntries, entry)
+	}
+	if existing, found := modelregistry.FindModel(mergedEntries, sourceModelID); found {
+		changed, err := s.ensureDiscoveredRuntimeAvailability(ctx, existing, sourceModelID, canonicalModelID, input.SourcePlatform)
+		if err != nil {
+			return nil, err
 		}
+		return &UpsertDiscoveredEntryResult{
+			RegistryModelID: existing.ID,
+			CanonicalModel:  canonicalModelID,
+			Changed:         changed,
+			Existing:        !changed,
+		}, nil
 	}
-	entry, err := normalizeRuntimeRegistryEntry(UpsertModelRegistryEntryInput{ID: modelID})
+	entry, err := s.buildDiscoveredRuntimeEntry(sourceModelID, canonicalModelID, input.SourcePlatform)
 	if err != nil {
-		return false, false, err
+		return nil, err
 	}
-	entries = append(entries, entry)
-	if err := s.persistRuntimeEntries(ctx, entries); err != nil {
-		return false, false, err
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if err := s.clearStates(ctx, modelID); err != nil {
-		return true, false, err
+	runtimeEntries = append(runtimeEntries, entry)
+	if err := s.persistRuntimeEntries(ctx, runtimeEntries); err != nil {
+		return nil, err
 	}
-	return true, false, nil
+	if err := s.clearStates(ctx, entry.ID); err != nil {
+		return nil, err
+	}
+	return &UpsertDiscoveredEntryResult{
+		RegistryModelID: entry.ID,
+		CanonicalModel:  canonicalModelID,
+		Changed:         true,
+	}, nil
 }
 
 func (s *ModelRegistryService) SetVisibility(ctx context.Context, input UpdateModelRegistryVisibilityInput) (*modelregistry.AdminModelDetail, error) {
@@ -360,6 +397,9 @@ func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistr
 }
 
 func (s *ModelRegistryService) mergedEntries(ctx context.Context) (map[string]modelregistry.ModelEntry, map[string]string, map[string]struct{}, map[string]struct{}, error) {
+	if err := s.ensureLegacyCatalogMigrated(ctx); err != nil {
+		return nil, nil, nil, nil, err
+	}
 	entries := make(map[string]modelregistry.ModelEntry)
 	sources := make(map[string]string)
 	for _, entry := range modelregistry.SeedModels() {
@@ -373,17 +413,6 @@ func (s *ModelRegistryService) mergedEntries(ctx context.Context) (map[string]mo
 	for _, entry := range runtimeEntries {
 		entries[entry.ID] = entry
 		sources[entry.ID] = "runtime"
-	}
-	legacyEntries, err := s.loadLegacyCatalogEntries(ctx)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	for _, entry := range legacyEntries {
-		if _, exists := entries[entry.ID]; exists {
-			continue
-		}
-		entries[entry.ID] = entry
-		sources[entry.ID] = "legacy_catalog"
 	}
 	hidden, err := s.loadStringSet(ctx, SettingKeyModelRegistryHiddenModels)
 	if err != nil {
@@ -470,6 +499,57 @@ func (s *ModelRegistryService) clearStates(ctx context.Context, modelID string) 
 	return s.persistStringSet(ctx, SettingKeyModelRegistryTombstones, tombstones)
 }
 
+func (s *ModelRegistryService) ensureLegacyCatalogMigrated(ctx context.Context) error {
+	if s.settingRepo == nil {
+		return nil
+	}
+	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelCatalogEntries)
+	if err != nil {
+		return nil
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "[]" {
+		return nil
+	}
+	legacyEntries, err := s.loadLegacyCatalogEntries(ctx)
+	if err != nil {
+		return err
+	}
+	if len(legacyEntries) == 0 {
+		return s.settingRepo.Set(ctx, SettingKeyModelCatalogEntries, "[]")
+	}
+	log := logger.FromContext(ctx)
+	log.Info("model registry: migrating legacy model catalog entries", zap.Int("entry_count", len(legacyEntries)))
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return err
+	}
+	merged := make(map[string]modelregistry.ModelEntry, len(runtimeEntries)+len(legacyEntries))
+	for _, entry := range runtimeEntries {
+		merged[entry.ID] = entry
+	}
+	for _, entry := range legacyEntries {
+		if _, exists := merged[entry.ID]; exists {
+			continue
+		}
+		merged[entry.ID] = entry
+	}
+	items := make([]modelregistry.ModelEntry, 0, len(merged))
+	for _, entry := range merged {
+		items = append(items, entry)
+	}
+	if err := s.persistRuntimeEntries(ctx, items); err != nil {
+		log.Warn("model registry: failed to persist migrated legacy model catalog entries", zap.Error(err))
+		return err
+	}
+	if err := s.settingRepo.Set(ctx, SettingKeyModelCatalogEntries, "[]"); err != nil {
+		log.Warn("model registry: failed to clear legacy model catalog entries after migration", zap.Error(err))
+		return err
+	}
+	log.Info("model registry: migrated legacy model catalog entries", zap.Int("entry_count", len(legacyEntries)))
+	return nil
+}
+
 func (s *ModelRegistryService) loadLegacyCatalogEntries(ctx context.Context) ([]modelregistry.ModelEntry, error) {
 	if s.settingRepo == nil {
 		return []modelregistry.ModelEntry{}, nil
@@ -500,7 +580,7 @@ func (s *ModelRegistryService) loadLegacyCatalogEntries(ctx context.Context) ([]
 			Modalities:       defaultModalitiesForMode(inferModelMode(normalized.Model, normalized.Mode)),
 			Capabilities:     defaultCapabilitiesForMode(inferModelMode(normalized.Model, normalized.Mode)),
 			UIPriority:       5000,
-			ExposedIn:        []string{"legacy_catalog"},
+			ExposedIn:        []string{"runtime", "legacy_catalog"},
 		})
 		if err != nil {
 			continue
@@ -512,6 +592,67 @@ func (s *ModelRegistryService) loadLegacyCatalogEntries(ctx context.Context) ([]
 		result = append(result, registryEntry)
 	}
 	return result, nil
+}
+
+func (s *ModelRegistryService) ensureDiscoveredRuntimeAvailability(ctx context.Context, entry modelregistry.ModelEntry, sourceModelID string, canonicalModelID string, sourcePlatform string) (bool, error) {
+	updated, changed, err := augmentDiscoveredEntry(entry, sourceModelID, canonicalModelID, sourcePlatform)
+	if err != nil {
+		return false, err
+	}
+	if !changed {
+		return false, nil
+	}
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return false, err
+	}
+	replaced := false
+	for index := range runtimeEntries {
+		if runtimeEntries[index].ID == updated.ID {
+			runtimeEntries[index] = updated
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		runtimeEntries = append(runtimeEntries, updated)
+	}
+	if err := s.persistRuntimeEntries(ctx, runtimeEntries); err != nil {
+		return false, err
+	}
+	if err := s.clearStates(ctx, updated.ID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *ModelRegistryService) buildDiscoveredRuntimeEntry(sourceModelID string, canonicalModelID string, sourcePlatform string) (modelregistry.ModelEntry, error) {
+	provider := inferModelProvider(sourceModelID)
+	platforms, err := discoveredPlatforms(provider, sourcePlatform)
+	if err != nil {
+		return modelregistry.ModelEntry{}, err
+	}
+	pricingLookupIDs := compactRegistryStrings(sourceModelID)
+	if canonicalDefault, ok := modelregistry.ModelCatalogCanonicalDefaults()[canonicalModelID]; ok {
+		pricingLookupIDs = compactRegistryStrings(canonicalDefault, sourceModelID)
+	}
+	entry, err := normalizePersistedEntry(modelregistry.ModelEntry{
+		ID:               sourceModelID,
+		DisplayName:      FormatModelCatalogDisplayName(sourceModelID),
+		Provider:         providerOrPlatform(provider, sourcePlatform),
+		Platforms:        platforms,
+		ProtocolIDs:      compactRegistryStrings(sourceModelID),
+		Aliases:          []string{},
+		PricingLookupIDs: pricingLookupIDs,
+		Modalities:       defaultModalitiesForMode(inferModelMode(sourceModelID, "")),
+		Capabilities:     defaultCapabilitiesForMode(inferModelMode(sourceModelID, "")),
+		UIPriority:       5000,
+		ExposedIn:        []string{"runtime", "test"},
+	})
+	if err != nil {
+		return modelregistry.ModelEntry{}, err
+	}
+	return entry, nil
 }
 
 func (s *ModelRegistryService) loadStringSet(ctx context.Context, key string) (map[string]struct{}, error) {
@@ -637,7 +778,7 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 func defaultPlatformsForProvider(provider string) []string {
 	provider = normalizeRegistryPlatform(provider)
 	if provider == "" {
-		return []string{"openai"}
+		return nil
 	}
 	return []string{provider}
 }
@@ -687,6 +828,116 @@ func normalizeStringList(items []string, normalize func(string) string) []string
 		result = append(result, item)
 	}
 	return result
+}
+
+func augmentDiscoveredEntry(entry modelregistry.ModelEntry, sourceModelID string, canonicalModelID string, sourcePlatform string) (modelregistry.ModelEntry, bool, error) {
+	updated := modelregistry.ModelEntry{
+		ID:               entry.ID,
+		DisplayName:      entry.DisplayName,
+		Provider:         entry.Provider,
+		Platforms:        append([]string(nil), entry.Platforms...),
+		ProtocolIDs:      append([]string(nil), entry.ProtocolIDs...),
+		Aliases:          append([]string(nil), entry.Aliases...),
+		PricingLookupIDs: append([]string(nil), entry.PricingLookupIDs...),
+		Modalities:       append([]string(nil), entry.Modalities...),
+		Capabilities:     append([]string(nil), entry.Capabilities...),
+		UIPriority:       entry.UIPriority,
+		ExposedIn:        append([]string(nil), entry.ExposedIn...),
+	}
+	changed := false
+	platforms, err := discoveredPlatforms(updated.Provider, sourcePlatform)
+	if err != nil {
+		return modelregistry.ModelEntry{}, false, err
+	}
+	if merged := mergeRegistryStrings(updated.Platforms, platforms...); !sameStringSlice(updated.Platforms, merged) {
+		updated.Platforms = merged
+		changed = true
+	}
+	if merged := mergeRegistryStrings(updated.ExposedIn, "runtime", "test"); !sameStringSlice(updated.ExposedIn, merged) {
+		updated.ExposedIn = merged
+		changed = true
+	}
+	if sourceModelID != "" && sourceModelID != updated.ID {
+		merged := mergeRegistryStrings(updated.ProtocolIDs, sourceModelID)
+		if !sameStringSlice(updated.ProtocolIDs, merged) {
+			updated.ProtocolIDs = merged
+			changed = true
+		}
+	}
+	if canonicalDefault, ok := modelregistry.ModelCatalogCanonicalDefaults()[canonicalModelID]; ok {
+		merged := mergeRegistryStrings(updated.PricingLookupIDs, canonicalDefault)
+		if !sameStringSlice(updated.PricingLookupIDs, merged) {
+			updated.PricingLookupIDs = merged
+			changed = true
+		}
+	}
+	normalized, err := normalizePersistedEntry(updated)
+	if err != nil {
+		return modelregistry.ModelEntry{}, false, err
+	}
+	return normalized, changed, nil
+}
+
+func discoveredPlatforms(provider string, sourcePlatform string) ([]string, error) {
+	platform := normalizeRegistryPlatform(sourcePlatform)
+	if isRuntimeSupportedPlatform(platform) {
+		return []string{platform}, nil
+	}
+	platforms := defaultPlatformsForProvider(provider)
+	if len(platforms) > 0 {
+		return platforms, nil
+	}
+	return nil, infraerrors.BadRequest("MODEL_RUNTIME_PLATFORM_UNSUPPORTED", "unable to infer runtime platform from imported model")
+}
+
+func providerOrPlatform(provider string, sourcePlatform string) string {
+	provider = normalizeRegistryPlatform(provider)
+	if provider != "" {
+		return provider
+	}
+	return normalizeRegistryPlatform(sourcePlatform)
+}
+
+func isRuntimeSupportedPlatform(platform string) bool {
+	switch normalizeRegistryPlatform(platform) {
+	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformSora:
+		return true
+	default:
+		return false
+	}
+}
+
+func mergeRegistryStrings(current []string, items ...string) []string {
+	merged := append([]string(nil), current...)
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		exists := false
+		for _, existing := range merged {
+			if existing == item {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			merged = append(merged, item)
+		}
+	}
+	return merged
+}
+
+func sameStringSlice(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
 }
 
 func compactRegistryStrings(items ...string) []string {

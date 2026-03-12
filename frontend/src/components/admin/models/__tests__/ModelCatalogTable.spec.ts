@@ -20,7 +20,6 @@ const translations: Record<string, string> = {
   'admin.models.sources.dynamic': 'Dynamic',
   'admin.models.modes.chat': 'Chat',
   'common.actions': 'Actions',
-  'common.delete': 'Delete',
   'admin.models.viewDetails': 'View Details',
   'admin.models.emptyTitle': 'Empty',
   'admin.models.emptyDescription': 'Empty'
@@ -63,7 +62,7 @@ const DataTableStub = defineComponent({
 })
 
 describe('ModelCatalogTable', () => {
-  it('renders default protocols, access sources, and price header chips', () => {
+  it('renders default protocols, access sources, and keeps only inspect action', () => {
     const wrapper = mount(ModelCatalogTable, {
       props: {
         items: [
@@ -107,6 +106,8 @@ describe('ModelCatalogTable', () => {
     expect(wrapper.text()).toContain('Antigravity')
     expect(wrapper.text()).toContain('Login')
     expect(wrapper.text()).toContain('Key')
+    expect(wrapper.text()).toContain('View Details')
+    expect(wrapper.text()).not.toContain('Delete')
 
     const headerChips = wrapper.findAll('thead th span.rounded-full')
     expect(headerChips).toHaveLength(5)

@@ -17,7 +17,7 @@
           v-for="toast in toasts"
           :key="toast.id"
           :class="[
-            'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-lg shadow-lg',
+            'pointer-events-auto min-w-[320px] max-w-xl overflow-hidden rounded-lg shadow-lg',
             'bg-white dark:bg-dark-800',
             'border-l-4',
             getBorderColor(toast.type)
@@ -25,7 +25,6 @@
         >
           <div class="p-4">
             <div class="flex items-start gap-3">
-              <!-- Icon -->
               <div class="mt-0.5 flex-shrink-0">
                 <Icon
                   :name="getToastIconName(toast.type)"
@@ -35,7 +34,6 @@
                 />
               </div>
 
-              <!-- Content -->
               <div class="min-w-0 flex-1">
                 <p v-if="toast.title" class="text-sm font-semibold text-gray-900 dark:text-white">
                   {{ toast.title }}
@@ -50,9 +48,29 @@
                 >
                   {{ toast.message }}
                 </p>
+                <ul
+                  v-if="toast.details?.length"
+                  class="mt-3 space-y-1 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
+                >
+                  <li
+                    v-for="(detail, index) in toast.details"
+                    :key="`${toast.id}-${index}`"
+                    class="break-words"
+                  >
+                    {{ detail }}
+                  </li>
+                </ul>
+                <div v-if="toast.copyText" class="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs"
+                    @click="copyToastDetails(toast.copyText)"
+                  >
+                    {{ t('admin.accounts.modelImportCopyDetails') }}
+                  </button>
+                </div>
               </div>
 
-              <!-- Close button -->
               <button
                 @click="removeToast(toast.id)"
                 class="-m-1 flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-300"
@@ -63,7 +81,6 @@
             </div>
           </div>
 
-          <!-- Progress bar -->
           <div v-if="toast.duration" class="h-1 bg-gray-100 dark:bg-dark-700">
             <div
               :class="['h-full toast-progress', getProgressBarColor(toast.type)]"
@@ -78,11 +95,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
-
+const { t } = useI18n()
 const toasts = computed(() => appStore.toasts)
 
 const getToastIconName = (type: string): 'checkCircle' | 'xCircle' | 'exclamationTriangle' | 'infoCircle' => {
@@ -129,7 +147,34 @@ const getProgressBarColor = (type: string): string => {
   return colors[type] || colors.info
 }
 
-const removeToast = (id: string) => {
+async function copyToastDetails(copyText: string) {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(copyText)
+      appStore.showSuccess(t('common.copiedToClipboard'), 2000)
+      return
+    }
+  } catch {
+    // use fallback below
+  }
+
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = copyText
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    appStore.showSuccess(t('common.copiedToClipboard'), 2000)
+  } catch {
+    appStore.showWarning(t('common.copyFailed'))
+  }
+}
+
+function removeToast(id: string) {
   appStore.hideToast(id)
 }
 </script>

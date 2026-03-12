@@ -2529,6 +2529,8 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useModelInventoryStore } from '@/stores'
+import { invalidateModelRegistry } from '@/stores/modelRegistry'
 import {
   getPresetMappingsByPlatform,
   getModelsByPlatform,
@@ -2566,8 +2568,10 @@ import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import {
+  buildAccountModelImportToastPayload,
+  mergeAccountModelImportResults,
   resolveAccountModelImportErrorMessage,
-  resolveAccountModelImportProbeNoticeMessage
+  shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -2596,6 +2600,7 @@ interface OAuthFlowExposed {
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const modelInventoryStore = useModelInventoryStore()
 
 const oauthStepTitle = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return t('admin.accounts.oauth.openai.title')
@@ -3323,40 +3328,60 @@ const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
     return
   }
   appStore.showInfo(t('admin.accounts.probingModels'))
-  let importedCount = 0
-  let failedCount = 0
+  const results: Parameters<typeof mergeAccountModelImportResults>[0] = []
   let firstFailureMessage = ''
-  let firstProbeNotice = ''
   for (const account of createdAccounts) {
     try {
       const result = await adminAPI.accounts.importModels(account.id, { trigger: 'create' })
-      importedCount += result.imported_count
-      failedCount += result.failed_models?.length ?? 0
-      if (!firstProbeNotice) {
-        firstProbeNotice = resolveAccountModelImportProbeNoticeMessage(t, result)
-      }
+      results.push(result)
     } catch (error) {
       console.error('Failed to auto import models after account creation:', error)
       if (!firstFailureMessage) {
         firstFailureMessage = resolveAccountModelImportErrorMessage(t, error)
       }
-      failedCount++
     }
   }
-  if (failedCount > 0) {
-    if (importedCount === 0) {
-      appStore.showError(firstFailureMessage || t('admin.accounts.modelImportFailed'))
-      return
+
+  const mergedResult = mergeAccountModelImportResults(results)
+  if (!mergedResult) {
+    if (firstFailureMessage) {
+      appStore.showError(firstFailureMessage)
     }
-    const partialMessage = t('admin.accounts.modelImportPartial', { imported: importedCount, failed: failedCount })
-    appStore.showWarning(firstProbeNotice ? `${firstProbeNotice} · ${partialMessage}` : partialMessage)
     return
   }
-  if (firstProbeNotice) {
-    appStore.showWarning(firstProbeNotice)
-    return
+
+  const toastPayload = buildAccountModelImportToastPayload(t, mergedResult)
+  const toastOptions = {
+    ...toastPayload.options,
+    details: toastPayload.options.details ? [...toastPayload.options.details] : undefined,
+    copyText: toastPayload.options.copyText
   }
-  appStore.showSuccess(t('admin.accounts.modelImportSuccess', { count: importedCount }))
+  let toastType = toastPayload.type
+  let toastMessage = toastPayload.message
+
+  if (firstFailureMessage) {
+    toastType = mergedResult.imported_count > 0 ? 'warning' : 'error'
+    toastMessage = `${toastMessage} - ${firstFailureMessage}`
+    toastOptions.details = [...(toastOptions.details || []), firstFailureMessage]
+    toastOptions.copyText = toastOptions.copyText
+      ? `${toastOptions.copyText}
+${firstFailureMessage}`
+      : firstFailureMessage
+    toastOptions.persistent = true
+  }
+
+  if (toastType === 'error') {
+    appStore.showError(toastMessage, toastOptions)
+  } else if (toastType === 'warning') {
+    appStore.showWarning(toastMessage, toastOptions)
+  } else {
+    appStore.showSuccess(toastMessage, toastOptions)
+  }
+
+  if (shouldInvalidateModelInventory(mergedResult)) {
+    invalidateModelRegistry()
+    modelInventoryStore.invalidate()
+  }
 }
 
 const submitCreateAccount = async (payload: CreateAccountRequest): Promise<Account | null> => {

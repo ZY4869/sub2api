@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Toast, ToastType, PublicSettings } from '@/types'
+import type { Toast, ToastType, PublicSettings, ToastOptions } from '@/types'
 import {
   checkUpdates as checkUpdatesAPI,
   type VersionInfo,
@@ -95,26 +95,44 @@ export const useAppStore = defineStore('app', () => {
     loading.value = loadingCount.value > 0
   }
 
+  function resolveToastOptions(
+    input: number | ToastOptions | undefined,
+    defaultDuration?: number
+  ): ToastOptions {
+    if (typeof input === 'number') {
+      return { duration: input }
+    }
+    return {
+      duration: defaultDuration,
+      ...(input || {})
+    }
+  }
+
   /**
    * Show a toast notification
    * @param type - Type of toast (success, error, info, warning)
    * @param message - Toast message content
-   * @param duration - Auto-dismiss duration in ms (undefined = no auto-dismiss)
+   * @param options - Auto-dismiss duration or extended toast options
    * @returns Toast ID for manual dismissal
    */
-  function showToast(type: ToastType, message: string, duration?: number): string {
+  function showToast(type: ToastType, message: string, options?: number | ToastOptions): string {
+    const resolvedOptions = resolveToastOptions(options)
+    const duration = resolvedOptions.persistent ? undefined : resolvedOptions.duration
     const id = `toast-${++toastIdCounter}`
     const toast: Toast = {
       id,
       type,
       message,
+      title: resolvedOptions.title,
+      details: resolvedOptions.details ? [...resolvedOptions.details] : undefined,
+      copyText: resolvedOptions.copyText,
+      persistent: resolvedOptions.persistent,
       duration,
       startTime: duration !== undefined ? Date.now() : undefined
     }
 
     toasts.value.push(toast)
 
-    // Auto-dismiss if duration is specified
     if (duration !== undefined) {
       setTimeout(() => {
         hideToast(id)
@@ -127,37 +145,37 @@ export const useAppStore = defineStore('app', () => {
   /**
    * Show a success toast
    * @param message - Success message
-   * @param duration - Auto-dismiss duration in ms (default: 3000)
+   * @param options - Auto-dismiss duration or extended toast options
    */
-  function showSuccess(message: string, duration: number = 3000): string {
-    return showToast('success', message, duration)
+  function showSuccess(message: string, options: number | ToastOptions = 3000): string {
+    return showToast('success', message, resolveToastOptions(options, 3000))
   }
 
   /**
    * Show an error toast
    * @param message - Error message
-   * @param duration - Auto-dismiss duration in ms (default: 5000)
+   * @param options - Auto-dismiss duration or extended toast options
    */
-  function showError(message: string, duration: number = 5000): string {
-    return showToast('error', message, duration)
+  function showError(message: string, options: number | ToastOptions = 5000): string {
+    return showToast('error', message, resolveToastOptions(options, 5000))
   }
 
   /**
    * Show an info toast
    * @param message - Info message
-   * @param duration - Auto-dismiss duration in ms (default: 3000)
+   * @param options - Auto-dismiss duration or extended toast options
    */
-  function showInfo(message: string, duration: number = 3000): string {
-    return showToast('info', message, duration)
+  function showInfo(message: string, options: number | ToastOptions = 3000): string {
+    return showToast('info', message, resolveToastOptions(options, 3000))
   }
 
   /**
    * Show a warning toast
    * @param message - Warning message
-   * @param duration - Auto-dismiss duration in ms (default: 4000)
+   * @param options - Auto-dismiss duration or extended toast options
    */
-  function showWarning(message: string, duration: number = 4000): string {
-    return showToast('warning', message, duration)
+  function showWarning(message: string, options: number | ToastOptions = 4000): string {
+    return showToast('warning', message, resolveToastOptions(options, 4000))
   }
 
   /**

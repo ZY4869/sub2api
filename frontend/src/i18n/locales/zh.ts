@@ -1036,9 +1036,9 @@ export default {
           description: '管理对外出售价格；未设置时会回退到真实价格。'
         },
         registry: {
-          nav: 'æ³¨åè¡¨',
-          title: 'æ¨¡åæ³¨åè¡¨',
-          description: 'ç®¡çè¿è¡æ¶ canonical æ¨¡åãæ¾ç¤ºç¶æä¸ tombstoneï¼æ ééæ°åå¸ã'
+          nav: '注册表',
+          title: '模型注册表',
+          description: '管理运行时 canonical 模型、显示状态与 tombstone，无需重新发布。'
         },
         relay: {
           nav: '中转价格',
@@ -1049,69 +1049,69 @@ export default {
         }
       },
       registry: {
-        addModel: 'æ°å¢æ¨¡å',
-        editModel: 'ç¼è¾æ¨¡å',
-        source: 'æ¥æº',
-        status: 'ç¶æ',
-        searchPlaceholder: 'æç´¢æ¨¡å ID ææ¾ç¤ºå',
-        providerPlaceholder: 'ææä¾åè¿æ»¤',
-        platformPlaceholder: 'æå¹³å°è¿æ»¤',
-        includeHidden: 'åå«éèé¡¹',
-        includeTombstoned: 'åå« tombstone',
-        lastSynced: 'æè¿åæ­¥ï¼{time}',
-        commaSeparatedHint: 'å¤ä¸ªå¼å¯ç¨éå·ææ¢è¡åéã',
-        idLockedHint: 'ç¼è¾æ¨¡å¼ä¸éå®æ¨¡å IDï¼é¿åè¯¯æ¹ canonical idã',
-        saveSuccess: 'æ¨¡åæ³¨åè¡¨å·²ä¿å­',
-        saveFailed: 'ä¿å­æ¨¡åæ³¨åè¡¨å¤±è´¥',
-        deleteSuccess: 'æ¨¡åå·²å½»åºå é¤',
-        deleteFailed: 'å½»åºå é¤æ¨¡åå¤±è´¥',
-        hideSuccess: 'æ¨¡åå·²éè',
-        showSuccess: 'æ¨¡åå·²æ¢å¤æ¾ç¤º',
-        visibilityFailed: 'æ´æ°æ¨¡åå¯è§æ§å¤±è´¥',
-        loadFailed: 'å è½½æ¨¡åæ³¨åè¡¨å¤±è´¥',
-        emptyTitle: 'ææ æ³¨åè¡¨æ¨¡å',
-        emptyDescription: 'è¯·è°æ´ç­éæ¡ä»¶ï¼æåæ°å¢ä¸ä¸ªæå¨æ¨¡åã',
+        addModel: '新增模型',
+        editModel: '编辑模型',
+        source: '来源',
+        status: '状态',
+        searchPlaceholder: '搜索模型 ID 或显示名',
+        providerPlaceholder: '按提供商过滤',
+        platformPlaceholder: '按平台过滤',
+        includeHidden: '包含隐藏项',
+        includeTombstoned: '包含 tombstone',
+        lastSynced: '最近同步：{time}',
+        commaSeparatedHint: '多个值可用逗号或换行分隔。',
+        idLockedHint: '编辑模式下锁定模型 ID，避免误改 canonical id。',
+        saveSuccess: '模型注册表已保存',
+        saveFailed: '保存模型注册表失败',
+        deleteSuccess: '模型已彻底删除',
+        deleteFailed: '彻底删除模型失败',
+        hideSuccess: '模型已隐藏',
+        showSuccess: '模型已恢复显示',
+        visibilityFailed: '更新模型可见性失败',
+        loadFailed: '加载模型注册表失败',
+        emptyTitle: '暂无注册表模型',
+        emptyDescription: '请调整筛选条件，或先新增一个手动模型。',
         columns: {
-          model: 'æ¨¡å',
-          provider: 'æä¾å',
-          platforms: 'å¹³å°',
-          source: 'æ¥æº',
-          status: 'ç¶æ'
+          model: '模型',
+          provider: '提供商',
+          platforms: '平台',
+          source: '来源',
+          status: '状态'
         },
         fields: {
-          id: 'æ¨¡å ID',
-          displayName: 'æ¾ç¤ºåç§°',
-          provider: 'æä¾å',
-          uiPriority: 'UI ä¼åçº§',
-          platforms: 'å¹³å°',
-          protocolIds: 'åè®® ID',
-          aliases: 'å«å',
-          pricingLookupIds: 'å®ä»·æ¥æ¾ ID',
-          modalities: 'æ¨¡æ',
-          capabilities: 'è½å',
-          exposedIn: 'æ´é²å¥å£'
+          id: '模型 ID',
+          displayName: '显示名称',
+          provider: '提供商',
+          uiPriority: 'UI 优先级',
+          platforms: '平台',
+          protocolIds: '协议 ID',
+          aliases: '别名',
+          pricingLookupIds: '定价查找 ID',
+          modalities: '模态',
+          capabilities: '能力',
+          exposedIn: '暴露入口'
         },
         actions: {
-          hide: 'éè',
-          show: 'æ¢å¤æ¾ç¤º',
-          hardDelete: 'å½»åºå é¤'
+          hide: '隐藏',
+          show: '恢复显示',
+          hardDelete: '彻底删除'
         },
         dialogs: {
-          manageVisibility: 'å¯è§æ§ä¸å é¤',
-          hideDescription: 'éèåªä¼è®©æ¨¡åä»éæ©å¨åå¯è§åè¡¨ä¸­æ¶å¤±ï¼ä¸å½±ååå²è®°å½ä¸æ§ ID å¼å®¹ã',
-          restoreDescription: 'æ¢å¤æ¾ç¤ºåªä¼éæ°æ´é²è¯¥æ¨¡åï¼ä¸ä¼æ¹å¨ canonical å®ä¹ã',
-          hardDeleteDescription: 'å½»åºå é¤ä¼ç§»é¤æå¨è¿è¡æ¶è¦çå¹¶åå¥ tombstoneï¼ä¹å shipped seed æ legacy fallback é½ä¸ä¼èªå¨éæ°æ´é²è¯¥æ¨¡åã'
+          manageVisibility: '可见性与删除',
+          hideDescription: '隐藏只会让模型从选择器和可见列表中消失，不影响历史记录与旧 ID 兼容。',
+          restoreDescription: '恢复显示只会重新暴露该模型，不会改动 canonical 定义。',
+          hardDeleteDescription: '彻底删除会移除手动运行时覆盖并写入 tombstone，之后 shipped seed 或 legacy fallback 都不会自动重新暴露该模型。'
         },
         statusLabels: {
-          active: 'æ­£å¸¸',
-          hidden: 'å·²éè',
-          tombstoned: 'å·²å¢ç¢å é¤'
+          active: '正常',
+          hidden: '已隐藏',
+          tombstoned: '已墓碑删除'
         },
         sourceLabels: {
-          seed: 'åå¸åºçº¿',
-          manual: 'æå¨è¦ç',
-          legacy: 'æ§ç®å½åé',
-          tombstone: 'å¢ç¢'
+          seed: '发布基线',
+          manual: '手动覆盖',
+          legacy: '旧目录回退',
+          tombstone: '墓碑'
         }
       },
       catalog: {
@@ -2462,6 +2462,27 @@ export default {
       modelImportFailed: '导入模型失败',
       modelImportUnsupported: '当前账号类型不支持真实探测',
       modelImportGeminiFallback: '真实探测受限，已按 Gemini CLI 默认模型导入 {count} 个模型',
+
+      modelImportResultTitle: '模型导入结果',
+      modelImportSummary: '新增 {imported} / 归并 {merged} / 跳过 {skipped} / 失败 {failed}',
+      modelImportCopyDetails: '复制明细',
+      modelImportMore: '另有 {count} 条',
+      modelImportStatus: {
+        imported: '已新增',
+        merged: '已归并',
+        skipped: '已跳过',
+        failed: '失败'
+      },
+      modelImportReason: {
+        imported_new: '已作为新模型导入',
+        merged_canonical: '已归并到 canonical 模型',
+        duplicate_canonical: '已跳过重复的 canonical 结果',
+        already_exists: '模型已存在',
+        blocked_tombstone: '被删除策略拦截',
+        invalid_model_id: '模型 ID 无效',
+        unsupported_runtime_platform: '当前程序无法运行该模型',
+        persist_failed: '写入模型失败'
+      },
       soraAccountCreated: 'Sora 账号已同时创建',
       soraAccountFailed: 'Sora 账号创建失败，请稍后手动添加',
       accountUpdated: '账号更新成功',

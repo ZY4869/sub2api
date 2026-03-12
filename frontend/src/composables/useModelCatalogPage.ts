@@ -8,7 +8,7 @@ import {
   type ModelCatalogPricingSource,
   type UpdatePricingOverridePayload
 } from '@/api/admin/models'
-import { useAppStore } from '@/stores'
+import { useAppStore, useModelInventoryStore } from '@/stores'
 import {
   getModelCatalogPriceDisplayMode,
   MODEL_CATALOG_PAGE_SIZE,
@@ -21,11 +21,11 @@ export type ModelCatalogPricingLayer = 'official' | 'sale'
 export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
   const { t } = useI18n()
   const appStore = useAppStore()
+  const modelInventoryStore = useModelInventoryStore()
 
   const loading = ref(false)
   const detailLoading = ref(false)
   const saving = ref(false)
-  const createOpen = ref(false)
   const dialogOpen = ref(false)
   const items = ref<ModelCatalogItem[]>([])
   const detail = ref<ModelCatalogDetail | null>(null)
@@ -42,6 +42,19 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
   watch(priceDisplayMode, (mode) => {
     setModelCatalogPriceDisplayMode(mode)
   })
+
+  watch(
+    () => modelInventoryStore.revision,
+    (revision, previous) => {
+      if (!revision || revision === previous) {
+        return
+      }
+      void loadModels()
+      if (detail.value?.model) {
+        void openDetail(detail.value.model)
+      }
+    }
+  )
 
   const providerOptions = computed<SelectOption[]>(() => [
     { value: '', label: t('admin.models.filters.allProviders') },
@@ -138,34 +151,6 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     }
   }
 
-  async function createModel(model: string) {
-    try {
-      detail.value = await modelsAPI.upsertCatalogEntry({ model })
-      createOpen.value = false
-      dialogOpen.value = true
-      appStore.showSuccess(t('admin.models.catalog.createSuccess'))
-      await loadModels(true)
-    } catch (error) {
-      appStore.showError(extractErrorMessage(error, t('admin.models.catalog.createFailed')))
-    }
-  }
-
-  async function deleteModel(model: string) {
-    if (!window.confirm(t('admin.models.catalog.deleteConfirm', { model }))) {
-      return
-    }
-    try {
-      await modelsAPI.deleteCatalogEntry(model)
-      if (detail.value?.model === model) {
-        dialogOpen.value = false
-        detail.value = null
-      }
-      appStore.showSuccess(t('admin.models.catalog.deleteSuccess'))
-      await loadModels(true)
-    } catch (error) {
-      appStore.showError(extractErrorMessage(error, t('admin.models.catalog.deleteFailed')))
-    }
-  }
 
   async function copyOfficialToSale(model: string) {
     saving.value = true
@@ -196,7 +181,6 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     loading,
     detailLoading,
     saving,
-    createOpen,
     dialogOpen,
     items,
     detail,
@@ -210,8 +194,6 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     openDetail,
     saveOverride,
     resetOverride,
-    createModel,
-    deleteModel,
     copyOfficialToSale,
     updateFilter,
     closeDetail

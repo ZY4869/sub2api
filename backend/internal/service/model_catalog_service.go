@@ -107,43 +107,24 @@ func (s *ModelCatalogService) GetModelDetail(ctx context.Context, model string) 
 }
 
 func (s *ModelCatalogService) UpsertCatalogEntry(ctx context.Context, input UpsertModelCatalogEntryInput) (*ModelCatalogDetail, error) {
-	entry, err := s.deriveCatalogEntry(input.Model)
-	if err != nil {
+	if s.modelRegistryService == nil {
+		return nil, infraerrors.InternalServer("MODEL_REGISTRY_SERVICE_UNAVAILABLE", "model registry service is unavailable")
+	}
+	alias := normalizeModelCatalogAlias(input.Model)
+	if alias == "" {
+		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
+	}
+	if _, err := s.modelRegistryService.UpsertEntry(ctx, UpsertModelRegistryEntryInput{ID: alias, ExposedIn: []string{"runtime"}}); err != nil {
 		return nil, err
 	}
-	entries := s.loadCatalogEntries(ctx)
-	if current, index := modelCatalogEntryByModel(entries, entry.Model); current != nil {
-		entries[index] = *entry
-	} else {
-		entries = append(entries, *entry)
-	}
-	if err := s.persistCatalogEntries(ctx, entries); err != nil {
-		return nil, err
-	}
-	return s.GetModelDetail(ctx, entry.Model)
+	return s.GetModelDetail(ctx, alias)
 }
 
 func (s *ModelCatalogService) DeleteCatalogEntry(ctx context.Context, model string) error {
-	alias := NormalizeModelCatalogModelID(model)
-	if alias == "" {
-		return infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
+	if s.modelRegistryService == nil {
+		return infraerrors.InternalServer("MODEL_REGISTRY_SERVICE_UNAVAILABLE", "model registry service is unavailable")
 	}
-	entries := s.loadCatalogEntries(ctx)
-	_, index := modelCatalogEntryByModel(entries, alias)
-	if index < 0 {
-		return infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
-	}
-	entries = append(entries[:index], entries[index+1:]...)
-	if err := s.persistCatalogEntries(ctx, entries); err != nil {
-		return err
-	}
-	if err := s.deletePricingOverrideByLayer(ctx, alias, true); err != nil && !infraerrors.IsNotFound(err) {
-		return err
-	}
-	if err := s.deletePricingOverrideByLayer(ctx, alias, false); err != nil && !infraerrors.IsNotFound(err) {
-		return err
-	}
-	return nil
+	return s.modelRegistryService.DeleteEntry(ctx, model)
 }
 
 func (s *ModelCatalogService) CopyOfficialPricingToSale(ctx context.Context, actor ModelCatalogActor, model string) (*ModelCatalogDetail, error) {

@@ -172,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
@@ -191,9 +191,11 @@ import ModelRegistryDeleteDialog from '@/components/admin/models/ModelRegistryDe
 import ModelRegistryEntryModal from '@/components/admin/models/ModelRegistryEntryModal.vue'
 import { ensureModelRegistryFresh, invalidateModelRegistry } from '@/stores/modelRegistry'
 import { useAppStore } from '@/stores/app'
+import { useModelInventoryStore } from '@/stores'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const modelInventoryStore = useModelInventoryStore()
 
 const loading = ref(false)
 const actionLoading = ref(false)
@@ -230,6 +232,16 @@ const columns = computed<Column[]>(() => [
 onMounted(() => {
   void handleRefresh()
 })
+
+watch(
+  () => modelInventoryStore.revision,
+  (revision, previous) => {
+    if (!revision || revision === previous) {
+      return
+    }
+    void handleRefresh()
+  }
+)
 
 async function loadList() {
   loading.value = true
@@ -317,6 +329,7 @@ async function handleEntrySubmit(payload: UpsertModelRegistryEntryPayload) {
     closeEntryModal()
     appStore.showSuccess(t('admin.models.registry.saveSuccess'))
     await refreshRegistryState()
+    modelInventoryStore.invalidate()
   } catch (error) {
     console.error('[ModelRegistryView] save failed', error)
     appStore.showError(t('admin.models.registry.saveFailed'))
@@ -341,6 +354,7 @@ async function handleToggleVisibility() {
       t(nextHidden ? 'admin.models.registry.hideSuccess' : 'admin.models.registry.showSuccess')
     )
     await refreshRegistryState()
+    modelInventoryStore.invalidate()
   } catch (error) {
     console.error('[ModelRegistryView] visibility update failed', error)
     appStore.showError(t('admin.models.registry.visibilityFailed'))
@@ -359,6 +373,7 @@ async function handleHardDelete() {
     closeDeleteDialog()
     appStore.showSuccess(t('admin.models.registry.deleteSuccess'))
     await refreshRegistryState()
+    modelInventoryStore.invalidate()
   } catch (error) {
     console.error('[ModelRegistryView] hard delete failed', error)
     appStore.showError(t('admin.models.registry.deleteFailed'))

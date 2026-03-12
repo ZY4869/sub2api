@@ -126,9 +126,6 @@
         <button class="btn btn-secondary btn-sm" @click="emit('inspect', row.model)">
           {{ t('admin.models.viewDetails') }}
         </button>
-        <button class="btn btn-danger btn-sm" @click="emit('delete', row.model)">
-          {{ t('common.delete') }}
-        </button>
       </div>
     </template>
 
@@ -171,7 +168,6 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'inspect', model: string): void
-  (e: 'delete', model: string): void
 }>()
 
 const { t } = useI18n()

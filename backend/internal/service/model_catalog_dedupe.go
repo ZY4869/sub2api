@@ -29,6 +29,18 @@ func dedupeModelCatalogItems(items []ModelCatalogItem) []ModelCatalogItem {
 }
 
 func preferModelCatalogItem(current ModelCatalogItem, candidate ModelCatalogItem) ModelCatalogItem {
+	currentCanonicalDisplay := CanonicalizeModelNameForPricing(current.DisplayName)
+	candidateCanonicalDisplay := CanonicalizeModelNameForPricing(candidate.DisplayName)
+	currentCanonicalModel := CanonicalizeModelNameForPricing(NormalizeModelCatalogModelID(current.Model))
+	candidateCanonicalModel := CanonicalizeModelNameForPricing(NormalizeModelCatalogModelID(candidate.Model))
+	currentMatchesCanonical := currentCanonicalDisplay != "" && currentCanonicalDisplay == currentCanonicalModel
+	candidateMatchesCanonical := candidateCanonicalDisplay != "" && candidateCanonicalDisplay == candidateCanonicalModel
+	if candidateMatchesCanonical != currentMatchesCanonical {
+		if candidateMatchesCanonical {
+			return candidate
+		}
+		return current
+	}
 	if candidate.HasOverride != current.HasOverride {
 		if candidate.HasOverride {
 			return candidate

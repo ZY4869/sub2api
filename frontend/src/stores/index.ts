@@ -11,6 +11,7 @@ export { useOnboardingStore } from './onboarding'
 export { useAnnouncementStore } from './announcements'
 export { useExchangeRateStore } from './exchangeRate'
 export { useModelRegistryStore } from './modelRegistry'
+export { useModelInventoryStore } from './modelInventory'
 
 // Re-export types for convenience
 export type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAccountModelImportToastPayload,
+  mergeAccountModelImportResults,
   resolveAccountModelImportErrorMessage,
-  resolveAccountModelImportProbeNoticeMessage
+  resolveAccountModelImportProbeNoticeMessage,
+  shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 
 const t = (key: string, named?: Record<string, unknown>) => (
@@ -61,5 +64,143 @@ describe('resolveAccountModelImportProbeNoticeMessage', () => {
       imported_count: 2,
       probe_source: 'upstream'
     })).toBe('')
+  })
+})
+
+describe('buildAccountModelImportToastPayload', () => {
+  it('builds warning toast with canonical merge and failure details', () => {
+    const payload = buildAccountModelImportToastPayload(t, {
+      account_id: 1,
+      detected_models: ['claude-sonnet-4-5-20250929', 'bad-model'],
+      imported_models: [],
+      imported_count: 0,
+      skipped_count: 1,
+      failed_models: [],
+      model_results: [
+        {
+          source_model: 'claude-sonnet-4-5-20250929',
+          canonical_model: 'claude-sonnet-4.5',
+          status: 'merged',
+          reason_code: 'merged_canonical'
+        },
+        {
+          source_model: 'deleted-model',
+          canonical_model: 'deleted-model',
+          status: 'skipped',
+          reason_code: 'blocked_tombstone'
+        },
+        {
+          source_model: 'bad-model',
+          status: 'failed',
+          reason_code: 'unsupported_runtime_platform',
+          detail: 'runtime unsupported'
+        }
+      ],
+      probe_source: 'upstream',
+      trigger: 'manual'
+    })
+
+    expect(payload.type).toBe('warning')
+    expect(payload.message).toBe(
+      'admin.accounts.modelImportSummary:{"imported":0,"merged":1,"skipped":1,"failed":1}'
+    )
+    expect(payload.options.title).toBe('admin.accounts.modelImportResultTitle')
+    expect(payload.options.details?.[0]).toContain('claude-sonnet-4-5-20250929')
+    expect(payload.options.details?.[0]).toContain('-> claude-sonnet-4.5')
+    expect(payload.options.details?.[2]).toContain('bad-model')
+    expect(payload.options.copyText).toContain('runtime unsupported')
+    expect(payload.options.persistent).toBe(true)
+  })
+})
+
+describe('mergeAccountModelImportResults', () => {
+  it('merges counts, notices, and results', () => {
+    const merged = mergeAccountModelImportResults([
+      {
+        account_id: 1,
+        detected_models: ['model-a'],
+        imported_models: ['model-a'],
+        imported_count: 1,
+        skipped_count: 0,
+        failed_models: [],
+        model_results: [
+          {
+            source_model: 'model-a',
+            canonical_model: 'model-a',
+            status: 'imported',
+            reason_code: 'imported_new'
+          }
+        ],
+        probe_source: 'upstream',
+        probe_notice: '',
+        trigger: 'create'
+      },
+      {
+        account_id: 2,
+        detected_models: ['model-b'],
+        imported_models: [],
+        imported_count: 0,
+        skipped_count: 1,
+        failed_models: [],
+        model_results: [
+          {
+            source_model: 'model-b',
+            canonical_model: 'canonical-b',
+            status: 'merged',
+            reason_code: 'merged_canonical'
+          }
+        ],
+        probe_source: 'gemini_cli_default_fallback',
+        probe_notice: 'fallback notice',
+        trigger: 'create'
+      }
+    ])
+
+    expect(merged?.imported_count).toBe(1)
+    expect(merged?.skipped_count).toBe(1)
+    expect(merged?.probe_source).toBe('gemini_cli_default_fallback')
+    expect(merged?.probe_notice).toBe('fallback notice')
+    expect(merged?.model_results).toHaveLength(2)
+  })
+})
+
+describe('shouldInvalidateModelInventory', () => {
+  it('returns true when imported or merged models exist', () => {
+    expect(shouldInvalidateModelInventory({
+      account_id: 1,
+      detected_models: [],
+      imported_models: [],
+      imported_count: 0,
+      skipped_count: 0,
+      failed_models: [],
+      model_results: [
+        {
+          source_model: 'legacy-model',
+          canonical_model: 'canonical-model',
+          status: 'merged',
+          reason_code: 'merged_canonical'
+        }
+      ],
+      trigger: 'manual'
+    })).toBe(true)
+  })
+
+  it('returns false for only skipped and failed models', () => {
+    expect(shouldInvalidateModelInventory({
+      account_id: 1,
+      detected_models: [],
+      imported_models: [],
+      imported_count: 0,
+      skipped_count: 1,
+      failed_models: [],
+      model_results: [
+        {
+          source_model: 'deleted-model',
+          status: 'skipped',
+          reason_code: 'blocked_tombstone'
+        }
+      ],
+      trigger: 'manual'
+    })).toBe(false)
   })
 })

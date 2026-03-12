@@ -5,7 +5,6 @@
         <div class="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300">
           {{ t(pageDescriptionKey) }}
         </div>
-        <button class="btn btn-primary" @click="createOpen = true">{{ t('admin.models.catalog.addModel') }}</button>
       </div>
     </template>
 
@@ -39,12 +38,10 @@
         :exchange-rate="exchangeRate"
         :price-display-mode="priceDisplayMode"
         @inspect="openDetail"
-        @delete="deleteModel"
       />
     </template>
   </TablePageLayout>
 
-  <ModelCatalogAddDialog :show="createOpen" @close="createOpen = false" @confirm="createModel" />
 
   <ModelCatalogDetailDialog
     :show="dialogOpen"
@@ -67,7 +64,6 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
-import ModelCatalogAddDialog from '@/components/admin/models/ModelCatalogAddDialog.vue'
 import ModelCatalogDetailDialog from '@/components/admin/models/ModelCatalogDetailDialog.vue'
 import ModelCatalogFilters from '@/components/admin/models/ModelCatalogFilters.vue'
 import ModelCatalogTable from '@/components/admin/models/ModelCatalogTable.vue'
@@ -87,7 +83,6 @@ const {
   loading,
   detailLoading,
   saving,
-  createOpen,
   dialogOpen,
   items,
   detail,
@@ -101,8 +96,6 @@ const {
   openDetail,
   saveOverride,
   resetOverride,
-  createModel,
-  deleteModel,
   copyOfficialToSale,
   updateFilter,
   closeDetail
