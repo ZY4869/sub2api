@@ -2566,7 +2566,10 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
-import { resolveAccountModelImportErrorMessage } from '@/utils/accountModelImport'
+import {
+  resolveAccountModelImportErrorMessage,
+  resolveAccountModelImportProbeNoticeMessage
+} from '@/utils/accountModelImport'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
@@ -3324,11 +3327,15 @@ const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
   let importedCount = 0
   let failedCount = 0
   let firstFailureMessage = ''
+  let firstProbeNotice = ''
   for (const account of createdAccounts) {
     try {
       const result = await adminAPI.accounts.importModels(account.id, { trigger: 'create' })
       importedCount += result.imported_count
       failedCount += result.failed_models?.length ?? 0
+      if (!firstProbeNotice) {
+        firstProbeNotice = resolveAccountModelImportProbeNoticeMessage(t, result)
+      }
     } catch (error) {
       console.error('Failed to auto import models after account creation:', error)
       if (!firstFailureMessage) {
@@ -3342,7 +3349,12 @@ const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
       appStore.showError(firstFailureMessage || t('admin.accounts.modelImportFailed'))
       return
     }
-    appStore.showWarning(t('admin.accounts.modelImportPartial', { imported: importedCount, failed: failedCount }))
+    const partialMessage = t('admin.accounts.modelImportPartial', { imported: importedCount, failed: failedCount })
+    appStore.showWarning(firstProbeNotice ? `${firstProbeNotice} · ${partialMessage}` : partialMessage)
+    return
+  }
+  if (firstProbeNotice) {
+    appStore.showWarning(firstProbeNotice)
     return
   }
   appStore.showSuccess(t('admin.accounts.modelImportSuccess', { count: importedCount }))

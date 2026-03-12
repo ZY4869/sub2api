@@ -9,7 +9,7 @@
     </div>
 
     <div class="layout-section">
-      <div class="card table-scroll-container">
+      <div class="card table-scroll-container" :class="{ 'table-scroll-container-page-scroll': preferPageScroll }">
         <slot name="table" />
       </div>
     </div>
@@ -19,6 +19,14 @@
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+withDefaults(defineProps<{
+  preferPageScroll?: boolean
+}>(), {
+  preferPageScroll: false
+})
+</script>
 
 <style scoped>
 .table-page-layout {
@@ -31,6 +39,10 @@
 
 .table-scroll-container {
   @apply overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-800;
+}
+
+.table-scroll-container-page-scroll {
+  overflow-y: visible;
 }
 
 .table-scroll-container :deep(.table-wrapper) {

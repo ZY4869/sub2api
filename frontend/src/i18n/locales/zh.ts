@@ -2383,6 +2383,7 @@ export default {
       modelImportPartial: '模型导入部分成功：成功 {imported} 个，失败 {failed} 个',
       modelImportFailed: '导入模型失败',
       modelImportUnsupported: '当前账号类型不支持真实探测',
+      modelImportGeminiFallback: '真实探测受限，已按 Gemini CLI 默认模型导入 {count} 个模型',
       soraAccountCreated: 'Sora 账号已同时创建',
       soraAccountFailed: 'Sora 账号创建失败，请稍后手动添加',
       accountUpdated: '账号更新成功',

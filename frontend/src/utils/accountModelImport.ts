@@ -3,6 +3,12 @@ export type AccountModelImportTranslate = (
   named?: Record<string, unknown>
 ) => string
 
+interface AccountModelImportResultLike {
+  imported_count?: number
+  probe_source?: string
+  probe_notice?: string
+}
+
 interface AccountModelImportErrorLike {
   message?: unknown
   response?: {
@@ -30,6 +36,26 @@ function extractAccountModelImportErrorMessage(error: unknown): string {
   }
 
   return typeof err.message === 'string' ? err.message.trim() : ''
+}
+
+export function resolveAccountModelImportProbeNoticeMessage(
+  t: AccountModelImportTranslate,
+  result: AccountModelImportResultLike | null | undefined
+): string {
+  const probeNotice = typeof result?.probe_notice === 'string'
+    ? result.probe_notice.trim()
+    : ''
+  if (probeNotice) {
+    return probeNotice
+  }
+
+  if (result?.probe_source === 'gemini_cli_default_fallback') {
+    return t('admin.accounts.modelImportGeminiFallback', {
+      count: Math.max(0, Number(result.imported_count) || 0)
+    })
+  }
+
+  return ''
 }
 
 export function resolveAccountModelImportErrorMessage(

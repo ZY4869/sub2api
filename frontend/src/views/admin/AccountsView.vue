@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <TablePageLayout prefer-page-scroll>
       <template #filters>
         <div class="flex flex-wrap-reverse items-start justify-between gap-3">
           <AccountTableFilters
@@ -314,7 +314,10 @@ import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
-import { resolveAccountModelImportErrorMessage } from '@/utils/accountModelImport'
+import {
+  resolveAccountModelImportErrorMessage,
+  resolveAccountModelImportProbeNoticeMessage
+} from '@/utils/accountModelImport'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import type { Account, AccountPlatform, AccountType, Proxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 
@@ -1176,15 +1179,21 @@ const handleImportModels = async (a: Account, trigger: 'manual' | 'create' = 'ma
   appStore.showInfo(t('admin.accounts.probingModels'))
   try {
     const result = await adminAPI.accounts.importModels(a.id, { trigger })
+    const probeNotice = resolveAccountModelImportProbeNoticeMessage(t, result)
     if (result.failed_models?.length) {
       if (result.imported_count === 0) {
         appStore.showError(t('admin.accounts.modelImportFailed'))
         return result
       }
-      appStore.showWarning(t('admin.accounts.modelImportPartial', {
+      const partialMessage = t('admin.accounts.modelImportPartial', {
         imported: result.imported_count,
         failed: result.failed_models.length
-      }))
+      })
+      appStore.showWarning(probeNotice ? `${probeNotice} · ${partialMessage}` : partialMessage)
+      return result
+    }
+    if (probeNotice) {
+      appStore.showWarning(probeNotice)
       return result
     }
     appStore.showSuccess(t('admin.accounts.modelImportSuccess', { count: result.imported_count }))

@@ -2243,6 +2243,7 @@ export default {
       modelImportPartial: 'Model import partially completed: {imported} imported, {failed} failed',
       modelImportFailed: 'Failed to import models',
       modelImportUnsupported: 'Current account type does not support real model probing',
+      modelImportGeminiFallback: 'Real upstream probing is limited; imported {count} Gemini CLI default model(s) instead',
       soraAccountCreated: 'Sora account created simultaneously',
       soraAccountFailed: 'Failed to create Sora account, please add manually later',
       accountUpdated: 'Account updated successfully',

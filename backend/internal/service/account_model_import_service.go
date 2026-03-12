@@ -3,10 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"go.uber.org/zap"
+)
+
+const (
+	accountModelProbeSourceUpstream                 = "upstream"
+	accountModelProbeSourceGeminiCLIDefaultFallback = "gemini_cli_default_fallback"
 )
 
 type AccountModelImportFailure struct {
@@ -21,7 +27,22 @@ type AccountModelImportResult struct {
 	ImportedCount  int                         `json:"imported_count"`
 	SkippedCount   int                         `json:"skipped_count"`
 	FailedModels   []AccountModelImportFailure `json:"failed_models,omitempty"`
+	ProbeSource    string                      `json:"probe_source"`
+	ProbeNotice    string                      `json:"probe_notice,omitempty"`
 	Trigger        string                      `json:"trigger"`
+}
+
+type accountModelProbeResult struct {
+	Models []string
+	Source string
+	Notice string
+}
+
+func newAccountModelProbeResult(models []string) *accountModelProbeResult {
+	return &accountModelProbeResult{
+		Models: models,
+		Source: accountModelProbeSourceUpstream,
+	}
 }
 
 type AccountModelImportService struct {
@@ -59,7 +80,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		zap.String("type", account.Type),
 		zap.String("trigger", normalizeImportTrigger(trigger)),
 	)
-	detectedModels, err := s.detectModels(ctx, account)
+	probeResult, err := s.detectModels(ctx, account)
 	if err != nil {
 		log.Warn("account model import: detect models failed",
 			zap.Int64("account_id", account.ID),
@@ -69,18 +90,27 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		)
 		return nil, err
 	}
-	if len(detectedModels) == 0 {
+	if probeResult == nil {
+		return nil, infraerrors.InternalServer("MODEL_IMPORT_PROBE_RESULT_MISSING", "model import probe result is missing")
+	}
+	if len(probeResult.Models) == 0 {
 		return nil, infraerrors.BadRequest("MODEL_IMPORT_EMPTY", "no models detected for account")
 	}
 	if s.modelCatalogService == nil {
 		return nil, infraerrors.InternalServer("MODEL_CATALOG_SERVICE_UNAVAILABLE", "model catalog service is unavailable")
 	}
 
-	uniqueDetected, skippedCount := normalizeImportedModelIDs(detectedModels)
+	probeSource := strings.TrimSpace(probeResult.Source)
+	if probeSource == "" {
+		probeSource = accountModelProbeSourceUpstream
+	}
+	uniqueDetected, skippedCount := normalizeImportedModelIDs(probeResult.Models)
 	result := &AccountModelImportResult{
 		AccountID:      account.ID,
 		DetectedModels: uniqueDetected,
 		SkippedCount:   skippedCount,
+		ProbeSource:    probeSource,
+		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
 		Trigger:        normalizeImportTrigger(trigger),
 	}
 
@@ -98,6 +128,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		zap.Int64("account_id", account.ID),
 		zap.String("platform", account.Platform),
 		zap.String("trigger", result.Trigger),
+		zap.String("probe_source", result.ProbeSource),
 		zap.Int("detected_count", len(result.DetectedModels)),
 		zap.Int("imported_count", result.ImportedCount),
 		zap.Int("skipped_count", result.SkippedCount),
