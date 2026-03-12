@@ -78,6 +78,7 @@ type UpdateUserInput struct {
 	Notes                 *string
 	Balance               *float64
 	Concurrency           *int
+	AdminFreeBilling      *bool
 	Status                string
 	AllowedGroups         *[]int64
 	GroupRates            map[int64]*float64

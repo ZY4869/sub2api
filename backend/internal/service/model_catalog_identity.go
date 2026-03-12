@@ -7,17 +7,16 @@ func resolveModelCatalogRecord(records map[string]*modelCatalogRecord, model str
 	if canonical == "" {
 		return nil, false
 	}
+	var selected *modelCatalogRecord
 	if record, ok := records[canonical]; ok {
-		return record, true
+		selected = record
 	}
 	normalized := NormalizeModelCatalogModelID(canonical)
 	if normalized != "" {
 		if record, ok := records[normalized]; ok {
-			return record, true
+			selected = preferModelCatalogRecord(selected, record)
 		}
 	}
-
-	var selected *modelCatalogRecord
 	for _, record := range records {
 		if NormalizeModelCatalogModelID(record.model) != normalized {
 			continue

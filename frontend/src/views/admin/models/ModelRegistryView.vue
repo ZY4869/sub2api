@@ -74,11 +74,61 @@
     </template>
 
     <template #table>
-      <DataTable :columns="columns" :data="items" :loading="loading">
+      <ModelRegistryBulkActionsBar
+        :selected-ids="selectedModelIds"
+        :syncing="syncDialogSubmitting"
+        @clear="clearSelectedModels"
+        @select-page="selectVisibleSyncableModels"
+        @sync="handleOpenBulkSync"
+      />
+      <DataTable :columns="columns" :data="items" :loading="loading" row-key="id">
+        <template #header-select>
+          <input
+            type="checkbox"
+            class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            :checked="allSyncableVisibleSelected"
+            :disabled="syncableVisibleModelIds.length === 0"
+            @click.stop
+            @change="toggleSelectAllSyncableVisible($event)"
+          />
+        </template>
+
+        <template #cell-select="{ row }">
+          <input
+            type="checkbox"
+            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+            :checked="isModelSelected(row.id)"
+            :disabled="!isEntrySyncable(row)"
+            :title="!isEntrySyncable(row) ? t('admin.models.registry.syncDisabledTombstoned') : undefined"
+            @click.stop
+            @change="toggleModelSelection(row)"
+          />
+        </template>
+
         <template #cell-model="{ row }">
           <div class="min-w-[240px]">
             <p class="font-medium text-gray-900 dark:text-white">{{ row.id }}</p>
             <p v-if="row.display_name" class="text-xs text-gray-500 dark:text-gray-400">{{ row.display_name }}</p>
+            <div v-if="row.capabilities?.length" class="mt-2 flex flex-wrap items-center gap-1.5">
+              <span
+                v-for="capability in normalizedCapabilityMeta(row.capabilities)"
+                :key="`${row.id}-${capability.value}`"
+                class="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-1 text-[11px] font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
+              >
+                <Icon :name="capability.icon" size="xs" />
+                {{ capability.label }}
+              </span>
+            </div>
+            <div v-if="row.exposed_in?.length" class="mt-2 flex flex-wrap gap-1.5">
+              <span
+                v-for="target in row.exposed_in"
+                :key="`${row.id}-${target}`"
+                class="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                :title="describeExposure(target)"
+              >
+                {{ describeExposureShort(target) }}
+              </span>
+            </div>
           </div>
         </template>
 
@@ -120,6 +170,14 @@
 
         <template #cell-actions="{ row }">
           <div class="flex flex-wrap gap-2">
+            <button
+              class="btn btn-primary btn-sm"
+              :disabled="actionLoading || syncDialogSubmitting || !isEntrySyncable(row)"
+              :title="!isEntrySyncable(row) ? t('admin.models.registry.syncDisabledTombstoned') : undefined"
+              @click.stop="handleOpenRowSync(row)"
+            >
+              同步到展示位置
+            </button>
             <button class="btn btn-secondary btn-sm" :disabled="actionLoading" @click.stop="void openEdit(row)">
               {{ t('common.edit') }}
             </button>
@@ -169,6 +227,15 @@
     @toggle-visibility="handleToggleVisibility"
     @hard-delete="handleHardDelete"
   />
+
+  <ModelImportExposureSyncDialog
+    :show="syncDialogOpen"
+    :models="syncDialogModels"
+    :syncing="syncDialogSubmitting"
+    i18n-base-key="admin.models.registry"
+    @close="closeSyncDialog"
+    @submit="submitSyncDialog"
+  />
 </template>
 
 <script setup lang="ts">
@@ -177,6 +244,7 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import {
@@ -188,11 +256,20 @@ import {
   type ModelRegistryDetail,
   type UpsertModelRegistryEntryPayload
 } from '@/api/admin/modelRegistry'
+import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImportExposureSyncDialog.vue'
+import ModelRegistryBulkActionsBar from '@/components/admin/models/ModelRegistryBulkActionsBar.vue'
 import ModelRegistryDeleteDialog from '@/components/admin/models/ModelRegistryDeleteDialog.vue'
 import ModelRegistryEntryModal from '@/components/admin/models/ModelRegistryEntryModal.vue'
 import { ensureModelRegistryFresh, invalidateModelRegistry } from '@/stores/modelRegistry'
 import { useAppStore } from '@/stores/app'
 import { useModelInventoryStore } from '@/stores'
+import { useModelImportExposureSync } from '@/composables/useModelImportExposureSync'
+import { useTableSelection } from '@/composables/useTableSelection'
+import {
+  describeExposure,
+  describeExposureShort,
+  getCapabilityMeta
+} from '@/utils/modelRegistryMeta'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -221,7 +298,43 @@ const pagination = reactive({
   pages: 0
 })
 
+const {
+  selectedIds: selectedModelIds,
+  isSelected: isModelSelected,
+  select: selectModel,
+  deselect: deselectModel,
+  clear: clearSelectedModels
+} = useTableSelection<ModelRegistryDetail, string>({
+  rows: items,
+  getId: (entry) => entry.id
+})
+
+const {
+  syncDialogOpen,
+  syncDialogModels,
+  syncDialogSubmitting,
+  openSyncDialogForModels,
+  closeSyncDialog,
+  submitSyncDialog
+} = useModelImportExposureSync({
+  t,
+  appStore,
+  modelInventoryStore,
+  i18nBaseKey: 'admin.models.registry',
+  onSynced: async () => {
+    await loadList()
+  }
+})
+
+const syncableVisibleModelIds = computed(() => items.value.filter((entry) => isEntrySyncable(entry)).map((entry) => entry.id))
+
+const allSyncableVisibleSelected = computed(() =>
+  syncableVisibleModelIds.value.length > 0
+  && syncableVisibleModelIds.value.every((modelId) => isModelSelected(modelId))
+)
+
 const columns = computed<Column[]>(() => [
+  { key: 'select', label: '' },
   { key: 'model', label: t('admin.models.registry.columns.model') },
   { key: 'provider', label: t('admin.models.registry.columns.provider') },
   { key: 'platforms', label: t('admin.models.registry.columns.platforms') },
@@ -257,6 +370,7 @@ async function loadList() {
       page_size: pagination.page_size
     })
     items.value = response.items
+    pruneVisibleTombstonedSelection()
     pagination.total = response.total
     pagination.page = response.page
     pagination.page_size = response.page_size
@@ -296,6 +410,63 @@ function handlePageSizeChange(pageSize: number) {
   pagination.page_size = pageSize
   pagination.page = 1
   void loadList()
+}
+
+function isEntrySyncable(entry: ModelRegistryDetail): boolean {
+  return !entry.tombstoned
+}
+
+function pruneVisibleTombstonedSelection() {
+  for (const entry of items.value) {
+    if (entry.tombstoned) {
+      deselectModel(entry.id)
+    }
+  }
+}
+
+function toggleModelSelection(entry: ModelRegistryDetail) {
+  if (!isEntrySyncable(entry)) {
+    return
+  }
+  if (isModelSelected(entry.id)) {
+    deselectModel(entry.id)
+    return
+  }
+  selectModel(entry.id)
+}
+
+function toggleSelectAllSyncableVisible(event: Event) {
+  const checked = (event.target as HTMLInputElement | null)?.checked === true
+  for (const modelId of syncableVisibleModelIds.value) {
+    if (checked) {
+      selectModel(modelId)
+      continue
+    }
+    deselectModel(modelId)
+  }
+}
+
+function normalizedCapabilityMeta(values?: string[] | null) {
+  return (values || [])
+    .map((value) => getCapabilityMeta(value))
+    .filter((item): item is NonNullable<ReturnType<typeof getCapabilityMeta>> => Boolean(item))
+}
+
+function selectVisibleSyncableModels() {
+  for (const modelId of syncableVisibleModelIds.value) {
+    selectModel(modelId)
+  }
+}
+
+function handleOpenRowSync(entry: ModelRegistryDetail) {
+  if (!isEntrySyncable(entry)) {
+    return
+  }
+  openSyncDialogForModels([entry.id])
+}
+
+function handleOpenBulkSync() {
+  openSyncDialogForModels(selectedModelIds.value)
 }
 
 function openCreate() {

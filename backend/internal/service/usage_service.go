@@ -85,9 +85,15 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 	}
 
 	// 验证用户存在
-	_, err = s.userRepo.GetByID(txCtx, req.UserID)
+	user, err := s.userRepo.GetByID(txCtx, req.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
+	}
+	actualCost := req.ActualCost
+	billingExemptReason := (*string)(nil)
+	if user.IsAdminFreeBillingEnabled() {
+		actualCost = 0
+		billingExemptReason = BillingExemptReasonPtr(BillingExemptReasonAdminFree)
 	}
 
 	// 创建使用日志
@@ -108,7 +114,8 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 		CacheCreationCost:     req.CacheCreationCost,
 		CacheReadCost:         req.CacheReadCost,
 		TotalCost:             req.TotalCost,
-		ActualCost:            req.ActualCost,
+		ActualCost:            actualCost,
+		BillingExemptReason:   billingExemptReason,
 		RateMultiplier:        req.RateMultiplier,
 		Stream:                req.Stream,
 		DurationMs:            req.DurationMs,
@@ -121,8 +128,8 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 
 	// 扣除用户余额
 	balanceUpdated := false
-	if inserted && req.ActualCost > 0 {
-		if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -req.ActualCost); err != nil {
+	if inserted && actualCost > 0 {
+		if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -actualCost); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
 		}
 		balanceUpdated = true

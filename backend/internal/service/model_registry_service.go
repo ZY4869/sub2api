@@ -44,6 +44,26 @@ type UpdateModelRegistryVisibilityInput struct {
 	Hidden bool   `json:"hidden"`
 }
 
+type BatchSyncModelRegistryExposuresInput struct {
+	Models    []string `json:"models"`
+	Exposures []string `json:"exposures"`
+}
+
+type ModelRegistryExposureSyncFailure struct {
+	Model string `json:"model"`
+	Error string `json:"error"`
+}
+
+type BatchSyncModelRegistryExposuresResult struct {
+	Exposures     []string                           `json:"exposures"`
+	UpdatedCount  int                                `json:"updated_count"`
+	SkippedCount  int                                `json:"skipped_count"`
+	FailedCount   int                                `json:"failed_count"`
+	UpdatedModels []string                           `json:"updated_models"`
+	SkippedModels []string                           `json:"skipped_models,omitempty"`
+	FailedModels  []ModelRegistryExposureSyncFailure `json:"failed_models,omitempty"`
+}
+
 type UpsertDiscoveredEntryInput struct {
 	ModelID        string
 	SourcePlatform string
@@ -59,6 +79,25 @@ type UpsertDiscoveredEntryResult struct {
 
 type ModelRegistryService struct {
 	settingRepo SettingRepository
+}
+
+var modelRegistryCapabilityOrder = []string{
+	"text",
+	"vision",
+	"image_generation",
+	"web_search",
+	"audio_understanding",
+	"video_understanding",
+	"audio_generation",
+	"video_generation",
+}
+
+var modelRegistryCapabilityAliases = map[string]string{
+	"reasoning": "text",
+	"image":     "image_generation",
+	"video":     "video_generation",
+	"audio":     "audio_understanding",
+	"web":       "web_search",
 }
 
 func NewModelRegistryService(settingRepo SettingRepository) *ModelRegistryService {
@@ -253,6 +292,89 @@ func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input 
 		CanonicalModel:  canonicalModelID,
 		Changed:         true,
 	}, nil
+}
+
+func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input BatchSyncModelRegistryExposuresInput) (*BatchSyncModelRegistryExposuresResult, error) {
+	models := normalizeStringList(input.Models, normalizeRegistryID)
+	if len(models) == 0 {
+		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "at least one model is required")
+	}
+	exposures, err := normalizeBatchSyncExposureTargets(input.Exposures)
+	if err != nil {
+		return nil, err
+	}
+	entries, _, _, tombstones, err := s.mergedEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	runtimeIndex := make(map[string]int, len(runtimeEntries))
+	for index, entry := range runtimeEntries {
+		runtimeIndex[entry.ID] = index
+	}
+	result := &BatchSyncModelRegistryExposuresResult{
+		Exposures:     exposures,
+		UpdatedModels: []string{},
+		SkippedModels: []string{},
+		FailedModels:  []ModelRegistryExposureSyncFailure{},
+	}
+	changedIDs := make([]string, 0, len(models))
+	for _, modelID := range models {
+		if _, tombstoned := tombstones[modelID]; tombstoned {
+			result.SkippedCount++
+			result.SkippedModels = append(result.SkippedModels, modelID)
+			continue
+		}
+		entry, exists := entries[modelID]
+		if !exists {
+			result.SkippedCount++
+			result.SkippedModels = append(result.SkippedModels, modelID)
+			continue
+		}
+		mergedExposures := mergeRegistryStrings(entry.ExposedIn, exposures...)
+		if sameStringSlice(entry.ExposedIn, mergedExposures) {
+			result.SkippedCount++
+			result.SkippedModels = append(result.SkippedModels, modelID)
+			continue
+		}
+		updated := entry
+		updated.ExposedIn = mergedExposures
+		normalized, normalizeErr := normalizePersistedEntry(updated)
+		if normalizeErr != nil {
+			result.FailedModels = append(result.FailedModels, ModelRegistryExposureSyncFailure{Model: modelID, Error: summarizeAccountModelImportError(normalizeErr)})
+			continue
+		}
+		if index, exists := runtimeIndex[normalized.ID]; exists {
+			runtimeEntries[index] = normalized
+		} else {
+			runtimeIndex[normalized.ID] = len(runtimeEntries)
+			runtimeEntries = append(runtimeEntries, normalized)
+		}
+		changedIDs = append(changedIDs, normalized.ID)
+		result.UpdatedCount++
+		result.UpdatedModels = append(result.UpdatedModels, normalized.ID)
+	}
+	sort.Strings(result.UpdatedModels)
+	sort.Strings(result.SkippedModels)
+	sort.Slice(result.FailedModels, func(i, j int) bool {
+		return result.FailedModels[i].Model < result.FailedModels[j].Model
+	})
+	result.FailedCount = len(result.FailedModels)
+	if len(changedIDs) == 0 {
+		return result, nil
+	}
+	if err := s.persistRuntimeEntries(ctx, runtimeEntries); err != nil {
+		return nil, err
+	}
+	for _, modelID := range changedIDs {
+		if err := s.clearStates(ctx, modelID); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func (s *ModelRegistryService) SetVisibility(ctx context.Context, input UpdateModelRegistryVisibilityInput) (*modelregistry.AdminModelDetail, error) {
@@ -753,7 +875,11 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 	if len(entry.Modalities) == 0 {
 		entry.Modalities = defaultModalitiesForMode(inferModelMode(entry.ID, ""))
 	}
-	entry.Capabilities = normalizeStringList(entry.Capabilities, normalizeLowerTrimmed)
+	capabilities, err := normalizeRegistryCapabilities(entry.Capabilities)
+	if err != nil {
+		return modelregistry.ModelEntry{}, err
+	}
+	entry.Capabilities = capabilities
 	if len(entry.Capabilities) == 0 {
 		entry.Capabilities = defaultCapabilitiesForMode(inferModelMode(entry.ID, ""))
 	}
@@ -792,9 +918,9 @@ func defaultModalitiesForMode(mode string) []string {
 
 func defaultCapabilitiesForMode(mode string) []string {
 	if mode == "image" {
-		return []string{"image"}
+		return []string{"image_generation"}
 	}
-	return []string{}
+	return []string{"text"}
 }
 
 func normalizeRegistryID(value string) string {
@@ -809,8 +935,65 @@ func normalizeRegistryPlatform(value string) string {
 	return value
 }
 
+var batchSyncExposureTargets = map[string]struct{}{
+	"whitelist": {},
+	"use_key":   {},
+	"test":      {},
+	"runtime":   {},
+}
+
+func normalizeBatchSyncExposureTargets(exposures []string) ([]string, error) {
+	targets := normalizeStringList(exposures, normalizeLowerTrimmed)
+	if len(targets) == 0 {
+		return nil, infraerrors.BadRequest("MODEL_REGISTRY_EXPOSURE_REQUIRED", "at least one exposure target is required")
+	}
+	for _, target := range targets {
+		if _, ok := batchSyncExposureTargets[target]; !ok {
+			return nil, infraerrors.BadRequest("MODEL_REGISTRY_EXPOSURE_INVALID", "invalid exposure target: "+target)
+		}
+	}
+	return targets, nil
+}
+
 func normalizeLowerTrimmed(value string) string {
 	return strings.TrimSpace(strings.ToLower(value))
+}
+
+func normalizeRegistryCapabilities(items []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(items))
+	for _, item := range items {
+		normalized, err := normalizeRegistryCapability(item)
+		if err != nil {
+			return nil, err
+		}
+		if normalized == "" {
+			continue
+		}
+		seen[normalized] = struct{}{}
+	}
+	result := make([]string, 0, len(seen))
+	for _, capability := range modelRegistryCapabilityOrder {
+		if _, ok := seen[capability]; ok {
+			result = append(result, capability)
+		}
+	}
+	return result, nil
+}
+
+func normalizeRegistryCapability(value string) (string, error) {
+	value = normalizeLowerTrimmed(value)
+	if value == "" {
+		return "", nil
+	}
+	if alias, ok := modelRegistryCapabilityAliases[value]; ok {
+		value = alias
+	}
+	for _, capability := range modelRegistryCapabilityOrder {
+		if value == capability {
+			return value, nil
+		}
+	}
+	return "", infraerrors.BadRequest("MODEL_REGISTRY_CAPABILITY_INVALID", "invalid capability: "+value)
 }
 
 func normalizeStringList(items []string, normalize func(string) string) []string {

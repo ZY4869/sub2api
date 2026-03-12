@@ -160,6 +160,20 @@ func (_u *UserUpdate) SetNillableStatus(v *string) *UserUpdate {
 	return _u
 }
 
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (_u *UserUpdate) SetAdminFreeBilling(v bool) *UserUpdate {
+	_u.mutation.SetAdminFreeBilling(v)
+	return _u
+}
+
+// SetNillableAdminFreeBilling sets the "admin_free_billing" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAdminFreeBilling(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetAdminFreeBilling(*v)
+	}
+	return _u
+}
+
 // SetUsername sets the "username" field.
 func (_u *UserUpdate) SetUsername(v string) *UserUpdate {
 	_u.mutation.SetUsername(v)
@@ -729,6 +743,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AdminFreeBilling(); ok {
+		_spec.SetField(user.FieldAdminFreeBilling, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
@@ -1320,6 +1337,20 @@ func (_u *UserUpdateOne) SetStatus(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableStatus(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (_u *UserUpdateOne) SetAdminFreeBilling(v bool) *UserUpdateOne {
+	_u.mutation.SetAdminFreeBilling(v)
+	return _u
+}
+
+// SetNillableAdminFreeBilling sets the "admin_free_billing" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAdminFreeBilling(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetAdminFreeBilling(*v)
 	}
 	return _u
 }
@@ -1923,6 +1954,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AdminFreeBilling(); ok {
+		_spec.SetField(user.FieldAdminFreeBilling, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)

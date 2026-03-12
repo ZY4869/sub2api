@@ -160,9 +160,34 @@ export default {
           exposedIn: '暴露入口'
         },
         actions: {
+          syncPages: '同步页面',
           hide: '隐藏',
           show: '恢复显示',
           hardDelete: '彻底删除'
+        },
+        bulkActions: {
+          selected: '已选择 {count} 个模型',
+          selectCurrentPage: '本页全选',
+          clear: '清空',
+          syncPages: '同步选中模型到页面'
+        },
+        syncDisabledTombstoned: '已 tombstone 的模型不能同步到页面入口',
+        modelImportSyncTitle: '同步注册表模型到页面',
+        modelImportSyncDescription: '已选的 {count} 个注册表模型可同步到页面入口，请选择要追加的位置。',
+        modelImportSyncTargetsLabel: '同步目标',
+        modelImportSyncModelsLabel: '已选模型',
+        modelImportSyncConfirm: '同步到页面',
+        modelImportSyncNoTarget: '请至少选择一个同步目标',
+        modelImportSyncFailed: '同步注册表模型到页面失败',
+        modelImportSyncResultTitle: '页面同步结果',
+        modelImportSyncSummary: '同步完成：更新 {updated} / 跳过 {skipped} / 失败 {failed}',
+        modelImportSyncAppliedTargets: '已追加到：{targets}',
+        modelImportSyncMoreModels: '另有 {count} 个模型',
+        modelImportSyncTargets: {
+          whitelist: '白名单',
+          use_key: 'Use Key',
+          test: '测试页',
+          runtime: '运行时'
         },
         dialogs: {
           manageVisibility: '可见性与删除',
@@ -1550,6 +1575,23 @@ export default {
         invalid_model_id: '模型 ID 无效',
         unsupported_runtime_platform: '当前程序无法运行该模型',
         persist_failed: '写入模型失败'
+      },
+      modelImportSyncTitle: '???????',
+      modelImportSyncDescription: '??? {count} ?????????????????????????',
+      modelImportSyncTargetsLabel: '????',
+      modelImportSyncModelsLabel: '?????',
+      modelImportSyncConfirm: '?????',
+      modelImportSyncNoTarget: '???????????',
+      modelImportSyncFailed: '???????????',
+      modelImportSyncResultTitle: '??????',
+      modelImportSyncSummary: '??????? {updated} / ?? {skipped} / ?? {failed}',
+      modelImportSyncAppliedTargets: '?????{targets}',
+      modelImportSyncMoreModels: '?? {count} ???',
+      modelImportSyncTargets: {
+        whitelist: '???',
+        use_key: 'Use Key',
+        test: '???',
+        runtime: '???'
       },
       soraAccountCreated: 'Sora 账号已同时创建',
       soraAccountFailed: 'Sora 账号创建失败，请稍后手动添加',

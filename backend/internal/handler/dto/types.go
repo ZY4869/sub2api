@@ -3,16 +3,17 @@ package dto
 import "time"
 
 type User struct {
-	ID            int64     `json:"id"`
-	Email         string    `json:"email"`
-	Username      string    `json:"username"`
-	Role          string    `json:"role"`
-	Balance       float64   `json:"balance"`
-	Concurrency   int       `json:"concurrency"`
-	Status        string    `json:"status"`
-	AllowedGroups []int64   `json:"allowed_groups"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID               int64     `json:"id"`
+	Email            string    `json:"email"`
+	Username         string    `json:"username"`
+	Role             string    `json:"role"`
+	AdminFreeBilling bool      `json:"admin_free_billing"`
+	Balance          float64   `json:"balance"`
+	Concurrency      int       `json:"concurrency"`
+	Status           string    `json:"status"`
+	AllowedGroups    []int64   `json:"allowed_groups"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
@@ -23,7 +24,8 @@ type User struct {
 type AdminUser struct {
 	User
 
-	Notes string `json:"notes"`
+	Notes            string `json:"notes"`
+	AdminFreeBilling bool   `json:"admin_free_billing"`
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier
 	GroupRates            map[int64]float64 `json:"group_rates,omitempty"`
@@ -339,13 +341,14 @@ type UsageLog struct {
 	CacheCreation5mTokens int `json:"cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `json:"cache_creation_1h_tokens"`
 
-	InputCost         float64 `json:"input_cost"`
-	OutputCost        float64 `json:"output_cost"`
-	CacheCreationCost float64 `json:"cache_creation_cost"`
-	CacheReadCost     float64 `json:"cache_read_cost"`
-	TotalCost         float64 `json:"total_cost"`
-	ActualCost        float64 `json:"actual_cost"`
-	RateMultiplier    float64 `json:"rate_multiplier"`
+	InputCost           float64 `json:"input_cost"`
+	OutputCost          float64 `json:"output_cost"`
+	CacheCreationCost   float64 `json:"cache_creation_cost"`
+	CacheReadCost       float64 `json:"cache_read_cost"`
+	TotalCost           float64 `json:"total_cost"`
+	ActualCost          float64 `json:"actual_cost"`
+	BillingExemptReason *string `json:"billing_exempt_reason,omitempty"`
+	RateMultiplier      float64 `json:"rate_multiplier"`
 
 	BillingType  int8   `json:"billing_type"`
 	RequestType  string `json:"request_type"`

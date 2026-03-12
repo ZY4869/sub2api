@@ -78,6 +78,20 @@ func (h *ModelRegistryHandler) SetVisibility(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+func (h *ModelRegistryHandler) SyncExposures(c *gin.Context) {
+	var req service.BatchSyncModelRegistryExposuresInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.modelRegistryService.BatchSyncExposures(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 func (h *ModelRegistryHandler) DeleteEntry(c *gin.Context) {
 	model := strings.TrimSpace(c.Query("model"))
 	if err := h.modelRegistryService.DeleteEntry(c.Request.Context(), model); err != nil {

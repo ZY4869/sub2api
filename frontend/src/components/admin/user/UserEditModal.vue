@@ -33,6 +33,15 @@
         <label class="input-label">{{ t('admin.users.notes') }}</label>
         <textarea v-model="form.notes" rows="3" class="input"></textarea>
       </div>
+      <div v-if="user?.role === 'admin'" class="rounded-xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-700/50 dark:bg-amber-900/10">
+        <label class="flex items-start gap-3">
+          <input v-model="form.admin_free_billing" type="checkbox" class="mt-1 h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
+          <div>
+            <div class="text-sm font-medium text-gray-900 dark:text-white">管理员免费使用</div>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">开启后仍记录真实标准成本，但用户侧不扣余额、不累计用户配额。</p>
+          </div>
+        </label>
+      </div>
       <div>
         <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
         <input v-model.number="form.concurrency" type="number" class="input" />
@@ -74,11 +83,11 @@ const emit = defineEmits(['close', 'success'])
 const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-const form = reactive({ email: '', password: '', username: '', notes: '', concurrency: 1, sora_storage_quota_gb: 0, customAttributes: {} as UserAttributeValuesMap })
+const form = reactive({ email: '', password: '', username: '', notes: '', admin_free_billing: false, concurrency: 1, sora_storage_quota_gb: 0, customAttributes: {} as UserAttributeValuesMap })
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', concurrency: u.concurrency, sora_storage_quota_gb: Number(((u.sora_storage_quota_bytes || 0) / (1024 * 1024 * 1024)).toFixed(2)), customAttributes: {} })
+    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', admin_free_billing: !!u.admin_free_billing, concurrency: u.concurrency, sora_storage_quota_gb: Number(((u.sora_storage_quota_bytes || 0) / (1024 * 1024 * 1024)).toFixed(2)), customAttributes: {} })
     passwordCopied.value = false
   }
 }, { immediate: true })
@@ -105,7 +114,7 @@ const handleUpdateUser = async () => {
   }
   submitting.value = true
   try {
-    const data: any = { email: form.email, username: form.username, notes: form.notes, concurrency: form.concurrency, sora_storage_quota_bytes: Math.round((form.sora_storage_quota_gb || 0) * 1024 * 1024 * 1024) }
+    const data: any = { email: form.email, username: form.username, notes: form.notes, admin_free_billing: props.user.role === 'admin' ? form.admin_free_billing : false, concurrency: form.concurrency, sora_storage_quota_bytes: Math.round((form.sora_storage_quota_gb || 0) * 1024 * 1024 * 1024) }
     if (form.password.trim()) data.password = form.password.trim()
     await adminAPI.users.update(props.user.id, data)
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(props.user.id, form.customAttributes)

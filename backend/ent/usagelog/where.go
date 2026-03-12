@@ -150,6 +150,11 @@ func ActualCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldActualCost, v))
 }
 
+// BillingExemptReason applies equality check predicate on the "billing_exempt_reason" field. It's identical to BillingExemptReasonEQ.
+func BillingExemptReason(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingExemptReason, v))
+}
+
 // RateMultiplier applies equality check predicate on the "rate_multiplier" field. It's identical to RateMultiplierEQ.
 func RateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRateMultiplier, v))
@@ -943,6 +948,81 @@ func ActualCostLT(v float64) predicate.UsageLog {
 // ActualCostLTE applies the LTE predicate on the "actual_cost" field.
 func ActualCostLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldActualCost, v))
+}
+
+// BillingExemptReasonEQ applies the EQ predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonNEQ applies the NEQ predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonIn applies the In predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingExemptReason, vs...))
+}
+
+// BillingExemptReasonNotIn applies the NotIn predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingExemptReason, vs...))
+}
+
+// BillingExemptReasonGT applies the GT predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonGTE applies the GTE predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonLT applies the LT predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonLTE applies the LTE predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonContains applies the Contains predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonHasPrefix applies the HasPrefix predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonHasSuffix applies the HasSuffix predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonIsNil applies the IsNil predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldBillingExemptReason))
+}
+
+// BillingExemptReasonNotNil applies the NotNil predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldBillingExemptReason))
+}
+
+// BillingExemptReasonEqualFold applies the EqualFold predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldBillingExemptReason, v))
+}
+
+// BillingExemptReasonContainsFold applies the ContainsFold predicate on the "billing_exempt_reason" field.
+func BillingExemptReasonContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldBillingExemptReason, v))
 }
 
 // RateMultiplierEQ applies the EQ predicate on the "rate_multiplier" field.

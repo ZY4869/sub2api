@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	BillingTypeBalance      int8 = 0 // 钱包余额
-	BillingTypeSubscription int8 = 1 // 订阅套餐
+	BillingTypeBalance          int8 = 0
+	BillingTypeSubscription     int8 = 1
+	BillingExemptReasonAdminFree     = "admin_free"
 )
 
 type RequestType int16
@@ -98,10 +99,7 @@ type UsageLog struct {
 	AccountID int64
 	RequestID string
 	Model     string
-	// ServiceTier records the OpenAI service tier used for billing, e.g. "priority" / "flex".
 	ServiceTier *string
-	// ReasoningEffort is the request's reasoning effort level (OpenAI Responses API),
-	// e.g. "low" / "medium" / "high" / "xhigh". Nil means not provided / not applicable.
 	ReasoningEffort *string
 
 	GroupID        *int64
@@ -115,14 +113,14 @@ type UsageLog struct {
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
-	InputCost         float64
-	OutputCost        float64
-	CacheCreationCost float64
-	CacheReadCost     float64
-	TotalCost         float64
-	ActualCost        float64
-	RateMultiplier    float64
-	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
+	InputCost           float64
+	OutputCost          float64
+	CacheCreationCost   float64
+	CacheReadCost       float64
+	TotalCost           float64
+	ActualCost          float64
+	BillingExemptReason *string
+	RateMultiplier      float64
 	AccountRateMultiplier *float64
 
 	BillingType  int8
@@ -134,10 +132,8 @@ type UsageLog struct {
 	UserAgent    *string
 	IPAddress    *string
 
-	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 	CacheTTLOverridden bool
 
-	// 图片生成字段
 	ImageCount int
 	ImageSize  *string
 	MediaType  *string
@@ -172,4 +168,12 @@ func (u *UsageLog) SyncRequestTypeAndLegacyFields() {
 	requestType := u.EffectiveRequestType()
 	u.RequestType = requestType
 	u.Stream, u.OpenAIWSMode = ApplyLegacyRequestFields(requestType, u.Stream, u.OpenAIWSMode)
+}
+
+func BillingExemptReasonPtr(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }

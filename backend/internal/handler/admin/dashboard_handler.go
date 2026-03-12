@@ -101,6 +101,8 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 		"total_tokens":                stats.TotalTokens,
 		"total_cost":                  stats.TotalCost,       // 标准计费
 		"total_actual_cost":           stats.TotalActualCost, // 实际扣除
+		"admin_free_requests":         stats.AdminFreeRequests,
+		"admin_free_standard_cost":    stats.AdminFreeStandardCost,
 
 		// 今日 Token 使用统计
 		"today_requests":              stats.TodayRequests,

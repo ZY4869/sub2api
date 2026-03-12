@@ -18263,6 +18263,7 @@ type UsageLogMutation struct {
 	addtotal_cost               *float64
 	actual_cost                 *float64
 	addactual_cost              *float64
+	billing_exempt_reason       *string
 	rate_multiplier             *float64
 	addrate_multiplier          *float64
 	account_rate_multiplier     *float64
@@ -19346,6 +19347,55 @@ func (m *UsageLogMutation) ResetActualCost() {
 	m.addactual_cost = nil
 }
 
+// SetBillingExemptReason sets the "billing_exempt_reason" field.
+func (m *UsageLogMutation) SetBillingExemptReason(s string) {
+	m.billing_exempt_reason = &s
+}
+
+// BillingExemptReason returns the value of the "billing_exempt_reason" field in the mutation.
+func (m *UsageLogMutation) BillingExemptReason() (r string, exists bool) {
+	v := m.billing_exempt_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingExemptReason returns the old "billing_exempt_reason" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBillingExemptReason(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingExemptReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingExemptReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingExemptReason: %w", err)
+	}
+	return oldValue.BillingExemptReason, nil
+}
+
+// ClearBillingExemptReason clears the value of the "billing_exempt_reason" field.
+func (m *UsageLogMutation) ClearBillingExemptReason() {
+	m.billing_exempt_reason = nil
+	m.clearedFields[usagelog.FieldBillingExemptReason] = struct{}{}
+}
+
+// BillingExemptReasonCleared returns if the "billing_exempt_reason" field was cleared in this mutation.
+func (m *UsageLogMutation) BillingExemptReasonCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldBillingExemptReason]
+	return ok
+}
+
+// ResetBillingExemptReason resets all changes to the "billing_exempt_reason" field.
+func (m *UsageLogMutation) ResetBillingExemptReason() {
+	m.billing_exempt_reason = nil
+	delete(m.clearedFields, usagelog.FieldBillingExemptReason)
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (m *UsageLogMutation) SetRateMultiplier(f float64) {
 	m.rate_multiplier = &f
@@ -20197,7 +20247,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 33)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -20254,6 +20304,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.actual_cost != nil {
 		fields = append(fields, usagelog.FieldActualCost)
+	}
+	if m.billing_exempt_reason != nil {
+		fields = append(fields, usagelog.FieldBillingExemptReason)
 	}
 	if m.rate_multiplier != nil {
 		fields = append(fields, usagelog.FieldRateMultiplier)
@@ -20340,6 +20393,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalCost()
 	case usagelog.FieldActualCost:
 		return m.ActualCost()
+	case usagelog.FieldBillingExemptReason:
+		return m.BillingExemptReason()
 	case usagelog.FieldRateMultiplier:
 		return m.RateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
@@ -20413,6 +20468,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldTotalCost(ctx)
 	case usagelog.FieldActualCost:
 		return m.OldActualCost(ctx)
+	case usagelog.FieldBillingExemptReason:
+		return m.OldBillingExemptReason(ctx)
 	case usagelog.FieldRateMultiplier:
 		return m.OldRateMultiplier(ctx)
 	case usagelog.FieldAccountRateMultiplier:
@@ -20580,6 +20637,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetActualCost(v)
+		return nil
+	case usagelog.FieldBillingExemptReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingExemptReason(v)
 		return nil
 	case usagelog.FieldRateMultiplier:
 		v, ok := value.(float64)
@@ -20927,6 +20991,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldSubscriptionID) {
 		fields = append(fields, usagelog.FieldSubscriptionID)
 	}
+	if m.FieldCleared(usagelog.FieldBillingExemptReason) {
+		fields = append(fields, usagelog.FieldBillingExemptReason)
+	}
 	if m.FieldCleared(usagelog.FieldAccountRateMultiplier) {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
@@ -20967,6 +21034,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldSubscriptionID:
 		m.ClearSubscriptionID()
+		return nil
+	case usagelog.FieldBillingExemptReason:
+		m.ClearBillingExemptReason()
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ClearAccountRateMultiplier()
@@ -21053,6 +21123,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldActualCost:
 		m.ResetActualCost()
+		return nil
+	case usagelog.FieldBillingExemptReason:
+		m.ResetBillingExemptReason()
 		return nil
 	case usagelog.FieldRateMultiplier:
 		m.ResetRateMultiplier()
@@ -21260,6 +21333,7 @@ type UserMutation struct {
 	concurrency                   *int
 	addconcurrency                *int
 	status                        *string
+	admin_free_billing            *bool
 	username                      *string
 	notes                         *string
 	totp_secret_encrypted         *string
@@ -21775,6 +21849,42 @@ func (m *UserMutation) OldStatus(ctx context.Context) (v string, err error) {
 // ResetStatus resets all changes to the "status" field.
 func (m *UserMutation) ResetStatus() {
 	m.status = nil
+}
+
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (m *UserMutation) SetAdminFreeBilling(b bool) {
+	m.admin_free_billing = &b
+}
+
+// AdminFreeBilling returns the value of the "admin_free_billing" field in the mutation.
+func (m *UserMutation) AdminFreeBilling() (r bool, exists bool) {
+	v := m.admin_free_billing
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdminFreeBilling returns the old "admin_free_billing" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAdminFreeBilling(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdminFreeBilling is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdminFreeBilling requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdminFreeBilling: %w", err)
+	}
+	return oldValue.AdminFreeBilling, nil
+}
+
+// ResetAdminFreeBilling resets all changes to the "admin_free_billing" field.
+func (m *UserMutation) ResetAdminFreeBilling() {
+	m.admin_free_billing = nil
 }
 
 // SetUsername sets the "username" field.
@@ -22615,7 +22725,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -22642,6 +22752,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, user.FieldStatus)
+	}
+	if m.admin_free_billing != nil {
+		fields = append(fields, user.FieldAdminFreeBilling)
 	}
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
@@ -22690,6 +22803,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Concurrency()
 	case user.FieldStatus:
 		return m.Status()
+	case user.FieldAdminFreeBilling:
+		return m.AdminFreeBilling()
 	case user.FieldUsername:
 		return m.Username()
 	case user.FieldNotes:
@@ -22731,6 +22846,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldConcurrency(ctx)
 	case user.FieldStatus:
 		return m.OldStatus(ctx)
+	case user.FieldAdminFreeBilling:
+		return m.OldAdminFreeBilling(ctx)
 	case user.FieldUsername:
 		return m.OldUsername(ctx)
 	case user.FieldNotes:
@@ -22816,6 +22933,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case user.FieldAdminFreeBilling:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdminFreeBilling(v)
 		return nil
 	case user.FieldUsername:
 		v, ok := value.(string)
@@ -23013,6 +23137,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case user.FieldAdminFreeBilling:
+		m.ResetAdminFreeBilling()
 		return nil
 	case user.FieldUsername:
 		m.ResetUsername()

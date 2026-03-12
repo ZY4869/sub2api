@@ -23,6 +23,7 @@ type AccountModelImportFailure struct {
 type AccountModelImportModelResult struct {
 	SourceModel    string `json:"source_model"`
 	CanonicalModel string `json:"canonical_model,omitempty"`
+	RegistryModel  string `json:"registry_model,omitempty"`
 	Status         string `json:"status"`
 	ReasonCode     string `json:"reason_code"`
 	Detail         string `json:"detail,omitempty"`
@@ -130,7 +131,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
 		Trigger:        normalizeImportTrigger(trigger),
 	}
-	seenCanonical := make(map[string]struct{}, len(probeResult.Models))
+	canonicalRegistryModels := make(map[string]string, len(probeResult.Models))
 	for _, sourceModel := range probeResult.Models {
 		sourceModel = strings.TrimSpace(sourceModel)
 		sourceRegistryID := normalizeRegistryID(sourceModel)
@@ -148,17 +149,21 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 			result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: sourceModel, Error: "invalid model id"})
 			continue
 		}
-		if _, exists := seenCanonical[canonicalModel]; exists {
+		if registryModelID, exists := canonicalRegistryModels[canonicalModel]; exists {
 			result.SkippedCount++
-			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
+			modelResult := AccountModelImportModelResult{
 				SourceModel:    sourceModel,
 				CanonicalModel: canonicalModel,
 				Status:         "skipped",
 				ReasonCode:     "duplicate_canonical",
-			})
+			}
+			if registryModelID != "" {
+				modelResult.RegistryModel = registryModelID
+			}
+			result.ModelResults = append(result.ModelResults, modelResult)
 			continue
 		}
-		seenCanonical[canonicalModel] = struct{}{}
+		canonicalRegistryModels[canonicalModel] = ""
 		registryResult, registryErr := s.modelRegistryService.UpsertDiscoveredEntry(ctx, UpsertDiscoveredEntryInput{
 			ModelID:        sourceRegistryID,
 			SourcePlatform: account.Platform,
@@ -180,6 +185,12 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 			continue
 		}
 		canonicalModel = registryResult.CanonicalModel
+		if canonicalModel == "" {
+			canonicalModel = sourceRegistryID
+		}
+		if registryResult.RegistryModelID != "" {
+			canonicalRegistryModels[canonicalModel] = registryResult.RegistryModelID
+		}
 		if registryResult.Blocked {
 			result.SkippedCount++
 			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
@@ -195,6 +206,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
 				SourceModel:    sourceModel,
 				CanonicalModel: canonicalModel,
+				RegistryModel:  registryResult.RegistryModelID,
 				Status:         importResultStatus(sourceRegistryID, canonicalModel),
 				ReasonCode:     importResultReasonCode(sourceRegistryID, canonicalModel, true),
 			})
@@ -204,6 +216,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
 			SourceModel:    sourceModel,
 			CanonicalModel: canonicalModel,
+			RegistryModel:  registryResult.RegistryModelID,
 			Status:         importExistingResultStatus(sourceRegistryID, registryResult.RegistryModelID, canonicalModel),
 			ReasonCode:     importExistingReasonCode(sourceRegistryID, registryResult.RegistryModelID, canonicalModel),
 		})

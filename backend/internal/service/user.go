@@ -16,6 +16,7 @@ type User struct {
 	Balance       float64
 	Concurrency   int
 	Status        string
+	AdminFreeBilling bool
 	AllowedGroups []int64
 	TokenVersion  int64 // Incremented on password change to invalidate existing tokens
 	CreatedAt     time.Time
@@ -44,6 +45,10 @@ func (u *User) IsAdmin() bool {
 
 func (u *User) IsActive() bool {
 	return u.Status == StatusActive
+}
+
+func (u *User) IsAdminFreeBillingEnabled() bool {
+	return u != nil && u.Role == RoleAdmin && u.AdminFreeBilling
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

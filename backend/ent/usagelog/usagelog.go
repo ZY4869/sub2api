@@ -52,6 +52,8 @@ const (
 	FieldTotalCost = "total_cost"
 	// FieldActualCost holds the string denoting the actual_cost field in the database.
 	FieldActualCost = "actual_cost"
+	// FieldBillingExemptReason holds the string denoting the billing_exempt_reason field in the database.
+	FieldBillingExemptReason = "billing_exempt_reason"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
@@ -149,6 +151,7 @@ var Columns = []string{
 	FieldCacheReadCost,
 	FieldTotalCost,
 	FieldActualCost,
+	FieldBillingExemptReason,
 	FieldRateMultiplier,
 	FieldAccountRateMultiplier,
 	FieldBillingType,
@@ -203,6 +206,8 @@ var (
 	DefaultTotalCost float64
 	// DefaultActualCost holds the default value on creation for the "actual_cost" field.
 	DefaultActualCost float64
+	// BillingExemptReasonValidator is a validator for the "billing_exempt_reason" field. It is called by the builders before save.
+	BillingExemptReasonValidator func(string) error
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
@@ -326,6 +331,11 @@ func ByTotalCost(opts ...sql.OrderTermOption) OrderOption {
 // ByActualCost orders the results by the actual_cost field.
 func ByActualCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActualCost, opts...).ToFunc()
+}
+
+// ByBillingExemptReason orders the results by the billing_exempt_reason field.
+func ByBillingExemptReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingExemptReason, opts...).ToFunc()
 }
 
 // ByRateMultiplier orders the results by the rate_multiplier field.

@@ -13,16 +13,17 @@ func UserFromServiceShallow(u *service.User) *User {
 		return nil
 	}
 	return &User{
-		ID:            u.ID,
-		Email:         u.Email,
-		Username:      u.Username,
-		Role:          u.Role,
-		Balance:       u.Balance,
-		Concurrency:   u.Concurrency,
-		Status:        u.Status,
-		AllowedGroups: u.AllowedGroups,
-		CreatedAt:     u.CreatedAt,
-		UpdatedAt:     u.UpdatedAt,
+		ID:               u.ID,
+		Email:            u.Email,
+		Username:         u.Username,
+		Role:             u.Role,
+		AdminFreeBilling: u.AdminFreeBilling,
+		Balance:          u.Balance,
+		Concurrency:      u.Concurrency,
+		Status:           u.Status,
+		AllowedGroups:    u.AllowedGroups,
+		CreatedAt:        u.CreatedAt,
+		UpdatedAt:        u.UpdatedAt,
 	}
 }
 
@@ -61,6 +62,7 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 	return &AdminUser{
 		User:                  *base,
 		Notes:                 u.Notes,
+		AdminFreeBilling:      u.AdminFreeBilling,
 		GroupRates:            u.GroupRates,
 		SoraStorageQuotaBytes: u.SoraStorageQuotaBytes,
 		SoraStorageUsedBytes:  u.SoraStorageUsedBytes,
@@ -524,6 +526,7 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		MediaType:             l.MediaType,
 		UserAgent:             l.UserAgent,
 		CacheTTLOverridden:    l.CacheTTLOverridden,
+		BillingExemptReason:   l.BillingExemptReason,
 		CreatedAt:             l.CreatedAt,
 		User:                  UserFromServiceShallow(l.User),
 		APIKey:                APIKeyFromService(l.APIKey),

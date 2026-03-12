@@ -3,35 +3,34 @@
     <Transition name="modal">
       <div
         v-if="show"
+        ref="overlayRef"
         class="modal-overlay"
         :style="zIndexStyle"
         :aria-labelledby="dialogId"
         role="dialog"
         aria-modal="true"
-        @click.self="handleClose"
+        @pointerdown="handleOverlayPointerDown"
+        @pointerup="handleOverlayPointerUp"
+        @pointercancel="resetOverlayPointerState"
       >
-        <!-- Modal panel -->
         <div ref="dialogRef" :class="['modal-content', widthClasses]" @click.stop>
-          <!-- Header -->
           <div class="modal-header">
             <h3 :id="dialogId" class="modal-title">
               {{ title }}
             </h3>
             <button
-              @click="emit('close')"
               class="-mr-2 rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-dark-500 dark:hover:bg-dark-700 dark:hover:text-dark-300"
               aria-label="Close modal"
+              @click="emit('close')"
             >
               <Icon name="x" size="md" />
             </button>
           </div>
 
-          <!-- Body -->
           <div class="modal-body">
             <slot></slot>
           </div>
 
-          <!-- Footer -->
           <div v-if="$slots.footer" class="modal-footer">
             <slot name="footer"></slot>
           </div>
@@ -42,16 +41,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Icon from '@/components/icons/Icon.vue'
 
-// 生成唯一ID以避免多个对话框时ID冲突
 let dialogIdCounter = 0
 const dialogId = `modal-title-${++dialogIdCounter}`
 
-// 焦点管理
 const dialogRef = ref<HTMLElement | null>(null)
+const overlayRef = ref<HTMLElement | null>(null)
 let previousActiveElement: HTMLElement | null = null
+
+const OVERLAY_CLOSE_MAX_DISTANCE = 6
 
 type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full'
 
@@ -77,15 +77,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
-// Custom z-index style (overrides the default z-50 from CSS)
-const zIndexStyle = computed(() => {
-  return props.zIndex !== 50 ? { zIndex: props.zIndex } : undefined
-})
+const zIndexStyle = computed(() => (props.zIndex !== 50 ? { zIndex: props.zIndex } : undefined))
 
 const widthClasses = computed(() => {
-  // Width guidance: narrow=confirm/short prompts, normal=standard forms,
-  // wide=multi-section forms or rich content, extra-wide=analytics/tables,
-  // full=full-screen or very dense layouts.
   const widths: Record<DialogWidth, string> = {
     narrow: 'max-w-md',
     normal: 'max-w-lg',
@@ -96,9 +90,50 @@ const widthClasses = computed(() => {
   return widths[props.width]
 })
 
+const overlayPointerState = ref<{
+  pointerId: number
+  startedOnOverlay: boolean
+  x: number
+  y: number
+} | null>(null)
+
 const handleClose = () => {
   if (props.closeOnClickOutside) {
     emit('close')
+  }
+}
+
+const resetOverlayPointerState = () => {
+  overlayPointerState.value = null
+}
+
+const handleOverlayPointerDown = (event: PointerEvent) => {
+  if (!props.closeOnClickOutside) {
+    return
+  }
+  overlayPointerState.value = {
+    pointerId: event.pointerId,
+    startedOnOverlay: event.target === event.currentTarget,
+    x: event.clientX,
+    y: event.clientY
+  }
+}
+
+const handleOverlayPointerUp = (event: PointerEvent) => {
+  if (!props.closeOnClickOutside) {
+    return
+  }
+  const state = overlayPointerState.value
+  overlayPointerState.value = null
+  if (!state || state.pointerId !== event.pointerId) {
+    return
+  }
+  if (!state.startedOnOverlay || event.target !== event.currentTarget) {
+    return
+  }
+  const movedDistance = Math.hypot(event.clientX - state.x, event.clientY - state.y)
+  if (movedDistance <= OVERLAY_CLOSE_MAX_DISTANCE) {
+    handleClose()
   }
 }
 
@@ -108,17 +143,13 @@ const handleEscape = (event: KeyboardEvent) => {
   }
 }
 
-// Prevent body scroll when modal is open and manage focus
 watch(
   () => props.show,
   async (isOpen) => {
     if (isOpen) {
-      // 保存当前焦点元素
       previousActiveElement = document.activeElement as HTMLElement
-      // 使用CSS类而不是直接操作style,更易于管理多个对话框
       document.body.classList.add('modal-open')
 
-      // 等待DOM更新后设置焦点到对话框
       await nextTick()
       if (dialogRef.value) {
         const firstFocusable = dialogRef.value.querySelector<HTMLElement>(
@@ -126,14 +157,15 @@ watch(
         )
         firstFocusable?.focus()
       }
-    } else {
-      document.body.classList.remove('modal-open')
-      // 恢复之前的焦点
-      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
-        previousActiveElement.focus()
-      }
-      previousActiveElement = null
+      return
     }
+
+    resetOverlayPointerState()
+    document.body.classList.remove('modal-open')
+    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+      previousActiveElement.focus()
+    }
+    previousActiveElement = null
   },
   { immediate: true }
 )
@@ -144,7 +176,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscape)
-  // 确保组件卸载时移除滚动锁定
+  resetOverlayPointerState()
   document.body.classList.remove('modal-open')
 })
 </script>

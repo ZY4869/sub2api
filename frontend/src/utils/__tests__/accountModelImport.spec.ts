@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildAccountModelImportToastPayload,
+  extractSyncableRegistryModels,
   mergeAccountModelImportResults,
   resolveAccountModelImportErrorMessage,
   resolveAccountModelImportProbeNoticeMessage,
@@ -202,5 +203,54 @@ describe('shouldInvalidateModelInventory', () => {
       ],
       trigger: 'manual'
     })).toBe(false)
+  })
+})
+
+
+describe('extractSyncableRegistryModels', () => {
+  it('returns unique registry models for imported, merged, and eligible skipped results', () => {
+    expect(extractSyncableRegistryModels({
+      account_id: 1,
+      detected_models: [],
+      imported_models: [],
+      imported_count: 0,
+      skipped_count: 2,
+      failed_models: [],
+      model_results: [
+        {
+          source_model: 'model-a-raw',
+          canonical_model: 'model-a',
+          registry_model: 'model-a',
+          status: 'imported',
+          reason_code: 'imported_new'
+        },
+        {
+          source_model: 'model-a-alias',
+          canonical_model: 'model-a',
+          registry_model: 'model-a',
+          status: 'skipped',
+          reason_code: 'duplicate_canonical'
+        },
+        {
+          source_model: 'model-b-old',
+          canonical_model: 'model-b',
+          registry_model: 'model-b',
+          status: 'merged',
+          reason_code: 'merged_canonical'
+        },
+        {
+          source_model: 'deleted-model',
+          registry_model: 'deleted-model',
+          status: 'skipped',
+          reason_code: 'blocked_tombstone'
+        },
+        {
+          source_model: 'failed-model',
+          status: 'failed',
+          reason_code: 'persist_failed'
+        }
+      ],
+      trigger: 'manual'
+    })).toEqual(['model-a', 'model-b'])
   })
 })

@@ -204,6 +204,9 @@ func TestImportAccountModels_ImportsAndDeduplicatesOpenAIModels(t *testing.T) {
 	requireImportModelReason(t, result.ModelResults, "gpt-test-model-a", "imported", "imported_new")
 	requireImportModelReason(t, result.ModelResults, "gpt-test-model-b", "imported", "imported_new")
 	requireImportModelReason(t, result.ModelResults, "gpt-test-model-a", "skipped", "duplicate_canonical")
+	requireImportModelRegistry(t, result.ModelResults, "gpt-test-model-a", "imported", "gpt-test-model-a")
+	requireImportModelRegistry(t, result.ModelResults, "gpt-test-model-b", "imported", "gpt-test-model-b")
+	requireImportModelRegistry(t, result.ModelResults, "gpt-test-model-a", "skipped", "gpt-test-model-a")
 
 	result, err = svc.ImportAccountModels(context.Background(), account, "manual")
 	require.NoError(t, err)
@@ -211,6 +214,8 @@ func TestImportAccountModels_ImportsAndDeduplicatesOpenAIModels(t *testing.T) {
 	require.Equal(t, 3, countImportModelResults(result.ModelResults, "skipped"))
 	requireImportModelReason(t, result.ModelResults, "gpt-test-model-a", "skipped", "already_exists")
 	requireImportModelReason(t, result.ModelResults, "gpt-test-model-b", "skipped", "already_exists")
+	requireImportModelRegistry(t, result.ModelResults, "gpt-test-model-a", "skipped", "gpt-test-model-a")
+	requireImportModelRegistry(t, result.ModelResults, "gpt-test-model-b", "skipped", "gpt-test-model-b")
 
 	stored := repo.values[SettingKeyModelRegistryEntries]
 	require.NotEmpty(t, stored)
@@ -586,6 +591,8 @@ func TestImportAccountModels_ImportsAntigravityOAuthModels(t *testing.T) {
 	require.Equal(t, []string{"claude-sonnet-4.5", "gemini-test-model-a"}, result.DetectedModels)
 	require.Equal(t, 2, result.ImportedCount)
 	require.Equal(t, 1, countImportModelResults(result.ModelResults, "merged"))
+	requireImportModelRegistry(t, result.ModelResults, "claude-sonnet-4-5", "merged", "claude-sonnet-4-5")
+	requireImportModelRegistry(t, result.ModelResults, "gemini-test-model-a", "imported", "gemini-test-model-a")
 	require.Equal(t, "Bearer antigravity-token", lastAuthorization)
 	require.Equal(t, antigravity.GetUserAgent(), lastUserAgent)
 	require.Equal(t, "project-123", lastProject)
@@ -646,6 +653,16 @@ func requireImportModelReason(t *testing.T, results []AccountModelImportModelRes
 		}
 	}
 	t.Fatalf("expected model result %q with status=%q reason=%q, got %#v", sourceModel, status, reason, results)
+}
+
+func requireImportModelRegistry(t *testing.T, results []AccountModelImportModelResult, sourceModel string, status string, registryModel string) {
+	t.Helper()
+	for _, result := range results {
+		if result.SourceModel == sourceModel && result.Status == status && result.RegistryModel == registryModel {
+			return
+		}
+	}
+	t.Fatalf("expected model result %q with status=%q registry_model=%q, got %#v", sourceModel, status, registryModel, results)
 }
 
 func registryEntryIDsFromJSON(t *testing.T, payload string) []string {

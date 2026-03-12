@@ -109,6 +109,7 @@ func registerModelRegistryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		registry.GET("/detail", h.Admin.ModelRegistry.Detail)
 		registry.PUT("/entry", h.Admin.ModelRegistry.UpsertEntry)
 		registry.POST("/visibility", h.Admin.ModelRegistry.SetVisibility)
+		registry.POST("/sync-exposures", h.Admin.ModelRegistry.SyncExposures)
 		registry.DELETE("/entry", h.Admin.ModelRegistry.DeleteEntry)
 	}
 }

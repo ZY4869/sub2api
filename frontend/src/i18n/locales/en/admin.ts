@@ -143,9 +143,34 @@ export default {
           exposedIn: 'Exposed In'
         },
         actions: {
+          syncPages: 'Sync Pages',
           hide: 'Hide',
           show: 'Show',
           hardDelete: 'Hard Delete'
+        },
+        bulkActions: {
+          selected: '{count} model(s) selected',
+          selectCurrentPage: 'Select this page',
+          clear: 'Clear',
+          syncPages: 'Sync selected to pages'
+        },
+        syncDisabledTombstoned: 'Tombstoned models cannot be synced to page entry points',
+        modelImportSyncTitle: 'Sync registry models to pages',
+        modelImportSyncDescription: '{count} selected registry model(s) can be synced to page entry points. Choose where to add them.',
+        modelImportSyncTargetsLabel: 'Sync targets',
+        modelImportSyncModelsLabel: 'Selected models',
+        modelImportSyncConfirm: 'Sync to pages',
+        modelImportSyncNoTarget: 'Select at least one sync target',
+        modelImportSyncFailed: 'Failed to sync registry models to pages',
+        modelImportSyncResultTitle: 'Page sync results',
+        modelImportSyncSummary: 'Sync finished: updated {updated} / skipped {skipped} / failed {failed}',
+        modelImportSyncAppliedTargets: 'Applied targets: {targets}',
+        modelImportSyncMoreModels: '+{count} more model(s)',
+        modelImportSyncTargets: {
+          whitelist: 'Whitelist',
+          use_key: 'Use Key',
+          test: 'Test',
+          runtime: 'Runtime'
         },
         dialogs: {
           manageVisibility: 'Visibility & Delete',
@@ -1414,6 +1439,23 @@ export default {
         invalid_model_id: 'Invalid model ID',
         unsupported_runtime_platform: 'Unsupported by current runtime',
         persist_failed: 'Failed to persist model'
+      },
+      modelImportSyncTitle: 'Sync imported models to pages',
+      modelImportSyncDescription: '{count} imported model(s) can be synced to page entry points. Choose where to add them.',
+      modelImportSyncTargetsLabel: 'Sync targets',
+      modelImportSyncModelsLabel: 'Syncable models',
+      modelImportSyncConfirm: 'Sync to pages',
+      modelImportSyncNoTarget: 'Select at least one sync target',
+      modelImportSyncFailed: 'Failed to sync imported models to pages',
+      modelImportSyncResultTitle: 'Page sync results',
+      modelImportSyncSummary: 'Sync finished: updated {updated} / skipped {skipped} / failed {failed}',
+      modelImportSyncAppliedTargets: 'Applied targets: {targets}',
+      modelImportSyncMoreModels: '+{count} more model(s)',
+      modelImportSyncTargets: {
+        whitelist: 'Whitelist Page',
+        use_key: 'Use Key',
+        test: 'Test Page',
+        runtime: 'Runtime'
       },
       soraAccountCreated: 'Sora account created simultaneously',
       soraAccountFailed: 'Failed to create Sora account, please add manually later',

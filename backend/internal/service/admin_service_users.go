@@ -7,6 +7,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func (s *adminServiceImpl) ListUsers(ctx context.Context, page, pageSize int, filters UserListFilters) ([]User, int64, error) {
@@ -99,6 +101,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldConcurrency := user.Concurrency
 	oldStatus := user.Status
 	oldRole := user.Role
+	oldAdminFreeBilling := user.AdminFreeBilling
 	if input.Email != "" {
 		user.Email = input.Email
 	}
@@ -125,6 +128,12 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.SoraStorageQuotaBytes != nil {
 		user.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes
 	}
+	if input.AdminFreeBilling != nil {
+		user.AdminFreeBilling = user.Role == RoleAdmin && *input.AdminFreeBilling
+	}
+	if user.Role != RoleAdmin {
+		user.AdminFreeBilling = false
+	}
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
@@ -134,9 +143,18 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 	}
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
+	}
+	if user.AdminFreeBilling != oldAdminFreeBilling {
+		logger.With(
+			zap.String("component", "audit.admin_free_billing"),
+			zap.Int64("user_id", user.ID),
+			zap.String("role", user.Role),
+			zap.Bool("before", oldAdminFreeBilling),
+			zap.Bool("after", user.AdminFreeBilling),
+		).Info("admin free billing updated")
 	}
 	concurrencyDiff := user.Concurrency - oldConcurrency
 	if concurrencyDiff != 0 {

@@ -58,6 +58,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(), // billing_exempt_reason
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
 			log.BillingType,
@@ -126,6 +127,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(),
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
 			log.BillingType,
@@ -237,9 +239,11 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"total_cache_tokens",
 			"total_cost",
 			"total_actual_cost",
+			"admin_free_requests",
+			"admin_free_standard_cost",
 			"total_account_cost",
 			"avg_duration_ms",
-		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, 1.2, 20.0))
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -332,6 +336,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			0.4,               // cache_read_cost
 			1.0,               // total_cost
 			0.9,               // actual_cost
+			sql.NullString{},  // billing_exempt_reason
 			1.0,               // rate_multiplier
 			sql.NullFloat64{}, // account_rate_multiplier
 			int16(service.BillingTypeBalance),
@@ -371,6 +376,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			sql.NullString{},
 			1.0,
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),
@@ -410,6 +416,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			sql.NullString{},
 			1.0,
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),

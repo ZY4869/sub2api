@@ -60,6 +60,7 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
 		SetConcurrency(userIn.Concurrency).
+		SetAdminFreeBilling(userIn.AdminFreeBilling).
 		SetStatus(userIn.Status).
 		SetSoraStorageQuotaBytes(userIn.SoraStorageQuotaBytes).
 		Save(ctx)
@@ -143,6 +144,7 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 		SetRole(userIn.Role).
 		SetBalance(userIn.Balance).
 		SetConcurrency(userIn.Concurrency).
+		SetAdminFreeBilling(userIn.AdminFreeBilling).
 		SetStatus(userIn.Status).
 		SetSoraStorageQuotaBytes(userIn.SoraStorageQuotaBytes).
 		SetSoraStorageUsedBytes(userIn.SoraStorageUsedBytes).

@@ -25,6 +25,28 @@ export interface UpdateModelRegistryVisibilityPayload {
   hidden: boolean
 }
 
+export type ModelRegistryExposureTarget = 'whitelist' | 'use_key' | 'test' | 'runtime'
+
+export interface SyncModelRegistryExposuresPayload {
+  models: string[]
+  exposures: ModelRegistryExposureTarget[]
+}
+
+export interface ModelRegistryExposureSyncFailure {
+  model: string
+  error: string
+}
+
+export interface SyncModelRegistryExposuresResult {
+  exposures: ModelRegistryExposureTarget[]
+  updated_count: number
+  skipped_count: number
+  failed_count: number
+  updated_models: string[]
+  skipped_models?: string[]
+  failed_models?: ModelRegistryExposureSyncFailure[]
+}
+
 export async function listModelRegistry(
   params: ListModelRegistryParams = {}
 ): Promise<PaginatedResponse<ModelRegistryDetail>> {
@@ -62,12 +84,20 @@ export async function deleteModelRegistryEntry(model: string): Promise<{ model: 
   return data
 }
 
+export async function syncModelRegistryExposures(
+  payload: SyncModelRegistryExposuresPayload
+): Promise<SyncModelRegistryExposuresResult> {
+  const { data } = await apiClient.post<SyncModelRegistryExposuresResult>('/admin/models/registry/sync-exposures', payload)
+  return data
+}
+
 export const modelRegistryAPI = {
   listModelRegistry,
   getModelRegistryDetail,
   upsertModelRegistryEntry,
   updateModelRegistryVisibility,
-  deleteModelRegistryEntry
+  deleteModelRegistryEntry,
+  syncModelRegistryExposures
 }
 
 export default modelRegistryAPI

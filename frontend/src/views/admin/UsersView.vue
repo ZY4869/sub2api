@@ -223,16 +223,28 @@
       <!-- Users Table -->
       <template #table>
         <DataTable :columns="columns" :data="users" :loading="loading" :actions-count="7">
-          <template #cell-email="{ value }">
+          <template #cell-email="{ value, row }">
             <div class="flex items-center gap-2">
-              <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30"
-              >
+              <div class="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
                 <span class="text-sm font-medium text-primary-700 dark:text-primary-300">
                   {{ value.charAt(0).toUpperCase() }}
                 </span>
+                <span v-if="row.role === 'admin'" class="absolute -right-1 -top-1 rounded-full bg-amber-400 p-0.5 text-white shadow-sm dark:bg-amber-500">
+                  <Icon name="crown" size="xs" class="h-3 w-3" />
+                </span>
               </div>
-              <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+              <div class="min-w-0">
+                <div class="font-medium text-gray-900 dark:text-white">{{ value }}</div>
+                <div v-if="row.role === 'admin' || row.admin_free_billing" class="mt-0.5 flex flex-wrap items-center gap-1">
+                  <span v-if="row.role === 'admin'" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                    <Icon name="crown" size="xs" class="h-3 w-3" />
+                    管理员
+                  </span>
+                  <span v-if="row.admin_free_billing" class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    免扣
+                  </span>
+                </div>
+              </div>
             </div>
           </template>
 

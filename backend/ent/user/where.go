@@ -100,6 +100,11 @@ func Status(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldStatus, v))
 }
 
+// AdminFreeBilling applies equality check predicate on the "admin_free_billing" field. It's identical to AdminFreeBillingEQ.
+func AdminFreeBilling(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAdminFreeBilling, v))
+}
+
 // Username applies equality check predicate on the "username" field. It's identical to UsernameEQ.
 func Username(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsername, v))
@@ -603,6 +608,16 @@ func StatusEqualFold(v string) predicate.User {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// AdminFreeBillingEQ applies the EQ predicate on the "admin_free_billing" field.
+func AdminFreeBillingEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAdminFreeBilling, v))
+}
+
+// AdminFreeBillingNEQ applies the NEQ predicate on the "admin_free_billing" field.
+func AdminFreeBillingNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAdminFreeBilling, v))
 }
 
 // UsernameEQ applies the EQ predicate on the "username" field.

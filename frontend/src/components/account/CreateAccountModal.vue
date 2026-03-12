@@ -2541,6 +2541,7 @@ import {
 } from '@/composables/useModelWhitelist'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
+import type { AccountModelImportResult } from '@/api/admin/accounts'
 import {
   useAccountOAuth,
   type AddMethod,
@@ -2569,6 +2570,7 @@ import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import {
   buildAccountModelImportToastPayload,
+  extractSyncableRegistryModels,
   mergeAccountModelImportResults,
   resolveAccountModelImportErrorMessage,
   shouldInvalidateModelInventory
@@ -2632,9 +2634,11 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   close: []
   created: []
+  'models-imported': [result: AccountModelImportResult]
 }>()
 
 const appStore = useAppStore()
+const pendingImportedModelsResult = ref<AccountModelImportResult | null>(null)
 
 // OAuth composables
 const oauth = useAccountOAuth() // For Anthropic OAuth
@@ -3324,6 +3328,7 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
 }
 
 const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
+  pendingImportedModelsResult.value = null
   if (!autoImportModels.value || createdAccounts.length === 0) {
     return
   }
@@ -3381,6 +3386,9 @@ ${firstFailureMessage}`
   if (shouldInvalidateModelInventory(mergedResult)) {
     invalidateModelRegistry()
     modelInventoryStore.invalidate()
+  }
+  if (extractSyncableRegistryModels(mergedResult).length > 0) {
+    pendingImportedModelsResult.value = mergedResult
   }
 }
 
@@ -3493,7 +3501,12 @@ const resetForm = () => {
 const handleClose = () => {
   antigravityMixedChannelConfirmed.value = false
   clearMixedChannelDialog()
+  const importedResult = pendingImportedModelsResult.value
+  pendingImportedModelsResult.value = null
   emit('close')
+  if (importedResult) {
+    queueMicrotask(() => emit('models-imported', importedResult))
+  }
 }
 
 const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknown> | undefined => {

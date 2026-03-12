@@ -62,6 +62,9 @@
                 <span class="line-through">${{ (usageStats?.total_cost || 0).toFixed(4) }}</span>
                 {{ t('usage.standardCost') }}
               </p>
+              <p v-if="usageStats?.admin_free_requests" class="mt-1 text-[11px] text-emerald-500 dark:text-emerald-300">
+                管理员免扣 {{ usageStats.admin_free_requests.toLocaleString() }} 次 / ${{ (usageStats.admin_free_standard_cost || 0).toFixed(4) }} 标准成本
+              </p>
             </div>
           </div>
         </div>
@@ -260,6 +263,10 @@
             <div class="flex items-center gap-1.5 text-sm">
               <span class="font-medium text-green-600 dark:text-green-400">
                 ${{ row.actual_cost.toFixed(6) }}
+              </span>
+              <span v-if="row.billing_exempt_reason === 'admin_free'" class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                <Icon name="crown" size="xs" class="h-3 w-3" />
+                免扣
               </span>
               <!-- Cost Detail Tooltip -->
               <div
@@ -463,6 +470,13 @@
             <span class="font-semibold text-green-400"
               >${{ tooltipData?.actual_cost.toFixed(6) }}</span
             >
+          </div>
+          <div v-if="tooltipData?.billing_exempt_reason === 'admin_free'" class="flex items-center justify-between gap-6">
+            <span class="text-gray-400">免扣原因</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+              <Icon name="crown" size="xs" class="h-3 w-3" />
+              管理员免费
+            </span>
           </div>
         </div>
         <!-- Tooltip Arrow (left side) -->
@@ -797,6 +811,7 @@ const exportToCSV = async () => {
       'Rate Multiplier',
       'Billed Cost',
       'Original Cost',
+      '免扣原因',
       'First Token (ms)',
       'Duration (ms)'
     ]
@@ -814,6 +829,7 @@ const exportToCSV = async () => {
         log.rate_multiplier,
         log.actual_cost.toFixed(8),
         log.total_cost.toFixed(8),
+        log.billing_exempt_reason || '',
         log.first_token_ms ?? '',
         log.duration_ms
       ].map(escapeCSVValue)

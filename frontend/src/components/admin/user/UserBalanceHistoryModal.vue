@@ -5,9 +5,12 @@
       <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700">
         <!-- Row 1: avatar + email/username/created_at (left) + current balance (right) -->
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
+          <div class="relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/30">
             <span class="text-lg font-medium text-primary-700 dark:text-primary-300">
               {{ user.email.charAt(0).toUpperCase() }}
+            </span>
+            <span v-if="user.role === 'admin'" class="absolute -right-1 -top-1 rounded-full bg-amber-400 p-0.5 text-white shadow-sm dark:bg-amber-500">
+              <Icon name="crown" size="xs" class="h-3 w-3" />
             </span>
           </div>
           <div class="min-w-0 flex-1">
@@ -18,6 +21,12 @@
                 class="flex-shrink-0 rounded bg-primary-50 px-1.5 py-0.5 text-xs text-primary-600 dark:bg-primary-900/20 dark:text-primary-400"
               >
                 {{ user.username }}
+              </span>
+              <span v-if="user.role === 'admin'" class="flex-shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                管理员
+              </span>
+              <span v-if="user.admin_free_billing" class="flex-shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                免扣
               </span>
             </div>
             <p class="text-xs text-gray-400 dark:text-dark-500">
@@ -38,9 +47,14 @@
             <template v-if="user.notes">{{ t('admin.users.notes') }}: {{ user.notes }}</template>
             <template v-else>&nbsp;</template>
           </p>
-          <p class="ml-4 flex-shrink-0 text-xs text-gray-500 dark:text-dark-400">
-            {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ totalRecharged.toFixed(2) }}</span>
-          </p>
+          <div class="ml-4 flex shrink-0 items-center gap-3 text-xs text-gray-500 dark:text-dark-400">
+            <span v-if="user.role === 'admin' && user.admin_free_billing" class="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+              管理员免费已开启
+            </span>
+            <p>
+              {{ t('admin.users.totalRecharged') }}: <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ totalRecharged.toFixed(2) }}</span>
+            </p>
+          </div>
         </div>
       </div>
 

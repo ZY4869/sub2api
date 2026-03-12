@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func (s *GatewayService) getUserGroupRateMultiplier(ctx context.Context, userID, groupID int64, groupDefaultMultiplier float64) float64 {
@@ -42,33 +44,44 @@ type postUsageBillingParams struct {
 	Account               *Account
 	Subscription          *UserSubscription
 	IsSubscriptionBill    bool
+	SkipUserBilling       bool
 	AccountRateMultiplier float64
 	APIKeyService         APIKeyQuotaUpdater
+}
+
+func applyBillingExemption(cost *CostBreakdown, user *User) (actualCost float64, billingExemptReason *string, skipUserBilling bool) {
+	if user != nil && user.IsAdminFreeBillingEnabled() {
+		return 0, BillingExemptReasonPtr(BillingExemptReasonAdminFree), true
+	}
+	if cost == nil {
+		return 0, nil, false
+	}
+	return cost.ActualCost, nil, false
 }
 
 func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
 	cost := p.Cost
 	if p.IsSubscriptionBill {
-		if cost.TotalCost > 0 {
+		if !p.SkipUserBilling && cost.TotalCost > 0 {
 			if err := deps.userSubRepo.IncrementUsage(ctx, p.Subscription.ID, cost.TotalCost); err != nil {
 				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
 			}
 			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, cost.TotalCost)
 		}
 	} else {
-		if cost.ActualCost > 0 {
+		if !p.SkipUserBilling && cost.ActualCost > 0 {
 			if err := deps.userRepo.DeductBalance(ctx, p.User.ID, cost.ActualCost); err != nil {
 				slog.Error("deduct balance failed", "user_id", p.User.ID, "error", err)
 			}
 			deps.billingCacheService.QueueDeductBalance(p.User.ID, cost.ActualCost)
 		}
 	}
-	if cost.ActualCost > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
+	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
 		if err := p.APIKeyService.UpdateQuotaUsed(ctx, p.APIKey.ID, cost.ActualCost); err != nil {
 			slog.Error("update api key quota failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
 	}
-	if cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
+	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
 		if err := p.APIKeyService.UpdateRateLimitUsage(ctx, p.APIKey.ID, cost.ActualCost); err != nil {
 			slog.Error("update api key rate limit usage failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
@@ -161,7 +174,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		mediaType = &result.MediaType
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: result.RequestID, Model: result.Model, InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: cost.ActualCost, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, MediaType: mediaType, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: result.RequestID, Model: result.Model, InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, MediaType: mediaType, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -185,7 +199,10 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 	shouldBill := inserted || err != nil
 	if shouldBill {
-		postUsageBilling(ctx, &postUsageBillingParams{Cost: cost, User: user, APIKey: apiKey, Account: account, Subscription: subscription, IsSubscriptionBill: isSubscriptionBilling, AccountRateMultiplier: accountRateMultiplier, APIKeyService: input.APIKeyService}, s.billingDeps())
+		if skipUserBilling {
+			logger.With(zap.String("component", "billing.admin_free"), zap.Int64("user_id", user.ID), zap.String("reason", BillingExemptReasonAdminFree)).Info("admin free billing applied")
+		}
+		postUsageBilling(ctx, &postUsageBillingParams{Cost: cost, User: user, APIKey: apiKey, Account: account, Subscription: subscription, IsSubscriptionBill: isSubscriptionBilling, SkipUserBilling: skipUserBilling, AccountRateMultiplier: accountRateMultiplier, APIKeyService: input.APIKeyService}, s.billingDeps())
 	} else {
 		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 	}
@@ -257,7 +274,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		imageSize = &result.ImageSize
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: result.RequestID, Model: result.Model, InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: cost.ActualCost, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: result.RequestID, Model: result.Model, InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -281,7 +299,10 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	shouldBill := inserted || err != nil
 	if shouldBill {
-		postUsageBilling(ctx, &postUsageBillingParams{Cost: cost, User: user, APIKey: apiKey, Account: account, Subscription: subscription, IsSubscriptionBill: isSubscriptionBilling, AccountRateMultiplier: accountRateMultiplier, APIKeyService: input.APIKeyService}, s.billingDeps())
+		if skipUserBilling {
+			logger.With(zap.String("component", "billing.admin_free"), zap.Int64("user_id", user.ID), zap.String("reason", BillingExemptReasonAdminFree)).Info("admin free billing applied")
+		}
+		postUsageBilling(ctx, &postUsageBillingParams{Cost: cost, User: user, APIKey: apiKey, Account: account, Subscription: subscription, IsSubscriptionBill: isSubscriptionBilling, SkipUserBilling: skipUserBilling, AccountRateMultiplier: accountRateMultiplier, APIKeyService: input.APIKeyService}, s.billingDeps())
 	} else {
 		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 	}

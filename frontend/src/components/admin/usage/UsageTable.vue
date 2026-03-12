@@ -4,15 +4,24 @@
       <DataTable :columns="columns" :data="data" :loading="loading">
         <template #cell-user="{ row }">
           <div class="text-sm">
-            <button
-              v-if="row.user?.email"
-              class="font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-              @click="$emit('userClick', row.user_id, row.user?.email)"
-              :title="t('admin.usage.clickToViewBalance')"
-            >
-              {{ row.user.email }}
-            </button>
-            <span v-else class="font-medium text-gray-900 dark:text-white">-</span>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="row.user?.email"
+                class="font-medium text-primary-600 underline decoration-dashed underline-offset-2 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                @click="$emit('userClick', row.user_id, row.user?.email)"
+                :title="t('admin.usage.clickToViewBalance')"
+              >
+                {{ row.user.email }}
+              </button>
+              <span v-else class="font-medium text-gray-900 dark:text-white">-</span>
+              <span v-if="row.user?.role === 'admin'" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                <Icon name="crown" size="xs" class="h-3 w-3" />
+                管理员
+              </span>
+              <span v-if="row.user?.admin_free_billing" class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                免扣
+              </span>
+            </div>
             <span class="ml-1 text-gray-500 dark:text-gray-400">#{{ row.user_id }}</span>
           </div>
         </template>
@@ -100,6 +109,10 @@
           <div class="text-sm">
             <div class="flex items-center gap-1.5">
               <span class="font-medium text-green-600 dark:text-green-400">${{ row.actual_cost?.toFixed(6) || '0.000000' }}</span>
+              <span v-if="row.billing_exempt_reason === 'admin_free'" class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                <Icon name="crown" size="xs" class="h-3 w-3" />
+                免扣
+              </span>
               <!-- Cost Detail Tooltip -->
               <div
                 class="group relative"
@@ -273,6 +286,13 @@
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t('usage.userBilled') }}</span>
             <span class="font-semibold text-green-400">${{ tooltipData?.actual_cost?.toFixed(6) || '0.000000' }}</span>
+          </div>
+          <div v-if="tooltipData?.billing_exempt_reason === 'admin_free'" class="flex items-center justify-between gap-6">
+            <span class="text-gray-400">免扣原因</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+              <Icon name="crown" size="xs" class="h-3 w-3" />
+              管理员免费
+            </span>
           </div>
           <div class="flex items-center justify-between gap-6 border-t border-gray-700 pt-1.5">
             <span class="text-gray-400">{{ t('usage.accountBilled') }}</span>

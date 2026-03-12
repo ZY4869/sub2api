@@ -140,6 +140,20 @@ func (_c *UserCreate) SetNillableStatus(v *string) *UserCreate {
 	return _c
 }
 
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (_c *UserCreate) SetAdminFreeBilling(v bool) *UserCreate {
+	_c.mutation.SetAdminFreeBilling(v)
+	return _c
+}
+
+// SetNillableAdminFreeBilling sets the "admin_free_billing" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAdminFreeBilling(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetAdminFreeBilling(*v)
+	}
+	return _c
+}
+
 // SetUsername sets the "username" field.
 func (_c *UserCreate) SetUsername(v string) *UserCreate {
 	_c.mutation.SetUsername(v)
@@ -440,6 +454,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.AdminFreeBilling(); !ok {
+		v := user.DefaultAdminFreeBilling
+		_c.mutation.SetAdminFreeBilling(v)
+	}
 	if _, ok := _c.mutation.Username(); !ok {
 		v := user.DefaultUsername
 		_c.mutation.SetUsername(v)
@@ -508,6 +526,9 @@ func (_c *UserCreate) check() error {
 		if err := user.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.AdminFreeBilling(); !ok {
+		return &ValidationError{Name: "admin_free_billing", err: errors.New(`ent: missing required field "User.admin_free_billing"`)}
 	}
 	if _, ok := _c.mutation.Username(); !ok {
 		return &ValidationError{Name: "username", err: errors.New(`ent: missing required field "User.username"`)}
@@ -591,6 +612,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(user.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.AdminFreeBilling(); ok {
+		_spec.SetField(user.FieldAdminFreeBilling, field.TypeBool, value)
+		_node.AdminFreeBilling = value
 	}
 	if value, ok := _c.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
@@ -934,6 +959,18 @@ func (u *UserUpsert) UpdateStatus() *UserUpsert {
 	return u
 }
 
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (u *UserUpsert) SetAdminFreeBilling(v bool) *UserUpsert {
+	u.Set(user.FieldAdminFreeBilling, v)
+	return u
+}
+
+// UpdateAdminFreeBilling sets the "admin_free_billing" field to the value that was provided on create.
+func (u *UserUpsert) UpdateAdminFreeBilling() *UserUpsert {
+	u.SetExcluded(user.FieldAdminFreeBilling)
+	return u
+}
+
 // SetUsername sets the "username" field.
 func (u *UserUpsert) SetUsername(v string) *UserUpsert {
 	u.Set(user.FieldUsername, v)
@@ -1217,6 +1254,20 @@ func (u *UserUpsertOne) SetStatus(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateStatus() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (u *UserUpsertOne) SetAdminFreeBilling(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAdminFreeBilling(v)
+	})
+}
+
+// UpdateAdminFreeBilling sets the "admin_free_billing" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateAdminFreeBilling() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAdminFreeBilling()
 	})
 }
 
@@ -1687,6 +1738,20 @@ func (u *UserUpsertBulk) SetStatus(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateStatus() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetAdminFreeBilling sets the "admin_free_billing" field.
+func (u *UserUpsertBulk) SetAdminFreeBilling(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetAdminFreeBilling(v)
+	})
+}
+
+// UpdateAdminFreeBilling sets the "admin_free_billing" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateAdminFreeBilling() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateAdminFreeBilling()
 	})
 }
 

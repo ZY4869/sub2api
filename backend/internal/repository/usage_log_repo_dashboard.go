@@ -106,6 +106,16 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 	if err := scanSingleRow(ctx, r.sql, totalStatsQuery, nil, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &totalDurationMs); err != nil {
 		return err
 	}
+	adminFreeQuery := `
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(total_cost), 0)
+		FROM usage_logs
+		WHERE billing_exempt_reason = $1
+	`
+	if err := scanSingleRow(ctx, r.sql, adminFreeQuery, []any{service.BillingExemptReasonAdminFree}, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost); err != nil {
+		return err
+	}
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens
 	if stats.TotalRequests > 0 {
 		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
@@ -167,6 +177,8 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 			COALESCE(SUM(cache_read_tokens) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_cache_read_tokens,
 			COALESCE(SUM(total_cost) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_cost,
 			COALESCE(SUM(actual_cost) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_actual_cost,
+			COUNT(*) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz AND billing_exempt_reason = 'admin_free') AS admin_free_requests,
+			COALESCE(SUM(total_cost) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz AND billing_exempt_reason = 'admin_free'), 0) AS admin_free_standard_cost,
 			COALESCE(SUM(duration_ms) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_duration_ms,
 			COUNT(*) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz) AS today_requests,
 			COALESCE(SUM(input_tokens) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_input_tokens,
@@ -178,7 +190,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 		FROM scoped
 	`
 	var totalDurationMs int64
-	if err := scanSingleRow(ctx, r.sql, combinedStatsQuery, []any{startUTC, endUTC, todayUTC, todayEnd}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &totalDurationMs, &stats.TodayRequests, &stats.TodayInputTokens, &stats.TodayOutputTokens, &stats.TodayCacheCreationTokens, &stats.TodayCacheReadTokens, &stats.TodayCost, &stats.TodayActualCost); err != nil {
+	if err := scanSingleRow(ctx, r.sql, combinedStatsQuery, []any{startUTC, endUTC, todayUTC, todayEnd}, &stats.TotalRequests, &stats.TotalInputTokens, &stats.TotalOutputTokens, &stats.TotalCacheCreationTokens, &stats.TotalCacheReadTokens, &stats.TotalCost, &stats.TotalActualCost, &stats.AdminFreeRequests, &stats.AdminFreeStandardCost, &totalDurationMs, &stats.TodayRequests, &stats.TodayInputTokens, &stats.TodayOutputTokens, &stats.TodayCacheCreationTokens, &stats.TodayCacheReadTokens, &stats.TodayCost, &stats.TodayActualCost); err != nil {
 		return err
 	}
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheCreationTokens + stats.TotalCacheReadTokens

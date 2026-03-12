@@ -257,7 +257,21 @@
       </template>
       <template #pagination><Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" /></template>
     </TablePageLayout>
-    <CreateAccountModal :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
+    <CreateAccountModal
+      :show="showCreate"
+      :proxies="proxies"
+      :groups="groups"
+      @close="showCreate = false"
+      @created="reload"
+      @models-imported="handleImportedModels"
+    />
+    <ModelImportExposureSyncDialog
+      :show="syncDialogOpen"
+      :models="syncDialogModels"
+      :syncing="syncDialogSubmitting"
+      @close="closeSyncDialog"
+      @submit="submitSyncDialog"
+    />
     <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
     <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
@@ -301,6 +315,7 @@ import AccountTableActions from '@/components/admin/account/AccountTableActions.
 import AccountTableFilters from '@/components/admin/account/AccountTableFilters.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
 import AccountActionMenu from '@/components/admin/account/AccountActionMenu.vue'
+import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImportExposureSyncDialog.vue'
 import ImportDataModal from '@/components/admin/account/ImportDataModal.vue'
 import ReAuthAccountModal from '@/components/admin/account/ReAuthAccountModal.vue'
 import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
@@ -316,6 +331,7 @@ import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
+import { useModelImportExposureSync } from '@/composables/useModelImportExposureSync'
 import {
   buildAccountModelImportToastPayload,
   resolveAccountModelImportErrorMessage,
@@ -328,6 +344,14 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const modelInventoryStore = useModelInventoryStore()
+const {
+  syncDialogOpen,
+  syncDialogModels,
+  syncDialogSubmitting,
+  handleImportedModels,
+  closeSyncDialog,
+  submitSyncDialog
+} = useModelImportExposureSync({ t, appStore, modelInventoryStore })
 
 const proxies = ref<Proxy[]>([])
 const groups = ref<AdminGroup[]>([])
@@ -1195,6 +1219,7 @@ const handleImportModels = async (a: Account, trigger: 'manual' | 'create' = 'ma
       invalidateModelRegistry()
       modelInventoryStore.invalidate()
     }
+    handleImportedModels(result)
     return result
   } catch (error: any) {
     console.error('Failed to import models for account:', error)

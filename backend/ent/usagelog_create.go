@@ -253,6 +253,20 @@ func (_c *UsageLogCreate) SetNillableActualCost(v *float64) *UsageLogCreate {
 	return _c
 }
 
+// SetBillingExemptReason sets the "billing_exempt_reason" field.
+func (_c *UsageLogCreate) SetBillingExemptReason(v string) *UsageLogCreate {
+	_c.mutation.SetBillingExemptReason(v)
+	return _c
+}
+
+// SetNillableBillingExemptReason sets the "billing_exempt_reason" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingExemptReason(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingExemptReason(*v)
+	}
+	return _c
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_c *UsageLogCreate) SetRateMultiplier(v float64) *UsageLogCreate {
 	_c.mutation.SetRateMultiplier(v)
@@ -632,6 +646,11 @@ func (_c *UsageLogCreate) check() error {
 	if _, ok := _c.mutation.ActualCost(); !ok {
 		return &ValidationError{Name: "actual_cost", err: errors.New(`ent: missing required field "UsageLog.actual_cost"`)}
 	}
+	if v, ok := _c.mutation.BillingExemptReason(); ok {
+		if err := usagelog.BillingExemptReasonValidator(v); err != nil {
+			return &ValidationError{Name: "billing_exempt_reason", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_exempt_reason": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "UsageLog.rate_multiplier"`)}
 	}
@@ -761,6 +780,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ActualCost(); ok {
 		_spec.SetField(usagelog.FieldActualCost, field.TypeFloat64, value)
 		_node.ActualCost = value
+	}
+	if value, ok := _c.mutation.BillingExemptReason(); ok {
+		_spec.SetField(usagelog.FieldBillingExemptReason, field.TypeString, value)
+		_node.BillingExemptReason = &value
 	}
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1260,6 +1283,24 @@ func (u *UsageLogUpsert) UpdateActualCost() *UsageLogUpsert {
 // AddActualCost adds v to the "actual_cost" field.
 func (u *UsageLogUpsert) AddActualCost(v float64) *UsageLogUpsert {
 	u.Add(usagelog.FieldActualCost, v)
+	return u
+}
+
+// SetBillingExemptReason sets the "billing_exempt_reason" field.
+func (u *UsageLogUpsert) SetBillingExemptReason(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingExemptReason, v)
+	return u
+}
+
+// UpdateBillingExemptReason sets the "billing_exempt_reason" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingExemptReason() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingExemptReason)
+	return u
+}
+
+// ClearBillingExemptReason clears the value of the "billing_exempt_reason" field.
+func (u *UsageLogUpsert) ClearBillingExemptReason() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldBillingExemptReason)
 	return u
 }
 
@@ -1891,6 +1932,27 @@ func (u *UsageLogUpsertOne) AddActualCost(v float64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateActualCost() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetBillingExemptReason sets the "billing_exempt_reason" field.
+func (u *UsageLogUpsertOne) SetBillingExemptReason(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingExemptReason(v)
+	})
+}
+
+// UpdateBillingExemptReason sets the "billing_exempt_reason" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingExemptReason() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingExemptReason()
+	})
+}
+
+// ClearBillingExemptReason clears the value of the "billing_exempt_reason" field.
+func (u *UsageLogUpsertOne) ClearBillingExemptReason() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingExemptReason()
 	})
 }
 
@@ -2725,6 +2787,27 @@ func (u *UsageLogUpsertBulk) AddActualCost(v float64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateActualCost() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetBillingExemptReason sets the "billing_exempt_reason" field.
+func (u *UsageLogUpsertBulk) SetBillingExemptReason(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingExemptReason(v)
+	})
+}
+
+// UpdateBillingExemptReason sets the "billing_exempt_reason" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingExemptReason() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingExemptReason()
+	})
+}
+
+// ClearBillingExemptReason clears the value of the "billing_exempt_reason" field.
+func (u *UsageLogUpsertBulk) ClearBillingExemptReason() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearBillingExemptReason()
 	})
 }
 

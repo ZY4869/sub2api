@@ -30,6 +30,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		cacheReadCost         float64
 		totalCost             float64
 		actualCost            float64
+		billingExemptReason   sql.NullString
 		rateMultiplier        float64
 		accountRateMultiplier sql.NullFloat64
 		billingType           int16
@@ -48,7 +49,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		cacheTTLOverridden    bool
 		createdAt             time.Time
 	)
-	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &imageCount, &imageSize, &mediaType, &serviceTier, &reasoningEffort, &cacheTTLOverridden, &createdAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &imageCount, &imageSize, &mediaType, &serviceTier, &reasoningEffort, &cacheTTLOverridden, &createdAt); err != nil {
 		return nil, err
 	}
 	log := &service.UsageLog{ID: id, UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, Model: model, InputTokens: inputTokens, OutputTokens: outputTokens, CacheCreationTokens: cacheCreationTokens, CacheReadTokens: cacheReadTokens, CacheCreation5mTokens: cacheCreation5m, CacheCreation1hTokens: cacheCreation1h, InputCost: inputCost, OutputCost: outputCost, CacheCreationCost: cacheCreationCost, CacheReadCost: cacheReadCost, TotalCost: totalCost, ActualCost: actualCost, RateMultiplier: rateMultiplier, AccountRateMultiplier: nullFloat64Ptr(accountRateMultiplier), BillingType: int8(billingType), RequestType: service.RequestTypeFromInt16(requestTypeRaw), ImageCount: imageCount, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: createdAt}
@@ -92,6 +93,9 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	}
 	if reasoningEffort.Valid {
 		log.ReasoningEffort = &reasoningEffort.String
+	}
+	if billingExemptReason.Valid {
+		log.BillingExemptReason = &billingExemptReason.String
 	}
 	return log, nil
 }

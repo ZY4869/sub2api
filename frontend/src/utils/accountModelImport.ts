@@ -36,6 +36,8 @@ export interface AccountModelImportToastPayload {
 
 const DETAIL_LIMIT = 8
 
+export const MODEL_IMPORT_SYNC_EXPOSURES = ['whitelist', 'use_key', 'test', 'runtime'] as const
+
 function extractAccountModelImportErrorMessage(error: unknown): string {
   const err = (error || {}) as AccountModelImportErrorLike
   const detail = typeof err.response?.data?.detail === 'string'
@@ -214,6 +216,23 @@ export function resolveAccountModelImportErrorMessage(
     return t('admin.accounts.modelImportUnsupported')
   }
   return message || t('admin.accounts.modelImportFailed')
+}
+
+export function extractSyncableRegistryModels(
+  result: AccountModelImportResult | null | undefined
+): string[] {
+  const models = new Set<string>()
+  for (const item of normalizeModelResults(result)) {
+    const registryModel = typeof item.registry_model === 'string' ? item.registry_model.trim() : ''
+    if (!registryModel) {
+      continue
+    }
+    if (item.status === 'failed' || item.reason_code === 'blocked_tombstone') {
+      continue
+    }
+    models.add(registryModel)
+  }
+  return Array.from(models)
 }
 
 export function mergeAccountModelImportResults(

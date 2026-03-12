@@ -24,19 +24,21 @@ export interface UserDashboardStats {
   total_cache_creation_tokens: number
   total_cache_read_tokens: number
   total_tokens: number
-  total_cost: number // 标准计费
-  total_actual_cost: number // 实际扣除
+  total_cost: number // 鏍囧噯璁¤垂
+  total_actual_cost: number // 瀹為檯鎵ｉ櫎
+  admin_free_requests: number
+  admin_free_standard_cost: number
   today_requests: number
   today_input_tokens: number
   today_output_tokens: number
   today_cache_creation_tokens: number
   today_cache_read_tokens: number
   today_tokens: number
-  today_cost: number // 今日标准计费
-  today_actual_cost: number // 今日实际扣除
+  today_cost: number // 浠婃棩鏍囧噯璁¤垂
+  today_actual_cost: number // 浠婃棩瀹為檯鎵ｉ櫎
   average_duration_ms: number
-  rpm: number // 近5分钟平均每分钟请求数
-  tpm: number // 近5分钟平均每分钟Token数
+  rpm: number // 杩?鍒嗛挓骞冲潎姣忓垎閽熻姹傛暟
+  tpm: number // 杩?鍒嗛挓骞冲潎姣忓垎閽烼oken鏁?
 }
 
 export interface TrendParams {

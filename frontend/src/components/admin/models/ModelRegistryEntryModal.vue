@@ -6,7 +6,7 @@
     close-on-click-outside
     @close="emit('close')"
   >
-    <form class="space-y-4" @submit.prevent="handleSubmit">
+    <form class="space-y-5" @submit.prevent="handleSubmit">
       <div v-if="entry" class="grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm dark:border-dark-700 dark:bg-dark-900/40 md:grid-cols-3">
         <div>
           <p class="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ t('admin.models.registry.source') }}</p>
@@ -53,9 +53,20 @@
           <input id="registry-display-name" v-model.trim="form.display_name" type="text" class="input" />
         </div>
 
-        <div>
-          <label class="input-label" for="registry-provider">{{ t('admin.models.registry.fields.provider') }}</label>
-          <input id="registry-provider" v-model.trim="form.provider" type="text" class="input" />
+        <div class="space-y-3">
+          <div>
+            <label class="input-label" for="registry-provider-select">{{ t('admin.models.registry.fields.provider') }}</label>
+            <select id="registry-provider-select" v-model="providerSelection" class="input">
+              <option value="">自动推断</option>
+              <option v-for="provider in providerOptions" :key="provider" :value="provider">
+                {{ provider }}
+              </option>
+              <option :value="MODEL_REGISTRY_CUSTOM_PROVIDER">自定义输入</option>
+            </select>
+          </div>
+          <div v-if="providerSelection === MODEL_REGISTRY_CUSTOM_PROVIDER">
+            <input v-model.trim="customProvider" type="text" class="input" placeholder="输入自定义提供商，例如 openrouter" />
+          </div>
         </div>
 
         <div>
@@ -65,9 +76,35 @@
       </div>
 
       <div class="grid gap-4 md:grid-cols-2">
-        <div>
-          <label class="input-label" for="registry-platforms">{{ t('admin.models.registry.fields.platforms') }}</label>
-          <textarea id="registry-platforms" v-model="form.platforms" class="input min-h-[92px]" />
+        <div class="space-y-3">
+          <div>
+            <label class="input-label">{{ t('admin.models.registry.fields.platforms') }}</label>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-for="platform in platformPresets"
+                :key="platform"
+                type="button"
+                class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+                :class="selectedPresetPlatforms.includes(platform)
+                  ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/40 dark:bg-primary-500/10 dark:text-primary-300'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:border-dark-500 dark:hover:text-white'"
+                @click="togglePlatformPreset(platform)"
+              >
+                {{ platform }}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="input-label" for="registry-custom-platforms">额外平台</label>
+            <input
+              id="registry-custom-platforms"
+              v-model="customPlatforms"
+              type="text"
+              class="input"
+              placeholder="可继续输入自定义平台，多个值用逗号分隔"
+            />
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">保存前会自动去重、去空格并转成小写。</p>
+          </div>
         </div>
 
         <div>
@@ -90,33 +127,48 @@
           <textarea id="registry-modalities" v-model="form.modalities" class="input min-h-[92px]" />
         </div>
 
-        <div>
-          <label class="input-label" for="registry-capabilities">{{ t('admin.models.registry.fields.capabilities') }}</label>
-          <textarea id="registry-capabilities" v-model="form.capabilities" class="input min-h-[92px]" />
+        <div class="space-y-3">
+          <label class="input-label">{{ t('admin.models.registry.fields.capabilities') }}</label>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <button
+              v-for="capability in capabilityOptions"
+              :key="capability.value"
+              type="button"
+              class="flex items-center gap-3 rounded-2xl border px-3 py-2 text-left text-sm transition-colors"
+              :class="selectedCapabilities.includes(capability.value)
+                ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/40 dark:bg-primary-500/10 dark:text-primary-300'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:border-dark-500 dark:hover:text-white'"
+              @click="toggleCapability(capability.value)"
+            >
+              <Icon :name="capability.icon" size="sm" />
+              <span>{{ capability.label }}</span>
+            </button>
+          </div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">这里表示程序已经确认该模型具备对应能力，用于后续展示与筛选。</p>
         </div>
       </div>
 
       <div class="space-y-3">
-        <label class="input-label" for="registry-exposed-in">{{ t('admin.models.registry.fields.exposedIn') }}</label>
-        <div class="flex flex-wrap gap-2">
+        <label class="input-label">{{ t('admin.models.registry.fields.exposedIn') }}</label>
+        <div class="grid gap-2 sm:grid-cols-2">
           <button
-            v-for="action in exposureQuickActions"
-            :key="action.target"
+            v-for="exposure in exposureOptions"
+            :key="exposure.value"
             type="button"
-            class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
-            :class="activeExposureTargets.has(action.target)
+            class="rounded-2xl border px-3 py-3 text-left text-sm transition-colors"
+            :class="selectedExposures.includes(exposure.value)
               ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/40 dark:bg-primary-500/10 dark:text-primary-300'
               : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:border-dark-500 dark:hover:text-white'"
-            @click="toggleExposure(action.target)"
+            @click="toggleExposure(exposure.value)"
           >
-            {{ action.label }}
+            <p class="font-medium">{{ exposure.shortLabel }}</p>
+            <p class="mt-1 text-xs opacity-80">{{ exposure.description }}</p>
           </button>
         </div>
-        <textarea id="registry-exposed-in" v-model="form.exposed_in" class="input min-h-[92px]" />
       </div>
 
       <p class="text-xs text-gray-500 dark:text-gray-400">
-        {{ t('admin.models.registry.commaSeparatedHint') }}
+        其余列表字段仍支持逗号或换行分隔；保存时会自动去重并规范化。
       </p>
 
       <div class="flex justify-end gap-3">
@@ -130,10 +182,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Icon from '@/components/icons/Icon.vue'
 import type { ModelRegistryDetail, UpsertModelRegistryEntryPayload } from '@/api/admin/modelRegistry'
+import { getModelRegistrySnapshot } from '@/stores/modelRegistry'
+import {
+  MODEL_REGISTRY_CAPABILITY_OPTIONS,
+  MODEL_REGISTRY_CUSTOM_PROVIDER,
+  MODEL_REGISTRY_EXPOSURE_OPTIONS,
+  MODEL_REGISTRY_PLATFORM_PRESETS,
+  formatRegistryList,
+  normalizeCapabilityList,
+  normalizeExposureTargets,
+  normalizePlatformList,
+  normalizeProviderOptions,
+  normalizeRegistryList,
+  normalizeRegistryToken
+} from '@/utils/modelRegistryMeta'
 
 const props = withDefaults(defineProps<{
   show: boolean
@@ -154,30 +221,29 @@ const { t } = useI18n()
 const form = reactive({
   id: '',
   display_name: '',
-  provider: '',
   ui_priority: 5000,
-  platforms: '',
   protocol_ids: '',
   aliases: '',
   pricing_lookup_ids: '',
-  modalities: '',
-  capabilities: '',
-  exposed_in: ''
+  modalities: ''
 })
 
-const exposureQuickActions = [
-  { target: 'whitelist', label: '白名单页' },
-  { target: 'use_key', label: 'Use Key' },
-  { target: 'test', label: '测试页' },
-  { target: 'runtime', label: '运行时' }
-] as const
+const providerSelection = ref('')
+const customProvider = ref('')
+const selectedPresetPlatforms = ref<string[]>([])
+const customPlatforms = ref('')
+const selectedCapabilities = ref<string[]>([])
+const selectedExposures = ref<string[]>([])
 
 const isEdit = computed(() => Boolean(props.entry))
 const dialogTitle = computed(() =>
   isEdit.value ? t('admin.models.registry.editModel') : t('admin.models.registry.addModel')
 )
 const sourceLabel = computed(() => formatSourceLabel(props.entry?.source || ''))
-const activeExposureTargets = computed(() => new Set(parseList(form.exposed_in)))
+const providerOptions = computed(() => normalizeProviderOptions(getModelRegistrySnapshot().models))
+const platformPresets = [...MODEL_REGISTRY_PLATFORM_PRESETS]
+const capabilityOptions = [...MODEL_REGISTRY_CAPABILITY_OPTIONS]
+const exposureOptions = [...MODEL_REGISTRY_EXPOSURE_OPTIONS]
 
 watch(
   () => [props.show, props.entry] as const,
@@ -185,37 +251,35 @@ watch(
     if (!show) {
       return
     }
+
     form.id = props.entry?.id || ''
     form.display_name = props.entry?.display_name || ''
-    form.provider = props.entry?.provider || ''
     form.ui_priority = props.entry?.ui_priority || 5000
-    form.platforms = formatList(props.entry?.platforms)
-    form.protocol_ids = formatList(props.entry?.protocol_ids)
-    form.aliases = formatList(props.entry?.aliases)
-    form.pricing_lookup_ids = formatList(props.entry?.pricing_lookup_ids)
-    form.modalities = formatList(props.entry?.modalities)
-    form.capabilities = formatList(props.entry?.capabilities)
-    form.exposed_in = formatList(props.entry?.exposed_in)
+    form.protocol_ids = formatRegistryList(props.entry?.protocol_ids)
+    form.aliases = formatRegistryList(props.entry?.aliases)
+    form.pricing_lookup_ids = formatRegistryList(props.entry?.pricing_lookup_ids)
+    form.modalities = formatRegistryList(props.entry?.modalities)
+
+    const provider = normalizeRegistryToken(props.entry?.provider || '')
+    if (provider && providerOptions.value.includes(provider)) {
+      providerSelection.value = provider
+      customProvider.value = ''
+    } else if (provider) {
+      providerSelection.value = MODEL_REGISTRY_CUSTOM_PROVIDER
+      customProvider.value = provider
+    } else {
+      providerSelection.value = ''
+      customProvider.value = ''
+    }
+
+    const platforms = normalizePlatformList(props.entry?.platforms || [])
+    selectedPresetPlatforms.value = platformPresets.filter((item) => platforms.includes(item))
+    customPlatforms.value = platforms.filter((item) => !platformPresets.includes(item as any)).join(', ')
+    selectedCapabilities.value = normalizeCapabilityList(props.entry?.capabilities || [])
+    selectedExposures.value = normalizeExposureTargets(props.entry?.exposed_in || [])
   },
   { immediate: true }
 )
-
-function formatList(items?: string[] | null) {
-  return Array.isArray(items) ? items.join(', ') : ''
-}
-
-function parseList(value: string): string[] {
-  return Array.from(
-    new Set(
-      value
-        .replace(/\r/g, '')
-        .split('\n')
-        .flatMap((item: string) => item.split(','))
-        .map((item: string) => item.trim())
-        .filter(Boolean)
-    )
-  )
-}
 
 function formatSourceLabel(source: string) {
   if (!source) {
@@ -227,29 +291,50 @@ function formatSourceLabel(source: string) {
   return translated === key ? normalizedSource : translated
 }
 
-function toggleExposure(target: string) {
-  const next = new Set(parseList(form.exposed_in))
-  if (next.has(target)) {
-    next.delete(target)
-  } else {
-    next.add(target)
+function togglePlatformPreset(platform: string) {
+  if (selectedPresetPlatforms.value.includes(platform)) {
+    selectedPresetPlatforms.value = selectedPresetPlatforms.value.filter((item) => item !== platform)
+    return
   }
-  form.exposed_in = Array.from(next).join(', ')
+  selectedPresetPlatforms.value = [...selectedPresetPlatforms.value, platform]
+}
+
+function toggleCapability(capability: string) {
+  if (selectedCapabilities.value.includes(capability)) {
+    selectedCapabilities.value = selectedCapabilities.value.filter((item) => item !== capability)
+    return
+  }
+  selectedCapabilities.value = [...selectedCapabilities.value, capability]
+}
+
+function toggleExposure(exposure: string) {
+  if (selectedExposures.value.includes(exposure)) {
+    selectedExposures.value = selectedExposures.value.filter((item) => item !== exposure)
+    return
+  }
+  selectedExposures.value = [...selectedExposures.value, exposure]
 }
 
 function handleSubmit() {
+  const provider = providerSelection.value === MODEL_REGISTRY_CUSTOM_PROVIDER
+    ? normalizeRegistryToken(customProvider.value)
+    : normalizeRegistryToken(providerSelection.value)
+
   emit('submit', {
     id: form.id.trim(),
     display_name: form.display_name.trim(),
-    provider: form.provider.trim(),
+    provider,
     ui_priority: Number.isFinite(Number(form.ui_priority)) ? Number(form.ui_priority) : 5000,
-    platforms: parseList(form.platforms),
-    protocol_ids: parseList(form.protocol_ids),
-    aliases: parseList(form.aliases),
-    pricing_lookup_ids: parseList(form.pricing_lookup_ids),
-    modalities: parseList(form.modalities),
-    capabilities: parseList(form.capabilities),
-    exposed_in: parseList(form.exposed_in)
+    platforms: normalizePlatformList([
+      ...selectedPresetPlatforms.value,
+      ...normalizeRegistryList(customPlatforms.value)
+    ]),
+    protocol_ids: normalizeRegistryList(form.protocol_ids),
+    aliases: normalizeRegistryList(form.aliases),
+    pricing_lookup_ids: normalizeRegistryList(form.pricing_lookup_ids),
+    modalities: normalizeRegistryList(form.modalities),
+    capabilities: normalizeCapabilityList(selectedCapabilities.value),
+    exposed_in: normalizeExposureTargets(selectedExposures.value)
   })
 }
 </script>

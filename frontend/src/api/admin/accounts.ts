@@ -430,6 +430,7 @@ export interface AccountModelImportFailure {
 export interface AccountModelImportModelResult {
   source_model: string
   canonical_model?: string
+  registry_model?: string
   status: 'imported' | 'merged' | 'skipped' | 'failed'
   reason_code:
     | 'imported_new'

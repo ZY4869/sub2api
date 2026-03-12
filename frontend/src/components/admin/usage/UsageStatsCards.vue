@@ -40,6 +40,9 @@
           {{ t('usage.standardCost') }}:
           <span class="line-through">${{ (stats?.total_cost || 0).toFixed(4) }}</span>
         </p>
+        <p v-if="stats?.admin_free_requests" class="mt-1 text-[11px] text-emerald-500 dark:text-emerald-300">
+          管理员免扣 {{ stats.admin_free_requests.toLocaleString() }} 次 / ${{ (stats.admin_free_standard_cost || 0).toFixed(4) }} 标准成本
+        </p>
       </div>
     </div>
     <div class="card p-4 flex items-center gap-3">
