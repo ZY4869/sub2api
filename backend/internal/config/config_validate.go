@@ -1,0 +1,734 @@
+package config
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"log/slog"
+	"net/url"
+	"strings"
+)
+
+func (c *Config) Validate() error {
+	jwtSecret := strings.TrimSpace(c.JWT.Secret)
+	if jwtSecret == "" {
+		return fmt.Errorf("jwt.secret is required")
+	}
+	if len([]byte(jwtSecret)) < 32 {
+		return fmt.Errorf("jwt.secret must be at least 32 bytes")
+	}
+	switch c.Log.Level {
+	case "debug", "info", "warn", "error":
+	case "":
+		return fmt.Errorf("log.level is required")
+	default:
+		return fmt.Errorf("log.level must be one of: debug/info/warn/error")
+	}
+	switch c.Log.Format {
+	case "json", "console":
+	case "":
+		return fmt.Errorf("log.format is required")
+	default:
+		return fmt.Errorf("log.format must be one of: json/console")
+	}
+	switch c.Log.StacktraceLevel {
+	case "none", "error", "fatal":
+	case "":
+		return fmt.Errorf("log.stacktrace_level is required")
+	default:
+		return fmt.Errorf("log.stacktrace_level must be one of: none/error/fatal")
+	}
+	if !c.Log.Output.ToStdout && !c.Log.Output.ToFile {
+		return fmt.Errorf("log.output.to_stdout and log.output.to_file cannot both be false")
+	}
+	if c.Log.Rotation.MaxSizeMB <= 0 {
+		return fmt.Errorf("log.rotation.max_size_mb must be positive")
+	}
+	if c.Log.Rotation.MaxBackups < 0 {
+		return fmt.Errorf("log.rotation.max_backups must be non-negative")
+	}
+	if c.Log.Rotation.MaxAgeDays < 0 {
+		return fmt.Errorf("log.rotation.max_age_days must be non-negative")
+	}
+	if c.Log.Sampling.Enabled {
+		if c.Log.Sampling.Initial <= 0 {
+			return fmt.Errorf("log.sampling.initial must be positive when sampling is enabled")
+		}
+		if c.Log.Sampling.Thereafter <= 0 {
+			return fmt.Errorf("log.sampling.thereafter must be positive when sampling is enabled")
+		}
+	} else {
+		if c.Log.Sampling.Initial < 0 {
+			return fmt.Errorf("log.sampling.initial must be non-negative")
+		}
+		if c.Log.Sampling.Thereafter < 0 {
+			return fmt.Errorf("log.sampling.thereafter must be non-negative")
+		}
+	}
+	if c.SubscriptionMaintenance.WorkerCount < 0 {
+		return fmt.Errorf("subscription_maintenance.worker_count must be non-negative")
+	}
+	if c.SubscriptionMaintenance.QueueSize < 0 {
+		return fmt.Errorf("subscription_maintenance.queue_size must be non-negative")
+	}
+	geminiClientID := strings.TrimSpace(c.Gemini.OAuth.ClientID)
+	geminiClientSecret := strings.TrimSpace(c.Gemini.OAuth.ClientSecret)
+	if (geminiClientID == "") != (geminiClientSecret == "") {
+		return fmt.Errorf("gemini.oauth.client_id and gemini.oauth.client_secret must be both set or both empty")
+	}
+	if strings.TrimSpace(c.Server.FrontendURL) != "" {
+		if err := ValidateAbsoluteHTTPURL(c.Server.FrontendURL); err != nil {
+			return fmt.Errorf("server.frontend_url invalid: %w", err)
+		}
+		u, err := url.Parse(strings.TrimSpace(c.Server.FrontendURL))
+		if err != nil {
+			return fmt.Errorf("server.frontend_url invalid: %w", err)
+		}
+		if u.RawQuery != "" || u.ForceQuery {
+			return fmt.Errorf("server.frontend_url invalid: must not include query")
+		}
+		if u.User != nil {
+			return fmt.Errorf("server.frontend_url invalid: must not include userinfo")
+		}
+		warnIfInsecureURL("server.frontend_url", c.Server.FrontendURL)
+	}
+	if c.JWT.ExpireHour <= 0 {
+		return fmt.Errorf("jwt.expire_hour must be positive")
+	}
+	if c.JWT.ExpireHour > 168 {
+		return fmt.Errorf("jwt.expire_hour must be <= 168 (7 days)")
+	}
+	if c.JWT.ExpireHour > 24 {
+		slog.Warn("jwt.expire_hour is high; consider shorter expiration for security", "expire_hour", c.JWT.ExpireHour)
+	}
+	if c.JWT.AccessTokenExpireMinutes < 0 {
+		return fmt.Errorf("jwt.access_token_expire_minutes must be non-negative")
+	}
+	if c.JWT.AccessTokenExpireMinutes > 720 {
+		slog.Warn("jwt.access_token_expire_minutes is high; consider shorter expiration for security", "access_token_expire_minutes", c.JWT.AccessTokenExpireMinutes)
+	}
+	if c.JWT.RefreshTokenExpireDays <= 0 {
+		return fmt.Errorf("jwt.refresh_token_expire_days must be positive")
+	}
+	if c.JWT.RefreshTokenExpireDays > 90 {
+		slog.Warn("jwt.refresh_token_expire_days is high; consider shorter expiration for security", "refresh_token_expire_days", c.JWT.RefreshTokenExpireDays)
+	}
+	if c.JWT.RefreshWindowMinutes < 0 {
+		return fmt.Errorf("jwt.refresh_window_minutes must be non-negative")
+	}
+	if c.Security.CSP.Enabled && strings.TrimSpace(c.Security.CSP.Policy) == "" {
+		return fmt.Errorf("security.csp.policy is required when CSP is enabled")
+	}
+	if c.LinuxDo.Enabled {
+		if strings.TrimSpace(c.LinuxDo.ClientID) == "" {
+			return fmt.Errorf("linuxdo_connect.client_id is required when linuxdo_connect.enabled=true")
+		}
+		if strings.TrimSpace(c.LinuxDo.AuthorizeURL) == "" {
+			return fmt.Errorf("linuxdo_connect.authorize_url is required when linuxdo_connect.enabled=true")
+		}
+		if strings.TrimSpace(c.LinuxDo.TokenURL) == "" {
+			return fmt.Errorf("linuxdo_connect.token_url is required when linuxdo_connect.enabled=true")
+		}
+		if strings.TrimSpace(c.LinuxDo.UserInfoURL) == "" {
+			return fmt.Errorf("linuxdo_connect.userinfo_url is required when linuxdo_connect.enabled=true")
+		}
+		if strings.TrimSpace(c.LinuxDo.RedirectURL) == "" {
+			return fmt.Errorf("linuxdo_connect.redirect_url is required when linuxdo_connect.enabled=true")
+		}
+		method := strings.ToLower(strings.TrimSpace(c.LinuxDo.TokenAuthMethod))
+		switch method {
+		case "", "client_secret_post", "client_secret_basic", "none":
+		default:
+			return fmt.Errorf("linuxdo_connect.token_auth_method must be one of: client_secret_post/client_secret_basic/none")
+		}
+		if method == "none" && !c.LinuxDo.UsePKCE {
+			return fmt.Errorf("linuxdo_connect.use_pkce must be true when linuxdo_connect.token_auth_method=none")
+		}
+		if (method == "" || method == "client_secret_post" || method == "client_secret_basic") && strings.TrimSpace(c.LinuxDo.ClientSecret) == "" {
+			return fmt.Errorf("linuxdo_connect.client_secret is required when linuxdo_connect.enabled=true and token_auth_method is client_secret_post/client_secret_basic")
+		}
+		if strings.TrimSpace(c.LinuxDo.FrontendRedirectURL) == "" {
+			return fmt.Errorf("linuxdo_connect.frontend_redirect_url is required when linuxdo_connect.enabled=true")
+		}
+		if err := ValidateAbsoluteHTTPURL(c.LinuxDo.AuthorizeURL); err != nil {
+			return fmt.Errorf("linuxdo_connect.authorize_url invalid: %w", err)
+		}
+		if err := ValidateAbsoluteHTTPURL(c.LinuxDo.TokenURL); err != nil {
+			return fmt.Errorf("linuxdo_connect.token_url invalid: %w", err)
+		}
+		if err := ValidateAbsoluteHTTPURL(c.LinuxDo.UserInfoURL); err != nil {
+			return fmt.Errorf("linuxdo_connect.userinfo_url invalid: %w", err)
+		}
+		if err := ValidateAbsoluteHTTPURL(c.LinuxDo.RedirectURL); err != nil {
+			return fmt.Errorf("linuxdo_connect.redirect_url invalid: %w", err)
+		}
+		if err := ValidateFrontendRedirectURL(c.LinuxDo.FrontendRedirectURL); err != nil {
+			return fmt.Errorf("linuxdo_connect.frontend_redirect_url invalid: %w", err)
+		}
+		warnIfInsecureURL("linuxdo_connect.authorize_url", c.LinuxDo.AuthorizeURL)
+		warnIfInsecureURL("linuxdo_connect.token_url", c.LinuxDo.TokenURL)
+		warnIfInsecureURL("linuxdo_connect.userinfo_url", c.LinuxDo.UserInfoURL)
+		warnIfInsecureURL("linuxdo_connect.redirect_url", c.LinuxDo.RedirectURL)
+		warnIfInsecureURL("linuxdo_connect.frontend_redirect_url", c.LinuxDo.FrontendRedirectURL)
+	}
+	if c.Billing.CircuitBreaker.Enabled {
+		if c.Billing.CircuitBreaker.FailureThreshold <= 0 {
+			return fmt.Errorf("billing.circuit_breaker.failure_threshold must be positive")
+		}
+		if c.Billing.CircuitBreaker.ResetTimeoutSeconds <= 0 {
+			return fmt.Errorf("billing.circuit_breaker.reset_timeout_seconds must be positive")
+		}
+		if c.Billing.CircuitBreaker.HalfOpenRequests <= 0 {
+			return fmt.Errorf("billing.circuit_breaker.half_open_requests must be positive")
+		}
+	}
+	if c.Database.MaxOpenConns <= 0 {
+		return fmt.Errorf("database.max_open_conns must be positive")
+	}
+	if c.Database.MaxIdleConns < 0 {
+		return fmt.Errorf("database.max_idle_conns must be non-negative")
+	}
+	if c.Database.MaxIdleConns > c.Database.MaxOpenConns {
+		return fmt.Errorf("database.max_idle_conns cannot exceed database.max_open_conns")
+	}
+	if c.Database.ConnMaxLifetimeMinutes < 0 {
+		return fmt.Errorf("database.conn_max_lifetime_minutes must be non-negative")
+	}
+	if c.Database.ConnMaxIdleTimeMinutes < 0 {
+		return fmt.Errorf("database.conn_max_idle_time_minutes must be non-negative")
+	}
+	if c.Redis.DialTimeoutSeconds <= 0 {
+		return fmt.Errorf("redis.dial_timeout_seconds must be positive")
+	}
+	if c.Redis.ReadTimeoutSeconds <= 0 {
+		return fmt.Errorf("redis.read_timeout_seconds must be positive")
+	}
+	if c.Redis.WriteTimeoutSeconds <= 0 {
+		return fmt.Errorf("redis.write_timeout_seconds must be positive")
+	}
+	if c.Redis.PoolSize <= 0 {
+		return fmt.Errorf("redis.pool_size must be positive")
+	}
+	if c.Redis.MinIdleConns < 0 {
+		return fmt.Errorf("redis.min_idle_conns must be non-negative")
+	}
+	if c.Redis.MinIdleConns > c.Redis.PoolSize {
+		return fmt.Errorf("redis.min_idle_conns cannot exceed redis.pool_size")
+	}
+	if c.Dashboard.Enabled {
+		if c.Dashboard.StatsFreshTTLSeconds <= 0 {
+			return fmt.Errorf("dashboard_cache.stats_fresh_ttl_seconds must be positive")
+		}
+		if c.Dashboard.StatsTTLSeconds <= 0 {
+			return fmt.Errorf("dashboard_cache.stats_ttl_seconds must be positive")
+		}
+		if c.Dashboard.StatsRefreshTimeoutSeconds <= 0 {
+			return fmt.Errorf("dashboard_cache.stats_refresh_timeout_seconds must be positive")
+		}
+		if c.Dashboard.StatsFreshTTLSeconds > c.Dashboard.StatsTTLSeconds {
+			return fmt.Errorf("dashboard_cache.stats_fresh_ttl_seconds must be <= dashboard_cache.stats_ttl_seconds")
+		}
+	} else {
+		if c.Dashboard.StatsFreshTTLSeconds < 0 {
+			return fmt.Errorf("dashboard_cache.stats_fresh_ttl_seconds must be non-negative")
+		}
+		if c.Dashboard.StatsTTLSeconds < 0 {
+			return fmt.Errorf("dashboard_cache.stats_ttl_seconds must be non-negative")
+		}
+		if c.Dashboard.StatsRefreshTimeoutSeconds < 0 {
+			return fmt.Errorf("dashboard_cache.stats_refresh_timeout_seconds must be non-negative")
+		}
+	}
+	if c.DashboardAgg.Enabled {
+		if c.DashboardAgg.IntervalSeconds <= 0 {
+			return fmt.Errorf("dashboard_aggregation.interval_seconds must be positive")
+		}
+		if c.DashboardAgg.LookbackSeconds < 0 {
+			return fmt.Errorf("dashboard_aggregation.lookback_seconds must be non-negative")
+		}
+		if c.DashboardAgg.BackfillMaxDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.backfill_max_days must be non-negative")
+		}
+		if c.DashboardAgg.BackfillEnabled && c.DashboardAgg.BackfillMaxDays == 0 {
+			return fmt.Errorf("dashboard_aggregation.backfill_max_days must be positive")
+		}
+		if c.DashboardAgg.Retention.UsageLogsDays <= 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.usage_logs_days must be positive")
+		}
+		if c.DashboardAgg.Retention.HourlyDays <= 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.hourly_days must be positive")
+		}
+		if c.DashboardAgg.Retention.DailyDays <= 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.daily_days must be positive")
+		}
+		if c.DashboardAgg.RecomputeDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.recompute_days must be non-negative")
+		}
+	} else {
+		if c.DashboardAgg.IntervalSeconds < 0 {
+			return fmt.Errorf("dashboard_aggregation.interval_seconds must be non-negative")
+		}
+		if c.DashboardAgg.LookbackSeconds < 0 {
+			return fmt.Errorf("dashboard_aggregation.lookback_seconds must be non-negative")
+		}
+		if c.DashboardAgg.BackfillMaxDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.backfill_max_days must be non-negative")
+		}
+		if c.DashboardAgg.Retention.UsageLogsDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.usage_logs_days must be non-negative")
+		}
+		if c.DashboardAgg.Retention.HourlyDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.hourly_days must be non-negative")
+		}
+		if c.DashboardAgg.Retention.DailyDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.daily_days must be non-negative")
+		}
+		if c.DashboardAgg.RecomputeDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.recompute_days must be non-negative")
+		}
+	}
+	if c.UsageCleanup.Enabled {
+		if c.UsageCleanup.MaxRangeDays <= 0 {
+			return fmt.Errorf("usage_cleanup.max_range_days must be positive")
+		}
+		if c.UsageCleanup.BatchSize <= 0 {
+			return fmt.Errorf("usage_cleanup.batch_size must be positive")
+		}
+		if c.UsageCleanup.WorkerIntervalSeconds <= 0 {
+			return fmt.Errorf("usage_cleanup.worker_interval_seconds must be positive")
+		}
+		if c.UsageCleanup.TaskTimeoutSeconds <= 0 {
+			return fmt.Errorf("usage_cleanup.task_timeout_seconds must be positive")
+		}
+	} else {
+		if c.UsageCleanup.MaxRangeDays < 0 {
+			return fmt.Errorf("usage_cleanup.max_range_days must be non-negative")
+		}
+		if c.UsageCleanup.BatchSize < 0 {
+			return fmt.Errorf("usage_cleanup.batch_size must be non-negative")
+		}
+		if c.UsageCleanup.WorkerIntervalSeconds < 0 {
+			return fmt.Errorf("usage_cleanup.worker_interval_seconds must be non-negative")
+		}
+		if c.UsageCleanup.TaskTimeoutSeconds < 0 {
+			return fmt.Errorf("usage_cleanup.task_timeout_seconds must be non-negative")
+		}
+	}
+	if c.Idempotency.DefaultTTLSeconds <= 0 {
+		return fmt.Errorf("idempotency.default_ttl_seconds must be positive")
+	}
+	if c.Idempotency.SystemOperationTTLSeconds <= 0 {
+		return fmt.Errorf("idempotency.system_operation_ttl_seconds must be positive")
+	}
+	if c.Idempotency.ProcessingTimeoutSeconds <= 0 {
+		return fmt.Errorf("idempotency.processing_timeout_seconds must be positive")
+	}
+	if c.Idempotency.FailedRetryBackoffSeconds <= 0 {
+		return fmt.Errorf("idempotency.failed_retry_backoff_seconds must be positive")
+	}
+	if c.Idempotency.MaxStoredResponseLen <= 0 {
+		return fmt.Errorf("idempotency.max_stored_response_len must be positive")
+	}
+	if c.Idempotency.CleanupIntervalSeconds <= 0 {
+		return fmt.Errorf("idempotency.cleanup_interval_seconds must be positive")
+	}
+	if c.Idempotency.CleanupBatchSize <= 0 {
+		return fmt.Errorf("idempotency.cleanup_batch_size must be positive")
+	}
+	if c.Gateway.MaxBodySize <= 0 {
+		return fmt.Errorf("gateway.max_body_size must be positive")
+	}
+	if c.Gateway.UpstreamResponseReadMaxBytes <= 0 {
+		return fmt.Errorf("gateway.upstream_response_read_max_bytes must be positive")
+	}
+	if c.Gateway.ProxyProbeResponseReadMaxBytes <= 0 {
+		return fmt.Errorf("gateway.proxy_probe_response_read_max_bytes must be positive")
+	}
+	if c.Gateway.SoraMaxBodySize < 0 {
+		return fmt.Errorf("gateway.sora_max_body_size must be non-negative")
+	}
+	if c.Gateway.SoraStreamTimeoutSeconds < 0 {
+		return fmt.Errorf("gateway.sora_stream_timeout_seconds must be non-negative")
+	}
+	if c.Gateway.SoraRequestTimeoutSeconds < 0 {
+		return fmt.Errorf("gateway.sora_request_timeout_seconds must be non-negative")
+	}
+	if c.Gateway.SoraMediaSignedURLTTLSeconds < 0 {
+		return fmt.Errorf("gateway.sora_media_signed_url_ttl_seconds must be non-negative")
+	}
+	if mode := strings.TrimSpace(strings.ToLower(c.Gateway.SoraStreamMode)); mode != "" {
+		switch mode {
+		case "force", "error":
+		default:
+			return fmt.Errorf("gateway.sora_stream_mode must be one of: force/error")
+		}
+	}
+	if c.Sora.Client.TimeoutSeconds < 0 {
+		return fmt.Errorf("sora.client.timeout_seconds must be non-negative")
+	}
+	if c.Sora.Client.MaxRetries < 0 {
+		return fmt.Errorf("sora.client.max_retries must be non-negative")
+	}
+	if c.Sora.Client.CloudflareChallengeCooldownSeconds < 0 {
+		return fmt.Errorf("sora.client.cloudflare_challenge_cooldown_seconds must be non-negative")
+	}
+	if c.Sora.Client.PollIntervalSeconds < 0 {
+		return fmt.Errorf("sora.client.poll_interval_seconds must be non-negative")
+	}
+	if c.Sora.Client.MaxPollAttempts < 0 {
+		return fmt.Errorf("sora.client.max_poll_attempts must be non-negative")
+	}
+	if c.Sora.Client.RecentTaskLimit < 0 {
+		return fmt.Errorf("sora.client.recent_task_limit must be non-negative")
+	}
+	if c.Sora.Client.RecentTaskLimitMax < 0 {
+		return fmt.Errorf("sora.client.recent_task_limit_max must be non-negative")
+	}
+	if c.Sora.Client.RecentTaskLimitMax > 0 && c.Sora.Client.RecentTaskLimit > 0 && c.Sora.Client.RecentTaskLimitMax < c.Sora.Client.RecentTaskLimit {
+		c.Sora.Client.RecentTaskLimitMax = c.Sora.Client.RecentTaskLimit
+	}
+	if c.Sora.Client.CurlCFFISidecar.TimeoutSeconds < 0 {
+		return fmt.Errorf("sora.client.curl_cffi_sidecar.timeout_seconds must be non-negative")
+	}
+	if c.Sora.Client.CurlCFFISidecar.SessionTTLSeconds < 0 {
+		return fmt.Errorf("sora.client.curl_cffi_sidecar.session_ttl_seconds must be non-negative")
+	}
+	if !c.Sora.Client.CurlCFFISidecar.Enabled {
+		return fmt.Errorf("sora.client.curl_cffi_sidecar.enabled must be true")
+	}
+	if strings.TrimSpace(c.Sora.Client.CurlCFFISidecar.BaseURL) == "" {
+		return fmt.Errorf("sora.client.curl_cffi_sidecar.base_url is required")
+	}
+	if c.Sora.Storage.MaxConcurrentDownloads < 0 {
+		return fmt.Errorf("sora.storage.max_concurrent_downloads must be non-negative")
+	}
+	if c.Sora.Storage.DownloadTimeoutSeconds < 0 {
+		return fmt.Errorf("sora.storage.download_timeout_seconds must be non-negative")
+	}
+	if c.Sora.Storage.MaxDownloadBytes < 0 {
+		return fmt.Errorf("sora.storage.max_download_bytes must be non-negative")
+	}
+	if c.Sora.Storage.Cleanup.Enabled {
+		if c.Sora.Storage.Cleanup.RetentionDays <= 0 {
+			return fmt.Errorf("sora.storage.cleanup.retention_days must be positive")
+		}
+		if strings.TrimSpace(c.Sora.Storage.Cleanup.Schedule) == "" {
+			return fmt.Errorf("sora.storage.cleanup.schedule is required when cleanup is enabled")
+		}
+	} else {
+		if c.Sora.Storage.Cleanup.RetentionDays < 0 {
+			return fmt.Errorf("sora.storage.cleanup.retention_days must be non-negative")
+		}
+	}
+	if storageType := strings.TrimSpace(strings.ToLower(c.Sora.Storage.Type)); storageType != "" && storageType != "local" {
+		return fmt.Errorf("sora.storage.type must be 'local'")
+	}
+	if strings.TrimSpace(c.Gateway.ConnectionPoolIsolation) != "" {
+		switch c.Gateway.ConnectionPoolIsolation {
+		case ConnectionPoolIsolationProxy, ConnectionPoolIsolationAccount, ConnectionPoolIsolationAccountProxy:
+		default:
+			return fmt.Errorf("gateway.connection_pool_isolation must be one of: %s/%s/%s", ConnectionPoolIsolationProxy, ConnectionPoolIsolationAccount, ConnectionPoolIsolationAccountProxy)
+		}
+	}
+	if c.Gateway.MaxIdleConns <= 0 {
+		return fmt.Errorf("gateway.max_idle_conns must be positive")
+	}
+	if c.Gateway.MaxIdleConnsPerHost <= 0 {
+		return fmt.Errorf("gateway.max_idle_conns_per_host must be positive")
+	}
+	if c.Gateway.MaxConnsPerHost < 0 {
+		return fmt.Errorf("gateway.max_conns_per_host must be non-negative")
+	}
+	if c.Gateway.IdleConnTimeoutSeconds <= 0 {
+		return fmt.Errorf("gateway.idle_conn_timeout_seconds must be positive")
+	}
+	if c.Gateway.IdleConnTimeoutSeconds > 180 {
+		slog.Warn("gateway.idle_conn_timeout_seconds is high; consider 60-120 seconds for better connection reuse", "idle_conn_timeout_seconds", c.Gateway.IdleConnTimeoutSeconds)
+	}
+	if c.Gateway.MaxUpstreamClients <= 0 {
+		return fmt.Errorf("gateway.max_upstream_clients must be positive")
+	}
+	if c.Gateway.ClientIdleTTLSeconds <= 0 {
+		return fmt.Errorf("gateway.client_idle_ttl_seconds must be positive")
+	}
+	if c.Gateway.ConcurrencySlotTTLMinutes <= 0 {
+		return fmt.Errorf("gateway.concurrency_slot_ttl_minutes must be positive")
+	}
+	if c.Gateway.StreamDataIntervalTimeout < 0 {
+		return fmt.Errorf("gateway.stream_data_interval_timeout must be non-negative")
+	}
+	if c.Gateway.StreamDataIntervalTimeout != 0 && (c.Gateway.StreamDataIntervalTimeout < 30 || c.Gateway.StreamDataIntervalTimeout > 300) {
+		return fmt.Errorf("gateway.stream_data_interval_timeout must be 0 or between 30-300 seconds")
+	}
+	if c.Gateway.StreamKeepaliveInterval < 0 {
+		return fmt.Errorf("gateway.stream_keepalive_interval must be non-negative")
+	}
+	if c.Gateway.StreamKeepaliveInterval != 0 && (c.Gateway.StreamKeepaliveInterval < 5 || c.Gateway.StreamKeepaliveInterval > 30) {
+		return fmt.Errorf("gateway.stream_keepalive_interval must be 0 or between 5-30 seconds")
+	}
+	if c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
+		c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds = c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds
+	}
+	if c.Gateway.OpenAIWS.MaxConnsPerAccount <= 0 {
+		return fmt.Errorf("gateway.openai_ws.max_conns_per_account must be positive")
+	}
+	if c.Gateway.OpenAIWS.MinIdlePerAccount < 0 {
+		return fmt.Errorf("gateway.openai_ws.min_idle_per_account must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.MaxIdlePerAccount < 0 {
+		return fmt.Errorf("gateway.openai_ws.max_idle_per_account must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.MinIdlePerAccount > c.Gateway.OpenAIWS.MaxIdlePerAccount {
+		return fmt.Errorf("gateway.openai_ws.min_idle_per_account must be <= max_idle_per_account")
+	}
+	if c.Gateway.OpenAIWS.MaxIdlePerAccount > c.Gateway.OpenAIWS.MaxConnsPerAccount {
+		return fmt.Errorf("gateway.openai_ws.max_idle_per_account must be <= max_conns_per_account")
+	}
+	if c.Gateway.OpenAIWS.OAuthMaxConnsFactor <= 0 {
+		return fmt.Errorf("gateway.openai_ws.oauth_max_conns_factor must be positive")
+	}
+	if c.Gateway.OpenAIWS.APIKeyMaxConnsFactor <= 0 {
+		return fmt.Errorf("gateway.openai_ws.apikey_max_conns_factor must be positive")
+	}
+	if c.Gateway.OpenAIWS.DialTimeoutSeconds <= 0 {
+		return fmt.Errorf("gateway.openai_ws.dial_timeout_seconds must be positive")
+	}
+	if c.Gateway.OpenAIWS.ReadTimeoutSeconds <= 0 {
+		return fmt.Errorf("gateway.openai_ws.read_timeout_seconds must be positive")
+	}
+	if c.Gateway.OpenAIWS.WriteTimeoutSeconds <= 0 {
+		return fmt.Errorf("gateway.openai_ws.write_timeout_seconds must be positive")
+	}
+	if c.Gateway.OpenAIWS.PoolTargetUtilization <= 0 || c.Gateway.OpenAIWS.PoolTargetUtilization > 1 {
+		return fmt.Errorf("gateway.openai_ws.pool_target_utilization must be within (0,1]")
+	}
+	if c.Gateway.OpenAIWS.QueueLimitPerConn <= 0 {
+		return fmt.Errorf("gateway.openai_ws.queue_limit_per_conn must be positive")
+	}
+	if c.Gateway.OpenAIWS.EventFlushBatchSize <= 0 {
+		return fmt.Errorf("gateway.openai_ws.event_flush_batch_size must be positive")
+	}
+	if c.Gateway.OpenAIWS.EventFlushIntervalMS < 0 {
+		return fmt.Errorf("gateway.openai_ws.event_flush_interval_ms must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.PrewarmCooldownMS < 0 {
+		return fmt.Errorf("gateway.openai_ws.prewarm_cooldown_ms must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.FallbackCooldownSeconds < 0 {
+		return fmt.Errorf("gateway.openai_ws.fallback_cooldown_seconds must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.RetryBackoffInitialMS < 0 {
+		return fmt.Errorf("gateway.openai_ws.retry_backoff_initial_ms must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.RetryBackoffMaxMS < 0 {
+		return fmt.Errorf("gateway.openai_ws.retry_backoff_max_ms must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.RetryBackoffInitialMS > 0 && c.Gateway.OpenAIWS.RetryBackoffMaxMS > 0 && c.Gateway.OpenAIWS.RetryBackoffMaxMS < c.Gateway.OpenAIWS.RetryBackoffInitialMS {
+		return fmt.Errorf("gateway.openai_ws.retry_backoff_max_ms must be >= retry_backoff_initial_ms")
+	}
+	if c.Gateway.OpenAIWS.RetryJitterRatio < 0 || c.Gateway.OpenAIWS.RetryJitterRatio > 1 {
+		return fmt.Errorf("gateway.openai_ws.retry_jitter_ratio must be within [0,1]")
+	}
+	if c.Gateway.OpenAIWS.RetryTotalBudgetMS < 0 {
+		return fmt.Errorf("gateway.openai_ws.retry_total_budget_ms must be non-negative")
+	}
+	if mode := strings.ToLower(strings.TrimSpace(c.Gateway.OpenAIWS.IngressModeDefault)); mode != "" {
+		switch mode {
+		case "off", "ctx_pool", "passthrough":
+		case "shared", "dedicated":
+			slog.Warn("gateway.openai_ws.ingress_mode_default is deprecated, treating as ctx_pool; please update to off|ctx_pool|passthrough", "value", mode)
+		default:
+			return fmt.Errorf("gateway.openai_ws.ingress_mode_default must be one of off|ctx_pool|passthrough")
+		}
+	}
+	if mode := strings.ToLower(strings.TrimSpace(c.Gateway.OpenAIWS.StoreDisabledConnMode)); mode != "" {
+		switch mode {
+		case "strict", "adaptive", "off":
+		default:
+			return fmt.Errorf("gateway.openai_ws.store_disabled_conn_mode must be one of strict|adaptive|off")
+		}
+	}
+	if c.Gateway.OpenAIWS.PayloadLogSampleRate < 0 || c.Gateway.OpenAIWS.PayloadLogSampleRate > 1 {
+		return fmt.Errorf("gateway.openai_ws.payload_log_sample_rate must be within [0,1]")
+	}
+	if c.Gateway.OpenAIWS.LBTopK <= 0 {
+		return fmt.Errorf("gateway.openai_ws.lb_top_k must be positive")
+	}
+	if c.Gateway.OpenAIWS.StickySessionTTLSeconds <= 0 {
+		return fmt.Errorf("gateway.openai_ws.sticky_session_ttl_seconds must be positive")
+	}
+	if c.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 {
+		return fmt.Errorf("gateway.openai_ws.sticky_response_id_ttl_seconds must be positive")
+	}
+	if c.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds < 0 {
+		return fmt.Errorf("gateway.openai_ws.sticky_previous_response_ttl_seconds must be non-negative")
+	}
+	if c.Gateway.OpenAIWS.SchedulerScoreWeights.Priority < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.Load < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.Queue < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate < 0 || c.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT < 0 {
+		return fmt.Errorf("gateway.openai_ws.scheduler_score_weights.* must be non-negative")
+	}
+	weightSum := c.Gateway.OpenAIWS.SchedulerScoreWeights.Priority + c.Gateway.OpenAIWS.SchedulerScoreWeights.Load + c.Gateway.OpenAIWS.SchedulerScoreWeights.Queue + c.Gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate + c.Gateway.OpenAIWS.SchedulerScoreWeights.TTFT
+	if weightSum <= 0 {
+		return fmt.Errorf("gateway.openai_ws.scheduler_score_weights must not all be zero")
+	}
+	if c.Gateway.MaxLineSize < 0 {
+		return fmt.Errorf("gateway.max_line_size must be non-negative")
+	}
+	if c.Gateway.MaxLineSize != 0 && c.Gateway.MaxLineSize < 1024*1024 {
+		return fmt.Errorf("gateway.max_line_size must be at least 1MB")
+	}
+	if c.Gateway.UsageRecord.WorkerCount <= 0 {
+		return fmt.Errorf("gateway.usage_record.worker_count must be positive")
+	}
+	if c.Gateway.UsageRecord.QueueSize <= 0 {
+		return fmt.Errorf("gateway.usage_record.queue_size must be positive")
+	}
+	if c.Gateway.UsageRecord.TaskTimeoutSeconds <= 0 {
+		return fmt.Errorf("gateway.usage_record.task_timeout_seconds must be positive")
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Gateway.UsageRecord.OverflowPolicy)) {
+	case UsageRecordOverflowPolicyDrop, UsageRecordOverflowPolicySample, UsageRecordOverflowPolicySync:
+	default:
+		return fmt.Errorf("gateway.usage_record.overflow_policy must be one of: %s/%s/%s", UsageRecordOverflowPolicyDrop, UsageRecordOverflowPolicySample, UsageRecordOverflowPolicySync)
+	}
+	if c.Gateway.UsageRecord.OverflowSamplePercent < 0 || c.Gateway.UsageRecord.OverflowSamplePercent > 100 {
+		return fmt.Errorf("gateway.usage_record.overflow_sample_percent must be between 0-100")
+	}
+	if strings.EqualFold(strings.TrimSpace(c.Gateway.UsageRecord.OverflowPolicy), UsageRecordOverflowPolicySample) && c.Gateway.UsageRecord.OverflowSamplePercent <= 0 {
+		return fmt.Errorf("gateway.usage_record.overflow_sample_percent must be positive when overflow_policy=sample")
+	}
+	if c.Gateway.UsageRecord.AutoScaleEnabled {
+		if c.Gateway.UsageRecord.AutoScaleMinWorkers <= 0 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_min_workers must be positive")
+		}
+		if c.Gateway.UsageRecord.AutoScaleMaxWorkers <= 0 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_max_workers must be positive")
+		}
+		if c.Gateway.UsageRecord.AutoScaleMaxWorkers < c.Gateway.UsageRecord.AutoScaleMinWorkers {
+			return fmt.Errorf("gateway.usage_record.auto_scale_max_workers must be >= auto_scale_min_workers")
+		}
+		if c.Gateway.UsageRecord.WorkerCount < c.Gateway.UsageRecord.AutoScaleMinWorkers || c.Gateway.UsageRecord.WorkerCount > c.Gateway.UsageRecord.AutoScaleMaxWorkers {
+			return fmt.Errorf("gateway.usage_record.worker_count must be between auto_scale_min_workers and auto_scale_max_workers")
+		}
+		if c.Gateway.UsageRecord.AutoScaleUpQueuePercent <= 0 || c.Gateway.UsageRecord.AutoScaleUpQueuePercent > 100 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_up_queue_percent must be between 1-100")
+		}
+		if c.Gateway.UsageRecord.AutoScaleDownQueuePercent < 0 || c.Gateway.UsageRecord.AutoScaleDownQueuePercent >= 100 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_down_queue_percent must be between 0-99")
+		}
+		if c.Gateway.UsageRecord.AutoScaleDownQueuePercent >= c.Gateway.UsageRecord.AutoScaleUpQueuePercent {
+			return fmt.Errorf("gateway.usage_record.auto_scale_down_queue_percent must be less than auto_scale_up_queue_percent")
+		}
+		if c.Gateway.UsageRecord.AutoScaleUpStep <= 0 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_up_step must be positive")
+		}
+		if c.Gateway.UsageRecord.AutoScaleDownStep <= 0 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_down_step must be positive")
+		}
+		if c.Gateway.UsageRecord.AutoScaleCheckIntervalSeconds <= 0 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_check_interval_seconds must be positive")
+		}
+		if c.Gateway.UsageRecord.AutoScaleCooldownSeconds < 0 {
+			return fmt.Errorf("gateway.usage_record.auto_scale_cooldown_seconds must be non-negative")
+		}
+	}
+	if c.Gateway.UserGroupRateCacheTTLSeconds <= 0 {
+		return fmt.Errorf("gateway.user_group_rate_cache_ttl_seconds must be positive")
+	}
+	if c.Gateway.ModelsListCacheTTLSeconds < 10 || c.Gateway.ModelsListCacheTTLSeconds > 30 {
+		return fmt.Errorf("gateway.models_list_cache_ttl_seconds must be between 10-30")
+	}
+	if c.Gateway.Scheduling.StickySessionMaxWaiting <= 0 {
+		return fmt.Errorf("gateway.scheduling.sticky_session_max_waiting must be positive")
+	}
+	if c.Gateway.Scheduling.StickySessionWaitTimeout <= 0 {
+		return fmt.Errorf("gateway.scheduling.sticky_session_wait_timeout must be positive")
+	}
+	if c.Gateway.Scheduling.FallbackWaitTimeout <= 0 {
+		return fmt.Errorf("gateway.scheduling.fallback_wait_timeout must be positive")
+	}
+	if c.Gateway.Scheduling.FallbackMaxWaiting <= 0 {
+		return fmt.Errorf("gateway.scheduling.fallback_max_waiting must be positive")
+	}
+	if c.Gateway.Scheduling.SlotCleanupInterval < 0 {
+		return fmt.Errorf("gateway.scheduling.slot_cleanup_interval must be non-negative")
+	}
+	if c.Gateway.Scheduling.DbFallbackTimeoutSeconds < 0 {
+		return fmt.Errorf("gateway.scheduling.db_fallback_timeout_seconds must be non-negative")
+	}
+	if c.Gateway.Scheduling.DbFallbackMaxQPS < 0 {
+		return fmt.Errorf("gateway.scheduling.db_fallback_max_qps must be non-negative")
+	}
+	if c.Gateway.Scheduling.OutboxPollIntervalSeconds <= 0 {
+		return fmt.Errorf("gateway.scheduling.outbox_poll_interval_seconds must be positive")
+	}
+	if c.Gateway.Scheduling.OutboxLagWarnSeconds < 0 {
+		return fmt.Errorf("gateway.scheduling.outbox_lag_warn_seconds must be non-negative")
+	}
+	if c.Gateway.Scheduling.OutboxLagRebuildSeconds < 0 {
+		return fmt.Errorf("gateway.scheduling.outbox_lag_rebuild_seconds must be non-negative")
+	}
+	if c.Gateway.Scheduling.OutboxLagRebuildFailures <= 0 {
+		return fmt.Errorf("gateway.scheduling.outbox_lag_rebuild_failures must be positive")
+	}
+	if c.Gateway.Scheduling.OutboxBacklogRebuildRows < 0 {
+		return fmt.Errorf("gateway.scheduling.outbox_backlog_rebuild_rows must be non-negative")
+	}
+	if c.Gateway.Scheduling.FullRebuildIntervalSeconds < 0 {
+		return fmt.Errorf("gateway.scheduling.full_rebuild_interval_seconds must be non-negative")
+	}
+	if c.Gateway.Scheduling.OutboxLagWarnSeconds > 0 && c.Gateway.Scheduling.OutboxLagRebuildSeconds > 0 && c.Gateway.Scheduling.OutboxLagRebuildSeconds < c.Gateway.Scheduling.OutboxLagWarnSeconds {
+		return fmt.Errorf("gateway.scheduling.outbox_lag_rebuild_seconds must be >= outbox_lag_warn_seconds")
+	}
+	if c.Ops.MetricsCollectorCache.TTL < 0 {
+		return fmt.Errorf("ops.metrics_collector_cache.ttl must be non-negative")
+	}
+	if c.Ops.Cleanup.ErrorLogRetentionDays < 0 {
+		return fmt.Errorf("ops.cleanup.error_log_retention_days must be non-negative")
+	}
+	if c.Ops.Cleanup.MinuteMetricsRetentionDays < 0 {
+		return fmt.Errorf("ops.cleanup.minute_metrics_retention_days must be non-negative")
+	}
+	if c.Ops.Cleanup.HourlyMetricsRetentionDays < 0 {
+		return fmt.Errorf("ops.cleanup.hourly_metrics_retention_days must be non-negative")
+	}
+	if c.Ops.Cleanup.Enabled && strings.TrimSpace(c.Ops.Cleanup.Schedule) == "" {
+		return fmt.Errorf("ops.cleanup.schedule is required when ops.cleanup.enabled=true")
+	}
+	if c.Concurrency.PingInterval < 5 || c.Concurrency.PingInterval > 30 {
+		return fmt.Errorf("concurrency.ping_interval must be between 5-30 seconds")
+	}
+	return nil
+}
+func normalizeStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	normalized := make([]string, 0, len(values))
+	for _, v := range values {
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			continue
+		}
+		normalized = append(normalized, trimmed)
+	}
+	return normalized
+}
+func isWeakJWTSecret(secret string) bool {
+	lower := strings.ToLower(strings.TrimSpace(secret))
+	if lower == "" {
+		return true
+	}
+	weak := map[string]struct{}{"change-me-in-production": {}, "changeme": {}, "secret": {}, "password": {}, "123456": {}, "12345678": {}, "admin": {}, "jwt-secret": {}}
+	_, exists := weak[lower]
+	return exists
+}
+func generateJWTSecret(byteLength int) (string, error) {
+	if byteLength <= 0 {
+		byteLength = 32
+	}
+	buf := make([]byte, byteLength)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
