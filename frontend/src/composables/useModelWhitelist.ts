@@ -43,6 +43,8 @@ export const claudeModels = [
 const geminiModels = [
   // Keep in sync with backend curated Gemini lists.
   // This list is intentionally conservative (models commonly available across OAuth/API key).
+  'gemini-3.1-flash-image',
+  'gemini-2.5-flash-image',
   'gemini-2.0-flash',
   'gemini-2.5-flash',
   'gemini-2.5-pro',
@@ -74,6 +76,8 @@ const antigravityModels = [
   'claude-sonnet-4.5',
   'claude-haiku-4.5',
   // Gemini 2.5 系列
+  'gemini-3.1-flash-image',
+  'gemini-2.5-flash-image',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash-thinking',
@@ -85,7 +89,6 @@ const antigravityModels = [
   // Gemini 3.1 系列
   'gemini-3.1-pro-high',
   'gemini-3.1-pro-low',
-  'gemini-3.1-flash-image',
   'gemini-3-pro-image',
   // 其他
   'gpt-oss-120b-medium',
@@ -277,7 +280,9 @@ const soraPresetMappings: { label: string; from: string; to: string; color: stri
 const geminiPresetMappings = [
   { label: 'Flash 2.0', from: 'gemini-2.0-flash', to: 'gemini-2.0-flash', color: 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400' },
   { label: '2.5 Flash', from: 'gemini-2.5-flash', to: 'gemini-2.5-flash', color: 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400' },
-  { label: '2.5 Pro', from: 'gemini-2.5-pro', to: 'gemini-2.5-pro', color: 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400' }
+  { label: '2.5 Image', from: 'gemini-2.5-flash-image', to: 'gemini-2.5-flash-image', color: 'bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400' },
+  { label: '2.5 Pro', from: 'gemini-2.5-pro', to: 'gemini-2.5-pro', color: 'bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400' },
+  { label: '3.1 Image', from: 'gemini-3.1-flash-image', to: 'gemini-3.1-flash-image', color: 'bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400' }
 ]
 
 // Antigravity 预设映射（支持通配符）
@@ -294,6 +299,9 @@ const antigravityPresetMappings = [
   { label: '3-Pro-Low->3.1-Pro-Low', from: 'gemini-3-pro-low', to: 'gemini-3.1-pro-low', color: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' },
   { label: '3.1-Pro-High passthrough', from: 'gemini-3.1-pro-high', to: 'gemini-3.1-pro-high', color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400' },
   { label: '3.1-Pro-Low passthrough', from: 'gemini-3.1-pro-low', to: 'gemini-3.1-pro-low', color: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  { label: '2.5-Flash-Image passthrough', from: 'gemini-2.5-flash-image', to: 'gemini-2.5-flash-image', color: 'bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400' },
+  { label: '3.1-Flash-Image passthrough', from: 'gemini-3.1-flash-image', to: 'gemini-3.1-flash-image', color: 'bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400' },
+  { label: '3-Pro-Image->3.1', from: 'gemini-3-pro-image', to: 'gemini-3.1-flash-image', color: 'bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400' },
   { label: 'Gemini 3->Flash', from: 'gemini-3*', to: 'gemini-3-flash', color: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' },
   { label: 'Gemini 2.5->Flash', from: 'gemini-2.5*', to: 'gemini-2.5-flash', color: 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400' },
   { label: '3-Flash passthrough', from: 'gemini-3-flash', to: 'gemini-3-flash', color: 'bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/30 dark:text-lime-400' },

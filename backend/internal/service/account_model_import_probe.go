@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 const (
@@ -22,18 +26,34 @@ const (
 	maxImportBodyBytes  = 1 << 20
 )
 
-func (s *AccountModelImportService) detectModels(ctx context.Context, account *Account) ([]string, error) {
+func (s *AccountModelImportService) detectModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
 	switch account.Platform {
 	case PlatformOpenAI:
-		return s.detectOpenAIModels(ctx, account)
+		models, err := s.detectOpenAIModels(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		return newAccountModelProbeResult(models), nil
 	case PlatformGemini:
 		return s.detectGeminiModels(ctx, account)
 	case PlatformSora:
-		return s.detectSoraModels(ctx, account)
+		models, err := s.detectSoraModels(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		return newAccountModelProbeResult(models), nil
 	case PlatformAntigravity:
-		return s.detectAntigravityModels(ctx, account)
+		models, err := s.detectAntigravityModels(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		return newAccountModelProbeResult(models), nil
 	case PlatformAnthropic:
-		return s.detectAnthropicModels(ctx, account)
+		models, err := s.detectAnthropicModels(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		return newAccountModelProbeResult(models), nil
 	default:
 		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "current account platform does not support model import")
 	}
@@ -112,10 +132,11 @@ func (s *AccountModelImportService) detectAnthropicModels(ctx context.Context, a
 	return parseAnthropicModelList(body)
 }
 
-func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, account *Account) ([]string, error) {
+func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
 	if s.geminiCompatService == nil {
 		return nil, infraerrors.InternalServer("MODEL_IMPORT_GEMINI_SERVICE_UNAVAILABLE", "gemini model import service is not configured")
 	}
+	log := logger.FromContext(ctx)
 	result, err := s.geminiCompatService.ForwardAIStudioGET(ctx, account, "/v1beta/models")
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", "failed to request upstream model list").WithCause(err)
@@ -124,9 +145,27 @@ func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, acco
 		return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_EMPTY_RESPONSE", "upstream returned an empty response while listing models")
 	}
 	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {
-		return nil, newAccountModelImportUpstreamStatusError(result.StatusCode, result.Body)
+		if shouldFallbackGeminiCLIDefaultModels(account, result) {
+			log.Info("account model import: gemini AI Studio listing scope insufficient, falling back to Gemini CLI default models",
+				geminiImportProbeFields(account, result.StatusCode, accountModelProbeSourceGeminiCLIDefaultFallback)...,
+			)
+			return &accountModelProbeResult{
+				Models: geminiCLIDefaultModelIDs(),
+				Source: accountModelProbeSourceGeminiCLIDefaultFallback,
+				Notice: "AI Studio model listing lacks required scopes; imported Gemini CLI default models instead",
+			}, nil
+		}
+		statusErr := newAccountModelImportUpstreamStatusError(result.StatusCode, result.Body)
+		log.Warn("account model import: gemini upstream model listing failed",
+			append(geminiImportProbeFields(account, result.StatusCode, accountModelProbeSourceUpstream), zap.Error(statusErr))...,
+		)
+		return nil, statusErr
 	}
-	return parseGeminiModelList(result.Body)
+	models, err := parseGeminiModelList(result.Body)
+	if err != nil {
+		return nil, err
+	}
+	return newAccountModelProbeResult(models), nil
 }
 
 func (s *AccountModelImportService) detectSoraModels(ctx context.Context, account *Account) ([]string, error) {
@@ -296,6 +335,9 @@ func parseGeminiModelList(body []byte) ([]string, error) {
 
 func newAccountModelImportUpstreamStatusError(statusCode int, body []byte) error {
 	message := fmt.Sprintf("upstream model listing failed with status %d", statusCode)
+	if truncated := truncateImportBody(body); truncated != "" {
+		message = fmt.Sprintf("%s: %s", message, truncated)
+	}
 	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
 		return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_UNAUTHORIZED", message)
 	}
@@ -305,10 +347,64 @@ func newAccountModelImportUpstreamStatusError(statusCode int, body []byte) error
 	if statusCode == http.StatusTooManyRequests {
 		return infraerrors.TooManyRequests("MODEL_IMPORT_UPSTREAM_RATE_LIMITED", message)
 	}
-	if truncated := truncateImportBody(body); truncated != "" {
-		return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", fmt.Sprintf("%s: %s", message, truncated))
-	}
 	return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", message)
+}
+
+func shouldFallbackGeminiCLIDefaultModels(account *Account, result *UpstreamHTTPResult) bool {
+	if account == nil || result == nil {
+		return false
+	}
+	if result.StatusCode != http.StatusForbidden {
+		return false
+	}
+	if !account.IsGeminiCodeAssist() {
+		return false
+	}
+	return isGeminiInsufficientScope(result.Headers, result.Body)
+}
+
+func geminiCLIDefaultModelIDs() []string {
+	ids := make([]string, 0, len(geminicli.DefaultModels))
+	for _, model := range geminicli.DefaultModels {
+		if id := strings.TrimSpace(model.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	normalized, _ := normalizeImportedModelIDs(ids)
+	return normalized
+}
+
+func geminiImportProbeFields(account *Account, statusCode int, probeSource string) []zap.Field {
+	if account == nil {
+		return []zap.Field{
+			zap.Int("status", statusCode),
+			zap.String("probe_source", probeSource),
+		}
+	}
+	return []zap.Field{
+		zap.Int64("account_id", account.ID),
+		zap.String("platform", account.Platform),
+		zap.String("type", account.Type),
+		zap.String("oauth_type", account.GeminiOAuthType()),
+		zap.String("base_host", extractImportBaseHost(account.GetGeminiBaseURL(geminicli.AIStudioBaseURL))),
+		zap.Int("status", statusCode),
+		zap.String("probe_source", probeSource),
+	}
+}
+
+func extractImportBaseHost(rawURL string) string {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return ""
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	if host := strings.TrimSpace(parsed.Host); host != "" {
+		return host
+	}
+	return rawURL
 }
 
 func truncateImportBody(body []byte) string {

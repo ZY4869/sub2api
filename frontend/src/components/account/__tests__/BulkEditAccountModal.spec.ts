@@ -18,6 +18,10 @@ vi.mock('@/api/admin', () => ({
   }
 }))
 
+vi.mock('@/api/admin/accounts', () => ({
+  getAntigravityDefaultModelMapping: vi.fn()
+}))
+
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   return {
@@ -57,6 +61,7 @@ describe('BulkEditAccountModal', () => {
     expect(wrapper.text()).toContain('claude-opus-4.1')
     expect(wrapper.text()).toContain('claude-sonnet-4.5')
     expect(wrapper.text()).toContain('claude-haiku-4.5')
+    expect(wrapper.text()).toContain('gemini-2.5-flash-image')
     expect(wrapper.text()).toContain('gemini-3.1-flash-image')
     expect(wrapper.text()).not.toContain('claude-opus-4-6')
     expect(wrapper.text()).not.toContain('claude-sonnet-4-6')
@@ -69,6 +74,8 @@ describe('BulkEditAccountModal', () => {
     expect(mappingTab).toBeTruthy()
     await mappingTab!.trigger('click')
 
+    expect(wrapper.text()).toContain('2.5-Flash-Image')
+    expect(wrapper.text()).toContain('3.1-Flash-Image')
     expect(wrapper.text()).toContain('Gemini 3->Flash')
     expect(wrapper.text()).toContain('Sonnet 4.5')
     expect(wrapper.text()).toContain('Opus 4.1')

@@ -9,11 +9,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,6 +56,15 @@ func (s *accountModelImportSettingRepoStub) GetMultiple(ctx context.Context, key
 		}
 	}
 	return result, nil
+}
+
+func expectedNormalizedGeminiCLIDefaultModelIDs() []string {
+	ids := make([]string, 0, len(geminicli.DefaultModels))
+	for _, model := range geminicli.DefaultModels {
+		ids = append(ids, model.ID)
+	}
+	normalized, _ := normalizeImportedModelIDs(ids)
+	return normalized
 }
 
 func (s *accountModelImportSettingRepoStub) SetMultiple(ctx context.Context, settings map[string]string) error {
@@ -122,13 +133,45 @@ func (s *accountModelImportHTTPUpstreamStub) DoWithTLS(req *http.Request, proxyU
 	}, nil
 }
 
+type accountModelImportGeminiTokenCacheStub struct {
+	token string
+}
+
+func (s *accountModelImportGeminiTokenCacheStub) GetAccessToken(ctx context.Context, cacheKey string) (string, error) {
+	return s.token, nil
+}
+
+func (s *accountModelImportGeminiTokenCacheStub) SetAccessToken(ctx context.Context, cacheKey string, token string, ttl time.Duration) error {
+	return nil
+}
+
+func (s *accountModelImportGeminiTokenCacheStub) DeleteAccessToken(ctx context.Context, cacheKey string) error {
+	return nil
+}
+
+func (s *accountModelImportGeminiTokenCacheStub) AcquireRefreshLock(ctx context.Context, cacheKey string, ttl time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (s *accountModelImportGeminiTokenCacheStub) ReleaseRefreshLock(ctx context.Context, cacheKey string) error {
+	return nil
+}
+
 func newTestGeminiCompatService(upstream HTTPUpstream) *GeminiMessagesCompatService {
+	return newTestGeminiCompatServiceWithToken(upstream, "")
+}
+
+func newTestGeminiCompatServiceWithToken(upstream HTTPUpstream, accessToken string) *GeminiMessagesCompatService {
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
-	return &GeminiMessagesCompatService{
+	svc := &GeminiMessagesCompatService{
 		httpUpstream: upstream,
 		cfg:          cfg,
 	}
+	if strings.TrimSpace(accessToken) != "" {
+		svc.tokenProvider = &GeminiTokenProvider{tokenCache: &accountModelImportGeminiTokenCacheStub{token: accessToken}}
+	}
+	return svc
 }
 
 func TestImportAccountModels_ImportsAndDeduplicatesOpenAIModels(t *testing.T) {
@@ -340,6 +383,8 @@ func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, []string{"gemini-test-model-a", "gemini-test-model-b"}, result.DetectedModels)
 	require.Equal(t, 2, result.ImportedCount)
+	require.Equal(t, accountModelProbeSourceUpstream, result.ProbeSource)
+	require.Empty(t, result.ProbeNotice)
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "http://gemini.local.test/v1beta/models", upstream.lastReq.URL.String())
 	require.Equal(t, "gemini-key", upstream.lastReq.Header.Get("x-goog-api-key"))
@@ -348,6 +393,149 @@ func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T
 	stored := repo.values[SettingKeyModelCatalogEntries]
 	require.Contains(t, stored, "gemini-test-model-a")
 	require.Contains(t, stored, "gemini-test-model-b")
+}
+
+func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficientScope(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":{"status":"PERMISSION_DENIED","message":"Request had insufficient authentication scopes.","details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}`,
+		headers: http.Header{
+			"Www-Authenticate": []string{`Bearer error="insufficient_scope"`},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "oauth-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       110,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type": "code_assist",
+			"project_id": "project-123",
+			"base_url":   "http://gemini.local.test",
+		},
+	}
+
+	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.NoError(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "http://gemini.local.test/v1beta/models", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, accountModelProbeSourceGeminiCLIDefaultFallback, result.ProbeSource)
+	require.NotEmpty(t, result.ProbeNotice)
+
+	expected := expectedNormalizedGeminiCLIDefaultModelIDs()
+	require.Equal(t, expected, result.DetectedModels)
+	require.Equal(t, len(expected), result.ImportedCount)
+
+	stored := repo.values[SettingKeyModelCatalogEntries]
+	for _, model := range expected {
+		require.Contains(t, stored, model)
+	}
+}
+
+func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficientScope(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":{"status":"PERMISSION_DENIED","message":"Request had insufficient authentication scopes.","details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}`,
+		headers: http.Header{
+			"Www-Authenticate": []string{`Bearer error="insufficient_scope"`},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "oauth-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       113,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"project_id": "project-legacy-cli",
+			"base_url":   "http://gemini.local.test",
+		},
+	}
+
+	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.NoError(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, accountModelProbeSourceGeminiCLIDefaultFallback, result.ProbeSource)
+	require.Equal(t, expectedNormalizedGeminiCLIDefaultModelIDs(), result.DetectedModels)
+	require.NotEmpty(t, result.ProbeNotice)
+
+	stored := repo.values[SettingKeyModelCatalogEntries]
+	for _, model := range result.DetectedModels {
+		require.Contains(t, stored, model)
+	}
+}
+
+func TestImportAccountModels_GeminiAPIKey403DoesNotFallbackToDefaultModels(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":{"message":"Request had insufficient authentication scopes."}}`,
+		headers: http.Header{
+			"Www-Authenticate": []string{`Bearer error="insufficient_scope"`},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatService(upstream)
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       111,
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":  "gemini-key",
+			"base_url": "http://gemini.local.test",
+		},
+	}
+
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "gemini-key", upstream.lastReq.Header.Get("x-goog-api-key"))
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Contains(t, appErr.Message, "status 403")
+	require.Empty(t, repo.values[SettingKeyModelCatalogEntries])
+}
+
+func TestImportAccountModels_GeminiCodeAssistNonScope403StillFails(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":{"message":"access denied by upstream policy"}}`,
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "oauth-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       112,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type": "code_assist",
+			"project_id": "project-123",
+			"base_url":   "http://gemini.local.test",
+		},
+	}
+
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Contains(t, appErr.Message, "status 403")
+	require.Contains(t, appErr.Message, "access denied by upstream policy")
+	require.Empty(t, repo.values[SettingKeyModelCatalogEntries])
 }
 
 func TestImportAccountModels_ImportsAntigravityOAuthModels(t *testing.T) {

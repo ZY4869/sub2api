@@ -434,6 +434,8 @@ export interface AccountModelImportResult {
   imported_count: number
   skipped_count: number
   failed_models?: AccountModelImportFailure[]
+  probe_source?: 'upstream' | 'gemini_cli_default_fallback'
+  probe_notice?: string
   trigger: string
 }
 

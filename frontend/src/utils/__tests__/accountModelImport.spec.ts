@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAccountModelImportErrorMessage } from '@/utils/accountModelImport'
+import {
+  resolveAccountModelImportErrorMessage,
+  resolveAccountModelImportProbeNoticeMessage
+} from '@/utils/accountModelImport'
 
-const t = (key: string) => key
+const t = (key: string, named?: Record<string, unknown>) => (
+  named ? `${key}:${JSON.stringify(named)}` : key
+)
 
 describe('resolveAccountModelImportErrorMessage', () => {
   it('prefers response detail over generic error message', () => {
@@ -32,5 +37,29 @@ describe('resolveAccountModelImportErrorMessage', () => {
 
   it('falls back to generic failure copy when no message exists', () => {
     expect(resolveAccountModelImportErrorMessage(t, {})).toBe('admin.accounts.modelImportFailed')
+  })
+})
+
+describe('resolveAccountModelImportProbeNoticeMessage', () => {
+  it('prefers explicit probe notice from backend', () => {
+    expect(resolveAccountModelImportProbeNoticeMessage(t, {
+      imported_count: 6,
+      probe_source: 'gemini_cli_default_fallback',
+      probe_notice: 'AI Studio model listing lacks required scopes; imported Gemini CLI default models instead'
+    })).toBe('AI Studio model listing lacks required scopes; imported Gemini CLI default models instead')
+  })
+
+  it('maps Gemini CLI fallback source to localized copy', () => {
+    expect(resolveAccountModelImportProbeNoticeMessage(t, {
+      imported_count: 3,
+      probe_source: 'gemini_cli_default_fallback'
+    })).toBe('admin.accounts.modelImportGeminiFallback:{"count":3}')
+  })
+
+  it('returns empty string for upstream probe results', () => {
+    expect(resolveAccountModelImportProbeNoticeMessage(t, {
+      imported_count: 2,
+      probe_source: 'upstream'
+    })).toBe('')
   })
 })
