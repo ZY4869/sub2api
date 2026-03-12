@@ -1013,12 +1013,83 @@ export default {
           title: 'Sale Pricing',
           description: 'Manage the pricing exposed to customers. Missing sale values fall back to official pricing.'
         },
+        registry: {
+          nav: 'Registry',
+          title: 'Model Registry',
+          description: 'Manage runtime canonical model entries, visibility, and tombstones without redeploying.'
+        },
         relay: {
           nav: 'Relay Pricing',
           title: 'Relay Pricing',
           description: 'Reserved for future relay pricing linkage. No write operations are enabled yet.',
           badge: 'Reserved',
           placeholder: 'This page is ready for later linkage logic. Fields and persistence stay disabled in this round.'
+        }
+      },
+      registry: {
+        addModel: 'Add Model',
+        editModel: 'Edit Model',
+        source: 'Source',
+        status: 'Status',
+        searchPlaceholder: 'Search model ID or display name',
+        providerPlaceholder: 'Filter provider',
+        platformPlaceholder: 'Filter platform',
+        includeHidden: 'Include hidden',
+        includeTombstoned: 'Include tombstoned',
+        lastSynced: 'Last synced: {time}',
+        commaSeparatedHint: 'Use commas or new lines to separate multiple values.',
+        idLockedHint: 'Model ID stays locked in edit mode to avoid accidental renames.',
+        saveSuccess: 'Model registry entry saved',
+        saveFailed: 'Failed to save model registry entry',
+        deleteSuccess: 'Model registry entry hard deleted',
+        deleteFailed: 'Failed to hard delete model registry entry',
+        hideSuccess: 'Model hidden',
+        showSuccess: 'Model restored',
+        visibilityFailed: 'Failed to update model visibility',
+        loadFailed: 'Failed to load model registry',
+        emptyTitle: 'No registry entries found',
+        emptyDescription: 'Try adjusting filters or add a manual model entry.',
+        columns: {
+          model: 'Model',
+          provider: 'Provider',
+          platforms: 'Platforms',
+          source: 'Source',
+          status: 'Status'
+        },
+        fields: {
+          id: 'Model ID',
+          displayName: 'Display Name',
+          provider: 'Provider',
+          uiPriority: 'UI Priority',
+          platforms: 'Platforms',
+          protocolIds: 'Protocol IDs',
+          aliases: 'Aliases',
+          pricingLookupIds: 'Pricing Lookup IDs',
+          modalities: 'Modalities',
+          capabilities: 'Capabilities',
+          exposedIn: 'Exposed In'
+        },
+        actions: {
+          hide: 'Hide',
+          show: 'Show',
+          hardDelete: 'Hard Delete'
+        },
+        dialogs: {
+          manageVisibility: 'Visibility & Delete',
+          hideDescription: 'Hide removes the model from selectors and visible lists, but keeps history and ID compatibility.',
+          restoreDescription: 'Restore makes the model visible again without changing its canonical entry.',
+          hardDeleteDescription: 'Hard delete removes manual runtime overrides and writes a tombstone so shipped seed or legacy fallback cannot auto-expose the model again.'
+        },
+        statusLabels: {
+          active: 'Active',
+          hidden: 'Hidden',
+          tombstoned: 'Tombstoned'
+        },
+        sourceLabels: {
+          seed: 'Shipped Seed',
+          manual: 'Manual Override',
+          legacy: 'Legacy Catalog',
+          tombstone: 'Tombstone'
         }
       },
       catalog: {

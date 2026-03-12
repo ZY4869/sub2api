@@ -1035,12 +1035,83 @@ export default {
           title: '出售价格',
           description: '管理对外出售价格；未设置时会回退到真实价格。'
         },
+        registry: {
+          nav: 'æ³¨åè¡¨',
+          title: 'æ¨¡åæ³¨åè¡¨',
+          description: 'ç®¡çè¿è¡æ¶ canonical æ¨¡åãæ¾ç¤ºç¶æä¸ tombstoneï¼æ ééæ°åå¸ã'
+        },
         relay: {
           nav: '中转价格',
           title: '中转价格',
           description: '预留给后续中转价格联动使用，本轮暂不开放写入。',
           badge: '预留页面',
           placeholder: '这里会承接你后续的联动改造。本轮仅保留路由、标题和占位容器。'
+        }
+      },
+      registry: {
+        addModel: 'æ°å¢æ¨¡å',
+        editModel: 'ç¼è¾æ¨¡å',
+        source: 'æ¥æº',
+        status: 'ç¶æ',
+        searchPlaceholder: 'æç´¢æ¨¡å ID ææ¾ç¤ºå',
+        providerPlaceholder: 'ææä¾åè¿æ»¤',
+        platformPlaceholder: 'æå¹³å°è¿æ»¤',
+        includeHidden: 'åå«éèé¡¹',
+        includeTombstoned: 'åå« tombstone',
+        lastSynced: 'æè¿åæ­¥ï¼{time}',
+        commaSeparatedHint: 'å¤ä¸ªå¼å¯ç¨éå·ææ¢è¡åéã',
+        idLockedHint: 'ç¼è¾æ¨¡å¼ä¸éå®æ¨¡å IDï¼é¿åè¯¯æ¹ canonical idã',
+        saveSuccess: 'æ¨¡åæ³¨åè¡¨å·²ä¿å­',
+        saveFailed: 'ä¿å­æ¨¡åæ³¨åè¡¨å¤±è´¥',
+        deleteSuccess: 'æ¨¡åå·²å½»åºå é¤',
+        deleteFailed: 'å½»åºå é¤æ¨¡åå¤±è´¥',
+        hideSuccess: 'æ¨¡åå·²éè',
+        showSuccess: 'æ¨¡åå·²æ¢å¤æ¾ç¤º',
+        visibilityFailed: 'æ´æ°æ¨¡åå¯è§æ§å¤±è´¥',
+        loadFailed: 'å è½½æ¨¡åæ³¨åè¡¨å¤±è´¥',
+        emptyTitle: 'ææ æ³¨åè¡¨æ¨¡å',
+        emptyDescription: 'è¯·è°æ´ç­éæ¡ä»¶ï¼æåæ°å¢ä¸ä¸ªæå¨æ¨¡åã',
+        columns: {
+          model: 'æ¨¡å',
+          provider: 'æä¾å',
+          platforms: 'å¹³å°',
+          source: 'æ¥æº',
+          status: 'ç¶æ'
+        },
+        fields: {
+          id: 'æ¨¡å ID',
+          displayName: 'æ¾ç¤ºåç§°',
+          provider: 'æä¾å',
+          uiPriority: 'UI ä¼åçº§',
+          platforms: 'å¹³å°',
+          protocolIds: 'åè®® ID',
+          aliases: 'å«å',
+          pricingLookupIds: 'å®ä»·æ¥æ¾ ID',
+          modalities: 'æ¨¡æ',
+          capabilities: 'è½å',
+          exposedIn: 'æ´é²å¥å£'
+        },
+        actions: {
+          hide: 'éè',
+          show: 'æ¢å¤æ¾ç¤º',
+          hardDelete: 'å½»åºå é¤'
+        },
+        dialogs: {
+          manageVisibility: 'å¯è§æ§ä¸å é¤',
+          hideDescription: 'éèåªä¼è®©æ¨¡åä»éæ©å¨åå¯è§åè¡¨ä¸­æ¶å¤±ï¼ä¸å½±ååå²è®°å½ä¸æ§ ID å¼å®¹ã',
+          restoreDescription: 'æ¢å¤æ¾ç¤ºåªä¼éæ°æ´é²è¯¥æ¨¡åï¼ä¸ä¼æ¹å¨ canonical å®ä¹ã',
+          hardDeleteDescription: 'å½»åºå é¤ä¼ç§»é¤æå¨è¿è¡æ¶è¦çå¹¶åå¥ tombstoneï¼ä¹å shipped seed æ legacy fallback é½ä¸ä¼èªå¨éæ°æ´é²è¯¥æ¨¡åã'
+        },
+        statusLabels: {
+          active: 'æ­£å¸¸',
+          hidden: 'å·²éè',
+          tombstoned: 'å·²å¢ç¢å é¤'
+        },
+        sourceLabels: {
+          seed: 'åå¸åºçº¿',
+          manual: 'æå¨è¦ç',
+          legacy: 'æ§ç®å½åé',
+          tombstone: 'å¢ç¢'
         }
       },
       catalog: {

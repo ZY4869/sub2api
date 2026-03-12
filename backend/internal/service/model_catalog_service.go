@@ -11,12 +11,13 @@ import (
 )
 
 type ModelCatalogService struct {
-	settingRepo         SettingRepository
-	adminService        AdminService
-	billingService      *BillingService
-	pricingService      *PricingService
-	exchangeRateService *ModelCatalogExchangeRateService
-	cfg                 *config.Config
+	settingRepo          SettingRepository
+	adminService         AdminService
+	billingService       *BillingService
+	pricingService       *PricingService
+	exchangeRateService  *ModelCatalogExchangeRateService
+	modelRegistryService *ModelRegistryService
+	cfg                  *config.Config
 }
 
 func NewModelCatalogService(
@@ -39,6 +40,10 @@ func NewModelCatalogService(
 		billingService.ReplaceModelPriceOverrides(service.loadSalePriceOverrides(context.Background()))
 	}
 	return service
+}
+
+func (s *ModelCatalogService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
+	s.modelRegistryService = modelRegistryService
 }
 
 func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalogListFilter) ([]ModelCatalogItem, int64, error) {

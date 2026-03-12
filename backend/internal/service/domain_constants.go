@@ -130,14 +130,17 @@ const (
 	SettingKeyGeminiQuotaPolicy = "gemini_quota_policy"
 
 	// Model fallback settings
-	SettingKeyEnableModelFallback      = "enable_model_fallback"
-	SettingKeyFallbackModelAnthropic   = "fallback_model_anthropic"
-	SettingKeyFallbackModelOpenAI      = "fallback_model_openai"
-	SettingKeyFallbackModelGemini      = "fallback_model_gemini"
-	SettingKeyFallbackModelAntigravity = "fallback_model_antigravity"
-	SettingKeyModelCatalogEntries      = "model_catalog_entries"
-	SettingKeyModelPriceOverrides      = "model_price_overrides"
+	SettingKeyEnableModelFallback         = "enable_model_fallback"
+	SettingKeyFallbackModelAnthropic      = "fallback_model_anthropic"
+	SettingKeyFallbackModelOpenAI         = "fallback_model_openai"
+	SettingKeyFallbackModelGemini         = "fallback_model_gemini"
+	SettingKeyFallbackModelAntigravity    = "fallback_model_antigravity"
+	SettingKeyModelCatalogEntries         = "model_catalog_entries"
+	SettingKeyModelPriceOverrides         = "model_price_overrides"
 	SettingKeyModelOfficialPriceOverrides = "model_official_price_overrides"
+	SettingKeyModelRegistryEntries        = "model_registry_entries"
+	SettingKeyModelRegistryHiddenModels   = "model_registry_hidden_models"
+	SettingKeyModelRegistryTombstones     = "model_registry_tombstones"
 
 	// Request identity patch (Claude -> Gemini systemInstruction injection)
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"

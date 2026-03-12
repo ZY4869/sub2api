@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -9,11 +10,16 @@ import (
 )
 
 type MetaHandler struct {
-	modelCatalogService *service.ModelCatalogService
+	modelCatalogService  *service.ModelCatalogService
+	modelRegistryService *service.ModelRegistryService
 }
 
 func NewMetaHandler(modelCatalogService *service.ModelCatalogService) *MetaHandler {
 	return &MetaHandler{modelCatalogService: modelCatalogService}
+}
+
+func (h *MetaHandler) SetModelRegistryService(modelRegistryService *service.ModelRegistryService) {
+	h.modelRegistryService = modelRegistryService
 }
 
 func (h *MetaHandler) USDCNYExchangeRate(c *gin.Context) {
@@ -27,4 +33,25 @@ func (h *MetaHandler) USDCNYExchangeRate(c *gin.Context) {
 		return
 	}
 	response.Success(c, rate)
+}
+
+func (h *MetaHandler) ModelRegistry(c *gin.Context) {
+	if h.modelRegistryService == nil {
+		response.InternalError(c, "model registry service unavailable")
+		return
+	}
+	snapshot, err := h.modelRegistryService.PublicSnapshot(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if snapshot.ETag != "" {
+		c.Header("ETag", snapshot.ETag)
+		c.Header("Vary", "If-None-Match")
+		if strings.TrimSpace(c.GetHeader("If-None-Match")) == snapshot.ETag {
+			c.Status(http.StatusNotModified)
+			return
+		}
+	}
+	response.Success(c, snapshot)
 }

@@ -23,6 +23,7 @@ const { t } = useI18n()
 const items = computed(() => [
   { to: '/admin/models/official', label: t('admin.models.pages.official.nav') },
   { to: '/admin/models/sale', label: t('admin.models.pages.sale.nav') },
+  { to: '/admin/models/registry', label: t('admin.models.pages.registry.nav') },
   { to: '/admin/models/relay', label: t('admin.models.pages.relay.nav') }
 ])
 </script>

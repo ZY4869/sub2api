@@ -1,0 +1,410 @@
+[
+  {
+    "platform": "anthropic",
+    "label": "Opus 4.1",
+    "from": "claude-opus-4.1",
+    "to": "claude-opus-4.1",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 1
+  },
+  {
+    "platform": "anthropic",
+    "label": "Sonnet 4.5",
+    "from": "claude-sonnet-4.5",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+    "order": 2
+  },
+  {
+    "platform": "anthropic",
+    "label": "Haiku 4.5",
+    "from": "claude-haiku-4.5",
+    "to": "claude-haiku-4.5",
+    "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "order": 3
+  },
+  {
+    "platform": "anthropic",
+    "label": "Opus->Sonnet",
+    "from": "claude-opus-4.1",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+    "order": 4
+  },
+  {
+    "platform": "anthropic",
+    "label": "Haiku->Sonnet",
+    "from": "claude-haiku-4.5",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    "order": 5
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-4o",
+    "from": "gpt-4o",
+    "to": "gpt-4o",
+    "color": "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400",
+    "order": 6
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-4o Mini",
+    "from": "gpt-4o-mini",
+    "to": "gpt-4o-mini",
+    "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    "order": 7
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-4.1",
+    "from": "gpt-4.1",
+    "to": "gpt-4.1",
+    "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+    "order": 8
+  },
+  {
+    "platform": "openai",
+    "label": "o1",
+    "from": "o1",
+    "to": "o1",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 9
+  },
+  {
+    "platform": "openai",
+    "label": "o3",
+    "from": "o3",
+    "to": "o3",
+    "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "order": 10
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-5",
+    "from": "gpt-5",
+    "to": "gpt-5",
+    "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+    "order": 11
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-5.3 Codex Spark",
+    "from": "gpt-5.3-codex-spark",
+    "to": "gpt-5.3-codex-spark",
+    "color": "bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-400",
+    "order": 12
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-5.1",
+    "from": "gpt-5.1",
+    "to": "gpt-5.1",
+    "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
+    "order": 13
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-5.2",
+    "from": "gpt-5.2",
+    "to": "gpt-5.2",
+    "color": "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400",
+    "order": 14
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-5.4",
+    "from": "gpt-5.4",
+    "to": "gpt-5.4",
+    "color": "bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400",
+    "order": 15
+  },
+  {
+    "platform": "openai",
+    "label": "GPT-5.1 Codex",
+    "from": "gpt-5.1-codex",
+    "to": "gpt-5.1-codex",
+    "color": "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400",
+    "order": 16
+  },
+  {
+    "platform": "openai",
+    "label": "Haiku->5.4",
+    "from": "claude-haiku-4.5",
+    "to": "gpt-5.4",
+    "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "order": 17
+  },
+  {
+    "platform": "openai",
+    "label": "Opus->5.4",
+    "from": "claude-opus-4.1",
+    "to": "gpt-5.4",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 18
+  },
+  {
+    "platform": "openai",
+    "label": "Sonnet->5.4",
+    "from": "claude-sonnet-4.5",
+    "to": "gpt-5.4",
+    "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    "order": 19
+  },
+  {
+    "platform": "gemini",
+    "label": "Flash 2.0",
+    "from": "gemini-2.0-flash",
+    "to": "gemini-2.0-flash",
+    "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    "order": 20
+  },
+  {
+    "platform": "gemini",
+    "label": "2.5 Flash",
+    "from": "gemini-2.5-flash",
+    "to": "gemini-2.5-flash",
+    "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+    "order": 21
+  },
+  {
+    "platform": "gemini",
+    "label": "2.5 Image",
+    "from": "gemini-2.5-flash-image",
+    "to": "gemini-2.5-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 22
+  },
+  {
+    "platform": "gemini",
+    "label": "2.5 Pro",
+    "from": "gemini-2.5-pro",
+    "to": "gemini-2.5-pro",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 23
+  },
+  {
+    "platform": "gemini",
+    "label": "3.1 Image",
+    "from": "gemini-3.1-flash-image",
+    "to": "gemini-3.1-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 24
+  },
+  {
+    "platform": "sora",
+    "label": "Flash 2.0",
+    "from": "gemini-2.0-flash",
+    "to": "gemini-2.0-flash",
+    "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    "order": 25
+  },
+  {
+    "platform": "sora",
+    "label": "2.5 Flash",
+    "from": "gemini-2.5-flash",
+    "to": "gemini-2.5-flash",
+    "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+    "order": 26
+  },
+  {
+    "platform": "sora",
+    "label": "2.5 Image",
+    "from": "gemini-2.5-flash-image",
+    "to": "gemini-2.5-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 27
+  },
+  {
+    "platform": "sora",
+    "label": "2.5 Pro",
+    "from": "gemini-2.5-pro",
+    "to": "gemini-2.5-pro",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 28
+  },
+  {
+    "platform": "sora",
+    "label": "3.1 Image",
+    "from": "gemini-3.1-flash-image",
+    "to": "gemini-3.1-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 29
+  },
+  {
+    "platform": "antigravity",
+    "label": "Claude->Sonnet",
+    "from": "claude-*",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
+    "order": 30
+  },
+  {
+    "platform": "antigravity",
+    "label": "Sonnet->Sonnet",
+    "from": "claude-sonnet-*",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
+    "order": 31
+  },
+  {
+    "platform": "antigravity",
+    "label": "Opus->Opus",
+    "from": "claude-opus-*",
+    "to": "claude-opus-4.1",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 32
+  },
+  {
+    "platform": "antigravity",
+    "label": "Haiku->Sonnet",
+    "from": "claude-haiku-*",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
+    "order": 33
+  },
+  {
+    "platform": "antigravity",
+    "label": "Sonnet4->4.5",
+    "from": "claude-sonnet-4-20250514",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 34
+  },
+  {
+    "platform": "antigravity",
+    "label": "Sonnet3.5->4.5",
+    "from": "claude-3-5-sonnet-20241022",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-400",
+    "order": 35
+  },
+  {
+    "platform": "antigravity",
+    "label": "Opus4.5->4.1",
+    "from": "claude-opus-4-5-20251101",
+    "to": "claude-opus-4.1",
+    "color": "bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-400",
+    "order": 36
+  },
+  {
+    "platform": "antigravity",
+    "label": "3-Pro-Preview->3.1-Pro-High",
+    "from": "gemini-3-pro-preview",
+    "to": "gemini-3.1-pro-high",
+    "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
+    "order": 37
+  },
+  {
+    "platform": "antigravity",
+    "label": "3-Pro-High->3.1-Pro-High",
+    "from": "gemini-3-pro-high",
+    "to": "gemini-3.1-pro-high",
+    "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
+    "order": 38
+  },
+  {
+    "platform": "antigravity",
+    "label": "3-Pro-Low->3.1-Pro-Low",
+    "from": "gemini-3-pro-low",
+    "to": "gemini-3.1-pro-low",
+    "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "order": 39
+  },
+  {
+    "platform": "antigravity",
+    "label": "3.1-Pro-High passthrough",
+    "from": "gemini-3.1-pro-high",
+    "to": "gemini-3.1-pro-high",
+    "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
+    "order": 40
+  },
+  {
+    "platform": "antigravity",
+    "label": "3.1-Pro-Low passthrough",
+    "from": "gemini-3.1-pro-low",
+    "to": "gemini-3.1-pro-low",
+    "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "order": 41
+  },
+  {
+    "platform": "antigravity",
+    "label": "2.5-Flash-Image passthrough",
+    "from": "gemini-2.5-flash-image",
+    "to": "gemini-2.5-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 42
+  },
+  {
+    "platform": "antigravity",
+    "label": "3.1-Flash-Image passthrough",
+    "from": "gemini-3.1-flash-image",
+    "to": "gemini-3.1-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 43
+  },
+  {
+    "platform": "antigravity",
+    "label": "3-Pro-Image->3.1",
+    "from": "gemini-3-pro-image",
+    "to": "gemini-3.1-flash-image",
+    "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
+    "order": 44
+  },
+  {
+    "platform": "antigravity",
+    "label": "Gemini 3->Flash",
+    "from": "gemini-3*",
+    "to": "gemini-3-flash",
+    "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
+    "order": 45
+  },
+  {
+    "platform": "antigravity",
+    "label": "Gemini 2.5->Flash",
+    "from": "gemini-2.5*",
+    "to": "gemini-2.5-flash",
+    "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
+    "order": 46
+  },
+  {
+    "platform": "antigravity",
+    "label": "3-Flash passthrough",
+    "from": "gemini-3-flash",
+    "to": "gemini-3-flash",
+    "color": "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/30 dark:text-lime-400",
+    "order": 47
+  },
+  {
+    "platform": "antigravity",
+    "label": "2.5-Flash-Lite passthrough",
+    "from": "gemini-2.5-flash-lite",
+    "to": "gemini-2.5-flash-lite",
+    "color": "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400",
+    "order": 48
+  },
+  {
+    "platform": "antigravity",
+    "label": "Sonnet 4.5",
+    "from": "claude-sonnet-4.5",
+    "to": "claude-sonnet-4.5",
+    "color": "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400",
+    "order": 49
+  },
+  {
+    "platform": "antigravity",
+    "label": "Haiku 4.5",
+    "from": "claude-haiku-4.5",
+    "to": "claude-haiku-4.5",
+    "color": "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400",
+    "order": 50
+  },
+  {
+    "platform": "antigravity",
+    "label": "Opus 4.1",
+    "from": "claude-opus-4.1",
+    "to": "claude-opus-4.1",
+    "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+    "order": 51
+  }
+]

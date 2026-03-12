@@ -2,6 +2,8 @@
 // It is used when upstream model listing is unavailable (e.g. OAuth token missing AI Studio scopes).
 package gemini
 
+import "github.com/Wei-Shaw/sub2api/internal/modelregistry"
+
 type Model struct {
 	Name                       string   `json:"name"`
 	DisplayName                string   `json:"displayName,omitempty"`
@@ -15,16 +17,19 @@ type ModelsListResponse struct {
 
 func DefaultModels() []Model {
 	methods := []string{"generateContent", "streamGenerateContent"}
-	return []Model{
-		{Name: "models/gemini-2.0-flash", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-2.5-flash", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-2.5-flash-image", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-2.5-pro", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3-flash-preview", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3-pro-preview", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3.1-pro-preview", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3.1-flash-image", SupportedGenerationMethods: methods},
+	entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), "gemini", "runtime", "whitelist", "use_key")
+	models := make([]Model, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.ID
+		if name == "" {
+			continue
+		}
+		if len(name) < 7 || name[:7] != "models/" {
+			name = "models/" + name
+		}
+		models = append(models, Model{Name: name, DisplayName: entry.DisplayName, SupportedGenerationMethods: methods})
 	}
+	return models
 }
 
 func FallbackModelsList() ModelsListResponse {

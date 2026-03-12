@@ -18,11 +18,8 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -59,6 +56,7 @@ type AccountHandler struct {
 	rpmCache                  service.RPMCache
 	tokenCacheInvalidator     service.TokenCacheInvalidator
 	accountModelImportService *service.AccountModelImportService
+	modelRegistryService      *service.ModelRegistryService
 }
 
 // NewAccountHandler creates a new admin account handler
@@ -96,6 +94,10 @@ func NewAccountHandler(
 
 func (h *AccountHandler) SetAccountModelImportService(svc *service.AccountModelImportService) {
 	h.accountModelImportService = svc
+}
+
+func (h *AccountHandler) SetModelRegistryService(modelRegistryService *service.ModelRegistryService) {
+	h.modelRegistryService = modelRegistryService
 }
 
 // CreateAccountRequest represents create account request
@@ -1753,135 +1755,78 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		return
 	}
 
-	// Handle OpenAI accounts
-	if account.IsOpenAI() {
-		// For OAuth accounts: return default OpenAI models
-		if account.IsOAuth() {
-			response.Success(c, openai.DefaultModels)
-			return
-		}
-
-		// For API Key accounts: check model_mapping
-		mapping := account.GetModelMapping()
-		if len(mapping) == 0 {
-			response.Success(c, openai.DefaultModels)
-			return
-		}
-
-		// Return mapped models
-		var models []openai.Model
-		for requestedModel := range mapping {
-			var found bool
-			for _, dm := range openai.DefaultModels {
-				if dm.ID == requestedModel {
-					models = append(models, dm)
-					found = true
-					break
-				}
-			}
-			if !found {
-				models = append(models, openai.Model{
-					ID:          requestedModel,
-					Object:      "model",
-					Type:        "model",
-					DisplayName: requestedModel,
-				})
-			}
-		}
+	models := h.defaultAvailableModels(c.Request.Context(), account)
+	if account.Platform == service.PlatformAntigravity || account.Platform == service.PlatformSora || account.IsOAuth() {
 		response.Success(c, models)
 		return
 	}
 
-	// Handle Gemini accounts
-	if account.IsGemini() {
-		// For OAuth accounts: return default Gemini models
-		if account.IsOAuth() {
-			response.Success(c, geminicli.DefaultModels)
-			return
-		}
-
-		// For API Key accounts: return models based on model_mapping
-		mapping := account.GetModelMapping()
-		if len(mapping) == 0 {
-			response.Success(c, geminicli.DefaultModels)
-			return
-		}
-
-		var models []geminicli.Model
-		for requestedModel := range mapping {
-			var found bool
-			for _, dm := range geminicli.DefaultModels {
-				if dm.ID == requestedModel {
-					models = append(models, dm)
-					found = true
-					break
-				}
-			}
-			if !found {
-				models = append(models, geminicli.Model{
-					ID:          requestedModel,
-					Type:        "model",
-					DisplayName: requestedModel,
-					CreatedAt:   "",
-				})
-			}
-		}
-		response.Success(c, models)
-		return
-	}
-
-	// Handle Antigravity accounts: return Claude + Gemini models
-	if account.Platform == service.PlatformAntigravity {
-		// 直接复用 antigravity.DefaultModels()，与 /v1/models 端点保持同步
-		response.Success(c, antigravity.DefaultModels())
-		return
-	}
-
-	// Handle Sora accounts
-	if account.Platform == service.PlatformSora {
-		response.Success(c, service.DefaultSoraModels(nil))
-		return
-	}
-
-	// Handle Claude/Anthropic accounts
-	// For OAuth and Setup-Token accounts: return default models
-	if account.IsOAuth() {
-		response.Success(c, claude.DefaultModels)
-		return
-	}
-
-	// For API Key accounts: return models based on model_mapping
 	mapping := account.GetModelMapping()
 	if len(mapping) == 0 {
-		// No mapping configured, return default models
-		response.Success(c, claude.DefaultModels)
+		response.Success(c, models)
 		return
 	}
 
-	// Return mapped models (keys of the mapping are the available model IDs)
-	var models []claude.Model
-	for requestedModel := range mapping {
-		// Try to find display info from default models
-		var found bool
-		for _, dm := range claude.DefaultModels {
-			if dm.ID == requestedModel {
-				models = append(models, dm)
-				found = true
-				break
-			}
+	response.Success(c, filterAvailableModelsByMapping(models, mapping))
+}
+
+type availableModelItem struct {
+	ID          string `json:"id"`
+	Type        string `json:"type"`
+	DisplayName string `json:"display_name"`
+	CreatedAt   string `json:"created_at"`
+}
+
+func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *service.Account) []availableModelItem {
+	if account == nil {
+		return []availableModelItem{}
+	}
+	if account.Platform == service.PlatformSora {
+		defaults := service.DefaultSoraModels(nil)
+		items := make([]availableModelItem, 0, len(defaults))
+		for _, model := range defaults {
+			items = append(items, availableModelItem{ID: model.ID, Type: model.Type, DisplayName: model.DisplayName, CreatedAt: ""})
 		}
-		// If not found in defaults, create a basic entry
-		if !found {
-			models = append(models, claude.Model{
-				ID:          requestedModel,
-				Type:        "model",
-				DisplayName: requestedModel,
-				CreatedAt:   "",
-			})
+		return items
+	}
+	if h.modelRegistryService != nil {
+		entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, "runtime", "whitelist")
+		if err == nil && len(entries) > 0 {
+			items := make([]availableModelItem, 0, len(entries))
+			for _, entry := range entries {
+				displayName := entry.DisplayName
+				if displayName == "" {
+					displayName = entry.ID
+				}
+				items = append(items, availableModelItem{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
+			}
+			return items
 		}
 	}
+	items := make([]availableModelItem, 0, len(claude.DefaultModels))
+	for _, model := range claude.DefaultModels {
+		items = append(items, availableModelItem{ID: model.ID, Type: model.Type, DisplayName: model.DisplayName, CreatedAt: model.CreatedAt})
+	}
+	return items
+}
 
-	response.Success(c, models)
+func filterAvailableModelsByMapping(defaults []availableModelItem, mapping map[string]string) []availableModelItem {
+	if len(mapping) == 0 {
+		return defaults
+	}
+	index := make(map[string]availableModelItem, len(defaults))
+	for _, model := range defaults {
+		index[model.ID] = model
+	}
+	items := make([]availableModelItem, 0, len(mapping))
+	for requestedModel := range mapping {
+		if model, ok := index[requestedModel]; ok {
+			items = append(items, model)
+			continue
+		}
+		items = append(items, availableModelItem{ID: requestedModel, Type: "model", DisplayName: requestedModel, CreatedAt: ""})
+	}
+	return items
 }
 
 // RefreshTier handles refreshing Google One tier for a single account

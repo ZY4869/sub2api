@@ -46,10 +46,11 @@ func newAccountModelProbeResult(models []string) *accountModelProbeResult {
 }
 
 type AccountModelImportService struct {
-	modelCatalogService *ModelCatalogService
-	geminiCompatService *GeminiMessagesCompatService
-	httpUpstream        HTTPUpstream
-	proxyRepo           ProxyRepository
+	modelCatalogService  *ModelCatalogService
+	modelRegistryService *ModelRegistryService
+	geminiCompatService  *GeminiMessagesCompatService
+	httpUpstream         HTTPUpstream
+	proxyRepo            ProxyRepository
 }
 
 func NewAccountModelImportService(
@@ -64,6 +65,10 @@ func NewAccountModelImportService(
 		httpUpstream:        httpUpstream,
 		proxyRepo:           proxyRepo,
 	}
+}
+
+func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
+	s.modelRegistryService = modelRegistryService
 }
 
 func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, account *Account, trigger string) (*AccountModelImportResult, error) {
@@ -115,6 +120,18 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 	}
 
 	for _, model := range uniqueDetected {
+		if s.modelRegistryService != nil {
+			_, blocked, registryErr := s.modelRegistryService.UpsertDiscoveredEntry(ctx, model)
+			if registryErr != nil {
+				result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: model, Error: summarizeAccountModelImportError(registryErr)})
+				log.Warn("account model import: upsert registry entry failed", zap.Int64("account_id", account.ID), zap.String("platform", account.Platform), zap.String("model", model), zap.Error(registryErr))
+				continue
+			}
+			if blocked {
+				result.SkippedCount++
+				continue
+			}
+		}
 		if _, err := s.modelCatalogService.UpsertCatalogEntry(ctx, UpsertModelCatalogEntryInput{Model: model}); err != nil {
 			result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: model, Error: summarizeAccountModelImportError(err)})
 			log.Warn("account model import: upsert catalog entry failed", zap.Int64("account_id", account.ID), zap.String("platform", account.Platform), zap.String("model", model), zap.Error(err))

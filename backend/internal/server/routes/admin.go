@@ -79,6 +79,7 @@ func RegisterAdminRoutes(
 		// API Key 管理
 		registerAdminAPIKeyRoutes(admin, h)
 		registerModelCatalogRoutes(admin, h)
+		registerModelRegistryRoutes(admin, h)
 
 		// 定时测试计划
 		registerScheduledTestRoutes(admin, h)
@@ -98,6 +99,17 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		models.PUT("/pricing-override", h.Admin.ModelCatalog.UpsertPricingOverride)
 		models.DELETE("/pricing-override", h.Admin.ModelCatalog.DeletePricingOverride)
 		models.POST("/pricing-override/copy-from-official", h.Admin.ModelCatalog.CopyOfficialPricingToSale)
+	}
+}
+
+func registerModelRegistryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	registry := admin.Group("/models/registry")
+	{
+		registry.GET("", h.Admin.ModelRegistry.List)
+		registry.GET("/detail", h.Admin.ModelRegistry.Detail)
+		registry.PUT("/entry", h.Admin.ModelRegistry.UpsertEntry)
+		registry.POST("/visibility", h.Admin.ModelRegistry.SetVisibility)
+		registry.DELETE("/entry", h.Admin.ModelRegistry.DeleteEntry)
 	}
 }
 

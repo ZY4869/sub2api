@@ -318,6 +318,31 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthC
 	return apiKeyService
 }
 
+func ProvideModelCatalogService(
+	settingRepo SettingRepository,
+	adminService AdminService,
+	billingService *BillingService,
+	pricingService *PricingService,
+	modelRegistryService *ModelRegistryService,
+	cfg *config.Config,
+) *ModelCatalogService {
+	svc := NewModelCatalogService(settingRepo, adminService, billingService, pricingService, cfg)
+	svc.SetModelRegistryService(modelRegistryService)
+	return svc
+}
+
+func ProvideAccountModelImportService(
+	modelCatalogService *ModelCatalogService,
+	modelRegistryService *ModelRegistryService,
+	geminiCompatService *GeminiMessagesCompatService,
+	httpUpstream HTTPUpstream,
+	proxyRepo ProxyRepository,
+) *AccountModelImportService {
+	svc := NewAccountModelImportService(modelCatalogService, geminiCompatService, httpUpstream, proxyRepo)
+	svc.SetModelRegistryService(modelRegistryService)
+	return svc
+}
+
 // ProvideSettingService wires SettingService with group reader for default subscription validation.
 func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupRepository, cfg *config.Config) *SettingService {
 	svc := NewSettingService(settingRepo, cfg)
@@ -344,10 +369,14 @@ var ProviderSet = wire.NewSet(
 	NewBillingCacheService,
 	NewAnnouncementService,
 	NewAdminService,
-	NewModelCatalogService,
-	NewAccountModelImportService,
+	NewModelRegistryService,
+	ProvideModelCatalogService,
+	ProvideAccountModelImportService,
 	NewGatewayService,
+	NewSoraGenerationService,
+	NewSoraQuotaService,
 	ProvideSoraMediaStorage,
+	NewSoraS3Storage,
 	ProvideSoraMediaCleanupService,
 	ProvideSoraSDKClient,
 	wire.Bind(new(SoraClient), new(*SoraSDKClient)),

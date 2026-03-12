@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -31,6 +32,7 @@ func ProvideAdminHandlers(
 	errorPassthroughHandler *admin.ErrorPassthroughHandler,
 	apiKeyHandler *admin.AdminAPIKeyHandler,
 	modelCatalogHandler *admin.ModelCatalogHandler,
+	modelRegistryHandler *admin.ModelRegistryHandler,
 	scheduledTestHandler *admin.ScheduledTestHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
@@ -56,6 +58,7 @@ func ProvideAdminHandlers(
 		ErrorPassthrough: errorPassthroughHandler,
 		APIKey:           apiKeyHandler,
 		ModelCatalog:     modelCatalogHandler,
+		ModelRegistry:    modelRegistryHandler,
 		ScheduledTest:    scheduledTestHandler,
 	}
 }
@@ -76,6 +79,7 @@ func ProvideAdminAccountHandler(
 	rpmCache service.RPMCache,
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 	accountModelImportService *service.AccountModelImportService,
+	modelRegistryService *service.ModelRegistryService,
 ) *admin.AccountHandler {
 	handler := admin.NewAccountHandler(
 		adminService,
@@ -93,6 +97,34 @@ func ProvideAdminAccountHandler(
 		tokenCacheInvalidator,
 	)
 	handler.SetAccountModelImportService(accountModelImportService)
+	handler.SetModelRegistryService(modelRegistryService)
+	return handler
+}
+
+func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelRegistryService *service.ModelRegistryService) *MetaHandler {
+	handler := NewMetaHandler(modelCatalogService)
+	handler.SetModelRegistryService(modelRegistryService)
+	return handler
+}
+
+func ProvideGatewayHandler(
+	gatewayService *service.GatewayService,
+	geminiCompatService *service.GeminiMessagesCompatService,
+	antigravityGatewayService *service.AntigravityGatewayService,
+	userService *service.UserService,
+	concurrencyService *service.ConcurrencyService,
+	billingCacheService *service.BillingCacheService,
+	usageService *service.UsageService,
+	apiKeyService *service.APIKeyService,
+	usageRecordWorkerPool *service.UsageRecordWorkerPool,
+	errorPassthroughService *service.ErrorPassthroughService,
+	userMsgQueueService *service.UserMessageQueueService,
+	cfg *config.Config,
+	settingService *service.SettingService,
+	modelRegistryService *service.ModelRegistryService,
+) *GatewayHandler {
+	handler := NewGatewayHandler(gatewayService, geminiCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, userMsgQueueService, cfg, settingService)
+	handler.SetModelRegistryService(modelRegistryService)
 	return handler
 }
 
@@ -150,15 +182,16 @@ var ProviderSet = wire.NewSet(
 	// Top-level handlers
 	NewAuthHandler,
 	NewUserHandler,
-	NewMetaHandler,
+	ProvideMetaHandler,
 	NewAPIKeyHandler,
 	NewUsageHandler,
 	NewRedeemHandler,
 	NewSubscriptionHandler,
 	NewAnnouncementHandler,
-	NewGatewayHandler,
+	ProvideGatewayHandler,
 	NewOpenAIGatewayHandler,
 	NewSoraGatewayHandler,
+	NewSoraClientHandler,
 	NewTotpHandler,
 	ProvideSettingHandler,
 
@@ -185,6 +218,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewErrorPassthroughHandler,
 	admin.NewAdminAPIKeyHandler,
 	admin.NewModelCatalogHandler,
+	admin.NewModelRegistryHandler,
 	admin.NewScheduledTestHandler,
 
 	// AdminHandlers and Handlers constructors

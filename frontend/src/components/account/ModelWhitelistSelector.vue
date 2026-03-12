@@ -125,7 +125,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { allModels, getModelsByPlatform } from '@/composables/useModelWhitelist'
+import { getAllModelOptions, getModelsByPlatform } from '@/composables/useModelWhitelist'
 
 const { t } = useI18n()
 
@@ -148,7 +148,7 @@ const availableOptions = computed(() => {
   if (props.platform === 'sora') {
     return getModelsByPlatform('sora').map(m => ({ value: m, label: m }))
   }
-  return allModels
+  return getAllModelOptions()
 })
 
 const filteredModels = computed(() => {

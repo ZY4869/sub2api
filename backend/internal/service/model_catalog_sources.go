@@ -5,10 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
 type defaultModelMetadata struct {
@@ -42,7 +39,7 @@ type modelCatalogRecord struct {
 }
 
 func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[string]*modelCatalogRecord, error) {
-	defaultRegistry := s.buildDefaultModelRegistry()
+	defaultRegistry := s.buildDefaultModelRegistry(ctx)
 	entries := s.loadCatalogEntries(ctx)
 	officialOverrides := s.loadOfficialPriceOverrides(ctx)
 	saleOverrides := s.loadSalePriceOverrides(ctx)
@@ -110,43 +107,52 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	return records, nil
 }
 
-func (s *ModelCatalogService) buildDefaultModelRegistry() map[string]*defaultModelMetadata {
+func (s *ModelCatalogService) buildDefaultModelRegistry(ctx context.Context) map[string]*defaultModelMetadata {
 	registry := make(map[string]*defaultModelMetadata)
-	register := func(model, platform, provider, mode string) {
-		key := CanonicalizeModelNameForPricing(model)
+	register := func(entry modelregistry.ModelEntry) {
+		key := CanonicalizeModelNameForPricing(entry.ID)
 		if key == "" {
 			return
 		}
 		meta, ok := registry[key]
 		if !ok {
-			meta = &defaultModelMetadata{provider: provider, mode: mode, platforms: map[string]struct{}{}}
+			meta = &defaultModelMetadata{provider: entry.Provider, mode: inferModelMode(entry.ID, ""), platforms: map[string]struct{}{}}
 			registry[key] = meta
 		}
 		if meta.provider == "" {
-			meta.provider = provider
+			meta.provider = entry.Provider
 		}
 		if meta.mode == "" {
-			meta.mode = mode
+			meta.mode = inferModelMode(entry.ID, "")
 		}
-		meta.platforms[platform] = struct{}{}
+		for _, platform := range entry.Platforms {
+			platform = strings.TrimSpace(platform)
+			if platform == "" {
+				continue
+			}
+			meta.platforms[platform] = struct{}{}
+		}
 	}
-	for _, model := range openai.DefaultModelIDs() {
-		register(model, PlatformOpenAI, PlatformOpenAI, inferModelMode(model, ""))
+	entries := modelregistry.SeedModels()
+	if s.modelRegistryService != nil {
+		if snapshot, err := s.modelRegistryService.PublicSnapshot(ctx); err == nil && len(snapshot.Models) > 0 {
+			entries = snapshot.Models
+		}
 	}
-	for _, model := range claude.DefaultModelIDs() {
-		register(model, PlatformAnthropic, PlatformAnthropic, "chat")
-	}
-	for _, model := range gemini.DefaultModels() {
-		register(model.Name, PlatformGemini, PlatformGemini, inferModelMode(model.Name, ""))
-	}
-	for _, model := range antigravity.DefaultModels() {
-		register(model.ID, PlatformAntigravity, inferModelProvider(model.ID), inferModelMode(model.ID, ""))
-	}
-	for _, model := range antigravity.DefaultGeminiModels() {
-		register(model.Name, PlatformAntigravity, PlatformGemini, inferModelMode(model.Name, ""))
+	for _, entry := range entries {
+		register(entry)
 	}
 	for _, model := range DefaultSoraModels(s.cfg) {
-		register(model.ID, PlatformSora, PlatformOpenAI, inferModelMode(model.ID, ""))
+		key := CanonicalizeModelNameForPricing(model.ID)
+		if key == "" {
+			continue
+		}
+		meta, ok := registry[key]
+		if !ok {
+			meta = &defaultModelMetadata{provider: PlatformOpenAI, mode: inferModelMode(model.ID, ""), platforms: map[string]struct{}{}}
+			registry[key] = meta
+		}
+		meta.platforms[PlatformSora] = struct{}{}
 	}
 	return registry
 }

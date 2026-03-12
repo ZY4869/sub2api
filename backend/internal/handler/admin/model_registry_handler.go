@@ -1,0 +1,96 @@
+package admin
+
+import (
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+)
+
+type ModelRegistryHandler struct {
+	modelRegistryService *service.ModelRegistryService
+}
+
+func NewModelRegistryHandler(modelRegistryService *service.ModelRegistryService) *ModelRegistryHandler {
+	return &ModelRegistryHandler{modelRegistryService: modelRegistryService}
+}
+
+func (h *ModelRegistryHandler) List(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	filter := service.ModelRegistryListFilter{
+		Search:            c.Query("search"),
+		Provider:          c.Query("provider"),
+		Platform:          c.Query("platform"),
+		IncludeHidden:     parseBoolDefaultTrue(c.Query("include_hidden")),
+		IncludeTombstoned: parseBoolDefaultTrue(c.Query("include_tombstoned")),
+		Page:              page,
+		PageSize:          pageSize,
+	}
+	log := logger.FromContext(c.Request.Context()).With(zap.String("component", "handler.admin.model_registry"))
+	log.Info("list model registry start", zap.Any("filter", filter))
+	items, total, err := h.modelRegistryService.List(c.Request.Context(), filter)
+	if err != nil {
+		log.Warn("list model registry failed", zap.Error(err))
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, items, total, page, pageSize)
+}
+
+func (h *ModelRegistryHandler) Detail(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	detail, err := h.modelRegistryService.GetDetail(c.Request.Context(), model)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, detail)
+}
+
+func (h *ModelRegistryHandler) UpsertEntry(c *gin.Context) {
+	var req service.UpsertModelRegistryEntryInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	detail, err := h.modelRegistryService.UpsertEntry(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, detail)
+}
+
+func (h *ModelRegistryHandler) SetVisibility(c *gin.Context) {
+	var req service.UpdateModelRegistryVisibilityInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	detail, err := h.modelRegistryService.SetVisibility(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, detail)
+}
+
+func (h *ModelRegistryHandler) DeleteEntry(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	if err := h.modelRegistryService.DeleteEntry(c.Request.Context(), model); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"model": strings.TrimSpace(model)})
+}
+
+func parseBoolDefaultTrue(value string) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if value == "" {
+		return true
+	}
+	return value == "1" || value == "true" || value == "yes"
+}

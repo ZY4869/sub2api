@@ -280,6 +280,18 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'registry',
+        name: 'AdminModelsRegistry',
+        component: () => import('@/views/admin/models/ModelRegistryView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Model Registry',
+          titleKey: 'admin.models.pages.registry.title',
+          descriptionKey: 'admin.models.pages.registry.description'
+        }
+      },
+      {
         path: 'relay',
         name: 'AdminModelsRelay',
         component: () => import('@/views/admin/models/ModelCatalogRelayView.vue'),

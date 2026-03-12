@@ -14,6 +14,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -51,6 +52,7 @@ type GatewayHandler struct {
 	maxAccountSwitchesGemini  int
 	cfg                       *config.Config
 	settingService            *service.SettingService
+	modelRegistryService      *service.ModelRegistryService
 }
 
 // NewGatewayHandler creates a new GatewayHandler
@@ -105,6 +107,10 @@ func NewGatewayHandler(
 		cfg:                       cfg,
 		settingService:            settingService,
 	}
+}
+
+func (h *GatewayHandler) SetModelRegistryService(modelRegistryService *service.ModelRegistryService) {
+	h.modelRegistryService = modelRegistryService
 }
 
 // Messages handles Claude API compatible messages endpoint
@@ -787,56 +793,94 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	}
 
 	if platform == service.PlatformSora {
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   service.DefaultSoraModels(h.cfg),
-		})
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": service.DefaultSoraModels(h.cfg)})
 		return
 	}
 
-	// Get available models from account configurations (without platform filter)
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, "")
-
+	defaultEntries := h.registryEntriesForPlatform(c.Request.Context(), platform)
 	if len(availableModels) > 0 {
-		// Build model list from whitelist
+		if len(defaultEntries) > 0 {
+			c.JSON(http.StatusOK, gin.H{"object": "list", "data": filterGatewayModels(defaultEntries, availableModels)})
+			return
+		}
 		models := make([]claude.Model, 0, len(availableModels))
 		for _, modelID := range availableModels {
-			models = append(models, claude.Model{
-				ID:          modelID,
-				Type:        "model",
-				DisplayName: modelID,
-				CreatedAt:   "2024-01-01T00:00:00Z",
-			})
+			models = append(models, claude.Model{ID: modelID, Type: "model", DisplayName: modelID, CreatedAt: ""})
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   models,
-		})
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": models})
 		return
 	}
 
-	// Fallback to default models
-	if platform == "openai" {
-		c.JSON(http.StatusOK, gin.H{
-			"object": "list",
-			"data":   openai.DefaultModels,
-		})
+	if len(defaultEntries) > 0 {
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": registryEntriesToClaudeModels(defaultEntries)})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   claude.DefaultModels,
-	})
+	if platform == service.PlatformOpenAI {
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": openai.DefaultModels})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"object": "list", "data": claude.DefaultModels})
 }
 
 // AntigravityModels 返回 Antigravity 支持的全部模型
 // GET /antigravity/models
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"object": "list",
-		"data":   antigravity.DefaultModels(),
-	})
+	entries := h.registryEntriesForPlatform(c.Request.Context(), service.PlatformAntigravity)
+	if len(entries) > 0 {
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": registryEntriesToClaudeModels(entries)})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"object": "list", "data": antigravity.DefaultModels()})
+}
+
+func (h *GatewayHandler) registryEntriesForPlatform(ctx context.Context, platform string) []modelregistry.ModelEntry {
+	if h.modelRegistryService == nil || strings.TrimSpace(platform) == "" {
+		return nil
+	}
+	entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, platform, "runtime", "whitelist")
+	if err != nil {
+		return nil
+	}
+	return entries
+}
+
+func registryEntriesToClaudeModels(entries []modelregistry.ModelEntry) []claude.Model {
+	models := make([]claude.Model, 0, len(entries))
+	for _, entry := range entries {
+		displayName := entry.DisplayName
+		if displayName == "" {
+			displayName = entry.ID
+		}
+		models = append(models, claude.Model{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
+	}
+	return models
+}
+
+func filterGatewayModels(entries []modelregistry.ModelEntry, allowed []string) []claude.Model {
+	if len(allowed) == 0 {
+		return registryEntriesToClaudeModels(entries)
+	}
+	indexed := make(map[string]modelregistry.ModelEntry, len(entries))
+	for _, entry := range entries {
+		indexed[entry.ID] = entry
+	}
+	models := make([]claude.Model, 0, len(allowed))
+	for _, item := range allowed {
+		entry, ok := indexed[strings.TrimSpace(item)]
+		if !ok {
+			models = append(models, claude.Model{ID: item, Type: "model", DisplayName: item, CreatedAt: ""})
+			continue
+		}
+		displayName := entry.DisplayName
+		if displayName == "" {
+			displayName = entry.ID
+		}
+		models = append(models, claude.Model{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
+	}
+	return models
 }
 
 func cloneAPIKeyWithGroup(apiKey *service.APIKey, group *service.Group) *service.APIKey {

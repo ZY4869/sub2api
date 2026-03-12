@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
+
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"go.uber.org/zap"
@@ -32,72 +34,9 @@ type CopyModelCatalogPricingFromOfficialInput struct {
 	Model string `json:"model"`
 }
 
-var modelCatalogExplicitAliases = map[string]string{
-	"claude-opus-4-1":                "claude-opus-4.1",
-	"claude-opus-4-1-20250805":       "claude-opus-4.1",
-	"claude-opus-4.1-20250805":       "claude-opus-4.1",
-	"claude-opus-4-5":                "claude-opus-4.1",
-	"claude-opus-4-5-20251101":       "claude-opus-4.1",
-	"claude-opus-4.5-20251101":       "claude-opus-4.1",
-	"claude-opus-4-5-thinking":       "claude-opus-4.1",
-	"claude-opus-4.5-thinking":       "claude-opus-4.1",
-	"claude-opus-4-6":                "claude-opus-4.1",
-	"claude-opus-4-6-thinking":       "claude-opus-4.1",
-	"claude-sonnet-4-5":              "claude-sonnet-4.5",
-	"claude-sonnet-4-5-20250929":     "claude-sonnet-4.5",
-	"claude-sonnet-4.5-20250929":     "claude-sonnet-4.5",
-	"claude-sonnet-4-5-thinking":     "claude-sonnet-4.5",
-	"claude-sonnet-4.5-thinking":     "claude-sonnet-4.5",
-	"claude-sonnet-4-6":              "claude-sonnet-4.5",
-	"claude-sonnet-4-6-thinking":     "claude-sonnet-4.5",
-	"claude-haiku-4-5":               "claude-haiku-4.5",
-	"claude-haiku-4-5-20251001":      "claude-haiku-4.5",
-	"claude-haiku-4.5-20251001":      "claude-haiku-4.5",
-	"gpt-5-4":                        "gpt-5.4",
-	"gpt-5.4":                        "gpt-5.4",
-	"gpt-5-4-2026-03-05":             "gpt-5.4",
-	"gpt-5.4-2026-03-05":             "gpt-5.4",
-	"gpt-5-4-chat-latest":            "gpt-5.4",
-	"gpt-5.4-chat-latest":            "gpt-5.4",
-	"gpt-5-4-pro":                    "gpt-5.4-pro",
-	"gpt-5.4-pro":                    "gpt-5.4-pro",
-	"gpt-5-3-codex":                  "gpt-5-codex",
-	"gpt-5.3-codex":                  "gpt-5-codex",
-	"gpt-5-2-codex":                  "gpt-5-codex",
-	"gpt-5.2-codex":                  "gpt-5-codex",
-	"gpt-5-1-codex":                  "gpt-5-codex",
-	"gpt-5.1-codex":                  "gpt-5-codex",
-	"gemini-2.5-flash-image-preview": "gemini-2.5-flash-image",
-	"gemini-2.5-flash-thinking":      "gemini-2.5-flash",
-	"gemini-3-flash-preview":         "gemini-3-flash",
-	"gemini-3-pro-preview":           "gemini-3-pro",
-	"gemini-3-pro-high":              "gemini-3-pro",
-	"gemini-3-pro-low":               "gemini-3-pro",
-	"gemini-3-pro-image-preview":     "gemini-3-pro-image",
-	"gemini-3.1-pro-preview":         "gemini-3.1-pro",
-	"gemini-3.1-pro-high":            "gemini-3.1-pro",
-	"gemini-3.1-pro-low":             "gemini-3.1-pro",
-	"gemini-3.1-flash-lite-preview":  "gemini-3.1-flash-lite",
-	"gemini-3.1-flash-image-preview": "gemini-3.1-flash-image",
-}
+var modelCatalogExplicitAliases = modelregistry.ModelCatalogExplicitAliases()
 
-var modelCatalogCanonicalDefaults = map[string]string{
-	"claude-opus-4.1":        "claude-opus-4-1-20250805",
-	"claude-sonnet-4.5":      "claude-sonnet-4-5-20250929",
-	"claude-haiku-4.5":       "claude-haiku-4-5-20251001",
-	"gpt-5.4":                "gpt-5.4",
-	"gpt-5.4-pro":            "gpt-5.4-pro",
-	"gpt-5-mini":             "gpt-5-mini",
-	"gpt-5-nano":             "gpt-5-nano",
-	"gpt-5-codex":            "gpt-5-codex",
-	"gemini-2.5-flash-image": "gemini-2.5-flash-image",
-	"gemini-3-pro":           "gemini-3-pro-preview",
-	"gemini-3-flash":         "gemini-3-flash-preview",
-	"gemini-3-pro-image":     "gemini-3-pro-image-preview",
-	"gemini-3.1-pro":         "gemini-3.1-pro-preview",
-	"gemini-3.1-flash-lite":  "gemini-3.1-flash-lite-preview",
-	"gemini-3.1-flash-image": "gemini-3.1-flash-image-preview",
-}
+var modelCatalogCanonicalDefaults = modelregistry.ModelCatalogCanonicalDefaults()
 
 func normalizeModelCatalogAlias(model string) string {
 	canonical := CanonicalizeModelNameForPricing(model)

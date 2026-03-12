@@ -10,5 +10,6 @@ func RegisterMetaRoutes(v1 *gin.RouterGroup, h *handler.Handlers) {
 	meta := v1.Group("/meta")
 	{
 		meta.GET("/exchange-rate/usd-cny", h.Meta.USDCNYExchangeRate)
+		meta.GET("/model-registry", h.Meta.ModelRegistry)
 	}
 }

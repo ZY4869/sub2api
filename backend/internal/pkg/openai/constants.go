@@ -1,7 +1,11 @@
 // Package openai provides helpers and types for OpenAI API integration.
 package openai
 
-import _ "embed"
+import (
+	_ "embed"
+
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
+)
 
 // Model represents an OpenAI model
 type Model struct {
@@ -13,18 +17,20 @@ type Model struct {
 	DisplayName string `json:"display_name"`
 }
 
-// DefaultModels OpenAI models list
-var DefaultModels = []Model{
-	{ID: "gpt-5.4", Object: "model", Created: 1738368000, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.4"},
-	{ID: "gpt-5.3-codex", Object: "model", Created: 1735689600, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.3 Codex"},
-	{ID: "gpt-5.3-codex-spark", Object: "model", Created: 1735689600, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.3 Codex Spark"},
-	{ID: "gpt-5.2", Object: "model", Created: 1733875200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.2"},
-	{ID: "gpt-5.2-codex", Object: "model", Created: 1733011200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.2 Codex"},
-	{ID: "gpt-5.1-codex-max", Object: "model", Created: 1730419200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.1 Codex Max"},
-	{ID: "gpt-5.1-codex", Object: "model", Created: 1730419200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.1 Codex"},
-	{ID: "gpt-5.1", Object: "model", Created: 1731456000, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.1"},
-	{ID: "gpt-5.1-codex-mini", Object: "model", Created: 1730419200, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5.1 Codex Mini"},
-	{ID: "gpt-5", Object: "model", Created: 1722988800, OwnedBy: "openai", Type: "model", DisplayName: "GPT-5"},
+// DefaultModels OpenAI models list.
+var DefaultModels = defaultModelsFromSeed()
+
+func defaultModelsFromSeed() []Model {
+	entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), "openai", "runtime", "whitelist", "use_key")
+	models := make([]Model, 0, len(entries))
+	for _, entry := range entries {
+		displayName := entry.DisplayName
+		if displayName == "" {
+			displayName = entry.ID
+		}
+		models = append(models, Model{ID: entry.ID, Object: "model", OwnedBy: "openai", Type: "model", DisplayName: displayName})
+	}
+	return models
 }
 
 // DefaultModelIDs returns the default model ID list

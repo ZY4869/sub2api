@@ -139,6 +139,7 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
+import { getModelCapabilities, getModelsByPlatform } from '@/composables/useModelWhitelist'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
@@ -603,6 +604,43 @@ responses_websockets_v2 = true`
   ]
 }
 
+function getOpenCodeModelIds(platform: string): string[] {
+  switch (platform) {
+    case 'openai':
+      return getModelsByPlatform('openai')
+    case 'gemini':
+      return getModelsByPlatform('gemini')
+    case 'anthropic':
+      return getModelsByPlatform('anthropic')
+    case 'antigravity-claude':
+      return getModelsByPlatform('antigravity').filter((modelId) => !modelId.startsWith('gemini-'))
+    case 'antigravity-gemini':
+      return getModelsByPlatform('antigravity').filter((modelId) => modelId.startsWith('gemini-'))
+    default:
+      return []
+  }
+}
+
+function getOpenCodeCapabilityPlatform(platform: string): string {
+  switch (platform) {
+    case 'anthropic':
+    case 'antigravity-claude':
+      return 'anthropic'
+    case 'gemini':
+    case 'antigravity-gemini':
+      return 'gemini'
+    default:
+      return 'openai'
+  }
+}
+
+function buildModelConfigMap(modelIds: string[], platform: string): Record<string, Record<string, unknown>> {
+  return Array.from(new Set(modelIds)).reduce<Record<string, Record<string, unknown>>>((models, modelId) => {
+    models[modelId] = getModelCapabilities(platform, modelId) as unknown as Record<string, unknown>
+    return models
+  }, {})
+}
+
 function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: string, pathLabel?: string): FileConfig {
   const provider: Record<string, any> = {
     [platform]: {
@@ -612,451 +650,25 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
       }
     }
   }
-  const openaiModels = {
-    'gpt-5-codex': {
-      name: 'GPT-5 Codex',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {}
-      }
-    },
-    'gpt-5.1-codex': {
-      name: 'GPT-5.1 Codex',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {}
-      }
-    },
-    'gpt-5.1-codex-max': {
-      name: 'GPT-5.1 Codex Max',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {}
-      }
-    },
-    'gpt-5.1-codex-mini': {
-      name: 'GPT-5.1 Codex Mini',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {}
-      }
-    },
-    'gpt-5.2': {
-      name: 'GPT-5.2',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {},
-        xhigh: {}
-      }
-    },
-    'gpt-5.4': {
-      name: 'GPT-5.4',
-      limit: {
-        context: 1050000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {},
-        xhigh: {}
-      }
-    },
-    'gpt-5.3-codex-spark': {
-      name: 'GPT-5.3 Codex Spark',
-      limit: {
-        context: 128000,
-        output: 32000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {},
-        xhigh: {}
-      }
-    },
-    'gpt-5.3-codex': {
-      name: 'GPT-5.3 Codex',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {},
-        xhigh: {}
-      }
-    },
-    'gpt-5.2-codex': {
-      name: 'GPT-5.2 Codex',
-      limit: {
-        context: 400000,
-        output: 128000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {},
-        xhigh: {}
-      }
-    },
-    'codex-mini-latest': {
-      name: 'Codex Mini',
-      limit: {
-        context: 200000,
-        output: 100000
-      },
-      options: {
-        store: false
-      },
-      variants: {
-        low: {},
-        medium: {},
-        high: {}
-      }
-    }
-  }
-  const geminiModels = {
-    'gemini-2.0-flash': {
-      name: 'Gemini 2.0 Flash',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      }
-    },
-    'gemini-2.5-flash': {
-      name: 'Gemini 2.5 Flash',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      }
-    },
-    'gemini-2.5-pro': {
-      name: 'Gemini 2.5 Pro',
-      limit: {
-        context: 2097152,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-3-flash-preview': {
-      name: 'Gemini 3 Flash Preview',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      }
-    },
-    'gemini-3-pro-preview': {
-      name: 'Gemini 3 Pro Preview',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-3.1-pro-preview': {
-      name: 'Gemini 3.1 Pro Preview',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    }
-  }
-
-  const antigravityGeminiModels = {
-    'gemini-2.5-flash': {
-      name: 'Gemini 2.5 Flash',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'disable'
-        }
-      }
-    },
-    'gemini-2.5-flash-lite': {
-      name: 'Gemini 2.5 Flash Lite',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-2.5-flash-thinking': {
-      name: 'Gemini 2.5 Flash (Thinking)',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-3-flash': {
-      name: 'Gemini 3 Flash',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-3.1-pro-low': {
-      name: 'Gemini 3.1 Pro Low',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-3.1-pro-high': {
-      name: 'Gemini 3.1 Pro High',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-2.5-flash-image': {
-      name: 'Gemini 2.5 Flash Image',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image'],
-        output: ['image']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'gemini-3.1-flash-image': {
-      name: 'Gemini 3.1 Flash Image',
-      limit: {
-        context: 1048576,
-        output: 65536
-      },
-      modalities: {
-        input: ['text', 'image'],
-        output: ['image']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    }
-  }
-  const claudeModels = {
-    'claude-opus-4.1': {
-      name: 'Claude Opus 4.1',
-      limit: {
-        context: 200000,
-        output: 128000
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'claude-sonnet-4.5': {
-      name: 'Claude Sonnet 4.5',
-      limit: {
-        context: 200000,
-        output: 64000
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      },
-      options: {
-        thinking: {
-          budgetTokens: 24576,
-          type: 'enabled'
-        }
-      }
-    },
-    'claude-haiku-4.5': {
-      name: 'Claude Haiku 4.5',
-      limit: {
-        context: 200000,
-        output: 64000
-      },
-      modalities: {
-        input: ['text', 'image', 'pdf'],
-        output: ['text']
-      }
-    }
-  }
 
   if (platform === 'gemini') {
     provider[platform].npm = '@ai-sdk/google'
-    provider[platform].models = geminiModels
   } else if (platform === 'anthropic') {
     provider[platform].npm = '@ai-sdk/anthropic'
   } else if (platform === 'antigravity-claude') {
     provider[platform].npm = '@ai-sdk/anthropic'
     provider[platform].name = 'Antigravity (Claude)'
-    provider[platform].models = claudeModels
   } else if (platform === 'antigravity-gemini') {
     provider[platform].npm = '@ai-sdk/google'
     provider[platform].name = 'Antigravity (Gemini)'
-    provider[platform].models = antigravityGeminiModels
-  } else if (platform === 'openai') {
-    provider[platform].models = openaiModels
+  }
+
+  const models = buildModelConfigMap(
+    getOpenCodeModelIds(platform),
+    getOpenCodeCapabilityPlatform(platform)
+  )
+  if (Object.keys(models).length > 0) {
+    provider[platform].models = models
   }
 
   const agent =

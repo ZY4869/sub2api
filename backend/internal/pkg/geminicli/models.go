@@ -1,5 +1,7 @@
 package geminicli
 
+import "github.com/Wei-Shaw/sub2api/internal/modelregistry"
+
 // Model represents a selectable Gemini model for UI/testing purposes.
 // Keep JSON fields consistent with existing frontend expectations.
 type Model struct {
@@ -10,15 +12,19 @@ type Model struct {
 }
 
 // DefaultModels is the curated Gemini model list used by the admin UI "test account" flow.
-var DefaultModels = []Model{
-	{ID: "gemini-2.0-flash", Type: "model", DisplayName: "Gemini 2.0 Flash", CreatedAt: ""},
-	{ID: "gemini-2.5-flash", Type: "model", DisplayName: "Gemini 2.5 Flash", CreatedAt: ""},
-	{ID: "gemini-2.5-flash-image", Type: "model", DisplayName: "Gemini 2.5 Flash Image", CreatedAt: ""},
-	{ID: "gemini-2.5-pro", Type: "model", DisplayName: "Gemini 2.5 Pro", CreatedAt: ""},
-	{ID: "gemini-3-flash-preview", Type: "model", DisplayName: "Gemini 3 Flash Preview", CreatedAt: ""},
-	{ID: "gemini-3-pro-preview", Type: "model", DisplayName: "Gemini 3 Pro Preview", CreatedAt: ""},
-	{ID: "gemini-3.1-pro-preview", Type: "model", DisplayName: "Gemini 3.1 Pro Preview", CreatedAt: ""},
-	{ID: "gemini-3.1-flash-image", Type: "model", DisplayName: "Gemini 3.1 Flash Image", CreatedAt: ""},
+var DefaultModels = defaultModelsFromSeed()
+
+func defaultModelsFromSeed() []Model {
+	entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), "gemini", "runtime", "whitelist", "use_key")
+	models := make([]Model, 0, len(entries))
+	for _, entry := range entries {
+		displayName := entry.DisplayName
+		if displayName == "" {
+			displayName = entry.ID
+		}
+		models = append(models, Model{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
+	}
+	return models
 }
 
 // DefaultTestModel is the default model to preselect in test flows.

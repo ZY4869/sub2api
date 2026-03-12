@@ -1,6 +1,8 @@
 // Package claude provides constants and helpers for Claude API integration.
 package claude
 
+import "github.com/Wei-Shaw/sub2api/internal/modelregistry"
+
 // Claude Code 客户端相关常量
 
 // Beta header 常量
@@ -69,38 +71,20 @@ type Model struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// DefaultModels Claude Code 客户端支持的默认模型列表
-var DefaultModels = []Model{
-	{
-		ID:          "claude-opus-4-5-20251101",
-		Type:        "model",
-		DisplayName: "Claude Opus 4.5",
-		CreatedAt:   "2025-11-01T00:00:00Z",
-	},
-	{
-		ID:          "claude-opus-4-6",
-		Type:        "model",
-		DisplayName: "Claude Opus 4.6",
-		CreatedAt:   "2026-02-06T00:00:00Z",
-	},
-	{
-		ID:          "claude-sonnet-4-6",
-		Type:        "model",
-		DisplayName: "Claude Sonnet 4.6",
-		CreatedAt:   "2026-02-18T00:00:00Z",
-	},
-	{
-		ID:          "claude-sonnet-4-5-20250929",
-		Type:        "model",
-		DisplayName: "Claude Sonnet 4.5",
-		CreatedAt:   "2025-09-29T00:00:00Z",
-	},
-	{
-		ID:          "claude-haiku-4-5-20251001",
-		Type:        "model",
-		DisplayName: "Claude Haiku 4.5",
-		CreatedAt:   "2025-10-01T00:00:00Z",
-	},
+// DefaultModels Claude Code ????????????
+var DefaultModels = defaultModelsFromSeed()
+
+func defaultModelsFromSeed() []Model {
+	entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), "anthropic", "runtime", "whitelist")
+	models := make([]Model, 0, len(entries))
+	for _, entry := range entries {
+		displayName := entry.DisplayName
+		if displayName == "" {
+			displayName = entry.ID
+		}
+		models = append(models, Model{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
+	}
+	return models
 }
 
 // DefaultModelIDs 返回默认模型的 ID 列表

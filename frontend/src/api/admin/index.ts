@@ -24,6 +24,7 @@ import dataManagementAPI from './dataManagement'
 import apiKeysAPI from './apiKeys'
 import scheduledTestsAPI from './scheduledTests'
 import modelsAPI from './models'
+import modelRegistryAPI from './modelRegistry'
 
 /**
  * Unified admin API object for convenient access
@@ -49,6 +50,7 @@ export const adminAPI = {
   dataManagement: dataManagementAPI,
   apiKeys: apiKeysAPI,
   models: modelsAPI,
+  modelRegistry: modelRegistryAPI,
   scheduledTests: scheduledTestsAPI
 }
 
@@ -73,6 +75,7 @@ export {
   dataManagementAPI,
   apiKeysAPI,
   modelsAPI,
+  modelRegistryAPI,
   scheduledTestsAPI
 }
 
