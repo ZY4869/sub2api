@@ -120,13 +120,13 @@
 
         <template #cell-actions="{ row }">
           <div class="flex flex-wrap gap-2">
-            <button class="btn btn-secondary btn-sm" @click="openEdit(row)">
+            <button class="btn btn-secondary btn-sm" :disabled="actionLoading" @click.stop="void openEdit(row)">
               {{ t('common.edit') }}
             </button>
-            <button class="btn btn-secondary btn-sm" @click="openDeleteDialog(row)">
+            <button class="btn btn-secondary btn-sm" :disabled="actionLoading" @click.stop="openDeleteDialog(row)">
               {{ row.hidden ? t('admin.models.registry.actions.show') : t('admin.models.registry.actions.hide') }}
             </button>
-            <button class="btn btn-danger btn-sm" @click="openDeleteDialog(row)">
+            <button class="btn btn-danger btn-sm" :disabled="actionLoading" @click.stop="openDeleteDialog(row)">
               {{ t('common.delete') }}
             </button>
           </div>
@@ -181,6 +181,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import {
   listModelRegistry,
+  getModelRegistryDetail,
   upsertModelRegistryEntry,
   updateModelRegistryVisibility,
   deleteModelRegistryEntry,
@@ -302,9 +303,20 @@ function openCreate() {
   entryModalOpen.value = true
 }
 
-function openEdit(entry: ModelRegistryDetail) {
-  activeEntry.value = cloneEntry(entry)
-  entryModalOpen.value = true
+async function openEdit(entry: ModelRegistryDetail) {
+  actionLoading.value = true
+  try {
+    const detail = await getModelRegistryDetail(entry.id)
+    activeEntry.value = cloneEntry(detail)
+    entryModalOpen.value = true
+  } catch (error) {
+    console.error('[ModelRegistryView] load detail failed', error)
+    activeEntry.value = cloneEntry(entry)
+    entryModalOpen.value = true
+    appStore.showError(t('admin.models.registry.loadFailed'))
+  } finally {
+    actionLoading.value = false
+  }
 }
 
 function closeEntryModal() {
@@ -383,9 +395,10 @@ async function handleHardDelete() {
 }
 
 function formatSourceLabel(source: string) {
-  const key = `admin.models.registry.sourceLabels.${source}`
+  const normalizedSource = source === 'runtime' ? 'manual' : source
+  const key = `admin.models.registry.sourceLabels.${normalizedSource}`
   const translated = t(key)
-  return translated === key ? source : translated
+  return translated === key ? normalizedSource : translated
 }
 
 function sourceClass(source: string) {
@@ -394,7 +407,7 @@ function sourceClass(source: string) {
     seed: 'inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
     legacy: 'inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
   }
-  return classes[source] || 'inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300'
+  return classes[source === 'runtime' ? 'manual' : source] || 'inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-300'
 }
 
 function statusClass(status: 'active' | 'hidden' | 'tombstoned') {
@@ -420,13 +433,13 @@ function formatDateTime(value: string) {
 function cloneEntry(entry: ModelRegistryDetail): ModelRegistryDetail {
   return {
     ...entry,
-    platforms: [...entry.platforms],
-    protocol_ids: [...entry.protocol_ids],
-    aliases: [...entry.aliases],
-    pricing_lookup_ids: [...entry.pricing_lookup_ids],
-    modalities: [...entry.modalities],
-    capabilities: [...entry.capabilities],
-    exposed_in: [...entry.exposed_in]
+    platforms: Array.isArray(entry.platforms) ? [...entry.platforms] : [],
+    protocol_ids: Array.isArray(entry.protocol_ids) ? [...entry.protocol_ids] : [],
+    aliases: Array.isArray(entry.aliases) ? [...entry.aliases] : [],
+    pricing_lookup_ids: Array.isArray(entry.pricing_lookup_ids) ? [...entry.pricing_lookup_ids] : [],
+    modalities: Array.isArray(entry.modalities) ? [...entry.modalities] : [],
+    capabilities: Array.isArray(entry.capabilities) ? [...entry.capabilities] : [],
+    exposed_in: Array.isArray(entry.exposed_in) ? [...entry.exposed_in] : []
   }
 }
 </script>

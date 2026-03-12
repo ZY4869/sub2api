@@ -45,6 +45,24 @@ describe('useModelWhitelist', () => {
     expect(models.indexOf('gemini-2.5-flash-image')).toBeLessThan(models.indexOf('gemini-2.5-flash-lite'))
   })
 
+  it('use_key exposure stays curated per platform', () => {
+    const openAIModels = getModelsByPlatform('openai', 'use_key')
+    const geminiModels = getModelsByPlatform('gemini', 'use_key')
+
+    expect(openAIModels).toContain('gpt-5-codex')
+    expect(openAIModels).not.toContain('gpt-5.4')
+    expect(geminiModels).toContain('gemini-2.0-flash')
+    expect(geminiModels).toContain('gemini-2.5-flash')
+    expect(geminiModels).not.toContain('gemini-3.1-flash-image')
+  })
+
+  it('test exposure includes runtime test models without leaking use_key-only curation', () => {
+    const openAIModels = getModelsByPlatform('openai', 'test')
+
+    expect(openAIModels).toContain('gpt-5.4')
+    expect(openAIModels).not.toContain('gpt-5-codex')
+  })
+
   it('drops legacy 4.6 entries from antigravity presets while keeping image passthroughs', () => {
     const presets = getPresetMappingsByPlatform('antigravity')
 

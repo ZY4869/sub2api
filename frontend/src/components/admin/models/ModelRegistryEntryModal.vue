@@ -96,8 +96,22 @@
         </div>
       </div>
 
-      <div>
+      <div class="space-y-3">
         <label class="input-label" for="registry-exposed-in">{{ t('admin.models.registry.fields.exposedIn') }}</label>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="action in exposureQuickActions"
+            :key="action.target"
+            type="button"
+            class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="activeExposureTargets.has(action.target)
+              ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/40 dark:bg-primary-500/10 dark:text-primary-300'
+              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:border-dark-500 dark:hover:text-white'"
+            @click="toggleExposure(action.target)"
+          >
+            {{ action.label }}
+          </button>
+        </div>
         <textarea id="registry-exposed-in" v-model="form.exposed_in" class="input min-h-[92px]" />
       </div>
 
@@ -151,11 +165,19 @@ const form = reactive({
   exposed_in: ''
 })
 
+const exposureQuickActions = [
+  { target: 'whitelist', label: '白名单页' },
+  { target: 'use_key', label: 'Use Key' },
+  { target: 'test', label: '测试页' },
+  { target: 'runtime', label: '运行时' }
+] as const
+
 const isEdit = computed(() => Boolean(props.entry))
 const dialogTitle = computed(() =>
   isEdit.value ? t('admin.models.registry.editModel') : t('admin.models.registry.addModel')
 )
 const sourceLabel = computed(() => formatSourceLabel(props.entry?.source || ''))
+const activeExposureTargets = computed(() => new Set(parseList(form.exposed_in)))
 
 watch(
   () => [props.show, props.entry] as const,
@@ -178,8 +200,8 @@ watch(
   { immediate: true }
 )
 
-function formatList(items?: string[]) {
-  return items?.join(', ') || ''
+function formatList(items?: string[] | null) {
+  return Array.isArray(items) ? items.join(', ') : ''
 }
 
 function parseList(value: string): string[] {
@@ -199,9 +221,20 @@ function formatSourceLabel(source: string) {
   if (!source) {
     return '-'
   }
-  const key = `admin.models.registry.sourceLabels.${source}`
+  const normalizedSource = source === 'runtime' ? 'manual' : source
+  const key = `admin.models.registry.sourceLabels.${normalizedSource}`
   const translated = t(key)
-  return translated === key ? source : translated
+  return translated === key ? normalizedSource : translated
+}
+
+function toggleExposure(target: string) {
+  const next = new Set(parseList(form.exposed_in))
+  if (next.has(target)) {
+    next.delete(target)
+  } else {
+    next.add(target)
+  }
+  form.exposed_in = Array.from(next).join(', ')
 }
 
 function handleSubmit() {

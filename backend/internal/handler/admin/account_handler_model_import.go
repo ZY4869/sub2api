@@ -83,8 +83,11 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 		return items
 	}
 	if h.modelRegistryService != nil {
-		entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, "runtime", "whitelist")
-		if err == nil && len(entries) > 0 {
+		for _, exposures := range [][]string{{"test"}, {"runtime", "whitelist"}} {
+			entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, exposures...)
+			if err != nil || len(entries) == 0 {
+				continue
+			}
 			items := make([]availableModelItem, 0, len(entries))
 			for _, entry := range entries {
 				displayName := entry.DisplayName

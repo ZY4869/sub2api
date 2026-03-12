@@ -146,9 +146,9 @@ const customModel = ref('')
 const isComposing = ref(false)
 const availableOptions = computed(() => {
   if (props.platform === 'sora') {
-    return getModelsByPlatform('sora').map(m => ({ value: m, label: m }))
+    return getModelsByPlatform('sora', 'whitelist').map(m => ({ value: m, label: m }))
   }
-  return getAllModelOptions()
+  return getAllModelOptions('whitelist')
 })
 
 const filteredModels = computed(() => {
@@ -192,7 +192,7 @@ const handleEnter = () => {
 }
 
 const fillRelated = () => {
-  const models = getModelsByPlatform(props.platform)
+  const models = getModelsByPlatform(props.platform, 'whitelist')
   const newModels = [...props.modelValue]
   for (const model of models) {
     if (!newModels.includes(model)) newModels.push(model)

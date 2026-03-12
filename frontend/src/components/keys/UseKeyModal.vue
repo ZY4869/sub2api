@@ -607,15 +607,15 @@ responses_websockets_v2 = true`
 function getOpenCodeModelIds(platform: string): string[] {
   switch (platform) {
     case 'openai':
-      return getModelsByPlatform('openai')
+      return getModelsByPlatform('openai', 'use_key')
     case 'gemini':
-      return getModelsByPlatform('gemini')
+      return getModelsByPlatform('gemini', 'use_key')
     case 'anthropic':
-      return getModelsByPlatform('anthropic')
+      return getModelsByPlatform('anthropic', 'use_key')
     case 'antigravity-claude':
-      return getModelsByPlatform('antigravity').filter((modelId) => !modelId.startsWith('gemini-'))
+      return getModelsByPlatform('antigravity', 'use_key').filter((modelId) => !modelId.startsWith('gemini-'))
     case 'antigravity-gemini':
-      return getModelsByPlatform('antigravity').filter((modelId) => modelId.startsWith('gemini-'))
+      return getModelsByPlatform('antigravity', 'use_key').filter((modelId) => modelId.startsWith('gemini-'))
     default:
       return []
   }

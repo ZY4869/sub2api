@@ -1,7 +1,7 @@
 {
   "name": "sub2api-frontend",
   "private": true,
-  "version": "0.1.99",
+  "version": "0.1.100",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -56,3 +56,4 @@
     "vue-tsc": "^2.2.0"
   }
 }
+

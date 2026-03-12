@@ -954,7 +954,7 @@ const visiblePlatforms = computed(() => {
 })
 
 const allModels = computed(() => {
-  const modelIds = visiblePlatforms.value.flatMap(platform => getModelsByPlatform(platform))
+  const modelIds = visiblePlatforms.value.flatMap(platform => getModelsByPlatform(platform, 'whitelist'))
   return dedupeByKey(modelIds, model => model).map(model => ({ value: model, label: model }))
 })
 

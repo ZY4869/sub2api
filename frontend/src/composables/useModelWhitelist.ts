@@ -198,6 +198,17 @@ function normalizePlatform(platform: string): string {
   return value === 'claude' ? 'anthropic' : value
 }
 
+function normalizeExposureTargets(exposures: string[]): string[] {
+  const targets = Array.from(
+    new Set(
+      exposures
+        .map((exposure) => exposure.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  )
+  return targets.length > 0 ? targets : ['whitelist']
+}
+
 function normalizeEntryIds(platform: string, entries: ModelRegistryEntry[]): string[] {
   const normalizedPlatform = normalizePlatform(platform)
   if (normalizedPlatform === 'anthropic') {
@@ -209,8 +220,9 @@ function normalizeEntryIds(platform: string, entries: ModelRegistryEntry[]): str
     .map((entry) => entry.id)
 }
 
-function matchesExposure(entry: ModelRegistryEntry, target: string): boolean {
-  return entry.exposed_in.includes(target)
+function matchesExposure(entry: ModelRegistryEntry, ...exposures: string[]): boolean {
+  const targets = normalizeExposureTargets(exposures)
+  return targets.some((target) => entry.exposed_in.includes(target))
 }
 
 function sortEntries(entries: ModelRegistryEntry[]): ModelRegistryEntry[] {
@@ -222,16 +234,17 @@ function sortEntries(entries: ModelRegistryEntry[]): ModelRegistryEntry[] {
   })
 }
 
-function getRegistryEntriesByPlatform(platform: string): ModelRegistryEntry[] {
+function getRegistryEntriesByPlatform(platform: string, ...exposures: string[]): ModelRegistryEntry[] {
   void ensureModelRegistryFresh()
   const normalizedPlatform = normalizePlatform(platform)
+  const targets = normalizeExposureTargets(exposures)
   const snapshot = getModelRegistrySnapshot()
   return sortEntries(
     snapshot.models.filter((entry) => {
       if (!entry.platforms.includes(normalizedPlatform)) {
         return false
       }
-      return matchesExposure(entry, 'whitelist') || matchesExposure(entry, 'use_key')
+      return matchesExposure(entry, ...targets)
     })
   )
 }
@@ -292,13 +305,14 @@ function deriveFallbackCapability(platform: string, modelId: string, entry?: Mod
   }
 }
 
-export function getAllModelOptions(): ModelOption[] {
+export function getAllModelOptions(...exposures: string[]): ModelOption[] {
   const snapshot = getModelRegistrySnapshot()
   void ensureModelRegistryFresh()
+  const targets = normalizeExposureTargets(exposures)
   const ids = sortEntries(snapshot.models)
     .filter(
       (entry) =>
-        (matchesExposure(entry, 'whitelist') || matchesExposure(entry, 'use_key')) &&
+        matchesExposure(entry, ...targets) &&
         !MODEL_SELECTION_BLOCKLIST.has(entry.id)
     )
     .map((entry) => entry.id)
@@ -320,8 +334,8 @@ export async function fetchAntigravityDefaultMappings(): Promise<{ from: string;
   return antigravityDefaultMappingsCache
 }
 
-export function getModelsByPlatform(platform: string): string[] {
-  return normalizeEntryIds(platform, getRegistryEntriesByPlatform(platform))
+export function getModelsByPlatform(platform: string, ...exposures: string[]): string[] {
+  return normalizeEntryIds(platform, getRegistryEntriesByPlatform(platform, ...exposures))
 }
 
 export function getPresetMappingsByPlatform(platform: string): ModelRegistryPreset[] {

@@ -1,8 +1,8 @@
 <template>
   <div v-if="exchangeRate" :class="badgeClass">
     <span class="font-medium">{{ t('common.todayExchangeRate') }}</span>
-    <span>{{ exchangeRate.base }}?{{ exchangeRate.quote }} {{ exchangeRate.rate.toFixed(4) }}</span>
-    <span class="text-gray-500 dark:text-dark-400">? {{ exchangeRate.date }}</span>
+    <span>{{ exchangeRate.base }}/{{ exchangeRate.quote }} {{ exchangeRate.rate.toFixed(4) }}</span>
+    <span class="text-gray-500 dark:text-dark-400">{{ exchangeRate.date }}</span>
     <button
       type="button"
       class="inline-flex h-5 w-5 items-center justify-center rounded-full text-current/70 transition hover:bg-black/5 hover:text-current disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-white/10"

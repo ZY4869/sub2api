@@ -2924,7 +2924,7 @@ watch(
   (newVal) => {
     if (newVal) {
       // Modal opened - fill related models
-      allowedModels.value = [...getModelsByPlatform(form.platform)]
+      allowedModels.value = [...getModelsByPlatform(form.platform, 'whitelist')]
       // Antigravity: 默认使用映射模式并填充默认映射
       if (form.platform === 'antigravity') {
         antigravityModelRestrictionMode.value = 'mapping'
@@ -3065,7 +3065,7 @@ watch(
   [modelRestrictionMode, () => form.platform],
   ([newMode]) => {
     if (newMode === 'whitelist') {
-      allowedModels.value = [...getModelsByPlatform(form.platform)]
+      allowedModels.value = [...getModelsByPlatform(form.platform, 'whitelist')]
     }
   }
 )
@@ -3436,7 +3436,7 @@ const resetForm = () => {
   editQuotaWeeklyLimit.value = null
   modelMappings.value = []
   modelRestrictionMode.value = 'whitelist'
-  allowedModels.value = [...getModelsByPlatform('anthropic')] // Default fill related models
+  allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')] // Default fill related models
 
   antigravityModelRestrictionMode.value = 'mapping'
   antigravityWhitelistModels.value = []

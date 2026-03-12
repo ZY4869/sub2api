@@ -76,8 +76,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 function formatSourceLabel(source: string) {
-  const key = `admin.models.registry.sourceLabels.${source}`
+  const normalizedSource = source === 'runtime' ? 'manual' : source
+  const key = `admin.models.registry.sourceLabels.${normalizedSource}`
   const translated = t(key)
-  return translated === key ? source : translated
+  return translated === key ? normalizedSource : translated
 }
 </script>
