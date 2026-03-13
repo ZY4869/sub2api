@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"go.uber.org/zap"
@@ -164,12 +166,18 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		Trigger:        normalizeImportTrigger(trigger),
 	}
 	canonicalRegistryModels := make(map[string]string, len(probeResult.Models))
-	for _, sourceModel := range probeResult.Models {
+	for _, sourceModel := range sortImportedSourceModels(probeResult.Models) {
 		sourceModel = strings.TrimSpace(sourceModel)
 		sourceRegistryID := normalizeRegistryID(sourceModel)
-		canonicalModel := normalizeModelCatalogAlias(sourceRegistryID)
-		if canonicalModel == "" {
-			canonicalModel = sourceRegistryID
+		canonicalModel := sourceRegistryID
+		if resolved, ok := modelregistry.ResolveToCanonicalID(sourceRegistryID); ok {
+			canonicalModel = resolved
+		} else if explanation, err := s.modelRegistryService.ExplainResolution(ctx, sourceRegistryID); err == nil && explanation != nil {
+			if explanation.EffectiveID != "" {
+				canonicalModel = explanation.EffectiveID
+			} else if explanation.CanonicalID != "" {
+				canonicalModel = explanation.CanonicalID
+			}
 		}
 		if sourceRegistryID == "" {
 			result.ModelResults = append(result.ModelResults, AccountModelImportModelResult{
@@ -266,6 +274,19 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		zap.Int("failed_count", len(result.FailedModels)),
 	)
 	return result, nil
+}
+
+func sortImportedSourceModels(models []string) []string {
+	items := append([]string(nil), models...)
+	sort.SliceStable(items, func(i, j int) bool {
+		left := normalizeRegistryID(items[i])
+		right := normalizeRegistryID(items[j])
+		if len(left) == len(right) {
+			return left < right
+		}
+		return len(left) < len(right)
+	})
+	return items
 }
 
 func summarizeAccountModelImportError(err error) string {

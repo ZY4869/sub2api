@@ -125,6 +125,7 @@ type CostBreakdown struct {
 type BillingService struct {
 	cfg                    *config.Config
 	pricingService         *PricingService
+	modelRegistryService   *ModelRegistryService
 	fallbackPrices         map[string]*ModelPricing // ???????
 	overrideMu             sync.RWMutex
 	officialPriceOverrides map[string]*ModelPricingOverride
@@ -145,6 +146,10 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 	s.initFallbackPricing()
 
 	return s
+}
+
+func (s *BillingService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
+	s.modelRegistryService = modelRegistryService
 }
 
 // initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）
@@ -336,6 +341,11 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 	// 标准化模型名称（转小写）
 	model = strings.ToLower(model)
+	if s.modelRegistryService != nil {
+		if pricingModel, ok, err := s.modelRegistryService.ResolvePricingModel(context.Background(), model); err == nil && ok && pricingModel != "" {
+			model = pricingModel
+		}
+	}
 
 	// 1. 优先从动态价格服务获取
 	if s.pricingService != nil {

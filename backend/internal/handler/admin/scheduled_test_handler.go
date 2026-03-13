@@ -3,6 +3,7 @@ package admin
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -22,6 +23,7 @@ func NewScheduledTestHandler(scheduledTestSvc *service.ScheduledTestService) *Sc
 type createScheduledTestPlanRequest struct {
 	AccountID      int64  `json:"account_id" binding:"required"`
 	ModelID        string `json:"model_id"`
+	Model          string `json:"model"`
 	CronExpression string `json:"cron_expression" binding:"required"`
 	Enabled        *bool  `json:"enabled"`
 	MaxResults     int    `json:"max_results"`
@@ -30,6 +32,7 @@ type createScheduledTestPlanRequest struct {
 
 type updateScheduledTestPlanRequest struct {
 	ModelID        string `json:"model_id"`
+	Model          string `json:"model"`
 	CronExpression string `json:"cron_expression"`
 	Enabled        *bool  `json:"enabled"`
 	MaxResults     int    `json:"max_results"`
@@ -62,10 +65,13 @@ func (h *ScheduledTestHandler) Create(c *gin.Context) {
 
 	plan := &service.ScheduledTestPlan{
 		AccountID:      req.AccountID,
-		ModelID:        req.ModelID,
+		ModelID:        strings.TrimSpace(req.ModelID),
 		CronExpression: req.CronExpression,
 		Enabled:        true,
 		MaxResults:     req.MaxResults,
+	}
+	if plan.ModelID == "" {
+		plan.ModelID = strings.TrimSpace(req.Model)
 	}
 	if req.Enabled != nil {
 		plan.Enabled = *req.Enabled
@@ -102,8 +108,11 @@ func (h *ScheduledTestHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if req.ModelID != "" {
-		existing.ModelID = req.ModelID
+	if strings.TrimSpace(req.ModelID) != "" || strings.TrimSpace(req.Model) != "" {
+		existing.ModelID = strings.TrimSpace(req.ModelID)
+		if existing.ModelID == "" {
+			existing.ModelID = strings.TrimSpace(req.Model)
+		}
 	}
 	if req.CronExpression != "" {
 		existing.CronExpression = req.CronExpression

@@ -126,19 +126,9 @@ func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]mod
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range snapshot.Models {
-			if !modelregistry.HasExposure(entry, "runtime") {
-				continue
-			}
-			entries = append(entries, entry)
-		}
+		entries = append(entries, buildCatalogBaselineRegistryEntries(snapshot.Models, true)...)
 	} else {
-		for _, entry := range modelregistry.SeedModels() {
-			if !modelregistry.HasExposure(entry, "runtime") {
-				continue
-			}
-			entries = append(entries, entry)
-		}
+		entries = append(entries, buildCatalogBaselineRegistryEntries(modelregistry.SeedModels(), false)...)
 	}
 	for _, model := range DefaultSoraModels(s.cfg) {
 		entries = append(entries, modelregistry.ModelEntry{

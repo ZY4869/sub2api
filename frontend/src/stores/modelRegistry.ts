@@ -27,6 +27,7 @@ function cloneSnapshot(snapshot: ModelRegistrySnapshot): ModelRegistrySnapshot {
       protocol_ids: [...model.protocol_ids],
       aliases: [...model.aliases],
       pricing_lookup_ids: [...model.pricing_lookup_ids],
+      preferred_protocol_ids: model.preferred_protocol_ids ? { ...model.preferred_protocol_ids } : undefined,
       modalities: [...model.modalities],
       capabilities: [...model.capabilities],
       exposed_in: [...model.exposed_in]

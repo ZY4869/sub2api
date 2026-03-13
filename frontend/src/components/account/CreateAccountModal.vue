@@ -489,18 +489,18 @@
                   Google One
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  个人账号，享受 Google One 订阅配额
+                  娑擃亙姹夌拹锕€褰块敍灞奸煩锟?Google One 鐠併垽妲勯柊宥夘杺
                 </span>
                 <div class="mt-2 flex flex-wrap gap-1">
                   <span
                     class="rounded bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
                   >
-                    推荐个人用户
+                    閹恒劏宕樻稉顏冩眽閻劍锟?
                   </span>
                   <span
                     class="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                   >
-                    无需 GCP
+                    閺冪娀锟?GCP
                   </span>
                 </div>
               </div>
@@ -532,10 +532,10 @@
                   GCP Code Assist
                 </span>
                 <span class="text-xs text-gray-500 dark:text-gray-400">
-                  企业级，需要 GCP 项目
+                  娴间椒绗熺痪褝绱濋棁鈧憰?GCP 妞ゅ湱锟?
                 </span>
                 <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  需要激活 GCP 项目并绑定信用卡
+                  闂団偓鐟曚焦绺哄ú?GCP 妞ゅ湱娲伴獮鍓佺拨鐎规矮淇婇悽銊ュ幢
                   <a
                     :href="geminiHelpLinks.gcpProject"
                     class="ml-1 text-blue-600 hover:underline dark:text-blue-400"
@@ -549,12 +549,12 @@
                   <span
                     class="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
                   >
-                    企业用户
+                    娴间椒绗熼悽銊﹀煕
                   </span>
                   <span
                     class="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
                   >
-                    高并发
+                    妤傛ê鑻熼崣?
                   </span>
                 </div>
               </div>
@@ -776,97 +776,16 @@
           <p class="input-hint">{{ t('admin.accounts.upstream.apiKeyHint') }}</p>
         </div>
       </div>
-
       <!-- Antigravity model restriction (applies to OAuth + Upstream) -->
-      <!-- Antigravity 只支持模型映射模式，不支持白名单模式 -->
-      <div v-if="form.platform === 'antigravity'" class="border-t border-gray-200 pt-4 dark:border-dark-600">
-        <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
-
-        <!-- Mapping Mode Only (no toggle for Antigravity) -->
-        <div>
-          <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-            <p class="text-xs text-purple-700 dark:text-purple-400">
-              {{ t('admin.accounts.mapRequestModels') }}
-            </p>
-          </div>
-
-          <div v-if="antigravityModelMappings.length > 0" class="mb-3 space-y-2">
-            <div
-              v-for="(mapping, index) in antigravityModelMappings"
-              :key="getAntigravityModelMappingKey(mapping)"
-              class="space-y-1"
-            >
-              <div class="flex items-center gap-2">
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  :class="[
-                    'input flex-1',
-                    !isValidWildcardPattern(mapping.from) ? 'border-red-500 dark:border-red-500' : ''
-                  ]"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg class="h-4 w-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  :class="[
-                    'input flex-1',
-                    mapping.to.includes('*') ? 'border-red-500 dark:border-red-500' : ''
-                  ]"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeAntigravityModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <!-- 校验错误提示 -->
-              <p v-if="!isValidWildcardPattern(mapping.from)" class="text-xs text-red-500">
-                {{ t('admin.accounts.wildcardOnlyAtEnd') }}
-              </p>
-              <p v-if="mapping.to.includes('*')" class="text-xs text-red-500">
-                {{ t('admin.accounts.targetNoWildcard') }}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            @click="addAntigravityModelMapping"
-            class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-          >
-            <svg class="mr-1 inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ t('admin.accounts.addMapping') }}
-          </button>
-
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="preset in antigravityPresetMappings"
-              :key="preset.label"
-              type="button"
-              @click="addAntigravityPresetMapping(preset.from, preset.to)"
-              :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-            >
-              + {{ preset.label }}
-            </button>
-          </div>
-        </div>
-      </div>
+      <AccountAntigravityModelMappingEditor
+        v-if="form.platform === 'antigravity'"
+        :model-mappings="antigravityModelMappings"
+        :preset-mappings="antigravityPresetMappings"
+        :get-mapping-key="getAntigravityModelMappingKey"
+        @add-mapping="addAntigravityModelMapping"
+        @remove-mapping="removeAntigravityModelMapping"
+        @add-preset="addAntigravityPresetMapping($event.from, $event.to)"
+      />
 
       <!-- Add Method (only for Anthropic OAuth-based type) -->
       <div v-if="form.platform === 'anthropic' && isOAuthFlow">
@@ -940,192 +859,20 @@
           </select>
           <p class="input-hint">{{ t('admin.accounts.gemini.tier.aiStudioHint') }}</p>
         </div>
-
-        <!-- Model Restriction Section (Antigravity 已在上层条件排除) -->
-        <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
-          <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
-
-          <div
-            v-if="isOpenAIModelRestrictionDisabled"
-            class="mb-3 rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20"
-          >
-            <p class="text-xs text-amber-700 dark:text-amber-400">
-              {{ t('admin.accounts.openai.modelRestrictionDisabledByPassthrough') }}
-            </p>
-          </div>
-
-          <template v-else>
-            <!-- Mode Toggle -->
-            <div class="mb-4 flex gap-2">
-              <button
-                type="button"
-                @click="modelRestrictionMode = 'whitelist'"
-                :class="[
-                  'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                  modelRestrictionMode === 'whitelist'
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
-                ]"
-              >
-                <svg
-                  class="mr-1.5 inline h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {{ t('admin.accounts.modelWhitelist') }}
-              </button>
-              <button
-                type="button"
-                @click="modelRestrictionMode = 'mapping'"
-                :class="[
-                  'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                  modelRestrictionMode === 'mapping'
-                    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
-                ]"
-              >
-                <svg
-                  class="mr-1.5 inline h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                  />
-                </svg>
-                {{ t('admin.accounts.modelMapping') }}
-              </button>
-            </div>
-
-            <!-- Whitelist Mode -->
-            <div v-if="modelRestrictionMode === 'whitelist'">
-              <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" />
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
-                <span v-if="allowedModels.length === 0">{{
-                  t('admin.accounts.supportsAllModels')
-                }}</span>
-              </p>
-            </div>
-
-            <!-- Mapping Mode -->
-            <div v-else>
-              <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-                <p class="text-xs text-purple-700 dark:text-purple-400">
-                  <svg
-                    class="mr-1 inline h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {{ t('admin.accounts.mapRequestModels') }}
-                </p>
-              </div>
-
-            <!-- Model Mapping List -->
-            <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
-              <div
-                v-for="(mapping, index) in modelMappings"
-                :key="getModelMappingKey(mapping)"
-                class="flex items-center gap-2"
-              >
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  class="input flex-1"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg
-                  class="h-4 w-4 flex-shrink-0 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  class="input flex-1"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              @click="addModelMapping"
-              class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-            >
-              <svg
-                class="mr-1 inline h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              {{ t('admin.accounts.addMapping') }}
-            </button>
-
-              <!-- Quick Add Buttons -->
-              <div class="flex flex-wrap gap-2">
-                <button
-                  v-for="preset in presetMappings"
-                  :key="preset.label"
-                  type="button"
-                  @click="addPresetMapping(preset.from, preset.to)"
-                  :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-                >
-                  + {{ preset.label }}
-                </button>
-              </div>
-            </div>
-          </template>
-        </div>
+        <AccountModelRestrictionEditor
+          :disabled="isOpenAIModelRestrictionDisabled"
+          :platform="form.platform"
+          :mode="modelRestrictionMode"
+          :allowed-models="allowedModels"
+          :model-mappings="modelMappings"
+          :preset-mappings="presetMappings"
+          :get-mapping-key="getModelMappingKey"
+          @update:mode="modelRestrictionMode = $event"
+          @update:allowedModels="allowedModels = $event"
+          @add-mapping="addModelMapping"
+          @remove-mapping="removeModelMapping"
+          @add-preset="addPresetMapping($event.from, $event.to)"
+        />
 
         <!-- Pool Mode Section -->
         <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
@@ -1279,7 +1026,7 @@
 
       </div>
 
-      <!-- API Key 账号配额限制 -->
+      <!-- API Key 鐠愶箑褰块柊宥夘杺闂勬劕锟?-->
       <div v-if="form.type === 'apikey'" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3">
           <h3 class="input-label mb-0 text-base font-semibold">{{ t('admin.accounts.quotaLimit') }}</h3>
@@ -1296,290 +1043,33 @@
           @update:weeklyLimit="editQuotaWeeklyLimit = $event"
         />
       </div>
-
-      <!-- OpenAI OAuth Model Mapping (OAuth 类型没有 apikey 容器，需要独立的模型映射区域) -->
-      <div
+      <AccountModelRestrictionEditor
         v-if="form.platform === 'openai' && accountCategory === 'oauth-based'"
-        class="border-t border-gray-200 pt-4 dark:border-dark-600"
-      >
-        <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
+        :disabled="isOpenAIModelRestrictionDisabled"
+        :platform="form.platform"
+        :mode="modelRestrictionMode"
+        :allowed-models="allowedModels"
+        :model-mappings="modelMappings"
+        :preset-mappings="presetMappings"
+        :get-mapping-key="getModelMappingKey"
+        variant="simple"
+        @update:mode="modelRestrictionMode = $event"
+        @update:allowedModels="allowedModels = $event"
+        @add-mapping="addModelMapping"
+        @remove-mapping="removeModelMapping"
+        @add-preset="addPresetMapping($event.from, $event.to)"
+      />
 
-        <div
-          v-if="isOpenAIModelRestrictionDisabled"
-          class="mb-3 rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20"
-        >
-          <p class="text-xs text-amber-700 dark:text-amber-400">
-            {{ t('admin.accounts.openai.modelRestrictionDisabledByPassthrough') }}
-          </p>
-        </div>
-
-        <template v-else>
-          <!-- Mode Toggle -->
-          <div class="mb-4 flex gap-2">
-            <button
-              type="button"
-              @click="modelRestrictionMode = 'whitelist'"
-              :class="[
-                'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                modelRestrictionMode === 'whitelist'
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
-              ]"
-            >
-              {{ t('admin.accounts.modelWhitelist') }}
-            </button>
-            <button
-              type="button"
-              @click="modelRestrictionMode = 'mapping'"
-              :class="[
-                'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-                modelRestrictionMode === 'mapping'
-                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
-              ]"
-            >
-              {{ t('admin.accounts.modelMapping') }}
-            </button>
-          </div>
-
-          <!-- Whitelist Mode -->
-          <div v-if="modelRestrictionMode === 'whitelist'">
-            <ModelWhitelistSelector v-model="allowedModels" :platform="form.platform" />
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.selectedModels', { count: allowedModels.length }) }}
-              <span v-if="allowedModels.length === 0">{{
-                t('admin.accounts.supportsAllModels')
-              }}</span>
-            </p>
-          </div>
-
-          <!-- Mapping Mode -->
-          <div v-else>
-            <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
-              <p class="text-xs text-purple-700 dark:text-purple-400">
-                {{ t('admin.accounts.mapRequestModels') }}
-              </p>
-            </div>
-
-            <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
-              <div
-                v-for="(mapping, index) in modelMappings"
-                :key="'oauth-' + getModelMappingKey(mapping)"
-                class="flex items-center gap-2"
-              >
-                <input
-                  v-model="mapping.from"
-                  type="text"
-                  class="input flex-1"
-                  :placeholder="t('admin.accounts.requestModel')"
-                />
-                <svg
-                  class="h-4 w-4 flex-shrink-0 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
-                <input
-                  v-model="mapping.to"
-                  type="text"
-                  class="input flex-1"
-                  :placeholder="t('admin.accounts.actualModel')"
-                />
-                <button
-                  type="button"
-                  @click="removeModelMapping(index)"
-                  class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              @click="addModelMapping"
-              class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-            >
-              + {{ t('admin.accounts.addMapping') }}
-            </button>
-
-            <!-- Quick Add Buttons -->
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="preset in presetMappings"
-                :key="'oauth-' + preset.label"
-                type="button"
-                @click="addPresetMapping(preset.from, preset.to)"
-                :class="['rounded-lg px-3 py-1 text-xs transition-colors', preset.color]"
-              >
-                + {{ preset.label }}
-              </button>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <!-- Temp Unschedulable Rules -->
-      <div class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
-        <div class="mb-3 flex items-center justify-between">
-          <div>
-            <label class="input-label mb-0">{{ t('admin.accounts.tempUnschedulable.title') }}</label>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.tempUnschedulable.hint') }}
-            </p>
-          </div>
-          <button
-            type="button"
-            @click="tempUnschedEnabled = !tempUnschedEnabled"
-            :class="[
-              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-              tempUnschedEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
-            ]"
-          >
-            <span
-              :class="[
-                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                tempUnschedEnabled ? 'translate-x-5' : 'translate-x-0'
-              ]"
-            />
-          </button>
-        </div>
-
-        <div v-if="tempUnschedEnabled" class="space-y-3">
-          <div class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-              <p class="text-xs text-blue-700 dark:text-blue-400">
-                <Icon name="exclamationTriangle" size="sm" class="mr-1 inline" :stroke-width="2" />
-                {{ t('admin.accounts.tempUnschedulable.notice') }}
-              </p>
-            </div>
-
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="preset in tempUnschedPresets"
-              :key="preset.label"
-              type="button"
-              @click="addTempUnschedRule(preset.rule)"
-              class="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
-            >
-              + {{ preset.label }}
-            </button>
-          </div>
-
-          <div v-if="tempUnschedRules.length > 0" class="space-y-3">
-            <div
-              v-for="(rule, index) in tempUnschedRules"
-              :key="getTempUnschedRuleKey(rule)"
-              class="rounded-lg border border-gray-200 p-3 dark:border-dark-600"
-            >
-              <div class="mb-2 flex items-center justify-between">
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.accounts.tempUnschedulable.ruleIndex', { index: index + 1 }) }}
-                </span>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    :disabled="index === 0"
-                    @click="moveTempUnschedRule(index, -1)"
-                    class="rounded p-1 text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-gray-200"
-                  >
-                    <Icon name="chevronUp" size="sm" :stroke-width="2" />
-                  </button>
-                  <button
-                    type="button"
-                    :disabled="index === tempUnschedRules.length - 1"
-                    @click="moveTempUnschedRule(index, 1)"
-                    class="rounded p-1 text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-gray-200"
-                  >
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    @click="removeTempUnschedRule(index)"
-                    class="rounded p-1 text-red-500 transition-colors hover:text-red-600"
-                  >
-                    <Icon name="x" size="sm" :stroke-width="2" />
-                  </button>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label class="input-label">{{ t('admin.accounts.tempUnschedulable.errorCode') }}</label>
-                  <input
-                    v-model.number="rule.error_code"
-                    type="number"
-                    min="100"
-                    max="599"
-                    class="input"
-                    :placeholder="t('admin.accounts.tempUnschedulable.errorCodePlaceholder')"
-                  />
-                </div>
-                <div>
-                  <label class="input-label">{{ t('admin.accounts.tempUnschedulable.durationMinutes') }}</label>
-                  <input
-                    v-model.number="rule.duration_minutes"
-                    type="number"
-                    min="1"
-                    class="input"
-                    :placeholder="t('admin.accounts.tempUnschedulable.durationPlaceholder')"
-                  />
-                </div>
-                <div class="sm:col-span-2">
-                  <label class="input-label">{{ t('admin.accounts.tempUnschedulable.keywords') }}</label>
-                  <input
-                    v-model="rule.keywords"
-                    type="text"
-                    class="input"
-                    :placeholder="t('admin.accounts.tempUnschedulable.keywordsPlaceholder')"
-                  />
-                  <p class="input-hint">{{ t('admin.accounts.tempUnschedulable.keywordsHint') }}</p>
-                </div>
-                <div class="sm:col-span-2">
-                  <label class="input-label">{{ t('admin.accounts.tempUnschedulable.description') }}</label>
-                  <input
-                    v-model="rule.description"
-                    type="text"
-                    class="input"
-                    :placeholder="t('admin.accounts.tempUnschedulable.descriptionPlaceholder')"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            @click="addTempUnschedRule()"
-            class="w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-sm text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
-          >
-            <svg
-              class="mr-1 inline h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            {{ t('admin.accounts.tempUnschedulable.addRule') }}
-          </button>
-        </div>
-      </div>
+      <AccountTempUnschedRulesEditor
+        :enabled="tempUnschedEnabled"
+        :rules="tempUnschedRules"
+        :presets="tempUnschedPresets"
+        :get-rule-key="getTempUnschedRuleKey"
+        @update:enabled="tempUnschedEnabled = $event"
+        @add-rule="addTempUnschedRule"
+        @remove-rule="removeTempUnschedRule"
+        @move-rule="moveTempUnschedRule($event.index, $event.direction)"
+      />
 
       <!-- Intercept Warmup Requests (Anthropic/Antigravity) -->
       <div
@@ -1834,7 +1324,7 @@
 
           </div>
 
-          <!-- 用户消息限速模式（独立于 RPM 开关，始终可见） -->
+          <!-- 閻劍鍩涘☉鍫熶紖闂勬劙鈧喐膩瀵骏绱欓悪顒傜彌锟?RPM 瀵偓閸忕绱濇慨瀣矒閸欘垵顫嗛敍?-->
           <div class="mt-4">
             <label class="input-label">{{ t('admin.accounts.quotaControl.rpmLimit.userMsgQueue') }}</label>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -1991,7 +1481,7 @@
         <p class="input-hint">{{ t('admin.accounts.expiresAtHint') }}</p>
       </div>
 
-      <!-- OpenAI 自动透传开关（OAuth/API Key） -->
+      <!-- OpenAI 閼奉亜濮╅柅蹇庣炊瀵偓閸忕绱橭Auth/API Key锟?-->
       <div
         v-if="form.platform === 'openai'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -2021,7 +1511,7 @@
         </div>
       </div>
 
-      <!-- OpenAI WS Mode 三态（off/ctx_pool/passthrough） -->
+      <!-- OpenAI WS Mode 娑撳鈧緤绱檕ff/ctx_pool/passthrough锟?-->
       <div
         v-if="form.platform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -2042,7 +1532,7 @@
         </div>
       </div>
 
-      <!-- Anthropic API Key 自动透传开关 -->
+      <!-- Anthropic API Key 閼奉亜濮╅柅蹇庣炊瀵偓锟?-->
       <div
         v-if="form.platform === 'anthropic' && accountCategory === 'apikey'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -2072,7 +1562,7 @@
         </div>
       </div>
 
-      <!-- OpenAI OAuth Codex 官方客户端限制开关 -->
+      <!-- OpenAI OAuth Codex 鐎规ɑ鏌熺€广垺鍩涚粩顖炴閸掕泛绱戦崗?-->
       <div
         v-if="form.platform === 'openai' && accountCategory === 'oauth-based'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
@@ -2149,7 +1639,7 @@
             >
               ?
             </span>
-            <!-- Tooltip（向下显示避免被弹窗裁剪） -->
+            <!-- Tooltip閿涘牆鎮滄稉瀣▔缁€娲缉閸忓秷顫﹀鍦崶鐟佷礁澹€锟?-->
             <div
               class="pointer-events-none absolute left-0 top-full z-[100] mt-1.5 w-72 rounded bg-gray-900 px-3 py-2 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
             >
@@ -2161,7 +1651,7 @@
           </div>
         </div>
 
-        <!-- Group Selection - 仅标准模式显示 -->
+        <!-- Group Selection - 娴犲懏鐖ｉ崙鍡樐佸蹇旀▔缁€?-->
         <GroupSelector
           v-if="!authStore.isSimpleMode"
           v-model="form.group_ids"
@@ -2335,16 +1825,16 @@
               >
                 {{ t('admin.accounts.gemini.setupGuide.links.countryCheck') }}
               </a>
-              <span class="text-gray-400">·</span>
+              <span class="text-gray-400">|</span>
               <a
-                href="https://policies.google.com/country-association-form"
+                :href="geminiHelpLinks.countryChange"
                 target="_blank"
                 rel="noreferrer"
                 class="text-sm text-blue-600 hover:underline dark:text-blue-400"
               >
-                修改归属地
+                {{ t('admin.accounts.gemini.setupGuide.links.countryAssociationForm') }}
               </a>
-              <span class="text-gray-400">·</span>
+              <span class="text-gray-400">|</span>
               <a
                 href="https://gemini.google.com/gems/create?hl=en-US&pli=1"
                 target="_blank"
@@ -2353,7 +1843,7 @@
               >
                 {{ t('admin.accounts.gemini.setupGuide.links.geminiWebActivation') }}
               </a>
-              <span class="text-gray-400">·</span>
+              <span class="text-gray-400">|</span>
               <a
                 href="https://console.cloud.google.com"
                 target="_blank"
@@ -2512,14 +2002,9 @@
     </template>
   </BaseDialog>
 
-  <!-- Mixed Channel Warning Dialog -->
-  <ConfirmDialog
+  <AccountMixedChannelWarningDialog
     :show="showMixedChannelWarning"
-    :title="t('admin.accounts.mixedChannelWarningTitle')"
     :message="mixedChannelWarningMessageText"
-    :confirm-text="t('common.confirm')"
-    :cancel-text="t('common.cancel')"
-    :danger="true"
     @confirm="handleMixedChannelConfirm"
     @cancel="handleMixedChannelCancel"
   />
@@ -2536,8 +2021,7 @@ import {
   getModelsByPlatform,
   commonErrorCodes,
   buildModelMappingObject,
-  fetchAntigravityDefaultMappings,
-  isValidWildcardPattern
+  fetchAntigravityDefaultMappings
 } from '@/composables/useModelWhitelist'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
@@ -2550,22 +2034,25 @@ import {
 import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
+import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
+import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
 import type {
   Proxy,
   AdminGroup,
   AccountPlatform,
   AccountType,
-  CheckMixedChannelResponse,
   CreateAccountRequest,
   Account
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
-import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
+import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
+import AccountModelRestrictionEditor from '@/components/account/AccountModelRestrictionEditor.vue'
+import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
 import {
@@ -2577,6 +2064,12 @@ import {
 } from '@/utils/accountModelImport'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
+import {
+  DEFAULT_POOL_MODE_RETRY_COUNT,
+  MAX_POOL_MODE_RETRY_COUNT,
+  normalizePoolModeRetryCount,
+  type ModelMapping
+} from '@/utils/accountFormShared'
 import {
   // OPENAI_WS_MODE_CTX_POOL,
   OPENAI_WS_MODE_OFF,
@@ -2680,19 +2173,6 @@ const currentOAuthError = computed(() => {
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 
-// Model mapping type
-interface ModelMapping {
-  from: string
-  to: string
-}
-
-interface TempUnschedRuleForm {
-  error_code: number | null
-  keywords: string
-  duration_minutes: number | null
-  description: string
-}
-
 // State
 const step = ref(1)
 const submitting = ref(false)
@@ -2707,8 +2187,6 @@ const editQuotaWeeklyLimit = ref<number | null>(null)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
-const DEFAULT_POOL_MODE_RETRY_COUNT = 3
-const MAX_POOL_MODE_RETRY_COUNT = 10
 const poolModeEnabled = ref(false)
 const poolModeRetryCount = ref(DEFAULT_POOL_MODE_RETRY_COUNT)
 const customErrorCodesEnabled = ref(false)
@@ -2730,21 +2208,11 @@ const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist'
 const antigravityWhitelistModels = ref<string[]>([])
 const antigravityModelMappings = ref<ModelMapping[]>([])
 const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
-const tempUnschedEnabled = ref(false)
-const tempUnschedRules = ref<TempUnschedRuleForm[]>([])
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-model-mapping')
 const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-antigravity-model-mapping')
-const getTempUnschedRuleKey = createStableObjectKeyResolver<TempUnschedRuleForm>('create-temp-unsched-rule')
 const geminiOAuthType = ref<'code_assist' | 'google_one' | 'ai_studio'>('google_one')
 const geminiAIStudioOAuthEnabled = ref(false)
 
-const showMixedChannelWarning = ref(false)
-const mixedChannelWarningDetails = ref<{ groupName: string; currentPlatform: string; otherPlatform: string } | null>(
-  null
-)
-const mixedChannelWarningRawMessage = ref('')
-const mixedChannelWarningAction = ref<(() => Promise<void>) | null>(null)
-const antigravityMixedChannelConfirmed = ref(false)
 const showAdvancedOAuth = ref(false)
 const showGeminiHelpDialog = ref(false)
 
@@ -2790,7 +2258,7 @@ const geminiSelectedTier = computed(() => {
 
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
-  // TODO: ctx_pool 选项暂时隐藏，待测试完成后恢复
+  // TODO: ctx_pool 闁銆嶉弳鍌涙闂呮劘妫岄敍灞界窡濞村鐦€瑰本鍨氶崥搴划锟?
   // { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
   { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
 ])
@@ -2819,13 +2287,6 @@ const isOpenAIModelRestrictionDisabled = computed(() =>
   form.platform === 'openai' && openaiPassthroughEnabled.value
 )
 
-const mixedChannelWarningMessageText = computed(() => {
-  if (mixedChannelWarningDetails.value) {
-    return t('admin.accounts.mixedChannelWarning', mixedChannelWarningDetails.value)
-  }
-  return mixedChannelWarningRawMessage.value
-})
-
 const geminiQuotaDocs = {
   codeAssist: 'https://developers.google.com/gemini-code-assist/resources/quotas',
   aiStudio: 'https://ai.google.dev/pricing',
@@ -2843,35 +2304,6 @@ const geminiHelpLinks = {
 
 // Computed: current preset mappings based on platform
 const presetMappings = computed(() => getPresetMappingsByPlatform(form.platform))
-const tempUnschedPresets = computed(() => [
-  {
-    label: t('admin.accounts.tempUnschedulable.presets.overloadLabel'),
-    rule: {
-      error_code: 529,
-      keywords: 'overloaded, too many',
-      duration_minutes: 60,
-      description: t('admin.accounts.tempUnschedulable.presets.overloadDesc')
-    }
-  },
-  {
-    label: t('admin.accounts.tempUnschedulable.presets.rateLimitLabel'),
-    rule: {
-      error_code: 429,
-      keywords: 'rate limit, too many requests',
-      duration_minutes: 10,
-      description: t('admin.accounts.tempUnschedulable.presets.rateLimitDesc')
-    }
-  },
-  {
-    label: t('admin.accounts.tempUnschedulable.presets.unavailableLabel'),
-    rule: {
-      error_code: 503,
-      keywords: 'unavailable, maintenance',
-      duration_minutes: 30,
-      description: t('admin.accounts.tempUnschedulable.presets.unavailableDesc')
-    }
-  }
-])
 
 const form = reactive({
   name: '',
@@ -2888,9 +2320,48 @@ const form = reactive({
   expires_at: null as number | null
 })
 
+const {
+  enabled: tempUnschedEnabled,
+  rules: tempUnschedRules,
+  presets: tempUnschedPresets,
+  getRuleKey: getTempUnschedRuleKey,
+  addRule: addTempUnschedRule,
+  removeRule: removeTempUnschedRule,
+  moveRule: moveTempUnschedRule,
+  buildRulesPayload: buildTempUnschedPayload,
+  applyToCredentials: applyTempUnschedConfig,
+  reset: resetTempUnschedRules
+} = useAccountTempUnschedRules({
+  keyPrefix: 'create',
+  invalidMessage: () => t('admin.accounts.tempUnschedulable.rulesInvalid'),
+  showError: (message) => appStore.showError(message),
+  t: (key) => t(key)
+})
+
+const {
+  showWarning: showMixedChannelWarning,
+  warningMessageText: mixedChannelWarningMessageText,
+  openDialog: openMixedChannelDialog,
+  withConfirmFlag,
+  ensureConfirmed: ensureMixedChannelConfirmed,
+  handleConfirm: handleMixedChannelConfirm,
+  handleCancel: handleMixedChannelCancel,
+  reset: resetMixedChannelRisk,
+  requiresCheck: requiresMixedChannelCheck
+} = useAccountMixedChannelRisk({
+  currentPlatform: () => form.platform,
+  buildCheckPayload: () => ({
+    platform: form.platform,
+    group_ids: form.group_ids
+  }),
+  buildWarningText: (details) => t('admin.accounts.mixedChannelWarning', { ...details }),
+  fallbackMessage: () => t('admin.accounts.failedToCreate'),
+  showError: (message) => appStore.showError(message)
+})
+
 // Helper to check if current type needs OAuth flow
 const isOAuthFlow = computed(() => {
-  // Antigravity upstream 类型不需要 OAuth 流程
+  // Antigravity upstream 缁鐎锋稉宥夋付锟?OAuth 濞翠胶锟?
   if (form.platform === 'antigravity' && antigravityAccountType.value === 'upstream') {
     return false
   }
@@ -2929,7 +2400,7 @@ watch(
     if (newVal) {
       // Modal opened - fill related models
       allowedModels.value = [...getModelsByPlatform(form.platform, 'whitelist')]
-      // Antigravity: 默认使用映射模式并填充默认映射
+      // Antigravity: 姒涙顓绘担璺ㄦ暏閺勭姴鐨犲Ο鈥崇础楠炶泛锝為崗鍛寸帛鐠併倖妲х亸?
       if (form.platform === 'antigravity') {
         antigravityModelRestrictionMode.value = 'mapping'
         fetchAntigravityDefaultMappings().then(mappings => {
@@ -2951,12 +2422,12 @@ watch(
 watch(
   [accountCategory, addMethod, antigravityAccountType, soraAccountType],
   ([category, method, agType, soraType]) => {
-    // Antigravity upstream 类型（实际创建为 apikey）
+    // Antigravity upstream 缁鐎烽敍鍫濈杽闂勫懎鍨卞杞拌礋 apikey锟?
     if (form.platform === 'antigravity' && agType === 'upstream') {
       form.type = 'apikey'
       return
     }
-    // Sora apikey 类型（上游透传）
+    // Sora apikey 缁鐎烽敍鍫滅瑐濞撴悂鈧繋绱堕敍?
     if (form.platform === 'sora' && soraType === 'apikey') {
       form.type = 'apikey'
       return
@@ -2984,7 +2455,7 @@ watch(
     // Clear model-related settings
     allowedModels.value = []
     modelMappings.value = []
-    // Antigravity: 默认使用映射模式并填充默认映射
+    // Antigravity: 姒涙顓绘担璺ㄦ暏閺勭姴鐨犲Ο鈥崇础楠炶泛锝為崗鍛寸帛鐠併倖妲х亸?
     if (newPlatform === 'antigravity') {
       antigravityModelRestrictionMode.value = 'mapping'
       fetchAntigravityDefaultMappings().then(mappings => {
@@ -3003,7 +2474,7 @@ watch(
       interceptWarmupRequests.value = false
     }
     if (newPlatform === 'sora') {
-      // 默认 OAuth，但允许用户选择 API Key
+      // 姒涙锟?OAuth閿涘奔绲鹃崗浣筋啅閻劍鍩涢柅澶嬪 API Key
       accountCategory.value = 'oauth-based'
       addMethod.value = 'oauth'
       form.type = 'oauth'
@@ -3078,8 +2549,8 @@ watch(
   [antigravityModelRestrictionMode, () => form.platform],
   ([, platform]) => {
     if (platform !== 'antigravity') return
-    // Antigravity 默认不做限制：白名单留空表示允许所有（包含未来新增模型）。
-    // 如果需要快速填充常用模型，可在组件内点“填充相关模型”。
+    // Antigravity 姒涙顓绘稉宥呬粵闂勬劕鍩楅敍姘辨閸氬秴宕熼悾娆戔敄鐞涖劎銇氶崗浣筋啅閹碘偓閺堝绱欓崠鍛儓閺堫亝娼甸弬鏉款杻濡€崇€烽敍澶堚偓?
+    // 婵″倹鐏夐棁鈧憰浣告彥闁喎锝為崗鍛埗閻劍膩閸ㄥ绱濋崣顖氭躬缂佸嫪娆㈤崘鍛仯閳ユ粌锝為崗鍛祲閸忚櫕膩閸ㄥ鈧縿锟?
   }
 )
 
@@ -3169,164 +2640,6 @@ const removeErrorCode = (code: number) => {
   }
 }
 
-const addTempUnschedRule = (preset?: TempUnschedRuleForm) => {
-  if (preset) {
-    tempUnschedRules.value.push({ ...preset })
-    return
-  }
-  tempUnschedRules.value.push({
-    error_code: null,
-    keywords: '',
-    duration_minutes: 30,
-    description: ''
-  })
-}
-
-const removeTempUnschedRule = (index: number) => {
-  tempUnschedRules.value.splice(index, 1)
-}
-
-const moveTempUnschedRule = (index: number, direction: number) => {
-  const target = index + direction
-  if (target < 0 || target >= tempUnschedRules.value.length) return
-  const rules = tempUnschedRules.value
-  const current = rules[index]
-  rules[index] = rules[target]
-  rules[target] = current
-}
-
-const buildTempUnschedRules = (rules: TempUnschedRuleForm[]) => {
-  const out: Array<{
-    error_code: number
-    keywords: string[]
-    duration_minutes: number
-    description: string
-  }> = []
-
-  for (const rule of rules) {
-    const errorCode = Number(rule.error_code)
-    const duration = Number(rule.duration_minutes)
-    const keywords = splitTempUnschedKeywords(rule.keywords)
-    if (!Number.isFinite(errorCode) || errorCode < 100 || errorCode > 599) {
-      continue
-    }
-    if (!Number.isFinite(duration) || duration <= 0) {
-      continue
-    }
-    if (keywords.length === 0) {
-      continue
-    }
-    out.push({
-      error_code: Math.trunc(errorCode),
-      keywords,
-      duration_minutes: Math.trunc(duration),
-      description: rule.description.trim()
-    })
-  }
-
-  return out
-}
-
-const applyTempUnschedConfig = (credentials: Record<string, unknown>) => {
-  if (!tempUnschedEnabled.value) {
-    delete credentials.temp_unschedulable_enabled
-    delete credentials.temp_unschedulable_rules
-    return true
-  }
-
-  const rules = buildTempUnschedRules(tempUnschedRules.value)
-  if (rules.length === 0) {
-    appStore.showError(t('admin.accounts.tempUnschedulable.rulesInvalid'))
-    return false
-  }
-
-  credentials.temp_unschedulable_enabled = true
-  credentials.temp_unschedulable_rules = rules
-  return true
-}
-
-const splitTempUnschedKeywords = (value: string) => {
-  return value
-    .split(/[,;]/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-}
-
-const needsMixedChannelCheck = (platform: AccountPlatform) => platform === 'antigravity' || platform === 'anthropic'
-
-const buildMixedChannelDetails = (resp?: CheckMixedChannelResponse) => {
-  const details = resp?.details
-  if (!details) {
-    return null
-  }
-  return {
-    groupName: details.group_name || 'Unknown',
-    currentPlatform: details.current_platform || 'Unknown',
-    otherPlatform: details.other_platform || 'Unknown'
-  }
-}
-
-const clearMixedChannelDialog = () => {
-  showMixedChannelWarning.value = false
-  mixedChannelWarningDetails.value = null
-  mixedChannelWarningRawMessage.value = ''
-  mixedChannelWarningAction.value = null
-}
-
-const openMixedChannelDialog = (opts: {
-  response?: CheckMixedChannelResponse
-  message?: string
-  onConfirm: () => Promise<void>
-}) => {
-  mixedChannelWarningDetails.value = buildMixedChannelDetails(opts.response)
-  mixedChannelWarningRawMessage.value =
-    opts.message || opts.response?.message || t('admin.accounts.failedToCreate')
-  mixedChannelWarningAction.value = opts.onConfirm
-  showMixedChannelWarning.value = true
-}
-
-const withAntigravityConfirmFlag = (payload: CreateAccountRequest): CreateAccountRequest => {
-  if (needsMixedChannelCheck(payload.platform) && antigravityMixedChannelConfirmed.value) {
-    return {
-      ...payload,
-      confirm_mixed_channel_risk: true
-    }
-  }
-  const cloned = { ...payload }
-  delete cloned.confirm_mixed_channel_risk
-  return cloned
-}
-
-const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<void>): Promise<boolean> => {
-  if (!needsMixedChannelCheck(form.platform)) {
-    return true
-  }
-  if (antigravityMixedChannelConfirmed.value) {
-    return true
-  }
-
-  try {
-    const result = await adminAPI.accounts.checkMixedChannelRisk({
-      platform: form.platform,
-      group_ids: form.group_ids
-    })
-    if (!result.has_risk) {
-      return true
-    }
-    openMixedChannelDialog({
-      response: result,
-      onConfirm: async () => {
-        antigravityMixedChannelConfirmed.value = true
-        await onConfirm()
-      }
-    })
-    return false
-  } catch (error: any) {
-    appStore.showError(error.response?.data?.message || error.response?.data?.detail || t('admin.accounts.failedToCreate'))
-    return false
-  }
-}
-
 const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
   pendingImportedModelsResult.value = null
   if (!autoImportModels.value || createdAccounts.length === 0) {
@@ -3395,20 +2708,21 @@ ${firstFailureMessage}`
 const submitCreateAccount = async (payload: CreateAccountRequest): Promise<Account | null> => {
   submitting.value = true
   try {
-    const createdAccount = await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    const createdAccount = await adminAPI.accounts.create(withConfirmFlag(payload))
     appStore.showSuccess(t('admin.accounts.accountCreated'))
     await maybeImportCreatedAccounts([createdAccount])
     emit('created')
     handleClose()
     return createdAccount
   } catch (error: any) {
-    if (error.response?.status === 409 && error.response?.data?.error === 'mixed_channel_warning' && needsMixedChannelCheck(form.platform)) {
+    if (
+      error.response?.status === 409 &&
+      error.response?.data?.error === 'mixed_channel_warning' &&
+      requiresMixedChannelCheck.value
+    ) {
       openMixedChannelDialog({
         message: error.response?.data?.message,
-        onConfirm: async () => {
-          antigravityMixedChannelConfirmed.value = true
-          await submitCreateAccount(payload)
-        }
+        onConfirm: async () => submitCreateAccount(payload)
       })
       return null
     }
@@ -3482,8 +2796,7 @@ const resetForm = () => {
   antigravityAccountType.value = 'oauth'
   upstreamBaseUrl.value = ''
   upstreamApiKey.value = ''
-  tempUnschedEnabled.value = false
-  tempUnschedRules.value = []
+  resetTempUnschedRules()
   geminiOAuthType.value = 'code_assist'
   geminiTierGoogleOne.value = 'google_one_free'
   geminiTierGcp.value = 'gcp_standard'
@@ -3494,13 +2807,11 @@ const resetForm = () => {
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
-  antigravityMixedChannelConfirmed.value = false
-  clearMixedChannelDialog()
+  resetMixedChannelRisk()
 }
 
 const handleClose = () => {
-  antigravityMixedChannelConfirmed.value = false
-  clearMixedChannelDialog()
+  resetMixedChannelRisk()
   const importedResult = pendingImportedModelsResult.value
   pendingImportedModelsResult.value = null
   emit('close')
@@ -3522,7 +2833,7 @@ const buildOpenAIExtra = (base?: Record<string, unknown>): Record<string, unknow
     extra.openai_apikey_responses_websockets_v2_mode = openaiAPIKeyResponsesWebSocketV2Mode.value
     extra.openai_apikey_responses_websockets_v2_enabled = isOpenAIWSModeEnabled(openaiAPIKeyResponsesWebSocketV2Mode.value)
   }
-  // 清理兼容旧键，统一改用分类型开关。
+  // 濞撳懐鎮婇崗鐓庮啇閺冄囨暛閿涘瞼绮烘稉鈧弨鍦暏閸掑棛琚崹瀣磻閸忕偨锟?
   delete extra.responses_websockets_v2_enabled
   delete extra.openai_ws_enabled
   if (openaiPassthroughEnabled.value) {
@@ -3581,47 +2892,13 @@ const buildSoraExtra = (
 
 // Helper function to create account with mixed channel warning handling
 const doCreateAccount = async (payload: CreateAccountRequest) => {
-  const canContinue = await ensureAntigravityMixedChannelConfirmed(async () => {
+  const canContinue = await ensureMixedChannelConfirmed(async () => {
     await submitCreateAccount(payload)
   })
   if (!canContinue) {
     return
   }
   await submitCreateAccount(payload)
-}
-
-// Handle mixed channel warning confirmation
-const handleMixedChannelConfirm = async () => {
-  const action = mixedChannelWarningAction.value
-  if (!action) {
-    clearMixedChannelDialog()
-    return
-  }
-  clearMixedChannelDialog()
-  submitting.value = true
-  try {
-    await action()
-  } finally {
-    submitting.value = false
-  }
-}
-
-const handleMixedChannelCancel = () => {
-  clearMixedChannelDialog()
-}
-
-const normalizePoolModeRetryCount = (value: number) => {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_POOL_MODE_RETRY_COUNT
-  }
-  const normalized = Math.trunc(value)
-  if (normalized < 0) {
-    return 0
-  }
-  if (normalized > MAX_POOL_MODE_RETRY_COUNT) {
-    return MAX_POOL_MODE_RETRY_COUNT
-  }
-  return normalized
 }
 
 const handleSubmit = async () => {
@@ -3631,7 +2908,7 @@ const handleSubmit = async () => {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
       return
     }
-    const canContinue = await ensureAntigravityMixedChannelConfirmed(async () => {
+    const canContinue = await ensureMixedChannelConfirmed(async () => {
       step.value = 2
     })
     if (!canContinue) {
@@ -3662,7 +2939,7 @@ const handleSubmit = async () => {
       api_key: upstreamApiKey.value.trim()
     }
 
-    // Antigravity 只使用映射模式
+    // Antigravity 閸欘亙濞囬悽銊︽Ё鐏忓嫭膩锟?
     const antigravityModelMapping = buildModelMappingObject(
       'mapping',
       [],
@@ -3685,7 +2962,7 @@ const handleSubmit = async () => {
     return
   }
 
-  // Sora apikey 账号 base_url 必填 + scheme 校验
+  // Sora apikey 鐠愶箑锟?base_url 韫囧懎锟?+ scheme 閺嶏繝锟?
   if (form.platform === 'sora') {
     const soraBaseUrl = apiKeyBaseUrl.value.trim()
     if (!soraBaseUrl) {
@@ -3715,7 +2992,7 @@ const handleSubmit = async () => {
     credentials.tier_id = geminiTierAIStudio.value
   }
 
-  // Add model mapping if configured（OpenAI 开启自动透传时不应用）
+  // Add model mapping if configured閿涘湦penAI 瀵偓閸氼垵鍤滈崝銊┾偓蹇庣炊閺冩湹绗夋惔鏃傛暏锟?
   if (!isOpenAIModelRestrictionDisabled.value) {
     const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
     if (modelMapping) {
@@ -3792,7 +3069,7 @@ const handleValidateSessionToken = (sessionToken: string) => {
   }
 }
 
-// Sora 手动 AT 批量导入
+// Sora 閹靛锟?AT 閹靛綊鍣虹€电厧锟?
 const handleImportAccessToken = async (accessTokenInput: string) => {
   const oauthClient = activeOpenAIOAuth.value
   if (!accessTokenInput.trim()) return
@@ -3922,7 +3199,7 @@ const createAccountAndFinish = async (
   })
 }
 
-// OpenAI OAuth 授权码兑换
+// OpenAI OAuth 閹哄牊娼堥惍浣稿幀锟?
 const handleOpenAIExchange = async (authCode: string) => {
   const oauthClient = activeOpenAIOAuth.value
   if (!authCode.trim() || !oauthClient.sessionId.value) return
@@ -3952,7 +3229,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     const shouldCreateOpenAI = form.platform === 'openai'
     const shouldCreateSora = form.platform === 'sora'
 
-    // Add model mapping for OpenAI OAuth accounts（透传模式下不应用）
+    // Add model mapping for OpenAI OAuth accounts閿涘牓鈧繋绱跺Ο鈥崇础娑撳绗夋惔鏃傛暏锟?
     if (shouldCreateOpenAI && !isOpenAIModelRestrictionDisabled.value) {
       const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
       if (modelMapping) {
@@ -3960,7 +3237,7 @@ const handleOpenAIExchange = async (authCode: string) => {
       }
     }
 
-    // 应用临时不可调度配置
+    // 鎼存梻鏁ゆ稉瀛樻娑撳秴褰茬拫鍐ㄥ闁板秶锟?
     if (!applyTempUnschedConfig(credentials)) {
       return
     }
@@ -4031,7 +3308,7 @@ const handleOpenAIExchange = async (authCode: string) => {
   }
 }
 
-// OpenAI 手动 RT 批量验证和创建
+// OpenAI 閹靛锟?RT 閹靛綊鍣烘宀冪槈閸滃苯鍨卞?
 const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
   const oauthClient = activeOpenAIOAuth.value
   if (!refreshTokenInput.trim()) return
@@ -4075,7 +3352,7 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
         const oauthExtra = oauthClient.buildExtraInfo(tokenInfo) as Record<string, unknown> | undefined
         const extra = buildOpenAIExtra(oauthExtra)
 
-        // Add model mapping for OpenAI OAuth accounts（透传模式下不应用）
+        // Add model mapping for OpenAI OAuth accounts閿涘牓鈧繋绱跺Ο鈥崇础娑撳绗夋惔鏃傛暏锟?
         if (shouldCreateOpenAI && !isOpenAIModelRestrictionDisabled.value) {
           const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
           if (modelMapping) {
@@ -4171,7 +3448,7 @@ const handleOpenAIValidateRT = async (refreshTokenInput: string) => {
   }
 }
 
-// Sora 手动 ST 批量验证和创建
+// Sora 閹靛锟?ST 閹靛綊鍣烘宀冪槈閸滃苯鍨卞?
 const handleSoraValidateST = async (sessionTokenInput: string) => {
   const oauthClient = activeOpenAIOAuth.value
   if (!sessionTokenInput.trim()) return
@@ -4261,7 +3538,7 @@ const handleSoraValidateST = async (sessionTokenInput: string) => {
   }
 }
 
-// Antigravity 手动 RT 批量验证和创建
+// Antigravity 閹靛锟?RT 閹靛綊鍣烘宀冪槈閸滃苯鍨卞?
 const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
   if (!refreshTokenInput.trim()) return
 
@@ -4304,11 +3581,11 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
         const accountName = refreshTokens.length > 1 ? `${form.name} #${i + 1}` : form.name
 
         // Note: Antigravity doesn't have buildExtraInfo, so we pass empty extra or rely on credentials
-        const createPayload = withAntigravityConfirmFlag({
+        const createPayload: CreateAccountRequest = withConfirmFlag({
           name: accountName,
           notes: form.notes,
-          platform: 'antigravity',
-          type: 'oauth',
+          platform: 'antigravity' as const,
+          type: 'oauth' as const,
           credentials,
           extra: {},
           proxy_id: form.proxy_id,
@@ -4356,7 +3633,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
   }
 }
 
-// Gemini OAuth 授权码兑换
+// Gemini OAuth 閹哄牊娼堥惍浣稿幀锟?
 const handleGeminiExchange = async (authCode: string) => {
   if (!authCode.trim() || !geminiOAuth.sessionId.value) return
 
@@ -4393,7 +3670,7 @@ const handleGeminiExchange = async (authCode: string) => {
   }
 }
 
-// Antigravity OAuth 授权码兑换
+// Antigravity OAuth 閹哄牊娼堥惍浣稿幀锟?
 const handleAntigravityExchange = async (authCode: string) => {
   if (!authCode.trim() || !antigravityOAuth.sessionId.value) return
 
@@ -4419,7 +3696,7 @@ const handleAntigravityExchange = async (authCode: string) => {
 
 		const credentials = antigravityOAuth.buildCredentials(tokenInfo)
 		applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
-		// Antigravity 只使用映射模式
+		// Antigravity 閸欘亙濞囬悽銊︽Ё鐏忓嫭膩锟?
 		const antigravityModelMapping = buildModelMappingObject(
 			'mapping',
 			[],
@@ -4438,7 +3715,7 @@ const handleAntigravityExchange = async (authCode: string) => {
   }
 }
 
-// Anthropic OAuth 授权码兑换
+// Anthropic OAuth 閹哄牊娼堥惍浣稿幀锟?
 const handleAnthropicExchange = async (authCode: string) => {
   if (!authCode.trim() || !oauth.sessionId.value) return
 
@@ -4486,7 +3763,7 @@ const handleAnthropicExchange = async (authCode: string) => {
       }
     }
 
-    // UMQ mode（独立于 RPM）
+    // UMQ mode閿涘牏瀚粩瀣╃艾 RPM锟?
     if (userMsgQueueMode.value) {
       extra.user_msg_queue_mode = userMsgQueueMode.value
     }
@@ -4518,7 +3795,7 @@ const handleAnthropicExchange = async (authCode: string) => {
   }
 }
 
-// 主入口：根据平台路由到对应处理函数
+// 娑撹鍙嗛崣锝忕窗閺嶈宓侀獮鍐插酱鐠侯垳鏁遍崚鏉款嚠鎼存柨顦╅悶鍡楀毐锟?
 const handleExchangeCode = async () => {
   const authCode = oauthFlowRef.value?.authCode || ''
 
@@ -4549,7 +3826,7 @@ const handleCookieAuth = async (sessionKey: string) => {
     }
 
     const tempUnschedPayload = tempUnschedEnabled.value
-      ? buildTempUnschedRules(tempUnschedRules.value)
+      ? buildTempUnschedPayload()
       : []
     if (tempUnschedEnabled.value && tempUnschedPayload.length === 0) {
       appStore.showError(t('admin.accounts.tempUnschedulable.rulesInvalid'))
@@ -4602,7 +3879,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           }
         }
 
-        // UMQ mode（独立于 RPM）
+        // UMQ mode閿涘牏瀚粩瀣╃艾 RPM锟?
         if (userMsgQueueMode.value) {
           extra.user_msg_queue_mode = userMsgQueueMode.value
         }
@@ -4684,3 +3961,4 @@ const handleCookieAuth = async (sessionKey: string) => {
   }
 }
 </script>
+

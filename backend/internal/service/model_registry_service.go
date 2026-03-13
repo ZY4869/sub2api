@@ -26,17 +26,22 @@ type ModelRegistryListFilter struct {
 }
 
 type UpsertModelRegistryEntryInput struct {
-	ID               string   `json:"id"`
-	DisplayName      string   `json:"display_name"`
-	Provider         string   `json:"provider"`
-	Platforms        []string `json:"platforms"`
-	ProtocolIDs      []string `json:"protocol_ids"`
-	Aliases          []string `json:"aliases"`
-	PricingLookupIDs []string `json:"pricing_lookup_ids"`
-	Modalities       []string `json:"modalities"`
-	Capabilities     []string `json:"capabilities"`
-	UIPriority       int      `json:"ui_priority"`
-	ExposedIn        []string `json:"exposed_in"`
+	ID                   string            `json:"id"`
+	DisplayName          string            `json:"display_name"`
+	Provider             string            `json:"provider"`
+	Platforms            []string          `json:"platforms"`
+	ProtocolIDs          []string          `json:"protocol_ids"`
+	Aliases              []string          `json:"aliases"`
+	PricingLookupIDs     []string          `json:"pricing_lookup_ids"`
+	PreferredProtocolIDs map[string]string `json:"preferred_protocol_ids"`
+	Modalities           []string          `json:"modalities"`
+	Capabilities         []string          `json:"capabilities"`
+	UIPriority           int               `json:"ui_priority"`
+	ExposedIn            []string          `json:"exposed_in"`
+	Status               string            `json:"status"`
+	DeprecatedAt         string            `json:"deprecated_at"`
+	ReplacedBy           string            `json:"replaced_by"`
+	DeprecationNotice    string            `json:"deprecation_notice"`
 }
 
 type UpdateModelRegistryVisibilityInput struct {
@@ -141,6 +146,55 @@ func (s *ModelRegistryService) GetModel(ctx context.Context, modelID string) (*m
 	return &entry, nil
 }
 
+func (s *ModelRegistryService) ResolveModel(ctx context.Context, input string) (string, bool, error) {
+	resolution, err := s.ExplainResolution(ctx, input)
+	if err != nil || resolution == nil {
+		return "", false, err
+	}
+	if resolution.EffectiveID != "" {
+		return resolution.EffectiveID, true, nil
+	}
+	return resolution.CanonicalID, true, nil
+}
+
+func (s *ModelRegistryService) ResolveProtocolModel(ctx context.Context, input string, route string) (string, bool, error) {
+	entries, err := s.resolutionEntries(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	index := modelregistry.BuildIndex(entries)
+	value, ok := index.ResolveProtocolID(input, route)
+	return value, ok, nil
+}
+
+func (s *ModelRegistryService) ResolvePricingModel(ctx context.Context, input string) (string, bool, error) {
+	entries, err := s.resolutionEntries(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	index := modelregistry.BuildIndex(entries)
+	value, ok := index.ResolvePricingID(input)
+	return value, ok, nil
+}
+
+func (s *ModelRegistryService) ExplainResolution(ctx context.Context, input string) (*modelregistry.Resolution, error) {
+	entries, err := s.resolutionEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resolution, ok := modelregistry.ExplainResolution(entries, input)
+	if !ok {
+		return nil, nil
+	}
+	if resolution.ReplacementEntry == nil && resolution.Entry.ReplacedBy != "" {
+		if replacement, found := modelregistry.FindModel(entries, resolution.Entry.ReplacedBy); found {
+			cloned := replacement
+			resolution.ReplacementEntry = &cloned
+		}
+	}
+	return resolution, nil
+}
+
 func (s *ModelRegistryService) List(ctx context.Context, filter ModelRegistryListFilter) ([]modelregistry.AdminModelDetail, int64, error) {
 	details, err := s.adminDetails(ctx)
 	if err != nil {
@@ -242,9 +296,15 @@ func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input 
 	if sourceModelID == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
-	canonicalModelID := normalizeModelCatalogAlias(sourceModelID)
-	if canonicalModelID == "" {
-		canonicalModelID = sourceModelID
+	canonicalModelID := sourceModelID
+	if resolved, ok := modelregistry.ResolveToCanonicalID(sourceModelID); ok {
+		canonicalModelID = resolved
+	} else if resolution, err := s.ExplainResolution(ctx, sourceModelID); err == nil && resolution != nil {
+		if resolution.EffectiveID != "" {
+			canonicalModelID = resolution.EffectiveID
+		} else if resolution.CanonicalID != "" {
+			canonicalModelID = resolution.CanonicalID
+		}
 	}
 	entries, _, _, tombstones, err := s.mergedEntries(ctx)
 	if err != nil {
@@ -255,6 +315,25 @@ func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input 
 	}
 	if _, blocked := tombstones[canonicalModelID]; blocked {
 		return &UpsertDiscoveredEntryResult{RegistryModelID: sourceModelID, CanonicalModel: canonicalModelID, Blocked: true}, nil
+	}
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, runtimeEntry := range runtimeEntries {
+		if runtimeEntry.ID != sourceModelID {
+			continue
+		}
+		changed, err := s.ensureDiscoveredRuntimeAvailability(ctx, runtimeEntry, sourceModelID, canonicalModelID, input.SourcePlatform)
+		if err != nil {
+			return nil, err
+		}
+		return &UpsertDiscoveredEntryResult{
+			RegistryModelID: runtimeEntry.ID,
+			CanonicalModel:  canonicalModelID,
+			Changed:         changed,
+			Existing:        !changed,
+		}, nil
 	}
 	mergedEntries := make([]modelregistry.ModelEntry, 0, len(entries))
 	for _, entry := range entries {
@@ -273,10 +352,6 @@ func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input 
 		}, nil
 	}
 	entry, err := s.buildDiscoveredRuntimeEntry(sourceModelID, canonicalModelID, input.SourcePlatform)
-	if err != nil {
-		return nil, err
-	}
-	runtimeEntries, err := s.loadRuntimeEntries(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -469,6 +544,21 @@ func (s *ModelRegistryService) visibleSnapshotData(ctx context.Context) ([]model
 		presets = append(presets, preset)
 	}
 	return models, presets, nil
+}
+
+func (s *ModelRegistryService) resolutionEntries(ctx context.Context) ([]modelregistry.ModelEntry, error) {
+	entries, _, _, tombstones, err := s.mergedEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]modelregistry.ModelEntry, 0, len(entries))
+	for id, entry := range entries {
+		if _, tombstoned := tombstones[id]; tombstoned {
+			continue
+		}
+		items = append(items, entry)
+	}
+	return items, nil
 }
 
 func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistry.AdminModelDetail, error) {
@@ -755,21 +845,22 @@ func (s *ModelRegistryService) buildDiscoveredRuntimeEntry(sourceModelID string,
 		return modelregistry.ModelEntry{}, err
 	}
 	pricingLookupIDs := compactRegistryStrings(sourceModelID)
-	if canonicalDefault, ok := modelregistry.ModelCatalogCanonicalDefaults()[canonicalModelID]; ok {
-		pricingLookupIDs = compactRegistryStrings(canonicalDefault, sourceModelID)
+	if pricingID, ok := modelregistry.ResolveToPricingID(canonicalModelID); ok {
+		pricingLookupIDs = compactRegistryStrings(pricingID, sourceModelID)
 	}
 	entry, err := normalizePersistedEntry(modelregistry.ModelEntry{
-		ID:               sourceModelID,
-		DisplayName:      FormatModelCatalogDisplayName(sourceModelID),
-		Provider:         providerOrPlatform(provider, sourcePlatform),
-		Platforms:        platforms,
-		ProtocolIDs:      compactRegistryStrings(sourceModelID),
-		Aliases:          []string{},
-		PricingLookupIDs: pricingLookupIDs,
-		Modalities:       defaultModalitiesForMode(inferModelMode(sourceModelID, "")),
-		Capabilities:     defaultCapabilitiesForMode(inferModelMode(sourceModelID, "")),
-		UIPriority:       5000,
-		ExposedIn:        []string{"runtime", "test"},
+		ID:                   sourceModelID,
+		DisplayName:          FormatModelCatalogDisplayName(sourceModelID),
+		Provider:             providerOrPlatform(provider, sourcePlatform),
+		Platforms:            platforms,
+		ProtocolIDs:          compactRegistryStrings(sourceModelID),
+		Aliases:              []string{},
+		PricingLookupIDs:     pricingLookupIDs,
+		PreferredProtocolIDs: map[string]string{"default": sourceModelID},
+		Modalities:           defaultModalitiesForMode(inferModelMode(sourceModelID, "")),
+		Capabilities:         defaultCapabilitiesForMode(inferModelMode(sourceModelID, "")),
+		UIPriority:           5000,
+		ExposedIn:            []string{"runtime", "test"},
 	})
 	if err != nil {
 		return modelregistry.ModelEntry{}, err
@@ -820,17 +911,22 @@ func (s *ModelRegistryService) persistStringSet(ctx context.Context, key string,
 
 func normalizeRuntimeRegistryEntry(input UpsertModelRegistryEntryInput) (modelregistry.ModelEntry, error) {
 	return normalizePersistedEntry(modelregistry.ModelEntry{
-		ID:               input.ID,
-		DisplayName:      input.DisplayName,
-		Provider:         input.Provider,
-		Platforms:        input.Platforms,
-		ProtocolIDs:      input.ProtocolIDs,
-		Aliases:          input.Aliases,
-		PricingLookupIDs: input.PricingLookupIDs,
-		Modalities:       input.Modalities,
-		Capabilities:     input.Capabilities,
-		UIPriority:       input.UIPriority,
-		ExposedIn:        input.ExposedIn,
+		ID:                   input.ID,
+		DisplayName:          input.DisplayName,
+		Provider:             input.Provider,
+		Platforms:            input.Platforms,
+		ProtocolIDs:          input.ProtocolIDs,
+		Aliases:              input.Aliases,
+		PricingLookupIDs:     input.PricingLookupIDs,
+		PreferredProtocolIDs: input.PreferredProtocolIDs,
+		Modalities:           input.Modalities,
+		Capabilities:         input.Capabilities,
+		UIPriority:           input.UIPriority,
+		ExposedIn:            input.ExposedIn,
+		Status:               input.Status,
+		DeprecatedAt:         input.DeprecatedAt,
+		ReplacedBy:           input.ReplacedBy,
+		DeprecationNotice:    input.DeprecationNotice,
 	})
 }
 
@@ -856,21 +952,14 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 	}
 	entry.ProtocolIDs = normalizeStringList(entry.ProtocolIDs, normalizeRegistryID)
 	if len(entry.ProtocolIDs) == 0 {
-		if defaultID, ok := modelregistry.ModelCatalogCanonicalDefaults()[entry.ID]; ok {
-			entry.ProtocolIDs = compactRegistryStrings(defaultID, entry.ID)
-		} else {
-			entry.ProtocolIDs = []string{entry.ID}
-		}
+		entry.ProtocolIDs = []string{entry.ID}
 	}
-	entry.Aliases = normalizeStringList(entry.Aliases, normalizeRegistryID)
+	entry.Aliases = normalizeStringList(mergeRegistryStrings(entry.Aliases, entry.ProtocolIDs...), normalizeRegistryID)
 	entry.PricingLookupIDs = normalizeStringList(entry.PricingLookupIDs, normalizeRegistryID)
 	if len(entry.PricingLookupIDs) == 0 {
-		if defaultID, ok := modelregistry.ModelCatalogCanonicalDefaults()[entry.ID]; ok {
-			entry.PricingLookupIDs = []string{defaultID}
-		} else {
-			entry.PricingLookupIDs = []string{entry.ProtocolIDs[0]}
-		}
+		entry.PricingLookupIDs = []string{entry.ProtocolIDs[0]}
 	}
+	entry.PreferredProtocolIDs = normalizePreferredProtocolIDs(entry.ID, entry.ProtocolIDs, entry.PreferredProtocolIDs)
 	entry.Modalities = normalizeStringList(entry.Modalities, normalizeLowerTrimmed)
 	if len(entry.Modalities) == 0 {
 		entry.Modalities = defaultModalitiesForMode(inferModelMode(entry.ID, ""))
@@ -896,6 +985,17 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 			entry.ExposedIn = append([]string(nil), seedEntry.ExposedIn...)
 		} else {
 			entry.ExposedIn = []string{"runtime", "whitelist"}
+		}
+	}
+	entry.Status = normalizeRegistryStatus(entry.Status)
+	entry.DeprecatedAt = strings.TrimSpace(entry.DeprecatedAt)
+	entry.ReplacedBy = normalizeRegistryID(entry.ReplacedBy)
+	entry.DeprecationNotice = strings.TrimSpace(entry.DeprecationNotice)
+	if entry.Status != "deprecated" {
+		entry.DeprecatedAt = ""
+		entry.DeprecationNotice = ""
+		if entry.Status != "beta" {
+			entry.ReplacedBy = ""
 		}
 	}
 	return entry, nil
@@ -924,15 +1024,70 @@ func defaultCapabilitiesForMode(mode string) []string {
 }
 
 func normalizeRegistryID(value string) string {
-	return CanonicalizeModelNameForPricing(strings.TrimSpace(value))
+	return modelregistry.NormalizeID(value)
 }
 
 func normalizeRegistryPlatform(value string) string {
-	value = normalizeLowerTrimmed(value)
-	if value == "claude" {
-		return PlatformAnthropic
+	return modelregistry.NormalizePlatform(value)
+}
+
+func normalizeRegistryStatus(value string) string {
+	switch normalizeLowerTrimmed(value) {
+	case "beta", "deprecated":
+		return normalizeLowerTrimmed(value)
+	default:
+		return "stable"
 	}
-	return value
+}
+
+func normalizePreferredProtocolIDs(modelID string, protocolIDs []string, raw map[string]string) map[string]string {
+	normalized := make(map[string]string)
+	for key, value := range raw {
+		route := normalizeRegistryRouteKey(key)
+		value = normalizeRegistryID(value)
+		if route == "" || value == "" {
+			continue
+		}
+		normalized[route] = value
+	}
+	if normalized["default"] == "" {
+		normalized["default"] = normalizeRegistryID(modelID)
+	}
+	if normalized["anthropic_oauth"] == "" && len(protocolIDs) > 0 {
+		normalized["anthropic_oauth"] = normalizeRegistryID(protocolIDs[0])
+	}
+	if normalized["anthropic_apikey"] == "" {
+		normalized["anthropic_apikey"] = normalizeRegistryID(modelID)
+	}
+	if normalized["openai"] == "" {
+		normalized["openai"] = normalizeRegistryID(modelID)
+	}
+	if normalized["gemini"] == "" {
+		normalized["gemini"] = normalizeRegistryID(modelID)
+	}
+	if normalized["antigravity"] == "" {
+		normalized["antigravity"] = normalizeRegistryID(modelID)
+	}
+	if normalized["sora"] == "" {
+		normalized["sora"] = normalizeRegistryID(modelID)
+	}
+	return normalized
+}
+
+func normalizeRegistryRouteKey(value string) string {
+	value = normalizeLowerTrimmed(value)
+	switch value {
+	case "", "default":
+		return "default"
+	case "anthropic", "anthropic_oauth", "claude_oauth":
+		return "anthropic_oauth"
+	case "anthropic_apikey", "anthropic_api_key", "claude_apikey":
+		return "anthropic_apikey"
+	case "openai", "gemini", "antigravity", "sora":
+		return value
+	default:
+		return value
+	}
 }
 
 var batchSyncExposureTargets = map[string]struct{}{
@@ -1047,8 +1202,8 @@ func augmentDiscoveredEntry(entry modelregistry.ModelEntry, sourceModelID string
 			changed = true
 		}
 	}
-	if canonicalDefault, ok := modelregistry.ModelCatalogCanonicalDefaults()[canonicalModelID]; ok {
-		merged := mergeRegistryStrings(updated.PricingLookupIDs, canonicalDefault)
+	if pricingID, ok := modelregistry.ResolveToPricingID(canonicalModelID); ok {
+		merged := mergeRegistryStrings(updated.PricingLookupIDs, pricingID)
 		if !sameStringSlice(updated.PricingLookupIDs, merged) {
 			updated.PricingLookupIDs = merged
 			changed = true

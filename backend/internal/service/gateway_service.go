@@ -187,6 +187,7 @@ type GatewayService struct {
 	modelsListCache       *gocache.Cache
 	modelsListCacheTTL    time.Duration
 	settingService        *SettingService
+	modelRegistryService  *ModelRegistryService
 	responseHeaderFilter  *responseheaders.CompiledHeaderFilter
 	debugModelRouting     atomic.Bool
 	debugClaudeMimic      atomic.Bool
@@ -200,6 +201,10 @@ func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository,
 	svc.debugModelRouting.Store(parseDebugEnvBool(os.Getenv("SUB2API_DEBUG_MODEL_ROUTING")))
 	svc.debugClaudeMimic.Store(parseDebugEnvBool(os.Getenv("SUB2API_DEBUG_CLAUDE_MIMIC")))
 	return svc
+}
+
+func (s *GatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
+	s.modelRegistryService = modelRegistryService
 }
 func (s *GatewayService) GetAccessToken(ctx context.Context, account *Account) (string, string, error) {
 	switch account.Type {

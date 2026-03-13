@@ -1,7 +1,7 @@
 [
   {
     "id": "claude-opus-4.1",
-    "display_name": "Claude-opus-4.1",
+    "display_name": "Claude Opus 4.1",
     "provider": "anthropic",
     "platforms": [
       "anthropic",
@@ -13,8 +13,11 @@
     ],
     "aliases": [
       "claude-opus-4-1-20250805",
+      "claude-opus-4-5",
       "claude-opus-4-5-20251101",
-      "claude-opus-4-6"
+      "claude-opus-4-5-thinking",
+      "claude-opus-4-6",
+      "claude-opus-4-6-thinking"
     ],
     "pricing_lookup_ids": [
       "claude-opus-4-1-20250805"
@@ -33,7 +36,7 @@
   },
   {
     "id": "claude-sonnet-4.5",
-    "display_name": "Claude-sonnet-4.5",
+    "display_name": "Claude Sonnet 4.5",
     "provider": "anthropic",
     "platforms": [
       "anthropic",
@@ -44,7 +47,10 @@
       "claude-sonnet-4.5"
     ],
     "aliases": [
-      "claude-sonnet-4-5-20250929"
+      "claude-sonnet-4-5",
+      "claude-sonnet-4-5-20250929",
+      "claude-sonnet-4-5-thinking",
+      "claude-sonnet-4-6"
     ],
     "pricing_lookup_ids": [
       "claude-sonnet-4-5-20250929"
@@ -62,7 +68,7 @@
   },
   {
     "id": "claude-haiku-4.5",
-    "display_name": "Claude-haiku-4.5",
+    "display_name": "Claude Haiku 4.5",
     "provider": "anthropic",
     "platforms": [
       "anthropic",
@@ -73,6 +79,7 @@
       "claude-haiku-4.5"
     ],
     "aliases": [
+      "claude-haiku-4-5",
       "claude-haiku-4-5-20251001"
     ],
     "pricing_lookup_ids": [
@@ -109,7 +116,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-haiku-4.5"
   },
   {
     "id": "claude-opus-4-5-20251101",
@@ -135,7 +144,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-opus-4.1"
   },
   {
     "id": "claude-opus-4-5-thinking",
@@ -161,7 +172,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-opus-4.1"
   },
   {
     "id": "claude-opus-4-6",
@@ -188,7 +201,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-opus-4.1"
   },
   {
     "id": "claude-opus-4-6-thinking",
@@ -214,7 +229,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-opus-4.1"
   },
   {
     "id": "claude-sonnet-4-5",
@@ -240,7 +257,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-sonnet-4.5"
   },
   {
     "id": "claude-sonnet-4-5-20250929",
@@ -266,7 +285,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-sonnet-4.5"
   },
   {
     "id": "claude-sonnet-4-5-thinking",
@@ -292,7 +313,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-sonnet-4.5"
   },
   {
     "id": "claude-sonnet-4-6",
@@ -319,7 +342,9 @@
     "exposed_in": [
       "runtime",
       "test"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "claude-sonnet-4.5"
   },
   {
     "id": "tab_flash_lite_preview",
@@ -4059,7 +4084,11 @@
     "protocol_ids": [
       "gpt-5-codex"
     ],
-    "aliases": [],
+    "aliases": [
+      "gpt-5.1-codex",
+      "gpt-5.2-codex",
+      "gpt-5.3-codex"
+    ],
     "pricing_lookup_ids": [
       "gpt-5-codex"
     ],
@@ -4330,7 +4359,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "gpt-5-codex"
   },
   {
     "id": "gpt-5.1-codex-max",
@@ -4476,7 +4507,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "gpt-5-codex"
   },
   {
     "id": "gpt-5.2-pro",
@@ -4595,7 +4628,9 @@
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "gpt-5-codex"
   },
   {
     "id": "chatgpt-4o-latest",

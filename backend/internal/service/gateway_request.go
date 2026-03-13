@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -52,6 +53,7 @@ type SessionContext struct {
 // 2. 将解析结果 ParsedRequest 传递给 Service 层
 // 3. 避免重复 json.Unmarshal，减少 CPU 和内存开销
 type ParsedRequest struct {
+	RawModel        string
 	Body            []byte          // 原始请求体（保留用于转发）
 	Model           string          // 请求的模型名称
 	Stream          bool            // 是否为流式请求
@@ -95,7 +97,11 @@ func ParseGatewayRequest(body []byte, protocol string) (*ParsedRequest, error) {
 		if modelResult.Type != gjson.String {
 			return nil, fmt.Errorf("invalid model field type")
 		}
-		parsed.Model = modelResult.String()
+		parsed.RawModel = modelResult.String()
+		parsed.Model = parsed.RawModel
+		if canonicalID, ok := modelregistry.ResolveToCanonicalID(parsed.RawModel); ok {
+			parsed.Model = canonicalID
+		}
 	}
 
 	// stream: 需要严格类型校验，非 bool 返回错误

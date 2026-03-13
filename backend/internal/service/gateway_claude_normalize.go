@@ -180,14 +180,6 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 			}
 		}
 	}
-	if rawModel, ok := req["model"].(string); ok {
-		normalized := claude.NormalizeModelID(rawModel)
-		if normalized != rawModel {
-			req["model"] = normalized
-			modelID = normalized
-			modified = true
-		}
-	}
 	if _, exists := req["tools"]; !exists {
 		req["tools"] = []any{}
 		modified = true

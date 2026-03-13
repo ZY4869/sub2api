@@ -388,6 +388,7 @@ const startTest = async () => {
           ? {}
           : {
               model_id: selectedModelId.value,
+              model: selectedModelId.value,
               prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
             }
       )

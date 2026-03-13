@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	_ "embed"
 	"encoding/json"
 	"sort"
 	"strings"
@@ -13,9 +12,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"go.uber.org/zap"
 )
-
-//go:embed model_catalog_seed.json
-var modelCatalogSeedJSON []byte
 
 type ModelCatalogEntry struct {
 	Model                string `json:"model"`
@@ -34,21 +30,27 @@ type CopyModelCatalogPricingFromOfficialInput struct {
 	Model string `json:"model"`
 }
 
-var modelCatalogExplicitAliases = modelregistry.ModelCatalogExplicitAliases()
-
-var modelCatalogCanonicalDefaults = modelregistry.ModelCatalogCanonicalDefaults()
-
 func normalizeModelCatalogAlias(model string) string {
 	canonical := CanonicalizeModelNameForPricing(model)
 	if canonical == "" {
 		return ""
 	}
-	trimmed := modelCatalogDateVersionSuffixPattern.ReplaceAllString(canonical, "")
-	if alias, ok := modelCatalogExplicitAliases[canonical]; ok {
-		return alias
+	if resolution, ok := modelregistry.ExplainSeedResolution(canonical); ok && resolution != nil {
+		if resolution.EffectiveID != "" {
+			return resolution.EffectiveID
+		}
+		if resolution.CanonicalID != "" {
+			return resolution.CanonicalID
+		}
 	}
-	if alias, ok := modelCatalogExplicitAliases[trimmed]; ok {
-		return alias
+	trimmed := modelCatalogDateVersionSuffixPattern.ReplaceAllString(canonical, "")
+	if resolution, ok := modelregistry.ExplainSeedResolution(trimmed); ok && resolution != nil {
+		if resolution.EffectiveID != "" {
+			return resolution.EffectiveID
+		}
+		if resolution.CanonicalID != "" {
+			return resolution.CanonicalID
+		}
 	}
 	if trimmed == "" {
 		return canonical
@@ -73,11 +75,7 @@ func normalizeModelCatalogEntry(entry ModelCatalogEntry) ModelCatalogEntry {
 		entry.Mode = inferModelMode(entry.Model, "")
 	}
 	if entry.CanonicalModelID == "" {
-		if canonical, ok := modelCatalogCanonicalDefaults[entry.Model]; ok {
-			entry.CanonicalModelID = canonical
-		} else {
-			entry.CanonicalModelID = CanonicalizeModelNameForPricing(entry.Model)
-		}
+		entry.CanonicalModelID = CanonicalizeModelNameForPricing(entry.Model)
 	}
 	if entry.PricingLookupModelID == "" {
 		entry.PricingLookupModelID = entry.CanonicalModelID
@@ -86,19 +84,74 @@ func normalizeModelCatalogEntry(entry ModelCatalogEntry) ModelCatalogEntry {
 }
 
 func loadSeedModelCatalogEntries() []ModelCatalogEntry {
-	var entries []ModelCatalogEntry
-	if err := json.Unmarshal(modelCatalogSeedJSON, &entries); err != nil {
-		panic(err)
-	}
-	normalized := make([]ModelCatalogEntry, 0, len(entries))
-	for _, entry := range entries {
-		entry = normalizeModelCatalogEntry(entry)
-		if entry.Model == "" {
+	registryEntries := buildCatalogBaselineRegistryEntries(modelregistry.SeedModels(), false)
+	normalized := make([]ModelCatalogEntry, 0, len(registryEntries))
+	seen := map[string]struct{}{}
+	for _, entry := range registryEntries {
+		item := normalizeModelCatalogEntry(ModelCatalogEntry{
+			Model:                entry.ID,
+			DisplayName:          entry.DisplayName,
+			Provider:             entry.Provider,
+			Mode:                 inferModelMode(entry.ID, ""),
+			CanonicalModelID:     entry.ID,
+			PricingLookupModelID: firstRegistryString(entry.PricingLookupIDs...),
+		})
+		if item.Model == "" {
 			continue
 		}
-		normalized = append(normalized, entry)
+		if _, exists := seen[item.Model]; exists {
+			continue
+		}
+		seen[item.Model] = struct{}{}
+		normalized = append(normalized, item)
 	}
+	sort.Slice(normalized, func(i, j int) bool {
+		if normalized[i].Provider == normalized[j].Provider {
+			return normalized[i].Model < normalized[j].Model
+		}
+		return normalized[i].Provider < normalized[j].Provider
+	})
 	return normalized
+}
+
+func buildCatalogBaselineRegistryEntries(entries []modelregistry.ModelEntry, includeRuntime bool) []modelregistry.ModelEntry {
+	items := make([]modelregistry.ModelEntry, 0, len(entries))
+	seen := map[string]struct{}{}
+	appendEntry := func(entry modelregistry.ModelEntry) {
+		if strings.EqualFold(strings.TrimSpace(entry.Status), "deprecated") {
+			return
+		}
+		key := normalizeModelCatalogAlias(entry.ID)
+		if key == "" {
+			key = CanonicalizeModelNameForPricing(entry.ID)
+		}
+		if key == "" {
+			return
+		}
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		items = append(items, entry)
+	}
+
+	for _, entry := range entries {
+		if modelregistry.HasExposure(entry, "whitelist") || modelregistry.HasExposure(entry, "use_key") {
+			appendEntry(entry)
+		}
+	}
+	if !includeRuntime {
+		return items
+	}
+	for _, entry := range entries {
+		if modelregistry.HasExposure(entry, "whitelist") || modelregistry.HasExposure(entry, "use_key") {
+			continue
+		}
+		if modelregistry.HasExposure(entry, "runtime") {
+			appendEntry(entry)
+		}
+	}
+	return items
 }
 
 func (s *ModelCatalogService) loadCatalogEntries(ctx context.Context) []ModelCatalogEntry {

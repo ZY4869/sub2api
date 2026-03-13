@@ -67,6 +67,7 @@ const (
 type AccountTestService struct {
 	accountRepo               AccountRepository
 	accountModelImportService *AccountModelImportService
+	modelRegistryService      *ModelRegistryService
 	geminiTokenProvider       *GeminiTokenProvider
 	antigravityGatewayService *AntigravityGatewayService
 	httpUpstream              HTTPUpstream
@@ -100,6 +101,10 @@ func NewAccountTestService(
 	}
 }
 
+func (s *AccountTestService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
+	s.modelRegistryService = modelRegistryService
+}
+
 func (s *AccountTestService) runBackgroundTask(fn func()) {
 	if fn == nil {
 		return
@@ -109,6 +114,25 @@ func (s *AccountTestService) runBackgroundTask(fn func()) {
 		return
 	}
 	go fn()
+}
+
+func (s *AccountTestService) resolveTestModelID(ctx context.Context, account *Account, modelID string) string {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return modelID
+	}
+	if s.modelRegistryService == nil {
+		return modelID
+	}
+	if canonicalID, ok, err := s.modelRegistryService.ResolveModel(ctx, modelID); err == nil && ok && canonicalID != "" {
+		modelID = canonicalID
+	}
+	if account != nil {
+		if protocolID, ok, err := s.modelRegistryService.ResolveProtocolModel(ctx, modelID, registryRouteForAccount(account)); err == nil && ok && protocolID != "" {
+			return protocolID
+		}
+	}
+	return modelID
 }
 
 func cloneAccountForBackgroundProbe(account *Account) *Account {
@@ -310,6 +334,8 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 			}
 		}
 	}
+	testModelID = s.resolveTestModelID(ctx, account, testModelID)
+	testModelID = s.resolveTestModelID(ctx, account, testModelID)
 
 	// Determine authentication method and API URL
 	var authToken string
@@ -561,6 +587,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 			}
 		}
 	}
+	testModelID = s.resolveTestModelID(ctx, account, testModelID)
 
 	// Set SSE headers
 	c.Writer.Header().Set("Content-Type", "text/event-stream")

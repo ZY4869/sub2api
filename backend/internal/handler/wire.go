@@ -123,6 +123,7 @@ func ProvideGatewayHandler(
 	settingService *service.SettingService,
 	modelRegistryService *service.ModelRegistryService,
 ) *GatewayHandler {
+	gatewayService.SetModelRegistryService(modelRegistryService)
 	handler := NewGatewayHandler(gatewayService, geminiCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, userMsgQueueService, cfg, settingService)
 	handler.SetModelRegistryService(modelRegistryService)
 	return handler

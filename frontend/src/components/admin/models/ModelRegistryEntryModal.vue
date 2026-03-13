@@ -75,6 +75,28 @@
         </div>
       </div>
 
+      <div class="grid gap-4 md:grid-cols-3">
+        <div>
+          <label class="input-label" for="registry-status">{{ t('admin.models.registry.fields.lifecycleStatus') }}</label>
+          <select id="registry-status" v-model="form.status" class="input">
+            <option value="">{{ t('admin.models.registry.lifecycleLabels.stable') }}</option>
+            <option v-for="status in lifecycleStatusOptions" :key="status" :value="status">
+              {{ formatLifecycleLabel(status) }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="input-label" for="registry-replaced-by">{{ t('admin.models.registry.fields.replacedBy') }}</label>
+          <input id="registry-replaced-by" v-model.trim="form.replaced_by" type="text" class="input" />
+        </div>
+
+        <div>
+          <label class="input-label" for="registry-deprecated-at">{{ t('admin.models.registry.fields.deprecatedAt') }}</label>
+          <input id="registry-deprecated-at" v-model.trim="form.deprecated_at" type="text" class="input" placeholder="2026-03-13T00:00:00Z" />
+        </div>
+      </div>
+
       <div class="grid gap-4 md:grid-cols-2">
         <div class="space-y-3">
           <div>
@@ -123,6 +145,16 @@
         </div>
 
         <div>
+          <label class="input-label" for="registry-preferred-protocols">{{ t('admin.models.registry.fields.preferredProtocolIds') }}</label>
+          <textarea
+            id="registry-preferred-protocols"
+            v-model="form.preferred_protocol_ids"
+            class="input min-h-[92px]"
+            placeholder="anthropic_oauth=claude-sonnet-4-5-20250929&#10;default=claude-sonnet-4.5"
+          />
+        </div>
+
+        <div>
           <label class="input-label" for="registry-modalities">{{ t('admin.models.registry.fields.modalities') }}</label>
           <textarea id="registry-modalities" v-model="form.modalities" class="input min-h-[92px]" />
         </div>
@@ -146,6 +178,11 @@
           </div>
           <p class="text-xs text-gray-500 dark:text-gray-400">这里表示程序已经确认该模型具备对应能力，用于后续展示与筛选。</p>
         </div>
+      </div>
+
+      <div>
+        <label class="input-label" for="registry-deprecation-notice">{{ t('admin.models.registry.fields.deprecationNotice') }}</label>
+        <textarea id="registry-deprecation-notice" v-model="form.deprecation_notice" class="input min-h-[92px]" />
       </div>
 
       <div class="space-y-3">
@@ -222,9 +259,14 @@ const form = reactive({
   id: '',
   display_name: '',
   ui_priority: 5000,
+  status: '',
+  deprecated_at: '',
+  replaced_by: '',
+  deprecation_notice: '',
   protocol_ids: '',
   aliases: '',
   pricing_lookup_ids: '',
+  preferred_protocol_ids: '',
   modalities: ''
 })
 
@@ -244,6 +286,7 @@ const providerOptions = computed(() => normalizeProviderOptions(getModelRegistry
 const platformPresets = [...MODEL_REGISTRY_PLATFORM_PRESETS]
 const capabilityOptions = [...MODEL_REGISTRY_CAPABILITY_OPTIONS]
 const exposureOptions = [...MODEL_REGISTRY_EXPOSURE_OPTIONS]
+const lifecycleStatusOptions = ['beta', 'deprecated'] as const
 
 watch(
   () => [props.show, props.entry] as const,
@@ -255,9 +298,14 @@ watch(
     form.id = props.entry?.id || ''
     form.display_name = props.entry?.display_name || ''
     form.ui_priority = props.entry?.ui_priority || 5000
+    form.status = props.entry?.status || ''
+    form.deprecated_at = props.entry?.deprecated_at || ''
+    form.replaced_by = props.entry?.replaced_by || ''
+    form.deprecation_notice = props.entry?.deprecation_notice || ''
     form.protocol_ids = formatRegistryList(props.entry?.protocol_ids)
     form.aliases = formatRegistryList(props.entry?.aliases)
     form.pricing_lookup_ids = formatRegistryList(props.entry?.pricing_lookup_ids)
+    form.preferred_protocol_ids = formatPreferredProtocolIDs(props.entry?.preferred_protocol_ids)
     form.modalities = formatRegistryList(props.entry?.modalities)
 
     const provider = normalizeRegistryToken(props.entry?.provider || '')
@@ -289,6 +337,34 @@ function formatSourceLabel(source: string) {
   const key = `admin.models.registry.sourceLabels.${normalizedSource}`
   const translated = t(key)
   return translated === key ? normalizedSource : translated
+}
+
+function formatLifecycleLabel(value: string) {
+  const normalized = value.trim().toLowerCase() || 'stable'
+  const key = `admin.models.registry.lifecycleLabels.${normalized}`
+  const translated = t(key)
+  return translated === key ? normalized : translated
+}
+
+function formatPreferredProtocolIDs(value?: Record<string, string> | null) {
+  if (!value) {
+    return ''
+  }
+  return Object.entries(value)
+    .filter(([route, model]) => route.trim() && model.trim())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([route, model]) => `${route}=${model}`)
+    .join('\n')
+}
+
+function parsePreferredProtocolIDs(value: string): Record<string, string> | undefined {
+  const entries = normalizeRegistryList(value)
+    .map((line) => line.split('=').map((item) => item.trim()))
+    .filter((parts): parts is [string, string] => parts.length === 2 && Boolean(parts[0]) && Boolean(parts[1]))
+  if (entries.length === 0) {
+    return undefined
+  }
+  return Object.fromEntries(entries)
 }
 
 function togglePlatformPreset(platform: string) {
@@ -325,6 +401,10 @@ function handleSubmit() {
     display_name: form.display_name.trim(),
     provider,
     ui_priority: Number.isFinite(Number(form.ui_priority)) ? Number(form.ui_priority) : 5000,
+    status: form.status.trim(),
+    deprecated_at: form.deprecated_at.trim(),
+    replaced_by: normalizeRegistryToken(form.replaced_by),
+    deprecation_notice: form.deprecation_notice.trim(),
     platforms: normalizePlatformList([
       ...selectedPresetPlatforms.value,
       ...normalizeRegistryList(customPlatforms.value)
@@ -332,6 +412,7 @@ function handleSubmit() {
     protocol_ids: normalizeRegistryList(form.protocol_ids),
     aliases: normalizeRegistryList(form.aliases),
     pricing_lookup_ids: normalizeRegistryList(form.pricing_lookup_ids),
+    preferred_protocol_ids: parsePreferredProtocolIDs(form.preferred_protocol_ids),
     modalities: normalizeRegistryList(form.modalities),
     capabilities: normalizeCapabilityList(selectedCapabilities.value),
     exposed_in: normalizeExposureTargets(selectedExposures.value)

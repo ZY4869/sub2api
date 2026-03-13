@@ -42,6 +42,9 @@ func (h *AccountHandler) SetAccountModelImportService(svc *service.AccountModelI
 }
 func (h *AccountHandler) SetModelRegistryService(modelRegistryService *service.ModelRegistryService) {
 	h.modelRegistryService = modelRegistryService
+	if h.accountTestService != nil {
+		h.accountTestService.SetModelRegistryService(modelRegistryService)
+	}
 }
 
 type CreateAccountRequest struct {

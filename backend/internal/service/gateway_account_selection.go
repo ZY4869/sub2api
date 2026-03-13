@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
@@ -1733,10 +1732,14 @@ func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedMo
 	if account.Platform == PlatformSora {
 		return s.isSoraModelSupportedByAccount(account, requestedModel)
 	}
-	if account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey {
-		requestedModel = claude.NormalizeModelID(requestedModel)
+	canonicalModel := s.resolveCanonicalRequestModel(context.Background(), requestedModel)
+	if canonicalModel == "" {
+		return account.IsModelSupported(requestedModel)
 	}
-	return account.IsModelSupported(requestedModel)
+	if account.IsModelSupported(canonicalModel) {
+		return true
+	}
+	return account.IsModelSupported(s.resolveUpstreamModelID(context.Background(), account, canonicalModel))
 }
 func (s *GatewayService) isSoraModelSupportedByAccount(account *Account, requestedModel string) bool {
 	if account == nil {

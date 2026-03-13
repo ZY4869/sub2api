@@ -15,6 +15,7 @@ var (
 	seedModels   []ModelEntry
 	seedPresets  []PresetMapping
 	seedModelMap map[string]ModelEntry
+	seedIndex    *Index
 )
 
 func init() {
@@ -26,8 +27,9 @@ func init() {
 	}
 	seedModelMap = make(map[string]ModelEntry, len(seedModels))
 	for _, entry := range seedModels {
-		seedModelMap[entry.ID] = cloneEntry(entry)
+		seedModelMap[NormalizeID(entry.ID)] = cloneEntry(entry)
 	}
+	seedIndex = BuildIndex(seedModels)
 	for index := range seedPresets {
 		if seedPresets[index].Order == 0 {
 			seedPresets[index].Order = index + 1
@@ -52,7 +54,7 @@ func SeedPresets() []PresetMapping {
 }
 
 func SeedModelByID(id string) (ModelEntry, bool) {
-	entry, ok := seedModelMap[id]
+	entry, ok := seedModelMap[NormalizeID(id)]
 	if !ok {
 		return ModelEntry{}, false
 	}
@@ -64,6 +66,13 @@ func cloneEntry(entry ModelEntry) ModelEntry {
 	entry.ProtocolIDs = append([]string(nil), entry.ProtocolIDs...)
 	entry.Aliases = append([]string(nil), entry.Aliases...)
 	entry.PricingLookupIDs = append([]string(nil), entry.PricingLookupIDs...)
+	if len(entry.PreferredProtocolIDs) > 0 {
+		cloned := make(map[string]string, len(entry.PreferredProtocolIDs))
+		for key, value := range entry.PreferredProtocolIDs {
+			cloned[key] = value
+		}
+		entry.PreferredProtocolIDs = cloned
+	}
 	entry.Modalities = append([]string(nil), entry.Modalities...)
 	entry.Capabilities = append([]string(nil), entry.Capabilities...)
 	entry.ExposedIn = append([]string(nil), entry.ExposedIn...)

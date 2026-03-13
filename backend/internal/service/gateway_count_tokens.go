@@ -28,7 +28,10 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		return s.forwardCountTokensAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody)
 	}
 	body := parsed.Body
-	reqModel := parsed.Model
+	reqModel := s.resolveCanonicalRequestModel(ctx, parsed.Model)
+	if reqModel == "" {
+		reqModel = parsed.Model
+	}
 	isClaudeCode := isClaudeCodeRequest(ctx, c, parsed)
 	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCode
 	if shouldMimicClaudeCode {
@@ -48,17 +51,17 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 				mappingSource = "account"
 			}
 		}
-		if mappingSource == "" && account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey {
-			normalized := claude.NormalizeModelID(reqModel)
-			if normalized != reqModel {
-				mappedModel = normalized
-				mappingSource = "prefix"
+		if mappingSource == "" {
+			protocolModel := s.resolveUpstreamModelID(ctx, account, reqModel)
+			if protocolModel != "" && protocolModel != reqModel {
+				mappedModel = protocolModel
+				mappingSource = "registry_protocol"
 			}
 		}
 		if mappedModel != reqModel {
 			body = s.replaceModelInBody(body, mappedModel)
 			reqModel = mappedModel
-			logger.LegacyPrintf("service.gateway", "CountTokens model mapping applied: %s -> %s (account: %s, source=%s)", parsed.Model, mappedModel, account.Name, mappingSource)
+			logger.LegacyPrintf("service.gateway", "CountTokens model mapping applied: %s -> %s (account: %s, source=%s)", parsed.RawModel, mappedModel, account.Name, mappingSource)
 		}
 	}
 	token, tokenType, err := s.GetAccessToken(ctx, account)

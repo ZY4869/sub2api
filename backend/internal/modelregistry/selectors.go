@@ -20,9 +20,9 @@ func HasExposure(entry ModelEntry, exposures ...string) bool {
 }
 
 func SupportsPlatform(entry ModelEntry, platform string) bool {
-	platform = normalizePlatform(platform)
+	platform = NormalizePlatform(platform)
 	for _, current := range entry.Platforms {
-		if normalizePlatform(current) == platform {
+		if NormalizePlatform(current) == platform {
 			return true
 		}
 	}
@@ -45,10 +45,10 @@ func ModelsByPlatform(entries []ModelEntry, platform string, exposures ...string
 }
 
 func PresetsByPlatform(presets []PresetMapping, platform string) []PresetMapping {
-	platform = normalizePlatform(platform)
+	platform = NormalizePlatform(platform)
 	items := make([]PresetMapping, 0)
 	for _, preset := range presets {
-		if normalizePlatform(preset.Platform) != platform {
+		if NormalizePlatform(preset.Platform) != platform {
 			continue
 		}
 		items = append(items, preset)
@@ -66,33 +66,17 @@ func ModelIDs(entries []ModelEntry) []string {
 }
 
 func FindModel(entries []ModelEntry, modelID string) (ModelEntry, bool) {
+	resolution, ok := ExplainResolution(entries, modelID)
+	if ok {
+		return cloneEntry(resolution.Entry), true
+	}
 	modelID = strings.TrimSpace(modelID)
 	for _, entry := range entries {
 		if entry.ID == modelID {
 			return cloneEntry(entry), true
 		}
-		for _, alias := range entry.Aliases {
-			if alias == modelID {
-				return cloneEntry(entry), true
-			}
-		}
-		for _, protocolID := range entry.ProtocolIDs {
-			if protocolID == modelID {
-				return cloneEntry(entry), true
-			}
-		}
 	}
 	return ModelEntry{}, false
-}
-
-func normalizePlatform(platform string) string {
-	platform = strings.TrimSpace(strings.ToLower(platform))
-	switch platform {
-	case "claude":
-		return "anthropic"
-	default:
-		return platform
-	}
 }
 
 func sortEntries(entries []ModelEntry) {

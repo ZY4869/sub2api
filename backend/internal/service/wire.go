@@ -326,6 +326,9 @@ func ProvideModelCatalogService(
 	modelRegistryService *ModelRegistryService,
 	cfg *config.Config,
 ) *ModelCatalogService {
+	if billingService != nil {
+		billingService.SetModelRegistryService(modelRegistryService)
+	}
 	svc := NewModelCatalogService(settingRepo, adminService, billingService, pricingService, cfg)
 	svc.SetModelRegistryService(modelRegistryService)
 	return svc

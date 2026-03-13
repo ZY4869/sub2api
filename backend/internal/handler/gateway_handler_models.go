@@ -81,6 +81,30 @@ func registryEntriesToClaudeModels(entries []modelregistry.ModelEntry) []claude.
 	}
 	return models
 }
+
+func (h *GatewayHandler) resolveParsedRequestModel(ctx context.Context, parsed *service.ParsedRequest) {
+	if parsed == nil {
+		return
+	}
+	if parsed.RawModel == "" {
+		parsed.RawModel = parsed.Model
+	}
+	if h.modelRegistryService == nil {
+		return
+	}
+	resolution, err := h.modelRegistryService.ExplainResolution(ctx, parsed.RawModel)
+	if err != nil || resolution == nil {
+		return
+	}
+	if resolution.EffectiveID != "" {
+		parsed.Model = resolution.EffectiveID
+		return
+	}
+	if resolution.CanonicalID != "" {
+		parsed.Model = resolution.CanonicalID
+	}
+}
+
 func filterGatewayModels(entries []modelregistry.ModelEntry, allowed []string) []claude.Model {
 	if len(allowed) == 0 {
 		return registryEntriesToClaudeModels(entries)

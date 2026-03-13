@@ -304,7 +304,12 @@ func matchesModelCatalogFilter(item ModelCatalogItem, filter ModelCatalogListFil
 	}
 	if keyword := strings.TrimSpace(filter.Search); keyword != "" {
 		normalizedKeyword := NormalizeModelCatalogModelID(keyword)
-		if !contains(item.Model, keyword) && !contains(item.DisplayName, keyword) && !contains(item.Provider, keyword) && (normalizedKeyword == "" || (!contains(item.Model, normalizedKeyword) && !contains(item.DisplayName, normalizedKeyword))) {
+		resolvedKeyword := normalizeModelCatalogAlias(keyword)
+		if !contains(item.Model, keyword) &&
+			!contains(item.DisplayName, keyword) &&
+			!contains(item.Provider, keyword) &&
+			(normalizedKeyword == "" || (!contains(item.Model, normalizedKeyword) && !contains(item.DisplayName, normalizedKeyword))) &&
+			(resolvedKeyword == "" || (!contains(item.Model, resolvedKeyword) && !contains(item.DisplayName, resolvedKeyword))) {
 			return false
 		}
 	}

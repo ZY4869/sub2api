@@ -138,6 +138,11 @@ export default {
           protocolIds: 'Protocol IDs',
           aliases: 'Aliases',
           pricingLookupIds: 'Pricing Lookup IDs',
+          lifecycleStatus: 'Lifecycle Status',
+          replacedBy: 'Replaced By',
+          deprecatedAt: 'Deprecated At',
+          preferredProtocolIds: 'Preferred Protocol IDs',
+          deprecationNotice: 'Deprecation Notice',
           modalities: 'Modalities',
           capabilities: 'Capabilities',
           exposedIn: 'Exposed In'
@@ -183,6 +188,12 @@ export default {
           hidden: 'Hidden',
           tombstoned: 'Tombstoned'
         },
+        lifecycleLabels: {
+          stable: 'Stable',
+          beta: 'Beta',
+          deprecated: 'Deprecated'
+        },
+        replacedByHint: 'Replaced by {model}',
         sourceLabels: {
           seed: 'Shipped Seed',
           manual: 'Manual Override',
@@ -1718,6 +1729,7 @@ export default {
           },
           links: {
             countryCheck: 'Check country association',
+            countryAssociationForm: 'Country association form',
             geminiWebActivation: 'Activate Gemini Web',
             gcpProject: 'Open GCP Console'
           }

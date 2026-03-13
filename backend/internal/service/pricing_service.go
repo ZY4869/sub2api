@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
@@ -668,7 +669,7 @@ func cloneLiteLLMModelPricing(pricing *LiteLLMModelPricing) *LiteLLMModelPricing
 
 // CanonicalizeModelNameForPricing normalizes model identifiers for pricing catalog usage.
 func CanonicalizeModelNameForPricing(model string) string {
-	return strings.ToLower(normalizeModelNameForPricing(model))
+	return modelregistry.NormalizeID(model)
 }
 
 func normalizeModelNameForPricing(model string) string {

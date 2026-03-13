@@ -6,10 +6,15 @@ export interface ModelRegistryEntry {
   protocol_ids: string[]
   aliases: string[]
   pricing_lookup_ids: string[]
+  preferred_protocol_ids?: Record<string, string>
   modalities: string[]
   capabilities: string[]
   ui_priority: number
   exposed_in: string[]
+  status?: string
+  deprecated_at?: string
+  replaced_by?: string
+  deprecation_notice?: string
 }
 
 export interface ModelRegistryPreset {
@@ -28,15 +33,38 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-03-12T04:53:36Z"
+export const generatedModelRegistryBuiltAt = "2026-03-13T09:02:55Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "",
-  "updated_at": "2026-03-12T04:53:36Z",
+  "etag": "W/\"6cc7cac947922e23648a8bf7e384755cbe4689e8436111e2abfd8c6f13375f85\"",
+  "updated_at": "2026-03-13T09:02:55Z",
   "models": [
     {
+      "id": "abab6.5-chat",
+      "display_name": "Abab6.5-chat",
+      "provider": "minimax",
+      "platforms": [
+        "minimax"
+      ],
+      "protocol_ids": [
+        "abab6.5-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "abab6.5-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "claude-opus-4.1",
-      "display_name": "Claude-opus-4.1",
+      "display_name": "Claude Opus 4.1",
       "provider": "anthropic",
       "platforms": [
         "anthropic",
@@ -48,8 +76,11 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "aliases": [
         "claude-opus-4-1-20250805",
+        "claude-opus-4-5",
         "claude-opus-4-5-20251101",
-        "claude-opus-4-6"
+        "claude-opus-4-5-thinking",
+        "claude-opus-4-6",
+        "claude-opus-4-6-thinking"
       ],
       "pricing_lookup_ids": [
         "claude-opus-4-1-20250805"
@@ -63,572 +94,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "ui_priority": 0,
       "exposed_in": [
         "use_key",
-        "whitelist"
-      ]
-    },
-    {
-      "id": "claude-sonnet-4.5",
-      "display_name": "Claude-sonnet-4.5",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic",
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-sonnet-4-5-20250929",
-        "claude-sonnet-4.5"
-      ],
-      "aliases": [
-        "claude-sonnet-4-5-20250929"
-      ],
-      "pricing_lookup_ids": [
-        "claude-sonnet-4-5-20250929"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "claude-haiku-4.5",
-      "display_name": "Claude-haiku-4.5",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic",
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-haiku-4-5-20251001",
-        "claude-haiku-4.5"
-      ],
-      "aliases": [
-        "claude-haiku-4-5-20251001"
-      ],
-      "pricing_lookup_ids": [
-        "claude-haiku-4-5-20251001"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "claude-haiku-4-5-20251001",
-      "display_name": "Claude Haiku 4.5",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic"
-      ],
-      "protocol_ids": [
-        "claude-haiku-4-5-20251001"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-haiku-4-5-20251001"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-opus-4-5-20251101",
-      "display_name": "Claude Opus 4.5",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic"
-      ],
-      "protocol_ids": [
-        "claude-opus-4-5-20251101"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-opus-4-5-20251101"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-opus-4-5-thinking",
-      "display_name": "Claude Opus 4.5 Thinking",
-      "provider": "anthropic",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-opus-4-5-thinking"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-opus-4-5-thinking"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-opus-4-6",
-      "display_name": "Claude Opus 4.6",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic",
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-opus-4-6"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-opus-4-6"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-opus-4-6-thinking",
-      "display_name": "Claude Opus 4.6 Thinking",
-      "provider": "anthropic",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-opus-4-6-thinking"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-opus-4-6-thinking"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-sonnet-4-5",
-      "display_name": "Claude Sonnet 4.5",
-      "provider": "anthropic",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-sonnet-4-5"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-sonnet-4-5"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-sonnet-4-5-20250929",
-      "display_name": "Claude Sonnet 4.5",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic"
-      ],
-      "protocol_ids": [
-        "claude-sonnet-4-5-20250929"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-sonnet-4-5-20250929"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-sonnet-4-5-thinking",
-      "display_name": "Claude Sonnet 4.5 Thinking",
-      "provider": "anthropic",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-sonnet-4-5-thinking"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-sonnet-4-5-thinking"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "claude-sonnet-4-6",
-      "display_name": "Claude Sonnet 4.6",
-      "provider": "anthropic",
-      "platforms": [
-        "anthropic",
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "claude-sonnet-4-6"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "claude-sonnet-4-6"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "tab_flash_lite_preview",
-      "display_name": "Tab_flash_lite_preview",
-      "provider": "antigravity",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "tab_flash_lite_preview"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "tab_flash_lite_preview"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 16,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-4.0-8k-latest",
-      "display_name": "Ernie-4.0-8k-latest",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-4.0-8k-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-4.0-8k-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-4.0-8k",
-      "display_name": "Ernie-4.0-8k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-4.0-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-4.0-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-4.0-turbo-8k",
-      "display_name": "Ernie-4.0-turbo-8k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-4.0-turbo-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-4.0-turbo-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-3.5-8k",
-      "display_name": "Ernie-3.5-8k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-3.5-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-3.5-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-3.5-128k",
-      "display_name": "Ernie-3.5-128k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-3.5-128k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-3.5-128k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-speed-8k",
-      "display_name": "Ernie-speed-8k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-speed-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-speed-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-speed-128k",
-      "display_name": "Ernie-speed-128k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-speed-128k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-speed-128k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-speed-pro-128k",
-      "display_name": "Ernie-speed-pro-128k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-speed-pro-128k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-speed-pro-128k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-lite-8k",
-      "display_name": "Ernie-lite-8k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-lite-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-lite-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-lite-pro-128k",
-      "display_name": "Ernie-lite-pro-128k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-lite-pro-128k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-lite-pro-128k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "ernie-tiny-8k",
-      "display_name": "Ernie-tiny-8k",
-      "provider": "baidu",
-      "platforms": [
-        "baidu"
-      ],
-      "protocol_ids": [
-        "ernie-tiny-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "ernie-tiny-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
         "whitelist"
       ]
     },
@@ -651,190 +116,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "capabilities": [],
       "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "command-r",
-      "display_name": "Command-r",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "command-r"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "command-r"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "command-r-plus",
-      "display_name": "Command-r-plus",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "command-r-plus"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "command-r-plus"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "command-r-08-2024",
-      "display_name": "Command-r-08-2024",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "command-r-08-2024"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "command-r-08-2024"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "command-r-plus-08-2024",
-      "display_name": "Command-r-plus-08-2024",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "command-r-plus-08-2024"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "command-r-plus-08-2024"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "c4ai-aya-23-35b",
-      "display_name": "C4ai-aya-23-35b",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "c4ai-aya-23-35b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "c4ai-aya-23-35b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "c4ai-aya-23-8b",
-      "display_name": "C4ai-aya-23-8b",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "c4ai-aya-23-8b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "c4ai-aya-23-8b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "command",
-      "display_name": "Command",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "command"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "command"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "command-light",
-      "display_name": "Command-light",
-      "provider": "cohere",
-      "platforms": [
-        "cohere"
-      ],
-      "protocol_ids": [
-        "command-light"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "command-light"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
       "exposed_in": [
         "whitelist"
       ]
@@ -863,261 +144,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-coder",
-      "display_name": "Deepseek-coder",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-coder"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-coder"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-reasoner",
-      "display_name": "Deepseek-reasoner",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-reasoner"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-reasoner"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-v3",
-      "display_name": "Deepseek-v3",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-v3"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-v3"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-v3-0324",
-      "display_name": "Deepseek-v3-0324",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-v3-0324"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-v3-0324"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1",
-      "display_name": "Deepseek-r1",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-0528",
-      "display_name": "Deepseek-r1-0528",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-0528"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-0528"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-qwen-32b",
-      "display_name": "Deepseek-r1-distill-qwen-32b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-qwen-32b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-qwen-32b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-qwen-14b",
-      "display_name": "Deepseek-r1-distill-qwen-14b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-qwen-14b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-qwen-14b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-qwen-7b",
-      "display_name": "Deepseek-r1-distill-qwen-7b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-qwen-7b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-qwen-7b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-llama-70b",
-      "display_name": "Deepseek-r1-distill-llama-70b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-llama-70b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-llama-70b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-llama-8b",
-      "display_name": "Deepseek-r1-distill-llama-8b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-llama-8b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-llama-8b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "doubao-pro-256k",
       "display_name": "Doubao-pro-256k",
       "provider": "doubao",
@@ -1141,311 +167,24 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "doubao-pro-128k",
-      "display_name": "Doubao-pro-128k",
-      "provider": "doubao",
+      "id": "ernie-4.0-8k-latest",
+      "display_name": "Ernie-4.0-8k-latest",
+      "provider": "baidu",
       "platforms": [
-        "doubao"
+        "baidu"
       ],
       "protocol_ids": [
-        "doubao-pro-128k"
+        "ernie-4.0-8k-latest"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "doubao-pro-128k"
+        "ernie-4.0-8k-latest"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-pro-32k",
-      "display_name": "Doubao-pro-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-pro-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-pro-32k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-pro-4k",
-      "display_name": "Doubao-pro-4k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-pro-4k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-pro-4k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-lite-128k",
-      "display_name": "Doubao-lite-128k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-lite-128k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-lite-128k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-lite-32k",
-      "display_name": "Doubao-lite-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-lite-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-lite-32k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-lite-4k",
-      "display_name": "Doubao-lite-4k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-lite-4k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-lite-4k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-vision-pro-32k",
-      "display_name": "Doubao-vision-pro-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-vision-pro-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-vision-pro-32k"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-vision-lite-32k",
-      "display_name": "Doubao-vision-lite-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-vision-lite-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-vision-lite-32k"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-1.5-pro-256k",
-      "display_name": "Doubao-1.5-pro-256k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-1.5-pro-256k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-1.5-pro-256k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-1.5-pro-32k",
-      "display_name": "Doubao-1.5-pro-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-1.5-pro-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-1.5-pro-32k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-1.5-lite-32k",
-      "display_name": "Doubao-1.5-lite-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-1.5-lite-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-1.5-lite-32k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-1.5-pro-vision-32k",
-      "display_name": "Doubao-1.5-pro-vision-32k",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-1.5-pro-vision-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-1.5-pro-vision-32k"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 12,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "doubao-1.5-thinking-pro",
-      "display_name": "Doubao-1.5-thinking-pro",
-      "provider": "doubao",
-      "platforms": [
-        "doubao"
-      ],
-      "protocol_ids": [
-        "doubao-1.5-thinking-pro"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "doubao-1.5-thinking-pro"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 13,
+      "ui_priority": 0,
       "exposed_in": [
         "whitelist"
       ]
@@ -1483,6 +222,432 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "glm-4",
+      "display_name": "Glm-4",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo",
+      "display_name": "GPT-3.5-turbo",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-3.5-turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-3.5-turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-image",
+      "display_name": "GPT-image",
+      "provider": "openai",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "gpt-image"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-image"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-4",
+      "display_name": "Grok-4",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-4"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-lite",
+      "display_name": "Hunyuan-lite",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-lite"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-lite"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.3-70b-instruct",
+      "display_name": "Llama-3.3-70b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.3-70b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.3-70b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "mistral-small-latest",
+      "display_name": "Mistral-small-latest",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "mistral-small-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "mistral-small-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "moonshot-v1-8k",
+      "display_name": "Moonshot-v1-8k",
+      "provider": "moonshot",
+      "platforms": [
+        "moonshot"
+      ],
+      "protocol_ids": [
+        "moonshot-v1-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "moonshot-v1-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen-turbo",
+      "display_name": "Qwen-turbo",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen-turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen-turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "sonar",
+      "display_name": "Sonar",
+      "provider": "perplexity",
+      "platforms": [
+        "perplexity"
+      ],
+      "protocol_ids": [
+        "sonar"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "sonar"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "spark-desk",
+      "display_name": "Spark-desk",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-desk"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-desk"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-large",
+      "display_name": "Yi-large",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-large"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-large"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 0,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "abab6.5s-chat",
+      "display_name": "Abab6.5s-chat",
+      "provider": "minimax",
+      "platforms": [
+        "minimax"
+      ],
+      "protocol_ids": [
+        "abab6.5s-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "abab6.5s-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-sonnet-4.5",
+      "display_name": "Claude Sonnet 4.5",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic",
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "claude-sonnet-4-5-20250929",
+        "claude-sonnet-4.5"
+      ],
+      "aliases": [
+        "claude-sonnet-4-5",
+        "claude-sonnet-4-5-20250929",
+        "claude-sonnet-4-5-thinking",
+        "claude-sonnet-4-6"
+      ],
+      "pricing_lookup_ids": [
+        "claude-sonnet-4-5-20250929"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "command-r",
+      "display_name": "Command-r",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "command-r"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "command-r"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-coder",
+      "display_name": "Deepseek-coder",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-coder"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-coder"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-pro-128k",
+      "display_name": "Doubao-pro-128k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-pro-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-pro-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-4.0-8k",
+      "display_name": "Ernie-4.0-8k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-4.0-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-4.0-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gemini-2.5-flash-image",
       "display_name": "Gemini 2.5 Flash Image",
       "provider": "gemini",
@@ -1514,6 +679,433 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "glm-4v",
+      "display_name": "Glm-4v",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4v"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4v"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo-0125",
+      "display_name": "GPT-3.5-turbo-0125",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-3.5-turbo-0125"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-3.5-turbo-0125"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-image-landscape",
+      "display_name": "GPT-image-landscape",
+      "provider": "openai",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "gpt-image-landscape"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-image-landscape"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-4-0709",
+      "display_name": "Grok-4-0709",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-4-0709"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4-0709"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-standard",
+      "display_name": "Hunyuan-standard",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-standard"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-standard"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.2-90b-vision-instruct",
+      "display_name": "Llama-3.2-90b-vision-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.2-90b-vision-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.2-90b-vision-instruct"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "mistral-medium-latest",
+      "display_name": "Mistral-medium-latest",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "mistral-medium-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "mistral-medium-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "moonshot-v1-32k",
+      "display_name": "Moonshot-v1-32k",
+      "provider": "moonshot",
+      "platforms": [
+        "moonshot"
+      ],
+      "protocol_ids": [
+        "moonshot-v1-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "moonshot-v1-32k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen-plus",
+      "display_name": "Qwen-plus",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen-plus"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen-plus"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "sonar-pro",
+      "display_name": "Sonar-pro",
+      "provider": "perplexity",
+      "platforms": [
+        "perplexity"
+      ],
+      "protocol_ids": [
+        "sonar-pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "sonar-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "spark-desk-v1.1",
+      "display_name": "Spark-desk-v1.1",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-desk-v1.1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-desk-v1.1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-large-turbo",
+      "display_name": "Yi-large-turbo",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-large-turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-large-turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 1,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "abab6.5s-chat-pro",
+      "display_name": "Abab6.5s-chat-pro",
+      "provider": "minimax",
+      "platforms": [
+        "minimax"
+      ],
+      "protocol_ids": [
+        "abab6.5s-chat-pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "abab6.5s-chat-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-haiku-4.5",
+      "display_name": "Claude Haiku 4.5",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic",
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "claude-haiku-4-5-20251001",
+        "claude-haiku-4.5"
+      ],
+      "aliases": [
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001"
+      ],
+      "pricing_lookup_ids": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "command-r-plus",
+      "display_name": "Command-r-plus",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "command-r-plus"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "command-r-plus"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-reasoner",
+      "display_name": "Deepseek-reasoner",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-reasoner"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-reasoner"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-pro-32k",
+      "display_name": "Doubao-pro-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-pro-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-pro-32k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-4.0-turbo-8k",
+      "display_name": "Ernie-4.0-turbo-8k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-4.0-turbo-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-4.0-turbo-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gemini-2.0-flash",
       "display_name": "Gemini 2.0 Flash",
       "provider": "gemini",
@@ -1536,6 +1128,405 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "use_key",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4-plus",
+      "display_name": "Glm-4-plus",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4-plus"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4-plus"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo-1106",
+      "display_name": "GPT-3.5-turbo-1106",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-3.5-turbo-1106"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-3.5-turbo-1106"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-image-portrait",
+      "display_name": "GPT-image-portrait",
+      "provider": "openai",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "gpt-image-portrait"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-image-portrait"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-3-beta",
+      "display_name": "Grok-3-beta",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-3-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-3-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-standard-256k",
+      "display_name": "Hunyuan-standard-256k",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-standard-256k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-standard-256k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.2-11b-vision-instruct",
+      "display_name": "Llama-3.2-11b-vision-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.2-11b-vision-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.2-11b-vision-instruct"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "mistral-large-latest",
+      "display_name": "Mistral-large-latest",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "mistral-large-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "mistral-large-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "moonshot-v1-128k",
+      "display_name": "Moonshot-v1-128k",
+      "provider": "moonshot",
+      "platforms": [
+        "moonshot"
+      ],
+      "protocol_ids": [
+        "moonshot-v1-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "moonshot-v1-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen-max",
+      "display_name": "Qwen-max",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen-max"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen-max"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "sonar-reasoning",
+      "display_name": "Sonar-reasoning",
+      "provider": "perplexity",
+      "platforms": [
+        "perplexity"
+      ],
+      "protocol_ids": [
+        "sonar-reasoning"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "sonar-reasoning"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "spark-desk-v2.1",
+      "display_name": "Spark-desk-v2.1",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-desk-v2.1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-desk-v2.1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-large-rag",
+      "display_name": "Yi-large-rag",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-large-rag"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-large-rag"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 2,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "abab6-chat",
+      "display_name": "Abab6-chat",
+      "provider": "minimax",
+      "platforms": [
+        "minimax"
+      ],
+      "protocol_ids": [
+        "abab6-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "abab6-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "command-r-08-2024",
+      "display_name": "Command-r-08-2024",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "command-r-08-2024"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "command-r-08-2024"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-v3",
+      "display_name": "Deepseek-v3",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-v3"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-v3"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-pro-4k",
+      "display_name": "Doubao-pro-4k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-pro-4k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-pro-4k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-3.5-8k",
+      "display_name": "Ernie-3.5-8k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-3.5-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-3.5-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
         "whitelist"
       ]
     },
@@ -1567,6 +1558,400 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "glm-4-0520",
+      "display_name": "Glm-4-0520",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4-0520"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4-0520"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-3.5-turbo-16k",
+      "display_name": "GPT-3.5-turbo-16k",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-3.5-turbo-16k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-3.5-turbo-16k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-3-mini-beta",
+      "display_name": "Grok-3-mini-beta",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-3-mini-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-3-mini-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-pro",
+      "display_name": "Hunyuan-pro",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "kimi-latest",
+      "display_name": "Kimi-latest",
+      "provider": "moonshot",
+      "platforms": [
+        "moonshot"
+      ],
+      "protocol_ids": [
+        "kimi-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "kimi-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3-sonar-small-32k-online",
+      "display_name": "Llama-3-sonar-small-32k-online",
+      "provider": "perplexity",
+      "platforms": [
+        "perplexity"
+      ],
+      "protocol_ids": [
+        "llama-3-sonar-small-32k-online"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3-sonar-small-32k-online"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.2-3b-instruct",
+      "display_name": "Llama-3.2-3b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.2-3b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.2-3b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "open-mistral-7b",
+      "display_name": "Open-mistral-7b",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "open-mistral-7b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "open-mistral-7b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen-max-longcontext",
+      "display_name": "Qwen-max-longcontext",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen-max-longcontext"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen-max-longcontext"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "sora2-landscape-10s",
+      "display_name": "Sora2-landscape-10s",
+      "provider": "openai",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "sora2-landscape-10s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "sora2-landscape-10s"
+      ],
+      "modalities": [
+        "text",
+        "video"
+      ],
+      "capabilities": [
+        "video"
+      ],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "spark-desk-v3.1",
+      "display_name": "Spark-desk-v3.1",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-desk-v3.1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-desk-v3.1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-medium",
+      "display_name": "Yi-medium",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-medium"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-medium"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 3,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "abab5.5-chat",
+      "display_name": "Abab5.5-chat",
+      "provider": "minimax",
+      "platforms": [
+        "minimax"
+      ],
+      "protocol_ids": [
+        "abab5.5-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "abab5.5-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "command-r-plus-08-2024",
+      "display_name": "Command-r-plus-08-2024",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "command-r-plus-08-2024"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "command-r-plus-08-2024"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-v3-0324",
+      "display_name": "Deepseek-v3-0324",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-v3-0324"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-v3-0324"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-lite-128k",
+      "display_name": "Doubao-lite-128k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-lite-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-lite-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-3.5-128k",
+      "display_name": "Ernie-3.5-128k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-3.5-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-3.5-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gemini-2.5-pro",
       "display_name": "Gemini 2.5 Pro",
       "provider": "gemini",
@@ -1593,6 +1978,377 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "glm-4-air",
+      "display_name": "Glm-4-air",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4-air"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4-air"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-4",
+      "display_name": "GPT-4",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-4"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-3-fast-beta",
+      "display_name": "Grok-3-fast-beta",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-3-fast-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-3-fast-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-turbo",
+      "display_name": "Hunyuan-turbo",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3-sonar-large-32k-online",
+      "display_name": "Llama-3-sonar-large-32k-online",
+      "provider": "perplexity",
+      "platforms": [
+        "perplexity"
+      ],
+      "protocol_ids": [
+        "llama-3-sonar-large-32k-online"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3-sonar-large-32k-online"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.2-1b-instruct",
+      "display_name": "Llama-3.2-1b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.2-1b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.2-1b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "open-mixtral-8x7b",
+      "display_name": "Open-mixtral-8x7b",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "open-mixtral-8x7b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "open-mixtral-8x7b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen-long",
+      "display_name": "Qwen-long",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen-long"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen-long"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "sora2-portrait-10s",
+      "display_name": "Sora2-portrait-10s",
+      "provider": "openai",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "sora2-portrait-10s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "sora2-portrait-10s"
+      ],
+      "modalities": [
+        "text",
+        "video"
+      ],
+      "capabilities": [
+        "video"
+      ],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "spark-desk-v3.5",
+      "display_name": "Spark-desk-v3.5",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-desk-v3.5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-desk-v3.5"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-medium-200k",
+      "display_name": "Yi-medium-200k",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-medium-200k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-medium-200k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 4,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "abab5.5s-chat",
+      "display_name": "Abab5.5s-chat",
+      "provider": "minimax",
+      "platforms": [
+        "minimax"
+      ],
+      "protocol_ids": [
+        "abab5.5s-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "abab5.5s-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "c4ai-aya-23-35b",
+      "display_name": "C4ai-aya-23-35b",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "c4ai-aya-23-35b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "c4ai-aya-23-35b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1",
+      "display_name": "Deepseek-r1",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-lite-32k",
+      "display_name": "Doubao-lite-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-lite-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-lite-32k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-speed-8k",
+      "display_name": "Ernie-speed-8k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-speed-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-speed-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gemini-3-flash-preview",
       "display_name": "Gemini 3 Flash Preview",
       "provider": "gemini",
@@ -1614,6 +2370,377 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "runtime",
         "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4-airx",
+      "display_name": "Glm-4-airx",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4-airx"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4-airx"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-4-turbo",
+      "display_name": "GPT-4-turbo",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-4-turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-4-turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-2",
+      "display_name": "Grok-2",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-2"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-2"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-large",
+      "display_name": "Hunyuan-large",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-large"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-large"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3-sonar-small-32k-chat",
+      "display_name": "Llama-3-sonar-small-32k-chat",
+      "provider": "perplexity",
+      "platforms": [
+        "perplexity"
+      ],
+      "protocol_ids": [
+        "llama-3-sonar-small-32k-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3-sonar-small-32k-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.1-405b-instruct",
+      "display_name": "Llama-3.1-405b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.1-405b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.1-405b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "open-mixtral-8x22b",
+      "display_name": "Open-mixtral-8x22b",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "open-mixtral-8x22b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "open-mixtral-8x22b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2-72b-instruct",
+      "display_name": "Qwen2-72b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2-72b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2-72b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "sora2-landscape-15s",
+      "display_name": "Sora2-landscape-15s",
+      "provider": "openai",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "sora2-landscape-15s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "sora2-landscape-15s"
+      ],
+      "modalities": [
+        "text",
+        "video"
+      ],
+      "capabilities": [
+        "video"
+      ],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "spark-desk-v4.0",
+      "display_name": "Spark-desk-v4.0",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-desk-v4.0"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-desk-v4.0"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-spark",
+      "display_name": "Yi-spark",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-spark"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-spark"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 5,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "c4ai-aya-23-8b",
+      "display_name": "C4ai-aya-23-8b",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "c4ai-aya-23-8b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "c4ai-aya-23-8b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "codestral-latest",
+      "display_name": "Codestral-latest",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "codestral-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "codestral-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1-0528",
+      "display_name": "Deepseek-r1-0528",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-0528"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-0528"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-lite-4k",
+      "display_name": "Doubao-lite-4k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-lite-4k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-lite-4k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-speed-128k",
+      "display_name": "Ernie-speed-128k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-speed-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-speed-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
         "whitelist"
       ]
     },
@@ -1669,174 +2796,64 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "gemini-2.5-flash-thinking",
-      "display_name": "Gemini 2.5 Flash Thinking",
-      "provider": "gemini",
+      "id": "glm-4-long",
+      "display_name": "Glm-4-long",
+      "provider": "zhipu",
       "platforms": [
-        "antigravity"
+        "zhipu"
       ],
       "protocol_ids": [
-        "gemini-2.5-flash-thinking"
+        "glm-4-long"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "gemini-2.5-flash-thinking"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
-      "ui_priority": 7,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gemini-3-flash",
-      "display_name": "Gemini 3 Flash",
-      "provider": "gemini",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "gemini-3-flash-preview",
-        "gemini-3-flash"
-      ],
-      "aliases": [
-        "gemini-3-flash-preview"
-      ],
-      "pricing_lookup_ids": [
-        "gemini-3-flash-preview"
+        "glm-4-long"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 9,
+      "ui_priority": 6,
       "exposed_in": [
-        "runtime",
-        "test",
         "whitelist"
       ]
     },
     {
-      "id": "gemini-3-pro-high",
-      "display_name": "Gemini 3 Pro High",
-      "provider": "gemini",
+      "id": "gpt-4-turbo-preview",
+      "display_name": "GPT-4-turbo-preview",
+      "provider": "openai",
       "platforms": [
-        "antigravity"
+        "openai"
       ],
       "protocol_ids": [
-        "gemini-3-pro-high"
+        "gpt-4-turbo-preview"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "gemini-3-pro-high"
+        "gpt-4-turbo-preview"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 10,
+      "ui_priority": 6,
       "exposed_in": [
-        "runtime",
-        "test",
         "whitelist"
       ]
     },
     {
-      "id": "gemini-3-pro-low",
-      "display_name": "Gemini 3 Pro Low",
-      "provider": "gemini",
+      "id": "grok-2-vision",
+      "display_name": "Grok-2-vision",
+      "provider": "xai",
       "platforms": [
-        "antigravity"
+        "xai"
       ],
       "protocol_ids": [
-        "gemini-3-pro-low"
+        "grok-2-vision"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "gemini-3-pro-low"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gemini-3.1-pro-high",
-      "display_name": "Gemini 3.1 Pro High",
-      "provider": "gemini",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "gemini-3.1-pro-high"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gemini-3.1-pro-high"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 12,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gemini-3.1-pro-low",
-      "display_name": "Gemini 3.1 Pro Low",
-      "provider": "gemini",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "gemini-3.1-pro-low"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gemini-3.1-pro-low"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 13,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gemini-3-pro-image",
-      "display_name": "Gemini 3 Pro Image",
-      "provider": "gemini",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "gemini-3-pro-image-preview",
-        "gemini-3-pro-image"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gemini-3-pro-image-preview"
+        "grok-2-vision"
       ],
       "modalities": [
         "text",
@@ -1845,248 +2862,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "image"
       ],
-      "ui_priority": 14,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gemini-2.5-flash-image-preview",
-      "display_name": "Gemini 2.5 Flash Image Preview",
-      "provider": "gemini",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "gemini-2.5-flash-image-preview"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gemini-2.5-flash-image-preview"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "gemini-3.1-flash-image-preview",
-      "display_name": "Gemini 3.1 Flash Image Preview",
-      "provider": "gemini",
-      "platforms": [
-        "antigravity"
-      ],
-      "protocol_ids": [
-        "gemini-3.1-flash-image-preview"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gemini-3.1-flash-image-preview"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "gemini-3.1-pro-preview",
-      "display_name": "Gemini 3.1 Pro Preview",
-      "provider": "gemini",
-      "platforms": [
-        "gemini"
-      ],
-      "protocol_ids": [
-        "gemini-3.1-pro-preview"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gemini-3.1-pro-preview"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 200,
-      "exposed_in": [
-        "runtime",
-        "test"
-      ]
-    },
-    {
-      "id": "unknown",
-      "display_name": "Unknown",
-      "provider": "gemini",
-      "platforms": [
-        "gemini"
-      ],
-      "protocol_ids": [
-        "unknown"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "unknown"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9999,
-      "exposed_in": [
-        "runtime"
-      ]
-    },
-    {
-      "id": "hunyuan-lite",
-      "display_name": "Hunyuan-lite",
-      "provider": "hunyuan",
-      "platforms": [
-        "hunyuan"
-      ],
-      "protocol_ids": [
-        "hunyuan-lite"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "hunyuan-lite"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "hunyuan-standard",
-      "display_name": "Hunyuan-standard",
-      "provider": "hunyuan",
-      "platforms": [
-        "hunyuan"
-      ],
-      "protocol_ids": [
-        "hunyuan-standard"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "hunyuan-standard"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "hunyuan-standard-256k",
-      "display_name": "Hunyuan-standard-256k",
-      "provider": "hunyuan",
-      "platforms": [
-        "hunyuan"
-      ],
-      "protocol_ids": [
-        "hunyuan-standard-256k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "hunyuan-standard-256k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "hunyuan-pro",
-      "display_name": "Hunyuan-pro",
-      "provider": "hunyuan",
-      "platforms": [
-        "hunyuan"
-      ],
-      "protocol_ids": [
-        "hunyuan-pro"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "hunyuan-pro"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "hunyuan-turbo",
-      "display_name": "Hunyuan-turbo",
-      "provider": "hunyuan",
-      "platforms": [
-        "hunyuan"
-      ],
-      "protocol_ids": [
-        "hunyuan-turbo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "hunyuan-turbo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "hunyuan-large",
-      "display_name": "Hunyuan-large",
-      "provider": "hunyuan",
-      "platforms": [
-        "hunyuan"
-      ],
-      "protocol_ids": [
-        "hunyuan-large"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "hunyuan-large"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
+      "ui_priority": 6,
       "exposed_in": [
         "whitelist"
       ]
@@ -2118,168 +2894,24 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "hunyuan-code",
-      "display_name": "Hunyuan-code",
-      "provider": "hunyuan",
+      "id": "llama-3-sonar-large-32k-chat",
+      "display_name": "Llama-3-sonar-large-32k-chat",
+      "provider": "perplexity",
       "platforms": [
-        "hunyuan"
+        "perplexity"
       ],
       "protocol_ids": [
-        "hunyuan-code"
+        "llama-3-sonar-large-32k-chat"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "hunyuan-code"
+        "llama-3-sonar-large-32k-chat"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3.3-70b-instruct",
-      "display_name": "Llama-3.3-70b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3.3-70b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3.3-70b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3.2-90b-vision-instruct",
-      "display_name": "Llama-3.2-90b-vision-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3.2-90b-vision-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3.2-90b-vision-instruct"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3.2-11b-vision-instruct",
-      "display_name": "Llama-3.2-11b-vision-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3.2-11b-vision-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3.2-11b-vision-instruct"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3.2-3b-instruct",
-      "display_name": "Llama-3.2-3b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3.2-3b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3.2-3b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3.2-1b-instruct",
-      "display_name": "Llama-3.2-1b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3.2-1b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3.2-1b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3.1-405b-instruct",
-      "display_name": "Llama-3.1-405b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3.1-405b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3.1-405b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
+      "ui_priority": 6,
       "exposed_in": [
         "whitelist"
       ]
@@ -2308,910 +2940,18 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "llama-3.1-8b-instruct",
-      "display_name": "Llama-3.1-8b-instruct",
-      "provider": "meta",
+      "id": "qwen2-57b-a14b-instruct",
+      "display_name": "Qwen2-57b-a14b-instruct",
+      "provider": "qwen",
       "platforms": [
-        "meta"
+        "qwen"
       ],
       "protocol_ids": [
-        "llama-3.1-8b-instruct"
+        "qwen2-57b-a14b-instruct"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "llama-3.1-8b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3-70b-instruct",
-      "display_name": "Llama-3-70b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3-70b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3-70b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "llama-3-8b-instruct",
-      "display_name": "Llama-3-8b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "llama-3-8b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "llama-3-8b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "codellama-70b-instruct",
-      "display_name": "Codellama-70b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "codellama-70b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "codellama-70b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "codellama-34b-instruct",
-      "display_name": "Codellama-34b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "codellama-34b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "codellama-34b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "codellama-13b-instruct",
-      "display_name": "Codellama-13b-instruct",
-      "provider": "meta",
-      "platforms": [
-        "meta"
-      ],
-      "protocol_ids": [
-        "codellama-13b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "codellama-13b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 12,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "abab6.5-chat",
-      "display_name": "Abab6.5-chat",
-      "provider": "minimax",
-      "platforms": [
-        "minimax"
-      ],
-      "protocol_ids": [
-        "abab6.5-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "abab6.5-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "abab6.5s-chat",
-      "display_name": "Abab6.5s-chat",
-      "provider": "minimax",
-      "platforms": [
-        "minimax"
-      ],
-      "protocol_ids": [
-        "abab6.5s-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "abab6.5s-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "abab6.5s-chat-pro",
-      "display_name": "Abab6.5s-chat-pro",
-      "provider": "minimax",
-      "platforms": [
-        "minimax"
-      ],
-      "protocol_ids": [
-        "abab6.5s-chat-pro"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "abab6.5s-chat-pro"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "abab6-chat",
-      "display_name": "Abab6-chat",
-      "provider": "minimax",
-      "platforms": [
-        "minimax"
-      ],
-      "protocol_ids": [
-        "abab6-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "abab6-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "abab5.5-chat",
-      "display_name": "Abab5.5-chat",
-      "provider": "minimax",
-      "platforms": [
-        "minimax"
-      ],
-      "protocol_ids": [
-        "abab5.5-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "abab5.5-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "abab5.5s-chat",
-      "display_name": "Abab5.5s-chat",
-      "provider": "minimax",
-      "platforms": [
-        "minimax"
-      ],
-      "protocol_ids": [
-        "abab5.5s-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "abab5.5s-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "mistral-small-latest",
-      "display_name": "Mistral-small-latest",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "mistral-small-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "mistral-small-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "mistral-medium-latest",
-      "display_name": "Mistral-medium-latest",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "mistral-medium-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "mistral-medium-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "mistral-large-latest",
-      "display_name": "Mistral-large-latest",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "mistral-large-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "mistral-large-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "open-mistral-7b",
-      "display_name": "Open-mistral-7b",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "open-mistral-7b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "open-mistral-7b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "open-mixtral-8x7b",
-      "display_name": "Open-mixtral-8x7b",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "open-mixtral-8x7b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "open-mixtral-8x7b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "open-mixtral-8x22b",
-      "display_name": "Open-mixtral-8x22b",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "open-mixtral-8x22b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "open-mixtral-8x22b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "codestral-latest",
-      "display_name": "Codestral-latest",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "codestral-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "codestral-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "codestral-mamba",
-      "display_name": "Codestral-mamba",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "codestral-mamba"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "codestral-mamba"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "pixtral-12b-2409",
-      "display_name": "Pixtral-12b-2409",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "pixtral-12b-2409"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "pixtral-12b-2409"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "pixtral-large-latest",
-      "display_name": "Pixtral-large-latest",
-      "provider": "mistral",
-      "platforms": [
-        "mistral"
-      ],
-      "protocol_ids": [
-        "pixtral-large-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "pixtral-large-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "moonshot-v1-8k",
-      "display_name": "Moonshot-v1-8k",
-      "provider": "moonshot",
-      "platforms": [
-        "moonshot"
-      ],
-      "protocol_ids": [
-        "moonshot-v1-8k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "moonshot-v1-8k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "moonshot-v1-32k",
-      "display_name": "Moonshot-v1-32k",
-      "provider": "moonshot",
-      "platforms": [
-        "moonshot"
-      ],
-      "protocol_ids": [
-        "moonshot-v1-32k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "moonshot-v1-32k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "moonshot-v1-128k",
-      "display_name": "Moonshot-v1-128k",
-      "provider": "moonshot",
-      "platforms": [
-        "moonshot"
-      ],
-      "protocol_ids": [
-        "moonshot-v1-128k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "moonshot-v1-128k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "kimi-latest",
-      "display_name": "Kimi-latest",
-      "provider": "moonshot",
-      "platforms": [
-        "moonshot"
-      ],
-      "protocol_ids": [
-        "kimi-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "kimi-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-3.5-turbo",
-      "display_name": "GPT-3.5-turbo",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-3.5-turbo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-3.5-turbo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-image",
-      "display_name": "GPT-image",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "gpt-image"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-image"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-3.5-turbo-0125",
-      "display_name": "GPT-3.5-turbo-0125",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-3.5-turbo-0125"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-3.5-turbo-0125"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-image-landscape",
-      "display_name": "GPT-image-landscape",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "gpt-image-landscape"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-image-landscape"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-3.5-turbo-1106",
-      "display_name": "GPT-3.5-turbo-1106",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-3.5-turbo-1106"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-3.5-turbo-1106"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-image-portrait",
-      "display_name": "GPT-image-portrait",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "gpt-image-portrait"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-image-portrait"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-3.5-turbo-16k",
-      "display_name": "GPT-3.5-turbo-16k",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-3.5-turbo-16k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-3.5-turbo-16k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sora2-landscape-10s",
-      "display_name": "Sora2-landscape-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-landscape-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-landscape-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-4",
-      "display_name": "GPT-4",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-4"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-4"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sora2-portrait-10s",
-      "display_name": "Sora2-portrait-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-portrait-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-portrait-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-4-turbo",
-      "display_name": "GPT-4-turbo",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-4-turbo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-4-turbo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sora2-landscape-15s",
-      "display_name": "Sora2-landscape-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-landscape-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-landscape-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-4-turbo-preview",
-      "display_name": "GPT-4-turbo-preview",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-4-turbo-preview"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-4-turbo-preview"
+        "qwen2-57b-a14b-instruct"
       ],
       "modalities": [
         "text"
@@ -3249,6 +2989,223 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "spark-lite",
+      "display_name": "Spark-lite",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-lite"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-lite"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 6,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-vision",
+      "display_name": "Yi-vision",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-vision"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-vision"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 6,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "codestral-mamba",
+      "display_name": "Codestral-mamba",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "codestral-mamba"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "codestral-mamba"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "command",
+      "display_name": "Command",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "command"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "command"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1-distill-qwen-32b",
+      "display_name": "Deepseek-r1-distill-qwen-32b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-qwen-32b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-qwen-32b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-vision-pro-32k",
+      "display_name": "Doubao-vision-pro-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-vision-pro-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-vision-pro-32k"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-speed-pro-128k",
+      "display_name": "Ernie-speed-pro-128k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-speed-pro-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-speed-pro-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-2.5-flash-thinking",
+      "display_name": "Gemini 2.5 Flash Thinking",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-2.5-flash-thinking"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-2.5-flash-thinking"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 7,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4-flash",
+      "display_name": "Glm-4-flash",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4-flash"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4-flash"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4o",
       "display_name": "GPT-4o",
       "provider": "openai",
@@ -3261,6 +3218,101 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4o"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-2-image",
+      "display_name": "Grok-2-image",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-2-image"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-2-image"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "hunyuan-code",
+      "display_name": "Hunyuan-code",
+      "provider": "hunyuan",
+      "platforms": [
+        "hunyuan"
+      ],
+      "protocol_ids": [
+        "hunyuan-code"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "hunyuan-code"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3.1-8b-instruct",
+      "display_name": "Llama-3.1-8b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3.1-8b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3.1-8b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2-7b-instruct",
+      "display_name": "Qwen2-7b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2-7b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2-7b-instruct"
       ],
       "modalities": [
         "text"
@@ -3298,6 +3350,170 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "spark-pro",
+      "display_name": "Spark-pro",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-1.5-34b-chat",
+      "display_name": "Yi-1.5-34b-chat",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-1.5-34b-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-1.5-34b-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 7,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "command-light",
+      "display_name": "Command-light",
+      "provider": "cohere",
+      "platforms": [
+        "cohere"
+      ],
+      "protocol_ids": [
+        "command-light"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "command-light"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1-distill-qwen-14b",
+      "display_name": "Deepseek-r1-distill-qwen-14b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-qwen-14b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-qwen-14b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-vision-lite-32k",
+      "display_name": "Doubao-vision-lite-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-vision-lite-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-vision-lite-32k"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-lite-8k",
+      "display_name": "Ernie-lite-8k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-lite-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-lite-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4v-plus",
+      "display_name": "Glm-4v-plus",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4v-plus"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4v-plus"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4o-2024-08-06",
       "display_name": "GPT-4o-2024-08-06",
       "provider": "openai",
@@ -3310,6 +3526,98 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4o-2024-08-06"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-beta",
+      "display_name": "Grok-beta",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3-70b-instruct",
+      "display_name": "Llama-3-70b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3-70b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3-70b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "pixtral-12b-2409",
+      "display_name": "Pixtral-12b-2409",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "pixtral-12b-2409"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "pixtral-12b-2409"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-72b-instruct",
+      "display_name": "Qwen2.5-72b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-72b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-72b-instruct"
       ],
       "modalities": [
         "text"
@@ -3347,6 +3655,172 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "spark-max",
+      "display_name": "Spark-max",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-max"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-max"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-1.5-9b-chat",
+      "display_name": "Yi-1.5-9b-chat",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-1.5-9b-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-1.5-9b-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 8,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1-distill-qwen-7b",
+      "display_name": "Deepseek-r1-distill-qwen-7b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-qwen-7b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-qwen-7b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-1.5-pro-256k",
+      "display_name": "Doubao-1.5-pro-256k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-1.5-pro-256k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-1.5-pro-256k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-lite-pro-128k",
+      "display_name": "Ernie-lite-pro-128k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-lite-pro-128k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-lite-pro-128k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3-flash",
+      "display_name": "Gemini 3 Flash",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3-flash-preview",
+        "gemini-3-flash"
+      ],
+      "aliases": [
+        "gemini-3-flash-preview"
+      ],
+      "pricing_lookup_ids": [
+        "gemini-3-flash-preview"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4.5",
+      "display_name": "Glm-4.5",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4.5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4.5"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4o-2024-11-20",
       "display_name": "GPT-4o-2024-11-20",
       "provider": "openai",
@@ -3359,6 +3833,101 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4o-2024-11-20"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-vision-beta",
+      "display_name": "Grok-vision-beta",
+      "provider": "xai",
+      "platforms": [
+        "xai"
+      ],
+      "protocol_ids": [
+        "grok-vision-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-vision-beta"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "llama-3-8b-instruct",
+      "display_name": "Llama-3-8b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "llama-3-8b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "llama-3-8b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "pixtral-large-latest",
+      "display_name": "Pixtral-large-latest",
+      "provider": "mistral",
+      "platforms": [
+        "mistral"
+      ],
+      "protocol_ids": [
+        "pixtral-large-latest"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "pixtral-large-latest"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-32b-instruct",
+      "display_name": "Qwen2.5-32b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-32b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-32b-instruct"
       ],
       "modalities": [
         "text"
@@ -3396,6 +3965,192 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "spark-ultra",
+      "display_name": "Spark-ultra",
+      "provider": "spark",
+      "platforms": [
+        "spark"
+      ],
+      "protocol_ids": [
+        "spark-ultra"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "spark-ultra"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "yi-1.5-6b-chat",
+      "display_name": "Yi-1.5-6b-chat",
+      "provider": "yi",
+      "platforms": [
+        "yi"
+      ],
+      "protocol_ids": [
+        "yi-1.5-6b-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "yi-1.5-6b-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 9,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "codellama-70b-instruct",
+      "display_name": "Codellama-70b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "codellama-70b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "codellama-70b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1-distill-llama-70b",
+      "display_name": "Deepseek-r1-distill-llama-70b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-llama-70b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-llama-70b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-1.5-pro-32k",
+      "display_name": "Doubao-1.5-pro-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-1.5-pro-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-1.5-pro-32k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "ernie-tiny-8k",
+      "display_name": "Ernie-tiny-8k",
+      "provider": "baidu",
+      "platforms": [
+        "baidu"
+      ],
+      "protocol_ids": [
+        "ernie-tiny-8k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "ernie-tiny-8k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3-pro-high",
+      "display_name": "Gemini 3 Pro High",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3-pro-high"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3-pro-high"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4.6",
+      "display_name": "Glm-4.6",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4.6"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4.6"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4o-mini",
       "display_name": "GPT-4o-mini",
       "provider": "openai",
@@ -3408,6 +4163,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4o-mini"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-14b-instruct",
+      "display_name": "Qwen2.5-14b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-14b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-14b-instruct"
       ],
       "modalities": [
         "text"
@@ -3445,6 +4223,123 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "codellama-34b-instruct",
+      "display_name": "Codellama-34b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "codellama-34b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "codellama-34b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 11,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "deepseek-r1-distill-llama-8b",
+      "display_name": "Deepseek-r1-distill-llama-8b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-llama-8b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-llama-8b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 11,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-1.5-lite-32k",
+      "display_name": "Doubao-1.5-lite-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-1.5-lite-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-1.5-lite-32k"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 11,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3-pro-low",
+      "display_name": "Gemini 3 Pro Low",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3-pro-low"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3-pro-low"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 11,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-3-turbo",
+      "display_name": "Glm-3-turbo",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-3-turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-3-turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 11,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4o-mini-2024-07-18",
       "display_name": "GPT-4o-mini-2024-07-18",
       "provider": "openai",
@@ -3457,6 +4352,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4o-mini-2024-07-18"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 11,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-7b-instruct",
+      "display_name": "Qwen2.5-7b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-7b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-7b-instruct"
       ],
       "modalities": [
         "text"
@@ -3494,6 +4412,103 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "codellama-13b-instruct",
+      "display_name": "Codellama-13b-instruct",
+      "provider": "meta",
+      "platforms": [
+        "meta"
+      ],
+      "protocol_ids": [
+        "codellama-13b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "codellama-13b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 12,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-1.5-pro-vision-32k",
+      "display_name": "Doubao-1.5-pro-vision-32k",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-1.5-pro-vision-32k"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-1.5-pro-vision-32k"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 12,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3.1-pro-high",
+      "display_name": "Gemini 3.1 Pro High",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-pro-high"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-pro-high"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 12,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "glm-4-alltools",
+      "display_name": "Glm-4-alltools",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "glm-4-alltools"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "glm-4-alltools"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 12,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4.5-preview",
       "display_name": "GPT-4.5-preview",
       "provider": "openai",
@@ -3506,6 +4521,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4.5-preview"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 12,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-3b-instruct",
+      "display_name": "Qwen2.5-3b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-3b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-3b-instruct"
       ],
       "modalities": [
         "text"
@@ -3543,6 +4581,79 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "chatglm_turbo",
+      "display_name": "Chatglm_turbo",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "chatglm_turbo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "chatglm_turbo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 13,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "doubao-1.5-thinking-pro",
+      "display_name": "Doubao-1.5-thinking-pro",
+      "provider": "doubao",
+      "platforms": [
+        "doubao"
+      ],
+      "protocol_ids": [
+        "doubao-1.5-thinking-pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "doubao-1.5-thinking-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 13,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3.1-pro-low",
+      "display_name": "Gemini 3.1 Pro Low",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3.1-pro-low"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3.1-pro-low"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 13,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4.1",
       "display_name": "GPT-4.1",
       "provider": "openai",
@@ -3555,6 +4666,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4.1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 13,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-1.5b-instruct",
+      "display_name": "Qwen2.5-1.5b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-1.5b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-1.5b-instruct"
       ],
       "modalities": [
         "text"
@@ -3592,6 +4726,58 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "chatglm_pro",
+      "display_name": "Chatglm_pro",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "chatglm_pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "chatglm_pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 14,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gemini-3-pro-image",
+      "display_name": "Gemini 3 Pro Image",
+      "provider": "gemini",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "gemini-3-pro-image-preview",
+        "gemini-3-pro-image"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gemini-3-pro-image-preview"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 14,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-4.1-mini",
       "display_name": "GPT-4.1-mini",
       "provider": "openai",
@@ -3604,6 +4790,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-4.1-mini"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 14,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-coder-32b-instruct",
+      "display_name": "Qwen2.5-coder-32b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-coder-32b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-coder-32b-instruct"
       ],
       "modalities": [
         "text"
@@ -3636,6 +4845,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "video"
       ],
       "ui_priority": 14,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "chatglm_std",
+      "display_name": "Chatglm_std",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "chatglm_std"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "chatglm_std"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 15,
       "exposed_in": [
         "whitelist"
       ]
@@ -3687,6 +4919,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "qwen2.5-coder-14b-instruct",
+      "display_name": "Qwen2.5-coder-14b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-coder-14b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-coder-14b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 15,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "sora2pro-hd-landscape-10s",
       "display_name": "Sora2pro-hd-landscape-10s",
       "provider": "openai",
@@ -3713,6 +4968,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "chatglm_lite",
+      "display_name": "Chatglm_lite",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "chatglm_lite"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "chatglm_lite"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 16,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "o1",
       "display_name": "O1",
       "provider": "openai",
@@ -3732,6 +5010,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
+      "ui_priority": 16,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen2.5-coder-7b-instruct",
+      "display_name": "Qwen2.5-coder-7b-instruct",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen2.5-coder-7b-instruct"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen2.5-coder-7b-instruct"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
       "ui_priority": 16,
       "exposed_in": [
         "whitelist"
@@ -3764,6 +5065,52 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "tab_flash_lite_preview",
+      "display_name": "Tab_flash_lite_preview",
+      "provider": "antigravity",
+      "platforms": [
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "tab_flash_lite_preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "tab_flash_lite_preview"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 16,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "cogview-3",
+      "display_name": "Cogview-3",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "cogview-3"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "cogview-3"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 17,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "o1-preview",
       "display_name": "O1-preview",
       "provider": "openai",
@@ -3783,6 +5130,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
+      "ui_priority": 17,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwen3-235b-a22b",
+      "display_name": "Qwen3-235b-a22b",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwen3-235b-a22b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwen3-235b-a22b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
       "ui_priority": 17,
       "exposed_in": [
         "whitelist"
@@ -3815,6 +5185,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "cogvideo",
+      "display_name": "Cogvideo",
+      "provider": "zhipu",
+      "platforms": [
+        "zhipu"
+      ],
+      "protocol_ids": [
+        "cogvideo"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "cogvideo"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 18,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "o1-mini",
       "display_name": "O1-mini",
       "provider": "openai",
@@ -3834,6 +5227,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
+      "ui_priority": 18,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwq-32b",
+      "display_name": "Qwq-32b",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwq-32b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwq-32b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
       "ui_priority": 18,
       "exposed_in": [
         "whitelist"
@@ -3891,6 +5307,52 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "prompt-enhance-short-10s",
+      "display_name": "Prompt-enhance-short-10s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-short-10s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-short-10s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 19,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "qwq-32b-preview",
+      "display_name": "Qwq-32b-preview",
+      "provider": "qwen",
+      "platforms": [
+        "qwen"
+      ],
+      "protocol_ids": [
+        "qwq-32b-preview"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "qwq-32b-preview"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 19,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "o3",
       "display_name": "O3",
       "provider": "openai",
@@ -3910,6 +5372,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
+      "ui_priority": 20,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "prompt-enhance-short-15s",
+      "display_name": "Prompt-enhance-short-15s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-short-15s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-short-15s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
       "ui_priority": 20,
       "exposed_in": [
         "whitelist"
@@ -3941,6 +5426,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "prompt-enhance-short-20s",
+      "display_name": "Prompt-enhance-short-20s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-short-20s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-short-20s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 21,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "o3-pro",
       "display_name": "O3-pro",
       "provider": "openai",
@@ -3960,6 +5468,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
+      "ui_priority": 22,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "prompt-enhance-medium-10s",
+      "display_name": "Prompt-enhance-medium-10s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-medium-10s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-medium-10s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
       "ui_priority": 22,
       "exposed_in": [
         "whitelist"
@@ -3991,6 +5522,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "prompt-enhance-medium-15s",
+      "display_name": "Prompt-enhance-medium-15s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-medium-15s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-medium-15s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 23,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-5",
       "display_name": "GPT-5",
       "provider": "openai",
@@ -4016,6 +5570,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "prompt-enhance-medium-20s",
+      "display_name": "Prompt-enhance-medium-20s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-medium-20s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-medium-20s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 24,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-5-2025-08-07",
       "display_name": "GPT-5-2025-08-07",
       "provider": "openai",
@@ -4028,6 +5605,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-5-2025-08-07"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 25,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "prompt-enhance-long-10s",
+      "display_name": "Prompt-enhance-long-10s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-long-10s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-long-10s"
       ],
       "modalities": [
         "text"
@@ -4062,6 +5662,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "prompt-enhance-long-15s",
+      "display_name": "Prompt-enhance-long-15s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-long-15s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-long-15s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 26,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-5-chat-latest",
       "display_name": "GPT-5-chat-latest",
       "provider": "openai",
@@ -4085,6 +5708,29 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "prompt-enhance-long-20s",
+      "display_name": "Prompt-enhance-long-20s",
+      "provider": "sora",
+      "platforms": [
+        "sora"
+      ],
+      "protocol_ids": [
+        "prompt-enhance-long-20s"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "prompt-enhance-long-20s"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 27,
+      "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
       "id": "gpt-5-codex",
       "display_name": "GPT-5-codex",
       "provider": "openai",
@@ -4094,7 +5740,11 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "protocol_ids": [
         "gpt-5-codex"
       ],
-      "aliases": [],
+      "aliases": [
+        "gpt-5.1-codex",
+        "gpt-5.2-codex",
+        "gpt-5.3-codex"
+      ],
       "pricing_lookup_ids": [
         "gpt-5-codex"
       ],
@@ -4365,7 +6015,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "deprecated",
+      "replaced_by": "gpt-5-codex"
     },
     {
       "id": "gpt-5.1-codex-max",
@@ -4511,7 +6163,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "deprecated",
+      "replaced_by": "gpt-5-codex"
     },
     {
       "id": "gpt-5.2-pro",
@@ -4630,7 +6284,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "runtime",
         "test",
         "whitelist"
-      ]
+      ],
+      "status": "deprecated",
+      "replaced_by": "gpt-5-codex"
     },
     {
       "id": "chatgpt-4o-latest",
@@ -4702,64 +6358,44 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sonar",
-      "display_name": "Sonar",
-      "provider": "perplexity",
+      "id": "claude-haiku-4-5-20251001",
+      "display_name": "Claude Haiku 4.5",
+      "provider": "anthropic",
       "platforms": [
-        "perplexity"
+        "anthropic"
       ],
       "protocol_ids": [
-        "sonar"
+        "claude-haiku-4-5-20251001"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "sonar"
+        "claude-haiku-4-5-20251001"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 0,
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-haiku-4.5"
     },
     {
-      "id": "sonar-pro",
-      "display_name": "Sonar-pro",
-      "provider": "perplexity",
+      "id": "claude-opus-4-5-20251101",
+      "display_name": "Claude Opus 4.5",
+      "provider": "anthropic",
       "platforms": [
-        "perplexity"
+        "anthropic"
       ],
       "protocol_ids": [
-        "sonar-pro"
+        "claude-opus-4-5-20251101"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "sonar-pro"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sonar-reasoning",
-      "display_name": "Sonar-reasoning",
-      "provider": "perplexity",
-      "platforms": [
-        "perplexity"
-      ],
-      "protocol_ids": [
-        "sonar-reasoning"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sonar-reasoning"
+        "claude-opus-4-5-20251101"
       ],
       "modalities": [
         "text"
@@ -4767,1151 +6403,225 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
-      "ui_priority": 2,
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-opus-4.1"
     },
     {
-      "id": "llama-3-sonar-small-32k-online",
-      "display_name": "Llama-3-sonar-small-32k-online",
-      "provider": "perplexity",
+      "id": "claude-opus-4-5-thinking",
+      "display_name": "Claude Opus 4.5 Thinking",
+      "provider": "anthropic",
       "platforms": [
-        "perplexity"
+        "antigravity"
       ],
       "protocol_ids": [
-        "llama-3-sonar-small-32k-online"
+        "claude-opus-4-5-thinking"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "llama-3-sonar-small-32k-online"
+        "claude-opus-4-5-thinking"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 3,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-opus-4.1"
     },
     {
-      "id": "llama-3-sonar-large-32k-online",
-      "display_name": "Llama-3-sonar-large-32k-online",
-      "provider": "perplexity",
+      "id": "claude-opus-4-6",
+      "display_name": "Claude Opus 4.6",
+      "provider": "anthropic",
       "platforms": [
-        "perplexity"
+        "anthropic",
+        "antigravity"
       ],
       "protocol_ids": [
-        "llama-3-sonar-large-32k-online"
+        "claude-opus-4-6"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "llama-3-sonar-large-32k-online"
+        "claude-opus-4-6"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 4,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-opus-4.1"
     },
     {
-      "id": "llama-3-sonar-small-32k-chat",
-      "display_name": "Llama-3-sonar-small-32k-chat",
-      "provider": "perplexity",
+      "id": "claude-opus-4-6-thinking",
+      "display_name": "Claude Opus 4.6 Thinking",
+      "provider": "anthropic",
       "platforms": [
-        "perplexity"
+        "antigravity"
       ],
       "protocol_ids": [
-        "llama-3-sonar-small-32k-chat"
+        "claude-opus-4-6-thinking"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "llama-3-sonar-small-32k-chat"
+        "claude-opus-4-6-thinking"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 5,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-opus-4.1"
     },
     {
-      "id": "llama-3-sonar-large-32k-chat",
-      "display_name": "Llama-3-sonar-large-32k-chat",
-      "provider": "perplexity",
+      "id": "claude-sonnet-4-5",
+      "display_name": "Claude Sonnet 4.5",
+      "provider": "anthropic",
       "platforms": [
-        "perplexity"
+        "antigravity"
       ],
       "protocol_ids": [
-        "llama-3-sonar-large-32k-chat"
+        "claude-sonnet-4-5"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "llama-3-sonar-large-32k-chat"
+        "claude-sonnet-4-5"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 6,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-sonnet-4.5"
     },
     {
-      "id": "qwen-turbo",
-      "display_name": "Qwen-turbo",
-      "provider": "qwen",
+      "id": "claude-sonnet-4-5-20250929",
+      "display_name": "Claude Sonnet 4.5",
+      "provider": "anthropic",
       "platforms": [
-        "qwen"
+        "anthropic"
       ],
       "protocol_ids": [
-        "qwen-turbo"
+        "claude-sonnet-4-5-20250929"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "qwen-turbo"
+        "claude-sonnet-4-5-20250929"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 0,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-sonnet-4.5"
     },
     {
-      "id": "qwen-plus",
-      "display_name": "Qwen-plus",
-      "provider": "qwen",
+      "id": "claude-sonnet-4-5-thinking",
+      "display_name": "Claude Sonnet 4.5 Thinking",
+      "provider": "anthropic",
       "platforms": [
-        "qwen"
+        "antigravity"
       ],
       "protocol_ids": [
-        "qwen-plus"
+        "claude-sonnet-4-5-thinking"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "qwen-plus"
+        "claude-sonnet-4-5-thinking"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 1,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-sonnet-4.5"
     },
     {
-      "id": "qwen-max",
-      "display_name": "Qwen-max",
-      "provider": "qwen",
+      "id": "claude-sonnet-4-6",
+      "display_name": "Claude Sonnet 4.6",
+      "provider": "anthropic",
       "platforms": [
-        "qwen"
+        "anthropic",
+        "antigravity"
       ],
       "protocol_ids": [
-        "qwen-max"
+        "claude-sonnet-4-6"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "qwen-max"
+        "claude-sonnet-4-6"
       ],
       "modalities": [
         "text"
       ],
-      "capabilities": [],
-      "ui_priority": 2,
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
-      ]
+        "runtime",
+        "test"
+      ],
+      "status": "deprecated",
+      "replaced_by": "claude-sonnet-4.5"
     },
     {
-      "id": "qwen-max-longcontext",
-      "display_name": "Qwen-max-longcontext",
-      "provider": "qwen",
+      "id": "gemini-2.5-flash-image-preview",
+      "display_name": "Gemini 2.5 Flash Image Preview",
+      "provider": "gemini",
       "platforms": [
-        "qwen"
+        "antigravity"
       ],
       "protocol_ids": [
-        "qwen-max-longcontext"
+        "gemini-2.5-flash-image-preview"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "qwen-max-longcontext"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen-long",
-      "display_name": "Qwen-long",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen-long"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen-long"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2-72b-instruct",
-      "display_name": "Qwen2-72b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2-72b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2-72b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2-57b-a14b-instruct",
-      "display_name": "Qwen2-57b-a14b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2-57b-a14b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2-57b-a14b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2-7b-instruct",
-      "display_name": "Qwen2-7b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2-7b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2-7b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-72b-instruct",
-      "display_name": "Qwen2.5-72b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-72b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-72b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-32b-instruct",
-      "display_name": "Qwen2.5-32b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-32b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-32b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-14b-instruct",
-      "display_name": "Qwen2.5-14b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-14b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-14b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-7b-instruct",
-      "display_name": "Qwen2.5-7b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-7b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-7b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-3b-instruct",
-      "display_name": "Qwen2.5-3b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-3b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-3b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 12,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-1.5b-instruct",
-      "display_name": "Qwen2.5-1.5b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-1.5b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-1.5b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 13,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-coder-32b-instruct",
-      "display_name": "Qwen2.5-coder-32b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-coder-32b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-coder-32b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 14,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-coder-14b-instruct",
-      "display_name": "Qwen2.5-coder-14b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-coder-14b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-coder-14b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 15,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen2.5-coder-7b-instruct",
-      "display_name": "Qwen2.5-coder-7b-instruct",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen2.5-coder-7b-instruct"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen2.5-coder-7b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 16,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwen3-235b-a22b",
-      "display_name": "Qwen3-235b-a22b",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwen3-235b-a22b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwen3-235b-a22b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 17,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwq-32b",
-      "display_name": "Qwq-32b",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwq-32b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwq-32b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 18,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "qwq-32b-preview",
-      "display_name": "Qwq-32b-preview",
-      "provider": "qwen",
-      "platforms": [
-        "qwen"
-      ],
-      "protocol_ids": [
-        "qwq-32b-preview"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "qwq-32b-preview"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 19,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-short-10s",
-      "display_name": "Prompt-enhance-short-10s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-short-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-short-10s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 19,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-short-15s",
-      "display_name": "Prompt-enhance-short-15s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-short-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-short-15s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 20,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-short-20s",
-      "display_name": "Prompt-enhance-short-20s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-short-20s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-short-20s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 21,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-medium-10s",
-      "display_name": "Prompt-enhance-medium-10s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-medium-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-medium-10s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 22,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-medium-15s",
-      "display_name": "Prompt-enhance-medium-15s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-medium-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-medium-15s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 23,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-medium-20s",
-      "display_name": "Prompt-enhance-medium-20s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-medium-20s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-medium-20s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 24,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-long-10s",
-      "display_name": "Prompt-enhance-long-10s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-long-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-long-10s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 25,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-long-15s",
-      "display_name": "Prompt-enhance-long-15s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-long-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-long-15s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 26,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-long-20s",
-      "display_name": "Prompt-enhance-long-20s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-long-20s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-long-20s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 27,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-desk",
-      "display_name": "Spark-desk",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-desk"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-desk"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-desk-v1.1",
-      "display_name": "Spark-desk-v1.1",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-desk-v1.1"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-desk-v1.1"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-desk-v2.1",
-      "display_name": "Spark-desk-v2.1",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-desk-v2.1"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-desk-v2.1"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-desk-v3.1",
-      "display_name": "Spark-desk-v3.1",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-desk-v3.1"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-desk-v3.1"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-desk-v3.5",
-      "display_name": "Spark-desk-v3.5",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-desk-v3.5"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-desk-v3.5"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-desk-v4.0",
-      "display_name": "Spark-desk-v4.0",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-desk-v4.0"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-desk-v4.0"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-lite",
-      "display_name": "Spark-lite",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-lite"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-lite"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-pro",
-      "display_name": "Spark-pro",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-pro"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-pro"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-max",
-      "display_name": "Spark-max",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-max"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-max"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "spark-ultra",
-      "display_name": "Spark-ultra",
-      "provider": "spark",
-      "platforms": [
-        "spark"
-      ],
-      "protocol_ids": [
-        "spark-ultra"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "spark-ultra"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-4",
-      "display_name": "Grok-4",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-4"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-4"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-4-0709",
-      "display_name": "Grok-4-0709",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-4-0709"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-4-0709"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-3-beta",
-      "display_name": "Grok-3-beta",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-3-beta"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-3-beta"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-3-mini-beta",
-      "display_name": "Grok-3-mini-beta",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-3-mini-beta"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-3-mini-beta"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-3-fast-beta",
-      "display_name": "Grok-3-fast-beta",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-3-fast-beta"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-3-fast-beta"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-2",
-      "display_name": "Grok-2",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-2"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-2"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-2-vision",
-      "display_name": "Grok-2-vision",
-      "provider": "xai",
-      "platforms": [
-        "xai"
-      ],
-      "protocol_ids": [
-        "grok-2-vision"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-2-vision"
+        "gemini-2.5-flash-image-preview"
       ],
       "modalities": [
         "text",
@@ -5920,24 +6630,25 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "image"
       ],
-      "ui_priority": 6,
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
+        "runtime",
+        "test"
       ]
     },
     {
-      "id": "grok-2-image",
-      "display_name": "Grok-2-image",
-      "provider": "xai",
+      "id": "gemini-3.1-flash-image-preview",
+      "display_name": "Gemini 3.1 Flash Image Preview",
+      "provider": "gemini",
       "platforms": [
-        "xai"
+        "antigravity"
       ],
       "protocol_ids": [
-        "grok-2-image"
+        "gemini-3.1-flash-image-preview"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-2-image"
+        "gemini-3.1-flash-image-preview"
       ],
       "modalities": [
         "text",
@@ -5946,728 +6657,57 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "image"
       ],
-      "ui_priority": 7,
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
+        "runtime",
+        "test"
       ]
     },
     {
-      "id": "grok-beta",
-      "display_name": "Grok-beta",
-      "provider": "xai",
+      "id": "gemini-3.1-pro-preview",
+      "display_name": "Gemini 3.1 Pro Preview",
+      "provider": "gemini",
       "platforms": [
-        "xai"
+        "gemini"
       ],
       "protocol_ids": [
-        "grok-beta"
+        "gemini-3.1-pro-preview"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-beta"
+        "gemini-3.1-pro-preview"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 8,
+      "ui_priority": 200,
       "exposed_in": [
-        "whitelist"
+        "runtime",
+        "test"
       ]
     },
     {
-      "id": "grok-vision-beta",
-      "display_name": "Grok-vision-beta",
-      "provider": "xai",
+      "id": "unknown",
+      "display_name": "Unknown",
+      "provider": "gemini",
       "platforms": [
-        "xai"
+        "gemini"
       ],
       "protocol_ids": [
-        "grok-vision-beta"
+        "unknown"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-vision-beta"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-large",
-      "display_name": "Yi-large",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-large"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-large"
+        "unknown"
       ],
       "modalities": [
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 0,
+      "ui_priority": 9999,
       "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-large-turbo",
-      "display_name": "Yi-large-turbo",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-large-turbo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-large-turbo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-large-rag",
-      "display_name": "Yi-large-rag",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-large-rag"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-large-rag"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-medium",
-      "display_name": "Yi-medium",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-medium"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-medium"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-medium-200k",
-      "display_name": "Yi-medium-200k",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-medium-200k"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-medium-200k"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-spark",
-      "display_name": "Yi-spark",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-spark"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-spark"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-vision",
-      "display_name": "Yi-vision",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-vision"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-vision"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-1.5-34b-chat",
-      "display_name": "Yi-1.5-34b-chat",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-1.5-34b-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-1.5-34b-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-1.5-9b-chat",
-      "display_name": "Yi-1.5-9b-chat",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-1.5-9b-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-1.5-9b-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "yi-1.5-6b-chat",
-      "display_name": "Yi-1.5-6b-chat",
-      "provider": "yi",
-      "platforms": [
-        "yi"
-      ],
-      "protocol_ids": [
-        "yi-1.5-6b-chat"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "yi-1.5-6b-chat"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4",
-      "display_name": "Glm-4",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4v",
-      "display_name": "Glm-4v",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4v"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4v"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-plus",
-      "display_name": "Glm-4-plus",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-plus"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-plus"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-0520",
-      "display_name": "Glm-4-0520",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-0520"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-0520"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-air",
-      "display_name": "Glm-4-air",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-air"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-air"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-airx",
-      "display_name": "Glm-4-airx",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-airx"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-airx"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-long",
-      "display_name": "Glm-4-long",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-long"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-long"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-flash",
-      "display_name": "Glm-4-flash",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-flash"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-flash"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4v-plus",
-      "display_name": "Glm-4v-plus",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4v-plus"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4v-plus"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4.5",
-      "display_name": "Glm-4.5",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4.5"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4.5"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4.6",
-      "display_name": "Glm-4.6",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4.6"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4.6"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-3-turbo",
-      "display_name": "Glm-3-turbo",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-3-turbo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-3-turbo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "glm-4-alltools",
-      "display_name": "Glm-4-alltools",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "glm-4-alltools"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "glm-4-alltools"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 12,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "chatglm_turbo",
-      "display_name": "Chatglm_turbo",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "chatglm_turbo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "chatglm_turbo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 13,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "chatglm_pro",
-      "display_name": "Chatglm_pro",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "chatglm_pro"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "chatglm_pro"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 14,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "chatglm_std",
-      "display_name": "Chatglm_std",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "chatglm_std"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "chatglm_std"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 15,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "chatglm_lite",
-      "display_name": "Chatglm_lite",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "chatglm_lite"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "chatglm_lite"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 16,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "cogview-3",
-      "display_name": "Cogview-3",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "cogview-3"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "cogview-3"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 17,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "cogvideo",
-      "display_name": "Cogvideo",
-      "provider": "zhipu",
-      "platforms": [
-        "zhipu"
-      ],
-      "protocol_ids": [
-        "cogvideo"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "cogvideo"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 18,
-      "exposed_in": [
-        "whitelist"
+        "runtime"
       ]
     }
   ],
@@ -6698,7 +6738,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Opus->Sonnet",
+      "label": "Opus-\u003eSonnet",
       "from": "claude-opus-4.1",
       "to": "claude-sonnet-4.5",
       "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
@@ -6706,7 +6746,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "anthropic",
-      "label": "Haiku->Sonnet",
+      "label": "Haiku-\u003eSonnet",
       "from": "claude-haiku-4.5",
       "to": "claude-sonnet-4.5",
       "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
@@ -6802,7 +6842,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "openai",
-      "label": "Haiku->5.4",
+      "label": "Haiku-\u003e5.4",
       "from": "claude-haiku-4.5",
       "to": "gpt-5.4",
       "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -6810,7 +6850,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "openai",
-      "label": "Opus->5.4",
+      "label": "Opus-\u003e5.4",
       "from": "claude-opus-4.1",
       "to": "gpt-5.4",
       "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
@@ -6818,7 +6858,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "openai",
-      "label": "Sonnet->5.4",
+      "label": "Sonnet-\u003e5.4",
       "from": "claude-sonnet-4.5",
       "to": "gpt-5.4",
       "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
@@ -6906,7 +6946,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Claude->Sonnet",
+      "label": "Claude-\u003eSonnet",
       "from": "claude-*",
       "to": "claude-sonnet-4.5",
       "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
@@ -6914,7 +6954,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Sonnet->Sonnet",
+      "label": "Sonnet-\u003eSonnet",
       "from": "claude-sonnet-*",
       "to": "claude-sonnet-4.5",
       "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
@@ -6922,7 +6962,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Opus->Opus",
+      "label": "Opus-\u003eOpus",
       "from": "claude-opus-*",
       "to": "claude-opus-4.1",
       "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
@@ -6930,7 +6970,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Haiku->Sonnet",
+      "label": "Haiku-\u003eSonnet",
       "from": "claude-haiku-*",
       "to": "claude-sonnet-4.5",
       "color": "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -6938,7 +6978,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Sonnet4->4.5",
+      "label": "Sonnet4-\u003e4.5",
       "from": "claude-sonnet-4-20250514",
       "to": "claude-sonnet-4.5",
       "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
@@ -6946,7 +6986,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Sonnet3.5->4.5",
+      "label": "Sonnet3.5-\u003e4.5",
       "from": "claude-3-5-sonnet-20241022",
       "to": "claude-sonnet-4.5",
       "color": "bg-teal-100 text-teal-700 hover:bg-teal-200 dark:bg-teal-900/30 dark:text-teal-400",
@@ -6954,7 +6994,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Opus4.5->4.1",
+      "label": "Opus4.5-\u003e4.1",
       "from": "claude-opus-4-5-20251101",
       "to": "claude-opus-4.1",
       "color": "bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-900/30 dark:text-violet-400",
@@ -6962,7 +7002,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-Preview->3.1-Pro-High",
+      "label": "3-Pro-Preview-\u003e3.1-Pro-High",
       "from": "gemini-3-pro-preview",
       "to": "gemini-3.1-pro-high",
       "color": "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400",
@@ -6970,7 +7010,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-High->3.1-Pro-High",
+      "label": "3-Pro-High-\u003e3.1-Pro-High",
       "from": "gemini-3-pro-high",
       "to": "gemini-3.1-pro-high",
       "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
@@ -6978,7 +7018,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-Low->3.1-Pro-Low",
+      "label": "3-Pro-Low-\u003e3.1-Pro-Low",
       "from": "gemini-3-pro-low",
       "to": "gemini-3.1-pro-low",
       "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -7018,7 +7058,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "3-Pro-Image->3.1",
+      "label": "3-Pro-Image-\u003e3.1",
       "from": "gemini-3-pro-image",
       "to": "gemini-3.1-flash-image",
       "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
@@ -7026,7 +7066,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Gemini 3->Flash",
+      "label": "Gemini 3-\u003eFlash",
       "from": "gemini-3*",
       "to": "gemini-3-flash",
       "color": "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -7034,7 +7074,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "antigravity",
-      "label": "Gemini 2.5->Flash",
+      "label": "Gemini 2.5-\u003eFlash",
       "from": "gemini-2.5*",
       "to": "gemini-2.5-flash",
       "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",

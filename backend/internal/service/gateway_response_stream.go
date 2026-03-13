@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -50,9 +49,15 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		c.Set(betaPolicyFilterSetKey, filterSet)
 	}
 	body := parsed.Body
-	reqModel := parsed.Model
+	reqModel := s.resolveCanonicalRequestModel(ctx, parsed.Model)
+	if reqModel == "" {
+		reqModel = parsed.Model
+	}
 	reqStream := parsed.Stream
-	originalModel := reqModel
+	originalModel := parsed.RawModel
+	if originalModel == "" {
+		originalModel = reqModel
+	}
 	isClaudeCode := isClaudeCodeRequest(ctx, c, parsed)
 	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCode
 	if shouldMimicClaudeCode {
@@ -83,11 +88,11 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			mappingSource = "account"
 		}
 	}
-	if mappingSource == "" && account.Platform == PlatformAnthropic && account.Type != AccountTypeAPIKey {
-		normalized := claude.NormalizeModelID(reqModel)
-		if normalized != reqModel {
-			mappedModel = normalized
-			mappingSource = "prefix"
+	if mappingSource == "" {
+		protocolModel := s.resolveUpstreamModelID(ctx, account, reqModel)
+		if protocolModel != "" && protocolModel != reqModel {
+			mappedModel = protocolModel
+			mappingSource = "registry_protocol"
 		}
 	}
 	if mappedModel != reqModel {

@@ -19,6 +19,7 @@ import (
 
 type TestAccountRequest struct {
 	ModelID string `json:"model_id"`
+	Model   string `json:"model"`
 	Prompt  string `json:"prompt"`
 }
 type SyncFromCRSRequest struct {
@@ -42,7 +43,11 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	}
 	var req TestAccountRequest
 	_ = c.ShouldBindJSON(&req)
-	if err := h.accountTestService.TestAccountConnection(c, accountID, req.ModelID, req.Prompt); err != nil {
+	modelID := strings.TrimSpace(req.ModelID)
+	if modelID == "" {
+		modelID = strings.TrimSpace(req.Model)
+	}
+	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, req.Prompt); err != nil {
 		return
 	}
 	if h.rateLimitService != nil {

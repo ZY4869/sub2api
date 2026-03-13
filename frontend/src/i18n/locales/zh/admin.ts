@@ -147,6 +147,11 @@ export default {
           status: '状态'
         },
         fields: {
+          lifecycleStatus: '\u751f\u547d\u5468\u671f\u72b6\u6001',
+          replacedBy: '\u66ff\u4ee3\u6a21\u578b',
+          deprecatedAt: '\u5e9f\u5f03\u65f6\u95f4',
+          preferredProtocolIds: '\u9996\u9009\u534f\u8bae ID',
+          deprecationNotice: '\u5e9f\u5f03\u63d0\u793a',
           id: '模型 ID',
           displayName: '显示名称',
           provider: '提供商',
@@ -200,6 +205,12 @@ export default {
           hidden: '已隐藏',
           tombstoned: '已墓碑删除'
         },
+        lifecycleLabels: {
+          stable: '\u7a33\u5b9a',
+          beta: '\u6d4b\u8bd5\u7248',
+          deprecated: '\u5df2\u5e9f\u5f03'
+        },
+        replacedByHint: '\u7531 {model} \u66ff\u4ee3',
         sourceLabels: {
           seed: '发布基线',
           manual: '手动覆盖',
@@ -1848,6 +1859,7 @@ export default {
             gcpProject: '激活 GCP 项目，获取 Code Assist 所需 Project ID。'
           },
           links: {
+            countryAssociationForm: '\u63d0\u4ea4\u5f52\u5c5e\u5730\u7533\u8bc9',
             countryCheck: '检查归属地',
             geminiWebActivation: '激活 Gemini Web',
             gcpProject: '打开 GCP 控制台'

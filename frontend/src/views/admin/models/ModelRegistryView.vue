@@ -158,13 +158,21 @@
         </template>
 
         <template #cell-status="{ row }">
-          <div class="flex flex-wrap gap-2">
-            <span :class="row.hidden ? statusClass('hidden') : statusClass('active')">
-              {{ row.hidden ? t('admin.models.registry.statusLabels.hidden') : t('admin.models.registry.statusLabels.active') }}
-            </span>
-            <span v-if="row.tombstoned" :class="statusClass('tombstoned')">
-              {{ t('admin.models.registry.statusLabels.tombstoned') }}
-            </span>
+          <div class="space-y-2">
+            <div class="flex flex-wrap gap-2">
+              <span :class="row.hidden ? statusClass('hidden') : statusClass('active')">
+                {{ row.hidden ? t('admin.models.registry.statusLabels.hidden') : t('admin.models.registry.statusLabels.active') }}
+              </span>
+              <span v-if="row.tombstoned" :class="statusClass('tombstoned')">
+                {{ t('admin.models.registry.statusLabels.tombstoned') }}
+              </span>
+              <span v-if="row.status" :class="lifecycleStatusClass(row.status)">
+                {{ formatLifecycleStatus(row.status) }}
+              </span>
+            </div>
+            <p v-if="row.replaced_by" class="text-xs text-amber-600 dark:text-amber-300">
+              {{ t('admin.models.registry.replacedByHint', { model: row.replaced_by }) }}
+            </p>
           </div>
         </template>
 
@@ -590,6 +598,24 @@ function statusClass(status: 'active' | 'hidden' | 'tombstoned') {
   return classes[status]
 }
 
+function formatLifecycleStatus(status?: string) {
+  const normalized = (status || '').trim().toLowerCase()
+  const key = `admin.models.registry.lifecycleLabels.${normalized || 'stable'}`
+  const translated = t(key)
+  return translated === key ? (normalized || 'stable') : translated
+}
+
+function lifecycleStatusClass(status?: string) {
+  const normalized = (status || '').trim().toLowerCase()
+  if (normalized === 'deprecated') {
+    return 'inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+  }
+  if (normalized === 'beta') {
+    return 'inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'
+  }
+  return 'inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-500/15 dark:text-slate-300'
+}
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat(undefined, {
     year: 'numeric',
@@ -608,6 +634,7 @@ function cloneEntry(entry: ModelRegistryDetail): ModelRegistryDetail {
     protocol_ids: Array.isArray(entry.protocol_ids) ? [...entry.protocol_ids] : [],
     aliases: Array.isArray(entry.aliases) ? [...entry.aliases] : [],
     pricing_lookup_ids: Array.isArray(entry.pricing_lookup_ids) ? [...entry.pricing_lookup_ids] : [],
+    preferred_protocol_ids: entry.preferred_protocol_ids ? { ...entry.preferred_protocol_ids } : undefined,
     modalities: Array.isArray(entry.modalities) ? [...entry.modalities] : [],
     capabilities: Array.isArray(entry.capabilities) ? [...entry.capabilities] : [],
     exposed_in: Array.isArray(entry.exposed_in) ? [...entry.exposed_in] : []
