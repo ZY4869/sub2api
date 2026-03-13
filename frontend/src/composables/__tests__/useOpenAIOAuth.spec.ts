@@ -26,10 +26,14 @@ describe('useOpenAIOAuth.buildCredentials', () => {
       access_token: 'at',
       refresh_token: 'rt',
       client_id: 'app_sora_client',
+      id_token: 'jwt-token',
+      plan_type: 'pro',
       expires_at: 1700000000
     })
 
     expect(creds.client_id).toBe('app_sora_client')
+    expect(creds.id_token).toBe('jwt-token')
+    expect(creds.plan_type).toBe('pro')
     expect(creds.access_token).toBe('at')
     expect(creds.refresh_token).toBe('rt')
   })

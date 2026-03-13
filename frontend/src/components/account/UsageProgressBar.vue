@@ -1,15 +1,12 @@
 <template>
-  <div>
-    <!-- Progress bar row -->
+  <div :class="detailedReset ? 'space-y-0.5' : ''">
     <div class="flex items-center gap-1">
-      <!-- Label badge (fixed width for alignment) -->
       <span
         :class="['w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium', labelClass]"
       >
         {{ label }}
       </span>
 
-      <!-- Progress bar container -->
       <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <div
           :class="['h-full transition-all duration-300', barClass]"
@@ -17,32 +14,50 @@
         ></div>
       </div>
 
-      <!-- Percentage -->
       <span :class="['w-[32px] shrink-0 text-right text-[10px] font-medium', textClass]">
         {{ displayPercent }}
       </span>
 
-      <!-- Reset time -->
-      <span v-if="resetsAt" class="shrink-0 text-[10px] text-gray-400">
-        {{ formatResetTime }}
+      <span v-if="!detailedReset && effectiveResetAt" class="shrink-0 text-[10px] text-gray-400">
+        {{ compactResetText }}
       </span>
+    </div>
+
+    <div
+      v-if="detailedReset"
+      class="pl-[37px] text-[10px] text-gray-400"
+      :title="resetTooltip || undefined"
+    >
+      {{ t('admin.accounts.usageWindow.remainingLabel') }} {{ resetCountdownText }}
+      ·
+      {{ t('admin.accounts.usageWindow.resetAtLabel') }} {{ resetAbsoluteText }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { WindowStats } from '@/types'
+import {
+  formatLocalAbsoluteTime,
+  formatLocalTimestamp,
+  formatResetCountdown,
+  parseEffectiveResetAt
+} from '@/utils/usageResetTime'
 
 const props = defineProps<{
   label: string
-  utilization: number // Percentage (0-100+)
+  utilization: number
   resetsAt?: string | null
+  remainingSeconds?: number | null
   color: 'indigo' | 'emerald' | 'purple' | 'amber'
   windowStats?: WindowStats | null
+  detailedReset?: boolean
 }>()
 
-// Label background colors
+const { t } = useI18n()
+
 const labelClass = computed(() => {
   const colors = {
     indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
@@ -53,59 +68,49 @@ const labelClass = computed(() => {
   return colors[props.color]
 })
 
-// Progress bar color based on utilization
 const barClass = computed(() => {
-  if (props.utilization >= 100) {
-    return 'bg-red-500'
-  } else if (props.utilization >= 80) {
-    return 'bg-amber-500'
-  } else {
-    return 'bg-green-500'
-  }
+  if (props.utilization >= 100) return 'bg-red-500'
+  if (props.utilization >= 80) return 'bg-amber-500'
+  return 'bg-green-500'
 })
 
-// Text color based on utilization
 const textClass = computed(() => {
-  if (props.utilization >= 100) {
-    return 'text-red-600 dark:text-red-400'
-  } else if (props.utilization >= 80) {
-    return 'text-amber-600 dark:text-amber-400'
-  } else {
-    return 'text-gray-600 dark:text-gray-400'
-  }
+  if (props.utilization >= 100) return 'text-red-600 dark:text-red-400'
+  if (props.utilization >= 80) return 'text-amber-600 dark:text-amber-400'
+  return 'text-gray-600 dark:text-gray-400'
 })
 
-// Bar width (capped at 100%)
-const barWidth = computed(() => {
-  return `${Math.min(props.utilization, 100)}%`
-})
+const barWidth = computed(() => `${Math.min(props.utilization, 100)}%`)
 
-// Display percentage (cap at 999% for readability)
 const displayPercent = computed(() => {
   const percent = Math.round(props.utilization)
   return percent > 999 ? '>999%' : `${percent}%`
 })
 
-// Format reset time
-const formatResetTime = computed(() => {
-  if (!props.resetsAt) return '-'
-  const date = new Date(props.resetsAt)
-  const now = new Date()
-  const diffMs = date.getTime() - now.getTime()
+const effectiveResetAt = computed(() =>
+  parseEffectiveResetAt(props.resetsAt ?? null, props.remainingSeconds ?? null)
+)
 
-  if (diffMs <= 0) return '现在'
-
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-
-  if (diffHours >= 24) {
-    const days = Math.floor(diffHours / 24)
-    return `${days}d ${diffHours % 24}h`
-  } else if (diffHours > 0) {
-    return `${diffHours}h ${diffMins}m`
-  } else {
-    return `${diffMins}m`
-  }
+const compactResetText = computed(() => {
+  if (!effectiveResetAt.value) return '-'
+  return formatResetCountdown(effectiveResetAt.value, new Date(), t('admin.accounts.usageWindow.now'))
 })
 
+const resetCountdownText = computed(() => {
+  if (!effectiveResetAt.value) return '-'
+  return formatResetCountdown(effectiveResetAt.value, new Date(), t('admin.accounts.usageWindow.now'))
+})
+
+const resetAbsoluteText = computed(() => {
+  if (!effectiveResetAt.value) return '-'
+  return formatLocalAbsoluteTime(effectiveResetAt.value, new Date(), {
+    today: t('dates.today'),
+    tomorrow: t('dates.tomorrow')
+  })
+})
+
+const resetTooltip = computed(() => {
+  if (!effectiveResetAt.value) return ''
+  return formatLocalTimestamp(effectiveResetAt.value)
+})
 </script>

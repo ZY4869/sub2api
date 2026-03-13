@@ -42,6 +42,12 @@ type AccountModelImportResult struct {
 	Trigger        string                          `json:"trigger"`
 }
 
+type AccountModelProbeSummary struct {
+	DetectedModels []string `json:"detected_models"`
+	ProbeSource    string   `json:"probe_source"`
+	ProbeNotice    string   `json:"probe_notice,omitempty"`
+}
+
 type accountModelProbeResult struct {
 	Models []string
 	Source string
@@ -79,6 +85,32 @@ func NewAccountModelImportService(
 
 func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, account *Account) (*AccountModelProbeSummary, error) {
+	if account == nil {
+		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+	}
+
+	probeResult, err := s.detectModels(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if probeResult == nil {
+		return nil, infraerrors.InternalServer("MODEL_IMPORT_PROBE_RESULT_MISSING", "model import probe result is missing")
+	}
+
+	detectedModels, _ := normalizeImportedModelIDs(probeResult.Models)
+	probeSource := strings.TrimSpace(probeResult.Source)
+	if probeSource == "" {
+		probeSource = accountModelProbeSourceUpstream
+	}
+
+	return &AccountModelProbeSummary{
+		DetectedModels: detectedModels,
+		ProbeSource:    probeSource,
+		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
+	}, nil
 }
 
 func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, account *Account, trigger string) (*AccountModelImportResult, error) {

@@ -133,6 +133,17 @@ type OpenAITokenInfo struct {
 	PlanType         string `json:"plan_type,omitempty"`
 }
 
+func applyOpenAIUserInfo(tokenInfo *OpenAITokenInfo, userInfo *openai.UserInfo) {
+	if tokenInfo == nil || userInfo == nil {
+		return
+	}
+	tokenInfo.Email = userInfo.Email
+	tokenInfo.ChatGPTAccountID = userInfo.ChatGPTAccountID
+	tokenInfo.ChatGPTUserID = userInfo.ChatGPTUserID
+	tokenInfo.OrganizationID = userInfo.OrganizationID
+	tokenInfo.PlanType = normalizeOpenAIPlanType(userInfo.PlanType)
+}
+
 // ExchangeCode exchanges authorization code for tokens
 func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExchangeCodeInput) (*OpenAITokenInfo, error) {
 	// Get session
@@ -198,13 +209,7 @@ func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExch
 		ClientID:     clientID,
 	}
 
-	if userInfo != nil {
-		tokenInfo.Email = userInfo.Email
-		tokenInfo.ChatGPTAccountID = userInfo.ChatGPTAccountID
-		tokenInfo.ChatGPTUserID = userInfo.ChatGPTUserID
-		tokenInfo.OrganizationID = userInfo.OrganizationID
-		tokenInfo.PlanType = userInfo.PlanType
-	}
+	applyOpenAIUserInfo(tokenInfo, userInfo)
 
 	return tokenInfo, nil
 }
@@ -243,13 +248,7 @@ func (s *OpenAIOAuthService) RefreshTokenWithClientID(ctx context.Context, refre
 		tokenInfo.ClientID = trimmed
 	}
 
-	if userInfo != nil {
-		tokenInfo.Email = userInfo.Email
-		tokenInfo.ChatGPTAccountID = userInfo.ChatGPTAccountID
-		tokenInfo.ChatGPTUserID = userInfo.ChatGPTUserID
-		tokenInfo.OrganizationID = userInfo.OrganizationID
-		tokenInfo.PlanType = userInfo.PlanType
-	}
+	applyOpenAIUserInfo(tokenInfo, userInfo)
 
 	return tokenInfo, nil
 }
@@ -514,7 +513,7 @@ func (s *OpenAIOAuthService) BuildAccountCredentials(tokenInfo *OpenAITokenInfo)
 		creds["organization_id"] = tokenInfo.OrganizationID
 	}
 	if tokenInfo.PlanType != "" {
-		creds["plan_type"] = tokenInfo.PlanType
+		creds["plan_type"] = normalizeOpenAIPlanType(tokenInfo.PlanType)
 	}
 	if strings.TrimSpace(tokenInfo.ClientID) != "" {
 		creds["client_id"] = strings.TrimSpace(tokenInfo.ClientID)

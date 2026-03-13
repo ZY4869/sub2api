@@ -1,6 +1,7 @@
 export default {
   dates: {
     today: '今天',
+    tomorrow: '明天',
     yesterday: '昨天',
     thisWeek: '本周',
     lastWeek: '上周',

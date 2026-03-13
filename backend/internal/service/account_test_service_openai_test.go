@@ -16,13 +16,15 @@ import (
 
 type openAIAccountTestRepo struct {
 	mockAccountRepoForGemini
-	updatedExtra  map[string]any
-	rateLimitedID int64
-	rateLimitedAt *time.Time
+	updatedExtra     map[string]any
+	updateExtraCalls []map[string]any
+	rateLimitedID    int64
+	rateLimitedAt    *time.Time
 }
 
 func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
 	r.updatedExtra = updates
+	r.updateExtraCalls = append(r.updateExtraCalls, updates)
 	return nil
 }
 
@@ -99,4 +101,92 @@ func TestAccountTestService_OpenAI429PersistsSnapshotAndRateLimit(t *testing.T) 
 	if account.RateLimitResetAt != nil && repo.rateLimitedAt != nil {
 		require.WithinDuration(t, *repo.rateLimitedAt, *account.RateLimitResetAt, time.Second)
 	}
+}
+
+func TestAccountTestService_OpenAISuccessProbesKnownModelsInBackground(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newSoraTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	resp.Header.Set("x-codex-primary-used-percent", "88")
+	resp.Header.Set("x-codex-primary-reset-after-seconds", "604800")
+	resp.Header.Set("x-codex-primary-window-minutes", "10080")
+	resp.Header.Set("x-codex-secondary-used-percent", "42")
+	resp.Header.Set("x-codex-secondary-reset-after-seconds", "18000")
+	resp.Header.Set("x-codex-secondary-window-minutes", "300")
+
+	modelsResp := newJSONResponse(http.StatusOK, `{"data":[{"id":"gpt-5.4"},{"id":"gpt-4.1-mini"}]}`)
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp, modelsResp}}
+	importSvc := NewAccountModelImportService(nil, nil, upstream, nil)
+	svc := &AccountTestService{
+		accountRepo:               repo,
+		accountModelImportService: importSvc,
+		httpUpstream:              upstream,
+		backgroundRunner: func(fn func()) {
+			fn()
+		},
+	}
+	account := &Account{
+		ID:          90,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4")
+	require.NoError(t, err)
+	require.Len(t, repo.updateExtraCalls, 2)
+	require.Equal(t, OpenAIKnownModelsSourceTestProbe, repo.updateExtraCalls[1]["openai_known_models_source"])
+	require.Equal(t, []string{"gpt-5.4", "gpt-4.1-mini"}, repo.updateExtraCalls[1]["openai_known_models"])
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAISuccessProbeFailureKeepsExistingKnownModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newSoraTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+	modelsResp := newJSONResponse(http.StatusInternalServerError, `{"error":"boom"}`)
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp, modelsResp}}
+	importSvc := NewAccountModelImportService(nil, nil, upstream, nil)
+	svc := &AccountTestService{
+		accountRepo:               repo,
+		accountModelImportService: importSvc,
+		httpUpstream:              upstream,
+		backgroundRunner: func(fn func()) {
+			fn()
+		},
+	}
+	account := &Account{
+		ID:          91,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+		Extra: map[string]any{
+			"openai_known_models":            []string{"existing-model"},
+			"openai_known_models_source":     OpenAIKnownModelsSourceImportModels,
+			"openai_known_models_updated_at": "2026-03-10T10:00:00Z",
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4")
+	require.NoError(t, err)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, []string{"existing-model"}, account.Extra["openai_known_models"])
+	require.Equal(t, OpenAIKnownModelsSourceImportModels, account.Extra["openai_known_models_source"])
+	require.Contains(t, recorder.Body.String(), "test_complete")
 }

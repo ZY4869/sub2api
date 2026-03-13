@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -65,10 +66,12 @@ const (
 // AccountTestService handles account testing operations
 type AccountTestService struct {
 	accountRepo               AccountRepository
+	accountModelImportService *AccountModelImportService
 	geminiTokenProvider       *GeminiTokenProvider
 	antigravityGatewayService *AntigravityGatewayService
 	httpUpstream              HTTPUpstream
 	cfg                       *config.Config
+	backgroundRunner          func(func())
 	soraTestGuardMu           sync.Mutex
 	soraTestLastRun           map[int64]time.Time
 	soraTestCooldown          time.Duration
@@ -79,6 +82,7 @@ const defaultSoraTestCooldown = 10 * time.Second
 // NewAccountTestService creates a new AccountTestService
 func NewAccountTestService(
 	accountRepo AccountRepository,
+	accountModelImportService *AccountModelImportService,
 	geminiTokenProvider *GeminiTokenProvider,
 	antigravityGatewayService *AntigravityGatewayService,
 	httpUpstream HTTPUpstream,
@@ -86,6 +90,7 @@ func NewAccountTestService(
 ) *AccountTestService {
 	return &AccountTestService{
 		accountRepo:               accountRepo,
+		accountModelImportService: accountModelImportService,
 		geminiTokenProvider:       geminiTokenProvider,
 		antigravityGatewayService: antigravityGatewayService,
 		httpUpstream:              httpUpstream,
@@ -93,6 +98,95 @@ func NewAccountTestService(
 		soraTestLastRun:           make(map[int64]time.Time),
 		soraTestCooldown:          defaultSoraTestCooldown,
 	}
+}
+
+func (s *AccountTestService) runBackgroundTask(fn func()) {
+	if fn == nil {
+		return
+	}
+	if s.backgroundRunner != nil {
+		s.backgroundRunner(fn)
+		return
+	}
+	go fn()
+}
+
+func cloneAccountForBackgroundProbe(account *Account) *Account {
+	if account == nil {
+		return nil
+	}
+
+	cloned := *account
+	cloned.Credentials = cloneStringAnyMap(account.Credentials)
+	cloned.Extra = cloneStringAnyMap(account.Extra)
+	cloned.Proxy = nil
+	if account.Proxy != nil {
+		proxy := *account.Proxy
+		cloned.Proxy = &proxy
+	}
+
+	cloned.modelMappingCache = nil
+	cloned.modelMappingCacheReady = false
+	cloned.modelMappingCacheCredentialsPtr = 0
+	cloned.modelMappingCacheRawPtr = 0
+	cloned.modelMappingCacheRawLen = 0
+	cloned.modelMappingCacheRawSig = 0
+
+	return &cloned
+}
+
+func (s *AccountTestService) refreshOpenAIKnownModelsSnapshot(account *Account) {
+	if s == nil || s.accountRepo == nil || s.accountModelImportService == nil || account == nil || !account.IsOpenAIOAuth() {
+		return
+	}
+
+	cloned := cloneAccountForBackgroundProbe(account)
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	probeResult, err := s.accountModelImportService.ProbeAccountModels(ctx, cloned)
+	if err != nil {
+		slog.Warn(
+			"openai_known_models_probe_failed",
+			"account_id", account.ID,
+			"duration_ms", time.Since(start).Milliseconds(),
+			"error", err,
+		)
+		return
+	}
+	if probeResult == nil || len(probeResult.DetectedModels) == 0 {
+		slog.Info(
+			"openai_known_models_probe_empty",
+			"account_id", account.ID,
+			"duration_ms", time.Since(start).Milliseconds(),
+		)
+		return
+	}
+
+	updates := BuildOpenAIKnownModelsExtra(
+		probeResult.DetectedModels,
+		time.Now().UTC(),
+		OpenAIKnownModelsSourceTestProbe,
+	)
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
+		slog.Warn(
+			"openai_known_models_snapshot_update_failed",
+			"account_id", account.ID,
+			"duration_ms", time.Since(start).Milliseconds(),
+			"error", err,
+		)
+		return
+	}
+	mergeAccountExtra(account, updates)
+
+	slog.Info(
+		"openai_known_models_snapshot_updated",
+		"account_id", account.ID,
+		"model_count", len(probeResult.DetectedModels),
+		"probe_source", probeResult.ProbeSource,
+		"duration_ms", time.Since(start).Milliseconds(),
+	)
 }
 
 func (s *AccountTestService) validateUpstreamBaseURL(raw string) (string, error) {
@@ -435,6 +529,13 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 			}
 		}
 		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+	}
+
+	if isOAuth && s.accountModelImportService != nil && s.accountRepo != nil {
+		accountForProbe := cloneAccountForBackgroundProbe(account)
+		s.runBackgroundTask(func() {
+			s.refreshOpenAIKnownModelsSnapshot(accountForProbe)
+		})
 	}
 
 	// Process SSE stream

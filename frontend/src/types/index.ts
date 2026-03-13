@@ -802,6 +802,9 @@ export interface CodexUsageSnapshot {
   codex_7d_window_minutes?: number // 7d window in minutes (should be ~10080)
 
   codex_usage_updated_at?: string // Last update timestamp
+  openai_known_models?: string[]
+  openai_known_models_updated_at?: string
+  openai_known_models_source?: 'import_models' | 'test_probe' | 'model_mapping' | string
 }
 
 export interface CreateAccountRequest {

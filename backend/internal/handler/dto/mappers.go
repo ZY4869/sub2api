@@ -190,13 +190,17 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	if a == nil {
 		return nil
 	}
+	credentials := a.Credentials
+	if enriched, changed := service.EnrichOpenAIOAuthCredentials(a.Platform, a.Type, a.Credentials); changed {
+		credentials = enriched
+	}
 	out := &Account{
 		ID:                      a.ID,
 		Name:                    a.Name,
 		Notes:                   a.Notes,
 		Platform:                a.Platform,
 		Type:                    a.Type,
-		Credentials:             a.Credentials,
+		Credentials:             credentials,
 		Extra:                   a.Extra,
 		ProxyID:                 a.ProxyID,
 		Concurrency:             a.Concurrency,

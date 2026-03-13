@@ -8,7 +8,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"io"
+	"log/slog"
 	"strconv"
+	"time"
 )
 
 func (h *AccountHandler) ImportModels(c *gin.Context) {
@@ -36,6 +38,22 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+	if account.IsOpenAIOAuth() {
+		updates := service.BuildOpenAIKnownModelsExtra(
+			result.DetectedModels,
+			time.Now().UTC(),
+			service.OpenAIKnownModelsSourceImportModels,
+		)
+		mergedExtra := service.MergeStringAnyMap(account.Extra, updates)
+		if _, updateErr := h.adminService.UpdateAccount(ctx, account.ID, &service.UpdateAccountInput{Extra: mergedExtra}); updateErr != nil {
+			slog.Warn(
+				"openai_known_models_snapshot_update_failed",
+				"account_id", account.ID,
+				"source", service.OpenAIKnownModelsSourceImportModels,
+				"error", updateErr,
+			)
+		}
 	}
 	response.Success(c, result)
 }

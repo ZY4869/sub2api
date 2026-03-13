@@ -1273,7 +1273,13 @@ export default {
         gemini3Pro: 'G3P',
         gemini3Flash: 'G3F',
         gemini3Image: 'GImage',
-        claude: 'Claude'
+        claude: 'Claude',
+        remainingLabel: '剩余',
+        resetAtLabel: '重置于',
+        now: '现在',
+        snapshotUpdatedAt: '快照更新于 {time}',
+        notProbed: '未探测',
+        customMapping: '自定义映射(*)'
       },
       tier: {
         free: 'Free',

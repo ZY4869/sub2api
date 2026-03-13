@@ -1868,7 +1868,13 @@ export default {
         gemini3Pro: 'G3P',
         gemini3Flash: 'G3F',
         gemini3Image: 'GImage',
-        claude: 'Claude'
+        claude: 'Claude',
+        remainingLabel: 'Remaining',
+        resetAtLabel: 'Resets at',
+        now: 'Now',
+        snapshotUpdatedAt: 'Snapshot updated at {time}',
+        notProbed: 'Not probed',
+        customMapping: 'Custom mapping(*)'
       },
       tier: {
         free: 'Free',

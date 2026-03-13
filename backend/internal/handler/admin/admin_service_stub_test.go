@@ -19,6 +19,8 @@ type stubAdminService struct {
 	redeems              []service.RedeemCode
 	createdAccounts      []*service.CreateAccountInput
 	createdProxies       []*service.CreateProxyInput
+	updatedAccountIDs    []int64
+	updatedAccounts      []*service.UpdateAccountInput
 	updatedProxyIDs      []int64
 	updatedProxies       []*service.UpdateProxyInput
 	testedProxyIDs       []int64
@@ -180,6 +182,12 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 }
 
 func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {
+	for i := range s.accounts {
+		if s.accounts[i].ID == id {
+			account := s.accounts[i]
+			return &account, nil
+		}
+	}
 	account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
 	return &account, nil
 }
@@ -205,6 +213,10 @@ func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.Cre
 }
 
 func (s *stubAdminService) UpdateAccount(ctx context.Context, id int64, input *service.UpdateAccountInput) (*service.Account, error) {
+	s.mu.Lock()
+	s.updatedAccountIDs = append(s.updatedAccountIDs, id)
+	s.updatedAccounts = append(s.updatedAccounts, input)
+	s.mu.Unlock()
 	if s.updateAccountErr != nil {
 		return nil, s.updateAccountErr
 	}

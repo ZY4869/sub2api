@@ -1,6 +1,7 @@
 export default {
   dates: {
     today: 'Today',
+    tomorrow: 'Tomorrow',
     yesterday: 'Yesterday',
     thisWeek: 'This Week',
     lastWeek: 'Last Week',

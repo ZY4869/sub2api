@@ -17,6 +17,7 @@ export interface OpenAITokenInfo {
   chatgpt_account_id?: string
   chatgpt_user_id?: string
   organization_id?: string
+  plan_type?: string
   [key: string]: unknown
 }
 
@@ -195,6 +196,12 @@ export function useOpenAIOAuth(options?: UseOpenAIOAuthOptions) {
 
     if (tokenInfo.client_id) {
       creds.client_id = tokenInfo.client_id
+    }
+    if (tokenInfo.id_token) {
+      creds.id_token = tokenInfo.id_token
+    }
+    if (tokenInfo.plan_type) {
+      creds.plan_type = tokenInfo.plan_type
     }
 
     // Include OpenAI specific IDs (required for forwarding)

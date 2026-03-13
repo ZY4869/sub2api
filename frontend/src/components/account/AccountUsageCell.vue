@@ -71,86 +71,109 @@
 
     <!-- OpenAI OAuth accounts: prefer fresh usage query for active rate-limited rows -->
     <template v-else-if="account.platform === 'openai' && account.type === 'oauth'">
-      <div v-if="preferFetchedOpenAIUsage" class="space-y-1">
-        <UsageProgressBar
-          v-if="usageInfo?.five_hour"
-          label="5h"
-          :utilization="usageInfo.five_hour.utilization"
-          :resets-at="usageInfo.five_hour.resets_at"
-          :window-stats="usageInfo.five_hour.window_stats"
-          color="indigo"
-        />
-        <UsageProgressBar
-          v-if="usageInfo?.seven_day"
-          label="7d"
-          :utilization="usageInfo.seven_day.utilization"
-          :resets-at="usageInfo.seven_day.resets_at"
-          :window-stats="usageInfo.seven_day.window_stats"
-          color="emerald"
-        />
-      </div>
-      <div v-else-if="isActiveOpenAIRateLimited && loading" class="space-y-1.5">
-        <div class="flex items-center gap-1">
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+      <div class="space-y-1">
+        <div class="text-[10px] font-medium text-gray-600 dark:text-gray-300">
+          {{ openAIIdentitySummary }}
         </div>
-        <div class="flex items-center gap-1">
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+        <div class="text-[10px] text-gray-500 dark:text-gray-400">
+          {{ openAIModelSummary }}
         </div>
-      </div>
-      <div v-else-if="hasCodexUsage" class="space-y-1">
-        <!-- 5h Window -->
-        <UsageProgressBar
-          v-if="codex5hUsedPercent !== null"
-          label="5h"
-          :utilization="codex5hUsedPercent"
-          :resets-at="codex5hResetAt"
-          color="indigo"
-        />
 
-        <!-- 7d Window -->
-        <UsageProgressBar
-          v-if="codex7dUsedPercent !== null"
-          label="7d"
-          :utilization="codex7dUsedPercent"
-          :resets-at="codex7dResetAt"
-          color="emerald"
-        />
-      </div>
-      <div v-else-if="loading" class="space-y-1.5">
-        <div class="flex items-center gap-1">
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+        <div v-if="preferFetchedOpenAIUsage" class="space-y-1">
+          <UsageProgressBar
+            v-if="usageInfo?.five_hour"
+            label="5h"
+            :utilization="usageInfo.five_hour.utilization"
+            :resets-at="usageInfo.five_hour.resets_at"
+            :remaining-seconds="usageInfo.five_hour.remaining_seconds"
+            :window-stats="usageInfo.five_hour.window_stats"
+            :detailed-reset="true"
+            color="indigo"
+          />
+          <UsageProgressBar
+            v-if="usageInfo?.seven_day"
+            label="7d"
+            :utilization="usageInfo.seven_day.utilization"
+            :resets-at="usageInfo.seven_day.resets_at"
+            :remaining-seconds="usageInfo.seven_day.remaining_seconds"
+            :window-stats="usageInfo.seven_day.window_stats"
+            :detailed-reset="true"
+            color="emerald"
+          />
         </div>
-        <div class="flex items-center gap-1">
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
-          <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+        <div v-else-if="isActiveOpenAIRateLimited && loading" class="space-y-1.5">
+          <div class="flex items-center gap-1">
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+          </div>
         </div>
+        <div v-else-if="hasCodexUsage" class="space-y-1">
+          <UsageProgressBar
+            v-if="codex5hUsedPercent !== null"
+            label="5h"
+            :utilization="codex5hUsedPercent"
+            :resets-at="codex5hResetAt"
+            :detailed-reset="true"
+            color="indigo"
+          />
+          <UsageProgressBar
+            v-if="codex7dUsedPercent !== null"
+            label="7d"
+            :utilization="codex7dUsedPercent"
+            :resets-at="codex7dResetAt"
+            :detailed-reset="true"
+            color="emerald"
+          />
+          <p
+            v-if="openAISnapshotUpdatedAtText"
+            class="text-[9px] leading-tight text-gray-400 dark:text-gray-500"
+            :title="openAISnapshotUpdatedAtTooltip || undefined"
+          >
+            {{ t('admin.accounts.usageWindow.snapshotUpdatedAt', { time: openAISnapshotUpdatedAtText }) }}
+          </p>
+        </div>
+        <div v-else-if="loading" class="space-y-1.5">
+          <div class="flex items-center gap-1">
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+          </div>
+        </div>
+        <div v-else-if="hasOpenAIUsageFallback" class="space-y-1">
+          <UsageProgressBar
+            v-if="usageInfo?.five_hour"
+            label="5h"
+            :utilization="usageInfo.five_hour.utilization"
+            :resets-at="usageInfo.five_hour.resets_at"
+            :remaining-seconds="usageInfo.five_hour.remaining_seconds"
+            :window-stats="usageInfo.five_hour.window_stats"
+            :detailed-reset="true"
+            color="indigo"
+          />
+          <UsageProgressBar
+            v-if="usageInfo?.seven_day"
+            label="7d"
+            :utilization="usageInfo.seven_day.utilization"
+            :resets-at="usageInfo.seven_day.resets_at"
+            :remaining-seconds="usageInfo.seven_day.remaining_seconds"
+            :window-stats="usageInfo.seven_day.window_stats"
+            :detailed-reset="true"
+            color="emerald"
+          />
+        </div>
+        <div v-else class="text-xs text-gray-400">-</div>
       </div>
-      <div v-else-if="hasOpenAIUsageFallback" class="space-y-1">
-        <UsageProgressBar
-          v-if="usageInfo?.five_hour"
-          label="5h"
-          :utilization="usageInfo.five_hour.utilization"
-          :resets-at="usageInfo.five_hour.resets_at"
-          :window-stats="usageInfo.five_hour.window_stats"
-          color="indigo"
-        />
-        <UsageProgressBar
-          v-if="usageInfo?.seven_day"
-          label="7d"
-          :utilization="usageInfo.seven_day.utilization"
-          :resets-at="usageInfo.seven_day.resets_at"
-          :window-stats="usageInfo.seven_day.window_stats"
-          color="emerald"
-        />
-      </div>
-      <div v-else class="text-xs text-gray-400">-</div>
     </template>
 
     <!-- Antigravity OAuth accounts: fetch usage from API -->
@@ -367,6 +390,8 @@ import { adminAPI } from '@/api/admin'
 import type { Account, AccountUsageInfo, GeminiCredentials, WindowStats } from '@/types'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { resolveCodexUsageWindow } from '@/utils/codexUsage'
+import { getOpenAIIdentitySummary, getOpenAIModelSummary } from '@/utils/openaiAccountDisplay'
+import { formatLocalAbsoluteTime, formatLocalTimestamp } from '@/utils/usageResetTime'
 import UsageProgressBar from './UsageProgressBar.vue'
 import AccountQuotaInfo from './AccountQuotaInfo.vue'
 
@@ -461,6 +486,32 @@ const codex5hUsedPercent = computed(() => codex5hWindow.value.usedPercent)
 const codex5hResetAt = computed(() => codex5hWindow.value.resetAt)
 const codex7dUsedPercent = computed(() => codex7dWindow.value.usedPercent)
 const codex7dResetAt = computed(() => codex7dWindow.value.resetAt)
+const openAIIdentitySummary = computed(() => getOpenAIIdentitySummary(props.account))
+const openAIModelSummary = computed(() =>
+  getOpenAIModelSummary(props.account, {
+    notProbed: t('admin.accounts.usageWindow.notProbed'),
+    customMapping: t('admin.accounts.usageWindow.customMapping')
+  })
+)
+const openAISnapshotUpdatedAt = computed(() => {
+  if (!hasCodexUsage.value || preferFetchedOpenAIUsage.value) return null
+  const updatedAtRaw = props.account.extra?.codex_usage_updated_at
+  if (typeof updatedAtRaw !== 'string' || updatedAtRaw.trim() === '') return null
+  const parsed = new Date(updatedAtRaw)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
+})
+const openAISnapshotUpdatedAtText = computed(() => {
+  if (!openAISnapshotUpdatedAt.value) return ''
+  return formatLocalAbsoluteTime(openAISnapshotUpdatedAt.value, new Date(), {
+    today: t('dates.today'),
+    tomorrow: t('dates.tomorrow')
+  })
+})
+const openAISnapshotUpdatedAtTooltip = computed(() => {
+  if (!openAISnapshotUpdatedAt.value) return ''
+  return formatLocalTimestamp(openAISnapshotUpdatedAt.value)
+})
 
 // Antigravity quota types (用于 API 返回的数据)
 interface AntigravityUsageResult {
