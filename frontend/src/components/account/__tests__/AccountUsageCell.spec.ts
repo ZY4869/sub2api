@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import AccountUsageCell from '../AccountUsageCell.vue'
 import { resetAccountUsagePresentationCache } from '@/composables/useAccountUsagePresentation'
+import { resetUiNowForTests } from '@/composables/useUiNow'
 
 const { getUsage } = vi.hoisted(() => ({
   getUsage: vi.fn(),
@@ -54,10 +55,19 @@ const usageBarStub = {
     '<div class="usage-bar">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ inlineReset }}|{{ windowStats?.tokens }}</div>',
 }
 
+enableAutoUnmount(afterEach)
+
 describe('AccountUsageCell', () => {
   beforeEach(() => {
     getUsage.mockReset()
+    getUsage.mockResolvedValue({})
     resetAccountUsagePresentationCache()
+    resetUiNowForTests()
+  })
+
+  afterEach(() => {
+    resetUiNowForTests()
+    vi.useRealTimers()
   })
 
   it('aggregates antigravity image usage from multiple models', async () => {
@@ -341,6 +351,73 @@ describe('AccountUsageCell', () => {
 
     expect(getUsage).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('5h|0||0|true|200')
+  })
+
+  it('reloads openai usage after a local codex window reaches its reset time', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    getUsage.mockResolvedValueOnce({
+      five_hour: {
+        utilization: 44,
+        resets_at: '2026-03-13T17:00:00Z',
+        remaining_seconds: 18000,
+        window_stats: {
+          requests: 5,
+          tokens: 500,
+          cost: 0.05,
+          standard_cost: 0.05,
+          user_cost: 0.05,
+        },
+      },
+      seven_day: {
+        utilization: 12,
+        resets_at: '2026-03-20T12:00:00Z',
+        remaining_seconds: 604800,
+        window_stats: {
+          requests: 9,
+          tokens: 900,
+          cost: 0.09,
+          standard_cost: 0.09,
+          user_cost: 0.09,
+        },
+      },
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2006,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2026-03-13T11:59:30Z',
+            codex_5h_used_percent: 12,
+            codex_5h_reset_at: '2026-03-13T12:01:00Z',
+            codex_7d_used_percent: 34,
+            codex_7d_reset_at: '2026-03-20T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('5h|12|2026-03-13T12:01:00.000Z||true')
+
+    vi.advanceTimersByTime(65_000)
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledTimes(1)
+    expect(getUsage).toHaveBeenCalledWith(2006)
+    expect(wrapper.text()).toContain('5h|44|2026-03-13T17:00:00Z|18000|true|500')
+    expect(wrapper.text()).toContain('7d|12|2026-03-20T12:00:00Z|604800|true|900')
   })
 
   it('prefers fetched openai usage when the account is actively rate limited', async () => {

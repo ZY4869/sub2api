@@ -21,22 +21,30 @@ func NewScheduledTestHandler(scheduledTestSvc *service.ScheduledTestService) *Sc
 }
 
 type createScheduledTestPlanRequest struct {
-	AccountID      int64  `json:"account_id" binding:"required"`
-	ModelID        string `json:"model_id"`
-	Model          string `json:"model"`
-	CronExpression string `json:"cron_expression" binding:"required"`
-	Enabled        *bool  `json:"enabled"`
-	MaxResults     int    `json:"max_results"`
-	AutoRecover    *bool  `json:"auto_recover"`
+	AccountID              int64  `json:"account_id" binding:"required"`
+	ModelID                string `json:"model_id"`
+	Model                  string `json:"model"`
+	CronExpression         string `json:"cron_expression" binding:"required"`
+	Enabled                *bool  `json:"enabled"`
+	MaxResults             int    `json:"max_results"`
+	AutoRecover            *bool  `json:"auto_recover"`
+	NotifyPolicy           string `json:"notify_policy"`
+	NotifyFailureThreshold int    `json:"notify_failure_threshold"`
+	RetryIntervalMinutes   int    `json:"retry_interval_minutes"`
+	MaxRetries             int    `json:"max_retries"`
 }
 
 type updateScheduledTestPlanRequest struct {
-	ModelID        string `json:"model_id"`
-	Model          string `json:"model"`
-	CronExpression string `json:"cron_expression"`
-	Enabled        *bool  `json:"enabled"`
-	MaxResults     int    `json:"max_results"`
-	AutoRecover    *bool  `json:"auto_recover"`
+	ModelID                string `json:"model_id"`
+	Model                  string `json:"model"`
+	CronExpression         string `json:"cron_expression"`
+	Enabled                *bool  `json:"enabled"`
+	MaxResults             int    `json:"max_results"`
+	AutoRecover            *bool  `json:"auto_recover"`
+	NotifyPolicy           string `json:"notify_policy"`
+	NotifyFailureThreshold int    `json:"notify_failure_threshold"`
+	RetryIntervalMinutes   int    `json:"retry_interval_minutes"`
+	MaxRetries             int    `json:"max_retries"`
 }
 
 // ListByAccount GET /admin/accounts/:id/scheduled-test-plans
@@ -64,11 +72,15 @@ func (h *ScheduledTestHandler) Create(c *gin.Context) {
 	}
 
 	plan := &service.ScheduledTestPlan{
-		AccountID:      req.AccountID,
-		ModelID:        strings.TrimSpace(req.ModelID),
-		CronExpression: req.CronExpression,
-		Enabled:        true,
-		MaxResults:     req.MaxResults,
+		AccountID:              req.AccountID,
+		ModelID:                strings.TrimSpace(req.ModelID),
+		CronExpression:         req.CronExpression,
+		Enabled:                true,
+		MaxResults:             req.MaxResults,
+		NotifyPolicy:           strings.TrimSpace(req.NotifyPolicy),
+		NotifyFailureThreshold: req.NotifyFailureThreshold,
+		RetryIntervalMinutes:   req.RetryIntervalMinutes,
+		MaxRetries:             req.MaxRetries,
 	}
 	if plan.ModelID == "" {
 		plan.ModelID = strings.TrimSpace(req.Model)
@@ -125,6 +137,18 @@ func (h *ScheduledTestHandler) Update(c *gin.Context) {
 	}
 	if req.AutoRecover != nil {
 		existing.AutoRecover = *req.AutoRecover
+	}
+	if req.NotifyPolicy != "" {
+		existing.NotifyPolicy = strings.TrimSpace(req.NotifyPolicy)
+	}
+	if req.NotifyFailureThreshold > 0 {
+		existing.NotifyFailureThreshold = req.NotifyFailureThreshold
+	}
+	if req.RetryIntervalMinutes > 0 {
+		existing.RetryIntervalMinutes = req.RetryIntervalMinutes
+	}
+	if req.MaxRetries > 0 {
+		existing.MaxRetries = req.MaxRetries
 	}
 
 	updated, err := h.scheduledTestSvc.UpdatePlan(c.Request.Context(), existing)

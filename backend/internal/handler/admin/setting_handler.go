@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -28,13 +29,14 @@ func generateMenuItemID() (string, error) {
 type SettingHandler struct {
 	settingService   *service.SettingService
 	emailService     *service.EmailService
+	telegramNotifier *service.TelegramNotifierService
 	turnstileService *service.TurnstileService
 	opsService       *service.OpsService
 	soraS3Storage    *service.SoraS3Storage
 }
 
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
-	return &SettingHandler{settingService: settingService, emailService: emailService, turnstileService: turnstileService, opsService: opsService, soraS3Storage: soraS3Storage}
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, telegramNotifier *service.TelegramNotifierService, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
+	return &SettingHandler{settingService: settingService, emailService: emailService, telegramNotifier: telegramNotifier, turnstileService: turnstileService, opsService: opsService, soraS3Storage: soraS3Storage}
 }
 func (h *SettingHandler) auditSettingsUpdate(c *gin.Context, before *service.SystemSettings, after *service.SystemSettings, req UpdateSettingsRequest) {
 	if before == nil || after == nil {
@@ -85,6 +87,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.SMTPUseTLS != after.SMTPUseTLS {
 		changed = append(changed, "smtp_use_tls")
+	}
+	if before.TelegramChatID != after.TelegramChatID {
+		changed = append(changed, "telegram_chat_id")
+	}
+	if strings.TrimSpace(req.TelegramBotToken) != "" {
+		changed = append(changed, "telegram_bot_token")
 	}
 	if before.TurnstileEnabled != after.TurnstileEnabled {
 		changed = append(changed, "turnstile_enabled")
@@ -189,6 +197,72 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 		changed = append(changed, "custom_menu_items")
 	}
 	return changed
+}
+
+func buildSystemSettingsDTO(settingService *service.SettingService, settings *service.SystemSettings, customMenuItems []dto.CustomMenuItem) dto.SystemSettings {
+	defaultSubscriptions := make([]dto.DefaultSubscriptionSetting, 0, len(settings.DefaultSubscriptions))
+	for _, sub := range settings.DefaultSubscriptions {
+		defaultSubscriptions = append(defaultSubscriptions, dto.DefaultSubscriptionSetting{
+			GroupID:      sub.GroupID,
+			ValidityDays: sub.ValidityDays,
+		})
+	}
+
+	return dto.SystemSettings{
+		RegistrationEnabled:                  settings.RegistrationEnabled,
+		EmailVerifyEnabled:                   settings.EmailVerifyEnabled,
+		RegistrationEmailSuffixWhitelist:     settings.RegistrationEmailSuffixWhitelist,
+		PromoCodeEnabled:                     settings.PromoCodeEnabled,
+		PasswordResetEnabled:                 settings.PasswordResetEnabled,
+		InvitationCodeEnabled:                settings.InvitationCodeEnabled,
+		TotpEnabled:                          settings.TotpEnabled,
+		TotpEncryptionKeyConfigured:          settingService.IsTotpEncryptionKeyConfigured(),
+		SMTPHost:                             settings.SMTPHost,
+		SMTPPort:                             settings.SMTPPort,
+		SMTPUsername:                         settings.SMTPUsername,
+		SMTPPasswordConfigured:               settings.SMTPPasswordConfigured,
+		SMTPFrom:                             settings.SMTPFrom,
+		SMTPFromName:                         settings.SMTPFromName,
+		SMTPUseTLS:                           settings.SMTPUseTLS,
+		TelegramChatID:                       settings.TelegramChatID,
+		TelegramBotTokenConfigured:           settings.TelegramBotTokenConfigured,
+		TelegramBotTokenMasked:               settings.TelegramBotTokenMasked,
+		TurnstileEnabled:                     settings.TurnstileEnabled,
+		TurnstileSiteKey:                     settings.TurnstileSiteKey,
+		TurnstileSecretKeyConfigured:         settings.TurnstileSecretKeyConfigured,
+		LinuxDoConnectEnabled:                settings.LinuxDoConnectEnabled,
+		LinuxDoConnectClientID:               settings.LinuxDoConnectClientID,
+		LinuxDoConnectClientSecretConfigured: settings.LinuxDoConnectClientSecretConfigured,
+		LinuxDoConnectRedirectURL:            settings.LinuxDoConnectRedirectURL,
+		SiteName:                             settings.SiteName,
+		SiteLogo:                             settings.SiteLogo,
+		SiteSubtitle:                         settings.SiteSubtitle,
+		APIBaseURL:                           settings.APIBaseURL,
+		ContactInfo:                          settings.ContactInfo,
+		DocURL:                               settings.DocURL,
+		HomeContent:                          settings.HomeContent,
+		HideCcsImportButton:                  settings.HideCcsImportButton,
+		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
+		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
+		SoraClientEnabled:                    settings.SoraClientEnabled,
+		CustomMenuItems:                      customMenuItems,
+		DefaultConcurrency:                   settings.DefaultConcurrency,
+		DefaultBalance:                       settings.DefaultBalance,
+		DefaultSubscriptions:                 defaultSubscriptions,
+		EnableModelFallback:                  settings.EnableModelFallback,
+		FallbackModelAnthropic:               settings.FallbackModelAnthropic,
+		FallbackModelOpenAI:                  settings.FallbackModelOpenAI,
+		FallbackModelGemini:                  settings.FallbackModelGemini,
+		FallbackModelAntigravity:             settings.FallbackModelAntigravity,
+		EnableIdentityPatch:                  settings.EnableIdentityPatch,
+		IdentityPatchPrompt:                  settings.IdentityPatchPrompt,
+		OpsMonitoringEnabled:                 settings.OpsMonitoringEnabled,
+		OpsRealtimeMonitoringEnabled:         settings.OpsRealtimeMonitoringEnabled,
+		OpsQueryModeDefault:                  settings.OpsQueryModeDefault,
+		OpsMetricsIntervalSeconds:            settings.OpsMetricsIntervalSeconds,
+		MinClaudeCodeVersion:                 settings.MinClaudeCodeVersion,
+		AllowUngroupedKeyScheduling:          settings.AllowUngroupedKeyScheduling,
+	}
 }
 func normalizeDefaultSubscriptions(input []dto.DefaultSubscriptionSetting) []dto.DefaultSubscriptionSetting {
 	if len(input) == 0 {

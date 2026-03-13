@@ -291,9 +291,11 @@ func ProvideScheduledTestRunnerService(
 	scheduledSvc *ScheduledTestService,
 	accountTestSvc *AccountTestService,
 	rateLimitSvc *RateLimitService,
+	accountRepo AccountRepository,
+	telegramNotifier *TelegramNotifierService,
 	cfg *config.Config,
 ) *ScheduledTestRunnerService {
-	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, cfg)
+	svc := NewScheduledTestRunnerService(planRepo, scheduledSvc, accountTestSvc, rateLimitSvc, accountRepo, telegramNotifier, cfg)
 	svc.Start()
 	return svc
 }
@@ -401,6 +403,7 @@ var ProviderSet = wire.NewSet(
 	ProvideRateLimitService,
 	NewAccountUsageService,
 	NewAccountTestService,
+	NewTelegramNotifierService,
 	ProvideSettingService,
 	NewDataManagementService,
 	ProvideOpsSystemLogSink,

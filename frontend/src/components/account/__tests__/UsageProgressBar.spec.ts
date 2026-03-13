@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
+import { resetUiNowForTests } from '@/composables/useUiNow'
 import UsageProgressBar from '../UsageProgressBar.vue'
 
 vi.mock('vue-i18n', async () => {
@@ -21,7 +22,14 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+enableAutoUnmount(afterEach)
+
 describe('UsageProgressBar', () => {
+  afterEach(() => {
+    resetUiNowForTests()
+    vi.useRealTimers()
+  })
+
   it('renders inline remaining text on the same row', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:29:00'))
@@ -42,10 +50,9 @@ describe('UsageProgressBar', () => {
     expect(wrapper.text()).not.toContain('Reset at')
     expect(wrapper.find('.text-amber-700').exists()).toBe(true)
 
-    vi.useRealTimers()
   })
 
-  it('keeps detailed reset mode backward compatible', () => {
+  it('keeps detailed reset mode backward compatible', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T08:00:00'))
 
@@ -63,6 +70,32 @@ describe('UsageProgressBar', () => {
     expect(wrapper.text()).toContain('Reset at Today 08:30')
     expect(wrapper.find('[title="2026-03-13 08:30:00"]').exists()).toBe(true)
 
-    vi.useRealTimers()
+    vi.advanceTimersByTime(60_000)
+    await Promise.resolve()
+
+    expect(wrapper.text()).toContain('Remaining 29m')
+    expect(wrapper.text()).toContain('Reset at Today 08:30')
+  })
+
+  it('updates inline reset text after the shared clock crosses the reset boundary', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:29:00'))
+
+    const wrapper = mount(UsageProgressBar, {
+      props: {
+        label: '5h',
+        utilization: 78,
+        resetsAt: '2026-03-13T12:30:00',
+        color: 'indigo',
+        inlineReset: true,
+      },
+    })
+
+    expect(wrapper.text()).toContain('Remaining 1m')
+
+    vi.advanceTimersByTime(65_000)
+    await Promise.resolve()
+
+    expect(wrapper.text()).toContain('Remaining Now')
   })
 })

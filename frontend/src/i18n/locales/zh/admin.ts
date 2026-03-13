@@ -2043,7 +2043,30 @@ export default {
       maxResultsTooltipExample: '例如填写 100，表示最多保存最近 100 次测试结果；第 101 次结果写入后，最早的一条会被清理。',
       maxResultsTooltipRange: '推荐填写范围：一般可填 20 到 200。只关注近期可用性时可填 20-50；需要回看较长时间的波动趋势时可填 100-200。',
       autoRecover: '自动恢复',
-      autoRecoverHelp: '测试成功后自动恢复异常状态的账号'
+      autoRecoverHelp: '测试成功后自动恢复异常状态的账号',
+      frequency: '测试频率',
+      frequencyCustom: '自定义 Cron',
+      frequencyPresets: {
+        '1h': '每小时',
+        '2h': '每 2 小时',
+        '5h': '每 5 小时',
+        '12h': '每 12 小时',
+        '24h': '每天',
+        custom: '自定义'
+      },
+      notifyPolicy: '通知策略',
+      notifyPolicyOptions: {
+        none: '不通知',
+        always: '每个周期结束通知',
+        failure_only: '仅最终失败通知'
+      },
+      notifyFailureThreshold: '失败阈值',
+      notifyFailureThresholdSummary: '失败 {count} 次后通知',
+      retryInterval: '重试间隔',
+      maxRetries: '最大重试次数',
+      retrySummary: '每 {interval} 分钟重试，最多 {max} 次',
+      consecutiveFailuresSummary: '连续失败 {count} 次',
+      currentRetrySummary: '当前重试 {current}/{max}'
     },
 
     // Proxies Management
@@ -3311,7 +3334,23 @@ export default {
         security: '安全与认证',
         users: '用户默认值',
         gateway: '网关服务',
+        notification: '通知设置',
         email: '邮件设置',
+      },
+      telegram: {
+        title: 'Telegram 推送通知',
+        description: '配置 Telegram Bot，用于发送定时测试通知。',
+        botToken: 'Bot Token',
+        botTokenPlaceholder: '123456:ABCDEF...',
+        botTokenHint: '填写用于发送定时测试通知的 Telegram Bot Token。',
+        botTokenConfiguredHint: '当前已配置 Bot Token，留空则保留现有值。',
+        chatId: 'Chat ID',
+        chatIdPlaceholder: '例如 -1001234567890',
+        chatIdHint: '接收定时测试通知的聊天或群组 ID。',
+        testConnection: '测试连通性',
+        testing: '测试中...',
+        testSuccess: 'Telegram 连通性测试成功',
+        testFailed: 'Telegram 连通性测试失败'
       },
       emailTabDisabledTitle: '邮箱验证未启用',
       emailTabDisabledHint: '请在「安全与认证」选项卡中启用邮箱验证后，再配置 SMTP 设置。',

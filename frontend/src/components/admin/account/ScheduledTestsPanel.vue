@@ -41,6 +41,16 @@
             />
           </div>
           <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.frequency') }}
+            </label>
+            <Select
+              :model-value="newPlan.frequency_preset"
+              :options="frequencyOptions"
+              @update:model-value="(value) => handleFrequencyPresetChange(newPlan, value)"
+            />
+          </div>
+          <div>
             <label class="mb-1 flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
               {{ t('admin.scheduledTests.cronExpression') }}
               <HelpTooltip>
@@ -64,6 +74,7 @@
               v-model="newPlan.cron_expression"
               :placeholder="'*/30 * * * *'"
               :hint="t('admin.scheduledTests.cronHelp')"
+              :disabled="newPlan.frequency_preset !== 'custom'"
             />
           </div>
           <div>
@@ -106,6 +117,30 @@
                 {{ t('admin.scheduledTests.autoRecoverHelp') }}
               </p>
             </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.notifyPolicy') }}
+            </label>
+            <Select v-model="newPlan.notify_policy" :options="notifyPolicyOptions" />
+          </div>
+          <div v-if="newPlan.notify_policy === 'failure_only'">
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.notifyFailureThreshold') }}
+            </label>
+            <Select v-model="newPlan.notify_failure_threshold" :options="failureThresholdOptions" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.retryInterval') }}
+            </label>
+            <Select v-model="newPlan.retry_interval_minutes" :options="retryIntervalOptions" />
+          </div>
+          <div>
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.maxRetries') }}
+            </label>
+            <Select v-model="newPlan.max_retries" :options="maxRetryOptions" />
           </div>
         </div>
         <div class="mt-3 flex justify-end gap-2">
@@ -163,6 +198,9 @@
                 </div>
                 <div class="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">
                   {{ plan.cron_expression }}
+                </div>
+                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ getPlanNotificationSummary(plan) }}
                 </div>
               </div>
 
@@ -251,6 +289,16 @@
                 />
               </div>
               <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.frequency') }}
+                </label>
+                <Select
+                  :model-value="editForm.frequency_preset"
+                  :options="frequencyOptions"
+                  @update:model-value="(value) => handleFrequencyPresetChange(editForm, value)"
+                />
+              </div>
+              <div>
                 <label class="mb-1 flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                   {{ t('admin.scheduledTests.cronExpression') }}
                   <HelpTooltip>
@@ -274,6 +322,7 @@
                   v-model="editForm.cron_expression"
                   :placeholder="'*/30 * * * *'"
                   :hint="t('admin.scheduledTests.cronHelp')"
+                  :disabled="editForm.frequency_preset !== 'custom'"
                 />
               </div>
               <div>
@@ -316,6 +365,30 @@
                     {{ t('admin.scheduledTests.autoRecoverHelp') }}
                   </p>
                 </div>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.notifyPolicy') }}
+                </label>
+                <Select v-model="editForm.notify_policy" :options="notifyPolicyOptions" />
+              </div>
+              <div v-if="editForm.notify_policy === 'failure_only'">
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.notifyFailureThreshold') }}
+                </label>
+                <Select v-model="editForm.notify_failure_threshold" :options="failureThresholdOptions" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.retryInterval') }}
+                </label>
+                <Select v-model="editForm.retry_interval_minutes" :options="retryIntervalOptions" />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.maxRetries') }}
+                </label>
+                <Select v-model="editForm.max_retries" :options="maxRetryOptions" />
               </div>
             </div>
             <div class="mt-3 flex justify-end gap-2">
@@ -463,7 +536,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { computed, ref, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -475,6 +548,11 @@ import { Icon } from '@/components/icons'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
+import {
+  getCronExpressionForPreset,
+  getFrequencyPresetFromCron,
+  type ScheduledTestFrequencyPreset
+} from '@/utils/scheduledTests'
 import type { ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
@@ -503,28 +581,68 @@ const showDeleteConfirm = ref(false)
 const deletingPlan = ref<ScheduledTestPlan | null>(null)
 const editingPlanId = ref<number | null>(null)
 const updating = ref(false)
+const frequencyOptions = computed<SelectOption[]>(() => [
+  { value: '1h', label: t('admin.scheduledTests.frequencyPresets.1h') },
+  { value: '2h', label: t('admin.scheduledTests.frequencyPresets.2h') },
+  { value: '5h', label: t('admin.scheduledTests.frequencyPresets.5h') },
+  { value: '12h', label: t('admin.scheduledTests.frequencyPresets.12h') },
+  { value: '24h', label: t('admin.scheduledTests.frequencyPresets.24h') },
+  { value: 'custom', label: t('admin.scheduledTests.frequencyPresets.custom') }
+])
+const notifyPolicyOptions = computed<SelectOption[]>(() => [
+  { value: 'none', label: t('admin.scheduledTests.notifyPolicyOptions.none') },
+  { value: 'always', label: t('admin.scheduledTests.notifyPolicyOptions.always') },
+  { value: 'failure_only', label: t('admin.scheduledTests.notifyPolicyOptions.failure_only') }
+])
+const failureThresholdOptions: SelectOption[] = [1, 2, 3, 4, 5].map((value) => ({
+  value,
+  label: String(value)
+}))
+const retryIntervalOptions: SelectOption[] = [1, 3, 5, 10, 15, 30].map((value) => ({
+  value,
+  label: `${value}m`
+}))
+const maxRetryOptions: SelectOption[] = [1, 2, 3, 4, 5].map((value) => ({
+  value,
+  label: String(value)
+}))
 const editForm = reactive({
   model_id: '' as string,
+  frequency_preset: 'custom' as ScheduledTestFrequencyPreset,
   cron_expression: '' as string,
   max_results: '100' as string,
   enabled: true,
-  auto_recover: false
+  auto_recover: false,
+  notify_policy: 'none' as 'none' | 'always' | 'failure_only',
+  notify_failure_threshold: 3,
+  retry_interval_minutes: 5,
+  max_retries: 3
 })
 
 const newPlan = reactive({
   model_id: '' as string,
+  frequency_preset: 'custom' as ScheduledTestFrequencyPreset,
   cron_expression: '' as string,
   max_results: '100' as string,
   enabled: true,
-  auto_recover: false
+  auto_recover: false,
+  notify_policy: 'none' as 'none' | 'always' | 'failure_only',
+  notify_failure_threshold: 3,
+  retry_interval_minutes: 5,
+  max_retries: 3
 })
 
 const resetNewPlan = () => {
   newPlan.model_id = ''
+  newPlan.frequency_preset = 'custom'
   newPlan.cron_expression = ''
   newPlan.max_results = '100'
   newPlan.enabled = true
   newPlan.auto_recover = false
+  newPlan.notify_policy = 'none'
+  newPlan.notify_failure_threshold = 3
+  newPlan.retry_interval_minutes = 5
+  newPlan.max_retries = 3
 }
 
 // Load plans when dialog opens
@@ -564,10 +682,14 @@ const handleCreate = async () => {
     await adminAPI.scheduledTests.create({
       account_id: props.accountId,
       model_id: newPlan.model_id,
-      cron_expression: newPlan.cron_expression,
+      cron_expression: getCronExpressionForPreset(newPlan.frequency_preset, newPlan.cron_expression),
       enabled: newPlan.enabled,
       max_results: maxResults,
-      auto_recover: newPlan.auto_recover
+      auto_recover: newPlan.auto_recover,
+      notify_policy: newPlan.notify_policy,
+      notify_failure_threshold: newPlan.notify_failure_threshold,
+      retry_interval_minutes: newPlan.retry_interval_minutes,
+      max_retries: newPlan.max_retries
     })
     appStore.showSuccess(t('admin.scheduledTests.createSuccess'))
     showAddForm.value = false
@@ -596,10 +718,15 @@ const handleToggleEnabled = async (plan: ScheduledTestPlan, enabled: boolean) =>
 const startEdit = (plan: ScheduledTestPlan) => {
   editingPlanId.value = plan.id
   editForm.model_id = plan.model_id
+  editForm.frequency_preset = getFrequencyPresetFromCron(plan.cron_expression)
   editForm.cron_expression = plan.cron_expression
   editForm.max_results = String(plan.max_results)
   editForm.enabled = plan.enabled
   editForm.auto_recover = plan.auto_recover
+  editForm.notify_policy = plan.notify_policy
+  editForm.notify_failure_threshold = plan.notify_failure_threshold
+  editForm.retry_interval_minutes = plan.retry_interval_minutes
+  editForm.max_retries = plan.max_retries
 }
 
 const cancelEdit = () => {
@@ -612,10 +739,14 @@ const handleEdit = async () => {
   try {
     const updated = await adminAPI.scheduledTests.update(editingPlanId.value, {
       model_id: editForm.model_id,
-      cron_expression: editForm.cron_expression,
+      cron_expression: getCronExpressionForPreset(editForm.frequency_preset, editForm.cron_expression),
       max_results: Number(editForm.max_results) || 100,
       enabled: editForm.enabled,
-      auto_recover: editForm.auto_recover
+      auto_recover: editForm.auto_recover,
+      notify_policy: editForm.notify_policy,
+      notify_failure_threshold: editForm.notify_failure_threshold,
+      retry_interval_minutes: editForm.retry_interval_minutes,
+      max_retries: editForm.max_retries
     })
     const index = plans.value.findIndex((p) => p.id === editingPlanId.value)
     if (index !== -1) {
@@ -679,6 +810,64 @@ const toggleResultDetail = (resultId: number) => {
     expandedResultIds.delete(resultId)
   } else {
     expandedResultIds.add(resultId)
+  }
+}
+
+const getPresetLabel = (preset: ScheduledTestFrequencyPreset) =>
+  t(`admin.scheduledTests.frequencyPresets.${preset}`)
+
+const getPlanFrequencyLabel = (cronExpression: string) => {
+  const preset = getFrequencyPresetFromCron(cronExpression)
+  return preset === 'custom'
+    ? t('admin.scheduledTests.frequencyCustom')
+    : getPresetLabel(preset)
+}
+
+const getPlanNotificationSummary = (plan: ScheduledTestPlan) => {
+  const parts: string[] = [getPlanFrequencyLabel(plan.cron_expression)]
+  parts.push(t(`admin.scheduledTests.notifyPolicyOptions.${plan.notify_policy}`))
+  if (plan.notify_policy === 'failure_only') {
+    parts.push(
+      t('admin.scheduledTests.notifyFailureThresholdSummary', {
+        count: plan.notify_failure_threshold
+      })
+    )
+  }
+  parts.push(
+    t('admin.scheduledTests.retrySummary', {
+      interval: plan.retry_interval_minutes,
+      max: plan.max_retries
+    })
+  )
+  if (plan.consecutive_failures > 0) {
+    parts.push(
+      t('admin.scheduledTests.consecutiveFailuresSummary', {
+        count: plan.consecutive_failures
+      })
+    )
+  }
+  if (plan.current_retry_count > 0) {
+    parts.push(
+      t('admin.scheduledTests.currentRetrySummary', {
+        current: plan.current_retry_count,
+        max: plan.max_retries
+      })
+    )
+  }
+  return parts.join(' · ')
+}
+
+const handleFrequencyPresetChange = (
+  formState: {
+    frequency_preset: ScheduledTestFrequencyPreset
+    cron_expression: string
+  },
+  value: string | number | boolean | null
+) => {
+  const preset = (value as ScheduledTestFrequencyPreset) ?? 'custom'
+  formState.frequency_preset = preset
+  if (preset !== 'custom') {
+    formState.cron_expression = getCronExpressionForPreset(preset, formState.cron_expression)
   }
 }
 </script>

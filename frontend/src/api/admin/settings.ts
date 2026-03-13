@@ -49,6 +49,9 @@ export interface SystemSettings {
   smtp_from_email: string
   smtp_from_name: string
   smtp_use_tls: boolean
+  telegram_chat_id: string
+  telegram_bot_token_configured: boolean
+  telegram_bot_token_masked: string
   // Cloudflare Turnstile settings
   turnstile_enabled: boolean
   turnstile_site_key: string
@@ -114,6 +117,8 @@ export interface UpdateSettingsRequest {
   smtp_from_email?: string
   smtp_from_name?: string
   smtp_use_tls?: boolean
+  telegram_chat_id?: string
+  telegram_bot_token?: string
   turnstile_enabled?: boolean
   turnstile_site_key?: string
   turnstile_secret_key?: string
@@ -198,6 +203,21 @@ export interface SendTestEmailRequest {
 export async function sendTestEmail(request: SendTestEmailRequest): Promise<{ message: string }> {
   const { data } = await apiClient.post<{ message: string }>(
     '/admin/settings/send-test-email',
+    request
+  )
+  return data
+}
+
+export interface TestTelegramRequest {
+  bot_token?: string
+  chat_id?: string
+}
+
+export async function testTelegramConnection(
+  request: TestTelegramRequest
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(
+    '/admin/settings/telegram/test',
     request
   )
   return data
@@ -491,6 +511,7 @@ export const settingsAPI = {
   getSettings,
   updateSettings,
   testSmtpConnection,
+  testTelegramConnection,
   sendTestEmail,
   getAdminApiKey,
   regenerateAdminApiKey,

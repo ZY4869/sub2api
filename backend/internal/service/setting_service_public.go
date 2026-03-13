@@ -242,12 +242,12 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if !errors.Is(err, ErrSettingNotFound) {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
-	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeySoraClientEnabled: "false", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false"}
+	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeySoraClientEnabled: "false", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyTelegramChatID: ""}
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
-	result := &SystemSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]), PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true", InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", SMTPHost: settings[SettingKeySMTPHost], SMTPUsername: settings[SettingKeySMTPUsername], SMTPFrom: settings[SettingKeySMTPFrom], SMTPFromName: settings[SettingKeySMTPFromName], SMTPUseTLS: settings[SettingKeySMTPUseTLS] == "true", SMTPPasswordConfigured: settings[SettingKeySMTPPassword] != "", TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], TurnstileSecretKeyConfigured: settings[SettingKeyTurnstileSecretKey] != "", SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), SoraClientEnabled: settings[SettingKeySoraClientEnabled] == "true", CustomMenuItems: settings[SettingKeyCustomMenuItems]}
+	result := &SystemSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]), PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true", InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", SMTPHost: settings[SettingKeySMTPHost], SMTPUsername: settings[SettingKeySMTPUsername], SMTPFrom: settings[SettingKeySMTPFrom], SMTPFromName: settings[SettingKeySMTPFromName], SMTPUseTLS: settings[SettingKeySMTPUseTLS] == "true", SMTPPasswordConfigured: settings[SettingKeySMTPPassword] != "", TelegramChatID: strings.TrimSpace(settings[SettingKeyTelegramChatID]), TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], TurnstileSecretKeyConfigured: settings[SettingKeyTurnstileSecretKey] != "", SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), SoraClientEnabled: settings[SettingKeySoraClientEnabled] == "true", CustomMenuItems: settings[SettingKeyCustomMenuItems]}
 	if port, err := strconv.Atoi(settings[SettingKeySMTPPort]); err == nil {
 		result.SMTPPort = port
 	} else {
@@ -265,6 +265,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
 	result.SMTPPassword = settings[SettingKeySMTPPassword]
+	result.TelegramBotToken = strings.TrimSpace(settings[SettingKeyTelegramBotToken])
+	result.TelegramBotTokenConfigured = result.TelegramBotToken != ""
+	result.TelegramBotTokenMasked = maskTelegramBotToken(result.TelegramBotToken)
 	result.TurnstileSecretKey = settings[SettingKeyTurnstileSecretKey]
 	linuxDoBase := config.LinuxDoConnectConfig{}
 	if s.cfg != nil {
@@ -348,6 +351,17 @@ func parseDefaultSubscriptions(raw string) []DefaultSubscriptionSetting {
 		normalized = append(normalized, item)
 	}
 	return normalized
+}
+
+func maskTelegramBotToken(token string) string {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ""
+	}
+	if len(token) <= 10 {
+		return strings.Repeat("*", len(token))
+	}
+	return token[:6] + "..." + token[len(token)-4:]
 }
 func (s *SettingService) getStringOrDefault(settings map[string]string, key, defaultValue string) string {
 	if value, ok := settings[key]; ok && value != "" {

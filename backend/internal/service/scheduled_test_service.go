@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -29,15 +30,12 @@ func NewScheduledTestService(
 
 // CreatePlan validates the cron expression, computes next_run_at, and persists the plan.
 func (s *ScheduledTestService) CreatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
+	normalizeScheduledTestPlan(plan)
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
 	}
 	plan.NextRunAt = &nextRun
-
-	if plan.MaxResults <= 0 {
-		plan.MaxResults = 50
-	}
 
 	return s.planRepo.Create(ctx, plan)
 }
@@ -54,6 +52,7 @@ func (s *ScheduledTestService) ListPlansByAccount(ctx context.Context, accountID
 
 // UpdatePlan validates cron and updates the plan.
 func (s *ScheduledTestService) UpdatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
+	normalizeScheduledTestPlan(plan)
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
@@ -77,12 +76,16 @@ func (s *ScheduledTestService) ListResults(ctx context.Context, planID int64, li
 }
 
 // SaveResult inserts a result and prunes old entries beyond maxResults.
-func (s *ScheduledTestService) SaveResult(ctx context.Context, planID int64, maxResults int, result *ScheduledTestResult) error {
+func (s *ScheduledTestService) SaveResult(ctx context.Context, planID int64, maxResults int, result *ScheduledTestResult) (*ScheduledTestResult, error) {
 	result.PlanID = planID
-	if _, err := s.resultRepo.Create(ctx, result); err != nil {
-		return err
+	created, err := s.resultRepo.Create(ctx, result)
+	if err != nil {
+		return nil, err
 	}
-	return s.resultRepo.PruneOldResults(ctx, planID, maxResults)
+	if err := s.resultRepo.PruneOldResults(ctx, planID, maxResults); err != nil {
+		return created, err
+	}
+	return created, nil
 }
 
 func computeNextRun(cronExpr string, from time.Time) (time.Time, error) {
@@ -91,4 +94,36 @@ func computeNextRun(cronExpr string, from time.Time) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return sched.Next(from), nil
+}
+
+func normalizeScheduledTestPlan(plan *ScheduledTestPlan) {
+	if plan == nil {
+		return
+	}
+	plan.ModelID = strings.TrimSpace(plan.ModelID)
+	plan.CronExpression = strings.TrimSpace(plan.CronExpression)
+	if plan.MaxResults <= 0 {
+		plan.MaxResults = 50
+	}
+	switch strings.TrimSpace(plan.NotifyPolicy) {
+	case ScheduledTestNotifyPolicyAlways, ScheduledTestNotifyPolicyFailureOnly:
+		plan.NotifyPolicy = strings.TrimSpace(plan.NotifyPolicy)
+	default:
+		plan.NotifyPolicy = ScheduledTestNotifyPolicyNone
+	}
+	if plan.NotifyFailureThreshold <= 0 {
+		plan.NotifyFailureThreshold = 3
+	}
+	if plan.RetryIntervalMinutes <= 0 {
+		plan.RetryIntervalMinutes = 5
+	}
+	if plan.MaxRetries <= 0 {
+		plan.MaxRetries = 3
+	}
+	if plan.ConsecutiveFailures < 0 {
+		plan.ConsecutiveFailures = 0
+	}
+	if plan.CurrentRetryCount < 0 {
+		plan.CurrentRetryCount = 0
+	}
 }

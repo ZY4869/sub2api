@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useUiNow } from '@/composables/useUiNow'
 import type { WindowStats } from '@/types'
 import {
   formatLocalAbsoluteTime,
@@ -56,6 +57,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { nowDate } = useUiNow()
 
 const labelClass = computed(() => {
   const colors = {
@@ -94,17 +96,17 @@ const effectiveResetAt = computed(() => parseEffectiveResetAt(props.resetsAt ?? 
 
 const compactResetText = computed(() => {
   if (!effectiveResetAt.value) return '-'
-  return formatResetCountdown(effectiveResetAt.value, new Date(), t('admin.accounts.usageWindow.now'))
+  return formatResetCountdown(effectiveResetAt.value, nowDate.value, t('admin.accounts.usageWindow.now'))
 })
 
 const resetCountdownText = computed(() => {
   if (!effectiveResetAt.value) return '-'
-  return formatResetCountdown(effectiveResetAt.value, new Date(), t('admin.accounts.usageWindow.now'))
+  return formatResetCountdown(effectiveResetAt.value, nowDate.value, t('admin.accounts.usageWindow.now'))
 })
 
 const resetAbsoluteText = computed(() => {
   if (!effectiveResetAt.value) return '-'
-  return formatLocalAbsoluteTime(effectiveResetAt.value, new Date(), {
+  return formatLocalAbsoluteTime(effectiveResetAt.value, nowDate.value, {
     today: t('dates.today'),
     tomorrow: t('dates.tomorrow'),
   })

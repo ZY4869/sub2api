@@ -26,6 +26,7 @@
 
 <script setup lang="ts">
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
+import { useUiNow } from '@/composables/useUiNow'
 import { formatLocalAbsoluteTime, parseEffectiveResetAt } from '@/utils/usageResetTime'
 import type { Account } from '@/types'
 import { useI18n } from 'vue-i18n'
@@ -35,13 +36,14 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { nowDate } = useUiNow()
 const { presentation } = useAccountUsagePresentation(() => props.account)
 
 function formatResetValue(resetsAt: string | null, remainingSeconds?: number | null): string {
   const effectiveResetAt = parseEffectiveResetAt(resetsAt, remainingSeconds ?? null)
   if (!effectiveResetAt) return '-'
 
-  return formatLocalAbsoluteTime(effectiveResetAt, new Date(), {
+  return formatLocalAbsoluteTime(effectiveResetAt, nowDate.value, {
     today: t('dates.today'),
     tomorrow: t('dates.tomorrow'),
   })

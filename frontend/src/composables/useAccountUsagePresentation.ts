@@ -1,6 +1,7 @@
-import { computed, reactive, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { computed, reactive, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import { useUiNow } from '@/composables/useUiNow'
 import type {
   Account,
   AccountUsageInfo,
@@ -30,6 +31,7 @@ interface UsageRowOptions {
 }
 
 const usageCache = new Map<number, UsageCacheEntry>()
+const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000
 
 function createUsageCacheEntry(): UsageCacheEntry {
   return reactive({
@@ -57,11 +59,17 @@ function buildUsageRow(
   color: AccountUsageRowColor,
   options: UsageRowOptions = {},
 ): AccountUsagePresentationRow {
+  const normalizedResetAt = typeof resetsAt === 'string' && resetsAt.trim() !== '' ? resetsAt : null
+  const effectiveResetAt =
+    normalizedResetAt === null && (options.remainingSeconds ?? 0) > 0
+      ? parseEffectiveResetAt(null, options.remainingSeconds ?? null)
+      : null
+
   return {
     key,
     label,
     utilization,
-    resetsAt,
+    resetsAt: normalizedResetAt ?? (effectiveResetAt ? effectiveResetAt.toISOString() : null),
     remainingSeconds: options.remainingSeconds ?? null,
     windowStats: options.windowStats ?? null,
     color,
@@ -99,9 +107,11 @@ export function resetAccountUsagePresentationCache(): void {
 
 export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Account>) {
   const { t } = useI18n()
+  const { nowMs, nowDate } = useUiNow()
   const account = computed(() => toValue(accountSource))
   const cacheEntry = computed(() => getUsageCacheEntry(account.value.id))
   const usageInfo = computed(() => cacheEntry.value.usageInfo)
+  const lastExpiredOpenAIUsageRefresh = ref<{ key: string; requestedAt: number } | null>(null)
 
   const loadingRows = computed(() => {
     if (account.value.platform === 'anthropic') {
@@ -127,8 +137,8 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     return false
   })
 
-  const codex5hWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '5h'))
-  const codex7dWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '7d'))
+  const codex5hWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '5h', nowDate.value))
+  const codex7dWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '7d', nowDate.value))
 
   const codexRows = computed(() =>
     buildRows(
@@ -161,7 +171,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     if (!account.value.rate_limit_reset_at) return false
 
     const resetAt = Date.parse(account.value.rate_limit_reset_at)
-    return !Number.isNaN(resetAt) && resetAt > Date.now()
+    return !Number.isNaN(resetAt) && resetAt > nowMs.value
   })
 
   const isOpenAICodexSnapshotStale = computed(() => {
@@ -173,11 +183,42 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     const updatedAt = Date.parse(String(updatedAtRaw))
     if (Number.isNaN(updatedAt)) return true
 
-    return Date.now() - updatedAt >= 10 * 60 * 1000
+    return nowMs.value - updatedAt >= 10 * 60 * 1000
+  })
+
+  const openAICodexEarliestResetAt = computed(() => {
+    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return null
+
+    let earliestResetAt: string | null = null
+    let earliestResetMs = Number.POSITIVE_INFINITY
+
+    for (const row of codexRows.value) {
+      const effectiveResetAt = parseEffectiveResetAt(row.resetsAt, row.remainingSeconds)
+      if (!effectiveResetAt) continue
+
+      const resetMs = effectiveResetAt.getTime()
+      if (resetMs < earliestResetMs) {
+        earliestResetMs = resetMs
+        earliestResetAt = effectiveResetAt.toISOString()
+      }
+    }
+
+    return earliestResetAt
+  })
+
+  const hasExpiredOpenAICodexWindow = computed(() => {
+    if (!openAICodexEarliestResetAt.value) return false
+
+    const resetAt = Date.parse(openAICodexEarliestResetAt.value)
+    return !Number.isNaN(resetAt) && resetAt <= nowMs.value
   })
 
   const preferFetchedOpenAIUsage = computed(() => {
-    return (isActiveOpenAIRateLimited.value || isOpenAICodexSnapshotStale.value) && hasOpenAIUsageFallback.value
+    return (
+      isActiveOpenAIRateLimited.value ||
+      isOpenAICodexSnapshotStale.value ||
+      hasExpiredOpenAICodexWindow.value
+    ) && hasOpenAIUsageFallback.value
   })
 
   const shouldAutoLoadUsageOnMount = computed(() => {
@@ -203,7 +244,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
 
   const openAISnapshotUpdatedAtText = computed(() => {
     if (!snapshotUpdatedAt.value) return ''
-    return formatLocalAbsoluteTime(snapshotUpdatedAt.value, new Date(), {
+    return formatLocalAbsoluteTime(snapshotUpdatedAt.value, nowDate.value, {
       today: t('dates.today'),
       tomorrow: t('dates.tomorrow'),
     })
@@ -536,6 +577,33 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     ),
   )
 
+  const openAIRefreshRows = computed(() => {
+    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return []
+    if (preferFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) return openAIFetchedRows.value
+    if (codexRows.value.length > 0) return codexRows.value
+    return openAIFetchedRows.value
+  })
+
+  const openAIEarliestResetAt = computed(() => {
+    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return null
+
+    let earliestResetAt: string | null = null
+    let earliestResetMs = Number.POSITIVE_INFINITY
+
+    for (const row of openAIRefreshRows.value) {
+      const effectiveResetAt = parseEffectiveResetAt(row.resetsAt, row.remainingSeconds)
+      if (!effectiveResetAt) continue
+
+      const resetMs = effectiveResetAt.getTime()
+      if (resetMs < earliestResetMs) {
+        earliestResetMs = resetMs
+        earliestResetAt = effectiveResetAt.toISOString()
+      }
+    }
+
+    return earliestResetAt
+  })
+
   const loadUsage = async () => {
     const currentAccount = account.value
     if (!shouldFetchUsage.value) return
@@ -586,6 +654,37 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
       console.error('Failed to refresh OpenAI usage:', error)
     })
   })
+
+  watch(
+    () => [account.value.id, openAIEarliestResetAt.value, nowMs.value] as const,
+    ([accountID, earliestResetAt, currentNow]) => {
+      if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return
+      if (!earliestResetAt) return
+
+      const resetAtMs = Date.parse(earliestResetAt)
+      if (Number.isNaN(resetAtMs) || resetAtMs > currentNow) return
+
+      const refreshKey = `${accountID}:${earliestResetAt}`
+      const lastRefresh = lastExpiredOpenAIUsageRefresh.value
+      if (
+        lastRefresh &&
+        lastRefresh.key === refreshKey &&
+        currentNow - lastRefresh.requestedAt < EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS
+      ) {
+        return
+      }
+
+      lastExpiredOpenAIUsageRefresh.value = {
+        key: refreshKey,
+        requestedAt: currentNow,
+      }
+
+      loadUsage().catch((error) => {
+        console.error('Failed to refresh expired OpenAI usage window:', error)
+      })
+    },
+    { immediate: true },
+  )
 
   const presentation = computed<AccountUsagePresentation>(() => {
     const meta = createEmptyMeta(loadingRows.value)

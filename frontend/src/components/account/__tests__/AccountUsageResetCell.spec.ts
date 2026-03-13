@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import AccountUsageCell from '../AccountUsageCell.vue'
 import AccountUsageResetCell from '../AccountUsageResetCell.vue'
 import { resetAccountUsagePresentationCache } from '@/composables/useAccountUsagePresentation'
+import { resetUiNowForTests } from '@/composables/useUiNow'
 
 const { getUsage } = vi.hoisted(() => ({
   getUsage: vi.fn(),
@@ -40,10 +41,18 @@ const usageBarStub = {
   template: '<div>{{ label }}|{{ utilization }}</div>',
 }
 
+enableAutoUnmount(afterEach)
+
 describe('AccountUsageResetCell', () => {
   beforeEach(() => {
     getUsage.mockReset()
     resetAccountUsagePresentationCache()
+    resetUiNowForTests()
+  })
+
+  afterEach(() => {
+    resetUiNowForTests()
+    vi.useRealTimers()
   })
 
   it('renders separate reset rows for 5h and 7d windows', async () => {
@@ -74,7 +83,35 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.text()).toContain('7d')
     expect(wrapper.text()).toContain('03-20 01:09')
 
-    vi.useRealTimers()
+  })
+
+  it('updates day labels when the shared clock crosses midnight', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T23:59:00'))
+    getUsage.mockResolvedValue({})
+
+    const wrapper = mount(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3004,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-13T10:00:00Z',
+            codex_5h_used_percent: 10,
+            codex_5h_reset_at: '2026-03-14T00:01:00',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('Tomorrow 00:01')
+
+    vi.advanceTimersByTime(2 * 60 * 1000)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Today 00:01')
   })
 
   it('falls back to a dash when no reset rows are available', async () => {

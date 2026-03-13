@@ -1552,6 +1552,12 @@ export interface ScheduledTestPlan {
   enabled: boolean
   max_results: number
   auto_recover: boolean
+  notify_policy: 'none' | 'always' | 'failure_only'
+  notify_failure_threshold: number
+  retry_interval_minutes: number
+  max_retries: number
+  consecutive_failures: number
+  current_retry_count: number
   last_run_at: string | null
   next_run_at: string | null
   created_at: string
@@ -1577,6 +1583,10 @@ export interface CreateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  notify_policy?: 'none' | 'always' | 'failure_only'
+  notify_failure_threshold?: number
+  retry_interval_minutes?: number
+  max_retries?: number
 }
 
 export interface UpdateScheduledTestPlanRequest {
@@ -1585,4 +1595,8 @@ export interface UpdateScheduledTestPlanRequest {
   enabled?: boolean
   max_results?: number
   auto_recover?: boolean
+  notify_policy?: 'none' | 'always' | 'failure_only'
+  notify_failure_threshold?: number
+  retry_interval_minutes?: number
+  max_retries?: number
 }

@@ -5,19 +5,31 @@ import (
 	"time"
 )
 
+const (
+	ScheduledTestNotifyPolicyNone        = "none"
+	ScheduledTestNotifyPolicyAlways      = "always"
+	ScheduledTestNotifyPolicyFailureOnly = "failure_only"
+)
+
 // ScheduledTestPlan represents a scheduled test plan domain model.
 type ScheduledTestPlan struct {
-	ID             int64      `json:"id"`
-	AccountID      int64      `json:"account_id"`
-	ModelID        string     `json:"model_id"`
-	CronExpression string     `json:"cron_expression"`
-	Enabled        bool       `json:"enabled"`
-	MaxResults     int        `json:"max_results"`
-	AutoRecover    bool       `json:"auto_recover"`
-	LastRunAt      *time.Time `json:"last_run_at"`
-	NextRunAt      *time.Time `json:"next_run_at"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID                     int64      `json:"id"`
+	AccountID              int64      `json:"account_id"`
+	ModelID                string     `json:"model_id"`
+	CronExpression         string     `json:"cron_expression"`
+	Enabled                bool       `json:"enabled"`
+	MaxResults             int        `json:"max_results"`
+	AutoRecover            bool       `json:"auto_recover"`
+	NotifyPolicy           string     `json:"notify_policy"`
+	NotifyFailureThreshold int        `json:"notify_failure_threshold"`
+	RetryIntervalMinutes   int        `json:"retry_interval_minutes"`
+	MaxRetries             int        `json:"max_retries"`
+	ConsecutiveFailures    int        `json:"consecutive_failures"`
+	CurrentRetryCount      int        `json:"current_retry_count"`
+	LastRunAt              *time.Time `json:"last_run_at"`
+	NextRunAt              *time.Time `json:"next_run_at"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 // ScheduledTestResult represents a single test execution result.
@@ -41,7 +53,7 @@ type ScheduledTestPlanRepository interface {
 	ListDue(ctx context.Context, now time.Time) ([]*ScheduledTestPlan, error)
 	Update(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error)
 	Delete(ctx context.Context, id int64) error
-	UpdateAfterRun(ctx context.Context, id int64, lastRunAt time.Time, nextRunAt time.Time) error
+	UpdateAfterRun(ctx context.Context, id int64, lastRunAt time.Time, nextRunAt time.Time, consecutiveFailures int, currentRetryCount int) error
 }
 
 // ScheduledTestResultRepository defines the data access interface for test results.

@@ -44,6 +44,10 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeySMTPFrom] = settings.SMTPFrom
 	updates[SettingKeySMTPFromName] = settings.SMTPFromName
 	updates[SettingKeySMTPUseTLS] = strconv.FormatBool(settings.SMTPUseTLS)
+	updates[SettingKeyTelegramChatID] = strings.TrimSpace(settings.TelegramChatID)
+	if strings.TrimSpace(settings.TelegramBotToken) != "" {
+		updates[SettingKeyTelegramBotToken] = strings.TrimSpace(settings.TelegramBotToken)
+	}
 	updates[SettingKeyTurnstileEnabled] = strconv.FormatBool(settings.TurnstileEnabled)
 	updates[SettingKeyTurnstileSiteKey] = settings.TurnstileSiteKey
 	if settings.TurnstileSecretKey != "" {

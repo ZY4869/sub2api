@@ -1942,7 +1942,30 @@ export default {
       maxResultsTooltipExample: 'For example, 100 means keeping at most the latest 100 test results. When the 101st result is saved, the oldest one is removed.',
       maxResultsTooltipRange: 'Recommended range: usually 20 to 200. Use 20-50 when you only care about recent health status, or 100-200 if you want a longer trend history.',
       autoRecover: 'Auto Recover',
-      autoRecoverHelp: 'Automatically recover account from error/rate-limited state on successful test'
+      autoRecoverHelp: 'Automatically recover account from error/rate-limited state on successful test',
+      frequency: 'Frequency',
+      frequencyCustom: 'Custom cron',
+      frequencyPresets: {
+        '1h': 'Every hour',
+        '2h': 'Every 2 hours',
+        '5h': 'Every 5 hours',
+        '12h': 'Every 12 hours',
+        '24h': 'Every day',
+        custom: 'Custom'
+      },
+      notifyPolicy: 'Notification Policy',
+      notifyPolicyOptions: {
+        none: 'No notification',
+        always: 'Notify on cycle end',
+        failure_only: 'Only notify on final failure'
+      },
+      notifyFailureThreshold: 'Failure Threshold',
+      notifyFailureThresholdSummary: 'Notify after {count} failures',
+      retryInterval: 'Retry Interval',
+      maxRetries: 'Max Retries',
+      retrySummary: 'Retry {interval}m / {max} attempts',
+      consecutiveFailuresSummary: '{count} consecutive failures',
+      currentRetrySummary: 'Retry {current}/{max}'
     },
 
     // Proxies
@@ -3142,7 +3165,23 @@ export default {
         security: 'Security',
         users: 'Users',
         gateway: 'Gateway',
+        notification: 'Notifications',
         email: 'Email',
+      },
+      telegram: {
+        title: 'Telegram Notifications',
+        description: 'Configure a Telegram bot for scheduled test alerts.',
+        botToken: 'Bot Token',
+        botTokenPlaceholder: '123456:ABCDEF...',
+        botTokenHint: 'Enter the Telegram bot token used to send scheduled test notifications.',
+        botTokenConfiguredHint: 'A bot token is already configured. Leave empty to keep the current token.',
+        chatId: 'Chat ID',
+        chatIdPlaceholder: 'e.g. -1001234567890',
+        chatIdHint: 'The destination chat or group ID that receives scheduled test notifications.',
+        testConnection: 'Test Connection',
+        testing: 'Testing...',
+        testSuccess: 'Telegram connection successful',
+        testFailed: 'Telegram connection failed'
       },
       emailTabDisabledTitle: 'Email Verification Not Enabled',
       emailTabDisabledHint: 'Enable email verification in the Security tab to configure SMTP settings.',
