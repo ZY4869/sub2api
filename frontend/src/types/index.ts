@@ -409,6 +409,7 @@ export interface AdminGroup extends Group {
   model_routing_enabled: boolean
 
   // MCP XML 闂佸憡顨呯换妤咁敊閸涱厸鏋栭柕濞垮劚瀵娊鏌ㄥ☉妯煎缂?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
+  // MCP XML injection toggle for antigravity groups.
   mcp_xml_inject: boolean
 
   // 闂佽　鍋撴い鏍ㄧ☉閻︻噣鏌ｉ妸銉ヮ仾閼垛晠鏌涢妸銉剳闂侇喗鎸冲畷姘旂€ｎ剛顦╂繛?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
@@ -760,6 +761,46 @@ export interface UsageProgress {
 }
 
 // Antigravity 闂佸憡顨嗗ú鎴︽煂濠婂吘鐔煎灳瀹曞洠鍋撻悜鑺ュ剭闁告洦鍨扮敮鍐参涢悧鍫㈢畱濞ｅ洤锕獮?
+export type AccountUsageRowColor = 'indigo' | 'emerald' | 'purple' | 'amber'
+
+export interface AccountUsageResetRow {
+  key: string
+  label: string
+  resetsAt: string | null
+  remainingSeconds?: number | null
+}
+
+export interface AccountUsagePresentationRow extends AccountUsageResetRow {
+  utilization: number
+  windowStats?: WindowStats | null
+  color: AccountUsageRowColor
+  inlineRemaining?: boolean
+}
+
+export interface AccountUsagePresentationMeta {
+  loadingRows: number
+  snapshotUpdatedAtText?: string
+  snapshotUpdatedAtTooltip?: string
+  noteText?: string
+  antigravityTierLabel?: string | null
+  antigravityTierClass?: string
+  hasIneligibleTiers?: boolean
+  geminiAuthTypeLabel?: string | null
+  geminiTierClass?: string
+  geminiQuotaPolicyChannel?: string
+  geminiQuotaPolicyLimits?: string
+  geminiQuotaPolicyDocsUrl?: string
+}
+
+export interface AccountUsagePresentation {
+  loading: boolean
+  error: string | null
+  state: 'bars' | 'loading' | 'error' | 'empty' | 'unlimited'
+  windowRows: AccountUsagePresentationRow[]
+  resetRows: AccountUsageResetRow[]
+  meta: AccountUsagePresentationMeta
+}
+
 export interface AntigravityModelQuota {
   utilization: number // 婵炶揪缍€濞夋洟寮妶澶嬪仢?0-100
   reset_time: string  // 闂備焦褰冪粔鍫曟偪閸℃稑绫嶉柛顐ｆ礃閿?ISO8601

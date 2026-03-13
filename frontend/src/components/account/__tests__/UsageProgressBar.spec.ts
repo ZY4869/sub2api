@@ -9,44 +9,43 @@ vi.mock('vue-i18n', async () => {
     useI18n: () => ({
       t: (key: string) => {
         const dict: Record<string, string> = {
-          'admin.accounts.usageWindow.remainingLabel': '剩余',
-          'admin.accounts.usageWindow.resetAtLabel': '重置于',
-          'admin.accounts.usageWindow.now': '现在',
-          'dates.today': '今天',
-          'dates.tomorrow': '明天'
+          'admin.accounts.usageWindow.remainingLabel': 'Remaining',
+          'admin.accounts.usageWindow.resetAtLabel': 'Reset at',
+          'admin.accounts.usageWindow.now': 'Now',
+          'dates.today': 'Today',
+          'dates.tomorrow': 'Tomorrow',
         }
         return dict[key] ?? key
-      }
-    })
+      },
+    }),
   }
 })
 
 describe('UsageProgressBar', () => {
-  it('renders detailed reset row and tooltip', () => {
+  it('renders inline remaining text on the same row', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-03-13T08:00:00'))
+    vi.setSystemTime(new Date('2026-03-13T12:29:00'))
 
     const wrapper = mount(UsageProgressBar, {
       props: {
         label: '5h',
-        utilization: 42,
-        resetsAt: '2026-03-13T10:30:00',
+        utilization: 78,
+        resetsAt: '2026-03-13T15:22:00',
         color: 'indigo',
-        detailedReset: true
-      }
+        inlineReset: true,
+      },
     })
 
     expect(wrapper.text()).toContain('5h')
-    expect(wrapper.text()).toContain('42%')
-    expect(wrapper.text()).toContain('剩余 2h 30m')
-    expect(wrapper.text()).toContain('重置于 今天 10:30')
-    expect(wrapper.attributes('title')).toBeUndefined()
-    expect(wrapper.find('[title="2026-03-13 10:30:00"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('78%')
+    expect(wrapper.text()).toContain('Remaining 2h 53m')
+    expect(wrapper.text()).not.toContain('Reset at')
+    expect(wrapper.find('.text-amber-700').exists()).toBe(true)
 
     vi.useRealTimers()
   })
 
-  it('uses remainingSeconds when resetsAt is missing', () => {
+  it('keeps detailed reset mode backward compatible', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T08:00:00'))
 
@@ -56,12 +55,13 @@ describe('UsageProgressBar', () => {
         utilization: 80,
         remainingSeconds: 1800,
         color: 'emerald',
-        detailedReset: true
-      }
+        detailedReset: true,
+      },
     })
 
-    expect(wrapper.text()).toContain('剩余 30m')
-    expect(wrapper.text()).toContain('重置于 今天 08:30')
+    expect(wrapper.text()).toContain('Remaining 30m')
+    expect(wrapper.text()).toContain('Reset at Today 08:30')
+    expect(wrapper.find('[title="2026-03-13 08:30:00"]').exists()).toBe(true)
 
     vi.useRealTimers()
   })

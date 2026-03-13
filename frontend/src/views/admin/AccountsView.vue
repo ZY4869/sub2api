@@ -197,6 +197,9 @@
           <template #cell-usage="{ row }">
             <AccountUsageCell :account="row" />
           </template>
+          <template #cell-usage_reset_dates="{ row }">
+            <AccountUsageResetCell :account="row" />
+          </template>
           <template #cell-proxy="{ row }">
             <div v-if="row.proxy" class="flex items-center gap-2">
               <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
@@ -310,7 +313,14 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
-import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
+import {
+  AccountUsageResetCell,
+  BulkEditAccountModal,
+  CreateAccountModal,
+  EditAccountModal,
+  SyncFromCrsModal,
+  TempUnschedStatusModal,
+} from '@/components/account'
 import AccountTableActions from '@/components/admin/account/AccountTableActions.vue'
 import AccountTableFilters from '@/components/admin/account/AccountTableFilters.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
@@ -843,6 +853,7 @@ const allColumns = computed(() => {
   }
   c.push(
     { key: 'usage', label: t('admin.accounts.columns.usageWindows'), sortable: false },
+    { key: 'usage_reset_dates', label: t('admin.accounts.columns.usageResetDates'), sortable: false },
     { key: 'proxy', label: t('admin.accounts.columns.proxy'), sortable: false },
     { key: 'priority', label: t('admin.accounts.columns.priority'), sortable: true },
     { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true },

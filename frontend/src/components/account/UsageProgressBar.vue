@@ -1,36 +1,34 @@
 <template>
   <div :class="detailedReset ? 'space-y-0.5' : ''">
     <div class="flex items-center gap-1">
-      <span
-        :class="['w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium', labelClass]"
-      >
+      <span :class="['w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium', labelClass]">
         {{ label }}
       </span>
 
       <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-        <div
-          :class="['h-full transition-all duration-300', barClass]"
-          :style="{ width: barWidth }"
-        ></div>
+        <div :class="['h-full transition-all duration-300', barClass]" :style="{ width: barWidth }"></div>
       </div>
 
       <span :class="['w-[32px] shrink-0 text-right text-[10px] font-medium', textClass]">
         {{ displayPercent }}
       </span>
 
-      <span v-if="!detailedReset && effectiveResetAt" class="shrink-0 text-[10px] text-gray-400">
+      <span v-if="inlineReset" :class="remainingTextClass">
+        {{ t('admin.accounts.usageWindow.remainingLabel') }} {{ resetCountdownText }}
+      </span>
+
+      <span v-else-if="!detailedReset && effectiveResetAt" class="shrink-0 text-[10px] text-gray-400">
         {{ compactResetText }}
       </span>
     </div>
 
     <div
       v-if="detailedReset"
-      class="pl-[37px] text-[10px] text-gray-400"
+      class="pl-[37px] flex items-center gap-1 text-[10px] text-gray-400"
       :title="resetTooltip || undefined"
     >
-      {{ t('admin.accounts.usageWindow.remainingLabel') }} {{ resetCountdownText }}
-      ·
-      {{ t('admin.accounts.usageWindow.resetAtLabel') }} {{ resetAbsoluteText }}
+      <span>{{ t('admin.accounts.usageWindow.remainingLabel') }} {{ resetCountdownText }}</span>
+      <span>{{ t('admin.accounts.usageWindow.resetAtLabel') }} {{ resetAbsoluteText }}</span>
     </div>
   </div>
 </template>
@@ -43,7 +41,7 @@ import {
   formatLocalAbsoluteTime,
   formatLocalTimestamp,
   formatResetCountdown,
-  parseEffectiveResetAt
+  parseEffectiveResetAt,
 } from '@/utils/usageResetTime'
 
 const props = defineProps<{
@@ -54,6 +52,7 @@ const props = defineProps<{
   color: 'indigo' | 'emerald' | 'purple' | 'amber'
   windowStats?: WindowStats | null
   detailedReset?: boolean
+  inlineReset?: boolean
 }>()
 
 const { t } = useI18n()
@@ -63,7 +62,7 @@ const labelClass = computed(() => {
     indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
     emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
     purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   }
   return colors[props.color]
 })
@@ -80,6 +79,10 @@ const textClass = computed(() => {
   return 'text-gray-600 dark:text-gray-400'
 })
 
+const remainingTextClass = computed(() => {
+  return 'shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-300'
+})
+
 const barWidth = computed(() => `${Math.min(props.utilization, 100)}%`)
 
 const displayPercent = computed(() => {
@@ -87,9 +90,7 @@ const displayPercent = computed(() => {
   return percent > 999 ? '>999%' : `${percent}%`
 })
 
-const effectiveResetAt = computed(() =>
-  parseEffectiveResetAt(props.resetsAt ?? null, props.remainingSeconds ?? null)
-)
+const effectiveResetAt = computed(() => parseEffectiveResetAt(props.resetsAt ?? null, props.remainingSeconds ?? null))
 
 const compactResetText = computed(() => {
   if (!effectiveResetAt.value) return '-'
@@ -105,7 +106,7 @@ const resetAbsoluteText = computed(() => {
   if (!effectiveResetAt.value) return '-'
   return formatLocalAbsoluteTime(effectiveResetAt.value, new Date(), {
     today: t('dates.today'),
-    tomorrow: t('dates.tomorrow')
+    tomorrow: t('dates.tomorrow'),
   })
 })
 

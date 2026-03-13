@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AccountUsageCell from '../AccountUsageCell.vue'
+import { resetAccountUsagePresentationCache } from '@/composables/useAccountUsagePresentation'
 
 const { getUsage } = vi.hoisted(() => ({
-  getUsage: vi.fn()
+  getUsage: vi.fn(),
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      getUsage
-    }
-  }
+      getUsage,
+    },
+  },
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -21,14 +22,19 @@ vi.mock('vue-i18n', async () => {
     useI18n: () => ({
       t: (key: string, params?: Record<string, unknown>) => {
         const dict: Record<string, string> = {
-          'admin.accounts.usageWindow.remainingLabel': '剩余',
-          'admin.accounts.usageWindow.resetAtLabel': '重置于',
-          'admin.accounts.usageWindow.now': '现在',
-          'admin.accounts.usageWindow.snapshotUpdatedAt': '快照更新于 {time}',
-          'admin.accounts.usageWindow.notProbed': '未探测',
-          'admin.accounts.usageWindow.customMapping': '自定义映射(*)',
-          'dates.today': '今天',
-          'dates.tomorrow': '明天'
+          'admin.accounts.usageWindow.snapshotUpdatedAt': 'Snapshot updated {time}',
+          'admin.accounts.usageWindow.gemini3Image': 'Gemini Image',
+          'admin.accounts.usageWindow.gemini3Pro': 'G3P',
+          'admin.accounts.usageWindow.gemini3Flash': 'G3F',
+          'admin.accounts.usageWindow.claude': 'Claude',
+          'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
+          'admin.accounts.ineligibleWarning': 'Ineligible warning',
+          'admin.accounts.gemini.quotaPolicy.title': 'Quota policy',
+          'admin.accounts.gemini.quotaPolicy.note': 'Quota note',
+          'admin.accounts.gemini.quotaPolicy.columns.docs': 'Docs',
+          'dates.today': 'Today',
+          'dates.tomorrow': 'Tomorrow',
+          'common.error': 'Error',
         }
         let value = dict[key] ?? key
         if (params) {
@@ -37,38 +43,39 @@ vi.mock('vue-i18n', async () => {
           })
         }
         return value
-      }
-    })
+      },
+    }),
   }
 })
 
 const usageBarStub = {
-  props: ['label', 'utilization', 'resetsAt', 'remainingSeconds', 'windowStats', 'detailedReset', 'color'],
+  props: ['label', 'utilization', 'resetsAt', 'remainingSeconds', 'windowStats', 'inlineReset', 'color'],
   template:
-    '<div class="usage-bar">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ detailedReset }}|{{ windowStats?.tokens }}</div>'
+    '<div class="usage-bar">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ inlineReset }}|{{ windowStats?.tokens }}</div>',
 }
 
 describe('AccountUsageCell', () => {
   beforeEach(() => {
     getUsage.mockReset()
+    resetAccountUsagePresentationCache()
   })
 
-  it('Antigravity 图片用量会聚合新旧 image 模型', async () => {
+  it('aggregates antigravity image usage from multiple models', async () => {
     getUsage.mockResolvedValue({
       antigravity_quota: {
         'gemini-2.5-flash-image': {
           utilization: 45,
-          reset_time: '2026-03-01T11:00:00Z'
+          reset_time: '2026-03-01T11:00:00Z',
         },
         'gemini-3.1-flash-image': {
           utilization: 20,
-          reset_time: '2026-03-01T10:00:00Z'
+          reset_time: '2026-03-01T10:00:00Z',
         },
         'gemini-3-pro-image': {
           utilization: 70,
-          reset_time: '2026-03-01T09:00:00Z'
-        }
-      }
+          reset_time: '2026-03-01T09:00:00Z',
+        },
+      },
     })
 
     const wrapper = mount(AccountUsageCell, {
@@ -77,23 +84,22 @@ describe('AccountUsageCell', () => {
           id: 1001,
           platform: 'antigravity',
           type: 'oauth',
-          extra: {}
-        } as any
+          extra: {},
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('admin.accounts.usageWindow.gemini3Image|70|2026-03-01T09:00:00Z')
+    expect(wrapper.text()).toContain('Gemini Image|70|2026-03-01T09:00:00Z')
   })
 
-  it('OpenAI OAuth 快照过期时首屏会重新请求 usage', async () => {
+  it('refreshes stale openai codex snapshots from the usage endpoint', async () => {
     getUsage.mockResolvedValue({
       five_hour: {
         utilization: 15,
@@ -104,8 +110,8 @@ describe('AccountUsageCell', () => {
           tokens: 300,
           cost: 0.03,
           standard_cost: 0.03,
-          user_cost: 0.03
-        }
+          user_cost: 0.03,
+        },
       },
       seven_day: {
         utilization: 77,
@@ -116,9 +122,9 @@ describe('AccountUsageCell', () => {
           tokens: 300,
           cost: 0.03,
           standard_cost: 0.03,
-          user_cost: 0.03
-        }
-      }
+          user_cost: 0.03,
+        },
+      },
     })
 
     const wrapper = mount(AccountUsageCell, {
@@ -132,16 +138,15 @@ describe('AccountUsageCell', () => {
             codex_5h_used_percent: 12,
             codex_5h_reset_at: '2026-03-08T12:00:00Z',
             codex_7d_used_percent: 34,
-            codex_7d_reset_at: '2026-03-13T12:00:00Z'
-          }
-        } as any
+            codex_7d_reset_at: '2026-03-13T12:00:00Z',
+          },
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
@@ -151,7 +156,7 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('7d|77|2026-03-13T12:00:00Z|3600|true|300')
   })
 
-  it('OpenAI OAuth 有本地快照且未限额时不会首屏请求 usage', async () => {
+  it('keeps using local openai snapshots when they are still fresh', async () => {
     const wrapper = mount(AccountUsageCell, {
       props: {
         account: {
@@ -163,16 +168,15 @@ describe('AccountUsageCell', () => {
             codex_5h_used_percent: 12,
             codex_5h_reset_at: '2099-03-07T12:00:00Z',
             codex_7d_used_percent: 34,
-            codex_7d_reset_at: '2099-03-13T12:00:00Z'
-          }
-        } as any
+            codex_7d_reset_at: '2099-03-13T12:00:00Z',
+          },
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
@@ -182,7 +186,7 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
   })
 
-  it('OpenAI OAuth 会显示身份摘要、模型摘要和快照更新时间', async () => {
+  it('hides openai identity and model summaries but keeps snapshot update text', async () => {
     const wrapper = mount(AccountUsageCell, {
       props: {
         account: {
@@ -191,7 +195,7 @@ describe('AccountUsageCell', () => {
           type: 'oauth',
           credentials: {
             plan_type: 'plus',
-            chatgpt_account_id: 'acc_1234567890'
+            chatgpt_account_id: 'acc_1234567890',
           },
           extra: {
             codex_usage_updated_at: '2099-03-07T10:00:00Z',
@@ -199,27 +203,26 @@ describe('AccountUsageCell', () => {
             codex_5h_reset_at: '2099-03-07T12:00:00Z',
             codex_7d_used_percent: 34,
             codex_7d_reset_at: '2099-03-13T12:00:00Z',
-            openai_known_models: ['gpt-5.4', 'gpt-4.1-mini', 'o4-mini', 'gpt-4o']
-          }
-        } as any
+            openai_known_models: ['gpt-5.4', 'gpt-4.1-mini', 'o4-mini', 'gpt-4o'],
+          },
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Plus · acc_12...7890')
-    expect(wrapper.text()).toContain('gpt-5.4, gpt-4.1-mini, o4-mini +1')
-    expect(wrapper.text()).toContain('快照更新于')
+    expect(wrapper.text()).not.toContain('acc_12...7890')
+    expect(wrapper.text()).not.toContain('gpt-5.4')
+    expect(wrapper.text()).toContain('Snapshot updated')
     expect(getUsage).not.toHaveBeenCalled()
   })
 
-  it('OpenAI OAuth 在无 codex 快照时会回退显示 usage 接口窗口', async () => {
+  it('falls back to fetched usage windows when no codex snapshot exists', async () => {
     getUsage.mockResolvedValue({
       five_hour: {
         utilization: 0,
@@ -230,8 +233,8 @@ describe('AccountUsageCell', () => {
           tokens: 27700,
           cost: 0.06,
           standard_cost: 0.06,
-          user_cost: 0.06
-        }
+          user_cost: 0.06,
+        },
       },
       seven_day: {
         utilization: 0,
@@ -242,9 +245,9 @@ describe('AccountUsageCell', () => {
           tokens: 27700,
           cost: 0.06,
           standard_cost: 0.06,
-          user_cost: 0.06
-        }
-      }
+          user_cost: 0.06,
+        },
+      },
     })
 
     const wrapper = mount(AccountUsageCell, {
@@ -253,15 +256,14 @@ describe('AccountUsageCell', () => {
           id: 2002,
           platform: 'openai',
           type: 'oauth',
-          extra: {}
-        } as any
+          extra: {},
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
@@ -271,7 +273,7 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('7d|0||0|true|27700')
   })
 
-  it('OpenAI OAuth 在行数据刷新但仍无 codex 快照时会重新拉取 usage', async () => {
+  it('reloads openai usage when the row refresh key changes without a codex snapshot', async () => {
     getUsage
       .mockResolvedValueOnce({
         five_hour: {
@@ -283,10 +285,10 @@ describe('AccountUsageCell', () => {
             tokens: 100,
             cost: 0.01,
             standard_cost: 0.01,
-            user_cost: 0.01
-          }
+            user_cost: 0.01,
+          },
         },
-        seven_day: null
+        seven_day: null,
       })
       .mockResolvedValueOnce({
         five_hour: {
@@ -298,10 +300,10 @@ describe('AccountUsageCell', () => {
             tokens: 200,
             cost: 0.02,
             standard_cost: 0.02,
-            user_cost: 0.02
-          }
+            user_cost: 0.02,
+          },
         },
-        seven_day: null
+        seven_day: null,
       })
 
     const wrapper = mount(AccountUsageCell, {
@@ -311,15 +313,14 @@ describe('AccountUsageCell', () => {
           platform: 'openai',
           type: 'oauth',
           updated_at: '2026-03-07T10:00:00Z',
-          extra: {}
-        } as any
+          extra: {},
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
@@ -332,16 +333,17 @@ describe('AccountUsageCell', () => {
         platform: 'openai',
         type: 'oauth',
         updated_at: '2026-03-07T10:01:00Z',
-        extra: {}
-      }
+        extra: {},
+      } as any,
     })
 
     await flushPromises()
+
     expect(getUsage).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('5h|0||0|true|200')
   })
 
-  it('OpenAI OAuth 已限额时首屏优先展示重新查询后的 usage', async () => {
+  it('prefers fetched openai usage when the account is actively rate limited', async () => {
     getUsage.mockResolvedValue({
       five_hour: {
         utilization: 100,
@@ -352,8 +354,8 @@ describe('AccountUsageCell', () => {
           tokens: 106540000,
           cost: 38.13,
           standard_cost: 38.13,
-          user_cost: 38.13
-        }
+          user_cost: 38.13,
+        },
       },
       seven_day: {
         utilization: 100,
@@ -364,9 +366,9 @@ describe('AccountUsageCell', () => {
           tokens: 106540000,
           cost: 38.13,
           standard_cost: 38.13,
-          user_cost: 38.13
-        }
-      }
+          user_cost: 38.13,
+        },
+      },
     })
 
     const wrapper = mount(AccountUsageCell, {
@@ -378,16 +380,15 @@ describe('AccountUsageCell', () => {
           rate_limit_reset_at: '2099-03-07T12:00:00Z',
           extra: {
             codex_5h_used_percent: 0,
-            codex_7d_used_percent: 0
-          }
-        } as any
+            codex_7d_used_percent: 0,
+          },
+        } as any,
       },
       global: {
         stubs: {
           UsageProgressBar: usageBarStub,
-          AccountQuotaInfo: true
-        }
-      }
+        },
+      },
     })
 
     await flushPromises()
