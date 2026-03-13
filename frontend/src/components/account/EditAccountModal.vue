@@ -66,7 +66,7 @@
         </div>
 
         <!-- Model Restriction Section (娑撳秹鈧倻鏁ゆ禍?Antigravity) -->
-        <AccountModelRestrictionEditor
+        <AccountModelScopeEditor
           v-if="account.platform !== 'antigravity'"
           :disabled="isOpenAIModelRestrictionDisabled"
           :platform="account?.platform || 'anthropic'"
@@ -235,7 +235,7 @@
       </div>
 
       <!-- OpenAI OAuth Model Mapping (OAuth 缁鐎峰▽鈩冩箒 apikey 鐎圭懓娅掗敍宀勬付鐟曚胶瀚粩瀣畱濡€崇€烽弰鐘茬殸閸栧搫鐓? -->
-      <AccountModelRestrictionEditor
+      <AccountModelScopeEditor
         v-if="account.platform === 'openai' && account.type === 'oauth'"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="account?.platform || 'anthropic'"
@@ -244,7 +244,6 @@
         :model-mappings="modelMappings"
         :preset-mappings="presetMappings"
         :get-mapping-key="getModelMappingKey"
-        variant="simple"
         @update:mode="modelRestrictionMode = $event"
         @update:allowedModels="allowedModels = $event"
         @add-mapping="addModelMapping"
@@ -977,7 +976,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
-import AccountModelRestrictionEditor from '@/components/account/AccountModelRestrictionEditor.vue'
+import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
@@ -1003,6 +1002,7 @@ import {
   commonErrorCodes,
   buildModelMappingObject
 } from '@/composables/useModelWhitelist'
+import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
 
 interface Props {
   show: boolean
@@ -1914,6 +1914,23 @@ const handleSubmit = async () => {
       }
       updatePayload.extra = newExtra
     }
+
+    updatePayload.extra = buildAccountModelScopeExtra(
+      ((updatePayload.extra as Record<string, unknown>) ||
+        (props.account.extra as Record<string, unknown>) ||
+        undefined),
+      {
+        platform: props.account.platform,
+        enabled: props.account.platform === 'antigravity'
+          ? true
+          : !(props.account.platform === 'openai' && openaiPassthroughEnabled.value),
+        mode: props.account.platform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
+        allowedModels: allowedModels.value,
+        modelMappings: props.account.platform === 'antigravity'
+          ? antigravityModelMappings.value
+          : modelMappings.value
+      }
+    )
 
     const canContinue = await ensureMixedChannelConfirmed(async () => {
       await submitUpdateAccount(accountID, updatePayload)

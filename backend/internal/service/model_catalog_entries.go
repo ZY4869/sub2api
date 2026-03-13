@@ -22,10 +22,6 @@ type ModelCatalogEntry struct {
 	PricingLookupModelID string `json:"pricing_lookup_model_id,omitempty"`
 }
 
-type UpsertModelCatalogEntryInput struct {
-	Model string `json:"model"`
-}
-
 type CopyModelCatalogPricingFromOfficialInput struct {
 	Model string `json:"model"`
 }
@@ -152,6 +148,46 @@ func buildCatalogBaselineRegistryEntries(entries []modelregistry.ModelEntry, inc
 		}
 	}
 	return items
+}
+
+func buildCatalogBaselineAdminDetails(details []modelregistry.AdminModelDetail, includeRuntime bool) []modelregistry.AdminModelDetail {
+	filtered := make([]modelregistry.AdminModelDetail, 0, len(details))
+	seen := map[string]struct{}{}
+	appendDetail := func(detail modelregistry.AdminModelDetail) {
+		if strings.EqualFold(strings.TrimSpace(detail.Status), "deprecated") {
+			return
+		}
+		key := normalizeModelCatalogAlias(detail.ID)
+		if key == "" {
+			key = CanonicalizeModelNameForPricing(detail.ID)
+		}
+		if key == "" {
+			return
+		}
+		if _, exists := seen[key]; exists {
+			return
+		}
+		seen[key] = struct{}{}
+		filtered = append(filtered, detail)
+	}
+
+	for _, detail := range details {
+		if modelregistry.HasExposure(detail.ModelEntry, "whitelist") || modelregistry.HasExposure(detail.ModelEntry, "use_key") {
+			appendDetail(detail)
+		}
+	}
+	if !includeRuntime {
+		return filtered
+	}
+	for _, detail := range details {
+		if modelregistry.HasExposure(detail.ModelEntry, "whitelist") || modelregistry.HasExposure(detail.ModelEntry, "use_key") {
+			continue
+		}
+		if modelregistry.HasExposure(detail.ModelEntry, "runtime") {
+			appendDetail(detail)
+		}
+	}
+	return filtered
 }
 
 func (s *ModelCatalogService) loadCatalogEntries(ctx context.Context) []ModelCatalogEntry {

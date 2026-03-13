@@ -84,10 +84,6 @@ export interface UpdatePricingOverridePayload extends ModelCatalogPricing {
   model: string
 }
 
-export interface UpsertModelCatalogEntryPayload {
-  model: string
-}
-
 export async function listModels(
   params: ListModelsParams = {}
 ): Promise<PaginatedResponse<ModelCatalogItem>> {
@@ -137,18 +133,6 @@ export async function deletePricingOverride(model: string): Promise<{ model: str
   return data
 }
 
-export async function upsertCatalogEntry(payload: UpsertModelCatalogEntryPayload): Promise<ModelCatalogDetail> {
-  const { data } = await apiClient.put<ModelCatalogDetail>('/admin/models/catalog-entry', payload)
-  return data
-}
-
-export async function deleteCatalogEntry(model: string): Promise<{ model: string }> {
-  const { data } = await apiClient.delete<{ model: string }>('/admin/models/catalog-entry', {
-    params: { model }
-  })
-  return data
-}
-
 export async function copyOfficialPricingToSale(model: string): Promise<ModelCatalogDetail> {
   const { data } = await apiClient.post<ModelCatalogDetail>('/admin/models/pricing-override/copy-from-official', {
     model
@@ -164,8 +148,6 @@ export const modelsAPI = {
   deleteOfficialPricingOverride,
   updatePricingOverride,
   deletePricingOverride,
-  upsertCatalogEntry,
-  deleteCatalogEntry,
   copyOfficialPricingToSale
 }
 

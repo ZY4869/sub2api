@@ -859,7 +859,7 @@
           </select>
           <p class="input-hint">{{ t('admin.accounts.gemini.tier.aiStudioHint') }}</p>
         </div>
-        <AccountModelRestrictionEditor
+        <AccountModelScopeEditor
           :disabled="isOpenAIModelRestrictionDisabled"
           :platform="form.platform"
           :mode="modelRestrictionMode"
@@ -1043,7 +1043,7 @@
           @update:weeklyLimit="editQuotaWeeklyLimit = $event"
         />
       </div>
-      <AccountModelRestrictionEditor
+      <AccountModelScopeEditor
         v-if="form.platform === 'openai' && accountCategory === 'oauth-based'"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="form.platform"
@@ -1052,7 +1052,6 @@
         :model-mappings="modelMappings"
         :preset-mappings="presetMappings"
         :get-mapping-key="getModelMappingKey"
-        variant="simple"
         @update:mode="modelRestrictionMode = $event"
         @update:allowedModels="allowedModels = $event"
         @add-mapping="addModelMapping"
@@ -2023,6 +2022,7 @@ import {
   buildModelMappingObject,
   fetchAntigravityDefaultMappings
 } from '@/composables/useModelWhitelist'
+import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
 import type { AccountModelImportResult } from '@/api/admin/accounts'
@@ -2051,7 +2051,7 @@ import ProxySelector from '@/components/common/ProxySelector.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
-import AccountModelRestrictionEditor from '@/components/account/AccountModelRestrictionEditor.vue'
+import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import { applyInterceptWarmup } from '@/components/account/credentialsBuilder'
@@ -2708,7 +2708,19 @@ ${firstFailureMessage}`
 const submitCreateAccount = async (payload: CreateAccountRequest): Promise<Account | null> => {
   submitting.value = true
   try {
-    const createdAccount = await adminAPI.accounts.create(withConfirmFlag(payload))
+    const payloadWithScope: CreateAccountRequest = {
+      ...payload,
+      extra: buildAccountModelScopeExtra(payload.extra as Record<string, unknown> | undefined, {
+        platform: payload.platform,
+        enabled: payload.platform === 'antigravity'
+          ? true
+          : !(payload.platform === 'openai' && isOpenAIModelRestrictionDisabled.value),
+        mode: payload.platform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
+        allowedModels: allowedModels.value,
+        modelMappings: payload.platform === 'antigravity' ? antigravityModelMappings.value : modelMappings.value
+      })
+    }
+    const createdAccount = await adminAPI.accounts.create(withConfirmFlag(payloadWithScope))
     appStore.showSuccess(t('admin.accounts.accountCreated'))
     await maybeImportCreatedAccounts([createdAccount])
     emit('created')

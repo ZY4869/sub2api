@@ -43,7 +43,7 @@ export default {
 
     models: {
       title: 'Model Catalog',
-      description: 'Browse model aliases, official pricing, sale pricing, and pricing overrides',
+      description: 'Browse available models, the full registry, and pricing overrides.',
       searchPlaceholder: 'Search model name',
       unavailable: 'Unavailable',
       viewDetails: 'View Details',
@@ -76,6 +76,21 @@ export default {
       copyToSaleSuccess: 'Official pricing copied to sale pricing',
       copyToSaleFailed: 'Failed to copy official pricing to sale pricing',
       pages: {
+        available: {
+          nav: 'Available Models',
+          title: 'Available Models',
+          description: 'Only models enabled here will participate in runtime routing, testing, snapshot generation, and scheduling.'
+        },
+        all: {
+          nav: 'All Models',
+          title: 'All Models',
+          description: 'Manage the full model source of truth, runtime entries, visibility, lifecycle, and availability.'
+        },
+        pricing: {
+          nav: 'Model Pricing',
+          title: 'Model Pricing',
+          description: 'Review and edit official and sale pricing in one place.'
+        },
         official: {
           nav: 'Official Pricing',
           title: 'Official Pricing',
@@ -85,18 +100,6 @@ export default {
           nav: 'Sale Pricing',
           title: 'Sale Pricing',
           description: 'Manage the pricing exposed to customers. Missing sale values fall back to official pricing.'
-        },
-        registry: {
-          nav: 'Registry',
-          title: 'Model Registry',
-          description: 'Manage runtime canonical model entries, visibility, and tombstones without redeploying.'
-        },
-        relay: {
-          nav: 'Relay Pricing',
-          title: 'Relay Pricing',
-          description: 'Reserved for future relay pricing linkage. No write operations are enabled yet.',
-          badge: 'Reserved',
-          placeholder: 'This page is ready for later linkage logic. Fields and persistence stay disabled in this round.'
         }
       },
       registry: {
@@ -112,6 +115,11 @@ export default {
         lastSynced: 'Last synced: {time}',
         commaSeparatedHint: 'Use commas or new lines to separate multiple values.',
         idLockedHint: 'Model ID stays locked in edit mode to avoid accidental renames.',
+        activateSuccess: 'Model activated',
+        deactivateSuccess: 'Model deactivated',
+        availabilityFailed: 'Failed to update model availability',
+        availableStatus: 'Available',
+        unavailableStatus: 'Unavailable',
         saveSuccess: 'Model registry entry saved',
         saveFailed: 'Failed to save model registry entry',
         deleteSuccess: 'Model registry entry hard deleted',
@@ -134,6 +142,7 @@ export default {
           displayName: 'Display Name',
           provider: 'Provider',
           uiPriority: 'UI Priority',
+          availability: 'Availability',
           platforms: 'Platforms',
           protocolIds: 'Protocol IDs',
           aliases: 'Aliases',
@@ -148,10 +157,17 @@ export default {
           exposedIn: 'Exposed In'
         },
         actions: {
+          activate: 'Activate',
+          deactivate: 'Deactivate',
           syncPages: 'Sync Pages',
           hide: 'Hide',
           show: 'Show',
           hardDelete: 'Hard Delete'
+        },
+        availabilityFilter: {
+          all: 'All',
+          available: 'Available',
+          unavailable: 'Unavailable'
         },
         bulkActions: {
           selected: '{count} model(s) selected',
@@ -201,17 +217,18 @@ export default {
           tombstone: 'Tombstone'
         }
       },
-      catalog: {
-        addModel: 'Add Model',
-        createTitle: 'Add Catalog Model',
-        modelId: 'Model ID',
-        modelPlaceholder: 'Enter a short alias like claude-sonnet-4.5',
-        modelHint: 'Only the model ID is required. Provider, mode and display name are inferred by the backend.',
-        createSuccess: 'Model added to catalog',
-        createFailed: 'Failed to add model to catalog',
-        deleteConfirm: 'Delete model {model} from the catalog?',
-        deleteSuccess: 'Model removed from catalog',
-        deleteFailed: 'Failed to delete model from catalog'
+      available: {
+        addAction: 'Add Available Models',
+        emptyTitle: 'No available models',
+        emptyDescription: 'Activate models from the full registry to make them usable at runtime.',
+        activateDialog: {
+          title: 'Add Available Models',
+          description: 'Select models from the full registry and add them to the runtime available set.',
+          searchPlaceholder: 'Search unavailable models',
+          emptyTitle: 'No unavailable models',
+          emptyDescription: 'All current models are already active.',
+          confirm: 'Activate Selected'
+        }
       },
       columns: {
         model: 'Model',

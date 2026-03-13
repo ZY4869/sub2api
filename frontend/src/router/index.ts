@@ -245,7 +245,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/models',
     name: 'AdminModels',
-    redirect: '/admin/models/official',
+    redirect: '/admin/models/available',
     component: () => import('@/views/admin/models/ModelsLayoutView.vue'),
     meta: {
       requiresAuth: true,
@@ -256,51 +256,66 @@ const routes: RouteRecordRaw[] = [
     },
     children: [
       {
-        path: 'official',
-        name: 'AdminModelsOfficial',
-        component: () => import('@/views/admin/models/ModelCatalogOfficialView.vue'),
+        path: 'available',
+        name: 'AdminModelsAvailable',
+        component: () => import('@/views/admin/models/AvailableModelsView.vue'),
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Official Pricing',
-          titleKey: 'admin.models.pages.official.title',
-          descriptionKey: 'admin.models.pages.official.description'
+          title: 'Available Models',
+          titleKey: 'admin.models.pages.available.title',
+          descriptionKey: 'admin.models.pages.available.description'
         }
+      },
+      {
+        path: 'all',
+        name: 'AdminModelsAll',
+        component: () => import('@/views/admin/models/AllModelsView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'All Models',
+          titleKey: 'admin.models.pages.all.title',
+          descriptionKey: 'admin.models.pages.all.description'
+        }
+      },
+      {
+        path: 'pricing',
+        name: 'AdminModelsPricing',
+        component: () => import('@/views/admin/models/ModelPricingView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Model Pricing',
+          titleKey: 'admin.models.pages.pricing.title',
+          descriptionKey: 'admin.models.pages.pricing.description'
+        }
+      },
+      {
+        path: 'official',
+        redirect: '/admin/models/pricing'
       },
       {
         path: 'sale',
-        name: 'AdminModelsSale',
-        component: () => import('@/views/admin/models/ModelCatalogSaleView.vue'),
-        meta: {
-          requiresAuth: true,
-          requiresAdmin: true,
-          title: 'Sale Pricing',
-          titleKey: 'admin.models.pages.sale.title',
-          descriptionKey: 'admin.models.pages.sale.description'
-        }
-      },
-      {
-        path: 'registry',
-        name: 'AdminModelsRegistry',
-        component: () => import('@/views/admin/models/ModelRegistryView.vue'),
-        meta: {
-          requiresAuth: true,
-          requiresAdmin: true,
-          title: 'Model Registry',
-          titleKey: 'admin.models.pages.registry.title',
-          descriptionKey: 'admin.models.pages.registry.description'
-        }
+        redirect: '/admin/models/pricing'
       },
       {
         path: 'relay',
-        name: 'AdminModelsRelay',
-        component: () => import('@/views/admin/models/ModelCatalogRelayView.vue'),
+        redirect: '/admin/models/pricing'
+      },
+      {
+        path: 'registry',
+        redirect: '/admin/models/all'
+      },
+      {
+        path: '',
+        redirect: '/admin/models/available',
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Relay Pricing',
-          titleKey: 'admin.models.pages.relay.title',
-          descriptionKey: 'admin.models.pages.relay.description'
+          title: 'Available Models',
+          titleKey: 'admin.models.pages.available.title',
+          descriptionKey: 'admin.models.pages.available.description'
         }
       }
     ]

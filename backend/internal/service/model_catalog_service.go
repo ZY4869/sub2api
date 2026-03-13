@@ -106,27 +106,6 @@ func (s *ModelCatalogService) GetModelDetail(ctx context.Context, model string) 
 	}, nil
 }
 
-func (s *ModelCatalogService) UpsertCatalogEntry(ctx context.Context, input UpsertModelCatalogEntryInput) (*ModelCatalogDetail, error) {
-	if s.modelRegistryService == nil {
-		return nil, infraerrors.InternalServer("MODEL_REGISTRY_SERVICE_UNAVAILABLE", "model registry service is unavailable")
-	}
-	alias := normalizeModelCatalogAlias(input.Model)
-	if alias == "" {
-		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
-	}
-	if _, err := s.modelRegistryService.UpsertEntry(ctx, UpsertModelRegistryEntryInput{ID: alias, ExposedIn: []string{"runtime"}}); err != nil {
-		return nil, err
-	}
-	return s.GetModelDetail(ctx, alias)
-}
-
-func (s *ModelCatalogService) DeleteCatalogEntry(ctx context.Context, model string) error {
-	if s.modelRegistryService == nil {
-		return infraerrors.InternalServer("MODEL_REGISTRY_SERVICE_UNAVAILABLE", "model registry service is unavailable")
-	}
-	return s.modelRegistryService.DeleteEntry(ctx, model)
-}
-
 func (s *ModelCatalogService) CopyOfficialPricingToSale(ctx context.Context, actor ModelCatalogActor, model string) (*ModelCatalogDetail, error) {
 	detail, err := s.GetModelDetail(ctx, model)
 	if err != nil {

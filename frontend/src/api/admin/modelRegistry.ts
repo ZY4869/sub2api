@@ -6,12 +6,14 @@ export interface ModelRegistryDetail extends ModelRegistryEntry {
   source: string
   hidden: boolean
   tombstoned: boolean
+  available: boolean
 }
 
 export interface ListModelRegistryParams {
   search?: string
   provider?: string
   platform?: string
+  availability?: 'all' | 'available' | 'unavailable'
   include_hidden?: boolean
   include_tombstoned?: boolean
   page?: number
@@ -23,6 +25,10 @@ export interface UpsertModelRegistryEntryPayload extends ModelRegistryEntry {}
 export interface UpdateModelRegistryVisibilityPayload {
   model: string
   hidden: boolean
+}
+
+export interface UpdateModelRegistryAvailabilityPayload {
+  models: string[]
 }
 
 export type ModelRegistryExposureTarget = 'whitelist' | 'use_key' | 'test' | 'runtime'
@@ -84,6 +90,20 @@ export async function deleteModelRegistryEntry(model: string): Promise<{ model: 
   return data
 }
 
+export async function activateModelRegistryEntries(
+  payload: UpdateModelRegistryAvailabilityPayload
+): Promise<{ items: ModelRegistryDetail[] }> {
+  const { data } = await apiClient.post<{ items: ModelRegistryDetail[] }>('/admin/models/registry/activate', payload)
+  return data
+}
+
+export async function deactivateModelRegistryEntries(
+  payload: UpdateModelRegistryAvailabilityPayload
+): Promise<{ items: ModelRegistryDetail[] }> {
+  const { data } = await apiClient.post<{ items: ModelRegistryDetail[] }>('/admin/models/registry/deactivate', payload)
+  return data
+}
+
 export async function syncModelRegistryExposures(
   payload: SyncModelRegistryExposuresPayload
 ): Promise<SyncModelRegistryExposuresResult> {
@@ -97,6 +117,8 @@ export const modelRegistryAPI = {
   upsertModelRegistryEntry,
   updateModelRegistryVisibility,
   deleteModelRegistryEntry,
+  activateModelRegistryEntries,
+  deactivateModelRegistryEntries,
   syncModelRegistryExposures
 }
 

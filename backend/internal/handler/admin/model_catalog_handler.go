@@ -74,43 +74,6 @@ func (h *ModelCatalogHandler) ExchangeRate(c *gin.Context) {
 	response.Success(c, rate)
 }
 
-func (h *ModelCatalogHandler) UpsertCatalogEntry(c *gin.Context) {
-	var req service.UpsertModelCatalogEntryInput
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	log := logger.FromContext(c.Request.Context()).With(
-		zap.String("component", "handler.admin.model_catalog"),
-		zap.String("model", req.Model),
-	)
-	log.Info("upsert model catalog entry start")
-	detail, err := h.modelCatalogService.UpsertCatalogEntry(c.Request.Context(), req)
-	if err != nil {
-		log.Warn("upsert model catalog entry failed", zap.Error(err))
-		response.ErrorFrom(c, err)
-		return
-	}
-	log.Info("upsert model catalog entry success")
-	response.Success(c, detail)
-}
-
-func (h *ModelCatalogHandler) DeleteCatalogEntry(c *gin.Context) {
-	model := strings.TrimSpace(c.Query("model"))
-	log := logger.FromContext(c.Request.Context()).With(
-		zap.String("component", "handler.admin.model_catalog"),
-		zap.String("model", model),
-	)
-	log.Info("delete model catalog entry start")
-	if err := h.modelCatalogService.DeleteCatalogEntry(c.Request.Context(), model); err != nil {
-		log.Warn("delete model catalog entry failed", zap.Error(err))
-		response.ErrorFrom(c, err)
-		return
-	}
-	log.Info("delete model catalog entry success")
-	response.Success(c, gin.H{"model": service.NormalizeModelCatalogModelID(model)})
-}
-
 func (h *ModelCatalogHandler) CopyOfficialPricingToSale(c *gin.Context) {
 	var req service.CopyModelCatalogPricingFromOfficialInput
 	if err := c.ShouldBindJSON(&req); err != nil {

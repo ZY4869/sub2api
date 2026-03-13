@@ -22,7 +22,11 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	sanitizeExtraBaseRPM(req.Extra)
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		account, execErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{Name: req.Name, Notes: req.Notes, Platform: req.Platform, Type: req.Type, Credentials: req.Credentials, Extra: req.Extra, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, GroupIDs: req.GroupIDs, ExpiresAt: req.ExpiresAt, AutoPauseOnExpired: req.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
+		credentials, extra, scopeErr := h.prepareAccountModelScope(ctx, req.Platform, req.Type, req.Credentials, req.Extra)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		account, execErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{Name: req.Name, Notes: req.Notes, Platform: req.Platform, Type: req.Type, Credentials: credentials, Extra: extra, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, GroupIDs: req.GroupIDs, ExpiresAt: req.ExpiresAt, AutoPauseOnExpired: req.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
 		if execErr != nil {
 			return nil, execErr
 		}
@@ -62,7 +66,25 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	}
 	sanitizeExtraBaseRPM(req.Extra)
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
-	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{Name: req.Name, Notes: req.Notes, Type: req.Type, Credentials: req.Credentials, Extra: req.Extra, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: req.Status, GroupIDs: req.GroupIDs, ExpiresAt: req.ExpiresAt, AutoPauseOnExpired: req.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
+	accountBeforeUpdate, err := h.adminService.GetAccount(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if accountBeforeUpdate == nil {
+		response.NotFound(c, "Account not found")
+		return
+	}
+	accountType := req.Type
+	if accountType == "" && accountBeforeUpdate != nil {
+		accountType = accountBeforeUpdate.Type
+	}
+	credentials, extra, scopeErr := h.prepareAccountModelScope(c.Request.Context(), accountBeforeUpdate.Platform, accountType, req.Credentials, req.Extra)
+	if scopeErr != nil {
+		response.ErrorFrom(c, scopeErr)
+		return
+	}
+	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{Name: req.Name, Notes: req.Notes, Type: req.Type, Credentials: credentials, Extra: extra, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: req.Status, GroupIDs: req.GroupIDs, ExpiresAt: req.ExpiresAt, AutoPauseOnExpired: req.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {

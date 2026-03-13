@@ -39,15 +39,16 @@ type modelCatalogRecord struct {
 }
 
 func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[string]*modelCatalogRecord, error) {
-	entries, err := s.catalogBaselineEntries(ctx)
+	details, err := s.catalogBaselineEntries(ctx)
 	if err != nil {
 		return nil, err
 	}
 	officialOverrides := s.loadOfficialPriceOverrides(ctx)
 	saleOverrides := s.loadSalePriceOverrides(ctx)
-	records := make(map[string]*modelCatalogRecord, len(entries))
+	records := make(map[string]*modelCatalogRecord, len(details))
 
-	for _, entry := range entries {
+	for _, detail := range details {
+		entry := detail.ModelEntry
 		record := ensureCatalogRecord(records, entry.ID)
 		record.canonicalModelID = normalizeModelCatalogAlias(entry.ID)
 		if record.canonicalModelID == "" {
@@ -63,7 +64,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		record.displayName = entry.DisplayName
 		record.provider = entry.Provider
 		record.mode = inferModelMode(entry.ID, "")
-		record.defaultAvailable = true
+		record.defaultAvailable = detail.Available
 		record.defaultPlatforms = append([]string(nil), entry.Platforms...)
 		if pricing, ok := s.resolveDynamicPricing(record); ok {
 			record.upstreamPricing = pricingFromLiteLLM(pricing)
@@ -119,33 +120,41 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	return records, nil
 }
 
-func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]modelregistry.ModelEntry, error) {
-	entries := make([]modelregistry.ModelEntry, 0)
+func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]modelregistry.AdminModelDetail, error) {
+	details := make([]modelregistry.AdminModelDetail, 0)
 	if s.modelRegistryService != nil {
-		snapshot, err := s.modelRegistryService.PublicSnapshot(ctx)
+		registryDetails, err := s.modelRegistryService.pricingDetails(ctx)
 		if err != nil {
 			return nil, err
 		}
-		entries = append(entries, buildCatalogBaselineRegistryEntries(snapshot.Models, true)...)
+		details = append(details, buildCatalogBaselineAdminDetails(registryDetails, true)...)
 	} else {
-		entries = append(entries, buildCatalogBaselineRegistryEntries(modelregistry.SeedModels(), false)...)
+		for _, entry := range buildCatalogBaselineRegistryEntries(modelregistry.SeedModels(), false) {
+			details = append(details, modelregistry.AdminModelDetail{
+				ModelEntry: entry,
+				Available:  true,
+			})
+		}
 	}
 	for _, model := range DefaultSoraModels(s.cfg) {
-		entries = append(entries, modelregistry.ModelEntry{
-			ID:               model.ID,
-			DisplayName:      model.DisplayName,
-			Provider:         PlatformOpenAI,
-			Platforms:        []string{PlatformSora},
-			ProtocolIDs:      []string{model.ID},
-			Aliases:          []string{},
-			PricingLookupIDs: []string{model.ID},
-			Modalities:       defaultModalitiesForMode(inferModelMode(model.ID, model.Type)),
-			Capabilities:     defaultCapabilitiesForMode(inferModelMode(model.ID, model.Type)),
-			UIPriority:       5000,
-			ExposedIn:        []string{"runtime"},
+		details = append(details, modelregistry.AdminModelDetail{
+			ModelEntry: modelregistry.ModelEntry{
+				ID:               model.ID,
+				DisplayName:      model.DisplayName,
+				Provider:         PlatformOpenAI,
+				Platforms:        []string{PlatformSora},
+				ProtocolIDs:      []string{model.ID},
+				Aliases:          []string{},
+				PricingLookupIDs: []string{model.ID},
+				Modalities:       defaultModalitiesForMode(inferModelMode(model.ID, model.Type)),
+				Capabilities:     defaultCapabilitiesForMode(inferModelMode(model.ID, model.Type)),
+				UIPriority:       5000,
+				ExposedIn:        []string{"runtime"},
+			},
+			Available: true,
 		})
 	}
-	return entries, nil
+	return details, nil
 }
 
 func (s *ModelCatalogService) buildDefaultModelRegistry(ctx context.Context) map[string]*defaultModelMetadata {
@@ -176,8 +185,11 @@ func (s *ModelCatalogService) buildDefaultModelRegistry(ctx context.Context) map
 	}
 	entries := modelregistry.SeedModels()
 	if s.modelRegistryService != nil {
-		if snapshot, err := s.modelRegistryService.PublicSnapshot(ctx); err == nil && len(snapshot.Models) > 0 {
-			entries = snapshot.Models
+		if details, err := s.modelRegistryService.pricingDetails(ctx); err == nil && len(details) > 0 {
+			entries = make([]modelregistry.ModelEntry, 0, len(details))
+			for _, detail := range details {
+				entries = append(entries, detail.ModelEntry)
+			}
 		}
 	}
 	for _, entry := range entries {

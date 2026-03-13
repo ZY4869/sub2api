@@ -24,6 +24,7 @@ func (h *ModelRegistryHandler) List(c *gin.Context) {
 		Search:            c.Query("search"),
 		Provider:          c.Query("provider"),
 		Platform:          c.Query("platform"),
+		Availability:      c.Query("availability"),
 		IncludeHidden:     parseBoolDefaultTrue(c.Query("include_hidden")),
 		IncludeTombstoned: parseBoolDefaultTrue(c.Query("include_tombstoned")),
 		Page:              page,
@@ -90,6 +91,34 @@ func (h *ModelRegistryHandler) SyncExposures(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+func (h *ModelRegistryHandler) Activate(c *gin.Context) {
+	var req service.UpdateModelRegistryAvailabilityInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	items, err := h.modelRegistryService.ActivateModels(c.Request.Context(), req.Models)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"items": items})
+}
+
+func (h *ModelRegistryHandler) Deactivate(c *gin.Context) {
+	var req service.UpdateModelRegistryAvailabilityInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	items, err := h.modelRegistryService.DeactivateModels(c.Request.Context(), req.Models)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"items": items})
 }
 
 func (h *ModelRegistryHandler) DeleteEntry(c *gin.Context) {

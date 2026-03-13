@@ -355,6 +355,12 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	return svc
 }
 
+func ProvideModelRegistryService(settingRepo SettingRepository, accountRepo AccountRepository) *ModelRegistryService {
+	svc := NewModelRegistryService(settingRepo)
+	svc.SetAccountRepository(accountRepo)
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
@@ -374,7 +380,7 @@ var ProviderSet = wire.NewSet(
 	NewBillingCacheService,
 	NewAnnouncementService,
 	NewAdminService,
-	NewModelRegistryService,
+	ProvideModelRegistryService,
 	ProvideModelCatalogService,
 	ProvideAccountModelImportService,
 	NewGatewayService,

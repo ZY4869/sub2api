@@ -40,6 +40,7 @@ type AdminModelDetail struct {
 	Source     string `json:"source"`
 	Hidden     bool   `json:"hidden"`
 	Tombstoned bool   `json:"tombstoned"`
+	Available  bool   `json:"available"`
 }
 
 type Resolution struct {

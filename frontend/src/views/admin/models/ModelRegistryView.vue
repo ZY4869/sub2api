@@ -3,7 +3,7 @@
     <template #actions>
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300">
-          <p>{{ t('admin.models.pages.registry.description') }}</p>
+          <p>{{ t('admin.models.pages.all.description') }}</p>
           <p v-if="lastLoadedAt" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
             {{ t('admin.models.registry.lastSynced', { time: formatDateTime(lastLoadedAt) }) }}
           </p>
@@ -55,6 +55,20 @@
             :placeholder="t('admin.models.registry.platformPlaceholder')"
             @keyup.enter="applyFilters"
           />
+        </div>
+
+        <div class="min-w-[180px]">
+          <label class="input-label" for="registry-availability-filter">{{ t('admin.models.registry.fields.availability') }}</label>
+          <select
+            id="registry-availability-filter"
+            v-model="filters.availability"
+            class="input"
+            @change="applyFilters"
+          >
+            <option value="all">{{ t('admin.models.registry.availabilityFilter.all') }}</option>
+            <option value="available">{{ t('admin.models.registry.availabilityFilter.available') }}</option>
+            <option value="unavailable">{{ t('admin.models.registry.availabilityFilter.unavailable') }}</option>
+          </select>
         </div>
 
         <label class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300">
@@ -152,9 +166,14 @@
         </template>
 
         <template #cell-source="{ row }">
-          <span :class="sourceClass(row.source)">
-            {{ formatSourceLabel(row.source) }}
-          </span>
+          <div class="flex flex-wrap gap-2">
+            <span :class="sourceClass(row.source)">
+              {{ formatSourceLabel(row.source) }}
+            </span>
+            <span :class="availabilityClass(row.available)">
+              {{ row.available ? t('admin.models.registry.availableStatus') : t('admin.models.registry.unavailableStatus') }}
+            </span>
+          </div>
         </template>
 
         <template #cell-status="{ row }">
@@ -178,6 +197,13 @@
 
         <template #cell-actions="{ row }">
           <div class="flex flex-wrap gap-2">
+            <button
+              class="btn btn-secondary btn-sm"
+              :disabled="actionLoading || row.tombstoned"
+              @click.stop="toggleAvailability(row)"
+            >
+              {{ row.available ? t('admin.models.registry.actions.deactivate') : t('admin.models.registry.actions.activate') }}
+            </button>
             <button
               class="btn btn-primary btn-sm"
               :disabled="actionLoading || syncDialogSubmitting || !isEntrySyncable(row)"
@@ -261,6 +287,8 @@ import {
   upsertModelRegistryEntry,
   updateModelRegistryVisibility,
   deleteModelRegistryEntry,
+  activateModelRegistryEntries,
+  deactivateModelRegistryEntries,
   type ModelRegistryDetail,
   type UpsertModelRegistryEntryPayload
 } from '@/api/admin/modelRegistry'
@@ -295,6 +323,7 @@ const filters = reactive({
   search: '',
   provider: '',
   platform: '',
+  availability: 'all' as 'all' | 'available' | 'unavailable',
   includeHidden: false,
   includeTombstoned: false
 })
@@ -372,6 +401,7 @@ async function loadList() {
       search: filters.search || undefined,
       provider: filters.provider || undefined,
       platform: filters.platform || undefined,
+      availability: filters.availability,
       include_hidden: filters.includeHidden,
       include_tombstoned: filters.includeTombstoned,
       page: pagination.page,
@@ -573,6 +603,26 @@ async function handleHardDelete() {
   }
 }
 
+async function toggleAvailability(entry: ModelRegistryDetail) {
+  actionLoading.value = true
+  try {
+    if (entry.available) {
+      await deactivateModelRegistryEntries({ models: [entry.id] })
+      appStore.showSuccess(t('admin.models.registry.deactivateSuccess'))
+    } else {
+      await activateModelRegistryEntries({ models: [entry.id] })
+      appStore.showSuccess(t('admin.models.registry.activateSuccess'))
+    }
+    await refreshRegistryState()
+    modelInventoryStore.invalidate()
+  } catch (error) {
+    console.error('[ModelRegistryView] availability update failed', error)
+    appStore.showError(t('admin.models.registry.availabilityFailed'))
+  } finally {
+    actionLoading.value = false
+  }
+}
+
 function formatSourceLabel(source: string) {
   const normalizedSource = source === 'runtime' ? 'manual' : source
   const key = `admin.models.registry.sourceLabels.${normalizedSource}`
@@ -596,6 +646,12 @@ function statusClass(status: 'active' | 'hidden' | 'tombstoned') {
     tombstoned: 'inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300'
   }
   return classes[status]
+}
+
+function availabilityClass(available: boolean) {
+  return available
+    ? 'inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+    : 'inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-500/15 dark:text-slate-300'
 }
 
 function formatLifecycleStatus(status?: string) {

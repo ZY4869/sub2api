@@ -69,6 +69,11 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		return
 	}
 	models := h.defaultAvailableModels(c.Request.Context(), account)
+	if scope, ok := service.ExtractAccountModelScopeV2(account.Extra); ok && scope != nil {
+		models = h.filterAvailableModelsByScope(c.Request.Context(), models, scope)
+		response.Success(c, models)
+		return
+	}
 	if account.Platform == service.PlatformAntigravity || account.Platform == service.PlatformSora || account.IsOAuth() {
 		response.Success(c, models)
 		return
@@ -138,6 +143,41 @@ func filterAvailableModelsByMapping(defaults []availableModelItem, mapping map[s
 			continue
 		}
 		items = append(items, availableModelItem{ID: requestedModel, Type: "model", DisplayName: requestedModel, CreatedAt: ""})
+	}
+	return items
+}
+
+func (h *AccountHandler) filterAvailableModelsByScope(ctx context.Context, defaults []availableModelItem, scope *service.AccountModelScopeV2) []availableModelItem {
+	if h.modelRegistryService == nil || scope == nil {
+		return defaults
+	}
+	allowed := map[string]struct{}{}
+	appendAllowed := func(value string) {
+		if resolved, ok, err := h.modelRegistryService.ResolveModel(ctx, value); err == nil && ok && resolved != "" {
+			allowed[resolved] = struct{}{}
+			return
+		}
+		if normalized := service.NormalizeModelCatalogModelID(value); normalized != "" {
+			allowed[normalized] = struct{}{}
+		}
+	}
+	for _, models := range scope.SupportedModelsByProvider {
+		for _, modelID := range models {
+			appendAllowed(modelID)
+		}
+	}
+	for from, to := range scope.ManualMappings {
+		appendAllowed(from)
+		appendAllowed(to)
+	}
+	if len(allowed) == 0 {
+		return defaults
+	}
+	items := make([]availableModelItem, 0, len(defaults))
+	for _, model := range defaults {
+		if _, ok := allowed[model.ID]; ok {
+			items = append(items, model)
+		}
 	}
 	return items
 }

@@ -91,7 +91,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		return nil, err
 	}
 	billingService := service.NewBillingService(configConfig, pricingService)
-	modelRegistryService := service.NewModelRegistryService(settingRepository)
+	modelRegistryService := service.ProvideModelRegistryService(settingRepository, accountRepository)
 	modelCatalogService := service.ProvideModelCatalogService(settingRepository, adminService, billingService, pricingService, modelRegistryService, configConfig)
 	metaHandler := handler.ProvideMetaHandler(modelCatalogService, modelRegistryService)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
