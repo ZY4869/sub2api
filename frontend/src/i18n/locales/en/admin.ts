@@ -3101,6 +3101,8 @@ export default {
         dashboardCards: 'Dashboard Cards',
         displayOpenAITokenStats: 'Display OpenAI token request stats',
         displayOpenAITokenStatsHint: 'Show or hide the OpenAI token request stats card on the ops dashboard. Hidden by default.',
+        displayAlertEvents: 'Display alert events',
+        displayAlertEventsHint: 'Show or hide the recent alert events card on the ops dashboard. Enabled by default.',
         validation: {
           title: 'Please fix the following issues',
           retentionDaysRange: 'Retention days must be between 1-365 days',

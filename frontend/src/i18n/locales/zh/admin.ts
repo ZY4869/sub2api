@@ -3253,6 +3253,8 @@
         dashboardCards: '仪表盘卡片',
         displayOpenAITokenStats: '显示 OpenAI Token 请求统计',
         displayOpenAITokenStatsHint: '在运维仪表盘中显示或隐藏 OpenAI Token 请求统计卡片。默认隐藏。',
+        displayAlertEvents: '显示告警事件',
+        displayAlertEventsHint: '在运维仪表盘中显示或隐藏最近的告警事件卡片。默认开启。',
         validation: {
           title: '请先修正以下问题',
           retentionDaysRange: '保留天数必须在1-365天之间',
