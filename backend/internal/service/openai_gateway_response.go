@@ -428,9 +428,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 				_ = resp.Body.Close()
 				return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody, RetryableOnSameAccount: account.IsPoolMode() && (isPoolModeRetryableStatus(resp.StatusCode) || isOpenAITransientProcessingError(resp.StatusCode, upstreamMsg, respBody))}
 			}
-			nextErr := s.handleErrorResponse(ctx, resp, c, account, body)
+			nextResult, nextErr := s.handleErrorResponse(ctx, resp, c, account, body)
 			_ = resp.Body.Close()
-			return nil, nextErr
+			return nextResult, nextErr
 		}
 		defer func() {
 			_ = resp.Body.Close()
