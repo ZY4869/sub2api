@@ -13,7 +13,8 @@ vi.mock('@/stores/app', () => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      bulkEdit: vi.fn()
+      bulkUpdate: vi.fn(),
+      checkMixedChannelRisk: vi.fn()
     }
   }
 }))

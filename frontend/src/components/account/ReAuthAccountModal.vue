@@ -188,8 +188,7 @@ import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import {
   useAccountOAuth,
-  type AddMethod,
-  type AuthInputMethod
+  type AddMethod
 } from '@/composables/useAccountOAuth'
 import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
@@ -198,17 +197,7 @@ import type { Account } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OAuthAuthorizationFlow from './OAuthAuthorizationFlow.vue'
-
-// Type for exposed OAuthAuthorizationFlow component
-// Note: defineExpose automatically unwraps refs, so we use the unwrapped types
-interface OAuthFlowExposed {
-  authCode: string
-  oauthState: string
-  projectId: string
-  sessionKey: string
-  inputMethod: AuthInputMethod
-  reset: () => void
-}
+import type { OAuthFlowExposed } from './oauthFlow.types'
 
 interface Props {
   show: boolean
@@ -283,7 +272,7 @@ const canExchangeCode = computed(() => {
   const authCode = oauthFlowRef.value?.authCode || ''
   const sessionId = currentSessionId.value
   const loading = currentLoading.value
-  return authCode.trim() && sessionId && !loading
+  return Boolean(authCode.trim() && sessionId && !loading)
 })
 
 // Watchers
