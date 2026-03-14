@@ -74,7 +74,26 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		response.Success(c, models)
 		return
 	}
-	if account.Platform == service.PlatformAntigravity || account.Platform == service.PlatformSora || account.IsOAuth() {
+	if account.Platform == service.PlatformAntigravity || account.Platform == service.PlatformSora {
+		response.Success(c, models)
+		return
+	}
+	if account.IsOpenAI() {
+		// OpenAI passthrough mode bypasses normal model rewrites, so the admin model list should
+		// fall back to defaults (consistent with gateway behavior).
+		if account.IsOpenAIPassthroughEnabled() {
+			response.Success(c, models)
+			return
+		}
+		mapping := account.GetModelMapping()
+		if len(mapping) == 0 {
+			response.Success(c, models)
+			return
+		}
+		response.Success(c, filterAvailableModelsByMapping(models, mapping))
+		return
+	}
+	if account.IsOAuth() {
 		response.Success(c, models)
 		return
 	}
