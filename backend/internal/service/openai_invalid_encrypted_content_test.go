@@ -49,7 +49,7 @@ func (u *httpUpstreamSequence) Do(req *http.Request, proxyURL string, accountID 
 		StatusCode: http.StatusOK,
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
-			"x-request-id": []string{"req_http_encrypted_recover_ok"},
+			"X-Request-Id": []string{"req_http_encrypted_recover_ok"},
 		},
 		Body: io.NopCloser(strings.NewReader(
 			`{"id":"resp_http_encrypted_recover_ok","usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`,
