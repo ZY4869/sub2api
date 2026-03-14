@@ -412,7 +412,7 @@ export interface AdminGroup extends Group {
   // MCP XML injection toggle for antigravity groups.
   mcp_xml_inject: boolean
 
-  // 闂佽　鍋撴い鏍ㄧ☉閻︻噣鏌ｉ妸銉ヮ仾閼垛晠鏌涢妸銉剳闂侇喗鎸冲畷姘旂€ｎ剛顦╂繛?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
+  // 闂佽 鍋撴い鏍ㄧ☉閻︻噣鏌ｉ妸銉ヮ仾閼垛晠鏌涢妸銉剳闂侇喗鎸冲畷姘旂€ｎ剛顦╂繛?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
   supported_model_scopes?: string[]
 
   // 闂佸憡甯掑Λ娑氬垝瀹ュ棛鈻旈悗锝庡幖椤︹晠鏌涘▎鎾存暠闁哄棛鍠栭弻宀冪疀閵壯咁槱婵炲濮撮幊鎰邦敇閹间焦鍋犻柛鈩冾殕閸犲懘鏌涘▎妯虹仴妞ゎ偄妫濋弫?
