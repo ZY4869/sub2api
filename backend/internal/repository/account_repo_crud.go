@@ -273,9 +273,9 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, buildSchedulerGroupPayload(account.GroupIDs)); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue account update failed: account=%d err=%v", account.ID, err)
 	}
-	if account.Status == service.StatusError || account.Status == service.StatusDisabled || !account.Schedulable {
-		r.syncSchedulerAccountSnapshot(ctx, account.ID)
-	}
+	// Keep scheduler cache in sync immediately (e.g. model_mapping / credentials changes),
+	// even if the outbox worker is delayed or down.
+	r.syncSchedulerAccountSnapshot(ctx, account.ID)
 	return nil
 }
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
