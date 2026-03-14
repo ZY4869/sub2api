@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountCustomErrorCodesEditor from '../AccountCustomErrorCodesEditor.vue'
-import { createDefaultAccountCustomErrorCodesState } from '@/utils/accountApiKeyAdvancedSettings'
+import { createDefaultAccountCustomErrorCodesState } from '@/utils/accountFormShared'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')

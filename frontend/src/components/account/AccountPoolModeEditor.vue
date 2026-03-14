@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import type { AccountPoolModeState } from '@/utils/accountApiKeyAdvancedSettings'
+import type { AccountPoolModeState } from '@/utils/accountFormShared'
 
 defineProps<{
   defaultRetryCount: number

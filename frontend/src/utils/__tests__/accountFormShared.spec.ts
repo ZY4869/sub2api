@@ -1,14 +1,52 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ACCOUNT_UPSTREAM_API_KEY_PLACEHOLDER,
+  ACCOUNT_UPSTREAM_BASE_URL_PLACEHOLDER,
   buildMixedChannelWarningDetails,
   buildTempUnschedRules,
+  createDefaultAccountCustomErrorCodesState,
+  createDefaultAccountPoolModeState,
   createTempUnschedPresets,
   loadTempUnschedRulesFromCredentials,
+  normalizeAccountConcurrency,
+  normalizeAccountLoadFactor,
   normalizePoolModeRetryCount,
+  resolveAccountUpstreamApiKeyHintKey,
   supportsMixedChannelCheck
 } from '../accountFormShared'
 
 describe('accountFormShared', () => {
+  it('exposes stable upstream placeholders and mode-aware hint keys', () => {
+    expect(ACCOUNT_UPSTREAM_BASE_URL_PLACEHOLDER).toBe('https://cloudcode-pa.googleapis.com')
+    expect(ACCOUNT_UPSTREAM_API_KEY_PLACEHOLDER).toBe('sk-...')
+    expect(resolveAccountUpstreamApiKeyHintKey('create')).toBe('admin.accounts.upstream.apiKeyHint')
+    expect(resolveAccountUpstreamApiKeyHintKey('edit')).toBe('admin.accounts.leaveEmptyToKeep')
+  })
+
+  it('normalizes runtime settings fields', () => {
+    expect(normalizeAccountConcurrency(undefined)).toBe(1)
+    expect(normalizeAccountConcurrency(0)).toBe(1)
+    expect(normalizeAccountConcurrency(-1)).toBe(1)
+    expect(normalizeAccountConcurrency(8)).toBe(8)
+
+    expect(normalizeAccountLoadFactor(undefined)).toBeNull()
+    expect(normalizeAccountLoadFactor(0)).toBeNull()
+    expect(normalizeAccountLoadFactor(-1)).toBeNull()
+    expect(normalizeAccountLoadFactor(2)).toBe(2)
+  })
+
+  it('creates stable default states for API key advanced settings', () => {
+    expect(createDefaultAccountPoolModeState(3)).toEqual({
+      enabled: false,
+      retryCount: 3
+    })
+    expect(createDefaultAccountCustomErrorCodesState()).toEqual({
+      enabled: false,
+      selectedCodes: [],
+      input: null
+    })
+  })
+
   it('normalizes pool mode retry count into supported range', () => {
     expect(normalizePoolModeRetryCount(Number.NaN)).toBe(3)
     expect(normalizePoolModeRetryCount(-4)).toBe(0)

@@ -5,7 +5,7 @@ import type { Proxy } from '@/types'
 import {
   normalizeAccountConcurrency,
   normalizeAccountLoadFactor
-} from '@/utils/accountRuntimeSettings'
+} from '@/utils/accountFormShared'
 
 defineProps<{
   proxies: Proxy[]

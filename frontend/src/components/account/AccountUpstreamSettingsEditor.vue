@@ -6,7 +6,7 @@ import {
   ACCOUNT_UPSTREAM_BASE_URL_PLACEHOLDER,
   resolveAccountUpstreamApiKeyHintKey,
   type AccountUpstreamSettingsMode
-} from '@/utils/accountUpstreamSettings'
+} from '@/utils/accountFormShared'
 
 const props = defineProps<{
   mode: AccountUpstreamSettingsMode

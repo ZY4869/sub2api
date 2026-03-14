@@ -1,5 +1,32 @@
 import type { AccountPlatform, CheckMixedChannelResponse } from '@/types'
 
+export type AccountUpstreamSettingsMode = 'create' | 'edit'
+
+export const ACCOUNT_UPSTREAM_BASE_URL_PLACEHOLDER = 'https://cloudcode-pa.googleapis.com'
+export const ACCOUNT_UPSTREAM_API_KEY_PLACEHOLDER = 'sk-...'
+
+export function resolveAccountUpstreamApiKeyHintKey(mode: AccountUpstreamSettingsMode): string {
+  return mode === 'edit'
+    ? 'admin.accounts.leaveEmptyToKeep'
+    : 'admin.accounts.upstream.apiKeyHint'
+}
+
+export function normalizeAccountConcurrency(value: number | null | undefined): number {
+  const normalized = Number(value)
+  if (!Number.isFinite(normalized) || normalized < 1) {
+    return 1
+  }
+  return normalized
+}
+
+export function normalizeAccountLoadFactor(value: number | null | undefined): number | null {
+  const normalized = Number(value)
+  if (!Number.isFinite(normalized) || normalized < 1) {
+    return null
+  }
+  return normalized
+}
+
 export interface ModelMapping {
   from: string
   to: string
@@ -30,9 +57,34 @@ export interface MixedChannelWarningDetails {
   otherPlatform: string
 }
 
+export interface AccountPoolModeState {
+  enabled: boolean
+  retryCount: number
+}
+
+export interface AccountCustomErrorCodesState {
+  enabled: boolean
+  selectedCodes: number[]
+  input: number | null
+}
+
 export const DEFAULT_POOL_MODE_RETRY_COUNT = 3
 export const MAX_POOL_MODE_RETRY_COUNT = 10
 export const DEFAULT_TEMP_UNSCHED_DURATION_MINUTES = 30
+
+export const createDefaultAccountPoolModeState = (
+  defaultRetryCount: number
+): AccountPoolModeState => ({
+  enabled: false,
+  retryCount: defaultRetryCount
+})
+
+export const createDefaultAccountCustomErrorCodesState =
+  (): AccountCustomErrorCodesState => ({
+    enabled: false,
+    selectedCodes: [],
+    input: null
+  })
 
 export function normalizePoolModeRetryCount(value: number): number {
   if (!Number.isFinite(value)) {

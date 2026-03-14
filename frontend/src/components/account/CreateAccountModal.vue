@@ -372,13 +372,16 @@ import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
   DEFAULT_POOL_MODE_RETRY_COUNT,
   MAX_POOL_MODE_RETRY_COUNT,
-  normalizePoolModeRetryCount,
+  createDefaultAccountCustomErrorCodesState,
+  createDefaultAccountPoolModeState,
   type ModelMapping
 } from '@/utils/accountFormShared'
 import {
-  createDefaultAccountCustomErrorCodesState,
-  createDefaultAccountPoolModeState
-} from '@/utils/accountApiKeyAdvancedSettings'
+  applyAccountCustomErrorCodesStateToCredentials,
+  applyAccountPoolModeStateToCredentials,
+  resetAccountCustomErrorCodesState,
+  resetAccountPoolModeState
+} from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import {
   OPENAI_WS_MODE_OFF,
@@ -931,11 +934,8 @@ const resetForm = () => {
   allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')] // Default fill related models
 
   loadAntigravityDefaultMappings()
-  poolModeState.enabled = false
-  poolModeState.retryCount = DEFAULT_POOL_MODE_RETRY_COUNT
-  customErrorCodesState.enabled = false
-  customErrorCodesState.selectedCodes = []
-  customErrorCodesState.input = null
+  resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
+  resetAccountCustomErrorCodesState(customErrorCodesState)
   interceptWarmupRequests.value = false
   autoPauseOnExpired.value = true
   openaiPassthroughEnabled.value = false
@@ -1142,16 +1142,8 @@ const handleSubmit = async () => {
     }
   }
 
-  // Add pool mode if enabled
-  if (poolModeState.enabled) {
-    credentials.pool_mode = true
-    credentials.pool_mode_retry_count = normalizePoolModeRetryCount(poolModeState.retryCount)
-  }
-
-  if (customErrorCodesState.enabled) {
-    credentials.custom_error_codes_enabled = true
-    credentials.custom_error_codes = [...customErrorCodesState.selectedCodes]
-  }
+  applyAccountPoolModeStateToCredentials(credentials, poolModeState)
+  applyAccountCustomErrorCodesStateToCredentials(credentials, customErrorCodesState)
 
   applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
   if (!applyTempUnschedConfig(credentials)) {

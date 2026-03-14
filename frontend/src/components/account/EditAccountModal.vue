@@ -287,13 +287,18 @@ import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import {
   DEFAULT_POOL_MODE_RETRY_COUNT,
   MAX_POOL_MODE_RETRY_COUNT,
-  normalizePoolModeRetryCount,
+  createDefaultAccountCustomErrorCodesState,
+  createDefaultAccountPoolModeState,
   type ModelMapping
 } from '@/utils/accountFormShared'
 import {
-  createDefaultAccountCustomErrorCodesState,
-  createDefaultAccountPoolModeState
-} from '@/utils/accountApiKeyAdvancedSettings'
+  applyAccountCustomErrorCodesStateToCredentials,
+  applyAccountPoolModeStateToCredentials,
+  loadAccountCustomErrorCodesStateFromCredentials,
+  loadAccountPoolModeStateFromCredentials,
+  resetAccountCustomErrorCodesState,
+  resetAccountPoolModeState
+} from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import {
   OPENAI_WS_MODE_OFF,
@@ -604,19 +609,8 @@ watch(
           allowedModels.value = []
         }
 
-        poolModeState.enabled = credentials.pool_mode === true
-        poolModeState.retryCount = normalizePoolModeRetryCount(
-          Number(credentials.pool_mode_retry_count ?? DEFAULT_POOL_MODE_RETRY_COUNT)
-        )
-
-        customErrorCodesState.enabled = credentials.custom_error_codes_enabled === true
-        const existingErrorCodes = credentials.custom_error_codes as number[] | undefined
-        if (existingErrorCodes && Array.isArray(existingErrorCodes)) {
-          customErrorCodesState.selectedCodes = [...existingErrorCodes]
-        } else {
-          customErrorCodesState.selectedCodes = []
-        }
-        customErrorCodesState.input = null
+        loadAccountPoolModeStateFromCredentials(poolModeState, credentials, DEFAULT_POOL_MODE_RETRY_COUNT)
+        loadAccountCustomErrorCodesStateFromCredentials(customErrorCodesState, credentials)
       } else if (newAccount.type === 'upstream' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
         editBaseUrl.value = (credentials.base_url as string) || ''
@@ -650,11 +644,8 @@ watch(
           modelMappings.value = []
           allowedModels.value = []
         }
-        poolModeState.enabled = false
-        poolModeState.retryCount = DEFAULT_POOL_MODE_RETRY_COUNT
-        customErrorCodesState.enabled = false
-        customErrorCodesState.selectedCodes = []
-        customErrorCodesState.input = null
+        resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
+        resetAccountCustomErrorCodesState(customErrorCodesState)
       }
       editApiKey.value = ''
     } else {
@@ -788,21 +779,8 @@ const handleSubmit = async () => {
         newCredentials.model_mapping = currentCredentials.model_mapping
       }
 
-      if (poolModeState.enabled) {
-        newCredentials.pool_mode = true
-        newCredentials.pool_mode_retry_count = normalizePoolModeRetryCount(poolModeState.retryCount)
-      } else {
-        delete newCredentials.pool_mode
-        delete newCredentials.pool_mode_retry_count
-      }
-
-      if (customErrorCodesState.enabled) {
-        newCredentials.custom_error_codes_enabled = true
-        newCredentials.custom_error_codes = [...customErrorCodesState.selectedCodes]
-      } else {
-        delete newCredentials.custom_error_codes_enabled
-        delete newCredentials.custom_error_codes
-      }
+      applyAccountPoolModeStateToCredentials(newCredentials, poolModeState)
+      applyAccountCustomErrorCodesStateToCredentials(newCredentials, customErrorCodesState)
 
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       if (!applyTempUnschedConfig(newCredentials)) {

@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import AccountPoolModeEditor from '../AccountPoolModeEditor.vue'
-import { createDefaultAccountPoolModeState } from '@/utils/accountApiKeyAdvancedSettings'
+import { createDefaultAccountPoolModeState } from '@/utils/accountFormShared'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')

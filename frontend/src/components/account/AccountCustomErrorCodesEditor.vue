@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import type { AccountCustomErrorCodesState } from '@/utils/accountApiKeyAdvancedSettings'
+import type { AccountCustomErrorCodesState } from '@/utils/accountFormShared'
 
 interface ErrorCodeOption {
   value: number
