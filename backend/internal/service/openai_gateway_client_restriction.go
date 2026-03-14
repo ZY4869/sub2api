@@ -58,7 +58,7 @@ func classifyOpenAIWSReconnectReason(err error) (string, bool) {
 	}
 	baseReason := strings.TrimPrefix(reason, "prewarm_")
 	switch baseReason {
-	case "policy_violation", "message_too_big", "upgrade_required", "ws_unsupported", "auth_failed", "previous_response_not_found":
+	case "policy_violation", "message_too_big", "upgrade_required", "ws_unsupported", "auth_failed", "invalid_encrypted_content", "previous_response_not_found":
 		return reason, false
 	}
 	switch baseReason {
@@ -91,6 +91,14 @@ func resolveOpenAIWSFallbackErrorResponse(err error) (statusCode int, errType st
 		}
 	}
 	switch reason {
+	case "invalid_encrypted_content":
+		if statusCode == 0 {
+			statusCode = http.StatusBadRequest
+		}
+		errType = "invalid_request_error"
+		if upstreamMessage == "" {
+			upstreamMessage = "encrypted content could not be verified"
+		}
 	case "previous_response_not_found":
 		if statusCode == 0 {
 			statusCode = http.StatusBadRequest

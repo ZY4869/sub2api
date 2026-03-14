@@ -202,6 +202,8 @@ func classifyOpenAIWSErrorEventFromRaw(codeRaw, errTypeRaw, msgRaw string) (stri
 		return "ws_unsupported", true
 	case "websocket_connection_limit_reached":
 		return "ws_connection_limit_reached", true
+	case "invalid_encrypted_content":
+		return "invalid_encrypted_content", true
 	case "previous_response_not_found":
 		return "previous_response_not_found", true
 	}
@@ -219,6 +221,9 @@ func classifyOpenAIWSErrorEventFromRaw(codeRaw, errTypeRaw, msgRaw string) (stri
 	}
 	if strings.Contains(msg, "connection limit") && strings.Contains(msg, "websocket") {
 		return "ws_connection_limit_reached", true
+	}
+	if strings.Contains(msg, "invalid_encrypted_content") || (strings.Contains(msg, "encrypted content") && strings.Contains(msg, "could not be verified")) {
+		return "invalid_encrypted_content", true
 	}
 	if strings.Contains(msg, "previous_response_not_found") || (strings.Contains(msg, "previous response") && strings.Contains(msg, "not found")) {
 		return "previous_response_not_found", true
@@ -238,7 +243,7 @@ func openAIWSErrorHTTPStatusFromRaw(codeRaw, errTypeRaw string) int {
 	code := strings.ToLower(strings.TrimSpace(codeRaw))
 	errType := strings.ToLower(strings.TrimSpace(errTypeRaw))
 	switch {
-	case strings.Contains(errType, "invalid_request"), strings.Contains(code, "invalid_request"), strings.Contains(code, "bad_request"), code == "previous_response_not_found":
+	case strings.Contains(errType, "invalid_request"), strings.Contains(code, "invalid_request"), strings.Contains(code, "bad_request"), code == "invalid_encrypted_content", code == "previous_response_not_found":
 		return http.StatusBadRequest
 	case strings.Contains(errType, "authentication"), strings.Contains(code, "invalid_api_key"), strings.Contains(code, "unauthorized"):
 		return http.StatusUnauthorized
