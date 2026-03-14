@@ -303,6 +303,18 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 			continue
 		}
 		typ, _ := m["type"].(string)
+
+		// Only normalize tool/function call identifiers, avoiding accidental rewrites of
+		// native Responses message/reasoning IDs.
+		fixCallIDPrefix := func(id string) string {
+			if id == "" || strings.HasPrefix(id, "fc") {
+				return id
+			}
+			if strings.HasPrefix(id, "call_") {
+				return "fc" + strings.TrimPrefix(id, "call_")
+			}
+			return "fc_" + id
+		}
 		if typ == "item_reference" {
 			if !preserveReferences {
 				continue
@@ -310,6 +322,10 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 			newItem := make(map[string]any, len(m))
 			for key, value := range m {
 				newItem[key] = value
+			}
+			// Only normalize legacy tool reference IDs.
+			if id, ok := newItem["id"].(string); ok && strings.HasPrefix(id, "call_") {
+				newItem["id"] = fixCallIDPrefix(id)
 			}
 			filtered = append(filtered, newItem)
 			continue
@@ -330,10 +346,19 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 		}
 
 		if isCodexToolCallItemType(typ) {
-			if callID, ok := m["call_id"].(string); !ok || strings.TrimSpace(callID) == "" {
+			callID, ok := m["call_id"].(string)
+			if !ok || strings.TrimSpace(callID) == "" {
 				if id, ok := m["id"].(string); ok && strings.TrimSpace(id) != "" {
+					callID = id
 					ensureCopy()
-					newItem["call_id"] = id
+					newItem["call_id"] = callID
+				}
+			}
+			if callID != "" {
+				fixedCallID := fixCallIDPrefix(callID)
+				if fixedCallID != callID {
+					ensureCopy()
+					newItem["call_id"] = fixedCallID
 				}
 			}
 		}
