@@ -18,6 +18,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	_ "github.com/Wei-Shaw/sub2api/ent/runtime"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -25,8 +26,10 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/lib/pq"
 	redisclient "github.com/redis/go-redis/v9"
+	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -67,7 +70,11 @@ func TestMain(m *testing.M) {
 		tcpostgres.WithDatabase("sub2api_test"),
 		tcpostgres.WithUsername("postgres"),
 		tcpostgres.WithPassword("postgres"),
-		tcpostgres.BasicWaitStrategies(),
+		testcontainers.WithWaitStrategyAndDeadline(2*time.Minute,
+			wait.ForSQL(nat.Port("5432/tcp"), "postgres", func(host string, port nat.Port) string {
+				return fmt.Sprintf("postgres://postgres:postgres@%s:%s/sub2api_test?sslmode=disable&TimeZone=UTC", host, port.Port())
+			}).WithStartupTimeout(2*time.Minute),
+		),
 	)
 	if err != nil {
 		log.Printf("failed to start postgres container: %v", err)
