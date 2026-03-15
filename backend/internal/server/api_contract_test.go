@@ -56,12 +56,13 @@ func TestAPIContracts(t *testing.T) {
 					"concurrency": 5,
 					"status": "active",
 					"allowed_groups": null,
-					"created_at": "2025-01-02T03:04:05Z",
-					"updated_at": "2025-01-02T03:04:05Z",
-					"run_mode": "standard"
-				}
-			}`,
-		},
+ 					"created_at": "2025-01-02T03:04:05Z",
+ 					"updated_at": "2025-01-02T03:04:05Z",
+					"run_mode": "standard",
+					"admin_free_billing": false
+ 				}
+ 			}`,
+ 		},
 		{
 			name:   "POST /api/v1/keys",
 			method: http.MethodPost,
@@ -502,6 +503,9 @@ func TestAPIContracts(t *testing.T) {
 					"smtp_from_email": "no-reply@example.com",
 					"smtp_from_name": "Sub2API",
 					"smtp_use_tls": true,
+					"telegram_chat_id": "",
+					"telegram_bot_token_configured": false,
+					"telegram_bot_token_masked": "",
 					"turnstile_enabled": true,
 					"turnstile_site_key": "site-key",
 					"turnstile_secret_key_configured": true,
@@ -649,7 +653,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
-	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil)
+	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil, nil)
 	adminAccountHandler := adminhandler.NewAccountHandler(adminService, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	jwtAuth := func(c *gin.Context) {

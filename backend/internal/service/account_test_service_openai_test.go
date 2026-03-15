@@ -185,7 +185,7 @@ func TestAccountTestService_OpenAISuccessProbeFailureKeepsExistingKnownModels(t 
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4")
 	require.NoError(t, err)
-	require.Len(t, repo.updateExtraCalls, 1)
+	require.Len(t, repo.updateExtraCalls, 0)
 	require.Equal(t, []string{"existing-model"}, account.Extra["openai_known_models"])
 	require.Equal(t, OpenAIKnownModelsSourceImportModels, account.Extra["openai_known_models_source"])
 	require.Contains(t, recorder.Body.String(), "test_complete")

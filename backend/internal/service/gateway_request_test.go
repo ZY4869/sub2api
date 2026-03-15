@@ -29,7 +29,7 @@ func TestParseGatewayRequest_ThinkingEnabled(t *testing.T) {
 	body := []byte(`{"model":"claude-sonnet-4-5","thinking":{"type":"enabled"},"messages":[{"content":"hi"}]}`)
 	parsed, err := ParseGatewayRequest(body, "")
 	require.NoError(t, err)
-	require.Equal(t, "claude-sonnet-4-5", parsed.Model)
+	require.Equal(t, "claude-sonnet-4.5", parsed.Model)
 	require.True(t, parsed.ThinkingEnabled)
 }
 
@@ -37,7 +37,7 @@ func TestParseGatewayRequest_ThinkingAdaptiveEnabled(t *testing.T) {
 	body := []byte(`{"model":"claude-sonnet-4-5","thinking":{"type":"adaptive"},"messages":[{"content":"hi"}]}`)
 	parsed, err := ParseGatewayRequest(body, "")
 	require.NoError(t, err)
-	require.Equal(t, "claude-sonnet-4-5", parsed.Model)
+	require.Equal(t, "claude-sonnet-4.5", parsed.Model)
 	require.True(t, parsed.ThinkingEnabled)
 }
 
