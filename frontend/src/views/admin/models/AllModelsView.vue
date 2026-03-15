@@ -1,7 +1,7 @@
 <template>
-  <ModelRegistryView />
+  <ModelProvidersCatalog />
 </template>
 
 <script setup lang="ts">
-import ModelRegistryView from './ModelRegistryView.vue'
+import ModelProvidersCatalog from '@/components/admin/models/ModelProvidersCatalog.vue'
 </script>

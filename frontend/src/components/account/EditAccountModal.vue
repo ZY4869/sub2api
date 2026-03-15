@@ -60,7 +60,7 @@
       </div>
 
       <AccountModelScopeEditor
-        v-if="account.platform === 'openai' && account.type === 'oauth'"
+        v-if="account.platform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token')"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="account?.platform || 'anthropic'"
         :mode="modelRestrictionMode"
@@ -399,6 +399,45 @@ const defaultBaseUrl = computed(() => {
   return resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic')
 })
 
+function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
+  const raw = extra?.model_scope_v2
+  if (!raw || typeof raw !== 'object') {
+    return false
+  }
+  const scope = raw as Record<string, unknown>
+
+  const rawManualMappings = scope.manual_mappings
+  if (rawManualMappings && typeof rawManualMappings === 'object') {
+    const entries = Object.entries(rawManualMappings as Record<string, unknown>)
+      .map(([from, to]) => ({ from: String(from || '').trim(), to: String(to || '').trim() }))
+      .filter((row) => row.from.length > 0 && row.to.length > 0)
+    if (entries.length > 0) {
+      modelRestrictionMode.value = 'mapping'
+      modelMappings.value = entries
+      allowedModels.value = []
+      return true
+    }
+  }
+
+  const rawModelsByProvider = scope.supported_models_by_provider
+  if (rawModelsByProvider && typeof rawModelsByProvider === 'object') {
+    const values: string[] = []
+    for (const models of Object.values(rawModelsByProvider as Record<string, unknown>)) {
+      if (!Array.isArray(models)) continue
+      values.push(...models.map((v) => String(v || '').trim()).filter((v) => v.length > 0))
+    }
+    const unique = [...new Set(values)].sort()
+    if (unique.length > 0) {
+      modelRestrictionMode.value = 'whitelist'
+      allowedModels.value = unique
+      modelMappings.value = []
+      return true
+    }
+  }
+
+  return false
+}
+
 
 const form = reactive({
   name: '',
@@ -618,8 +657,10 @@ watch(
         const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform)
         editBaseUrl.value = platformDefaultUrl
 
-        // Load model mappings for OpenAI OAuth accounts
-        if (newAccount.platform === 'openai' && newAccount.credentials) {
+        const loadedFromScope = loadModelScopeFromExtra(extra)
+
+        // Backward-compatible: some legacy OpenAI OAuth accounts may store model mappings in credentials.
+        if (!loadedFromScope && newAccount.platform === 'openai' && newAccount.credentials) {
           const oauthCredentials = newAccount.credentials as Record<string, unknown>
           const existingMappings = oauthCredentials.model_mapping as Record<string, string> | undefined
           if (existingMappings && typeof existingMappings === 'object') {
@@ -639,7 +680,7 @@ watch(
             modelMappings.value = []
             allowedModels.value = []
           }
-        } else {
+        } else if (!loadedFromScope) {
           modelRestrictionMode.value = 'whitelist'
           modelMappings.value = []
           allowedModels.value = []

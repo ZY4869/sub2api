@@ -6,7 +6,7 @@
           {{ t('admin.models.pages.available.description') }}
         </div>
         <div class="flex flex-wrap items-center gap-3">
-          <button class="btn btn-secondary" :disabled="loading" @click="loadList">
+          <button class="btn btn-secondary" :disabled="loading" @click="refreshAll">
             {{ t('common.refresh') }}
           </button>
           <button class="btn btn-primary" :disabled="loading" @click="openActivateDialog">
@@ -17,11 +17,41 @@
     </template>
 
     <template #filters>
-      <div class="flex flex-wrap items-end gap-3">
-        <input v-model.trim="filters.search" type="text" class="input min-w-[220px] flex-1" :placeholder="t('admin.models.registry.searchPlaceholder')" @keyup.enter="applyFilters" />
-        <input v-model.trim="filters.provider" type="text" class="input min-w-[160px]" :placeholder="t('admin.models.registry.providerPlaceholder')" @keyup.enter="applyFilters" />
-        <input v-model.trim="filters.platform" type="text" class="input min-w-[160px]" :placeholder="t('admin.models.registry.platformPlaceholder')" @keyup.enter="applyFilters" />
-        <button class="btn btn-secondary" :disabled="loading" @click="applyFilters">{{ t('common.search') }}</button>
+      <div class="flex flex-nowrap items-end gap-3 overflow-x-auto pb-1">
+        <input
+          v-model.trim="filters.search"
+          type="text"
+          class="input min-w-[220px] flex-1"
+          :placeholder="t('admin.models.registry.searchPlaceholder')"
+          @keyup.enter="applyFilters"
+        />
+        <div class="min-w-[160px] shrink-0">
+          <input
+            v-model.trim="filters.provider"
+            type="text"
+            class="input w-full"
+            :placeholder="t('admin.models.registry.providerPlaceholder')"
+            list="available-models-provider-options"
+            @keyup.enter="applyFilters"
+          />
+          <datalist id="available-models-provider-options">
+            <option v-for="option in providerSuggestions" :key="option" :value="option" />
+          </datalist>
+        </div>
+        <div class="min-w-[160px] shrink-0">
+          <input
+            v-model.trim="filters.platform"
+            type="text"
+            class="input w-full"
+            :placeholder="t('admin.models.registry.platformPlaceholder')"
+            list="available-models-platform-options"
+            @keyup.enter="applyFilters"
+          />
+          <datalist id="available-models-platform-options">
+            <option v-for="option in platformSuggestions" :key="option" :value="option" />
+          </datalist>
+        </div>
+        <button class="btn btn-secondary shrink-0" :disabled="loading" @click="applyFilters">{{ t('common.search') }}</button>
       </div>
     </template>
 
@@ -41,11 +71,7 @@
         </template>
 
         <template #cell-platforms="{ row }">
-          <div class="flex flex-wrap gap-2">
-            <span v-for="platform in row.platforms" :key="`${row.id}-${platform}`" class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-dark-700 dark:text-gray-200">
-              {{ platform }}
-            </span>
-          </div>
+          <ModelPlatformsInline :platforms="row.platforms" />
         </template>
 
         <template #cell-actions="{ row }">
@@ -87,6 +113,7 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ModelPlatformsInline from '@/components/common/ModelPlatformsInline.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import ActivateAvailableModelsDialog from '@/components/admin/models/ActivateAvailableModelsDialog.vue'
@@ -97,7 +124,7 @@ import {
   type ModelRegistryDetail
 } from '@/api/admin/modelRegistry'
 import { useAppStore } from '@/stores/app'
-import { ensureModelRegistryFresh, invalidateModelRegistry } from '@/stores/modelRegistry'
+import { ensureModelRegistryFresh, getModelRegistrySnapshot, invalidateModelRegistry } from '@/stores/modelRegistry'
 import { useModelInventoryStore } from '@/stores'
 
 const { t } = useI18n()
@@ -130,6 +157,22 @@ const columns = computed<Column[]>(() => [
   { key: 'actions', label: t('common.actions') }
 ])
 
+const providerSuggestions = computed(() => {
+  const snapshot = getModelRegistrySnapshot()
+  const values = snapshot.models
+    .map((entry) => String(entry.provider || '').trim().toLowerCase())
+    .filter((value) => value.length > 0)
+  return [...new Set(values)].sort()
+})
+
+const platformSuggestions = computed(() => {
+  const snapshot = getModelRegistrySnapshot()
+  const values = snapshot.models
+    .flatMap((entry) => (entry.platforms || []).map((value) => String(value || '').trim().toLowerCase()))
+    .filter((value) => value.length > 0)
+  return [...new Set(values)].sort()
+})
+
 onMounted(() => {
   void loadList()
 })
@@ -139,8 +182,8 @@ async function loadList() {
   try {
     const response = await listModelRegistry({
       search: filters.search || undefined,
-      provider: filters.provider || undefined,
-      platform: filters.platform || undefined,
+      provider: filters.provider ? filters.provider.trim().toLowerCase() : undefined,
+      platform: filters.platform ? filters.platform.trim().toLowerCase() : undefined,
       availability: 'available',
       include_hidden: false,
       include_tombstoned: false,

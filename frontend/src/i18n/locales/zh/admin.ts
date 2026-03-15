@@ -248,6 +248,7 @@
         allModes: '全部模式',
         allAvailability: '全部可用性',
         allPricingSources: '全部价格来源',
+        onlyAvailable: '只看可用模型',
         showCnyReference: '显示 CNY 参考价'
       },
       sources: {

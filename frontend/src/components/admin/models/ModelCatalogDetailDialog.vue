@@ -7,7 +7,13 @@
     <div v-else-if="detail" class="space-y-6">
       <section class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/70">
         <div class="flex flex-wrap items-start justify-between gap-4">
-          <ModelCatalogModelLabel :model="detail.model" :display-name="detail.display_name" :icon-key="detail.icon_key" />
+          <ModelCatalogModelLabel
+            :model="detail.model"
+            :display-name="detail.display_name"
+            :icon-key="detail.icon_key"
+            :provider="detail.provider"
+            :platforms="detail.default_platforms"
+          />
           <button
             v-if="view === 'official'"
             class="btn btn-secondary"
@@ -38,17 +44,8 @@
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
           <p class="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ t('admin.models.meta.defaultPlatforms') }}</p>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <template v-if="platformLabels(detail.default_platforms).length">
-              <span
-                v-for="platform in platformLabels(detail.default_platforms)"
-                :key="`${detail.model}-${platform}`"
-                class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-              >
-                {{ platform }}
-              </span>
-            </template>
-            <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
+          <div class="mt-2">
+            <ModelPlatformsInline :platforms="detail.default_platforms" />
           </div>
         </div>
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900">
@@ -118,8 +115,9 @@ import { useI18n } from 'vue-i18n'
 import type { ModelCatalogDetail, ModelCatalogExchangeRate, UpdatePricingOverridePayload } from '@/api/admin/models'
 import type { ModelCatalogPricingLayer } from '@/composables/useModelCatalogPage'
 import type { ModelCatalogPriceDisplayMode } from '@/utils/modelCatalogPresentation'
-import { formatModelCatalogPlatforms, formatModelCatalogProvider } from '@/utils/modelCatalogPresentation'
+import { formatModelCatalogProvider } from '@/utils/modelCatalogPresentation'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ModelPlatformsInline from '@/components/common/ModelPlatformsInline.vue'
 import ModelCatalogModelLabel from './ModelCatalogModelLabel.vue'
 import ModelCatalogPricingComparison from './ModelCatalogPricingComparison.vue'
 import ModelCatalogPricingEditorSection from './ModelCatalogPricingEditorSection.vue'
@@ -154,10 +152,6 @@ const dialogTitle = computed(() => props.detail ? props.detail.display_name || p
 
 function formatProvider(provider?: string) {
   return formatModelCatalogProvider(provider)
-}
-
-function platformLabels(platforms?: string[]) {
-  return formatModelCatalogPlatforms(platforms)
 }
 
 function formatMode(mode?: string) {

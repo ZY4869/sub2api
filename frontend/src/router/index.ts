@@ -245,7 +245,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/models',
     name: 'AdminModels',
-    redirect: '/admin/models/available',
+    redirect: '/admin/models/pricing',
     component: () => import('@/views/admin/models/ModelsLayoutView.vue'),
     meta: {
       requiresAuth: true,
@@ -309,13 +309,13 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: '',
-        redirect: '/admin/models/available',
+        redirect: '/admin/models/pricing',
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Available Models',
-          titleKey: 'admin.models.pages.available.title',
-          descriptionKey: 'admin.models.pages.available.description'
+          title: 'Model Pricing',
+          titleKey: 'admin.models.pages.pricing.title',
+          descriptionKey: 'admin.models.pages.pricing.description'
         }
       }
     ]

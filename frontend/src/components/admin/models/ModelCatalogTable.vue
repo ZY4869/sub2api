@@ -5,6 +5,8 @@
         :model="row.model"
         :display-name="row.display_name"
         :icon-key="row.icon_key"
+        :provider="row.provider"
+        :platforms="row.default_platforms"
         :show-tier-badge="hasTieredPricing(pricingFor(row))"
         :tier-badge-label="t('admin.models.tierBadge')"
       />
@@ -23,18 +25,7 @@
     </template>
 
     <template #cell-default_available="{ row }">
-      <div class="flex flex-wrap gap-2">
-        <template v-if="platformLabels(row.default_platforms).length">
-          <span
-            v-for="platform in platformLabels(row.default_platforms)"
-            :key="`${row.model}-${platform}`"
-            class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-          >
-            {{ platform }}
-          </span>
-        </template>
-        <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
-      </div>
+      <ModelPlatformsInline :platforms="row.default_platforms" />
     </template>
 
     <template #cell-access_sources="{ row }">
@@ -141,11 +132,11 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ModelPlatformsInline from '@/components/common/ModelPlatformsInline.vue'
 import type { ModelCatalogExchangeRate, ModelCatalogItem, ModelCatalogPricing } from '@/api/admin/models'
 import type { ModelCatalogPricingLayer } from '@/composables/useModelCatalogPage'
 import { hasTieredPricing } from '@/utils/modelCatalogPricing'
 import {
-  formatModelCatalogPlatforms,
   formatModelCatalogProvider,
   type ModelCatalogPriceDisplayMode
 } from '@/utils/modelCatalogPresentation'
@@ -215,10 +206,6 @@ function formatAccessSource(source: string) {
     return t(`admin.models.accessSources.${source}`)
   }
   return source || '-'
-}
-
-function platformLabels(platforms?: string[]) {
-  return formatModelCatalogPlatforms(platforms)
 }
 
 function formatProvider(provider?: string) {

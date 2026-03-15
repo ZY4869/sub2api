@@ -35,7 +35,7 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     search: '',
     provider: '',
     mode: '',
-    availability: '',
+    availability: 'available',
     pricingSource: ''
   })
 

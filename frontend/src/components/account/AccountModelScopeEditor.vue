@@ -158,7 +158,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
-import { ensureModelRegistryFresh, getModelRegistrySnapshot } from '@/stores/modelRegistry'
+import { getModelRegistrySnapshot } from '@/stores/modelRegistry'
 import type { ModelRegistryEntry, ModelRegistryPreset } from '@/generated/modelRegistry'
 import type { ModelMapping } from '@/utils/accountFormShared'
 
@@ -186,7 +186,6 @@ const searchQuery = ref('')
 const selectedSet = computed(() => new Set(props.allowedModels))
 
 const providerGroups = computed(() => {
-  void ensureModelRegistryFresh()
   const snapshot = getModelRegistrySnapshot()
   const query = searchQuery.value.trim().toLowerCase()
   const normalizedPlatform = props.platform.trim().toLowerCase() === 'claude' ? 'anthropic' : props.platform.trim().toLowerCase()

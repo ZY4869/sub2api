@@ -14,11 +14,16 @@
     <div class="w-full sm:w-40">
       <Select :model-value="mode" :options="modeOptions" @update:model-value="emit('update:mode', String($event ?? ''))" />
     </div>
-    <div class="w-full sm:w-40">
-      <Select :model-value="availability" :options="availabilityOptions" @update:model-value="emit('update:availability', String($event ?? ''))" />
-    </div>
     <div class="w-full sm:w-44">
       <Select :model-value="pricingSource" :options="pricingSourceOptions" @update:model-value="emit('update:pricingSource', String($event ?? ''))" />
+    </div>
+
+    <div class="inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300">
+      <span>{{ t('admin.models.filters.onlyAvailable') }}</span>
+      <Toggle
+        :model-value="availability === 'available'"
+        @update:model-value="emit('update:availability', $event ? 'available' : '')"
+      />
     </div>
     <div class="ml-auto inline-flex items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-600 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300">
       <span>{{ t('admin.models.filters.showCnyReference') }}</span>

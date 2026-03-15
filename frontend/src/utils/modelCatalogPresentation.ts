@@ -1,18 +1,8 @@
-﻿import claudeIcon from '@/assets/model-icons/claude.png'
-import chatgptIcon from '@/assets/model-icons/chatgpt.png'
-import geminiIcon from '@/assets/model-icons/gemini.png'
-
 export const MODEL_CATALOG_DEFAULT_THRESHOLD = 200000
 export const MODEL_CATALOG_PAGE_SIZE = 500
 export const MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY = 'admin_model_catalog_price_display_mode'
 
 export type ModelCatalogPriceDisplayMode = 'usd' | 'dual'
-
-const MODEL_ICON_MAP: Record<string, string> = {
-  claude: claudeIcon,
-  chatgpt: chatgptIcon,
-  gemini: geminiIcon
-}
 
 const MODEL_CATALOG_PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
@@ -20,10 +10,6 @@ const MODEL_CATALOG_PROVIDER_LABELS: Record<string, string> = {
   gemini: 'Gemini',
   antigravity: 'Antigravity',
   sora: 'Sora'
-}
-
-export function resolveModelCatalogIcon(iconKey?: string): string | undefined {
-  return iconKey ? MODEL_ICON_MAP[iconKey] : undefined
 }
 
 export function resolveModelCatalogDisplayName(model: string, displayName?: string): string {

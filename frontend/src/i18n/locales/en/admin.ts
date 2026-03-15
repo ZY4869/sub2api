@@ -84,7 +84,11 @@ export default {
         all: {
           nav: 'All Models',
           title: 'All Models',
-          description: 'Manage the full model source of truth, runtime entries, visibility, lifecycle, and availability.'
+          description: 'Manage the full model source of truth, runtime entries, visibility, lifecycle, and availability.',
+          viewModes: {
+            grid: 'Grid',
+            list: 'List'
+          }
         },
         pricing: {
           nav: 'Model Pricing',
@@ -248,6 +252,7 @@ export default {
         allModes: 'All Modes',
         allAvailability: 'All Availability',
         allPricingSources: 'All Pricing Sources',
+        onlyAvailable: 'Only available',
         showCnyReference: 'Show CNY Reference'
       },
       sources: {
