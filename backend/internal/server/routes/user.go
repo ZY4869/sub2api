@@ -1,4 +1,4 @@
-﻿package routes
+package routes
 
 import (
 	"github.com/Wei-Shaw/sub2api/internal/handler"

@@ -7,7 +7,7 @@ import (
 
 var (
 	modelDateVersionSuffixPattern = regexp.MustCompile(`-(?:\d{8}|\d{4}-\d{2}-\d{2})(?:-[^-\s]+:\d+)?$`)
-	versionPairPattern           = regexp.MustCompile(`-(\d+)-(\d+)`)
+	versionPairPattern            = regexp.MustCompile(`-(\d+)-(\d+)`)
 )
 
 func NormalizeID(value string) string {

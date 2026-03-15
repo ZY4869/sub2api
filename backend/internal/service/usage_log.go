@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	BillingTypeBalance          int8 = 0
-	BillingTypeSubscription     int8 = 1
-	BillingExemptReasonAdminFree     = "admin_free"
+	BillingTypeBalance           int8 = 0
+	BillingTypeSubscription      int8 = 1
+	BillingExemptReasonAdminFree      = "admin_free"
 )
 
 type RequestType int16
@@ -93,13 +93,13 @@ func ApplyLegacyRequestFields(requestType RequestType, fallbackStream bool, fall
 }
 
 type UsageLog struct {
-	ID        int64
-	UserID    int64
-	APIKeyID  int64
-	AccountID int64
-	RequestID string
-	Model     string
-	ServiceTier *string
+	ID              int64
+	UserID          int64
+	APIKeyID        int64
+	AccountID       int64
+	RequestID       string
+	Model           string
+	ServiceTier     *string
 	ReasoningEffort *string
 
 	GroupID        *int64
@@ -113,14 +113,14 @@ type UsageLog struct {
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
-	InputCost           float64
-	OutputCost          float64
-	CacheCreationCost   float64
-	CacheReadCost       float64
-	TotalCost           float64
-	ActualCost          float64
-	BillingExemptReason *string
-	RateMultiplier      float64
+	InputCost             float64
+	OutputCost            float64
+	CacheCreationCost     float64
+	CacheReadCost         float64
+	TotalCost             float64
+	ActualCost            float64
+	BillingExemptReason   *string
+	RateMultiplier        float64
 	AccountRateMultiplier *float64
 
 	BillingType  int8

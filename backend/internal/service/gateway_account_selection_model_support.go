@@ -69,10 +69,7 @@ func (s *GatewayService) isSoraModelSupportedByAccount(account *Account, request
 			return true
 		}
 	}
-	if !hasSoraSelector {
-		return true
-	}
-	return false
+	return !hasSoraSelector
 }
 func matchPatternAnyAlias(pattern string, aliases []string) bool {
 	normalizedPattern := strings.ToLower(strings.TrimSpace(pattern))

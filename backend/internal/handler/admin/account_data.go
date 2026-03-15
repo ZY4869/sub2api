@@ -544,6 +544,8 @@ func defaultProxyName(name string) string {
 // (email, plan_type, chatgpt_account_id, etc.) from id_token in credentials.
 // Only applies to OpenAI/Sora OAuth accounts. Skips expired token errors silently.
 // Existing credential values are never overwritten — only missing fields are filled.
+//
+//nolint:unused // Legacy import path kept for backward compatibility with older dumps.
 func enrichCredentialsFromIDTokenLegacy(item *DataAccount) {
 	if item.Credentials == nil {
 		return

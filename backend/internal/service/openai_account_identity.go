@@ -118,7 +118,6 @@ func EnrichOpenAIOAuthCredentials(platform, accountType string, credentials map[
 
 	if !cloned {
 		out = cloneStringAnyMap(credentials)
-		cloned = true
 	}
 	setIfMissing := func(key, value string) {
 		if strings.TrimSpace(value) == "" {

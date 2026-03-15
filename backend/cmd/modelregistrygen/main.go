@@ -93,6 +93,18 @@ func computeETag(models []modelregistry.ModelEntry, presets []modelregistry.Pres
 	return `W/"` + hex.EncodeToString(sum[:]) + `"`
 }
 
+func mustWriteString(buf *bytes.Buffer, value string) {
+	if _, err := buf.WriteString(value); err != nil {
+		exitWithError(err)
+	}
+}
+
+func mustWrite(buf *bytes.Buffer, value []byte) {
+	if _, err := buf.Write(value); err != nil {
+		exitWithError(err)
+	}
+}
+
 func renderModelsMarkdown(models []modelregistry.ModelEntry, builtAt string) []byte {
 	grouped := map[string][]modelregistry.ModelEntry{}
 	for _, model := range models {
@@ -105,8 +117,8 @@ func renderModelsMarkdown(models []modelregistry.ModelEntry, builtAt string) []b
 	sort.Strings(providers)
 
 	var buf bytes.Buffer
-	buf.WriteString("# Model Registry Snapshot\n\n")
-	buf.WriteString("Generated at " + builtAt + ".\n\n")
+	mustWriteString(&buf, "# Model Registry Snapshot\n\n")
+	mustWriteString(&buf, "Generated at "+builtAt+".\n\n")
 	for _, provider := range providers {
 		items := grouped[provider]
 		sort.Slice(items, func(i, j int) bool {
@@ -115,15 +127,15 @@ func renderModelsMarkdown(models []modelregistry.ModelEntry, builtAt string) []b
 			}
 			return items[i].UIPriority < items[j].UIPriority
 		})
-		buf.WriteString("## " + title(provider) + "\n\n")
-		buf.WriteString("| ID | Display | Platforms | Status | Replaced By |\n")
-		buf.WriteString("| --- | --- | --- | --- | --- |\n")
+		mustWriteString(&buf, "## "+title(provider)+"\n\n")
+		mustWriteString(&buf, "| ID | Display | Platforms | Status | Replaced By |\n")
+		mustWriteString(&buf, "| --- | --- | --- | --- | --- |\n")
 		for _, item := range items {
 			status := item.Status
 			if status == "" {
 				status = "stable"
 			}
-			buf.WriteString(fmt.Sprintf(
+			mustWriteString(&buf, fmt.Sprintf(
 				"| `%s` | %s | %s | %s | %s |\n",
 				item.ID,
 				item.DisplayName,
@@ -132,7 +144,7 @@ func renderModelsMarkdown(models []modelregistry.ModelEntry, builtAt string) []b
 				orDash(item.ReplacedBy),
 			))
 		}
-		buf.WriteString("\n")
+		mustWriteString(&buf, "\n")
 	}
 	return buf.Bytes()
 }
@@ -147,12 +159,12 @@ func renderCompatibilityMarkdown(models []modelregistry.ModelEntry, builtAt stri
 	})
 
 	var buf bytes.Buffer
-	buf.WriteString("# Model Compatibility Matrix\n\n")
-	buf.WriteString("Generated at " + builtAt + ".\n\n")
-	buf.WriteString("| Model | Anthropic | OpenAI | Gemini | Antigravity | Sora |\n")
-	buf.WriteString("| --- | --- | --- | --- | --- | --- |\n")
+	mustWriteString(&buf, "# Model Compatibility Matrix\n\n")
+	mustWriteString(&buf, "Generated at "+builtAt+".\n\n")
+	mustWriteString(&buf, "| Model | Anthropic | OpenAI | Gemini | Antigravity | Sora |\n")
+	mustWriteString(&buf, "| --- | --- | --- | --- | --- | --- |\n")
 	for _, item := range items {
-		buf.WriteString(fmt.Sprintf(
+		mustWriteString(&buf, fmt.Sprintf(
 			"| `%s` | %s | %s | %s | %s | %s |\n",
 			item.ID,
 			platformCheck(item, "anthropic"),
@@ -172,42 +184,42 @@ func renderTypeScriptSnapshot(snapshot tsSnapshot, builtAt string) []byte {
 	}
 
 	var buf bytes.Buffer
-	buf.WriteString("export interface ModelRegistryEntry {\n")
-	buf.WriteString("  id: string\n")
-	buf.WriteString("  display_name: string\n")
-	buf.WriteString("  provider: string\n")
-	buf.WriteString("  platforms: string[]\n")
-	buf.WriteString("  protocol_ids: string[]\n")
-	buf.WriteString("  aliases: string[]\n")
-	buf.WriteString("  pricing_lookup_ids: string[]\n")
-	buf.WriteString("  preferred_protocol_ids?: Record<string, string>\n")
-	buf.WriteString("  modalities: string[]\n")
-	buf.WriteString("  capabilities: string[]\n")
-	buf.WriteString("  ui_priority: number\n")
-	buf.WriteString("  exposed_in: string[]\n")
-	buf.WriteString("  status?: string\n")
-	buf.WriteString("  deprecated_at?: string\n")
-	buf.WriteString("  replaced_by?: string\n")
-	buf.WriteString("  deprecation_notice?: string\n")
-	buf.WriteString("}\n\n")
-	buf.WriteString("export interface ModelRegistryPreset {\n")
-	buf.WriteString("  platform: string\n")
-	buf.WriteString("  label: string\n")
-	buf.WriteString("  from: string\n")
-	buf.WriteString("  to: string\n")
-	buf.WriteString("  color: string\n")
-	buf.WriteString("  order?: number\n")
-	buf.WriteString("}\n\n")
-	buf.WriteString("export interface ModelRegistrySnapshot {\n")
-	buf.WriteString("  etag: string\n")
-	buf.WriteString("  updated_at: string\n")
-	buf.WriteString("  models: ModelRegistryEntry[]\n")
-	buf.WriteString("  presets: ModelRegistryPreset[]\n")
-	buf.WriteString("}\n\n")
-	buf.WriteString(fmt.Sprintf("export const generatedModelRegistryBuiltAt = %q\n\n", builtAt))
-	buf.WriteString("export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = ")
-	buf.Write(payload)
-	buf.WriteString("\n")
+	mustWriteString(&buf, "export interface ModelRegistryEntry {\n")
+	mustWriteString(&buf, "  id: string\n")
+	mustWriteString(&buf, "  display_name: string\n")
+	mustWriteString(&buf, "  provider: string\n")
+	mustWriteString(&buf, "  platforms: string[]\n")
+	mustWriteString(&buf, "  protocol_ids: string[]\n")
+	mustWriteString(&buf, "  aliases: string[]\n")
+	mustWriteString(&buf, "  pricing_lookup_ids: string[]\n")
+	mustWriteString(&buf, "  preferred_protocol_ids?: Record<string, string>\n")
+	mustWriteString(&buf, "  modalities: string[]\n")
+	mustWriteString(&buf, "  capabilities: string[]\n")
+	mustWriteString(&buf, "  ui_priority: number\n")
+	mustWriteString(&buf, "  exposed_in: string[]\n")
+	mustWriteString(&buf, "  status?: string\n")
+	mustWriteString(&buf, "  deprecated_at?: string\n")
+	mustWriteString(&buf, "  replaced_by?: string\n")
+	mustWriteString(&buf, "  deprecation_notice?: string\n")
+	mustWriteString(&buf, "}\n\n")
+	mustWriteString(&buf, "export interface ModelRegistryPreset {\n")
+	mustWriteString(&buf, "  platform: string\n")
+	mustWriteString(&buf, "  label: string\n")
+	mustWriteString(&buf, "  from: string\n")
+	mustWriteString(&buf, "  to: string\n")
+	mustWriteString(&buf, "  color: string\n")
+	mustWriteString(&buf, "  order?: number\n")
+	mustWriteString(&buf, "}\n\n")
+	mustWriteString(&buf, "export interface ModelRegistrySnapshot {\n")
+	mustWriteString(&buf, "  etag: string\n")
+	mustWriteString(&buf, "  updated_at: string\n")
+	mustWriteString(&buf, "  models: ModelRegistryEntry[]\n")
+	mustWriteString(&buf, "  presets: ModelRegistryPreset[]\n")
+	mustWriteString(&buf, "}\n\n")
+	mustWriteString(&buf, fmt.Sprintf("export const generatedModelRegistryBuiltAt = %q\n\n", builtAt))
+	mustWriteString(&buf, "export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = ")
+	mustWrite(&buf, payload)
+	mustWriteString(&buf, "\n")
 	return buf.Bytes()
 }
 

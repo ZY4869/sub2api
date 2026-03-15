@@ -8,12 +8,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
-type defaultModelMetadata struct {
-	provider  string
-	mode      string
-	platforms map[string]struct{}
-}
-
 type modelCatalogRecord struct {
 	model                           string
 	canonicalModelID                string
@@ -157,59 +151,6 @@ func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]mod
 	return details, nil
 }
 
-func (s *ModelCatalogService) buildDefaultModelRegistry(ctx context.Context) map[string]*defaultModelMetadata {
-	registry := make(map[string]*defaultModelMetadata)
-	register := func(entry modelregistry.ModelEntry) {
-		key := CanonicalizeModelNameForPricing(entry.ID)
-		if key == "" {
-			return
-		}
-		meta, ok := registry[key]
-		if !ok {
-			meta = &defaultModelMetadata{provider: entry.Provider, mode: inferModelMode(entry.ID, ""), platforms: map[string]struct{}{}}
-			registry[key] = meta
-		}
-		if meta.provider == "" {
-			meta.provider = entry.Provider
-		}
-		if meta.mode == "" {
-			meta.mode = inferModelMode(entry.ID, "")
-		}
-		for _, platform := range entry.Platforms {
-			platform = strings.TrimSpace(platform)
-			if platform == "" {
-				continue
-			}
-			meta.platforms[platform] = struct{}{}
-		}
-	}
-	entries := modelregistry.SeedModels()
-	if s.modelRegistryService != nil {
-		if details, err := s.modelRegistryService.pricingDetails(ctx); err == nil && len(details) > 0 {
-			entries = make([]modelregistry.ModelEntry, 0, len(details))
-			for _, detail := range details {
-				entries = append(entries, detail.ModelEntry)
-			}
-		}
-	}
-	for _, entry := range entries {
-		register(entry)
-	}
-	for _, model := range DefaultSoraModels(s.cfg) {
-		key := CanonicalizeModelNameForPricing(model.ID)
-		if key == "" {
-			continue
-		}
-		meta, ok := registry[key]
-		if !ok {
-			meta = &defaultModelMetadata{provider: PlatformOpenAI, mode: inferModelMode(model.ID, ""), platforms: map[string]struct{}{}}
-			registry[key] = meta
-		}
-		meta.platforms[PlatformSora] = struct{}{}
-	}
-	return registry
-}
-
 func modelCatalogRecordLookupCandidates(record *modelCatalogRecord) []string {
 	if record == nil {
 		return nil
@@ -234,35 +175,6 @@ func modelCatalogRecordLookupCandidates(record *modelCatalogRecord) []string {
 		items = appendCandidate(items, strings.ReplaceAll(record.model, ".", "-"))
 	}
 	return items
-}
-
-func resolveDefaultModelMetadata(registry map[string]*defaultModelMetadata, candidates ...string) *defaultModelMetadata {
-	meta := &defaultModelMetadata{platforms: map[string]struct{}{}}
-	matched := false
-	for _, candidate := range candidates {
-		candidate = CanonicalizeModelNameForPricing(candidate)
-		if candidate == "" {
-			continue
-		}
-		current, ok := registry[candidate]
-		if !ok {
-			continue
-		}
-		matched = true
-		if meta.provider == "" {
-			meta.provider = current.provider
-		}
-		if meta.mode == "" {
-			meta.mode = current.mode
-		}
-		for platform := range current.platforms {
-			meta.platforms[platform] = struct{}{}
-		}
-	}
-	if !matched {
-		return nil
-	}
-	return meta
 }
 
 func (s *ModelCatalogService) resolveDynamicPricing(record *modelCatalogRecord) (*LiteLLMModelPricing, bool) {
@@ -359,15 +271,6 @@ func ensureCatalogRecord(records map[string]*modelCatalogRecord, model string) *
 	return record
 }
 
-func applyDefaultMetadata(record *modelCatalogRecord, meta *defaultModelMetadata) {
-	if record == nil || meta == nil {
-		return
-	}
-	record.defaultAvailable = true
-	record.defaultPlatforms = sortedPlatformKeys(meta.platforms)
-	mergeRecordMetadata(record, meta.provider, meta.mode)
-}
-
 func mergeRecordMetadata(record *modelCatalogRecord, provider string, mode string) {
 	if record.provider == "" {
 		record.provider = provider
@@ -375,15 +278,6 @@ func mergeRecordMetadata(record *modelCatalogRecord, provider string, mode strin
 	if record.mode == "" {
 		record.mode = mode
 	}
-}
-
-func sortedPlatformKeys(platforms map[string]struct{}) []string {
-	items := make([]string, 0, len(platforms))
-	for platform := range platforms {
-		items = append(items, platform)
-	}
-	sort.Strings(items)
-	return items
 }
 
 func inferModelProvider(model string) string {

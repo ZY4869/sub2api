@@ -9,10 +9,10 @@ import (
 )
 
 type AccountModelScopeV2 struct {
-	SupportedProviders       []string            `json:"supported_providers"`
+	SupportedProviders        []string            `json:"supported_providers"`
 	SupportedModelsByProvider map[string][]string `json:"supported_models_by_provider"`
-	AdvancedProviderOverride bool                `json:"advanced_provider_override"`
-	ManualMappings           map[string]string   `json:"manual_mappings"`
+	AdvancedProviderOverride  bool                `json:"advanced_provider_override"`
+	ManualMappings            map[string]string   `json:"manual_mappings"`
 }
 
 func ExtractAccountModelScopeV2(extra map[string]any) (*AccountModelScopeV2, bool) {
@@ -198,10 +198,10 @@ func (scope *AccountModelScopeV2) ToMap() map[string]any {
 		manualMappings[from] = to
 	}
 	return map[string]any{
-		"supported_providers":         append([]string(nil), scope.SupportedProviders...),
+		"supported_providers":          append([]string(nil), scope.SupportedProviders...),
 		"supported_models_by_provider": modelsByProvider,
 		"advanced_provider_override":   scope.AdvancedProviderOverride,
-		"manual_mappings":             manualMappings,
+		"manual_mappings":              manualMappings,
 	}
 }
 

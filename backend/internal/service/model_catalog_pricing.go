@@ -196,20 +196,12 @@ func (s *ModelCatalogService) loadSalePriceOverrides(ctx context.Context) map[st
 	return loadModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelPriceOverrides)
 }
 
-func (s *ModelCatalogService) loadPriceOverrides(ctx context.Context) map[string]*ModelPricingOverride {
-	return s.loadSalePriceOverrides(ctx)
-}
-
 func (s *ModelCatalogService) persistOfficialPriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
 	return persistModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelOfficialPriceOverrides, overrides)
 }
 
 func (s *ModelCatalogService) persistSalePriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
 	return persistModelPricingOverridesBySetting(ctx, s.settingRepo, SettingKeyModelPriceOverrides, overrides)
-}
-
-func (s *ModelCatalogService) persistPriceOverrides(ctx context.Context, overrides map[string]*ModelPricingOverride) error {
-	return s.persistSalePriceOverrides(ctx, overrides)
 }
 
 func validateOverridePricing(pricing ModelCatalogPricing) error {
