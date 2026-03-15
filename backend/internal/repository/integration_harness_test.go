@@ -85,6 +85,9 @@ func TestMain(m *testing.M) {
 	redisContainer, err := tcredis.Run(
 		ctx,
 		redisImageTag,
+		testcontainers.WithWaitStrategyAndDeadline(2*time.Minute,
+			wait.ForListeningPort("6379/tcp").WithStartupTimeout(2*time.Minute),
+		),
 	)
 	if err != nil {
 		log.Printf("failed to start redis container: %v", err)
