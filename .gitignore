@@ -78,6 +78,7 @@ Desktop.ini
 # ===================
 tmp/
 temp/
+%TEMP%/
 *.tmp
 *.temp
 *.log
@@ -115,6 +116,7 @@ backend/.installed
 # 其他
 # ===================
 tests
+计划/
 CLAUDE.md
 .claude
 scripts
