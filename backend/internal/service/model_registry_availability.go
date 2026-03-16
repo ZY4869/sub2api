@@ -28,6 +28,14 @@ var modelRegistryAvailableBootstrapInputsV20260313 = []string{
 	"gemini-2.5-flash-image",
 }
 
+var modelRegistryAvailableBootstrapInputsV20260317 = []string{
+	"claude-opus-4.1",
+	"claude-opus-4-6",
+	"claude-sonnet-4.5",
+	"claude-sonnet-4-6",
+	"claude-haiku-4.5",
+}
+
 var modelRegistryAvailableBootstrapRuntimeEntriesV20260313 = []modelregistry.ModelEntry{
 	{
 		ID:               "gpt-5.4-pro",
@@ -121,7 +129,10 @@ func (s *ModelRegistryService) ensureAvailableModelsInitialized(ctx context.Cont
 			return err
 		}
 	}
-	return s.ensureAvailableModelsBootstrapV20260313(ctx)
+	if err := s.ensureAvailableModelsBootstrapV20260313(ctx); err != nil {
+		return err
+	}
+	return s.ensureAvailableModelsBootstrapV20260317(ctx)
 }
 
 func (s *ModelRegistryService) migrateAvailableModels(ctx context.Context) error {
@@ -149,10 +160,18 @@ func (s *ModelRegistryService) migrateAvailableModels(ctx context.Context) error
 }
 
 func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260313(ctx context.Context) error {
+	return s.ensureAvailableModelsBootstrap(ctx, "20260313", SettingKeyModelRegistryAvailableModelsBootstrapV20260313, modelRegistryAvailableBootstrapInputsV20260313)
+}
+
+func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260317(ctx context.Context) error {
+	return s.ensureAvailableModelsBootstrap(ctx, "20260317", SettingKeyModelRegistryAvailableModelsBootstrapV20260317, modelRegistryAvailableBootstrapInputsV20260317)
+}
+
+func (s *ModelRegistryService) ensureAvailableModelsBootstrap(ctx context.Context, version string, markerKey string, inputs []string) error {
 	if s.settingRepo == nil {
 		return nil
 	}
-	raw, err := s.settingRepo.GetValue(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260313)
+	raw, err := s.settingRepo.GetValue(ctx, markerKey)
 	if err == nil && strings.TrimSpace(raw) != "" {
 		return nil
 	}
@@ -163,7 +182,7 @@ func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260313(ctx conte
 	if err != nil {
 		return err
 	}
-	resolvedIDs, skippedInputs, err := s.resolveAvailableBootstrapModelIDsV20260313(ctx)
+	resolvedIDs, skippedInputs, err := s.resolveAvailableBootstrapModelIDs(ctx, inputs)
 	if err != nil {
 		return err
 	}
@@ -180,7 +199,7 @@ func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260313(ctx conte
 			return err
 		}
 	}
-	if err := s.settingRepo.Set(ctx, SettingKeyModelRegistryAvailableModelsBootstrapV20260313, "true"); err != nil {
+	if err := s.settingRepo.Set(ctx, markerKey, "true"); err != nil {
 		return err
 	}
 	log := logger.FromContext(ctx)
@@ -190,7 +209,7 @@ func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260313(ctx conte
 		)
 	}
 	log.Info("model registry: applied default available model bootstrap",
-		zap.String("version", "20260313"),
+		zap.String("version", version),
 		zap.Int("added_count", len(addedIDs)),
 		zap.Strings("added_models", addedIDs),
 	)
@@ -250,9 +269,13 @@ func (s *ModelRegistryService) ensureBootstrapRuntimeEntriesV20260313(ctx contex
 }
 
 func (s *ModelRegistryService) resolveAvailableBootstrapModelIDsV20260313(ctx context.Context) ([]string, []string, error) {
-	resolvedSet := make(map[string]struct{}, len(modelRegistryAvailableBootstrapInputsV20260313))
+	return s.resolveAvailableBootstrapModelIDs(ctx, modelRegistryAvailableBootstrapInputsV20260313)
+}
+
+func (s *ModelRegistryService) resolveAvailableBootstrapModelIDs(ctx context.Context, inputs []string) ([]string, []string, error) {
+	resolvedSet := make(map[string]struct{}, len(inputs))
 	skippedInputs := make([]string, 0)
-	for _, modelID := range modelRegistryAvailableBootstrapInputsV20260313 {
+	for _, modelID := range inputs {
 		canonicalID, err := s.resolveCanonicalModelForAvailability(ctx, modelID)
 		if err != nil {
 			return nil, nil, err

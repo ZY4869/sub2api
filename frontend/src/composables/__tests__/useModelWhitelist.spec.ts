@@ -11,12 +11,16 @@ import {
 } from '../useModelWhitelist'
 
 describe('useModelWhitelist', () => {
-  it('returns only current Claude aliases for anthropic', () => {
+  it('keeps Claude 4.6 models as independent anthropic selections', () => {
     const models = getModelsByPlatform('anthropic')
 
-    expect(models).toEqual(['claude-opus-4.1', 'claude-sonnet-4.5', 'claude-haiku-4.5'])
-    expect(models).not.toContain('claude-opus-4-6')
-    expect(models).not.toContain('claude-sonnet-4-6')
+    expect(models).toEqual([
+      'claude-opus-4.1',
+      'claude-opus-4-6',
+      'claude-sonnet-4.5',
+      'claude-sonnet-4-6',
+      'claude-haiku-4.5',
+    ])
   })
 
   it('openai models include GPT-5.4 official snapshot', () => {
@@ -63,7 +67,7 @@ describe('useModelWhitelist', () => {
     expect(openAIModels).not.toContain('gpt-5-codex')
   })
 
-  it('drops legacy 4.6 entries from antigravity presets while keeping image passthroughs', () => {
+  it('keeps antigravity presets available without hard-filtering 4.6 ids', () => {
     const presets = getPresetMappingsByPlatform('antigravity')
 
     expect(presets.some((preset) => preset.to === 'claude-sonnet-4.5')).toBe(true)
@@ -71,7 +75,6 @@ describe('useModelWhitelist', () => {
     expect(presets.some((preset) => preset.from === 'gemini-2.5-flash-image' && preset.to === 'gemini-2.5-flash-image')).toBe(true)
     expect(presets.some((preset) => preset.from === 'gemini-3.1-flash-image' && preset.to === 'gemini-3.1-flash-image')).toBe(true)
     expect(presets.some((preset) => preset.from === 'gemini-3-pro-image' && preset.to === 'gemini-3.1-flash-image')).toBe(true)
-    expect(presets.some((preset) => preset.from.includes('4-6') || preset.to.includes('4-6'))).toBe(false)
   })
 
   it('ignores wildcard entries in whitelist mode', () => {

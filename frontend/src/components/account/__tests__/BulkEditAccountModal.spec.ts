@@ -56,16 +56,16 @@ function mountModal() {
 }
 
 describe('BulkEditAccountModal', () => {
-  it('shows current Claude aliases in antigravity whitelist', () => {
+  it('shows Claude 4.6 models as independent antigravity whitelist options', () => {
     const wrapper = mountModal()
 
     expect(wrapper.text()).toContain('claude-opus-4.1')
+    expect(wrapper.text()).toContain('claude-opus-4-6')
     expect(wrapper.text()).toContain('claude-sonnet-4.5')
+    expect(wrapper.text()).toContain('claude-sonnet-4-6')
     expect(wrapper.text()).toContain('claude-haiku-4.5')
     expect(wrapper.text()).toContain('gemini-2.5-flash-image')
     expect(wrapper.text()).toContain('gemini-3.1-flash-image')
-    expect(wrapper.text()).not.toContain('claude-opus-4-6')
-    expect(wrapper.text()).not.toContain('claude-sonnet-4-6')
   })
 
   it('removes legacy 4.6 presets from antigravity mappings', async () => {

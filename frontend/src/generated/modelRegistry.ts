@@ -33,11 +33,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-03-13T09:02:55Z"
+export const generatedModelRegistryBuiltAt = "2026-03-16T16:51:37Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"6cc7cac947922e23648a8bf7e384755cbe4689e8436111e2abfd8c6f13375f85\"",
-  "updated_at": "2026-03-13T09:02:55Z",
+  "etag": "W/\"dfa811fe3f6e3a46d1a29b18d7215e068a4942db99e9164de21294f7c8c85c77\"",
+  "updated_at": "2026-03-16T16:51:37Z",
   "models": [
     {
       "id": "abab6.5-chat",
@@ -78,9 +78,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "claude-opus-4-1-20250805",
         "claude-opus-4-5",
         "claude-opus-4-5-20251101",
-        "claude-opus-4-5-thinking",
-        "claude-opus-4-6",
-        "claude-opus-4-6-thinking"
+        "claude-opus-4-5-thinking"
       ],
       "pricing_lookup_ids": [
         "claude-opus-4-1-20250805"
@@ -538,8 +536,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [
         "claude-sonnet-4-5",
         "claude-sonnet-4-5-20250929",
-        "claude-sonnet-4-5-thinking",
-        "claude-sonnet-4-6"
+        "claude-sonnet-4-5-thinking"
       ],
       "pricing_lookup_ids": [
         "claude-sonnet-4-5-20250929"
@@ -6463,10 +6460,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "ui_priority": 200,
       "exposed_in": [
         "runtime",
-        "test"
-      ],
-      "status": "deprecated",
-      "replaced_by": "claude-opus-4.1"
+        "test",
+        "whitelist"
+      ]
     },
     {
       "id": "claude-opus-4-6-thinking",
@@ -6492,9 +6488,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "runtime",
         "test"
-      ],
-      "status": "deprecated",
-      "replaced_by": "claude-opus-4.1"
+      ]
     },
     {
       "id": "claude-sonnet-4-5",
@@ -6604,10 +6598,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "ui_priority": 200,
       "exposed_in": [
         "runtime",
-        "test"
-      ],
-      "status": "deprecated",
-      "replaced_by": "claude-sonnet-4.5"
+        "test",
+        "whitelist"
+      ]
     },
     {
       "id": "gemini-2.5-flash-image-preview",

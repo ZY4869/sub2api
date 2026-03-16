@@ -41,6 +41,25 @@ func TestParseGatewayRequest_ThinkingAdaptiveEnabled(t *testing.T) {
 	require.True(t, parsed.ThinkingEnabled)
 }
 
+func TestParseGatewayRequest_Claude46ModelsRemainIndependent(t *testing.T) {
+	tests := []struct {
+		name  string
+		model string
+	}{
+		{name: "opus 4.6", model: "claude-opus-4-6"},
+		{name: "sonnet 4.6", model: "claude-sonnet-4-6"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := []byte(fmt.Sprintf(`{"model":"%s","messages":[{"content":"hi"}]}`, tt.model))
+			parsed, err := ParseGatewayRequest(body, "")
+			require.NoError(t, err)
+			require.Equal(t, tt.model, parsed.Model)
+		})
+	}
+}
+
 func TestParseGatewayRequest_MaxTokens(t *testing.T) {
 	body := []byte(`{"model":"claude-haiku-4-5","max_tokens":1}`)
 	parsed, err := ParseGatewayRequest(body, "")

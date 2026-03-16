@@ -15,9 +15,7 @@
       "claude-opus-4-1-20250805",
       "claude-opus-4-5",
       "claude-opus-4-5-20251101",
-      "claude-opus-4-5-thinking",
-      "claude-opus-4-6",
-      "claude-opus-4-6-thinking"
+      "claude-opus-4-5-thinking"
     ],
     "pricing_lookup_ids": [
       "claude-opus-4-1-20250805"
@@ -49,8 +47,7 @@
     "aliases": [
       "claude-sonnet-4-5",
       "claude-sonnet-4-5-20250929",
-      "claude-sonnet-4-5-thinking",
-      "claude-sonnet-4-6"
+      "claude-sonnet-4-5-thinking"
     ],
     "pricing_lookup_ids": [
       "claude-sonnet-4-5-20250929"
@@ -200,10 +197,9 @@
     "ui_priority": 200,
     "exposed_in": [
       "runtime",
-      "test"
-    ],
-    "status": "deprecated",
-    "replaced_by": "claude-opus-4.1"
+      "test",
+      "whitelist"
+    ]
   },
   {
     "id": "claude-opus-4-6-thinking",
@@ -229,9 +225,7 @@
     "exposed_in": [
       "runtime",
       "test"
-    ],
-    "status": "deprecated",
-    "replaced_by": "claude-opus-4.1"
+    ]
   },
   {
     "id": "claude-sonnet-4-5",
@@ -341,10 +335,9 @@
     "ui_priority": 200,
     "exposed_in": [
       "runtime",
-      "test"
-    ],
-    "status": "deprecated",
-    "replaced_by": "claude-sonnet-4.5"
+      "test",
+      "whitelist"
+    ]
   },
   {
     "id": "tab_flash_lite_preview",

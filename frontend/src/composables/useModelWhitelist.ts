@@ -30,17 +30,20 @@ export interface ModelCapabilityDefinition {
 }
 
 const MODEL_SELECTION_BLOCKLIST = new Set([
-  'claude-opus-4-6',
-  'claude-opus-4-6-thinking',
   'claude-opus-4-5-thinking',
   'claude-opus-4-5-20251101',
-  'claude-sonnet-4-6',
   'claude-sonnet-4-5-thinking',
   'claude-sonnet-4-5-20250929',
   'claude-haiku-4-5-20251001'
 ])
 
-const ANTHROPIC_SELECTION_ORDER = ['claude-opus-4.1', 'claude-sonnet-4.5', 'claude-haiku-4.5']
+const ANTHROPIC_SELECTION_ORDER = [
+  'claude-opus-4.1',
+  'claude-opus-4-6',
+  'claude-sonnet-4.5',
+  'claude-sonnet-4-6',
+  'claude-haiku-4.5'
+]
 
 const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
   'gpt-5.4': {
@@ -168,8 +171,20 @@ const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
     modalities: { input: ['text', 'image', 'pdf'], output: ['text'] },
     options: { thinking: { budgetTokens: 24576, type: 'enabled' } }
   },
+  'claude-opus-4-6': {
+    name: 'Claude Opus 4.6',
+    limit: { context: 1000000, output: 128000 },
+    modalities: { input: ['text', 'image', 'pdf'], output: ['text'] },
+    options: { thinking: { budgetTokens: 24576, type: 'enabled' } }
+  },
   'claude-sonnet-4.5': {
     name: 'Claude Sonnet 4.5',
+    limit: { context: 200000, output: 64000 },
+    modalities: { input: ['text', 'image', 'pdf'], output: ['text'] },
+    options: { thinking: { budgetTokens: 24576, type: 'enabled' } }
+  },
+  'claude-sonnet-4-6': {
+    name: 'Claude Sonnet 4.6',
     limit: { context: 200000, output: 64000 },
     modalities: { input: ['text', 'image', 'pdf'], output: ['text'] },
     options: { thinking: { budgetTokens: 24576, type: 'enabled' } }
@@ -344,7 +359,6 @@ export function getPresetMappingsByPlatform(platform: string): ModelRegistryPres
   const snapshot = getModelRegistrySnapshot()
   return snapshot.presets
     .filter((preset) => normalizePlatform(preset.platform) === normalizedPlatform)
-    .filter((preset) => !preset.from.includes('4-6') && !preset.to.includes('4-6'))
     .sort((left, right) => (left.order || 0) - (right.order || 0))
 }
 

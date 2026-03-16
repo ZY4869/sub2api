@@ -28,6 +28,16 @@ func TestResolveToCanonicalIDVariants(t *testing.T) {
 			expected: "claude-sonnet-4.5",
 		},
 		{
+			name:     "opus 4.6 stays independent",
+			input:    "claude-opus-4-6",
+			expected: "claude-opus-4-6",
+		},
+		{
+			name:     "sonnet 4.6 stays independent",
+			input:    "claude-sonnet-4-6",
+			expected: "claude-sonnet-4-6",
+		},
+		{
 			name:     "gemini models prefix",
 			input:    "models/gemini-2.5-pro",
 			expected: "gemini-2.5-pro",
