@@ -84,6 +84,7 @@ type DashboardAggregationConfig struct {
 }
 type DashboardAggregationRetentionConfig struct {
 	UsageLogsDays int `mapstructure:"usage_logs_days"`
+	UsageBillingDedupDays int `mapstructure:"usage_billing_dedup_days"`
 	HourlyDays    int `mapstructure:"hourly_days"`
 	DailyDays     int `mapstructure:"daily_days"`
 }

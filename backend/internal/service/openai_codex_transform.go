@@ -129,6 +129,41 @@ func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact
 		}
 	}
 
+	// 兼容遗留的 functions 和 function_call，转换为 tools 和 tool_choice
+	if functionsRaw, ok := reqBody["functions"]; ok {
+		if functions, k := functionsRaw.([]any); k {
+			tools := make([]any, 0, len(functions))
+			for _, f := range functions {
+				tools = append(tools, map[string]any{
+					"type":     "function",
+					"function": f,
+				})
+			}
+			reqBody["tools"] = tools
+		}
+		delete(reqBody, "functions")
+		result.Modified = true
+	}
+
+	if fcRaw, ok := reqBody["function_call"]; ok {
+		if fcStr, ok := fcRaw.(string); ok {
+			// e.g. "auto", "none"
+			reqBody["tool_choice"] = fcStr
+		} else if fcObj, ok := fcRaw.(map[string]any); ok {
+			// e.g. {"name": "my_func"}
+			if name, ok := fcObj["name"].(string); ok && strings.TrimSpace(name) != "" {
+				reqBody["tool_choice"] = map[string]any{
+					"type": "function",
+					"function": map[string]any{
+						"name": name,
+					},
+				}
+			}
+		}
+		delete(reqBody, "function_call")
+		result.Modified = true
+	}
+
 	if normalizeCodexTools(reqBody) {
 		result.Modified = true
 	}
@@ -304,8 +339,8 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 		}
 		typ, _ := m["type"].(string)
 
-		// Only normalize tool/function call identifiers, avoiding accidental rewrites of
-		// native Responses message/reasoning IDs.
+		// 仅修正真正的 tool/function call 标识，避免误改普通 message/reasoning id；
+		// 若 item_reference 指向 legacy call_* 标识，则仅修正该引用本身。
 		fixCallIDPrefix := func(id string) string {
 			if id == "" || strings.HasPrefix(id, "fc") {
 				return id
@@ -315,6 +350,7 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 			}
 			return "fc_" + id
 		}
+
 		if typ == "item_reference" {
 			if !preserveReferences {
 				continue
@@ -323,7 +359,6 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 			for key, value := range m {
 				newItem[key] = value
 			}
-			// Only normalize legacy tool reference IDs.
 			if id, ok := newItem["id"].(string); ok && strings.HasPrefix(id, "call_") {
 				newItem["id"] = fixCallIDPrefix(id)
 			}
@@ -354,6 +389,7 @@ func filterCodexInput(input []any, preserveReferences bool) []any {
 					newItem["call_id"] = callID
 				}
 			}
+
 			if callID != "" {
 				fixedCallID := fixCallIDPrefix(callID)
 				if fixedCallID != callID {

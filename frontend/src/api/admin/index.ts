@@ -21,6 +21,7 @@ import userAttributesAPI from './userAttributes'
 import opsAPI from './ops'
 import errorPassthroughAPI from './errorPassthrough'
 import dataManagementAPI from './dataManagement'
+import backupAPI from './backup'
 import apiKeysAPI from './apiKeys'
 import scheduledTestsAPI from './scheduledTests'
 import modelsAPI from './models'
@@ -48,6 +49,7 @@ export const adminAPI = {
   ops: opsAPI,
   errorPassthrough: errorPassthroughAPI,
   dataManagement: dataManagementAPI,
+  backup: backupAPI,
   apiKeys: apiKeysAPI,
   models: modelsAPI,
   modelRegistry: modelRegistryAPI,
@@ -73,6 +75,7 @@ export {
   opsAPI,
   errorPassthroughAPI,
   dataManagementAPI,
+  backupAPI,
   apiKeysAPI,
   modelsAPI,
   modelRegistryAPI,

@@ -255,6 +255,12 @@ func (c *Config) Validate() error {
 		if c.DashboardAgg.Retention.UsageLogsDays <= 0 {
 			return fmt.Errorf("dashboard_aggregation.retention.usage_logs_days must be positive")
 		}
+		if c.DashboardAgg.Retention.UsageBillingDedupDays <= 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.usage_billing_dedup_days must be positive")
+		}
+		if c.DashboardAgg.Retention.UsageBillingDedupDays < c.DashboardAgg.Retention.UsageLogsDays {
+			return fmt.Errorf("dashboard_aggregation.retention.usage_billing_dedup_days must be greater than or equal to usage_logs_days")
+		}
 		if c.DashboardAgg.Retention.HourlyDays <= 0 {
 			return fmt.Errorf("dashboard_aggregation.retention.hourly_days must be positive")
 		}
@@ -276,6 +282,14 @@ func (c *Config) Validate() error {
 		}
 		if c.DashboardAgg.Retention.UsageLogsDays < 0 {
 			return fmt.Errorf("dashboard_aggregation.retention.usage_logs_days must be non-negative")
+		}
+		if c.DashboardAgg.Retention.UsageBillingDedupDays < 0 {
+			return fmt.Errorf("dashboard_aggregation.retention.usage_billing_dedup_days must be non-negative")
+		}
+		if c.DashboardAgg.Retention.UsageBillingDedupDays > 0 &&
+			c.DashboardAgg.Retention.UsageLogsDays > 0 &&
+			c.DashboardAgg.Retention.UsageBillingDedupDays < c.DashboardAgg.Retention.UsageLogsDays {
+			return fmt.Errorf("dashboard_aggregation.retention.usage_billing_dedup_days must be greater than or equal to usage_logs_days")
 		}
 		if c.DashboardAgg.Retention.HourlyDays < 0 {
 			return fmt.Errorf("dashboard_aggregation.retention.hourly_days must be non-negative")

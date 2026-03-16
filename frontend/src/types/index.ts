@@ -818,6 +818,20 @@ export interface AccountUsageInfo {
   gemini_pro_minute?: UsageProgress | null
   gemini_flash_minute?: UsageProgress | null
   antigravity_quota?: Record<string, AntigravityModelQuota> | null
+  ai_credits?: Array<{
+    credit_type?: string
+    amount?: number
+    minimum_balance?: number
+  }> | null
+  is_forbidden?: boolean
+  forbidden_reason?: string
+  forbidden_type?: string
+  validation_url?: string
+  needs_verify?: boolean
+  is_banned?: boolean
+  needs_reauth?: boolean
+  error_code?: string
+  error?: string
 }
 
 // OpenAI Codex usage snapshot (from response headers)
@@ -988,6 +1002,8 @@ export interface UsageLog {
   model: string
   service_tier?: string | null
   reasoning_effort?: string | null
+  inbound_endpoint?: string | null
+  upstream_endpoint?: string | null
 
   group_id: number | null
   subscription_id: number | null
@@ -1197,6 +1213,14 @@ export interface ModelStat {
   actual_cost: number // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
 }
 
+export interface EndpointStat {
+  endpoint: string
+  requests: number
+  total_tokens: number
+  cost: number
+  actual_cost: number
+}
+
 export interface GroupStat {
   group_id: number
   group_name: string
@@ -1210,10 +1234,29 @@ export interface UserUsageTrendPoint {
   date: string
   user_id: number
   email: string
+  username?: string
   requests: number
   tokens: number
   cost: number // 闂佸搫绉村ú銈夊闯椤栨粍濯奸梽鍥垂?
   actual_cost: number // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
+}
+
+export interface UserSpendingRankingItem {
+  user_id: number
+  email: string
+  username?: string
+  actual_cost: number
+  requests: number
+  tokens: number
+}
+
+export interface UserSpendingRankingResponse {
+  ranking: UserSpendingRankingItem[]
+  total_actual_cost: number
+  total_requests: number
+  total_tokens: number
+  start_date: string
+  end_date: string
 }
 
 export interface ApiKeyUsageTrendPoint {
@@ -1376,6 +1419,8 @@ export interface AccountUsageStatsResponse {
   history: AccountUsageHistory[]
   summary: AccountUsageSummary
   models: ModelStat[]
+  endpoints: EndpointStat[]
+  upstream_endpoints: EndpointStat[]
 }
 
 // ==================== User Attribute Types ====================

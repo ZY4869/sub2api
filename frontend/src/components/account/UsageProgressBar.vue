@@ -1,5 +1,16 @@
 <template>
   <div :class="detailedReset ? 'space-y-0.5' : ''">
+    <div v-if="windowStats" class="pl-[37px] flex items-center">
+      <div class="flex items-center gap-1.5 text-[9px] text-gray-500 dark:text-gray-400">
+        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">{{ formatRequests }} req</span>
+        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">{{ formatTokens }}</span>
+        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">A ${{ formatAccountCost }}</span>
+        <span v-if="windowStats?.user_cost != null" class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
+          U ${{ formatUserCost }}
+        </span>
+      </div>
+    </div>
+
     <div class="flex items-center gap-1">
       <span :class="['w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium', labelClass]">
         {{ label }}
@@ -115,5 +126,32 @@ const resetAbsoluteText = computed(() => {
 const resetTooltip = computed(() => {
   if (!effectiveResetAt.value) return ''
   return formatLocalTimestamp(effectiveResetAt.value)
+})
+
+const formatRequests = computed(() => {
+  if (!props.windowStats) return ''
+  const requests = props.windowStats.requests
+  if (requests >= 1000000) return `${(requests / 1000000).toFixed(1)}M`
+  if (requests >= 1000) return `${(requests / 1000).toFixed(1)}K`
+  return requests.toString()
+})
+
+const formatTokens = computed(() => {
+  if (!props.windowStats) return ''
+  const tokens = props.windowStats.tokens
+  if (tokens >= 1000000000) return `${(tokens / 1000000000).toFixed(1)}B`
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`
+  return tokens.toString()
+})
+
+const formatAccountCost = computed(() => {
+  if (!props.windowStats) return '0.00'
+  return props.windowStats.cost.toFixed(2)
+})
+
+const formatUserCost = computed(() => {
+  if (!props.windowStats || props.windowStats.user_cost == null) return '0.00'
+  return props.windowStats.user_cost.toFixed(2)
 })
 </script>

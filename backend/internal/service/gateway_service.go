@@ -60,6 +60,7 @@ var (
 )
 var systemBlockFilterPrefixes = []string{"x-anthropic-billing-header"}
 var ErrClaudeCodeOnly = errors.New("this group only allows Claude Code clients")
+var ErrNoAvailableAccounts = errors.New("no available accounts")
 var allowedHeaders = map[string]bool{"accept": true, "x-stainless-retry-count": true, "x-stainless-timeout": true, "x-stainless-lang": true, "x-stainless-package-version": true, "x-stainless-os": true, "x-stainless-arch": true, "x-stainless-runtime": true, "x-stainless-runtime-version": true, "x-stainless-helper-method": true, "anthropic-dangerous-direct-browser-access": true, "anthropic-version": true, "x-app": true, "anthropic-beta": true, "accept-language": true, "sec-fetch-mode": true, "user-agent": true, "content-type": true}
 
 type GatewayCache interface {

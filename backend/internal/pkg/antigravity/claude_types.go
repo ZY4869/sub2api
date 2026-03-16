@@ -1,11 +1,6 @@
 package antigravity
 
-import (
-	"encoding/json"
-	"strings"
-
-	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
-)
+import "encoding/json"
 
 // Claude 请求/响应类型定义
 
@@ -144,28 +139,39 @@ type ErrorDetail struct {
 	Message string `json:"message"`
 }
 
-// modelDef Antigravity ??????????
+// modelDef Antigravity 模型定义（内部使用）
 type modelDef struct {
 	ID          string
 	DisplayName string
-	CreatedAt   string
+	CreatedAt   string // 仅 Claude API 格式使用
 }
 
-func antigravityModelDefs(provider string) []modelDef {
-	entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), "antigravity", "runtime", "whitelist", "use_key")
-	defs := make([]modelDef, 0, len(entries))
-	for _, entry := range entries {
-		entryProvider := strings.TrimSpace(strings.ToLower(entry.Provider))
-		if provider != "" && entryProvider != provider {
-			continue
-		}
-		displayName := entry.DisplayName
-		if displayName == "" {
-			displayName = entry.ID
-		}
-		defs = append(defs, modelDef{ID: entry.ID, DisplayName: displayName, CreatedAt: ""})
-	}
-	return defs
+// Antigravity 支持的 Claude 模型
+var claudeModels = []modelDef{
+	{ID: "claude-opus-4-5-thinking", DisplayName: "Claude Opus 4.5 Thinking", CreatedAt: "2025-11-01T00:00:00Z"},
+	{ID: "claude-sonnet-4-5", DisplayName: "Claude Sonnet 4.5", CreatedAt: "2025-09-29T00:00:00Z"},
+	{ID: "claude-sonnet-4-5-thinking", DisplayName: "Claude Sonnet 4.5 Thinking", CreatedAt: "2025-09-29T00:00:00Z"},
+	{ID: "claude-opus-4-6", DisplayName: "Claude Opus 4.6", CreatedAt: "2026-02-05T00:00:00Z"},
+	{ID: "claude-opus-4-6-thinking", DisplayName: "Claude Opus 4.6 Thinking", CreatedAt: "2026-02-05T00:00:00Z"},
+	{ID: "claude-sonnet-4-6", DisplayName: "Claude Sonnet 4.6", CreatedAt: "2026-02-17T00:00:00Z"},
+}
+
+// Antigravity 支持的 Gemini 模型
+var geminiModels = []modelDef{
+	{ID: "gemini-2.5-flash", DisplayName: "Gemini 2.5 Flash", CreatedAt: "2025-01-01T00:00:00Z"},
+	{ID: "gemini-2.5-flash-image", DisplayName: "Gemini 2.5 Flash Image", CreatedAt: "2025-01-01T00:00:00Z"},
+	{ID: "gemini-2.5-flash-image-preview", DisplayName: "Gemini 2.5 Flash Image Preview", CreatedAt: "2025-01-01T00:00:00Z"},
+	{ID: "gemini-2.5-flash-lite", DisplayName: "Gemini 2.5 Flash Lite", CreatedAt: "2025-01-01T00:00:00Z"},
+	{ID: "gemini-2.5-flash-thinking", DisplayName: "Gemini 2.5 Flash Thinking", CreatedAt: "2025-01-01T00:00:00Z"},
+	{ID: "gemini-3-flash", DisplayName: "Gemini 3 Flash", CreatedAt: "2025-06-01T00:00:00Z"},
+	{ID: "gemini-3-pro-low", DisplayName: "Gemini 3 Pro Low", CreatedAt: "2025-06-01T00:00:00Z"},
+	{ID: "gemini-3-pro-high", DisplayName: "Gemini 3 Pro High", CreatedAt: "2025-06-01T00:00:00Z"},
+	{ID: "gemini-3.1-pro-low", DisplayName: "Gemini 3.1 Pro Low", CreatedAt: "2026-02-19T00:00:00Z"},
+	{ID: "gemini-3.1-pro-high", DisplayName: "Gemini 3.1 Pro High", CreatedAt: "2026-02-19T00:00:00Z"},
+	{ID: "gemini-3.1-flash-image", DisplayName: "Gemini 3.1 Flash Image", CreatedAt: "2026-02-19T00:00:00Z"},
+	{ID: "gemini-3.1-flash-image-preview", DisplayName: "Gemini 3.1 Flash Image Preview", CreatedAt: "2026-02-19T00:00:00Z"},
+	{ID: "gemini-3-pro-preview", DisplayName: "Gemini 3 Pro Preview", CreatedAt: "2025-06-01T00:00:00Z"},
+	{ID: "gemini-3-pro-image", DisplayName: "Gemini 3 Pro Image", CreatedAt: "2025-06-01T00:00:00Z"},
 }
 
 // ========== Claude API 格式 (/v1/models) ==========
@@ -180,7 +186,7 @@ type ClaudeModel struct {
 
 // DefaultModels 返回 Claude API 格式的模型列表（Claude + Gemini）
 func DefaultModels() []ClaudeModel {
-	all := append(antigravityModelDefs("anthropic"), antigravityModelDefs("gemini")...)
+	all := append(claudeModels, geminiModels...)
 	result := make([]ClaudeModel, len(all))
 	for i, m := range all {
 		result[i] = ClaudeModel{ID: m.ID, Type: "model", DisplayName: m.DisplayName, CreatedAt: m.CreatedAt}
@@ -206,9 +212,8 @@ var defaultGeminiMethods = []string{"generateContent", "streamGenerateContent"}
 
 // DefaultGeminiModels 返回 Gemini v1beta 格式的模型列表（仅 Gemini 模型）
 func DefaultGeminiModels() []GeminiModel {
-	defs := antigravityModelDefs("gemini")
-	result := make([]GeminiModel, len(defs))
-	for i, m := range defs {
+	result := make([]GeminiModel, len(geminiModels))
+	for i, m := range geminiModels {
 		result[i] = GeminiModel{Name: "models/" + m.ID, DisplayName: m.DisplayName, SupportedGenerationMethods: defaultGeminiMethods}
 	}
 	return result
