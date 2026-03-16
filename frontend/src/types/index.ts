@@ -108,6 +108,7 @@ export interface PublicSettings {
   custom_menu_items: CustomMenuItem[]
   linuxdo_oauth_enabled: boolean
   sora_client_enabled: boolean
+  backend_mode_enabled: boolean
   version: string
 }
 
@@ -540,7 +541,7 @@ export interface UpdateGroupRequest {
 // ==================== Account & Proxy Types ====================
 
 export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'sora'
-export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream'
+export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'bedrock' | 'upstream'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -106,7 +107,8 @@ func (s *SchedulerSnapshotService) ListSchedulableAccounts(ctx context.Context, 
 		if err != nil {
 			logger.LegacyPrintf("service.scheduler_snapshot", "[Scheduler] cache read failed: bucket=%s err=%v", bucket.String(), err)
 		} else if hit {
-			return derefAccounts(cached), useMixed, nil
+			poolMembers := derefAccounts(cached)
+			return filterSchedulableAccounts(poolMembers), useMixed, nil
 		}
 	}
 
@@ -128,7 +130,7 @@ func (s *SchedulerSnapshotService) ListSchedulableAccounts(ctx context.Context, 
 		}
 	}
 
-	return accounts, useMixed, nil
+	return filterSchedulableAccounts(accounts), useMixed, nil
 }
 
 func (s *SchedulerSnapshotService) GetAccount(ctx context.Context, accountID int64) (*Account, error) {
@@ -599,37 +601,41 @@ func (s *SchedulerSnapshotService) loadAccountsFromDB(ctx context.Context, bucke
 		groupID = 0
 	}
 
-	if useMixed {
-		platforms := []string{bucket.Platform, PlatformAntigravity}
-		var accounts []Account
-		var err error
-		if groupID > 0 {
-			accounts, err = s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, groupID, platforms)
-		} else if s.isRunModeSimple() {
-			accounts, err = s.accountRepo.ListSchedulableByPlatforms(ctx, platforms)
-		} else {
-			accounts, err = s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, platforms)
-		}
+	// NOTE: Snapshot stores *pool members* (stable membership), not "currently schedulable" rows.
+	// Runtime filtering happens in ListSchedulableAccounts() via Account.IsSchedulable().
+
+	if groupID > 0 {
+		accounts, err := s.accountRepo.ListByGroup(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
-		filtered := make([]Account, 0, len(accounts))
-		for _, acc := range accounts {
-			if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
-				continue
-			}
-			filtered = append(filtered, acc)
-		}
-		return filtered, nil
+		return filterPoolMembers(accounts, poolFilterOptions{
+			bucketPlatform:   bucket.Platform,
+			useMixed:         useMixed,
+			requireUngrouped: false,
+			sortByPriority:   false, // preserve group ordering (account_groups priority + account priority)
+		}), nil
 	}
 
-	if groupID > 0 {
-		return s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, groupID, bucket.Platform)
+	requireUngrouped := !s.isRunModeSimple()
+	platforms := []string{bucket.Platform}
+	if useMixed {
+		platforms = append(platforms, PlatformAntigravity)
 	}
-	if s.isRunModeSimple() {
-		return s.accountRepo.ListSchedulableByPlatform(ctx, bucket.Platform)
+	merged := make([]Account, 0)
+	for _, p := range platforms {
+		list, err := s.accountRepo.ListByPlatform(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		merged = append(merged, list...)
 	}
-	return s.accountRepo.ListSchedulableUngroupedByPlatform(ctx, bucket.Platform)
+	return filterPoolMembers(merged, poolFilterOptions{
+		bucketPlatform:   bucket.Platform,
+		useMixed:         useMixed,
+		requireUngrouped: requireUngrouped,
+		sortByPriority:   true, // keep stable ordering for ungrouped buckets (priority asc, id asc)
+	}), nil
 }
 
 func (s *SchedulerSnapshotService) bucketFor(groupID *int64, platform string, mode string) SchedulerBucket {
@@ -683,6 +689,78 @@ func (s *SchedulerSnapshotService) resolveMode(platform string, hasForcePlatform
 		return SchedulerModeMixed
 	}
 	return SchedulerModeSingle
+}
+
+func filterSchedulableAccounts(accounts []Account) []Account {
+	if len(accounts) == 0 {
+		return []Account{}
+	}
+	filtered := make([]Account, 0, len(accounts))
+	for _, acc := range accounts {
+		if acc.IsSchedulable() {
+			filtered = append(filtered, acc)
+		}
+	}
+	return filtered
+}
+
+type poolFilterOptions struct {
+	bucketPlatform   string
+	useMixed         bool
+	requireUngrouped bool
+	sortByPriority   bool
+}
+
+func filterPoolMembers(accounts []Account, opts poolFilterOptions) []Account {
+	if len(accounts) == 0 {
+		return []Account{}
+	}
+	seen := make(map[int64]struct{}, len(accounts))
+	filtered := make([]Account, 0, len(accounts))
+	for _, acc := range accounts {
+		if acc.ID <= 0 {
+			continue
+		}
+		if _, ok := seen[acc.ID]; ok {
+			continue
+		}
+
+		// Stable pool membership filter:
+		// - only active accounts are returned from repo.ListByGroup/ListByPlatform
+		// - manual pause should never be considered a pool member
+		if !acc.Schedulable {
+			continue
+		}
+		if opts.requireUngrouped && len(acc.GroupIDs) > 0 {
+			continue
+		}
+
+		if opts.useMixed {
+			if acc.Platform != opts.bucketPlatform {
+				if acc.Platform != PlatformAntigravity || !acc.IsMixedSchedulingEnabled() {
+					continue
+				}
+			}
+		} else {
+			if acc.Platform != opts.bucketPlatform {
+				continue
+			}
+		}
+
+		seen[acc.ID] = struct{}{}
+		filtered = append(filtered, acc)
+	}
+
+	if opts.sortByPriority && len(filtered) > 1 {
+		sort.Slice(filtered, func(i, j int) bool {
+			if filtered[i].Priority != filtered[j].Priority {
+				return filtered[i].Priority < filtered[j].Priority
+			}
+			return filtered[i].ID < filtered[j].ID
+		})
+	}
+
+	return filtered
 }
 
 func (s *SchedulerSnapshotService) guardFallback(ctx context.Context) error {

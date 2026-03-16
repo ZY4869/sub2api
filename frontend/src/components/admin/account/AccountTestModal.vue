@@ -225,6 +225,7 @@ import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
+import { pickLatestSeriesModelId } from '@/utils/pickLatestSeriesModelId'
 import type { Account, ClaudeModel } from '@/types'
 
 const { t } = useI18n()
@@ -305,16 +306,8 @@ const loadAvailableModels = async () => {
     availableModels.value = props.account.platform === 'gemini' || props.account.platform === 'antigravity'
       ? sortModelsForTest(models)
       : models
-    // Default selection by platform
-    if (availableModels.value.length > 0) {
-      if (props.account.platform === 'gemini') {
-        selectedModelId.value = availableModels.value[0].id
-      } else {
-        // Try to select Sonnet as default, otherwise use first model
-        const sonnetModel = availableModels.value.find((m) => m.id.includes('sonnet'))
-        selectedModelId.value = sonnetModel?.id || availableModels.value[0].id
-      }
-    }
+
+    selectedModelId.value = pickLatestSeriesModelId(availableModels.value)
   } catch (error) {
     console.error('Failed to load available models:', error)
     // Fallback to empty list

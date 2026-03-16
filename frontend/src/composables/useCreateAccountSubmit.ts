@@ -35,6 +35,12 @@ interface UseCreateAccountSubmitOptions {
   editQuotaLimit: Ref<number | null>
   editQuotaDailyLimit: Ref<number | null>
   editQuotaWeeklyLimit: Ref<number | null>
+  editQuotaDailyResetMode: Ref<'rolling' | 'fixed' | null>
+  editQuotaDailyResetHour: Ref<number | null>
+  editQuotaWeeklyResetMode: Ref<'rolling' | 'fixed' | null>
+  editQuotaWeeklyResetDay: Ref<number | null>
+  editQuotaWeeklyResetHour: Ref<number | null>
+  editQuotaResetTimezone: Ref<string | null>
   afterCreateImportModels: (accounts: Account[]) => Promise<void>
   emitCreated: () => void
   onClose: () => void
@@ -117,6 +123,26 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
     if (options.editQuotaWeeklyLimit.value != null && options.editQuotaWeeklyLimit.value > 0) {
       extra.quota_weekly_limit = options.editQuotaWeeklyLimit.value
     }
+
+    if (options.editQuotaDailyResetMode.value != null) {
+      extra.quota_daily_reset_mode = options.editQuotaDailyResetMode.value
+    }
+    if (options.editQuotaDailyResetHour.value != null) {
+      extra.quota_daily_reset_hour = options.editQuotaDailyResetHour.value
+    }
+    if (options.editQuotaWeeklyResetMode.value != null) {
+      extra.quota_weekly_reset_mode = options.editQuotaWeeklyResetMode.value
+    }
+    if (options.editQuotaWeeklyResetDay.value != null) {
+      extra.quota_weekly_reset_day = options.editQuotaWeeklyResetDay.value
+    }
+    if (options.editQuotaWeeklyResetHour.value != null) {
+      extra.quota_weekly_reset_hour = options.editQuotaWeeklyResetHour.value
+    }
+    if (options.editQuotaResetTimezone.value != null) {
+      extra.quota_reset_timezone = options.editQuotaResetTimezone.value
+    }
+
     return Object.keys(extra).length > 0 ? extra : undefined
   }
 
@@ -130,7 +156,7 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
       return null
     }
 
-    const finalExtra = type === 'apikey' ? applyQuotaLimits(extra) : extra
+    const finalExtra = type === 'apikey' || type === 'bedrock' ? applyQuotaLimits(extra) : extra
     return doCreateAccount({
       name: options.form.name,
       notes: options.form.notes,

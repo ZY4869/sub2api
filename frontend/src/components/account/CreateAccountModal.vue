@@ -145,9 +145,21 @@
           :totalLimit="editQuotaLimit"
           :dailyLimit="editQuotaDailyLimit"
           :weeklyLimit="editQuotaWeeklyLimit"
+          :dailyResetMode="editQuotaDailyResetMode"
+          :dailyResetHour="editQuotaDailyResetHour"
+          :weeklyResetMode="editQuotaWeeklyResetMode"
+          :weeklyResetDay="editQuotaWeeklyResetDay"
+          :weeklyResetHour="editQuotaWeeklyResetHour"
+          :resetTimezone="editQuotaResetTimezone"
           @update:totalLimit="editQuotaLimit = $event"
           @update:dailyLimit="editQuotaDailyLimit = $event"
           @update:weeklyLimit="editQuotaWeeklyLimit = $event"
+          @update:dailyResetMode="editQuotaDailyResetMode = $event"
+          @update:dailyResetHour="editQuotaDailyResetHour = $event"
+          @update:weeklyResetMode="editQuotaWeeklyResetMode = $event"
+          @update:weeklyResetDay="editQuotaWeeklyResetDay = $event"
+          @update:weeklyResetHour="editQuotaWeeklyResetHour = $event"
+          @update:resetTimezone="editQuotaResetTimezone = $event"
         />
       </div>
       <AccountModelScopeEditor
@@ -476,6 +488,12 @@ const apiKeyValue = ref('')
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
+const editQuotaDailyResetMode = ref<'rolling' | 'fixed' | null>(null)
+const editQuotaDailyResetHour = ref<number | null>(null)
+const editQuotaWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
+const editQuotaWeeklyResetDay = ref<number | null>(null)
+const editQuotaWeeklyResetHour = ref<number | null>(null)
+const editQuotaResetTimezone = ref<string | null>(null)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -893,6 +911,12 @@ const { resetForm } = useCreateAccountReset({
   editQuotaLimit,
   editQuotaDailyLimit,
   editQuotaWeeklyLimit,
+  editQuotaDailyResetMode,
+  editQuotaDailyResetHour,
+  editQuotaWeeklyResetMode,
+  editQuotaWeeklyResetDay,
+  editQuotaWeeklyResetHour,
+  editQuotaResetTimezone,
   modelMappings,
   modelRestrictionMode,
   allowedModels,
@@ -964,6 +988,12 @@ const { submitting, createAccountAndFinish } = useCreateAccountSubmit({
   editQuotaLimit,
   editQuotaDailyLimit,
   editQuotaWeeklyLimit,
+  editQuotaDailyResetMode,
+  editQuotaDailyResetHour,
+  editQuotaWeeklyResetMode,
+  editQuotaWeeklyResetDay,
+  editQuotaWeeklyResetHour,
+  editQuotaResetTimezone,
   afterCreateImportModels: maybeImportCreatedAccounts,
   emitCreated: () => emit('created'),
   onClose: handleClose

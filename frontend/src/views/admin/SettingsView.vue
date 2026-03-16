@@ -1752,7 +1752,8 @@ import { adminAPI } from '@/api'
 import type {
   SystemSettings,
   UpdateSettingsRequest,
-  DefaultSubscriptionSetting
+  DefaultSubscriptionSetting,
+  BetaPolicyRule
 } from '@/api/admin/settings'
 import type { AdminGroup } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -1829,12 +1830,7 @@ const rectifierForm = reactive({
 const betaPolicyLoading = ref(true)
 const betaPolicySaving = ref(false)
 const betaPolicyForm = reactive({
-  rules: [] as Array<{
-    beta_token: string
-    action: 'pass' | 'filter' | 'block'
-    scope: 'all' | 'oauth' | 'apikey'
-    error_message?: string
-  }>
+  rules: [] as BetaPolicyRule[]
 })
 
 interface DefaultSubscriptionGroupOption {
@@ -1861,6 +1857,7 @@ const form = reactive<SettingsForm>({
   promo_code_enabled: true,
   invitation_code_enabled: false,
   password_reset_enabled: false,
+  frontend_url: '',
   totp_enabled: false,
   totp_encryption_key_configured: false,
   default_balance: 0,
@@ -1877,6 +1874,7 @@ const form = reactive<SettingsForm>({
   purchase_subscription_enabled: false,
   purchase_subscription_url: '',
   sora_client_enabled: false,
+  backend_mode_enabled: false,
   custom_menu_items: [] as Array<{id: string; label: string; icon_svg: string; url: string; visibility: 'user' | 'admin'; sort_order: number}>,
   smtp_host: '',
   smtp_port: 587,
@@ -2412,7 +2410,8 @@ const betaPolicyActionOptions = computed(() => [
 const betaPolicyScopeOptions = computed(() => [
   { value: 'all', label: t('admin.settings.betaPolicy.scopeAll') },
   { value: 'oauth', label: t('admin.settings.betaPolicy.scopeOAuth') },
-  { value: 'apikey', label: t('admin.settings.betaPolicy.scopeAPIKey') }
+  { value: 'apikey', label: t('admin.settings.betaPolicy.scopeAPIKey') },
+  { value: 'bedrock', label: t('admin.settings.betaPolicy.scopeBedrock') }
 ])
 
 // Beta Policy 方法

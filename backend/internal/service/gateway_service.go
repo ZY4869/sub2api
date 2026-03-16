@@ -129,6 +129,7 @@ type ForwardResult struct {
 	RequestID        string
 	Usage            ClaudeUsage
 	Model            string
+	ReasoningEffort  *string
 	Stream           bool
 	Duration         time.Duration
 	FirstTokenMs     *int

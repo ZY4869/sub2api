@@ -1,7 +1,19 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import AccountStatusIndicator from '../AccountStatusIndicator.vue'
 import type { Account } from '@/types'
+import { resetUiNowForTests, UI_NOW_TICK_MS } from '@/composables/useUiNow'
+
+enableAutoUnmount(afterEach)
+
+vi.mock('@/i18n', () => ({
+  i18n: {
+    global: {
+      t: (key: string) => key,
+    },
+  },
+  getLocale: () => 'en',
+}))
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -43,6 +55,39 @@ function makeAccount(overrides: Partial<Account>): Account {
 }
 
 describe('AccountStatusIndicator', () => {
+  beforeEach(() => {
+    resetUiNowForTests()
+  })
+
+  afterEach(() => {
+    resetUiNowForTests()
+    vi.useRealTimers()
+  })
+
+  it('rate limit 状态会在 resetAt 到点后自动消失（无需刷新）', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          rate_limit_reset_at: '2026-03-13T12:02:00Z',
+        }),
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.rateLimited')
+
+    vi.advanceTimersByTime(2 * 60 * 1000 + UI_NOW_TICK_MS)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
+  })
   it('模型限流 + overages 启用 + 无 AICredits key → 显示 ⚡ (credits_active)', () => {
     const wrapper = mount(AccountStatusIndicator, {
       props: {
@@ -122,7 +167,7 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('account.creditsExhausted')
+    expect(wrapper.text()).toContain('admin.accounts.status.creditsExhausted')
   })
 
   it('模型限流 + overages 启用 + AICredits key 生效 → 普通限流样式（积分耗尽，无 ⚡）', () => {
@@ -157,6 +202,6 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).toContain('CSon45')
     expect(wrapper.text()).not.toContain('⚡')
     // AICredits 积分耗尽状态应显示
-    expect(wrapper.text()).toContain('account.creditsExhausted')
+    expect(wrapper.text()).toContain('admin.accounts.status.creditsExhausted')
   })
 })

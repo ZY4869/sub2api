@@ -41,6 +41,12 @@ interface UseCreateAccountResetOptions {
   editQuotaLimit: Ref<number | null>
   editQuotaDailyLimit: Ref<number | null>
   editQuotaWeeklyLimit: Ref<number | null>
+  editQuotaDailyResetMode: Ref<'rolling' | 'fixed' | null>
+  editQuotaDailyResetHour: Ref<number | null>
+  editQuotaWeeklyResetMode: Ref<'rolling' | 'fixed' | null>
+  editQuotaWeeklyResetDay: Ref<number | null>
+  editQuotaWeeklyResetHour: Ref<number | null>
+  editQuotaResetTimezone: Ref<string | null>
   modelMappings: Ref<ModelMapping[]>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
@@ -95,6 +101,12 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.editQuotaLimit.value = null
     options.editQuotaDailyLimit.value = null
     options.editQuotaWeeklyLimit.value = null
+    options.editQuotaDailyResetMode.value = null
+    options.editQuotaDailyResetHour.value = null
+    options.editQuotaWeeklyResetMode.value = null
+    options.editQuotaWeeklyResetDay.value = null
+    options.editQuotaWeeklyResetHour.value = null
+    options.editQuotaResetTimezone.value = null
     options.modelMappings.value = []
     options.modelRestrictionMode.value = 'whitelist'
     options.allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')]

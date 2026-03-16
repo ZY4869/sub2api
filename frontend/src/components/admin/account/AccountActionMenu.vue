@@ -56,26 +56,55 @@
 import { computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@/components/icons'
+import { useUiNow } from '@/composables/useUiNow'
 import type { Account } from '@/types'
 
 const props = defineProps<{ show: boolean; account: Account | null; position: { top: number; left: number } | null }>()
 const emit = defineEmits(['close', 'test', 'stats', 'schedule', 'import-models', 'reauth', 'refresh-token', 'recover-state', 'reset-quota'])
 const { t } = useI18n()
+
+const { nowMs } = useUiNow()
+
 const isRateLimited = computed(() => {
-  if (props.account?.rate_limit_reset_at && new Date(props.account.rate_limit_reset_at) > new Date()) {
-    return true
-  }
-  const modelLimits = (props.account?.extra as Record<string, unknown> | undefined)?.model_rate_limits as
+  const account = props.account
+  if (!account) return false
+
+  const modelLimits = (account.extra as Record<string, unknown> | undefined)?.model_rate_limits as
     | Record<string, { rate_limit_reset_at: string }>
     | undefined
+
+  const resetAt = account.rate_limit_reset_at
+  if (!resetAt && !modelLimits) return false
+
+  const now = nowMs.value
+
+  if (resetAt) {
+    const resetAtMs = new Date(resetAt).getTime()
+    if (!Number.isNaN(resetAtMs) && resetAtMs > now) return true
+  }
+
   if (modelLimits) {
-    const now = new Date()
-    return Object.values(modelLimits).some(info => new Date(info.rate_limit_reset_at) > now)
+    return Object.values(modelLimits).some((info) => {
+      const resetAtMs = new Date(info.rate_limit_reset_at).getTime()
+      return !Number.isNaN(resetAtMs) && resetAtMs > now
+    })
   }
   return false
 })
-const isOverloaded = computed(() => props.account?.overload_until && new Date(props.account.overload_until) > new Date())
-const isTempUnschedulable = computed(() => props.account?.temp_unschedulable_until && new Date(props.account.temp_unschedulable_until) > new Date())
+const isOverloaded = computed(() => {
+  const until = props.account?.overload_until
+  if (!until) return false
+  const untilMs = new Date(until).getTime()
+  if (Number.isNaN(untilMs)) return false
+  return untilMs > nowMs.value
+})
+const isTempUnschedulable = computed(() => {
+  const until = props.account?.temp_unschedulable_until
+  if (!until) return false
+  const untilMs = new Date(until).getTime()
+  if (Number.isNaN(untilMs)) return false
+  return untilMs > nowMs.value
+})
 const hasRecoverableState = computed(() => {
   return props.account?.status === 'error' || Boolean(isRateLimited.value) || Boolean(isOverloaded.value) || Boolean(isTempUnschedulable.value)
 })

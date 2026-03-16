@@ -197,6 +197,21 @@ const DashboardIcon = {
     )
 }
 
+const DatabaseIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M4.5 6.75c0-1.657 3.022-3 6.75-3s6.75 1.343 6.75 3m-13.5 0c0 1.657 3.022 3 6.75 3s6.75-1.343 6.75-3m-13.5 0v10.5c0 1.657 3.022 3 6.75 3s6.75-1.343 6.75-3V6.75m-13.5 3.5c0 1.657 3.022 3 6.75 3s6.75-1.343 6.75-3m-13.5 3.5c0 1.657 3.022 3 6.75 3s6.75-1.343 6.75-3'
+        })
+      ]
+    )
+}
+
 const KeyIcon = {
   render: () =>
     h(

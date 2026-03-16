@@ -165,7 +165,7 @@
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
       />
 
-      <div v-if="account?.type === 'apikey'" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
+      <div v-if="account?.type === 'apikey' || account?.type === 'bedrock'" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3">
           <h3 class="input-label mb-0 text-base font-semibold">{{ t('admin.accounts.quotaLimit') }}</h3>
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -176,9 +176,21 @@
           :totalLimit="editQuotaLimit"
           :dailyLimit="editQuotaDailyLimit"
           :weeklyLimit="editQuotaWeeklyLimit"
+          :dailyResetMode="editQuotaDailyResetMode"
+          :dailyResetHour="editQuotaDailyResetHour"
+          :weeklyResetMode="editQuotaWeeklyResetMode"
+          :weeklyResetDay="editQuotaWeeklyResetDay"
+          :weeklyResetHour="editQuotaWeeklyResetHour"
+          :resetTimezone="editQuotaResetTimezone"
           @update:totalLimit="editQuotaLimit = $event"
           @update:dailyLimit="editQuotaDailyLimit = $event"
           @update:weeklyLimit="editQuotaWeeklyLimit = $event"
+          @update:dailyResetMode="editQuotaDailyResetMode = $event"
+          @update:dailyResetHour="editQuotaDailyResetHour = $event"
+          @update:weeklyResetMode="editQuotaWeeklyResetMode = $event"
+          @update:weeklyResetDay="editQuotaWeeklyResetDay = $event"
+          @update:weeklyResetHour="editQuotaWeeklyResetHour = $event"
+          @update:resetTimezone="editQuotaResetTimezone = $event"
         />
       </div>
 
@@ -365,6 +377,12 @@ const anthropicPassthroughEnabled = ref(false)
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
+const editQuotaDailyResetMode = ref<'rolling' | 'fixed' | null>(null)
+const editQuotaDailyResetHour = ref<number | null>(null)
+const editQuotaWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
+const editQuotaWeeklyResetDay = ref<number | null>(null)
+const editQuotaWeeklyResetHour = ref<number | null>(null)
+const editQuotaResetTimezone = ref<string | null>(null)
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
   { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
@@ -571,18 +589,39 @@ watch(
         anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
       }
 
-      // Load quota limit for apikey accounts
-      if (newAccount.type === 'apikey') {
-        const quotaVal = extra?.quota_limit as number | undefined
-        editQuotaLimit.value = (quotaVal && quotaVal > 0) ? quotaVal : null
-        const dailyVal = extra?.quota_daily_limit as number | undefined
-        editQuotaDailyLimit.value = (dailyVal && dailyVal > 0) ? dailyVal : null
-        const weeklyVal = extra?.quota_weekly_limit as number | undefined
-        editQuotaWeeklyLimit.value = (weeklyVal && weeklyVal > 0) ? weeklyVal : null
+      // Load quota limit for apikey/bedrock accounts
+      if (newAccount.type === 'apikey' || newAccount.type === 'bedrock') {
+        const quotaVal = Number(extra?.quota_limit)
+        editQuotaLimit.value = Number.isFinite(quotaVal) && quotaVal > 0 ? quotaVal : null
+        const dailyVal = Number(extra?.quota_daily_limit)
+        editQuotaDailyLimit.value = Number.isFinite(dailyVal) && dailyVal > 0 ? dailyVal : null
+        const weeklyVal = Number(extra?.quota_weekly_limit)
+        editQuotaWeeklyLimit.value = Number.isFinite(weeklyVal) && weeklyVal > 0 ? weeklyVal : null
+
+        const dailyMode = extra?.quota_daily_reset_mode
+        editQuotaDailyResetMode.value = dailyMode === 'fixed' || dailyMode === 'rolling' ? dailyMode : null
+        const dailyHour = Number(extra?.quota_daily_reset_hour)
+        editQuotaDailyResetHour.value = Number.isFinite(dailyHour) ? dailyHour : null
+
+        const weeklyMode = extra?.quota_weekly_reset_mode
+        editQuotaWeeklyResetMode.value = weeklyMode === 'fixed' || weeklyMode === 'rolling' ? weeklyMode : null
+        const weeklyDay = Number(extra?.quota_weekly_reset_day)
+        editQuotaWeeklyResetDay.value = Number.isFinite(weeklyDay) ? weeklyDay : null
+        const weeklyHour = Number(extra?.quota_weekly_reset_hour)
+        editQuotaWeeklyResetHour.value = Number.isFinite(weeklyHour) ? weeklyHour : null
+
+        const resetTz = extra?.quota_reset_timezone
+        editQuotaResetTimezone.value = typeof resetTz === 'string' && resetTz.trim() ? resetTz : null
       } else {
         editQuotaLimit.value = null
         editQuotaDailyLimit.value = null
         editQuotaWeeklyLimit.value = null
+        editQuotaDailyResetMode.value = null
+        editQuotaDailyResetHour.value = null
+        editQuotaWeeklyResetMode.value = null
+        editQuotaWeeklyResetDay.value = null
+        editQuotaWeeklyResetHour.value = null
+        editQuotaResetTimezone.value = null
       }
 
       if (newAccount.platform === 'antigravity') {
@@ -957,7 +996,7 @@ const handleSubmit = async () => {
       updatePayload.extra = newExtra
     }
 
-    if (props.account.type === 'apikey') {
+    if (props.account.type === 'apikey' || props.account.type === 'bedrock') {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
         (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
@@ -975,6 +1014,37 @@ const handleSubmit = async () => {
         newExtra.quota_weekly_limit = editQuotaWeeklyLimit.value
       } else {
         delete newExtra.quota_weekly_limit
+      }
+
+      if (editQuotaDailyResetMode.value != null) {
+        newExtra.quota_daily_reset_mode = editQuotaDailyResetMode.value
+      } else {
+        delete newExtra.quota_daily_reset_mode
+      }
+      if (editQuotaDailyResetHour.value != null) {
+        newExtra.quota_daily_reset_hour = editQuotaDailyResetHour.value
+      } else {
+        delete newExtra.quota_daily_reset_hour
+      }
+      if (editQuotaWeeklyResetMode.value != null) {
+        newExtra.quota_weekly_reset_mode = editQuotaWeeklyResetMode.value
+      } else {
+        delete newExtra.quota_weekly_reset_mode
+      }
+      if (editQuotaWeeklyResetDay.value != null) {
+        newExtra.quota_weekly_reset_day = editQuotaWeeklyResetDay.value
+      } else {
+        delete newExtra.quota_weekly_reset_day
+      }
+      if (editQuotaWeeklyResetHour.value != null) {
+        newExtra.quota_weekly_reset_hour = editQuotaWeeklyResetHour.value
+      } else {
+        delete newExtra.quota_weekly_reset_hour
+      }
+      if (editQuotaResetTimezone.value != null) {
+        newExtra.quota_reset_timezone = editQuotaResetTimezone.value
+      } else {
+        delete newExtra.quota_reset_timezone
       }
       updatePayload.extra = newExtra
     }

@@ -158,10 +158,13 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { useUiNow } from '@/composables/useUiNow'
 import type { Account } from '@/types'
 import { formatCountdown, formatDateTime, formatCountdownWithSuffix, formatTime } from '@/utils/format'
 
 const { t } = useI18n()
+
+const { nowMs, nowDate } = useUiNow()
 
 const props = defineProps<{
   account: Account
@@ -174,7 +177,9 @@ const emit = defineEmits<{
 // Computed: is rate limited (429)
 const isRateLimited = computed(() => {
   if (!props.account.rate_limit_reset_at) return false
-  return new Date(props.account.rate_limit_reset_at) > new Date()
+  const resetAtMs = new Date(props.account.rate_limit_reset_at).getTime()
+  if (Number.isNaN(resetAtMs)) return false
+  return resetAtMs > nowMs.value
 })
 
 type AccountModelStatusItem = {
@@ -189,10 +194,11 @@ const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
   const modelLimits = extra?.model_rate_limits as
     | Record<string, { rate_limited_at: string; rate_limit_reset_at: string }>
     | undefined
-  const now = new Date()
   const items: AccountModelStatusItem[] = []
 
   if (!modelLimits) return items
+
+  const now = nowDate.value
 
   // 检查 AICredits key 是否生效（积分是否耗尽）
   const aiCreditsEntry = modelLimits['AICredits']
@@ -264,8 +270,7 @@ const formatScopeName = (scope: string): string => {
 
 const formatModelResetTime = (resetAt: string): string => {
   const date = new Date(resetAt)
-  const now = new Date()
-  const diffMs = date.getTime() - now.getTime()
+  const diffMs = date.getTime() - nowMs.value
   if (diffMs <= 0) return ''
   const totalSecs = Math.floor(diffMs / 1000)
   const h = Math.floor(totalSecs / 3600)
@@ -279,13 +284,17 @@ const formatModelResetTime = (resetAt: string): string => {
 // Computed: is overloaded (529)
 const isOverloaded = computed(() => {
   if (!props.account.overload_until) return false
-  return new Date(props.account.overload_until) > new Date()
+  const untilMs = new Date(props.account.overload_until).getTime()
+  if (Number.isNaN(untilMs)) return false
+  return untilMs > nowMs.value
 })
 
 // Computed: is temp unschedulable
 const isTempUnschedulable = computed(() => {
   if (!props.account.temp_unschedulable_until) return false
-  return new Date(props.account.temp_unschedulable_until) > new Date()
+  const untilMs = new Date(props.account.temp_unschedulable_until).getTime()
+  if (Number.isNaN(untilMs)) return false
+  return untilMs > nowMs.value
 })
 
 // Computed: has error status
@@ -295,6 +304,8 @@ const hasError = computed(() => {
 
 // Computed: countdown text for rate limit (429)
 const rateLimitCountdown = computed(() => {
+  if (!props.account.rate_limit_reset_at) return null
+  void nowMs.value
   return formatCountdown(props.account.rate_limit_reset_at)
 })
 
@@ -305,6 +316,8 @@ const rateLimitResumeText = computed(() => {
 
 // Computed: countdown text for overload (529)
 const overloadCountdown = computed(() => {
+  if (!props.account.overload_until) return null
+  void nowMs.value
   return formatCountdownWithSuffix(props.account.overload_until)
 })
 
