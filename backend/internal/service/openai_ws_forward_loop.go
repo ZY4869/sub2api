@@ -118,7 +118,16 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 		}
 		return nil, wrapOpenAIWSFallback(classifyOpenAIWSAcquireError(err), err)
 	}
-	defer lease.Release()
+	// cleanExit 标记正常终端事件退出，此时上游不会再发送帧，连接可安全归还复用。
+	// 所有异常路径（读写错误、error 事件等）已在各自分支中提前调用 MarkBroken，
+	// 因此 defer 中只需处理正常退出时不 MarkBroken 即可。
+	cleanExit := false
+	defer func() {
+		if !cleanExit {
+			lease.MarkBroken()
+		}
+		lease.Release()
+	}()
 	connID := strings.TrimSpace(lease.ConnID())
 	logOpenAIWSModeDebug("connected account_id=%d account_type=%s transport=%s conn_id=%s conn_reused=%v conn_pick_ms=%d queue_wait_ms=%d has_previous_response_id=%v", account.ID, account.Type, normalizeOpenAIWSLogValue(string(decision.Transport)), connID, lease.Reused(), lease.ConnPickDuration().Milliseconds(), lease.QueueWaitDuration().Milliseconds(), previousResponseID != "")
 	if previousResponseID != "" {
@@ -342,6 +351,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 			}
 		}
 		if isTerminalEvent {
+			cleanExit = true
 			break
 		}
 	}
@@ -784,11 +794,15 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 			pinnedSessionConnID = connID
 		}
 	}
+	// lastTurnClean 标记最后一轮 sendAndRelay 是否正常完成（收到终端事件且客户端未断连）。
+	// 所有异常路径（读写错误、error 事件、客户端断连）已在各自分支或上层中 MarkBroken，
+	// 因此 releaseSessionLease 中只需在非正常结束时 MarkBroken。
+	lastTurnClean := false
 	releaseSessionLease := func() {
 		if sessionLease == nil {
 			return
 		}
-		if dedicatedMode {
+		if !lastTurnClean {
 			sessionLease.MarkBroken()
 		}
 		unpinSessionConn(sessionConnID)
@@ -814,6 +828,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		if sessionLease == nil {
 			return
 		}
+		lastTurnClean = false
 		if markBroken {
 			sessionLease.MarkBroken()
 		}
@@ -1000,6 +1015,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		}
 		result, relayErr := sendAndRelay(turn, sessionLease, currentPayload, currentPayloadBytes, currentOriginalModel)
 		if relayErr != nil {
+			lastTurnClean = false
 			if recoverIngressPrevResponseNotFound(relayErr, turn, connID) {
 				continue
 			}
@@ -1019,6 +1035,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		turnRetry = 0
 		turnPrevRecoveryTried = false
 		lastTurnFinishedAt = time.Now()
+		lastTurnClean = true
 		if hooks != nil && hooks.AfterTurn != nil {
 			hooks.AfterTurn(turn, result, nil)
 		}
@@ -1051,9 +1068,17 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 		nextClientMessage, readErr := readClientMessage()
 		if readErr != nil {
 			if isOpenAIWSClientDisconnectError(readErr) {
+				lastTurnClean = false
+				if sessionLease != nil {
+					sessionLease.MarkBroken()
+				}
 				closeStatus, closeReason := summarizeOpenAIWSReadCloseError(readErr)
 				logOpenAIWSModeInfo("ingress_ws_client_closed account_id=%d conn_id=%s close_status=%s close_reason=%s", account.ID, truncateOpenAIWSLogValue(connID, openAIWSIDValueMaxLen), closeStatus, truncateOpenAIWSLogValue(closeReason, openAIWSHeaderValueMaxLen))
 				return nil
+			}
+			lastTurnClean = false
+			if sessionLease != nil {
+				sessionLease.MarkBroken()
 			}
 			return fmt.Errorf("read client websocket request: %w", readErr)
 		}

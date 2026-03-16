@@ -93,10 +93,13 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	}
 	updates[SettingKeyMinClaudeCodeVersion] = settings.MinClaudeCodeVersion
 	updates[SettingKeyAllowUngroupedKeyScheduling] = strconv.FormatBool(settings.AllowUngroupedKeyScheduling)
+	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
 		minVersionSF.Forget("min_version")
 		minVersionCache.Store(&cachedMinVersion{value: settings.MinClaudeCodeVersion, expiresAt: time.Now().Add(minVersionCacheTTL).UnixNano()})
+		backendModeSF.Forget("backend_mode_enabled")
+		backendModeCache.Store(&cachedBackendMode{value: settings.BackendModeEnabled, expiresAt: time.Now().Add(backendModeCacheTTL).UnixNano()})
 		if s.onUpdate != nil {
 			s.onUpdate()
 		}

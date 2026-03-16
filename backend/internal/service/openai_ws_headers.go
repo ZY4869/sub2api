@@ -118,16 +118,28 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 	headers := make(http.Header)
 	headers.Set("authorization", "Bearer "+token)
 	sessionResolution := resolveOpenAIWSSessionHeaders(c, promptCacheKey)
+	apiKeyID := int64(0)
+	if account != nil && account.Type == AccountTypeOAuth {
+		apiKeyID = getAPIKeyIDFromContext(c)
+	}
 	if c != nil && c.Request != nil {
 		if v := strings.TrimSpace(c.Request.Header.Get("accept-language")); v != "" {
 			headers.Set("accept-language", v)
 		}
 	}
 	if sessionResolution.SessionID != "" {
-		headers.Set("session_id", sessionResolution.SessionID)
+		if account != nil && account.Type == AccountTypeOAuth {
+			headers.Set("session_id", isolateOpenAISessionID(apiKeyID, sessionResolution.SessionID))
+		} else {
+			headers.Set("session_id", sessionResolution.SessionID)
+		}
 	}
 	if sessionResolution.ConversationID != "" {
-		headers.Set("conversation_id", sessionResolution.ConversationID)
+		if account != nil && account.Type == AccountTypeOAuth {
+			headers.Set("conversation_id", isolateOpenAISessionID(apiKeyID, sessionResolution.ConversationID))
+		} else {
+			headers.Set("conversation_id", sessionResolution.ConversationID)
+		}
 	}
 	if state := strings.TrimSpace(turnState); state != "" {
 		headers.Set(openAIWSTurnStateHeader, state)
