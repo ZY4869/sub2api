@@ -5,6 +5,10 @@ import "time"
 
 // DashboardStats 仪表盘统计
 type DashboardStats struct {
+	// 管理员免费（BillingExemptReason=admin_free）统计
+	AdminFreeRequests     int64   `json:"admin_free_requests"`
+	AdminFreeStandardCost float64 `json:"admin_free_standard_cost"` // 标准计费口径（total_cost）
+
 	// 用户统计
 	TotalUsers    int64 `json:"total_users"`
 	TodayNewUsers int64 `json:"today_new_users"` // 今日新增用户数
@@ -140,6 +144,10 @@ type APIKeyUsageTrendPoint struct {
 
 // UserDashboardStats 用户仪表盘统计
 type UserDashboardStats struct {
+	// 管理员免费（BillingExemptReason=admin_free）统计
+	AdminFreeRequests     int64   `json:"admin_free_requests"`
+	AdminFreeStandardCost float64 `json:"admin_free_standard_cost"` // 标准计费口径（total_cost）
+
 	// API Key 统计
 	TotalAPIKeys  int64 `json:"total_api_keys"`
 	ActiveAPIKeys int64 `json:"active_api_keys"`
@@ -190,6 +198,9 @@ type UsageLogFilters struct {
 
 // UsageStats represents usage statistics
 type UsageStats struct {
+	AdminFreeRequests     int64   `json:"admin_free_requests"`
+	AdminFreeStandardCost float64 `json:"admin_free_standard_cost"`
+
 	TotalRequests     int64          `json:"total_requests"`
 	TotalInputTokens  int64          `json:"total_input_tokens"`
 	TotalOutputTokens int64          `json:"total_output_tokens"`

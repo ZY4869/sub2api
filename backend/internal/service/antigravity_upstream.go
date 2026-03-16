@@ -289,6 +289,15 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	result, err := s.antigravityRetryLoop(antigravityRetryLoopParams{ctx: ctx, prefix: prefix, account: account, proxyURL: proxyURL, accessToken: accessToken, action: upstreamAction, body: wrappedBody, c: c, httpUpstream: s.httpUpstream, settingService: s.settingService, accountRepo: s.accountRepo, handleError: s.handleUpstreamError, requestedModel: originalModel, isStickySession: isStickySession, groupID: 0, sessionHash: ""})
 	if err != nil {
 		if switchErr, ok := IsAntigravityAccountSwitchError(err); ok {
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				Platform:          account.Platform,
+				AccountID:         account.ID,
+				AccountName:       account.Name,
+				UpstreamStatusCode: 0,
+				Kind:             "failover",
+				Message:          "rate_limit_switch",
+				Detail:           switchErr.RateLimitedModel,
+			})
 			return nil, &UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable, ForceCacheBilling: switchErr.IsStickySession}
 		}
 		if c.Request.Context().Err() != nil {
@@ -302,7 +311,8 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 			_ = resp.Body.Close()
 		}
 	}()
-	if resp.StatusCode >= 400 {
+	signatureRetried := false
+	for resp != nil && resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 		contentType := resp.Header.Get("Content-Type")
 		_ = resp.Body.Close()
@@ -327,7 +337,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 			}
 		}
 		if resp.StatusCode < 400 {
-			goto handleSuccess
+			break
 		}
 		requestID := resp.Header.Get("x-request-id")
 		if requestID != "" {
@@ -337,6 +347,62 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		unwrappedForOps := unwrapped
 		if unwrapErr != nil || len(unwrappedForOps) == 0 {
 			unwrappedForOps = respBody
+		}
+		if resp.StatusCode == http.StatusBadRequest &&
+			!signatureRetried &&
+			s.settingService != nil &&
+			s.settingService.IsSignatureRectifierEnabled(ctx) &&
+			isSignatureRelatedError(unwrappedForOps) {
+			upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(unwrappedForOps))
+			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
+			upstreamDetail := s.getUpstreamErrorDetail(unwrappedForOps)
+			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+				Platform:          account.Platform,
+				AccountID:         account.ID,
+				AccountName:       account.Name,
+				UpstreamStatusCode: resp.StatusCode,
+				UpstreamRequestID:  requestID,
+				Kind:             "signature_error",
+				Message:          upstreamMsg,
+				Detail:           upstreamDetail,
+			})
+			rectified, changed, rectErr := rectifyGeminiThoughtSignatures(injectedBody)
+			if rectErr == nil && changed {
+				retryWrapped, wrapErr := s.wrapV1InternalRequest(projectID, mappedModel, rectified)
+				if wrapErr == nil {
+					signatureRetried = true
+					injectedBody = rectified
+					retryResult, retryErr := s.antigravityRetryLoop(antigravityRetryLoopParams{ctx: ctx, prefix: prefix, account: account, proxyURL: proxyURL, accessToken: accessToken, action: upstreamAction, body: retryWrapped, c: c, httpUpstream: s.httpUpstream, settingService: s.settingService, accountRepo: s.accountRepo, handleError: s.handleUpstreamError, requestedModel: originalModel, isStickySession: isStickySession, groupID: 0, sessionHash: ""})
+					if retryErr != nil {
+						if switchErr, ok := IsAntigravityAccountSwitchError(retryErr); ok {
+							appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+								Platform:          account.Platform,
+								AccountID:         account.ID,
+								AccountName:       account.Name,
+								UpstreamStatusCode: 0,
+								Kind:             "failover",
+								Message:          "rate_limit_switch",
+								Detail:           switchErr.RateLimitedModel,
+							})
+							return nil, &UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable, ForceCacheBilling: switchErr.IsStickySession}
+						}
+						appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+							Platform:          account.Platform,
+							AccountID:         account.ID,
+							AccountName:       account.Name,
+							UpstreamStatusCode: 0,
+							Kind:             "signature_retry_request_error",
+							Message:          sanitizeUpstreamErrorMessage(retryErr.Error()),
+						})
+						if c.Request.Context().Err() != nil {
+							return nil, s.writeGoogleError(c, http.StatusBadGateway, "Client disconnected before upstream response")
+						}
+						return nil, s.writeGoogleError(c, http.StatusBadGateway, "Upstream request failed after retries")
+					}
+					resp = retryResult.resp
+					continue
+				}
+			}
 		}
 		s.handleUpstreamError(ctx, prefix, account, resp.StatusCode, resp.Header, respBody, originalModel, 0, "", isStickySession)
 		upstreamMsg := strings.TrimSpace(extractAntigravityErrorMessage(unwrappedForOps))
@@ -360,7 +426,6 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 		c.Data(resp.StatusCode, contentType, unwrappedForOps)
 		return nil, fmt.Errorf("antigravity upstream error: %d", resp.StatusCode)
 	}
-handleSuccess:
 	requestID := resp.Header.Get("x-request-id")
 	if requestID != "" {
 		c.Header("x-request-id", requestID)

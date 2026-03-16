@@ -165,6 +165,7 @@ type GatewayService struct {
 	accountRepo           AccountRepository
 	groupRepo             GroupRepository
 	usageLogRepo          UsageLogRepository
+	usageBillingRepo      UsageBillingRepository
 	userRepo              UserRepository
 	userSubRepo           UserSubscriptionRepository
 	userGroupRateRepo     UserGroupRateRepository
@@ -194,10 +195,10 @@ type GatewayService struct {
 	debugClaudeMimic      atomic.Bool
 }
 
-func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository, usageLogRepo UsageLogRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, identityService *IdentityService, httpUpstream HTTPUpstream, deferredService *DeferredService, claudeTokenProvider *ClaudeTokenProvider, sessionLimitCache SessionLimitCache, rpmCache RPMCache, digestStore *DigestSessionStore, settingService *SettingService) *GatewayService {
+func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, identityService *IdentityService, httpUpstream HTTPUpstream, deferredService *DeferredService, claudeTokenProvider *ClaudeTokenProvider, sessionLimitCache SessionLimitCache, rpmCache RPMCache, digestStore *DigestSessionStore, settingService *SettingService) *GatewayService {
 	userGroupRateTTL := resolveUserGroupRateCacheTTL(cfg)
 	modelsListTTL := resolveModelsListCacheTTL(cfg)
-	svc := &GatewayService{accountRepo: accountRepo, groupRepo: groupRepo, usageLogRepo: usageLogRepo, userRepo: userRepo, userSubRepo: userSubRepo, userGroupRateRepo: userGroupRateRepo, cache: cache, digestStore: digestStore, cfg: cfg, schedulerSnapshot: schedulerSnapshot, concurrencyService: concurrencyService, billingService: billingService, rateLimitService: rateLimitService, billingCacheService: billingCacheService, identityService: identityService, httpUpstream: httpUpstream, deferredService: deferredService, claudeTokenProvider: claudeTokenProvider, sessionLimitCache: sessionLimitCache, rpmCache: rpmCache, userGroupRateCache: gocache.New(userGroupRateTTL, time.Minute), settingService: settingService, modelsListCache: gocache.New(modelsListTTL, time.Minute), modelsListCacheTTL: modelsListTTL, responseHeaderFilter: compileResponseHeaderFilter(cfg)}
+	svc := &GatewayService{accountRepo: accountRepo, groupRepo: groupRepo, usageLogRepo: usageLogRepo, usageBillingRepo: usageBillingRepo, userRepo: userRepo, userSubRepo: userSubRepo, userGroupRateRepo: userGroupRateRepo, cache: cache, digestStore: digestStore, cfg: cfg, schedulerSnapshot: schedulerSnapshot, concurrencyService: concurrencyService, billingService: billingService, rateLimitService: rateLimitService, billingCacheService: billingCacheService, identityService: identityService, httpUpstream: httpUpstream, deferredService: deferredService, claudeTokenProvider: claudeTokenProvider, sessionLimitCache: sessionLimitCache, rpmCache: rpmCache, userGroupRateCache: gocache.New(userGroupRateTTL, time.Minute), settingService: settingService, modelsListCache: gocache.New(modelsListTTL, time.Minute), modelsListCacheTTL: modelsListTTL, responseHeaderFilter: compileResponseHeaderFilter(cfg)}
 	svc.userGroupRateResolver = newUserGroupRateResolver(userGroupRateRepo, svc.userGroupRateCache, userGroupRateTTL, &svc.userGroupRateSF, "service.gateway")
 	svc.debugModelRouting.Store(parseDebugEnvBool(os.Getenv("SUB2API_DEBUG_MODEL_ROUTING")))
 	svc.debugClaudeMimic.Store(parseDebugEnvBool(os.Getenv("SUB2API_DEBUG_CLAUDE_MIMIC")))

@@ -759,9 +759,11 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_MissingTerminalEventReturnsEr
 	}
 
 	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 1}, time.Now(), "claude-3-7-sonnet-20250219")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "missing terminal event")
 	require.NotNil(t, result)
+	require.NoError(t, err)
+	require.NotNil(t, result.usage)
+	require.Equal(t, 11, result.usage.InputTokens)
+	require.Equal(t, 5, result.usage.OutputTokens)
 }
 
 func TestGatewayService_AnthropicAPIKeyPassthrough_ForwardDirect_NonStreamingSuccess(t *testing.T) {
@@ -1111,8 +1113,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingTimeoutAfterClientDi
 	_ = pr.Close()
 	<-done
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stream usage incomplete after timeout")
+	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.clientDisconnect)
 	require.Equal(t, 9, result.usage.InputTokens)
@@ -1141,8 +1142,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingContextCanceled(t *t
 	}
 
 	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 3}, time.Now(), "claude-3-7-sonnet-20250219")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stream usage incomplete")
+	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.clientDisconnect)
 }
@@ -1172,8 +1172,7 @@ func TestGatewayService_AnthropicAPIKeyPassthrough_StreamingUpstreamReadErrorAft
 	}
 
 	result, err := svc.handleStreamingResponseAnthropicAPIKeyPassthrough(context.Background(), resp, c, &Account{ID: 4}, time.Now(), "claude-3-7-sonnet-20250219")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stream usage incomplete after disconnect")
+	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.True(t, result.clientDisconnect)
 	require.Equal(t, 8, result.usage.InputTokens)

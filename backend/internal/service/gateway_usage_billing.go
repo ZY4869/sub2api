@@ -28,8 +28,11 @@ type RecordUsageInput struct {
 	User              *User
 	Account           *Account
 	Subscription      *UserSubscription
+	InboundEndpoint   string
+	UpstreamEndpoint  string
 	UserAgent         string
 	IPAddress         string
+	RequestPayloadHash string
 	ForceCacheBilling bool
 	APIKeyService     APIKeyQuotaUpdater
 }
@@ -44,6 +47,7 @@ type postUsageBillingParams struct {
 	Account               *Account
 	Subscription          *UserSubscription
 	IsSubscriptionBill    bool
+	RequestPayloadHash    string
 	SkipUserBilling       bool
 	AccountRateMultiplier float64
 	APIKeyService         APIKeyQuotaUpdater
@@ -60,40 +64,40 @@ func applyBillingExemption(cost *CostBreakdown, user *User) (actualCost float64,
 }
 
 func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
+	billingCtx, cancel := detachedBillingContext(ctx)
+	defer cancel()
+
 	cost := p.Cost
 	if p.IsSubscriptionBill {
-		if !p.SkipUserBilling && cost.TotalCost > 0 {
-			if err := deps.userSubRepo.IncrementUsage(ctx, p.Subscription.ID, cost.TotalCost); err != nil {
+		if !p.SkipUserBilling && cost.TotalCost > 0 && p.Subscription != nil {
+			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.TotalCost); err != nil {
 				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
 			}
-			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, cost.TotalCost)
 		}
 	} else {
 		if !p.SkipUserBilling && cost.ActualCost > 0 {
-			if err := deps.userRepo.DeductBalance(ctx, p.User.ID, cost.ActualCost); err != nil {
+			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, cost.ActualCost); err != nil {
 				slog.Error("deduct balance failed", "user_id", p.User.ID, "error", err)
 			}
-			deps.billingCacheService.QueueDeductBalance(p.User.ID, cost.ActualCost)
 		}
 	}
 	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
-		if err := p.APIKeyService.UpdateQuotaUsed(ctx, p.APIKey.ID, cost.ActualCost); err != nil {
+		if err := p.APIKeyService.UpdateQuotaUsed(billingCtx, p.APIKey.ID, cost.ActualCost); err != nil {
 			slog.Error("update api key quota failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
 	}
 	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
-		if err := p.APIKeyService.UpdateRateLimitUsage(ctx, p.APIKey.ID, cost.ActualCost); err != nil {
+		if err := p.APIKeyService.UpdateRateLimitUsage(billingCtx, p.APIKey.ID, cost.ActualCost); err != nil {
 			slog.Error("update api key rate limit usage failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
-		deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, cost.ActualCost)
 	}
-	if cost.TotalCost > 0 && p.Account.Type == AccountTypeAPIKey && p.Account.HasAnyQuotaLimit() {
+	if cost.TotalCost > 0 && p.Account.IsAPIKeyOrBedrock() && p.Account.HasAnyQuotaLimit() {
 		accountCost := cost.TotalCost * p.AccountRateMultiplier
-		if err := deps.accountRepo.IncrementQuotaUsed(ctx, p.Account.ID, accountCost); err != nil {
+		if err := deps.accountRepo.IncrementQuotaUsed(billingCtx, p.Account.ID, accountCost); err != nil {
 			slog.Error("increment account quota used failed", "account_id", p.Account.ID, "cost", accountCost, "error", err)
 		}
 	}
-	deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+	finalizePostUsageBilling(p, deps)
 }
 
 type billingDeps struct {
@@ -215,12 +219,15 @@ type RecordUsageLongContextInput struct {
 	User                  *User
 	Account               *Account
 	Subscription          *UserSubscription
+	InboundEndpoint       string
+	UpstreamEndpoint      string
 	UserAgent             string
 	IPAddress             string
+	RequestPayloadHash    string
 	LongContextThreshold  int
 	LongContextMultiplier float64
 	ForceCacheBilling     bool
-	APIKeyService         *APIKeyService
+	APIKeyService         APIKeyQuotaUpdater
 }
 
 func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *RecordUsageLongContextInput) error {

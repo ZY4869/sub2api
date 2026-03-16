@@ -35,6 +35,7 @@ var codexCLIOnlyDebugHeaderWhitelist = []string{"User-Agent", "Content-Type", "A
 type OpenAIGatewayService struct {
 	accountRepo                   AccountRepository
 	usageLogRepo                  UsageLogRepository
+	usageBillingRepo              UsageBillingRepository
 	userRepo                      UserRepository
 	userSubRepo                   UserSubscriptionRepository
 	cache                         GatewayCache
@@ -66,8 +67,8 @@ type OpenAIGatewayService struct {
 	codexSnapshotThrottle         *accountWriteThrottle
 }
 
-func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLogRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider) *OpenAIGatewayService {
-	svc := &OpenAIGatewayService{accountRepo: accountRepo, usageLogRepo: usageLogRepo, userRepo: userRepo, userSubRepo: userSubRepo, cache: cache, cfg: cfg, codexDetector: NewOpenAICodexClientRestrictionDetector(cfg), schedulerSnapshot: schedulerSnapshot, concurrencyService: concurrencyService, billingService: billingService, rateLimitService: rateLimitService, billingCacheService: billingCacheService, userGroupRateResolver: newUserGroupRateResolver(userGroupRateRepo, nil, resolveUserGroupRateCacheTTL(cfg), nil, "service.openai_gateway"), httpUpstream: httpUpstream, deferredService: deferredService, openAITokenProvider: openAITokenProvider, toolCorrector: NewCodexToolCorrector(), openaiWSResolver: NewOpenAIWSProtocolResolver(cfg), responseHeaderFilter: compileResponseHeaderFilter(cfg), codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval)}
+func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider) *OpenAIGatewayService {
+	svc := &OpenAIGatewayService{accountRepo: accountRepo, usageLogRepo: usageLogRepo, usageBillingRepo: usageBillingRepo, userRepo: userRepo, userSubRepo: userSubRepo, cache: cache, cfg: cfg, codexDetector: NewOpenAICodexClientRestrictionDetector(cfg), schedulerSnapshot: schedulerSnapshot, concurrencyService: concurrencyService, billingService: billingService, rateLimitService: rateLimitService, billingCacheService: billingCacheService, userGroupRateResolver: newUserGroupRateResolver(userGroupRateRepo, nil, resolveUserGroupRateCacheTTL(cfg), nil, "service.openai_gateway"), httpUpstream: httpUpstream, deferredService: deferredService, openAITokenProvider: openAITokenProvider, toolCorrector: NewCodexToolCorrector(), openaiWSResolver: NewOpenAIWSProtocolResolver(cfg), responseHeaderFilter: compileResponseHeaderFilter(cfg), codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval)}
 	svc.logOpenAIWSModeBootstrap()
 	return svc
 }

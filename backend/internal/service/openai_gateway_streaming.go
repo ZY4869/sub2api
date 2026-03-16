@@ -332,10 +332,14 @@ func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsag
 	if usage == nil || len(data) == 0 || bytes.Equal(data, []byte("[DONE]")) {
 		return
 	}
-	if len(data) < 80 || !bytes.Contains(data, []byte(`"response.completed"`)) {
+	if len(data) < 80 {
 		return
 	}
-	if gjson.GetBytes(data, "type").String() != "response.completed" {
+	if !bytes.Contains(data, []byte(`"response.completed"`)) && !bytes.Contains(data, []byte(`"response.done"`)) {
+		return
+	}
+	eventType := gjson.GetBytes(data, "type").String()
+	if eventType != "response.completed" && eventType != "response.done" {
 		return
 	}
 	usage.InputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens").Int())

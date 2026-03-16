@@ -434,12 +434,16 @@ func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficient
 
 	expected := expectedNormalizedGeminiCLIDefaultModelIDs()
 	require.Equal(t, expected, result.DetectedModels)
-	require.NotZero(t, result.ImportedCount)
+	require.GreaterOrEqual(t, result.ImportedCount+result.SkippedCount, len(expected))
 	require.Equal(t, len(expected), len(result.ModelResults))
 	require.GreaterOrEqual(t, countImportModelResults(result.ModelResults, "imported")+countImportModelResults(result.ModelResults, "merged")+countImportModelResults(result.ModelResults, "skipped"), len(expected))
 
-	stored := repo.values[SettingKeyModelRegistryEntries]
-	require.NotEmpty(t, stored)
+	// 默认 fallback 模型可能已在 seed registry 中，无需写入 runtime entries。
+	// 若写入发生，也应保证 JSON 可解析。
+	if stored := strings.TrimSpace(repo.values[SettingKeyModelRegistryEntries]); stored != "" {
+		var entries []any
+		require.NoError(t, json.Unmarshal([]byte(stored), &entries))
+	}
 }
 
 func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficientScope(t *testing.T) {
@@ -472,8 +476,12 @@ func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficien
 	require.Equal(t, expectedNormalizedGeminiCLIDefaultModelIDs(), result.DetectedModels)
 	require.NotEmpty(t, result.ProbeNotice)
 
-	stored := repo.values[SettingKeyModelRegistryEntries]
-	require.NotEmpty(t, stored)
+	// 默认 fallback 模型可能已在 seed registry 中，无需写入 runtime entries。
+	// 若写入发生，也应保证 JSON 可解析。
+	if stored := strings.TrimSpace(repo.values[SettingKeyModelRegistryEntries]); stored != "" {
+		var entries []any
+		require.NoError(t, json.Unmarshal([]byte(stored), &entries))
+	}
 }
 
 func TestImportAccountModels_GeminiAPIKey403DoesNotFallbackToDefaultModels(t *testing.T) {

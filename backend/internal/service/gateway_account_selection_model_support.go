@@ -26,6 +26,13 @@ func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Contex
 	return s.isModelSupportedByAccount(account, requestedModel)
 }
 func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedModel string) bool {
+	if account != nil && account.Type == AccountTypeBedrock {
+		if strings.TrimSpace(requestedModel) == "" {
+			return true
+		}
+		_, ok := ResolveBedrockModelID(account, requestedModel)
+		return ok
+	}
 	if account.Platform == PlatformAntigravity {
 		if strings.TrimSpace(requestedModel) == "" {
 			return true

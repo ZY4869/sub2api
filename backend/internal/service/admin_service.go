@@ -26,6 +26,9 @@ type AdminService interface {
 	DeleteGroup(ctx context.Context, id int64) error
 	GetGroupAPIKeys(ctx context.Context, groupID int64, page, pageSize int) ([]APIKey, int64, error)
 	UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
+	GetGroupRateMultipliers(ctx context.Context, groupID int64) ([]UserGroupRateEntry, error)
+	ClearGroupRateMultipliers(ctx context.Context, groupID int64) error
+	BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
 	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64) ([]Account, int64, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)

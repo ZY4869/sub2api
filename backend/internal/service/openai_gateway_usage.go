@@ -16,25 +16,43 @@ type OpenAIRecordUsageInput struct {
 	User          *User
 	Account       *Account
 	Subscription  *UserSubscription
+	InboundEndpoint   string
+	UpstreamEndpoint  string
 	UserAgent     string
 	IPAddress     string
+	RequestPayloadHash string
 	APIKeyService APIKeyQuotaUpdater
 }
 
 func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRecordUsageInput) error {
 	result := input.Result
-	if result.Usage.InputTokens == 0 && result.Usage.OutputTokens == 0 && result.Usage.CacheCreationInputTokens == 0 && result.Usage.CacheReadInputTokens == 0 {
+
+	// Skip records where all tokens are zero (upstream did not provide usage).
+	if result.Usage.InputTokens == 0 && result.Usage.OutputTokens == 0 &&
+		result.Usage.CacheCreationInputTokens == 0 && result.Usage.CacheReadInputTokens == 0 {
 		return nil
 	}
+
 	apiKey := input.APIKey
 	user := input.User
 	account := input.Account
 	subscription := input.Subscription
+
+	// input_tokens includes cache_read tokens; cached reads are not billed at input price.
 	actualInputTokens := result.Usage.InputTokens - result.Usage.CacheReadInputTokens
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
-	tokens := UsageTokens{InputTokens: actualInputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens}
+
+	// Calculate cost.
+	tokens := UsageTokens{
+		InputTokens:         actualInputTokens,
+		OutputTokens:        result.Usage.OutputTokens,
+		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:     result.Usage.CacheReadInputTokens,
+	}
+
+	// Resolve rate multiplier.
 	multiplier := s.cfg.Default.RateMultiplier
 	if apiKey.GroupID != nil && apiKey.Group != nil {
 		resolver := s.userGroupRateResolver
@@ -43,6 +61,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		}
 		multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
 	}
+
 	billingModel := result.Model
 	if result.BillingModel != "" {
 		billingModel = result.BillingModel
@@ -55,14 +74,48 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if err != nil {
 		cost = &CostBreakdown{ActualCost: 0}
 	}
+
+	// Determine billing type.
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
 		billingType = BillingTypeSubscription
 	}
+
 	durationMs := int(result.Duration.Milliseconds())
 	accountRateMultiplier := account.BillingRateMultiplier()
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: result.RequestID, Model: billingModel, ServiceTier: result.ServiceTier, ReasoningEffort: result.ReasoningEffort, InputTokens: actualInputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: cost.ActualCost, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Stream: result.Stream, OpenAIWSMode: result.OpenAIWSMode, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, CreatedAt: time.Now()}
+	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+
+	usageLog := &UsageLog{
+		UserID:                user.ID,
+		APIKeyID:              apiKey.ID,
+		AccountID:             account.ID,
+		RequestID:             requestID,
+		Model:                 billingModel,
+		ServiceTier:           result.ServiceTier,
+		ReasoningEffort:       result.ReasoningEffort,
+		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:           actualInputTokens,
+		OutputTokens:          result.Usage.OutputTokens,
+		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:       result.Usage.CacheReadInputTokens,
+		InputCost:             cost.InputCost,
+		OutputCost:            cost.OutputCost,
+		CacheCreationCost:     cost.CacheCreationCost,
+		CacheReadCost:         cost.CacheReadCost,
+		TotalCost:             cost.TotalCost,
+		ActualCost:            cost.ActualCost,
+		RateMultiplier:        multiplier,
+		AccountRateMultiplier: &accountRateMultiplier,
+		BillingType:           billingType,
+		Stream:                result.Stream,
+		OpenAIWSMode:          result.OpenAIWSMode,
+		DurationMs:            &durationMs,
+		FirstTokenMs:          result.FirstTokenMs,
+		CreatedAt:             time.Now(),
+	}
+
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -75,18 +128,29 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if subscription != nil {
 		usageLog.SubscriptionID = &subscription.ID
 	}
-	inserted, err := s.usageLogRepo.Create(ctx, usageLog)
+
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
+		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 		logger.LegacyPrintf("service.openai_gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())
 		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 		return nil
 	}
-	shouldBill := inserted || err != nil
-	if shouldBill {
-		postUsageBilling(ctx, &postUsageBillingParams{Cost: cost, User: user, APIKey: apiKey, Account: account, Subscription: subscription, IsSubscriptionBill: isSubscriptionBilling, AccountRateMultiplier: accountRateMultiplier, APIKeyService: input.APIKeyService}, s.billingDeps())
-	} else {
-		s.deferredService.ScheduleLastUsedUpdate(account.ID)
+
+	if _, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
+		Cost:                  cost,
+		User:                  user,
+		APIKey:                apiKey,
+		Account:               account,
+		Subscription:          subscription,
+		RequestPayloadHash:    resolveUsageBillingPayloadFingerprint(ctx, input.RequestPayloadHash),
+		IsSubscriptionBill:    isSubscriptionBilling,
+		AccountRateMultiplier: accountRateMultiplier,
+		APIKeyService:         input.APIKeyService,
+	}, s.billingDeps(), s.usageBillingRepo); billingErr != nil {
+		return billingErr
 	}
+
+	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
 	return nil
 }
 func ParseCodexRateLimitHeaders(headers http.Header) *OpenAICodexUsageSnapshot {

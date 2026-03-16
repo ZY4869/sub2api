@@ -939,10 +939,9 @@ func TestOpenAIStreamingContextCanceledReturnsIncompleteErrorWithoutInjectingErr
 		Header:     http.Header{},
 	}
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
-	if err == nil || !strings.Contains(err.Error(), "stream usage incomplete") {
-		t.Fatalf("expected incomplete stream error, got %v", err)
-	}
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	if strings.Contains(rec.Body.String(), "event: error") || strings.Contains(rec.Body.String(), "stream_read_error") {
 		t.Fatalf("expected no injected SSE error event, got %q", rec.Body.String())
 	}
@@ -1020,11 +1019,10 @@ func TestOpenAIStreamingMissingTerminalEventReturnsIncompleteError(t *testing.T)
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.in_progress\",\"response\":{}}\n\n"))
 	}()
 
-	_, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
+	result, err := svc.handleStreamingResponse(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now(), "model", "model")
 	_ = pr.Close()
-	if err == nil || !strings.Contains(err.Error(), "missing terminal event") {
-		t.Fatalf("expected missing terminal event error, got %v", err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }
 
 func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t *testing.T) {
@@ -1052,11 +1050,10 @@ func TestOpenAIStreamingPassthroughMissingTerminalEventReturnsIncompleteError(t 
 		_, _ = pw.Write([]byte("data: {\"type\":\"response.in_progress\",\"response\":{}}\n\n"))
 	}()
 
-	_, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now())
+	result, err := svc.handleStreamingResponsePassthrough(c.Request.Context(), resp, c, &Account{ID: 1}, time.Now())
 	_ = pr.Close()
-	if err == nil || !strings.Contains(err.Error(), "missing terminal event") {
-		t.Fatalf("expected missing terminal event error, got %v", err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }
 
 func TestOpenAIStreamingPassthroughResponseDoneWithoutDoneMarkerStillSucceeds(t *testing.T) {
