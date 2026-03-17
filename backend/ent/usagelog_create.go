@@ -267,6 +267,20 @@ func (_c *UsageLogCreate) SetNillableBillingExemptReason(v *string) *UsageLogCre
 	return _c
 }
 
+// SetThinkingEnabled sets the "thinking_enabled" field.
+func (_c *UsageLogCreate) SetThinkingEnabled(v bool) *UsageLogCreate {
+	_c.mutation.SetThinkingEnabled(v)
+	return _c
+}
+
+// SetNillableThinkingEnabled sets the "thinking_enabled" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableThinkingEnabled(v *bool) *UsageLogCreate {
+	if v != nil {
+		_c.SetThinkingEnabled(*v)
+	}
+	return _c
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_c *UsageLogCreate) SetRateMultiplier(v float64) *UsageLogCreate {
 	_c.mutation.SetRateMultiplier(v)
@@ -785,6 +799,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldBillingExemptReason, field.TypeString, value)
 		_node.BillingExemptReason = &value
 	}
+	if value, ok := _c.mutation.ThinkingEnabled(); ok {
+		_spec.SetField(usagelog.FieldThinkingEnabled, field.TypeBool, value)
+		_node.ThinkingEnabled = &value
+	}
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
 		_node.RateMultiplier = value
@@ -1301,6 +1319,24 @@ func (u *UsageLogUpsert) UpdateBillingExemptReason() *UsageLogUpsert {
 // ClearBillingExemptReason clears the value of the "billing_exempt_reason" field.
 func (u *UsageLogUpsert) ClearBillingExemptReason() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldBillingExemptReason)
+	return u
+}
+
+// SetThinkingEnabled sets the "thinking_enabled" field.
+func (u *UsageLogUpsert) SetThinkingEnabled(v bool) *UsageLogUpsert {
+	u.Set(usagelog.FieldThinkingEnabled, v)
+	return u
+}
+
+// UpdateThinkingEnabled sets the "thinking_enabled" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateThinkingEnabled() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldThinkingEnabled)
+	return u
+}
+
+// ClearThinkingEnabled clears the value of the "thinking_enabled" field.
+func (u *UsageLogUpsert) ClearThinkingEnabled() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldThinkingEnabled)
 	return u
 }
 
@@ -1953,6 +1989,27 @@ func (u *UsageLogUpsertOne) UpdateBillingExemptReason() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearBillingExemptReason() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearBillingExemptReason()
+	})
+}
+
+// SetThinkingEnabled sets the "thinking_enabled" field.
+func (u *UsageLogUpsertOne) SetThinkingEnabled(v bool) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetThinkingEnabled(v)
+	})
+}
+
+// UpdateThinkingEnabled sets the "thinking_enabled" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateThinkingEnabled() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateThinkingEnabled()
+	})
+}
+
+// ClearThinkingEnabled clears the value of the "thinking_enabled" field.
+func (u *UsageLogUpsertOne) ClearThinkingEnabled() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearThinkingEnabled()
 	})
 }
 
@@ -2808,6 +2865,27 @@ func (u *UsageLogUpsertBulk) UpdateBillingExemptReason() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearBillingExemptReason() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearBillingExemptReason()
+	})
+}
+
+// SetThinkingEnabled sets the "thinking_enabled" field.
+func (u *UsageLogUpsertBulk) SetThinkingEnabled(v bool) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetThinkingEnabled(v)
+	})
+}
+
+// UpdateThinkingEnabled sets the "thinking_enabled" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateThinkingEnabled() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateThinkingEnabled()
+	})
+}
+
+// ClearThinkingEnabled clears the value of the "thinking_enabled" field.
+func (u *UsageLogUpsertBulk) ClearThinkingEnabled() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearThinkingEnabled()
 	})
 }
 

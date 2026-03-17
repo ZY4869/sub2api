@@ -17,21 +17,21 @@ func TestExtractOpenAIRequestMetaFromBody(t *testing.T) {
 		wantPromptKey string
 	}{
 		{
-			name:          "完整字段",
+			name:          "reads complete payload",
 			body:          []byte(`{"model":"gpt-5","stream":true,"prompt_cache_key":" ses-1 "}`),
 			wantModel:     "gpt-5",
 			wantStream:    true,
 			wantPromptKey: "ses-1",
 		},
 		{
-			name:          "缺失可选字段",
+			name:          "handles missing optional fields",
 			body:          []byte(`{"model":"gpt-4"}`),
 			wantModel:     "gpt-4",
 			wantStream:    false,
 			wantPromptKey: "",
 		},
 		{
-			name:          "空请求体",
+			name:          "handles empty body",
 			body:          nil,
 			wantModel:     "",
 			wantStream:    false,
@@ -58,34 +58,35 @@ func TestExtractOpenAIReasoningEffortFromBody(t *testing.T) {
 		wantValue string
 	}{
 		{
-			name:      "优先读取 reasoning.effort",
+			name:      "prefers reasoning.effort",
 			body:      []byte(`{"reasoning":{"effort":"medium"}}`),
 			model:     "gpt-5-high",
 			wantNil:   false,
 			wantValue: "medium",
 		},
 		{
-			name:      "兼容 reasoning_effort",
+			name:      "supports reasoning_effort alias",
 			body:      []byte(`{"reasoning_effort":"x-high"}`),
 			model:     "",
 			wantNil:   false,
 			wantValue: "xhigh",
 		},
 		{
-			name:    "minimal 归一化为空",
-			body:    []byte(`{"reasoning":{"effort":"minimal"}}`),
-			model:   "gpt-5-high",
-			wantNil: true,
+			name:      "normalizes minimal to none",
+			body:      []byte(`{"reasoning":{"effort":"minimal"}}`),
+			model:     "gpt-5-high",
+			wantNil:   false,
+			wantValue: "none",
 		},
 		{
-			name:      "缺失字段时从模型后缀推导",
+			name:      "derives from model suffix when body missing",
 			body:      []byte(`{"input":"hi"}`),
 			model:     "gpt-5-high",
 			wantNil:   false,
 			wantValue: "high",
 		},
 		{
-			name:    "未知后缀不返回",
+			name:    "unknown suffix returns nil",
 			body:    []byte(`{"input":"hi"}`),
 			model:   "gpt-5-unknown",
 			wantNil: true,

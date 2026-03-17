@@ -54,6 +54,8 @@ const (
 	FieldActualCost = "actual_cost"
 	// FieldBillingExemptReason holds the string denoting the billing_exempt_reason field in the database.
 	FieldBillingExemptReason = "billing_exempt_reason"
+	// FieldThinkingEnabled holds the string denoting the thinking_enabled field in the database.
+	FieldThinkingEnabled = "thinking_enabled"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
@@ -152,6 +154,7 @@ var Columns = []string{
 	FieldTotalCost,
 	FieldActualCost,
 	FieldBillingExemptReason,
+	FieldThinkingEnabled,
 	FieldRateMultiplier,
 	FieldAccountRateMultiplier,
 	FieldBillingType,
@@ -336,6 +339,11 @@ func ByActualCost(opts ...sql.OrderTermOption) OrderOption {
 // ByBillingExemptReason orders the results by the billing_exempt_reason field.
 func ByBillingExemptReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBillingExemptReason, opts...).ToFunc()
+}
+
+// ByThinkingEnabled orders the results by the thinking_enabled field.
+func ByThinkingEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldThinkingEnabled, opts...).ToFunc()
 }
 
 // ByRateMultiplier orders the results by the rate_multiplier field.

@@ -414,6 +414,26 @@ func (_u *UsageLogUpdate) ClearBillingExemptReason() *UsageLogUpdate {
 	return _u
 }
 
+// SetThinkingEnabled sets the "thinking_enabled" field.
+func (_u *UsageLogUpdate) SetThinkingEnabled(v bool) *UsageLogUpdate {
+	_u.mutation.SetThinkingEnabled(v)
+	return _u
+}
+
+// SetNillableThinkingEnabled sets the "thinking_enabled" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableThinkingEnabled(v *bool) *UsageLogUpdate {
+	if v != nil {
+		_u.SetThinkingEnabled(*v)
+	}
+	return _u
+}
+
+// ClearThinkingEnabled clears the value of the "thinking_enabled" field.
+func (_u *UsageLogUpdate) ClearThinkingEnabled() *UsageLogUpdate {
+	_u.mutation.ClearThinkingEnabled()
+	return _u
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_u *UsageLogUpdate) SetRateMultiplier(v float64) *UsageLogUpdate {
 	_u.mutation.ResetRateMultiplier()
@@ -897,6 +917,12 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.BillingExemptReasonCleared() {
 		_spec.ClearField(usagelog.FieldBillingExemptReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.ThinkingEnabled(); ok {
+		_spec.SetField(usagelog.FieldThinkingEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.ThinkingEnabledCleared() {
+		_spec.ClearField(usagelog.FieldThinkingEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1520,6 +1546,26 @@ func (_u *UsageLogUpdateOne) ClearBillingExemptReason() *UsageLogUpdateOne {
 	return _u
 }
 
+// SetThinkingEnabled sets the "thinking_enabled" field.
+func (_u *UsageLogUpdateOne) SetThinkingEnabled(v bool) *UsageLogUpdateOne {
+	_u.mutation.SetThinkingEnabled(v)
+	return _u
+}
+
+// SetNillableThinkingEnabled sets the "thinking_enabled" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableThinkingEnabled(v *bool) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetThinkingEnabled(*v)
+	}
+	return _u
+}
+
+// ClearThinkingEnabled clears the value of the "thinking_enabled" field.
+func (_u *UsageLogUpdateOne) ClearThinkingEnabled() *UsageLogUpdateOne {
+	_u.mutation.ClearThinkingEnabled()
+	return _u
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_u *UsageLogUpdateOne) SetRateMultiplier(v float64) *UsageLogUpdateOne {
 	_u.mutation.ResetRateMultiplier()
@@ -2033,6 +2079,12 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.BillingExemptReasonCleared() {
 		_spec.ClearField(usagelog.FieldBillingExemptReason, field.TypeString)
+	}
+	if value, ok := _u.mutation.ThinkingEnabled(); ok {
+		_spec.SetField(usagelog.FieldThinkingEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.ThinkingEnabledCleared() {
+		_spec.ClearField(usagelog.FieldThinkingEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)

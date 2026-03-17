@@ -10,18 +10,35 @@ import (
 	"time"
 )
 
+func openAIThinkingEnabledFromReasoningEffort(effort *string) *bool {
+	if effort == nil {
+		return nil
+	}
+	normalized := strings.TrimSpace(strings.ToLower(*effort))
+	switch normalized {
+	case "none":
+		disabled := false
+		return &disabled
+	case "low", "medium", "high", "xhigh":
+		enabled := true
+		return &enabled
+	default:
+		return nil
+	}
+}
+
 type OpenAIRecordUsageInput struct {
-	Result        *OpenAIForwardResult
-	APIKey        *APIKey
-	User          *User
-	Account       *Account
-	Subscription  *UserSubscription
-	InboundEndpoint   string
-	UpstreamEndpoint  string
-	UserAgent     string
-	IPAddress     string
+	Result             *OpenAIForwardResult
+	APIKey             *APIKey
+	User               *User
+	Account            *Account
+	Subscription       *UserSubscription
+	InboundEndpoint    string
+	UpstreamEndpoint   string
+	UserAgent          string
+	IPAddress          string
 	RequestPayloadHash string
-	APIKeyService APIKeyQuotaUpdater
+	APIKeyService      APIKeyQuotaUpdater
 }
 
 func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRecordUsageInput) error {
@@ -94,6 +111,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		Model:                 billingModel,
 		ServiceTier:           result.ServiceTier,
 		ReasoningEffort:       result.ReasoningEffort,
+		ThinkingEnabled:       openAIThinkingEnabledFromReasoningEffort(result.ReasoningEffort),
 		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
 		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
 		InputTokens:           actualInputTokens,

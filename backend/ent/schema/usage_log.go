@@ -85,6 +85,9 @@ func (UsageLog) Fields() []ent.Field {
 			MaxLen(32).
 			Optional().
 			Nillable(),
+		field.Bool("thinking_enabled").
+			Optional().
+			Nillable(),
 		field.Float("rate_multiplier").
 			Default(1).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),

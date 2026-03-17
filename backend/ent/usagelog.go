@@ -62,6 +62,8 @@ type UsageLog struct {
 	ActualCost float64 `json:"actual_cost,omitempty"`
 	// BillingExemptReason holds the value of the "billing_exempt_reason" field.
 	BillingExemptReason *string `json:"billing_exempt_reason,omitempty"`
+	// ThinkingEnabled holds the value of the "thinking_enabled" field.
+	ThinkingEnabled *bool `json:"thinking_enabled,omitempty"`
 	// RateMultiplier holds the value of the "rate_multiplier" field.
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// AccountRateMultiplier holds the value of the "account_rate_multiplier" field.
@@ -171,7 +173,7 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
+		case usagelog.FieldThinkingEnabled, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
 			values[i] = new(sql.NullBool)
 		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
@@ -324,6 +326,13 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.BillingExemptReason = new(string)
 				*_m.BillingExemptReason = value.String
+			}
+		case usagelog.FieldThinkingEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field thinking_enabled", values[i])
+			} else if value.Valid {
+				_m.ThinkingEnabled = new(bool)
+				*_m.ThinkingEnabled = value.Bool
 			}
 		case usagelog.FieldRateMultiplier:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -535,6 +544,11 @@ func (_m *UsageLog) String() string {
 	if v := _m.BillingExemptReason; v != nil {
 		builder.WriteString("billing_exempt_reason=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.ThinkingEnabled; v != nil {
+		builder.WriteString("thinking_enabled=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("rate_multiplier=")

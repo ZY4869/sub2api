@@ -1,34 +1,75 @@
 <template>
   <div :class="detailedReset ? 'space-y-0.5' : ''">
-    <div v-if="windowStats" class="pl-[37px] flex items-center">
-      <div class="flex items-center gap-1.5 text-[9px] text-gray-500 dark:text-gray-400">
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">{{ formatRequests }} req</span>
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">{{ formatTokens }}</span>
-        <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">A ${{ formatAccountCost }}</span>
-        <span v-if="windowStats?.user_cost != null" class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
-          U ${{ formatUserCost }}
-        </span>
-      </div>
-    </div>
-
     <div class="flex items-center gap-1">
-      <span :class="['w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium', labelClass]">
+      <span
+        :class="[
+          'w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium',
+          labelClass,
+        ]"
+      >
         {{ label }}
       </span>
 
-      <div class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-        <div :class="['h-full transition-all duration-300', barClass]" :style="{ width: barWidth }"></div>
+      <div
+        class="relative"
+        data-testid="usage-progress-trigger"
+        :tabindex="windowStats ? 0 : undefined"
+        @mouseenter="showStatsTooltip"
+        @mouseleave="hideStatsTooltip"
+        @focusin="showStatsTooltip"
+        @focusout="hideStatsTooltip"
+      >
+        <div
+          class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
+        >
+          <div
+            :class="['h-full transition-all duration-300', barClass]"
+            :style="{ width: barWidth }"
+          ></div>
+        </div>
+        <div
+          v-if="windowStats && statsTooltipVisible"
+          data-testid="usage-progress-tooltip"
+          class="absolute left-1/2 top-full z-20 mt-2 min-w-max -translate-x-1/2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[10px] text-gray-700 shadow-lg dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200"
+        >
+          <div class="flex items-center gap-1.5">
+            <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+              >{{ formatRequests }} req</span
+            >
+            <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700">{{
+              formatTokens
+            }}</span>
+            <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+              >A ${{ formatAccountCost }}</span
+            >
+            <span
+              v-if="windowStats?.user_cost != null"
+              class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+            >
+              U ${{ formatUserCost }}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <span :class="['w-[32px] shrink-0 text-right text-[10px] font-medium', textClass]">
+      <span
+        :class="[
+          'w-[32px] shrink-0 text-right text-[10px] font-medium',
+          textClass,
+        ]"
+      >
         {{ displayPercent }}
       </span>
 
       <span v-if="inlineReset" :class="remainingTextClass">
-        {{ t('admin.accounts.usageWindow.remainingLabel') }} {{ resetCountdownText }}
+        {{ t("admin.accounts.usageWindow.remainingLabel") }}
+        {{ resetCountdownText }}
       </span>
 
-      <span v-else-if="!detailedReset && effectiveResetAt" class="shrink-0 text-[10px] text-gray-400">
+      <span
+        v-else-if="!detailedReset && effectiveResetAt"
+        class="shrink-0 text-[10px] text-gray-400"
+      >
         {{ compactResetText }}
       </span>
     </div>
@@ -38,120 +79,150 @@
       class="pl-[37px] flex items-center gap-1 text-[10px] text-gray-400"
       :title="resetTooltip || undefined"
     >
-      <span>{{ t('admin.accounts.usageWindow.remainingLabel') }} {{ resetCountdownText }}</span>
-      <span>{{ t('admin.accounts.usageWindow.resetAtLabel') }} {{ resetAbsoluteText }}</span>
+      <span
+        >{{ t("admin.accounts.usageWindow.remainingLabel") }}
+        {{ resetCountdownText }}</span
+      >
+      <span
+        >{{ t("admin.accounts.usageWindow.resetAtLabel") }}
+        {{ resetAbsoluteText }}</span
+      >
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useUiNow } from '@/composables/useUiNow'
-import type { WindowStats } from '@/types'
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { useUiNow } from "@/composables/useUiNow";
+import type { WindowStats } from "@/types";
 import {
   formatLocalAbsoluteTime,
   formatLocalTimestamp,
   formatResetCountdown,
   parseEffectiveResetAt,
-} from '@/utils/usageResetTime'
+} from "@/utils/usageResetTime";
 
 const props = defineProps<{
-  label: string
-  utilization: number
-  resetsAt?: string | null
-  remainingSeconds?: number | null
-  color: 'indigo' | 'emerald' | 'purple' | 'amber'
-  windowStats?: WindowStats | null
-  detailedReset?: boolean
-  inlineReset?: boolean
-}>()
+  label: string;
+  utilization: number;
+  resetsAt?: string | null;
+  remainingSeconds?: number | null;
+  color: "indigo" | "emerald" | "purple" | "amber";
+  windowStats?: WindowStats | null;
+  detailedReset?: boolean;
+  inlineReset?: boolean;
+}>();
 
-const { t } = useI18n()
-const { nowDate } = useUiNow()
+const { t } = useI18n();
+const { nowDate } = useUiNow();
+const statsTooltipVisible = ref(false);
 
 const labelClass = computed(() => {
   const colors = {
-    indigo: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-    emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-    purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  }
-  return colors[props.color]
-})
+    indigo:
+      "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+    emerald:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    purple:
+      "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+    amber:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  };
+  return colors[props.color];
+});
 
 const barClass = computed(() => {
-  if (props.utilization >= 100) return 'bg-red-500'
-  if (props.utilization >= 80) return 'bg-amber-500'
-  return 'bg-green-500'
-})
+  if (props.utilization >= 100) return "bg-red-500";
+  if (props.utilization >= 80) return "bg-amber-500";
+  return "bg-green-500";
+});
 
 const textClass = computed(() => {
-  if (props.utilization >= 100) return 'text-red-600 dark:text-red-400'
-  if (props.utilization >= 80) return 'text-amber-600 dark:text-amber-400'
-  return 'text-gray-600 dark:text-gray-400'
-})
+  if (props.utilization >= 100) return "text-red-600 dark:text-red-400";
+  if (props.utilization >= 80) return "text-amber-600 dark:text-amber-400";
+  return "text-gray-600 dark:text-gray-400";
+});
 
 const remainingTextClass = computed(() => {
-  return 'shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-300'
-})
+  return "shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-300";
+});
 
-const barWidth = computed(() => `${Math.min(props.utilization, 100)}%`)
+const barWidth = computed(() => `${Math.min(props.utilization, 100)}%`);
 
 const displayPercent = computed(() => {
-  const percent = Math.round(props.utilization)
-  return percent > 999 ? '>999%' : `${percent}%`
-})
+  const percent = Math.round(props.utilization);
+  return percent > 999 ? ">999%" : `${percent}%`;
+});
 
-const effectiveResetAt = computed(() => parseEffectiveResetAt(props.resetsAt ?? null, props.remainingSeconds ?? null))
+const effectiveResetAt = computed(() =>
+  parseEffectiveResetAt(props.resetsAt ?? null, props.remainingSeconds ?? null),
+);
 
 const compactResetText = computed(() => {
-  if (!effectiveResetAt.value) return '-'
-  return formatResetCountdown(effectiveResetAt.value, nowDate.value, t('admin.accounts.usageWindow.now'))
-})
+  if (!effectiveResetAt.value) return "-";
+  return formatResetCountdown(
+    effectiveResetAt.value,
+    nowDate.value,
+    t("admin.accounts.usageWindow.now"),
+  );
+});
 
 const resetCountdownText = computed(() => {
-  if (!effectiveResetAt.value) return '-'
-  return formatResetCountdown(effectiveResetAt.value, nowDate.value, t('admin.accounts.usageWindow.now'))
-})
+  if (!effectiveResetAt.value) return "-";
+  return formatResetCountdown(
+    effectiveResetAt.value,
+    nowDate.value,
+    t("admin.accounts.usageWindow.now"),
+  );
+});
 
 const resetAbsoluteText = computed(() => {
-  if (!effectiveResetAt.value) return '-'
+  if (!effectiveResetAt.value) return "-";
   return formatLocalAbsoluteTime(effectiveResetAt.value, nowDate.value, {
-    today: t('dates.today'),
-    tomorrow: t('dates.tomorrow'),
-  })
-})
+    today: t("dates.today"),
+    tomorrow: t("dates.tomorrow"),
+  });
+});
 
 const resetTooltip = computed(() => {
-  if (!effectiveResetAt.value) return ''
-  return formatLocalTimestamp(effectiveResetAt.value)
-})
+  if (!effectiveResetAt.value) return "";
+  return formatLocalTimestamp(effectiveResetAt.value);
+});
 
 const formatRequests = computed(() => {
-  if (!props.windowStats) return ''
-  const requests = props.windowStats.requests
-  if (requests >= 1000000) return `${(requests / 1000000).toFixed(1)}M`
-  if (requests >= 1000) return `${(requests / 1000).toFixed(1)}K`
-  return requests.toString()
-})
+  if (!props.windowStats) return "";
+  const requests = props.windowStats.requests;
+  if (requests >= 1000000) return `${(requests / 1000000).toFixed(1)}M`;
+  if (requests >= 1000) return `${(requests / 1000).toFixed(1)}K`;
+  return requests.toString();
+});
 
 const formatTokens = computed(() => {
-  if (!props.windowStats) return ''
-  const tokens = props.windowStats.tokens
-  if (tokens >= 1000000000) return `${(tokens / 1000000000).toFixed(1)}B`
-  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`
-  return tokens.toString()
-})
+  if (!props.windowStats) return "";
+  const tokens = props.windowStats.tokens;
+  if (tokens >= 1000000000) return `${(tokens / 1000000000).toFixed(1)}B`;
+  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
+  return tokens.toString();
+});
 
 const formatAccountCost = computed(() => {
-  if (!props.windowStats) return '0.00'
-  return props.windowStats.cost.toFixed(2)
-})
+  if (!props.windowStats) return "0.00";
+  return props.windowStats.cost.toFixed(2);
+});
 
 const formatUserCost = computed(() => {
-  if (!props.windowStats || props.windowStats.user_cost == null) return '0.00'
-  return props.windowStats.user_cost.toFixed(2)
-})
+  if (!props.windowStats || props.windowStats.user_cost == null) return "0.00";
+  return props.windowStats.user_cost.toFixed(2);
+});
+
+const showStatsTooltip = () => {
+  if (!props.windowStats) return;
+  statsTooltipVisible.value = true;
+};
+
+const hideStatsTooltip = () => {
+  statsTooltipVisible.value = false;
+};
 </script>

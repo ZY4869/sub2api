@@ -339,6 +339,8 @@ type UsageLog struct {
 	// ReasoningEffort is the request's reasoning effort level.
 	// OpenAI: "low"/"medium"/"high"/"xhigh"; Claude: "low"/"medium"/"high"/"max".
 	ReasoningEffort *string `json:"reasoning_effort,omitempty"`
+	// ThinkingEnabled explicitly records whether thinking mode was enabled.
+	ThinkingEnabled *bool `json:"thinking_enabled,omitempty"`
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.
 	InboundEndpoint *string `json:"inbound_endpoint,omitempty"`
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.

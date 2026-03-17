@@ -882,6 +882,8 @@ func TestOpenAIGatewayServiceRecordUsage_UsesBillingModelAndMetadataFields(t *te
 	require.Equal(t, serviceTier, *usageRepo.lastLog.ServiceTier)
 	require.NotNil(t, usageRepo.lastLog.ReasoningEffort)
 	require.Equal(t, reasoning, *usageRepo.lastLog.ReasoningEffort)
+	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
+	require.True(t, *usageRepo.lastLog.ThinkingEnabled)
 	require.NotNil(t, usageRepo.lastLog.UserAgent)
 	require.Equal(t, "codex-cli/1.0", *usageRepo.lastLog.UserAgent)
 	require.NotNil(t, usageRepo.lastLog.IPAddress)
@@ -889,6 +891,37 @@ func TestOpenAIGatewayServiceRecordUsage_UsesBillingModelAndMetadataFields(t *te
 	require.NotNil(t, usageRepo.lastLog.GroupID)
 	require.Equal(t, int64(11), *usageRepo.lastLog.GroupID)
 	require.Equal(t, 1, userRepo.deductCalls)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_ReasoningNoneMarksThinkingDisabled(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+	reasoning := "none"
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID:       "resp_reasoning_none",
+			Model:           "gpt-5.4",
+			ReasoningEffort: &reasoning,
+			Usage: OpenAIUsage{
+				InputTokens:  10,
+				OutputTokens: 5,
+			},
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10},
+		User:    &User{ID: 20},
+		Account: &Account{ID: 30},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.ReasoningEffort)
+	require.Equal(t, "none", *usageRepo.lastLog.ReasoningEffort)
+	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
+	require.False(t, *usageRepo.lastLog.ThinkingEnabled)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_SubscriptionBillingSetsSubscriptionFields(t *testing.T) {

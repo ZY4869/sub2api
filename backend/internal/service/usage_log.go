@@ -116,6 +116,9 @@ type UsageLog struct {
 	// OpenAI: "low" / "medium" / "high" / "xhigh"; Claude: "low" / "medium" / "high" / "max".
 	// Nil means not provided / not applicable.
 	ReasoningEffort *string
+	// ThinkingEnabled explicitly records whether a request used thinking mode.
+	// Nil means the upstream/request metadata did not provide a reliable value.
+	ThinkingEnabled *bool
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.
 	InboundEndpoint *string
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.
@@ -132,14 +135,14 @@ type UsageLog struct {
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
-	InputCost         float64
-	OutputCost        float64
-	CacheCreationCost float64
-	CacheReadCost     float64
-	TotalCost         float64
-	ActualCost        float64
+	InputCost           float64
+	OutputCost          float64
+	CacheCreationCost   float64
+	CacheReadCost       float64
+	TotalCost           float64
+	ActualCost          float64
 	BillingExemptReason *string
-	RateMultiplier    float64
+	RateMultiplier      float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
 

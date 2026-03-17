@@ -76,12 +76,14 @@ func TestUsageLogFromService_IncludesServiceTierForUserAndAdmin(t *testing.T) {
 	t.Parallel()
 
 	serviceTier := "priority"
+	thinkingEnabled := true
 	inboundEndpoint := "/v1/chat/completions"
 	upstreamEndpoint := "/v1/responses"
 	log := &service.UsageLog{
 		RequestID:             "req_3",
 		Model:                 "gpt-5.4",
 		ServiceTier:           &serviceTier,
+		ThinkingEnabled:       &thinkingEnabled,
 		InboundEndpoint:       &inboundEndpoint,
 		UpstreamEndpoint:      &upstreamEndpoint,
 		AccountRateMultiplier: f64Ptr(1.5),
@@ -92,12 +94,16 @@ func TestUsageLogFromService_IncludesServiceTierForUserAndAdmin(t *testing.T) {
 
 	require.NotNil(t, userDTO.ServiceTier)
 	require.Equal(t, serviceTier, *userDTO.ServiceTier)
+	require.NotNil(t, userDTO.ThinkingEnabled)
+	require.True(t, *userDTO.ThinkingEnabled)
 	require.NotNil(t, userDTO.InboundEndpoint)
 	require.Equal(t, inboundEndpoint, *userDTO.InboundEndpoint)
 	require.NotNil(t, userDTO.UpstreamEndpoint)
 	require.Equal(t, upstreamEndpoint, *userDTO.UpstreamEndpoint)
 	require.NotNil(t, adminDTO.ServiceTier)
 	require.Equal(t, serviceTier, *adminDTO.ServiceTier)
+	require.NotNil(t, adminDTO.ThinkingEnabled)
+	require.True(t, *adminDTO.ThinkingEnabled)
 	require.NotNil(t, adminDTO.InboundEndpoint)
 	require.Equal(t, inboundEndpoint, *adminDTO.InboundEndpoint)
 	require.NotNil(t, adminDTO.UpstreamEndpoint)

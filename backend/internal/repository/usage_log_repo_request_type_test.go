@@ -74,6 +74,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // media_type
 			sqlmock.AnyArg(), // service_tier
 			sqlmock.AnyArg(), // reasoning_effort
+			sqlmock.AnyArg(), // thinking_enabled
 			sqlmock.AnyArg(), // inbound_endpoint
 			sqlmock.AnyArg(), // upstream_endpoint
 			log.CacheTTLOverridden,
@@ -147,10 +148,78 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.CacheTTLOverridden,
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
+
+	inserted, err := repo.Create(context.Background(), log)
+	require.NoError(t, err)
+	require.True(t, inserted)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	createdAt := time.Date(2025, 1, 3, 12, 0, 0, 0, time.UTC)
+	thinkingEnabled := true
+	log := &service.UsageLog{
+		UserID:          1,
+		APIKeyID:        2,
+		AccountID:       3,
+		RequestID:       "req-thinking-enabled",
+		Model:           "claude-sonnet-4-6",
+		ThinkingEnabled: &thinkingEnabled,
+		CreatedAt:       createdAt,
+	}
+
+	mock.ExpectQuery("INSERT INTO usage_logs").
+		WithArgs(
+			log.UserID,
+			log.APIKeyID,
+			log.AccountID,
+			log.RequestID,
+			log.Model,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.InputTokens,
+			log.OutputTokens,
+			log.CacheCreationTokens,
+			log.CacheReadTokens,
+			log.CacheCreation5mTokens,
+			log.CacheCreation1hTokens,
+			log.InputCost,
+			log.OutputCost,
+			log.CacheCreationCost,
+			log.CacheReadCost,
+			log.TotalCost,
+			log.ActualCost,
+			sqlmock.AnyArg(),
+			log.RateMultiplier,
+			log.AccountRateMultiplier,
+			log.BillingType,
+			int16(service.RequestTypeSync),
+			false,
+			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.ImageCount,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			thinkingEnabled,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			log.CacheTTLOverridden,
+			createdAt,
+		).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(101), createdAt))
 
 	inserted, err := repo.Create(context.Background(), log)
 	require.NoError(t, err)
@@ -387,6 +456,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
+			sql.NullBool{Valid: true, Bool: true},
 			sql.NullString{},
 			sql.NullString{},
 			false,
@@ -395,6 +465,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+		require.NotNil(t, log.ThinkingEnabled)
+		require.True(t, *log.ThinkingEnabled)
 		require.Equal(t, service.RequestTypeWSV2, log.RequestType)
 		require.True(t, log.Stream)
 		require.True(t, log.OpenAIWSMode)
@@ -429,6 +501,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{Valid: true, String: "flex"},
 			sql.NullString{},
+			sql.NullBool{},
 			sql.NullString{},
 			sql.NullString{},
 			false,
@@ -471,6 +544,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
+			sql.NullBool{Valid: true, Bool: false},
 			sql.NullString{},
 			sql.NullString{},
 			false,
@@ -479,6 +553,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+		require.NotNil(t, log.ThinkingEnabled)
+		require.False(t, *log.ThinkingEnabled)
 	})
 
 }

@@ -155,6 +155,11 @@ func BillingExemptReason(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldBillingExemptReason, v))
 }
 
+// ThinkingEnabled applies equality check predicate on the "thinking_enabled" field. It's identical to ThinkingEnabledEQ.
+func ThinkingEnabled(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldThinkingEnabled, v))
+}
+
 // RateMultiplier applies equality check predicate on the "rate_multiplier" field. It's identical to RateMultiplierEQ.
 func RateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRateMultiplier, v))
@@ -1023,6 +1028,26 @@ func BillingExemptReasonEqualFold(v string) predicate.UsageLog {
 // BillingExemptReasonContainsFold applies the ContainsFold predicate on the "billing_exempt_reason" field.
 func BillingExemptReasonContainsFold(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldContainsFold(FieldBillingExemptReason, v))
+}
+
+// ThinkingEnabledEQ applies the EQ predicate on the "thinking_enabled" field.
+func ThinkingEnabledEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldThinkingEnabled, v))
+}
+
+// ThinkingEnabledNEQ applies the NEQ predicate on the "thinking_enabled" field.
+func ThinkingEnabledNEQ(v bool) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldThinkingEnabled, v))
+}
+
+// ThinkingEnabledIsNil applies the IsNil predicate on the "thinking_enabled" field.
+func ThinkingEnabledIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldThinkingEnabled))
+}
+
+// ThinkingEnabledNotNil applies the NotNil predicate on the "thinking_enabled" field.
+func ThinkingEnabledNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldThinkingEnabled))
 }
 
 // RateMultiplierEQ applies the EQ predicate on the "rate_multiplier" field.

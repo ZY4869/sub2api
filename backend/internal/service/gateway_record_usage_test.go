@@ -375,7 +375,8 @@ func TestGatewayServiceRecordUsage_ReasoningEffortPersisted(t *testing.T) {
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
 
 	effort := "max"
-	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+	ctx := WithThinkingEnabled(context.Background(), true, false)
+	err := svc.RecordUsage(ctx, &RecordUsageInput{
 		Result: &ForwardResult{
 			RequestID: "effort_test",
 			Usage: ClaudeUsage{
@@ -395,6 +396,8 @@ func TestGatewayServiceRecordUsage_ReasoningEffortPersisted(t *testing.T) {
 	require.NotNil(t, usageRepo.lastLog)
 	require.NotNil(t, usageRepo.lastLog.ReasoningEffort)
 	require.Equal(t, "max", *usageRepo.lastLog.ReasoningEffort)
+	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
+	require.True(t, *usageRepo.lastLog.ThinkingEnabled)
 }
 
 func TestGatewayServiceRecordUsage_ReasoningEffortNil(t *testing.T) {
@@ -419,4 +422,59 @@ func TestGatewayServiceRecordUsage_ReasoningEffortNil(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, usageRepo.lastLog)
 	require.Nil(t, usageRepo.lastLog.ReasoningEffort)
+	require.Nil(t, usageRepo.lastLog.ThinkingEnabled)
+}
+
+func TestGatewayServiceRecordUsage_ThinkingEnabledFalsePersistedFromContext(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	ctx := WithThinkingEnabled(context.Background(), false, false)
+	err := svc.RecordUsage(ctx, &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "thinking_disabled_test",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 5,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 1},
+		User:    &User{ID: 1},
+		Account: &Account{ID: 1},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
+	require.False(t, *usageRepo.lastLog.ThinkingEnabled)
+}
+
+func TestGatewayServiceRecordUsageWithLongContext_ThinkingEnabledPersistedFromContext(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	ctx := WithThinkingEnabled(context.Background(), true, false)
+	err := svc.RecordUsageWithLongContext(ctx, &RecordUsageLongContextInput{
+		Result: &ForwardResult{
+			RequestID: "thinking_enabled_long_context",
+			Usage: ClaudeUsage{
+				InputTokens:  12,
+				OutputTokens: 8,
+			},
+			Model:    "gemini-2.5-pro",
+			Duration: time.Second,
+		},
+		APIKey:                &APIKey{ID: 1},
+		User:                  &User{ID: 1},
+		Account:               &Account{ID: 1},
+		LongContextThreshold:  200000,
+		LongContextMultiplier: 2,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
+	require.True(t, *usageRepo.lastLog.ThinkingEnabled)
 }

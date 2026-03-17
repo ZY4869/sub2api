@@ -201,7 +201,7 @@ func normalizeOpenAIReasoningEffort(raw string) string {
 	value = strings.NewReplacer("-", "", "_", "", " ", "").Replace(value)
 	switch value {
 	case "none", "minimal":
-		return ""
+		return "none"
 	case "low", "medium", "high":
 		return value
 	case "xhigh", "extrahigh":
