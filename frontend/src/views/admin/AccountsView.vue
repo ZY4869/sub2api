@@ -4,6 +4,7 @@
       <template #filters>
         <AccountsViewToolbar
           :loading="loading"
+          :usage-refreshing="usageRefreshing"
           :search-query="String(params.search || '')"
           :filters="params"
           :groups="groups"
@@ -18,6 +19,7 @@
           @update:search-query="handleSearchQueryUpdate"
           @change="debouncedReload"
           @refresh="handleManualRefresh"
+          @refresh-usage="handleRefreshActualUsage"
           @sync="showSync = true"
           @create="showCreate = true"
           @import-data="showImportData = true"
@@ -150,6 +152,11 @@ import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDial
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
 import AccountsViewToolbar from '@/components/admin/account/AccountsViewToolbar.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
+import {
+  canAccountFetchUsage,
+  invalidateAccountUsagePresentationCache,
+  refreshAccountUsagePresentation
+} from '@/composables/useAccountUsagePresentation'
 import { useModelImportExposureSync } from '@/composables/useModelImportExposureSync'
 import {
   buildAccountModelImportToastPayload,
@@ -217,6 +224,7 @@ const scheduleModelOptions = ref<SelectOption[]>([])
 const togglingSchedulable = ref<number | null>(null)
 const exportingData = ref(false)
 const usageManualRefreshToken = ref(0)
+const usageRefreshing = ref(false)
 const { menu, openMenu, closeMenu, syncMenuAccount, clearMenuAccount } = useAccountActionMenu()
 
 // Column settings
@@ -459,6 +467,55 @@ const toggleSelectAllVisible = (checked: boolean) => {
   toggleVisible(checked)
 }
 const handleBulkDelete = async () => { if(!confirm(t('common.confirm'))) return; try { await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id))); clearSelection(); reload() } catch (error) { console.error('Failed to bulk delete accounts:', error) } }
+const handleRefreshActualUsage = async () => {
+  if (usageRefreshing.value) return
+
+  const visibleAccounts = accounts.value.filter(canAccountFetchUsage)
+  if (visibleAccounts.length === 0) {
+    appStore.showWarning(t('admin.accounts.refreshActualUsageNoAccounts'))
+    return
+  }
+
+  usageRefreshing.value = true
+  invalidateAccountUsagePresentationCache(visibleAccounts.map((account) => account.id))
+
+  try {
+    const result = await refreshAccountUsagePresentation(visibleAccounts, {
+      force: true,
+      concurrency: 4
+    })
+
+    if (result.failed > 0 && result.success > 0) {
+      appStore.showWarning(
+        t('admin.accounts.refreshActualUsagePartial', {
+          success: result.success,
+          failed: result.failed
+        })
+      )
+      return
+    }
+
+    if (result.failed > 0) {
+      appStore.showError(
+        t('admin.accounts.refreshActualUsageFailedCount', {
+          failed: result.failed
+        })
+      )
+      return
+    }
+
+    appStore.showSuccess(
+      t('admin.accounts.refreshActualUsageSuccess', {
+        count: result.success
+      })
+    )
+  } catch (error: any) {
+    console.error('Failed to refresh actual account usage:', error)
+    appStore.showError(error?.message || t('admin.accounts.refreshActualUsageFailed'))
+  } finally {
+    usageRefreshing.value = false
+  }
+}
 const handleBulkResetStatus = async () => {
   if (!confirm(t('common.confirm'))) return
   try {
