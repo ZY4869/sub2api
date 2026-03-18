@@ -160,6 +160,7 @@ describe("admin UsageView distribution metric toggles", () => {
           UserBalanceHistoryModal: true,
           Pagination: true,
           Select: true,
+          DateRangePicker: true,
           Icon: true,
           TokenUsageTrend: true,
           ModelDistributionChart: ModelDistributionChartStub,

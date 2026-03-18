@@ -535,9 +535,9 @@ const expiresAtInput = computed({
 
 // Watchers
 watch(
-  () => props.account,
-  (newAccount) => {
-    if (newAccount) {
+  () => [props.show, props.account] as const,
+  ([show, newAccount]) => {
+    if (show && newAccount) {
       resetMixedChannelRisk()
       form.name = newAccount.name
       form.notes = newAccount.notes || ''
@@ -650,7 +650,6 @@ watch(
         antigravityWhitelistModels.value = []
         antigravityModelMappings.value = []
       }
-
       quotaControl.loadFromAccount(newAccount)
 
       loadTempUnschedRules(credentials)

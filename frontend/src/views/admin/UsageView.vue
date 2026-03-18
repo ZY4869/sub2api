@@ -24,12 +24,16 @@
             :model-stats="modelStats"
             :loading="chartsLoading"
             :show-metric-toggle="true"
+            :start-date="startDate"
+            :end-date="endDate"
           />
           <GroupDistributionChart
             v-model:metric="groupDistributionMetric"
             :group-stats="groupStats"
             :loading="chartsLoading"
             :show-metric-toggle="true"
+            :start-date="startDate"
+            :end-date="endDate"
           />
         </div>
         <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
@@ -136,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { saveAs } from "file-saver";
 import { useAppStore } from "@/stores/app";
@@ -238,6 +242,25 @@ const filters = ref<AdminUsageQueryParams>({
   end_date: endDate.value,
 });
 const pagination = reactive({ page: 1, page_size: 20, total: 0 });
+
+const getGranularityForRange = (rangeStartDate: string, rangeEndDate: string): "day" | "hour" => {
+  const start = new Date(rangeStartDate);
+  const end = new Date(rangeEndDate);
+  const daysDiff = Math.ceil(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return daysDiff <= 1 ? "hour" : "day";
+};
+
+watch([startDate, endDate], ([nextStartDate, nextEndDate]) => {
+  filters.value = {
+    ...filters.value,
+    start_date: nextStartDate,
+    end_date: nextEndDate,
+  };
+  granularity.value = getGranularityForRange(nextStartDate, nextEndDate);
+});
 
 const loadLogs = async () => {
   abortController?.abort();

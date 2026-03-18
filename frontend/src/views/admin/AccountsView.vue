@@ -17,13 +17,13 @@
           @update:filters="handleFilterUpdate"
           @update:search-query="handleSearchQueryUpdate"
           @change="debouncedReload"
-          @refresh="load"
+          @refresh="handleManualRefresh"
           @sync="showSync = true"
           @create="showCreate = true"
           @import-data="showImportData = true"
           @export-data="openExportDataDialog"
           @show-error-passthrough="showErrorPassthrough = true"
-          @sync-pending-list="syncPendingListChanges"
+          @sync-pending-list="handleSyncPendingListChanges"
           @set-auto-refresh-enabled="setAutoRefreshEnabled"
           @set-auto-refresh-interval="handleAutoRefreshIntervalChange"
           @toggle-column="toggleColumn"
@@ -42,6 +42,7 @@
             :today-stats-by-account-id="todayStatsByAccountId"
             :today-stats-loading="todayStatsLoading"
             :today-stats-error="todayStatsError"
+            :usage-manual-refresh-token="usageManualRefreshToken"
             :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
             :pagination="pagination"
             @toggle-select-all-visible="toggleSelectAllVisible"
@@ -156,7 +157,7 @@ import {
   shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 import type { AccountListRequestParams } from '@/utils/accountListSync'
-import type { Account, AccountPlatform, AccountType, Proxy, AdminGroup, ClaudeModel } from '@/types'
+import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, ClaudeModel } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -171,7 +172,7 @@ const {
   submitSyncDialog
 } = useModelImportExposureSync({ t, appStore, modelInventoryStore })
 
-const proxies = ref<Proxy[]>([])
+const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
 const accountTableRef = ref<HTMLElement | null>(null)
 const importingModelsAccountId = ref<number | null>(null)
@@ -215,6 +216,7 @@ const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
 const togglingSchedulable = ref<number | null>(null)
 const exportingData = ref(false)
+const usageManualRefreshToken = ref(0)
 const { menu, openMenu, closeMenu, syncMenuAccount, clearMenuAccount } = useAccountActionMenu()
 
 // Column settings
@@ -230,13 +232,19 @@ const loadSavedColumns = () => {
     const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
     if (saved) {
       const parsed = JSON.parse(saved) as string[]
-      parsed.forEach(key => hiddenColumns.add(key))
+      parsed.forEach(key => {
+        hiddenColumns.add(key)
+      })
     } else {
-      DEFAULT_HIDDEN_COLUMNS.forEach(key => hiddenColumns.add(key))
+      DEFAULT_HIDDEN_COLUMNS.forEach(key => {
+        hiddenColumns.add(key)
+      })
     }
   } catch (e) {
     console.error('Failed to load saved columns:', e)
-    DEFAULT_HIDDEN_COLUMNS.forEach(key => hiddenColumns.add(key))
+    DEFAULT_HIDDEN_COLUMNS.forEach(key => {
+      hiddenColumns.add(key)
+    })
   }
 }
 
@@ -362,6 +370,16 @@ const {
   syncAccountRefs
 })
 
+const handleManualRefresh = async () => {
+  await load()
+  usageManualRefreshToken.value += 1
+}
+
+const handleSyncPendingListChanges = async () => {
+  await syncPendingListChanges()
+  usageManualRefreshToken.value += 1
+}
+
 const toggleColumn = (key: string) => {
   const wasHidden = hiddenColumns.has(key)
   if (hiddenColumns.has(key)) {
@@ -370,7 +388,7 @@ const toggleColumn = (key: string) => {
     hiddenColumns.add(key)
   }
   saveColumnsToStorage()
-  if (key === 'today_stats' && wasHidden) {
+  if ((key === 'today_stats' || key === 'usage') && wasHidden) {
     refreshTodayStats().catch((error) => {
       console.error('Failed to load account today stats after showing column:', error)
     })

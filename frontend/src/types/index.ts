@@ -423,6 +423,8 @@ export interface AdminGroup extends Group {
 
   // 闂佸憡甯掑Λ娑氬垝瀹ュ棛鈻旈悗锝庡幖椤︹晠鏌涘▎鎾存暠闁哄棛鍠栭弻宀冪疀閵壯咁槱婵炲濮撮幊鎰邦敇閹间焦鍋犻柛鈩冾殕閸犲懘鏌涘▎妯虹仴妞ゎ偄妫濋弫?
   account_count?: number;
+  active_account_count?: number;
+  rate_limited_account_count?: number;
 
   // OpenAI Messages 闁荤姴顑呴崯顐も偓瑙勫▕閺屽﹤顓奸崶鈺傜€梺鎸庣☉閻楀懐鍒?openai 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
   default_mapped_model?: string;
@@ -1256,6 +1258,15 @@ export interface GroupStat {
   total_tokens: number;
   cost: number; // 闂佸搫绉村ú銈夊闯椤栨粍濯奸梽鍥垂?
   actual_cost: number; // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
+}
+
+export interface UserBreakdownItem {
+  user_id: number
+  email: string
+  requests: number
+  total_tokens: number
+  cost: number
+  actual_cost: number
 }
 
 export interface UserUsageTrendPoint {

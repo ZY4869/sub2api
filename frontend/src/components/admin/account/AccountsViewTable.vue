@@ -103,7 +103,12 @@
     </template>
 
     <template #cell-usage="{ row }">
-      <AccountUsageCell :account="row" />
+      <AccountUsageCell
+        :account="row"
+        :today-stats="todayStatsByAccountId[String(row.id)] ?? null"
+        :today-stats-loading="todayStatsLoading"
+        :manual-refresh-token="usageManualRefreshToken"
+      />
     </template>
 
     <template #cell-usage_reset_dates="{ row }">
@@ -202,6 +207,7 @@ defineProps<{
   todayStatsByAccountId: Record<string, WindowStats>
   todayStatsLoading: boolean
   todayStatsError: string | null
+  usageManualRefreshToken: number
   sortStorageKey: string
   pagination: {
     total: number

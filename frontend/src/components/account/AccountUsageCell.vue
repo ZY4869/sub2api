@@ -114,20 +114,42 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Account } from '@/types'
+import type { Account, WindowStats } from '@/types'
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
 import UsageProgressBar from './UsageProgressBar.vue'
 
-const props = defineProps<{
-  account: Account
-}>()
+const props = withDefaults(
+  defineProps<{
+    account: Account
+    todayStats?: WindowStats | null
+    todayStatsLoading?: boolean
+    manualRefreshToken?: number
+  }>(),
+  {
+    todayStats: null,
+    todayStatsLoading: false,
+    manualRefreshToken: 0
+  }
+)
 
 const { t } = useI18n()
-const { presentation } = useAccountUsagePresentation(() => props.account)
+const { presentation, loadUsage, shouldFetchUsage } = useAccountUsagePresentation(() => props.account)
 
 const skeletonRows = computed(() => {
   return Array.from({ length: presentation.value.meta.loadingRows }, (_, index) => index + 1)
 })
+
+watch(
+  () => props.manualRefreshToken,
+  (nextToken, prevToken) => {
+    if (nextToken === prevToken) return
+    if (!shouldFetchUsage.value) return
+
+    loadUsage().catch((error) => {
+      console.error('Failed to refresh usage after manual refresh:', error)
+    })
+  }
+)
 </script>

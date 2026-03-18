@@ -125,7 +125,8 @@
                 </router-link>
 
                 <a
-                  href="https://github.com/ZY4869/sub2api"
+                  v-if="authStore.isAdmin"
+                  href="https://github.com/Wei-Shaw/sub2api"
                   target="_blank"
                   rel="noopener noreferrer"
                   @click="closeDropdown"
@@ -140,6 +141,7 @@
                   </svg>
                   {{ t('nav.github') }}
                 </a>
+
               </div>
 
               <!-- Contact Support (only show if configured) -->

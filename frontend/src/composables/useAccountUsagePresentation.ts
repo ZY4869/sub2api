@@ -781,5 +781,6 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   return {
     presentation,
     loadUsage,
+    shouldFetchUsage,
   }
 }
