@@ -1,6 +1,7 @@
 import { computed, reactive, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import { i18n } from '@/i18n'
 import { useUiNow } from '@/composables/useUiNow'
 import type {
   Account,
@@ -21,6 +22,7 @@ interface UsageCacheEntry {
   loading: boolean
   error: string | null
   usageInfo: AccountUsageInfo | null
+  preferOpenAIFetchedUsage: boolean
   request: Promise<void> | null
 }
 
@@ -28,6 +30,20 @@ interface UsageRowOptions {
   windowStats?: WindowStats | null
   remainingSeconds?: number | null
   inlineRemaining?: boolean
+}
+
+interface LoadUsageOptions {
+  force?: boolean
+}
+
+interface RefreshUsageOptions extends LoadUsageOptions {
+  concurrency?: number
+}
+
+interface RefreshUsageResult {
+  total: number
+  success: number
+  failed: number
 }
 
 const usageCache = new Map<number, UsageCacheEntry>()
@@ -38,6 +54,7 @@ function createUsageCacheEntry(): UsageCacheEntry {
     loading: false,
     error: null,
     usageInfo: null,
+    preferOpenAIFetchedUsage: false,
     request: null,
   }) as UsageCacheEntry
 }
@@ -49,6 +66,71 @@ function getUsageCacheEntry(accountID: number): UsageCacheEntry {
   const created = createUsageCacheEntry()
   usageCache.set(accountID, created)
   return created
+}
+
+function resetUsageCacheEntry(entry: UsageCacheEntry): void {
+  entry.loading = false
+  entry.error = null
+  entry.usageInfo = null
+  entry.preferOpenAIFetchedUsage = false
+  entry.request = null
+}
+
+function getUsageLoadErrorMessage(): string {
+  const translated = i18n.global.t('common.error')
+  return typeof translated === 'string' && translated.trim() !== '' ? translated : 'Error'
+}
+
+export function canAccountFetchUsage(account: Account): boolean {
+  if (account.platform === 'anthropic') {
+    return account.type === 'oauth' || account.type === 'setup-token'
+  }
+  if (account.platform === 'gemini') {
+    return true
+  }
+  if (account.platform === 'antigravity') {
+    return account.type === 'oauth'
+  }
+  if (account.platform === 'openai') {
+    return account.type === 'oauth'
+  }
+  return false
+}
+
+async function performUsageLoad(account: Account, options: LoadUsageOptions = {}): Promise<void> {
+  const entry = getUsageCacheEntry(account.id)
+
+  if (entry.request) {
+    await entry.request
+    if (!options.force) {
+      return
+    }
+  }
+
+  entry.loading = true
+  entry.error = null
+
+  const request = adminAPI.accounts
+    .getUsage(account.id, options.force ? { force: true } : undefined)
+    .then((data) => {
+      entry.usageInfo = data
+      entry.preferOpenAIFetchedUsage = Boolean(
+        options.force && account.platform === 'openai' && account.type === 'oauth',
+      )
+    })
+    .catch((error) => {
+      entry.error = getUsageLoadErrorMessage()
+      entry.preferOpenAIFetchedUsage = false
+      console.error('Failed to load usage:', error)
+      throw error
+    })
+    .finally(() => {
+      entry.loading = false
+      entry.request = null
+    })
+
+  entry.request = request
+  await request
 }
 
 function buildUsageRow(
@@ -105,6 +187,53 @@ export function resetAccountUsagePresentationCache(): void {
   usageCache.clear()
 }
 
+export function invalidateAccountUsagePresentationCache(accountIDs: number[]): void {
+  const uniqueIDs = [...new Set(accountIDs.filter((accountID) => Number.isFinite(accountID) && accountID > 0))]
+  uniqueIDs.forEach((accountID) => {
+    const entry = usageCache.get(accountID)
+    if (entry) {
+      resetUsageCacheEntry(entry)
+    }
+  })
+}
+
+export async function refreshAccountUsagePresentation(
+  accounts: Account[],
+  options: RefreshUsageOptions = {},
+): Promise<RefreshUsageResult> {
+  const refreshableAccounts = accounts.filter(canAccountFetchUsage)
+  if (refreshableAccounts.length === 0) {
+    return { total: 0, success: 0, failed: 0 }
+  }
+
+  const concurrency = Math.max(1, Math.min(options.concurrency ?? 4, refreshableAccounts.length))
+  let index = 0
+  let success = 0
+  let failed = 0
+
+  const worker = async () => {
+    while (index < refreshableAccounts.length) {
+      const current = refreshableAccounts[index]
+      index += 1
+
+      try {
+        await performUsageLoad(current, options)
+        success += 1
+      } catch {
+        failed += 1
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()))
+
+  return {
+    total: refreshableAccounts.length,
+    success,
+    failed,
+  }
+}
+
 export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Account>) {
   const { t } = useI18n()
   const { nowMs, nowDate } = useUiNow()
@@ -122,19 +251,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const shouldFetchUsage = computed(() => {
-    if (account.value.platform === 'anthropic') {
-      return account.value.type === 'oauth' || account.value.type === 'setup-token'
-    }
-    if (account.value.platform === 'gemini') {
-      return true
-    }
-    if (account.value.platform === 'antigravity') {
-      return account.value.type === 'oauth'
-    }
-    if (account.value.platform === 'openai') {
-      return account.value.type === 'oauth'
-    }
-    return false
+    return canAccountFetchUsage(account.value)
   })
 
   const codex5hWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '5h', nowDate.value))
@@ -221,6 +338,11 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     ) && hasOpenAIUsageFallback.value
   })
 
+  const shouldUseFetchedOpenAIUsage = computed(() => {
+    if (!hasOpenAIUsageFallback.value) return false
+    return preferFetchedOpenAIUsage.value || cacheEntry.value.preferOpenAIFetchedUsage
+  })
+
   const shouldAutoLoadUsageOnMount = computed(() => {
     if (account.value.platform === 'openai' && account.value.type === 'oauth') {
       return isActiveOpenAIRateLimited.value || !hasCodexUsage.value || isOpenAICodexSnapshotStale.value
@@ -231,7 +353,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   const openAIUsageRefreshKey = computed(() => buildOpenAIUsageRefreshKey(account.value))
 
   const snapshotUpdatedAt = computed(() => {
-    if (!hasCodexUsage.value || preferFetchedOpenAIUsage.value) return null
+    if (!hasCodexUsage.value || shouldUseFetchedOpenAIUsage.value) return null
 
     const updatedAtRaw = account.value.extra?.codex_usage_updated_at
     if (typeof updatedAtRaw !== 'string' || updatedAtRaw.trim() === '') return null
@@ -579,7 +701,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
 
   const openAIRefreshRows = computed(() => {
     if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return []
-    if (preferFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) return openAIFetchedRows.value
+    if (shouldUseFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) return openAIFetchedRows.value
     if (codexRows.value.length > 0) return codexRows.value
     return openAIFetchedRows.value
   })
@@ -604,33 +726,15 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     return earliestResetAt
   })
 
-  const loadUsage = async () => {
+  const loadUsage = async (options: LoadUsageOptions = {}) => {
     const currentAccount = account.value
     if (!shouldFetchUsage.value) return
-
-    const entry = getUsageCacheEntry(currentAccount.id)
-    if (entry.request) {
-      await entry.request
-      return
-    }
-
-    entry.loading = true
-    entry.error = null
-    entry.request = adminAPI.accounts
-      .getUsage(currentAccount.id)
-      .then((data) => {
-        entry.usageInfo = data
-      })
-      .catch((error) => {
+    await performUsageLoad(currentAccount, options).catch(() => {
+      const entry = getUsageCacheEntry(currentAccount.id)
+      if (!entry.error) {
         entry.error = t('common.error')
-        console.error('Failed to load usage:', error)
-      })
-      .finally(() => {
-        entry.loading = false
-        entry.request = null
-      })
-
-    await entry.request
+      }
+    })
   }
 
   watch(
@@ -696,7 +800,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
       meta.snapshotUpdatedAtText = openAISnapshotUpdatedAtText.value || undefined
       meta.snapshotUpdatedAtTooltip = openAISnapshotUpdatedAtTooltip.value || undefined
 
-      if (preferFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) {
+      if (shouldUseFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) {
         state = 'bars'
         windowRows = openAIFetchedRows.value
       } else if (isActiveOpenAIRateLimited.value && currentState.loading && openAIFetchedRows.value.length === 0) {

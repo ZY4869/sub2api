@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import AccountUsageCell from '../AccountUsageCell.vue'
-import { resetAccountUsagePresentationCache } from '@/composables/useAccountUsagePresentation'
+import {
+  invalidateAccountUsagePresentationCache,
+  refreshAccountUsagePresentation,
+  resetAccountUsagePresentationCache
+} from '@/composables/useAccountUsagePresentation'
 import { resetUiNowForTests } from '@/composables/useUiNow'
 
 const { getUsage } = vi.hoisted(() => ({
@@ -161,7 +165,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(getUsage).toHaveBeenCalledWith(2000)
+    expect(getUsage).toHaveBeenCalledWith(2000, undefined)
     expect(wrapper.text()).toContain('5h|15|2026-03-08T12:00:00Z|3600|true|300')
     expect(wrapper.text()).toContain('7d|77|2026-03-13T12:00:00Z|3600|true|300')
   })
@@ -194,6 +198,71 @@ describe('AccountUsageCell', () => {
     expect(getUsage).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
     expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
+  })
+
+  it('uses forced fetched openai usage after a manual real refresh', async () => {
+    const account = {
+      id: 2010,
+      platform: 'openai',
+      type: 'oauth',
+      extra: {
+        codex_usage_updated_at: '2099-03-07T10:00:00Z',
+        codex_5h_used_percent: 12,
+        codex_5h_reset_at: '2099-03-07T12:00:00Z',
+        codex_7d_used_percent: 34,
+        codex_7d_reset_at: '2099-03-13T12:00:00Z',
+      },
+    } as any
+
+    const wrapper = mount(AccountUsageCell, {
+      props: { account },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
+
+    getUsage.mockResolvedValueOnce({
+      five_hour: {
+        utilization: 88,
+        resets_at: '2026-03-08T12:00:00Z',
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 8,
+          tokens: 800,
+          cost: 0.08,
+          standard_cost: 0.08,
+          user_cost: 0.08,
+        },
+      },
+      seven_day: {
+        utilization: 66,
+        resets_at: '2026-03-13T12:00:00Z',
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 9,
+          tokens: 900,
+          cost: 0.09,
+          standard_cost: 0.09,
+          user_cost: 0.09,
+        },
+      },
+    })
+
+    invalidateAccountUsagePresentationCache([account.id])
+    const result = await refreshAccountUsagePresentation([account], { force: true, concurrency: 1 })
+    await flushPromises()
+
+    expect(result).toEqual({ total: 1, success: 1, failed: 0 })
+    expect(getUsage).toHaveBeenCalledWith(2010, { force: true })
+    expect(wrapper.text()).toContain('5h|88|2026-03-08T12:00:00Z|3600|true|800')
+    expect(wrapper.text()).toContain('7d|66|2026-03-13T12:00:00Z|7200|true|900')
   })
 
   it('hides openai identity and model summaries but keeps snapshot update text', async () => {
@@ -278,7 +347,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(getUsage).toHaveBeenCalledWith(2002)
+    expect(getUsage).toHaveBeenCalledWith(2002, undefined)
     expect(wrapper.text()).toContain('5h|0||0|true|27700')
     expect(wrapper.text()).toContain('7d|0||0|true|27700')
   })
@@ -415,7 +484,7 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(getUsage).toHaveBeenCalledTimes(1)
-    expect(getUsage).toHaveBeenCalledWith(2006)
+    expect(getUsage).toHaveBeenCalledWith(2006, undefined)
     expect(wrapper.text()).toContain('5h|44|2026-03-13T17:00:00Z|18000|true|500')
     expect(wrapper.text()).toContain('7d|12|2026-03-20T12:00:00Z|604800|true|900')
   })
@@ -470,7 +539,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(getUsage).toHaveBeenCalledWith(2004)
+    expect(getUsage).toHaveBeenCalledWith(2004, undefined)
     expect(wrapper.text()).toContain('5h|100|2026-03-07T12:00:00Z|3600|true|106540000')
     expect(wrapper.text()).toContain('7d|100|2026-03-13T12:00:00Z|3600|true|106540000')
     expect(wrapper.text()).not.toContain('5h|0|')

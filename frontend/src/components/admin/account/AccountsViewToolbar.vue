@@ -16,6 +16,18 @@
         @create="emit('create')"
       >
         <template #after>
+          <button
+            class="btn btn-secondary"
+            :title="t('admin.accounts.refreshActualUsage')"
+            :disabled="loading || usageRefreshing"
+            @click="emit('refresh-usage')"
+          >
+            <Icon name="refresh" size="md" :class="[usageRefreshing ? 'animate-spin' : '']" />
+            <span class="hidden md:inline">
+              {{ usageRefreshing ? t('admin.accounts.refreshingActualUsage') : t('admin.accounts.refreshActualUsage') }}
+            </span>
+          </button>
+
           <div class="relative" ref="autoRefreshDropdownRef">
             <button
               class="btn btn-secondary px-2 md:px-3"
@@ -159,6 +171,7 @@ interface ToggleableColumn {
 
 defineProps<{
   loading: boolean
+  usageRefreshing: boolean
   searchQuery: string
   filters: Record<string, unknown>
   groups: AdminGroup[]
@@ -176,6 +189,7 @@ const emit = defineEmits<{
   'update:searchQuery': [value: string]
   change: []
   refresh: []
+  'refresh-usage': []
   sync: []
   create: []
   'import-data': []

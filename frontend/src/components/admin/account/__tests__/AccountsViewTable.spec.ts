@@ -71,6 +71,7 @@ function mountTable() {
       todayStatsByAccountId: {},
       todayStatsLoading: false,
       todayStatsError: null,
+      usageManualRefreshToken: 0,
       sortStorageKey: 'account-table-sort',
       pagination: {
         total: 1,

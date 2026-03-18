@@ -261,7 +261,16 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 		response.BadRequest(c, "Invalid account ID")
 		return
 	}
-	usage, err := h.accountUsageService.GetUsage(c.Request.Context(), accountID)
+	force := false
+	if raw := strings.TrimSpace(c.Query("force")); raw != "" {
+		parsed, parseErr := strconv.ParseBool(raw)
+		if parseErr != nil {
+			response.BadRequest(c, "Invalid force flag")
+			return
+		}
+		force = parsed
+	}
+	usage, err := h.accountUsageService.GetUsage(c.Request.Context(), accountID, force)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

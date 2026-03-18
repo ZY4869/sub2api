@@ -19,6 +19,7 @@ function mountToolbar() {
   return mount(AccountsViewToolbar, {
     props: {
       loading: false,
+      usageRefreshing: false,
       searchQuery: '',
       filters: { platform: '', type: '', status: '', group: '', search: '' },
       groups: [{ id: 1, name: 'Default' }],
@@ -72,6 +73,9 @@ describe('AccountsViewToolbar', () => {
     await wrapper.get('.filters-search').trigger('click')
     await wrapper.get('.filters-change').trigger('click')
     await wrapper.get('.refresh').trigger('click')
+    await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.refreshActualUsage')
+    )?.trigger('click')
     await wrapper.get('.sync').trigger('click')
     await wrapper.get('.create').trigger('click')
 
@@ -79,6 +83,7 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['claude']])
     expect(wrapper.emitted('change')).toEqual([[]])
     expect(wrapper.emitted('refresh')).toEqual([[]])
+    expect(wrapper.emitted('refresh-usage')).toEqual([[]])
     expect(wrapper.emitted('sync')).toEqual([[]])
     expect(wrapper.emitted('create')).toEqual([[]])
   })
