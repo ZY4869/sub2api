@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 const (
@@ -28,9 +29,44 @@ const (
 	openAICodexSnapshotPersistMinInterval = 30 * time.Second
 )
 
-var openaiAllowedHeaders = map[string]bool{"accept-language": true, "content-type": true, "conversation_id": true, "user-agent": true, "originator": true, "session_id": true, "x-codex-turn-state": true, "x-codex-turn-metadata": true}
-var openaiPassthroughAllowedHeaders = map[string]bool{"accept": true, "accept-language": true, "content-type": true, "conversation_id": true, "openai-beta": true, "user-agent": true, "originator": true, "session_id": true, "x-codex-turn-state": true, "x-codex-turn-metadata": true}
-var codexCLIOnlyDebugHeaderWhitelist = []string{"User-Agent", "Content-Type", "Accept", "Accept-Language", "OpenAI-Beta", "Originator", "Session_ID", "Conversation_ID", "X-Request-ID", "X-Client-Request-ID", "X-Forwarded-For", "X-Real-IP"}
+var openaiAllowedHeaders = map[string]bool{
+	"accept-language":       true,
+	"content-type":          true,
+	"conversation_id":       true,
+	"user-agent":            true,
+	"originator":            true,
+	"session_id":            true,
+	"x-codex-turn-state":    true,
+	"x-codex-turn-metadata": true,
+}
+
+var openaiPassthroughAllowedHeaders = map[string]bool{
+	"accept":                true,
+	"accept-language":       true,
+	"content-type":          true,
+	"conversation_id":       true,
+	"openai-beta":           true,
+	"user-agent":            true,
+	"originator":            true,
+	"session_id":            true,
+	"x-codex-turn-state":    true,
+	"x-codex-turn-metadata": true,
+}
+
+var codexCLIOnlyDebugHeaderWhitelist = []string{
+	"User-Agent",
+	"Content-Type",
+	"Accept",
+	"Accept-Language",
+	"OpenAI-Beta",
+	"Originator",
+	"Session_ID",
+	"Conversation_ID",
+	"X-Request-ID",
+	"X-Client-Request-ID",
+	"X-Forwarded-For",
+	"X-Real-IP",
+}
 
 type OpenAIGatewayService struct {
 	accountRepo                   AccountRepository
@@ -68,24 +104,56 @@ type OpenAIGatewayService struct {
 }
 
 func NewOpenAIGatewayService(accountRepo AccountRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, httpUpstream HTTPUpstream, deferredService *DeferredService, openAITokenProvider *OpenAITokenProvider) *OpenAIGatewayService {
-	svc := &OpenAIGatewayService{accountRepo: accountRepo, usageLogRepo: usageLogRepo, usageBillingRepo: usageBillingRepo, userRepo: userRepo, userSubRepo: userSubRepo, cache: cache, cfg: cfg, codexDetector: NewOpenAICodexClientRestrictionDetector(cfg), schedulerSnapshot: schedulerSnapshot, concurrencyService: concurrencyService, billingService: billingService, rateLimitService: rateLimitService, billingCacheService: billingCacheService, userGroupRateResolver: newUserGroupRateResolver(userGroupRateRepo, nil, resolveUserGroupRateCacheTTL(cfg), nil, "service.openai_gateway"), httpUpstream: httpUpstream, deferredService: deferredService, openAITokenProvider: openAITokenProvider, toolCorrector: NewCodexToolCorrector(), openaiWSResolver: NewOpenAIWSProtocolResolver(cfg), responseHeaderFilter: compileResponseHeaderFilter(cfg), codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval)}
+	svc := &OpenAIGatewayService{
+		accountRepo:           accountRepo,
+		usageLogRepo:          usageLogRepo,
+		usageBillingRepo:      usageBillingRepo,
+		userRepo:              userRepo,
+		userSubRepo:           userSubRepo,
+		cache:                 cache,
+		cfg:                   cfg,
+		codexDetector:         NewOpenAICodexClientRestrictionDetector(cfg),
+		schedulerSnapshot:     schedulerSnapshot,
+		concurrencyService:    concurrencyService,
+		billingService:        billingService,
+		rateLimitService:      rateLimitService,
+		billingCacheService:   billingCacheService,
+		userGroupRateResolver: newUserGroupRateResolver(userGroupRateRepo, nil, resolveUserGroupRateCacheTTL(cfg), nil, "service.openai_gateway"),
+		httpUpstream:          httpUpstream,
+		deferredService:       deferredService,
+		openAITokenProvider:   openAITokenProvider,
+		toolCorrector:         NewCodexToolCorrector(),
+		openaiWSResolver:      NewOpenAIWSProtocolResolver(cfg),
+		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
+		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+	}
 	svc.logOpenAIWSModeBootstrap()
 	return svc
 }
+
 func (s *OpenAIGatewayService) getCodexSnapshotThrottle() *accountWriteThrottle {
 	if s != nil && s.codexSnapshotThrottle != nil {
 		return s.codexSnapshotThrottle
 	}
 	return defaultOpenAICodexSnapshotPersistThrottle
 }
+
 func (s *OpenAIGatewayService) billingDeps() *billingDeps {
-	return &billingDeps{accountRepo: s.accountRepo, userRepo: s.userRepo, userSubRepo: s.userSubRepo, billingCacheService: s.billingCacheService, deferredService: s.deferredService}
+	return &billingDeps{
+		accountRepo:         s.accountRepo,
+		userRepo:            s.userRepo,
+		userSubRepo:         s.userSubRepo,
+		billingCacheService: s.billingCacheService,
+		deferredService:     s.deferredService,
+	}
 }
+
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {
 	if s != nil && s.openaiWSPool != nil {
 		s.openaiWSPool.Close()
 	}
 }
+
 func (s *OpenAIGatewayService) shouldFailoverUpstreamError(statusCode int) bool {
 	switch statusCode {
 	case 401, 402, 403, 429, 529:
@@ -94,16 +162,19 @@ func (s *OpenAIGatewayService) shouldFailoverUpstreamError(statusCode int) bool 
 		return statusCode >= 500
 	}
 }
+
 func (s *OpenAIGatewayService) shouldFailoverOpenAIUpstreamResponse(statusCode int, upstreamMsg string, upstreamBody []byte) bool {
 	if s.shouldFailoverUpstreamError(statusCode) {
 		return true
 	}
 	return isOpenAITransientProcessingError(statusCode, upstreamMsg, upstreamBody)
 }
+
 func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
 }
+
 func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel, toModel string) []byte {
 	if m := gjson.GetBytes(body, "model"); m.Exists() && m.Str == fromModel {
 		newBody, err := sjson.SetBytes(body, "model", toModel)

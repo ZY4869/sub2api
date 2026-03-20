@@ -24,6 +24,14 @@ export default {
       day: 'Day',
       hour: 'Hour',
       modelDistribution: 'Model Distribution',
+      viewModelDistribution: 'Model Distribution',
+      viewSpendingRanking: 'User Spending Ranking',
+      spendingRankingTitle: 'User Spending Ranking',
+      spendingRankingUser: 'User',
+      spendingRankingRequests: 'Requests',
+      spendingRankingTokens: 'Tokens',
+      spendingRankingSpend: 'Spend',
+      spendingRankingOther: 'Other',
       groupDistribution: 'Group Usage Distribution',
       metricTokens: 'By Tokens',
       metricActualCost: 'By Actual Cost',
@@ -1053,6 +1061,7 @@ export default {
       allTypes: 'All Types',
       allStatus: 'All Status',
       allGroups: 'All Groups',
+      ungroupedGroup: 'Ungrouped',
       oauthType: 'OAuth',
       setupToken: 'Setup Token',
       apiKey: 'API Key',
@@ -1923,6 +1932,8 @@ export default {
         resetAtLabel: 'Resets at',
         now: 'Now',
         snapshotUpdatedAt: 'Snapshot updated at {time}',
+        passiveSampled: 'This view is based on passive sampling snapshots and may lag behind real-time usage briefly.',
+        activeQuery: 'This view reflects an active live query.',
         notProbed: 'Not probed',
         customMapping: 'Custom mapping(*)'
       },
@@ -3303,7 +3314,21 @@ export default {
         minVersion: 'Minimum Version',
         minVersionPlaceholder: 'e.g. 2.1.63',
         minVersionHint:
-          'Reject Claude Code clients below this version (semver format). Leave empty to disable version check.'
+          'Reject Claude Code clients below this version (semver format). Leave empty to disable version check.',
+        maxVersion: 'Maximum Version',
+        maxVersionPlaceholder: 'e.g. 2.3.0',
+        maxVersionHint:
+          'Reject Claude Code clients above this version (semver format). Leave empty to disable version check.'
+      },
+      overloadCooldown: {
+        title: 'Overload Cooldown Settings',
+        description: 'Control the cooldown applied after 529 overload responses.',
+        enabled: 'Enable Overload Cooldown',
+        enabledHint: 'When enabled, accounts that hit overload errors enter a cooldown window for the configured duration.',
+        cooldownMinutes: 'Cooldown Duration (minutes)',
+        cooldownMinutesHint: 'How long to pause scheduling after a 529 overload response.',
+        saved: 'Overload cooldown settings saved',
+        saveFailed: 'Failed to save overload cooldown settings'
       },
       scheduling: {
         title: 'Gateway Scheduling Settings',

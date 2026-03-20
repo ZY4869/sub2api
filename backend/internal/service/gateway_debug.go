@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
+	"os"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/tidwall/gjson"
 	"net/http"
 	"strings"
 )
+
+const debugGatewayBodyEnv = "SUB2API_DEBUG_GATEWAY_BODY"
 
 func IsForceCacheBilling(ctx context.Context) bool {
 	v, _ := ctx.Value(ForceCacheBillingContextKey).(bool)
@@ -159,4 +162,15 @@ func truncateForLog(b []byte, maxBytes int) string {
 	s = strings.ReplaceAll(s, "\n", "\\n")
 	s = strings.ReplaceAll(s, "\r", "\\r")
 	return s
+}
+
+func debugGatewayBodyLoggingEnabled() bool {
+	return parseDebugEnvBool(strings.TrimSpace(os.Getenv(debugGatewayBodyEnv)))
+}
+
+func debugLogRequestBody(tag string, body []byte) {
+	if !debugGatewayBodyLoggingEnabled() || len(body) == 0 {
+		return
+	}
+	logger.LegacyPrintf("service.gateway", "[GatewayBodyDebug] %s %s", strings.TrimSpace(tag), truncateForLog(body, 4096))
 }

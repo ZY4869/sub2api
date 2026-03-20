@@ -733,6 +733,7 @@ import type {
   UsageStatsResponse,
 } from "@/types";
 import type { Column } from "@/components/common/types";
+import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import {
   formatDateTime,
   formatReasoningEffort,
@@ -831,7 +832,7 @@ const onDateRangeChange = (range: {
 
 const pagination = reactive({
   page: 1,
-  page_size: 20,
+  page_size: getPersistedPageSize(),
   total: 0,
   pages: 0,
 });

@@ -222,13 +222,17 @@ export async function clearError(id: number): Promise<Account> {
  * Get account usage information (5h/7d window)
  * @param id - Account ID
  * @param options.force - Whether to bypass server-side usage cache
+ * @param options.source - Usage source to query
  * @returns Account usage info
  */
 export async function getUsage(
   id: number,
-  options?: { force?: boolean }
+  options?: { force?: boolean; source?: "passive" | "active" }
 ): Promise<AccountUsageInfo> {
-  const params = options?.force ? { force: '1' } : undefined
+  const params = {
+    ...(options?.force ? { force: "1" } : {}),
+    ...(options?.source ? { source: options.source } : {}),
+  }
   const { data } = await apiClient.get<AccountUsageInfo>(`/admin/accounts/${id}/usage`, { params })
   return data
 }

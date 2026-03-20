@@ -178,7 +178,7 @@ func TestModelCatalogService_LegacyAliasesResolveToCuratedRows(t *testing.T) {
 				InputCostPerToken: modelCatalogFloat64Ptr(1.25e-6),
 			},
 		},
-		"claude-sonnet-4-6": {
+		"claude-sonnet-4-5": {
 			ModelCatalogPricing: ModelCatalogPricing{
 				OutputCostPerToken: modelCatalogFloat64Ptr(5e-6),
 			},

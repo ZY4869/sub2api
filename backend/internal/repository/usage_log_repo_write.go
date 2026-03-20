@@ -34,6 +34,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			account_id,
 			request_id,
 			model,
+			upstream_model,
 			group_id,
 			subscription_id,
 			input_tokens,
@@ -71,15 +72,16 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			created_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
-			$6, $7,
-			$8, $9, $10, $11,
-			$12, $13,
-			$14, $15, $16, $17, $18, $19,
-			$20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40
+			$6, $7, $8,
+			$9, $10, $11, $12,
+			$13, $14,
+			$15, $16, $17, $18, $19, $20,
+			$21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
 	`
+	upstreamModel := nullString(log.UpstreamModel)
 	groupID := nullInt64(log.GroupID)
 	subscriptionID := nullInt64(log.SubscriptionID)
 	duration := nullInt(log.DurationMs)
@@ -98,7 +100,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	if requestID != "" {
 		requestIDArg = requestID
 	}
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, log.ImageCount, imageSize, mediaType, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, upstreamModel, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, log.ImageCount, imageSize, mediaType, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, log.CacheTTLOverridden, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"

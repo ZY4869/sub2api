@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, reqModel string, reqStream bool, startTime time.Time) (*ForwardResult, error) {
+func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reqStream bool, startTime time.Time) (*ForwardResult, error) {
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
@@ -25,6 +25,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 	if tokenType != "apikey" {
 		return nil, fmt.Errorf("anthropic api key passthrough requires apikey token, got: %s", tokenType)
 	}
+	reqModel := upstreamModel
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -128,7 +129,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 	var firstTokenMs *int
 	var clientDisconnect bool
 	if reqStream {
-		streamResult, err := s.handleStreamingResponseAnthropicAPIKeyPassthrough(ctx, resp, c, account, startTime, reqModel)
+		streamResult, err := s.handleStreamingResponseAnthropicAPIKeyPassthrough(ctx, resp, c, account, startTime, upstreamModel)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +145,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 	if usage == nil {
 		usage = &ClaudeUsage{}
 	}
-	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: reqModel, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
+	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: requestedModel, UpstreamModel: upstreamModel, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
 }
 func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, token string) (*http.Request, error) {
 	targetURL := claudeAPIURL

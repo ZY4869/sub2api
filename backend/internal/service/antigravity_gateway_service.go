@@ -3,12 +3,13 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -35,6 +36,7 @@ const (
 )
 
 var antigravityPassthroughErrorMessages = []string{"prompt is too long"}
+
 var (
 	modelCapacityExhaustedMu    sync.RWMutex
 	modelCapacityExhaustedUntil = make(map[string]time.Time)
@@ -54,6 +56,7 @@ type AntigravityAccountSwitchError struct {
 func (e *AntigravityAccountSwitchError) Error() string {
 	return fmt.Sprintf("account %d model %s rate limited, need switch", e.OriginalAccountID, e.RateLimitedModel)
 }
+
 func IsAntigravityAccountSwitchError(err error) (*AntigravityAccountSwitchError, bool) {
 	var switchErr *AntigravityAccountSwitchError
 	if errors.As(err, &switchErr) {
@@ -71,6 +74,7 @@ type PromptTooLongError struct {
 func (e *PromptTooLongError) Error() string {
 	return fmt.Sprintf("prompt too long: status=%d", e.StatusCode)
 }
+
 func shouldRetryAntigravityError(statusCode int) bool {
 	switch statusCode {
 	case 429, 500, 502, 503, 504, 529:
@@ -79,10 +83,12 @@ func shouldRetryAntigravityError(statusCode int) bool {
 		return false
 	}
 }
+
 func isURLLevelRateLimit(body []byte) bool {
 	bodyStr := string(body)
 	return strings.Contains(bodyStr, "Resource has been exhausted") && !strings.Contains(bodyStr, "capacity on this model")
 }
+
 func isAntigravityConnectionError(err error) bool {
 	if err == nil {
 		return false
@@ -94,18 +100,21 @@ func isAntigravityConnectionError(err error) bool {
 	var opErr *net.OpError
 	return errors.As(err, &opErr)
 }
+
 func shouldAntigravityFallbackToNextURL(err error, statusCode int) bool {
 	if isAntigravityConnectionError(err) {
 		return true
 	}
 	return statusCode == http.StatusTooManyRequests
 }
+
 func getSessionID(c *gin.Context) string {
 	if c == nil {
 		return ""
 	}
 	return c.GetHeader("session_id")
 }
+
 func logPrefix(sessionID, accountName string) string {
 	if sessionID != "" {
 		return fmt.Sprintf("[antigravity-Forward] session=%s account=%s", sessionID, accountName)
@@ -124,11 +133,21 @@ type AntigravityGatewayService struct {
 }
 
 func NewAntigravityGatewayService(accountRepo AccountRepository, cache GatewayCache, schedulerSnapshot *SchedulerSnapshotService, tokenProvider *AntigravityTokenProvider, rateLimitService *RateLimitService, httpUpstream HTTPUpstream, settingService *SettingService) *AntigravityGatewayService {
-	return &AntigravityGatewayService{accountRepo: accountRepo, tokenProvider: tokenProvider, rateLimitService: rateLimitService, httpUpstream: httpUpstream, settingService: settingService, cache: cache, schedulerSnapshot: schedulerSnapshot}
+	return &AntigravityGatewayService{
+		accountRepo:       accountRepo,
+		tokenProvider:     tokenProvider,
+		rateLimitService:  rateLimitService,
+		httpUpstream:      httpUpstream,
+		settingService:    settingService,
+		cache:             cache,
+		schedulerSnapshot: schedulerSnapshot,
+	}
 }
+
 func (s *AntigravityGatewayService) GetTokenProvider() *AntigravityTokenProvider {
 	return s.tokenProvider
 }
+
 func (s *AntigravityGatewayService) getDefaultRateLimitDuration() time.Duration {
 	defaultDur := antigravityDefaultRateLimitDuration
 	if s.settingService != nil && s.settingService.cfg != nil && s.settingService.cfg.Gateway.AntigravityFallbackCooldownMinutes > 0 {
@@ -139,6 +158,7 @@ func (s *AntigravityGatewayService) getDefaultRateLimitDuration() time.Duration 
 	}
 	return defaultDur
 }
+
 func (s *AntigravityGatewayService) resolveResetTime(resetAt *int64, defaultDur time.Duration) time.Time {
 	if resetAt != nil {
 		return time.Unix(*resetAt, 0)

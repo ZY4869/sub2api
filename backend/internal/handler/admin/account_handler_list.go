@@ -66,7 +66,16 @@ func (h *AccountHandler) List(c *gin.Context) {
 	lite := parseBoolQueryWithDefault(c.Query("lite"), false)
 	var groupID int64
 	if groupIDStr := c.Query("group"); groupIDStr != "" {
-		groupID, _ = strconv.ParseInt(groupIDStr, 10, 64)
+		if groupIDStr == accountListGroupUngroupedQueryValue {
+			groupID = service.AccountListGroupUngrouped
+		} else {
+			parsedGroupID, err := strconv.ParseInt(groupIDStr, 10, 64)
+			if err != nil || parsedGroupID < 0 {
+				response.BadRequest(c, "Invalid group filter")
+				return
+			}
+			groupID = parsedGroupID
+		}
 	}
 	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID)
 	if err != nil {
