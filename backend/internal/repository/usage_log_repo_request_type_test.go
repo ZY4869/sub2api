@@ -44,6 +44,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.AccountID,
 			log.RequestID,
 			log.Model,
+			sqlmock.AnyArg(), // upstream_model
 			sqlmock.AnyArg(), // group_id
 			sqlmock.AnyArg(), // subscription_id
 			log.InputTokens,
@@ -118,6 +119,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.Model,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.InputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
@@ -183,6 +185,7 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			log.AccountID,
 			log.RequestID,
 			log.Model,
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.InputTokens,
@@ -426,6 +429,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(30), // account_id
 			sql.NullString{Valid: true, String: "req-1"},
 			"gpt-5",           // model
+			sql.NullString{},  // upstream_model
 			sql.NullInt64{},   // group_id
 			sql.NullInt64{},   // subscription_id
 			1,                 // input_tokens
@@ -481,6 +485,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(31),
 			sql.NullString{Valid: true, String: "req-2"},
 			"gpt-5",
+			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
@@ -524,6 +529,7 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			int64(32),
 			sql.NullString{Valid: true, String: "req-3"},
 			"gpt-5.4",
+			sql.NullString{},
 			sql.NullInt64{},
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,

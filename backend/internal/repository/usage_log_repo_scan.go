@@ -16,6 +16,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		accountID             int64
 		requestID             sql.NullString
 		model                 string
+		upstreamModel         sql.NullString
 		groupID               sql.NullInt64
 		subscriptionID        sql.NullInt64
 		inputTokens           int
@@ -52,7 +53,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		cacheTTLOverridden    bool
 		createdAt             time.Time
 	)
-	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &imageCount, &imageSize, &mediaType, &serviceTier, &reasoningEffort, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &cacheTTLOverridden, &createdAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &upstreamModel, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &imageCount, &imageSize, &mediaType, &serviceTier, &reasoningEffort, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &cacheTTLOverridden, &createdAt); err != nil {
 		return nil, err
 	}
 	log := &service.UsageLog{ID: id, UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, Model: model, InputTokens: inputTokens, OutputTokens: outputTokens, CacheCreationTokens: cacheCreationTokens, CacheReadTokens: cacheReadTokens, CacheCreation5mTokens: cacheCreation5m, CacheCreation1hTokens: cacheCreation1h, InputCost: inputCost, OutputCost: outputCost, CacheCreationCost: cacheCreationCost, CacheReadCost: cacheReadCost, TotalCost: totalCost, ActualCost: actualCost, RateMultiplier: rateMultiplier, AccountRateMultiplier: nullFloat64Ptr(accountRateMultiplier), BillingType: int8(billingType), RequestType: service.RequestTypeFromInt16(requestTypeRaw), ImageCount: imageCount, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: createdAt}
@@ -62,6 +63,9 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	log.Stream, log.OpenAIWSMode = service.ApplyLegacyRequestFields(log.RequestType, stream, openaiWSMode)
 	if requestID.Valid {
 		log.RequestID = requestID.String
+	}
+	if upstreamModel.Valid {
+		log.UpstreamModel = &upstreamModel.String
 	}
 	if groupID.Valid {
 		value := groupID.Int64

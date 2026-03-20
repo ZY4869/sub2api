@@ -22,6 +22,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	}
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body
+		requestedModel := parsed.Model
 		passthroughModel := parsed.Model
 		if passthroughModel != "" {
 			if mappedModel := account.GetMappedModel(passthroughModel); mappedModel != passthroughModel {
@@ -30,7 +31,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 				passthroughModel = mappedModel
 			}
 		}
-		return s.forwardAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody, passthroughModel, parsed.Stream, startTime)
+		return s.forwardAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody, requestedModel, passthroughModel, parsed.Stream, startTime)
 	}
 	if account.Platform == PlatformAnthropic && c != nil {
 		policy := s.evaluateBetaPolicy(ctx, c.GetHeader("anthropic-beta"), account)
@@ -95,6 +96,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		reqModel = mappedModel
 		logger.LegacyPrintf("service.gateway", "Model mapping applied: %s -> %s (account: %s, source=%s)", originalModel, mappedModel, account.Name, mappingSource)
 	}
+	debugLogRequestBody("CLIENT_ORIGINAL", body)
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
@@ -335,6 +337,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if parsed.OnUpstreamAccepted != nil {
 		parsed.OnUpstreamAccepted()
 	}
+	debugLogRequestBody("UPSTREAM_FORWARD", body)
 	var usage *ClaudeUsage
 	var firstTokenMs *int
 	var clientDisconnect bool
@@ -355,5 +358,5 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			return nil, err
 		}
 	}
-	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: originalModel, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
+	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: originalModel, UpstreamModel: reqModel, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
 }

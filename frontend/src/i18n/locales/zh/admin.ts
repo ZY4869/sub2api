@@ -32,6 +32,14 @@
       day: '按天',
       hour: '按小时',
       modelDistribution: '模型分布',
+      viewModelDistribution: '模型分布',
+      viewSpendingRanking: '用户消费榜',
+      spendingRankingTitle: '用户消费榜',
+      spendingRankingUser: '用户',
+      spendingRankingRequests: '请求数',
+      spendingRankingTokens: 'Token',
+      spendingRankingSpend: '消费',
+      spendingRankingOther: '其他',
       groupDistribution: '分组使用分布',
       metricTokens: '按 Token',
       metricActualCost: '按实际消费',
@@ -1116,6 +1124,7 @@
       allTypes: '全部类型',
       allStatus: '全部状态',
       allGroups: '全部分组',
+      ungroupedGroup: '未分组',
       oauthType: 'OAuth',
       // Schedulable toggle
       schedulable: '参与调度',
@@ -1298,6 +1307,8 @@
         resetAtLabel: '重置于',
         now: '现在',
         snapshotUpdatedAt: '快照更新于 {time}',
+        passiveSampled: '当前展示的是被动采样快照，可能与实时用量存在短暂延迟。',
+        activeQuery: '当前展示的是主动查询结果。',
         notProbed: '未探测',
         customMapping: '自定义映射(*)'
       },
@@ -3449,7 +3460,20 @@
         description: '控制 Claude Code 客户端访问要求',
         minVersion: '最低版本号',
         minVersionPlaceholder: '例如 2.1.63',
-        minVersionHint: '拒绝低于此版本的 Claude Code 客户端请求（semver 格式）。留空则不检查版本。'
+        minVersionHint: '拒绝低于此版本的 Claude Code 客户端请求（semver 格式）。留空则不检查版本。',
+        maxVersion: '最高版本号',
+        maxVersionPlaceholder: '例如 2.3.0',
+        maxVersionHint: '拒绝高于此版本的 Claude Code 客户端请求（semver 格式）。留空则不检查版本。'
+      },
+      overloadCooldown: {
+        title: '过载冷却设置',
+        description: '控制 529 过载错误触发后的账号冷却策略。',
+        enabled: '启用过载冷却',
+        enabledHint: '开启后，命中过载错误的账号会按设定时长进入冷却期。',
+        cooldownMinutes: '冷却时长（分钟）',
+        cooldownMinutesHint: '设置 529 过载后账号暂停调度的分钟数。',
+        saved: '过载冷却设置保存成功',
+        saveFailed: '保存过载冷却设置失败'
       },
       scheduling: {
         title: '网关调度设置',

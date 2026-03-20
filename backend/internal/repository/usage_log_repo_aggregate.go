@@ -892,13 +892,22 @@ func (r *usageLogRepository) getUsageTrendFromAggregates(ctx context.Context, st
 	return results, nil
 }
 func (r *usageLogRepository) GetModelStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8) (results []ModelStat, err error) {
+	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, billingType, usagestats.ModelSourceRequested)
+}
+
+func (r *usageLogRepository) GetModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8, source string) (results []ModelStat, err error) {
+	return r.getModelStatsWithFiltersBySource(ctx, startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, billingType, source)
+}
+
+func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8, source string) (results []ModelStat, err error) {
 	actualCostExpr := "COALESCE(SUM(actual_cost), 0) as actual_cost"
 	if accountID > 0 && userID == 0 && apiKeyID == 0 {
 		actualCostExpr = "COALESCE(SUM(total_cost * COALESCE(account_rate_multiplier, 1)), 0) as actual_cost"
 	}
+	modelExpr := resolveModelDimensionExpression(source)
 	query := fmt.Sprintf(`
 		SELECT
-			model,
+			%s as model,
 			COUNT(*) as requests,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
@@ -909,7 +918,7 @@ func (r *usageLogRepository) GetModelStatsWithFilters(ctx context.Context, start
 			%s
 		FROM usage_logs
 		WHERE created_at >= $1 AND created_at < $2
-	`, actualCostExpr)
+	`, modelExpr, actualCostExpr)
 	args := []any{startTime, endTime}
 	if userID > 0 {
 		query += fmt.Sprintf(" AND user_id = $%d", len(args)+1)
@@ -932,7 +941,7 @@ func (r *usageLogRepository) GetModelStatsWithFilters(ctx context.Context, start
 		query += fmt.Sprintf(" AND billing_type = $%d", len(args)+1)
 		args = append(args, int16(*billingType))
 	}
-	query += " GROUP BY model ORDER BY total_tokens DESC"
+	query += fmt.Sprintf(" GROUP BY %s ORDER BY total_tokens DESC", modelExpr)
 	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -948,6 +957,17 @@ func (r *usageLogRepository) GetModelStatsWithFilters(ctx context.Context, start
 		return nil, err
 	}
 	return results, nil
+}
+
+func resolveModelDimensionExpression(modelType string) string {
+	switch usagestats.NormalizeModelSource(modelType) {
+	case usagestats.ModelSourceUpstream:
+		return "COALESCE(NULLIF(TRIM(upstream_model), ''), model)"
+	case usagestats.ModelSourceMapping:
+		return "(model || ' -> ' || COALESCE(NULLIF(TRIM(upstream_model), ''), model))"
+	default:
+		return "model"
+	}
 }
 func (r *usageLogRepository) GetGroupStatsWithFilters(ctx context.Context, startTime, endTime time.Time, userID, apiKeyID, accountID, groupID int64, requestType *int16, stream *bool, billingType *int8) (results []usagestats.GroupStat, err error) {
 	query := `

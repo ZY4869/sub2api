@@ -94,16 +94,13 @@ func (s *GatewayService) hashContent(content string) string {
 	return strconv.FormatUint(h, 36)
 }
 func (s *GatewayService) replaceModelInBody(body []byte, newModel string) []byte {
-	var req map[string]json.RawMessage
-	if err := json.Unmarshal(body, &req); err != nil {
+	if len(body) == 0 {
 		return body
 	}
-	modelBytes, err := json.Marshal(newModel)
-	if err != nil {
+	if current := gjson.GetBytes(body, "model"); current.Exists() && current.String() == newModel {
 		return body
 	}
-	req["model"] = modelBytes
-	newBody, err := json.Marshal(req)
+	newBody, err := sjson.SetBytes(body, "model", newModel)
 	if err != nil {
 		return body
 	}
@@ -146,77 +143,80 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 	if len(body) == 0 {
 		return body, modelID
 	}
-	var req map[string]any
-	if err := json.Unmarshal(body, &req); err != nil {
-		return body, modelID
+	normalizedModelID := claude.NormalizeModelID(modelID)
+	if normalizedModelID == "" {
+		normalizedModelID = modelID
 	}
-	modified := false
-	if system, ok := req["system"]; ok {
-		switch v := system.(type) {
-		case string:
-			sanitized := sanitizeSystemText(v)
-			if sanitized != v {
-				req["system"] = sanitized
-				modified = true
-			}
-		case []any:
-			for _, item := range v {
-				block, ok := item.(map[string]any)
-				if !ok {
-					continue
-				}
-				if blockType, _ := block["type"].(string); blockType != "text" {
-					continue
-				}
-				text, ok := block["text"].(string)
-				if !ok || text == "" {
-					continue
-				}
-				sanitized := sanitizeSystemText(text)
-				if sanitized != text {
-					block["text"] = sanitized
-					modified = true
+
+	normalized := body
+	system := gjson.GetBytes(normalized, "system")
+	if system.Exists() {
+		switch {
+		case system.Type == gjson.String:
+			sanitized := sanitizeSystemText(system.String())
+			if sanitized != system.String() {
+				if next, err := sjson.SetBytes(normalized, "system", sanitized); err == nil {
+					normalized = next
 				}
 			}
+		case system.IsArray():
+			var blocks []any
+			if err := json.Unmarshal([]byte(system.Raw), &blocks); err == nil {
+				changed := false
+				for _, item := range blocks {
+					block, ok := item.(map[string]any)
+					if !ok {
+						continue
+					}
+					if opts.stripSystemCacheControl {
+						if _, exists := block["cache_control"]; exists {
+							delete(block, "cache_control")
+							changed = true
+						}
+					}
+					if blockType, _ := block["type"].(string); blockType != "text" {
+						continue
+					}
+					text, ok := block["text"].(string)
+					if !ok || text == "" {
+						continue
+					}
+					sanitized := sanitizeSystemText(text)
+					if sanitized != text {
+						block["text"] = sanitized
+						changed = true
+					}
+				}
+				if changed {
+					if next, err := sjson.SetBytes(normalized, "system", blocks); err == nil {
+						normalized = next
+					}
+				}
+			}
 		}
 	}
-	if _, exists := req["tools"]; !exists {
-		req["tools"] = []any{}
-		modified = true
-	}
-	if opts.stripSystemCacheControl {
-		if system, ok := req["system"]; ok {
-			_ = stripCacheControlFromSystemBlocks(system)
-			modified = true
+
+	if !gjson.GetBytes(normalized, "tools").Exists() {
+		if next, err := sjson.SetBytes(normalized, "tools", []any{}); err == nil {
+			normalized = next
 		}
 	}
-	if opts.injectMetadata && opts.metadataUserID != "" {
-		metadata, ok := req["metadata"].(map[string]any)
-		if !ok {
-			metadata = map[string]any{}
-			req["metadata"] = metadata
-		}
-		if existing, ok := metadata["user_id"].(string); !ok || existing == "" {
-			metadata["user_id"] = opts.metadataUserID
-			modified = true
+	if opts.injectMetadata && opts.metadataUserID != "" && strings.TrimSpace(gjson.GetBytes(normalized, "metadata.user_id").String()) == "" {
+		if next, err := sjson.SetBytes(normalized, "metadata.user_id", opts.metadataUserID); err == nil {
+			normalized = next
 		}
 	}
-	if _, hasTemp := req["temperature"]; hasTemp {
-		delete(req, "temperature")
-		modified = true
+	if gjson.GetBytes(normalized, "temperature").Exists() {
+		if next, err := sjson.DeleteBytes(normalized, "temperature"); err == nil {
+			normalized = next
+		}
 	}
-	if _, hasChoice := req["tool_choice"]; hasChoice {
-		delete(req, "tool_choice")
-		modified = true
+	if gjson.GetBytes(normalized, "tool_choice").Exists() {
+		if next, err := sjson.DeleteBytes(normalized, "tool_choice"); err == nil {
+			normalized = next
+		}
 	}
-	if !modified {
-		return body, modelID
-	}
-	newBody, err := json.Marshal(req)
-	if err != nil {
-		return body, modelID
-	}
-	return newBody, modelID
+	return normalized, normalizedModelID
 }
 func (s *GatewayService) buildOAuthMetadataUserID(parsed *ParsedRequest, account *Account, fp *Fingerprint) string {
 	if parsed == nil || account == nil {
@@ -331,27 +331,47 @@ func filterSystemBlocksByPrefix(body []byte) []byte {
 	return body
 }
 func injectClaudeCodePrompt(body []byte, system any) []byte {
-	claudeCodeBlock := map[string]any{"type": "text", "text": claudeCodeSystemPrompt, "cache_control": map[string]string{"type": "ephemeral"}}
 	claudeCodePrefix := strings.TrimSpace(claudeCodeSystemPrompt)
-	var newSystem []any
+
+	claudeCodeBlockRaw := `{"type":"text","text":` + strconv.Quote(claudeCodeSystemPrompt) + `,"cache_control":{"type":"ephemeral"}}`
+	setSystemRaw := func(systemRaw string) []byte {
+		result, err := sjson.SetRawBytes(body, "system", []byte(systemRaw))
+		if err != nil {
+			logger.LegacyPrintf("service.gateway", "Warning: failed to inject Claude Code prompt: %v", err)
+			return body
+		}
+		return result
+	}
+	resolveRawSystemItem := func(index int, item any) string {
+		if raw := gjson.GetBytes(body, fmt.Sprintf("system.%d", index)).Raw; raw != "" {
+			return raw
+		}
+		marshaled, err := json.Marshal(item)
+		if err != nil {
+			return ""
+		}
+		return string(marshaled)
+	}
+
 	switch v := system.(type) {
 	case nil:
-		newSystem = []any{claudeCodeBlock}
+		return setSystemRaw("[" + claudeCodeBlockRaw + "]")
 	case string:
 		if strings.TrimSpace(v) == "" || strings.TrimSpace(v) == strings.TrimSpace(claudeCodeSystemPrompt) {
-			newSystem = []any{claudeCodeBlock}
-		} else {
-			merged := v
-			if !strings.HasPrefix(v, claudeCodePrefix) {
-				merged = claudeCodePrefix + "\n\n" + v
-			}
-			newSystem = []any{claudeCodeBlock, map[string]any{"type": "text", "text": merged}}
+			return setSystemRaw("[" + claudeCodeBlockRaw + "]")
 		}
+		merged := v
+		if !strings.HasPrefix(v, claudeCodePrefix) {
+			merged = claudeCodePrefix + "\n\n" + v
+		}
+		textBlockRaw := `{"type":"text","text":` + strconv.Quote(merged) + `}`
+		return setSystemRaw("[" + claudeCodeBlockRaw + "," + textBlockRaw + "]")
 	case []any:
-		newSystem = make([]any, 0, len(v)+1)
-		newSystem = append(newSystem, claudeCodeBlock)
+		rawItems := make([]string, 0, len(v)+1)
+		rawItems = append(rawItems, claudeCodeBlockRaw)
 		prefixedNext := false
-		for _, item := range v {
+		for idx, item := range v {
+			rawItem := resolveRawSystemItem(idx, item)
 			if m, ok := item.(map[string]any); ok {
 				if text, ok := m["text"].(string); ok && strings.TrimSpace(text) == strings.TrimSpace(claudeCodeSystemPrompt) {
 					continue
@@ -359,23 +379,29 @@ func injectClaudeCodePrompt(body []byte, system any) []byte {
 				if !prefixedNext {
 					if blockType, _ := m["type"].(string); blockType == "text" {
 						if text, ok := m["text"].(string); ok && strings.TrimSpace(text) != "" && !strings.HasPrefix(text, claudeCodePrefix) {
-							m["text"] = claudeCodePrefix + "\n\n" + text
+							if rawItem != "" {
+								if next, err := sjson.SetBytes([]byte(rawItem), "text", claudeCodePrefix+"\n\n"+text); err == nil {
+									rawItem = string(next)
+								}
+							} else {
+								m["text"] = claudeCodePrefix + "\n\n" + text
+								if marshaled, err := json.Marshal(m); err == nil {
+									rawItem = string(marshaled)
+								}
+							}
 							prefixedNext = true
 						}
 					}
 				}
 			}
-			newSystem = append(newSystem, item)
+			if rawItem != "" {
+				rawItems = append(rawItems, rawItem)
+			}
 		}
+		return setSystemRaw("[" + strings.Join(rawItems, ",") + "]")
 	default:
-		newSystem = []any{claudeCodeBlock}
+		return setSystemRaw("[" + claudeCodeBlockRaw + "]")
 	}
-	result, err := sjson.SetBytes(body, "system", newSystem)
-	if err != nil {
-		logger.LegacyPrintf("service.gateway", "Warning: failed to inject Claude Code prompt: %v", err)
-		return body
-	}
-	return result
 }
 func enforceCacheControlLimit(body []byte) []byte {
 	var data map[string]any
@@ -398,9 +424,19 @@ func enforceCacheControlLimit(body []byte) []byte {
 		}
 		break
 	}
-	result, err := json.Marshal(data)
-	if err != nil {
-		return body
+	result := body
+	var err error
+	if system, ok := data["system"]; ok {
+		result, err = sjson.SetBytes(result, "system", system)
+		if err != nil {
+			return body
+		}
+	}
+	if messages, ok := data["messages"]; ok {
+		result, err = sjson.SetBytes(result, "messages", messages)
+		if err != nil {
+			return body
+		}
 	}
 	return result
 }

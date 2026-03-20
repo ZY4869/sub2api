@@ -95,6 +95,7 @@ type OpenAIForwardResult struct {
 	Usage           OpenAIUsage
 	Model           string
 	BillingModel    string
+	UpstreamModel   string
 	ServiceTier     *string
 	ReasoningEffort *string
 	Stream          bool

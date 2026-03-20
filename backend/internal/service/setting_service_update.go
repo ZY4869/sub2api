@@ -33,6 +33,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyRegistrationEmailSuffixWhitelist] = string(registrationEmailSuffixWhitelistJSON)
 	updates[SettingKeyPromoCodeEnabled] = strconv.FormatBool(settings.PromoCodeEnabled)
 	updates[SettingKeyPasswordResetEnabled] = strconv.FormatBool(settings.PasswordResetEnabled)
+	updates[SettingKeyFrontendURL] = strings.TrimSpace(settings.FrontendURL)
 	updates[SettingKeyInvitationCodeEnabled] = strconv.FormatBool(settings.InvitationCodeEnabled)
 	updates[SettingKeyTotpEnabled] = strconv.FormatBool(settings.TotpEnabled)
 	updates[SettingKeySMTPHost] = settings.SMTPHost
@@ -92,12 +93,17 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		updates[SettingKeyOpsMetricsIntervalSeconds] = strconv.Itoa(settings.OpsMetricsIntervalSeconds)
 	}
 	updates[SettingKeyMinClaudeCodeVersion] = settings.MinClaudeCodeVersion
+	updates[SettingKeyMaxClaudeCodeVersion] = settings.MaxClaudeCodeVersion
 	updates[SettingKeyAllowUngroupedKeyScheduling] = strconv.FormatBool(settings.AllowUngroupedKeyScheduling)
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
-		minVersionSF.Forget("min_version")
-		minVersionCache.Store(&cachedMinVersion{value: settings.MinClaudeCodeVersion, expiresAt: time.Now().Add(minVersionCacheTTL).UnixNano()})
+		versionBoundsSF.Forget("version_bounds")
+		versionBoundsCache.Store(&cachedVersionBounds{
+			min:       settings.MinClaudeCodeVersion,
+			max:       settings.MaxClaudeCodeVersion,
+			expiresAt: time.Now().Add(versionBoundsCacheTTL).UnixNano(),
+		})
 		backendModeSF.Forget("backend_mode_enabled")
 		backendModeCache.Store(&cachedBackendMode{value: settings.BackendModeEnabled, expiresAt: time.Now().Add(backendModeCacheTTL).UnixNano()})
 		if s.onUpdate != nil {

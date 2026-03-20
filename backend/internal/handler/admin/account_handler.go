@@ -112,6 +112,8 @@ type AccountWithConcurrency struct {
 	CurrentRPM         *int     `json:"current_rpm,omitempty"`
 }
 
+const accountListGroupUngroupedQueryValue = "ungrouped"
+
 func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	var req CheckMixedChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -20,9 +20,13 @@
         </div>
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ModelDistributionChart
+            v-model:source="modelDistributionSource"
             v-model:metric="modelDistributionMetric"
-            :model-stats="modelStats"
-            :loading="chartsLoading"
+            :model-stats="requestedModelStats"
+            :upstream-model-stats="upstreamModelStats"
+            :mapping-model-stats="mappingModelStats"
+            :loading="modelStatsLoading"
+            :show-source-toggle="true"
             :show-metric-toggle="true"
             :start-date="startDate"
             :end-date="endDate"
@@ -164,6 +168,7 @@ import ModelDistributionChart from "@/components/charts/ModelDistributionChart.v
 import GroupDistributionChart from "@/components/charts/GroupDistributionChart.vue";
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
 import Icon from "@/components/icons/Icon.vue";
+import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
   TrendDataPoint,
@@ -179,21 +184,32 @@ import type {
 const { t } = useI18n();
 const appStore = useAppStore();
 type DistributionMetric = "tokens" | "actual_cost";
+type ModelDistributionSource = "requested" | "upstream" | "mapping";
 
 const usageStats = ref<AdminUsageStatsResponse | null>(null);
 const usageLogs = ref<AdminUsageLog[]>([]);
 const loading = ref(false);
 const exporting = ref(false);
 const trendData = ref<TrendDataPoint[]>([]);
-const modelStats = ref<ModelStat[]>([]);
+const requestedModelStats = ref<ModelStat[]>([]);
+const upstreamModelStats = ref<ModelStat[]>([]);
+const mappingModelStats = ref<ModelStat[]>([]);
 const groupStats = ref<GroupStat[]>([]);
 const chartsLoading = ref(false);
+const modelStatsLoading = ref(false);
 const granularity = ref<"day" | "hour">("day");
 const modelDistributionMetric = ref<DistributionMetric>("tokens");
+const modelDistributionSource = ref<ModelDistributionSource>("requested");
+const loadedModelSources = reactive<Record<ModelDistributionSource, boolean>>({
+  requested: false,
+  upstream: false,
+  mapping: false,
+});
 const groupDistributionMetric = ref<DistributionMetric>("tokens");
 let abortController: AbortController | null = null;
 let exportAbortController: AbortController | null = null;
 let chartReqSeq = 0;
+let modelStatsReqSeq = 0;
 const exportProgress = reactive({
   show: false,
   progress: 0,
@@ -241,7 +257,11 @@ const filters = ref<AdminUsageQueryParams>({
   start_date: startDate.value,
   end_date: endDate.value,
 });
-const pagination = reactive({ page: 1, page_size: 20, total: 0 });
+const pagination = reactive({
+  page: 1,
+  page_size: getPersistedPageSize(),
+  total: 0,
+});
 
 const getGranularityForRange = (rangeStartDate: string, rangeEndDate: string): "day" | "hour" => {
   const start = new Date(rangeStartDate);
@@ -308,6 +328,72 @@ const loadStats = async () => {
     console.error("Failed to load usage stats:", error);
   }
 };
+
+const resetModelStatsCache = () => {
+  requestedModelStats.value = [];
+  upstreamModelStats.value = [];
+  mappingModelStats.value = [];
+  loadedModelSources.requested = false;
+  loadedModelSources.upstream = false;
+  loadedModelSources.mapping = false;
+};
+
+const loadModelStats = async (
+  source: ModelDistributionSource,
+  force = false,
+) => {
+  if (!force && loadedModelSources[source]) {
+    return;
+  }
+
+  const seq = ++modelStatsReqSeq;
+  modelStatsLoading.value = true;
+  try {
+    const requestType = filters.value.request_type;
+    const legacyStream = requestType
+      ? requestTypeToLegacyStream(requestType)
+      : filters.value.stream;
+    const response = await adminAPI.dashboard.getModelStats({
+      start_date: filters.value.start_date || startDate.value,
+      end_date: filters.value.end_date || endDate.value,
+      user_id: filters.value.user_id,
+      model: filters.value.model,
+      api_key_id: filters.value.api_key_id,
+      account_id: filters.value.account_id,
+      group_id: filters.value.group_id,
+      request_type: requestType,
+      stream: legacyStream === null ? undefined : legacyStream,
+      billing_type: filters.value.billing_type,
+      model_source: source,
+    });
+
+    if (seq !== modelStatsReqSeq) return;
+
+    const models = response.models || [];
+    if (source === "requested") {
+      requestedModelStats.value = models;
+    } else if (source === "upstream") {
+      upstreamModelStats.value = models;
+    } else {
+      mappingModelStats.value = models;
+    }
+    loadedModelSources[source] = true;
+  } catch (error) {
+    if (seq !== modelStatsReqSeq) return;
+    console.error("Failed to load model stats:", error);
+    if (source === "requested") {
+      requestedModelStats.value = [];
+    } else if (source === "upstream") {
+      upstreamModelStats.value = [];
+    } else {
+      mappingModelStats.value = [];
+    }
+    loadedModelSources[source] = false;
+  } finally {
+    if (seq === modelStatsReqSeq) modelStatsLoading.value = false;
+  }
+};
+
 const loadChartData = async () => {
   const seq = ++chartReqSeq;
   chartsLoading.value = true;
@@ -330,13 +416,12 @@ const loadChartData = async () => {
       billing_type: filters.value.billing_type,
       include_stats: false,
       include_trend: true,
-      include_model_stats: true,
+      include_model_stats: false,
       include_group_stats: true,
       include_users_trend: false,
     });
     if (seq !== chartReqSeq) return;
     trendData.value = snapshot.trend || [];
-    modelStats.value = snapshot.models || [];
     groupStats.value = snapshot.groups || [];
   } catch (error) {
     console.error("Failed to load chart data:", error);
@@ -346,13 +431,17 @@ const loadChartData = async () => {
 };
 const applyFilters = () => {
   pagination.page = 1;
+  resetModelStatsCache();
   loadLogs();
   loadStats();
+  void loadModelStats(modelDistributionSource.value, true);
   loadChartData();
 };
 const refreshData = () => {
+  resetModelStatsCache();
   loadLogs();
   loadStats();
+  void loadModelStats(modelDistributionSource.value, true);
   loadChartData();
 };
 const resetFilters = () => {
@@ -405,6 +494,7 @@ const exportToExcel = async () => {
       t("usage.apiKeyFilter"),
       t("admin.usage.account"),
       t("usage.model"),
+      t("usage.upstreamModel"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
       t("admin.usage.group"),
@@ -456,6 +546,7 @@ const exportToExcel = async () => {
         log.api_key?.name || "",
         log.account?.name || "",
         log.model,
+        log.upstream_model || "",
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffort(log.reasoning_effort),
         log.group?.name || "",
@@ -600,6 +691,7 @@ const handleColumnClickOutside = (event: MouseEvent) => {
 onMounted(() => {
   loadLogs();
   loadStats();
+  void loadModelStats(modelDistributionSource.value, true);
   window.setTimeout(() => {
     void loadChartData();
   }, 120);
@@ -610,5 +702,9 @@ onUnmounted(() => {
   abortController?.abort();
   exportAbortController?.abort();
   document.removeEventListener("click", handleColumnClickOutside);
+});
+
+watch(modelDistributionSource, (source) => {
+  void loadModelStats(source);
 });
 </script>

@@ -30,6 +30,7 @@ type AdminService interface {
 	ClearGroupRateMultipliers(ctx context.Context, groupID int64) error
 	BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
+	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64) ([]Account, int64, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
@@ -206,6 +207,9 @@ type AdminUpdateAPIKeyGroupIDResult struct {
 	AutoGrantedGroupAccess bool
 	GrantedGroupID         *int64
 	GrantedGroupName       string
+}
+type ReplaceUserGroupResult struct {
+	MigratedKeys int64
 }
 type BulkUpdateAccountsResult struct {
 	Success    int                       `json:"success"`

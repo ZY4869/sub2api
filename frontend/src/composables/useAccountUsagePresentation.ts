@@ -34,6 +34,7 @@ interface UsageRowOptions {
 
 interface LoadUsageOptions {
   force?: boolean
+  source?: 'passive' | 'active'
 }
 
 interface RefreshUsageOptions extends LoadUsageOptions {
@@ -110,8 +111,18 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
   entry.loading = true
   entry.error = null
 
+  const source =
+    options.source ??
+    (account.platform === 'anthropic' &&
+    (account.type === 'oauth' || account.type === 'setup-token')
+      ? 'passive'
+      : undefined)
+
   const request = adminAPI.accounts
-    .getUsage(account.id, options.force ? { force: true } : undefined)
+    .getUsage(account.id, {
+      force: options.force,
+      source,
+    })
     .then((data) => {
       entry.usageInfo = data
       entry.preferOpenAIFetchedUsage = Boolean(
@@ -375,6 +386,26 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   const openAISnapshotUpdatedAtTooltip = computed(() => {
     if (!snapshotUpdatedAt.value) return ''
     return formatLocalTimestamp(snapshotUpdatedAt.value)
+  })
+  const fetchedSnapshotUpdatedAt = computed(() => {
+    const updatedAtRaw = usageInfo.value?.updated_at
+    if (typeof updatedAtRaw !== 'string' || updatedAtRaw.trim() === '') return null
+
+    const parsed = new Date(updatedAtRaw)
+    if (Number.isNaN(parsed.getTime())) return null
+
+    return parsed
+  })
+  const fetchedSnapshotUpdatedAtText = computed(() => {
+    if (!fetchedSnapshotUpdatedAt.value) return ''
+    return formatLocalAbsoluteTime(fetchedSnapshotUpdatedAt.value, nowDate.value, {
+      today: t('dates.today'),
+      tomorrow: t('dates.tomorrow'),
+    })
+  })
+  const fetchedSnapshotUpdatedAtTooltip = computed(() => {
+    if (!fetchedSnapshotUpdatedAt.value) return ''
+    return formatLocalTimestamp(fetchedSnapshotUpdatedAt.value)
   })
 
   const getAntigravityUsageFromAPI = (modelNames: string[]) => {
@@ -822,6 +853,11 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
       } else if (anthropicRows.value.length > 0) {
         state = 'bars'
         windowRows = anthropicRows.value
+        meta.snapshotUpdatedAtText = fetchedSnapshotUpdatedAtText.value || undefined
+        meta.snapshotUpdatedAtTooltip = fetchedSnapshotUpdatedAtTooltip.value || undefined
+        if (usageInfo.value?.source === 'passive') {
+          meta.noteText = t('admin.accounts.usageWindow.passiveSampled')
+        }
       }
     } else if (account.value.platform === 'antigravity' && account.value.type === 'oauth') {
       meta.antigravityTierLabel = antigravityTierLabel.value
