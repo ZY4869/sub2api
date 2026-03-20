@@ -78,6 +78,7 @@ Desktop.ini
 # ===================
 tmp/
 temp/
+merge-backups/
 %TEMP%/
 *.tmp
 *.temp
