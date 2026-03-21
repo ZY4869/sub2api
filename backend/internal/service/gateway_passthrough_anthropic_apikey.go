@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reqStream bool, startTime time.Time) (*ForwardResult, error) {
+func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reqStream bool, startTime time.Time, reasoningEffort *string) (*ForwardResult, error) {
 	token, tokenType, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (s *GatewayService) forwardAnthropicAPIKeyPassthrough(ctx context.Context, 
 	if usage == nil {
 		usage = &ClaudeUsage{}
 	}
-	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: requestedModel, UpstreamModel: upstreamModel, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
+	return &ForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: requestedModel, UpstreamModel: upstreamModel, ReasoningEffort: reasoningEffort, Stream: reqStream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
 }
 func (s *GatewayService) buildUpstreamRequestAnthropicAPIKeyPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, token string) (*http.Request, error) {
 	targetURL := claudeAPIURL
