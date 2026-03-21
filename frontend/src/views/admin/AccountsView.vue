@@ -155,7 +155,8 @@ import type { SelectOption } from '@/components/common/Select.vue'
 import {
   canAccountFetchUsage,
   invalidateAccountUsagePresentationCache,
-  refreshAccountUsagePresentation
+  refreshAccountUsagePresentation,
+  resolveActualUsageRefreshLoadOptions,
 } from '@/composables/useAccountUsagePresentation'
 import { useModelImportExposureSync } from '@/composables/useModelImportExposureSync'
 import {
@@ -482,7 +483,8 @@ const handleRefreshActualUsage = async () => {
   try {
     const result = await refreshAccountUsagePresentation(visibleAccounts, {
       force: true,
-      concurrency: 4
+      concurrency: 4,
+      resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
     })
 
     if (result.failed > 0 && result.success > 0) {

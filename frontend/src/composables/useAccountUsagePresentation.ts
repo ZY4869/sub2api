@@ -39,6 +39,7 @@ interface LoadUsageOptions {
 
 interface RefreshUsageOptions extends LoadUsageOptions {
   concurrency?: number
+  resolveLoadOptions?: (account: Account) => LoadUsageOptions | undefined
 }
 
 interface RefreshUsageResult {
@@ -251,6 +252,14 @@ export function invalidateAccountUsagePresentationCache(accountIDs: number[]): v
   })
 }
 
+export function resolveActualUsageRefreshLoadOptions(account: Account): LoadUsageOptions {
+  if (account.platform === 'anthropic' && account.type === 'oauth') {
+    return { source: 'active' }
+  }
+
+  return {}
+}
+
 export async function refreshAccountUsagePresentation(
   accounts: Account[],
   options: RefreshUsageOptions = {},
@@ -271,7 +280,12 @@ export async function refreshAccountUsagePresentation(
       index += 1
 
       try {
-        await performUsageLoad(current, options)
+        const accountOptions = options.resolveLoadOptions?.(current)
+
+        await performUsageLoad(current, {
+          force: accountOptions?.force ?? options.force,
+          source: accountOptions?.source ?? options.source,
+        })
         success += 1
       } catch {
         failed += 1

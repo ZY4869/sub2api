@@ -4,6 +4,7 @@ import AccountUsageCell from '../AccountUsageCell.vue'
 import {
   invalidateAccountUsagePresentationCache,
   refreshAccountUsagePresentation,
+  resolveActualUsageRefreshLoadOptions,
   resetAccountUsagePresentationCache
 } from '@/composables/useAccountUsagePresentation'
 import { resetUiNowForTests } from '@/composables/useUiNow'
@@ -671,5 +672,48 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('5h|100|2026-03-07T12:00:00Z|3600|true|106540000')
     expect(wrapper.text()).toContain('7d|100|2026-03-13T12:00:00Z|3600|true|106540000')
     expect(wrapper.text()).not.toContain('5h|0|')
+  })
+
+  it('forces active source only for manual claudecloud oauth refresh', async () => {
+    const anthropicOauthAccount = {
+      id: 3100,
+      platform: 'anthropic',
+      type: 'oauth',
+      extra: {},
+    } as any
+    const anthropicSetupTokenAccount = {
+      id: 3101,
+      platform: 'anthropic',
+      type: 'setup-token',
+      extra: {},
+    } as any
+    const openaiOauthAccount = {
+      id: 3102,
+      platform: 'openai',
+      type: 'oauth',
+      extra: {},
+    } as any
+
+    getUsage.mockResolvedValue({})
+
+    invalidateAccountUsagePresentationCache([
+      anthropicOauthAccount.id,
+      anthropicSetupTokenAccount.id,
+      openaiOauthAccount.id,
+    ])
+
+    const result = await refreshAccountUsagePresentation(
+      [anthropicOauthAccount, anthropicSetupTokenAccount, openaiOauthAccount],
+      {
+        force: true,
+        concurrency: 1,
+        resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
+      },
+    )
+
+    expect(result).toEqual({ total: 3, success: 3, failed: 0 })
+    expect(getUsage).toHaveBeenNthCalledWith(1, 3100, { force: true, source: 'active' })
+    expect(getUsage).toHaveBeenNthCalledWith(2, 3101, { force: true, source: 'passive' })
+    expect(getUsage).toHaveBeenNthCalledWith(3, 3102, { force: true, source: undefined })
   })
 })
