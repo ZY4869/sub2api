@@ -26,7 +26,7 @@
             </button>
           </div>
 
-          <button class="btn btn-secondary" :disabled="loading" @click="refreshAll">
+          <button class="btn btn-secondary" :disabled="loading" @click="handleRefreshAll">
             {{ t('common.refresh') }}
           </button>
         </div>
@@ -38,35 +38,70 @@
         <LoadingSpinner />
       </div>
 
+      <div v-else-if="providerGroups.length === 0" class="p-8">
+        <EmptyState
+          :title="t('admin.models.registry.emptyTitle')"
+          :description="t('admin.models.registry.emptyDescription')"
+        />
+      </div>
+
       <template v-else>
         <ModelProvidersGrid v-if="viewMode === 'grid'" :providers="providerGroups" @open="openProviderDialog" />
         <ModelProvidersList
           v-else
           :providers="providerGroups"
+          :get-models="getProviderModels"
+          :is-provider-loading="isProviderLoading"
+          :provider-has-more-models="providerHasMoreModels"
           :is-activating="isActivating"
+          @expand="ensureProviderModels"
+          @load-more="loadMoreProviderModels"
           @activate="activateModel"
         />
+
+        <div class="flex flex-col items-center gap-3 px-4 pb-6 pt-2">
+          <div
+            v-if="loadingMore"
+            class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400"
+          >
+            <LoadingSpinner />
+            <span>{{ t('common.loading') }}</span>
+          </div>
+          <button
+            v-else-if="hasMoreProviders"
+            type="button"
+            class="btn btn-secondary btn-sm"
+            @click="loadMoreProviders"
+          >
+            {{ t('admin.models.pages.all.loadMore') }}
+          </button>
+          <div ref="loadMoreSentinel" class="h-1 w-full" />
+        </div>
       </template>
     </template>
   </TablePageLayout>
 
   <ModelProviderDialog
     :show="providerDialogOpen"
-    :loading="loading"
+    :loading="isProviderLoading(activeProvider)"
     :providers="providerGroups"
     :active-provider="activeProvider"
+    :active-models="getProviderModels(activeProvider)"
+    :has-more="providerHasMoreModels(activeProvider)"
     :is-activating="isActivating"
     @close="providerDialogOpen = false"
-    @refresh="refreshAll"
-    @select-provider="activeProvider = $event"
+    @refresh="handleRefreshAll"
+    @select-provider="selectProvider"
+    @load-more="loadMoreProviderModels"
     @activate="activateModel"
   />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import { useAdminModelRegistryProviders } from '@/composables/useAdminModelRegistryProviders'
 import ModelProviderDialog from '@/components/admin/models/ModelProviderDialog.vue'
@@ -78,13 +113,23 @@ const { t } = useI18n()
 const viewMode = ref<'grid' | 'list'>('grid')
 const providerDialogOpen = ref(false)
 const activeProvider = ref('')
+const loadMoreSentinel = ref<HTMLElement | null>(null)
+let loadMoreObserver: IntersectionObserver | null = null
 
 const {
   loading,
+  loadingMore,
   providerGroups,
+  hasMoreProviders,
   isActivating,
   loadAll,
+  loadMoreProviders,
   refreshAll,
+  ensureProviderModels,
+  loadMoreProviderModels,
+  getProviderModels,
+  isProviderLoading,
+  providerHasMoreModels,
   activateModel
 } = useAdminModelRegistryProviders()
 
@@ -92,21 +137,75 @@ const firstProvider = computed(() => providerGroups.value[0]?.provider || '')
 
 onMounted(() => {
   void loadAll()
+  if (typeof IntersectionObserver !== 'undefined') {
+    loadMoreObserver = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return
+      }
+      if (loading.value || loadingMore.value || !hasMoreProviders.value) {
+        return
+      }
+      void loadMoreProviders()
+    })
+  }
+})
+
+onUnmounted(() => {
+  loadMoreObserver?.disconnect()
 })
 
 watch(
-  () => providerGroups.value.length,
+  () => providerGroups.value.map((group) => group.provider).join('|'),
   () => {
-    if (!activeProvider.value) {
+    if (!providerGroups.value.length) {
+      activeProvider.value = ''
+      return
+    }
+    if (!activeProvider.value || !providerGroups.value.some((group) => group.provider === activeProvider.value)) {
       activeProvider.value = firstProvider.value
     }
   },
   { immediate: true }
 )
 
-function openProviderDialog(provider: string) {
+watch(loadMoreSentinel, (next, previous) => {
+  if (!loadMoreObserver) {
+    return
+  }
+  if (previous) {
+    loadMoreObserver.unobserve(previous)
+  }
+  if (next) {
+    loadMoreObserver.observe(next)
+  }
+})
+
+async function openProviderDialog(provider: string) {
   activeProvider.value = provider
   providerDialogOpen.value = true
+  await ensureProviderModels(provider)
 }
-</script>
 
+async function selectProvider(provider: string) {
+  activeProvider.value = provider
+  await ensureProviderModels(provider)
+}
+
+async function handleRefreshAll() {
+  await refreshAll()
+  if (!providerDialogOpen.value || !activeProvider.value) {
+    return
+  }
+  await ensureProviderModels(activeProvider.value)
+}
+
+watch(
+  () => viewMode.value,
+  async () => {
+    await nextTick()
+    if (loadMoreSentinel.value && loadMoreObserver) {
+      loadMoreObserver.observe(loadMoreSentinel.value)
+    }
+  }
+)
+</script>

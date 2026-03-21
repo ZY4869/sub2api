@@ -88,6 +88,56 @@ func (s *ModelRegistryService) GetDetail(ctx context.Context, modelID string) (*
 	return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 }
 
+func (s *ModelRegistryService) ListProviderSummaries(ctx context.Context, page int, pageSize int) ([]ModelRegistryProviderSummary, int64, error) {
+	details, err := s.adminDetails(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	groups := make(map[string]*ModelRegistryProviderSummary)
+	for _, detail := range details {
+		if detail.Hidden || detail.Tombstoned {
+			continue
+		}
+		provider := strings.TrimSpace(strings.ToLower(detail.Provider))
+		if provider == "" {
+			provider = "unknown"
+		}
+		group := groups[provider]
+		if group == nil {
+			group = &ModelRegistryProviderSummary{Provider: provider}
+			groups[provider] = group
+		}
+		group.TotalCount++
+		if detail.Available {
+			group.AvailableCount++
+		}
+	}
+
+	summaries := make([]ModelRegistryProviderSummary, 0, len(groups))
+	for _, summary := range groups {
+		summaries = append(summaries, *summary)
+	}
+	sort.Slice(summaries, func(i, j int) bool {
+		if summaries[i].TotalCount == summaries[j].TotalCount {
+			return summaries[i].Provider < summaries[j].Provider
+		}
+		return summaries[i].TotalCount > summaries[j].TotalCount
+	})
+
+	total := int64(len(summaries))
+	page, pageSize = normalizeListPagination(page, pageSize)
+	start := (page - 1) * pageSize
+	if start >= len(summaries) {
+		return []ModelRegistryProviderSummary{}, total, nil
+	}
+	end := start + pageSize
+	if end > len(summaries) {
+		end = len(summaries)
+	}
+	return summaries[start:end], total, nil
+}
+
 func (s *ModelRegistryService) UpsertEntry(ctx context.Context, input UpsertModelRegistryEntryInput) (*modelregistry.AdminModelDetail, error) {
 	entry, err := normalizeRuntimeRegistryEntry(input)
 	if err != nil {

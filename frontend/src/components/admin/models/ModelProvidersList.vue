@@ -33,9 +33,14 @@
 
       <div v-if="expandedProviders.has(group.provider)" class="border-t border-gray-100 px-4 py-4 dark:border-dark-700">
         <ModelProviderModelsPanel
-          :models="group.models"
+          :models="getModels(group.provider)"
+          :total-count="group.totalCount"
+          :available-count="group.availableCount"
+          :loading="isProviderLoading(group.provider)"
+          :has-more="providerHasMoreModels(group.provider)"
           :is-activating="isActivating"
           @activate="emit('activate', $event)"
+          @load-more="emit('load-more', group.provider)"
         />
       </div>
     </div>
@@ -52,11 +57,16 @@ import ModelProviderModelsPanel from '@/components/admin/models/ModelProviderMod
 
 defineProps<{
   providers: AdminModelRegistryProviderGroup[]
+  getModels: (provider: string) => import('@/api/admin/modelRegistry').ModelRegistryDetail[]
+  isProviderLoading: (provider: string) => boolean
+  providerHasMoreModels: (provider: string) => boolean
   isActivating: (modelId: string) => boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'activate', modelId: string): void
+  (e: 'expand', provider: string): void
+  (e: 'load-more', provider: string): void
 }>()
 
 const { t } = useI18n()
@@ -64,8 +74,12 @@ const expandedProviders = ref<Set<string>>(new Set())
 
 function toggle(provider: string) {
   const next = new Set(expandedProviders.value)
-  next.has(provider) ? next.delete(provider) : next.add(provider)
+  if (next.has(provider)) {
+    next.delete(provider)
+  } else {
+    next.add(provider)
+    emit('expand', provider)
+  }
   expandedProviders.value = next
 }
 </script>
-

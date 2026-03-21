@@ -63,14 +63,15 @@
         </div>
 
         <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
-          <div v-if="loading" class="flex items-center justify-center py-8">
-            <LoadingSpinner />
-          </div>
           <ModelProviderModelsPanel
-            v-else
-            :models="activeGroup?.models || []"
+            :models="activeModels"
+            :total-count="activeGroup?.totalCount"
+            :available-count="activeGroup?.availableCount"
+            :loading="loading"
+            :has-more="hasMore"
             :is-activating="isActivating"
             @activate="emit('activate', $event)"
+            @load-more="emit('load-more', activeProvider)"
           />
         </div>
       </div>
@@ -84,16 +85,18 @@ import { useI18n } from 'vue-i18n'
 import type { AdminModelRegistryProviderGroup } from '@/composables/useAdminModelRegistryProviders'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
-import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
 import ModelProviderModelsPanel from '@/components/admin/models/ModelProviderModelsPanel.vue'
+import type { ModelRegistryDetail } from '@/api/admin/modelRegistry'
 
 const props = defineProps<{
   show: boolean
   loading: boolean
   providers: AdminModelRegistryProviderGroup[]
   activeProvider: string
+  activeModels: ModelRegistryDetail[]
+  hasMore: boolean
   isActivating: (modelId: string) => boolean
 }>()
 
@@ -102,6 +105,7 @@ const emit = defineEmits<{
   (e: 'refresh'): void
   (e: 'select-provider', provider: string): void
   (e: 'activate', modelId: string): void
+  (e: 'load-more', provider: string): void
 }>()
 
 const { t } = useI18n()
@@ -114,5 +118,5 @@ const filteredProviders = computed(() => {
 })
 
 const activeGroup = computed(() => props.providers.find((item) => item.provider === props.activeProvider) || null)
+const activeModels = computed(() => props.activeModels || [])
 </script>
-

@@ -113,6 +113,78 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('Gemini Image|70|2026-03-01T09:00:00Z')
   })
 
+  it('falls back to active anthropic usage when passive claudecloud data misses 7d', async () => {
+    getUsage
+      .mockResolvedValueOnce({
+        source: 'passive',
+        updated_at: '2026-03-07T10:00:00Z',
+        five_hour: {
+          utilization: 21,
+          resets_at: '2026-03-08T12:00:00Z',
+          remaining_seconds: 3600,
+          window_stats: {
+            requests: 2,
+            tokens: 200,
+            cost: 0.02,
+            standard_cost: 0.02,
+            user_cost: 0.02,
+          },
+        },
+        seven_day: null,
+      })
+      .mockResolvedValueOnce({
+        source: 'active',
+        updated_at: '2026-03-07T10:01:00Z',
+        five_hour: {
+          utilization: 22,
+          resets_at: '2026-03-08T12:00:00Z',
+          remaining_seconds: 3600,
+          window_stats: {
+            requests: 2,
+            tokens: 220,
+            cost: 0.02,
+            standard_cost: 0.02,
+            user_cost: 0.02,
+          },
+        },
+        seven_day: {
+          utilization: 63,
+          resets_at: '2026-03-13T12:00:00Z',
+          remaining_seconds: 7200,
+          window_stats: {
+            requests: 6,
+            tokens: 630,
+            cost: 0.06,
+            standard_cost: 0.06,
+            user_cost: 0.06,
+          },
+        },
+      })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1100,
+          platform: 'anthropic',
+          type: 'oauth',
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenNthCalledWith(1, 1100, { force: undefined, source: 'passive' })
+    expect(getUsage).toHaveBeenNthCalledWith(2, 1100, { force: undefined, source: 'active' })
+    expect(wrapper.text()).toContain('5h|22|2026-03-08T12:00:00Z|3600|false|220')
+    expect(wrapper.text()).toContain('7d|63|2026-03-13T12:00:00Z|7200|false|630')
+  })
+
   it('refreshes stale openai codex snapshots from the usage endpoint', async () => {
     getUsage.mockResolvedValue({
       five_hour: {
@@ -165,7 +237,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(getUsage).toHaveBeenCalledWith(2000, undefined)
+    expect(getUsage).toHaveBeenCalledWith(2000, { force: undefined, source: undefined })
     expect(wrapper.text()).toContain('5h|15|2026-03-08T12:00:00Z|3600|true|300')
     expect(wrapper.text()).toContain('7d|77|2026-03-13T12:00:00Z|3600|true|300')
   })
@@ -198,6 +270,62 @@ describe('AccountUsageCell', () => {
     expect(getUsage).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
     expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
+  })
+
+  it('supplements missing openai 7d snapshots with fetched usage', async () => {
+    getUsage.mockResolvedValue({
+      updated_at: '2026-03-07T11:00:00Z',
+      five_hour: {
+        utilization: 88,
+        resets_at: '2026-03-08T12:00:00Z',
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 8,
+          tokens: 800,
+          cost: 0.08,
+          standard_cost: 0.08,
+          user_cost: 0.08,
+        },
+      },
+      seven_day: {
+        utilization: 66,
+        resets_at: '2026-03-13T12:00:00Z',
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 9,
+          tokens: 900,
+          cost: 0.09,
+          standard_cost: 0.09,
+          user_cost: 0.09,
+        },
+      },
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2007,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 12,
+            codex_5h_reset_at: '2099-03-07T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledWith(2007, { force: undefined, source: undefined })
+    expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
+    expect(wrapper.text()).toContain('7d|66|2026-03-13T12:00:00Z|7200|true|900')
   })
 
   it('uses forced fetched openai usage after a manual real refresh', async () => {
@@ -347,7 +475,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(getUsage).toHaveBeenCalledWith(2002, undefined)
+    expect(getUsage).toHaveBeenCalledWith(2002, { force: undefined, source: undefined })
     expect(wrapper.text()).toContain('5h|0||0|true|27700')
     expect(wrapper.text()).toContain('7d|0||0|true|27700')
   })
@@ -484,7 +612,7 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(getUsage).toHaveBeenCalledTimes(1)
-    expect(getUsage).toHaveBeenCalledWith(2006, undefined)
+    expect(getUsage).toHaveBeenCalledWith(2006, { force: undefined, source: undefined })
     expect(wrapper.text()).toContain('5h|44|2026-03-13T17:00:00Z|18000|true|500')
     expect(wrapper.text()).toContain('7d|12|2026-03-20T12:00:00Z|604800|true|900')
   })
@@ -539,7 +667,7 @@ describe('AccountUsageCell', () => {
 
     await flushPromises()
 
-    expect(getUsage).toHaveBeenCalledWith(2004, undefined)
+    expect(getUsage).toHaveBeenCalledWith(2004, { force: undefined, source: undefined })
     expect(wrapper.text()).toContain('5h|100|2026-03-07T12:00:00Z|3600|true|106540000')
     expect(wrapper.text()).toContain('7d|100|2026-03-13T12:00:00Z|3600|true|106540000')
     expect(wrapper.text()).not.toContain('5h|0|')

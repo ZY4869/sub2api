@@ -58,9 +58,12 @@
     <template #table>
       <DataTable :columns="columns" :data="items" :loading="loading" row-key="id">
         <template #cell-model="{ row }">
-          <div class="min-w-[240px]">
-            <p class="font-medium text-gray-900 dark:text-white">{{ row.id }}</p>
-            <p v-if="row.display_name" class="text-xs text-gray-500 dark:text-gray-400">{{ row.display_name }}</p>
+          <div class="flex min-w-[240px] items-start gap-3">
+            <ModelIcon :model="row.id" :provider="row.provider" :display-name="row.display_name" size="18px" />
+            <div class="min-w-0">
+              <p class="font-medium text-gray-900 dark:text-white">{{ row.id }}</p>
+              <p v-if="row.display_name" class="text-xs text-gray-500 dark:text-gray-400">{{ row.display_name }}</p>
+            </div>
           </div>
         </template>
 
@@ -100,7 +103,6 @@
 
   <ActivateAvailableModelsDialog
     :show="activateDialogOpen"
-    :items="unavailableItems"
     :submitting="submitting"
     @close="activateDialogOpen = false"
     @submit="activateSelected"
@@ -113,6 +115,7 @@ import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ModelIcon from '@/components/common/ModelIcon.vue'
 import ModelPlatformsInline from '@/components/common/ModelPlatformsInline.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -135,7 +138,6 @@ const loading = ref(false)
 const submitting = ref(false)
 const activateDialogOpen = ref(false)
 const items = ref<ModelRegistryDetail[]>([])
-const unavailableItems = ref<ModelRegistryDetail[]>([])
 
 const filters = reactive({
   search: '',
@@ -226,23 +228,7 @@ async function refreshAll() {
 }
 
 async function openActivateDialog() {
-  submitting.value = true
-  try {
-    const response = await listModelRegistry({
-      availability: 'unavailable',
-      include_hidden: false,
-      include_tombstoned: false,
-      page: 1,
-      page_size: 1000
-    })
-    unavailableItems.value = response.items
-    activateDialogOpen.value = true
-  } catch (error) {
-    console.error('[AvailableModelsView] load unavailable failed', error)
-    appStore.showError(t('admin.models.registry.loadFailed'))
-  } finally {
-    submitting.value = false
-  }
+  activateDialogOpen.value = true
 }
 
 async function activateSelected(modelIds: string[]) {

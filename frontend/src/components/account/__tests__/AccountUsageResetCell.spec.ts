@@ -184,6 +184,6 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(getUsage).toHaveBeenCalledTimes(1)
-    expect(getUsage).toHaveBeenCalledWith(3003)
+    expect(getUsage).toHaveBeenCalledWith(3003, { force: undefined, source: undefined })
   })
 })

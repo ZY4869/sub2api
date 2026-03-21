@@ -106,6 +106,7 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerModelRegistryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	registry := admin.Group("/models/registry")
 	{
+		registry.GET("/providers", h.Admin.ModelRegistry.ListProviders)
 		registry.GET("", h.Admin.ModelRegistry.List)
 		registry.GET("/detail", h.Admin.ModelRegistry.Detail)
 		registry.PUT("/entry", h.Admin.ModelRegistry.UpsertEntry)

@@ -11,6 +11,12 @@ type ModelRegistryListFilter struct {
 	PageSize          int
 }
 
+type ModelRegistryProviderSummary struct {
+	Provider       string `json:"provider"`
+	TotalCount     int    `json:"total_count"`
+	AvailableCount int    `json:"available_count"`
+}
+
 type UpsertModelRegistryEntryInput struct {
 	ID                   string            `json:"id"`
 	DisplayName          string            `json:"display_name"`

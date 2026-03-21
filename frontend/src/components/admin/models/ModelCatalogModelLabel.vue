@@ -1,14 +1,17 @@
-﻿<template>
+<template>
   <button
     type="button"
     class="group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-primary-50 dark:hover:bg-primary-500/10"
     @click="handleCopy"
   >
     <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 dark:bg-dark-800">
-      <div v-if="iconPlatforms.length" class="flex flex-wrap items-center justify-center gap-1">
-        <ModelPlatformIcon v-for="platform in iconPlatforms" :key="platform" :platform="platform" size="sm" />
-      </div>
-      <span v-else class="text-sm font-semibold text-gray-500 dark:text-gray-400">{{ displayText.slice(0, 1) }}</span>
+      <ModelIcon
+        :model="model"
+        :provider="provider"
+        :icon-key="iconKey"
+        :display-name="displayText"
+        size="20px"
+      />
     </span>
     <span class="min-w-0 flex-1">
       <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">{{ displayText }}</span>
@@ -29,8 +32,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useClipboard } from '@/composables/useClipboard'
-import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
-import { normalizePlatformKey } from '@/utils/platformIconData'
+import ModelIcon from '@/components/common/ModelIcon.vue'
 import { resolveModelCatalogDisplayName } from '@/utils/modelCatalogPresentation'
 
 const props = withDefaults(defineProps<{
@@ -50,27 +52,6 @@ const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
 
 const displayText = computed(() => resolveModelCatalogDisplayName(props.model, props.displayName))
-
-const iconPlatforms = computed(() => {
-  const platforms = (props.platforms || [])
-    .map((value) => normalizePlatformKey(value))
-    .filter((value) => value.length > 0)
-
-  if (platforms.length > 0) {
-    return [...new Set(platforms)].slice(0, 3)
-  }
-
-  const provider = normalizePlatformKey(props.provider || '')
-  if (provider) {
-    return [provider]
-  }
-
-  const key = normalizePlatformKey(props.iconKey || '')
-  if (key === 'claude') return ['anthropic']
-  if (key === 'chatgpt') return ['openai']
-  if (key === 'gemini') return ['gemini']
-  return []
-})
 
 async function handleCopy() {
   await copyToClipboard(props.model, t('admin.models.copyModelIdSuccess', { model: props.model }))

@@ -18,9 +18,13 @@
         :placeholder="t('admin.models.available.activateDialog.searchPlaceholder')"
       />
 
-      <div class="max-h-[28rem] space-y-2 overflow-y-auto">
+      <div v-if="loading && items.length === 0" class="flex items-center justify-center py-10">
+        <LoadingSpinner />
+      </div>
+
+      <div v-else class="max-h-[28rem] space-y-2 overflow-y-auto">
         <label
-          v-for="item in filteredItems"
+          v-for="item in items"
           :key="item.id"
           class="flex cursor-pointer items-start gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-primary-300 dark:border-dark-700 dark:bg-dark-800"
         >
@@ -31,22 +35,36 @@
             :value="item.id"
           />
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="font-medium text-gray-900 dark:text-white">{{ item.id }}</span>
-              <span class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
-                {{ item.provider || '-' }}
-              </span>
+            <div class="flex flex-wrap items-start gap-3">
+              <ModelIcon :model="item.id" :provider="item.provider" size="18px" />
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-medium text-gray-900 dark:text-white">{{ item.id }}</span>
+                  <span class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+                    {{ item.provider || '-' }}
+                  </span>
+                </div>
+                <p v-if="item.display_name" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.display_name }}</p>
+              </div>
             </div>
-            <p v-if="item.display_name" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ item.display_name }}</p>
           </div>
         </label>
 
         <EmptyState
-          v-if="filteredItems.length === 0"
+          v-if="!loading && items.length === 0"
           :title="t('admin.models.available.activateDialog.emptyTitle')"
           :description="t('admin.models.available.activateDialog.emptyDescription')"
         />
       </div>
+
+      <Pagination
+        v-if="pagination.total > 0"
+        :page="pagination.page"
+        :total="pagination.total"
+        :page-size="pagination.page_size"
+        @update:page="handlePageChange"
+        @update:pageSize="handlePageSizeChange"
+      />
     </div>
 
     <template #footer>
@@ -63,15 +81,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { listModelRegistry, type ModelRegistryDetail } from '@/api/admin/modelRegistry'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import type { ModelRegistryDetail } from '@/api/admin/modelRegistry'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import ModelIcon from '@/components/common/ModelIcon.vue'
 
 const props = withDefaults(defineProps<{
   show: boolean
-  items: ModelRegistryDetail[]
   submitting?: boolean
 }>(), {
   submitting: false
@@ -85,24 +105,88 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const search = ref('')
 const selected = ref<string[]>([])
+const items = ref<ModelRegistryDetail[]>([])
+const loading = ref(false)
+const pagination = reactive({
+  page: 1,
+  page_size: 50,
+  total: 0,
+  pages: 0
+})
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+async function loadItems() {
+  if (!props.show) {
+    return
+  }
+  loading.value = true
+  try {
+    const response = await listModelRegistry({
+      search: search.value || undefined,
+      availability: 'unavailable',
+      include_hidden: false,
+      include_tombstoned: false,
+      page: pagination.page,
+      page_size: pagination.page_size
+    })
+    items.value = response.items
+    pagination.total = response.total
+    pagination.page = response.page
+    pagination.page_size = response.page_size
+    pagination.pages = response.pages
+  } finally {
+    loading.value = false
+  }
+}
 
 watch(
   () => props.show,
   (show) => {
-    if (!show) {
-      search.value = ''
-      selected.value = []
+    if (show) {
+      pagination.page = 1
+      void loadItems()
+      return
     }
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = null
+    }
+    search.value = ''
+    selected.value = []
+    items.value = []
+    pagination.total = 0
+    pagination.pages = 0
+    loading.value = false
   }
 )
 
-const filteredItems = computed(() => {
-  const query = search.value.toLowerCase()
-  if (!query) {
-    return props.items
+watch(search, () => {
+  if (!props.show) {
+    return
   }
-  return props.items.filter((item) =>
-    [item.id, item.display_name, item.provider].some((value) => String(value || '').toLowerCase().includes(query))
-  )
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+  searchDebounceTimer = setTimeout(() => {
+    pagination.page = 1
+    void loadItems()
+  }, 250)
+})
+
+function handlePageChange(page: number) {
+  pagination.page = page
+  void loadItems()
+}
+
+function handlePageSizeChange(pageSize: number) {
+  pagination.page_size = pageSize
+  pagination.page = 1
+  void loadItems()
+}
+
+onBeforeUnmount(() => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
 })
 </script>

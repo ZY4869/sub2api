@@ -1,5 +1,5 @@
 export const MODEL_CATALOG_DEFAULT_THRESHOLD = 200000
-export const MODEL_CATALOG_PAGE_SIZE = 500
+export const MODEL_CATALOG_PAGE_SIZE = 100
 export const MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY = 'admin_model_catalog_price_display_mode'
 
 export type ModelCatalogPriceDisplayMode = 'usd' | 'dual'

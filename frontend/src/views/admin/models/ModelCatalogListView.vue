@@ -40,6 +40,17 @@
         @inspect="openDetail"
       />
     </template>
+
+    <template #pagination>
+      <Pagination
+        v-if="pagination.total > 0"
+        :page="pagination.page"
+        :total="pagination.total"
+        :page-size="pagination.page_size"
+        @update:page="handlePageChange"
+        @update:pageSize="handlePageSizeChange"
+      />
+    </template>
   </TablePageLayout>
 
 
@@ -64,6 +75,7 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import ModelCatalogDetailDialog from '@/components/admin/models/ModelCatalogDetailDialog.vue'
 import ModelCatalogFilters from '@/components/admin/models/ModelCatalogFilters.vue'
 import ModelCatalogTable from '@/components/admin/models/ModelCatalogTable.vue'
@@ -88,6 +100,7 @@ const {
   detail,
   priceDisplayMode,
   filters,
+  pagination,
   providerOptions,
   modeOptions,
   availabilityOptions,
@@ -98,6 +111,8 @@ const {
   resetOverride,
   copyOfficialToSale,
   updateFilter,
+  handlePageChange,
+  handlePageSizeChange,
   closeDetail
 } = useModelCatalogPage(props.pricingLayer)
 

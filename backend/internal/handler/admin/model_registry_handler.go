@@ -51,6 +51,16 @@ func (h *ModelRegistryHandler) Detail(c *gin.Context) {
 	response.Success(c, detail)
 }
 
+func (h *ModelRegistryHandler) ListProviders(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	items, total, err := h.modelRegistryService.ListProviderSummaries(c.Request.Context(), page, pageSize)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, items, total, page, pageSize)
+}
+
 func (h *ModelRegistryHandler) UpsertEntry(c *gin.Context) {
 	var req service.UpsertModelRegistryEntryInput
 	if err := c.ShouldBindJSON(&req); err != nil {

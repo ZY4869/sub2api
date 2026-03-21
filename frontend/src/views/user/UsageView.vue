@@ -196,10 +196,21 @@
             }}</span>
           </template>
 
-          <template #cell-model="{ value }">
-            <span class="font-medium text-gray-900 dark:text-white">{{
-              value
-            }}</span>
+          <template #cell-model="{ row }">
+            <div class="flex items-start gap-2">
+              <ModelIcon :model="row.model" size="16px" />
+              <div class="min-w-0">
+                <div class="break-all font-medium text-gray-900 dark:text-white">
+                  {{ row.model }}
+                </div>
+                <div
+                  v-if="row.upstream_model && row.upstream_model !== row.model"
+                  class="break-all text-xs text-gray-500 dark:text-gray-400"
+                >
+                  <span class="mr-1">-></span>{{ row.upstream_model }}
+                </div>
+              </div>
+            </div>
           </template>
 
           <template #cell-reasoning_effort="{ row }">
@@ -725,6 +736,7 @@ import Pagination from "@/components/common/Pagination.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
+import ModelIcon from "@/components/common/ModelIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   UsageLog,

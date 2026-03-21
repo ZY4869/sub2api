@@ -15,8 +15,13 @@ import {
   setModelCatalogPriceDisplayMode,
   type ModelCatalogPriceDisplayMode
 } from '@/utils/modelCatalogPresentation'
+import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 export type ModelCatalogPricingLayer = 'official' | 'sale'
+
+function clampModelCatalogPageSize(pageSize: number) {
+  return Math.min(Math.max(pageSize, 10), MODEL_CATALOG_PAGE_SIZE)
+}
 
 export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
   const { t } = useI18n()
@@ -37,6 +42,12 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     mode: '',
     availability: 'available',
     pricingSource: ''
+  })
+  const pagination = reactive({
+    page: 1,
+    page_size: clampModelCatalogPageSize(getPersistedPageSize()),
+    total: 0,
+    pages: 0
   })
 
   watch(priceDisplayMode, (mode) => {
@@ -86,6 +97,9 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
   ])
 
   async function loadModels(_resetPage = false) {
+    if (_resetPage) {
+      pagination.page = 1
+    }
     loading.value = true
     try {
       const response = await modelsAPI.listModels({
@@ -94,10 +108,14 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
         mode: filters.mode || undefined,
         availability: (filters.availability || undefined) as 'available' | 'unavailable' | undefined,
         pricing_source: (filters.pricingSource || undefined) as ModelCatalogPricingSource | undefined,
-        page: 1,
-        page_size: MODEL_CATALOG_PAGE_SIZE
+        page: pagination.page,
+        page_size: pagination.page_size
       })
       items.value = response.items
+      pagination.total = response.total
+      pagination.page = response.page
+      pagination.page_size = clampModelCatalogPageSize(response.page_size)
+      pagination.pages = response.pages
     } catch (error) {
       appStore.showError(extractErrorMessage(error, t('admin.models.loadFailed')))
     } finally {
@@ -172,6 +190,17 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     }
   }
 
+  function handlePageChange(page: number) {
+    pagination.page = page
+    void loadModels()
+  }
+
+  function handlePageSizeChange(pageSize: number) {
+    pagination.page_size = clampModelCatalogPageSize(pageSize)
+    pagination.page = 1
+    void loadModels()
+  }
+
   function closeDetail() {
     dialogOpen.value = false
     detail.value = null
@@ -186,6 +215,7 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     detail,
     priceDisplayMode,
     filters,
+    pagination,
     providerOptions,
     modeOptions,
     availabilityOptions,
@@ -196,6 +226,8 @@ export function useModelCatalogPage(pricingLayer: ModelCatalogPricingLayer) {
     resetOverride,
     copyOfficialToSale,
     updateFilter,
+    handlePageChange,
+    handlePageSizeChange,
     closeDetail
   }
 }

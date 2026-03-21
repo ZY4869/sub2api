@@ -51,18 +51,27 @@
         <template #cell-model="{ row }">
           <div
             v-if="row.upstream_model && row.upstream_model !== row.model"
-            class="space-y-0.5 text-xs"
+            class="space-y-1 text-xs"
           >
-            <div class="break-all font-medium text-gray-900 dark:text-white">
-              {{ row.model }}
+            <div class="flex items-start gap-2">
+              <ModelIcon :model="row.model" size="16px" />
+              <div class="break-all font-medium text-gray-900 dark:text-white">
+                {{ row.model }}
+              </div>
             </div>
-            <div class="break-all text-gray-500 dark:text-gray-400">
-              <span class="mr-1">-></span>{{ row.upstream_model }}
+            <div class="flex items-start gap-2 text-gray-500 dark:text-gray-400">
+              <ModelIcon :model="row.upstream_model" size="16px" />
+              <div class="break-all">
+                <span class="mr-1">-></span>{{ row.upstream_model }}
+              </div>
             </div>
           </div>
-          <span v-else class="font-medium text-gray-900 dark:text-white">{{
-            row.model
-          }}</span>
+          <div v-else class="flex items-start gap-2">
+            <ModelIcon :model="row.model" size="16px" />
+            <span class="break-all font-medium text-gray-900 dark:text-white">{{
+              row.model
+            }}</span>
+          </div>
         </template>
 
         <template #cell-thinking_enabled="{ row }">
@@ -655,6 +664,7 @@ import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import { resolveUsageRequestType } from "@/utils/usageRequestType";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
+import ModelIcon from "@/components/common/ModelIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type { AdminUsageLog } from "@/types";
 

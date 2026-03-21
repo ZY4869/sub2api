@@ -82,6 +82,19 @@ function getUsageLoadErrorMessage(): string {
   return typeof translated === 'string' && translated.trim() !== '' ? translated : 'Error'
 }
 
+function shouldFallbackToActiveAnthropicUsage(
+  account: Account,
+  source: LoadUsageOptions['source'] | undefined,
+  usageInfo: AccountUsageInfo,
+): boolean {
+  return (
+    account.platform === 'anthropic' &&
+    account.type === 'oauth' &&
+    source === 'passive' &&
+    !usageInfo.seven_day
+  )
+}
+
 export function canAccountFetchUsage(account: Account): boolean {
   if (account.platform === 'anthropic') {
     return account.type === 'oauth' || account.type === 'setup-token'
@@ -123,8 +136,21 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
       force: options.force,
       source,
     })
-    .then((data) => {
-      entry.usageInfo = data
+    .then(async (data) => {
+      let resolvedUsageInfo = data
+
+      if (shouldFallbackToActiveAnthropicUsage(account, source, data)) {
+        try {
+          resolvedUsageInfo = await adminAPI.accounts.getUsage(account.id, {
+            force: options.force,
+            source: 'active',
+          })
+        } catch (fallbackError) {
+          console.error('Failed to supplement anthropic passive usage with active usage:', fallbackError)
+        }
+      }
+
+      entry.usageInfo = resolvedUsageInfo
       entry.preferOpenAIFetchedUsage = Boolean(
         options.force && account.platform === 'openai' && account.type === 'oauth',
       )
@@ -188,6 +214,23 @@ function buildProgressRow(
 
 function buildRows(...rows: Array<AccountUsagePresentationRow | null>): AccountUsagePresentationRow[] {
   return rows.filter((row): row is AccountUsagePresentationRow => row !== null)
+}
+
+function findRowByKey(
+  rows: AccountUsagePresentationRow[],
+  key: AccountUsagePresentationRow['key'],
+): AccountUsagePresentationRow | null {
+  return rows.find((row) => row.key === key) ?? null
+}
+
+function mergeOpenAIUsageRows(
+  primaryRows: AccountUsagePresentationRow[],
+  fallbackRows: AccountUsagePresentationRow[],
+): AccountUsagePresentationRow[] {
+  return buildRows(
+    findRowByKey(primaryRows, 'openai-5h') ?? findRowByKey(fallbackRows, 'openai-5h'),
+    findRowByKey(primaryRows, 'openai-7d') ?? findRowByKey(fallbackRows, 'openai-7d'),
+  )
 }
 
 function createEmptyMeta(loadingRows: number): AccountUsagePresentationMeta {
@@ -284,6 +327,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   )
 
   const hasCodexUsage = computed(() => codexRows.value.length > 0)
+  const hasCompleteCodexUsage = computed(() => codexRows.value.length === 2)
 
   const openAIFetchedRows = computed(() =>
     buildRows(
@@ -354,9 +398,24 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     return preferFetchedOpenAIUsage.value || cacheEntry.value.preferOpenAIFetchedUsage
   })
 
+  const openAIResolvedRows = computed(() => {
+    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return []
+
+    if (shouldUseFetchedOpenAIUsage.value) {
+      return mergeOpenAIUsageRows(openAIFetchedRows.value, codexRows.value)
+    }
+
+    return mergeOpenAIUsageRows(codexRows.value, openAIFetchedRows.value)
+  })
+
+  const shouldPreferFetchedOpenAIMeta = computed(() => {
+    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return false
+    return shouldUseFetchedOpenAIUsage.value || (!hasCompleteCodexUsage.value && hasOpenAIUsageFallback.value)
+  })
+
   const shouldAutoLoadUsageOnMount = computed(() => {
     if (account.value.platform === 'openai' && account.value.type === 'oauth') {
-      return isActiveOpenAIRateLimited.value || !hasCodexUsage.value || isOpenAICodexSnapshotStale.value
+      return isActiveOpenAIRateLimited.value || !hasCompleteCodexUsage.value || isOpenAICodexSnapshotStale.value
     }
     return shouldFetchUsage.value
   })
@@ -364,7 +423,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   const openAIUsageRefreshKey = computed(() => buildOpenAIUsageRefreshKey(account.value))
 
   const snapshotUpdatedAt = computed(() => {
-    if (!hasCodexUsage.value || shouldUseFetchedOpenAIUsage.value) return null
+    if (!hasCodexUsage.value || shouldPreferFetchedOpenAIMeta.value) return null
 
     const updatedAtRaw = account.value.extra?.codex_usage_updated_at
     if (typeof updatedAtRaw !== 'string' || updatedAtRaw.trim() === '') return null
@@ -732,9 +791,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
 
   const openAIRefreshRows = computed(() => {
     if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return []
-    if (shouldUseFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) return openAIFetchedRows.value
-    if (codexRows.value.length > 0) return codexRows.value
-    return openAIFetchedRows.value
+    return openAIResolvedRows.value
   })
 
   const openAIEarliestResetAt = computed(() => {
@@ -783,7 +840,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   watch(openAIUsageRefreshKey, (nextKey, prevKey) => {
     if (!prevKey || nextKey === prevKey) return
     if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return
-    if (!isActiveOpenAIRateLimited.value && hasCodexUsage.value && !isOpenAICodexSnapshotStale.value) return
+    if (!isActiveOpenAIRateLimited.value && hasCompleteCodexUsage.value && !isOpenAICodexSnapshotStale.value) return
 
     loadUsage().catch((error) => {
       console.error('Failed to refresh OpenAI usage:', error)
@@ -828,17 +885,21 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     let windowRows: AccountUsagePresentationRow[] = []
 
     if (account.value.platform === 'openai' && account.value.type === 'oauth') {
-      meta.snapshotUpdatedAtText = openAISnapshotUpdatedAtText.value || undefined
-      meta.snapshotUpdatedAtTooltip = openAISnapshotUpdatedAtTooltip.value || undefined
+      meta.snapshotUpdatedAtText = shouldPreferFetchedOpenAIMeta.value
+        ? fetchedSnapshotUpdatedAtText.value || openAISnapshotUpdatedAtText.value || undefined
+        : openAISnapshotUpdatedAtText.value || fetchedSnapshotUpdatedAtText.value || undefined
+      meta.snapshotUpdatedAtTooltip = shouldPreferFetchedOpenAIMeta.value
+        ? fetchedSnapshotUpdatedAtTooltip.value || openAISnapshotUpdatedAtTooltip.value || undefined
+        : openAISnapshotUpdatedAtTooltip.value || fetchedSnapshotUpdatedAtTooltip.value || undefined
 
-      if (shouldUseFetchedOpenAIUsage.value && openAIFetchedRows.value.length > 0) {
+      if (shouldUseFetchedOpenAIUsage.value && openAIResolvedRows.value.length > 0) {
         state = 'bars'
-        windowRows = openAIFetchedRows.value
+        windowRows = openAIResolvedRows.value
       } else if (isActiveOpenAIRateLimited.value && currentState.loading && openAIFetchedRows.value.length === 0) {
         state = 'loading'
-      } else if (codexRows.value.length > 0) {
+      } else if (openAIResolvedRows.value.length > 0) {
         state = 'bars'
-        windowRows = codexRows.value
+        windowRows = openAIResolvedRows.value
       } else if (currentState.loading) {
         state = 'loading'
       } else if (openAIFetchedRows.value.length > 0) {

@@ -16,8 +16,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ModelPlatformIcon from '@/components/common/ModelPlatformIcon.vue'
-import { normalizePlatformKey } from '@/utils/platformIconData'
 import { formatModelCatalogProvider } from '@/utils/modelCatalogPresentation'
+import { normalizeLobeIconKey } from '@/utils/lobeIconResolver'
 
 const props = withDefaults(defineProps<{
   platforms?: string[]
@@ -27,7 +27,7 @@ const props = withDefaults(defineProps<{
 
 const displayPlatforms = computed(() => {
   const values = (props.platforms || [])
-    .map((value) => normalizePlatformKey(value))
+    .map((value) => normalizeLobeIconKey(value))
     .filter((value) => value.length > 0)
   const unique = [...new Set(values)]
   const items = unique.map((key) => ({ key, label: formatModelCatalogProvider(key) }))

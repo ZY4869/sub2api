@@ -9,6 +9,12 @@ export interface ModelRegistryDetail extends ModelRegistryEntry {
   available: boolean
 }
 
+export interface ModelRegistryProviderSummary {
+  provider: string
+  total_count: number
+  available_count: number
+}
+
 export interface ListModelRegistryParams {
   search?: string
   provider?: string
@@ -57,6 +63,15 @@ export async function listModelRegistry(
   params: ListModelRegistryParams = {}
 ): Promise<PaginatedResponse<ModelRegistryDetail>> {
   const { data } = await apiClient.get<PaginatedResponse<ModelRegistryDetail>>('/admin/models/registry', {
+    params
+  })
+  return data
+}
+
+export async function listModelRegistryProviders(
+  params: Pick<ListModelRegistryParams, 'page' | 'page_size'> = {}
+): Promise<PaginatedResponse<ModelRegistryProviderSummary>> {
+  const { data } = await apiClient.get<PaginatedResponse<ModelRegistryProviderSummary>>('/admin/models/registry/providers', {
     params
   })
   return data
@@ -113,6 +128,7 @@ export async function syncModelRegistryExposures(
 
 export const modelRegistryAPI = {
   listModelRegistry,
+  listModelRegistryProviders,
   getModelRegistryDetail,
   upsertModelRegistryEntry,
   updateModelRegistryVisibility,

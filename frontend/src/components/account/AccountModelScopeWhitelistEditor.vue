@@ -119,7 +119,7 @@
               />
             </svg>
           </span>
-          <ModelIcon :model="entry.id" size="18px" />
+          <ModelIcon :model="entry.id" :provider="entry.provider" size="18px" />
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <span
