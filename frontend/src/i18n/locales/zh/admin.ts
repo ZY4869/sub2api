@@ -1308,6 +1308,7 @@
         now: '现在',
         snapshotUpdatedAt: '快照更新于 {time}',
         passiveSampled: '当前展示的是被动采样快照，可能与实时用量存在短暂延迟。',
+        sampledBadge: '采样',
         activeQuery: '当前展示的是主动查询结果。',
         notProbed: '未探测',
         customMapping: '自定义映射(*)'

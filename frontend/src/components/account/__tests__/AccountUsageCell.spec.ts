@@ -29,6 +29,8 @@ vi.mock('vue-i18n', async () => {
       t: (key: string, params?: Record<string, unknown>) => {
         const dict: Record<string, string> = {
           'admin.accounts.usageWindow.snapshotUpdatedAt': 'Snapshot updated {time}',
+          'admin.accounts.usageWindow.passiveSampled': 'Passive snapshot note',
+          'admin.accounts.usageWindow.sampledBadge': 'Sampled',
           'admin.accounts.usageWindow.gemini3Image': 'Gemini Image',
           'admin.accounts.usageWindow.gemini3Pro': 'G3P',
           'admin.accounts.usageWindow.gemini3Flash': 'G3F',
@@ -184,6 +186,63 @@ describe('AccountUsageCell', () => {
     expect(getUsage).toHaveBeenNthCalledWith(2, 1100, { force: undefined, source: 'active' })
     expect(wrapper.text()).toContain('5h|22|2026-03-08T12:00:00Z|3600|false|220')
     expect(wrapper.text()).toContain('7d|63|2026-03-13T12:00:00Z|7200|false|630')
+  })
+
+  it('renders a sampled badge instead of the passive snapshot sentence for passive claudecloud data', async () => {
+    getUsage.mockResolvedValue({
+      source: 'passive',
+      updated_at: '2026-03-07T10:00:00Z',
+      five_hour: {
+        utilization: 21,
+        resets_at: '2026-03-08T12:00:00Z',
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 2,
+          tokens: 200,
+          cost: 0.02,
+          standard_cost: 0.02,
+          user_cost: 0.02,
+        },
+      },
+      seven_day: {
+        utilization: 61,
+        resets_at: '2026-03-13T12:00:00Z',
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 6,
+          tokens: 610,
+          cost: 0.06,
+          standard_cost: 0.06,
+          user_cost: 0.06,
+        },
+      },
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1101,
+          platform: 'anthropic',
+          type: 'oauth',
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Sampled')
+    expect(wrapper.text()).not.toContain('Passive snapshot note')
+
+    await wrapper.get('button').trigger('mouseenter')
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('Passive snapshot note')
   })
 
   it('refreshes stale openai codex snapshots from the usage endpoint', async () => {

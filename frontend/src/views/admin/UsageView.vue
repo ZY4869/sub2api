@@ -54,48 +54,51 @@
         @export="exportToExcel"
       >
         <template #after-reset>
-          <div class="relative" ref="columnDropdownRef">
-            <button
-              @click="showColumnDropdown = !showColumnDropdown"
-              class="btn btn-secondary px-2 md:px-3"
-              :title="t('admin.users.columnSettings')"
-            >
-              <svg
-                class="h-4 w-4 md:mr-1.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
-                />
-              </svg>
-              <span class="hidden md:inline">{{
-                t("admin.users.columnSettings")
-              }}</span>
-            </button>
-            <div
-              v-if="showColumnDropdown"
-              class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
-            >
+          <div class="flex items-center gap-3">
+            <TokenDisplayModeToggle />
+            <div class="relative" ref="columnDropdownRef">
               <button
-                v-for="col in toggleableColumns"
-                :key="col.key"
-                @click="toggleColumn(col.key)"
-                class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                @click="showColumnDropdown = !showColumnDropdown"
+                class="btn btn-secondary px-2 md:px-3"
+                :title="t('admin.users.columnSettings')"
               >
-                <span>{{ col.label }}</span>
-                <Icon
-                  v-if="isColumnVisible(col.key)"
-                  name="check"
-                  size="sm"
-                  class="text-primary-500"
-                  :stroke-width="2"
-                />
+                <svg
+                  class="h-4 w-4 md:mr-1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
+                  />
+                </svg>
+                <span class="hidden md:inline">{{
+                  t("admin.users.columnSettings")
+                }}</span>
               </button>
+              <div
+                v-if="showColumnDropdown"
+                class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+              >
+                <button
+                  v-for="col in toggleableColumns"
+                  :key="col.key"
+                  @click="toggleColumn(col.key)"
+                  class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                >
+                  <span>{{ col.label }}</span>
+                  <Icon
+                    v-if="isColumnVisible(col.key)"
+                    name="check"
+                    size="sm"
+                    class="text-primary-500"
+                    :stroke-width="2"
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </template>
@@ -168,6 +171,7 @@ import ModelDistributionChart from "@/components/charts/ModelDistributionChart.v
 import GroupDistributionChart from "@/components/charts/GroupDistributionChart.vue";
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
 import Icon from "@/components/icons/Icon.vue";
+import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
@@ -622,6 +626,7 @@ const allColumns = computed(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
+  { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "group", label: t("admin.usage.group"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },

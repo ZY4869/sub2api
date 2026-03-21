@@ -7,6 +7,9 @@
       </div>
 
       <template v-else-if="stats">
+        <div class="flex justify-end">
+          <TokenDisplayModeToggle />
+        </div>
         <!-- Row 1: Core Stats -->
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <!-- Total API Keys -->
@@ -169,7 +172,7 @@
                 </p>
                 <div class="flex items-baseline gap-2">
                   <p class="text-xl font-bold text-gray-900 dark:text-white">
-                    {{ formatTokens(stats.rpm) }}
+                    {{ formatNumber(stats.rpm) }}
                   </p>
                   <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
                 </div>
@@ -294,11 +297,13 @@ import type {
 } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import TokenDisplayModeToggle from '@/components/common/TokenDisplayModeToggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
+import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 
 import {
   Chart as ChartJS,
@@ -325,6 +330,7 @@ ChartJS.register(
 
 const appStore = useAppStore()
 const router = useRouter()
+const { formatTokenDisplay } = useTokenDisplayMode()
 const stats = ref<DashboardStats | null>(null)
 const loading = ref(false)
 const chartsLoading = ref(false)
@@ -507,15 +513,7 @@ const userTrendChartData = computed(() => {
 
 // Format helpers
 const formatTokens = (value: number | undefined): string => {
-  if (value === undefined || value === null) return '0'
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`
-  } else if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`
-  }
-  return value.toLocaleString()
+  return formatTokenDisplay(value)
 }
 
 const formatNumber = (value: number): string => {

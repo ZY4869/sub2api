@@ -21,6 +21,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -48,6 +49,7 @@ ChartJS.register(
 )
 
 const { t } = useI18n()
+const { formatTokenDisplay } = useTokenDisplayMode()
 
 const props = defineProps<{
   trendData: TrendDataPoint[]
@@ -172,16 +174,7 @@ const lineOptions = computed(() => ({
   }
 }))
 
-const formatTokens = (value: number): string => {
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`
-  } else if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`
-  }
-  return value.toLocaleString()
-}
+const formatTokens = (value: number): string => formatTokenDisplay(value)
 
 const formatCost = (value: number): string => {
   if (value >= 1000) {

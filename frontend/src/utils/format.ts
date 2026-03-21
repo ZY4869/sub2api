@@ -4,6 +4,7 @@
  */
 
 import { i18n, getLocale } from "@/i18n";
+import type { TokenDisplayMode } from "@/types";
 
 /**
  * 格式化相对时间
@@ -281,9 +282,7 @@ export function formatCostFixed(
  * @returns 格式化后的字符串，如 "950", "1.2K", "3.5M"
  */
 export function formatTokensK(tokens: number): string {
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-  return tokens.toString();
+  return formatTokenCount(tokens, { mode: "compact" });
 }
 
 /**
@@ -304,6 +303,24 @@ export function formatCompactNumber(
   if (abs >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
   if (abs >= 1_000) return `${(num / 1_000).toFixed(1)}K`
   return num.toString()
+}
+
+export function formatTokenCount(
+  value: number | null | undefined,
+  options?: {
+    mode?: TokenDisplayMode;
+    allowBillions?: boolean;
+  },
+): string {
+  if (value === null || value === undefined) return "0";
+
+  if (options?.mode === "compact") {
+    return formatCompactNumber(value, {
+      allowBillions: options.allowBillions !== false,
+    });
+  }
+
+  return value.toLocaleString();
 }
 
 /**

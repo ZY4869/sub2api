@@ -145,6 +145,7 @@
 
               <!-- Actions -->
               <div class="ml-auto flex items-center gap-3">
+                <TokenDisplayModeToggle />
                 <button
                   @click="applyFilters"
                   :disabled="loading"
@@ -226,11 +227,26 @@
           </template>
 
           <template #cell-endpoint="{ row }">
-            <span
-              class="text-sm text-gray-600 dark:text-gray-300 block max-w-[320px] whitespace-normal break-all"
+            <div
+              class="block max-w-[320px] space-y-1 text-sm text-gray-600 dark:text-gray-300"
             >
-              {{ formatUsageEndpoints(row) }}
-            </span>
+              <div
+                v-for="line in formatUsageEndpoints(row)"
+                :key="`${row.request_id}-${line.key}`"
+                class="whitespace-normal break-all"
+              >
+                <span class="font-medium text-gray-500 dark:text-gray-400"
+                  >{{ t(line.labelKey) }}:</span
+                >
+                <span class="ml-1" :title="line.raw">{{ line.display }}</span>
+              </div>
+              <div
+                v-if="formatUsageEndpoints(row).length === 0"
+                class="text-sm text-gray-400 dark:text-gray-500"
+              >
+                -
+              </div>
+            </div>
           </template>
 
           <template #cell-stream="{ row }">
@@ -271,16 +287,20 @@
                   <!-- Input -->
                   <div class="inline-flex items-center gap-1">
                     <Icon name="arrowDown" size="sm" class="text-emerald-500" />
-                    <span class="font-medium text-gray-900 dark:text-white">{{
-                      row.input_tokens.toLocaleString()
-                    }}</span>
+                    <span
+                      class="font-medium text-gray-900 dark:text-white"
+                      :title="row.input_tokens.toLocaleString()"
+                      >{{ formatTokens(row.input_tokens) }}</span
+                    >
                   </div>
                   <!-- Output -->
                   <div class="inline-flex items-center gap-1">
                     <Icon name="arrowUp" size="sm" class="text-violet-500" />
-                    <span class="font-medium text-gray-900 dark:text-white">{{
-                      row.output_tokens.toLocaleString()
-                    }}</span>
+                    <span
+                      class="font-medium text-gray-900 dark:text-white"
+                      :title="row.output_tokens.toLocaleString()"
+                      >{{ formatTokens(row.output_tokens) }}</span
+                    >
                   </div>
                 </div>
                 <!-- Cache Tokens (Read + Write) -->
@@ -296,9 +316,11 @@
                     class="inline-flex items-center gap-1"
                   >
                     <Icon name="inbox" size="sm" class="text-sky-500" />
-                    <span class="font-medium text-sky-600 dark:text-sky-400">{{
-                      formatCacheTokens(row.cache_read_tokens)
-                    }}</span>
+                    <span
+                      class="font-medium text-sky-600 dark:text-sky-400"
+                      :title="row.cache_read_tokens.toLocaleString()"
+                      >{{ formatCacheTokens(row.cache_read_tokens) }}</span
+                    >
                   </div>
                   <!-- Cache Write -->
                   <div
@@ -308,6 +330,7 @@
                     <Icon name="edit" size="sm" class="text-amber-500" />
                     <span
                       class="font-medium text-amber-600 dark:text-amber-400"
+                      :title="row.cache_creation_tokens.toLocaleString()"
                       >{{ formatCacheTokens(row.cache_creation_tokens) }}</span
                     >
                     <span
@@ -737,6 +760,7 @@ import EmptyState from "@/components/common/EmptyState.vue";
 import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
 import ModelIcon from "@/components/common/ModelIcon.vue";
+import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   UsageLog,
@@ -746,6 +770,7 @@ import type {
 } from "@/types";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
+import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import {
   formatDateTime,
   formatReasoningEffort,
@@ -754,9 +779,14 @@ import {
 import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import { resolveUsageRequestType } from "@/utils/usageRequestType";
+import {
+  formatUsageEndpointDisplay,
+  formatUsageUserAgentDisplay,
+} from "@/utils/usageDisplay";
 
 const { t } = useI18n();
 const appStore = useAppStore();
+const { formatTokenDisplay } = useTokenDisplayMode();
 
 let abortController: AbortController | null = null;
 
@@ -855,7 +885,7 @@ const formatDuration = (ms: number): string => {
 };
 
 const formatUserAgent = (ua: string): string => {
-  return ua;
+  return formatUsageUserAgentDisplay(ua);
 };
 
 const getRequestTypeLabel = (log: UsageLog): string => {
@@ -885,30 +915,15 @@ const getRequestTypeExportText = (log: UsageLog): string => {
   return "Unknown";
 };
 
-const formatUsageEndpoints = (log: UsageLog): string => {
-  const inbound = log.inbound_endpoint?.trim();
-  return inbound || "-";
-};
+const formatUsageEndpoints = (
+  log: Pick<UsageLog, "inbound_endpoint" | "upstream_endpoint">,
+) => formatUsageEndpointDisplay(log);
 
-const formatTokens = (value: number): string => {
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`;
-  } else if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`;
-  }
-  return value.toLocaleString();
-};
+const formatTokens = (value: number): string => formatTokenDisplay(value);
 
 // Compact format for cache tokens in table cells
 const formatCacheTokens = (value: number): string => {
-  if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(1)}M`;
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(1)}K`;
-  }
-  return value.toLocaleString();
+  return formatTokenDisplay(value);
 };
 
 const loadUsageLogs = async () => {

@@ -3,7 +3,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 
 import UsageView from "../UsageView.vue";
 
-const { list, getStats, getSnapshotV2, getById } = vi.hoisted(() => {
+const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() => {
   vi.stubGlobal("localStorage", {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
@@ -14,6 +14,7 @@ const { list, getStats, getSnapshotV2, getById } = vi.hoisted(() => {
     list: vi.fn(),
     getStats: vi.fn(),
     getSnapshotV2: vi.fn(),
+    getModelStats: vi.fn(),
     getById: vi.fn(),
   };
 });
@@ -24,6 +25,7 @@ const messages: Record<string, string> = {
   "admin.usage.failedToLoadUser": "Failed to load user",
   "usage.thinkingMode": "Thinking Mode",
   "usage.reasoningEffort": "Reasoning Effort",
+  "usage.endpoint": "Endpoint",
   "usage.model": "Model",
   "usage.apiKeyFilter": "API Key",
   "admin.usage.account": "Account",
@@ -47,6 +49,7 @@ vi.mock("@/api/admin", () => ({
     },
     dashboard: {
       getSnapshotV2,
+      getModelStats,
     },
     users: {
       getById,
@@ -119,6 +122,7 @@ describe("admin UsageView distribution metric toggles", () => {
     list.mockReset();
     getStats.mockReset();
     getSnapshotV2.mockReset();
+    getModelStats.mockReset();
     getById.mockReset();
 
     list.mockResolvedValue({
@@ -141,6 +145,9 @@ describe("admin UsageView distribution metric toggles", () => {
       models: [],
       groups: [],
     });
+    getModelStats.mockResolvedValue({
+      models: [],
+    });
   });
 
   afterEach(() => {
@@ -162,6 +169,7 @@ describe("admin UsageView distribution metric toggles", () => {
           Select: true,
           DateRangePicker: true,
           Icon: true,
+          TokenDisplayModeToggle: true,
           TokenUsageTrend: true,
           ModelDistributionChart: ModelDistributionChartStub,
           GroupDistributionChart: GroupDistributionChartStub,
@@ -209,6 +217,7 @@ describe("admin UsageView distribution metric toggles", () => {
           Pagination: true,
           Select: true,
           Icon: true,
+          TokenDisplayModeToggle: true,
           TokenUsageTrend: true,
           ModelDistributionChart: ModelDistributionChartStub,
           GroupDistributionChart: GroupDistributionChartStub,
@@ -225,6 +234,7 @@ describe("admin UsageView distribution metric toggles", () => {
       .split(",");
     expect(renderedColumns).toContain("thinking_enabled");
     expect(renderedColumns).toContain("reasoning_effort");
+    expect(renderedColumns).toContain("endpoint");
     expect(renderedColumns).not.toContain("user_agent");
   });
 });

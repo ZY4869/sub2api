@@ -1933,6 +1933,7 @@ export default {
         now: 'Now',
         snapshotUpdatedAt: 'Snapshot updated at {time}',
         passiveSampled: 'This view is based on passive sampling snapshots and may lag behind real-time usage briefly.',
+        sampledBadge: 'Sampled',
         activeQuery: 'This view reflects an active live query.',
         notProbed: 'Not probed',
         customMapping: 'Custom mapping(*)'

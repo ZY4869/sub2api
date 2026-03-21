@@ -36,22 +36,19 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import type { UserBreakdownItem } from '@/types'
 
 const { t } = useI18n()
+const { formatTokenDisplay } = useTokenDisplayMode()
 
 defineProps<{
   items: UserBreakdownItem[]
   loading?: boolean
 }>()
 
-const formatTokens = (value: number): string => {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(2)}B`
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(2)}K`
-  return value.toLocaleString()
-}
+const formatTokens = (value: number): string => formatTokenDisplay(value)
 
 const formatCost = (value: number): string => {
   if (value >= 1000) return (value / 1000).toFixed(2) + 'K'

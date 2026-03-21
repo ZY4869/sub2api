@@ -191,7 +191,10 @@
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{
                   t('admin.accounts.stats.tokens')
                 }}</span>
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{
+                <span
+                  class="text-sm font-semibold text-gray-900 dark:text-white"
+                  :title="formatExactTokens(stats.summary.today?.tokens || 0)"
+                >{{
                   formatTokens(stats.summary.today?.tokens || 0)
                 }}</span>
               </div>
@@ -304,7 +307,10 @@
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{
                   t('admin.accounts.stats.totalTokens')
                 }}</span>
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{
+                <span
+                  class="text-sm font-semibold text-gray-900 dark:text-white"
+                  :title="formatExactTokens(stats.summary.total_tokens)"
+                >{{
                   formatTokens(stats.summary.total_tokens)
                 }}</span>
               </div>
@@ -312,7 +318,10 @@
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{
                   t('admin.accounts.stats.dailyAvgTokens')
                 }}</span>
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{
+                <span
+                  class="text-sm font-semibold text-gray-900 dark:text-white"
+                  :title="formatExactTokens(Math.round(stats.summary.avg_daily_tokens))"
+                >{{
                   formatTokens(Math.round(stats.summary.avg_daily_tokens))
                 }}</span>
               </div>
@@ -376,7 +385,10 @@
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{
                   t('admin.accounts.stats.todayTokens')
                 }}</span>
-                <span class="text-sm font-semibold text-gray-900 dark:text-white">{{
+                <span
+                  class="text-sm font-semibold text-gray-900 dark:text-white"
+                  :title="formatExactTokens(stats.summary.today?.tokens || 0)"
+                >{{
                   formatTokens(stats.summary.today?.tokens || 0)
                 }}</span>
               </div>
@@ -467,6 +479,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 import { adminAPI } from '@/api/admin'
 import type { Account, AccountUsageStatsResponse } from '@/types'
 
@@ -482,6 +495,7 @@ ChartJS.register(
 )
 
 const { t } = useI18n()
+const { formatTokenDisplay } = useTokenDisplayMode()
 
 const props = defineProps<{
   show: boolean
@@ -694,13 +708,10 @@ const formatNumber = (value: number): string => {
 }
 
 const formatTokens = (value: number): string => {
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`
-  } else if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`
-  }
+  return formatTokenDisplay(value)
+}
+
+const formatExactTokens = (value: number): string => {
   return value.toLocaleString()
 }
 

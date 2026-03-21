@@ -92,6 +92,9 @@
         <p class="text-xs text-gray-400 dark:text-dark-500 mt-3 text-center">
           {{ t('keyUsage.privacyNote') }}
         </p>
+        <div class="mt-4 flex justify-center">
+          <TokenDisplayModeToggle />
+        </div>
 
         <!-- Date Range Picker -->
         <div v-if="showDatePicker" class="mt-4">
@@ -282,6 +285,7 @@
                 v-for="(cell, i) in usageStatCells"
                 :key="i"
                 class="bg-white px-6 py-4 dark:bg-dark-900"
+                :title="cell.title || undefined"
               >
                 <div class="text-xs text-gray-500 dark:text-dark-400 mb-1">{{ cell.label }}</div>
                 <div class="text-sm font-semibold tabular-nums text-gray-900 dark:text-white">{{ cell.value }}</div>
@@ -319,11 +323,11 @@
                   >
                     <td class="px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">{{ m.model || '-' }}</td>
                     <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.requests) }}</td>
-                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.input_tokens) }}</td>
-                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.output_tokens) }}</td>
-                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.cache_creation_tokens) }}</td>
-                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.cache_read_tokens) }}</td>
-                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200">{{ fmtNum(m.total_tokens) }}</td>
+                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200" :title="formatExactTokenValue(m.input_tokens)">{{ formatTokenValue(m.input_tokens) }}</td>
+                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200" :title="formatExactTokenValue(m.output_tokens)">{{ formatTokenValue(m.output_tokens) }}</td>
+                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200" :title="formatExactTokenValue(m.cache_creation_tokens)">{{ formatTokenValue(m.cache_creation_tokens) }}</td>
+                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200" :title="formatExactTokenValue(m.cache_read_tokens)">{{ formatTokenValue(m.cache_read_tokens) }}</td>
+                    <td class="px-4 py-3 text-sm tabular-nums text-right text-gray-700 dark:text-dark-200" :title="formatExactTokenValue(m.total_tokens)">{{ formatTokenValue(m.total_tokens) }}</td>
                     <td class="px-4 py-3 text-sm tabular-nums text-right font-medium text-gray-900 dark:text-white">{{ usd(m.actual_cost != null ? m.actual_cost : m.cost) }}</td>
                   </tr>
                 </tbody>
@@ -365,10 +369,13 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import TokenDisplayModeToggle from '@/components/common/TokenDisplayModeToggle.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
+const { formatTokenDisplay } = useTokenDisplayMode()
 
 // ==================== Site Settings (same as HomeView) ====================
 
@@ -699,6 +706,7 @@ const detailRows = computed<DetailRow[]>(() => {
 interface StatCell {
   label: string
   value: string
+  title?: string
 }
 
 const usageStatCells = computed<StatCell[]>(() => {
@@ -710,19 +718,23 @@ const usageStatCells = computed<StatCell[]>(() => {
 
   return [
     { label: t('keyUsage.todayRequests'), value: fmtNum(today.requests) },
-    { label: t('keyUsage.todayInputTokens'), value: fmtNum(today.input_tokens) },
-    { label: t('keyUsage.todayOutputTokens'), value: fmtNum(today.output_tokens) },
-    { label: t('keyUsage.todayTokens'), value: fmtNum(today.total_tokens) },
-    { label: t('keyUsage.todayCacheCreation'), value: fmtNum(today.cache_creation_tokens) },
-    { label: t('keyUsage.todayCacheRead'), value: fmtNum(today.cache_read_tokens) },
+    { label: t('keyUsage.todayInputTokens'), value: formatTokenValue(today.input_tokens), title: formatExactTokenValue(today.input_tokens) },
+    { label: t('keyUsage.todayOutputTokens'), value: formatTokenValue(today.output_tokens), title: formatExactTokenValue(today.output_tokens) },
+    { label: t('keyUsage.todayTokens'), value: formatTokenValue(today.total_tokens), title: formatExactTokenValue(today.total_tokens) },
+    { label: t('keyUsage.todayCacheCreation'), value: formatTokenValue(today.cache_creation_tokens), title: formatExactTokenValue(today.cache_creation_tokens) },
+    { label: t('keyUsage.todayCacheRead'), value: formatTokenValue(today.cache_read_tokens), title: formatExactTokenValue(today.cache_read_tokens) },
     { label: t('keyUsage.todayCost'), value: usd(today.actual_cost) },
-    { label: t('keyUsage.rpmTpm'), value: `${usage.rpm || 0} / ${usage.tpm || 0}` },
+    {
+      label: t('keyUsage.rpmTpm'),
+      value: `${usage.rpm || 0} / ${formatTokenValue(usage.tpm ?? 0)}`,
+      title: `${usage.rpm || 0} / ${formatExactTokenValue(usage.tpm ?? 0)}`,
+    },
     { label: t('keyUsage.totalRequests'), value: fmtNum(total.requests) },
-    { label: t('keyUsage.totalInputTokens'), value: fmtNum(total.input_tokens) },
-    { label: t('keyUsage.totalOutputTokens'), value: fmtNum(total.output_tokens) },
-    { label: t('keyUsage.totalTokensLabel'), value: fmtNum(total.total_tokens) },
-    { label: t('keyUsage.totalCacheCreation'), value: fmtNum(total.cache_creation_tokens) },
-    { label: t('keyUsage.totalCacheRead'), value: fmtNum(total.cache_read_tokens) },
+    { label: t('keyUsage.totalInputTokens'), value: formatTokenValue(total.input_tokens), title: formatExactTokenValue(total.input_tokens) },
+    { label: t('keyUsage.totalOutputTokens'), value: formatTokenValue(total.output_tokens), title: formatExactTokenValue(total.output_tokens) },
+    { label: t('keyUsage.totalTokensLabel'), value: formatTokenValue(total.total_tokens), title: formatExactTokenValue(total.total_tokens) },
+    { label: t('keyUsage.totalCacheCreation'), value: formatTokenValue(total.cache_creation_tokens), title: formatExactTokenValue(total.cache_creation_tokens) },
+    { label: t('keyUsage.totalCacheRead'), value: formatTokenValue(total.cache_read_tokens), title: formatExactTokenValue(total.cache_read_tokens) },
     { label: t('keyUsage.totalCost'), value: usd(total.actual_cost) },
     { label: t('keyUsage.avgDuration'), value: usage.average_duration_ms ? `${Math.round(usage.average_duration_ms)} ms` : '-' },
   ]
@@ -739,6 +751,16 @@ function usd(value: number | null | undefined): string {
 }
 
 function fmtNum(val: number | null | undefined): string {
+  if (val == null) return '-'
+  return val.toLocaleString()
+}
+
+function formatTokenValue(val: number | null | undefined): string {
+  if (val == null) return '-'
+  return formatTokenDisplay(val)
+}
+
+function formatExactTokenValue(val: number | null | undefined): string {
   if (val == null) return '-'
   return val.toLocaleString()
 }

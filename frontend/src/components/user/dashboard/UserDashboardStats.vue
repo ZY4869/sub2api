@@ -106,7 +106,7 @@
         <div class="flex-1">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.performance') }}</p>
           <div class="flex items-baseline gap-2">
-            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatTokens(stats?.rpm || 0) }}</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ formatNumber(stats?.rpm || 0) }}</p>
             <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
           </div>
           <div class="flex items-baseline gap-2">
@@ -137,6 +137,7 @@
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
+import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 
 defineProps<{
   stats: UserStatsType
@@ -144,6 +145,7 @@ defineProps<{
   isSimple: boolean
 }>()
 const { t } = useI18n()
+const { formatTokenDisplay } = useTokenDisplayMode()
 
 const formatBalance = (b: number) =>
   new Intl.NumberFormat('en-US', {
@@ -153,10 +155,6 @@ const formatBalance = (b: number) =>
 
 const formatNumber = (n: number) => n.toLocaleString()
 const formatCost = (c: number) => c.toFixed(4)
-const formatTokens = (t: number) => {
-  if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(1)}M`
-  if (t >= 1000) return `${(t / 1000).toFixed(1)}K`
-  return t.toString()
-}
+const formatTokens = (t: number) => formatTokenDisplay(t)
 const formatDuration = (ms: number) => ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`
 </script>

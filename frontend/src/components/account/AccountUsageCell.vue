@@ -9,7 +9,16 @@
       >
         {{ presentation.meta.antigravityTierLabel }}
       </span>
-      <span v-if="presentation.meta.hasIneligibleTiers" class="group relative cursor-help">
+      <button
+        v-if="presentation.meta.hasIneligibleTiers"
+        type="button"
+        class="inline-flex cursor-help items-center text-red-500"
+        @mouseenter="handleTooltipEnter('ineligible', $event)"
+        @mouseleave="scheduleTooltipHide"
+        @focusin="handleTooltipEnter('ineligible', $event)"
+        @focusout="handleTriggerFocusOut"
+        @keydown.esc.prevent="hideTooltip"
+      >
         <svg class="h-3.5 w-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
           <path
             fill-rule="evenodd"
@@ -17,12 +26,7 @@
             clip-rule="evenodd"
           />
         </svg>
-        <span
-          class="pointer-events-none absolute left-0 top-full z-50 mt-1 w-80 whitespace-normal break-words rounded bg-gray-900 px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-        >
-          {{ t('admin.accounts.ineligibleWarning') }}
-        </span>
-      </span>
+      </button>
     </div>
 
     <div v-if="presentation.meta.geminiAuthTypeLabel" class="mb-1 flex items-center gap-1">
@@ -34,7 +38,15 @@
       >
         {{ presentation.meta.geminiAuthTypeLabel }}
       </span>
-      <span class="group relative cursor-help">
+      <button
+        type="button"
+        class="inline-flex cursor-help items-center"
+        @mouseenter="handleTooltipEnter('gemini-policy', $event)"
+        @mouseleave="scheduleTooltipHide"
+        @focusin="handleTooltipEnter('gemini-policy', $event)"
+        @focusout="handleTriggerFocusOut"
+        @keydown.esc.prevent="hideTooltip"
+      >
         <svg
           class="h-3.5 w-3.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
           fill="currentColor"
@@ -46,27 +58,7 @@
             clip-rule="evenodd"
           />
         </svg>
-        <span
-          class="pointer-events-none absolute left-0 top-full z-50 mt-1 w-80 whitespace-normal break-words rounded bg-gray-900 px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-        >
-          <div class="mb-1 font-semibold">{{ t('admin.accounts.gemini.quotaPolicy.title') }}</div>
-          <div class="mb-2 text-gray-300">{{ t('admin.accounts.gemini.quotaPolicy.note') }}</div>
-          <div class="space-y-1">
-            <div><strong>{{ presentation.meta.geminiQuotaPolicyChannel }}:</strong></div>
-            <div class="pl-2">- {{ presentation.meta.geminiQuotaPolicyLimits }}</div>
-            <div class="mt-2">
-              <a
-                :href="presentation.meta.geminiQuotaPolicyDocsUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-blue-400 hover:text-blue-300 underline"
-              >
-                {{ t('admin.accounts.gemini.quotaPolicy.columns.docs') }} ->
-              </a>
-            </div>
-          </div>
-        </span>
-      </span>
+      </button>
     </div>
 
     <div v-if="presentation.state === 'loading'" class="space-y-1.5">
@@ -100,6 +92,19 @@
       >
         {{ t('admin.accounts.usageWindow.snapshotUpdatedAt', { time: presentation.meta.snapshotUpdatedAtText }) }}
       </p>
+      <div v-if="presentation.meta.sampledBadgeLabel" class="mt-1">
+        <button
+          type="button"
+          class="inline-flex cursor-help items-center rounded-full border border-amber-300/80 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+          @mouseenter="handleTooltipEnter('sampled', $event)"
+          @mouseleave="scheduleTooltipHide"
+          @focusin="handleTooltipEnter('sampled', $event)"
+          @focusout="handleTriggerFocusOut"
+          @keydown.esc.prevent="hideTooltip"
+        >
+          {{ presentation.meta.sampledBadgeLabel }}
+        </button>
+      </div>
       <p v-if="presentation.meta.noteText" class="mt-1 text-[9px] italic leading-tight text-gray-400 dark:text-gray-500">
         * {{ presentation.meta.noteText }}
       </p>
@@ -111,13 +116,62 @@
 
     <div v-else class="text-xs text-gray-400">-</div>
   </div>
+
+  <Teleport to="body">
+    <div
+      v-if="tooltipVisible && activeTooltipKey"
+      ref="tooltipRef"
+      class="fixed z-[99999] max-w-[min(20rem,calc(100vw-1.5rem))] rounded-lg bg-gray-900 px-3 py-2 text-xs leading-relaxed text-white shadow-xl ring-1 ring-white/10 dark:bg-gray-800"
+      :style="tooltipStyle"
+      @mouseenter="cancelTooltipHide"
+      @mouseleave="scheduleTooltipHide"
+      @focusin="cancelTooltipHide"
+      @focusout="handleTooltipFocusOut"
+    >
+      <div
+        :class="[
+          'absolute left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-gray-900 dark:bg-gray-800',
+          tooltipPlacement === 'top' ? '-bottom-1' : '-top-1',
+        ]"
+      ></div>
+
+      <template v-if="activeTooltipKey === 'ineligible'">
+        {{ t('admin.accounts.ineligibleWarning') }}
+      </template>
+
+      <template v-else-if="activeTooltipKey === 'sampled'">
+        {{ presentation.meta.sampledBadgeTooltip }}
+      </template>
+
+      <template v-else-if="activeTooltipKey === 'gemini-policy'">
+        <div class="space-y-2 whitespace-normal break-words">
+          <div class="font-semibold">{{ t('admin.accounts.gemini.quotaPolicy.title') }}</div>
+          <div class="text-gray-200 dark:text-gray-300">{{ t('admin.accounts.gemini.quotaPolicy.note') }}</div>
+          <div class="space-y-1">
+            <div class="font-medium">{{ presentation.meta.geminiQuotaPolicyChannel }}</div>
+            <div>{{ presentation.meta.geminiQuotaPolicyLimits }}</div>
+          </div>
+          <a
+            v-if="presentation.meta.geminiQuotaPolicyDocsUrl"
+            :href="presentation.meta.geminiQuotaPolicyDocsUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center text-blue-300 underline underline-offset-2 hover:text-blue-200"
+          >
+            {{ t('admin.accounts.gemini.quotaPolicy.columns.docs') }}
+          </a>
+        </div>
+      </template>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account, WindowStats } from '@/types'
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
+import { useFloatingTooltip } from '@/composables/useFloatingTooltip'
 import UsageProgressBar from './UsageProgressBar.vue'
 
 const props = withDefaults(
@@ -136,10 +190,64 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const { presentation, loadUsage, shouldFetchUsage } = useAccountUsagePresentation(() => props.account)
+const {
+  tooltipVisible,
+  tooltipRef,
+  tooltipPlacement,
+  tooltipStyle,
+  showFloatingTooltip,
+  hideFloatingTooltip,
+} = useFloatingTooltip()
+const activeTooltipKey = ref<'ineligible' | 'gemini-policy' | 'sampled' | null>(null)
+let hideTooltipTimer: number | null = null
 
 const skeletonRows = computed(() => {
   return Array.from({ length: presentation.value.meta.loadingRows }, (_, index) => index + 1)
 })
+
+const cancelTooltipHide = () => {
+  if (hideTooltipTimer) {
+    window.clearTimeout(hideTooltipTimer)
+    hideTooltipTimer = null
+  }
+}
+
+const hideTooltip = () => {
+  cancelTooltipHide()
+  activeTooltipKey.value = null
+  hideFloatingTooltip()
+}
+
+const scheduleTooltipHide = () => {
+  cancelTooltipHide()
+  hideTooltipTimer = window.setTimeout(() => {
+    hideTooltip()
+  }, 80)
+}
+
+const handleTooltipEnter = async (
+  key: 'ineligible' | 'gemini-policy' | 'sampled',
+  event: MouseEvent | FocusEvent,
+) => {
+  const triggerEl = event.currentTarget as HTMLElement | null
+  if (!triggerEl) return
+
+  cancelTooltipHide()
+  activeTooltipKey.value = key
+  await showFloatingTooltip(triggerEl)
+}
+
+const handleTriggerFocusOut = (event: FocusEvent) => {
+  const nextTarget = event.relatedTarget as Node | null
+  if (tooltipRef.value?.contains(nextTarget)) return
+  scheduleTooltipHide()
+}
+
+const handleTooltipFocusOut = (event: FocusEvent) => {
+  const nextTarget = event.relatedTarget as Node | null
+  if (tooltipRef.value?.contains(nextTarget)) return
+  scheduleTooltipHide()
+}
 
 watch(
   () => props.manualRefreshToken,
@@ -152,4 +260,8 @@ watch(
     })
   }
 )
+
+onBeforeUnmount(() => {
+  cancelTooltipHide()
+})
 </script>

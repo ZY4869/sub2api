@@ -802,6 +802,8 @@ export interface AccountUsagePresentationMeta {
   loadingRows: number;
   snapshotUpdatedAtText?: string;
   snapshotUpdatedAtTooltip?: string;
+  sampledBadgeLabel?: string;
+  sampledBadgeTooltip?: string;
   noteText?: string;
   antigravityTierLabel?: string | null;
   antigravityTierClass?: string;
@@ -1022,6 +1024,7 @@ export type RedeemCodeType =
   | "subscription"
   | "invitation";
 export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2";
+export type TokenDisplayMode = "full" | "compact";
 
 export interface UsageLog {
   id: number;

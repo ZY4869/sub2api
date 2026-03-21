@@ -88,21 +88,21 @@
 
         <template #cell-endpoint="{ row }">
           <div class="max-w-[320px] space-y-1 text-xs">
-            <div class="break-all text-gray-700 dark:text-gray-300">
+            <div
+              v-for="line in formatUsageEndpoints(row)"
+              :key="`${row.request_id}-${line.key}`"
+              class="break-all text-gray-700 dark:text-gray-300"
+            >
               <span class="font-medium text-gray-500 dark:text-gray-400"
-                >{{ t("usage.inbound") }}:</span
+                >{{ t(line.labelKey) }}:</span
               >
-              <span class="ml-1">{{
-                row.inbound_endpoint?.trim() || "-"
-              }}</span>
+              <span class="ml-1" :title="line.raw">{{ line.display }}</span>
             </div>
-            <div class="break-all text-gray-700 dark:text-gray-300">
-              <span class="font-medium text-gray-500 dark:text-gray-400"
-                >{{ t("usage.upstream") }}:</span
+            <div
+              v-if="formatUsageEndpoints(row).length === 0"
+              class="text-sm text-gray-400 dark:text-gray-500"
               >
-              <span class="ml-1">{{
-                row.upstream_endpoint?.trim() || "-"
-              }}</span>
+              -
             </div>
           </div>
         </template>
@@ -157,9 +157,11 @@
                     size="sm"
                     class="h-3.5 w-3.5 text-emerald-500"
                   />
-                  <span class="font-medium text-gray-900 dark:text-white">{{
-                    row.input_tokens?.toLocaleString() || 0
-                  }}</span>
+                  <span
+                    class="font-medium text-gray-900 dark:text-white"
+                    :title="row.input_tokens?.toLocaleString() || '0'"
+                    >{{ formatTokens(row.input_tokens) }}</span
+                  >
                 </div>
                 <div class="inline-flex items-center gap-1">
                   <Icon
@@ -167,9 +169,11 @@
                     size="sm"
                     class="h-3.5 w-3.5 text-violet-500"
                   />
-                  <span class="font-medium text-gray-900 dark:text-white">{{
-                    row.output_tokens?.toLocaleString() || 0
-                  }}</span>
+                  <span
+                    class="font-medium text-gray-900 dark:text-white"
+                    :title="row.output_tokens?.toLocaleString() || '0'"
+                    >{{ formatTokens(row.output_tokens) }}</span
+                  >
                 </div>
               </div>
               <div
@@ -195,9 +199,11 @@
                       d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
                     />
                   </svg>
-                  <span class="font-medium text-sky-600 dark:text-sky-400">{{
-                    formatCacheTokens(row.cache_read_tokens)
-                  }}</span>
+                  <span
+                    class="font-medium text-sky-600 dark:text-sky-400"
+                    :title="row.cache_read_tokens?.toLocaleString() || '0'"
+                    >{{ formatCacheTokens(row.cache_read_tokens) }}</span
+                  >
                 </div>
                 <div
                   v-if="row.cache_creation_tokens > 0"
@@ -218,6 +224,7 @@
                   </svg>
                   <span
                     class="font-medium text-amber-600 dark:text-amber-400"
+                    :title="row.cache_creation_tokens?.toLocaleString() || '0'"
                     >{{ formatCacheTokens(row.cache_creation_tokens) }}</span
                   >
                   <span
@@ -316,7 +323,7 @@
         <template #cell-user_agent="{ row }">
           <span
             v-if="row.user_agent"
-            class="text-sm text-gray-600 dark:text-gray-400 block max-w-[320px] truncate"
+            class="block max-w-[320px] whitespace-normal break-all text-sm text-gray-600 dark:text-gray-400"
             :title="row.user_agent"
             >{{ formatUserAgent(row.user_agent) }}</span
           >
@@ -659,9 +666,14 @@ import {
   formatReasoningEffort,
   formatThinkingEnabled,
 } from "@/utils/format";
+import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
 import { resolveUsageRequestType } from "@/utils/usageRequestType";
+import {
+  formatUsageEndpointDisplay,
+  formatUsageUserAgentDisplay,
+} from "@/utils/usageDisplay";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ModelIcon from "@/components/common/ModelIcon.vue";
@@ -671,6 +683,7 @@ import type { AdminUsageLog } from "@/types";
 defineProps(["data", "loading", "columns"]);
 defineEmits(["userClick"]);
 const { t } = useI18n();
+const { formatTokenDisplay } = useTokenDisplayMode();
 
 // Tooltip state - cost
 const tooltipVisible = ref(false);
@@ -702,14 +715,19 @@ const getRequestTypeBadgeClass = (row: AdminUsageLog): string => {
 };
 
 const formatCacheTokens = (tokens: number): string => {
-  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-  return tokens.toString();
+  return formatTokenDisplay(tokens);
 };
 
 const formatUserAgent = (ua: string): string => {
-  return ua;
+  return formatUsageUserAgentDisplay(ua);
 };
+
+const formatUsageEndpoints = (
+  row: Pick<AdminUsageLog, "inbound_endpoint" | "upstream_endpoint">,
+) => formatUsageEndpointDisplay(row);
+
+const formatTokens = (tokens: number | null | undefined): string =>
+  formatTokenDisplay(tokens);
 
 const formatDuration = (ms: number | null | undefined): string => {
   if (ms == null) return "-";

@@ -36,9 +36,12 @@
             <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
               >{{ formatRequests }} req</span
             >
-            <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700">{{
-              formatTokens
-            }}</span>
+            <span
+              class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
+              :title="rawTokenCount || undefined"
+            >
+              {{ formatTokens }}
+            </span>
             <span class="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-700"
               >A ${{ formatAccountCost }}</span
             >
@@ -95,6 +98,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiNow } from "@/composables/useUiNow";
+import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import type { WindowStats } from "@/types";
 import {
   formatLocalAbsoluteTime,
@@ -116,6 +120,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const { nowDate } = useUiNow();
+const { formatTokenDisplay } = useTokenDisplayMode();
 const statsTooltipVisible = ref(false);
 
 const labelClass = computed(() => {
@@ -200,11 +205,11 @@ const formatRequests = computed(() => {
 
 const formatTokens = computed(() => {
   if (!props.windowStats) return "";
-  const tokens = props.windowStats.tokens;
-  if (tokens >= 1000000000) return `${(tokens / 1000000000).toFixed(1)}B`;
-  if (tokens >= 1000000) return `${(tokens / 1000000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}K`;
-  return tokens.toString();
+  return formatTokenDisplay(props.windowStats.tokens);
+});
+
+const rawTokenCount = computed(() => {
+  return props.windowStats ? props.windowStats.tokens.toLocaleString() : "";
 });
 
 const formatAccountCost = computed(() => {

@@ -931,7 +931,8 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
         meta.snapshotUpdatedAtText = fetchedSnapshotUpdatedAtText.value || undefined
         meta.snapshotUpdatedAtTooltip = fetchedSnapshotUpdatedAtTooltip.value || undefined
         if (usageInfo.value?.source === 'passive') {
-          meta.noteText = t('admin.accounts.usageWindow.passiveSampled')
+          meta.sampledBadgeLabel = t('admin.accounts.usageWindow.sampledBadge')
+          meta.sampledBadgeTooltip = t('admin.accounts.usageWindow.passiveSampled')
         }
       }
     } else if (account.value.platform === 'antigravity' && account.value.type === 'oauth') {
