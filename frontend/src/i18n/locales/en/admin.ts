@@ -1851,7 +1851,7 @@ export default {
       claudeCodeAccount: 'Claude Code Account',
       kiroAccount: 'Kiro Account',
       openaiAccount: 'OpenAI Account',
-      copilotAccount: 'Copilot Account',
+      copilotAccount: 'GitHub Copilot Account',
       soraAccount: 'Sora Account',
       geminiAccount: 'Gemini Account',
       antigravityAccount: 'Antigravity Account',
@@ -1859,7 +1859,7 @@ export default {
       inputMethod: 'Input Method',
       reAuthorizedSuccess: 'Account re-authorized successfully',
       copilotDeviceFlow: {
-        title: 'Copilot Device Flow',
+        title: 'GitHub Copilot Device Flow',
         description: 'Use the GitHub device flow to authorize Copilot. After starting, enter the user code on GitHub and the console will keep polling for completion.',
         userCode: 'User Code',
         verificationUrl: 'Verification URL',
@@ -1880,6 +1880,53 @@ export default {
           pending: 'Pending',
           completed: 'Authorized'
         }
+      },
+      kiroAuth: {
+        title: 'Kiro Browser Authorization',
+        description: 'Open the official Kiro authorization page in your browser. AWS Builder ID is recommended; IDC works for enterprise SSO; GitHub / Google remain available as compatibility paths.',
+        tabs: {
+          oauth: 'Browser Login',
+          import: 'Manual Import'
+        },
+        methods: {
+          builderId: {
+            title: 'AWS Builder ID',
+            description: 'Recommended for personal Builder ID accounts'
+          },
+          idc: {
+            title: 'Organization SSO (IDC)',
+            description: 'For AWS IAM Identity Center / enterprise SSO'
+          },
+          github: {
+            title: 'GitHub',
+            description: 'Experimental path and may be blocked upstream'
+          },
+          google: {
+            title: 'Google',
+            description: 'Experimental path and may be blocked upstream'
+          }
+        },
+        startUrl: 'Start URL',
+        startUrlPlaceholder: 'https://d-xxxx.awsapps.com/start',
+        region: 'Region',
+        regionPlaceholder: 'us-east-1',
+        socialWarning: 'GitHub / Google sign-in may fail for third-party apps because of AWS Cognito redirect restrictions. If that happens, switch to Builder ID or import the Kiro IDE token manually.',
+        generate: 'Generate Auth URL',
+        regenerate: 'Regenerate URL',
+        openAuthUrl: 'Open Authorization Page',
+        copyAuthUrl: 'Copy Authorization URL',
+        authUrl: 'Authorization URL',
+        redirectUri: 'Redirect URI',
+        oauthState: 'State',
+        callbackUrl: 'Callback URL',
+        callbackPlaceholder: 'Paste the full callback URL from the browser address bar',
+        callbackHint: 'After authorization, the browser usually redirects to localhost and shows an error page. That is expected. Copy the full address-bar URL back here and the console will extract the code and state automatically.',
+        parsedCode: 'Parsed Code',
+        parsedState: 'Parsed State',
+        generateFailed: 'Failed to generate the Kiro authorization URL',
+        exchangeFailed: 'Failed to validate the Kiro authorization result',
+        sessionMissing: 'Generate an authorization URL first',
+        codeMissing: 'Paste the callback URL or authorization code first'
       },
       kiroImport: {
         title: 'Kiro Token Import',

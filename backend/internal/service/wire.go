@@ -42,6 +42,7 @@ func ProvideTokenRefreshService(
 	accountRepo AccountRepository,
 	soraAccountRepo SoraAccountRepository, // Sora 扩展表仓储，用于双表同步
 	oauthService *OAuthService,
+	kiroOAuthService *KiroOAuthService,
 	openaiOAuthService *OpenAIOAuthService,
 	geminiOAuthService *GeminiOAuthService,
 	antigravityOAuthService *AntigravityOAuthService,
@@ -53,7 +54,7 @@ func ProvideTokenRefreshService(
 	proxyRepo ProxyRepository,
 	refreshAPI *OAuthRefreshAPI,
 ) *TokenRefreshService {
-	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache)
+	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache, kiroOAuthService)
 	// 注入 Sora 账号扩展表仓储，用于 OpenAI Token 刷新时同步 sora_accounts 表
 	svc.SetSoraAccountRepo(soraAccountRepo)
 	// 注入 OpenAI privacy opt-out 依赖
@@ -71,11 +72,17 @@ func ProvideClaudeTokenProvider(
 	accountRepo AccountRepository,
 	tokenCache GeminiTokenCache,
 	oauthService *OAuthService,
+	kiroOAuthService *KiroOAuthService,
 	refreshAPI *OAuthRefreshAPI,
 ) *ClaudeTokenProvider {
 	p := NewClaudeTokenProvider(accountRepo, tokenCache, oauthService)
-	executor := NewClaudeTokenRefresher(oauthService)
-	p.SetRefreshAPI(refreshAPI, executor)
+	claudeExecutor := NewClaudeTokenRefresher(oauthService)
+	if kiroOAuthService != nil {
+		kiroExecutor := NewKiroTokenRefresher(kiroOAuthService)
+		p.SetRefreshAPI(refreshAPI, claudeExecutor, kiroExecutor)
+	} else {
+		p.SetRefreshAPI(refreshAPI, claudeExecutor)
+	}
 	p.SetRefreshPolicy(ClaudeProviderRefreshPolicy())
 	return p
 }
@@ -494,6 +501,7 @@ var ProviderSet = wire.NewSet(
 	NewOAuthService,
 	NewOpenAIOAuthService,
 	NewCopilotOAuthService,
+	NewKiroOAuthService,
 	NewGeminiOAuthService,
 	NewGeminiQuotaService,
 	NewCompositeTokenCacheInvalidator,

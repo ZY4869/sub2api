@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -34,9 +36,6 @@ func NewClaudeTokenRefresher(oauthService *OAuthService) *ClaudeTokenRefresher {
 
 // CacheKey 返回用于分布式锁的缓存键
 func (r *ClaudeTokenRefresher) CacheKey(account *Account) string {
-	if account != nil && account.Platform == PlatformKiro {
-		return KiroTokenCacheKey(account)
-	}
 	return ClaudeTokenCacheKey(account)
 }
 
@@ -72,6 +71,50 @@ func (r *ClaudeTokenRefresher) Refresh(ctx context.Context, account *Account) (m
 }
 
 // OpenAITokenRefresher 处理 OpenAI OAuth token刷新
+type KiroTokenRefresher struct {
+	kiroOAuthService *KiroOAuthService
+}
+
+func NewKiroTokenRefresher(kiroOAuthService *KiroOAuthService) *KiroTokenRefresher {
+	return &KiroTokenRefresher{kiroOAuthService: kiroOAuthService}
+}
+
+func (r *KiroTokenRefresher) CacheKey(account *Account) string {
+	return KiroTokenCacheKey(account)
+}
+
+func (r *KiroTokenRefresher) CanRefresh(account *Account) bool {
+	return r != nil &&
+		r.kiroOAuthService != nil &&
+		account != nil &&
+		account.Platform == PlatformKiro &&
+		account.Type == AccountTypeOAuth &&
+		strings.TrimSpace(account.GetCredential("refresh_token")) != ""
+}
+
+func (r *KiroTokenRefresher) NeedsRefresh(account *Account, refreshWindow time.Duration) bool {
+	expiresAt := account.GetCredentialAsTime("expires_at")
+	if expiresAt == nil {
+		return true
+	}
+	return time.Until(*expiresAt) < refreshWindow
+}
+
+func (r *KiroTokenRefresher) Refresh(ctx context.Context, account *Account) (map[string]any, error) {
+	if r == nil || r.kiroOAuthService == nil {
+		return nil, errors.New("kiro oauth service is unavailable")
+	}
+	tokenInfo, err := r.kiroOAuthService.RefreshAccountToken(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+
+	newCredentials := r.kiroOAuthService.BuildAccountCredentials(tokenInfo)
+	newCredentials = MergeCredentials(account.Credentials, newCredentials)
+	return newCredentials, nil
+}
+
+// OpenAITokenRefresher 澶勭悊 OpenAI OAuth token鍒锋柊
 type OpenAITokenRefresher struct {
 	openaiOAuthService *OpenAIOAuthService
 	accountRepo        AccountRepository

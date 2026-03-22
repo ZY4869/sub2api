@@ -21,6 +21,7 @@ type AccountHandler struct {
 	oauthService              *service.OAuthService
 	openaiOAuthService        *service.OpenAIOAuthService
 	copilotOAuthService       *service.CopilotOAuthService
+	kiroOAuthService          *service.KiroOAuthService
 	geminiOAuthService        *service.GeminiOAuthService
 	antigravityOAuthService   *service.AntigravityOAuthService
 	rateLimitService          *service.RateLimitService
@@ -49,6 +50,9 @@ func (h *AccountHandler) SetModelRegistryService(modelRegistryService *service.M
 }
 func (h *AccountHandler) SetCopilotOAuthService(copilotOAuthService *service.CopilotOAuthService) {
 	h.copilotOAuthService = copilotOAuthService
+}
+func (h *AccountHandler) SetKiroOAuthService(kiroOAuthService *service.KiroOAuthService) {
+	h.kiroOAuthService = kiroOAuthService
 }
 
 type CreateAccountRequest struct {

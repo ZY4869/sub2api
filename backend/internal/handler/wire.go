@@ -19,6 +19,7 @@ func ProvideAdminHandlers(
 	backupHandler *admin.BackupHandler,
 	oauthHandler *admin.OAuthHandler,
 	openaiOAuthHandler *admin.OpenAIOAuthHandler,
+	kiroOAuthHandler *admin.KiroOAuthHandler,
 	geminiOAuthHandler *admin.GeminiOAuthHandler,
 	antigravityOAuthHandler *admin.AntigravityOAuthHandler,
 	proxyHandler *admin.ProxyHandler,
@@ -46,6 +47,7 @@ func ProvideAdminHandlers(
 		Backup:           backupHandler,
 		OAuth:            oauthHandler,
 		OpenAIOAuth:      openaiOAuthHandler,
+		KiroOAuth:        kiroOAuthHandler,
 		GeminiOAuth:      geminiOAuthHandler,
 		AntigravityOAuth: antigravityOAuthHandler,
 		Proxy:            proxyHandler,
@@ -71,6 +73,7 @@ func ProvideAdminAccountHandler(
 	oauthService *service.OAuthService,
 	openaiOAuthService *service.OpenAIOAuthService,
 	copilotOAuthService *service.CopilotOAuthService,
+	kiroOAuthService *service.KiroOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
 	antigravityOAuthService *service.AntigravityOAuthService,
 	rateLimitService *service.RateLimitService,
@@ -102,6 +105,7 @@ func ProvideAdminAccountHandler(
 	handler.SetAccountModelImportService(accountModelImportService)
 	handler.SetModelRegistryService(modelRegistryService)
 	handler.SetCopilotOAuthService(copilotOAuthService)
+	handler.SetKiroOAuthService(kiroOAuthService)
 	return handler
 }
 
@@ -220,6 +224,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewBackupHandler,
 	admin.NewOAuthHandler,
 	ProvideOpenAIOAuthHandler,
+	admin.NewKiroOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
 	admin.NewProxyHandler,

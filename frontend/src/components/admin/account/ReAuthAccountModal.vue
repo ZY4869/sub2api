@@ -135,9 +135,10 @@
         @submit="handleCopilotReauthorize"
       />
 
-      <AccountKiroTokenImportPanel
+      <AccountKiroAuthPanel
         v-else-if="isKiro"
-        ref="kiroImportRef"
+        ref="kiroAuthRef"
+        :proxy-id="account.proxy_id"
         :submit-label="t('admin.accounts.reAuthorize')"
         :submitting="platformSubmitLoading"
         @submit="handleKiroReauthorize"
@@ -223,7 +224,7 @@ import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import type { Account } from '@/types'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
-import AccountKiroTokenImportPanel from '@/components/account/AccountKiroTokenImportPanel.vue'
+import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.vue'
@@ -263,7 +264,7 @@ const antigravityOAuth = useAntigravityOAuth()
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 const copilotDeviceFlowRef = ref<{ reset: () => void } | null>(null)
-const kiroImportRef = ref<{ reset: () => void } | null>(null)
+const kiroAuthRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const addMethod = ref<AddMethod>('oauth')
@@ -359,7 +360,7 @@ const resetState = () => {
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
   copilotDeviceFlowRef.value?.reset()
-  kiroImportRef.value?.reset()
+  kiroAuthRef.value?.reset()
 }
 
 const handleClose = () => {

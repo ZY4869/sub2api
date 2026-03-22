@@ -264,6 +264,89 @@ export async function refreshCopilotAccount(id: number): Promise<Account> {
   return data
 }
 
+export interface KiroAuthUrlResult {
+  auth_url: string
+  session_id: string
+  redirect_uri: string
+  state: string
+}
+
+export interface KiroExchangeCodeResult {
+  access_token: string
+  refresh_token?: string
+  expires_at?: string
+  auth_method?: string
+  provider?: string
+  client_id?: string
+  client_secret?: string
+  client_id_hash?: string
+  start_url?: string
+  region?: string
+  profile_arn?: string
+  email?: string
+  username?: string
+  display_name?: string
+}
+
+export async function generateKiroAuthUrl(payload: {
+  proxy_id?: number | null
+  redirect_uri?: string
+  method?: string
+  start_url?: string
+  region?: string
+} = {}): Promise<KiroAuthUrlResult> {
+  const { data } = await apiClient.post<KiroAuthUrlResult>('/admin/kiro/oauth/auth-url', payload)
+  return data
+}
+
+export async function exchangeKiroAuthCode(payload: {
+  session_id: string
+  code: string
+  state: string
+  proxy_id?: number | null
+}): Promise<KiroExchangeCodeResult> {
+  const { data } = await apiClient.post<KiroExchangeCodeResult>('/admin/kiro/oauth/exchange-code', payload)
+  return data
+}
+
+export async function createKiroAccountFromOAuth(payload: {
+  session_id: string
+  code: string
+  state: string
+  proxy_id?: number | null
+  name: string
+  notes?: string | null
+  concurrency?: number
+  load_factor?: number | null
+  priority?: number
+  rate_multiplier?: number
+  group_ids?: number[]
+  expires_at?: number | null
+  auto_pause_on_expired?: boolean
+  confirm_mixed_channel_risk?: boolean
+}): Promise<Account> {
+  const { data } = await apiClient.post<Account>('/admin/kiro/create-from-oauth', payload)
+  return data
+}
+
+export async function reauthorizeKiroAccountFromOAuth(
+  id: number,
+  payload: {
+    session_id: string
+    code: string
+    state: string
+    proxy_id?: number | null
+  }
+): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/kiro/accounts/${id}/reauthorize-from-oauth`, payload)
+  return data
+}
+
+export async function refreshKiroAccount(id: number): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/kiro/accounts/${id}/refresh`)
+  return data
+}
+
 /**
  * Get account usage statistics
  * @param id - Account ID
@@ -756,6 +839,11 @@ export const accountsAPI = {
   createCopilotAccountFromDevice,
   reauthorizeCopilotAccountFromDevice,
   refreshCopilotAccount,
+  generateKiroAuthUrl,
+  exchangeKiroAuthCode,
+  createKiroAccountFromOAuth,
+  reauthorizeKiroAccountFromOAuth,
+  refreshKiroAccount,
   getStats,
   clearError,
   getUsage,

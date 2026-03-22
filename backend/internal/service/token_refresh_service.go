@@ -47,6 +47,7 @@ func NewTokenRefreshService(
 	schedulerCache SchedulerCache,
 	cfg *config.Config,
 	tempUnschedCache TempUnschedCache,
+	kiroOAuthService ...*KiroOAuthService,
 ) *TokenRefreshService {
 	s := &TokenRefreshService{
 		accountRepo:      accountRepo,
@@ -79,6 +80,12 @@ func NewTokenRefreshService(
 		openAIRefresher,
 		geminiRefresher,
 		agRefresher,
+	}
+
+	if len(kiroOAuthService) > 0 && kiroOAuthService[0] != nil {
+		kiroRefresher := NewKiroTokenRefresher(kiroOAuthService[0])
+		s.refreshers = append([]TokenRefresher{claudeRefresher, kiroRefresher}, s.refreshers[1:]...)
+		s.executors = append([]OAuthRefreshExecutor{claudeRefresher, kiroRefresher}, s.executors[1:]...)
 	}
 
 	return s

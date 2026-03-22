@@ -1964,7 +1964,7 @@
       claudeCodeAccount: 'Claude Code 账号',
       kiroAccount: 'Kiro 账号',
       openaiAccount: 'OpenAI 账号',
-      copilotAccount: 'Copilot 账号',
+      copilotAccount: 'GitHub Copilot 账号',
       soraAccount: 'Sora 账号',
       geminiAccount: 'Gemini 账号',
       antigravityAccount: 'Antigravity 账号',
@@ -1972,7 +1972,7 @@
       inputMethod: '输入方式',
       reAuthorizedSuccess: '账号重新授权成功',
       copilotDeviceFlow: {
-        title: 'Copilot 设备授权',
+        title: 'GitHub Copilot 设备授权',
         description: '使用 GitHub Device Flow 完成 Copilot 授权。开始后在 GitHub 页面输入验证码，系统会自动轮询状态。',
         userCode: '用户验证码',
         verificationUrl: '验证地址',
@@ -1993,6 +1993,53 @@
           pending: '等待授权',
           completed: '已授权'
         }
+      },
+      kiroAuth: {
+        title: 'Kiro 登录授权',
+        description: '通过浏览器打开 Kiro 官方授权页完成登录。推荐优先使用 AWS Builder ID；组织账号可使用 IDC；GitHub / Google 作为兼容入口保留。',
+        tabs: {
+          oauth: '登录授权',
+          import: '手动导入'
+        },
+        methods: {
+          builderId: {
+            title: 'AWS Builder ID',
+            description: '推荐，适合个人 Builder ID 账号'
+          },
+          idc: {
+            title: '组织 SSO (IDC)',
+            description: '适用于 AWS IAM Identity Center / 企业 SSO'
+          },
+          github: {
+            title: 'GitHub',
+            description: '实验入口，可能受官方限制'
+          },
+          google: {
+            title: 'Google',
+            description: '实验入口，可能受官方限制'
+          }
+        },
+        startUrl: 'Start URL',
+        startUrlPlaceholder: 'https://d-xxxx.awsapps.com/start',
+        region: 'Region',
+        regionPlaceholder: 'us-east-1',
+        socialWarning: 'GitHub / Google 登录在第三方应用场景下可能因为 AWS Cognito redirect 限制失败；如果失败，请改用 Builder ID 或手动导入 Kiro IDE token。',
+        generate: '生成授权链接',
+        regenerate: '重新生成链接',
+        openAuthUrl: '打开授权页',
+        copyAuthUrl: '复制授权链接',
+        authUrl: '授权链接',
+        redirectUri: '回调地址',
+        oauthState: 'State',
+        callbackUrl: '回填回调地址',
+        callbackPlaceholder: '粘贴浏览器地址栏中的完整回调 URL',
+        callbackHint: '授权完成后浏览器通常会跳到 localhost 并显示无法打开，这是预期现象。请复制完整地址栏 URL 回来，系统会自动提取 code 和 state。',
+        parsedCode: '解析出的 Code',
+        parsedState: '解析出的 State',
+        generateFailed: '生成 Kiro 授权链接失败',
+        exchangeFailed: 'Kiro 授权校验失败',
+        sessionMissing: '请先生成授权链接',
+        codeMissing: '请先粘贴回调地址或授权码'
       },
       kiroImport: {
         title: 'Kiro Token 导入',

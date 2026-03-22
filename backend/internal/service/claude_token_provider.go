@@ -24,6 +24,7 @@ type ClaudeTokenProvider struct {
 	oauthService  *OAuthService
 	refreshAPI    *OAuthRefreshAPI
 	executor      OAuthRefreshExecutor
+	kiroExecutor  OAuthRefreshExecutor
 	refreshPolicy ProviderRefreshPolicy
 }
 
@@ -41,9 +42,12 @@ func NewClaudeTokenProvider(
 }
 
 // SetRefreshAPI injects unified OAuth refresh API and executor.
-func (p *ClaudeTokenProvider) SetRefreshAPI(api *OAuthRefreshAPI, executor OAuthRefreshExecutor) {
+func (p *ClaudeTokenProvider) SetRefreshAPI(api *OAuthRefreshAPI, executor OAuthRefreshExecutor, kiroExecutor ...OAuthRefreshExecutor) {
 	p.refreshAPI = api
 	p.executor = executor
+	if len(kiroExecutor) > 0 {
+		p.kiroExecutor = kiroExecutor[0]
+	}
 }
 
 // SetRefreshPolicy injects caller-side refresh policy.
@@ -80,13 +84,14 @@ func (p *ClaudeTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	// 2) Refresh if needed (pre-expiry skew).
 	expiresAt := account.GetCredentialAsTime("expires_at")
 	needsRefresh := expiresAt == nil || time.Until(*expiresAt) <= claudeTokenRefreshSkew
-	if account.Platform == PlatformKiro {
-		needsRefresh = false
-	}
 	refreshFailed := false
+	executor := p.executor
+	if account.Platform == PlatformKiro && p.kiroExecutor != nil {
+		executor = p.kiroExecutor
+	}
 
-	if needsRefresh && p.refreshAPI != nil && p.executor != nil {
-		result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, p.executor, claudeTokenRefreshSkew)
+	if needsRefresh && p.refreshAPI != nil && executor != nil {
+		result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, executor, claudeTokenRefreshSkew)
 		if err != nil {
 			if p.refreshPolicy.OnRefreshError == ProviderRefreshErrorReturn {
 				return "", err

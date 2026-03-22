@@ -35,6 +35,7 @@ func RegisterAdminRoutes(
 		// OpenAI OAuth
 		registerOpenAIOAuthRoutes(admin, h)
 		registerCopilotOAuthRoutes(admin, h)
+		registerKiroOAuthRoutes(admin, h)
 		// Sora OAuth（实现复用 OpenAI OAuth 服务，入口独立）
 		registerSoraOAuthRoutes(admin, h)
 
@@ -355,6 +356,17 @@ func registerCopilotOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		copilot.POST("/create-from-device", h.Admin.OpenAIOAuth.CreateCopilotAccountFromDevice)
 		copilot.POST("/accounts/:id/reauthorize-from-device", h.Admin.OpenAIOAuth.ReauthorizeCopilotAccountFromDevice)
 		copilot.POST("/accounts/:id/refresh", h.Admin.OpenAIOAuth.RefreshCopilotAccount)
+	}
+}
+
+func registerKiroOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	kiro := admin.Group("/kiro")
+	{
+		kiro.POST("/oauth/auth-url", h.Admin.KiroOAuth.GenerateAuthURL)
+		kiro.POST("/oauth/exchange-code", h.Admin.KiroOAuth.ExchangeCode)
+		kiro.POST("/create-from-oauth", h.Admin.KiroOAuth.CreateAccountFromOAuth)
+		kiro.POST("/accounts/:id/reauthorize-from-oauth", h.Admin.KiroOAuth.ReauthorizeAccountFromOAuth)
+		kiro.POST("/accounts/:id/refresh", h.Admin.KiroOAuth.RefreshAccount)
 	}
 }
 

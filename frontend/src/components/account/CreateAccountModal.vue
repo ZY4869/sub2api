@@ -277,9 +277,10 @@
         @submit="handleCreateCopilotAccount"
       />
 
-      <AccountKiroTokenImportPanel
+      <AccountKiroAuthPanel
         v-else-if="form.platform === 'kiro'"
-        ref="kiroImportRef"
+        ref="kiroAuthRef"
+        :proxy-id="form.proxy_id"
         :submit-label="t('common.create')"
         :submitting="submitting"
         @submit="handleCreateKiroAccount"
@@ -391,7 +392,7 @@ import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErr
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
-import AccountKiroTokenImportPanel from '@/components/account/AccountKiroTokenImportPanel.vue'
+import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
@@ -440,7 +441,7 @@ const oauthStepTitle = computed(() => {
   if (form.platform === 'gemini') return t('admin.accounts.oauth.gemini.title')
   if (form.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.title')
   if (form.platform === 'copilot') return t('admin.accounts.copilotDeviceFlow.title')
-  if (form.platform === 'kiro') return t('admin.accounts.kiroImport.title')
+  if (form.platform === 'kiro') return t('admin.accounts.kiroAuth.title')
   return t('admin.accounts.oauth.title')
 })
 
@@ -503,7 +504,7 @@ const currentOAuthError = computed(() => {
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
 const copilotDeviceFlowRef = ref<{ reset: () => void } | null>(null)
-const kiroImportRef = ref<{ reset: () => void } | null>(null)
+const kiroAuthRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const step = ref(1)
@@ -792,7 +793,7 @@ watch(
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
     copilotDeviceFlowRef.value?.reset()
-    kiroImportRef.value?.reset()
+    kiroAuthRef.value?.reset()
   }
 )
 
@@ -989,7 +990,7 @@ const { resetForm } = useCreateAccountReset({
   antigravityOAuthReset: () => antigravityOAuth.resetState(),
   oauthFlowReset: () => oauthFlowRef.value?.reset(),
   copilotFlowReset: () => copilotDeviceFlowRef.value?.reset(),
-  kiroImportReset: () => kiroImportRef.value?.reset(),
+  kiroImportReset: () => kiroAuthRef.value?.reset(),
   resetMixedChannelRisk
 })
 
@@ -1289,7 +1290,7 @@ const goBackToBasicInfo = () => {
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
   copilotDeviceFlowRef.value?.reset()
-  kiroImportRef.value?.reset()
+  kiroAuthRef.value?.reset()
 }
 
 const handleGenerateUrl = async () => {
