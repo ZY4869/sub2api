@@ -167,6 +167,12 @@ func (c *kiroOAuthClient) doJSON(ctx context.Context, method, endpoint string, p
 		return infraerrors.ServiceUnavailable("KIRO_OAUTH_REQUEST_FAILED", "kiro oauth request failed").WithCause(err)
 	}
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+		if isKiroInvalidRedirectURI(body) {
+			return infraerrors.BadRequest(
+				"KIRO_OAUTH_INVALID_REDIRECT_URI",
+				"kiro oauth redirect_uri must use a local loopback callback such as http://127.0.0.1:19877/oauth/callback",
+			)
+		}
 		return infraerrors.BadRequest("KIRO_OAUTH_UPSTREAM_REJECTED", fmt.Sprintf("kiro oauth request failed with status %d: %s", statusCode, sanitizeKiroBody(body)))
 	}
 	if err := json.Unmarshal(body, out); err != nil {
@@ -246,6 +252,11 @@ func sanitizeKiroBody(body []byte) string {
 		return trimmed[:512]
 	}
 	return trimmed
+}
+
+func isKiroInvalidRedirectURI(body []byte) bool {
+	normalized := strings.ToLower(strings.TrimSpace(string(body)))
+	return strings.Contains(normalized, "invalid_redirect_uri") || strings.Contains(normalized, "loopback interface")
 }
 
 func firstNonEmptyString(values ...string) string {

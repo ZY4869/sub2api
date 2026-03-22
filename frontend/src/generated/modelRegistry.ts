@@ -33,11 +33,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-03-16T16:51:37Z"
+export const generatedModelRegistryBuiltAt = "2026-03-22T13:19:24Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"dfa811fe3f6e3a46d1a29b18d7215e068a4942db99e9164de21294f7c8c85c77\"",
-  "updated_at": "2026-03-16T16:51:37Z",
+  "etag": "W/\"70179fc2a44925ad6cfaed49de6724514a4b56afc632fe3e17ae6f74d20aa177\"",
+  "updated_at": "2026-03-22T13:19:24Z",
   "models": [
     {
       "id": "abab6.5-chat",
@@ -6284,6 +6284,54 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "status": "deprecated",
       "replaced_by": "gpt-5-codex"
+    },
+    {
+      "id": "gpt-5.4-pro",
+      "display_name": "GPT-5.4-pro",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.4-pro"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.4-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 50,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-5.4-pro-2026-03-05",
+      "display_name": "GPT-5.4-pro-2026-03-05",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.4-pro-2026-03-05"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.4-pro"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 51,
+      "exposed_in": [
+        "whitelist"
+      ]
     },
     {
       "id": "chatgpt-4o-latest",

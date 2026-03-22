@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndCreatesRuntimeEntry(t *testing.T) {
+func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndResolvesSeededGPT54Pro(t *testing.T) {
 	ctx := context.Background()
 	repo := newAccountModelImportSettingRepoStub()
 	require.NoError(t, repo.Set(ctx, SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
@@ -16,7 +16,7 @@ func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndCreates
 
 	detail, err := svc.GetDetail(ctx, "gpt-5.4-pro")
 	require.NoError(t, err)
-	require.Equal(t, "runtime", detail.Source)
+	require.Equal(t, "seed", detail.Source)
 	require.True(t, detail.Available)
 	require.Equal(t, "openai", detail.Provider)
 	require.ElementsMatch(t, []string{"runtime", "test", "whitelist"}, detail.ExposedIn)

@@ -91,9 +91,9 @@ func (s *KiroOAuthService) GenerateAuthURL(ctx context.Context, input *KiroGener
 	if err != nil {
 		return nil, infraerrors.InternalServer("KIRO_OAUTH_VERIFIER_FAILED", "failed to generate kiro oauth code verifier").WithCause(err)
 	}
-	redirectURI := strings.TrimSpace(input.RedirectURI)
-	if redirectURI == "" {
-		redirectURI = pkgkiro.DefaultRedirectURI
+	redirectURI, err := pkgkiro.ResolveRedirectURI(input.RedirectURI)
+	if err != nil {
+		return nil, infraerrors.BadRequest("KIRO_OAUTH_INVALID_REDIRECT_URI", err.Error())
 	}
 	proxyURL, err := s.resolveProxyURL(ctx, input.ProxyID)
 	if err != nil {

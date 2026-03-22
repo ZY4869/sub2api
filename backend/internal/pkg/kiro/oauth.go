@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -14,7 +15,7 @@ import (
 
 const (
 	SocialAuthEndpoint = "https://prod.us-east-1.auth.desktop.kiro.dev"
-	DefaultRedirectURI = "http://localhost:19877/oauth/callback"
+	DefaultRedirectURI = "http://127.0.0.1:19877/oauth/callback"
 	BuilderIDStartURL  = "https://view.awsapps.com/start"
 	DefaultIDCRegion   = "us-east-1"
 	OIDCScopes         = "codewhisperer:completions,codewhisperer:analysis,codewhisperer:conversations,codewhisperer:transformations,codewhisperer:taskassist"
@@ -119,7 +120,7 @@ func BuildSocialAuthURL(method, redirectURI, codeChallenge, state string) (strin
 	}
 	params := url.Values{}
 	params.Set("idp", idp)
-	params.Set("redirect_uri", normalizeRedirectURI(redirectURI))
+	params.Set("redirect_uri", redirectURI)
 	params.Set("code_challenge", codeChallenge)
 	params.Set("code_challenge_method", "S256")
 	params.Set("state", state)
@@ -131,7 +132,7 @@ func BuildOIDCAuthURL(region, clientID, redirectURI, state, codeChallenge string
 	params := url.Values{}
 	params.Set("response_type", "code")
 	params.Set("client_id", strings.TrimSpace(clientID))
-	params.Set("redirect_uri", normalizeRedirectURI(redirectURI))
+	params.Set("redirect_uri", redirectURI)
 	params.Set("scopes", OIDCScopes)
 	params.Set("state", state)
 	params.Set("code_challenge", codeChallenge)
@@ -147,12 +148,49 @@ func OIDCEndpoint(region string) string {
 	return fmt.Sprintf("https://oidc.%s.amazonaws.com", normalized)
 }
 
-func normalizeRedirectURI(redirectURI string) string {
+func ResolveRedirectURI(redirectURI string) (string, error) {
 	trimmed := strings.TrimSpace(redirectURI)
 	if trimmed == "" {
-		return DefaultRedirectURI
+		trimmed = DefaultRedirectURI
 	}
-	return trimmed
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("kiro oauth redirect_uri must be an absolute http loopback URL")
+	}
+	if !strings.EqualFold(parsed.Scheme, "http") {
+		return "", fmt.Errorf("kiro oauth redirect_uri must use an http loopback URL")
+	}
+	host, err := normalizeLoopbackHost(parsed.Hostname())
+	if err != nil {
+		return "", err
+	}
+	parsed.Host = buildRedirectHost(host, parsed.Port())
+	return parsed.String(), nil
+}
+
+func normalizeLoopbackHost(host string) (string, error) {
+	trimmed := strings.TrimSpace(host)
+	if trimmed == "" {
+		return "", fmt.Errorf("kiro oauth redirect_uri must use a loopback interface such as http://127.0.0.1:19877/oauth/callback")
+	}
+	if strings.EqualFold(trimmed, "localhost") {
+		return "127.0.0.1", nil
+	}
+	ip := net.ParseIP(trimmed)
+	if ip == nil || !ip.IsLoopback() {
+		return "", fmt.Errorf("kiro oauth redirect_uri must use a loopback interface such as http://127.0.0.1:19877/oauth/callback")
+	}
+	return trimmed, nil
+}
+
+func buildRedirectHost(host string, port string) string {
+	if port == "" {
+		if strings.Contains(host, ":") {
+			return "[" + host + "]"
+		}
+		return host
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func socialIDP(method string) string {

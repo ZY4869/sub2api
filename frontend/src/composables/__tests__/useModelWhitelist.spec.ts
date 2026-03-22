@@ -38,11 +38,13 @@ describe("useModelWhitelist", () => {
     expect(models).toContain("claude-opus-4-6-thinking");
   });
 
-  it("openai models include GPT-5.4 official snapshot", () => {
+  it("openai models include GPT-5.4 and GPT-5.4-pro official snapshots", () => {
     const models = getModelsByPlatform("openai");
 
     expect(models).toContain("gpt-5.4");
     expect(models).toContain("gpt-5.4-2026-03-05");
+    expect(models).toContain("gpt-5.4-pro");
+    expect(models).toContain("gpt-5.4-pro-2026-03-05");
   });
 
   it("gemini models include prioritized native image models", () => {
@@ -87,6 +89,7 @@ describe("useModelWhitelist", () => {
     const openAIModels = getModelsByPlatform("openai", "test");
 
     expect(openAIModels).toContain("gpt-5.4");
+    expect(openAIModels).toContain("gpt-5.4-pro");
     expect(openAIModels).not.toContain("gpt-5-codex");
   });
 
@@ -143,6 +146,18 @@ describe("useModelWhitelist", () => {
 
     expect(mapping).toEqual({
       "gpt-5.4-2026-03-05": "gpt-5.4-2026-03-05",
+    });
+  });
+
+  it("keeps GPT-5.4-pro official snapshot as exact whitelist mapping", () => {
+    const mapping = buildModelMappingObject(
+      "whitelist",
+      ["gpt-5.4-pro-2026-03-05"],
+      [],
+    );
+
+    expect(mapping).toEqual({
+      "gpt-5.4-pro-2026-03-05": "gpt-5.4-pro-2026-03-05",
     });
   });
 });

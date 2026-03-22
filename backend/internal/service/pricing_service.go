@@ -35,6 +35,19 @@ var (
 		Mode:                            "chat",
 		SupportsPromptCaching:           true,
 	}
+	openAIGPT54ProFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:                3e-05, // $30 per MTok
+		InputTokenThreshold:              272000,
+		InputCostPerTokenAboveThreshold:  6e-05,
+		OutputCostPerToken:               1.8e-04, // $180 per MTok
+		OutputCostPerTokenAboveThreshold: 2.7e-04,
+		LongContextInputTokenThreshold:   272000,
+		LongContextInputCostMultiplier:   2.0,
+		LongContextOutputCostMultiplier:  1.5,
+		LiteLLMProvider:                  "openai",
+		Mode:                             "responses",
+		SupportsPromptCaching:            true,
+	}
 )
 
 // LiteLLMModelPricing LiteLLM价格数据结构
@@ -830,6 +843,12 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 				Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.2-codex"))
 			return pricing
 		}
+	}
+
+	if strings.HasPrefix(model, "gpt-5.4-pro") {
+		logger.With(zap.String("component", "service.pricing")).
+			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.4-pro(static)"))
+		return openAIGPT54ProFallbackPricing
 	}
 
 	if strings.HasPrefix(model, "gpt-5.4") {

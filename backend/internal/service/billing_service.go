@@ -246,6 +246,19 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextInputMultiplier:     openAIGPT54LongContextInputMultiplier,
 		LongContextOutputMultiplier:    openAIGPT54LongContextOutputMultiplier,
 	}
+	// OpenAI GPT-5.4 Pro（官方定价兜底）
+	s.fallbackPrices["gpt-5.4-pro"] = &ModelPricing{
+		InputPricePerToken:                3e-5, // $30 per MTok
+		InputTokenThreshold:               openAIGPT54LongContextInputThreshold,
+		InputPricePerTokenAboveThreshold:  6e-5,
+		OutputPricePerToken:               1.8e-4, // $180 per MTok
+		OutputTokenThreshold:              openAIGPT54LongContextInputThreshold,
+		OutputPricePerTokenAboveThreshold: 2.7e-4,
+		SupportsCacheBreakdown:            false,
+		LongContextInputThreshold:         openAIGPT54LongContextInputThreshold,
+		LongContextInputMultiplier:        openAIGPT54LongContextInputMultiplier,
+		LongContextOutputMultiplier:       openAIGPT54LongContextOutputMultiplier,
+	}
 	// OpenAI GPT-5.2（本地兜底）
 	s.fallbackPrices["gpt-5.2"] = &ModelPricing{
 		InputPricePerToken:             1.75e-6,
@@ -318,18 +331,20 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	// OpenAI 仅匹配已知 GPT-5/Codex 族，避免未知 OpenAI 型号误计价。
 	if strings.Contains(modelLower, "gpt-5") || strings.Contains(modelLower, "codex") {
 		normalized := normalizeCodexModel(modelLower)
-		switch normalized {
-		case "gpt-5.4":
+		switch {
+		case strings.HasPrefix(normalized, "gpt-5.4-pro"):
+			return s.fallbackPrices["gpt-5.4-pro"]
+		case strings.HasPrefix(normalized, "gpt-5.4"):
 			return s.fallbackPrices["gpt-5.4"]
-		case "gpt-5.2":
-			return s.fallbackPrices["gpt-5.2"]
-		case "gpt-5.2-codex":
+		case strings.HasPrefix(normalized, "gpt-5.2-codex"):
 			return s.fallbackPrices["gpt-5.2-codex"]
-		case "gpt-5.3-codex":
+		case strings.HasPrefix(normalized, "gpt-5.2"):
+			return s.fallbackPrices["gpt-5.2"]
+		case strings.HasPrefix(normalized, "gpt-5.3-codex"):
 			return s.fallbackPrices["gpt-5.3-codex"]
-		case "gpt-5.1-codex", "gpt-5.1-codex-max", "gpt-5.1-codex-mini", "codex-mini-latest":
+		case normalized == "gpt-5.1-codex", normalized == "gpt-5.1-codex-max", normalized == "gpt-5.1-codex-mini", normalized == "codex-mini-latest":
 			return s.fallbackPrices["gpt-5.1-codex"]
-		case "gpt-5.1":
+		case strings.HasPrefix(normalized, "gpt-5.1"), strings.HasPrefix(normalized, "gpt-5-pro"):
 			return s.fallbackPrices["gpt-5.1"]
 		}
 	}
@@ -626,7 +641,7 @@ func (s *BillingService) shouldApplySessionLongContextPricing(tokens UsageTokens
 
 func isOpenAIGPT54Model(model string) bool {
 	normalized := normalizeCodexModel(strings.TrimSpace(strings.ToLower(model)))
-	return normalized == "gpt-5.4"
+	return strings.HasPrefix(normalized, "gpt-5.4")
 }
 
 // CalculateCostWithConfig 使用配置中的默认倍率计算费用

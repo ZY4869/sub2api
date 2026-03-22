@@ -4599,6 +4599,54 @@
     ]
   },
   {
+    "id": "gpt-5.4-pro",
+    "display_name": "GPT-5.4-pro",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.4-pro"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.4-pro"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 50,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "gpt-5.4-pro-2026-03-05",
+    "display_name": "GPT-5.4-pro-2026-03-05",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.4-pro-2026-03-05"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.4-pro"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 51,
+    "exposed_in": [
+      "whitelist"
+    ]
+  },
+  {
     "id": "gpt-5.3-codex",
     "display_name": "GPT-5.3 Codex",
     "provider": "openai",
