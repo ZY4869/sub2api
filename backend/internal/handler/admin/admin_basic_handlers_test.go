@@ -161,6 +161,23 @@ func TestGroupHandlerEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestGroupHandlerEndpoints_AcceptsKiroAndCopilotPlatforms(t *testing.T) {
+	router, _ := setupAdminRouter()
+
+	for _, platform := range []string{"kiro", "copilot"} {
+		body, _ := json.Marshal(map[string]any{
+			"name":              "new-" + platform,
+			"platform":          platform,
+			"subscription_type": "standard",
+		})
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/groups", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code, platform)
+	}
+}
+
 func TestProxyHandlerEndpoints(t *testing.T) {
 	router, _ := setupAdminRouter()
 

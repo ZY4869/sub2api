@@ -66,6 +66,7 @@ const (
 type AccountTestService struct {
 	accountRepo               AccountRepository
 	accountModelImportService *AccountModelImportService
+	claudeTokenProvider       *ClaudeTokenProvider
 	modelRegistryService      *ModelRegistryService
 	openAITokenProvider       *OpenAITokenProvider
 	geminiTokenProvider       *GeminiTokenProvider
@@ -103,6 +104,10 @@ func NewAccountTestService(
 
 func (s *AccountTestService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *AccountTestService) SetClaudeTokenProvider(claudeTokenProvider *ClaudeTokenProvider) {
+	s.claudeTokenProvider = claudeTokenProvider
 }
 
 func (s *AccountTestService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
@@ -348,12 +353,20 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	var authToken string
 	var useBearer bool
 	var apiURL string
+	var err error
 
 	if account.IsOAuth() {
 		// OAuth or Setup Token - use Bearer token
 		useBearer = true
 		apiURL = testClaudeAPIURL
-		authToken = account.GetCredential("access_token")
+		if account.Type == AccountTypeOAuth && s.claudeTokenProvider != nil {
+			authToken, err = s.claudeTokenProvider.GetAccessToken(ctx, account)
+			if err != nil {
+				return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to get access token: %s", err.Error()))
+			}
+		} else {
+			authToken = account.GetCredential("access_token")
+		}
 		if authToken == "" {
 			return s.sendErrorAndEnd(c, "No access token available")
 		}
