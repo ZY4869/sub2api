@@ -2,91 +2,92 @@
   <BaseDialog
     :show="show"
     :title="t('admin.accounts.createAccount')"
-    width="wide"
+    width="extra-wide"
     @close="handleClose"
   >
-    <!-- Step Indicator for OAuth accounts -->
-    <div v-if="isOAuthFlow" class="mb-6 flex items-center justify-center">
-      <div class="flex items-center space-x-4">
-        <div class="flex items-center">
-          <div
-            :class="[
-              'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
-              step >= 1 ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-dark-600'
-            ]"
-          >
-            1
+    <div class="min-w-0 overflow-x-hidden">
+      <!-- Step Indicator for OAuth accounts -->
+      <div v-if="isOAuthFlow" class="mb-6 flex justify-center">
+        <div class="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:gap-4">
+          <div class="flex min-w-0 items-center justify-center">
+            <div
+              :class="[
+                'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                step >= 1 ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-dark-600'
+              ]"
+            >
+              1
+            </div>
+            <span class="ml-2 min-w-0 break-words text-sm font-medium text-gray-700 dark:text-gray-300">{{
+              t('admin.accounts.oauth.authMethod')
+            }}</span>
           </div>
-          <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">{{
-            t('admin.accounts.oauth.authMethod')
-          }}</span>
-        </div>
-        <div class="h-0.5 w-8 bg-gray-300 dark:bg-dark-600" />
-        <div class="flex items-center">
-          <div
-            :class="[
-              'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
-              step >= 2 ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-dark-600'
-            ]"
-          >
-            2
+          <div class="hidden h-0.5 w-8 bg-gray-300 dark:bg-dark-600 sm:block" />
+          <div class="flex min-w-0 items-center justify-center">
+            <div
+              :class="[
+                'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                step >= 2 ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-dark-600'
+              ]"
+            >
+              2
+            </div>
+            <span class="ml-2 min-w-0 break-words text-sm font-medium text-gray-700 dark:text-gray-300">{{
+              oauthStepTitle
+            }}</span>
           </div>
-          <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">{{
-            oauthStepTitle
-          }}</span>
         </div>
       </div>
-    </div>
 
-    <!-- Step 1: Basic Info -->
-    <form
-      v-if="step === 1"
-      id="create-account-form"
-      @submit.prevent="handleSubmit"
-      class="space-y-5"
-    >
-      <div>
-        <label class="input-label">{{ t('admin.accounts.accountName') }}</label>
-        <input
-          v-model="form.name"
-          type="text"
-          required
-          class="input"
-          :placeholder="t('admin.accounts.enterAccountName')"
-          data-tour="account-form-name"
+      <!-- Step 1: Basic Info -->
+      <form
+        v-if="step === 1"
+        id="create-account-form"
+        @submit.prevent="handleSubmit"
+        class="min-w-0 space-y-5"
+      >
+        <div>
+          <label class="input-label">{{ t('admin.accounts.accountName') }}</label>
+          <input
+            v-model="form.name"
+            type="text"
+            required
+            class="input"
+            :placeholder="t('admin.accounts.enterAccountName')"
+            data-tour="account-form-name"
+          />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.accounts.notes') }}</label>
+          <textarea
+            v-model="form.notes"
+            rows="3"
+            class="input"
+            :placeholder="t('admin.accounts.notesPlaceholder')"
+          ></textarea>
+          <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
+        </div>
+
+        <AccountCreatePlatformSelector v-model:platform="form.platform" />
+
+        <AccountCreatePlatformTypeEditor
+          v-model:platform="form.platform"
+          v-model:account-category="accountCategory"
+          v-model:add-method="addMethod"
+          v-model:sora-account-type="soraAccountType"
+          v-model:antigravity-account-type="antigravityAccountType"
+          v-model:gemini-o-auth-type="geminiOAuthType"
+          v-model:show-advanced="showAdvancedOAuth"
+          v-model:gemini-tier-google-one="geminiTierGoogleOne"
+          v-model:gemini-tier-gcp="geminiTierGcp"
+          v-model:gemini-tier-ai-studio="geminiTierAIStudio"
+          v-model:upstream-base-url="upstreamBaseUrl"
+          v-model:upstream-api-key="upstreamApiKey"
+          :ai-studio-o-auth-enabled="geminiAIStudioOAuthEnabled"
+          :api-key-help-link="geminiHelpLinks.apiKey"
+          :gcp-project-help-link="geminiHelpLinks.gcpProject"
+          @open-gemini-help="showGeminiHelpDialog = true"
         />
-      </div>
-      <div>
-        <label class="input-label">{{ t('admin.accounts.notes') }}</label>
-        <textarea
-          v-model="form.notes"
-          rows="3"
-          class="input"
-          :placeholder="t('admin.accounts.notesPlaceholder')"
-        ></textarea>
-        <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
-      </div>
-
-      <AccountCreatePlatformSelector v-model:platform="form.platform" />
-
-      <AccountCreatePlatformTypeEditor
-        v-model:platform="form.platform"
-        v-model:account-category="accountCategory"
-        v-model:add-method="addMethod"
-        v-model:sora-account-type="soraAccountType"
-        v-model:antigravity-account-type="antigravityAccountType"
-        v-model:gemini-o-auth-type="geminiOAuthType"
-        v-model:show-advanced="showAdvancedOAuth"
-        v-model:gemini-tier-google-one="geminiTierGoogleOne"
-        v-model:gemini-tier-gcp="geminiTierGcp"
-        v-model:gemini-tier-ai-studio="geminiTierAIStudio"
-        v-model:upstream-base-url="upstreamBaseUrl"
-        v-model:upstream-api-key="upstreamApiKey"
-        :ai-studio-o-auth-enabled="geminiAIStudioOAuthEnabled"
-        :api-key-help-link="geminiHelpLinks.apiKey"
-        :gcp-project-help-link="geminiHelpLinks.gcpProject"
-        @open-gemini-help="showGeminiHelpDialog = true"
-      />
 
       <!-- Antigravity model restriction (applies to OAuth + Upstream) -->
       <AccountAntigravityModelMappingEditor
@@ -265,48 +266,49 @@
         :show-mixed-scheduling="form.platform === 'antigravity'"
       />
 
-    </form>
+      </form>
 
-    <AccountCopilotDeviceFlowPanel
-      v-else-if="form.platform === 'copilot'"
-      ref="copilotDeviceFlowRef"
-      :proxy-id="form.proxy_id"
-      :submit-label="t('common.create')"
-      :submit-loading="copilotSubmitting"
-      @submit="handleCreateCopilotAccount"
-    />
+      <AccountCopilotDeviceFlowPanel
+        v-else-if="form.platform === 'copilot'"
+        ref="copilotDeviceFlowRef"
+        :proxy-id="form.proxy_id"
+        :submit-label="t('common.create')"
+        :submit-loading="copilotSubmitting"
+        @submit="handleCreateCopilotAccount"
+      />
 
-    <AccountKiroTokenImportPanel
-      v-else-if="form.platform === 'kiro'"
-      ref="kiroImportRef"
-      :submit-label="t('common.create')"
-      :submitting="submitting"
-      @submit="handleCreateKiroAccount"
-    />
+      <AccountKiroTokenImportPanel
+        v-else-if="form.platform === 'kiro'"
+        ref="kiroImportRef"
+        :submit-label="t('common.create')"
+        :submitting="submitting"
+        @submit="handleCreateKiroAccount"
+      />
 
-    <AccountCreateOAuthStep
-      v-else
-      ref="oauthFlowRef"
-      :add-method="form.platform === 'anthropic' ? addMethod : 'oauth'"
-      :auth-url="currentAuthUrl"
-      :session-id="currentSessionId"
-      :loading="currentOAuthLoading"
-      :error="currentOAuthError"
-      :show-help="form.platform === 'anthropic'"
-      :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'sora' && !!form.proxy_id"
-      :allow-multiple="form.platform === 'anthropic'"
-      :show-cookie-option="form.platform === 'anthropic'"
-      :show-refresh-token-option="form.platform === 'openai' || form.platform === 'sora' || form.platform === 'antigravity'"
-      :show-session-token-option="form.platform === 'sora'"
-      :show-access-token-option="form.platform === 'sora'"
-      :platform="form.platform"
-      :show-project-id="geminiOAuthType === 'code_assist'"
-      @generate-url="handleGenerateUrl"
-      @cookie-auth="handleCookieAuth"
-      @validate-refresh-token="handleValidateRefreshToken"
-      @validate-session-token="handleValidateSessionToken"
-      @import-access-token="handleImportAccessToken"
-    />
+      <AccountCreateOAuthStep
+        v-else
+        ref="oauthFlowRef"
+        :add-method="form.platform === 'anthropic' ? addMethod : 'oauth'"
+        :auth-url="currentAuthUrl"
+        :session-id="currentSessionId"
+        :loading="currentOAuthLoading"
+        :error="currentOAuthError"
+        :show-help="form.platform === 'anthropic'"
+        :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'sora' && !!form.proxy_id"
+        :allow-multiple="form.platform === 'anthropic'"
+        :show-cookie-option="form.platform === 'anthropic'"
+        :show-refresh-token-option="form.platform === 'openai' || form.platform === 'sora' || form.platform === 'antigravity'"
+        :show-session-token-option="form.platform === 'sora'"
+        :show-access-token-option="form.platform === 'sora'"
+        :platform="form.platform"
+        :show-project-id="geminiOAuthType === 'code_assist'"
+        @generate-url="handleGenerateUrl"
+        @cookie-auth="handleCookieAuth"
+        @validate-refresh-token="handleValidateRefreshToken"
+        @validate-session-token="handleValidateSessionToken"
+        @import-access-token="handleImportAccessToken"
+      />
+    </div>
 
     <template #footer>
       <AccountCreateFooterActions

@@ -826,7 +826,7 @@
         anthropic: 'Anthropic',
         kiro: 'Kiro',
         openai: 'OpenAI',
-        copilot: 'Copilot',
+        copilot: 'GitHub Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1217,7 +1217,7 @@
         openai: 'OpenAI',
         anthropic: 'Anthropic',
         kiro: 'Kiro',
-        copilot: 'Copilot',
+        copilot: 'GitHub Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'

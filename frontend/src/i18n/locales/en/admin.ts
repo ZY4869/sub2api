@@ -796,7 +796,7 @@ export default {
         anthropic: 'Anthropic',
         kiro: 'Kiro',
         openai: 'OpenAI',
-        copilot: 'Copilot',
+        copilot: 'GitHub Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1079,7 +1079,7 @@ export default {
         claude: 'Claude',
         kiro: 'Kiro',
         openai: 'OpenAI',
-        copilot: 'Copilot',
+        copilot: 'GitHub Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'

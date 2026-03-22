@@ -143,6 +143,9 @@ const antigravityOptions = computed<TypeOption[]>(() => [
     active: antigravityAccountType.value === 'upstream'
   }
 ])
+
+const showStepOneTypeCards = computed(() => platform.value !== 'kiro' && platform.value !== 'copilot')
+
 const showAnthropicAddMethod = computed(() => platform.value === 'anthropic' && accountCategory.value === 'oauth-based')
 
 function handleAnthropicSelect(key: string) {
@@ -163,59 +166,61 @@ function handleAntigravitySelect(key: string) {
 </script>
 
 <template>
-  <AccountCreateTypeCardGroup
-    v-if="platform === 'sora'"
-    :label="t('admin.accounts.accountType')"
-    :options="soraOptions"
-    tour="account-form-type"
-    @select="handleSoraSelect"
-  />
-
-  <AccountCreateTypeCardGroup
-    v-else-if="platform === 'anthropic'"
-    :label="t('admin.accounts.accountType')"
-    :options="anthropicOptions"
-    tour="account-form-type"
-    @select="handleAnthropicSelect"
-  />
-
-  <AccountCreateTypeCardGroup
-    v-else-if="platform === 'openai'"
-    :label="t('admin.accounts.accountType')"
-    :options="openAIOptions"
-    tour="account-form-type"
-    @select="handleOpenAISelect"
-  />
-
-  <AccountGeminiAccountTypeEditor
-    v-else-if="platform === 'gemini'"
-    v-model:account-category="accountCategory"
-    v-model:oauth-type="geminiOAuthType"
-    v-model:show-advanced="showAdvanced"
-    v-model:tier-google-one="geminiTierGoogleOne"
-    v-model:tier-gcp="geminiTierGcp"
-    v-model:tier-ai-studio="geminiTierAiStudio"
-    :ai-studio-o-auth-enabled="aiStudioOAuthEnabled"
-    :api-key-help-link="apiKeyHelpLink"
-    :gcp-project-help-link="gcpProjectHelpLink"
-    @open-help="$emit('openGeminiHelp')"
-  />
-
-  <div v-else-if="platform === 'antigravity'" class="space-y-4">
+  <template v-if="showStepOneTypeCards">
     <AccountCreateTypeCardGroup
+      v-if="platform === 'sora'"
       :label="t('admin.accounts.accountType')"
-      :options="antigravityOptions"
-      @select="handleAntigravitySelect"
+      :options="soraOptions"
+      tour="account-form-type"
+      @select="handleSoraSelect"
     />
 
-    <div v-if="antigravityAccountType === 'upstream'">
-      <AccountUpstreamSettingsEditor
-        v-model:base-url="upstreamBaseUrl"
-        v-model:api-key="upstreamApiKey"
-        mode="create"
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'anthropic'"
+      :label="t('admin.accounts.accountType')"
+      :options="anthropicOptions"
+      tour="account-form-type"
+      @select="handleAnthropicSelect"
+    />
+
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'openai'"
+      :label="t('admin.accounts.accountType')"
+      :options="openAIOptions"
+      tour="account-form-type"
+      @select="handleOpenAISelect"
+    />
+
+    <AccountGeminiAccountTypeEditor
+      v-else-if="platform === 'gemini'"
+      v-model:account-category="accountCategory"
+      v-model:oauth-type="geminiOAuthType"
+      v-model:show-advanced="showAdvanced"
+      v-model:tier-google-one="geminiTierGoogleOne"
+      v-model:tier-gcp="geminiTierGcp"
+      v-model:tier-ai-studio="geminiTierAiStudio"
+      :ai-studio-o-auth-enabled="aiStudioOAuthEnabled"
+      :api-key-help-link="apiKeyHelpLink"
+      :gcp-project-help-link="gcpProjectHelpLink"
+      @open-help="$emit('openGeminiHelp')"
+    />
+
+    <div v-else-if="platform === 'antigravity'" class="space-y-4">
+      <AccountCreateTypeCardGroup
+        :label="t('admin.accounts.accountType')"
+        :options="antigravityOptions"
+        @select="handleAntigravitySelect"
       />
+
+      <div v-if="antigravityAccountType === 'upstream'">
+        <AccountUpstreamSettingsEditor
+          v-model:base-url="upstreamBaseUrl"
+          v-model:api-key="upstreamApiKey"
+          mode="create"
+        />
+      </div>
     </div>
-  </div>
+  </template>
 
   <AccountCreateAddMethodSelector
     v-if="showAnthropicAddMethod"

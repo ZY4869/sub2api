@@ -4,10 +4,19 @@ import AccountCreatePlatformSelector from '../AccountCreatePlatformSelector.vue'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  const messages: Record<string, string> = {
+    'admin.accounts.platforms.anthropic': 'Anthropic',
+    'admin.accounts.platforms.kiro': 'Kiro',
+    'admin.accounts.platforms.openai': 'OpenAI',
+    'admin.accounts.platforms.copilot': 'GitHub Copilot',
+    'admin.accounts.platforms.gemini': 'Gemini',
+    'admin.accounts.platforms.antigravity': 'Antigravity',
+    'admin.accounts.platforms.sora': 'Sora'
+  }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: (key: string) => messages[key] ?? key
     })
   }
 })
@@ -27,10 +36,26 @@ describe('AccountCreatePlatformSelector', () => {
       }
     })
 
+    const selector = wrapper.get('[data-tour="account-form-platform"]')
+    expect(selector.classes()).toContain('grid')
+    expect(selector.classes()).toContain('grid-cols-2')
+    expect(selector.classes()).toContain('md:grid-cols-3')
+    expect(selector.classes()).toContain('xl:grid-cols-4')
+
     const buttonTexts = wrapper.findAll('button').map((button) => button.text())
-    expect(buttonTexts).toEqual(['Anthropic', 'OpenAI', 'Sora', 'Gemini', 'Antigravity'])
+    expect(buttonTexts).toEqual([
+      'Anthropic',
+      'Kiro',
+      'OpenAI',
+      'GitHub Copilot',
+      'Gemini',
+      'Antigravity',
+      'Sora'
+    ])
+    expect(wrapper.findAll('button')[0].classes()).toContain('min-w-0')
+    expect(wrapper.findAll('button')[0].classes()).toContain('whitespace-normal')
 
     await wrapper.findAll('button')[3].trigger('click')
-    expect(wrapper.emitted('update:platform')).toEqual([['gemini']])
+    expect(wrapper.emitted('update:platform')).toEqual([['copilot']])
   })
 })
