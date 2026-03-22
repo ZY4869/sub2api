@@ -14,6 +14,27 @@ export default {
           viewModes: {
             grid: '\u4e5d\u5bab\u683c',
             list: '\u5217\u8868'
+          },
+          filterPlaceholder: '\u7b5b\u9009\u5f53\u524d\u63d0\u4f9b\u5546\u7684\u6a21\u578b ID',
+          loadMore: '\u52a0\u8f7d\u66f4\u591a',
+          hardDeleteSingleConfirm: '\u786e\u5b9a\u8981\u5f7b\u5e95\u5220\u9664 {model} \u5417\uff1f',
+          categories: {
+            text: '\u5927\u6a21\u578b',
+            image: '\u56fe\u7247',
+            video: '\u89c6\u9891',
+            audio: '\u97f3\u9891',
+            other: '\u5176\u4ed6'
+          },
+          bulk: {
+            selected: '\u5df2\u9009\u62e9 {count} \u4e2a\u6a21\u578b',
+            selectLoaded: '\u5168\u9009\u5df2\u52a0\u8f7d',
+            clear: '\u6e05\u7a7a',
+            deactivate: '\u505c\u7528\u9009\u4e2d',
+            hardDelete: '\u5f7b\u5e95\u5220\u9664\u9009\u4e2d',
+            deactivateConfirm: '\u786e\u5b9a\u505c\u7528 {count} \u4e2a\u5df2\u542f\u7528\u6a21\u578b\u5417\uff1f',
+            hardDeleteConfirm: '\u786e\u5b9a\u5f7b\u5e95\u5220\u9664 {count} \u4e2a\u6a21\u578b\u5417\uff1f',
+            deactivateSuccess: '\u5df2\u505c\u7528 {count} \u4e2a\u6a21\u578b',
+            hardDeleteSuccess: '\u5df2\u5f7b\u5e95\u5220\u9664 {count} \u4e2a\u6a21\u578b'
           }
         },
         pricing: {

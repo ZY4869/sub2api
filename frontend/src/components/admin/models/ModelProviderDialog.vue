@@ -64,13 +64,25 @@
 
         <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-dark-700 dark:bg-dark-800">
           <ModelProviderModelsPanel
+            :provider="activeProvider"
             :models="activeModels"
+            :search-value="activeSearchValue"
+            :selected-ids="activeSelectedIds"
             :total-count="activeGroup?.totalCount"
             :available-count="activeGroup?.availableCount"
             :loading="loading"
             :has-more="hasMore"
             :is-activating="isActivating"
-            @activate="emit('activate', $event)"
+            :is-deactivating="isDeactivating"
+            :is-deleting="isDeleting"
+            @update:search="emit('update:search', activeProvider, $event)"
+            @search="emit('search', activeProvider, $event)"
+            @toggle-selected="emit('toggle-selected', activeProvider, $event)"
+            @toggle-all-selected="emit('toggle-all-selected', activeProvider, $event)"
+            @clear-selection="emit('clear-selection', activeProvider)"
+            @activate="emit('activate', activeProvider, $event)"
+            @deactivate="emit('deactivate', activeProvider, $event)"
+            @hard-delete="emit('hard-delete', activeProvider, $event)"
             @load-more="emit('load-more', activeProvider)"
           />
         </div>
@@ -96,15 +108,26 @@ const props = defineProps<{
   providers: AdminModelRegistryProviderGroup[]
   activeProvider: string
   activeModels: ModelRegistryDetail[]
+  activeSearchValue: string
+  activeSelectedIds: string[]
   hasMore: boolean
   isActivating: (modelId: string) => boolean
+  isDeactivating: (modelId: string) => boolean
+  isDeleting: (modelId: string) => boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'refresh'): void
   (e: 'select-provider', provider: string): void
-  (e: 'activate', modelId: string): void
+  (e: 'update:search', provider: string, value: string): void
+  (e: 'search', provider: string, value: string): void
+  (e: 'toggle-selected', provider: string, modelId: string): void
+  (e: 'toggle-all-selected', provider: string, checked: boolean): void
+  (e: 'clear-selection', provider: string): void
+  (e: 'activate', provider: string, modelId: string): void
+  (e: 'deactivate', provider: string, modelIds: string[]): void
+  (e: 'hard-delete', provider: string, modelIds: string[]): void
   (e: 'load-more', provider: string): void
 }>()
 

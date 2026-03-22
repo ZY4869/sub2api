@@ -25,6 +25,7 @@ func (h *ModelRegistryHandler) List(c *gin.Context) {
 		Provider:          c.Query("provider"),
 		Platform:          c.Query("platform"),
 		Availability:      c.Query("availability"),
+		SortMode:          c.Query("sort_mode"),
 		IncludeHidden:     parseBoolDefaultTrue(c.Query("include_hidden")),
 		IncludeTombstoned: parseBoolDefaultTrue(c.Query("include_tombstoned")),
 		Page:              page,
@@ -138,6 +139,24 @@ func (h *ModelRegistryHandler) DeleteEntry(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"model": strings.TrimSpace(model)})
+}
+
+func (h *ModelRegistryHandler) HardDelete(c *gin.Context) {
+	var req service.BatchHardDeleteModelRegistryInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	log := logger.FromContext(c.Request.Context()).With(zap.String("component", "handler.admin.model_registry"))
+	log.Info("hard delete model registry entries start", zap.Int("model_count", len(req.Models)))
+	models, err := h.modelRegistryService.HardDeleteModels(c.Request.Context(), req.Models)
+	if err != nil {
+		log.Warn("hard delete model registry entries failed", zap.Error(err))
+		response.ErrorFrom(c, err)
+		return
+	}
+	log.Info("hard delete model registry entries success", zap.Int("model_count", len(models)), zap.Strings("models", models))
+	response.Success(c, gin.H{"models": models})
 }
 
 func parseBoolDefaultTrue(value string) bool {

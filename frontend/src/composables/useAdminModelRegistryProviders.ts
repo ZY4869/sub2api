@@ -2,6 +2,8 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   activateModelRegistryEntries,
+  deactivateModelRegistryEntries,
+  hardDeleteModelRegistryEntries,
   listModelRegistry,
   listModelRegistryProviders,
   type ModelRegistryDetail
@@ -22,6 +24,10 @@ type ProviderModelsState = {
   pages: number
   loading: boolean
   initialized: boolean
+  search: string
+  appliedSearch: string
+  selectedIds: string[]
+  requestId: number
 }
 
 export type AdminModelRegistryProviderGroup = {
@@ -39,6 +45,8 @@ export function useAdminModelRegistryProviders() {
   const loading = ref(false)
   const loadingMore = ref(false)
   const activatingIds = ref<Set<string>>(new Set())
+  const deactivatingIds = ref<Set<string>>(new Set())
+  const deletingIds = ref<Set<string>>(new Set())
   const items = ref<AdminModelRegistryProviderGroup[]>([])
   const pagination = reactive({
     page: 1,
@@ -58,6 +66,8 @@ export function useAdminModelRegistryProviders() {
   })
 
   const isActivating = (modelId: string) => activatingIds.value.has(modelId)
+  const isDeactivating = (modelId: string) => deactivatingIds.value.has(modelId)
+  const isDeleting = (modelId: string) => deletingIds.value.has(modelId)
   const hasMoreProviders = computed(() => pagination.page < pagination.pages)
 
   function getProviderKey(provider: string) {
@@ -72,7 +82,11 @@ export function useAdminModelRegistryProviders() {
       pageSize: PROVIDER_MODELS_PAGE_SIZE,
       pages: 0,
       loading: false,
-      initialized: false
+      initialized: false,
+      search: '',
+      appliedSearch: '',
+      selectedIds: [],
+      requestId: 0
     }
   }
 
@@ -82,13 +96,6 @@ export function useAdminModelRegistryProviders() {
       providerModelStates[key] = createProviderModelsState()
     }
     return providerModelStates[key]
-  }
-
-  function sortProviderModels(models: ModelRegistryDetail[]) {
-    return [...models].sort((left, right) => {
-      if (left.available !== right.available) return left.available ? -1 : 1
-      return (left.ui_priority - right.ui_priority) || left.id.localeCompare(right.id)
-    })
   }
 
   async function loadProviderSummaries(reset = false) {
@@ -137,37 +144,51 @@ export function useAdminModelRegistryProviders() {
   async function loadProviderModels(provider: string, reset = false) {
     const normalizedProvider = getProviderKey(provider)
     const state = ensureProviderModelsState(normalizedProvider)
-    if (state.loading) {
+    const nextPage = reset || !state.initialized ? 1 : state.page + 1
+    if (!reset && state.loading) {
       return
     }
-    const nextPage = reset || !state.initialized ? 1 : state.page + 1
     if (!reset && state.initialized && state.pages > 0 && state.page >= state.pages) {
       return
     }
+    const requestId = state.requestId + 1
+    state.requestId = requestId
     state.loading = true
+    if (reset) {
+      state.selectedIds = []
+    }
     try {
       const response = await listModelRegistry({
         provider: normalizedProvider,
+        search: state.appliedSearch || undefined,
         availability: 'all',
+        sort_mode: 'category_latest',
         include_hidden: false,
         include_tombstoned: false,
         page: nextPage,
         page_size: state.pageSize
       })
-      const mergedItems = reset || nextPage === 1
+      if (requestId !== state.requestId) {
+        return
+      }
+      state.items = reset || nextPage === 1
         ? response.items
         : mergeProviderModels(state.items, response.items)
-      state.items = sortProviderModels(mergedItems)
       state.total = response.total
       state.page = response.page
       state.pageSize = response.page_size
       state.pages = response.pages
       state.initialized = true
     } catch (error) {
+      if (requestId !== state.requestId) {
+        return
+      }
       console.error('[useAdminModelRegistryProviders] loadProviderModels failed', error)
       appStore.showError(t('admin.models.registry.loadFailed'))
     } finally {
-      state.loading = false
+      if (requestId === state.requestId) {
+        state.loading = false
+      }
     }
   }
 
@@ -194,48 +215,121 @@ export function useAdminModelRegistryProviders() {
     await loadAll()
   }
 
-  async function activateModel(modelId: string) {
+  function updateProviderSearch(provider: string, search: string) {
+    const state = ensureProviderModelsState(provider)
+    const nextSearch = String(search || '').trim()
+    if (state.search !== nextSearch) {
+      state.selectedIds = []
+    }
+    state.search = nextSearch
+  }
+
+  function setProviderSearch(provider: string, search: string) {
+    const state = ensureProviderModelsState(provider)
+    updateProviderSearch(provider, search)
+    if (state.appliedSearch === state.search && state.initialized) {
+      return
+    }
+    state.appliedSearch = state.search
+    void loadProviderModels(provider, true)
+  }
+
+  function setProviderSelectedIds(provider: string, modelIds: string[]) {
+    const state = ensureProviderModelsState(provider)
+    const visibleIds = new Set(state.items.map((item) => item.id))
+    state.selectedIds = normalizeModelIds(modelIds).filter((modelId) => visibleIds.has(modelId))
+  }
+
+  function toggleProviderModelSelected(provider: string, modelId: string) {
+    const state = ensureProviderModelsState(provider)
+    if (state.selectedIds.includes(modelId)) {
+      state.selectedIds = state.selectedIds.filter((current) => current !== modelId)
+      return
+    }
+    state.selectedIds = [...state.selectedIds, modelId]
+  }
+
+  function toggleAllProviderModelsSelected(provider: string, checked: boolean) {
+    const state = ensureProviderModelsState(provider)
+    state.selectedIds = checked ? state.items.map((item) => item.id) : []
+  }
+
+  function clearProviderSelection(provider: string) {
+    ensureProviderModelsState(provider).selectedIds = []
+  }
+
+  async function activateModel(provider: string, modelId: string) {
     if (!modelId || isActivating(modelId)) {
       return
     }
-    activatingIds.value = new Set([...activatingIds.value, modelId])
+    activatingIds.value = addPendingId(activatingIds.value, modelId)
     try {
       await activateModelRegistryEntries({ models: [modelId] })
-      let updatedProvider = ''
-      for (const [provider, state] of Object.entries(providerModelStates)) {
-        let providerChanged = false
-        state.items = state.items.map((entry) => {
-          if (entry.id !== modelId || entry.available) {
-            return entry
-          }
-          providerChanged = true
-          updatedProvider = provider
-          return {
-            ...entry,
-            available: true
-          }
-        })
-        if (providerChanged) {
-          break
-        }
-      }
-      if (updatedProvider) {
-        items.value = items.value.map((entry) => entry.provider === updatedProvider
-          ? { ...entry, availableCount: Math.min(entry.totalCount, entry.availableCount + 1) }
-          : entry)
-      }
       appStore.showSuccess(t('admin.models.registry.activateSuccess'))
-      invalidateModelRegistry()
-      modelInventoryStore.invalidate()
-      await Promise.allSettled([ensureModelRegistryFresh(true)])
+      await refreshProviderAfterMutation(provider)
     } catch (error) {
       console.error('[useAdminModelRegistryProviders] activate failed', error)
       appStore.showError(t('admin.models.registry.availabilityFailed'))
     } finally {
-      const next = new Set(activatingIds.value)
-      next.delete(modelId)
-      activatingIds.value = next
+      activatingIds.value = removePendingId(activatingIds.value, modelId)
     }
+  }
+
+  async function deactivateModels(provider: string, modelIds: string[]) {
+    const normalizedIds = normalizeModelIds(modelIds)
+    const pendingIds = normalizedIds.filter((modelId) => !isDeactivating(modelId))
+    if (pendingIds.length === 0) {
+      return
+    }
+    deactivatingIds.value = addPendingIds(deactivatingIds.value, pendingIds)
+    try {
+      await deactivateModelRegistryEntries({ models: pendingIds })
+      appStore.showSuccess(
+        pendingIds.length > 1
+          ? t('admin.models.pages.all.bulk.deactivateSuccess', { count: pendingIds.length })
+          : t('admin.models.registry.deactivateSuccess')
+      )
+      await refreshProviderAfterMutation(provider)
+    } catch (error) {
+      console.error('[useAdminModelRegistryProviders] deactivate failed', error)
+      appStore.showError(t('admin.models.registry.availabilityFailed'))
+    } finally {
+      deactivatingIds.value = removePendingIds(deactivatingIds.value, pendingIds)
+    }
+  }
+
+  async function hardDeleteModels(provider: string, modelIds: string[]) {
+    const normalizedIds = normalizeModelIds(modelIds)
+    const pendingIds = normalizedIds.filter((modelId) => !isDeleting(modelId))
+    if (pendingIds.length === 0) {
+      return
+    }
+    deletingIds.value = addPendingIds(deletingIds.value, pendingIds)
+    try {
+      await hardDeleteModelRegistryEntries({ models: pendingIds })
+      appStore.showSuccess(
+        pendingIds.length > 1
+          ? t('admin.models.pages.all.bulk.hardDeleteSuccess', { count: pendingIds.length })
+          : t('admin.models.registry.deleteSuccess')
+      )
+      await refreshProviderAfterMutation(provider)
+    } catch (error) {
+      console.error('[useAdminModelRegistryProviders] hard delete failed', error)
+      appStore.showError(t('admin.models.registry.deleteFailed'))
+    } finally {
+      deletingIds.value = removePendingIds(deletingIds.value, pendingIds)
+    }
+  }
+
+  async function refreshProviderAfterMutation(provider: string) {
+    clearProviderSelection(provider)
+    invalidateModelRegistry()
+    modelInventoryStore.invalidate()
+    await Promise.allSettled([
+      loadProviderSummaries(true),
+      loadProviderModels(provider, true),
+      ensureModelRegistryFresh(true)
+    ])
   }
 
   return {
@@ -246,19 +340,35 @@ export function useAdminModelRegistryProviders() {
     providerGroups,
     hasMoreProviders,
     isActivating,
+    isDeactivating,
+    isDeleting,
     loadAll,
     loadMoreProviders,
     refreshAll,
     ensureProviderModels,
     loadMoreProviderModels,
-    getProviderModels: (provider: string) => ensureProviderModelsState(provider).items,
-    isProviderLoading: (provider: string) => ensureProviderModelsState(provider).loading,
-    hasProviderModels: (provider: string) => ensureProviderModelsState(provider).initialized,
+    getProviderModels: (provider: string) => provider ? ensureProviderModelsState(provider).items : [],
+    getProviderSearch: (provider: string) => provider ? ensureProviderModelsState(provider).search : '',
+    getProviderSelectedIds: (provider: string) => provider ? ensureProviderModelsState(provider).selectedIds : [],
+    isProviderModelSelected: (provider: string, modelId: string) => provider ? ensureProviderModelsState(provider).selectedIds.includes(modelId) : false,
+    isProviderLoading: (provider: string) => provider ? ensureProviderModelsState(provider).loading : false,
+    hasProviderModels: (provider: string) => provider ? ensureProviderModelsState(provider).initialized : false,
     providerHasMoreModels: (provider: string) => {
+      if (!provider) {
+        return false
+      }
       const state = ensureProviderModelsState(provider)
       return state.initialized ? state.page < state.pages : false
     },
-    activateModel
+    updateProviderSearch,
+    setProviderSearch,
+    setProviderSelectedIds,
+    toggleProviderModelSelected,
+    toggleAllProviderModelsSelected,
+    clearProviderSelection,
+    activateModel,
+    deactivateModels,
+    hardDeleteModels
   }
 }
 
@@ -284,4 +394,32 @@ function mergeProviderModels(current: ModelRegistryDetail[], incoming: ModelRegi
     seen.add(item.id)
   }
   return merged
+}
+
+function normalizeModelIds(modelIds: string[]) {
+  return [...new Set(
+    modelIds
+      .map((modelId) => String(modelId || '').trim())
+      .filter((modelId) => modelId.length > 0)
+  )]
+}
+
+function addPendingId(current: Set<string>, modelId: string) {
+  return addPendingIds(current, [modelId])
+}
+
+function addPendingIds(current: Set<string>, modelIds: string[]) {
+  return new Set([...current, ...modelIds])
+}
+
+function removePendingId(current: Set<string>, modelId: string) {
+  return removePendingIds(current, [modelId])
+}
+
+function removePendingIds(current: Set<string>, modelIds: string[]) {
+  const next = new Set(current)
+  for (const modelId of modelIds) {
+    next.delete(modelId)
+  }
+  return next
 }

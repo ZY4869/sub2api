@@ -20,6 +20,7 @@ export interface ListModelRegistryParams {
   provider?: string
   platform?: string
   availability?: 'all' | 'available' | 'unavailable'
+  sort_mode?: 'default' | 'category_latest'
   include_hidden?: boolean
   include_tombstoned?: boolean
   page?: number
@@ -34,6 +35,10 @@ export interface UpdateModelRegistryVisibilityPayload {
 }
 
 export interface UpdateModelRegistryAvailabilityPayload {
+  models: string[]
+}
+
+export interface HardDeleteModelRegistryEntriesPayload {
   models: string[]
 }
 
@@ -105,6 +110,13 @@ export async function deleteModelRegistryEntry(model: string): Promise<{ model: 
   return data
 }
 
+export async function hardDeleteModelRegistryEntries(
+  payload: HardDeleteModelRegistryEntriesPayload
+): Promise<{ models: string[] }> {
+  const { data } = await apiClient.post<{ models: string[] }>('/admin/models/registry/hard-delete', payload)
+  return data
+}
+
 export async function activateModelRegistryEntries(
   payload: UpdateModelRegistryAvailabilityPayload
 ): Promise<{ items: ModelRegistryDetail[] }> {
@@ -133,6 +145,7 @@ export const modelRegistryAPI = {
   upsertModelRegistryEntry,
   updateModelRegistryVisibility,
   deleteModelRegistryEntry,
+  hardDeleteModelRegistryEntries,
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
   syncModelRegistryExposures

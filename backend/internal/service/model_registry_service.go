@@ -5,6 +5,7 @@ type ModelRegistryListFilter struct {
 	Provider          string
 	Platform          string
 	Availability      string
+	SortMode          string
 	IncludeHidden     bool
 	IncludeTombstoned bool
 	Page              int
@@ -47,6 +48,10 @@ type BatchSyncModelRegistryExposuresInput struct {
 }
 
 type UpdateModelRegistryAvailabilityInput struct {
+	Models []string `json:"models"`
+}
+
+type BatchHardDeleteModelRegistryInput struct {
 	Models []string `json:"models"`
 }
 

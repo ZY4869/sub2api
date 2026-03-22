@@ -4,6 +4,8 @@ const {
   listModelRegistry,
   listModelRegistryProviders,
   activateModelRegistryEntries,
+  deactivateModelRegistryEntries,
+  hardDeleteModelRegistryEntries,
   showError,
   showSuccess,
   modelInventoryInvalidate,
@@ -13,6 +15,8 @@ const {
   listModelRegistry: vi.fn(),
   listModelRegistryProviders: vi.fn(),
   activateModelRegistryEntries: vi.fn(),
+  deactivateModelRegistryEntries: vi.fn(),
+  hardDeleteModelRegistryEntries: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   modelInventoryInvalidate: vi.fn(),
@@ -23,7 +27,9 @@ const {
 vi.mock('@/api/admin/modelRegistry', () => ({
   listModelRegistry,
   listModelRegistryProviders,
-  activateModelRegistryEntries
+  activateModelRegistryEntries,
+  deactivateModelRegistryEntries,
+  hardDeleteModelRegistryEntries
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -63,7 +69,7 @@ function createRegistryModel(id: string, provider: string, available = false, ui
     pricing_lookup_ids: [id],
     preferred_protocol_ids: {},
     modalities: ['text'],
-    capabilities: [],
+    capabilities: ['text'],
     ui_priority: uiPriority,
     exposed_in: ['runtime'],
     source: 'runtime',
@@ -78,6 +84,8 @@ describe('useAdminModelRegistryProviders', () => {
     listModelRegistry.mockReset()
     listModelRegistryProviders.mockReset()
     activateModelRegistryEntries.mockReset()
+    deactivateModelRegistryEntries.mockReset()
+    hardDeleteModelRegistryEntries.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     modelInventoryInvalidate.mockReset()
@@ -120,7 +128,9 @@ describe('useAdminModelRegistryProviders', () => {
     expect(listModelRegistry).toHaveBeenCalledTimes(1)
     expect(listModelRegistry).toHaveBeenCalledWith({
       provider: 'openai',
+      search: undefined,
       availability: 'all',
+      sort_mode: 'category_latest',
       include_hidden: false,
       include_tombstoned: false,
       page: 1,
@@ -131,6 +141,121 @@ describe('useAdminModelRegistryProviders', () => {
     await subject.ensureProviderModels('openai')
 
     expect(listModelRegistry).toHaveBeenCalledTimes(1)
+  })
+
+  it('updates provider search locally and reloads with category sorting when searched', async () => {
+    listModelRegistryProviders.mockResolvedValue({
+      items: [{ provider: 'openai', total_count: 2, available_count: 1 }],
+      total: 1,
+      page: 1,
+      page_size: 24,
+      pages: 1
+    })
+    listModelRegistry
+      .mockResolvedValueOnce({
+        items: [createRegistryModel('gpt-5.4', 'openai', true)],
+        total: 2,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [createRegistryModel('gpt-5.4', 'openai', true)],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+
+    const subject = useAdminModelRegistryProviders()
+
+    await subject.loadAll()
+    await subject.ensureProviderModels('openai')
+    subject.toggleProviderModelSelected('openai', 'gpt-5.4')
+
+    subject.updateProviderSearch('openai', 'gpt-5')
+
+    expect(subject.getProviderSearch('openai')).toBe('gpt-5')
+    expect(subject.getProviderSelectedIds('openai')).toEqual([])
+
+    subject.setProviderSearch('openai', 'gpt-5')
+
+    await vi.waitFor(() => {
+      expect(listModelRegistry).toHaveBeenLastCalledWith({
+        provider: 'openai',
+        search: 'gpt-5',
+        availability: 'all',
+        sort_mode: 'category_latest',
+        include_hidden: false,
+        include_tombstoned: false,
+        page: 1,
+        page_size: 50
+      })
+    })
+  })
+
+  it('refreshes provider data after bulk deactivate and hard delete', async () => {
+    listModelRegistryProviders
+      .mockResolvedValueOnce({
+        items: [{ provider: 'openai', total_count: 2, available_count: 2 }],
+        total: 1,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+      .mockResolvedValue({
+        items: [{ provider: 'openai', total_count: 1, available_count: 0 }],
+        total: 1,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+
+    listModelRegistry
+      .mockResolvedValueOnce({
+        items: [
+          createRegistryModel('gpt-5.4', 'openai', true),
+          createRegistryModel('gpt-5.4-mini', 'openai', true)
+        ],
+        total: 2,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValue({
+        items: [createRegistryModel('gpt-5.4-mini', 'openai', false)],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+
+    deactivateModelRegistryEntries.mockResolvedValue({ items: [] })
+    hardDeleteModelRegistryEntries.mockResolvedValue({ models: ['gpt-5.4'] })
+
+    const subject = useAdminModelRegistryProviders()
+
+    await subject.loadAll()
+    await subject.ensureProviderModels('openai')
+    subject.toggleProviderModelSelected('openai', 'gpt-5.4')
+
+    await subject.deactivateModels('openai', ['gpt-5.4', 'gpt-5.4-mini'])
+
+    expect(deactivateModelRegistryEntries).toHaveBeenCalledWith({
+      models: ['gpt-5.4', 'gpt-5.4-mini']
+    })
+    expect(subject.getProviderSelectedIds('openai')).toEqual([])
+    expect(invalidateModelRegistry).toHaveBeenCalled()
+    expect(modelInventoryInvalidate).toHaveBeenCalled()
+    expect(ensureModelRegistryFresh).toHaveBeenCalledWith(true)
+
+    subject.toggleProviderModelSelected('openai', 'gpt-5.4')
+    await subject.hardDeleteModels('openai', ['gpt-5.4'])
+
+    expect(hardDeleteModelRegistryEntries).toHaveBeenCalledWith({
+      models: ['gpt-5.4']
+    })
+    expect(subject.getProviderSelectedIds('openai')).toEqual([])
   })
 
   it('continues loading provider summaries and provider models page by page', async () => {

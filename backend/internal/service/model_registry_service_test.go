@@ -77,6 +77,83 @@ func TestModelRegistryService_ListProviderSummaries_SortsAndPaginates(t *testing
 	}, items[0])
 }
 
+func TestModelRegistryService_List_CategoryLatestSortsByCategoryThenPriority(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	inputs := []UpsertModelRegistryEntryInput{
+		{
+			ID:           "provider-sort-text-old",
+			Provider:     "provider-sort",
+			Platforms:    []string{PlatformOpenAI},
+			Modalities:   []string{"text"},
+			Capabilities: []string{"text"},
+			UIPriority:   20,
+			ExposedIn:    []string{"runtime"},
+		},
+		{
+			ID:           "provider-sort-image-new",
+			Provider:     "provider-sort",
+			Platforms:    []string{PlatformOpenAI},
+			Modalities:   []string{"text", "image"},
+			Capabilities: []string{"image_generation"},
+			UIPriority:   2,
+			ExposedIn:    []string{"runtime"},
+		},
+		{
+			ID:           "provider-sort-audio-new",
+			Provider:     "provider-sort",
+			Platforms:    []string{PlatformOpenAI},
+			Modalities:   []string{"audio"},
+			Capabilities: []string{"audio_understanding"},
+			UIPriority:   1,
+			ExposedIn:    []string{"runtime"},
+		},
+		{
+			ID:           "provider-sort-video-new",
+			Provider:     "provider-sort",
+			Platforms:    []string{PlatformOpenAI},
+			Modalities:   []string{"video"},
+			Capabilities: []string{"video_generation"},
+			UIPriority:   1,
+			ExposedIn:    []string{"runtime"},
+		},
+		{
+			ID:           "provider-sort-text-new",
+			Provider:     "provider-sort",
+			Platforms:    []string{PlatformOpenAI},
+			Modalities:   []string{"text"},
+			Capabilities: []string{"text"},
+			UIPriority:   1,
+			ExposedIn:    []string{"runtime"},
+		},
+	}
+	for _, input := range inputs {
+		_, err := svc.UpsertEntry(context.Background(), input)
+		require.NoError(t, err)
+	}
+
+	items, total, err := svc.List(context.Background(), ModelRegistryListFilter{
+		Provider:          "provider-sort",
+		Availability:      "all",
+		SortMode:          "category_latest",
+		IncludeHidden:     true,
+		IncludeTombstoned: true,
+		Page:              1,
+		PageSize:          20,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 5, total)
+	require.Len(t, items, 5)
+	require.Equal(t, []string{
+		"provider-sort-text-new",
+		"provider-sort-text-old",
+		"provider-sort-image-new",
+		"provider-sort-video-new",
+		"provider-sort-audio-new",
+	}, []string{items[0].ID, items[1].ID, items[2].ID, items[3].ID, items[4].ID})
+}
+
 func TestModelRegistryService_BatchSyncExposures_MergesAndIsIdempotent(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	svc := NewModelRegistryService(repo)
@@ -149,6 +226,55 @@ func TestModelRegistryService_BatchSyncExposures_RejectsInvalidInput(t *testing.
 		Models:    []string{"gpt-test-sync"},
 		Exposures: []string{"invalid"},
 	})
+	require.Error(t, err)
+}
+
+func TestModelRegistryService_HardDeleteModels_TombstonesAndClearsState(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "gpt-test-hard-delete",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"runtime"},
+	})
+	require.NoError(t, err)
+
+	_, err = svc.ActivateModels(context.Background(), []string{"gpt-test-hard-delete", "gpt-3.5-turbo"})
+	require.NoError(t, err)
+
+	_, err = svc.SetVisibility(context.Background(), UpdateModelRegistryVisibilityInput{
+		Model:  "gpt-test-hard-delete",
+		Hidden: true,
+	})
+	require.NoError(t, err)
+
+	deleted, err := svc.HardDeleteModels(context.Background(), []string{"gpt-3.5-turbo", "gpt-test-hard-delete"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-3.5-turbo", "gpt-test-hard-delete"}, deleted)
+
+	runtimeDetail, err := svc.GetDetail(context.Background(), "gpt-test-hard-delete")
+	require.NoError(t, err)
+	require.True(t, runtimeDetail.Tombstoned)
+	require.False(t, runtimeDetail.Available)
+	require.False(t, runtimeDetail.Hidden)
+
+	seedDetail, err := svc.GetDetail(context.Background(), "gpt-3.5-turbo")
+	require.NoError(t, err)
+	require.True(t, seedDetail.Tombstoned)
+	require.False(t, seedDetail.Available)
+	require.False(t, seedDetail.Hidden)
+
+	repeated, err := svc.HardDeleteModels(context.Background(), []string{"gpt-test-hard-delete", "gpt-3.5-turbo"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-3.5-turbo", "gpt-test-hard-delete"}, repeated)
+}
+
+func TestModelRegistryService_HardDeleteModels_RejectsEmptyInput(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.HardDeleteModels(context.Background(), []string{"   "})
 	require.Error(t, err)
 }
 

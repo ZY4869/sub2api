@@ -96,6 +96,27 @@ export default {
           viewModes: {
             grid: 'Grid',
             list: 'List'
+          },
+          filterPlaceholder: 'Filter current provider model IDs',
+          loadMore: 'Load More',
+          hardDeleteSingleConfirm: 'Are you sure you want to hard delete {model}?',
+          categories: {
+            text: 'Large Models',
+            image: 'Image',
+            video: 'Video',
+            audio: 'Audio',
+            other: 'Other'
+          },
+          bulk: {
+            selected: '{count} model(s) selected',
+            selectLoaded: 'Select loaded',
+            clear: 'Clear',
+            deactivate: 'Deactivate selected',
+            hardDelete: 'Hard delete selected',
+            deactivateConfirm: 'Deactivate {count} selected available model(s)?',
+            hardDeleteConfirm: 'Hard delete {count} selected model(s)?',
+            deactivateSuccess: '{count} model(s) deactivated',
+            hardDeleteSuccess: '{count} model(s) hard deleted'
           }
         },
         pricing: {

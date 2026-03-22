@@ -51,12 +51,23 @@
           v-else
           :providers="providerGroups"
           :get-models="getProviderModels"
+          :get-search="getProviderSearch"
+          :get-selected-ids="getProviderSelectedIds"
           :is-provider-loading="isProviderLoading"
           :provider-has-more-models="providerHasMoreModels"
           :is-activating="isActivating"
+          :is-deactivating="isDeactivating"
+          :is-deleting="isDeleting"
           @expand="ensureProviderModels"
+          @update:search="handleProviderSearchInput"
+          @search="handleProviderSearch"
+          @toggle-selected="toggleProviderModelSelected"
+          @toggle-all-selected="toggleAllProviderModelsSelected"
+          @clear-selection="clearProviderSelection"
           @load-more="loadMoreProviderModels"
           @activate="activateModel"
+          @deactivate="deactivateModels"
+          @hard-delete="hardDeleteModels"
         />
 
         <div class="flex flex-col items-center gap-3 px-4 pb-6 pt-2">
@@ -87,13 +98,24 @@
     :providers="providerGroups"
     :active-provider="activeProvider"
     :active-models="getProviderModels(activeProvider)"
+    :active-search-value="getProviderSearch(activeProvider)"
+    :active-selected-ids="getProviderSelectedIds(activeProvider)"
     :has-more="providerHasMoreModels(activeProvider)"
     :is-activating="isActivating"
+    :is-deactivating="isDeactivating"
+    :is-deleting="isDeleting"
     @close="providerDialogOpen = false"
     @refresh="handleRefreshAll"
     @select-provider="selectProvider"
+    @update:search="handleProviderSearchInput"
+    @search="handleProviderSearch"
+    @toggle-selected="toggleProviderModelSelected"
+    @toggle-all-selected="toggleAllProviderModelsSelected"
+    @clear-selection="clearProviderSelection"
     @load-more="loadMoreProviderModels"
     @activate="activateModel"
+    @deactivate="deactivateModels"
+    @hard-delete="hardDeleteModels"
   />
 </template>
 
@@ -122,15 +144,26 @@ const {
   providerGroups,
   hasMoreProviders,
   isActivating,
+  isDeactivating,
+  isDeleting,
   loadAll,
   loadMoreProviders,
   refreshAll,
   ensureProviderModels,
   loadMoreProviderModels,
   getProviderModels,
+  getProviderSearch,
+  getProviderSelectedIds,
   isProviderLoading,
   providerHasMoreModels,
-  activateModel
+  updateProviderSearch,
+  setProviderSearch,
+  toggleProviderModelSelected,
+  toggleAllProviderModelsSelected,
+  clearProviderSelection,
+  activateModel,
+  deactivateModels,
+  hardDeleteModels
 } = useAdminModelRegistryProviders()
 
 const firstProvider = computed(() => providerGroups.value[0]?.provider || '')
@@ -189,6 +222,23 @@ async function openProviderDialog(provider: string) {
 async function selectProvider(provider: string) {
   activeProvider.value = provider
   await ensureProviderModels(provider)
+}
+
+function handleProviderSearchInput(provider: string, value: string) {
+  const normalizedProvider = provider || activeProvider.value
+  if (!normalizedProvider) {
+    return
+  }
+  updateProviderSearch(normalizedProvider, value)
+  clearProviderSelection(normalizedProvider)
+}
+
+function handleProviderSearch(provider: string, value: string) {
+  const normalizedProvider = provider || activeProvider.value
+  if (!normalizedProvider) {
+    return
+  }
+  setProviderSearch(normalizedProvider, value)
 }
 
 async function handleRefreshAll() {

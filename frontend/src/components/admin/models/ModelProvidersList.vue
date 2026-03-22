@@ -33,13 +33,25 @@
 
       <div v-if="expandedProviders.has(group.provider)" class="border-t border-gray-100 px-4 py-4 dark:border-dark-700">
         <ModelProviderModelsPanel
+          :provider="group.provider"
           :models="getModels(group.provider)"
+          :search-value="getSearch(group.provider)"
+          :selected-ids="getSelectedIds(group.provider)"
           :total-count="group.totalCount"
           :available-count="group.availableCount"
           :loading="isProviderLoading(group.provider)"
           :has-more="providerHasMoreModels(group.provider)"
           :is-activating="isActivating"
-          @activate="emit('activate', $event)"
+          :is-deactivating="isDeactivating"
+          :is-deleting="isDeleting"
+          @update:search="emit('update:search', group.provider, $event)"
+          @search="emit('search', group.provider, $event)"
+          @toggle-selected="emit('toggle-selected', group.provider, $event)"
+          @toggle-all-selected="emit('toggle-all-selected', group.provider, $event)"
+          @clear-selection="emit('clear-selection', group.provider)"
+          @activate="emit('activate', group.provider, $event)"
+          @deactivate="emit('deactivate', group.provider, $event)"
+          @hard-delete="emit('hard-delete', group.provider, $event)"
           @load-more="emit('load-more', group.provider)"
         />
       </div>
@@ -58,13 +70,24 @@ import ModelProviderModelsPanel from '@/components/admin/models/ModelProviderMod
 defineProps<{
   providers: AdminModelRegistryProviderGroup[]
   getModels: (provider: string) => import('@/api/admin/modelRegistry').ModelRegistryDetail[]
+  getSearch: (provider: string) => string
+  getSelectedIds: (provider: string) => string[]
   isProviderLoading: (provider: string) => boolean
   providerHasMoreModels: (provider: string) => boolean
   isActivating: (modelId: string) => boolean
+  isDeactivating: (modelId: string) => boolean
+  isDeleting: (modelId: string) => boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'activate', modelId: string): void
+  (e: 'update:search', provider: string, value: string): void
+  (e: 'search', provider: string, value: string): void
+  (e: 'toggle-selected', provider: string, modelId: string): void
+  (e: 'toggle-all-selected', provider: string, checked: boolean): void
+  (e: 'clear-selection', provider: string): void
+  (e: 'activate', provider: string, modelId: string): void
+  (e: 'deactivate', provider: string, modelIds: string[]): void
+  (e: 'hard-delete', provider: string, modelIds: string[]): void
   (e: 'expand', provider: string): void
   (e: 'load-more', provider: string): void
 }>()

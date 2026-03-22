@@ -116,6 +116,7 @@ func registerModelRegistryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		registry.POST("/deactivate", h.Admin.ModelRegistry.Deactivate)
 		registry.POST("/visibility", h.Admin.ModelRegistry.SetVisibility)
 		registry.POST("/sync-exposures", h.Admin.ModelRegistry.SyncExposures)
+		registry.POST("/hard-delete", h.Admin.ModelRegistry.HardDelete)
 		registry.DELETE("/entry", h.Admin.ModelRegistry.DeleteEntry)
 	}
 }
