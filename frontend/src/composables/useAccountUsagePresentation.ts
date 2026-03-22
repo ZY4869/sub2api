@@ -89,7 +89,7 @@ function shouldFallbackToActiveAnthropicUsage(
   usageInfo: AccountUsageInfo,
 ): boolean {
   return (
-    account.platform === 'anthropic' &&
+    (account.platform === 'anthropic' || account.platform === 'kiro') &&
     account.type === 'oauth' &&
     source === 'passive' &&
     !usageInfo.seven_day
@@ -97,7 +97,7 @@ function shouldFallbackToActiveAnthropicUsage(
 }
 
 export function canAccountFetchUsage(account: Account): boolean {
-  if (account.platform === 'anthropic') {
+  if (account.platform === 'anthropic' || account.platform === 'kiro') {
     return account.type === 'oauth' || account.type === 'setup-token'
   }
   if (account.platform === 'gemini') {
@@ -106,7 +106,7 @@ export function canAccountFetchUsage(account: Account): boolean {
   if (account.platform === 'antigravity') {
     return account.type === 'oauth'
   }
-  if (account.platform === 'openai') {
+  if (account.platform === 'openai' || account.platform === 'copilot') {
     return account.type === 'oauth'
   }
   return false
@@ -127,7 +127,7 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
 
   const source =
     options.source ??
-    (account.platform === 'anthropic' &&
+    ((account.platform === 'anthropic' || account.platform === 'kiro') &&
     (account.type === 'oauth' || account.type === 'setup-token')
       ? 'passive'
       : undefined)
@@ -153,7 +153,9 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
 
       entry.usageInfo = resolvedUsageInfo
       entry.preferOpenAIFetchedUsage = Boolean(
-        options.force && account.platform === 'openai' && account.type === 'oauth',
+        options.force &&
+          (account.platform === 'openai' || account.platform === 'copilot') &&
+          account.type === 'oauth',
       )
     })
     .catch((error) => {
@@ -253,7 +255,7 @@ export function invalidateAccountUsagePresentationCache(accountIDs: number[]): v
 }
 
 export function resolveActualUsageRefreshLoadOptions(account: Account): LoadUsageOptions {
-  if (account.platform === 'anthropic' && account.type === 'oauth') {
+  if ((account.platform === 'anthropic' || account.platform === 'kiro') && account.type === 'oauth') {
     return { source: 'active' }
   }
 

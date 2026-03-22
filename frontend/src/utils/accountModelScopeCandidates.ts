@@ -44,6 +44,10 @@ export function formatProviderLabel(provider: string): string {
       return 'OpenAI'
     case 'anthropic':
       return 'Anthropic'
+    case 'kiro':
+      return 'Kiro'
+    case 'copilot':
+      return 'Copilot'
     case 'gemini':
       return 'Gemini'
     case 'antigravity':
@@ -185,4 +189,3 @@ export function getModelScopeWhitelistGroups(
 
   return { mode, providerGroups, providerAllModelIds }
 }
-

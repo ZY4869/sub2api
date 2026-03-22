@@ -116,8 +116,16 @@ func (i *Index) ResolveProtocolID(input string, route string) (string, bool) {
 	}
 	entry := resolution.Entry
 	route = NormalizePlatform(route)
+	familyRoute := ""
+	switch NormalizePlatformFamily(route) {
+	case "anthropic":
+		familyRoute = "anthropic_oauth"
+	case "openai":
+		familyRoute = "openai"
+	}
 	if value := firstNonEmpty(
 		entry.PreferredProtocolIDs[route],
+		entry.PreferredProtocolIDs[familyRoute],
 		entry.PreferredProtocolIDs["default"],
 	); value != "" {
 		return NormalizeID(value), true
@@ -126,6 +134,15 @@ func (i *Index) ResolveProtocolID(input string, route string) (string, bool) {
 	switch route {
 	case "anthropic_oauth":
 		if value := firstNonEmpty(entry.ProtocolIDs...); value != "" {
+			return NormalizeID(value), true
+		}
+	case "kiro":
+		values := append([]string{entry.PreferredProtocolIDs["anthropic_oauth"]}, entry.ProtocolIDs...)
+		if value := firstNonEmpty(values...); value != "" {
+			return NormalizeID(value), true
+		}
+	case "copilot":
+		if value := firstNonEmpty(entry.PreferredProtocolIDs["openai"], entry.ID); value != "" {
 			return NormalizeID(value), true
 		}
 	case "anthropic_apikey", "openai", "gemini", "antigravity", "sora":

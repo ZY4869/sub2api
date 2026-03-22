@@ -46,7 +46,7 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"object": "list", "data": registryEntriesToClaudeModels(defaultEntries)})
 		return
 	}
-	if platform == service.PlatformOpenAI {
+	if platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
 		c.JSON(http.StatusOK, gin.H{"object": "list", "data": openai.DefaultModels})
 		return
 	}

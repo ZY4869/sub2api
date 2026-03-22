@@ -794,7 +794,9 @@ export default {
       platforms: {
         all: 'All Platforms',
         anthropic: 'Anthropic',
+        kiro: 'Kiro',
         openai: 'OpenAI',
+        copilot: 'Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1075,7 +1077,9 @@ export default {
       platforms: {
         anthropic: 'Anthropic',
         claude: 'Claude',
+        kiro: 'Kiro',
         openai: 'OpenAI',
+        copilot: 'Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1845,12 +1849,51 @@ export default {
       // Re-Auth Modal
       reAuthorizeAccount: 'Re-Authorize Account',
       claudeCodeAccount: 'Claude Code Account',
+      kiroAccount: 'Kiro Account',
       openaiAccount: 'OpenAI Account',
+      copilotAccount: 'Copilot Account',
       soraAccount: 'Sora Account',
       geminiAccount: 'Gemini Account',
       antigravityAccount: 'Antigravity Account',
+      reauthUnavailableForPlatform: 'This version cannot re-authorize {platform} accounts from the web console yet. Please refresh credentials through the import flow first.',
       inputMethod: 'Input Method',
       reAuthorizedSuccess: 'Account re-authorized successfully',
+      copilotDeviceFlow: {
+        title: 'Copilot Device Flow',
+        description: 'Use the GitHub device flow to authorize Copilot. After starting, enter the user code on GitHub and the console will keep polling for completion.',
+        userCode: 'User Code',
+        verificationUrl: 'Verification URL',
+        notStarted: 'Device flow has not started yet',
+        openGitHub: 'Open GitHub',
+        copyCode: 'Copy code',
+        copyUrl: 'Copy URL',
+        pollHint: 'The console checks authorization every {seconds} seconds. You can also trigger a manual status check.',
+        expiresHint: 'This device-flow session will expire in about {seconds} seconds.',
+        authorizedAs: 'Authorized as: {user}',
+        restart: 'Restart Device Flow',
+        start: 'Start Device Flow',
+        checkStatus: 'Check Status Now',
+        startFailed: 'Failed to start Copilot device flow',
+        pollFailed: 'Failed to poll Copilot authorization status',
+        status: {
+          idle: 'Idle',
+          pending: 'Pending',
+          completed: 'Authorized'
+        }
+      },
+      kiroImport: {
+        title: 'Kiro Token Import',
+        description: 'Paste the token JSON exported by Kiro IDE, or paste a raw access token. The credentials will be stored as Claude-family OAuth credentials.',
+        placeholder: 'Paste Kiro token JSON or access token',
+        hint: 'Using the full token JSON is recommended so refresh_token, expires_at, and source metadata can be preserved.',
+        previewCredentials: 'Credential Preview',
+        previewIdentity: 'Identity Preview',
+        expiresAt: 'Expires At',
+        email: 'Email',
+        username: 'Username',
+        provider: 'Provider',
+        parseFailed: 'Failed to parse the Kiro token'
+      },
       // Test Modal
       testAccountConnection: 'Test Account Connection',
       account: 'Account',

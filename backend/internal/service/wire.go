@@ -85,11 +85,13 @@ func ProvideOpenAITokenProvider(
 	accountRepo AccountRepository,
 	tokenCache GeminiTokenCache,
 	openaiOAuthService *OpenAIOAuthService,
+	copilotOAuthService *CopilotOAuthService,
 	refreshAPI *OAuthRefreshAPI,
 ) *OpenAITokenProvider {
 	p := NewOpenAITokenProvider(accountRepo, tokenCache, openaiOAuthService)
 	executor := NewOpenAITokenRefresher(openaiOAuthService, accountRepo)
 	p.SetRefreshAPI(refreshAPI, executor)
+	p.SetCopilotOAuthService(copilotOAuthService)
 	p.SetRefreshPolicy(OpenAIProviderRefreshPolicy())
 	return p
 }
@@ -407,11 +409,27 @@ func ProvideAccountModelImportService(
 	modelCatalogService *ModelCatalogService,
 	modelRegistryService *ModelRegistryService,
 	geminiCompatService *GeminiMessagesCompatService,
+	openAITokenProvider *OpenAITokenProvider,
 	httpUpstream HTTPUpstream,
 	proxyRepo ProxyRepository,
 ) *AccountModelImportService {
 	svc := NewAccountModelImportService(modelCatalogService, geminiCompatService, httpUpstream, proxyRepo)
 	svc.SetModelRegistryService(modelRegistryService)
+	svc.SetOpenAITokenProvider(openAITokenProvider)
+	return svc
+}
+
+func ProvideAccountTestService(
+	accountRepo AccountRepository,
+	accountModelImportService *AccountModelImportService,
+	openAITokenProvider *OpenAITokenProvider,
+	geminiTokenProvider *GeminiTokenProvider,
+	antigravityGatewayService *AntigravityGatewayService,
+	httpUpstream HTTPUpstream,
+	cfg *config.Config,
+) *AccountTestService {
+	svc := NewAccountTestService(accountRepo, accountModelImportService, geminiTokenProvider, antigravityGatewayService, httpUpstream, cfg)
+	svc.SetOpenAITokenProvider(openAITokenProvider)
 	return svc
 }
 
@@ -475,6 +493,7 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayService,
 	NewOAuthService,
 	NewOpenAIOAuthService,
+	NewCopilotOAuthService,
 	NewGeminiOAuthService,
 	NewGeminiQuotaService,
 	NewCompositeTokenCacheInvalidator,
@@ -489,7 +508,7 @@ var ProviderSet = wire.NewSet(
 	NewAntigravityGatewayService,
 	ProvideRateLimitService,
 	NewAccountUsageService,
-	NewAccountTestService,
+	ProvideAccountTestService,
 	ProvideSettingService,
 	NewDataManagementService,
 	ProvideBackupService,

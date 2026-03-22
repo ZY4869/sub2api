@@ -3,6 +3,7 @@ import { adminAPI } from '@/api/admin'
 import type { AccountPlatform, CheckMixedChannelResponse } from '@/types'
 import {
   buildMixedChannelWarningDetails,
+  supportsMixedChannelConfirmOverride,
   supportsMixedChannelCheck,
   type MixedChannelWarningDetails
 } from '@/utils/accountFormShared'
@@ -41,6 +42,9 @@ export function useAccountMixedChannelRisk(options: UseAccountMixedChannelRiskOp
   const requiresCheck = computed(() =>
     supportsMixedChannelCheck(options.currentPlatform())
   )
+  const supportsConfirmOverride = computed(() =>
+    supportsMixedChannelConfirmOverride(options.currentPlatform())
+  )
 
   const warningMessageText = computed(() => {
     if (warningDetails.value) {
@@ -69,7 +73,7 @@ export function useAccountMixedChannelRisk(options: UseAccountMixedChannelRiskOp
   const withConfirmFlag = <TPayload extends object>(
     payload: TPayload & { confirm_mixed_channel_risk?: boolean }
   ): TPayload & { confirm_mixed_channel_risk?: boolean } => {
-    if (requiresCheck.value && confirmed.value) {
+    if (requiresCheck.value && supportsConfirmOverride.value && confirmed.value) {
       return {
         ...payload,
         confirm_mixed_channel_risk: true
@@ -100,6 +104,17 @@ export function useAccountMixedChannelRisk(options: UseAccountMixedChannelRiskOp
       const result = await adminAPI.accounts.checkMixedChannelRisk(payload)
       if (!result.has_risk) {
         return true
+      }
+
+      if (!supportsConfirmOverride.value) {
+        options.showError(
+          options.buildWarningText(buildMixedChannelWarningDetails(result) || {
+            groupName: 'Unknown',
+            currentPlatform: options.currentPlatform() || 'Unknown',
+            otherPlatform: result.details?.other_platform || 'Unknown'
+          })
+        )
+        return false
       }
 
       openDialog({
@@ -140,6 +155,7 @@ export function useAccountMixedChannelRisk(options: UseAccountMixedChannelRiskOp
     warningMessageText,
     confirmed,
     requiresCheck,
+    supportsConfirmOverride,
     openDialog,
     withConfirmFlag,
     ensureConfirmed,

@@ -80,6 +80,7 @@ type OpenAITokenProvider struct {
 	accountRepo        AccountRepository
 	tokenCache         OpenAITokenCache
 	openAIOAuthService *OpenAIOAuthService
+	copilotOAuthService *CopilotOAuthService
 	metrics            *openAITokenRuntimeMetricsStore
 	refreshAPI         *OAuthRefreshAPI
 	executor           OAuthRefreshExecutor
@@ -104,6 +105,10 @@ func NewOpenAITokenProvider(
 func (p *OpenAITokenProvider) SetRefreshAPI(api *OAuthRefreshAPI, executor OAuthRefreshExecutor) {
 	p.refreshAPI = api
 	p.executor = executor
+}
+
+func (p *OpenAITokenProvider) SetCopilotOAuthService(copilotOAuthService *CopilotOAuthService) {
+	p.copilotOAuthService = copilotOAuthService
 }
 
 // SetRefreshPolicy injects caller-side refresh policy.
@@ -131,11 +136,17 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	if account == nil {
 		return "", errors.New("account is nil")
 	}
-	if (account.Platform != PlatformOpenAI && account.Platform != PlatformSora) || account.Type != AccountTypeOAuth {
-		return "", errors.New("not an openai/sora oauth account")
+	if account.Type != AccountTypeOAuth {
+		return "", errors.New("not an oauth account")
+	}
+	if account.Platform != PlatformSora && !account.IsOpenAI() {
+		return "", errors.New("not an openai-family oauth account")
 	}
 
 	cacheKey := OpenAITokenCacheKey(account)
+	if account.Platform == PlatformCopilot {
+		cacheKey = CopilotTokenCacheKey(account)
+	}
 
 	// 1) Try cache first.
 	if p.tokenCache != nil {
@@ -159,8 +170,8 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		p.metrics.touchNow()
 
 		// Sora accounts skip OpenAI OAuth refresh and keep existing token path.
-		if account.Platform == PlatformSora {
-			slog.Debug("openai_token_refresh_skipped_for_sora", "account_id", account.ID)
+		if account.Platform == PlatformSora || account.Platform == PlatformCopilot {
+			slog.Debug("openai_token_refresh_skipped", "account_id", account.ID, "platform", account.Platform)
 			refreshFailed = true
 		} else {
 			result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, p.executor, openAITokenRefreshSkew)
@@ -219,7 +230,18 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 
 	accessToken := account.GetCredential("access_token")
-	if strings.TrimSpace(accessToken) == "" {
+	var copilotTokenExpiresAt int64
+	if account.Platform == PlatformCopilot {
+		if p.copilotOAuthService == nil {
+			return "", errors.New("copilot oauth service is not configured")
+		}
+		copilotTokenInfo, err := p.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(ctx, account)
+		if err != nil {
+			return "", err
+		}
+		accessToken = strings.TrimSpace(copilotTokenInfo.Token)
+		copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
+	} else if strings.TrimSpace(accessToken) == "" {
 		return "", errors.New("access_token not found in credentials")
 	}
 
@@ -228,9 +250,21 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		latestAccount, isStale := CheckTokenVersion(ctx, account, p.accountRepo)
 		if isStale && latestAccount != nil {
 			slog.Debug("openai_token_version_stale_use_latest", "account_id", account.ID)
-			accessToken = latestAccount.GetOpenAIAccessToken()
-			if strings.TrimSpace(accessToken) == "" {
-				return "", errors.New("access_token not found after version check")
+			if latestAccount.Platform == PlatformCopilot {
+				if p.copilotOAuthService == nil {
+					return "", errors.New("copilot oauth service is not configured")
+				}
+				copilotTokenInfo, err := p.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(ctx, latestAccount)
+				if err != nil {
+					return "", err
+				}
+				accessToken = strings.TrimSpace(copilotTokenInfo.Token)
+				copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
+			} else {
+				accessToken = latestAccount.GetOpenAIAccessToken()
+				if strings.TrimSpace(accessToken) == "" {
+					return "", errors.New("access_token not found after version check")
+				}
 			}
 		} else {
 			ttl := 30 * time.Minute
@@ -241,6 +275,8 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 					ttl = time.Minute
 				}
 				slog.Debug("openai_token_cache_short_ttl", "account_id", account.ID, "reason", "refresh_failed")
+			} else if account.Platform == PlatformCopilot {
+				ttl = copilotTokenCacheTTL(copilotTokenExpiresAt)
 			} else if expiresAt != nil {
 				until := time.Until(*expiresAt)
 				switch {

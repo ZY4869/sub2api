@@ -12,7 +12,7 @@ export function buildOpenAIExtra(options: {
   openaiPassthroughEnabled: boolean
   codexCLIOnlyEnabled: boolean
 }): Record<string, unknown> | undefined {
-  if (options.platform !== 'openai') {
+  if (options.platform !== 'openai' && options.platform !== 'copilot') {
     return options.base
   }
 
@@ -92,4 +92,3 @@ export function buildSoraExtra(options: {
 
   return Object.keys(extra).length > 0 ? extra : undefined
 }
-

@@ -824,7 +824,9 @@
       platforms: {
         all: '全部平台',
         anthropic: 'Anthropic',
+        kiro: 'Kiro',
         openai: 'OpenAI',
+        copilot: 'Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1214,6 +1216,8 @@
         claude: 'Claude',
         openai: 'OpenAI',
         anthropic: 'Anthropic',
+        kiro: 'Kiro',
+        copilot: 'Copilot',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1958,12 +1962,51 @@
       // Re-Auth Modal
       reAuthorizeAccount: '重新授权账号',
       claudeCodeAccount: 'Claude Code 账号',
+      kiroAccount: 'Kiro 账号',
       openaiAccount: 'OpenAI 账号',
+      copilotAccount: 'Copilot 账号',
       soraAccount: 'Sora 账号',
       geminiAccount: 'Gemini 账号',
       antigravityAccount: 'Antigravity 账号',
+      reauthUnavailableForPlatform: '当前版本暂不支持在控制台中直接重新授权 {platform} 账号，请先更新凭证或继续使用导入流程。',
       inputMethod: '输入方式',
       reAuthorizedSuccess: '账号重新授权成功',
+      copilotDeviceFlow: {
+        title: 'Copilot 设备授权',
+        description: '使用 GitHub Device Flow 完成 Copilot 授权。开始后在 GitHub 页面输入验证码，系统会自动轮询状态。',
+        userCode: '用户验证码',
+        verificationUrl: '验证地址',
+        notStarted: '尚未开始设备流',
+        openGitHub: '打开 GitHub',
+        copyCode: '复制验证码',
+        copyUrl: '复制地址',
+        pollHint: '系统会每 {seconds} 秒自动检查一次授权状态，你也可以手动点击检查。',
+        expiresHint: '当前设备流大约会在 {seconds} 秒后过期。',
+        authorizedAs: '已授权账号：{user}',
+        restart: '重新开始设备流',
+        start: '开始设备流',
+        checkStatus: '立即检查状态',
+        startFailed: '启动 Copilot 设备流失败',
+        pollFailed: '检查 Copilot 授权状态失败',
+        status: {
+          idle: '未开始',
+          pending: '等待授权',
+          completed: '已授权'
+        }
+      },
+      kiroImport: {
+        title: 'Kiro Token 导入',
+        description: '粘贴 Kiro IDE 导出的 token JSON，或直接粘贴 access token。导入后会按 Claude-family 凭证方式保存。',
+        placeholder: '粘贴 Kiro token JSON 或 access token',
+        hint: '推荐粘贴完整 token JSON，这样可以保留 refresh_token、expires_at 和来源信息。',
+        previewCredentials: '凭证预览',
+        previewIdentity: '身份预览',
+        expiresAt: '过期时间',
+        email: '邮箱',
+        username: '用户名',
+        provider: '来源',
+        parseFailed: 'Kiro token 解析失败'
+      },
       // Test Modal
       testAccountConnection: '测试账号连接',
       account: '账号',

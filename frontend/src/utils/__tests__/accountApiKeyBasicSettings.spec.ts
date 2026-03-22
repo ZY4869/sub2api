@@ -11,12 +11,14 @@ describe('accountApiKeyBasicSettings', () => {
     expect(resolveAccountApiKeyDefaultBaseUrl('anthropic')).toBe('https://api.anthropic.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('openai')).toBe('https://api.openai.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('sora')).toBe('https://api.openai.com')
+    expect(resolveAccountApiKeyDefaultBaseUrl('copilot')).toBe('https://api.githubcopilot.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('gemini')).toBe('https://generativelanguage.googleapis.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('antigravity')).toBe('https://cloudcode-pa.googleapis.com')
 
     expect(resolveAccountApiKeyPlaceholder('anthropic')).toBe('sk-ant-...')
     expect(resolveAccountApiKeyPlaceholder('openai')).toBe('sk-proj-...')
     expect(resolveAccountApiKeyPlaceholder('sora')).toBe('sk-proj-...')
+    expect(resolveAccountApiKeyPlaceholder('copilot')).toBe('ghu_...')
     expect(resolveAccountApiKeyPlaceholder('gemini')).toBe('AIza...')
     expect(resolveAccountApiKeyPlaceholder('antigravity')).toBe('sk-...')
   })
@@ -24,11 +26,13 @@ describe('accountApiKeyBasicSettings', () => {
   it('resolves mode-aware hint keys', () => {
     expect(resolveAccountApiKeyBaseUrlHintKey('sora', 'create')).toBe('admin.accounts.soraUpstreamBaseUrlHint')
     expect(resolveAccountApiKeyBaseUrlHintKey('openai', 'edit')).toBe('admin.accounts.openai.baseUrlHint')
+    expect(resolveAccountApiKeyBaseUrlHintKey('copilot', 'create')).toBe('admin.accounts.openai.baseUrlHint')
     expect(resolveAccountApiKeyBaseUrlHintKey('gemini', 'create')).toBe('admin.accounts.gemini.baseUrlHint')
     expect(resolveAccountApiKeyBaseUrlHintKey('antigravity', 'edit')).toBe('admin.accounts.upstream.baseUrlHint')
 
     expect(resolveAccountApiKeyHintKey('anthropic', 'create')).toBe('admin.accounts.apiKeyHint')
     expect(resolveAccountApiKeyHintKey('openai', 'create')).toBe('admin.accounts.openai.apiKeyHint')
+    expect(resolveAccountApiKeyHintKey('copilot', 'create')).toBe('admin.accounts.openai.apiKeyHint')
     expect(resolveAccountApiKeyHintKey('gemini', 'create')).toBe('admin.accounts.gemini.apiKeyHint')
     expect(resolveAccountApiKeyHintKey('antigravity', 'create')).toBe('admin.accounts.upstream.apiKeyHint')
     expect(resolveAccountApiKeyHintKey('openai', 'edit')).toBe('admin.accounts.leaveEmptyToKeep')

@@ -81,23 +81,9 @@ func (s *OpenAIGatewayService) buildOpenAIResponsesWSURL(account *Account) (stri
 	if account == nil {
 		return "", errors.New("account is nil")
 	}
-	var targetURL string
-	switch account.Type {
-	case AccountTypeOAuth:
-		targetURL = chatgptCodexURL
-	case AccountTypeAPIKey:
-		baseURL := account.GetOpenAIBaseURL()
-		if baseURL == "" {
-			targetURL = openaiPlatformAPIURL
-		} else {
-			validatedURL, err := s.validateUpstreamBaseURL(baseURL)
-			if err != nil {
-				return "", err
-			}
-			targetURL = buildOpenAIResponsesURL(validatedURL)
-		}
-	default:
-		targetURL = openaiPlatformAPIURL
+	targetURL, err := resolveOpenAIResponsesTargetURL(account, s.validateUpstreamBaseURL)
+	if err != nil {
+		return "", err
 	}
 	parsed, err := url.Parse(strings.TrimSpace(targetURL))
 	if err != nil {
@@ -119,7 +105,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 	headers.Set("authorization", "Bearer "+token)
 	sessionResolution := resolveOpenAIWSSessionHeaders(c, promptCacheKey)
 	apiKeyID := int64(0)
-	if account != nil && account.Type == AccountTypeOAuth {
+	if isChatGPTOpenAIOAuthAccount(account) {
 		apiKeyID = getAPIKeyIDFromContext(c)
 	}
 	if c != nil && c.Request != nil {
@@ -128,14 +114,14 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 		}
 	}
 	if sessionResolution.SessionID != "" {
-		if account != nil && account.Type == AccountTypeOAuth {
+		if isChatGPTOpenAIOAuthAccount(account) {
 			headers.Set("session_id", isolateOpenAISessionID(apiKeyID, sessionResolution.SessionID))
 		} else {
 			headers.Set("session_id", sessionResolution.SessionID)
 		}
 	}
 	if sessionResolution.ConversationID != "" {
-		if account != nil && account.Type == AccountTypeOAuth {
+		if isChatGPTOpenAIOAuthAccount(account) {
 			headers.Set("conversation_id", isolateOpenAISessionID(apiKeyID, sessionResolution.ConversationID))
 		} else {
 			headers.Set("conversation_id", sessionResolution.ConversationID)
@@ -147,17 +133,22 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 	if metadata := strings.TrimSpace(turnMetadata); metadata != "" {
 		headers.Set(openAIWSTurnMetadataHeader, metadata)
 	}
-	if account != nil && account.Type == AccountTypeOAuth {
+	if isCopilotOAuthAccount(account) {
+		applyCopilotDefaultHeaders(headers, account)
+	}
+	if isChatGPTOpenAIOAuthAccount(account) {
 		if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
 			headers.Set("chatgpt-account-id", chatgptAccountID)
 		}
 		headers.Set("originator", resolveOpenAIUpstreamOriginator(c, isCodexCLI))
 	}
-	betaValue := openAIWSBetaV2Value
-	if decision.Transport == OpenAIUpstreamTransportResponsesWebsocket {
-		betaValue = openAIWSBetaV1Value
+	if isChatGPTOpenAIOAuthAccount(account) {
+		betaValue := openAIWSBetaV2Value
+		if decision.Transport == OpenAIUpstreamTransportResponsesWebsocket {
+			betaValue = openAIWSBetaV1Value
+		}
+		headers.Set("OpenAI-Beta", betaValue)
 	}
-	headers.Set("OpenAI-Beta", betaValue)
 	customUA := ""
 	if account != nil {
 		customUA = account.GetOpenAIUserAgent()
@@ -169,10 +160,10 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(c *gin.Context, account *Acc
 			headers.Set("user-agent", ua)
 		}
 	}
-	if s != nil && s.cfg != nil && s.cfg.Gateway.ForceCodexCLI {
+	if s != nil && s.cfg != nil && s.cfg.Gateway.ForceCodexCLI && isChatGPTOpenAIOAuthAccount(account) {
 		headers.Set("user-agent", codexCLIUserAgent)
 	}
-	if account != nil && account.Type == AccountTypeOAuth && !openai.IsCodexCLIRequest(headers.Get("user-agent")) {
+	if isChatGPTOpenAIOAuthAccount(account) && !openai.IsCodexCLIRequest(headers.Get("user-agent")) {
 		headers.Set("user-agent", codexCLIUserAgent)
 	}
 	return headers, sessionResolution
@@ -187,7 +178,7 @@ func (s *OpenAIGatewayService) buildOpenAIWSCreatePayload(reqBody map[string]any
 		payload["stream"] = true
 	}
 	payload["type"] = "response.create"
-	if account != nil && account.Type == AccountTypeOAuth && !s.isOpenAIWSStoreRecoveryAllowed(account) {
+	if isChatGPTOpenAIOAuthAccount(account) && !s.isOpenAIWSStoreRecoveryAllowed(account) {
 		payload["store"] = false
 	}
 	return payload

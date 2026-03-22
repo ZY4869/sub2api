@@ -20,9 +20,9 @@ func HasExposure(entry ModelEntry, exposures ...string) bool {
 }
 
 func SupportsPlatform(entry ModelEntry, platform string) bool {
-	platform = NormalizePlatform(platform)
+	platform = NormalizePlatformFamily(platform)
 	for _, current := range entry.Platforms {
-		if NormalizePlatform(current) == platform {
+		if NormalizePlatformFamily(current) == platform {
 			return true
 		}
 	}
@@ -45,10 +45,10 @@ func ModelsByPlatform(entries []ModelEntry, platform string, exposures ...string
 }
 
 func PresetsByPlatform(presets []PresetMapping, platform string) []PresetMapping {
-	platform = NormalizePlatform(platform)
+	platform = NormalizePlatformFamily(platform)
 	items := make([]PresetMapping, 0)
 	for _, preset := range presets {
-		if NormalizePlatform(preset.Platform) != platform {
+		if NormalizePlatformFamily(preset.Platform) != platform {
 			continue
 		}
 		items = append(items, preset)

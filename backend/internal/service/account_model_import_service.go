@@ -15,6 +15,8 @@ import (
 const (
 	accountModelProbeSourceUpstream                 = "upstream"
 	accountModelProbeSourceGeminiCLIDefaultFallback = "gemini_cli_default_fallback"
+	accountModelProbeSourceKiroStaticFallback       = "kiro_static_fallback"
+	accountModelProbeSourceCopilotStaticFallback    = "copilot_static_fallback"
 )
 
 type AccountModelImportFailure struct {
@@ -67,6 +69,7 @@ type AccountModelImportService struct {
 	modelCatalogService  *ModelCatalogService
 	modelRegistryService *ModelRegistryService
 	geminiCompatService  *GeminiMessagesCompatService
+	openAITokenProvider  *OpenAITokenProvider
 	httpUpstream         HTTPUpstream
 	proxyRepo            ProxyRepository
 }
@@ -87,6 +90,10 @@ func NewAccountModelImportService(
 
 func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *AccountModelImportService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
+	s.openAITokenProvider = openAITokenProvider
 }
 
 func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, account *Account) (*AccountModelProbeSummary, error) {

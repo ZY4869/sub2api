@@ -4,7 +4,9 @@ export const MODEL_REGISTRY_CUSTOM_PROVIDER = '__custom__'
 
 export const MODEL_REGISTRY_PLATFORM_PRESETS = [
   'anthropic',
+  'kiro',
   'openai',
+  'copilot',
   'gemini',
   'antigravity',
   'sora'
@@ -134,4 +136,3 @@ export function normalizeExposureTargets(values: string[]): ModelRegistryExposur
     .map((item) => item.value)
     .filter((item) => selected.has(item))
 }
-

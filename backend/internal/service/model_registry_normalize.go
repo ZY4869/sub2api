@@ -154,11 +154,24 @@ func normalizePreferredProtocolIDs(modelID string, protocolIDs []string, raw map
 	if normalized["anthropic_oauth"] == "" && len(protocolIDs) > 0 {
 		normalized["anthropic_oauth"] = normalizeRegistryID(protocolIDs[0])
 	}
+	if normalized["kiro"] == "" {
+		normalized["kiro"] = firstNonEmptyString(
+			normalized["anthropic_oauth"],
+			firstString(protocolIDs),
+			modelID,
+		)
+	}
 	if normalized["anthropic_apikey"] == "" {
 		normalized["anthropic_apikey"] = normalizeRegistryID(modelID)
 	}
 	if normalized["openai"] == "" {
 		normalized["openai"] = normalizeRegistryID(modelID)
+	}
+	if normalized["copilot"] == "" {
+		normalized["copilot"] = firstNonEmptyString(
+			normalized["openai"],
+			modelID,
+		)
 	}
 	if normalized["gemini"] == "" {
 		normalized["gemini"] = normalizeRegistryID(modelID)
@@ -179,9 +192,11 @@ func normalizeRegistryRouteKey(value string) string {
 		return "default"
 	case "anthropic", "anthropic_oauth", "claude_oauth":
 		return "anthropic_oauth"
+	case "kiro":
+		return "kiro"
 	case "anthropic_apikey", "anthropic_api_key", "claude_apikey":
 		return "anthropic_apikey"
-	case "openai", "gemini", "antigravity", "sora":
+	case "openai", "copilot", "gemini", "antigravity", "sora":
 		return value
 	default:
 		return value
@@ -336,11 +351,27 @@ func providerOrPlatform(provider string, sourcePlatform string) string {
 
 func isRuntimeSupportedPlatform(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformSora:
+	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformSora, PlatformKiro, PlatformCopilot:
 		return true
 	default:
 		return false
 	}
+}
+
+func firstString(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return normalizeRegistryID(values[0])
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if normalized := normalizeRegistryID(value); normalized != "" {
+			return normalized
+		}
+	}
+	return ""
 }
 
 func mergeRegistryStrings(current []string, items ...string) []string {

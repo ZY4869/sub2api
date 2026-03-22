@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -140,6 +141,13 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 			}
 			return items
 		}
+	}
+	if account.Platform == service.PlatformCopilot {
+		items := make([]availableModelItem, 0, len(openai.DefaultModels))
+		for _, model := range openai.DefaultModels {
+			items = append(items, availableModelItem{ID: model.ID, Type: model.Type, DisplayName: model.DisplayName, CreatedAt: ""})
+		}
+		return items
 	}
 	items := make([]availableModelItem, 0, len(claude.DefaultModels))
 	for _, model := range claude.DefaultModels {

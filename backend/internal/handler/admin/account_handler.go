@@ -20,6 +20,7 @@ type AccountHandler struct {
 	adminService              service.AdminService
 	oauthService              *service.OAuthService
 	openaiOAuthService        *service.OpenAIOAuthService
+	copilotOAuthService       *service.CopilotOAuthService
 	geminiOAuthService        *service.GeminiOAuthService
 	antigravityOAuthService   *service.AntigravityOAuthService
 	rateLimitService          *service.RateLimitService
@@ -45,6 +46,9 @@ func (h *AccountHandler) SetModelRegistryService(modelRegistryService *service.M
 	if h.accountTestService != nil {
 		h.accountTestService.SetModelRegistryService(modelRegistryService)
 	}
+}
+func (h *AccountHandler) SetCopilotOAuthService(copilotOAuthService *service.CopilotOAuthService) {
+	h.copilotOAuthService = copilotOAuthService
 }
 
 type CreateAccountRequest struct {

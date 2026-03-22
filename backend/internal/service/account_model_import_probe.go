@@ -15,6 +15,7 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"go.uber.org/zap"
 )
 
@@ -34,6 +35,16 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 			return nil, err
 		}
 		return newAccountModelProbeResult(models), nil
+	case PlatformCopilot:
+		models, err := s.detectCopilotModels(ctx, account)
+		if err == nil {
+			return newAccountModelProbeResult(models), nil
+		}
+		return &accountModelProbeResult{
+			Models: copilotDefaultModelIDs(),
+			Source: accountModelProbeSourceCopilotStaticFallback,
+			Notice: "upstream /models detection failed; imported Copilot default models instead",
+		}, nil
 	case PlatformGemini:
 		return s.detectGeminiModels(ctx, account)
 	case PlatformSora:
@@ -54,6 +65,16 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 			return nil, err
 		}
 		return newAccountModelProbeResult(models), nil
+	case PlatformKiro:
+		models, err := s.detectAnthropicModels(ctx, account)
+		if err == nil {
+			return newAccountModelProbeResult(models), nil
+		}
+		return &accountModelProbeResult{
+			Models: kiroDefaultModelIDs(),
+			Source: accountModelProbeSourceKiroStaticFallback,
+			Notice: "upstream /models detection failed; imported Kiro default models instead",
+		}, nil
 	default:
 		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "current account platform does not support model import")
 	}
@@ -88,6 +109,31 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 		headers["OpenAI-Organization"] = v
 	}
 	body, err := s.doImportGET(ctx, account, url, headers, false)
+	if err != nil {
+		return nil, err
+	}
+	return parseOpenAIModelList(body)
+}
+
+func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, account *Account) ([]string, error) {
+	if account == nil || !isCopilotOAuthAccount(account) {
+		return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Copilot account type does not support model import")
+	}
+	if s.openAITokenProvider == nil {
+		return nil, infraerrors.InternalServer("MODEL_IMPORT_OPENAI_TOKEN_PROVIDER_UNAVAILABLE", "copilot token provider is not configured")
+	}
+	token, err := s.openAITokenProvider.GetAccessToken(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+
+	modelsURL := buildOpenAIModelsURLForPlatform(account.GetOpenAIBaseURL(), account.Platform)
+	headers := map[string]string{
+		"Authorization": "Bearer " + token,
+	}
+	applyCopilotDefaultHeadersMap(headers, account)
+
+	body, err := s.doImportGET(ctx, account, modelsURL, headers, false)
 	if err != nil {
 		return nil, err
 	}
@@ -413,4 +459,26 @@ func truncateImportBody(body []byte) string {
 		return message
 	}
 	return message[:256] + "..."
+}
+
+func kiroDefaultModelIDs() []string {
+	ids := make([]string, 0, len(claude.DefaultModels))
+	for _, model := range claude.DefaultModels {
+		if id := strings.TrimSpace(model.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	normalized, _ := normalizeImportedModelIDs(ids)
+	return normalized
+}
+
+func copilotDefaultModelIDs() []string {
+	ids := make([]string, 0, len(openai.DefaultModels))
+	for _, model := range openai.DefaultModels {
+		if id := strings.TrimSpace(model.ID); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	normalized, _ := normalizeImportedModelIDs(ids)
+	return normalized
 }

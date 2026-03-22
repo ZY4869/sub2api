@@ -16,8 +16,12 @@
               'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br',
               isOpenAILike
                 ? 'from-green-500 to-green-600'
+                : isCopilot
+                  ? 'from-cyan-500 to-cyan-600'
                 : isGemini
                   ? 'from-blue-500 to-blue-600'
+                  : isKiro
+                    ? 'from-amber-500 to-amber-600'
                   : isAntigravity
                     ? 'from-purple-500 to-purple-600'
                     : 'from-orange-500 to-orange-600'
@@ -33,8 +37,12 @@
               {{
                 isOpenAI
                   ? t('admin.accounts.openaiAccount')
+                  : isCopilot
+                    ? t('admin.accounts.copilotAccount')
                   : isSora
                     ? t('admin.accounts.soraAccount')
+                  : isKiro
+                    ? t('admin.accounts.kiroAccount')
                   : isGemini
                     ? t('admin.accounts.geminiAccount')
                     : isAntigravity
@@ -118,7 +126,25 @@
         </div>
       </div>
 
+      <AccountCopilotDeviceFlowPanel
+        v-if="isCopilot"
+        ref="copilotDeviceFlowRef"
+        :proxy-id="account.proxy_id"
+        :submit-label="t('admin.accounts.reAuthorize')"
+        :submit-loading="platformSubmitLoading"
+        @submit="handleCopilotReauthorize"
+      />
+
+      <AccountKiroTokenImportPanel
+        v-else-if="isKiro"
+        ref="kiroImportRef"
+        :submit-label="t('admin.accounts.reAuthorize')"
+        :submitting="platformSubmitLoading"
+        @submit="handleKiroReauthorize"
+      />
+
       <OAuthAuthorizationFlow
+        v-else
         ref="oauthFlowRef"
         :add-method="addMethod"
         :auth-url="currentAuthUrl"
@@ -144,7 +170,7 @@
           {{ t('common.cancel') }}
         </button>
         <button
-          v-if="isManualInputMethod"
+          v-if="!isCopilot && !isKiro && isManualInputMethod"
           type="button"
           :disabled="!canExchangeCode"
           class="btn btn-primary"
@@ -195,6 +221,9 @@ import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import type { Account } from '@/types'
+import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
+import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
+import AccountKiroTokenImportPanel from '@/components/account/AccountKiroTokenImportPanel.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.vue'
@@ -233,17 +262,22 @@ const antigravityOAuth = useAntigravityOAuth()
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
+const copilotDeviceFlowRef = ref<{ reset: () => void } | null>(null)
+const kiroImportRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const addMethod = ref<AddMethod>('oauth')
 const geminiOAuthType = ref<'code_assist' | 'google_one' | 'ai_studio'>('code_assist')
+const platformSubmitLoading = ref(false)
 
 // Computed - check platform
 const isOpenAI = computed(() => props.account?.platform === 'openai')
+const isCopilot = computed(() => props.account?.platform === 'copilot')
 const isSora = computed(() => props.account?.platform === 'sora')
 const isOpenAILike = computed(() => isOpenAI.value || isSora.value)
 const isGemini = computed(() => props.account?.platform === 'gemini')
 const isAnthropic = computed(() => props.account?.platform === 'anthropic')
+const isKiro = computed(() => props.account?.platform === 'kiro')
 const isAntigravity = computed(() => props.account?.platform === 'antigravity')
 const activeOpenAIOAuth = computed(() => (isSora.value ? soraOAuth : openaiOAuth))
 
@@ -317,16 +351,67 @@ watch(
 const resetState = () => {
   addMethod.value = 'oauth'
   geminiOAuthType.value = 'code_assist'
+  platformSubmitLoading.value = false
   claudeOAuth.resetState()
   openaiOAuth.resetState()
   soraOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
+  copilotDeviceFlowRef.value?.reset()
+  kiroImportRef.value?.reset()
 }
 
 const handleClose = () => {
   emit('close')
+}
+
+const handleReauthorizedSuccess = (account: Account) => {
+  appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
+  emit('reauthorized', account)
+  handleClose()
+}
+
+const handleCopilotReauthorize = async (payload: { sessionId: string }) => {
+  if (!props.account) return
+
+  try {
+    platformSubmitLoading.value = true
+    const updatedAccount = await adminAPI.accounts.reauthorizeCopilotAccountFromDevice(props.account.id, {
+      session_id: payload.sessionId
+    })
+    handleReauthorizedSuccess(updatedAccount)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.oauth.authFailed'))
+  } finally {
+    platformSubmitLoading.value = false
+  }
+}
+
+const handleKiroReauthorize = async (payload: ParsedKiroTokenImport) => {
+  if (!props.account) return
+
+  const mergedExtra = payload.extra
+    ? {
+        ...((props.account.extra || {}) as Record<string, unknown>),
+        ...payload.extra
+      }
+    : undefined
+
+  try {
+    platformSubmitLoading.value = true
+    await adminAPI.accounts.update(props.account.id, {
+      type: 'oauth',
+      credentials: payload.credentials,
+      extra: mergedExtra
+    })
+    const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
+    handleReauthorizedSuccess(updatedAccount)
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.oauth.authFailed'))
+  } finally {
+    platformSubmitLoading.value = false
+  }
 }
 
 const handleGenerateUrl = async () => {
@@ -387,9 +472,7 @@ const handleExchangeCode = async () => {
       // Clear error status after successful re-authorization
       const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
 
-      appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
-      emit('reauthorized', updatedAccount)
-      handleClose()
+      handleReauthorizedSuccess(updatedAccount)
     } catch (error: any) {
       oauthClient.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
       appStore.showError(oauthClient.error.value)
@@ -420,9 +503,7 @@ const handleExchangeCode = async () => {
         credentials
       })
       const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
-      appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
-      emit('reauthorized', updatedAccount)
-      handleClose()
+      handleReauthorizedSuccess(updatedAccount)
     } catch (error: any) {
       geminiOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
       appStore.showError(geminiOAuth.error.value)
@@ -452,9 +533,7 @@ const handleExchangeCode = async () => {
         credentials
       })
       const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
-      appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
-      emit('reauthorized', updatedAccount)
-      handleClose()
+      handleReauthorizedSuccess(updatedAccount)
     } catch (error: any) {
       antigravityOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
       appStore.showError(antigravityOAuth.error.value)
@@ -492,9 +571,7 @@ const handleExchangeCode = async () => {
       // Clear error status after successful re-authorization
       const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
 
-      appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
-      emit('reauthorized', updatedAccount)
-      handleClose()
+      handleReauthorizedSuccess(updatedAccount)
     } catch (error: any) {
       claudeOAuth.error.value = error.response?.data?.detail || t('admin.accounts.oauth.authFailed')
       appStore.showError(claudeOAuth.error.value)
@@ -535,9 +612,7 @@ const handleCookieAuth = async (sessionKey: string) => {
     // Clear error status after successful re-authorization
     const updatedAccount = await adminAPI.accounts.clearError(props.account.id)
 
-    appStore.showSuccess(t('admin.accounts.reAuthorizedSuccess'))
-    emit('reauthorized', updatedAccount)
-    handleClose()
+    handleReauthorizedSuccess(updatedAccount)
   } catch (error: any) {
     claudeOAuth.error.value =
       error.response?.data?.detail || t('admin.accounts.oauth.cookieAuthFailed')

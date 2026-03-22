@@ -14,9 +14,11 @@ describe('modelCatalogPresentation', () => {
 
   it('formats provider names with expected casing', () => {
     expect(formatModelCatalogProvider('anthropic')).toBe('Anthropic')
+    expect(formatModelCatalogProvider('kiro')).toBe('Kiro')
     expect(formatModelCatalogProvider('openai')).toBe('OpenAI')
+    expect(formatModelCatalogProvider('copilot')).toBe('Copilot')
     expect(formatModelCatalogProvider('custom')).toBe('Custom')
-    expect(formatModelCatalogPlatforms(['anthropic', 'gemini'])).toEqual(['Anthropic', 'Gemini'])
+    expect(formatModelCatalogPlatforms(['anthropic', 'kiro', 'copilot', 'gemini'])).toEqual(['Anthropic', 'Kiro', 'Copilot', 'Gemini'])
   })
 
   it('persists and restores price display mode', () => {

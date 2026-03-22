@@ -5,6 +5,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 // OpenAIGatewayHandler handles OpenAI API gateway requests.
@@ -47,4 +48,20 @@ func NewOpenAIGatewayHandler(
 		maxAccountSwitches:      maxAccountSwitches,
 		cfg:                     cfg,
 	}
+}
+
+func normalizeOpenAIGroupPlatform(platform string) string {
+	switch platform {
+	case service.PlatformCopilot:
+		return service.PlatformCopilot
+	default:
+		return service.PlatformOpenAI
+	}
+}
+
+func applyOpenAIPlatformContext(c *gin.Context, groupPlatform string) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	c.Request = c.Request.WithContext(service.WithOpenAIPlatform(c.Request.Context(), normalizeOpenAIGroupPlatform(groupPlatform)))
 }

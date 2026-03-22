@@ -56,11 +56,14 @@ func (p *ClaudeTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	if account == nil {
 		return "", errors.New("account is nil")
 	}
-	if account.Platform != PlatformAnthropic || account.Type != AccountTypeOAuth {
-		return "", errors.New("not an anthropic oauth account")
+	if !account.IsAnthropic() || account.Type != AccountTypeOAuth {
+		return "", errors.New("not an anthropic-family oauth account")
 	}
 
 	cacheKey := ClaudeTokenCacheKey(account)
+	if account.Platform == PlatformKiro {
+		cacheKey = KiroTokenCacheKey(account)
+	}
 
 	// 1) Try cache first.
 	if p.tokenCache != nil {
@@ -77,6 +80,9 @@ func (p *ClaudeTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	// 2) Refresh if needed (pre-expiry skew).
 	expiresAt := account.GetCredentialAsTime("expires_at")
 	needsRefresh := expiresAt == nil || time.Until(*expiresAt) <= claudeTokenRefreshSkew
+	if account.Platform == PlatformKiro {
+		needsRefresh = false
+	}
 	refreshFailed := false
 
 	if needsRefresh && p.refreshAPI != nil && p.executor != nil {

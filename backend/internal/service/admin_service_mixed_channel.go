@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"strings"
 )
 
 func (s *adminServiceImpl) checkMixedChannelRisk(ctx context.Context, currentAccountID int64, currentAccountPlatform string, groupIDs []int64) error {
@@ -38,6 +37,14 @@ func (s *adminServiceImpl) checkMixedChannelRisk(ctx context.Context, currentAcc
 	}
 	return nil
 }
+
+func shouldEnforceMixedChannelCheck(platform string, skipRequested bool) bool {
+	if !skipRequested {
+		return true
+	}
+	return platform == PlatformKiro || platform == PlatformCopilot
+}
+
 func (s *adminServiceImpl) validateGroupIDsExist(ctx context.Context, groupIDs []int64) error {
 	if len(groupIDs) == 0 {
 		return nil
@@ -89,14 +96,7 @@ func (s *adminServiceImpl) saveProxyLatency(ctx context.Context, proxyID int64, 
 	}
 }
 func getAccountPlatform(accountPlatform string) string {
-	switch strings.ToLower(strings.TrimSpace(accountPlatform)) {
-	case PlatformAntigravity:
-		return "Antigravity"
-	case PlatformAnthropic, "claude":
-		return "Anthropic"
-	default:
-		return ""
-	}
+	return DisplayPlatformName(accountPlatform)
 }
 
 type MixedChannelError struct {

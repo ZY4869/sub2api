@@ -369,7 +369,9 @@ export interface PaginationConfig {
 
 export type GroupPlatform =
   | "anthropic"
+  | "kiro"
   | "openai"
+  | "copilot"
   | "gemini"
   | "antigravity"
   | "sora";
@@ -549,7 +551,9 @@ export interface UpdateGroupRequest {
 
 export type AccountPlatform =
   | "anthropic"
+  | "kiro"
   | "openai"
+  | "copilot"
   | "gemini"
   | "antigravity"
   | "sora";

@@ -34,6 +34,9 @@ func NewClaudeTokenRefresher(oauthService *OAuthService) *ClaudeTokenRefresher {
 
 // CacheKey 返回用于分布式锁的缓存键
 func (r *ClaudeTokenRefresher) CacheKey(account *Account) string {
+	if account != nil && account.Platform == PlatformKiro {
+		return KiroTokenCacheKey(account)
+	}
 	return ClaudeTokenCacheKey(account)
 }
 
@@ -41,8 +44,7 @@ func (r *ClaudeTokenRefresher) CacheKey(account *Account) string {
 // 只处理 anthropic 平台的 oauth 类型账号
 // setup-token 虽然也是OAuth，但有效期1年，不需要频繁刷新
 func (r *ClaudeTokenRefresher) CanRefresh(account *Account) bool {
-	return account.Platform == PlatformAnthropic &&
-		account.Type == AccountTypeOAuth
+	return account != nil && account.Platform == PlatformAnthropic && account.Type == AccountTypeOAuth
 }
 
 // NeedsRefresh 检查token是否需要刷新
@@ -87,6 +89,9 @@ func NewOpenAITokenRefresher(openaiOAuthService *OpenAIOAuthService, accountRepo
 
 // CacheKey 返回用于分布式锁的缓存键
 func (r *OpenAITokenRefresher) CacheKey(account *Account) string {
+	if account != nil && account.Platform == PlatformCopilot {
+		return CopilotTokenCacheKey(account)
+	}
 	return OpenAITokenCacheKey(account)
 }
 
@@ -105,7 +110,10 @@ func (r *OpenAITokenRefresher) SetSyncLinkedSoraAccounts(enabled bool) {
 // CanRefresh 检查是否能处理此账号
 // 只处理 openai 平台的 oauth 类型账号（不直接刷新 sora 平台账号）
 func (r *OpenAITokenRefresher) CanRefresh(account *Account) bool {
-	return account.Platform == PlatformOpenAI && account.Type == AccountTypeOAuth
+	if account == nil || account.Type != AccountTypeOAuth {
+		return false
+	}
+	return account.Platform == PlatformOpenAI
 }
 
 // NeedsRefresh 检查token是否需要刷新

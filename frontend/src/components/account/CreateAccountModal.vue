@@ -267,6 +267,23 @@
 
     </form>
 
+    <AccountCopilotDeviceFlowPanel
+      v-else-if="form.platform === 'copilot'"
+      ref="copilotDeviceFlowRef"
+      :proxy-id="form.proxy_id"
+      :submit-label="t('common.create')"
+      :submit-loading="copilotSubmitting"
+      @submit="handleCreateCopilotAccount"
+    />
+
+    <AccountKiroTokenImportPanel
+      v-else-if="form.platform === 'kiro'"
+      ref="kiroImportRef"
+      :submit-label="t('common.create')"
+      :submitting="submitting"
+      @submit="handleCreateKiroAccount"
+    />
+
     <AccountCreateOAuthStep
       v-else
       ref="oauthFlowRef"
@@ -363,6 +380,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKeyBasicSettingsEditor.vue'
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
+import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
 import AccountCreateFooterActions from '@/components/account/AccountCreateFooterActions.vue'
 import AccountCreateOAuthStep from '@/components/account/AccountCreateOAuthStep.vue'
 import AccountCreatePlatformSelector from '@/components/account/AccountCreatePlatformSelector.vue'
@@ -371,6 +389,7 @@ import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErr
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
+import AccountKiroTokenImportPanel from '@/components/account/AccountKiroTokenImportPanel.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
@@ -401,6 +420,7 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
+import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
   OPENAI_WS_MODE_OFF,
   OPENAI_WS_MODE_PASSTHROUGH,
@@ -417,6 +437,8 @@ const oauthStepTitle = computed(() => {
   if (form.platform === 'openai' || form.platform === 'sora') return t('admin.accounts.oauth.openai.title')
   if (form.platform === 'gemini') return t('admin.accounts.oauth.gemini.title')
   if (form.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.title')
+  if (form.platform === 'copilot') return t('admin.accounts.copilotDeviceFlow.title')
+  if (form.platform === 'kiro') return t('admin.accounts.kiroImport.title')
   return t('admin.accounts.oauth.title')
 })
 
@@ -469,6 +491,7 @@ const currentOAuthLoading = computed(() => {
 })
 
 const currentOAuthError = computed(() => {
+  if (form.platform === 'copilot' || form.platform === 'kiro') return ''
   if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.error.value
   if (form.platform === 'gemini') return geminiOAuth.error.value
   if (form.platform === 'antigravity') return antigravityOAuth.error.value
@@ -477,10 +500,13 @@ const currentOAuthError = computed(() => {
 
 // Refs
 const oauthFlowRef = ref<OAuthFlowExposed | null>(null)
+const copilotDeviceFlowRef = ref<{ reset: () => void } | null>(null)
+const kiroImportRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const step = ref(1)
 const autoImportModels = ref(false)
+const copilotSubmitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
@@ -642,6 +668,9 @@ const isOAuthFlow = computed(() => {
 })
 
 const isManualInputMethod = computed(() => {
+  if (form.platform === 'copilot' || form.platform === 'kiro') {
+    return false
+  }
   return oauthFlowRef.value?.inputMethod === 'manual'
 })
 
@@ -654,6 +683,9 @@ const expiresAtInput = computed({
 
 const canExchangeCode = computed(() => {
   const authCode = oauthFlowRef.value?.authCode || ''
+  if (form.platform === 'copilot' || form.platform === 'kiro') {
+    return false
+  }
   if (form.platform === 'openai' || form.platform === 'sora') {
     return Boolean(authCode.trim() && activeOpenAIOAuth.value.sessionId.value && !activeOpenAIOAuth.value.loading.value)
   }
@@ -703,7 +735,7 @@ watch(
       return
     }
     if (category === 'oauth-based') {
-      form.type = method as AccountType // 'oauth' or 'setup-token'
+      form.type = form.platform === 'anthropic' ? method as AccountType : 'oauth'
     } else {
       form.type = 'apikey'
     }
@@ -718,6 +750,9 @@ watch(
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform)
     allowedModels.value = []
     modelMappings.value = []
+    if (newPlatform !== 'anthropic') {
+      addMethod.value = 'oauth'
+    }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
       accountCategory.value = 'oauth-based'
@@ -735,6 +770,10 @@ watch(
       form.type = 'oauth'
       soraAccountType.value = 'oauth'
     }
+    if (newPlatform === 'copilot' || newPlatform === 'kiro') {
+      accountCategory.value = 'oauth-based'
+      form.type = 'oauth'
+    }
     if (newPlatform !== 'openai') {
       openaiPassthroughEnabled.value = false
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -750,6 +789,8 @@ watch(
     soraOAuth.resetState()
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
+    copilotDeviceFlowRef.value?.reset()
+    kiroImportRef.value?.reset()
   }
 )
 
@@ -945,6 +986,8 @@ const { resetForm } = useCreateAccountReset({
   geminiOAuthReset: () => geminiOAuth.resetState(),
   antigravityOAuthReset: () => antigravityOAuth.resetState(),
   oauthFlowReset: () => oauthFlowRef.value?.reset(),
+  copilotFlowReset: () => copilotDeviceFlowRef.value?.reset(),
+  kiroImportReset: () => kiroImportRef.value?.reset(),
   resetMixedChannelRisk
 })
 
@@ -1098,6 +1141,43 @@ const { handleAntigravityValidateRT, handleAntigravityExchange } = useCreateAcco
   onClose: handleClose
 })
 
+const handleCreateCopilotAccount = async (payload: { sessionId: string }) => {
+  if (!form.name.trim()) {
+    appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+    return
+  }
+
+  copilotSubmitting.value = true
+  try {
+    const createdAccount = await adminAPI.accounts.createCopilotAccountFromDevice({
+      session_id: payload.sessionId,
+      proxy_id: form.proxy_id,
+      name: form.name,
+      notes: form.notes || undefined,
+      concurrency: form.concurrency,
+      load_factor: form.load_factor ?? undefined,
+      priority: form.priority,
+      rate_multiplier: form.rate_multiplier,
+      group_ids: form.group_ids,
+      expires_at: form.expires_at,
+      auto_pause_on_expired: autoPauseOnExpired.value
+    })
+
+    appStore.showSuccess(t('admin.accounts.accountCreated'))
+    await maybeImportCreatedAccounts([createdAccount])
+    emit('created')
+    handleClose()
+  } catch (error: any) {
+    appStore.showError(error?.message || t('admin.accounts.failedToCreate'))
+  } finally {
+    copilotSubmitting.value = false
+  }
+}
+
+const handleCreateKiroAccount = async (payload: ParsedKiroTokenImport) => {
+  await createAccountAndFinish('kiro', 'oauth', payload.credentials, payload.extra)
+}
+
 const handleSubmit = async () => {
   // For OAuth-based type, handle OAuth flow (goes to step 2)
   if (isOAuthFlow.value) {
@@ -1199,12 +1279,15 @@ const handleSubmit = async () => {
 
 const goBackToBasicInfo = () => {
   step.value = 1
+  copilotSubmitting.value = false
   oauth.resetState()
   openaiOAuth.resetState()
   soraOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
+  copilotDeviceFlowRef.value?.reset()
+  kiroImportRef.value?.reset()
 }
 
 const handleGenerateUrl = async () => {

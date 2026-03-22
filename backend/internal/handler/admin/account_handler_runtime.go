@@ -112,7 +112,20 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 		return nil, "", infraerrors.BadRequest("NOT_OAUTH", "cannot refresh non-OAuth account")
 	}
 	var newCredentials map[string]any
-	if account.IsOpenAI() {
+	if account.Platform == service.PlatformCopilot {
+		updatedAccount, err := refreshCopilotOAuthAccount(ctx, h.adminService, h.copilotOAuthService, account)
+		if err != nil {
+			return nil, "", err
+		}
+		if h.tokenCacheInvalidator != nil {
+			if invalidateErr := h.tokenCacheInvalidator.InvalidateToken(ctx, updatedAccount); invalidateErr != nil {
+				log.Printf("[WARN] Failed to invalidate token cache for account %d: %v", updatedAccount.ID, invalidateErr)
+			}
+		}
+		return updatedAccount, "", nil
+	} else if account.Platform == service.PlatformKiro {
+		return nil, "", infraerrors.BadRequest("KIRO_REFRESH_UNSUPPORTED", "kiro import accounts do not support automatic refresh; please re-import or re-authorize")
+	} else if account.Platform == service.PlatformOpenAI || account.Platform == service.PlatformSora {
 		tokenInfo, err := h.openaiOAuthService.RefreshAccountToken(ctx, account)
 		if err != nil {
 			return nil, "", err

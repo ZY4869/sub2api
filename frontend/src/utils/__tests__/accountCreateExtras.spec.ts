@@ -38,6 +38,24 @@ describe('accountCreateExtras', () => {
       expect(out).not.toHaveProperty('openai_ws_enabled')
     })
 
+    it('treats copilot as openai-family for extra flags', () => {
+      const out = buildOpenAIExtra({
+        platform: 'copilot',
+        accountCategory: 'oauth-based',
+        base: {},
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_PASSTHROUGH,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false,
+        codexCLIOnlyEnabled: true
+      })
+
+      expect(out).toMatchObject({
+        openai_oauth_responses_websockets_v2_mode: OPENAI_WS_MODE_PASSTHROUGH,
+        openai_oauth_responses_websockets_v2_enabled: true,
+        codex_cli_only: true
+      })
+    })
+
     it('sets openai_passthrough when enabled', () => {
       const out = buildOpenAIExtra({
         platform: 'openai',
@@ -91,4 +109,3 @@ describe('accountCreateExtras', () => {
     })
   })
 })
-

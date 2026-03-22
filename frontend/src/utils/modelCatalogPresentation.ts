@@ -6,7 +6,9 @@ export type ModelCatalogPriceDisplayMode = 'usd' | 'dual'
 
 const MODEL_CATALOG_PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
+  kiro: 'Kiro',
   openai: 'OpenAI',
+  copilot: 'Copilot',
   gemini: 'Gemini',
   antigravity: 'Antigravity',
   sora: 'Sora'

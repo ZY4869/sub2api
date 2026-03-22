@@ -785,11 +785,11 @@ func (a *Account) IsAPIKeyOrBedrock() bool {
 }
 
 func (a *Account) IsOpenAI() bool {
-	return a.Platform == PlatformOpenAI
+	return IsOpenAIFamily(a.Platform)
 }
 
 func (a *Account) IsAnthropic() bool {
-	return a.Platform == PlatformAnthropic
+	return IsAnthropicFamily(a.Platform)
 }
 
 func (a *Account) IsOpenAIOAuth() bool {
@@ -804,11 +804,12 @@ func (a *Account) GetOpenAIBaseURL() string {
 	if !a.IsOpenAI() {
 		return ""
 	}
-	if a.Type == AccountTypeAPIKey {
-		baseURL := a.GetCredential("base_url")
-		if baseURL != "" {
-			return baseURL
-		}
+	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
+	if baseURL != "" {
+		return baseURL
+	}
+	if a.Platform == PlatformCopilot {
+		return "https://api.githubcopilot.com"
 	}
 	return "https://api.openai.com"
 }
@@ -1110,7 +1111,7 @@ func (a *Account) IsOpenAIOAuthPassthroughEnabled() bool {
 // 字段：accounts.extra.anthropic_passthrough。
 // 字段缺失或类型不正确时，按 false（关闭）处理。
 func (a *Account) IsAnthropicAPIKeyPassthroughEnabled() bool {
-	if a == nil || a.Platform != PlatformAnthropic || a.Type != AccountTypeAPIKey || a.Extra == nil {
+	if a == nil || !a.IsAnthropic() || a.Type != AccountTypeAPIKey || a.Extra == nil {
 		return false
 	}
 	enabled, ok := a.Extra["anthropic_passthrough"].(bool)
@@ -1143,7 +1144,7 @@ const (
 // IsAnthropicOAuthOrSetupToken 判断是否为 Anthropic OAuth 或 SetupToken 类型账号
 // 仅这两类账号支持 5h 窗口额度控制和会话数量控制
 func (a *Account) IsAnthropicOAuthOrSetupToken() bool {
-	return a.Platform == PlatformAnthropic && (a.Type == AccountTypeOAuth || a.Type == AccountTypeSetupToken)
+	return a.IsAnthropic() && (a.Type == AccountTypeOAuth || a.Type == AccountTypeSetupToken)
 }
 
 // IsTLSFingerprintEnabled 检查是否启用 TLS 指纹伪装

@@ -3,9 +3,12 @@ const LOBE_ICON_BASE_PATH = '/lobehub-icons-static-svg/icons'
 const PROVIDER_ICON_ALIASES: Record<string, string> = {
   anthropic: 'anthropic',
   claude: 'anthropic',
+  kiro: 'kiro',
   openai: 'openai',
   chatgpt: 'openai',
   codex: 'openai',
+  copilot: 'githubcopilot',
+  githubcopilot: 'githubcopilot',
   gemini: 'google',
   gemma: 'google',
   google: 'google',

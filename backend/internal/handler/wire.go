@@ -70,6 +70,7 @@ func ProvideAdminAccountHandler(
 	adminService service.AdminService,
 	oauthService *service.OAuthService,
 	openaiOAuthService *service.OpenAIOAuthService,
+	copilotOAuthService *service.CopilotOAuthService,
 	geminiOAuthService *service.GeminiOAuthService,
 	antigravityOAuthService *service.AntigravityOAuthService,
 	rateLimitService *service.RateLimitService,
@@ -100,6 +101,17 @@ func ProvideAdminAccountHandler(
 	)
 	handler.SetAccountModelImportService(accountModelImportService)
 	handler.SetModelRegistryService(modelRegistryService)
+	handler.SetCopilotOAuthService(copilotOAuthService)
+	return handler
+}
+
+func ProvideOpenAIOAuthHandler(
+	openaiOAuthService *service.OpenAIOAuthService,
+	copilotOAuthService *service.CopilotOAuthService,
+	adminService service.AdminService,
+) *admin.OpenAIOAuthHandler {
+	handler := admin.NewOpenAIOAuthHandler(openaiOAuthService, adminService)
+	handler.SetCopilotOAuthService(copilotOAuthService)
 	return handler
 }
 
@@ -207,7 +219,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewDataManagementHandler,
 	admin.NewBackupHandler,
 	admin.NewOAuthHandler,
-	admin.NewOpenAIOAuthHandler,
+	ProvideOpenAIOAuthHandler,
 	admin.NewGeminiOAuthHandler,
 	admin.NewAntigravityOAuthHandler,
 	admin.NewProxyHandler,

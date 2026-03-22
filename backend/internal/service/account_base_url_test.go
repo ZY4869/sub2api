@@ -158,3 +158,65 @@ func TestGetGeminiBaseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOpenAIBaseURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		account  Account
+		expected string
+	}{
+		{
+			name: "non-openai family returns empty",
+			account: Account{
+				Type:     AccountTypeOAuth,
+				Platform: PlatformAnthropic,
+			},
+			expected: "",
+		},
+		{
+			name: "openai oauth without base_url returns default",
+			account: Account{
+				Type:        AccountTypeOAuth,
+				Platform:    PlatformOpenAI,
+				Credentials: map[string]any{},
+			},
+			expected: "https://api.openai.com",
+		},
+		{
+			name: "openai oauth honors custom base_url",
+			account: Account{
+				Type:        AccountTypeOAuth,
+				Platform:    PlatformOpenAI,
+				Credentials: map[string]any{"base_url": "https://relay.example.com"},
+			},
+			expected: "https://relay.example.com",
+		},
+		{
+			name: "copilot oauth defaults to github copilot endpoint",
+			account: Account{
+				Type:        AccountTypeOAuth,
+				Platform:    PlatformCopilot,
+				Credentials: map[string]any{},
+			},
+			expected: "https://api.githubcopilot.com",
+		},
+		{
+			name: "copilot oauth honors custom base_url",
+			account: Account{
+				Type:        AccountTypeOAuth,
+				Platform:    PlatformCopilot,
+				Credentials: map[string]any{"base_url": "https://copilot-relay.example.com"},
+			},
+			expected: "https://copilot-relay.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.account.GetOpenAIBaseURL()
+			if result != tt.expected {
+				t.Errorf("GetOpenAIBaseURL() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}

@@ -219,7 +219,16 @@ export function createTempUnschedPresets(
 }
 
 export function supportsMixedChannelCheck(platform?: AccountPlatform | null): boolean {
-  return platform === 'antigravity' || platform === 'anthropic'
+  return (
+    platform === 'antigravity' ||
+    platform === 'anthropic' ||
+    platform === 'kiro' ||
+    platform === 'copilot'
+  )
+}
+
+export function supportsMixedChannelConfirmOverride(platform?: AccountPlatform | null): boolean {
+  return supportsMixedChannelCheck(platform) && platform !== 'kiro' && platform !== 'copilot'
 }
 
 export function buildMixedChannelWarningDetails(

@@ -298,7 +298,7 @@ function deriveFallbackCapability(
 ): ModelCapabilityDefinition {
   const normalizedPlatform = normalizePlatform(platform);
   const displayName = entry?.display_name || modelId;
-  if (normalizedPlatform === "openai") {
+  if (normalizedPlatform === "openai" || normalizedPlatform === "copilot") {
     return {
       name: displayName,
       limit: { context: 400000, output: 128000 },

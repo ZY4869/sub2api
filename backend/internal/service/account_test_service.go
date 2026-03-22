@@ -35,13 +35,12 @@ import (
 var sseDataPrefix = regexp.MustCompile(`^data:\s*`)
 
 const (
-	testClaudeAPIURL   = "https://api.anthropic.com/v1/messages?beta=true"
-	chatgptCodexAPIURL = "https://chatgpt.com/backend-api/codex/responses"
-	soraMeAPIURL       = "https://sora.chatgpt.com/backend/me" // Sora 用户信息接口，用于测试连接
-	soraBillingAPIURL  = "https://sora.chatgpt.com/backend/billing/subscriptions"
-	soraInviteMineURL  = "https://sora.chatgpt.com/backend/project_y/invite/mine"
-	soraBootstrapURL   = "https://sora.chatgpt.com/backend/m/bootstrap"
-	soraRemainingURL   = "https://sora.chatgpt.com/backend/nf/check"
+	testClaudeAPIURL  = "https://api.anthropic.com/v1/messages?beta=true"
+	soraMeAPIURL      = "https://sora.chatgpt.com/backend/me" // Sora 用户信息接口，用于测试连接
+	soraBillingAPIURL = "https://sora.chatgpt.com/backend/billing/subscriptions"
+	soraInviteMineURL = "https://sora.chatgpt.com/backend/project_y/invite/mine"
+	soraBootstrapURL  = "https://sora.chatgpt.com/backend/m/bootstrap"
+	soraRemainingURL  = "https://sora.chatgpt.com/backend/nf/check"
 )
 
 // TestEvent represents a SSE event for account testing
@@ -68,6 +67,7 @@ type AccountTestService struct {
 	accountRepo               AccountRepository
 	accountModelImportService *AccountModelImportService
 	modelRegistryService      *ModelRegistryService
+	openAITokenProvider       *OpenAITokenProvider
 	geminiTokenProvider       *GeminiTokenProvider
 	antigravityGatewayService *AntigravityGatewayService
 	httpUpstream              HTTPUpstream
@@ -103,6 +103,10 @@ func NewAccountTestService(
 
 func (s *AccountTestService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *AccountTestService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
+	s.openAITokenProvider = openAITokenProvider
 }
 
 func (s *AccountTestService) runBackgroundTask(fn func()) {
@@ -569,19 +573,31 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	var authToken string
 	var apiURL string
 	var isOAuth bool
+	var err error
+	useChatGPTOAuth := isChatGPTOpenAIOAuthAccount(account)
 	var chatgptAccountID string
 
 	if account.IsOAuth() {
 		isOAuth = true
-		// OAuth - use Bearer token with ChatGPT internal API
-		authToken = account.GetOpenAIAccessToken()
+		if s.openAITokenProvider != nil {
+			authToken, err = s.openAITokenProvider.GetAccessToken(ctx, account)
+			if err != nil {
+				return s.sendErrorAndEnd(c, fmt.Sprintf("Failed to get access token: %s", err.Error()))
+			}
+		} else {
+			authToken = account.GetOpenAIAccessToken()
+		}
 		if authToken == "" {
 			return s.sendErrorAndEnd(c, "No access token available")
 		}
 
-		// OAuth uses ChatGPT internal API
-		apiURL = chatgptCodexAPIURL
-		chatgptAccountID = account.GetChatGPTAccountID()
+		apiURL, err = resolveOpenAIResponsesTargetURL(account, s.validateUpstreamBaseURL)
+		if err != nil {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
+		}
+		if useChatGPTOAuth {
+			chatgptAccountID = account.GetChatGPTAccountID()
+		}
 	} else if account.Type == "apikey" {
 		// API Key - use Platform API
 		authToken = account.GetOpenAIApiKey()
@@ -610,7 +626,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	c.Writer.Flush()
 
 	// Create OpenAI Responses API payload
-	payload := createOpenAITestPayload(testModelID, isOAuth)
+	payload := createOpenAITestPayload(testModelID, useChatGPTOAuth)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
@@ -625,8 +641,13 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authToken)
 
+	if isCopilotOAuthAccount(account) {
+		req.Header.Set("Accept", "text/event-stream")
+		applyCopilotDefaultHeaders(req.Header, account)
+	}
+
 	// Set OAuth-specific headers for ChatGPT internal API
-	if isOAuth {
+	if useChatGPTOAuth {
 		req.Host = "chatgpt.com"
 		req.Header.Set("accept", "text/event-stream")
 		if chatgptAccountID != "" {
@@ -646,7 +667,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if isOAuth && s.accountRepo != nil {
+	if useChatGPTOAuth && s.accountRepo != nil {
 		if updates, err := extractOpenAICodexProbeUpdates(resp); err == nil && len(updates) > 0 {
 			_ = s.accountRepo.UpdateExtra(ctx, account.ID, updates)
 			mergeAccountExtra(account, updates)
@@ -661,7 +682,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		if isOAuth && s.accountRepo != nil {
+		if useChatGPTOAuth && s.accountRepo != nil {
 			if resetAt := (&RateLimitService{}).calculateOpenAI429ResetTime(resp.Header); resetAt != nil {
 				_ = s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt)
 				account.RateLimitResetAt = resetAt

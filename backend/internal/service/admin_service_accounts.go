@@ -49,7 +49,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 			}
 		}
 	}
-	if len(groupIDs) > 0 && !input.SkipMixedChannelCheck {
+	if len(groupIDs) > 0 && shouldEnforceMixedChannelCheck(input.Platform, input.SkipMixedChannelCheck) {
 		if err := s.checkMixedChannelRisk(ctx, 0, input.Platform, groupIDs); err != nil {
 			return nil, err
 		}
@@ -184,7 +184,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		if err := s.validateGroupIDsExist(ctx, *input.GroupIDs); err != nil {
 			return nil, err
 		}
-		if !input.SkipMixedChannelCheck {
+		if shouldEnforceMixedChannelCheck(account.Platform, input.SkipMixedChannelCheck) {
 			if err := s.checkMixedChannelRisk(ctx, account.ID, account.Platform, *input.GroupIDs); err != nil {
 				return nil, err
 			}
@@ -214,7 +214,7 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 			return nil, err
 		}
 	}
-	needMixedChannelCheck := input.GroupIDs != nil && !input.SkipMixedChannelCheck
+	needMixedChannelCheck := input.GroupIDs != nil
 	platformByID := map[int64]string{}
 	if needMixedChannelCheck {
 		accounts, err := s.accountRepo.GetByIDs(ctx, input.AccountIDs)
@@ -224,6 +224,15 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		for _, account := range accounts {
 			if account != nil {
 				platformByID[account.ID] = account.Platform
+			}
+		}
+		if input.SkipMixedChannelCheck {
+			needMixedChannelCheck = false
+			for _, platform := range platformByID {
+				if shouldEnforceMixedChannelCheck(platform, true) {
+					needMixedChannelCheck = true
+					break
+				}
 			}
 		}
 	}

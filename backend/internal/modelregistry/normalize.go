@@ -34,6 +34,18 @@ func NormalizePlatform(platform string) string {
 	}
 }
 
+func NormalizePlatformFamily(platform string) string {
+	platform = NormalizePlatform(platform)
+	switch platform {
+	case "kiro":
+		return "anthropic"
+	case "copilot":
+		return "openai"
+	default:
+		return platform
+	}
+}
+
 func StripDateVersionSuffix(value string) string {
 	normalized := NormalizeID(value)
 	return modelDateVersionSuffixPattern.ReplaceAllString(normalized, "")
