@@ -183,7 +183,20 @@ release:
 
     ## 📥 Installation
 
-    **Docker:**
+    **Docker install (new deployment):**
+    ```bash
+    mkdir -p sub2api-deploy && cd sub2api-deploy
+    curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/docker-deploy.sh | bash
+    docker compose up -d
+    ```
+
+    **Docker in-place upgrade (backup first):**
+    ```bash
+    cd /opt/sub2api
+    curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/docker-upgrade.sh | bash
+    ```
+
+    **Manual image pull:**
     ```bash
     {{ if ne .Env.DOCKERHUB_USERNAME "skip" -}}
     # Docker Hub
@@ -194,12 +207,12 @@ release:
     docker pull ghcr.io/{{ .Env.GITHUB_REPO_OWNER_LOWER }}/sub2api:{{ .Version }}
     ```
 
-    **One-line install (Linux):**
+    **Binary install (Linux):**
     ```bash
     curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/install.sh | sudo bash
     ```
 
-    **In-place upgrade (Linux):**
+    **Binary in-place upgrade (Linux):**
     ```bash
     curl -sSL https://raw.githubusercontent.com/{{ .Env.GITHUB_REPO_OWNER }}/{{ .Env.GITHUB_REPO_NAME }}/main/deploy/install.sh | sudo bash -s -- upgrade
     ```

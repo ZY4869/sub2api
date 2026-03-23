@@ -54,22 +54,32 @@ curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-de
 - Downloads `docker-compose.local.yml` and `.env.example`
 - Automatically generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with generated secrets
+- Sets `SUB2API_IMAGE` to `ghcr.io/zy4869/sub2api:latest` by default
 - Creates necessary data directories (data/, postgres_data/, redis_data/)
 - **Displays generated credentials** (POSTGRES_PASSWORD, JWT_SECRET, etc.)
 
 **After running the script:**
 ```bash
 # Start services
-docker-compose -f docker-compose.local.yml up -d
+docker compose up -d
 
 # View logs
-docker-compose -f docker-compose.local.yml logs -f sub2api
+docker compose logs -f sub2api
 
 # If admin password was auto-generated, find it in logs:
-docker-compose -f docker-compose.local.yml logs sub2api | grep "admin password"
+docker compose logs sub2api | grep "admin password"
 
 # Access Web UI
 # http://localhost:8080
+```
+
+### Method 1A: In-Place Docker Upgrade (Backup First)
+
+For an existing Docker deployment, use the dedicated upgrade script. It stops the stack, creates a backup of `.env`, `docker-compose.yml`, `data/`, `postgres_data/`, and `redis_data/`, then pulls the latest GHCR image for your repository and recreates the services.
+
+```bash
+cd /opt/sub2api
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 ```
 
 ### Method 2: Manual Deployment
@@ -90,6 +100,8 @@ JWT_SECRET=$(openssl rand -hex 32)
 TOTP_ENCRYPTION_KEY=$(openssl rand -hex 32)
 echo "JWT_SECRET=${JWT_SECRET}" >> .env
 echo "TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}" >> .env
+# Optional: pin or override the application image
+# SUB2API_IMAGE=ghcr.io/zy4869/sub2api:latest
 
 # Create data directories
 mkdir -p data postgres_data redis_data
@@ -180,9 +192,8 @@ docker-compose -f docker-compose.local.yml logs -f sub2api
 # Restart Sub2API only
 docker-compose -f docker-compose.local.yml restart sub2api
 
-# Update to latest version
-docker-compose -f docker-compose.local.yml pull
-docker-compose -f docker-compose.local.yml up -d
+# Update to latest version with backup
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 
 # Remove all data (caution!)
 docker-compose -f docker-compose.local.yml down
@@ -204,9 +215,8 @@ docker-compose logs -f sub2api
 # Restart Sub2API only
 docker-compose restart sub2api
 
-# Update to latest version
-docker-compose pull
-docker-compose up -d
+# Update to latest version with backup
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 
 # Remove all data (caution!)
 docker-compose down -v

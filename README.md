@@ -207,8 +207,19 @@ curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-de
 - 下载 `docker-compose.local.yml`（本地保存为 `docker-compose.yml`）和 `.env.example`
 - 自动生成安全凭证（JWT_SECRET、TOTP_ENCRYPTION_KEY、POSTGRES_PASSWORD）
 - 创建 `.env` 文件并填充自动生成的密钥
+- 将 `SUB2API_IMAGE` 默认设置为 `ghcr.io/zy4869/sub2api:latest`
 - 创建数据目录（使用本地目录，便于备份和迁移）
 - 显示生成的凭证供你记录
+
+#### Docker 升级（更新前自动备份）
+
+对现有 Docker 部署进行原地升级时，建议使用专用升级脚本。脚本会先停止容器并备份 `.env`、`docker-compose.yml`、`data/`、`postgres_data/`、`redis_data/`，然后切换到你仓库的最新 GHCR 镜像并重建服务。
+
+```bash
+# 以 /opt/sub2api 为例，请先进入你的实际部署目录
+cd /opt/sub2api
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
+```
 
 #### 手动部署
 
@@ -229,6 +240,9 @@ nano .env
 **`.env` 必须配置项：**
 
 ```bash
+# Sub2API 应用镜像（默认使用你仓库的 latest）
+SUB2API_IMAGE=ghcr.io/zy4869/sub2api:latest
+
 # PostgreSQL 密码（必需）
 POSTGRES_PASSWORD=your_secure_password_here
 
@@ -309,9 +323,9 @@ docker-compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 #### 升级
 
 ```bash
-# 拉取最新镜像并重建容器
-docker-compose -f docker-compose.local.yml pull
-docker-compose -f docker-compose.local.yml up -d
+# 进入你的实际部署目录，自动备份后升级到最新 GHCR 镜像
+cd /opt/sub2api
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 ```
 
 #### 轻松迁移（本地目录版）

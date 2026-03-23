@@ -8,7 +8,7 @@
 #   - Creates necessary data directories
 #
 # After running this script, you can start services with:
-#   docker-compose up -d
+#   docker compose up -d
 # =============================================================================
 
 set -e
@@ -26,6 +26,8 @@ DEFAULT_GITHUB_REF="main"
 GITHUB_REPO="${SUB2API_GITHUB_REPO:-$DEFAULT_GITHUB_REPO}"
 GITHUB_REF="${SUB2API_GITHUB_REF:-$DEFAULT_GITHUB_REF}"
 GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_REF}/deploy"
+GITHUB_REPO_LOWER=$(echo "${GITHUB_REPO}" | tr '[:upper:]' '[:lower:]')
+DEFAULT_SUB2API_IMAGE="ghcr.io/${GITHUB_REPO_LOWER}:latest"
 
 # Print colored message
 print_info() {
@@ -64,6 +66,8 @@ Environment:
 
 Resolved source:
   ${GITHUB_RAW_URL}
+Resolved image:
+  ${DEFAULT_SUB2API_IMAGE}
 EOF
 }
 
@@ -137,11 +141,13 @@ main() {
         sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
         sed -i "s/^TOTP_ENCRYPTION_KEY=.*/TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}/" .env
         sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
+        sed -i "s#^SUB2API_IMAGE=.*#SUB2API_IMAGE=${DEFAULT_SUB2API_IMAGE}#" .env
     else
         # BSD sed (macOS)
         sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
         sed -i '' "s/^TOTP_ENCRYPTION_KEY=.*/TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY}/" .env
         sed -i '' "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
+        sed -i '' "s#^SUB2API_IMAGE=.*#SUB2API_IMAGE=${DEFAULT_SUB2API_IMAGE}#" .env
     fi
 
     # Create data directories
@@ -162,6 +168,7 @@ main() {
     echo "  POSTGRES_PASSWORD:     ${POSTGRES_PASSWORD}"
     echo "  JWT_SECRET:            ${JWT_SECRET}"
     echo "  TOTP_ENCRYPTION_KEY:   ${TOTP_ENCRYPTION_KEY}"
+    echo "  SUB2API_IMAGE:         ${DEFAULT_SUB2API_IMAGE}"
     echo ""
     print_warning "These credentials have been saved to .env file."
     print_warning "Please keep them secure and do not share publicly!"
@@ -177,10 +184,10 @@ main() {
     echo "Next steps:"
     echo "  1. (Optional) Edit .env to customize configuration"
     echo "  2. Start services:"
-    echo "     docker-compose up -d"
+    echo "     docker compose up -d"
     echo ""
     echo "  3. View logs:"
-    echo "     docker-compose logs -f sub2api"
+    echo "     docker compose logs -f sub2api"
     echo ""
     echo "  4. Access Web UI:"
     echo "     http://localhost:8080"

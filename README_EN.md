@@ -169,16 +169,17 @@ mkdir -p sub2api-deploy && cd sub2api-deploy
 curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-deploy.sh | bash
 
 # Start services
-docker-compose -f docker-compose.local.yml up -d
+docker compose up -d
 
 # View logs
-docker-compose -f docker-compose.local.yml logs -f sub2api
+docker compose logs -f sub2api
 ```
 
 **What the script does:**
 - Downloads `docker-compose.local.yml` and `.env.example`
 - Generates secure credentials (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
 - Creates `.env` file with auto-generated secrets
+- Sets `SUB2API_IMAGE` to `ghcr.io/zy4869/sub2api:latest` by default
 - Creates data directories (uses local directories for easy backup/migration)
 - Displays generated credentials for your reference
 
@@ -187,6 +188,16 @@ Override the deployment source if needed:
 ```bash
 curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-deploy.sh | \
   SUB2API_GITHUB_REPO=ZY4869/sub2api SUB2API_GITHUB_REF=main bash
+```
+
+#### Docker Upgrade (Backup First)
+
+For an existing Docker deployment, use the dedicated upgrade script. It stops the stack, creates a backup of `.env`, `docker-compose.yml`, `data/`, `postgres_data/`, and `redis_data/`, then switches the deployment to the latest GHCR image from your repository and recreates the services.
+
+```bash
+# Example deployment directory
+cd /opt/sub2api
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 ```
 
 #### Manual Deployment
@@ -208,6 +219,9 @@ nano .env
 **Required configuration in `.env`:**
 
 ```bash
+# Sub2API application image (defaults to your repository's latest image)
+SUB2API_IMAGE=ghcr.io/zy4869/sub2api:latest
+
 # PostgreSQL password (REQUIRED)
 POSTGRES_PASSWORD=your_secure_password_here
 
@@ -276,9 +290,9 @@ docker-compose -f docker-compose.local.yml logs sub2api | grep "admin password"
 #### Upgrade
 
 ```bash
-# Pull latest image and recreate container
-docker-compose -f docker-compose.local.yml pull
-docker-compose -f docker-compose.local.yml up -d
+# Enter your deployment directory, back up the stack, then upgrade to the latest GHCR image
+cd /opt/sub2api
+curl -sSL https://raw.githubusercontent.com/ZY4869/sub2api/main/deploy/docker-upgrade.sh | bash
 ```
 
 #### Easy Migration (Local Directory Version)
