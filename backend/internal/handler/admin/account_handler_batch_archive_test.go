@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExecuteBatchArchiveAccountsCreatesArchiveGroupAndDisablesAccounts(t *testing.T) {
+func TestExecuteBatchArchiveAccountsCreatesArchiveGroupWithoutDisablingAccounts(t *testing.T) {
 	adminSvc := newStubAdminService()
 	adminSvc.strictAccountLookup = true
 	adminSvc.accounts = []service.Account{
@@ -34,7 +34,8 @@ func TestExecuteBatchArchiveAccountsCreatesArchiveGroupAndDisablesAccounts(t *te
 	require.NotZero(t, result.ArchiveGroupID)
 	require.NotNil(t, adminSvc.lastBulkUpdateInput)
 	require.Equal(t, []int64{11, 12}, adminSvc.lastBulkUpdateInput.AccountIDs)
-	require.Equal(t, service.StatusDisabled, adminSvc.lastBulkUpdateInput.Status)
+	require.Empty(t, adminSvc.lastBulkUpdateInput.Status)
+	require.Equal(t, service.AccountLifecycleArchived, adminSvc.lastBulkUpdateInput.LifecycleState)
 	require.NotNil(t, adminSvc.lastBulkUpdateInput.GroupIDs)
 	require.Equal(t, []int64{result.ArchiveGroupID}, *adminSvc.lastBulkUpdateInput.GroupIDs)
 }

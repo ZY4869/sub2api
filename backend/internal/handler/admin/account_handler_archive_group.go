@@ -102,7 +102,6 @@ func (h *AccountHandler) executeArchiveGroupAccounts(ctx context.Context, req *A
 
 	updateResult, err := h.adminService.BulkUpdateAccounts(ctx, &service.BulkUpdateAccountsInput{
 		AccountIDs:             accountIDs,
-		Status:                 service.StatusDisabled,
 		GroupIDs:               &groupIDs,
 		LifecycleState:         service.AccountLifecycleArchived,
 		LifecycleReasonCode:    "archive_group",

@@ -73,7 +73,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		accountStatus = StatusActive
 	}
 	schedulable := true
-	if lifecycleState != AccountLifecycleNormal {
+	if lifecycleState == AccountLifecycleBlacklisted {
 		accountStatus = StatusDisabled
 		schedulable = false
 	}
@@ -341,7 +341,7 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	if input.LifecycleState != "" {
 		lifecycleState := normalizeAccountLifecycleWriteInput(input.LifecycleState)
 		repoUpdates.LifecycleState = &lifecycleState
-		if lifecycleState != AccountLifecycleNormal {
+		if lifecycleState == AccountLifecycleBlacklisted {
 			disabledStatus := StatusDisabled
 			repoUpdates.Status = &disabledStatus
 			schedulable := false

@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestExecuteArchiveGroupAccountsReusesArchiveGroupAndDisablesAccounts(t *testing.T) {
+func TestExecuteArchiveGroupAccountsReusesArchiveGroupWithoutDisablingAccounts(t *testing.T) {
 	adminSvc := newStubAdminService()
 	adminSvc.groups = []service.Group{
 		{ID: 10, Name: "OpenAI Prod", Platform: service.PlatformOpenAI, Status: service.StatusActive},
@@ -41,7 +41,8 @@ func TestExecuteArchiveGroupAccountsReusesArchiveGroupAndDisablesAccounts(t *tes
 	require.Equal(t, []int64{41, 42}, result.ArchivedAccountIDs)
 	require.NotNil(t, adminSvc.lastBulkUpdateInput)
 	require.Equal(t, []int64{41, 42}, adminSvc.lastBulkUpdateInput.AccountIDs)
-	require.Equal(t, service.StatusDisabled, adminSvc.lastBulkUpdateInput.Status)
+	require.Empty(t, adminSvc.lastBulkUpdateInput.Status)
+	require.Equal(t, service.AccountLifecycleArchived, adminSvc.lastBulkUpdateInput.LifecycleState)
 	require.NotNil(t, adminSvc.lastBulkUpdateInput.GroupIDs)
 	require.Equal(t, []int64{11}, *adminSvc.lastBulkUpdateInput.GroupIDs)
 }

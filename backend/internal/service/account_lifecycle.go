@@ -30,5 +30,10 @@ func NormalizeAccountLifecycleInput(raw string) string {
 }
 
 func IsAccountLifecycleSchedulable(lifecycle string) bool {
-	return NormalizeAccountLifecycleInput(lifecycle) == AccountLifecycleNormal
+	switch NormalizeAccountLifecycleInput(lifecycle) {
+	case AccountLifecycleNormal, AccountLifecycleArchived:
+		return true
+	default:
+		return false
+	}
 }

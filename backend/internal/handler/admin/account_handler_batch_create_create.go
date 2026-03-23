@@ -174,7 +174,7 @@ func (h *AccountHandler) executeBatchCreateAccounts(ctx context.Context, req *Ba
 		if ignoredGroupBinding {
 			messageParts = append(messageParts, "archive mode ignored provided group_ids")
 		}
-		if req.AutoImportModels && !req.Archive.Enabled {
+		if req.AutoImportModels {
 			messageParts = append(messageParts, h.importModelsAfterBatchCreate(ctx, account))
 		}
 
@@ -236,7 +236,6 @@ func buildBatchCreateAccountInput(
 	if archiveGroup != nil {
 		ignoredGroupBinding = len(groupIDs) > 0
 		groupIDs = []int64{archiveGroup.ID}
-		status = service.StatusDisabled
 		lifecycleState = service.AccountLifecycleArchived
 		lifecycleReasonCode = "batch_create_archive"
 		lifecycleReasonMessage = "Created directly into archive area"
@@ -294,25 +293,25 @@ func buildBatchCreateAccountInput(
 	}
 
 	return &service.CreateAccountInput{
-		Name:                  name,
-		Notes:                 firstNonNilStringPointer(line.Notes, req.Notes),
-		Platform:              req.Platform,
-		Type:                  req.Type,
-		Credentials:           credentials,
-		Extra:                 extra,
-		ProxyID:               firstNonNilInt64Pointer(line.ProxyID, req.ProxyID),
-		Concurrency:           concurrency,
-		Priority:              priority,
-		RateMultiplier:        rateMultiplier,
-		LoadFactor:            loadFactor,
-		GroupIDs:              groupIDs,
-		Status:                status,
-		LifecycleState:        lifecycleState,
-		LifecycleReasonCode:   lifecycleReasonCode,
+		Name:                   name,
+		Notes:                  firstNonNilStringPointer(line.Notes, req.Notes),
+		Platform:               req.Platform,
+		Type:                   req.Type,
+		Credentials:            credentials,
+		Extra:                  extra,
+		ProxyID:                firstNonNilInt64Pointer(line.ProxyID, req.ProxyID),
+		Concurrency:            concurrency,
+		Priority:               priority,
+		RateMultiplier:         rateMultiplier,
+		LoadFactor:             loadFactor,
+		GroupIDs:               groupIDs,
+		Status:                 status,
+		LifecycleState:         lifecycleState,
+		LifecycleReasonCode:    lifecycleReasonCode,
 		LifecycleReasonMessage: lifecycleReasonMessage,
-		ExpiresAt:             expiresAt,
-		AutoPauseOnExpired:    autoPauseOnExpired,
-		SkipMixedChannelCheck: skipMixedChannelCheck,
+		ExpiresAt:              expiresAt,
+		AutoPauseOnExpired:     autoPauseOnExpired,
+		SkipMixedChannelCheck:  skipMixedChannelCheck,
 	}, ignoredGroupBinding, nil
 }
 
@@ -331,7 +330,7 @@ func (h *AccountHandler) resolveBatchCreateArchiveGroup(ctx context.Context, pla
 
 	created, createErr := h.adminService.CreateGroup(ctx, &service.CreateGroupInput{
 		Name:             trimmedName,
-		Description:      "Archive group for batch-created inactive accounts",
+		Description:      "Archive group for batch-created archived accounts",
 		Platform:         platform,
 		RateMultiplier:   1,
 		IsExclusive:      false,

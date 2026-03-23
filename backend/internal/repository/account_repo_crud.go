@@ -370,21 +370,21 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	return outAccounts, paginationResultFromTotal(int64(total), params), nil
 }
 func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {
-	accounts, err := r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, lifecycle: service.AccountLifecycleNormal})
+	accounts, err := r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, excludeBlacklisted: true})
 	if err != nil {
 		return nil, err
 	}
 	return accounts, nil
 }
 func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), dbaccount.LifecycleStateEQ(service.AccountLifecycleNormal)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate()).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) ListByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive), dbaccount.LifecycleStateEQ(service.AccountLifecycleNormal)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate()).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

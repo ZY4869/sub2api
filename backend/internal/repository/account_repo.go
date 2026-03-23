@@ -464,10 +464,11 @@ func (r *accountRepository) ListBlacklistedForPurge(ctx context.Context, now tim
 }
 
 type accountGroupQueryOptions struct {
-	status      string
-	schedulable bool
-	platforms   []string
-	lifecycle   string
+	status             string
+	schedulable        bool
+	platforms          []string
+	lifecycle          string
+	excludeBlacklisted bool
 }
 
 func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID int64, opts accountGroupQueryOptions) ([]service.Account, error) {
@@ -482,6 +483,9 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	}
 	if predicate := lifecyclePredicate(opts.lifecycle); predicate != nil {
 		preds = append(preds, predicate)
+	}
+	if opts.excludeBlacklisted {
+		preds = append(preds, nonBlacklistedLifecyclePredicate())
 	}
 	if opts.schedulable {
 		now := time.Now()

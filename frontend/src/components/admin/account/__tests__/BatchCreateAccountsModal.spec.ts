@@ -123,4 +123,48 @@ describe('BatchCreateAccountsModal', () => {
     })
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.batchCreateSuccess')
   })
+
+  it('keeps auto model import enabled in archive mode', async () => {
+    batchCreateAccounts.mockResolvedValue({
+      created_count: 1,
+      failed_count: 0,
+      results: []
+    })
+
+    const wrapper = mount(BatchCreateAccountsModal, {
+      props: {
+        show: true,
+        proxies: [],
+        groups: []
+      },
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          ConfirmDialog: true,
+          GroupSelector: true,
+          AccountRuntimeSettingsEditor: true
+        }
+      }
+    })
+
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[0].setValue(true)
+    await checkboxes[2].setValue(true)
+
+    const textInputs = wrapper.findAll('input[type="text"]')
+    await textInputs[textInputs.length - 1].setValue('Archive Group')
+    await wrapper.get('textarea.font-mono').setValue('sk-ant-sid01-test')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect((checkboxes[2].element as HTMLInputElement).disabled).toBe(false)
+    expect(batchCreateAccounts).toHaveBeenCalledTimes(1)
+    expect(batchCreateAccounts.mock.calls[0][0]).toMatchObject({
+      auto_import_models: true,
+      archive: {
+        enabled: true,
+        group_name: 'Archive Group'
+      }
+    })
+  })
 })
