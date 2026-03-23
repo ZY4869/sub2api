@@ -209,7 +209,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		LoadFactor:              a.LoadFactor,
 		Priority:                a.Priority,
 		RateMultiplier:          a.BillingRateMultiplier(),
-		Status:                  a.Status,
+		Status:                  service.PresentAdminAccountStatus(a.Status),
 		ErrorMessage:            a.ErrorMessage,
 		LastUsedAt:              a.LastUsedAt,
 		ExpiresAt:               timeToUnixSeconds(a.ExpiresAt),

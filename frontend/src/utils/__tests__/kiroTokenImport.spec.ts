@@ -43,7 +43,7 @@ describe('parseKiroTokenImport', () => {
         client_secret: 'client-secret',
         client_id_hash: 'client-hash',
         start_url: 'https://kiro.awsapps.com/start',
-        region: 'us-east-1',
+        api_region: 'us-east-1',
         profile_arn: 'arn:aws:iam::123456789012:role/Kiro'
       },
       extra: {
@@ -55,6 +55,22 @@ describe('parseKiroTokenImport', () => {
       },
       suggestedName: 'kiro@example.com'
     })
+  })
+
+  it('prefers api_region over legacy region fields', () => {
+    const parsed = parseKiroTokenImport(JSON.stringify({
+      credentials: {
+        access_token: 'access-123',
+        api_region: 'eu-west-1',
+        region: 'us-east-1'
+      }
+    }))
+
+    expect(parsed.credentials).toMatchObject({
+      access_token: 'access-123',
+      api_region: 'eu-west-1'
+    })
+    expect((parsed.credentials as Record<string, unknown>).region).toBeUndefined()
   })
 
   it('throws when access_token is missing', () => {

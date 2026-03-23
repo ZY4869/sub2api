@@ -36,7 +36,7 @@ describe('kiroOAuth utils', () => {
         auth_method: 'builder_id',
         client_id: 'client-id',
         client_secret: 'client-secret',
-        region: 'us-east-1'
+        api_region: 'us-east-1'
       },
       extra: {
         source: 'kiro_browser_oauth',

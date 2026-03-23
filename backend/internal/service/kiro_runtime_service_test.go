@@ -141,6 +141,7 @@ func TestKiroRuntimeService_ExecuteClaude_UsesKiroHeadersAndOAuthToken(t *testin
 	require.Equal(t, http.StatusUnauthorized, result.Response.StatusCode)
 	require.Equal(t, "us-west-2", result.Region)
 	require.Equal(t, "AmazonQ", result.Endpoint.Name)
+	require.False(t, result.FallbackUsed)
 	require.Len(t, upstream.requests, 1)
 
 	req := upstream.requests[0]
@@ -187,15 +188,52 @@ func TestKiroRuntimeService_ExecuteClaude_BackfillsProfileARNAndRegion(t *testin
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Len(t, upstream.requests, 2)
-	require.Equal(t, "https://q.us-east-1.amazonaws.com/ListAvailableProfiles", upstream.requests[0].URL.String())
+	require.Equal(t, "https://q.ap-southeast-1.amazonaws.com/ListAvailableProfiles", upstream.requests[0].URL.String())
 	require.Equal(t, "https://q.eu-west-1.amazonaws.com/generateAssistantResponse", upstream.requests[1].URL.String())
 	require.Equal(t, "eu-west-1", result.Region)
 	require.Equal(t, "arn:aws:codewhisperer:eu-west-1:123456789012:profile/test", result.ProfileARN)
 	require.Equal(t, result.ProfileARN, account.GetCredential("profile_arn"))
+	require.Equal(t, "ap-southeast-1", account.GetCredential("api_region"))
 
 	body, readErr := io.ReadAll(upstream.requests[1].Body)
 	require.NoError(t, readErr)
 	require.Contains(t, string(body), `"profileArn":"arn:aws:codewhisperer:eu-west-1:123456789012:profile/test"`)
+}
+
+func TestKiroRuntimeService_ExecuteClaude_FallsBackToCodeWhisperer(t *testing.T) {
+	upstream := &queuedHTTPUpstream{
+		responses: []*http.Response{
+			newJSONResponse(http.StatusForbidden, `{"message":"q endpoint forbidden"}`),
+			newJSONResponse(http.StatusUnauthorized, `{"message":"codewhisperer token expired"}`),
+		},
+	}
+	account := &Account{
+		ID:          804,
+		Platform:    PlatformKiro,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "live-token",
+			"api_region":   "us-west-2",
+		},
+	}
+
+	runtime := NewKiroRuntimeService(&mockAccountRepoForPlatform{}, upstream, nil)
+	result, err := runtime.ExecuteClaude(context.Background(), account, KiroRuntimeExecuteInput{
+		Body:    []byte(`{"model":"claude-haiku-4.5","messages":[{"role":"user","content":"hi"}]}`),
+		ModelID: "claude-haiku-4.5",
+		Stream:  false,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, http.StatusUnauthorized, result.Response.StatusCode)
+	require.True(t, result.FallbackUsed)
+	require.Equal(t, "CodeWhisperer", result.Endpoint.Name)
+	require.Len(t, upstream.requests, 2)
+	require.Equal(t, "https://q.us-west-2.amazonaws.com/generateAssistantResponse", upstream.requests[0].URL.String())
+	require.Equal(t, "https://codewhisperer.us-west-2.amazonaws.com/generateAssistantResponse", upstream.requests[1].URL.String())
+	require.Equal(t, "AmazonCodeWhispererStreamingService.GenerateAssistantResponse", upstream.requests[1].Header.Get("X-Amz-Target"))
 }
 
 func TestGatewayService_Forward_KiroUsesRuntimeEndpoint(t *testing.T) {

@@ -6,6 +6,8 @@
 import { apiClient } from '../client'
 import type {
   Account,
+  BatchCreateAccountsRequest,
+  BatchCreateAccountsResult,
   CreateAccountRequest,
   UpdateAccountRequest,
   PaginatedResponse,
@@ -475,6 +477,13 @@ export async function exchangeCode(
   return data
 }
 
+export async function batchCreateAccounts(
+  payload: BatchCreateAccountsRequest
+): Promise<BatchCreateAccountsResult> {
+  const { data } = await apiClient.post<BatchCreateAccountsResult>('/admin/accounts/batch-create', payload)
+  return data
+}
+
 /**
  * Batch create accounts
  * @param accounts - Array of account data
@@ -861,6 +870,7 @@ export const accountsAPI = {
   exchangeCode,
   refreshOpenAIToken,
   validateSoraSessionToken,
+  batchCreateAccounts,
   batchCreate,
   batchUpdateCredentials,
   bulkUpdate,

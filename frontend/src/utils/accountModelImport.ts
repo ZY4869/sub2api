@@ -197,6 +197,10 @@ export function resolveAccountModelImportProbeNoticeMessage(
   t: AccountModelImportTranslate,
   result: Pick<AccountModelImportResult, 'imported_count' | 'probe_source' | 'probe_notice'> | null | undefined
 ): string {
+  if (result?.probe_source === 'kiro_builtin_catalog') {
+    return t('admin.accounts.modelImportKiroBuiltinCatalog')
+  }
+
   const probeNotice = typeof result?.probe_notice === 'string'
     ? result.probe_notice.trim()
     : ''

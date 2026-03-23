@@ -351,8 +351,9 @@ func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, acc
 	page := 1
 	pageSize := dataPageCap
 	var out []service.Account
+	normalizedStatus := service.NormalizeAdminAccountStatusInput(status)
 	for {
-		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, status, search, 0)
+		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, normalizedStatus, search, 0)
 		if err != nil {
 			return nil, err
 		}

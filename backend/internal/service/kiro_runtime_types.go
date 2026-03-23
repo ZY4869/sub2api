@@ -43,10 +43,11 @@ type KiroRuntimeExecuteInput struct {
 }
 
 type KiroRuntimeExecuteResult struct {
-	Response   *http.Response
-	Region     string
-	Endpoint   KiroEndpointConfig
-	ProfileARN string
+	Response     *http.Response
+	Region       string
+	Endpoint     KiroEndpointConfig
+	ProfileARN   string
+	FallbackUsed bool
 }
 
 type kiroEventStreamMessage struct {

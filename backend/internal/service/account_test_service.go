@@ -499,6 +499,7 @@ func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *
 
 	resp := result.Response
 	defer func() { _ = resp.Body.Close() }()
+	s.sendKiroRuntimeMetaEvents(c, result)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		errMsg := fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body))
@@ -509,6 +510,57 @@ func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *
 	}
 
 	return s.processClaudeStream(c, resp.Body)
+}
+
+func (s *AccountTestService) sendKiroRuntimeMetaEvents(c *gin.Context, result *KiroRuntimeExecuteResult) {
+	if c == nil || result == nil {
+		return
+	}
+	emitMeta := func(text string, data map[string]any) {
+		s.sendEvent(c, TestEvent{
+			Type: "content",
+			Text: text,
+			Data: data,
+		})
+	}
+
+	emitMeta(
+		fmt.Sprintf("Kiro runtime region: %s", result.Region),
+		map[string]any{
+			"kind":   "runtime_meta",
+			"key":    "resolved_region",
+			"value":  result.Region,
+			"source": "kiro_runtime",
+		},
+	)
+	emitMeta(
+		fmt.Sprintf("Kiro runtime endpoint: %s (%s)", result.Endpoint.Name, result.Endpoint.URL),
+		map[string]any{
+			"kind":   "runtime_meta",
+			"key":    "endpoint",
+			"value":  result.Endpoint.URL,
+			"label":  result.Endpoint.Name,
+			"source": "kiro_runtime",
+		},
+	)
+	emitMeta(
+		fmt.Sprintf("Kiro endpoint fallback: %t", result.FallbackUsed),
+		map[string]any{
+			"kind":   "runtime_meta",
+			"key":    "fallback",
+			"value":  result.FallbackUsed,
+			"source": "kiro_runtime",
+		},
+	)
+	emitMeta(
+		fmt.Sprintf("Kiro profile ARN present: %t", strings.TrimSpace(result.ProfileARN) != ""),
+		map[string]any{
+			"kind":   "runtime_meta",
+			"key":    "profile_arn_present",
+			"value":  strings.TrimSpace(result.ProfileARN) != "",
+			"source": "kiro_runtime",
+		},
+	)
 }
 
 // testBedrockAccountConnection tests a Bedrock (SigV4 or API Key) account using non-streaming invoke

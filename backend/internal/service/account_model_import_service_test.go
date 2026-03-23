@@ -386,10 +386,12 @@ func TestImportAccountModels_ImportsKiroModelsFromBuiltinCatalog(t *testing.T) {
 	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
 	require.NoError(t, err)
 	require.Nil(t, upstream.lastReq)
-	require.Equal(t, kiroDefaultModelIDs(), result.DetectedModels)
-	require.Equal(t, accountModelProbeSourceKiroBuiltinCatalog, result.ProbeSource)
-	require.Equal(t, "imported from built-in Kiro model catalog", result.ProbeNotice)
-	require.Len(t, result.ModelResults, len(result.DetectedModels))
+	expectedDetected, _ := normalizeImportedModelIDs(KiroBuiltinModelIDs())
+	require.Equal(t, expectedDetected, result.DetectedModels)
+	require.Equal(t, KiroBuiltinCatalogSource, result.ProbeSource)
+	require.Equal(t, KiroBuiltinCatalogNotice, result.ProbeNotice)
+	require.GreaterOrEqual(t, len(result.ModelResults), len(result.DetectedModels))
+	require.Equal(t, len(result.DetectedModels), countImportModelResults(result.ModelResults, "imported"))
 }
 
 func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T) {

@@ -191,7 +191,7 @@ func (s *KiroOAuthService) RefreshAccountToken(ctx context.Context, account *Acc
 		if clientID == "" || clientSecret == "" {
 			return nil, infraerrors.BadRequest("KIRO_REFRESH_UNSUPPORTED", "kiro oauth account is missing client credentials required for refresh")
 		}
-		tokenInfo, err = s.oauthClient.RefreshOIDCToken(ctx, clientID, clientSecret, refreshToken, normalizeKiroRegion(account.GetCredential("region")), strings.TrimSpace(account.GetCredential("start_url")), proxyURL)
+		tokenInfo, err = s.oauthClient.RefreshOIDCToken(ctx, clientID, clientSecret, refreshToken, normalizeKiroRegion(KiroStoredRegion(account)), strings.TrimSpace(account.GetCredential("start_url")), proxyURL)
 	} else {
 		tokenInfo, err = s.oauthClient.RefreshSocialToken(ctx, refreshToken, proxyURL)
 	}
@@ -205,7 +205,7 @@ func (s *KiroOAuthService) RefreshAccountToken(ctx context.Context, account *Acc
 	tokenInfo.ClientSecret = firstNonEmpty(tokenInfo.ClientSecret, account.GetCredential("client_secret"))
 	tokenInfo.ClientIDHash = firstNonEmpty(tokenInfo.ClientIDHash, account.GetCredential("client_id_hash"))
 	tokenInfo.StartURL = firstNonEmpty(tokenInfo.StartURL, account.GetCredential("start_url"))
-	tokenInfo.Region = resolvedKiroRegion(authMethod, account.GetCredential("region"), tokenInfo.Region)
+	tokenInfo.Region = resolvedKiroRegion(authMethod, KiroStoredRegion(account), tokenInfo.Region)
 	tokenInfo.ProfileArn = firstNonEmpty(tokenInfo.ProfileArn, account.GetCredential("profile_arn"))
 	s.maybeEnrichOIDCUserInfo(ctx, &pkgkiro.OAuthSession{Method: authMethod, Region: tokenInfo.Region, ProxyURL: proxyURL}, tokenInfo)
 	return tokenInfo, nil
@@ -237,12 +237,12 @@ func (s *KiroOAuthService) BuildAccountCredentials(tokenInfo *KiroTokenInfo) map
 		creds["start_url"] = v
 	}
 	if v := strings.TrimSpace(tokenInfo.Region); v != "" {
-		creds["region"] = v
+		creds["api_region"] = v
 	}
 	if v := strings.TrimSpace(tokenInfo.ProfileArn); v != "" {
 		creds["profile_arn"] = v
 	}
-	return creds
+	return NormalizeKiroCredentialsForStorage(creds)
 }
 
 func (s *KiroOAuthService) BuildAccountExtra(tokenInfo *KiroTokenInfo) map[string]any {

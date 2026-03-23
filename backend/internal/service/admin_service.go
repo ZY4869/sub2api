@@ -21,6 +21,7 @@ type AdminService interface {
 	GetAllGroups(ctx context.Context) ([]Group, error)
 	GetAllGroupsByPlatform(ctx context.Context, platform string) ([]Group, error)
 	GetGroup(ctx context.Context, id int64) (*Group, error)
+	GetGroupByName(ctx context.Context, name string) (*Group, error)
 	CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error)
 	UpdateGroup(ctx context.Context, id int64, input *UpdateGroupInput) (*Group, error)
 	DeleteGroup(ctx context.Context, id int64) error
@@ -160,6 +161,7 @@ type CreateAccountInput struct {
 	RateMultiplier        *float64
 	LoadFactor            *int
 	GroupIDs              []int64
+	Status                string
 	ExpiresAt             *int64
 	AutoPauseOnExpired    *bool
 	SkipDefaultGroupBind  bool

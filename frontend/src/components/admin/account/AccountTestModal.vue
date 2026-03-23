@@ -55,6 +55,12 @@
         />
       </div>
       <div
+        v-if="isKiroAccount"
+        class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300"
+      >
+        {{ t('admin.accounts.kiroTestModelSourceHint') }}
+      </div>
+      <div
         v-else
         class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
       >
@@ -261,6 +267,7 @@ const testPrompt = ref('')
 const loadingModels = ref(false)
 let eventSource: EventSource | null = null
 const isSoraAccount = computed(() => props.account?.platform === 'sora')
+const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const generatedImages = ref<PreviewImage[]>([])
 const supportsGeminiImageTest = computed(() => {
   if (isSoraAccount.value) return false
@@ -436,6 +443,10 @@ const handleEvent = (event: {
   error?: string
   image_url?: string
   mime_type?: string
+  data?: {
+    kind?: string
+    [key: string]: unknown
+  }
 }) => {
   switch (event.type) {
     case 'test_start':
@@ -456,6 +467,12 @@ const handleEvent = (event: {
       break
 
     case 'content':
+      if (event.data?.kind === 'runtime_meta') {
+        if (event.text) {
+          addLine(event.text, 'text-sky-300')
+        }
+        break
+      }
       if (event.text) {
         streamingContent.value += event.text
         scrollToBottom()

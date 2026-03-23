@@ -64,7 +64,15 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 			return nil, errors.New("base_url 必须以 http:// 或 https:// 开头")
 		}
 	}
-	account := &Account{Name: input.Name, Notes: normalizeAccountNotes(input.Notes), Platform: input.Platform, Type: input.Type, Credentials: input.Credentials, Extra: input.Extra, ProxyID: input.ProxyID, Concurrency: input.Concurrency, Priority: input.Priority, Status: StatusActive, Schedulable: true}
+	accountStatus := strings.TrimSpace(input.Status)
+	if accountStatus == "" {
+		accountStatus = StatusActive
+	}
+	credentials := input.Credentials
+	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformKiro) {
+		credentials = NormalizeKiroCredentialsForStorage(credentials)
+	}
+	account := &Account{Name: input.Name, Notes: normalizeAccountNotes(input.Notes), Platform: input.Platform, Type: input.Type, Credentials: credentials, Extra: input.Extra, ProxyID: input.ProxyID, Concurrency: input.Concurrency, Priority: input.Priority, Status: accountStatus, Schedulable: true}
 	if input.ExpiresAt != nil && *input.ExpiresAt > 0 {
 		expiresAt := time.Unix(*input.ExpiresAt, 0)
 		account.ExpiresAt = &expiresAt
@@ -117,7 +125,13 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		account.Notes = normalizeAccountNotes(input.Notes)
 	}
 	if len(input.Credentials) > 0 {
-		account.Credentials = input.Credentials
+		credentials := input.Credentials
+		if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformKiro) {
+			credentials = NormalizeKiroCredentialsForStorage(credentials)
+		}
+		account.Credentials = credentials
+	} else if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformKiro) {
+		NormalizeKiroAccountCredentials(account)
 	}
 	if len(input.Extra) > 0 {
 		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start"} {

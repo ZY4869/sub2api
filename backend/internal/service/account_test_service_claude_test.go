@@ -46,6 +46,8 @@ func TestAccountTestService_TestClaudeAccountConnection_UsesClaudeTokenProviderF
 	require.Equal(t, kiroAgentMode, upstream.requests[0].Header.Get("x-amzn-kiro-agent-mode"))
 	require.Empty(t, upstream.requests[0].Header.Get("anthropic-beta"))
 	require.Contains(t, recorder.Body.String(), `"type":"content"`)
+	require.Contains(t, recorder.Body.String(), "Kiro runtime region")
+	require.Contains(t, recorder.Body.String(), "Kiro runtime endpoint")
 	require.Contains(t, recorder.Body.String(), "hello from kiro")
 	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
 }
@@ -75,6 +77,8 @@ func TestAccountTestService_TestClaudeAccountConnection_KiroUnauthorizedDoesNotL
 	require.Error(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "https://q.us-west-2.amazonaws.com/generateAssistantResponse", upstream.requests[0].URL.String())
+	require.Contains(t, recorder.Body.String(), "Kiro runtime region")
+	require.Contains(t, recorder.Body.String(), "Kiro runtime endpoint")
 	require.Contains(t, recorder.Body.String(), "API returned 401")
 	require.Contains(t, recorder.Body.String(), "token expired")
 	require.NotContains(t, recorder.Body.String(), "Invalid bearer token")

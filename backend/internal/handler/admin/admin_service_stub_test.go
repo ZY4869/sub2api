@@ -159,8 +159,19 @@ func (s *stubAdminService) GetGroup(ctx context.Context, id int64) (*service.Gro
 	return &group, nil
 }
 
+func (s *stubAdminService) GetGroupByName(ctx context.Context, name string) (*service.Group, error) {
+	for i := range s.groups {
+		group := s.groups[i]
+		if group.Name == name {
+			return &group, nil
+		}
+	}
+	return nil, service.ErrGroupNotFound
+}
+
 func (s *stubAdminService) CreateGroup(ctx context.Context, input *service.CreateGroupInput) (*service.Group, error) {
-	group := service.Group{ID: 200, Name: input.Name, Status: service.StatusActive}
+	group := service.Group{ID: int64(200 + len(s.groups)), Name: input.Name, Platform: input.Platform, Status: service.StatusActive}
+	s.groups = append(s.groups, group)
 	return &group, nil
 }
 
@@ -220,7 +231,11 @@ func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.Cre
 	if s.createAccountErr != nil {
 		return nil, s.createAccountErr
 	}
-	account := service.Account{ID: 300, Name: input.Name, Status: service.StatusActive}
+	status := input.Status
+	if status == "" {
+		status = service.StatusActive
+	}
+	account := service.Account{ID: 300, Name: input.Name, Status: status}
 	return &account, nil
 }
 

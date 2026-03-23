@@ -28,6 +28,9 @@ func (s *adminServiceImpl) GetAllGroupsByPlatform(ctx context.Context, platform 
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {
 	return s.groupRepo.GetByID(ctx, id)
 }
+func (s *adminServiceImpl) GetGroupByName(ctx context.Context, name string) (*Group, error) {
+	return s.groupRepo.GetByName(ctx, name)
+}
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
 	platform := input.Platform
 	if platform == "" {

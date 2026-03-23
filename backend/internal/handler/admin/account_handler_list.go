@@ -57,7 +57,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	platform := c.Query("platform")
 	accountType := c.Query("type")
-	status := c.Query("status")
+	status := service.NormalizeAdminAccountStatusInput(c.Query("status"))
 	search := c.Query("search")
 	search = strings.TrimSpace(search)
 	if len(search) > 100 {

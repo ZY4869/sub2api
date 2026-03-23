@@ -74,6 +74,9 @@ describe('AccountsViewToolbar', () => {
     await wrapper.get('.filters-change').trigger('click')
     await wrapper.get('.refresh').trigger('click')
     await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.batchCreate')
+    )?.trigger('click')
+    await wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.refreshActualUsage')
     )?.trigger('click')
     await wrapper.get('.sync').trigger('click')
@@ -83,6 +86,7 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['claude']])
     expect(wrapper.emitted('change')).toEqual([[]])
     expect(wrapper.emitted('refresh')).toEqual([[]])
+    expect(wrapper.emitted('batch-create')).toEqual([[]])
     expect(wrapper.emitted('refresh-usage')).toEqual([[]])
     expect(wrapper.emitted('sync')).toEqual([[]])
     expect(wrapper.emitted('create')).toEqual([[]])

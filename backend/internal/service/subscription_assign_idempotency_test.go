@@ -20,6 +20,9 @@ func (groupRepoNoop) GetByID(context.Context, int64) (*Group, error) {
 func (groupRepoNoop) GetByIDLite(context.Context, int64) (*Group, error) {
 	panic("unexpected GetByIDLite call")
 }
+func (groupRepoNoop) GetByName(context.Context, string) (*Group, error) {
+	panic("unexpected GetByName call")
+}
 func (groupRepoNoop) Update(context.Context, *Group) error { panic("unexpected Update call") }
 func (groupRepoNoop) Delete(context.Context, int64) error  { panic("unexpected Delete call") }
 func (groupRepoNoop) DeleteCascade(context.Context, int64) ([]int64, error) {

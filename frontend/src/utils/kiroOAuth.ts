@@ -69,7 +69,7 @@ export function buildKiroOAuthPayload(tokenInfo: KiroExchangeCodeResult): Parsed
   assignIfPresent(credentials, 'client_secret', tokenInfo.client_secret)
   assignIfPresent(credentials, 'client_id_hash', tokenInfo.client_id_hash)
   assignIfPresent(credentials, 'start_url', tokenInfo.start_url)
-  assignIfPresent(credentials, 'region', tokenInfo.region)
+  assignIfPresent(credentials, 'api_region', tokenInfo.region)
   assignIfPresent(credentials, 'profile_arn', tokenInfo.profile_arn)
 
   const extra: Record<string, unknown> = {

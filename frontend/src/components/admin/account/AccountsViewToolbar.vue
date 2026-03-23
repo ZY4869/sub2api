@@ -129,6 +129,9 @@
         </template>
 
         <template #beforeCreate>
+          <button class="btn btn-secondary" @click="emit('batch-create')">
+            {{ t('admin.accounts.batchCreate') }}
+          </button>
           <button class="btn btn-secondary" @click="emit('import-data')">
             {{ t('admin.accounts.dataImport') }}
           </button>
@@ -192,6 +195,7 @@ const emit = defineEmits<{
   'refresh-usage': []
   sync: []
   create: []
+  'batch-create': []
   'import-data': []
   'export-data': []
   'show-error-passthrough': []

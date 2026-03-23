@@ -125,6 +125,36 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 		}
 		return items
 	}
+	if account.Platform == service.PlatformKiro {
+		if h.modelRegistryService != nil {
+			for _, exposures := range [][]string{{"test"}, {"runtime", "whitelist"}} {
+				entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, exposures...)
+				if err != nil || len(entries) == 0 {
+					continue
+				}
+				items := make([]availableModelItem, 0, len(entries))
+				for _, entry := range entries {
+					displayName := entry.DisplayName
+					if displayName == "" {
+						displayName = entry.ID
+					}
+					items = append(items, availableModelItem{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
+				}
+				return items
+			}
+		}
+		catalog := service.KiroBuiltinModelCatalog()
+		items := make([]availableModelItem, 0, len(catalog))
+		for _, model := range catalog {
+			items = append(items, availableModelItem{
+				ID:          model.ID,
+				Type:        model.Type,
+				DisplayName: model.DisplayName,
+				CreatedAt:   model.CreatedAt,
+			})
+		}
+		return items
+	}
 	if h.modelRegistryService != nil {
 		for _, exposures := range [][]string{{"test"}, {"runtime", "whitelist"}} {
 			entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, exposures...)

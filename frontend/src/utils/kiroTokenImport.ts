@@ -44,7 +44,7 @@ export function parseKiroTokenImport(rawInput: string): ParsedKiroTokenImport {
   assignIfPresent(credentials, 'client_secret', pickString(sources, ['client_secret', 'clientSecret']))
   assignIfPresent(credentials, 'client_id_hash', pickString(sources, ['client_id_hash', 'clientIdHash']))
   assignIfPresent(credentials, 'start_url', pickString(sources, ['start_url', 'startUrl']))
-  assignIfPresent(credentials, 'region', pickString(sources, ['region']))
+  assignIfPresent(credentials, 'api_region', pickString(sources, ['api_region', 'apiRegion', 'region']))
   assignIfPresent(credentials, 'profile_arn', pickString(sources, ['profile_arn', 'profileArn']))
 
   const extra: Record<string, unknown> = {}

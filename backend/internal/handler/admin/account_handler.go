@@ -171,14 +171,15 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 		response.BadRequest(c, "rate_multiplier must be >= 0")
 		return
 	}
+	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
 	sanitizeExtraBaseRPM(req.Extra)
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
-	hasUpdates := req.Name != "" || req.ProxyID != nil || req.Concurrency != nil || req.Priority != nil || req.RateMultiplier != nil || req.LoadFactor != nil || req.Status != "" || req.Schedulable != nil || req.GroupIDs != nil || len(req.Credentials) > 0 || len(req.Extra) > 0
+	hasUpdates := req.Name != "" || req.ProxyID != nil || req.Concurrency != nil || req.Priority != nil || req.RateMultiplier != nil || req.LoadFactor != nil || normalizedStatus != "" || req.Schedulable != nil || req.GroupIDs != nil || len(req.Credentials) > 0 || len(req.Extra) > 0
 	if !hasUpdates {
 		response.BadRequest(c, "No updates provided")
 		return
 	}
-	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{AccountIDs: req.AccountIDs, Name: req.Name, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: req.Status, Schedulable: req.Schedulable, GroupIDs: req.GroupIDs, Credentials: req.Credentials, Extra: req.Extra, SkipMixedChannelCheck: skipCheck})
+	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{AccountIDs: req.AccountIDs, Name: req.Name, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: normalizedStatus, Schedulable: req.Schedulable, GroupIDs: req.GroupIDs, Credentials: req.Credentials, Extra: req.Extra, SkipMixedChannelCheck: skipCheck})
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {

@@ -45,6 +45,14 @@ describe('resolveAccountModelImportErrorMessage', () => {
 })
 
 describe('resolveAccountModelImportProbeNoticeMessage', () => {
+  it('maps Kiro builtin catalog source to localized copy', () => {
+    expect(resolveAccountModelImportProbeNoticeMessage(t, {
+      imported_count: 4,
+      probe_source: 'kiro_builtin_catalog',
+      probe_notice: 'using built-in Kiro model catalog'
+    })).toBe('admin.accounts.modelImportKiroBuiltinCatalog')
+  })
+
   it('prefers explicit probe notice from backend', () => {
     expect(resolveAccountModelImportProbeNoticeMessage(t, {
       imported_count: 6,
@@ -187,13 +195,13 @@ describe('mergeAccountModelImportResults', () => {
         failed_models: [],
         model_results: [],
         probe_source: 'kiro_builtin_catalog',
-        probe_notice: 'imported from built-in Kiro model catalog',
+        probe_notice: 'using built-in Kiro model catalog',
         trigger: 'manual'
       }
     ])
 
     expect(merged?.probe_source).toBe('kiro_builtin_catalog')
-    expect(merged?.probe_notice).toBe('imported from built-in Kiro model catalog')
+    expect(merged?.probe_notice).toBe('using built-in Kiro model catalog')
   })
 })
 

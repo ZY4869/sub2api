@@ -67,9 +67,9 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		return newAccountModelProbeResult(models), nil
 	case PlatformKiro:
 		return &accountModelProbeResult{
-			Models: kiroDefaultModelIDs(),
-			Source: accountModelProbeSourceKiroBuiltinCatalog,
-			Notice: "imported from built-in Kiro model catalog",
+			Models: KiroBuiltinModelIDs(),
+			Source: KiroBuiltinCatalogSource,
+			Notice: KiroBuiltinCatalogNotice,
 		}, nil
 	default:
 		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "current account platform does not support model import")
@@ -455,17 +455,6 @@ func truncateImportBody(body []byte) string {
 		return message
 	}
 	return message[:256] + "..."
-}
-
-func kiroDefaultModelIDs() []string {
-	ids := make([]string, 0, len(claude.DefaultModels))
-	for _, model := range claude.DefaultModels {
-		if id := strings.TrimSpace(model.ID); id != "" {
-			ids = append(ids, id)
-		}
-	}
-	normalized, _ := normalizeImportedModelIDs(ids)
-	return normalized
 }
 
 func copilotDefaultModelIDs() []string {

@@ -22,6 +22,7 @@
           @refresh-usage="handleRefreshActualUsage"
           @sync="showSync = true"
           @create="showCreate = true"
+          @batch-create="showBatchCreate = true"
           @import-data="showImportData = true"
           @export-data="openExportDataDialog"
           @show-error-passthrough="showErrorPassthrough = true"
@@ -63,6 +64,7 @@
     <AccountsViewDialogsHost
       v-model:include-proxy-on-export="includeProxyOnExport"
       :show-create="showCreate"
+      :show-batch-create="showBatchCreate"
       :show-edit="showEdit"
       :show-sync="showSync"
       :show-import-data="showImportData"
@@ -96,6 +98,8 @@
       :menu-position="menu.pos"
       @close-create="showCreate = false"
       @created="reload"
+      @close-batch-create="showBatchCreate = false"
+      @batch-created="handleBatchCreated"
       @models-imported="handleImportedModels"
       @close-sync-dialog="closeSyncDialog"
       @submit-sync-dialog="submitSyncDialog"
@@ -165,7 +169,15 @@ import {
   shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 import type { AccountListRequestParams } from '@/utils/accountListSync'
-import type { Account, AccountPlatform, AccountType, Proxy as AccountProxy, AdminGroup, ClaudeModel } from '@/types'
+import type {
+  Account,
+  AccountPlatform,
+  AccountType,
+  BatchCreateAccountsResult,
+  Proxy as AccountProxy,
+  AdminGroup,
+  ClaudeModel
+} from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -201,6 +213,7 @@ const selTypes = computed<AccountType[]>(() => {
   return [...types]
 })
 const showCreate = ref(false)
+const showBatchCreate = ref(false)
 const showEdit = ref(false)
 const showSync = ref(false)
 const showImportData = ref(false)
@@ -319,6 +332,7 @@ useSwipeSelect(accountTableRef, {
 const isAnyModalOpen = computed(() => {
   return (
     showCreate.value ||
+    showBatchCreate.value ||
     showEdit.value ||
     showSync.value ||
     showImportData.value ||
@@ -654,6 +668,14 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
 }
 const handleBulkUpdated = () => { showBulkEdit.value = false; clearSelection(); reload() }
 const handleDataImported = () => { showImportData.value = false; reload() }
+const handleBatchCreated = async (_result: BatchCreateAccountsResult) => {
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    console.error('Failed to refresh groups after batch create:', error)
+  }
+  await reload()
+}
 const handleAccountUpdated = (updatedAccount: Account) => {
   patchAccountInList(updatedAccount)
   enterAutoRefreshSilentWindow()
@@ -804,6 +826,16 @@ const handleTempUnschedReset = async (updated: Account) => {
   enterAutoRefreshSilentWindow()
 }
 
+const loadRuntimeOptions = async () => {
+  try {
+    const [p, g] = await Promise.all([adminAPI.proxies.getAll(), adminAPI.groups.getAll()])
+    proxies.value = p
+    groups.value = g
+  } catch (error) {
+    console.error('Failed to load proxies/groups:', error)
+  }
+}
+
 // 婊氬姩鏃跺叧闂搷浣滆彍鍗曪紙涓嶅叧闂垪璁剧疆涓嬫媺鑿滃崟锛?
 const handleScroll = () => {
   menu.show = false
@@ -815,13 +847,7 @@ onMounted(async () => {
   load().catch((error) => {
     console.error('Failed to load accounts:', error)
   })
-  try {
-    const [p, g] = await Promise.all([adminAPI.proxies.getAll(), adminAPI.groups.getAll()])
-    proxies.value = p
-    groups.value = g
-  } catch (error) {
-    console.error('Failed to load proxies/groups:', error)
-  }
+  await loadRuntimeOptions()
   window.addEventListener('scroll', handleScroll, true)
 
   if (autoRefreshEnabled.value) {

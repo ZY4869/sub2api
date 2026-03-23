@@ -63,6 +63,13 @@
     @close="emit('close-sync')"
     @synced="emit('reload')"
   />
+  <BatchCreateAccountsModal
+    :show="showBatchCreate"
+    :proxies="proxies"
+    :groups="groups"
+    @close="emit('close-batch-create')"
+    @created="emit('batch-created', $event)"
+  />
   <ImportDataModal
     :show="showImportData"
     @close="emit('close-import-data')"
@@ -123,7 +130,7 @@ import { useI18n } from 'vue-i18n'
 import type { SelectOption } from '@/components/common/Select.vue'
 import type { AccountModelImportResult } from '@/api/admin/accounts'
 import type { ModelRegistryExposureTarget } from '@/api/admin/modelRegistry'
-import type { Account, AccountPlatform, AccountType, AdminGroup, Proxy } from '@/types'
+import type { Account, AccountPlatform, AccountType, AdminGroup, BatchCreateAccountsResult, Proxy } from '@/types'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import {
   BulkEditAccountModal,
@@ -135,6 +142,7 @@ import {
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImportExposureSyncDialog.vue'
 import AccountActionMenu from './AccountActionMenu.vue'
+import BatchCreateAccountsModal from './BatchCreateAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
@@ -143,6 +151,7 @@ import ScheduledTestsPanel from './ScheduledTestsPanel.vue'
 
 defineProps<{
   showCreate: boolean
+  showBatchCreate: boolean
   showEdit: boolean
   showSync: boolean
   showImportData: boolean
@@ -182,6 +191,8 @@ const emit = defineEmits<{
   'close-create': []
   created: []
   'models-imported': [result: AccountModelImportResult]
+  'close-batch-create': []
+  'batch-created': [result: BatchCreateAccountsResult]
   'close-sync-dialog': []
   'submit-sync-dialog': [exposures: ModelRegistryExposureTarget[]]
   'close-edit': []

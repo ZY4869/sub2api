@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -30,6 +31,9 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 	if account == nil || account.Platform != PlatformKiro {
 		return nil, fmt.Errorf("kiro runtime requires a kiro account")
 	}
+	if NormalizeKiroAccountCredentials(account) {
+		s.persistKiroAccount(ctx, account)
+	}
 	token, err := s.resolveKiroAccessToken(ctx, account)
 	if err != nil {
 		return nil, err
@@ -49,6 +53,7 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 
 	var lastErr error
 	for idx, endpoint := range buildKiroEndpointConfigs(region) {
+		fallbackUsed := idx > 0
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.URL, bytes.NewReader(payload))
 		if err != nil {
 			return nil, err
@@ -58,38 +63,47 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 		resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
 		if err != nil {
 			lastErr = err
+			s.logKiroRuntimeAttempt("kiro_runtime_request_failed", account, region, endpoint, fallbackUsed, profileARN, err, 0)
 			if shouldKiroFallbackEndpoint(idx, 0, err) {
+				s.logKiroRuntimeAttempt("kiro_runtime_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, err, 0)
 				continue
 			}
 			return nil, err
 		}
 		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 			errorResp := s.translateKiroErrorResponse(resp)
+			s.logKiroRuntimeAttempt("kiro_runtime_upstream_error", account, region, endpoint, fallbackUsed, profileARN, nil, errorResp.StatusCode)
 			if shouldKiroFallbackEndpoint(idx, resp.StatusCode, nil) {
 				lastErr = fmt.Errorf("kiro endpoint %s returned %d", endpoint.Name, resp.StatusCode)
+				s.logKiroRuntimeAttempt("kiro_runtime_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, lastErr, resp.StatusCode)
 				continue
 			}
 			return &KiroRuntimeExecuteResult{
-				Response:   errorResp,
-				Region:     region,
-				Endpoint:   endpoint,
-				ProfileARN: profileARN,
+				Response:     errorResp,
+				Region:       region,
+				Endpoint:     endpoint,
+				ProfileARN:   profileARN,
+				FallbackUsed: fallbackUsed,
 			}, nil
 		}
 
 		translated, err := s.translateKiroSuccessResponse(resp, input.ModelID, input.Stream)
 		if err != nil {
 			lastErr = err
+			s.logKiroRuntimeAttempt("kiro_runtime_translate_failed", account, region, endpoint, fallbackUsed, profileARN, err, http.StatusBadGateway)
 			if shouldKiroFallbackEndpoint(idx, http.StatusBadGateway, err) {
+				s.logKiroRuntimeAttempt("kiro_runtime_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, err, http.StatusBadGateway)
 				continue
 			}
 			return nil, err
 		}
+		s.logKiroRuntimeAttempt("kiro_runtime_request_succeeded", account, region, endpoint, fallbackUsed, profileARN, nil, translated.StatusCode)
 		return &KiroRuntimeExecuteResult{
-			Response:   translated,
-			Region:     region,
-			Endpoint:   endpoint,
-			ProfileARN: profileARN,
+			Response:     translated,
+			Region:       region,
+			Endpoint:     endpoint,
+			ProfileARN:   profileARN,
+			FallbackUsed: fallbackUsed,
 		}, nil
 	}
 
@@ -127,9 +141,7 @@ func (s *KiroRuntimeService) ensureKiroProfileARN(ctx context.Context, account *
 		account.Credentials = map[string]any{}
 	}
 	account.Credentials["profile_arn"] = profileARN
-	if s.accountRepo != nil {
-		_ = s.accountRepo.Update(ctx, account)
-	}
+	s.persistKiroAccount(ctx, account)
 	return profileARN
 }
 
@@ -238,4 +250,45 @@ func (s *KiroRuntimeService) translateKiroErrorResponse(resp *http.Response) *ht
 		Body:       io.NopCloser(bytes.NewReader(normalizeKiroErrorResponse(resp.StatusCode, body))),
 		Request:    resp.Request,
 	}
+}
+
+func (s *KiroRuntimeService) persistKiroAccount(ctx context.Context, account *Account) {
+	if s == nil || s.accountRepo == nil || account == nil {
+		return
+	}
+	if err := s.accountRepo.Update(ctx, account); err != nil {
+		slog.Warn("kiro_runtime_account_persist_failed",
+			"account_id", account.ID,
+			"error", err,
+		)
+	}
+}
+
+func (s *KiroRuntimeService) logKiroRuntimeAttempt(
+	event string,
+	account *Account,
+	region string,
+	endpoint KiroEndpointConfig,
+	fallbackUsed bool,
+	profileARN string,
+	err error,
+	statusCode int,
+) {
+	attrs := []any{
+		"account_id", accountIDOrZero(account),
+		"resolved_region", strings.TrimSpace(region),
+		"endpoint", strings.TrimSpace(endpoint.URL),
+		"endpoint_name", strings.TrimSpace(endpoint.Name),
+		"fallback", fallbackUsed,
+		"profile_arn_present", strings.TrimSpace(profileARN) != "",
+	}
+	if statusCode > 0 {
+		attrs = append(attrs, "status", statusCode)
+	}
+	if err != nil {
+		attrs = append(attrs, "error", err)
+		slog.Warn(event, attrs...)
+		return
+	}
+	slog.Info(event, attrs...)
 }

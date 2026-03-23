@@ -15,6 +15,7 @@ vi.mock('vue-i18n', async () => {
 function createProps() {
   return {
     showCreate: true,
+    showBatchCreate: false,
     showEdit: false,
     showSync: false,
     showImportData: false,
@@ -66,6 +67,7 @@ describe('AccountsViewDialogsHost', () => {
               </div>
             `
           },
+          BatchCreateAccountsModal: true,
           ModelImportExposureSyncDialog: true,
           EditAccountModal: true,
           ReAuthAccountModal: true,
@@ -102,6 +104,7 @@ describe('AccountsViewDialogsHost', () => {
       global: {
         stubs: {
           CreateAccountModal: true,
+          BatchCreateAccountsModal: true,
           ModelImportExposureSyncDialog: true,
           EditAccountModal: true,
           ReAuthAccountModal: true,
@@ -137,5 +140,50 @@ describe('AccountsViewDialogsHost', () => {
     expect(wrapper.emitted('update:includeProxyOnExport')).toEqual([[false]])
     expect(wrapper.emitted('confirm-export')).toEqual([[]])
     expect(wrapper.emitted('close-export')).toEqual([[]])
+  })
+
+  it('forwards batch create modal events', async () => {
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        showBatchCreate: true
+      },
+      global: {
+        stubs: {
+          CreateAccountModal: true,
+          BatchCreateAccountsModal: {
+            emits: ['close', 'created'],
+            template: `
+              <div>
+                <button class="batch-close" @click="$emit('close')" />
+                <button class="batch-created" @click="$emit('created', { created_count: 2, failed_count: 1, results: [] })" />
+              </div>
+            `
+          },
+          ModelImportExposureSyncDialog: true,
+          EditAccountModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          AccountActionMenu: true,
+          SyncFromCrsModal: true,
+          ImportDataModal: true,
+          BulkEditAccountModal: true,
+          TempUnschedStatusModal: true,
+          ConfirmDialog: true,
+          ErrorPassthroughRulesModal: true
+        }
+      }
+    })
+
+    await wrapper.get('.batch-close').trigger('click')
+    await wrapper.get('.batch-created').trigger('click')
+
+    expect(wrapper.emitted('close-batch-create')).toEqual([[]])
+    expect(wrapper.emitted('batch-created')).toEqual([
+      [{ created_count: 2, failed_count: 1, results: [] }]
+    ])
   })
 })

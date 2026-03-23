@@ -79,12 +79,13 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	if accountType == "" && accountBeforeUpdate != nil {
 		accountType = accountBeforeUpdate.Type
 	}
+	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
 	credentials, extra, scopeErr := h.prepareAccountModelScope(c.Request.Context(), accountBeforeUpdate.Platform, accountType, req.Credentials, req.Extra)
 	if scopeErr != nil {
 		response.ErrorFrom(c, scopeErr)
 		return
 	}
-	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{Name: req.Name, Notes: req.Notes, Type: req.Type, Credentials: credentials, Extra: extra, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: req.Status, GroupIDs: req.GroupIDs, ExpiresAt: req.ExpiresAt, AutoPauseOnExpired: req.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
+	account, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{Name: req.Name, Notes: req.Notes, Type: req.Type, Credentials: credentials, Extra: extra, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: normalizedStatus, GroupIDs: req.GroupIDs, ExpiresAt: req.ExpiresAt, AutoPauseOnExpired: req.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {
