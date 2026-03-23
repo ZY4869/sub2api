@@ -66,14 +66,10 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		}
 		return newAccountModelProbeResult(models), nil
 	case PlatformKiro:
-		models, err := s.detectAnthropicModels(ctx, account)
-		if err == nil {
-			return newAccountModelProbeResult(models), nil
-		}
 		return &accountModelProbeResult{
 			Models: kiroDefaultModelIDs(),
-			Source: accountModelProbeSourceKiroStaticFallback,
-			Notice: "upstream /models detection failed; imported Kiro default models instead",
+			Source: accountModelProbeSourceKiroBuiltinCatalog,
+			Notice: "imported from built-in Kiro model catalog",
 		}, nil
 	default:
 		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "current account platform does not support model import")

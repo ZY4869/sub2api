@@ -98,9 +98,14 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		logger.LegacyPrintf("service.gateway", "Model mapping applied: %s -> %s (account: %s, source=%s)", originalModel, mappedModel, account.Name, mappingSource)
 	}
 	debugLogRequestBody("CLIENT_ORIGINAL", body)
-	token, tokenType, err := s.GetAccessToken(ctx, account)
-	if err != nil {
-		return nil, err
+	token := ""
+	tokenType := ""
+	var err error
+	if account.Platform != PlatformKiro {
+		token, tokenType, err = s.GetAccessToken(ctx, account)
+		if err != nil {
+			return nil, err
+		}
 	}
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -109,13 +114,32 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	logger.LegacyPrintf("service.gateway", "[Forward] Using account: ID=%d Name=%s Platform=%s Type=%s TLSFingerprint=%v Proxy=%s", account.ID, account.Name, account.Platform, account.Type, account.IsTLSFingerprintEnabled(), proxyURL)
 	setOpsUpstreamRequestBody(c, body)
 	var resp *http.Response
+	var kiroRuntime *KiroRuntimeService
+	if account.Platform == PlatformKiro {
+		kiroRuntime = NewKiroRuntimeService(s.accountRepo, s.httpUpstream, s.claudeTokenProvider)
+	}
 	retryStart := time.Now()
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
-		upstreamReq, err := s.buildUpstreamRequest(ctx, c, account, body, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
-		if err != nil {
-			return nil, err
+		if account.Platform == PlatformKiro {
+			execResult, execErr := kiroRuntime.ExecuteClaude(ctx, account, KiroRuntimeExecuteInput{
+				Body:           body,
+				ModelID:        reqModel,
+				Stream:         reqStream,
+				RequestHeaders: c.Request.Header,
+			})
+			err = execErr
+			if execResult != nil {
+				resp = execResult.Response
+			} else {
+				resp = nil
+			}
+		} else {
+			upstreamReq, buildErr := s.buildUpstreamRequest(ctx, c, account, body, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
+			if buildErr != nil {
+				return nil, buildErr
+			}
+			resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
 		}
-		resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
 		if err != nil {
 			if resp != nil && resp.Body != nil {
 				_ = resp.Body.Close()

@@ -163,6 +163,38 @@ describe('mergeAccountModelImportResults', () => {
     expect(merged?.probe_notice).toBe('fallback notice')
     expect(merged?.model_results).toHaveLength(2)
   })
+
+  it('preserves non-upstream Kiro probe sources', () => {
+    const merged = mergeAccountModelImportResults([
+      {
+        account_id: 1,
+        detected_models: ['model-a'],
+        imported_models: ['model-a'],
+        imported_count: 1,
+        skipped_count: 0,
+        failed_models: [],
+        model_results: [],
+        probe_source: 'upstream',
+        probe_notice: '',
+        trigger: 'manual'
+      },
+      {
+        account_id: 1,
+        detected_models: ['claude-sonnet-4.5'],
+        imported_models: [],
+        imported_count: 0,
+        skipped_count: 1,
+        failed_models: [],
+        model_results: [],
+        probe_source: 'kiro_builtin_catalog',
+        probe_notice: 'imported from built-in Kiro model catalog',
+        trigger: 'manual'
+      }
+    ])
+
+    expect(merged?.probe_source).toBe('kiro_builtin_catalog')
+    expect(merged?.probe_notice).toBe('imported from built-in Kiro model catalog')
+  })
 })
 
 describe('shouldInvalidateModelInventory', () => {

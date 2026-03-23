@@ -15,7 +15,7 @@ import (
 const (
 	accountModelProbeSourceUpstream                 = "upstream"
 	accountModelProbeSourceGeminiCLIDefaultFallback = "gemini_cli_default_fallback"
-	accountModelProbeSourceKiroStaticFallback       = "kiro_static_fallback"
+	accountModelProbeSourceKiroBuiltinCatalog       = "kiro_builtin_catalog"
 	accountModelProbeSourceCopilotStaticFallback    = "copilot_static_fallback"
 )
 

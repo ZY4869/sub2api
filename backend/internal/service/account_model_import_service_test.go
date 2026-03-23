@@ -364,6 +364,34 @@ func TestImportAccountModels_ImportsAnthropicModelsWithExpectedHeaders(t *testin
 	require.Contains(t, stored, "claude-test-model-b")
 }
 
+func TestImportAccountModels_ImportsKiroModelsFromBuiltinCatalog(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusUnauthorized,
+		body:       `{"error":"should not be called"}`,
+	}
+	svc := NewAccountModelImportService(catalogService, nil, upstream, nil)
+	account := &Account{
+		ID:       114,
+		Platform: PlatformKiro,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"access_token": "kiro-token",
+			"profile_arn":  "arn:aws:codewhisperer:us-east-1:123456789012:profile/test",
+		},
+	}
+
+	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.NoError(t, err)
+	require.Nil(t, upstream.lastReq)
+	require.Equal(t, kiroDefaultModelIDs(), result.DetectedModels)
+	require.Equal(t, accountModelProbeSourceKiroBuiltinCatalog, result.ProbeSource)
+	require.Equal(t, "imported from built-in Kiro model catalog", result.ProbeNotice)
+	require.Len(t, result.ModelResults, len(result.DetectedModels))
+}
+
 func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)

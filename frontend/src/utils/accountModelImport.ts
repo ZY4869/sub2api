@@ -38,6 +38,12 @@ const DETAIL_LIMIT = 8
 
 export const MODEL_IMPORT_SYNC_EXPOSURES = ['whitelist', 'use_key', 'test', 'runtime'] as const
 
+function isNonUpstreamProbeSource(
+  probeSource: AccountModelImportResult['probe_source']
+): boolean {
+  return probeSource === 'gemini_cli_default_fallback' || probeSource === 'kiro_builtin_catalog'
+}
+
 function extractAccountModelImportErrorMessage(error: unknown): string {
   const err = (error || {}) as AccountModelImportErrorLike
   const detail = typeof err.response?.data?.detail === 'string'
@@ -276,7 +282,7 @@ export function mergeAccountModelImportResults(
     merged.skipped_count += Math.max(0, Number(result.skipped_count) || 0)
     merged.failed_models?.push(...(result.failed_models || []))
     merged.model_results?.push(...(result.model_results || []))
-    if (result.probe_source === 'gemini_cli_default_fallback') {
+    if (isNonUpstreamProbeSource(result.probe_source)) {
       merged.probe_source = result.probe_source
     }
     if (typeof result.probe_notice === 'string' && result.probe_notice.trim()) {

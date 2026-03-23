@@ -329,6 +329,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
 func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string) error {
+	if account != nil && account.Platform == PlatformKiro {
+		return s.testKiroAccountConnection(c, account, modelID)
+	}
 	ctx := c.Request.Context()
 
 	// Determine the model to use
@@ -456,6 +459,55 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	}
 
 	// Process SSE stream
+	return s.processClaudeStream(c, resp.Body)
+}
+
+func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *Account, modelID string) error {
+	ctx := c.Request.Context()
+	testModelID := modelID
+	if testModelID == "" {
+		testModelID = claude.DefaultTestModel
+	}
+	testModelID = s.resolveTestModelID(ctx, account, testModelID)
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.Flush()
+
+	payload, err := createTestPayload(testModelID)
+	if err != nil {
+		return s.sendErrorAndEnd(c, "Failed to create test payload")
+	}
+	payloadBytes, _ := json.Marshal(payload)
+	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+
+	runtime := NewKiroRuntimeService(s.accountRepo, s.httpUpstream, s.claudeTokenProvider)
+	result, err := runtime.ExecuteClaude(ctx, account, KiroRuntimeExecuteInput{
+		Body:           payloadBytes,
+		ModelID:        testModelID,
+		Stream:         true,
+		RequestHeaders: c.Request.Header,
+	})
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
+	}
+	if result == nil || result.Response == nil {
+		return s.sendErrorAndEnd(c, "Kiro runtime returned empty response")
+	}
+
+	resp := result.Response
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		errMsg := fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body))
+		if resp.StatusCode == http.StatusForbidden && s.accountRepo != nil {
+			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+		}
+		return s.sendErrorAndEnd(c, errMsg)
+	}
+
 	return s.processClaudeStream(c, resp.Body)
 }
 
