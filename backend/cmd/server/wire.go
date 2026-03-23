@@ -80,6 +80,7 @@ func provideCleanup(
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
+	accountBlacklistCleanup *service.AccountBlacklistCleanupService,
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
@@ -173,6 +174,12 @@ func provideCleanup(
 			}},
 			{"AccountExpiryService", func() error {
 				accountExpiry.Stop()
+				return nil
+			}},
+			{"AccountBlacklistCleanupService", func() error {
+				if accountBlacklistCleanup != nil {
+					accountBlacklistCleanup.Stop()
+				}
 				return nil
 			}},
 			{"SubscriptionExpiryService", func() error {

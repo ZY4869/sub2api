@@ -563,6 +563,7 @@ export type AccountType =
   | "apikey"
   | "bedrock"
   | "upstream";
+export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
 
@@ -690,6 +691,11 @@ export interface Account {
   notes?: string | null;
   platform: AccountPlatform;
   type: AccountType;
+  lifecycle_state?: AccountLifecycleState;
+  lifecycle_reason_code?: string | null;
+  lifecycle_reason_message?: string | null;
+  blacklisted_at?: string | null;
+  blacklist_purge_at?: string | null;
   credentials?: Record<string, unknown>;
   // Extra fields including Codex usage and model-level rate limits (Antigravity smart retry)
   extra?: CodexUsageSnapshot & {
@@ -899,6 +905,9 @@ export interface CreateAccountRequest {
   notes?: string | null;
   platform: AccountPlatform;
   type: AccountType;
+  lifecycle_state?: AccountLifecycleState;
+  lifecycle_reason_code?: string | null;
+  lifecycle_reason_message?: string | null;
   credentials: Record<string, unknown>;
   extra?: Record<string, unknown>;
   proxy_id?: number | null;
@@ -989,6 +998,9 @@ export interface UpdateAccountRequest {
   name?: string;
   notes?: string | null;
   type?: AccountType;
+  lifecycle_state?: AccountLifecycleState;
+  lifecycle_reason_code?: string | null;
+  lifecycle_reason_message?: string | null;
   credentials?: Record<string, unknown>;
   extra?: Record<string, unknown>;
   proxy_id?: number | null;

@@ -255,6 +255,100 @@ func (_u *AccountUpdate) SetNillableStatus(v *string) *AccountUpdate {
 	return _u
 }
 
+// SetLifecycleState sets the "lifecycle_state" field.
+func (_u *AccountUpdate) SetLifecycleState(v string) *AccountUpdate {
+	_u.mutation.SetLifecycleState(v)
+	return _u
+}
+
+// SetNillableLifecycleState sets the "lifecycle_state" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableLifecycleState(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetLifecycleState(*v)
+	}
+	return _u
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (_u *AccountUpdate) SetLifecycleReasonCode(v string) *AccountUpdate {
+	_u.mutation.SetLifecycleReasonCode(v)
+	return _u
+}
+
+// SetNillableLifecycleReasonCode sets the "lifecycle_reason_code" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableLifecycleReasonCode(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetLifecycleReasonCode(*v)
+	}
+	return _u
+}
+
+// ClearLifecycleReasonCode clears the value of the "lifecycle_reason_code" field.
+func (_u *AccountUpdate) ClearLifecycleReasonCode() *AccountUpdate {
+	_u.mutation.ClearLifecycleReasonCode()
+	return _u
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (_u *AccountUpdate) SetLifecycleReasonMessage(v string) *AccountUpdate {
+	_u.mutation.SetLifecycleReasonMessage(v)
+	return _u
+}
+
+// SetNillableLifecycleReasonMessage sets the "lifecycle_reason_message" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableLifecycleReasonMessage(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetLifecycleReasonMessage(*v)
+	}
+	return _u
+}
+
+// ClearLifecycleReasonMessage clears the value of the "lifecycle_reason_message" field.
+func (_u *AccountUpdate) ClearLifecycleReasonMessage() *AccountUpdate {
+	_u.mutation.ClearLifecycleReasonMessage()
+	return _u
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (_u *AccountUpdate) SetBlacklistedAt(v time.Time) *AccountUpdate {
+	_u.mutation.SetBlacklistedAt(v)
+	return _u
+}
+
+// SetNillableBlacklistedAt sets the "blacklisted_at" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableBlacklistedAt(v *time.Time) *AccountUpdate {
+	if v != nil {
+		_u.SetBlacklistedAt(*v)
+	}
+	return _u
+}
+
+// ClearBlacklistedAt clears the value of the "blacklisted_at" field.
+func (_u *AccountUpdate) ClearBlacklistedAt() *AccountUpdate {
+	_u.mutation.ClearBlacklistedAt()
+	return _u
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (_u *AccountUpdate) SetBlacklistPurgeAt(v time.Time) *AccountUpdate {
+	_u.mutation.SetBlacklistPurgeAt(v)
+	return _u
+}
+
+// SetNillableBlacklistPurgeAt sets the "blacklist_purge_at" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableBlacklistPurgeAt(v *time.Time) *AccountUpdate {
+	if v != nil {
+		_u.SetBlacklistPurgeAt(*v)
+	}
+	return _u
+}
+
+// ClearBlacklistPurgeAt clears the value of the "blacklist_purge_at" field.
+func (_u *AccountUpdate) ClearBlacklistPurgeAt() *AccountUpdate {
+	_u.mutation.ClearBlacklistPurgeAt()
+	return _u
+}
+
 // SetErrorMessage sets the "error_message" field.
 func (_u *AccountUpdate) SetErrorMessage(v string) *AccountUpdate {
 	_u.mutation.SetErrorMessage(v)
@@ -655,6 +749,16 @@ func (_u *AccountUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.LifecycleState(); ok {
+		if err := account.LifecycleStateValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_state", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_state": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LifecycleReasonCode(); ok {
+		if err := account.LifecycleReasonCodeValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_reason_code", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_reason_code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
@@ -734,6 +838,33 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LifecycleState(); ok {
+		_spec.SetField(account.FieldLifecycleState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LifecycleReasonCode(); ok {
+		_spec.SetField(account.FieldLifecycleReasonCode, field.TypeString, value)
+	}
+	if _u.mutation.LifecycleReasonCodeCleared() {
+		_spec.ClearField(account.FieldLifecycleReasonCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.LifecycleReasonMessage(); ok {
+		_spec.SetField(account.FieldLifecycleReasonMessage, field.TypeString, value)
+	}
+	if _u.mutation.LifecycleReasonMessageCleared() {
+		_spec.ClearField(account.FieldLifecycleReasonMessage, field.TypeString)
+	}
+	if value, ok := _u.mutation.BlacklistedAt(); ok {
+		_spec.SetField(account.FieldBlacklistedAt, field.TypeTime, value)
+	}
+	if _u.mutation.BlacklistedAtCleared() {
+		_spec.ClearField(account.FieldBlacklistedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BlacklistPurgeAt(); ok {
+		_spec.SetField(account.FieldBlacklistPurgeAt, field.TypeTime, value)
+	}
+	if _u.mutation.BlacklistPurgeAtCleared() {
+		_spec.ClearField(account.FieldBlacklistPurgeAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.ErrorMessage(); ok {
 		_spec.SetField(account.FieldErrorMessage, field.TypeString, value)
@@ -1182,6 +1313,100 @@ func (_u *AccountUpdateOne) SetNillableStatus(v *string) *AccountUpdateOne {
 	return _u
 }
 
+// SetLifecycleState sets the "lifecycle_state" field.
+func (_u *AccountUpdateOne) SetLifecycleState(v string) *AccountUpdateOne {
+	_u.mutation.SetLifecycleState(v)
+	return _u
+}
+
+// SetNillableLifecycleState sets the "lifecycle_state" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableLifecycleState(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetLifecycleState(*v)
+	}
+	return _u
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (_u *AccountUpdateOne) SetLifecycleReasonCode(v string) *AccountUpdateOne {
+	_u.mutation.SetLifecycleReasonCode(v)
+	return _u
+}
+
+// SetNillableLifecycleReasonCode sets the "lifecycle_reason_code" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableLifecycleReasonCode(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetLifecycleReasonCode(*v)
+	}
+	return _u
+}
+
+// ClearLifecycleReasonCode clears the value of the "lifecycle_reason_code" field.
+func (_u *AccountUpdateOne) ClearLifecycleReasonCode() *AccountUpdateOne {
+	_u.mutation.ClearLifecycleReasonCode()
+	return _u
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (_u *AccountUpdateOne) SetLifecycleReasonMessage(v string) *AccountUpdateOne {
+	_u.mutation.SetLifecycleReasonMessage(v)
+	return _u
+}
+
+// SetNillableLifecycleReasonMessage sets the "lifecycle_reason_message" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableLifecycleReasonMessage(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetLifecycleReasonMessage(*v)
+	}
+	return _u
+}
+
+// ClearLifecycleReasonMessage clears the value of the "lifecycle_reason_message" field.
+func (_u *AccountUpdateOne) ClearLifecycleReasonMessage() *AccountUpdateOne {
+	_u.mutation.ClearLifecycleReasonMessage()
+	return _u
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (_u *AccountUpdateOne) SetBlacklistedAt(v time.Time) *AccountUpdateOne {
+	_u.mutation.SetBlacklistedAt(v)
+	return _u
+}
+
+// SetNillableBlacklistedAt sets the "blacklisted_at" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableBlacklistedAt(v *time.Time) *AccountUpdateOne {
+	if v != nil {
+		_u.SetBlacklistedAt(*v)
+	}
+	return _u
+}
+
+// ClearBlacklistedAt clears the value of the "blacklisted_at" field.
+func (_u *AccountUpdateOne) ClearBlacklistedAt() *AccountUpdateOne {
+	_u.mutation.ClearBlacklistedAt()
+	return _u
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (_u *AccountUpdateOne) SetBlacklistPurgeAt(v time.Time) *AccountUpdateOne {
+	_u.mutation.SetBlacklistPurgeAt(v)
+	return _u
+}
+
+// SetNillableBlacklistPurgeAt sets the "blacklist_purge_at" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableBlacklistPurgeAt(v *time.Time) *AccountUpdateOne {
+	if v != nil {
+		_u.SetBlacklistPurgeAt(*v)
+	}
+	return _u
+}
+
+// ClearBlacklistPurgeAt clears the value of the "blacklist_purge_at" field.
+func (_u *AccountUpdateOne) ClearBlacklistPurgeAt() *AccountUpdateOne {
+	_u.mutation.ClearBlacklistPurgeAt()
+	return _u
+}
+
 // SetErrorMessage sets the "error_message" field.
 func (_u *AccountUpdateOne) SetErrorMessage(v string) *AccountUpdateOne {
 	_u.mutation.SetErrorMessage(v)
@@ -1595,6 +1820,16 @@ func (_u *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.LifecycleState(); ok {
+		if err := account.LifecycleStateValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_state", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_state": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.LifecycleReasonCode(); ok {
+		if err := account.LifecycleReasonCodeValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_reason_code", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_reason_code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SessionWindowStatus(); ok {
 		if err := account.SessionWindowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "session_window_status", err: fmt.Errorf(`ent: validator failed for field "Account.session_window_status": %w`, err)}
@@ -1691,6 +1926,33 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LifecycleState(); ok {
+		_spec.SetField(account.FieldLifecycleState, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LifecycleReasonCode(); ok {
+		_spec.SetField(account.FieldLifecycleReasonCode, field.TypeString, value)
+	}
+	if _u.mutation.LifecycleReasonCodeCleared() {
+		_spec.ClearField(account.FieldLifecycleReasonCode, field.TypeString)
+	}
+	if value, ok := _u.mutation.LifecycleReasonMessage(); ok {
+		_spec.SetField(account.FieldLifecycleReasonMessage, field.TypeString, value)
+	}
+	if _u.mutation.LifecycleReasonMessageCleared() {
+		_spec.ClearField(account.FieldLifecycleReasonMessage, field.TypeString)
+	}
+	if value, ok := _u.mutation.BlacklistedAt(); ok {
+		_spec.SetField(account.FieldBlacklistedAt, field.TypeTime, value)
+	}
+	if _u.mutation.BlacklistedAtCleared() {
+		_spec.ClearField(account.FieldBlacklistedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BlacklistPurgeAt(); ok {
+		_spec.SetField(account.FieldBlacklistPurgeAt, field.TypeTime, value)
+	}
+	if _u.mutation.BlacklistPurgeAtCleared() {
+		_spec.ClearField(account.FieldBlacklistPurgeAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.ErrorMessage(); ok {
 		_spec.SetField(account.FieldErrorMessage, field.TypeString, value)

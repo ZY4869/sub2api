@@ -24,6 +24,7 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       filters: { platform: '', type: '', status: '', group: '', search: '' },
       groups: [{ id: 1, name: 'Default' }],
       hasPendingListSync: true,
+      archivedCount: 3,
       selectedCount: 2,
       autoRefreshEnabled: true,
       autoRefreshCountdown: 15,
@@ -80,6 +81,9 @@ describe('AccountsViewToolbar', () => {
       )?.attributes('disabled')
     ).toBeDefined()
     await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.viewArchived')
+    )?.trigger('click')
+    await wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.batchCreate')
     )?.trigger('click')
     await wrapper.findAll('button').find((button) =>
@@ -92,6 +96,7 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('update:searchQuery')).toEqual([['claude']])
     expect(wrapper.emitted('change')).toEqual([[]])
     expect(wrapper.emitted('refresh')).toEqual([[]])
+    expect(wrapper.emitted('show-archived')).toEqual([[]])
     expect(wrapper.emitted('batch-create')).toEqual([[]])
     expect(wrapper.emitted('refresh-usage')).toEqual([[]])
     expect(wrapper.emitted('sync')).toEqual([[]])

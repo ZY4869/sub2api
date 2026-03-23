@@ -49,6 +49,16 @@ type Account struct {
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
+	// LifecycleState holds the value of the "lifecycle_state" field.
+	LifecycleState string `json:"lifecycle_state,omitempty"`
+	// LifecycleReasonCode holds the value of the "lifecycle_reason_code" field.
+	LifecycleReasonCode *string `json:"lifecycle_reason_code,omitempty"`
+	// LifecycleReasonMessage holds the value of the "lifecycle_reason_message" field.
+	LifecycleReasonMessage *string `json:"lifecycle_reason_message,omitempty"`
+	// BlacklistedAt holds the value of the "blacklisted_at" field.
+	BlacklistedAt *time.Time `json:"blacklisted_at,omitempty"`
+	// BlacklistPurgeAt holds the value of the "blacklist_purge_at" field.
+	BlacklistPurgeAt *time.Time `json:"blacklist_purge_at,omitempty"`
 	// ErrorMessage holds the value of the "error_message" field.
 	ErrorMessage *string `json:"error_message,omitempty"`
 	// LastUsedAt holds the value of the "last_used_at" field.
@@ -147,9 +157,9 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case account.FieldID, account.FieldProxyID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority:
 			values[i] = new(sql.NullInt64)
-		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
+		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldLifecycleState, account.FieldLifecycleReasonCode, account.FieldLifecycleReasonMessage, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus:
 			values[i] = new(sql.NullString)
-		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
+		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldBlacklistedAt, account.FieldBlacklistPurgeAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -269,6 +279,40 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = value.String
+			}
+		case account.FieldLifecycleState:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lifecycle_state", values[i])
+			} else if value.Valid {
+				_m.LifecycleState = value.String
+			}
+		case account.FieldLifecycleReasonCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lifecycle_reason_code", values[i])
+			} else if value.Valid {
+				_m.LifecycleReasonCode = new(string)
+				*_m.LifecycleReasonCode = value.String
+			}
+		case account.FieldLifecycleReasonMessage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lifecycle_reason_message", values[i])
+			} else if value.Valid {
+				_m.LifecycleReasonMessage = new(string)
+				*_m.LifecycleReasonMessage = value.String
+			}
+		case account.FieldBlacklistedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field blacklisted_at", values[i])
+			} else if value.Valid {
+				_m.BlacklistedAt = new(time.Time)
+				*_m.BlacklistedAt = value.Time
+			}
+		case account.FieldBlacklistPurgeAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field blacklist_purge_at", values[i])
+			} else if value.Valid {
+				_m.BlacklistPurgeAt = new(time.Time)
+				*_m.BlacklistPurgeAt = value.Time
 			}
 		case account.FieldErrorMessage:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -467,6 +511,29 @@ func (_m *Account) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)
+	builder.WriteString(", ")
+	builder.WriteString("lifecycle_state=")
+	builder.WriteString(_m.LifecycleState)
+	builder.WriteString(", ")
+	if v := _m.LifecycleReasonCode; v != nil {
+		builder.WriteString("lifecycle_reason_code=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.LifecycleReasonMessage; v != nil {
+		builder.WriteString("lifecycle_reason_message=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BlacklistedAt; v != nil {
+		builder.WriteString("blacklisted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.BlacklistPurgeAt; v != nil {
+		builder.WriteString("blacklist_purge_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	if v := _m.ErrorMessage; v != nil {
 		builder.WriteString("error_message=")

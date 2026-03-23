@@ -109,7 +109,32 @@ func (s *RateLimitService) CheckErrorPolicy(ctx context.Context, account *Accoun
 
 // HandleUpstreamError 处理上游错误响应，标记账号状态
 // 返回是否应该停止该账号的调度
+func (s *RateLimitService) markAccountBlacklisted(ctx context.Context, account *Account, match *HardBanMatch) bool {
+	if s == nil || s.accountRepo == nil || account == nil || match == nil {
+		return false
+	}
+	now := time.Now()
+	purgeAt := now.Add(AccountBlacklistRetention)
+	if err := s.accountRepo.MarkBlacklisted(ctx, account.ID, match.ReasonCode, match.ReasonMessage, now, purgeAt); err != nil {
+		slog.Warn("account_mark_blacklisted_failed", "account_id", account.ID, "reason_code", match.ReasonCode, "error", err)
+		return false
+	}
+	if s.tempUnschedCache != nil {
+		if err := s.tempUnschedCache.DeleteTempUnsched(ctx, account.ID); err != nil {
+			slog.Warn("account_mark_blacklisted_clear_temp_unsched_cache_failed", "account_id", account.ID, "error", err)
+		}
+	}
+	slog.Warn("account_marked_blacklisted", "account_id", account.ID, "reason_code", match.ReasonCode, "purge_at", purgeAt)
+	return true
+}
+
 func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Account, statusCode int, headers http.Header, responseBody []byte) (shouldDisable bool) {
+	if match := DetectHardBannedAccount(statusCode, responseBody); match != nil {
+		if s.markAccountBlacklisted(ctx, account, match) {
+			return true
+		}
+	}
+
 	customErrorCodesEnabled := account.IsCustomErrorCodesEnabled()
 
 	// 池模式默认不标记本地账号状态；仅当用户显式配置自定义错误码时按本地策略处理。

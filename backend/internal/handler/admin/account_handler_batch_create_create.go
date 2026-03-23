@@ -230,10 +230,16 @@ func buildBatchCreateAccountInput(
 	}
 	ignoredGroupBinding := false
 	status := service.StatusActive
+	lifecycleState := service.AccountLifecycleNormal
+	lifecycleReasonCode := ""
+	lifecycleReasonMessage := ""
 	if archiveGroup != nil {
 		ignoredGroupBinding = len(groupIDs) > 0
 		groupIDs = []int64{archiveGroup.ID}
 		status = service.StatusDisabled
+		lifecycleState = service.AccountLifecycleArchived
+		lifecycleReasonCode = "batch_create_archive"
+		lifecycleReasonMessage = "Created directly into archive area"
 	}
 
 	concurrency := req.Concurrency
@@ -301,6 +307,9 @@ func buildBatchCreateAccountInput(
 		LoadFactor:            loadFactor,
 		GroupIDs:              groupIDs,
 		Status:                status,
+		LifecycleState:        lifecycleState,
+		LifecycleReasonCode:   lifecycleReasonCode,
+		LifecycleReasonMessage: lifecycleReasonMessage,
 		ExpiresAt:             expiresAt,
 		AutoPauseOnExpired:    autoPauseOnExpired,
 		SkipMixedChannelCheck: skipMixedChannelCheck,

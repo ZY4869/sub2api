@@ -8,6 +8,7 @@
           :search-query="String(params.search || '')"
           :filters="params"
           :groups="groups"
+          :archived-count="archivedAccountCount"
           :has-pending-list-sync="hasPendingListSync"
           :selected-count="selIds.length"
           :auto-refresh-enabled="autoRefreshEnabled"
@@ -22,6 +23,7 @@
           @refresh-usage="handleRefreshActualUsage"
           @sync="showSync = true"
           @create="showCreate = true"
+          @show-archived="showArchivedAccounts = true"
           @archive-group="openArchiveGroupModal"
           @batch-create="openBatchCreateModal"
           @import-data="showImportData = true"
@@ -151,6 +153,11 @@
       @close-export="showExportDataDialog = false"
       @close-error-passthrough="showErrorPassthrough = false"
     />
+    <ArchivedAccountsModal
+      :show="showArchivedAccounts"
+      :groups="groups"
+      @close="showArchivedAccounts = false"
+    />
   </AppLayout>
 </template>
 
@@ -171,6 +178,7 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
+import ArchivedAccountsModal from '@/components/admin/account/ArchivedAccountsModal.vue'
 import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDialogsHost.vue'
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
 import AccountsViewToolbar from '@/components/admin/account/AccountsViewToolbar.vue'
@@ -233,6 +241,7 @@ const selTypes = computed<AccountType[]>(() => {
 })
 const showCreate = ref(false)
 const showBatchCreate = ref(false)
+const showArchivedAccounts = ref(false)
 const showArchiveSelected = ref(false)
 const showArchiveGroup = ref(false)
 const showEdit = ref(false)
@@ -260,6 +269,7 @@ const togglingSchedulable = ref<number | null>(null)
 const exportingData = ref(false)
 const usageManualRefreshToken = ref(0)
 const usageRefreshing = ref(false)
+const archivedAccountCount = ref(0)
 const { menu, openMenu, closeMenu, syncMenuAccount, clearMenuAccount } = useAccountActionMenu()
 
 // Column settings
@@ -315,7 +325,7 @@ const {
   handlePageSizeChange: baseHandlePageSizeChange
 } = useTableLoader<Account, AccountListRequestParams>({
   fetchFn: adminAPI.accounts.list,
-  initialParams: { platform: '', type: '', status: '', group: '', search: '' }
+  initialParams: { platform: '', type: '', status: '', group: '', search: '', lifecycle: 'normal' }
 })
 
 const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
@@ -723,12 +733,21 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
 }
 const handleBulkUpdated = () => { showBulkEdit.value = false; clearSelection(); reload() }
 const handleDataImported = () => { showImportData.value = false; reload() }
+const refreshArchivedAccountCount = async () => {
+  try {
+    const response = await adminAPI.accounts.list(1, 1, { lifecycle: 'archived' })
+    archivedAccountCount.value = response.total || 0
+  } catch (error) {
+    console.error('Failed to load archived account count:', error)
+  }
+}
 const handleBatchCreated = async (_result: BatchCreateAccountsResult) => {
   try {
     groups.value = await adminAPI.groups.getAll()
   } catch (error) {
     console.error('Failed to refresh groups after batch create:', error)
   }
+  await refreshArchivedAccountCount()
   await reload()
 }
 const handleArchivedAccounts = async () => {
@@ -739,6 +758,7 @@ const handleArchivedAccounts = async () => {
   } catch (error) {
     console.error('Failed to refresh groups after batch archive:', error)
   }
+  await refreshArchivedAccountCount()
   await reload()
 }
 const handleArchivedGroupAccounts = async () => {
@@ -749,6 +769,7 @@ const handleArchivedGroupAccounts = async () => {
   } catch (error) {
     console.error('Failed to refresh groups after group archive:', error)
   }
+  await refreshArchivedAccountCount()
   await reload()
 }
 const handleAccountUpdated = (updatedAccount: Account) => {
@@ -921,6 +942,9 @@ const handleScroll = () => {
 onMounted(async () => {
   load().catch((error) => {
     console.error('Failed to load accounts:', error)
+  })
+  refreshArchivedAccountCount().catch((error) => {
+    console.error('Failed to load archived account count:', error)
   })
   await loadRuntimeOptions()
   window.addEventListener('scroll', handleScroll, true)

@@ -21,6 +21,23 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 		return service.ErrAccountNilInput
 	}
 	builder := r.client.Account.Create().SetName(account.Name).SetNillableNotes(account.Notes).SetPlatform(account.Platform).SetType(account.Type).SetCredentials(normalizeJSONMap(account.Credentials)).SetExtra(normalizeJSONMap(account.Extra)).SetConcurrency(account.Concurrency).SetPriority(account.Priority).SetStatus(account.Status).SetErrorMessage(account.ErrorMessage).SetSchedulable(account.Schedulable).SetAutoPauseOnExpired(account.AutoPauseOnExpired)
+	lifecycleState := service.NormalizeAccountLifecycleInput(account.LifecycleState)
+	if lifecycleState == service.AccountLifecycleAll {
+		lifecycleState = service.AccountLifecycleNormal
+	}
+	builder.SetLifecycleState(lifecycleState)
+	if trimmed := account.LifecycleReasonCode; trimmed != "" {
+		builder.SetLifecycleReasonCode(trimmed)
+	}
+	if trimmed := account.LifecycleReasonMessage; trimmed != "" {
+		builder.SetLifecycleReasonMessage(trimmed)
+	}
+	if account.BlacklistedAt != nil {
+		builder.SetBlacklistedAt(*account.BlacklistedAt)
+	}
+	if account.BlacklistPurgeAt != nil {
+		builder.SetBlacklistPurgeAt(*account.BlacklistPurgeAt)
+	}
 	if account.RateMultiplier != nil {
 		builder.SetRateMultiplier(*account.RateMultiplier)
 	}
@@ -209,6 +226,31 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		return nil
 	}
 	builder := r.client.Account.UpdateOneID(account.ID).SetName(account.Name).SetNillableNotes(account.Notes).SetPlatform(account.Platform).SetType(account.Type).SetCredentials(normalizeJSONMap(account.Credentials)).SetExtra(normalizeJSONMap(account.Extra)).SetConcurrency(account.Concurrency).SetPriority(account.Priority).SetStatus(account.Status).SetErrorMessage(account.ErrorMessage).SetSchedulable(account.Schedulable).SetAutoPauseOnExpired(account.AutoPauseOnExpired)
+	lifecycleState := service.NormalizeAccountLifecycleInput(account.LifecycleState)
+	if lifecycleState == service.AccountLifecycleAll {
+		lifecycleState = service.AccountLifecycleNormal
+	}
+	builder.SetLifecycleState(lifecycleState)
+	if trimmed := account.LifecycleReasonCode; trimmed != "" {
+		builder.SetLifecycleReasonCode(trimmed)
+	} else {
+		builder.ClearLifecycleReasonCode()
+	}
+	if trimmed := account.LifecycleReasonMessage; trimmed != "" {
+		builder.SetLifecycleReasonMessage(trimmed)
+	} else {
+		builder.ClearLifecycleReasonMessage()
+	}
+	if account.BlacklistedAt != nil {
+		builder.SetBlacklistedAt(*account.BlacklistedAt)
+	} else {
+		builder.ClearBlacklistedAt()
+	}
+	if account.BlacklistPurgeAt != nil {
+		builder.SetBlacklistPurgeAt(*account.BlacklistPurgeAt)
+	} else {
+		builder.ClearBlacklistPurgeAt()
+	}
 	if account.RateMultiplier != nil {
 		builder.SetRateMultiplier(*account.RateMultiplier)
 	}
@@ -279,9 +321,9 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	return nil
 }
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0)
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, service.AccountLifecycleNormal)
 }
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string) ([]service.Account, *pagination.PaginationResult, error) {
 	q := r.client.Account.Query()
 	if platform != "" {
 		q = q.Where(dbaccount.PlatformEQ(platform))
@@ -310,6 +352,9 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	} else if groupID > 0 {
 		q = q.Where(dbaccount.HasAccountGroupsWith(dbaccountgroup.GroupIDEQ(groupID)))
 	}
+	if predicate := lifecyclePredicate(lifecycle); predicate != nil {
+		q = q.Where(predicate)
+	}
 	total, err := q.Count(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -325,21 +370,21 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	return outAccounts, paginationResultFromTotal(int64(total), params), nil
 }
 func (r *accountRepository) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {
-	accounts, err := r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive})
+	accounts, err := r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, lifecycle: service.AccountLifecycleNormal})
 	if err != nil {
 		return nil, err
 	}
 	return accounts, nil
 }
 func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.StatusEQ(service.StatusActive), dbaccount.LifecycleStateEQ(service.AccountLifecycleNormal)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) ListByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive), dbaccount.LifecycleStateEQ(service.AccountLifecycleNormal)).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

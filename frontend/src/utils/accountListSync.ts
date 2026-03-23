@@ -7,6 +7,7 @@ export interface AccountListFilters {
   status?: string
   group?: string
   search?: string
+  lifecycle?: string
 }
 
 export type AccountListRequestParams = AccountListFilters & {
@@ -37,6 +38,8 @@ const matchesGroupFilter = (account: Account, groupFilter: string) => {
   return account.groups?.some(group => group.id === groupID) ?? false
 }
 
+const resolveAccountLifecycle = (account: Account) => account.lifecycle_state || 'normal'
+
 export const accountMatchesFilters = (
   account: Account,
   filters: AccountListFilters,
@@ -44,6 +47,9 @@ export const accountMatchesFilters = (
 ) => {
   if (filters.platform && account.platform !== filters.platform) return false
   if (filters.type && account.type !== filters.type) return false
+  if (filters.lifecycle && filters.lifecycle !== 'all' && resolveAccountLifecycle(account) !== filters.lifecycle) {
+    return false
+  }
   if (!matchesGroupFilter(account, filters.group || '')) return false
 
   if (filters.status) {
@@ -71,6 +77,11 @@ export const mergeRuntimeFields = (oldAccount: Account, updatedAccount: Account)
 export const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => {
   return (
     current.updated_at !== next.updated_at ||
+    current.lifecycle_state !== next.lifecycle_state ||
+    current.lifecycle_reason_code !== next.lifecycle_reason_code ||
+    current.lifecycle_reason_message !== next.lifecycle_reason_message ||
+    current.blacklisted_at !== next.blacklisted_at ||
+    current.blacklist_purge_at !== next.blacklist_purge_at ||
     current.current_concurrency !== next.current_concurrency ||
     current.current_window_cost !== next.current_window_cost ||
     current.active_sessions !== next.active_sessions ||

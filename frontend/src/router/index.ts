@@ -381,6 +381,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/accounts/blacklist',
+    name: 'AdminAccountsBlacklist',
+    component: () => import('@/views/admin/BlacklistedAccountsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Blacklisted Accounts',
+      titleKey: 'admin.accounts.blacklist.title',
+      descriptionKey: 'admin.accounts.blacklist.description'
+    }
+  },
+  {
     path: '/admin/announcements',
     name: 'AdminAnnouncements',
     component: () => import('@/views/admin/AnnouncementsView.vue'),

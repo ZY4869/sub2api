@@ -43,6 +43,7 @@ export async function list(
     group?: string
     search?: string
     lite?: string
+    lifecycle?: string
   },
   options?: {
     signal?: AbortSignal
@@ -71,9 +72,11 @@ export async function listWithEtag(
   filters?: {
     platform?: string
     type?: string
+    group?: string
     status?: string
     search?: string
     lite?: string
+    lifecycle?: string
   },
   options?: {
     signal?: AbortSignal
@@ -495,6 +498,26 @@ export async function batchArchiveAccounts(
   return data
 }
 
+export interface BlacklistRetestResult {
+  account_id: number
+  success: boolean
+  restored: boolean
+  error_message?: string
+  response_text?: string
+  latency_ms?: number
+}
+
+export interface BlacklistRetestResponse {
+  results: BlacklistRetestResult[]
+}
+
+export async function retestBlacklistedAccounts(accountIds: number[]): Promise<BlacklistRetestResponse> {
+  const { data } = await apiClient.post<BlacklistRetestResponse>('/admin/accounts/blacklist/retest', {
+    account_ids: accountIds
+  })
+  return data
+}
+
 export async function archiveGroupAccounts(
   payload: ArchiveGroupAccountsRequest
 ): Promise<ArchiveGroupAccountsResult> {
@@ -890,6 +913,7 @@ export const accountsAPI = {
   validateSoraSessionToken,
   batchCreateAccounts,
   batchArchiveAccounts,
+  retestBlacklistedAccounts,
   archiveGroupAccounts,
   batchCreate,
   batchUpdateCredentials,

@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64) ([]Account, int64, error) {
+func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string) ([]Account, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
-	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID)
+	accounts, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, lifecycle)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -65,14 +65,38 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		}
 	}
 	accountStatus := strings.TrimSpace(input.Status)
+	lifecycleState := NormalizeAccountLifecycleInput(input.LifecycleState)
+	if lifecycleState == AccountLifecycleAll {
+		lifecycleState = AccountLifecycleNormal
+	}
 	if accountStatus == "" {
 		accountStatus = StatusActive
+	}
+	schedulable := true
+	if lifecycleState != AccountLifecycleNormal {
+		accountStatus = StatusDisabled
+		schedulable = false
 	}
 	credentials := input.Credentials
 	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformKiro) {
 		credentials = NormalizeKiroCredentialsForStorage(credentials)
 	}
-	account := &Account{Name: input.Name, Notes: normalizeAccountNotes(input.Notes), Platform: input.Platform, Type: input.Type, Credentials: credentials, Extra: input.Extra, ProxyID: input.ProxyID, Concurrency: input.Concurrency, Priority: input.Priority, Status: accountStatus, Schedulable: true}
+	account := &Account{
+		Name:                   input.Name,
+		Notes:                  normalizeAccountNotes(input.Notes),
+		Platform:               input.Platform,
+		Type:                   input.Type,
+		Credentials:            credentials,
+		Extra:                  input.Extra,
+		ProxyID:                input.ProxyID,
+		Concurrency:            input.Concurrency,
+		Priority:               input.Priority,
+		Status:                 accountStatus,
+		Schedulable:            schedulable,
+		LifecycleState:         lifecycleState,
+		LifecycleReasonCode:    strings.TrimSpace(input.LifecycleReasonCode),
+		LifecycleReasonMessage: strings.TrimSpace(input.LifecycleReasonMessage),
+	}
 	if input.ExpiresAt != nil && *input.ExpiresAt > 0 {
 		expiresAt := time.Unix(*input.ExpiresAt, 0)
 		account.ExpiresAt = &expiresAt
@@ -94,6 +118,12 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		}
 		account.LoadFactor = input.LoadFactor
 	}
+	if lifecycleState == AccountLifecycleBlacklisted {
+		now := time.Now()
+		purgeAt := now.Add(AccountBlacklistRetention)
+		account.BlacklistedAt = &now
+		account.BlacklistPurgeAt = &purgeAt
+	}
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, err
 	}
@@ -113,6 +143,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error) {
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+	if err := ensureBlacklistedAccountNotRestored(account, input.Status, nil); err != nil {
 		return nil, err
 	}
 	if input.Name != "" {
@@ -229,18 +262,21 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		}
 	}
 	needMixedChannelCheck := input.GroupIDs != nil
+	needAccountFetch := needMixedChannelCheck || input.Status != "" || input.Schedulable != nil
 	platformByID := map[int64]string{}
-	if needMixedChannelCheck {
+	accountsByID := map[int64]*Account{}
+	if needAccountFetch {
 		accounts, err := s.accountRepo.GetByIDs(ctx, input.AccountIDs)
 		if err != nil {
 			return nil, err
 		}
 		for _, account := range accounts {
 			if account != nil {
+				accountsByID[account.ID] = account
 				platformByID[account.ID] = account.Platform
 			}
 		}
-		if input.SkipMixedChannelCheck {
+		if needMixedChannelCheck && input.SkipMixedChannelCheck {
 			needMixedChannelCheck = false
 			for _, platform := range platformByID {
 				if shouldEnforceMixedChannelCheck(platform, true) {
@@ -248,6 +284,11 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 					break
 				}
 			}
+		}
+	}
+	for _, accountID := range input.AccountIDs {
+		if err := ensureBlacklistedAccountNotRestored(accountsByID[accountID], input.Status, input.Schedulable); err != nil {
+			return nil, err
 		}
 	}
 	if needMixedChannelCheck {
@@ -297,6 +338,22 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 	if input.Schedulable != nil {
 		repoUpdates.Schedulable = input.Schedulable
 	}
+	if input.LifecycleState != "" {
+		lifecycleState := normalizeAccountLifecycleWriteInput(input.LifecycleState)
+		repoUpdates.LifecycleState = &lifecycleState
+		if lifecycleState != AccountLifecycleNormal {
+			disabledStatus := StatusDisabled
+			repoUpdates.Status = &disabledStatus
+			schedulable := false
+			repoUpdates.Schedulable = &schedulable
+		}
+	}
+	if trimmed := strings.TrimSpace(input.LifecycleReasonCode); trimmed != "" {
+		repoUpdates.LifecycleReasonCode = &trimmed
+	}
+	if trimmed := strings.TrimSpace(input.LifecycleReasonMessage); trimmed != "" {
+		repoUpdates.LifecycleReasonMessage = &trimmed
+	}
 	if _, err := s.accountRepo.BulkUpdate(ctx, input.AccountIDs, repoUpdates); err != nil {
 		return nil, err
 	}
@@ -333,6 +390,13 @@ func (s *adminServiceImpl) RefreshAccountCredentials(ctx context.Context, id int
 	return account, nil
 }
 func (s *adminServiceImpl) ClearAccountError(ctx context.Context, id int64) (*Account, error) {
+	account, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if NormalizeAccountLifecycleInput(account.LifecycleState) == AccountLifecycleBlacklisted {
+		return nil, ensureBlacklistedAccountNotRestored(account, StatusActive, nil)
+	}
 	if err := s.accountRepo.ClearError(ctx, id); err != nil {
 		return nil, err
 	}
@@ -342,6 +406,13 @@ func (s *adminServiceImpl) SetAccountError(ctx context.Context, id int64, errorM
 	return s.accountRepo.SetError(ctx, id, errorMsg)
 }
 func (s *adminServiceImpl) SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error) {
+	account, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := ensureBlacklistedAccountNotRestored(account, "", &schedulable); err != nil {
+		return nil, err
+	}
 	if err := s.accountRepo.SetSchedulable(ctx, id, schedulable); err != nil {
 		return nil, err
 	}

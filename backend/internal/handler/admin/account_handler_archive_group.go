@@ -101,9 +101,12 @@ func (h *AccountHandler) executeArchiveGroupAccounts(ctx context.Context, req *A
 	)
 
 	updateResult, err := h.adminService.BulkUpdateAccounts(ctx, &service.BulkUpdateAccountsInput{
-		AccountIDs: accountIDs,
-		Status:     service.StatusDisabled,
-		GroupIDs:   &groupIDs,
+		AccountIDs:             accountIDs,
+		Status:                 service.StatusDisabled,
+		GroupIDs:               &groupIDs,
+		LifecycleState:         service.AccountLifecycleArchived,
+		LifecycleReasonCode:    "archive_group",
+		LifecycleReasonMessage: fmt.Sprintf("Archived from group %s", sourceGroup.Name),
 	})
 	if err != nil {
 		return nil, err
@@ -135,7 +138,7 @@ func (h *AccountHandler) executeArchiveGroupAccounts(ctx context.Context, req *A
 func (h *AccountHandler) listAllAccountsForArchiveGroup(ctx context.Context, groupID int64) ([]*service.Account, error) {
 	collected := make([]*service.Account, 0)
 	for page := 1; ; page++ {
-		items, total, err := h.adminService.ListAccounts(ctx, page, archiveGroupListPageSize, "", "", "", "", groupID)
+		items, total, err := h.adminService.ListAccounts(ctx, page, archiveGroupListPageSize, "", "", "", "", groupID, service.AccountLifecycleNormal)
 		if err != nil {
 			return nil, err
 		}

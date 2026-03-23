@@ -448,13 +448,9 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		errMsg := fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body))
+		errMsg := s.formatFailedTestResponse(ctx, account, resp.StatusCode, body, "API returned")
 
 		// 403 表示账号被上游封禁，标记为 error 状态
-		if resp.StatusCode == http.StatusForbidden {
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
-		}
-
 		return s.sendErrorAndEnd(c, errMsg)
 	}
 
@@ -502,10 +498,7 @@ func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *
 	s.sendKiroRuntimeMetaEvents(c, result)
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		errMsg := fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body))
-		if resp.StatusCode == http.StatusForbidden && s.accountRepo != nil {
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
-		}
+		errMsg := s.formatFailedTestResponse(ctx, account, resp.StatusCode, body, "API returned")
 		return s.sendErrorAndEnd(c, errMsg)
 	}
 
@@ -640,7 +633,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 	body, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendErrorAndEnd(c, s.formatFailedTestResponse(ctx, account, resp.StatusCode, body, "API returned"))
 	}
 
 	// Bedrock non-streaming response is standard Claude JSON, extract the text
@@ -805,7 +798,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 				account.RateLimitResetAt = resetAt
 			}
 		}
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendErrorAndEnd(c, s.formatFailedTestResponse(ctx, account, resp.StatusCode, body, "API returned"))
 	}
 
 	if isOAuth && s.accountModelImportService != nil && s.accountRepo != nil {
@@ -884,7 +877,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return s.sendErrorAndEnd(c, fmt.Sprintf("API returned %d: %s", resp.StatusCode, string(body)))
+		return s.sendErrorAndEnd(c, s.formatFailedTestResponse(ctx, account, resp.StatusCode, body, "API returned"))
 	}
 
 	// Process SSE stream
@@ -1179,11 +1172,11 @@ func (s *AccountTestService) testSoraAccountConnection(c *gin.Context, account *
 		case strings.TrimSpace(upstreamMessage) != "":
 			recorder.addStep("me", "failed", resp.StatusCode, upstreamCode, upstreamMessage)
 			s.emitSoraProbeSummary(c, recorder)
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Sora API returned %d: %s", resp.StatusCode, upstreamMessage))
+			return s.sendErrorAndEnd(c, s.formatFailedTestResponse(ctx, account, resp.StatusCode, []byte(upstreamMessage), "Sora API returned"))
 		default:
 			recorder.addStep("me", "failed", resp.StatusCode, upstreamCode, "Sora me endpoint failed")
 			s.emitSoraProbeSummary(c, recorder)
-			return s.sendErrorAndEnd(c, fmt.Sprintf("Sora API returned %d: %s", resp.StatusCode, truncateSoraErrorBody(body, 512)))
+			return s.sendErrorAndEnd(c, s.formatFailedTestResponse(ctx, account, resp.StatusCode, []byte(truncateSoraErrorBody(body, 512)), "Sora API returned"))
 		}
 	}
 	recorder.addStep("me", "success", resp.StatusCode, "", "me endpoint ok")
@@ -2020,6 +2013,28 @@ func (s *AccountTestService) sendErrorAndEnd(c *gin.Context, errorMsg string) er
 	log.Printf("Account test error: %s", errorMsg)
 	s.sendEvent(c, TestEvent{Type: "error", Error: errorMsg})
 	return fmt.Errorf("%s", errorMsg)
+}
+
+func (s *AccountTestService) formatFailedTestResponse(ctx context.Context, account *Account, statusCode int, body []byte, prefix string) string {
+	if strings.TrimSpace(prefix) == "" {
+		prefix = "API returned"
+	}
+	message := fmt.Sprintf("%s %d: %s", prefix, statusCode, string(body))
+	if s == nil || s.accountRepo == nil || account == nil {
+		return message
+	}
+	if match := DetectHardBannedAccount(statusCode, body); match != nil {
+		now := time.Now()
+		purgeAt := now.Add(AccountBlacklistRetention)
+		if err := s.accountRepo.MarkBlacklisted(ctx, account.ID, match.ReasonCode, match.ReasonMessage, now, purgeAt); err != nil {
+			slog.Warn("account_test_mark_blacklisted_failed", "account_id", account.ID, "reason_code", match.ReasonCode, "error", err)
+		}
+		return message
+	}
+	if statusCode == http.StatusForbidden {
+		_ = s.accountRepo.SetError(ctx, account.ID, message)
+	}
+	return message
 }
 
 // RunTestBackground executes an account test in-memory (no real HTTP client),

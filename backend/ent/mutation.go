@@ -2267,6 +2267,11 @@ type AccountMutation struct {
 	rate_multiplier           *float64
 	addrate_multiplier        *float64
 	status                    *string
+	lifecycle_state           *string
+	lifecycle_reason_code     *string
+	lifecycle_reason_message  *string
+	blacklisted_at            *time.Time
+	blacklist_purge_at        *time.Time
 	error_message             *string
 	last_used_at              *time.Time
 	expires_at                *time.Time
@@ -3065,6 +3070,238 @@ func (m *AccountMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetLifecycleState sets the "lifecycle_state" field.
+func (m *AccountMutation) SetLifecycleState(s string) {
+	m.lifecycle_state = &s
+}
+
+// LifecycleState returns the value of the "lifecycle_state" field in the mutation.
+func (m *AccountMutation) LifecycleState() (r string, exists bool) {
+	v := m.lifecycle_state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLifecycleState returns the old "lifecycle_state" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLifecycleState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLifecycleState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLifecycleState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLifecycleState: %w", err)
+	}
+	return oldValue.LifecycleState, nil
+}
+
+// ResetLifecycleState resets all changes to the "lifecycle_state" field.
+func (m *AccountMutation) ResetLifecycleState() {
+	m.lifecycle_state = nil
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (m *AccountMutation) SetLifecycleReasonCode(s string) {
+	m.lifecycle_reason_code = &s
+}
+
+// LifecycleReasonCode returns the value of the "lifecycle_reason_code" field in the mutation.
+func (m *AccountMutation) LifecycleReasonCode() (r string, exists bool) {
+	v := m.lifecycle_reason_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLifecycleReasonCode returns the old "lifecycle_reason_code" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLifecycleReasonCode(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLifecycleReasonCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLifecycleReasonCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLifecycleReasonCode: %w", err)
+	}
+	return oldValue.LifecycleReasonCode, nil
+}
+
+// ClearLifecycleReasonCode clears the value of the "lifecycle_reason_code" field.
+func (m *AccountMutation) ClearLifecycleReasonCode() {
+	m.lifecycle_reason_code = nil
+	m.clearedFields[account.FieldLifecycleReasonCode] = struct{}{}
+}
+
+// LifecycleReasonCodeCleared returns if the "lifecycle_reason_code" field was cleared in this mutation.
+func (m *AccountMutation) LifecycleReasonCodeCleared() bool {
+	_, ok := m.clearedFields[account.FieldLifecycleReasonCode]
+	return ok
+}
+
+// ResetLifecycleReasonCode resets all changes to the "lifecycle_reason_code" field.
+func (m *AccountMutation) ResetLifecycleReasonCode() {
+	m.lifecycle_reason_code = nil
+	delete(m.clearedFields, account.FieldLifecycleReasonCode)
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (m *AccountMutation) SetLifecycleReasonMessage(s string) {
+	m.lifecycle_reason_message = &s
+}
+
+// LifecycleReasonMessage returns the value of the "lifecycle_reason_message" field in the mutation.
+func (m *AccountMutation) LifecycleReasonMessage() (r string, exists bool) {
+	v := m.lifecycle_reason_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLifecycleReasonMessage returns the old "lifecycle_reason_message" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldLifecycleReasonMessage(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLifecycleReasonMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLifecycleReasonMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLifecycleReasonMessage: %w", err)
+	}
+	return oldValue.LifecycleReasonMessage, nil
+}
+
+// ClearLifecycleReasonMessage clears the value of the "lifecycle_reason_message" field.
+func (m *AccountMutation) ClearLifecycleReasonMessage() {
+	m.lifecycle_reason_message = nil
+	m.clearedFields[account.FieldLifecycleReasonMessage] = struct{}{}
+}
+
+// LifecycleReasonMessageCleared returns if the "lifecycle_reason_message" field was cleared in this mutation.
+func (m *AccountMutation) LifecycleReasonMessageCleared() bool {
+	_, ok := m.clearedFields[account.FieldLifecycleReasonMessage]
+	return ok
+}
+
+// ResetLifecycleReasonMessage resets all changes to the "lifecycle_reason_message" field.
+func (m *AccountMutation) ResetLifecycleReasonMessage() {
+	m.lifecycle_reason_message = nil
+	delete(m.clearedFields, account.FieldLifecycleReasonMessage)
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (m *AccountMutation) SetBlacklistedAt(t time.Time) {
+	m.blacklisted_at = &t
+}
+
+// BlacklistedAt returns the value of the "blacklisted_at" field in the mutation.
+func (m *AccountMutation) BlacklistedAt() (r time.Time, exists bool) {
+	v := m.blacklisted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlacklistedAt returns the old "blacklisted_at" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldBlacklistedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlacklistedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlacklistedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlacklistedAt: %w", err)
+	}
+	return oldValue.BlacklistedAt, nil
+}
+
+// ClearBlacklistedAt clears the value of the "blacklisted_at" field.
+func (m *AccountMutation) ClearBlacklistedAt() {
+	m.blacklisted_at = nil
+	m.clearedFields[account.FieldBlacklistedAt] = struct{}{}
+}
+
+// BlacklistedAtCleared returns if the "blacklisted_at" field was cleared in this mutation.
+func (m *AccountMutation) BlacklistedAtCleared() bool {
+	_, ok := m.clearedFields[account.FieldBlacklistedAt]
+	return ok
+}
+
+// ResetBlacklistedAt resets all changes to the "blacklisted_at" field.
+func (m *AccountMutation) ResetBlacklistedAt() {
+	m.blacklisted_at = nil
+	delete(m.clearedFields, account.FieldBlacklistedAt)
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (m *AccountMutation) SetBlacklistPurgeAt(t time.Time) {
+	m.blacklist_purge_at = &t
+}
+
+// BlacklistPurgeAt returns the value of the "blacklist_purge_at" field in the mutation.
+func (m *AccountMutation) BlacklistPurgeAt() (r time.Time, exists bool) {
+	v := m.blacklist_purge_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlacklistPurgeAt returns the old "blacklist_purge_at" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldBlacklistPurgeAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlacklistPurgeAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlacklistPurgeAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlacklistPurgeAt: %w", err)
+	}
+	return oldValue.BlacklistPurgeAt, nil
+}
+
+// ClearBlacklistPurgeAt clears the value of the "blacklist_purge_at" field.
+func (m *AccountMutation) ClearBlacklistPurgeAt() {
+	m.blacklist_purge_at = nil
+	m.clearedFields[account.FieldBlacklistPurgeAt] = struct{}{}
+}
+
+// BlacklistPurgeAtCleared returns if the "blacklist_purge_at" field was cleared in this mutation.
+func (m *AccountMutation) BlacklistPurgeAtCleared() bool {
+	_, ok := m.clearedFields[account.FieldBlacklistPurgeAt]
+	return ok
+}
+
+// ResetBlacklistPurgeAt resets all changes to the "blacklist_purge_at" field.
+func (m *AccountMutation) ResetBlacklistPurgeAt() {
+	m.blacklist_purge_at = nil
+	delete(m.clearedFields, account.FieldBlacklistPurgeAt)
+}
+
 // SetErrorMessage sets the "error_message" field.
 func (m *AccountMutation) SetErrorMessage(s string) {
 	m.error_message = &s
@@ -3845,7 +4082,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 33)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -3890,6 +4127,21 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, account.FieldStatus)
+	}
+	if m.lifecycle_state != nil {
+		fields = append(fields, account.FieldLifecycleState)
+	}
+	if m.lifecycle_reason_code != nil {
+		fields = append(fields, account.FieldLifecycleReasonCode)
+	}
+	if m.lifecycle_reason_message != nil {
+		fields = append(fields, account.FieldLifecycleReasonMessage)
+	}
+	if m.blacklisted_at != nil {
+		fields = append(fields, account.FieldBlacklistedAt)
+	}
+	if m.blacklist_purge_at != nil {
+		fields = append(fields, account.FieldBlacklistPurgeAt)
 	}
 	if m.error_message != nil {
 		fields = append(fields, account.FieldErrorMessage)
@@ -3968,6 +4220,16 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.RateMultiplier()
 	case account.FieldStatus:
 		return m.Status()
+	case account.FieldLifecycleState:
+		return m.LifecycleState()
+	case account.FieldLifecycleReasonCode:
+		return m.LifecycleReasonCode()
+	case account.FieldLifecycleReasonMessage:
+		return m.LifecycleReasonMessage()
+	case account.FieldBlacklistedAt:
+		return m.BlacklistedAt()
+	case account.FieldBlacklistPurgeAt:
+		return m.BlacklistPurgeAt()
 	case account.FieldErrorMessage:
 		return m.ErrorMessage()
 	case account.FieldLastUsedAt:
@@ -4033,6 +4295,16 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldRateMultiplier(ctx)
 	case account.FieldStatus:
 		return m.OldStatus(ctx)
+	case account.FieldLifecycleState:
+		return m.OldLifecycleState(ctx)
+	case account.FieldLifecycleReasonCode:
+		return m.OldLifecycleReasonCode(ctx)
+	case account.FieldLifecycleReasonMessage:
+		return m.OldLifecycleReasonMessage(ctx)
+	case account.FieldBlacklistedAt:
+		return m.OldBlacklistedAt(ctx)
+	case account.FieldBlacklistPurgeAt:
+		return m.OldBlacklistPurgeAt(ctx)
 	case account.FieldErrorMessage:
 		return m.OldErrorMessage(ctx)
 	case account.FieldLastUsedAt:
@@ -4172,6 +4444,41 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case account.FieldLifecycleState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLifecycleState(v)
+		return nil
+	case account.FieldLifecycleReasonCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLifecycleReasonCode(v)
+		return nil
+	case account.FieldLifecycleReasonMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLifecycleReasonMessage(v)
+		return nil
+	case account.FieldBlacklistedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlacklistedAt(v)
+		return nil
+	case account.FieldBlacklistPurgeAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlacklistPurgeAt(v)
 		return nil
 	case account.FieldErrorMessage:
 		v, ok := value.(string)
@@ -4357,6 +4664,18 @@ func (m *AccountMutation) ClearedFields() []string {
 	if m.FieldCleared(account.FieldLoadFactor) {
 		fields = append(fields, account.FieldLoadFactor)
 	}
+	if m.FieldCleared(account.FieldLifecycleReasonCode) {
+		fields = append(fields, account.FieldLifecycleReasonCode)
+	}
+	if m.FieldCleared(account.FieldLifecycleReasonMessage) {
+		fields = append(fields, account.FieldLifecycleReasonMessage)
+	}
+	if m.FieldCleared(account.FieldBlacklistedAt) {
+		fields = append(fields, account.FieldBlacklistedAt)
+	}
+	if m.FieldCleared(account.FieldBlacklistPurgeAt) {
+		fields = append(fields, account.FieldBlacklistPurgeAt)
+	}
 	if m.FieldCleared(account.FieldErrorMessage) {
 		fields = append(fields, account.FieldErrorMessage)
 	}
@@ -4415,6 +4734,18 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldLoadFactor:
 		m.ClearLoadFactor()
+		return nil
+	case account.FieldLifecycleReasonCode:
+		m.ClearLifecycleReasonCode()
+		return nil
+	case account.FieldLifecycleReasonMessage:
+		m.ClearLifecycleReasonMessage()
+		return nil
+	case account.FieldBlacklistedAt:
+		m.ClearBlacklistedAt()
+		return nil
+	case account.FieldBlacklistPurgeAt:
+		m.ClearBlacklistPurgeAt()
 		return nil
 	case account.FieldErrorMessage:
 		m.ClearErrorMessage()
@@ -4501,6 +4832,21 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case account.FieldLifecycleState:
+		m.ResetLifecycleState()
+		return nil
+	case account.FieldLifecycleReasonCode:
+		m.ResetLifecycleReasonCode()
+		return nil
+	case account.FieldLifecycleReasonMessage:
+		m.ResetLifecycleReasonMessage()
+		return nil
+	case account.FieldBlacklistedAt:
+		m.ResetBlacklistedAt()
+		return nil
+	case account.FieldBlacklistPurgeAt:
+		m.ResetBlacklistPurgeAt()
 		return nil
 	case account.FieldErrorMessage:
 		m.ResetErrorMessage()

@@ -37,7 +37,7 @@ type AccountRepository interface {
 	Delete(ctx context.Context, id int64) error
 
 	List(ctx context.Context, params pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error)
-	ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64) ([]Account, *pagination.PaginationResult, error)
+	ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string) ([]Account, *pagination.PaginationResult, error)
 	ListByGroup(ctx context.Context, groupID int64) ([]Account, error)
 	ListActive(ctx context.Context) ([]Account, error)
 	ListByPlatform(ctx context.Context, platform string) ([]Account, error)
@@ -70,6 +70,9 @@ type AccountRepository interface {
 	UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error
 	UpdateExtra(ctx context.Context, id int64, updates map[string]any) error
 	BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error)
+	MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error
+	RestoreBlacklisted(ctx context.Context, id int64) error
+	ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]Account, error)
 	// IncrementQuotaUsed 原子递增 API Key 账号的配额用量（总/日/周）
 	IncrementQuotaUsed(ctx context.Context, id int64, amount float64) error
 	// ResetQuotaUsed 重置 API Key 账号所有维度的配额用量为 0
@@ -87,6 +90,9 @@ type AccountBulkUpdate struct {
 	LoadFactor     *int
 	Status         *string
 	Schedulable    *bool
+	LifecycleState *string
+	LifecycleReasonCode *string
+	LifecycleReasonMessage *string
 	Credentials    map[string]any
 	Extra          map[string]any
 }
@@ -151,17 +157,18 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 
 	// 创建账号
 	account := &Account{
-		Name:        req.Name,
-		Notes:       normalizeAccountNotes(req.Notes),
-		Platform:    req.Platform,
-		Type:        req.Type,
-		Credentials: req.Credentials,
-		Extra:       req.Extra,
-		ProxyID:     req.ProxyID,
-		Concurrency: req.Concurrency,
-		Priority:    req.Priority,
-		Status:      StatusActive,
-		ExpiresAt:   req.ExpiresAt,
+		Name:           req.Name,
+		Notes:          normalizeAccountNotes(req.Notes),
+		Platform:       req.Platform,
+		Type:           req.Type,
+		Credentials:    req.Credentials,
+		Extra:          req.Extra,
+		ProxyID:        req.ProxyID,
+		Concurrency:    req.Concurrency,
+		Priority:       req.Priority,
+		Status:         StatusActive,
+		LifecycleState: AccountLifecycleNormal,
+		ExpiresAt:      req.ExpiresAt,
 	}
 	if req.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *req.AutoPauseOnExpired

@@ -1051,6 +1051,8 @@
       refreshInterval15s: '15 秒',
       refreshInterval30s: '30 秒',
       autoRefreshCountdown: '自动刷新：{seconds}s',
+      viewArchived: '查看归档',
+      archivedModalTitle: '归档账号',
       listPendingSyncHint: '列表存在待同步变更，点击同步可补齐最新数据。',
       listPendingSyncAction: '立即同步',
       syncFromCrs: '从 CRS 同步',
@@ -1179,6 +1181,7 @@
         usageResetDates: '重置日期',
         proxy: '代理',
         lastUsed: '最近使用',
+        updatedAt: '更新时间',
         expiresAt: '过期时间',
         actions: '操作'
       },
@@ -1420,6 +1423,23 @@
         resetStatusSuccess: '已成功重置 {count} 个账号状态',
         refreshTokenSuccess: '已成功刷新 {count} 个账号令牌',
         partialSuccess: '操作部分完成：{success} 成功，{failed} 失败'
+      },
+      blacklist: {
+        title: '黑名单',
+        description: '管理命中硬封禁规则的账号，支持复测恢复或立即删除。',
+        searchPlaceholder: '搜索黑名单账号...',
+        batchRetest: '批量复测恢复 ({count})',
+        selected: '已选择 {count} 个黑名单账号',
+        blacklistedAt: '拉黑时间',
+        purgeAt: '自动删除时间',
+        retestSingle: '复测恢复',
+        deleteNow: '立即删除',
+        retestSuccess: '已成功恢复 {count} 个账号',
+        retestPartial: '部分账号已恢复：成功 {restored} 个，失败 {failed} 个',
+        retestFailed: '黑名单复测失败',
+        deleteConfirm: "确定立即删除黑名单账号 '{name}' 吗？此操作无法撤销。",
+        deleteSuccess: '黑名单账号已删除',
+        deleteFailed: '删除黑名单账号失败'
       },
       bulkEdit: {
         title: '批量编辑账号',

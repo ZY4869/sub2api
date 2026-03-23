@@ -120,6 +120,31 @@ func Status(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldStatus, v))
 }
 
+// LifecycleState applies equality check predicate on the "lifecycle_state" field. It's identical to LifecycleStateEQ.
+func LifecycleState(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldLifecycleState, v))
+}
+
+// LifecycleReasonCode applies equality check predicate on the "lifecycle_reason_code" field. It's identical to LifecycleReasonCodeEQ.
+func LifecycleReasonCode(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonMessage applies equality check predicate on the "lifecycle_reason_message" field. It's identical to LifecycleReasonMessageEQ.
+func LifecycleReasonMessage(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldLifecycleReasonMessage, v))
+}
+
+// BlacklistedAt applies equality check predicate on the "blacklisted_at" field. It's identical to BlacklistedAtEQ.
+func BlacklistedAt(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldBlacklistedAt, v))
+}
+
+// BlacklistPurgeAt applies equality check predicate on the "blacklist_purge_at" field. It's identical to BlacklistPurgeAtEQ.
+func BlacklistPurgeAt(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldBlacklistPurgeAt, v))
+}
+
 // ErrorMessage applies equality check predicate on the "error_message" field. It's identical to ErrorMessageEQ.
 func ErrorMessage(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldErrorMessage, v))
@@ -848,6 +873,321 @@ func StatusEqualFold(v string) predicate.Account {
 // StatusContainsFold applies the ContainsFold predicate on the "status" field.
 func StatusContainsFold(v string) predicate.Account {
 	return predicate.Account(sql.FieldContainsFold(FieldStatus, v))
+}
+
+// LifecycleStateEQ applies the EQ predicate on the "lifecycle_state" field.
+func LifecycleStateEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldLifecycleState, v))
+}
+
+// LifecycleStateNEQ applies the NEQ predicate on the "lifecycle_state" field.
+func LifecycleStateNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldLifecycleState, v))
+}
+
+// LifecycleStateIn applies the In predicate on the "lifecycle_state" field.
+func LifecycleStateIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldLifecycleState, vs...))
+}
+
+// LifecycleStateNotIn applies the NotIn predicate on the "lifecycle_state" field.
+func LifecycleStateNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldLifecycleState, vs...))
+}
+
+// LifecycleStateGT applies the GT predicate on the "lifecycle_state" field.
+func LifecycleStateGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldLifecycleState, v))
+}
+
+// LifecycleStateGTE applies the GTE predicate on the "lifecycle_state" field.
+func LifecycleStateGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldLifecycleState, v))
+}
+
+// LifecycleStateLT applies the LT predicate on the "lifecycle_state" field.
+func LifecycleStateLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldLifecycleState, v))
+}
+
+// LifecycleStateLTE applies the LTE predicate on the "lifecycle_state" field.
+func LifecycleStateLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldLifecycleState, v))
+}
+
+// LifecycleStateContains applies the Contains predicate on the "lifecycle_state" field.
+func LifecycleStateContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldLifecycleState, v))
+}
+
+// LifecycleStateHasPrefix applies the HasPrefix predicate on the "lifecycle_state" field.
+func LifecycleStateHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldLifecycleState, v))
+}
+
+// LifecycleStateHasSuffix applies the HasSuffix predicate on the "lifecycle_state" field.
+func LifecycleStateHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldLifecycleState, v))
+}
+
+// LifecycleStateEqualFold applies the EqualFold predicate on the "lifecycle_state" field.
+func LifecycleStateEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldLifecycleState, v))
+}
+
+// LifecycleStateContainsFold applies the ContainsFold predicate on the "lifecycle_state" field.
+func LifecycleStateContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldLifecycleState, v))
+}
+
+// LifecycleReasonCodeEQ applies the EQ predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeNEQ applies the NEQ predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeIn applies the In predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldLifecycleReasonCode, vs...))
+}
+
+// LifecycleReasonCodeNotIn applies the NotIn predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldLifecycleReasonCode, vs...))
+}
+
+// LifecycleReasonCodeGT applies the GT predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeGTE applies the GTE predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeLT applies the LT predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeLTE applies the LTE predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeContains applies the Contains predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeHasPrefix applies the HasPrefix predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeHasSuffix applies the HasSuffix predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeIsNil applies the IsNil predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldLifecycleReasonCode))
+}
+
+// LifecycleReasonCodeNotNil applies the NotNil predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldLifecycleReasonCode))
+}
+
+// LifecycleReasonCodeEqualFold applies the EqualFold predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonCodeContainsFold applies the ContainsFold predicate on the "lifecycle_reason_code" field.
+func LifecycleReasonCodeContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldLifecycleReasonCode, v))
+}
+
+// LifecycleReasonMessageEQ applies the EQ predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageNEQ applies the NEQ predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageIn applies the In predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldLifecycleReasonMessage, vs...))
+}
+
+// LifecycleReasonMessageNotIn applies the NotIn predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldLifecycleReasonMessage, vs...))
+}
+
+// LifecycleReasonMessageGT applies the GT predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageGTE applies the GTE predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageLT applies the LT predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageLTE applies the LTE predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageContains applies the Contains predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageHasPrefix applies the HasPrefix predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageHasSuffix applies the HasSuffix predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageIsNil applies the IsNil predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldLifecycleReasonMessage))
+}
+
+// LifecycleReasonMessageNotNil applies the NotNil predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldLifecycleReasonMessage))
+}
+
+// LifecycleReasonMessageEqualFold applies the EqualFold predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldLifecycleReasonMessage, v))
+}
+
+// LifecycleReasonMessageContainsFold applies the ContainsFold predicate on the "lifecycle_reason_message" field.
+func LifecycleReasonMessageContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldLifecycleReasonMessage, v))
+}
+
+// BlacklistedAtEQ applies the EQ predicate on the "blacklisted_at" field.
+func BlacklistedAtEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldBlacklistedAt, v))
+}
+
+// BlacklistedAtNEQ applies the NEQ predicate on the "blacklisted_at" field.
+func BlacklistedAtNEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldBlacklistedAt, v))
+}
+
+// BlacklistedAtIn applies the In predicate on the "blacklisted_at" field.
+func BlacklistedAtIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldBlacklistedAt, vs...))
+}
+
+// BlacklistedAtNotIn applies the NotIn predicate on the "blacklisted_at" field.
+func BlacklistedAtNotIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldBlacklistedAt, vs...))
+}
+
+// BlacklistedAtGT applies the GT predicate on the "blacklisted_at" field.
+func BlacklistedAtGT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldBlacklistedAt, v))
+}
+
+// BlacklistedAtGTE applies the GTE predicate on the "blacklisted_at" field.
+func BlacklistedAtGTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldBlacklistedAt, v))
+}
+
+// BlacklistedAtLT applies the LT predicate on the "blacklisted_at" field.
+func BlacklistedAtLT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldBlacklistedAt, v))
+}
+
+// BlacklistedAtLTE applies the LTE predicate on the "blacklisted_at" field.
+func BlacklistedAtLTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldBlacklistedAt, v))
+}
+
+// BlacklistedAtIsNil applies the IsNil predicate on the "blacklisted_at" field.
+func BlacklistedAtIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldBlacklistedAt))
+}
+
+// BlacklistedAtNotNil applies the NotNil predicate on the "blacklisted_at" field.
+func BlacklistedAtNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldBlacklistedAt))
+}
+
+// BlacklistPurgeAtEQ applies the EQ predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldBlacklistPurgeAt, v))
+}
+
+// BlacklistPurgeAtNEQ applies the NEQ predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtNEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldBlacklistPurgeAt, v))
+}
+
+// BlacklistPurgeAtIn applies the In predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldBlacklistPurgeAt, vs...))
+}
+
+// BlacklistPurgeAtNotIn applies the NotIn predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtNotIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldBlacklistPurgeAt, vs...))
+}
+
+// BlacklistPurgeAtGT applies the GT predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtGT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldBlacklistPurgeAt, v))
+}
+
+// BlacklistPurgeAtGTE applies the GTE predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtGTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldBlacklistPurgeAt, v))
+}
+
+// BlacklistPurgeAtLT applies the LT predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtLT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldBlacklistPurgeAt, v))
+}
+
+// BlacklistPurgeAtLTE applies the LTE predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtLTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldBlacklistPurgeAt, v))
+}
+
+// BlacklistPurgeAtIsNil applies the IsNil predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldBlacklistPurgeAt))
+}
+
+// BlacklistPurgeAtNotNil applies the NotNil predicate on the "blacklist_purge_at" field.
+func BlacklistPurgeAtNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldBlacklistPurgeAt))
 }
 
 // ErrorMessageEQ applies the EQ predicate on the "error_message" field.

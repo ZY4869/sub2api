@@ -195,6 +195,76 @@ func (_c *AccountCreate) SetNillableStatus(v *string) *AccountCreate {
 	return _c
 }
 
+// SetLifecycleState sets the "lifecycle_state" field.
+func (_c *AccountCreate) SetLifecycleState(v string) *AccountCreate {
+	_c.mutation.SetLifecycleState(v)
+	return _c
+}
+
+// SetNillableLifecycleState sets the "lifecycle_state" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableLifecycleState(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetLifecycleState(*v)
+	}
+	return _c
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (_c *AccountCreate) SetLifecycleReasonCode(v string) *AccountCreate {
+	_c.mutation.SetLifecycleReasonCode(v)
+	return _c
+}
+
+// SetNillableLifecycleReasonCode sets the "lifecycle_reason_code" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableLifecycleReasonCode(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetLifecycleReasonCode(*v)
+	}
+	return _c
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (_c *AccountCreate) SetLifecycleReasonMessage(v string) *AccountCreate {
+	_c.mutation.SetLifecycleReasonMessage(v)
+	return _c
+}
+
+// SetNillableLifecycleReasonMessage sets the "lifecycle_reason_message" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableLifecycleReasonMessage(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetLifecycleReasonMessage(*v)
+	}
+	return _c
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (_c *AccountCreate) SetBlacklistedAt(v time.Time) *AccountCreate {
+	_c.mutation.SetBlacklistedAt(v)
+	return _c
+}
+
+// SetNillableBlacklistedAt sets the "blacklisted_at" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableBlacklistedAt(v *time.Time) *AccountCreate {
+	if v != nil {
+		_c.SetBlacklistedAt(*v)
+	}
+	return _c
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (_c *AccountCreate) SetBlacklistPurgeAt(v time.Time) *AccountCreate {
+	_c.mutation.SetBlacklistPurgeAt(v)
+	return _c
+}
+
+// SetNillableBlacklistPurgeAt sets the "blacklist_purge_at" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableBlacklistPurgeAt(v *time.Time) *AccountCreate {
+	if v != nil {
+		_c.SetBlacklistPurgeAt(*v)
+	}
+	return _c
+}
+
 // SetErrorMessage sets the "error_message" field.
 func (_c *AccountCreate) SetErrorMessage(v string) *AccountCreate {
 	_c.mutation.SetErrorMessage(v)
@@ -493,6 +563,10 @@ func (_c *AccountCreate) defaults() error {
 		v := account.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.LifecycleState(); !ok {
+		v := account.DefaultLifecycleState
+		_c.mutation.SetLifecycleState(v)
+	}
 	if _, ok := _c.mutation.AutoPauseOnExpired(); !ok {
 		v := account.DefaultAutoPauseOnExpired
 		_c.mutation.SetAutoPauseOnExpired(v)
@@ -557,6 +631,19 @@ func (_c *AccountCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := account.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.LifecycleState(); !ok {
+		return &ValidationError{Name: "lifecycle_state", err: errors.New(`ent: missing required field "Account.lifecycle_state"`)}
+	}
+	if v, ok := _c.mutation.LifecycleState(); ok {
+		if err := account.LifecycleStateValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_state", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_state": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.LifecycleReasonCode(); ok {
+		if err := account.LifecycleReasonCodeValidator(v); err != nil {
+			return &ValidationError{Name: "lifecycle_reason_code", err: fmt.Errorf(`ent: validator failed for field "Account.lifecycle_reason_code": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.AutoPauseOnExpired(); !ok {
@@ -652,6 +739,26 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.LifecycleState(); ok {
+		_spec.SetField(account.FieldLifecycleState, field.TypeString, value)
+		_node.LifecycleState = value
+	}
+	if value, ok := _c.mutation.LifecycleReasonCode(); ok {
+		_spec.SetField(account.FieldLifecycleReasonCode, field.TypeString, value)
+		_node.LifecycleReasonCode = &value
+	}
+	if value, ok := _c.mutation.LifecycleReasonMessage(); ok {
+		_spec.SetField(account.FieldLifecycleReasonMessage, field.TypeString, value)
+		_node.LifecycleReasonMessage = &value
+	}
+	if value, ok := _c.mutation.BlacklistedAt(); ok {
+		_spec.SetField(account.FieldBlacklistedAt, field.TypeTime, value)
+		_node.BlacklistedAt = &value
+	}
+	if value, ok := _c.mutation.BlacklistPurgeAt(); ok {
+		_spec.SetField(account.FieldBlacklistPurgeAt, field.TypeTime, value)
+		_node.BlacklistPurgeAt = &value
 	}
 	if value, ok := _c.mutation.ErrorMessage(); ok {
 		_spec.SetField(account.FieldErrorMessage, field.TypeString, value)
@@ -1023,6 +1130,90 @@ func (u *AccountUpsert) SetStatus(v string) *AccountUpsert {
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *AccountUpsert) UpdateStatus() *AccountUpsert {
 	u.SetExcluded(account.FieldStatus)
+	return u
+}
+
+// SetLifecycleState sets the "lifecycle_state" field.
+func (u *AccountUpsert) SetLifecycleState(v string) *AccountUpsert {
+	u.Set(account.FieldLifecycleState, v)
+	return u
+}
+
+// UpdateLifecycleState sets the "lifecycle_state" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateLifecycleState() *AccountUpsert {
+	u.SetExcluded(account.FieldLifecycleState)
+	return u
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (u *AccountUpsert) SetLifecycleReasonCode(v string) *AccountUpsert {
+	u.Set(account.FieldLifecycleReasonCode, v)
+	return u
+}
+
+// UpdateLifecycleReasonCode sets the "lifecycle_reason_code" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateLifecycleReasonCode() *AccountUpsert {
+	u.SetExcluded(account.FieldLifecycleReasonCode)
+	return u
+}
+
+// ClearLifecycleReasonCode clears the value of the "lifecycle_reason_code" field.
+func (u *AccountUpsert) ClearLifecycleReasonCode() *AccountUpsert {
+	u.SetNull(account.FieldLifecycleReasonCode)
+	return u
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (u *AccountUpsert) SetLifecycleReasonMessage(v string) *AccountUpsert {
+	u.Set(account.FieldLifecycleReasonMessage, v)
+	return u
+}
+
+// UpdateLifecycleReasonMessage sets the "lifecycle_reason_message" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateLifecycleReasonMessage() *AccountUpsert {
+	u.SetExcluded(account.FieldLifecycleReasonMessage)
+	return u
+}
+
+// ClearLifecycleReasonMessage clears the value of the "lifecycle_reason_message" field.
+func (u *AccountUpsert) ClearLifecycleReasonMessage() *AccountUpsert {
+	u.SetNull(account.FieldLifecycleReasonMessage)
+	return u
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (u *AccountUpsert) SetBlacklistedAt(v time.Time) *AccountUpsert {
+	u.Set(account.FieldBlacklistedAt, v)
+	return u
+}
+
+// UpdateBlacklistedAt sets the "blacklisted_at" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateBlacklistedAt() *AccountUpsert {
+	u.SetExcluded(account.FieldBlacklistedAt)
+	return u
+}
+
+// ClearBlacklistedAt clears the value of the "blacklisted_at" field.
+func (u *AccountUpsert) ClearBlacklistedAt() *AccountUpsert {
+	u.SetNull(account.FieldBlacklistedAt)
+	return u
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (u *AccountUpsert) SetBlacklistPurgeAt(v time.Time) *AccountUpsert {
+	u.Set(account.FieldBlacklistPurgeAt, v)
+	return u
+}
+
+// UpdateBlacklistPurgeAt sets the "blacklist_purge_at" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateBlacklistPurgeAt() *AccountUpsert {
+	u.SetExcluded(account.FieldBlacklistPurgeAt)
+	return u
+}
+
+// ClearBlacklistPurgeAt clears the value of the "blacklist_purge_at" field.
+func (u *AccountUpsert) ClearBlacklistPurgeAt() *AccountUpsert {
+	u.SetNull(account.FieldBlacklistPurgeAt)
 	return u
 }
 
@@ -1542,6 +1733,104 @@ func (u *AccountUpsertOne) SetStatus(v string) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateStatus() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetLifecycleState sets the "lifecycle_state" field.
+func (u *AccountUpsertOne) SetLifecycleState(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetLifecycleState(v)
+	})
+}
+
+// UpdateLifecycleState sets the "lifecycle_state" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateLifecycleState() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateLifecycleState()
+	})
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (u *AccountUpsertOne) SetLifecycleReasonCode(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetLifecycleReasonCode(v)
+	})
+}
+
+// UpdateLifecycleReasonCode sets the "lifecycle_reason_code" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateLifecycleReasonCode() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateLifecycleReasonCode()
+	})
+}
+
+// ClearLifecycleReasonCode clears the value of the "lifecycle_reason_code" field.
+func (u *AccountUpsertOne) ClearLifecycleReasonCode() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearLifecycleReasonCode()
+	})
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (u *AccountUpsertOne) SetLifecycleReasonMessage(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetLifecycleReasonMessage(v)
+	})
+}
+
+// UpdateLifecycleReasonMessage sets the "lifecycle_reason_message" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateLifecycleReasonMessage() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateLifecycleReasonMessage()
+	})
+}
+
+// ClearLifecycleReasonMessage clears the value of the "lifecycle_reason_message" field.
+func (u *AccountUpsertOne) ClearLifecycleReasonMessage() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearLifecycleReasonMessage()
+	})
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (u *AccountUpsertOne) SetBlacklistedAt(v time.Time) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetBlacklistedAt(v)
+	})
+}
+
+// UpdateBlacklistedAt sets the "blacklisted_at" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateBlacklistedAt() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateBlacklistedAt()
+	})
+}
+
+// ClearBlacklistedAt clears the value of the "blacklisted_at" field.
+func (u *AccountUpsertOne) ClearBlacklistedAt() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearBlacklistedAt()
+	})
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (u *AccountUpsertOne) SetBlacklistPurgeAt(v time.Time) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetBlacklistPurgeAt(v)
+	})
+}
+
+// UpdateBlacklistPurgeAt sets the "blacklist_purge_at" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateBlacklistPurgeAt() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateBlacklistPurgeAt()
+	})
+}
+
+// ClearBlacklistPurgeAt clears the value of the "blacklist_purge_at" field.
+func (u *AccountUpsertOne) ClearBlacklistPurgeAt() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearBlacklistPurgeAt()
 	})
 }
 
@@ -2264,6 +2553,104 @@ func (u *AccountUpsertBulk) SetStatus(v string) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateStatus() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetLifecycleState sets the "lifecycle_state" field.
+func (u *AccountUpsertBulk) SetLifecycleState(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetLifecycleState(v)
+	})
+}
+
+// UpdateLifecycleState sets the "lifecycle_state" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateLifecycleState() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateLifecycleState()
+	})
+}
+
+// SetLifecycleReasonCode sets the "lifecycle_reason_code" field.
+func (u *AccountUpsertBulk) SetLifecycleReasonCode(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetLifecycleReasonCode(v)
+	})
+}
+
+// UpdateLifecycleReasonCode sets the "lifecycle_reason_code" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateLifecycleReasonCode() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateLifecycleReasonCode()
+	})
+}
+
+// ClearLifecycleReasonCode clears the value of the "lifecycle_reason_code" field.
+func (u *AccountUpsertBulk) ClearLifecycleReasonCode() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearLifecycleReasonCode()
+	})
+}
+
+// SetLifecycleReasonMessage sets the "lifecycle_reason_message" field.
+func (u *AccountUpsertBulk) SetLifecycleReasonMessage(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetLifecycleReasonMessage(v)
+	})
+}
+
+// UpdateLifecycleReasonMessage sets the "lifecycle_reason_message" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateLifecycleReasonMessage() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateLifecycleReasonMessage()
+	})
+}
+
+// ClearLifecycleReasonMessage clears the value of the "lifecycle_reason_message" field.
+func (u *AccountUpsertBulk) ClearLifecycleReasonMessage() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearLifecycleReasonMessage()
+	})
+}
+
+// SetBlacklistedAt sets the "blacklisted_at" field.
+func (u *AccountUpsertBulk) SetBlacklistedAt(v time.Time) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetBlacklistedAt(v)
+	})
+}
+
+// UpdateBlacklistedAt sets the "blacklisted_at" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateBlacklistedAt() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateBlacklistedAt()
+	})
+}
+
+// ClearBlacklistedAt clears the value of the "blacklisted_at" field.
+func (u *AccountUpsertBulk) ClearBlacklistedAt() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearBlacklistedAt()
+	})
+}
+
+// SetBlacklistPurgeAt sets the "blacklist_purge_at" field.
+func (u *AccountUpsertBulk) SetBlacklistPurgeAt(v time.Time) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetBlacklistPurgeAt(v)
+	})
+}
+
+// UpdateBlacklistPurgeAt sets the "blacklist_purge_at" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateBlacklistPurgeAt() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateBlacklistPurgeAt()
+	})
+}
+
+// ClearBlacklistPurgeAt clears the value of the "blacklist_purge_at" field.
+func (u *AccountUpsertBulk) ClearBlacklistPurgeAt() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearBlacklistPurgeAt()
 	})
 }
 

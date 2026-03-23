@@ -41,6 +41,11 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		response.BadRequest(c, "Invalid account ID")
 		return
 	}
+	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	var req TestAccountRequest
 	_ = c.ShouldBindJSON(&req)
 	modelID := strings.TrimSpace(req.ModelID)
@@ -49,6 +54,11 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	}
 	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, req.Prompt); err != nil {
 		return
+	}
+	if service.NormalizeAccountLifecycleInput(account.LifecycleState) == service.AccountLifecycleBlacklisted {
+		if _, err := h.adminService.RestoreBlacklistedAccount(c.Request.Context(), accountID); err != nil {
+			_ = c.Error(err)
+		}
 	}
 	if h.rateLimitService != nil {
 		if _, err := h.rateLimitService.RecoverAccountAfterSuccessfulTest(c.Request.Context(), accountID); err != nil {
@@ -499,7 +509,7 @@ func (h *AccountHandler) BatchRefreshTier(c *gin.Context) {
 	ctx := c.Request.Context()
 	accounts := make([]*service.Account, 0)
 	if len(req.AccountIDs) == 0 {
-		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0)
+		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, service.AccountLifecycleNormal)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return

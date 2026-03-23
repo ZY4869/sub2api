@@ -13,6 +13,7 @@ import (
 // sessionWindowMockRepo is a minimal AccountRepository mock that records calls
 // made by UpdateSessionWindow. Unrelated methods panic if invoked.
 type sessionWindowMockRepo struct {
+	AccountRepository
 	// captured calls
 	sessionWindowCalls []swCall
 	updateExtraCalls   []ueCall
@@ -81,7 +82,7 @@ func (m *sessionWindowMockRepo) Delete(context.Context, int64) error    { panic(
 func (m *sessionWindowMockRepo) List(context.Context, pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
-func (m *sessionWindowMockRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64) ([]Account, *pagination.PaginationResult, error) {
+func (m *sessionWindowMockRepo) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected")
 }
 func (m *sessionWindowMockRepo) ListByGroup(context.Context, int64) ([]Account, error) {

@@ -45,6 +45,16 @@ const (
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldLifecycleState holds the string denoting the lifecycle_state field in the database.
+	FieldLifecycleState = "lifecycle_state"
+	// FieldLifecycleReasonCode holds the string denoting the lifecycle_reason_code field in the database.
+	FieldLifecycleReasonCode = "lifecycle_reason_code"
+	// FieldLifecycleReasonMessage holds the string denoting the lifecycle_reason_message field in the database.
+	FieldLifecycleReasonMessage = "lifecycle_reason_message"
+	// FieldBlacklistedAt holds the string denoting the blacklisted_at field in the database.
+	FieldBlacklistedAt = "blacklisted_at"
+	// FieldBlacklistPurgeAt holds the string denoting the blacklist_purge_at field in the database.
+	FieldBlacklistPurgeAt = "blacklist_purge_at"
 	// FieldErrorMessage holds the string denoting the error_message field in the database.
 	FieldErrorMessage = "error_message"
 	// FieldLastUsedAt holds the string denoting the last_used_at field in the database.
@@ -127,6 +137,11 @@ var Columns = []string{
 	FieldPriority,
 	FieldRateMultiplier,
 	FieldStatus,
+	FieldLifecycleState,
+	FieldLifecycleReasonCode,
+	FieldLifecycleReasonMessage,
+	FieldBlacklistedAt,
+	FieldBlacklistPurgeAt,
 	FieldErrorMessage,
 	FieldLastUsedAt,
 	FieldExpiresAt,
@@ -192,6 +207,12 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultLifecycleState holds the default value on creation for the "lifecycle_state" field.
+	DefaultLifecycleState string
+	// LifecycleStateValidator is a validator for the "lifecycle_state" field. It is called by the builders before save.
+	LifecycleStateValidator func(string) error
+	// LifecycleReasonCodeValidator is a validator for the "lifecycle_reason_code" field. It is called by the builders before save.
+	LifecycleReasonCodeValidator func(string) error
 	// DefaultAutoPauseOnExpired holds the default value on creation for the "auto_pause_on_expired" field.
 	DefaultAutoPauseOnExpired bool
 	// DefaultSchedulable holds the default value on creation for the "schedulable" field.
@@ -271,6 +292,31 @@ func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByLifecycleState orders the results by the lifecycle_state field.
+func ByLifecycleState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLifecycleState, opts...).ToFunc()
+}
+
+// ByLifecycleReasonCode orders the results by the lifecycle_reason_code field.
+func ByLifecycleReasonCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLifecycleReasonCode, opts...).ToFunc()
+}
+
+// ByLifecycleReasonMessage orders the results by the lifecycle_reason_message field.
+func ByLifecycleReasonMessage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLifecycleReasonMessage, opts...).ToFunc()
+}
+
+// ByBlacklistedAt orders the results by the blacklisted_at field.
+func ByBlacklistedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBlacklistedAt, opts...).ToFunc()
+}
+
+// ByBlacklistPurgeAt orders the results by the blacklist_purge_at field.
+func ByBlacklistPurgeAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBlacklistPurgeAt, opts...).ToFunc()
 }
 
 // ByErrorMessage orders the results by the error_message field.

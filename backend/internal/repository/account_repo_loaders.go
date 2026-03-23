@@ -66,6 +66,13 @@ func tempUnschedulablePredicate() dbpredicate.Account {
 func notExpiredPredicate(now time.Time) dbpredicate.Account {
 	return dbaccount.Or(dbaccount.ExpiresAtIsNil(), dbaccount.ExpiresAtGT(now), dbaccount.AutoPauseOnExpiredEQ(false))
 }
+func lifecyclePredicate(lifecycle string) dbpredicate.Account {
+	normalized := service.NormalizeAccountLifecycleInput(lifecycle)
+	if normalized == service.AccountLifecycleAll {
+		return nil
+	}
+	return dbaccount.LifecycleStateEQ(normalized)
+}
 func (r *accountRepository) loadProxies(ctx context.Context, proxyIDs []int64) (map[int64]*service.Proxy, error) {
 	proxyMap := make(map[int64]*service.Proxy)
 	if len(proxyIDs) == 0 {
@@ -149,7 +156,41 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		return nil
 	}
 	rateMultiplier := m.RateMultiplier
-	return &service.Account{ID: m.ID, Name: m.Name, Notes: m.Notes, Platform: m.Platform, Type: m.Type, Credentials: copyJSONMap(m.Credentials), Extra: copyJSONMap(m.Extra), ProxyID: m.ProxyID, Concurrency: m.Concurrency, Priority: m.Priority, RateMultiplier: &rateMultiplier, LoadFactor: m.LoadFactor, Status: m.Status, ErrorMessage: derefString(m.ErrorMessage), LastUsedAt: m.LastUsedAt, ExpiresAt: m.ExpiresAt, AutoPauseOnExpired: m.AutoPauseOnExpired, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt, Schedulable: m.Schedulable, RateLimitedAt: m.RateLimitedAt, RateLimitResetAt: m.RateLimitResetAt, OverloadUntil: m.OverloadUntil, TempUnschedulableUntil: m.TempUnschedulableUntil, TempUnschedulableReason: derefString(m.TempUnschedulableReason), SessionWindowStart: m.SessionWindowStart, SessionWindowEnd: m.SessionWindowEnd, SessionWindowStatus: derefString(m.SessionWindowStatus)}
+	return &service.Account{
+		ID:                     m.ID,
+		Name:                   m.Name,
+		Notes:                  m.Notes,
+		Platform:               m.Platform,
+		Type:                   m.Type,
+		Credentials:            copyJSONMap(m.Credentials),
+		Extra:                  copyJSONMap(m.Extra),
+		ProxyID:                m.ProxyID,
+		Concurrency:            m.Concurrency,
+		Priority:               m.Priority,
+		RateMultiplier:         &rateMultiplier,
+		LoadFactor:             m.LoadFactor,
+		Status:                 m.Status,
+		LifecycleState:         m.LifecycleState,
+		LifecycleReasonCode:    derefString(m.LifecycleReasonCode),
+		LifecycleReasonMessage: derefString(m.LifecycleReasonMessage),
+		ErrorMessage:           derefString(m.ErrorMessage),
+		LastUsedAt:             m.LastUsedAt,
+		ExpiresAt:              m.ExpiresAt,
+		AutoPauseOnExpired:     m.AutoPauseOnExpired,
+		CreatedAt:              m.CreatedAt,
+		UpdatedAt:              m.UpdatedAt,
+		BlacklistedAt:          m.BlacklistedAt,
+		BlacklistPurgeAt:       m.BlacklistPurgeAt,
+		Schedulable:            m.Schedulable,
+		RateLimitedAt:          m.RateLimitedAt,
+		RateLimitResetAt:       m.RateLimitResetAt,
+		OverloadUntil:          m.OverloadUntil,
+		TempUnschedulableUntil: m.TempUnschedulableUntil,
+		TempUnschedulableReason: derefString(m.TempUnschedulableReason),
+		SessionWindowStart:     m.SessionWindowStart,
+		SessionWindowEnd:       m.SessionWindowEnd,
+		SessionWindowStatus:    derefString(m.SessionWindowStatus),
+	}
 }
 func normalizeJSONMap(in map[string]any) map[string]any {
 	if in == nil {

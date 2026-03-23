@@ -1012,6 +1012,8 @@ export default {
       refreshInterval15s: '15 seconds',
       refreshInterval30s: '30 seconds',
       autoRefreshCountdown: 'Auto refresh: {seconds}s',
+      viewArchived: 'View Archived',
+      archivedModalTitle: 'Archived Accounts',
       listPendingSyncHint: 'List changes are pending sync. Click sync to load latest rows.',
       listPendingSyncAction: 'Sync now',
       syncFromCrs: 'Sync from CRS',
@@ -1180,6 +1182,7 @@ export default {
         usageResetDates: 'Reset Dates',
         proxy: 'Proxy',
         lastUsed: 'Last Used',
+        updatedAt: 'Updated At',
         expiresAt: 'Expires At',
         actions: 'Actions'
       },
@@ -1312,6 +1315,23 @@ export default {
         resetStatusSuccess: 'Successfully reset {count} account(s) status',
         refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
         partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
+      },
+      blacklist: {
+        title: 'Blacklist',
+        description: 'Manage accounts flagged as hard-banned, retest them for recovery, or delete them immediately.',
+        searchPlaceholder: 'Search blacklisted accounts...',
+        batchRetest: 'Batch Retest Restore ({count})',
+        selected: '{count} blacklisted account(s) selected',
+        blacklistedAt: 'Blacklisted At',
+        purgeAt: 'Auto Delete At',
+        retestSingle: 'Retest Restore',
+        deleteNow: 'Delete Now',
+        retestSuccess: 'Successfully restored {count} account(s)',
+        retestPartial: 'Partially restored: {restored} succeeded, {failed} failed',
+        retestFailed: 'Failed to retest blacklisted accounts',
+        deleteConfirm: "Delete blacklisted account '{name}' immediately? This action cannot be undone.",
+        deleteSuccess: 'Blacklisted account deleted',
+        deleteFailed: 'Failed to delete blacklisted account'
       },
       bulkEdit: {
         title: 'Bulk Edit Accounts',

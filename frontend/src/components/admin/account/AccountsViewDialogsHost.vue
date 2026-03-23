@@ -64,7 +64,6 @@
     @synced="emit('reload')"
   />
   <BatchCreateAccountsModal
-    v-if="showBatchCreate"
     :show="showBatchCreate"
     :proxies="proxies"
     :groups="groups"

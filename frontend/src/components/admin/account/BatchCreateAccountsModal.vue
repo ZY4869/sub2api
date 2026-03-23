@@ -220,17 +220,30 @@
       </div>
     </template>
   </BaseDialog>
+
+  <ConfirmDialog
+    :show="showMixedChannelWarning"
+    :title="t('admin.accounts.mixedChannelWarningTitle')"
+    :message="mixedChannelWarningMessage"
+    :confirm-text="t('common.confirm')"
+    :cancel-text="t('common.cancel')"
+    :danger="true"
+    @confirm="handleMixedChannelConfirm"
+    @cancel="handleMixedChannelCancel"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
-import type { BatchCreateAccountsResult } from '@/types'
+import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
+import type { BatchCreateAccountsRequest, BatchCreateAccountsResult } from '@/types'
 import type { AccountPlatform, AccountType, AdminGroup, Proxy } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { parseDateTimeLocalInput } from '@/utils/format'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import GroupSelector from '@/components/common/GroupSelector.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
 
@@ -413,7 +426,100 @@ const buildCredentials = () => {
 
 const handleClose = () => {
   if (submitting.value) return
+  resetMixedChannelRisk()
   emit('close')
+}
+
+const {
+  showWarning: showMixedChannelWarning,
+  warningMessageText: mixedChannelWarningMessage,
+  openDialog: openMixedChannelDialog,
+  withConfirmFlag,
+  ensureConfirmed: ensureMixedChannelConfirmed,
+  handleConfirm: handleMixedChannelConfirm,
+  handleCancel: handleMixedChannelCancel,
+  reset: resetMixedChannelRisk,
+  requiresCheck: requiresMixedChannelCheck
+} = useAccountMixedChannelRisk({
+  currentPlatform: () => form.platform,
+  buildCheckPayload: () => ({
+    platform: form.platform,
+    group_ids: form.archive.enabled ? [] : [...form.group_ids]
+  }),
+  buildWarningText: (details) => t('admin.accounts.mixedChannelWarning', { ...details }),
+  fallbackMessage: () => t('admin.accounts.failedToCreate'),
+  showError: (message) => appStore.showError(message)
+})
+
+const buildPayload = (items: string[]): BatchCreateAccountsRequest => ({
+  platform: form.platform,
+  type: form.type,
+  items,
+  name_prefix: form.name_prefix.trim() || undefined,
+  notes: form.notes.trim() || undefined,
+  credentials: buildCredentials(),
+  proxy_id: form.proxy_id ?? undefined,
+  concurrency: form.concurrency,
+  load_factor: form.load_factor ?? undefined,
+  priority: form.priority,
+  rate_multiplier: form.rate_multiplier,
+  group_ids: form.archive.enabled ? [] : [...form.group_ids],
+  expires_at: parseDateTimeLocalInput(form.expires_at_input),
+  auto_pause_on_expired: form.auto_pause_on_expired,
+  auto_import_models: form.archive.enabled ? false : form.auto_import_models,
+  archive: {
+    enabled: form.archive.enabled,
+    group_name: form.archive.group_name.trim()
+  }
+})
+
+const submitBatchCreate = async (payload: BatchCreateAccountsRequest) => {
+  submitting.value = true
+  try {
+    const response = await adminAPI.accounts.batchCreateAccounts(withConfirmFlag(payload))
+    result.value = response
+    emit('created', response)
+
+    if (response.failed_count > 0 && response.created_count > 0) {
+      appStore.showWarning(
+        t('admin.accounts.batchCreatePartial', {
+          created: response.created_count,
+          failed: response.failed_count
+        })
+      )
+      return
+    }
+
+    if (response.failed_count > 0) {
+      appStore.showError(
+        t('admin.accounts.batchCreateFailed', {
+          failed: response.failed_count
+        })
+      )
+      return
+    }
+
+    appStore.showSuccess(
+      t('admin.accounts.batchCreateSuccess', {
+        created: response.created_count
+      })
+    )
+  } catch (error: any) {
+    if (
+      error?.status === 409 &&
+      error?.error === 'mixed_channel_warning' &&
+      requiresMixedChannelCheck.value
+    ) {
+      openMixedChannelDialog({
+        message: error?.message,
+        onConfirm: async () => submitBatchCreate(payload)
+      })
+      return
+    }
+    appStore.showError(error?.message || t('admin.accounts.failedToCreate'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 const handleSubmit = async () => {
@@ -439,59 +545,14 @@ const handleSubmit = async () => {
     return
   }
 
-  submitting.value = true
-  try {
-    const payload = {
-      platform: form.platform,
-      type: form.type,
-      items,
-      name_prefix: form.name_prefix.trim() || undefined,
-      notes: form.notes.trim() || undefined,
-      credentials: buildCredentials(),
-      proxy_id: form.proxy_id ?? undefined,
-      concurrency: form.concurrency,
-      load_factor: form.load_factor ?? undefined,
-      priority: form.priority,
-      rate_multiplier: form.rate_multiplier,
-      group_ids: form.archive.enabled ? [] : [...form.group_ids],
-      expires_at: parseDateTimeLocalInput(form.expires_at_input),
-      auto_pause_on_expired: form.auto_pause_on_expired,
-      auto_import_models: form.archive.enabled ? false : form.auto_import_models,
-      archive: {
-        enabled: form.archive.enabled,
-        group_name: form.archive.group_name.trim()
-      }
-    }
-
-    const response = await adminAPI.accounts.batchCreateAccounts(payload)
-    result.value = response
-    emit('created', response)
-
-    if (response.failed_count > 0 && response.created_count > 0) {
-      appStore.showWarning(
-        t('admin.accounts.batchCreatePartial', {
-          created: response.created_count,
-          failed: response.failed_count
-        })
-      )
-    } else if (response.failed_count > 0) {
-      appStore.showError(
-        t('admin.accounts.batchCreateFailed', {
-          failed: response.failed_count
-        })
-      )
-    } else {
-      appStore.showSuccess(
-        t('admin.accounts.batchCreateSuccess', {
-          created: response.created_count
-        })
-      )
-    }
-  } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.failedToCreate'))
-  } finally {
-    submitting.value = false
+  const payload = buildPayload(items)
+  const canContinue = await ensureMixedChannelConfirmed(async () => {
+    await submitBatchCreate(payload)
+  })
+  if (!canContinue) {
+    return
   }
+  await submitBatchCreate(payload)
 }
 
 watch(
@@ -499,6 +560,8 @@ watch(
   (open) => {
     if (open) {
       resetForm()
+    } else {
+      resetMixedChannelRisk()
     }
   },
   { immediate: true }
@@ -532,6 +595,13 @@ watch(
   () => form.archive.group_name,
   (groupName) => {
     persistArchiveGroupName(form.platform, groupName)
+  }
+)
+
+watch(
+  () => `${form.platform}|${form.archive.enabled}|${form.group_ids.join(',')}`,
+  () => {
+    resetMixedChannelRisk()
   }
 )
 </script>

@@ -31,12 +31,17 @@ type Account struct {
 	RateMultiplier     *float64
 	LoadFactor         *int // 调度负载因子；nil 表示使用 Concurrency
 	Status             string
+	LifecycleState     string
+	LifecycleReasonCode string
+	LifecycleReasonMessage string
 	ErrorMessage       string
 	LastUsedAt         *time.Time
 	ExpiresAt          *time.Time
 	AutoPauseOnExpired bool
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
+	BlacklistedAt      *time.Time
+	BlacklistPurgeAt   *time.Time
 
 	Schedulable bool
 
@@ -73,7 +78,7 @@ type TempUnschedulableRule struct {
 }
 
 func (a *Account) IsActive() bool {
-	return a.Status == StatusActive
+	return a.Status == StatusActive && IsAccountLifecycleSchedulable(a.LifecycleState)
 }
 
 // BillingRateMultiplier 返回账号计费倍率。
@@ -104,7 +109,7 @@ func (a *Account) EffectiveLoadFactor() int {
 }
 
 func (a *Account) IsSchedulable() bool {
-	if !a.IsActive() || !a.Schedulable {
+	if !a.IsActive() || !a.Schedulable || !IsAccountLifecycleSchedulable(a.LifecycleState) {
 		return false
 	}
 	now := time.Now()

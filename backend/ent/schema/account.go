@@ -115,6 +115,30 @@ func (Account) Fields() []ent.Field {
 			MaxLen(20).
 			Default(domain.StatusActive),
 
+		field.String("lifecycle_state").
+			MaxLen(20).
+			Default("normal"),
+
+		field.String("lifecycle_reason_code").
+			Optional().
+			Nillable().
+			MaxLen(100),
+
+		field.String("lifecycle_reason_message").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "text"}),
+
+		field.Time("blacklisted_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+
+		field.Time("blacklist_purge_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+
 		// error_message: 错误信息，记录账户异常时的详细信息
 		field.String("error_message").
 			Optional().
@@ -230,6 +254,9 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("overload_until"),      // 筛选过载账户
 		// 调度热路径复合索引（线上由 SQL 迁移创建部分索引，schema 仅用于模型可读性对齐）
 		index.Fields("platform", "priority"),
+		index.Fields("lifecycle_state"),
+		index.Fields("blacklist_purge_at"),
+		index.Fields("lifecycle_state", "blacklist_purge_at"),
 		index.Fields("priority", "status"),
 		index.Fields("deleted_at"), // 软删除查询优化
 	}

@@ -66,7 +66,17 @@ func (r *accountRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 func (r *accountRepository) SetError(ctx context.Context, id int64, errorMsg string) error {
-	_, err := r.client.Account.Update().Where(dbaccount.IDEQ(id)).SetStatus(service.StatusError).SetErrorMessage(errorMsg).Save(ctx)
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET status = CASE
+				WHEN lifecycle_state = $2 THEN status
+				ELSE $3
+			END,
+			error_message = $4,
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`, id, service.AccountLifecycleBlacklisted, service.StatusError, errorMsg)
 	if err != nil {
 		return err
 	}
@@ -123,7 +133,17 @@ func (r *accountRepository) syncSchedulerAccountSnapshots(ctx context.Context, a
 	}
 }
 func (r *accountRepository) ClearError(ctx context.Context, id int64) error {
-	_, err := r.client.Account.Update().Where(dbaccount.IDEQ(id)).SetStatus(service.StatusActive).SetErrorMessage("").Save(ctx)
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET status = CASE
+				WHEN lifecycle_state = $2 THEN status
+				ELSE $3
+			END,
+			error_message = '',
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`, id, service.AccountLifecycleBlacklisted, service.StatusActive)
 	if err != nil {
 		return err
 	}
@@ -294,6 +314,21 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		args = append(args, *updates.Schedulable)
 		idx++
 	}
+	if updates.LifecycleState != nil {
+		setClauses = append(setClauses, "lifecycle_state = $"+itoa(idx))
+		args = append(args, service.NormalizeAccountLifecycleInput(*updates.LifecycleState))
+		idx++
+	}
+	if updates.LifecycleReasonCode != nil {
+		setClauses = append(setClauses, "lifecycle_reason_code = $"+itoa(idx))
+		args = append(args, *updates.LifecycleReasonCode)
+		idx++
+	}
+	if updates.LifecycleReasonMessage != nil {
+		setClauses = append(setClauses, "lifecycle_reason_message = $"+itoa(idx))
+		args = append(args, *updates.LifecycleReasonMessage)
+		idx++
+	}
 	if len(updates.Credentials) > 0 {
 		payload, err := json.Marshal(updates.Credentials)
 		if err != nil {
@@ -338,6 +373,9 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		if updates.Schedulable != nil && !*updates.Schedulable {
 			shouldSync = true
 		}
+		if updates.LifecycleState != nil {
+			shouldSync = true
+		}
 		if shouldSync {
 			r.syncSchedulerAccountSnapshots(ctx, ids)
 		}
@@ -345,10 +383,91 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 	return rows, nil
 }
 
+func (r *accountRepository) MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error {
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET lifecycle_state = $2,
+			lifecycle_reason_code = $3,
+			lifecycle_reason_message = $4,
+			blacklisted_at = $5,
+			blacklist_purge_at = $6,
+			status = $7,
+			schedulable = FALSE,
+			error_message = $4,
+			rate_limited_at = NULL,
+			rate_limit_reset_at = NULL,
+			overload_until = NULL,
+			temp_unschedulable_until = NULL,
+			temp_unschedulable_reason = NULL,
+			extra = COALESCE(extra, '{}'::jsonb) - 'model_rate_limits' - 'antigravity_quota_scopes',
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`, id, service.AccountLifecycleBlacklisted, strings.TrimSpace(reasonCode), strings.TrimSpace(reasonMessage), blacklistedAt, purgeAt, service.StatusDisabled)
+	if err != nil {
+		return err
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
+		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue mark blacklisted failed: account=%d err=%v", id, err)
+	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
+	return nil
+}
+
+func (r *accountRepository) RestoreBlacklisted(ctx context.Context, id int64) error {
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET lifecycle_state = $2,
+			lifecycle_reason_code = NULL,
+			lifecycle_reason_message = NULL,
+			blacklisted_at = NULL,
+			blacklist_purge_at = NULL,
+			status = $3,
+			schedulable = TRUE,
+			error_message = '',
+			rate_limited_at = NULL,
+			rate_limit_reset_at = NULL,
+			overload_until = NULL,
+			temp_unschedulable_until = NULL,
+			temp_unschedulable_reason = NULL,
+			extra = COALESCE(extra, '{}'::jsonb) - 'model_rate_limits' - 'antigravity_quota_scopes',
+			updated_at = NOW()
+		WHERE id = $1
+			AND deleted_at IS NULL
+	`, id, service.AccountLifecycleNormal, service.StatusActive)
+	if err != nil {
+		return err
+	}
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
+		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue restore blacklisted failed: account=%d err=%v", id, err)
+	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
+	return nil
+}
+
+func (r *accountRepository) ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]service.Account, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	accounts, err := r.client.Account.Query().
+		Where(
+			dbaccount.LifecycleStateEQ(service.AccountLifecycleBlacklisted),
+			dbaccount.BlacklistPurgeAtLTE(now),
+		).
+		Order(dbent.Asc(dbaccount.FieldBlacklistPurgeAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.accountsToService(ctx, accounts)
+}
+
 type accountGroupQueryOptions struct {
 	status      string
 	schedulable bool
 	platforms   []string
+	lifecycle   string
 }
 
 func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID int64, opts accountGroupQueryOptions) ([]service.Account, error) {
@@ -360,6 +479,9 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	}
 	if len(opts.platforms) > 0 {
 		preds = append(preds, dbaccount.PlatformIn(opts.platforms...))
+	}
+	if predicate := lifecyclePredicate(opts.lifecycle); predicate != nil {
+		preds = append(preds, predicate)
 	}
 	if opts.schedulable {
 		now := time.Now()

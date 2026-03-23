@@ -10,6 +10,7 @@ import (
 )
 
 type stubAdminService struct {
+	service.AdminService
 	users                []service.User
 	apiKeys              []service.APIKey
 	groups               []service.Group
@@ -207,9 +208,10 @@ func (s *stubAdminService) BatchSetGroupRateMultipliers(_ context.Context, _ int
 	return nil
 }
 
-func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64) ([]service.Account, int64, error) {
+func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string) ([]service.Account, int64, error) {
 	filtered := make([]service.Account, 0, len(s.accounts))
 	search = strings.TrimSpace(strings.ToLower(search))
+	lifecycle = service.NormalizeAccountLifecycleInput(lifecycle)
 	for _, account := range s.accounts {
 		if platform != "" && !strings.EqualFold(strings.TrimSpace(account.Platform), strings.TrimSpace(platform)) {
 			continue
@@ -238,6 +240,10 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 				continue
 			}
 		}
+		accountLifecycle := service.NormalizeAccountLifecycleInput(account.LifecycleState)
+		if lifecycle != service.AccountLifecycleAll && accountLifecycle != lifecycle {
+			continue
+		}
 		filtered = append(filtered, account)
 	}
 
@@ -260,6 +266,31 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 		end = len(filtered)
 	}
 	return append([]service.Account(nil), filtered[start:end]...), total, nil
+}
+
+func (s *stubAdminService) RestoreBlacklistedAccount(ctx context.Context, id int64) (*service.Account, error) {
+	for i := range s.accounts {
+		if s.accounts[i].ID != id {
+			continue
+		}
+		s.accounts[i].LifecycleState = service.AccountLifecycleNormal
+		s.accounts[i].LifecycleReasonCode = ""
+		s.accounts[i].LifecycleReasonMessage = ""
+		s.accounts[i].BlacklistedAt = nil
+		s.accounts[i].BlacklistPurgeAt = nil
+		s.accounts[i].Status = service.StatusActive
+		s.accounts[i].Schedulable = true
+		account := s.accounts[i]
+		return &account, nil
+	}
+	account := service.Account{
+		ID:             id,
+		Name:           "account",
+		Status:         service.StatusActive,
+		Schedulable:    true,
+		LifecycleState: service.AccountLifecycleNormal,
+	}
+	return &account, nil
 }
 
 func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {

@@ -70,9 +70,12 @@ func (h *AccountHandler) executeBatchArchiveAccounts(ctx context.Context, req *B
 	)
 
 	updateResult, err := h.adminService.BulkUpdateAccounts(ctx, &service.BulkUpdateAccountsInput{
-		AccountIDs: accountIDs,
-		Status:     service.StatusDisabled,
-		GroupIDs:   &groupIDs,
+		AccountIDs:              accountIDs,
+		Status:                  service.StatusDisabled,
+		GroupIDs:                &groupIDs,
+		LifecycleState:          service.AccountLifecycleArchived,
+		LifecycleReasonCode:     "batch_archive",
+		LifecycleReasonMessage:  "Archived via batch archive",
 	})
 	if err != nil {
 		return nil, err
