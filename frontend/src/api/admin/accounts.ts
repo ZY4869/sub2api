@@ -6,6 +6,10 @@
 import { apiClient } from '../client'
 import type {
   Account,
+  ArchiveGroupAccountsRequest,
+  ArchiveGroupAccountsResult,
+  BatchArchiveAccountsRequest,
+  BatchArchiveAccountsResult,
   BatchCreateAccountsRequest,
   BatchCreateAccountsResult,
   CreateAccountRequest,
@@ -484,6 +488,20 @@ export async function batchCreateAccounts(
   return data
 }
 
+export async function batchArchiveAccounts(
+  payload: BatchArchiveAccountsRequest
+): Promise<BatchArchiveAccountsResult> {
+  const { data } = await apiClient.post<BatchArchiveAccountsResult>('/admin/accounts/batch-archive', payload)
+  return data
+}
+
+export async function archiveGroupAccounts(
+  payload: ArchiveGroupAccountsRequest
+): Promise<ArchiveGroupAccountsResult> {
+  const { data } = await apiClient.post<ArchiveGroupAccountsResult>('/admin/accounts/archive-group', payload)
+  return data
+}
+
 /**
  * Batch create accounts
  * @param accounts - Array of account data
@@ -871,6 +889,8 @@ export const accountsAPI = {
   refreshOpenAIToken,
   validateSoraSessionToken,
   batchCreateAccounts,
+  batchArchiveAccounts,
+  archiveGroupAccounts,
   batchCreate,
   batchUpdateCredentials,
   bulkUpdate,

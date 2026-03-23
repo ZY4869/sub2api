@@ -15,7 +15,7 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-function mountToolbar() {
+function mountToolbar(overrides: Record<string, unknown> = {}) {
   return mount(AccountsViewToolbar, {
     props: {
       loading: false,
@@ -32,7 +32,8 @@ function mountToolbar() {
       toggleableColumns: [
         { key: 'proxy', label: 'Proxy', visible: true },
         { key: 'notes', label: 'Notes', visible: false }
-      ]
+      ],
+      ...overrides
     },
     global: {
       stubs: {
@@ -73,6 +74,11 @@ describe('AccountsViewToolbar', () => {
     await wrapper.get('.filters-search').trigger('click')
     await wrapper.get('.filters-change').trigger('click')
     await wrapper.get('.refresh').trigger('click')
+    expect(
+      wrapper.findAll('button').find((button) =>
+        button.text().includes('admin.accounts.bulkActions.archiveCurrentGroup')
+      )?.attributes('disabled')
+    ).toBeDefined()
     await wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.batchCreate')
     )?.trigger('click')
@@ -90,6 +96,36 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('refresh-usage')).toEqual([[]])
     expect(wrapper.emitted('sync')).toEqual([[]])
     expect(wrapper.emitted('create')).toEqual([[]])
+  })
+
+  it('emits archive-group when a concrete group filter is selected', async () => {
+    const wrapper = mountToolbar({
+      filters: { platform: '', type: '', status: '', group: '1', search: '' },
+      groups: [{ id: 1, name: 'Default', platform: 'openai' }]
+    })
+
+    const archiveGroupButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.bulkActions.archiveCurrentGroup')
+    )
+
+    expect(archiveGroupButton).toBeTruthy()
+    expect(archiveGroupButton?.attributes('disabled')).toBeUndefined()
+
+    await archiveGroupButton?.trigger('click')
+
+    expect(wrapper.emitted('archive-group')).toEqual([[]])
+  })
+
+  it('keeps archive current group disabled for the ungrouped filter', () => {
+    const wrapper = mountToolbar({
+      filters: { platform: '', type: '', status: '', group: 'ungrouped', search: '' }
+    })
+
+    const archiveGroupButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.bulkActions.archiveCurrentGroup')
+    )
+
+    expect(archiveGroupButton?.attributes('disabled')).toBeDefined()
   })
 
   it('emits dropdown and pending sync actions', async () => {

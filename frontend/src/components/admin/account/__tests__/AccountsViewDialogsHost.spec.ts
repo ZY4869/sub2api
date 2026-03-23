@@ -16,6 +16,8 @@ function createProps() {
   return {
     showCreate: true,
     showBatchCreate: false,
+    showArchiveSelected: false,
+    showArchiveGroup: false,
     showEdit: false,
     showSync: false,
     showImportData: false,
@@ -34,6 +36,7 @@ function createProps() {
     selectedIds: [1, 2],
     selectedPlatforms: ['openai'],
     selectedTypes: ['apikey'],
+    archiveSourceGroup: null,
     editingAccount: null,
     tempUnschedAccount: null,
     deletingAccount: null,
@@ -68,6 +71,8 @@ describe('AccountsViewDialogsHost', () => {
             `
           },
           BatchCreateAccountsModal: true,
+          ArchiveAccountsModal: true,
+          ArchiveGroupAccountsModal: true,
           ModelImportExposureSyncDialog: true,
           EditAccountModal: true,
           ReAuthAccountModal: true,
@@ -105,6 +110,8 @@ describe('AccountsViewDialogsHost', () => {
         stubs: {
           CreateAccountModal: true,
           BatchCreateAccountsModal: true,
+          ArchiveAccountsModal: true,
+          ArchiveGroupAccountsModal: true,
           ModelImportExposureSyncDialog: true,
           EditAccountModal: true,
           ReAuthAccountModal: true,
@@ -162,6 +169,8 @@ describe('AccountsViewDialogsHost', () => {
             `
           },
           ModelImportExposureSyncDialog: true,
+          ArchiveAccountsModal: true,
+          ArchiveGroupAccountsModal: true,
           EditAccountModal: true,
           ReAuthAccountModal: true,
           AccountTestModal: true,
@@ -184,6 +193,101 @@ describe('AccountsViewDialogsHost', () => {
     expect(wrapper.emitted('close-batch-create')).toEqual([[]])
     expect(wrapper.emitted('batch-created')).toEqual([
       [{ created_count: 2, failed_count: 1, results: [] }]
+    ])
+  })
+
+  it('forwards archive modal events', async () => {
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        showArchiveSelected: true
+      },
+      global: {
+        stubs: {
+          CreateAccountModal: true,
+          BatchCreateAccountsModal: true,
+          ArchiveAccountsModal: {
+            emits: ['close', 'archived'],
+            template: `
+              <div>
+                <button class="archive-close" @click="$emit('close')" />
+                <button class="archive-done" @click="$emit('archived', { archived_count: 2, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' })" />
+              </div>
+            `
+          },
+          ArchiveGroupAccountsModal: true,
+          ModelImportExposureSyncDialog: true,
+          EditAccountModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          AccountActionMenu: true,
+          SyncFromCrsModal: true,
+          ImportDataModal: true,
+          BulkEditAccountModal: true,
+          TempUnschedStatusModal: true,
+          ConfirmDialog: true,
+          ErrorPassthroughRulesModal: true
+        }
+      }
+    })
+
+    await wrapper.get('.archive-close').trigger('click')
+    await wrapper.get('.archive-done').trigger('click')
+
+    expect(wrapper.emitted('close-archive-selected')).toEqual([[]])
+    expect(wrapper.emitted('archived')).toEqual([
+      [{ archived_count: 2, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' }]
+    ])
+  })
+
+  it('forwards archive current group modal events', async () => {
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        showArchiveGroup: true,
+        archiveSourceGroup: { id: 9, name: 'Prod Group', platform: 'openai' }
+      },
+      global: {
+        stubs: {
+          CreateAccountModal: true,
+          BatchCreateAccountsModal: true,
+          ArchiveAccountsModal: true,
+          ArchiveGroupAccountsModal: {
+            emits: ['close', 'archived'],
+            template: `
+              <div>
+                <button class="group-archive-close" @click="$emit('close')" />
+                <button class="group-archive-done" @click="$emit('archived', { source_group_id: 9, source_group_name: 'Prod Group', archived_count: 3, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' })" />
+              </div>
+            `
+          },
+          ModelImportExposureSyncDialog: true,
+          EditAccountModal: true,
+          ReAuthAccountModal: true,
+          AccountTestModal: true,
+          AccountStatsModal: true,
+          ScheduledTestsPanel: true,
+          AccountActionMenu: true,
+          SyncFromCrsModal: true,
+          ImportDataModal: true,
+          BulkEditAccountModal: true,
+          TempUnschedStatusModal: true,
+          ConfirmDialog: true,
+          ErrorPassthroughRulesModal: true
+        }
+      }
+    })
+
+    await wrapper.get('.group-archive-close').trigger('click')
+    await wrapper.get('.group-archive-done').trigger('click')
+
+    expect(wrapper.emitted('close-archive-group')).toEqual([[]])
+    expect(wrapper.emitted('group-archived')).toEqual([
+      [{ source_group_id: 9, source_group_name: 'Prod Group', archived_count: 3, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' }]
     ])
   })
 })

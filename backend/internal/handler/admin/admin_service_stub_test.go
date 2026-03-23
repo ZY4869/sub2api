@@ -24,9 +24,11 @@ type stubAdminService struct {
 	updatedProxyIDs      []int64
 	updatedProxies       []*service.UpdateProxyInput
 	testedProxyIDs       []int64
+	lastBulkUpdateInput  *service.BulkUpdateAccountsInput
 	createAccountErr     error
 	updateAccountErr     error
 	bulkUpdateAccountErr error
+	strictAccountLookup  bool
 	checkMixedErr        error
 	lastMixedCheck       struct {
 		accountID int64
@@ -155,8 +157,13 @@ func (s *stubAdminService) GetAllGroupsByPlatform(ctx context.Context, platform 
 }
 
 func (s *stubAdminService) GetGroup(ctx context.Context, id int64) (*service.Group, error) {
-	group := service.Group{ID: id, Name: "group", Status: service.StatusActive}
-	return &group, nil
+	for i := range s.groups {
+		if s.groups[i].ID == id {
+			group := s.groups[i]
+			return &group, nil
+		}
+	}
+	return nil, service.ErrGroupNotFound
 }
 
 func (s *stubAdminService) GetGroupByName(ctx context.Context, name string) (*service.Group, error) {
@@ -201,7 +208,58 @@ func (s *stubAdminService) BatchSetGroupRateMultipliers(_ context.Context, _ int
 }
 
 func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64) ([]service.Account, int64, error) {
-	return s.accounts, int64(len(s.accounts)), nil
+	filtered := make([]service.Account, 0, len(s.accounts))
+	search = strings.TrimSpace(strings.ToLower(search))
+	for _, account := range s.accounts {
+		if platform != "" && !strings.EqualFold(strings.TrimSpace(account.Platform), strings.TrimSpace(platform)) {
+			continue
+		}
+		if accountType != "" && !strings.EqualFold(strings.TrimSpace(account.Type), strings.TrimSpace(accountType)) {
+			continue
+		}
+		if status != "" && !strings.EqualFold(strings.TrimSpace(account.Status), strings.TrimSpace(status)) {
+			continue
+		}
+		if search != "" {
+			name := strings.ToLower(account.Name)
+			if !strings.Contains(name, search) {
+				continue
+			}
+		}
+		if groupID > 0 {
+			matched := false
+			for _, id := range account.GroupIDs {
+				if id == groupID {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+		filtered = append(filtered, account)
+	}
+
+	total := int64(len(filtered))
+	if pageSize <= 0 {
+		pageSize = len(filtered)
+	}
+	if pageSize <= 0 {
+		pageSize = 1
+	}
+	if page <= 0 {
+		page = 1
+	}
+	start := (page - 1) * pageSize
+	if start >= len(filtered) {
+		return []service.Account{}, total, nil
+	}
+	end := start + pageSize
+	if end > len(filtered) {
+		end = len(filtered)
+	}
+	return append([]service.Account(nil), filtered[start:end]...), total, nil
 }
 
 func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {
@@ -217,8 +275,20 @@ func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.A
 
 func (s *stubAdminService) GetAccountsByIDs(ctx context.Context, ids []int64) ([]*service.Account, error) {
 	out := make([]*service.Account, 0, len(ids))
+	index := make(map[int64]service.Account, len(s.accounts))
+	for _, account := range s.accounts {
+		index[account.ID] = account
+	}
 	for _, id := range ids {
-		account := service.Account{ID: id, Name: "account", Status: service.StatusActive}
+		if account, ok := index[id]; ok {
+			acc := account
+			out = append(out, &acc)
+			continue
+		}
+		if s.strictAccountLookup {
+			continue
+		}
+		account := service.Account{ID: id, Name: "account", Platform: service.PlatformAnthropic, Status: service.StatusActive}
 		out = append(out, &account)
 	}
 	return out, nil
@@ -275,6 +345,19 @@ func (s *stubAdminService) SetAccountSchedulable(ctx context.Context, id int64, 
 }
 
 func (s *stubAdminService) BulkUpdateAccounts(ctx context.Context, input *service.BulkUpdateAccountsInput) (*service.BulkUpdateAccountsResult, error) {
+	s.mu.Lock()
+	if input != nil {
+		copied := *input
+		copied.AccountIDs = append([]int64(nil), input.AccountIDs...)
+		if input.GroupIDs != nil {
+			groupIDs := append([]int64(nil), (*input.GroupIDs)...)
+			copied.GroupIDs = &groupIDs
+		}
+		s.lastBulkUpdateInput = &copied
+	} else {
+		s.lastBulkUpdateInput = nil
+	}
+	s.mu.Unlock()
 	if s.bulkUpdateAccountErr != nil {
 		return nil, s.bulkUpdateAccountErr
 	}

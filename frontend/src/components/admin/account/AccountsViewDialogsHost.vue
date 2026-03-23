@@ -64,11 +64,27 @@
     @synced="emit('reload')"
   />
   <BatchCreateAccountsModal
+    v-if="showBatchCreate"
     :show="showBatchCreate"
     :proxies="proxies"
     :groups="groups"
     @close="emit('close-batch-create')"
     @created="emit('batch-created', $event)"
+  />
+  <ArchiveAccountsModal
+    v-if="showArchiveSelected"
+    :show="showArchiveSelected"
+    :account-ids="selectedIds"
+    :selected-platforms="selectedPlatforms"
+    @close="emit('close-archive-selected')"
+    @archived="emit('archived', $event)"
+  />
+  <ArchiveGroupAccountsModal
+    v-if="showArchiveGroup"
+    :show="showArchiveGroup"
+    :source-group="archiveSourceGroup"
+    @close="emit('close-archive-group')"
+    @archived="emit('group-archived', $event)"
   />
   <ImportDataModal
     :show="showImportData"
@@ -130,7 +146,16 @@ import { useI18n } from 'vue-i18n'
 import type { SelectOption } from '@/components/common/Select.vue'
 import type { AccountModelImportResult } from '@/api/admin/accounts'
 import type { ModelRegistryExposureTarget } from '@/api/admin/modelRegistry'
-import type { Account, AccountPlatform, AccountType, AdminGroup, BatchCreateAccountsResult, Proxy } from '@/types'
+import type {
+  Account,
+  AccountPlatform,
+  AccountType,
+  AdminGroup,
+  ArchiveGroupAccountsResult,
+  BatchArchiveAccountsResult,
+  BatchCreateAccountsResult,
+  Proxy
+} from '@/types'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import {
   BulkEditAccountModal,
@@ -142,6 +167,8 @@ import {
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
 import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImportExposureSyncDialog.vue'
 import AccountActionMenu from './AccountActionMenu.vue'
+import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
+import ArchiveGroupAccountsModal from './ArchiveGroupAccountsModal.vue'
 import BatchCreateAccountsModal from './BatchCreateAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
@@ -152,6 +179,8 @@ import ScheduledTestsPanel from './ScheduledTestsPanel.vue'
 defineProps<{
   showCreate: boolean
   showBatchCreate: boolean
+  showArchiveSelected: boolean
+  showArchiveGroup: boolean
   showEdit: boolean
   showSync: boolean
   showImportData: boolean
@@ -169,6 +198,7 @@ defineProps<{
   selectedIds: number[]
   selectedPlatforms: AccountPlatform[]
   selectedTypes: AccountType[]
+  archiveSourceGroup: AdminGroup | null
   editingAccount: Account | null
   tempUnschedAccount: Account | null
   deletingAccount: Account | null
@@ -193,6 +223,10 @@ const emit = defineEmits<{
   'models-imported': [result: AccountModelImportResult]
   'close-batch-create': []
   'batch-created': [result: BatchCreateAccountsResult]
+  'close-archive-selected': []
+  archived: [result: BatchArchiveAccountsResult]
+  'close-archive-group': []
+  'group-archived': [result: ArchiveGroupAccountsResult]
   'close-sync-dialog': []
   'submit-sync-dialog': [exposures: ModelRegistryExposureTarget[]]
   'close-edit': []

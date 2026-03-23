@@ -17,6 +17,7 @@
       >
         <template #after>
           <button
+            type="button"
             class="btn btn-secondary"
             :title="t('admin.accounts.refreshActualUsage')"
             :disabled="loading || usageRefreshing"
@@ -30,6 +31,7 @@
 
           <div class="relative" ref="autoRefreshDropdownRef">
             <button
+              type="button"
               class="btn btn-secondary px-2 md:px-3"
               :title="t('admin.accounts.autoRefresh')"
               @click="toggleAutoRefreshDropdown"
@@ -49,6 +51,7 @@
             >
               <div class="p-2">
                 <button
+                  type="button"
                   class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                   @click="emit('set-auto-refresh-enabled', !autoRefreshEnabled)"
                 >
@@ -64,6 +67,7 @@
                 <button
                   v-for="sec in autoRefreshIntervals"
                   :key="sec"
+                  type="button"
                   class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                   @click="emit('set-auto-refresh-interval', sec)"
                 >
@@ -80,6 +84,7 @@
           </div>
 
           <button
+            type="button"
             class="btn btn-secondary"
             :title="t('admin.errorPassthrough.title')"
             @click="emit('show-error-passthrough')"
@@ -90,6 +95,7 @@
 
           <div class="relative" ref="columnDropdownRef">
             <button
+              type="button"
               class="btn btn-secondary px-2 md:px-3"
               :title="t('admin.users.columnSettings')"
               @click="toggleColumnDropdown"
@@ -117,6 +123,7 @@
                 <button
                   v-for="col in toggleableColumns"
                   :key="col.key"
+                  type="button"
                   class="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                   @click="emit('toggle-column', col.key)"
                 >
@@ -129,13 +136,22 @@
         </template>
 
         <template #beforeCreate>
-          <button class="btn btn-secondary" @click="emit('batch-create')">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :title="canArchiveCurrentGroup ? t('admin.accounts.bulkActions.archiveCurrentGroup') : t('admin.accounts.bulkActions.archiveCurrentGroupDisabled')"
+            :disabled="loading || !canArchiveCurrentGroup"
+            @click="emit('archive-group')"
+          >
+            {{ t('admin.accounts.bulkActions.archiveCurrentGroup') }}
+          </button>
+          <button type="button" class="btn btn-secondary" @click="emit('batch-create')">
             {{ t('admin.accounts.batchCreate') }}
           </button>
-          <button class="btn btn-secondary" @click="emit('import-data')">
+          <button type="button" class="btn btn-secondary" @click="emit('import-data')">
             {{ t('admin.accounts.dataImport') }}
           </button>
-          <button class="btn btn-secondary" @click="emit('export-data')">
+          <button type="button" class="btn btn-secondary" @click="emit('export-data')">
             {{
               selectedCount
                 ? t('admin.accounts.dataExportSelected')
@@ -151,7 +167,7 @@
       class="mt-2 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700/40 dark:bg-amber-900/20 dark:text-amber-200"
     >
       <span>{{ t('admin.accounts.listPendingSyncHint') }}</span>
-      <button class="btn btn-secondary px-2 py-1 text-xs" @click="emit('sync-pending-list')">
+      <button type="button" class="btn btn-secondary px-2 py-1 text-xs" @click="emit('sync-pending-list')">
         {{ t('admin.accounts.listPendingSyncAction') }}
       </button>
     </div>
@@ -159,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AdminGroup } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
@@ -172,7 +188,7 @@ interface ToggleableColumn {
   visible: boolean
 }
 
-defineProps<{
+const props = defineProps<{
   loading: boolean
   usageRefreshing: boolean
   searchQuery: string
@@ -195,6 +211,7 @@ const emit = defineEmits<{
   'refresh-usage': []
   sync: []
   create: []
+  'archive-group': []
   'batch-create': []
   'import-data': []
   'export-data': []
@@ -211,6 +228,20 @@ const showAutoRefreshDropdown = ref(false)
 const showColumnDropdown = ref(false)
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
+
+const currentGroup = computed<AdminGroup | null>(() => {
+  const rawGroup = String(props.filters.group ?? '').trim()
+  if (rawGroup === '' || rawGroup === 'ungrouped') {
+    return null
+  }
+  const groupId = Number.parseInt(rawGroup, 10)
+  if (!Number.isFinite(groupId) || groupId <= 0) {
+    return null
+  }
+  return props.groups.find((group) => group.id === groupId) ?? null
+})
+
+const canArchiveCurrentGroup = computed(() => currentGroup.value !== null)
 
 const handleFiltersUpdate = (value: Record<string, unknown>) => {
   emit('update:filters', value)

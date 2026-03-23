@@ -22,7 +22,8 @@
           @refresh-usage="handleRefreshActualUsage"
           @sync="showSync = true"
           @create="showCreate = true"
-          @batch-create="showBatchCreate = true"
+          @archive-group="openArchiveGroupModal"
+          @batch-create="openBatchCreateModal"
           @import-data="showImportData = true"
           @export-data="openExportDataDialog"
           @show-error-passthrough="showErrorPassthrough = true"
@@ -33,7 +34,18 @@
         />
       </template>
       <template #table>
-        <AccountBulkActionsBar :selected-ids="selIds" @delete="handleBulkDelete" @reset-status="handleBulkResetStatus" @refresh-token="handleBulkRefreshToken" @edit="showBulkEdit = true" @clear="clearSelection" @select-page="selectPage" @toggle-schedulable="handleBulkToggleSchedulable" />
+        <AccountBulkActionsBar
+          :selected-ids="selIds"
+          :selected-platforms="selPlatforms"
+          @archive="openArchiveSelectedModal"
+          @delete="handleBulkDelete"
+          @reset-status="handleBulkResetStatus"
+          @refresh-token="handleBulkRefreshToken"
+          @edit="showBulkEdit = true"
+          @clear="clearSelection"
+          @select-page="selectPage"
+          @toggle-schedulable="handleBulkToggleSchedulable"
+        />
         <div ref="accountTableRef">
           <AccountsViewTable
             :columns="cols"
@@ -65,6 +77,8 @@
       v-model:include-proxy-on-export="includeProxyOnExport"
       :show-create="showCreate"
       :show-batch-create="showBatchCreate"
+      :show-archive-selected="showArchiveSelected"
+      :show-archive-group="showArchiveGroup"
       :show-edit="showEdit"
       :show-sync="showSync"
       :show-import-data="showImportData"
@@ -82,6 +96,7 @@
       :selected-ids="selIds"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
+      :archive-source-group="currentArchiveSourceGroup"
       :editing-account="edAcc"
       :temp-unsched-account="tempUnschedAcc"
       :deleting-account="deletingAcc"
@@ -100,6 +115,10 @@
       @created="reload"
       @close-batch-create="showBatchCreate = false"
       @batch-created="handleBatchCreated"
+      @close-archive-selected="showArchiveSelected = false"
+      @archived="handleArchivedAccounts"
+      @close-archive-group="showArchiveGroup = false"
+      @group-archived="handleArchivedGroupAccounts"
       @models-imported="handleImportedModels"
       @close-sync-dialog="closeSyncDialog"
       @submit-sync-dialog="submitSyncDialog"
@@ -214,6 +233,8 @@ const selTypes = computed<AccountType[]>(() => {
 })
 const showCreate = ref(false)
 const showBatchCreate = ref(false)
+const showArchiveSelected = ref(false)
+const showArchiveGroup = ref(false)
 const showEdit = ref(false)
 const showSync = ref(false)
 const showImportData = ref(false)
@@ -301,6 +322,18 @@ const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
   Object.assign(params, newFilters)
 }
 
+const currentArchiveSourceGroup = computed<AdminGroup | null>(() => {
+  const rawGroup = String(params.group || '').trim()
+  if (rawGroup === '' || rawGroup === 'ungrouped') {
+    return null
+  }
+  const groupId = Number.parseInt(rawGroup, 10)
+  if (!Number.isFinite(groupId) || groupId <= 0) {
+    return null
+  }
+  return groups.value.find((group) => group.id === groupId) ?? null
+})
+
 const {
   selectedIds: selIds,
   allVisibleSelected,
@@ -333,6 +366,8 @@ const isAnyModalOpen = computed(() => {
   return (
     showCreate.value ||
     showBatchCreate.value ||
+    showArchiveSelected.value ||
+    showArchiveGroup.value ||
     showEdit.value ||
     showSync.value ||
     showImportData.value ||
@@ -482,6 +517,26 @@ const toggleSelectAllVisible = (checked: boolean) => {
   toggleVisible(checked)
 }
 const handleBulkDelete = async () => { if(!confirm(t('common.confirm'))) return; try { await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id))); clearSelection(); reload() } catch (error) { console.error('Failed to bulk delete accounts:', error) } }
+const openBatchCreateModal = () => {
+  showBatchCreate.value = true
+}
+const openArchiveSelectedModal = () => {
+  if (selIds.value.length === 0) {
+    return
+  }
+  if (selPlatforms.value.length !== 1) {
+    appStore.showWarning(t('admin.accounts.bulkActions.archiveMixedPlatformDisabled'))
+    return
+  }
+  showArchiveSelected.value = true
+}
+const openArchiveGroupModal = () => {
+  if (!currentArchiveSourceGroup.value) {
+    appStore.showWarning(t('admin.accounts.bulkActions.archiveCurrentGroupDisabled'))
+    return
+  }
+  showArchiveGroup.value = true
+}
 const handleRefreshActualUsage = async () => {
   if (usageRefreshing.value) return
 
@@ -673,6 +728,26 @@ const handleBatchCreated = async (_result: BatchCreateAccountsResult) => {
     groups.value = await adminAPI.groups.getAll()
   } catch (error) {
     console.error('Failed to refresh groups after batch create:', error)
+  }
+  await reload()
+}
+const handleArchivedAccounts = async () => {
+  showArchiveSelected.value = false
+  clearSelection()
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    console.error('Failed to refresh groups after batch archive:', error)
+  }
+  await reload()
+}
+const handleArchivedGroupAccounts = async () => {
+  showArchiveGroup.value = false
+  clearSelection()
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    console.error('Failed to refresh groups after group archive:', error)
   }
   await reload()
 }
