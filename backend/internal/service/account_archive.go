@@ -20,12 +20,12 @@ type ArchivedAccountGroupFilters struct {
 }
 
 type ArchivedAccountGroupSummary struct {
-	GroupID         int64
-	GroupName       string
-	TotalCount      int
-	AvailableCount  int
-	InvalidCount    int
-	LatestUpdatedAt time.Time
+	GroupID         int64     `json:"group_id"`
+	GroupName       string    `json:"group_name"`
+	TotalCount      int       `json:"total_count"`
+	AvailableCount  int       `json:"available_count"`
+	InvalidCount    int       `json:"invalid_count"`
+	LatestUpdatedAt time.Time `json:"latest_updated_at"`
 }
 
 type UnarchiveAccountsInput struct {

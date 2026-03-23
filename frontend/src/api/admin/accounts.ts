@@ -501,7 +501,18 @@ export async function listArchivedGroups(filters?: {
   const { data } = await apiClient.get<ArchivedAccountGroupSummary[]>('/admin/accounts/archived-groups', {
     params: filters
   })
-  return data
+  return Array.isArray(data) ? data.map(normalizeArchivedGroupSummary) : []
+}
+
+function normalizeArchivedGroupSummary(raw: any): ArchivedAccountGroupSummary {
+  return {
+    group_id: Number(raw?.group_id ?? raw?.GroupID ?? 0),
+    group_name: String(raw?.group_name ?? raw?.GroupName ?? ''),
+    total_count: Number(raw?.total_count ?? raw?.TotalCount ?? 0),
+    available_count: Number(raw?.available_count ?? raw?.AvailableCount ?? 0),
+    invalid_count: Number(raw?.invalid_count ?? raw?.InvalidCount ?? 0),
+    latest_updated_at: String(raw?.latest_updated_at ?? raw?.LatestUpdatedAt ?? '')
+  }
 }
 
 export async function unarchiveAccounts(accountIds: number[]): Promise<UnarchiveAccountsResult> {
