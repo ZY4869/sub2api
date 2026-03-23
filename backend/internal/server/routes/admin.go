@@ -281,6 +281,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	accounts := admin.Group("/accounts")
 	{
 		accounts.GET("", h.Admin.Account.List)
+		accounts.GET("/archived-groups", h.Admin.Account.ListArchivedGroups)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
 		accounts.POST("", h.Admin.Account.Create)
 		accounts.POST("/check-mixed-channel", h.Admin.Account.CheckMixedChannel)
@@ -304,9 +305,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/:id/schedulable", h.Admin.Account.SetSchedulable)
 		accounts.GET("/:id/models", h.Admin.Account.GetAvailableModels)
 		accounts.POST("/:id/import-models", h.Admin.Account.ImportModels)
-		accounts.POST("/batch", h.Admin.Account.BatchCreate)
-		accounts.POST("/batch-create", h.Admin.Account.BatchCreateAccounts)
 		accounts.POST("/batch-archive", h.Admin.Account.BatchArchiveAccounts)
+		accounts.POST("/unarchive", h.Admin.Account.UnarchiveAccounts)
 		accounts.POST("/blacklist/retest", h.Admin.Account.RetestBlacklisted)
 		accounts.POST("/archive-group", h.Admin.Account.ArchiveGroupAccounts)
 		accounts.GET("/data", h.Admin.Account.ExportData)

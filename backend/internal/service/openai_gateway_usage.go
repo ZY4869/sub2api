@@ -380,8 +380,12 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 	if !shouldPersistUpdates && resetAt == nil {
 		return
 	}
+	updateParentCtx := ctx
+	if updateParentCtx == nil {
+		updateParentCtx = context.Background()
+	}
 	go func() {
-		updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		updateCtx, cancel := context.WithTimeout(updateParentCtx, 5*time.Second)
 		defer cancel()
 		if shouldPersistUpdates {
 			_ = s.accountRepo.UpdateExtra(updateCtx, accountID, updates)

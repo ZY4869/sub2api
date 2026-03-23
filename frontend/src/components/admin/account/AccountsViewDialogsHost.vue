@@ -63,13 +63,6 @@
     @close="emit('close-sync')"
     @synced="emit('reload')"
   />
-  <BatchCreateAccountsModal
-    :show="showBatchCreate"
-    :proxies="proxies"
-    :groups="groups"
-    @close="emit('close-batch-create')"
-    @created="emit('batch-created', $event)"
-  />
   <ArchiveAccountsModal
     v-if="showArchiveSelected"
     :show="showArchiveSelected"
@@ -152,7 +145,6 @@ import type {
   AdminGroup,
   ArchiveGroupAccountsResult,
   BatchArchiveAccountsResult,
-  BatchCreateAccountsResult,
   Proxy
 } from '@/types'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
@@ -168,7 +160,6 @@ import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImport
 import AccountActionMenu from './AccountActionMenu.vue'
 import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
 import ArchiveGroupAccountsModal from './ArchiveGroupAccountsModal.vue'
-import BatchCreateAccountsModal from './BatchCreateAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
@@ -177,7 +168,6 @@ import ScheduledTestsPanel from './ScheduledTestsPanel.vue'
 
 defineProps<{
   showCreate: boolean
-  showBatchCreate: boolean
   showArchiveSelected: boolean
   showArchiveGroup: boolean
   showEdit: boolean
@@ -220,8 +210,6 @@ const emit = defineEmits<{
   'close-create': []
   created: []
   'models-imported': [result: AccountModelImportResult]
-  'close-batch-create': []
-  'batch-created': [result: BatchCreateAccountsResult]
   'close-archive-selected': []
   archived: [result: BatchArchiveAccountsResult]
   'close-archive-group': []

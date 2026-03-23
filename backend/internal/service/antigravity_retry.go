@@ -141,10 +141,8 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 				_ = lastRetryResp.Body.Close()
 			}
 			lastRetryResp = retryResp
-			if retryResp != nil {
-				lastRetryBody, _ = io.ReadAll(io.LimitReader(retryResp.Body, 8<<10))
-				_ = retryResp.Body.Close()
-			}
+			lastRetryBody, _ = io.ReadAll(io.LimitReader(retryResp.Body, 8<<10))
+			_ = retryResp.Body.Close()
 			if !isModelCapacityExhausted && attempt < maxAttempts && lastRetryBody != nil {
 				newShouldRetry, _, newWaitDuration, _, _ := shouldTriggerAntigravitySmartRetry(p.account, lastRetryBody)
 				if newShouldRetry && newWaitDuration > 0 {

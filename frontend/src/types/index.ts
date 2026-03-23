@@ -921,49 +921,6 @@ export interface CreateAccountRequest {
   confirm_mixed_channel_risk?: boolean;
 }
 
-export interface BatchCreateAccountsArchiveRequest {
-  enabled: boolean;
-  group_name: string;
-}
-
-export interface BatchCreateAccountsRequest {
-  platform: AccountPlatform;
-  type: AccountType;
-  items: string[];
-  name_prefix?: string;
-  notes?: string | null;
-  credentials?: Record<string, unknown>;
-  extra?: Record<string, unknown>;
-  proxy_id?: number | null;
-  concurrency?: number;
-  load_factor?: number | null;
-  priority?: number;
-  rate_multiplier?: number | null;
-  group_ids?: number[];
-  expires_at?: number | null;
-  auto_pause_on_expired?: boolean;
-  confirm_mixed_channel_risk?: boolean;
-  auto_import_models?: boolean;
-  archive?: BatchCreateAccountsArchiveRequest;
-}
-
-export interface BatchCreateAccountLineResult {
-  line_index: number;
-  raw_preview: string;
-  success: boolean;
-  account_id?: number;
-  account_name?: string;
-  message: string;
-}
-
-export interface BatchCreateAccountsResult {
-  created_count: number;
-  failed_count: number;
-  archive_group_id?: number;
-  archive_group_name?: string;
-  results: BatchCreateAccountLineResult[];
-}
-
 export interface BatchArchiveAccountsRequest {
   account_ids: number[];
   group_name: string;
@@ -992,6 +949,31 @@ export interface ArchiveGroupAccountsResult {
   archive_group_name: string;
   archived_account_ids?: number[];
   failed_account_ids?: number[];
+}
+
+export interface ArchivedAccountGroupSummary {
+  group_id: number;
+  group_name: string;
+  total_count: number;
+  available_count: number;
+  invalid_count: number;
+  latest_updated_at: string;
+}
+
+export interface UnarchiveAccountResult {
+  account_id: number;
+  success: boolean;
+  restored_group_ids?: number[];
+  used_fallback_current_group: boolean;
+  error_message?: string;
+}
+
+export interface UnarchiveAccountsResult {
+  restored_count: number;
+  failed_count: number;
+  restored_to_original_group_count: number;
+  restored_in_place_count: number;
+  results: UnarchiveAccountResult[];
 }
 
 export interface UpdateAccountRequest {

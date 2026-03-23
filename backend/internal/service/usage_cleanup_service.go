@@ -273,7 +273,11 @@ func (s *UsageCleanupService) isTaskCanceled(ctx context.Context, taskID int64) 
 	if s == nil || s.repo == nil {
 		return false, fmt.Errorf("cleanup service not ready")
 	}
-	checkCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	checkParentCtx := ctx
+	if checkParentCtx == nil {
+		checkParentCtx = context.Background()
+	}
+	checkCtx, cancel := context.WithTimeout(checkParentCtx, 2*time.Second)
 	defer cancel()
 	status, err := s.repo.GetTaskStatus(checkCtx, taskID)
 	if err != nil {

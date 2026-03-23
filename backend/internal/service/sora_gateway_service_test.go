@@ -390,9 +390,9 @@ func TestFirstMediaURL(t *testing.T) {
 }
 
 func TestSoraProErrorMessage(t *testing.T) {
-	require.Contains(t, soraProErrorMessage("sora2pro-hd", ""), "Pro-HD")
-	require.Contains(t, soraProErrorMessage("sora2pro", ""), "Pro")
-	require.Empty(t, soraProErrorMessage("sora-basic", ""))
+	require.Contains(t, soraProErrorMessage("sora2pro-hd"), "Pro-HD")
+	require.Contains(t, soraProErrorMessage("sora2pro"), "Pro")
+	require.Empty(t, soraProErrorMessage("sora-basic"))
 }
 
 func TestSoraGatewayService_WriteSoraError_StreamEscapesJSON(t *testing.T) {

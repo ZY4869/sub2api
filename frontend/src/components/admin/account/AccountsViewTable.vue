@@ -163,11 +163,13 @@
     </template>
 
     <template #cell-actions="{ row }">
-      <AccountsViewRowActions
-        @edit="emit('edit', row)"
-        @delete="emit('delete', row)"
-        @more="emit('open-menu', { account: row, event: $event })"
-      />
+      <slot name="row-actions" :row="row">
+        <AccountsViewRowActions
+          @edit="emit('edit', row)"
+          @delete="emit('delete', row)"
+          @more="emit('open-menu', { account: row, event: $event })"
+        />
+      </slot>
     </template>
   </DataTable>
 

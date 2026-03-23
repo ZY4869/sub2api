@@ -24,7 +24,6 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       filters: { platform: '', type: '', status: '', group: '', search: '' },
       groups: [{ id: 1, name: 'Default' }],
       hasPendingListSync: true,
-      archivedCount: 3,
       selectedCount: 2,
       autoRefreshEnabled: true,
       autoRefreshCountdown: 15,
@@ -75,29 +74,18 @@ describe('AccountsViewToolbar', () => {
     await wrapper.get('.filters-search').trigger('click')
     await wrapper.get('.filters-change').trigger('click')
     await wrapper.get('.refresh').trigger('click')
-    expect(
-      wrapper.findAll('button').find((button) =>
-        button.text().includes('admin.accounts.bulkActions.archiveCurrentGroup')
-      )?.attributes('disabled')
-    ).toBeDefined()
-    await wrapper.findAll('button').find((button) =>
-      button.text().includes('admin.accounts.viewArchived')
-    )?.trigger('click')
-    await wrapper.findAll('button').find((button) =>
-      button.text().includes('admin.accounts.batchCreate')
-    )?.trigger('click')
     await wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.refreshActualUsage')
     )?.trigger('click')
     await wrapper.get('.sync').trigger('click')
     await wrapper.get('.create').trigger('click')
 
+    expect(wrapper.text()).not.toContain('admin.accounts.viewArchived')
+    expect(wrapper.text()).not.toContain('admin.accounts.batchCreate')
     expect(wrapper.emitted('update:filters')).toEqual([[{ platform: 'openai' }]])
     expect(wrapper.emitted('update:searchQuery')).toEqual([['claude']])
     expect(wrapper.emitted('change')).toEqual([[]])
     expect(wrapper.emitted('refresh')).toEqual([[]])
-    expect(wrapper.emitted('show-archived')).toEqual([[]])
-    expect(wrapper.emitted('batch-create')).toEqual([[]])
     expect(wrapper.emitted('refresh-usage')).toEqual([[]])
     expect(wrapper.emitted('sync')).toEqual([[]])
     expect(wrapper.emitted('create')).toEqual([[]])

@@ -78,7 +78,7 @@ func (h *AccountHandler) executeArchiveGroupAccounts(ctx context.Context, req *A
 		)
 	}
 
-	archiveGroup, err := h.resolveBatchCreateArchiveGroup(ctx, platform, req.GroupName)
+	archiveGroup, err := h.resolveArchiveGroup(ctx, platform, req.GroupName)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,6 @@
           :search-query="String(params.search || '')"
           :filters="params"
           :groups="groups"
-          :archived-count="archivedAccountCount"
           :has-pending-list-sync="hasPendingListSync"
           :selected-count="selIds.length"
           :auto-refresh-enabled="autoRefreshEnabled"
@@ -23,9 +22,7 @@
           @refresh-usage="handleRefreshActualUsage"
           @sync="showSync = true"
           @create="showCreate = true"
-          @show-archived="showArchivedAccounts = true"
           @archive-group="openArchiveGroupModal"
-          @batch-create="openBatchCreateModal"
           @import-data="showImportData = true"
           @export-data="openExportDataDialog"
           @show-error-passthrough="showErrorPassthrough = true"
@@ -48,37 +45,55 @@
           @select-page="selectPage"
           @toggle-schedulable="handleBulkToggleSchedulable"
         />
-        <div ref="accountTableRef">
-          <AccountsViewTable
-            :columns="cols"
-            :accounts="accounts"
-            :loading="loading"
-            :all-visible-selected="allVisibleSelected"
-            :selected-ids="selIds"
+        <div class="space-y-4">
+          <ArchivedAccountGroupsPanel
+            :filters="params"
+            :columns="archivedColumns"
             :toggling-schedulable="togglingSchedulable"
             :today-stats-by-account-id="todayStatsByAccountId"
             :today-stats-loading="todayStatsLoading"
             :today-stats-error="todayStatsError"
             :usage-manual-refresh-token="usageManualRefreshToken"
-            :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
-            :pagination="pagination"
-            @toggle-select-all-visible="toggleSelectAllVisible"
-            @toggle-selected="toggleSel"
-            @show-temp-unsched="handleShowTempUnsched"
-            @toggle-schedulable="handleToggleSchedulable"
+            :sort-storage-key="ARCHIVED_ACCOUNT_SORT_STORAGE_KEY"
+            :refresh-token="archivedPanelRefreshToken"
             @edit="handleEdit"
             @delete="handleDelete"
             @open-menu="handleOpenMenu"
-            @page-change="handlePageChange"
-            @page-size-change="handlePageSizeChange"
+            @show-temp-unsched="handleShowTempUnsched"
+            @toggle-schedulable="handleToggleSchedulable"
+            @changed="handleArchivedPanelChanged"
           />
+          <div ref="accountTableRef">
+            <AccountsViewTable
+              :columns="cols"
+              :accounts="accounts"
+              :loading="loading"
+              :all-visible-selected="allVisibleSelected"
+              :selected-ids="selIds"
+              :toggling-schedulable="togglingSchedulable"
+              :today-stats-by-account-id="todayStatsByAccountId"
+              :today-stats-loading="todayStatsLoading"
+              :today-stats-error="todayStatsError"
+              :usage-manual-refresh-token="usageManualRefreshToken"
+              :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
+              :pagination="pagination"
+              @toggle-select-all-visible="toggleSelectAllVisible"
+              @toggle-selected="toggleSel"
+              @show-temp-unsched="handleShowTempUnsched"
+              @toggle-schedulable="handleToggleSchedulable"
+              @edit="handleEdit"
+              @delete="handleDelete"
+              @open-menu="handleOpenMenu"
+              @page-change="handlePageChange"
+              @page-size-change="handlePageSizeChange"
+            />
+          </div>
         </div>
       </template>
     </TablePageLayout>
     <AccountsViewDialogsHost
       v-model:include-proxy-on-export="includeProxyOnExport"
       :show-create="showCreate"
-      :show-batch-create="showBatchCreate"
       :show-archive-selected="showArchiveSelected"
       :show-archive-group="showArchiveGroup"
       :show-edit="showEdit"
@@ -114,9 +129,7 @@
       :menu-account="menu.acc"
       :menu-position="menu.pos"
       @close-create="showCreate = false"
-      @created="reload"
-      @close-batch-create="showBatchCreate = false"
-      @batch-created="handleBatchCreated"
+      @created="handleCreated"
       @close-archive-selected="showArchiveSelected = false"
       @archived="handleArchivedAccounts"
       @close-archive-group="showArchiveGroup = false"
@@ -140,7 +153,7 @@
       @reset-quota="handleResetQuota"
       @import-models="handleImportModels"
       @close-sync="showSync = false"
-      @reload="reload"
+      @reload="handleReloadRequested"
       @close-import-data="showImportData = false"
       @data-imported="handleDataImported"
       @close-bulk-edit="showBulkEdit = false"
@@ -152,11 +165,6 @@
       @confirm-export="handleExportData"
       @close-export="showExportDataDialog = false"
       @close-error-passthrough="showErrorPassthrough = false"
-    />
-    <ArchivedAccountsModal
-      :show="showArchivedAccounts"
-      :groups="groups"
-      @close="showArchivedAccounts = false"
     />
   </AppLayout>
 </template>
@@ -178,7 +186,7 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
-import ArchivedAccountsModal from '@/components/admin/account/ArchivedAccountsModal.vue'
+import ArchivedAccountGroupsPanel from '@/components/admin/account/ArchivedAccountGroupsPanel.vue'
 import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDialogsHost.vue'
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
 import AccountsViewToolbar from '@/components/admin/account/AccountsViewToolbar.vue'
@@ -200,7 +208,6 @@ import type {
   Account,
   AccountPlatform,
   AccountType,
-  BatchCreateAccountsResult,
   Proxy as AccountProxy,
   AdminGroup,
   ClaudeModel
@@ -240,8 +247,6 @@ const selTypes = computed<AccountType[]>(() => {
   return [...types]
 })
 const showCreate = ref(false)
-const showBatchCreate = ref(false)
-const showArchivedAccounts = ref(false)
 const showArchiveSelected = ref(false)
 const showArchiveGroup = ref(false)
 const showEdit = ref(false)
@@ -269,7 +274,7 @@ const togglingSchedulable = ref<number | null>(null)
 const exportingData = ref(false)
 const usageManualRefreshToken = ref(0)
 const usageRefreshing = ref(false)
-const archivedAccountCount = ref(0)
+const archivedPanelRefreshToken = ref(0)
 const { menu, openMenu, closeMenu, syncMenuAccount, clearMenuAccount } = useAccountActionMenu()
 
 // Column settings
@@ -279,6 +284,7 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
+const ARCHIVED_ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort-archived'
 
 const loadSavedColumns = () => {
   try {
@@ -375,7 +381,6 @@ useSwipeSelect(accountTableRef, {
 const isAnyModalOpen = computed(() => {
   return (
     showCreate.value ||
-    showBatchCreate.value ||
     showArchiveSelected.value ||
     showArchiveGroup.value ||
     showEdit.value ||
@@ -440,11 +445,13 @@ const {
 
 const handleManualRefresh = async () => {
   await load()
+  refreshArchivedPanel()
   usageManualRefreshToken.value += 1
 }
 
 const handleSyncPendingListChanges = async () => {
   await syncPendingListChanges()
+  refreshArchivedPanel()
   usageManualRefreshToken.value += 1
 }
 
@@ -508,6 +515,7 @@ const cols = computed(() =>
     col.key === 'select' || col.key === 'name' || col.key === 'actions' || !hiddenColumns.has(col.key)
   )
 )
+const archivedColumns = computed(() => cols.value.filter((col) => col.key !== 'select'))
 
 const { patchAccountInList } = useAccountsViewListPatching({
   accounts,
@@ -519,6 +527,10 @@ const { patchAccountInList } = useAccountsViewListPatching({
   clearRemovedAccount: clearMenuAccount
 })
 
+const refreshArchivedPanel = () => {
+  archivedPanelRefreshToken.value += 1
+}
+
 const handleEdit = (a: Account) => { edAcc.value = a; showEdit.value = true }
 const handleOpenMenu = ({ account, event }: { account: Account; event: MouseEvent }) => {
   openMenu({ account, event })
@@ -527,9 +539,6 @@ const toggleSelectAllVisible = (checked: boolean) => {
   toggleVisible(checked)
 }
 const handleBulkDelete = async () => { if(!confirm(t('common.confirm'))) return; try { await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id))); clearSelection(); reload() } catch (error) { console.error('Failed to bulk delete accounts:', error) } }
-const openBatchCreateModal = () => {
-  showBatchCreate.value = true
-}
 const openArchiveSelectedModal = () => {
   if (selIds.value.length === 0) {
     return
@@ -694,6 +703,29 @@ const normalizeBulkSchedulableResult = (
     hasCounts: hasExplicitCounts
   }
 }
+
+const refreshGroups = async () => {
+  try {
+    groups.value = await adminAPI.groups.getAll()
+  } catch (error) {
+    console.error('Failed to refresh groups:', error)
+  }
+}
+
+const refreshListAndArchivedPanel = async () => {
+  refreshArchivedPanel()
+  await reload()
+}
+
+const handleArchivedPanelChanged = async () => {
+  await refreshGroups()
+  await reload()
+}
+
+const handleReloadRequested = async () => {
+  await refreshListAndArchivedPanel()
+}
+
 const handleBulkToggleSchedulable = async (schedulable: boolean) => {
   const accountIds = [...selIds.value]
   try {
@@ -732,49 +764,34 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
   }
 }
 const handleBulkUpdated = () => { showBulkEdit.value = false; clearSelection(); reload() }
-const handleDataImported = () => { showImportData.value = false; reload() }
-const refreshArchivedAccountCount = async () => {
-  try {
-    const response = await adminAPI.accounts.list(1, 1, { lifecycle: 'archived' })
-    archivedAccountCount.value = response.total || 0
-  } catch (error) {
-    console.error('Failed to load archived account count:', error)
-  }
+const handleDataImported = async () => {
+  showImportData.value = false
+  await refreshGroups()
+  await refreshListAndArchivedPanel()
 }
-const handleBatchCreated = async (_result: BatchCreateAccountsResult) => {
-  try {
-    groups.value = await adminAPI.groups.getAll()
-  } catch (error) {
-    console.error('Failed to refresh groups after batch create:', error)
-  }
-  await refreshArchivedAccountCount()
+const handleCreated = async () => {
+  showCreate.value = false
   await reload()
 }
 const handleArchivedAccounts = async () => {
   showArchiveSelected.value = false
   clearSelection()
-  try {
-    groups.value = await adminAPI.groups.getAll()
-  } catch (error) {
-    console.error('Failed to refresh groups after batch archive:', error)
-  }
-  await refreshArchivedAccountCount()
-  await reload()
+  await refreshGroups()
+  await refreshListAndArchivedPanel()
 }
 const handleArchivedGroupAccounts = async () => {
   showArchiveGroup.value = false
   clearSelection()
-  try {
-    groups.value = await adminAPI.groups.getAll()
-  } catch (error) {
-    console.error('Failed to refresh groups after group archive:', error)
-  }
-  await refreshArchivedAccountCount()
-  await reload()
+  await refreshGroups()
+  await refreshListAndArchivedPanel()
 }
 const handleAccountUpdated = (updatedAccount: Account) => {
+  const editedArchived = edAcc.value?.id === updatedAccount.id && edAcc.value.lifecycle_state === 'archived'
   patchAccountInList(updatedAccount)
   enterAutoRefreshSilentWindow()
+  if (editedArchived || (updatedAccount.lifecycle_state && updatedAccount.lifecycle_state !== 'normal')) {
+    refreshArchivedPanel()
+  }
 }
 const formatExportTimestamp = () => {
   const now = new Date()
@@ -819,7 +836,11 @@ const handleExportData = async () => {
     showExportDataDialog.value = false
   }
 }
-const closeTestModal = () => { showTest.value = false; testingAcc.value = null }
+const closeTestModal = async () => {
+  showTest.value = false
+  testingAcc.value = null
+  await refreshListAndArchivedPanel()
+}
 const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
@@ -842,6 +863,9 @@ const handleRefresh = async (a: Account) => {
     const updated = await adminAPI.accounts.refreshCredentials(a.id)
     patchAccountInList(updated)
     enterAutoRefreshSilentWindow()
+    if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
+      refreshArchivedPanel()
+    }
   } catch (error) {
     console.error('Failed to refresh credentials:', error)
   }
@@ -851,6 +875,9 @@ const handleRecoverState = async (a: Account) => {
     const updated = await adminAPI.accounts.recoverState(a.id)
     patchAccountInList(updated)
     enterAutoRefreshSilentWindow()
+    if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
+      refreshArchivedPanel()
+    }
     appStore.showSuccess(t('admin.accounts.recoverStateSuccess'))
   } catch (error: any) {
     console.error('Failed to recover account state:', error)
@@ -893,13 +920,31 @@ const handleResetQuota = async (a: Account) => {
     const updated = await adminAPI.accounts.resetAccountQuota(a.id)
     patchAccountInList(updated)
     enterAutoRefreshSilentWindow()
+    if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
+      refreshArchivedPanel()
+    }
     appStore.showSuccess(t('common.success'))
   } catch (error) {
     console.error('Failed to reset quota:', error)
   }
 }
 const handleDelete = (a: Account) => { deletingAcc.value = a; showDeleteDialog.value = true }
-const confirmDelete = async () => { if(!deletingAcc.value) return; try { await adminAPI.accounts.delete(deletingAcc.value.id); showDeleteDialog.value = false; deletingAcc.value = null; reload() } catch (error) { console.error('Failed to delete account:', error) } }
+const confirmDelete = async () => {
+  if (!deletingAcc.value) return
+  const deletingArchived = deletingAcc.value.lifecycle_state === 'archived'
+  try {
+    await adminAPI.accounts.delete(deletingAcc.value.id)
+    showDeleteDialog.value = false
+    deletingAcc.value = null
+    if (deletingArchived) {
+      await refreshListAndArchivedPanel()
+      return
+    }
+    await reload()
+  } catch (error) {
+    console.error('Failed to delete account:', error)
+  }
+}
 const handleToggleSchedulable = async (a: Account) => {
   const nextSchedulable = !a.schedulable
   togglingSchedulable.value = a.id
@@ -907,6 +952,9 @@ const handleToggleSchedulable = async (a: Account) => {
     const updated = await adminAPI.accounts.setSchedulable(a.id, nextSchedulable)
     updateSchedulableInList([a.id], updated?.schedulable ?? nextSchedulable)
     enterAutoRefreshSilentWindow()
+    if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
+      refreshArchivedPanel()
+    }
   } catch (error) {
     console.error('Failed to toggle schedulable:', error)
     appStore.showError(t('admin.accounts.failedToToggleSchedulable'))
@@ -920,6 +968,9 @@ const handleTempUnschedReset = async (updated: Account) => {
   tempUnschedAcc.value = null
   patchAccountInList(updated)
   enterAutoRefreshSilentWindow()
+  if (updated.lifecycle_state === 'archived') {
+    refreshArchivedPanel()
+  }
 }
 
 const loadRuntimeOptions = async () => {
@@ -942,9 +993,6 @@ const handleScroll = () => {
 onMounted(async () => {
   load().catch((error) => {
     console.error('Failed to load accounts:', error)
-  })
-  refreshArchivedAccountCount().catch((error) => {
-    console.error('Failed to load archived account count:', error)
   })
   await loadRuntimeOptions()
   window.addEventListener('scroll', handleScroll, true)

@@ -831,7 +831,11 @@ func (s *AccountUsageService) getAntigravityUsage(ctx context.Context, account *
 			}
 		}
 
-		fetchCtx, fetchCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		fetchParentCtx := ctx
+		if fetchParentCtx == nil {
+			fetchParentCtx = context.Background()
+		}
+		fetchCtx, fetchCancel := context.WithTimeout(fetchParentCtx, 30*time.Second)
 		defer fetchCancel()
 
 		proxyURL := s.antigravityQuotaFetcher.GetProxyURL(fetchCtx, account)

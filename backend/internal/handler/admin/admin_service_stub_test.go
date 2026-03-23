@@ -15,6 +15,7 @@ type stubAdminService struct {
 	apiKeys              []service.APIKey
 	groups               []service.Group
 	accounts             []service.Account
+	archivedGroups       []service.ArchivedAccountGroupSummary
 	proxies              []service.Proxy
 	proxyCounts          []service.ProxyWithAccountCount
 	redeems              []service.RedeemCode
@@ -29,8 +30,10 @@ type stubAdminService struct {
 	createAccountErr     error
 	updateAccountErr     error
 	bulkUpdateAccountErr error
+	unarchiveErr         error
 	strictAccountLookup  bool
 	checkMixedErr        error
+	lastUnarchiveInput   *service.UnarchiveAccountsInput
 	lastMixedCheck       struct {
 		accountID int64
 		platform  string
@@ -268,6 +271,10 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 	return append([]service.Account(nil), filtered[start:end]...), total, nil
 }
 
+func (s *stubAdminService) ListArchivedGroups(ctx context.Context, filters service.ArchivedAccountGroupFilters) ([]service.ArchivedAccountGroupSummary, error) {
+	return append([]service.ArchivedAccountGroupSummary(nil), s.archivedGroups...), nil
+}
+
 func (s *stubAdminService) RestoreBlacklistedAccount(ctx context.Context, id int64) (*service.Account, error) {
 	for i := range s.accounts {
 		if s.accounts[i].ID != id {
@@ -291,6 +298,37 @@ func (s *stubAdminService) RestoreBlacklistedAccount(ctx context.Context, id int
 		LifecycleState: service.AccountLifecycleNormal,
 	}
 	return &account, nil
+}
+
+func (s *stubAdminService) UnarchiveAccounts(ctx context.Context, input *service.UnarchiveAccountsInput) (*service.UnarchiveAccountsResult, error) {
+	s.mu.Lock()
+	if input != nil {
+		copied := &service.UnarchiveAccountsInput{
+			AccountIDs: append([]int64(nil), input.AccountIDs...),
+		}
+		s.lastUnarchiveInput = copied
+	} else {
+		s.lastUnarchiveInput = nil
+	}
+	s.mu.Unlock()
+	if s.unarchiveErr != nil {
+		return nil, s.unarchiveErr
+	}
+	accountIDs := []int64(nil)
+	if input != nil {
+		accountIDs = input.AccountIDs
+	}
+	results := make([]service.UnarchiveAccountResult, 0, len(accountIDs))
+	for _, accountID := range accountIDs {
+		results = append(results, service.UnarchiveAccountResult{
+			AccountID: accountID,
+			Success:   true,
+		})
+	}
+	return &service.UnarchiveAccountsResult{
+		RestoredCount: len(results),
+		Results:       results,
+	}, nil
 }
 
 func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {

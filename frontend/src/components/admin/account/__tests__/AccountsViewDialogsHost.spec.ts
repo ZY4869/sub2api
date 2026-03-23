@@ -15,7 +15,6 @@ vi.mock('vue-i18n', async () => {
 function createProps() {
   return {
     showCreate: true,
-    showBatchCreate: false,
     showArchiveSelected: false,
     showArchiveGroup: false,
     showEdit: false,
@@ -54,12 +53,34 @@ function createProps() {
   }
 }
 
+function createStubs(overrides: Record<string, unknown> = {}) {
+  return {
+    CreateAccountModal: true,
+    ArchiveAccountsModal: true,
+    ArchiveGroupAccountsModal: true,
+    ModelImportExposureSyncDialog: true,
+    EditAccountModal: true,
+    ReAuthAccountModal: true,
+    AccountTestModal: true,
+    AccountStatsModal: true,
+    ScheduledTestsPanel: true,
+    AccountActionMenu: true,
+    SyncFromCrsModal: true,
+    ImportDataModal: true,
+    BulkEditAccountModal: true,
+    TempUnschedStatusModal: true,
+    ConfirmDialog: true,
+    ErrorPassthroughRulesModal: true,
+    ...overrides
+  }
+}
+
 describe('AccountsViewDialogsHost', () => {
   it('forwards create modal events', async () => {
     const wrapper = mount(AccountsViewDialogsHost, {
       props: createProps(),
       global: {
-        stubs: {
+        stubs: createStubs({
           CreateAccountModal: {
             emits: ['close', 'created', 'models-imported'],
             template: `
@@ -69,24 +90,8 @@ describe('AccountsViewDialogsHost', () => {
                 <button class="create-models" @click="$emit('models-imported', { ok: true })" />
               </div>
             `
-          },
-          BatchCreateAccountsModal: true,
-          ArchiveAccountsModal: true,
-          ArchiveGroupAccountsModal: true,
-          ModelImportExposureSyncDialog: true,
-          EditAccountModal: true,
-          ReAuthAccountModal: true,
-          AccountTestModal: true,
-          AccountStatsModal: true,
-          ScheduledTestsPanel: true,
-          AccountActionMenu: true,
-          SyncFromCrsModal: true,
-          ImportDataModal: true,
-          BulkEditAccountModal: true,
-          TempUnschedStatusModal: true,
-          ConfirmDialog: true,
-          ErrorPassthroughRulesModal: true
-        }
+          }
+        })
       }
     })
 
@@ -107,23 +112,7 @@ describe('AccountsViewDialogsHost', () => {
         showExportDataDialog: true
       },
       global: {
-        stubs: {
-          CreateAccountModal: true,
-          BatchCreateAccountsModal: true,
-          ArchiveAccountsModal: true,
-          ArchiveGroupAccountsModal: true,
-          ModelImportExposureSyncDialog: true,
-          EditAccountModal: true,
-          ReAuthAccountModal: true,
-          AccountTestModal: true,
-          AccountStatsModal: true,
-          ScheduledTestsPanel: true,
-          AccountActionMenu: true,
-          SyncFromCrsModal: true,
-          ImportDataModal: true,
-          BulkEditAccountModal: true,
-          TempUnschedStatusModal: true,
-          ErrorPassthroughRulesModal: true,
+        stubs: createStubs({
           ConfirmDialog: {
             props: ['show', 'title'],
             emits: ['confirm', 'cancel'],
@@ -136,7 +125,7 @@ describe('AccountsViewDialogsHost', () => {
               </div>
             `
           }
-        }
+        })
       }
     })
 
@@ -149,53 +138,6 @@ describe('AccountsViewDialogsHost', () => {
     expect(wrapper.emitted('close-export')).toEqual([[]])
   })
 
-  it('forwards batch create modal events', async () => {
-    const wrapper = mount(AccountsViewDialogsHost, {
-      props: {
-        ...createProps(),
-        showCreate: false,
-        showBatchCreate: true
-      },
-      global: {
-        stubs: {
-          CreateAccountModal: true,
-          BatchCreateAccountsModal: {
-            emits: ['close', 'created'],
-            template: `
-              <div>
-                <button class="batch-close" @click="$emit('close')" />
-                <button class="batch-created" @click="$emit('created', { created_count: 2, failed_count: 1, results: [] })" />
-              </div>
-            `
-          },
-          ModelImportExposureSyncDialog: true,
-          ArchiveAccountsModal: true,
-          ArchiveGroupAccountsModal: true,
-          EditAccountModal: true,
-          ReAuthAccountModal: true,
-          AccountTestModal: true,
-          AccountStatsModal: true,
-          ScheduledTestsPanel: true,
-          AccountActionMenu: true,
-          SyncFromCrsModal: true,
-          ImportDataModal: true,
-          BulkEditAccountModal: true,
-          TempUnschedStatusModal: true,
-          ConfirmDialog: true,
-          ErrorPassthroughRulesModal: true
-        }
-      }
-    })
-
-    await wrapper.get('.batch-close').trigger('click')
-    await wrapper.get('.batch-created').trigger('click')
-
-    expect(wrapper.emitted('close-batch-create')).toEqual([[]])
-    expect(wrapper.emitted('batch-created')).toEqual([
-      [{ created_count: 2, failed_count: 1, results: [] }]
-    ])
-  })
-
   it('forwards archive modal events', async () => {
     const wrapper = mount(AccountsViewDialogsHost, {
       props: {
@@ -204,9 +146,7 @@ describe('AccountsViewDialogsHost', () => {
         showArchiveSelected: true
       },
       global: {
-        stubs: {
-          CreateAccountModal: true,
-          BatchCreateAccountsModal: true,
+        stubs: createStubs({
           ArchiveAccountsModal: {
             emits: ['close', 'archived'],
             template: `
@@ -215,22 +155,8 @@ describe('AccountsViewDialogsHost', () => {
                 <button class="archive-done" @click="$emit('archived', { archived_count: 2, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' })" />
               </div>
             `
-          },
-          ArchiveGroupAccountsModal: true,
-          ModelImportExposureSyncDialog: true,
-          EditAccountModal: true,
-          ReAuthAccountModal: true,
-          AccountTestModal: true,
-          AccountStatsModal: true,
-          ScheduledTestsPanel: true,
-          AccountActionMenu: true,
-          SyncFromCrsModal: true,
-          ImportDataModal: true,
-          BulkEditAccountModal: true,
-          TempUnschedStatusModal: true,
-          ConfirmDialog: true,
-          ErrorPassthroughRulesModal: true
-        }
+          }
+        })
       }
     })
 
@@ -252,10 +178,7 @@ describe('AccountsViewDialogsHost', () => {
         archiveSourceGroup: { id: 9, name: 'Prod Group', platform: 'openai' }
       },
       global: {
-        stubs: {
-          CreateAccountModal: true,
-          BatchCreateAccountsModal: true,
-          ArchiveAccountsModal: true,
+        stubs: createStubs({
           ArchiveGroupAccountsModal: {
             emits: ['close', 'archived'],
             template: `
@@ -264,21 +187,8 @@ describe('AccountsViewDialogsHost', () => {
                 <button class="group-archive-done" @click="$emit('archived', { source_group_id: 9, source_group_name: 'Prod Group', archived_count: 3, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' })" />
               </div>
             `
-          },
-          ModelImportExposureSyncDialog: true,
-          EditAccountModal: true,
-          ReAuthAccountModal: true,
-          AccountTestModal: true,
-          AccountStatsModal: true,
-          ScheduledTestsPanel: true,
-          AccountActionMenu: true,
-          SyncFromCrsModal: true,
-          ImportDataModal: true,
-          BulkEditAccountModal: true,
-          TempUnschedStatusModal: true,
-          ConfirmDialog: true,
-          ErrorPassthroughRulesModal: true
-        }
+          }
+        })
       }
     })
 

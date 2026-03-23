@@ -149,14 +149,8 @@ ORDER BY bucket ASC`
 	var byPlatform []*service.OpsThroughputPlatformBreakdownItem
 	var topGroups []*service.OpsThroughputGroupBreakdownItem
 
-	platform := ""
-	if filter != nil {
-		platform = strings.TrimSpace(strings.ToLower(filter.Platform))
-	}
-	groupID := (*int64)(nil)
-	if filter != nil {
-		groupID = filter.GroupID
-	}
+	platform := strings.TrimSpace(strings.ToLower(filter.Platform))
+	groupID := filter.GroupID
 
 	// Drilldown helpers:
 	// - No platform/group: totals by platform

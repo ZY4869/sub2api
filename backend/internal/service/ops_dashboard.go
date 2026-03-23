@@ -55,7 +55,7 @@ func (s *OpsService) GetDashboardOverview(ctx context.Context, filter *OpsDashbo
 			}
 		}
 		overview.SystemMetrics = metrics
-	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		log.Printf("[Ops] GetLatestSystemMetrics failed: %v", err)
 	}
 

@@ -106,10 +106,6 @@ func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, erro
 	return normalized, nil
 }
 
-func buildOpenAIResponsesURL(base string) string {
-	return buildOpenAIResponsesURLForPlatform(base, PlatformOpenAI)
-}
-
 func openAIResponsesRequestPathSuffix(c *gin.Context) string {
 	if c == nil || c.Request == nil || c.Request.URL == nil {
 		return ""

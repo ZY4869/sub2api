@@ -35,7 +35,7 @@ func (s *GatewayService) withWindowCostPrefetch(ctx context.Context, accounts []
 	accountIDs := make([]int64, 0, len(accounts))
 	for i := range accounts {
 		account := &accounts[i]
-		if account == nil || !account.IsAnthropicOAuthOrSetupToken() {
+		if !account.IsAnthropicOAuthOrSetupToken() {
 			continue
 		}
 		if account.GetWindowCostLimit() <= 0 {

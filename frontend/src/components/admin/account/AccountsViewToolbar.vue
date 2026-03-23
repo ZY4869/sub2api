@@ -136,14 +136,6 @@
         </template>
 
         <template #beforeCreate>
-          <button type="button" class="btn btn-secondary gap-2" @click="emit('show-archived')">
-            <span>{{ t('admin.accounts.viewArchived') }}</span>
-            <span
-              class="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-dark-600 dark:text-gray-200"
-            >
-              {{ archivedCount }}
-            </span>
-          </button>
           <button
             type="button"
             class="btn btn-secondary"
@@ -152,9 +144,6 @@
             @click="emit('archive-group')"
           >
             {{ t('admin.accounts.bulkActions.archiveCurrentGroup') }}
-          </button>
-          <button type="button" class="btn btn-secondary" @click="emit('batch-create')">
-            {{ t('admin.accounts.batchCreate') }}
           </button>
           <button type="button" class="btn btn-secondary" @click="emit('import-data')">
             {{ t('admin.accounts.dataImport') }}
@@ -203,7 +192,6 @@ const props = defineProps<{
   filters: Record<string, unknown>
   groups: AdminGroup[]
   hasPendingListSync: boolean
-  archivedCount: number
   selectedCount: number
   autoRefreshEnabled: boolean
   autoRefreshCountdown: number
@@ -220,9 +208,7 @@ const emit = defineEmits<{
   'refresh-usage': []
   sync: []
   create: []
-  'show-archived': []
   'archive-group': []
-  'batch-create': []
   'import-data': []
   'export-data': []
   'show-error-passthrough': []

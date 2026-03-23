@@ -268,10 +268,6 @@ func (s *ModelRegistryService) ensureBootstrapRuntimeEntriesV20260313(ctx contex
 	return nil
 }
 
-func (s *ModelRegistryService) resolveAvailableBootstrapModelIDsV20260313(ctx context.Context) ([]string, []string, error) {
-	return s.resolveAvailableBootstrapModelIDs(ctx, modelRegistryAvailableBootstrapInputsV20260313)
-}
-
 func (s *ModelRegistryService) resolveAvailableBootstrapModelIDs(ctx context.Context, inputs []string) ([]string, []string, error) {
 	resolvedSet := make(map[string]struct{}, len(inputs))
 	skippedInputs := make([]string, 0)

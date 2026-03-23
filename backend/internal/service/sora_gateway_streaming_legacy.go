@@ -24,6 +24,13 @@ var soraVideoHTMLRe = regexp.MustCompile(`(?i)<video[^>]+src=['"]([^'"]+)['"]`)
 
 const soraRewriteBufferLimit = 2048
 
+var (
+	_ = (*SoraGatewayService).setUpstreamRequestError
+	_ = (*SoraGatewayService).handleFailoverSideEffects
+	_ = (*SoraGatewayService).handleErrorResponse
+	_ = (*SoraGatewayService).handleStreamingResponse
+)
+
 type soraStreamingResult struct {
 	mediaType    string
 	mediaURLs    []string
@@ -61,14 +68,14 @@ func (s *SoraGatewayService) handleFailoverSideEffects(ctx context.Context, resp
 	s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
 }
 
-func (s *SoraGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, reqModel string) (*ForwardResult, error) {
+func (s *SoraGatewayService) handleErrorResponse(_ context.Context, resp *http.Response, c *gin.Context, account *Account, reqModel string) (*ForwardResult, error) {
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	_ = resp.Body.Close()
 	resp.Body = io.NopCloser(bytes.NewReader(respBody))
 
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
-	if msg := soraProErrorMessage(reqModel, upstreamMsg); msg != "" {
+	if msg := soraProErrorMessage(reqModel); msg != "" {
 		upstreamMsg = msg
 	}
 

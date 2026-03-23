@@ -162,17 +162,11 @@ func normalizeClaudeOAuthRequestBody(body []byte, modelID string, opts claudeOAu
 		case system.IsArray():
 			var blocks []any
 			if err := json.Unmarshal([]byte(system.Raw), &blocks); err == nil {
-				changed := false
+				changed := opts.stripSystemCacheControl && stripCacheControlFromSystemBlocks(blocks)
 				for _, item := range blocks {
 					block, ok := item.(map[string]any)
 					if !ok {
 						continue
-					}
-					if opts.stripSystemCacheControl {
-						if _, exists := block["cache_control"]; exists {
-							delete(block, "cache_control")
-							changed = true
-						}
 					}
 					if blockType, _ := block["type"].(string); blockType != "text" {
 						continue

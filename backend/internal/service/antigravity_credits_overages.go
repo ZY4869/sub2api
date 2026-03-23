@@ -28,6 +28,8 @@ const (
 )
 
 var (
+	_ = (*AntigravityGatewayService).attemptCreditsOveragesRetry
+
 	antigravityQuotaExhaustedKeywords = []string{
 		"quota_exhausted",
 		"quota exhausted",
@@ -148,6 +150,12 @@ func shouldMarkCreditsExhausted(resp *http.Response, respBody []byte, reqErr err
 	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusRequestTimeout {
 		return false
 	}
+	switch classifyAntigravity429(respBody) {
+	case antigravity429QuotaExhausted:
+		return true
+	case antigravity429RateLimited:
+		return false
+	}
 	// 注意：不再检查 isURLLevelRateLimit。此函数仅在积分重试失败后调用，
 	// 如果注入 enabledCreditTypes 后仍返回 "Resource has been exhausted"，
 	// 说明积分也已耗尽，应该标记。clearCreditsExhausted 会在后续成功时自动清除。
@@ -173,9 +181,6 @@ func (s *AntigravityGatewayService) attemptCreditsOveragesRetry(
 	p antigravityRetryLoopParams,
 	baseURL string,
 	modelName string,
-	waitDuration time.Duration,
-	originalStatusCode int,
-	respBody []byte,
 ) *creditsOveragesRetryResult {
 	creditsBody := injectEnabledCreditTypes(p.body)
 	if creditsBody == nil {

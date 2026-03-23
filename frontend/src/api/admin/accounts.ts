@@ -6,12 +6,11 @@
 import { apiClient } from '../client'
 import type {
   Account,
+  ArchivedAccountGroupSummary,
   ArchiveGroupAccountsRequest,
   ArchiveGroupAccountsResult,
   BatchArchiveAccountsRequest,
   BatchArchiveAccountsResult,
-  BatchCreateAccountsRequest,
-  BatchCreateAccountsResult,
   CreateAccountRequest,
   UpdateAccountRequest,
   PaginatedResponse,
@@ -23,7 +22,8 @@ import type {
   AdminDataPayload,
   AdminDataImportResult,
   CheckMixedChannelRequest,
-  CheckMixedChannelResponse
+  CheckMixedChannelResponse,
+  UnarchiveAccountsResult
 } from '@/types'
 
 /**
@@ -484,17 +484,30 @@ export async function exchangeCode(
   return data
 }
 
-export async function batchCreateAccounts(
-  payload: BatchCreateAccountsRequest
-): Promise<BatchCreateAccountsResult> {
-  const { data } = await apiClient.post<BatchCreateAccountsResult>('/admin/accounts/batch-create', payload)
-  return data
-}
-
 export async function batchArchiveAccounts(
   payload: BatchArchiveAccountsRequest
 ): Promise<BatchArchiveAccountsResult> {
   const { data } = await apiClient.post<BatchArchiveAccountsResult>('/admin/accounts/batch-archive', payload)
+  return data
+}
+
+export async function listArchivedGroups(filters?: {
+  platform?: string
+  type?: string
+  status?: string
+  group?: string
+  search?: string
+}): Promise<ArchivedAccountGroupSummary[]> {
+  const { data } = await apiClient.get<ArchivedAccountGroupSummary[]>('/admin/accounts/archived-groups', {
+    params: filters
+  })
+  return data
+}
+
+export async function unarchiveAccounts(accountIds: number[]): Promise<UnarchiveAccountsResult> {
+  const { data } = await apiClient.post<UnarchiveAccountsResult>('/admin/accounts/unarchive', {
+    account_ids: accountIds
+  })
   return data
 }
 
@@ -522,24 +535,6 @@ export async function archiveGroupAccounts(
   payload: ArchiveGroupAccountsRequest
 ): Promise<ArchiveGroupAccountsResult> {
   const { data } = await apiClient.post<ArchiveGroupAccountsResult>('/admin/accounts/archive-group', payload)
-  return data
-}
-
-/**
- * Batch create accounts
- * @param accounts - Array of account data
- * @returns Results of batch creation
- */
-export async function batchCreate(accounts: CreateAccountRequest[]): Promise<{
-  success: number
-  failed: number
-  results: Array<{ success: boolean; account?: Account; error?: string }>
-}> {
-  const { data } = await apiClient.post<{
-    success: number
-    failed: number
-    results: Array<{ success: boolean; account?: Account; error?: string }>
-  }>('/admin/accounts/batch', { accounts })
   return data
 }
 
@@ -911,11 +906,11 @@ export const accountsAPI = {
   exchangeCode,
   refreshOpenAIToken,
   validateSoraSessionToken,
-  batchCreateAccounts,
   batchArchiveAccounts,
+  listArchivedGroups,
+  unarchiveAccounts,
   retestBlacklistedAccounts,
   archiveGroupAccounts,
-  batchCreate,
   batchUpdateCredentials,
   bulkUpdate,
   previewFromCrs,

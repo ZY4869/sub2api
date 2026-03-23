@@ -61,7 +61,7 @@ func soraImageSizeFromModel(model string) string {
 	return "360"
 }
 
-func soraProErrorMessage(model, upstreamMsg string) string {
+func soraProErrorMessage(model string) string {
 	modelLower := strings.ToLower(model)
 	if strings.Contains(modelLower, "sora2pro-hd") {
 		return "当前账号无法使用 Sora Pro-HD 模型，请更换模型或账号"
@@ -254,7 +254,7 @@ func (s *SoraGatewayService) handleSoraRequestError(ctx context.Context, account
 			}
 		}
 		msg := upstreamErr.Message
-		if override := soraProErrorMessage(model, msg); override != "" {
+		if override := soraProErrorMessage(model); override != "" {
 			msg = override
 		}
 		s.writeSoraError(c, upstreamErr.StatusCode, "upstream_error", msg, stream)

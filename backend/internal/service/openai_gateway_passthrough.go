@@ -315,7 +315,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(ctx context.Co
 	return &openaiStreamingResultPassthrough{usage: usage, firstTokenMs: firstTokenMs}, nil
 }
 
-func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(ctx context.Context, resp *http.Response, c *gin.Context) (*OpenAIUsage, error) {
+func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(_ context.Context, resp *http.Response, c *gin.Context) (*OpenAIUsage, error) {
 	maxBytes := resolveUpstreamResponseReadLimit(s.cfg)
 	body, err := readUpstreamResponseBodyLimited(resp.Body, maxBytes)
 	if err != nil {

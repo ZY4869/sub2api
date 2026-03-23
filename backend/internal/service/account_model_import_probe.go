@@ -20,11 +20,9 @@ import (
 )
 
 const (
-	openAIModelsURL     = "https://api.openai.com/v1/models"
-	anthropicModelsURL  = "https://api.anthropic.com/v1/models"
-	soraOAuthProbeURL   = "https://sora.chatgpt.com/backend/me"
-	soraClientUserAgent = "Sora/1.2026.007 (Android 15; 24122RKC7C; build 2600700)"
-	maxImportBodyBytes  = 1 << 20
+	openAIModelsURL    = "https://api.openai.com/v1/models"
+	anthropicModelsURL = "https://api.anthropic.com/v1/models"
+	maxImportBodyBytes = 1 << 20
 )
 
 func (s *AccountModelImportService) detectModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {

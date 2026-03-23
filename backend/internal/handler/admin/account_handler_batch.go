@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -122,39 +121,6 @@ func (h *AccountHandler) BatchRefresh(c *gin.Context) {
 	}
 	response.Success(c, gin.H{"total": len(req.AccountIDs), "success": successCount, "failed": failedCount, "errors": errors, "warnings": warnings})
 }
-func (h *AccountHandler) BatchCreate(c *gin.Context) {
-	var req struct {
-		Accounts []CreateAccountRequest `json:"accounts" binding:"required,min=1"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	executeAdminIdempotentJSON(c, "admin.accounts.batch_create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		success := 0
-		failed := 0
-		results := make([]gin.H, 0, len(req.Accounts))
-		for _, item := range req.Accounts {
-			if item.RateMultiplier != nil && *item.RateMultiplier < 0 {
-				failed++
-				results = append(results, gin.H{"name": item.Name, "success": false, "error": "rate_multiplier must be >= 0"})
-				continue
-			}
-			sanitizeExtraBaseRPM(item.Extra)
-			skipCheck := item.ConfirmMixedChannelRisk != nil && *item.ConfirmMixedChannelRisk
-			account, err := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{Name: item.Name, Notes: item.Notes, Platform: item.Platform, Type: item.Type, Credentials: item.Credentials, Extra: item.Extra, ProxyID: item.ProxyID, Concurrency: item.Concurrency, Priority: item.Priority, RateMultiplier: item.RateMultiplier, GroupIDs: item.GroupIDs, ExpiresAt: item.ExpiresAt, AutoPauseOnExpired: item.AutoPauseOnExpired, SkipMixedChannelCheck: skipCheck})
-			if err != nil {
-				failed++
-				results = append(results, gin.H{"name": item.Name, "success": false, "error": err.Error()})
-				continue
-			}
-			success++
-			results = append(results, gin.H{"name": item.Name, "id": account.ID, "success": true})
-		}
-		return gin.H{"success": success, "failed": failed, "results": results}, nil
-	})
-}
-
 type BatchUpdateCredentialsRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
 	Field      string  `json:"field" binding:"required,oneof=account_uuid org_uuid intercept_warmup_requests"`

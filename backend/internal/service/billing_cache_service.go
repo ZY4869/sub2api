@@ -587,7 +587,7 @@ func (s *BillingCacheService) evaluateRateLimits(ctx context.Context, apiKey *AP
 			if s.apiKeyRateLimitLoader != nil {
 				// Use the repo directly - reset then reload cache
 				if loader, ok := s.apiKeyRateLimitLoader.(interface {
-					ResetRateLimitWindows(ctx context.Context, id int64) error
+					ResetRateLimitWindows(context.Context, int64) error
 				}); ok {
 					if err := loader.ResetRateLimitWindows(resetCtx, keyID); err != nil {
 						logger.LegacyPrintf("service.billing_cache", "Warning: reset rate limit windows failed for api key %d: %v", keyID, err)
@@ -689,7 +689,7 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 }
 
 // checkSubscriptionEligibility 检查订阅模式资格
-func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, userID int64, group *Group, subscription *UserSubscription) error {
+func (s *BillingCacheService) checkSubscriptionEligibility(ctx context.Context, userID int64, group *Group, _ *UserSubscription) error {
 	// 获取订阅缓存数据
 	subData, err := s.GetSubscriptionStatus(ctx, userID, group.ID)
 	if err != nil {

@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	updateCacheKey = "update_check_cache"
 	updateCacheTTL = 1200 // 20 minutes
 	githubRepo     = "ZY4869/sub2api"
 

@@ -262,7 +262,9 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		}
 	}
 	needMixedChannelCheck := input.GroupIDs != nil
-	needAccountFetch := needMixedChannelCheck || input.Status != "" || input.Schedulable != nil
+	targetLifecycle := NormalizeAccountLifecycleInput(input.LifecycleState)
+	needsArchiveSnapshot := input.GroupIDs != nil && targetLifecycle == AccountLifecycleArchived
+	needAccountFetch := needMixedChannelCheck || input.Status != "" || input.Schedulable != nil || needsArchiveSnapshot
 	platformByID := map[int64]string{}
 	accountsByID := map[int64]*Account{}
 	if needAccountFetch {
@@ -284,6 +286,11 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 					break
 				}
 			}
+		}
+	}
+	if needsArchiveSnapshot {
+		if err := s.captureArchiveRestoreSnapshots(ctx, accountsByID, input.AccountIDs); err != nil {
+			return nil, err
 		}
 	}
 	for _, accountID := range input.AccountIDs {
