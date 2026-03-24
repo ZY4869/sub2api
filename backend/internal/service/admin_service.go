@@ -96,6 +96,7 @@ type CreateGroupInput struct {
 	Name                            string
 	Description                     string
 	Platform                        string
+	Priority                        int
 	RateMultiplier                  float64
 	IsExclusive                     bool
 	SubscriptionType                string
@@ -125,6 +126,7 @@ type UpdateGroupInput struct {
 	Name                            string
 	Description                     string
 	Platform                        string
+	Priority                        *int
 	RateMultiplier                  *float64
 	IsExclusive                     *bool
 	Status                          string
@@ -218,6 +220,22 @@ type AdminUpdateAPIKeyGroupIDResult struct {
 	AutoGrantedGroupAccess bool
 	GrantedGroupID         *int64
 	GrantedGroupName       string
+}
+type AdminAPIKeyGroupUpdateInput struct {
+	GroupID       int64
+	Quota         float64
+	ModelPatterns []string
+}
+type AdminGrantedGroupAccess struct {
+	GroupID   int64
+	GroupName string
+}
+type AdminUpdateAPIKeyGroupsResult struct {
+	APIKey                 *APIKey
+	AutoGrantedGroupAccess bool
+	GrantedGroupID         *int64
+	GrantedGroupName       string
+	GrantedGroups          []AdminGrantedGroupAccess
 }
 type ReplaceUserGroupResult struct {
 	MigratedKeys int64

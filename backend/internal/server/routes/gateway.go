@@ -159,8 +159,30 @@ func RegisterGatewayRoutes(
 // getGroupPlatform extracts the group platform from the API Key stored in context.
 func getGroupPlatform(c *gin.Context) string {
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
-	if !ok || apiKey.Group == nil {
+	if !ok {
 		return ""
 	}
-	return apiKey.Group.Platform
+	if apiKey.Group != nil && apiKey.Group.Platform != "" {
+		if !service.IsOpenAIFamily(apiKey.Group.Platform) {
+			return apiKey.Group.Platform
+		}
+	}
+	groups := service.GroupsFromContext(c.Request.Context())
+	var openAIPlatform string
+	for _, group := range groups {
+		if group == nil || group.Platform == "" {
+			continue
+		}
+		if service.IsOpenAIFamily(group.Platform) {
+			if openAIPlatform == "" {
+				openAIPlatform = group.Platform
+			}
+			continue
+		}
+		return group.Platform
+	}
+	if apiKey.Group != nil && apiKey.Group.Platform != "" {
+		return apiKey.Group.Platform
+	}
+	return openAIPlatform
 }

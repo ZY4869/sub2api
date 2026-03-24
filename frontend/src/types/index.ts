@@ -383,6 +383,7 @@ export interface Group {
   name: string;
   description: string | null;
   platform: GroupPlatform;
+  priority: number;
   rate_multiplier: number;
   is_exclusive: boolean;
   status: "active" | "inactive";
@@ -441,6 +442,8 @@ export interface ApiKey {
   key: string;
   name: string;
   group_id: number | null;
+  group_ids?: number[];
+  api_key_groups?: ApiKeyGroup[];
   status: "active" | "inactive" | "quota_exhausted" | "expired";
   ip_whitelist: string[];
   ip_blacklist: string[];
@@ -465,9 +468,26 @@ export interface ApiKey {
   reset_7d_at: string | null;
 }
 
+export interface ApiKeyGroup {
+  group_id: number;
+  group_name: string;
+  platform: GroupPlatform;
+  priority: number;
+  quota: number;
+  quota_used: number;
+  model_patterns: string[];
+}
+
+export interface ApiKeyGroupBindingInput {
+  group_id: number;
+  quota?: number;
+  model_patterns?: string[];
+}
+
 export interface CreateApiKeyRequest {
   name: string;
   group_id?: number | null;
+  groups?: ApiKeyGroupBindingInput[];
   custom_key?: string; // Optional custom API Key
   ip_whitelist?: string[];
   ip_blacklist?: string[];
@@ -481,6 +501,7 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
   name?: string;
   group_id?: number | null;
+  groups?: ApiKeyGroupBindingInput[];
   status?: "active" | "inactive";
   ip_whitelist?: string[];
   ip_blacklist?: string[];
@@ -497,6 +518,7 @@ export interface CreateGroupRequest {
   name: string;
   description?: string | null;
   platform?: GroupPlatform;
+  priority?: number;
   rate_multiplier?: number;
   is_exclusive?: boolean;
   subscription_type?: SubscriptionType;
@@ -524,6 +546,7 @@ export interface UpdateGroupRequest {
   name?: string;
   description?: string | null;
   platform?: GroupPlatform;
+  priority?: number;
   rate_multiplier?: number;
   is_exclusive?: boolean;
   status?: "active" | "inactive";

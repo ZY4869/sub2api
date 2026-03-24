@@ -243,7 +243,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if !errors.Is(err, ErrSettingNotFound) {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
-	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeyFrontendURL: "", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeySoraClientEnabled: "false", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyMaxClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyBackendModeEnabled: "false", SettingKeyTelegramChatID: ""}
+	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeyFrontendURL: "", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeySoraClientEnabled: "false", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyMaxClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyMultiGroupRoutingEnabled: "false", SettingKeyBackendModeEnabled: "false", SettingKeyTelegramChatID: ""}
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
@@ -589,6 +589,14 @@ func (s *SettingService) GetStreamTimeoutSettings(ctx context.Context) (*StreamT
 }
 func (s *SettingService) IsUngroupedKeySchedulingAllowed(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyAllowUngroupedKeyScheduling)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+func (s *SettingService) IsMultiGroupRoutingEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyMultiGroupRoutingEnabled)
 	if err != nil {
 		return false
 	}

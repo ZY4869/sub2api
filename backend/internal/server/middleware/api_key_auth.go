@@ -118,7 +118,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 				Concurrency: apiKey.User.Concurrency,
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
-			setGroupContext(c, apiKey.Group)
+			setAPIKeyGroupContext(c, apiKey)
 			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 			c.Next()
 			return
@@ -128,9 +128,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		// skipBilling: /v1/usage 只需鉴权，跳过所有计费执行
 		skipBilling := c.Request.URL.Path == "/v1/usage"
+		dynamicGroupRouting := len(apiKey.GroupBindings) > 1
 
 		var subscription *service.UserSubscription
-		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+		isSubscriptionType := !dynamicGroupRouting && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		if isSubscriptionType && subscriptionService != nil {
 			sub, subErr := subscriptionService.GetActiveSubscription(
@@ -173,7 +174,8 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			}
 
 			// 订阅模式：验证订阅限额
-			if subscription != nil {
+			if dynamicGroupRouting {
+			} else if subscription != nil {
 				needsMaintenance, validateErr := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 				if validateErr != nil {
 					code := "SUBSCRIPTION_INVALID"
@@ -213,7 +215,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			Concurrency: apiKey.User.Concurrency,
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
-		setGroupContext(c, apiKey.Group)
+		setAPIKeyGroupContext(c, apiKey)
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 
 		c.Next()
@@ -240,13 +242,30 @@ func GetSubscriptionFromContext(c *gin.Context) (*service.UserSubscription, bool
 	return subscription, ok
 }
 
-func setGroupContext(c *gin.Context, group *service.Group) {
-	if !service.IsGroupContextValid(group) {
+func setAPIKeyGroupContext(c *gin.Context, apiKey *service.APIKey) {
+	if c == nil || c.Request == nil || apiKey == nil {
 		return
 	}
-	if existing, ok := c.Request.Context().Value(ctxkey.Group).(*service.Group); ok && existing != nil && existing.ID == group.ID && service.IsGroupContextValid(existing) {
-		return
+
+	ctx := c.Request.Context()
+	if len(apiKey.GroupBindings) > 0 {
+		groups := make([]*service.Group, 0, len(apiKey.GroupBindings))
+		for _, binding := range apiKey.GroupBindings {
+			if service.IsGroupContextValid(binding.Group) {
+				groups = append(groups, binding.Group)
+			}
+		}
+		if len(groups) > 0 {
+			ctx = context.WithValue(ctx, ctxkey.Groups, groups)
+		}
 	}
-	ctx := context.WithValue(c.Request.Context(), ctxkey.Group, group)
+
+	group := apiKey.Group
+	if !service.IsGroupContextValid(group) && len(apiKey.GroupBindings) > 0 {
+		group = apiKey.GroupBindings[0].Group
+	}
+	if service.IsGroupContextValid(group) {
+		ctx = context.WithValue(ctx, ctxkey.Group, group)
+	}
 	c.Request = c.Request.WithContext(ctx)
 }

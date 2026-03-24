@@ -4,12 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"time"
 )
+
+type adminAPIKeyGroupBindingWriter interface {
+	GetAPIKeyGroups(ctx context.Context, keyID int64) ([]APIKeyGroupBinding, error)
+	SetAPIKeyGroups(ctx context.Context, keyID int64, bindings []APIKeyGroupBinding) error
+}
 
 func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool) ([]Group, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
@@ -68,6 +74,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if input.MCPXMLInject != nil {
 		mcpXMLInject = *input.MCPXMLInject
 	}
+	priority := input.Priority
+	if priority <= 0 {
+		priority = 1
+	}
 	var accountIDsToCopy []int64
 	if len(input.CopyAccountsFromGroupIDs) > 0 {
 		seen := make(map[int64]struct{})
@@ -93,7 +103,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 			return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
 		}
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, SoraImagePrice360: soraImagePrice360, SoraImagePrice540: soraImagePrice540, SoraVideoPricePerRequest: soraVideoPrice, SoraVideoPricePerRequestHD: soraVideoPriceHD, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, SoraStorageQuotaBytes: input.SoraStorageQuotaBytes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, SoraImagePrice360: soraImagePrice360, SoraImagePrice540: soraImagePrice540, SoraVideoPricePerRequest: soraVideoPrice, SoraVideoPricePerRequestHD: soraVideoPriceHD, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, SoraStorageQuotaBytes: input.SoraStorageQuotaBytes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -182,6 +192,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.Platform != "" {
 		group.Platform = input.Platform
+	}
+	if input.Priority != nil && *input.Priority > 0 {
+		group.Priority = *input.Priority
 	}
 	if input.RateMultiplier != nil {
 		group.RateMultiplier = *input.RateMultiplier
@@ -357,86 +370,213 @@ func (s *adminServiceImpl) GetGroupAPIKeys(ctx context.Context, groupID int64, p
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {
 	return s.groupRepo.UpdateSortOrders(ctx, updates)
 }
-func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+
+func (s *adminServiceImpl) GetAPIKeyGroups(ctx context.Context, keyID int64) ([]APIKeyGroupBinding, error) {
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 	if err != nil {
 		return nil, err
 	}
-	if groupID == nil {
-		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
-	}
-	if *groupID < 0 {
-		return nil, infraerrors.BadRequest("INVALID_GROUP_ID", "group_id must be non-negative")
-	}
-	result := &AdminUpdateAPIKeyGroupIDResult{}
-	if *groupID == 0 {
-		apiKey.GroupID = nil
-		apiKey.Group = nil
-	} else {
-		group, err := s.groupRepo.GetByID(ctx, *groupID)
+	if writer, ok := s.apiKeyRepo.(adminAPIKeyGroupBindingWriter); ok {
+		bindings, err := writer.GetAPIKeyGroups(ctx, keyID)
 		if err != nil {
 			return nil, err
 		}
-		if group.Status != StatusActive {
+		if len(bindings) > 0 {
+			return bindings, nil
+		}
+	}
+	if len(apiKey.GroupBindings) > 0 {
+		return append([]APIKeyGroupBinding(nil), apiKey.GroupBindings...), nil
+	}
+	if apiKey.GroupID != nil && apiKey.Group != nil {
+		return []APIKeyGroupBinding{{
+			APIKeyID:  apiKey.ID,
+			GroupID:   *apiKey.GroupID,
+			Group:     apiKey.Group,
+			Quota:     0,
+			QuotaUsed: 0,
+		}}, nil
+	}
+	return nil, nil
+}
+
+func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID int64, inputs []AdminAPIKeyGroupUpdateInput) (*AdminUpdateAPIKeyGroupsResult, error) {
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
+	if err != nil {
+		return nil, err
+	}
+
+	writer, ok := s.apiKeyRepo.(adminAPIKeyGroupBindingWriter)
+	if !ok {
+		return nil, infraerrors.InternalServer("API_KEY_GROUP_BINDINGS_UNAVAILABLE", "api key group bindings repository is not configured")
+	}
+
+	normalizedInputs, err := normalizeAdminAPIKeyGroupInputs(inputs)
+	if err != nil {
+		return nil, err
+	}
+
+	opCtx := ctx
+	var tx *dbent.Tx
+	if s.entClient != nil {
+		tx, err = s.entClient.Tx(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("begin transaction: %w", err)
+		}
+		defer func() {
+			_ = tx.Rollback()
+		}()
+		opCtx = dbent.NewTxContext(ctx, tx)
+	}
+
+	existingBindings, err := writer.GetAPIKeyGroups(opCtx, keyID)
+	if err != nil {
+		return nil, err
+	}
+	existingByGroupID := make(map[int64]APIKeyGroupBinding, len(existingBindings))
+	for _, binding := range existingBindings {
+		existingByGroupID[binding.GroupID] = binding
+	}
+
+	bindings := make([]APIKeyGroupBinding, 0, len(normalizedInputs))
+	grantedGroups := make([]AdminGrantedGroupAccess, 0)
+	for _, input := range normalizedInputs {
+		group, err := s.groupRepo.GetByID(opCtx, input.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		if !group.IsActive() {
 			return nil, infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active")
 		}
 		if group.IsSubscriptionType() {
 			if s.userSubRepo == nil {
 				return nil, infraerrors.InternalServer("SUBSCRIPTION_REPOSITORY_UNAVAILABLE", "subscription repository is not configured")
 			}
-			if _, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, apiKey.UserID, *groupID); err != nil {
+			if _, err := s.userSubRepo.GetActiveByUserIDAndGroupID(opCtx, apiKey.UserID, group.ID); err != nil {
 				if errors.Is(err, ErrSubscriptionNotFound) {
 					return nil, infraerrors.BadRequest("SUBSCRIPTION_REQUIRED", "user does not have an active subscription for this group")
 				}
 				return nil, err
 			}
+		} else if group.IsExclusive {
+			if err := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, group.ID); err != nil {
+				return nil, fmt.Errorf("add group to user allowed groups: %w", err)
+			}
+			grantedGroups = append(grantedGroups, AdminGrantedGroupAccess{
+				GroupID:   group.ID,
+				GroupName: group.Name,
+			})
 		}
-		gid := *groupID
-		apiKey.GroupID = &gid
-		apiKey.Group = group
-		if group.IsExclusive && !group.IsSubscriptionType() {
-			opCtx := ctx
-			var tx *dbent.Tx
-			if s.entClient == nil {
-				logger.LegacyPrintf("service.admin", "Warning: entClient is nil, skipping transaction protection for exclusive group binding")
-			} else {
-				var txErr error
-				tx, txErr = s.entClient.Tx(ctx)
-				if txErr != nil {
-					return nil, fmt.Errorf("begin transaction: %w", txErr)
-				}
-				defer func() {
-					_ = tx.Rollback()
-				}()
-				opCtx = dbent.NewTxContext(ctx, tx)
-			}
-			if addErr := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, gid); addErr != nil {
-				return nil, fmt.Errorf("add group to user allowed groups: %w", addErr)
-			}
-			if err := s.apiKeyRepo.Update(opCtx, apiKey); err != nil {
-				return nil, fmt.Errorf("update api key: %w", err)
-			}
-			if tx != nil {
-				if err := tx.Commit(); err != nil {
-					return nil, fmt.Errorf("commit transaction: %w", err)
-				}
-			}
-			result.AutoGrantedGroupAccess = true
-			result.GrantedGroupID = &gid
-			result.GrantedGroupName = group.Name
-			if s.authCacheInvalidator != nil {
-				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
-			}
-			result.APIKey = apiKey
-			return result, nil
+
+		binding := APIKeyGroupBinding{
+			APIKeyID:      apiKey.ID,
+			GroupID:       group.ID,
+			Group:         group,
+			Quota:         input.Quota,
+			ModelPatterns: append([]string(nil), input.ModelPatterns...),
+		}
+		if existing, ok := existingByGroupID[group.ID]; ok {
+			binding.QuotaUsed = existing.QuotaUsed
+		}
+		bindings = append(bindings, binding)
+	}
+
+	if err := writer.SetAPIKeyGroups(opCtx, keyID, bindings); err != nil {
+		return nil, fmt.Errorf("set api key groups: %w", err)
+	}
+
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit transaction: %w", err)
 		}
 	}
-	if err := s.apiKeyRepo.Update(ctx, apiKey); err != nil {
-		return nil, fmt.Errorf("update api key: %w", err)
+
+	updatedAPIKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
+	if err != nil {
+		return nil, err
 	}
 	if s.authCacheInvalidator != nil {
-		s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+		s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, updatedAPIKey.Key)
 	}
-	result.APIKey = apiKey
+
+	result := &AdminUpdateAPIKeyGroupsResult{
+		APIKey:        updatedAPIKey,
+		GrantedGroups: grantedGroups,
+	}
+	if len(grantedGroups) > 0 {
+		result.AutoGrantedGroupAccess = true
+		first := grantedGroups[0]
+		result.GrantedGroupID = &first.GroupID
+		result.GrantedGroupName = first.GroupName
+	}
 	return result, nil
+}
+
+func normalizeAdminAPIKeyGroupInputs(inputs []AdminAPIKeyGroupUpdateInput) ([]AdminAPIKeyGroupUpdateInput, error) {
+	if len(inputs) == 0 {
+		return []AdminAPIKeyGroupUpdateInput{}, nil
+	}
+
+	seen := make(map[int64]struct{}, len(inputs))
+	normalized := make([]AdminAPIKeyGroupUpdateInput, 0, len(inputs))
+	for _, input := range inputs {
+		if input.GroupID <= 0 {
+			return nil, infraerrors.BadRequest("INVALID_GROUP_BINDING", "group_id must be positive")
+		}
+		if input.Quota < 0 {
+			return nil, infraerrors.BadRequest("INVALID_GROUP_BINDING", "quota must be non-negative")
+		}
+		if _, exists := seen[input.GroupID]; exists {
+			return nil, infraerrors.BadRequest("INVALID_GROUP_BINDING", "duplicate group binding")
+		}
+		seen[input.GroupID] = struct{}{}
+
+		modelPatterns := make([]string, 0, len(input.ModelPatterns))
+		patternSeen := make(map[string]struct{}, len(input.ModelPatterns))
+		for _, pattern := range input.ModelPatterns {
+			trimmed := strings.TrimSpace(pattern)
+			if trimmed == "" {
+				continue
+			}
+			if _, exists := patternSeen[trimmed]; exists {
+				continue
+			}
+			patternSeen[trimmed] = struct{}{}
+			modelPatterns = append(modelPatterns, trimmed)
+		}
+
+		normalized = append(normalized, AdminAPIKeyGroupUpdateInput{
+			GroupID:       input.GroupID,
+			Quota:         input.Quota,
+			ModelPatterns: modelPatterns,
+		})
+	}
+	return normalized, nil
+}
+
+func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+	if groupID == nil {
+		apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
+		if err != nil {
+			return nil, err
+		}
+		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
+	}
+	if *groupID < 0 {
+		return nil, infraerrors.BadRequest("INVALID_GROUP_ID", "group_id must be non-negative")
+	}
+	inputs := make([]AdminAPIKeyGroupUpdateInput, 0, 1)
+	if *groupID > 0 {
+		inputs = append(inputs, AdminAPIKeyGroupUpdateInput{GroupID: *groupID})
+	}
+	result, err := s.AdminUpdateAPIKeyGroups(ctx, keyID, inputs)
+	if err != nil {
+		return nil, err
+	}
+	return &AdminUpdateAPIKeyGroupIDResult{
+		APIKey:                 result.APIKey,
+		AutoGrantedGroupAccess: result.AutoGrantedGroupAccess,
+		GrantedGroupID:         result.GrantedGroupID,
+		GrantedGroupName:       result.GrantedGroupName,
+	}, nil
 }

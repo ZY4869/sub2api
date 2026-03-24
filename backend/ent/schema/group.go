@@ -145,6 +145,9 @@ func (Group) Fields() []ent.Field {
 			Comment("支持的模型系列：claude, gemini_text, gemini_image"),
 
 		// 分组排序 (added by migration 052)
+		field.Int("priority").
+			Default(1).
+			Comment("分组路由优先级，数值越小优先级越高"),
 		field.Int("sort_order").
 			Default(0).
 			Comment("分组显示排序，数值越小越靠前"),
@@ -166,6 +169,9 @@ func (Group) Edges() []ent.Edge {
 		edge.To("redeem_codes", RedeemCode.Type),
 		edge.To("subscriptions", UserSubscription.Type),
 		edge.To("usage_logs", UsageLog.Type),
+		edge.From("api_key_links", APIKey.Type).
+			Ref("multi_groups").
+			Through("api_key_groups", APIKeyGroup.Type),
 		edge.From("accounts", Account.Type).
 			Ref("groups").
 			Through("account_groups", AccountGroup.Type),
@@ -185,6 +191,7 @@ func (Group) Indexes() []ent.Index {
 		index.Fields("subscription_type"),
 		index.Fields("is_exclusive"),
 		index.Fields("deleted_at"),
+		index.Fields("priority"),
 		index.Fields("sort_order"),
 	}
 }

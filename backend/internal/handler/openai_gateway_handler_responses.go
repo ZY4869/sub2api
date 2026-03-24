@@ -155,187 +155,218 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	// 2. Re-check billing eligibility after wait
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
-		reqLog.Info("openai.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message := billingErrorDetails(err)
-		h.handleStreamingAwareError(c, status, code, message, streamStarted)
-		return
-	}
-
 	// Generate session hash (header first; fallback to prompt_cache_key)
 	sessionHash := h.gatewayService.GenerateSessionHash(c, sessionHashBody)
-
+	excludedGroupIDs := make(map[int64]struct{})
 	maxAccountSwitches := h.maxAccountSwitches
-	switchCount := 0
-	failedAccountIDs := make(map[int64]struct{})
-	sameAccountRetryCount := make(map[int64]int)
-	var lastFailoverErr *service.UpstreamFailoverError
 
 	for {
-		// Select account supporting the requested model
-		reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
-		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
-			c.Request.Context(),
-			apiKey.GroupID,
-			previousResponseID,
-			sessionHash,
+		currentAPIKey, currentSubscription, err := resolveSelectedOpenAIAPIKey(
+			c,
+			h.settingService,
+			h.gatewayService,
+			h.billingCacheService,
+			apiKey,
+			subscription,
 			reqModel,
-			failedAccountIDs,
-			service.OpenAIUpstreamTransportAny,
+			openAICompatiblePlatforms,
+			excludedGroupIDs,
 		)
 		if err != nil {
-			reqLog.Warn("openai.account_select_failed",
-				zap.Error(err),
-				zap.Int("excluded_account_count", len(failedAccountIDs)),
+			reqLog.Info("openai.group_selection_failed", zap.Error(err))
+			status, code, message := groupSelectionErrorDetails(err)
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
+		}
+		if currentAPIKey.Group != nil {
+			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
+		}
+
+		switchCount := 0
+		failedAccountIDs := make(map[int64]struct{})
+		sameAccountRetryCount := make(map[int64]int)
+		var lastFailoverErr *service.UpstreamFailoverError
+
+		for {
+			// Select account supporting the requested model
+			reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
+			selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
+				c.Request.Context(),
+				currentAPIKey.GroupID,
+				previousResponseID,
+				sessionHash,
+				reqModel,
+				failedAccountIDs,
+				service.OpenAIUpstreamTransportAny,
 			)
-			if len(failedAccountIDs) == 0 {
-				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
-				return
-			}
-			if lastFailoverErr != nil {
-				h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
-			} else {
-				h.handleFailoverExhaustedSimple(c, 502, streamStarted)
-			}
-			return
-		}
-		if selection == nil || selection.Account == nil {
-			h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
-			return
-		}
-		if previousResponseID != "" && selection != nil && selection.Account != nil {
-			reqLog.Debug("openai.account_selected_with_previous_response_id", zap.Int64("account_id", selection.Account.ID))
-		}
-		reqLog.Debug("openai.account_schedule_decision",
-			zap.String("layer", scheduleDecision.Layer),
-			zap.Bool("sticky_previous_hit", scheduleDecision.StickyPreviousHit),
-			zap.Bool("sticky_session_hit", scheduleDecision.StickySessionHit),
-			zap.Int("candidate_count", scheduleDecision.CandidateCount),
-			zap.Int("top_k", scheduleDecision.TopK),
-			zap.Int64("latency_ms", scheduleDecision.LatencyMs),
-			zap.Float64("load_skew", scheduleDecision.LoadSkew),
-		)
-		account := selection.Account
-		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
-		reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
-		setOpsSelectedAccount(c, account.ID, account.Platform)
-
-		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, apiKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
-		if !acquired {
-			return
-		}
-
-		// Forward request
-		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
-		forwardStart := time.Now()
-		result, err := h.gatewayService.Forward(c.Request.Context(), c, account, body)
-		forwardDurationMs := time.Since(forwardStart).Milliseconds()
-		if accountReleaseFunc != nil {
-			accountReleaseFunc()
-		}
-		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
-		responseLatencyMs := forwardDurationMs
-		if upstreamLatencyMs > 0 && forwardDurationMs > upstreamLatencyMs {
-			responseLatencyMs = forwardDurationMs - upstreamLatencyMs
-		}
-		service.SetOpsLatencyMs(c, service.OpsResponseLatencyMsKey, responseLatencyMs)
-		if err == nil && result != nil && result.FirstTokenMs != nil {
-			service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
-		}
-		if err != nil {
-			var failoverErr *service.UpstreamFailoverError
-			if errors.As(err, &failoverErr) {
-				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
-				// 池模式：同账号重试
-				if failoverErr.RetryableOnSameAccount {
-					retryLimit := account.GetPoolModeRetryCount()
-					if sameAccountRetryCount[account.ID] < retryLimit {
-						sameAccountRetryCount[account.ID]++
-						reqLog.Warn("openai.pool_mode_same_account_retry",
-							zap.Int64("account_id", account.ID),
-							zap.Int("upstream_status", failoverErr.StatusCode),
-							zap.Int("retry_limit", retryLimit),
-							zap.Int("retry_count", sameAccountRetryCount[account.ID]),
-						)
-						select {
-						case <-c.Request.Context().Done():
-							return
-						case <-time.After(sameAccountRetryDelay):
-						}
-						continue
+			if err != nil {
+				reqLog.Warn("openai.account_select_failed",
+					zap.Error(err),
+					zap.Int("excluded_account_count", len(failedAccountIDs)),
+				)
+				if len(failedAccountIDs) == 0 {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
 					}
-				}
-				h.gatewayService.RecordOpenAIAccountSwitch()
-				failedAccountIDs[account.ID] = struct{}{}
-				lastFailoverErr = failoverErr
-				if switchCount >= maxAccountSwitches {
-					h.handleFailoverExhausted(c, failoverErr, streamStarted)
+					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 					return
 				}
-				switchCount++
-				reqLog.Warn("openai.upstream_failover_switching",
-					zap.Int64("account_id", account.ID),
-					zap.Int("upstream_status", failoverErr.StatusCode),
-					zap.Int("switch_count", switchCount),
-					zap.Int("max_switches", maxAccountSwitches),
-				)
-				continue
-			}
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
-			wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
-			fields := []zap.Field{
-				zap.Int64("account_id", account.ID),
-				zap.Bool("fallback_error_response_written", wroteFallback),
-				zap.Error(err),
-			}
-			if shouldLogOpenAIForwardFailureAsWarn(c, wroteFallback) {
-				reqLog.Warn("openai.forward_failed", fields...)
+				if lastFailoverErr != nil {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
+					}
+					h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
+				} else {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
+					}
+					h.handleFailoverExhaustedSimple(c, 502, streamStarted)
+				}
 				return
 			}
-			reqLog.Error("openai.forward_failed", fields...)
+			if selection == nil || selection.Account == nil {
+				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					break
+				}
+				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
+				return
+			}
+			if previousResponseID != "" && selection != nil && selection.Account != nil {
+				reqLog.Debug("openai.account_selected_with_previous_response_id", zap.Int64("account_id", selection.Account.ID))
+			}
+			reqLog.Debug("openai.account_schedule_decision",
+				zap.String("layer", scheduleDecision.Layer),
+				zap.Bool("sticky_previous_hit", scheduleDecision.StickyPreviousHit),
+				zap.Bool("sticky_session_hit", scheduleDecision.StickySessionHit),
+				zap.Int("candidate_count", scheduleDecision.CandidateCount),
+				zap.Int("top_k", scheduleDecision.TopK),
+				zap.Int64("latency_ms", scheduleDecision.LatencyMs),
+				zap.Float64("load_skew", scheduleDecision.LoadSkew),
+			)
+			account := selection.Account
+			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
+			reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
+			setOpsSelectedAccount(c, account.ID, account.Platform)
+
+			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
+			if !acquired {
+				return
+			}
+
+			// Forward request
+			service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
+			forwardStart := time.Now()
+			result, err := h.gatewayService.Forward(c.Request.Context(), c, account, body)
+			forwardDurationMs := time.Since(forwardStart).Milliseconds()
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
+			responseLatencyMs := forwardDurationMs
+			if upstreamLatencyMs > 0 && forwardDurationMs > upstreamLatencyMs {
+				responseLatencyMs = forwardDurationMs - upstreamLatencyMs
+			}
+			service.SetOpsLatencyMs(c, service.OpsResponseLatencyMsKey, responseLatencyMs)
+			if err == nil && result != nil && result.FirstTokenMs != nil {
+				service.SetOpsLatencyMs(c, service.OpsTimeToFirstTokenMsKey, int64(*result.FirstTokenMs))
+			}
+			if err != nil {
+				var failoverErr *service.UpstreamFailoverError
+				if errors.As(err, &failoverErr) {
+					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+					// 池模式：同账号重试
+					if failoverErr.RetryableOnSameAccount {
+						retryLimit := account.GetPoolModeRetryCount()
+						if sameAccountRetryCount[account.ID] < retryLimit {
+							sameAccountRetryCount[account.ID]++
+							reqLog.Warn("openai.pool_mode_same_account_retry",
+								zap.Int64("account_id", account.ID),
+								zap.Int("upstream_status", failoverErr.StatusCode),
+								zap.Int("retry_limit", retryLimit),
+								zap.Int("retry_count", sameAccountRetryCount[account.ID]),
+							)
+							select {
+							case <-c.Request.Context().Done():
+								return
+							case <-time.After(sameAccountRetryDelay):
+							}
+							continue
+						}
+					}
+					h.gatewayService.RecordOpenAIAccountSwitch()
+					failedAccountIDs[account.ID] = struct{}{}
+					lastFailoverErr = failoverErr
+					if switchCount >= maxAccountSwitches {
+						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							break
+						}
+						h.handleFailoverExhausted(c, failoverErr, streamStarted)
+						return
+					}
+					switchCount++
+					reqLog.Warn("openai.upstream_failover_switching",
+						zap.Int64("account_id", account.ID),
+						zap.Int("upstream_status", failoverErr.StatusCode),
+						zap.Int("switch_count", switchCount),
+						zap.Int("max_switches", maxAccountSwitches),
+					)
+					continue
+				}
+				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
+				wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+				fields := []zap.Field{
+					zap.Int64("account_id", account.ID),
+					zap.Bool("fallback_error_response_written", wroteFallback),
+					zap.Error(err),
+				}
+				if shouldLogOpenAIForwardFailureAsWarn(c, wroteFallback) {
+					reqLog.Warn("openai.forward_failed", fields...)
+					return
+				}
+				reqLog.Error("openai.forward_failed", fields...)
+				return
+			}
+			if result != nil {
+				if account.Type == service.AccountTypeOAuth {
+					h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(c.Request.Context(), account.ID, result.ResponseHeaders)
+				}
+				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
+			} else {
+				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
+			}
+
+			// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
+			userAgent := c.GetHeader("User-Agent")
+			clientIP := ip.GetClientIP(c)
+
+			// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
+			h.submitUsageRecordTask(func(ctx context.Context) {
+				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
+					Result:        result,
+					APIKey:        currentAPIKey,
+					User:          currentAPIKey.User,
+					Account:       account,
+					Subscription:  currentSubscription,
+					UserAgent:     userAgent,
+					IPAddress:     clientIP,
+					APIKeyService: h.apiKeyService,
+				}); err != nil {
+					logger.L().With(
+						zap.String("component", "handler.openai_gateway.responses"),
+						zap.Int64("user_id", subject.UserID),
+						zap.Int64("api_key_id", currentAPIKey.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.String("model", reqModel),
+						zap.Int64("account_id", account.ID),
+					).Error("openai.record_usage_failed", zap.Error(err))
+				}
+			})
+			reqLog.Debug("openai.request_completed",
+				zap.Int64("account_id", account.ID),
+				zap.Int("switch_count", switchCount),
+			)
 			return
 		}
-		if result != nil {
-			if account.Type == service.AccountTypeOAuth {
-				h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(c.Request.Context(), account.ID, result.ResponseHeaders)
-			}
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
-		} else {
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, nil)
-		}
-
-		// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
-		userAgent := c.GetHeader("User-Agent")
-		clientIP := ip.GetClientIP(c)
-
-		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
-		h.submitUsageRecordTask(func(ctx context.Context) {
-			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-				Result:        result,
-				APIKey:        apiKey,
-				User:          apiKey.User,
-				Account:       account,
-				Subscription:  subscription,
-				UserAgent:     userAgent,
-				IPAddress:     clientIP,
-				APIKeyService: h.apiKeyService,
-			}); err != nil {
-				logger.L().With(
-					zap.String("component", "handler.openai_gateway.responses"),
-					zap.Int64("user_id", subject.UserID),
-					zap.Int64("api_key_id", apiKey.ID),
-					zap.Any("group_id", apiKey.GroupID),
-					zap.String("model", reqModel),
-					zap.Int64("account_id", account.ID),
-				).Error("openai.record_usage_failed", zap.Error(err))
-			}
-		})
-		reqLog.Debug("openai.request_completed",
-			zap.Int64("account_id", account.ID),
-			zap.Int("switch_count", switchCount),
-		)
-		return
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -19,6 +18,7 @@ import (
 type sqlExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 type groupRepository struct {
@@ -39,6 +39,7 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
 		SetPlatform(groupIn.Platform).
+		SetPriority(groupIn.Priority).
 		SetRateMultiplier(groupIn.RateMultiplier).
 		SetIsExclusive(groupIn.IsExclusive).
 		SetStatus(groupIn.Status).
@@ -120,6 +121,7 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
 		SetPlatform(groupIn.Platform).
+		SetPriority(groupIn.Priority).
 		SetRateMultiplier(groupIn.RateMultiplier).
 		SetIsExclusive(groupIn.IsExclusive).
 		SetStatus(groupIn.Status).
@@ -463,6 +465,7 @@ func (r *groupRepository) DeleteCascade(ctx context.Context, id int64) ([]int64,
 	}
 
 	var affectedUserIDs []int64
+	affectedKeyIDs := make([]int64, 0)
 	if groupSvc.IsSubscriptionType() {
 		// 只查询未软删除的订阅，避免通知已取消订阅的用户
 		rows, err := exec.QueryContext(ctx, "SELECT user_id FROM user_subscriptions WHERE group_id = $1 AND deleted_at IS NULL", id)
@@ -490,14 +493,65 @@ func (r *groupRepository) DeleteCascade(ctx context.Context, id int64) ([]int64,
 		}
 	}
 
+	keyRows, err := exec.QueryContext(ctx, `
+		SELECT DISTINCT ak.id
+		FROM api_keys ak
+		LEFT JOIN api_key_groups ag ON ag.api_key_id = ak.id
+		WHERE ak.deleted_at IS NULL
+		  AND (ak.group_id = $1 OR ag.group_id = $1)
+		ORDER BY ak.id ASC
+	`, id)
+	if err != nil {
+		return nil, err
+	}
+	for keyRows.Next() {
+		var keyID int64
+		if scanErr := keyRows.Scan(&keyID); scanErr != nil {
+			_ = keyRows.Close()
+			return nil, scanErr
+		}
+		affectedKeyIDs = append(affectedKeyIDs, keyID)
+	}
+	if err := keyRows.Close(); err != nil {
+		return nil, err
+	}
+	if err := keyRows.Err(); err != nil {
+		return nil, err
+	}
+
 	// 2. Clear group_id for api keys bound to this group.
 	// 仅更新未软删除的记录，避免修改已删除数据，保证审计与历史回溯一致性。
 	// 与 APIKeyRepository 的软删除语义保持一致，减少跨模块行为差异。
-	if _, err := txClient.APIKey.Update().
-		Where(apikey.GroupIDEQ(id), apikey.DeletedAtIsNil()).
-		ClearGroupID().
-		Save(ctx); err != nil {
+	if _, err := exec.ExecContext(ctx, "DELETE FROM api_key_groups WHERE group_id = $1", id); err != nil {
 		return nil, err
+	}
+	for _, keyID := range affectedKeyIDs {
+		if _, err := exec.ExecContext(ctx, `
+			UPDATE api_keys AS ak
+			SET group_id = sub.group_id,
+				updated_at = NOW()
+			FROM (
+				SELECT ag.group_id
+				FROM api_key_groups ag
+				JOIN groups g ON g.id = ag.group_id
+				WHERE ag.api_key_id = $1 AND g.deleted_at IS NULL
+				ORDER BY g.priority ASC, ag.group_id ASC
+				LIMIT 1
+			) AS sub
+			WHERE ak.id = $1 AND ak.deleted_at IS NULL
+		`, keyID); err != nil {
+			return nil, err
+		}
+		if _, err := exec.ExecContext(ctx, `
+			UPDATE api_keys
+			SET group_id = NULL,
+				updated_at = NOW()
+			WHERE id = $1
+			  AND deleted_at IS NULL
+			  AND NOT EXISTS (SELECT 1 FROM api_key_groups WHERE api_key_id = $1)
+		`, keyID); err != nil {
+			return nil, err
+		}
 	}
 
 	// 3. Remove the group id from user_allowed_groups join table.

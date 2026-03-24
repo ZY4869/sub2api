@@ -100,6 +100,25 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		User:          UserFromServiceShallow(k.User),
 		Group:         GroupFromServiceShallow(k.Group),
 	}
+	if len(k.GroupBindings) > 0 {
+		out.GroupIDs = make([]int64, 0, len(k.GroupBindings))
+		out.Groups = make([]APIKeyGroupDTO, 0, len(k.GroupBindings))
+		for _, binding := range k.GroupBindings {
+			out.GroupIDs = append(out.GroupIDs, binding.GroupID)
+			dtoBinding := APIKeyGroupDTO{
+				GroupID:       binding.GroupID,
+				Quota:         binding.Quota,
+				QuotaUsed:     binding.QuotaUsed,
+				ModelPatterns: append([]string(nil), binding.ModelPatterns...),
+			}
+			if binding.Group != nil {
+				dtoBinding.GroupName = binding.Group.Name
+				dtoBinding.Platform = binding.Group.Platform
+				dtoBinding.Priority = binding.Group.Priority
+			}
+			out.Groups = append(out.Groups, dtoBinding)
+		}
+	}
 	if k.Window5hStart != nil && !service.IsWindowExpired(k.Window5hStart, service.RateLimitWindow5h) {
 		t := k.Window5hStart.Add(service.RateLimitWindow5h)
 		out.Reset5hAt = &t
@@ -164,6 +183,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		Name:                            g.Name,
 		Description:                     g.Description,
 		Platform:                        g.Platform,
+		Priority:                        g.Priority,
 		RateMultiplier:                  g.RateMultiplier,
 		IsExclusive:                     g.IsExclusive,
 		Status:                          g.Status,

@@ -448,6 +448,21 @@ func (_u *APIKeyUpdate) SetGroup(v *Group) *APIKeyUpdate {
 	return _u.SetGroupID(v.ID)
 }
 
+// AddMultiGroupIDs adds the "multi_groups" edge to the Group entity by IDs.
+func (_u *APIKeyUpdate) AddMultiGroupIDs(ids ...int64) *APIKeyUpdate {
+	_u.mutation.AddMultiGroupIDs(ids...)
+	return _u
+}
+
+// AddMultiGroups adds the "multi_groups" edges to the Group entity.
+func (_u *APIKeyUpdate) AddMultiGroups(v ...*Group) *APIKeyUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMultiGroupIDs(ids...)
+}
+
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
 func (_u *APIKeyUpdate) AddUsageLogIDs(ids ...int64) *APIKeyUpdate {
 	_u.mutation.AddUsageLogIDs(ids...)
@@ -478,6 +493,27 @@ func (_u *APIKeyUpdate) ClearUser() *APIKeyUpdate {
 func (_u *APIKeyUpdate) ClearGroup() *APIKeyUpdate {
 	_u.mutation.ClearGroup()
 	return _u
+}
+
+// ClearMultiGroups clears all "multi_groups" edges to the Group entity.
+func (_u *APIKeyUpdate) ClearMultiGroups() *APIKeyUpdate {
+	_u.mutation.ClearMultiGroups()
+	return _u
+}
+
+// RemoveMultiGroupIDs removes the "multi_groups" edge to Group entities by IDs.
+func (_u *APIKeyUpdate) RemoveMultiGroupIDs(ids ...int64) *APIKeyUpdate {
+	_u.mutation.RemoveMultiGroupIDs(ids...)
+	return _u
+}
+
+// RemoveMultiGroups removes "multi_groups" edges to Group entities.
+func (_u *APIKeyUpdate) RemoveMultiGroups(v ...*Group) *APIKeyUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMultiGroupIDs(ids...)
 }
 
 // ClearUsageLogs clears all "usage_logs" edges to the UsageLog entity.
@@ -752,6 +788,63 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MultiGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   apikey.MultiGroupsTable,
+			Columns: apikey.MultiGroupsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMultiGroupsIDs(); len(nodes) > 0 && !_u.mutation.MultiGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   apikey.MultiGroupsTable,
+			Columns: apikey.MultiGroupsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MultiGroupsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   apikey.MultiGroupsTable,
+			Columns: apikey.MultiGroupsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UsageLogsCleared() {
@@ -1235,6 +1328,21 @@ func (_u *APIKeyUpdateOne) SetGroup(v *Group) *APIKeyUpdateOne {
 	return _u.SetGroupID(v.ID)
 }
 
+// AddMultiGroupIDs adds the "multi_groups" edge to the Group entity by IDs.
+func (_u *APIKeyUpdateOne) AddMultiGroupIDs(ids ...int64) *APIKeyUpdateOne {
+	_u.mutation.AddMultiGroupIDs(ids...)
+	return _u
+}
+
+// AddMultiGroups adds the "multi_groups" edges to the Group entity.
+func (_u *APIKeyUpdateOne) AddMultiGroups(v ...*Group) *APIKeyUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddMultiGroupIDs(ids...)
+}
+
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by IDs.
 func (_u *APIKeyUpdateOne) AddUsageLogIDs(ids ...int64) *APIKeyUpdateOne {
 	_u.mutation.AddUsageLogIDs(ids...)
@@ -1265,6 +1373,27 @@ func (_u *APIKeyUpdateOne) ClearUser() *APIKeyUpdateOne {
 func (_u *APIKeyUpdateOne) ClearGroup() *APIKeyUpdateOne {
 	_u.mutation.ClearGroup()
 	return _u
+}
+
+// ClearMultiGroups clears all "multi_groups" edges to the Group entity.
+func (_u *APIKeyUpdateOne) ClearMultiGroups() *APIKeyUpdateOne {
+	_u.mutation.ClearMultiGroups()
+	return _u
+}
+
+// RemoveMultiGroupIDs removes the "multi_groups" edge to Group entities by IDs.
+func (_u *APIKeyUpdateOne) RemoveMultiGroupIDs(ids ...int64) *APIKeyUpdateOne {
+	_u.mutation.RemoveMultiGroupIDs(ids...)
+	return _u
+}
+
+// RemoveMultiGroups removes "multi_groups" edges to Group entities.
+func (_u *APIKeyUpdateOne) RemoveMultiGroups(v ...*Group) *APIKeyUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveMultiGroupIDs(ids...)
 }
 
 // ClearUsageLogs clears all "usage_logs" edges to the UsageLog entity.
@@ -1569,6 +1698,63 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.MultiGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   apikey.MultiGroupsTable,
+			Columns: apikey.MultiGroupsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedMultiGroupsIDs(); len(nodes) > 0 && !_u.mutation.MultiGroupsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   apikey.MultiGroupsTable,
+			Columns: apikey.MultiGroupsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.MultiGroupsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   apikey.MultiGroupsTable,
+			Columns: apikey.MultiGroupsPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(group.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.UsageLogsCleared() {

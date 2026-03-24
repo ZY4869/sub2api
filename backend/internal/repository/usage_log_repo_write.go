@@ -10,11 +10,16 @@ import (
 	"time"
 )
 
+type usageLogSQLExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
 func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) (bool, error) {
 	if log == nil {
 		return false, nil
 	}
-	sqlq := r.sql
+	var sqlq usageLogSQLExecutor = r.sql
 	if tx := dbent.TxFromContext(ctx); tx != nil {
 		sqlq = tx.Client()
 	}

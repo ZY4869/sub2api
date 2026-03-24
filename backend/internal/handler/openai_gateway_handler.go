@@ -18,6 +18,7 @@ type OpenAIGatewayHandler struct {
 	concurrencyHelper       *ConcurrencyHelper
 	maxAccountSwitches      int
 	cfg                     *config.Config
+	settingService          *service.SettingService
 }
 
 // NewOpenAIGatewayHandler creates a new OpenAIGatewayHandler.
@@ -48,6 +49,10 @@ func NewOpenAIGatewayHandler(
 		maxAccountSwitches:      maxAccountSwitches,
 		cfg:                     cfg,
 	}
+}
+
+func (h *OpenAIGatewayHandler) SetSettingService(settingService *service.SettingService) {
+	h.settingService = settingService
 }
 
 func normalizeOpenAIGroupPlatform(platform string) string {

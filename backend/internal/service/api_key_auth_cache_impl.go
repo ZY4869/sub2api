@@ -220,6 +220,47 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			Concurrency: apiKey.User.Concurrency,
 		},
 	}
+	if len(apiKey.GroupBindings) > 0 {
+		snapshot.Groups = make([]APIKeyAuthGroupBindingSnapshot, 0, len(apiKey.GroupBindings))
+		for _, binding := range apiKey.GroupBindings {
+			item := APIKeyAuthGroupBindingSnapshot{
+				GroupID:       binding.GroupID,
+				Quota:         binding.Quota,
+				QuotaUsed:     binding.QuotaUsed,
+				ModelPatterns: append([]string(nil), binding.ModelPatterns...),
+			}
+			if binding.Group != nil {
+				item.Group = &APIKeyAuthGroupSnapshot{
+					ID:                              binding.Group.ID,
+					Name:                            binding.Group.Name,
+					Platform:                        binding.Group.Platform,
+					Status:                          binding.Group.Status,
+					SubscriptionType:                binding.Group.SubscriptionType,
+					RateMultiplier:                  binding.Group.RateMultiplier,
+					DailyLimitUSD:                   binding.Group.DailyLimitUSD,
+					WeeklyLimitUSD:                  binding.Group.WeeklyLimitUSD,
+					MonthlyLimitUSD:                 binding.Group.MonthlyLimitUSD,
+					ImagePrice1K:                    binding.Group.ImagePrice1K,
+					ImagePrice2K:                    binding.Group.ImagePrice2K,
+					ImagePrice4K:                    binding.Group.ImagePrice4K,
+					SoraImagePrice360:               binding.Group.SoraImagePrice360,
+					SoraImagePrice540:               binding.Group.SoraImagePrice540,
+					SoraVideoPricePerRequest:        binding.Group.SoraVideoPricePerRequest,
+					SoraVideoPricePerRequestHD:      binding.Group.SoraVideoPricePerRequestHD,
+					ClaudeCodeOnly:                  binding.Group.ClaudeCodeOnly,
+					FallbackGroupID:                 binding.Group.FallbackGroupID,
+					FallbackGroupIDOnInvalidRequest: binding.Group.FallbackGroupIDOnInvalidRequest,
+					ModelRouting:                    binding.Group.ModelRouting,
+					ModelRoutingEnabled:             binding.Group.ModelRoutingEnabled,
+					MCPXMLInject:                    binding.Group.MCPXMLInject,
+					SupportedModelScopes:            binding.Group.SupportedModelScopes,
+					AllowMessagesDispatch:           binding.Group.AllowMessagesDispatch,
+					DefaultMappedModel:              binding.Group.DefaultMappedModel,
+				}
+			}
+			snapshot.Groups = append(snapshot.Groups, item)
+		}
+	}
 	if apiKey.Group != nil {
 		snapshot.Group = &APIKeyAuthGroupSnapshot{
 			ID:                              apiKey.Group.ID,
@@ -278,6 +319,48 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			Concurrency: snapshot.User.Concurrency,
 		},
 	}
+	if len(snapshot.Groups) > 0 {
+		apiKey.GroupBindings = make([]APIKeyGroupBinding, 0, len(snapshot.Groups))
+		for _, binding := range snapshot.Groups {
+			item := APIKeyGroupBinding{
+				GroupID:       binding.GroupID,
+				Quota:         binding.Quota,
+				QuotaUsed:     binding.QuotaUsed,
+				ModelPatterns: append([]string(nil), binding.ModelPatterns...),
+			}
+			if binding.Group != nil {
+				item.Group = &Group{
+					ID:                              binding.Group.ID,
+					Name:                            binding.Group.Name,
+					Platform:                        binding.Group.Platform,
+					Status:                          binding.Group.Status,
+					Hydrated:                        true,
+					SubscriptionType:                binding.Group.SubscriptionType,
+					RateMultiplier:                  binding.Group.RateMultiplier,
+					DailyLimitUSD:                   binding.Group.DailyLimitUSD,
+					WeeklyLimitUSD:                  binding.Group.WeeklyLimitUSD,
+					MonthlyLimitUSD:                 binding.Group.MonthlyLimitUSD,
+					ImagePrice1K:                    binding.Group.ImagePrice1K,
+					ImagePrice2K:                    binding.Group.ImagePrice2K,
+					ImagePrice4K:                    binding.Group.ImagePrice4K,
+					SoraImagePrice360:               binding.Group.SoraImagePrice360,
+					SoraImagePrice540:               binding.Group.SoraImagePrice540,
+					SoraVideoPricePerRequest:        binding.Group.SoraVideoPricePerRequest,
+					SoraVideoPricePerRequestHD:      binding.Group.SoraVideoPricePerRequestHD,
+					ClaudeCodeOnly:                  binding.Group.ClaudeCodeOnly,
+					FallbackGroupID:                 binding.Group.FallbackGroupID,
+					FallbackGroupIDOnInvalidRequest: binding.Group.FallbackGroupIDOnInvalidRequest,
+					ModelRouting:                    binding.Group.ModelRouting,
+					ModelRoutingEnabled:             binding.Group.ModelRoutingEnabled,
+					MCPXMLInject:                    binding.Group.MCPXMLInject,
+					SupportedModelScopes:            binding.Group.SupportedModelScopes,
+					AllowMessagesDispatch:           binding.Group.AllowMessagesDispatch,
+					DefaultMappedModel:              binding.Group.DefaultMappedModel,
+				}
+			}
+			apiKey.GroupBindings = append(apiKey.GroupBindings, item)
+		}
+	}
 	if snapshot.Group != nil {
 		apiKey.Group = &Group{
 			ID:                              snapshot.Group.ID,
@@ -308,6 +391,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			DefaultMappedModel:              snapshot.Group.DefaultMappedModel,
 		}
 	}
+	apiKey.SyncLegacyGroupShadow()
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey
 }

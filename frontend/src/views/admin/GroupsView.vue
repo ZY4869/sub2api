@@ -163,21 +163,30 @@
           </template>
 
           <template #cell-account_count="{ row }">
-            <div class="space-y-0.5 text-xs">
+            <div class="flex min-w-[7.5rem] justify-end gap-3 text-right">
               <div>
-                <span class="text-gray-500 dark:text-gray-400">{{ t('admin.groups.accountsAvailable') }}</span>
-                <span class="ml-1 font-medium text-emerald-600 dark:text-emerald-400">{{ (row.active_account_count || 0) - (row.rate_limited_account_count || 0) }}</span>
-                <span class="ml-1 inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300">{{ t('admin.groups.accountsUnit') }}</span>
-              </div>
-              <div v-if="row.rate_limited_account_count">
-                <span class="text-gray-500 dark:text-gray-400">{{ t('admin.groups.accountsRateLimited') }}</span>
-                <span class="ml-1 font-medium text-amber-600 dark:text-amber-400">{{ row.rate_limited_account_count }}</span>
-                <span class="ml-1 inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300">{{ t('admin.groups.accountsUnit') }}</span>
+                <div class="text-[1.55rem] font-bold leading-none text-emerald-600 dark:text-emerald-400">
+                  {{ formatGroupAccountValue(getGroupAvailableAccounts(row), row) }}
+                </div>
+                <div class="mt-1 text-[11px] tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.accountsAvailable') }}
+                </div>
               </div>
               <div>
-                <span class="text-gray-500 dark:text-gray-400">{{ t('admin.groups.accountsTotal') }}</span>
-                <span class="ml-1 font-medium text-gray-700 dark:text-gray-300">{{ row.account_count || 0 }}</span>
-                <span class="ml-1 inline-flex items-center rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300">{{ t('admin.groups.accountsUnit') }}</span>
+                <div class="text-[1.55rem] font-bold leading-none text-rose-600 dark:text-rose-400">
+                  {{ formatGroupAccountValue(row.rate_limited_account_count || 0, row) }}
+                </div>
+                <div class="mt-1 text-[11px] tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.accountsRateLimited') }}
+                </div>
+              </div>
+              <div>
+                <div class="text-[1.55rem] font-bold leading-none text-gray-700 dark:text-gray-200">
+                  {{ formatGroupAccountValue(row.account_count || 0, row) }}
+                </div>
+                <div class="mt-1 text-[11px] tracking-wide text-gray-500 dark:text-gray-400">
+                  {{ t('admin.groups.accountsTotal') }}
+                </div>
               </div>
             </div>
           </template>
@@ -301,6 +310,17 @@
             @change="createForm.copy_accounts_from_group_ids = []"
           />
           <p class="input-hint">{{ t('admin.groups.platformHint') }}</p>
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.groups.form.priorityLabel') }}</label>
+          <input
+            v-model.number="createForm.priority"
+            type="number"
+            min="1"
+            required
+            class="input"
+          />
+          <p class="input-hint">{{ t('admin.groups.form.priorityHint') }}</p>
         </div>
         <!-- 从分组复制账号 -->
         <div v-if="copyAccountsGroupOptions.length > 0">
@@ -1029,6 +1049,17 @@
             data-tour="group-form-platform"
           />
           <p class="input-hint">{{ t('admin.groups.platformNotEditable') }}</p>
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.groups.form.priorityLabel') }}</label>
+          <input
+            v-model.number="editForm.priority"
+            type="number"
+            min="1"
+            required
+            class="input"
+          />
+          <p class="input-hint">{{ t('admin.groups.form.priorityHint') }}</p>
         </div>
         <!-- 从分组复制账号（编辑时） -->
         <div v-if="copyAccountsGroupOptionsForEdit.length > 0">
@@ -1871,6 +1902,7 @@ const onboardingStore = useOnboardingStore()
 
 const columns = computed<Column[]>(() => [
   { key: 'name', label: t('admin.groups.columns.name'), sortable: true },
+  { key: 'priority', label: t('admin.groups.columns.priority'), sortable: true },
   { key: 'platform', label: t('admin.groups.columns.platform'), sortable: true },
   { key: 'billing_type', label: t('admin.groups.columns.billingType'), sortable: true },
   { key: 'rate_multiplier', label: t('admin.groups.columns.rateMultiplier'), sortable: true },
@@ -2052,6 +2084,7 @@ const createForm = reactive({
   name: '',
   description: '',
   platform: 'anthropic' as GroupPlatform,
+  priority: 1,
   rate_multiplier: 1.0,
   is_exclusive: false,
   subscription_type: 'standard' as SubscriptionType,
@@ -2295,6 +2328,7 @@ const editForm = reactive({
   name: '',
   description: '',
   platform: 'anthropic' as GroupPlatform,
+  priority: 1,
   rate_multiplier: 1.0,
   is_exclusive: false,
   status: 'active' as 'active' | 'inactive',
@@ -2380,6 +2414,23 @@ const formatCost = (cost: number): string => {
   return cost.toFixed(2)
 }
 
+const getGroupAvailableAccounts = (group: AdminGroup): number => {
+  return Math.max((group.active_account_count || 0) - (group.rate_limited_account_count || 0), 0)
+}
+
+const getGroupDigitCount = (group: AdminGroup): number => {
+  return Math.max(String(group.account_count || 0).length, 1)
+}
+
+const formatGroupAccountValue = (value: number, group: AdminGroup): string => {
+  return String(Math.max(value, 0)).padStart(getGroupDigitCount(group), '0')
+}
+
+const normalizeGroupPriority = (value: number | null | undefined): number => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 1
+}
+
 const loadUsageSummary = async () => {
   usageLoading.value = true
   try {
@@ -2446,6 +2497,7 @@ const closeCreateModal = () => {
   createForm.name = ''
   createForm.description = ''
   createForm.platform = 'anthropic'
+  createForm.priority = 1
   createForm.rate_multiplier = 1.0
   createForm.is_exclusive = false
   createForm.subscription_type = 'standard'
@@ -2499,6 +2551,7 @@ const handleCreateGroup = async () => {
     const { sora_storage_quota_gb: createQuotaGb, ...createRest } = createForm
     const requestData = {
       ...createRest,
+      priority: normalizeGroupPriority(createForm.priority),
       daily_limit_usd: normalizeOptionalLimit(createForm.daily_limit_usd as number | string | null),
       weekly_limit_usd: normalizeOptionalLimit(createForm.weekly_limit_usd as number | string | null),
       monthly_limit_usd: normalizeOptionalLimit(createForm.monthly_limit_usd as number | string | null),
@@ -2532,6 +2585,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.name = group.name
   editForm.description = group.description || ''
   editForm.platform = group.platform
+  editForm.priority = group.priority ?? 1
   editForm.rate_multiplier = group.rate_multiplier
   editForm.is_exclusive = group.is_exclusive
   editForm.status = group.status
@@ -2585,6 +2639,7 @@ const handleUpdateGroup = async () => {
     const { sora_storage_quota_gb: editQuotaGb, ...editRest } = editForm
     const payload = {
       ...editRest,
+      priority: normalizeGroupPriority(editForm.priority),
       daily_limit_usd: normalizeOptionalLimit(editForm.daily_limit_usd as number | string | null),
       weekly_limit_usd: normalizeOptionalLimit(editForm.weekly_limit_usd as number | string | null),
       monthly_limit_usd: normalizeOptionalLimit(editForm.monthly_limit_usd as number | string | null),

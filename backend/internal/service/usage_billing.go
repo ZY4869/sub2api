@@ -21,6 +21,7 @@ type UsageBillingCommand struct {
 
 	UserID              int64
 	AccountID           int64
+	GroupID             *int64
 	SubscriptionID      *int64
 	AccountType         string
 	Model               string
@@ -37,6 +38,7 @@ type UsageBillingCommand struct {
 	BalanceCost         float64
 	SubscriptionCost    float64
 	APIKeyQuotaCost     float64
+	APIKeyGroupQuotaCost float64
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
 }
@@ -56,10 +58,11 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		return ""
 	}
 	raw := fmt.Sprintf(
-		"%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
+		"%d|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
 		c.UserID,
 		c.AccountID,
 		c.APIKeyID,
+		valueOrZero(c.GroupID),
 		strings.TrimSpace(c.AccountType),
 		strings.TrimSpace(c.Model),
 		strings.TrimSpace(c.ServiceTier),
@@ -75,6 +78,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		c.BalanceCost,
 		c.SubscriptionCost,
 		c.APIKeyQuotaCost,
+		c.APIKeyGroupQuotaCost,
 		c.APIKeyRateLimitCost,
 		c.AccountQuotaCost,
 	)

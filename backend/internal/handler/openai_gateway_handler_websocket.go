@@ -148,34 +148,54 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	currentUserRelease = wrapReleaseOnDone(ctx, userReleaseFunc)
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
-	if err := h.billingCacheService.CheckBillingEligibility(ctx, apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
-		reqLog.Info("openai.websocket_billing_eligibility_check_failed", zap.Error(err))
-		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing check failed")
-		return
-	}
-
-	sessionHash := h.gatewayService.GenerateSessionHashWithFallback(
-		c,
-		firstMessage,
-		openAIWSIngressFallbackSessionSeed(subject.UserID, apiKey.ID, apiKey.GroupID),
-	)
-	selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
-		ctx,
-		apiKey.GroupID,
-		previousResponseID,
-		sessionHash,
-		reqModel,
-		nil,
-		service.OpenAIUpstreamTransportResponsesWebsocketV2,
-	)
-	if err != nil {
+	excludedGroupIDs := make(map[int64]struct{})
+	var currentAPIKey *service.APIKey
+	var currentSubscription *service.UserSubscription
+	var sessionHash string
+	var selection *service.AccountSelectionResult
+	var scheduleDecision service.OpenAIAccountScheduleDecision
+	for {
+		currentAPIKey, currentSubscription, err = resolveSelectedOpenAIAPIKey(
+			c,
+			h.settingService,
+			h.gatewayService,
+			h.billingCacheService,
+			apiKey,
+			subscription,
+			reqModel,
+			openAICompatiblePlatforms,
+			excludedGroupIDs,
+		)
+		if err != nil {
+			reqLog.Info("openai.websocket_group_selection_failed", zap.Error(err))
+			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing or group selection failed")
+			return
+		}
+		if currentAPIKey.Group != nil {
+			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
+		}
+		sessionHash = h.gatewayService.GenerateSessionHashWithFallback(
+			c,
+			firstMessage,
+			openAIWSIngressFallbackSessionSeed(subject.UserID, currentAPIKey.ID, currentAPIKey.GroupID),
+		)
+		selection, scheduleDecision, err = h.gatewayService.SelectAccountWithScheduler(
+			ctx,
+			currentAPIKey.GroupID,
+			previousResponseID,
+			sessionHash,
+			reqModel,
+			nil,
+			service.OpenAIUpstreamTransportResponsesWebsocketV2,
+		)
+		if err == nil && selection != nil && selection.Account != nil {
+			break
+		}
 		reqLog.Warn("openai.websocket_account_select_failed", zap.Error(err))
-		closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
-		return
-	}
-	if selection == nil || selection.Account == nil {
-		closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
-		return
+		if !excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+			closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
+			return
+		}
 	}
 
 	account := selection.Account
@@ -206,7 +226,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		accountReleaseFunc = fastReleaseFunc
 	}
 	currentAccountRelease = wrapReleaseOnDone(ctx, accountReleaseFunc)
-	if err := h.gatewayService.BindStickySession(ctx, apiKey.GroupID, sessionHash, account.ID); err != nil {
+	if err := h.gatewayService.BindStickySession(ctx, currentAPIKey.GroupID, sessionHash, account.ID); err != nil {
 		reqLog.Warn("openai.websocket_bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 	}
 
@@ -268,10 +288,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			h.submitUsageRecordTask(func(taskCtx context.Context) {
 				if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
 					Result:        result,
-					APIKey:        apiKey,
-					User:          apiKey.User,
+					APIKey:        currentAPIKey,
+					User:          currentAPIKey.User,
 					Account:       account,
-					Subscription:  subscription,
+					Subscription:  currentSubscription,
 					UserAgent:     userAgent,
 					IPAddress:     clientIP,
 					APIKeyService: h.apiKeyService,

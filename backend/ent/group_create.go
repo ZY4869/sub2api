@@ -410,6 +410,20 @@ func (_c *GroupCreate) SetSupportedModelScopes(v []string) *GroupCreate {
 	return _c
 }
 
+// SetPriority sets the "priority" field.
+func (_c *GroupCreate) SetPriority(v int) *GroupCreate {
+	_c.mutation.SetPriority(v)
+	return _c
+}
+
+// SetNillablePriority sets the "priority" field if the given value is not nil.
+func (_c *GroupCreate) SetNillablePriority(v *int) *GroupCreate {
+	if v != nil {
+		_c.SetPriority(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *GroupCreate) SetSortOrder(v int) *GroupCreate {
 	_c.mutation.SetSortOrder(v)
@@ -510,6 +524,21 @@ func (_c *GroupCreate) AddUsageLogs(v ...*UsageLog) *GroupCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddUsageLogIDs(ids...)
+}
+
+// AddAPIKeyLinkIDs adds the "api_key_links" edge to the APIKey entity by IDs.
+func (_c *GroupCreate) AddAPIKeyLinkIDs(ids ...int64) *GroupCreate {
+	_c.mutation.AddAPIKeyLinkIDs(ids...)
+	return _c
+}
+
+// AddAPIKeyLinks adds the "api_key_links" edges to the APIKey entity.
+func (_c *GroupCreate) AddAPIKeyLinks(v ...*APIKey) *GroupCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAPIKeyLinkIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -637,6 +666,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultSupportedModelScopes
 		_c.mutation.SetSupportedModelScopes(v)
 	}
+	if _, ok := _c.mutation.Priority(); !ok {
+		v := group.DefaultPriority
+		_c.mutation.SetPriority(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := group.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -715,6 +748,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.SupportedModelScopes(); !ok {
 		return &ValidationError{Name: "supported_model_scopes", err: errors.New(`ent: missing required field "Group.supported_model_scopes"`)}
+	}
+	if _, ok := _c.mutation.Priority(); !ok {
+		return &ValidationError{Name: "priority", err: errors.New(`ent: missing required field "Group.priority"`)}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "Group.sort_order"`)}
@@ -873,6 +909,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldSupportedModelScopes, field.TypeJSON, value)
 		_node.SupportedModelScopes = value
 	}
+	if value, ok := _c.mutation.Priority(); ok {
+		_spec.SetField(group.FieldPriority, field.TypeInt, value)
+		_node.Priority = value
+	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(group.FieldSortOrder, field.TypeInt, value)
 		_node.SortOrder = value
@@ -947,6 +987,26 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.APIKeyLinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _c.config, mutation: newAPIKeyGroupMutation(_c.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.AccountsIDs(); len(nodes) > 0 {
@@ -1554,6 +1614,24 @@ func (u *GroupUpsert) SetSupportedModelScopes(v []string) *GroupUpsert {
 // UpdateSupportedModelScopes sets the "supported_model_scopes" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateSupportedModelScopes() *GroupUpsert {
 	u.SetExcluded(group.FieldSupportedModelScopes)
+	return u
+}
+
+// SetPriority sets the "priority" field.
+func (u *GroupUpsert) SetPriority(v int) *GroupUpsert {
+	u.Set(group.FieldPriority, v)
+	return u
+}
+
+// UpdatePriority sets the "priority" field to the value that was provided on create.
+func (u *GroupUpsert) UpdatePriority() *GroupUpsert {
+	u.SetExcluded(group.FieldPriority)
+	return u
+}
+
+// AddPriority adds v to the "priority" field.
+func (u *GroupUpsert) AddPriority(v int) *GroupUpsert {
+	u.Add(group.FieldPriority, v)
 	return u
 }
 
@@ -2243,6 +2321,27 @@ func (u *GroupUpsertOne) SetSupportedModelScopes(v []string) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateSupportedModelScopes() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateSupportedModelScopes()
+	})
+}
+
+// SetPriority sets the "priority" field.
+func (u *GroupUpsertOne) SetPriority(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetPriority(v)
+	})
+}
+
+// AddPriority adds v to the "priority" field.
+func (u *GroupUpsertOne) AddPriority(v int) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddPriority(v)
+	})
+}
+
+// UpdatePriority sets the "priority" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdatePriority() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdatePriority()
 	})
 }
 
@@ -3105,6 +3204,27 @@ func (u *GroupUpsertBulk) SetSupportedModelScopes(v []string) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateSupportedModelScopes() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateSupportedModelScopes()
+	})
+}
+
+// SetPriority sets the "priority" field.
+func (u *GroupUpsertBulk) SetPriority(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetPriority(v)
+	})
+}
+
+// AddPriority adds v to the "priority" field.
+func (u *GroupUpsertBulk) AddPriority(v int) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddPriority(v)
+	})
+}
+
+// UpdatePriority sets the "priority" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdatePriority() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdatePriority()
 	})
 }
 

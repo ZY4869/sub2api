@@ -44,6 +44,71 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
 		return
 	}
+	{
+		subscription, _ := middleware.GetSubscriptionFromContext(c)
+		allowedPlatforms := geminiCompatiblePlatforms
+		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+			allowedPlatforms = []string{forcePlatform}
+		}
+		excludedGroupIDs := make(map[int64]struct{})
+
+		for {
+			currentAPIKey, _, err := resolveSelectedGatewayAPIKey(
+				c,
+				h.settingService,
+				h.gatewayService,
+				h.billingCacheService,
+				apiKey,
+				subscription,
+				"",
+				allowedPlatforms,
+				excludedGroupIDs,
+			)
+			if err != nil {
+				status, _, message := groupSelectionErrorDetails(err)
+				googleError(c, status, message)
+				return
+			}
+
+			currentPlatform := ""
+			if currentAPIKey.Group != nil {
+				currentPlatform = currentAPIKey.Group.Platform
+			}
+
+			switch currentPlatform {
+			case service.PlatformAntigravity:
+				c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
+				return
+			case service.PlatformGemini:
+				account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), currentAPIKey.GroupID)
+				if err != nil {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						continue
+					}
+					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
+					return
+				}
+
+				res, err := h.geminiCompatService.ForwardAIStudioGET(c.Request.Context(), account, "/v1beta/models")
+				if err != nil {
+					googleError(c, http.StatusBadGateway, err.Error())
+					return
+				}
+				if shouldFallbackGeminiModels(res) {
+					c.JSON(http.StatusOK, gemini.FallbackModelsList())
+					return
+				}
+				writeUpstreamResponse(c, res)
+				return
+			default:
+				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					continue
+				}
+				googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+				return
+			}
+		}
+	}
 	if !hasForcePlatform && apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
 		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
 		return
@@ -97,6 +162,77 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 	if forcePlatform == service.PlatformKiro || forcePlatform == service.PlatformCopilot {
 		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
 		return
+	}
+	{
+		modelName := strings.TrimSpace(c.Param("model"))
+		if modelName == "" {
+			googleError(c, http.StatusBadRequest, "Missing model in URL")
+			return
+		}
+
+		subscription, _ := middleware.GetSubscriptionFromContext(c)
+		allowedPlatforms := geminiCompatiblePlatforms
+		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+			allowedPlatforms = []string{forcePlatform}
+		}
+		excludedGroupIDs := make(map[int64]struct{})
+
+		for {
+			currentAPIKey, _, err := resolveSelectedGatewayAPIKey(
+				c,
+				h.settingService,
+				h.gatewayService,
+				h.billingCacheService,
+				apiKey,
+				subscription,
+				modelName,
+				allowedPlatforms,
+				excludedGroupIDs,
+			)
+			if err != nil {
+				status, _, message := groupSelectionErrorDetails(err)
+				googleError(c, status, message)
+				return
+			}
+
+			currentPlatform := ""
+			if currentAPIKey.Group != nil {
+				currentPlatform = currentAPIKey.Group.Platform
+			}
+
+			switch currentPlatform {
+			case service.PlatformAntigravity:
+				c.JSON(http.StatusOK, antigravity.FallbackGeminiModel(modelName))
+				return
+			case service.PlatformGemini:
+				account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), currentAPIKey.GroupID)
+				if err != nil {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						continue
+					}
+					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
+					return
+				}
+
+				res, err := h.geminiCompatService.ForwardAIStudioGET(c.Request.Context(), account, "/v1beta/models/"+modelName)
+				if err != nil {
+					googleError(c, http.StatusBadGateway, err.Error())
+					return
+				}
+				if shouldFallbackGeminiModels(res) {
+					c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
+					return
+				}
+				writeUpstreamResponse(c, res)
+				return
+			default:
+				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					continue
+				}
+				googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+				return
+			}
+		}
 	}
 	if !hasForcePlatform && apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
 		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
@@ -167,7 +303,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	)
 
 	// 检查平台：优先使用强制平台（/antigravity 路由，中间件已设置 request.Context），否则要求 gemini 分组
-	if !middleware.HasForcePlatform(c) {
+	if !middleware.HasForcePlatform(c) && !multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) {
 		if apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
 			googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
 			return
@@ -249,6 +385,342 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	if userReleaseFunc != nil {
 		defer userReleaseFunc()
 	}
+
+	selectedForcePlatform, hasSelectedForcePlatform := middleware.GetForcePlatformFromContext(c)
+	if hasSelectedForcePlatform && (selectedForcePlatform == service.PlatformKiro || selectedForcePlatform == service.PlatformCopilot) {
+		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+		return
+	}
+	selectedAllowedPlatforms := geminiCompatiblePlatforms
+	if hasSelectedForcePlatform && strings.TrimSpace(selectedForcePlatform) != "" {
+		selectedAllowedPlatforms = []string{selectedForcePlatform}
+	}
+	excludedGroupIDs := make(map[int64]struct{})
+
+	for {
+		currentAPIKey, currentSubscription, err := resolveSelectedGatewayAPIKey(
+			c,
+			h.settingService,
+			h.gatewayService,
+			h.billingCacheService,
+			apiKey,
+			subscription,
+			modelName,
+			selectedAllowedPlatforms,
+			excludedGroupIDs,
+		)
+		if err != nil {
+			reqLog.Info("gemini.group_selection_failed", zap.Error(err))
+			status, _, message := groupSelectionErrorDetails(err)
+			googleError(c, status, message)
+			return
+		}
+
+		currentPlatform := ""
+		if currentAPIKey.Group != nil {
+			currentPlatform = currentAPIKey.Group.Platform
+		}
+		if currentPlatform == service.PlatformKiro || currentPlatform == service.PlatformCopilot {
+			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				continue
+			}
+			googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+			return
+		}
+		if currentPlatform != service.PlatformGemini && currentPlatform != service.PlatformAntigravity {
+			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				continue
+			}
+			googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+			return
+		}
+
+		sessionHash := extractGeminiCLISessionHash(c, body)
+		if sessionHash == "" {
+			parsedReq, _ := service.ParseGatewayRequest(body, domain.PlatformGemini)
+			if parsedReq != nil {
+				parsedReq.SessionContext = &service.SessionContext{
+					ClientIP:  ip.GetClientIP(c),
+					UserAgent: c.GetHeader("User-Agent"),
+					APIKeyID:  currentAPIKey.ID,
+				}
+			}
+			sessionHash = h.gatewayService.GenerateSessionHash(parsedReq)
+		}
+		sessionKey := ""
+		if sessionHash != "" {
+			sessionKey = "gemini:" + sessionHash
+		}
+
+		var sessionBoundAccountID int64
+		if sessionKey != "" {
+			sessionBoundAccountID, _ = h.gatewayService.GetCachedSessionAccountID(c.Request.Context(), currentAPIKey.GroupID, sessionKey)
+			if sessionBoundAccountID > 0 {
+				prefetchedGroupID := int64(0)
+				if currentAPIKey.GroupID != nil {
+					prefetchedGroupID = *currentAPIKey.GroupID
+				}
+				ctx := service.WithPrefetchedStickySession(c.Request.Context(), sessionBoundAccountID, prefetchedGroupID, h.metadataBridgeEnabled())
+				c.Request = c.Request.WithContext(ctx)
+			}
+		}
+
+		var geminiDigestChain string
+		var geminiPrefixHash string
+		var geminiSessionUUID string
+		var matchedDigestChain string
+		useDigestFallback := sessionBoundAccountID == 0
+
+		if useDigestFallback {
+			var geminiReq antigravity.GeminiRequest
+			if err := json.Unmarshal(body, &geminiReq); err == nil && len(geminiReq.Contents) > 0 {
+				geminiDigestChain = service.BuildGeminiDigestChain(&geminiReq)
+				if geminiDigestChain != "" {
+					userAgent := c.GetHeader("User-Agent")
+					clientIP := ip.GetClientIP(c)
+					geminiPrefixHash = service.GenerateGeminiPrefixHash(
+						authSubject.UserID,
+						currentAPIKey.ID,
+						clientIP,
+						userAgent,
+						currentPlatform,
+						modelName,
+					)
+
+					foundUUID, foundAccountID, foundMatchedChain, found := h.gatewayService.FindGeminiSession(
+						c.Request.Context(),
+						derefGroupID(currentAPIKey.GroupID),
+						geminiPrefixHash,
+						geminiDigestChain,
+					)
+					if found {
+						matchedDigestChain = foundMatchedChain
+						sessionBoundAccountID = foundAccountID
+						geminiSessionUUID = foundUUID
+						reqLog.Info("gemini.digest_fallback_matched",
+							zap.String("session_uuid_prefix", safeShortPrefix(foundUUID, 8)),
+							zap.Int64("account_id", foundAccountID),
+							zap.Any("group_id", currentAPIKey.GroupID),
+							zap.String("digest_chain", truncateDigestChain(geminiDigestChain)),
+						)
+
+						if sessionKey == "" {
+							sessionKey = service.GenerateGeminiDigestSessionKey(geminiPrefixHash, foundUUID)
+						}
+						_ = h.gatewayService.BindStickySession(c.Request.Context(), currentAPIKey.GroupID, sessionKey, foundAccountID)
+					} else {
+						geminiSessionUUID = uuid.New().String()
+						if sessionKey == "" {
+							sessionKey = service.GenerateGeminiDigestSessionKey(geminiPrefixHash, geminiSessionUUID)
+						}
+					}
+				}
+			}
+		}
+
+		hasBoundSession := sessionKey != "" && sessionBoundAccountID > 0
+		cleanedForUnknownBinding := false
+		fs := NewFailoverState(h.maxAccountSwitchesGemini, hasBoundSession)
+
+		if h.gatewayService.IsSingleAntigravityAccountGroup(c.Request.Context(), currentAPIKey.GroupID) {
+			ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+			c.Request = c.Request.WithContext(ctx)
+		}
+
+		for {
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, modelName, fs.FailedAccountIDs, "")
+			if err != nil {
+				if len(fs.FailedAccountIDs) == 0 {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
+					}
+					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
+					return
+				}
+				action := fs.HandleSelectionExhausted(c.Request.Context())
+				switch action {
+				case FailoverContinue:
+					ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+					c.Request = c.Request.WithContext(ctx)
+					continue
+				case FailoverCanceled:
+					return
+				default:
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
+					}
+					h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
+					return
+				}
+			}
+			account := selection.Account
+			setOpsSelectedAccount(c, account.ID, account.Platform)
+
+			if sessionBoundAccountID > 0 && sessionBoundAccountID != account.ID {
+				reqLog.Info("gemini.sticky_session_account_switched",
+					zap.Int64("from_account_id", sessionBoundAccountID),
+					zap.Int64("to_account_id", account.ID),
+					zap.Bool("clean_thought_signature", true),
+					zap.Any("group_id", currentAPIKey.GroupID),
+				)
+				body = service.CleanGeminiNativeThoughtSignatures(body)
+				sessionBoundAccountID = account.ID
+			} else if sessionKey != "" && sessionBoundAccountID == 0 && !cleanedForUnknownBinding && bytes.Contains(body, []byte(`"thoughtSignature"`)) {
+				reqLog.Info("gemini.sticky_session_binding_missing",
+					zap.Bool("clean_thought_signature", true),
+					zap.Any("group_id", currentAPIKey.GroupID),
+				)
+				body = service.CleanGeminiNativeThoughtSignatures(body)
+				cleanedForUnknownBinding = true
+				sessionBoundAccountID = account.ID
+			} else if sessionBoundAccountID == 0 {
+				sessionBoundAccountID = account.ID
+			}
+
+			accountReleaseFunc := selection.ReleaseFunc
+			if !selection.Acquired {
+				if selection.WaitPlan == nil {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
+					}
+					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts")
+					return
+				}
+				accountWaitCounted := false
+				canWait, err := geminiConcurrency.IncrementAccountWaitCount(c.Request.Context(), account.ID, selection.WaitPlan.MaxWaiting)
+				if err != nil {
+					reqLog.Warn("gemini.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+				} else if !canWait {
+					reqLog.Info("gemini.account_wait_queue_full",
+						zap.Int64("account_id", account.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
+					)
+					googleError(c, http.StatusTooManyRequests, "Too many pending requests, please retry later")
+					return
+				}
+				if err == nil && canWait {
+					accountWaitCounted = true
+				}
+				defer func() {
+					if accountWaitCounted {
+						geminiConcurrency.DecrementAccountWaitCount(c.Request.Context(), account.ID)
+					}
+				}()
+
+				accountReleaseFunc, err = geminiConcurrency.AcquireAccountSlotWithWaitTimeout(
+					c,
+					account.ID,
+					selection.WaitPlan.MaxConcurrency,
+					selection.WaitPlan.Timeout,
+					stream,
+					&streamStarted,
+				)
+				if err != nil {
+					reqLog.Warn("gemini.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+					googleError(c, http.StatusTooManyRequests, err.Error())
+					return
+				}
+				if accountWaitCounted {
+					geminiConcurrency.DecrementAccountWaitCount(c.Request.Context(), account.ID)
+					accountWaitCounted = false
+				}
+				if err := h.gatewayService.BindStickySession(c.Request.Context(), currentAPIKey.GroupID, sessionKey, account.ID); err != nil {
+					reqLog.Warn("gemini.bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+				}
+			}
+			accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
+
+			var result *service.ForwardResult
+			requestCtx := c.Request.Context()
+			if fs.SwitchCount > 0 {
+				requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
+			}
+			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
+				result, err = h.antigravityGatewayService.ForwardGemini(requestCtx, c, account, modelName, action, stream, body, hasBoundSession)
+			} else {
+				result, err = h.geminiCompatService.ForwardNative(requestCtx, c, account, modelName, action, stream, body)
+			}
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
+			if err != nil {
+				var failoverErr *service.UpstreamFailoverError
+				if errors.As(err, &failoverErr) {
+					failoverAction := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, failoverErr)
+					switch failoverAction {
+					case FailoverContinue:
+						continue
+					case FailoverExhausted:
+						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							break
+						}
+						h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
+						return
+					case FailoverCanceled:
+						return
+					}
+				}
+				reqLog.Error("gemini.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+				return
+			}
+
+			userAgent := c.GetHeader("User-Agent")
+			clientIP := ip.GetClientIP(c)
+
+			if useDigestFallback && geminiDigestChain != "" && geminiPrefixHash != "" {
+				if err := h.gatewayService.SaveGeminiSession(
+					c.Request.Context(),
+					derefGroupID(currentAPIKey.GroupID),
+					geminiPrefixHash,
+					geminiDigestChain,
+					geminiSessionUUID,
+					account.ID,
+					matchedDigestChain,
+				); err != nil {
+					reqLog.Warn("gemini.digest_session_save_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+				}
+			}
+
+			requestPayloadHash := service.HashUsageRequestPayload(body)
+			inboundEndpoint := GetInboundEndpoint(c)
+			upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+			h.submitUsageRecordTask(func(ctx context.Context) {
+				if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
+					Result:                result,
+					APIKey:                currentAPIKey,
+					User:                  currentAPIKey.User,
+					Account:               account,
+					Subscription:          currentSubscription,
+					InboundEndpoint:       inboundEndpoint,
+					UpstreamEndpoint:      upstreamEndpoint,
+					UserAgent:             userAgent,
+					IPAddress:             clientIP,
+					RequestPayloadHash:    requestPayloadHash,
+					LongContextThreshold:  200000,
+					LongContextMultiplier: 2.0,
+					ForceCacheBilling:     fs.ForceCacheBilling,
+					APIKeyService:         h.apiKeyService,
+				}); err != nil {
+					logger.L().With(
+						zap.String("component", "handler.gemini_v1beta.models"),
+						zap.Int64("user_id", authSubject.UserID),
+						zap.Int64("api_key_id", currentAPIKey.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.String("model", modelName),
+						zap.Int64("account_id", account.ID),
+					).Error("gemini.record_usage_failed", zap.Error(err))
+				}
+			})
+			reqLog.Debug("gemini.request_completed",
+				zap.Int64("account_id", account.ID),
+				zap.Any("group_id", currentAPIKey.GroupID),
+				zap.Int("switch_count", fs.SwitchCount),
+			)
+			return
+		}
+	}
+	return
 
 	// 2) billing eligibility check (after wait)
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {

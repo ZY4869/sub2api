@@ -41,6 +41,7 @@ type SoraGatewayHandler struct {
 	soraTLSEnabled        bool
 	soraMediaSigningKey   string
 	soraMediaRoot         string
+	settingService        *service.SettingService
 }
 
 // NewSoraGatewayHandler creates a new SoraGatewayHandler
@@ -84,6 +85,10 @@ func NewSoraGatewayHandler(
 		soraMediaSigningKey:   signKey,
 		soraMediaRoot:         mediaRoot,
 	}
+}
+
+func (h *SoraGatewayHandler) SetSettingService(settingService *service.SettingService) {
+	h.settingService = settingService
 }
 
 // ChatCompletions handles Sora /v1/chat/completions endpoint
@@ -160,17 +165,6 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	setOpsRequestContext(c, reqModel, clientStream, body)
 
-	platform := ""
-	if forced, ok := middleware2.GetForcePlatformFromContext(c); ok {
-		platform = forced
-	} else if apiKey.Group != nil {
-		platform = apiKey.Group.Platform
-	}
-	if platform != service.PlatformSora {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "This endpoint only supports Sora platform")
-		return
-	}
-
 	streamStarted := false
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 
@@ -208,142 +202,213 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
-		reqLog.Info("sora.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message := billingErrorDetails(err)
-		h.handleStreamingAwareError(c, status, code, message, streamStarted)
+	if currentPlatform := strings.TrimSpace(func() string {
+		if forced, ok := middleware2.GetForcePlatformFromContext(c); ok {
+			return forced
+		}
+		if apiKey.Group != nil {
+			return apiKey.Group.Platform
+		}
+		return ""
+	}()); !multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && currentPlatform != service.PlatformSora {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "This endpoint only supports Sora platform")
 		return
 	}
 
 	sessionHash := generateOpenAISessionHash(c, body)
-
-	maxAccountSwitches := h.maxAccountSwitches
-	switchCount := 0
-	failedAccountIDs := make(map[int64]struct{})
-	lastFailoverStatus := 0
-	var lastFailoverBody []byte
-	var lastFailoverHeaders http.Header
+	excludedGroupIDs := make(map[int64]struct{})
 
 	for {
-		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionHash, reqModel, failedAccountIDs, "")
+		currentAPIKey, currentSubscription, err := resolveSelectedGatewayAPIKey(
+			c,
+			h.settingService,
+			h.gatewayService,
+			h.billingCacheService,
+			apiKey,
+			subscription,
+			reqModel,
+			soraCompatiblePlatforms,
+			excludedGroupIDs,
+		)
 		if err != nil {
-			reqLog.Warn("sora.account_select_failed",
-				zap.Error(err),
-				zap.Int("excluded_account_count", len(failedAccountIDs)),
-			)
-			if len(failedAccountIDs) == 0 {
-				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
-				return
-			}
-			rayID, mitigated, contentType := extractSoraFailoverHeaderInsights(lastFailoverHeaders, lastFailoverBody)
-			fields := []zap.Field{
-				zap.Int("last_upstream_status", lastFailoverStatus),
-			}
-			if rayID != "" {
-				fields = append(fields, zap.String("last_upstream_cf_ray", rayID))
-			}
-			if mitigated != "" {
-				fields = append(fields, zap.String("last_upstream_cf_mitigated", mitigated))
-			}
-			if contentType != "" {
-				fields = append(fields, zap.String("last_upstream_content_type", contentType))
-			}
-			reqLog.Warn("sora.failover_exhausted_no_available_accounts", fields...)
-			h.handleFailoverExhausted(c, lastFailoverStatus, lastFailoverHeaders, lastFailoverBody, streamStarted)
+			reqLog.Info("sora.group_selection_failed", zap.Error(err))
+			status, code, message := groupSelectionErrorDetails(err)
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
 			return
 		}
-		account := selection.Account
-		setOpsSelectedAccount(c, account.ID, account.Platform)
-		proxyBound := account.ProxyID != nil
-		proxyID := int64(0)
-		if account.ProxyID != nil {
-			proxyID = *account.ProxyID
-		}
-		tlsFingerprintEnabled := h.soraTLSEnabled
 
-		accountReleaseFunc := selection.ReleaseFunc
-		if !selection.Acquired {
-			if selection.WaitPlan == nil {
-				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
-				return
-			}
-			accountWaitCounted := false
-			canWait, err := h.concurrencyHelper.IncrementAccountWaitCount(c.Request.Context(), account.ID, selection.WaitPlan.MaxWaiting)
+		switchCount := 0
+		failedAccountIDs := make(map[int64]struct{})
+		lastFailoverStatus := 0
+		var lastFailoverBody []byte
+		var lastFailoverHeaders http.Header
+
+		for {
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionHash, reqModel, failedAccountIDs, "")
 			if err != nil {
-				reqLog.Warn("sora.account_wait_counter_increment_failed",
-					zap.Int64("account_id", account.ID),
-					zap.Int64("proxy_id", proxyID),
-					zap.Bool("proxy_bound", proxyBound),
-					zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
+				reqLog.Warn("sora.account_select_failed",
 					zap.Error(err),
+					zap.Any("group_id", currentAPIKey.GroupID),
+					zap.Int("excluded_account_count", len(failedAccountIDs)),
 				)
-			} else if !canWait {
-				reqLog.Info("sora.account_wait_queue_full",
-					zap.Int64("account_id", account.ID),
-					zap.Int64("proxy_id", proxyID),
-					zap.Bool("proxy_bound", proxyBound),
-					zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
-					zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
-				)
-				h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
+				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+					break
+				}
+				if len(failedAccountIDs) == 0 {
+					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
+					return
+				}
+				rayID, mitigated, contentType := extractSoraFailoverHeaderInsights(lastFailoverHeaders, lastFailoverBody)
+				fields := []zap.Field{
+					zap.Int("last_upstream_status", lastFailoverStatus),
+				}
+				if rayID != "" {
+					fields = append(fields, zap.String("last_upstream_cf_ray", rayID))
+				}
+				if mitigated != "" {
+					fields = append(fields, zap.String("last_upstream_cf_mitigated", mitigated))
+				}
+				if contentType != "" {
+					fields = append(fields, zap.String("last_upstream_content_type", contentType))
+				}
+				reqLog.Warn("sora.failover_exhausted_no_available_accounts", fields...)
+				h.handleFailoverExhausted(c, lastFailoverStatus, lastFailoverHeaders, lastFailoverBody, streamStarted)
 				return
 			}
-			if err == nil && canWait {
-				accountWaitCounted = true
+
+			account := selection.Account
+			setOpsSelectedAccount(c, account.ID, account.Platform)
+			proxyBound := account.ProxyID != nil
+			proxyID := int64(0)
+			if account.ProxyID != nil {
+				proxyID = *account.ProxyID
 			}
-			defer func() {
+			tlsFingerprintEnabled := h.soraTLSEnabled
+
+			accountReleaseFunc := selection.ReleaseFunc
+			if !selection.Acquired {
+				if selection.WaitPlan == nil {
+					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						break
+					}
+					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
+					return
+				}
+				accountWaitCounted := false
+				canWait, err := h.concurrencyHelper.IncrementAccountWaitCount(c.Request.Context(), account.ID, selection.WaitPlan.MaxWaiting)
+				if err != nil {
+					reqLog.Warn("sora.account_wait_counter_increment_failed",
+						zap.Int64("account_id", account.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.Int64("proxy_id", proxyID),
+						zap.Bool("proxy_bound", proxyBound),
+						zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
+						zap.Error(err),
+					)
+				} else if !canWait {
+					reqLog.Info("sora.account_wait_queue_full",
+						zap.Int64("account_id", account.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.Int64("proxy_id", proxyID),
+						zap.Bool("proxy_bound", proxyBound),
+						zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
+						zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
+					)
+					h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
+					return
+				}
+				if err == nil && canWait {
+					accountWaitCounted = true
+				}
+				defer func() {
+					if accountWaitCounted {
+						h.concurrencyHelper.DecrementAccountWaitCount(c.Request.Context(), account.ID)
+					}
+				}()
+
+				accountReleaseFunc, err = h.concurrencyHelper.AcquireAccountSlotWithWaitTimeout(
+					c,
+					account.ID,
+					selection.WaitPlan.MaxConcurrency,
+					selection.WaitPlan.Timeout,
+					clientStream,
+					&streamStarted,
+				)
+				if err != nil {
+					reqLog.Warn("sora.account_slot_acquire_failed",
+						zap.Int64("account_id", account.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.Int64("proxy_id", proxyID),
+						zap.Bool("proxy_bound", proxyBound),
+						zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
+						zap.Error(err),
+					)
+					h.handleConcurrencyError(c, err, "account", streamStarted)
+					return
+				}
 				if accountWaitCounted {
 					h.concurrencyHelper.DecrementAccountWaitCount(c.Request.Context(), account.ID)
+					accountWaitCounted = false
 				}
-			}()
+			}
+			accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
 
-			accountReleaseFunc, err = h.concurrencyHelper.AcquireAccountSlotWithWaitTimeout(
-				c,
-				account.ID,
-				selection.WaitPlan.MaxConcurrency,
-				selection.WaitPlan.Timeout,
-				clientStream,
-				&streamStarted,
-			)
+			result, err := h.soraGatewayService.Forward(c.Request.Context(), c, account, body, clientStream)
+			if accountReleaseFunc != nil {
+				accountReleaseFunc()
+			}
 			if err != nil {
-				reqLog.Warn("sora.account_slot_acquire_failed",
-					zap.Int64("account_id", account.ID),
-					zap.Int64("proxy_id", proxyID),
-					zap.Bool("proxy_bound", proxyBound),
-					zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
-					zap.Error(err),
-				)
-				h.handleConcurrencyError(c, err, "account", streamStarted)
-				return
-			}
-			if accountWaitCounted {
-				h.concurrencyHelper.DecrementAccountWaitCount(c.Request.Context(), account.ID)
-				accountWaitCounted = false
-			}
-		}
-		accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
-
-		result, err := h.soraGatewayService.Forward(c.Request.Context(), c, account, body, clientStream)
-		if accountReleaseFunc != nil {
-			accountReleaseFunc()
-		}
-		if err != nil {
-			var failoverErr *service.UpstreamFailoverError
-			if errors.As(err, &failoverErr) {
-				failedAccountIDs[account.ID] = struct{}{}
-				if switchCount >= maxAccountSwitches {
+				var failoverErr *service.UpstreamFailoverError
+				if errors.As(err, &failoverErr) {
+					failedAccountIDs[account.ID] = struct{}{}
+					if switchCount >= h.maxAccountSwitches {
+						lastFailoverStatus = failoverErr.StatusCode
+						lastFailoverHeaders = cloneHTTPHeaders(failoverErr.ResponseHeaders)
+						lastFailoverBody = failoverErr.ResponseBody
+						rayID, mitigated, contentType := extractSoraFailoverHeaderInsights(lastFailoverHeaders, lastFailoverBody)
+						fields := []zap.Field{
+							zap.Int64("account_id", account.ID),
+							zap.Any("group_id", currentAPIKey.GroupID),
+							zap.Int64("proxy_id", proxyID),
+							zap.Bool("proxy_bound", proxyBound),
+							zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
+							zap.Int("upstream_status", failoverErr.StatusCode),
+							zap.Int("switch_count", switchCount),
+							zap.Int("max_switches", h.maxAccountSwitches),
+						}
+						if rayID != "" {
+							fields = append(fields, zap.String("upstream_cf_ray", rayID))
+						}
+						if mitigated != "" {
+							fields = append(fields, zap.String("upstream_cf_mitigated", mitigated))
+						}
+						if contentType != "" {
+							fields = append(fields, zap.String("upstream_content_type", contentType))
+						}
+						reqLog.Warn("sora.upstream_failover_exhausted", fields...)
+						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							break
+						}
+						h.handleFailoverExhausted(c, lastFailoverStatus, lastFailoverHeaders, lastFailoverBody, streamStarted)
+						return
+					}
 					lastFailoverStatus = failoverErr.StatusCode
 					lastFailoverHeaders = cloneHTTPHeaders(failoverErr.ResponseHeaders)
 					lastFailoverBody = failoverErr.ResponseBody
+					switchCount++
+					upstreamErrCode, upstreamErrMsg := extractUpstreamErrorCodeAndMessage(lastFailoverBody)
 					rayID, mitigated, contentType := extractSoraFailoverHeaderInsights(lastFailoverHeaders, lastFailoverBody)
 					fields := []zap.Field{
 						zap.Int64("account_id", account.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
 						zap.Int64("proxy_id", proxyID),
 						zap.Bool("proxy_bound", proxyBound),
 						zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
 						zap.Int("upstream_status", failoverErr.StatusCode),
+						zap.String("upstream_error_code", upstreamErrCode),
+						zap.String("upstream_error_message", upstreamErrMsg),
 						zap.Int("switch_count", switchCount),
-						zap.Int("max_switches", maxAccountSwitches),
+						zap.Int("max_switches", h.maxAccountSwitches),
 					}
 					if rayID != "" {
 						fields = append(fields, zap.String("upstream_cf_ray", rayID))
@@ -354,87 +419,59 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 					if contentType != "" {
 						fields = append(fields, zap.String("upstream_content_type", contentType))
 					}
-					reqLog.Warn("sora.upstream_failover_exhausted", fields...)
-					h.handleFailoverExhausted(c, lastFailoverStatus, lastFailoverHeaders, lastFailoverBody, streamStarted)
-					return
+					reqLog.Warn("sora.upstream_failover_switching", fields...)
+					continue
 				}
-				lastFailoverStatus = failoverErr.StatusCode
-				lastFailoverHeaders = cloneHTTPHeaders(failoverErr.ResponseHeaders)
-				lastFailoverBody = failoverErr.ResponseBody
-				switchCount++
-				upstreamErrCode, upstreamErrMsg := extractUpstreamErrorCodeAndMessage(lastFailoverBody)
-				rayID, mitigated, contentType := extractSoraFailoverHeaderInsights(lastFailoverHeaders, lastFailoverBody)
-				fields := []zap.Field{
+				reqLog.Error("sora.forward_failed",
 					zap.Int64("account_id", account.ID),
+					zap.Any("group_id", currentAPIKey.GroupID),
 					zap.Int64("proxy_id", proxyID),
 					zap.Bool("proxy_bound", proxyBound),
 					zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
-					zap.Int("upstream_status", failoverErr.StatusCode),
-					zap.String("upstream_error_code", upstreamErrCode),
-					zap.String("upstream_error_message", upstreamErrMsg),
-					zap.Int("switch_count", switchCount),
-					zap.Int("max_switches", maxAccountSwitches),
-				}
-				if rayID != "" {
-					fields = append(fields, zap.String("upstream_cf_ray", rayID))
-				}
-				if mitigated != "" {
-					fields = append(fields, zap.String("upstream_cf_mitigated", mitigated))
-				}
-				if contentType != "" {
-					fields = append(fields, zap.String("upstream_content_type", contentType))
-				}
-				reqLog.Warn("sora.upstream_failover_switching", fields...)
-				continue
+					zap.Error(err),
+				)
+				return
 			}
-			reqLog.Error("sora.forward_failed",
+
+			userAgent := c.GetHeader("User-Agent")
+			clientIP := ip.GetClientIP(c)
+			requestPayloadHash := service.HashUsageRequestPayload(body)
+			inboundEndpoint := GetInboundEndpoint(c)
+			upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+			// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
+			h.submitUsageRecordTask(func(ctx context.Context) {
+				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
+					Result:             result,
+					APIKey:             currentAPIKey,
+					User:               currentAPIKey.User,
+					Account:            account,
+					Subscription:       currentSubscription,
+					InboundEndpoint:    inboundEndpoint,
+					UpstreamEndpoint:   upstreamEndpoint,
+					UserAgent:          userAgent,
+					IPAddress:          clientIP,
+					RequestPayloadHash: requestPayloadHash,
+				}); err != nil {
+					logger.L().With(
+						zap.String("component", "handler.sora_gateway.chat_completions"),
+						zap.Int64("user_id", subject.UserID),
+						zap.Int64("api_key_id", currentAPIKey.ID),
+						zap.Any("group_id", currentAPIKey.GroupID),
+						zap.String("model", reqModel),
+						zap.Int64("account_id", account.ID),
+					).Error("sora.record_usage_failed", zap.Error(err))
+				}
+			})
+			reqLog.Debug("sora.request_completed",
 				zap.Int64("account_id", account.ID),
+				zap.Any("group_id", currentAPIKey.GroupID),
 				zap.Int64("proxy_id", proxyID),
 				zap.Bool("proxy_bound", proxyBound),
 				zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
-				zap.Error(err),
+				zap.Int("switch_count", switchCount),
 			)
 			return
 		}
-
-		userAgent := c.GetHeader("User-Agent")
-		clientIP := ip.GetClientIP(c)
-		requestPayloadHash := service.HashUsageRequestPayload(body)
-		inboundEndpoint := GetInboundEndpoint(c)
-		upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
-
-		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
-		h.submitUsageRecordTask(func(ctx context.Context) {
-			if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
-				Result:             result,
-				APIKey:             apiKey,
-				User:               apiKey.User,
-				Account:            account,
-				Subscription:       subscription,
-				InboundEndpoint:    inboundEndpoint,
-				UpstreamEndpoint:   upstreamEndpoint,
-				UserAgent:          userAgent,
-				IPAddress:          clientIP,
-				RequestPayloadHash: requestPayloadHash,
-			}); err != nil {
-				logger.L().With(
-					zap.String("component", "handler.sora_gateway.chat_completions"),
-					zap.Int64("user_id", subject.UserID),
-					zap.Int64("api_key_id", apiKey.ID),
-					zap.Any("group_id", apiKey.GroupID),
-					zap.String("model", reqModel),
-					zap.Int64("account_id", account.ID),
-				).Error("sora.record_usage_failed", zap.Error(err))
-			}
-		})
-		reqLog.Debug("sora.request_completed",
-			zap.Int64("account_id", account.ID),
-			zap.Int64("proxy_id", proxyID),
-			zap.Bool("proxy_bound", proxyBound),
-			zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
-			zap.Int("switch_count", switchCount),
-		)
-		return
 	}
 }
 
@@ -464,7 +501,6 @@ func (h *SoraGatewayHandler) submitUsageRecordTask(task service.UsageRecordTask)
 		h.usageRecordWorkerPool.Submit(task)
 		return
 	}
-	// 回退路径：worker 池未注入时同步执行，避免退回到无界 goroutine 模式。
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	defer func() {

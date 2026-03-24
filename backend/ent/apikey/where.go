@@ -1171,6 +1171,29 @@ func HasGroupWith(preds ...predicate.Group) predicate.APIKey {
 	})
 }
 
+// HasMultiGroups applies the HasEdge predicate on the "multi_groups" edge.
+func HasMultiGroups() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, MultiGroupsTable, MultiGroupsPrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasMultiGroupsWith applies the HasEdge predicate on the "multi_groups" edge with a given conditions (other predicates).
+func HasMultiGroupsWith(preds ...predicate.Group) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newMultiGroupsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasUsageLogs applies the HasEdge predicate on the "usage_logs" edge.
 func HasUsageLogs() predicate.APIKey {
 	return predicate.APIKey(func(s *sql.Selector) {
@@ -1186,6 +1209,29 @@ func HasUsageLogs() predicate.APIKey {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.APIKey {
 	return predicate.APIKey(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAPIKeyGroups applies the HasEdge predicate on the "api_key_groups" edge.
+func HasAPIKeyGroups() predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, APIKeyGroupsTable, APIKeyGroupsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAPIKeyGroupsWith applies the HasEdge predicate on the "api_key_groups" edge with a given conditions (other predicates).
+func HasAPIKeyGroupsWith(preds ...predicate.APIKeyGroup) predicate.APIKey {
+	return predicate.APIKey(func(s *sql.Selector) {
+		step := newAPIKeyGroupsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

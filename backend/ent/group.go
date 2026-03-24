@@ -76,6 +76,8 @@ type Group struct {
 	McpXMLInject bool `json:"mcp_xml_inject,omitempty"`
 	// 支持的模型系列：claude, gemini_text, gemini_image
 	SupportedModelScopes []string `json:"supported_model_scopes,omitempty"`
+	// 分组路由优先级，数值越小优先级越高
+	Priority int `json:"priority,omitempty"`
 	// 分组显示排序，数值越小越靠前
 	SortOrder int `json:"sort_order,omitempty"`
 	// 是否允许 /v1/messages 调度到此 OpenAI 分组
@@ -98,17 +100,21 @@ type GroupEdges struct {
 	Subscriptions []*UserSubscription `json:"subscriptions,omitempty"`
 	// UsageLogs holds the value of the usage_logs edge.
 	UsageLogs []*UsageLog `json:"usage_logs,omitempty"`
+	// APIKeyLinks holds the value of the api_key_links edge.
+	APIKeyLinks []*APIKey `json:"api_key_links,omitempty"`
 	// Accounts holds the value of the accounts edge.
 	Accounts []*Account `json:"accounts,omitempty"`
 	// AllowedUsers holds the value of the allowed_users edge.
 	AllowedUsers []*User `json:"allowed_users,omitempty"`
+	// APIKeyGroups holds the value of the api_key_groups edge.
+	APIKeyGroups []*APIKeyGroup `json:"api_key_groups,omitempty"`
 	// AccountGroups holds the value of the account_groups edge.
 	AccountGroups []*AccountGroup `json:"account_groups,omitempty"`
 	// UserAllowedGroups holds the value of the user_allowed_groups edge.
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [10]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -147,10 +153,19 @@ func (e GroupEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 	return nil, &NotLoadedError{edge: "usage_logs"}
 }
 
+// APIKeyLinksOrErr returns the APIKeyLinks value or an error if the edge
+// was not loaded in eager-loading.
+func (e GroupEdges) APIKeyLinksOrErr() ([]*APIKey, error) {
+	if e.loadedTypes[4] {
+		return e.APIKeyLinks, nil
+	}
+	return nil, &NotLoadedError{edge: "api_key_links"}
+}
+
 // AccountsOrErr returns the Accounts value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) AccountsOrErr() ([]*Account, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.Accounts, nil
 	}
 	return nil, &NotLoadedError{edge: "accounts"}
@@ -159,16 +174,25 @@ func (e GroupEdges) AccountsOrErr() ([]*Account, error) {
 // AllowedUsersOrErr returns the AllowedUsers value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) AllowedUsersOrErr() ([]*User, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.AllowedUsers, nil
 	}
 	return nil, &NotLoadedError{edge: "allowed_users"}
 }
 
+// APIKeyGroupsOrErr returns the APIKeyGroups value or an error if the edge
+// was not loaded in eager-loading.
+func (e GroupEdges) APIKeyGroupsOrErr() ([]*APIKeyGroup, error) {
+	if e.loadedTypes[7] {
+		return e.APIKeyGroups, nil
+	}
+	return nil, &NotLoadedError{edge: "api_key_groups"}
+}
+
 // AccountGroupsOrErr returns the AccountGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) AccountGroupsOrErr() ([]*AccountGroup, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[8] {
 		return e.AccountGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "account_groups"}
@@ -177,7 +201,7 @@ func (e GroupEdges) AccountGroupsOrErr() ([]*AccountGroup, error) {
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e GroupEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[9] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -194,7 +218,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldSoraImagePrice360, group.FieldSoraImagePrice540, group.FieldSoraVideoPricePerRequest, group.FieldSoraVideoPricePerRequestHd:
 			values[i] = new(sql.NullFloat64)
-		case group.FieldID, group.FieldDefaultValidityDays, group.FieldSoraStorageQuotaBytes, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder:
+		case group.FieldID, group.FieldDefaultValidityDays, group.FieldSoraStorageQuotaBytes, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldPriority, group.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case group.FieldName, group.FieldDescription, group.FieldStatus, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel:
 			values[i] = new(sql.NullString)
@@ -413,6 +437,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field supported_model_scopes: %w", err)
 				}
 			}
+		case group.FieldPriority:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field priority", values[i])
+			} else if value.Valid {
+				_m.Priority = int(value.Int64)
+			}
 		case group.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field sort_order", values[i])
@@ -464,6 +494,11 @@ func (_m *Group) QueryUsageLogs() *UsageLogQuery {
 	return NewGroupClient(_m.config).QueryUsageLogs(_m)
 }
 
+// QueryAPIKeyLinks queries the "api_key_links" edge of the Group entity.
+func (_m *Group) QueryAPIKeyLinks() *APIKeyQuery {
+	return NewGroupClient(_m.config).QueryAPIKeyLinks(_m)
+}
+
 // QueryAccounts queries the "accounts" edge of the Group entity.
 func (_m *Group) QueryAccounts() *AccountQuery {
 	return NewGroupClient(_m.config).QueryAccounts(_m)
@@ -472,6 +507,11 @@ func (_m *Group) QueryAccounts() *AccountQuery {
 // QueryAllowedUsers queries the "allowed_users" edge of the Group entity.
 func (_m *Group) QueryAllowedUsers() *UserQuery {
 	return NewGroupClient(_m.config).QueryAllowedUsers(_m)
+}
+
+// QueryAPIKeyGroups queries the "api_key_groups" edge of the Group entity.
+func (_m *Group) QueryAPIKeyGroups() *APIKeyGroupQuery {
+	return NewGroupClient(_m.config).QueryAPIKeyGroups(_m)
 }
 
 // QueryAccountGroups queries the "account_groups" edge of the Group entity.
@@ -621,6 +661,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("supported_model_scopes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SupportedModelScopes))
+	builder.WriteString(", ")
+	builder.WriteString("priority=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Priority))
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))

@@ -104,6 +104,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
 	}
 	if usageLog != nil {
+		cmd.GroupID = usageLog.GroupID
 		cmd.Model = usageLog.Model
 		cmd.BillingType = usageLog.BillingType
 		cmd.InputTokens = usageLog.InputTokens
@@ -136,6 +137,10 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 
 	if !p.SkipUserBilling && p.Cost.ActualCost > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
 		cmd.APIKeyQuotaCost = p.Cost.ActualCost
+	}
+	if !p.SkipUserBilling && p.Cost.ActualCost > 0 && p.APIKeyService != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
+		cmd.GroupID = p.APIKey.GroupID
+		cmd.APIKeyGroupQuotaCost = p.Cost.ActualCost
 	}
 	if !p.SkipUserBilling && p.Cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
 		cmd.APIKeyRateLimitCost = p.Cost.ActualCost
@@ -172,7 +177,7 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		return false, nil
 	}
 
-	if result.APIKeyQuotaExhausted {
+	if result.APIKeyQuotaExhausted || cmd.APIKeyGroupQuotaCost > 0 {
 		if invalidator, ok := p.APIKeyService.(apiKeyAuthCacheInvalidator); ok && p.APIKey != nil && p.APIKey.Key != "" {
 			invalidator.InvalidateAuthCacheByKey(billingCtx, p.APIKey.Key)
 		}
@@ -203,4 +208,3 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 
 	deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 }
-

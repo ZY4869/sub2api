@@ -63,13 +63,14 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				Concurrency: apiKey.User.Concurrency,
 			})
 			c.Set(string(ContextKeyUserRole), apiKey.User.Role)
-			setGroupContext(c, apiKey.Group)
+			setAPIKeyGroupContext(c, apiKey)
 			_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 			c.Next()
 			return
 		}
 
-		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
+		dynamicGroupRouting := len(apiKey.GroupBindings) > 1
+		isSubscriptionType := !dynamicGroupRouting && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 		if isSubscriptionType && subscriptionService != nil {
 			subscription, err := subscriptionService.GetActiveSubscription(
 				c.Request.Context(),
@@ -99,7 +100,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				maintenanceCopy := *subscription
 				subscriptionService.DoWindowMaintenance(&maintenanceCopy)
 			}
-		} else {
+		} else if !dynamicGroupRouting {
 			if apiKey.User.Balance <= 0 {
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return
@@ -112,7 +113,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			Concurrency: apiKey.User.Concurrency,
 		})
 		c.Set(string(ContextKeyUserRole), apiKey.User.Role)
-		setGroupContext(c, apiKey.Group)
+		setAPIKeyGroupContext(c, apiKey)
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		c.Next()
 	}

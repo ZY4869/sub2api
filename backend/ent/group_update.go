@@ -604,6 +604,27 @@ func (_u *GroupUpdate) AppendSupportedModelScopes(v []string) *GroupUpdate {
 	return _u
 }
 
+// SetPriority sets the "priority" field.
+func (_u *GroupUpdate) SetPriority(v int) *GroupUpdate {
+	_u.mutation.ResetPriority()
+	_u.mutation.SetPriority(v)
+	return _u
+}
+
+// SetNillablePriority sets the "priority" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillablePriority(v *int) *GroupUpdate {
+	if v != nil {
+		_u.SetPriority(*v)
+	}
+	return _u
+}
+
+// AddPriority adds value to the "priority" field.
+func (_u *GroupUpdate) AddPriority(v int) *GroupUpdate {
+	_u.mutation.AddPriority(v)
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *GroupUpdate) SetSortOrder(v int) *GroupUpdate {
 	_u.mutation.ResetSortOrder()
@@ -711,6 +732,21 @@ func (_u *GroupUpdate) AddUsageLogs(v ...*UsageLog) *GroupUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageLogIDs(ids...)
+}
+
+// AddAPIKeyLinkIDs adds the "api_key_links" edge to the APIKey entity by IDs.
+func (_u *GroupUpdate) AddAPIKeyLinkIDs(ids ...int64) *GroupUpdate {
+	_u.mutation.AddAPIKeyLinkIDs(ids...)
+	return _u
+}
+
+// AddAPIKeyLinks adds the "api_key_links" edges to the APIKey entity.
+func (_u *GroupUpdate) AddAPIKeyLinks(v ...*APIKey) *GroupUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAPIKeyLinkIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -830,6 +866,27 @@ func (_u *GroupUpdate) RemoveUsageLogs(v ...*UsageLog) *GroupUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearAPIKeyLinks clears all "api_key_links" edges to the APIKey entity.
+func (_u *GroupUpdate) ClearAPIKeyLinks() *GroupUpdate {
+	_u.mutation.ClearAPIKeyLinks()
+	return _u
+}
+
+// RemoveAPIKeyLinkIDs removes the "api_key_links" edge to APIKey entities by IDs.
+func (_u *GroupUpdate) RemoveAPIKeyLinkIDs(ids ...int64) *GroupUpdate {
+	_u.mutation.RemoveAPIKeyLinkIDs(ids...)
+	return _u
+}
+
+// RemoveAPIKeyLinks removes "api_key_links" edges to APIKey entities.
+func (_u *GroupUpdate) RemoveAPIKeyLinks(v ...*APIKey) *GroupUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAPIKeyLinkIDs(ids...)
 }
 
 // ClearAccounts clears all "accounts" edges to the Account entity.
@@ -1137,6 +1194,12 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			sqljson.Append(u, group.FieldSupportedModelScopes, value)
 		})
 	}
+	if value, ok := _u.mutation.Priority(); ok {
+		_spec.SetField(group.FieldPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPriority(); ok {
+		_spec.AddField(group.FieldPriority, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(group.FieldSortOrder, field.TypeInt, value)
 	}
@@ -1327,6 +1390,63 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.APIKeyLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAPIKeyLinksIDs(); len(nodes) > 0 && !_u.mutation.APIKeyLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.APIKeyLinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.AccountsCleared() {
@@ -2032,6 +2152,27 @@ func (_u *GroupUpdateOne) AppendSupportedModelScopes(v []string) *GroupUpdateOne
 	return _u
 }
 
+// SetPriority sets the "priority" field.
+func (_u *GroupUpdateOne) SetPriority(v int) *GroupUpdateOne {
+	_u.mutation.ResetPriority()
+	_u.mutation.SetPriority(v)
+	return _u
+}
+
+// SetNillablePriority sets the "priority" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillablePriority(v *int) *GroupUpdateOne {
+	if v != nil {
+		_u.SetPriority(*v)
+	}
+	return _u
+}
+
+// AddPriority adds value to the "priority" field.
+func (_u *GroupUpdateOne) AddPriority(v int) *GroupUpdateOne {
+	_u.mutation.AddPriority(v)
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *GroupUpdateOne) SetSortOrder(v int) *GroupUpdateOne {
 	_u.mutation.ResetSortOrder()
@@ -2139,6 +2280,21 @@ func (_u *GroupUpdateOne) AddUsageLogs(v ...*UsageLog) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddUsageLogIDs(ids...)
+}
+
+// AddAPIKeyLinkIDs adds the "api_key_links" edge to the APIKey entity by IDs.
+func (_u *GroupUpdateOne) AddAPIKeyLinkIDs(ids ...int64) *GroupUpdateOne {
+	_u.mutation.AddAPIKeyLinkIDs(ids...)
+	return _u
+}
+
+// AddAPIKeyLinks adds the "api_key_links" edges to the APIKey entity.
+func (_u *GroupUpdateOne) AddAPIKeyLinks(v ...*APIKey) *GroupUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAPIKeyLinkIDs(ids...)
 }
 
 // AddAccountIDs adds the "accounts" edge to the Account entity by IDs.
@@ -2258,6 +2414,27 @@ func (_u *GroupUpdateOne) RemoveUsageLogs(v ...*UsageLog) *GroupUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveUsageLogIDs(ids...)
+}
+
+// ClearAPIKeyLinks clears all "api_key_links" edges to the APIKey entity.
+func (_u *GroupUpdateOne) ClearAPIKeyLinks() *GroupUpdateOne {
+	_u.mutation.ClearAPIKeyLinks()
+	return _u
+}
+
+// RemoveAPIKeyLinkIDs removes the "api_key_links" edge to APIKey entities by IDs.
+func (_u *GroupUpdateOne) RemoveAPIKeyLinkIDs(ids ...int64) *GroupUpdateOne {
+	_u.mutation.RemoveAPIKeyLinkIDs(ids...)
+	return _u
+}
+
+// RemoveAPIKeyLinks removes "api_key_links" edges to APIKey entities.
+func (_u *GroupUpdateOne) RemoveAPIKeyLinks(v ...*APIKey) *GroupUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAPIKeyLinkIDs(ids...)
 }
 
 // ClearAccounts clears all "accounts" edges to the Account entity.
@@ -2595,6 +2772,12 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 			sqljson.Append(u, group.FieldSupportedModelScopes, value)
 		})
 	}
+	if value, ok := _u.mutation.Priority(); ok {
+		_spec.SetField(group.FieldPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPriority(); ok {
+		_spec.AddField(group.FieldPriority, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(group.FieldSortOrder, field.TypeInt, value)
 	}
@@ -2785,6 +2968,63 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.APIKeyLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAPIKeyLinksIDs(); len(nodes) > 0 && !_u.mutation.APIKeyLinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.APIKeyLinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   group.APIKeyLinksTable,
+			Columns: group.APIKeyLinksPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(apikey.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		createE := &APIKeyGroupCreate{config: _u.config, mutation: newAPIKeyGroupMutation(_u.config, OpCreate)}
+		createE.defaults()
+		_, specE := createE.createSpec()
+		edge.Target.Fields = specE.Fields
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.AccountsCleared() {

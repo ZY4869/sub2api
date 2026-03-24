@@ -190,6 +190,11 @@ func McpXMLInject(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldMcpXMLInject, v))
 }
 
+// Priority applies equality check predicate on the "priority" field. It's identical to PriorityEQ.
+func Priority(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldPriority, v))
+}
+
 // SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
 func SortOrder(v int) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSortOrder, v))
@@ -1440,6 +1445,46 @@ func McpXMLInjectNEQ(v bool) predicate.Group {
 	return predicate.Group(sql.FieldNEQ(FieldMcpXMLInject, v))
 }
 
+// PriorityEQ applies the EQ predicate on the "priority" field.
+func PriorityEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldPriority, v))
+}
+
+// PriorityNEQ applies the NEQ predicate on the "priority" field.
+func PriorityNEQ(v int) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldPriority, v))
+}
+
+// PriorityIn applies the In predicate on the "priority" field.
+func PriorityIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldPriority, vs...))
+}
+
+// PriorityNotIn applies the NotIn predicate on the "priority" field.
+func PriorityNotIn(vs ...int) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldPriority, vs...))
+}
+
+// PriorityGT applies the GT predicate on the "priority" field.
+func PriorityGT(v int) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldPriority, v))
+}
+
+// PriorityGTE applies the GTE predicate on the "priority" field.
+func PriorityGTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldPriority, v))
+}
+
+// PriorityLT applies the LT predicate on the "priority" field.
+func PriorityLT(v int) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldPriority, v))
+}
+
+// PriorityLTE applies the LTE predicate on the "priority" field.
+func PriorityLTE(v int) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldPriority, v))
+}
+
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.
 func SortOrderEQ(v int) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldSortOrder, v))
@@ -1647,6 +1692,29 @@ func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.Group {
 	})
 }
 
+// HasAPIKeyLinks applies the HasEdge predicate on the "api_key_links" edge.
+func HasAPIKeyLinks() predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, APIKeyLinksTable, APIKeyLinksPrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAPIKeyLinksWith applies the HasEdge predicate on the "api_key_links" edge with a given conditions (other predicates).
+func HasAPIKeyLinksWith(preds ...predicate.APIKey) predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := newAPIKeyLinksStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasAccounts applies the HasEdge predicate on the "accounts" edge.
 func HasAccounts() predicate.Group {
 	return predicate.Group(func(s *sql.Selector) {
@@ -1685,6 +1753,29 @@ func HasAllowedUsers() predicate.Group {
 func HasAllowedUsersWith(preds ...predicate.User) predicate.Group {
 	return predicate.Group(func(s *sql.Selector) {
 		step := newAllowedUsersStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAPIKeyGroups applies the HasEdge predicate on the "api_key_groups" edge.
+func HasAPIKeyGroups() predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, APIKeyGroupsTable, APIKeyGroupsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAPIKeyGroupsWith applies the HasEdge predicate on the "api_key_groups" edge with a given conditions (other predicates).
+func HasAPIKeyGroupsWith(preds ...predicate.APIKeyGroup) predicate.Group {
+	return predicate.Group(func(s *sql.Selector) {
+		step := newAPIKeyGroupsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

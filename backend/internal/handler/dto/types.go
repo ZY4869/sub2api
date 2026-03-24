@@ -39,6 +39,7 @@ type APIKey struct {
 	Key         string     `json:"key"`
 	Name        string     `json:"name"`
 	GroupID     *int64     `json:"group_id"`
+	GroupIDs    []int64    `json:"group_ids,omitempty"`
 	Status      string     `json:"status"`
 	IPWhitelist []string   `json:"ip_whitelist"`
 	IPBlacklist []string   `json:"ip_blacklist"`
@@ -65,6 +66,17 @@ type APIKey struct {
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
+	Groups []APIKeyGroupDTO `json:"api_key_groups,omitempty"`
+}
+
+type APIKeyGroupDTO struct {
+	GroupID       int64    `json:"group_id"`
+	GroupName     string   `json:"group_name"`
+	Platform      string   `json:"platform"`
+	Priority      int      `json:"priority"`
+	Quota         float64  `json:"quota"`
+	QuotaUsed     float64  `json:"quota_used"`
+	ModelPatterns []string `json:"model_patterns"`
 }
 
 type Group struct {
@@ -72,6 +84,7 @@ type Group struct {
 	Name           string  `json:"name"`
 	Description    string  `json:"description"`
 	Platform       string  `json:"platform"`
+	Priority       int     `json:"priority"`
 	RateMultiplier float64 `json:"rate_multiplier"`
 	IsExclusive    bool    `json:"is_exclusive"`
 	Status         string  `json:"status"`

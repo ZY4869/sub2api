@@ -126,6 +126,12 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		result.APIKeyQuotaExhausted = exhausted
 	}
 
+	if cmd.APIKeyGroupQuotaCost > 0 && cmd.GroupID != nil && *cmd.GroupID > 0 {
+		if err := incrementUsageBillingAPIKeyGroupQuota(ctx, tx, cmd.APIKeyID, *cmd.GroupID, cmd.APIKeyGroupQuotaCost); err != nil {
+			return err
+		}
+	}
+
 	if cmd.APIKeyRateLimitCost > 0 {
 		if err := incrementUsageBillingAPIKeyRateLimit(ctx, tx, cmd.APIKeyID, cmd.APIKeyRateLimitCost); err != nil {
 			return err
@@ -213,6 +219,26 @@ func incrementUsageBillingAPIKeyQuota(ctx context.Context, tx *sql.Tx, apiKeyID 
 		return false, err
 	}
 	return exhausted, nil
+}
+
+func incrementUsageBillingAPIKeyGroupQuota(ctx context.Context, tx *sql.Tx, apiKeyID, groupID int64, amount float64) error {
+	res, err := tx.ExecContext(ctx, `
+		UPDATE api_key_groups
+		SET quota_used = quota_used + $1,
+			updated_at = NOW()
+		WHERE api_key_id = $2 AND group_id = $3
+	`, amount, apiKeyID, groupID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return service.ErrInvalidGroupBinding
+	}
+	return nil
 }
 
 func incrementUsageBillingAPIKeyRateLimit(ctx context.Context, tx *sql.Tx, apiKeyID int64, cost float64) error {

@@ -869,6 +869,28 @@ func (s *APIKeyService) UpdateQuotaUsed(ctx context.Context, apiKeyID int64, cos
 	return nil
 }
 
+func (s *APIKeyService) UpdateGroupQuotaUsed(ctx context.Context, apiKeyID, groupID int64, cost float64) error {
+	if cost <= 0 || groupID <= 0 {
+		return nil
+	}
+
+	type groupQuotaWriter interface {
+		IncrementAPIKeyGroupQuotaUsed(ctx context.Context, keyID, groupID int64, amount float64) error
+	}
+
+	writer, ok := s.apiKeyRepo.(groupQuotaWriter)
+	if !ok {
+		return nil
+	}
+	if err := writer.IncrementAPIKeyGroupQuotaUsed(ctx, apiKeyID, groupID, cost); err != nil {
+		return fmt.Errorf("increment api key group quota used: %w", err)
+	}
+	if apiKey, err := s.apiKeyRepo.GetByID(ctx, apiKeyID); err == nil && apiKey != nil && strings.TrimSpace(apiKey.Key) != "" {
+		s.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+	}
+	return nil
+}
+
 // GetRateLimitData returns rate limit usage and window state for an API key.
 func (s *APIKeyService) GetRateLimitData(ctx context.Context, id int64) (*APIKeyRateLimitData, error) {
 	return s.apiKeyRepo.GetRateLimitData(ctx, id)

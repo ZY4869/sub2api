@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeygroup"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -47,6 +48,7 @@ const (
 
 	// Node types.
 	TypeAPIKey                  = "APIKey"
+	TypeAPIKeyGroup             = "APIKeyGroup"
 	TypeAccount                 = "Account"
 	TypeAccountGroup            = "AccountGroup"
 	TypeAnnouncement            = "Announcement"
@@ -72,51 +74,54 @@ const (
 // APIKeyMutation represents an operation that mutates the APIKey nodes in the graph.
 type APIKeyMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int64
-	created_at         *time.Time
-	updated_at         *time.Time
-	deleted_at         *time.Time
-	key                *string
-	name               *string
-	status             *string
-	last_used_at       *time.Time
-	ip_whitelist       *[]string
-	appendip_whitelist []string
-	ip_blacklist       *[]string
-	appendip_blacklist []string
-	quota              *float64
-	addquota           *float64
-	quota_used         *float64
-	addquota_used      *float64
-	expires_at         *time.Time
-	rate_limit_5h      *float64
-	addrate_limit_5h   *float64
-	rate_limit_1d      *float64
-	addrate_limit_1d   *float64
-	rate_limit_7d      *float64
-	addrate_limit_7d   *float64
-	usage_5h           *float64
-	addusage_5h        *float64
-	usage_1d           *float64
-	addusage_1d        *float64
-	usage_7d           *float64
-	addusage_7d        *float64
-	window_5h_start    *time.Time
-	window_1d_start    *time.Time
-	window_7d_start    *time.Time
-	clearedFields      map[string]struct{}
-	user               *int64
-	cleareduser        bool
-	group              *int64
-	clearedgroup       bool
-	usage_logs         map[int64]struct{}
-	removedusage_logs  map[int64]struct{}
-	clearedusage_logs  bool
-	done               bool
-	oldValue           func(context.Context) (*APIKey, error)
-	predicates         []predicate.APIKey
+	op                  Op
+	typ                 string
+	id                  *int64
+	created_at          *time.Time
+	updated_at          *time.Time
+	deleted_at          *time.Time
+	key                 *string
+	name                *string
+	status              *string
+	last_used_at        *time.Time
+	ip_whitelist        *[]string
+	appendip_whitelist  []string
+	ip_blacklist        *[]string
+	appendip_blacklist  []string
+	quota               *float64
+	addquota            *float64
+	quota_used          *float64
+	addquota_used       *float64
+	expires_at          *time.Time
+	rate_limit_5h       *float64
+	addrate_limit_5h    *float64
+	rate_limit_1d       *float64
+	addrate_limit_1d    *float64
+	rate_limit_7d       *float64
+	addrate_limit_7d    *float64
+	usage_5h            *float64
+	addusage_5h         *float64
+	usage_1d            *float64
+	addusage_1d         *float64
+	usage_7d            *float64
+	addusage_7d         *float64
+	window_5h_start     *time.Time
+	window_1d_start     *time.Time
+	window_7d_start     *time.Time
+	clearedFields       map[string]struct{}
+	user                *int64
+	cleareduser         bool
+	group               *int64
+	clearedgroup        bool
+	multi_groups        map[int64]struct{}
+	removedmulti_groups map[int64]struct{}
+	clearedmulti_groups bool
+	usage_logs          map[int64]struct{}
+	removedusage_logs   map[int64]struct{}
+	clearedusage_logs   bool
+	done                bool
+	oldValue            func(context.Context) (*APIKey, error)
+	predicates          []predicate.APIKey
 }
 
 var _ ent.Mutation = (*APIKeyMutation)(nil)
@@ -1408,6 +1413,60 @@ func (m *APIKeyMutation) ResetGroup() {
 	m.clearedgroup = false
 }
 
+// AddMultiGroupIDs adds the "multi_groups" edge to the Group entity by ids.
+func (m *APIKeyMutation) AddMultiGroupIDs(ids ...int64) {
+	if m.multi_groups == nil {
+		m.multi_groups = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.multi_groups[ids[i]] = struct{}{}
+	}
+}
+
+// ClearMultiGroups clears the "multi_groups" edge to the Group entity.
+func (m *APIKeyMutation) ClearMultiGroups() {
+	m.clearedmulti_groups = true
+}
+
+// MultiGroupsCleared reports if the "multi_groups" edge to the Group entity was cleared.
+func (m *APIKeyMutation) MultiGroupsCleared() bool {
+	return m.clearedmulti_groups
+}
+
+// RemoveMultiGroupIDs removes the "multi_groups" edge to the Group entity by IDs.
+func (m *APIKeyMutation) RemoveMultiGroupIDs(ids ...int64) {
+	if m.removedmulti_groups == nil {
+		m.removedmulti_groups = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.multi_groups, ids[i])
+		m.removedmulti_groups[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedMultiGroups returns the removed IDs of the "multi_groups" edge to the Group entity.
+func (m *APIKeyMutation) RemovedMultiGroupsIDs() (ids []int64) {
+	for id := range m.removedmulti_groups {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// MultiGroupsIDs returns the "multi_groups" edge IDs in the mutation.
+func (m *APIKeyMutation) MultiGroupsIDs() (ids []int64) {
+	for id := range m.multi_groups {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetMultiGroups resets all changes to the "multi_groups" edge.
+func (m *APIKeyMutation) ResetMultiGroups() {
+	m.multi_groups = nil
+	m.clearedmulti_groups = false
+	m.removedmulti_groups = nil
+}
+
 // AddUsageLogIDs adds the "usage_logs" edge to the UsageLog entity by ids.
 func (m *APIKeyMutation) AddUsageLogIDs(ids ...int64) {
 	if m.usage_logs == nil {
@@ -2125,12 +2184,15 @@ func (m *APIKeyMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *APIKeyMutation) AddedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.user != nil {
 		edges = append(edges, apikey.EdgeUser)
 	}
 	if m.group != nil {
 		edges = append(edges, apikey.EdgeGroup)
+	}
+	if m.multi_groups != nil {
+		edges = append(edges, apikey.EdgeMultiGroups)
 	}
 	if m.usage_logs != nil {
 		edges = append(edges, apikey.EdgeUsageLogs)
@@ -2150,6 +2212,12 @@ func (m *APIKeyMutation) AddedIDs(name string) []ent.Value {
 		if id := m.group; id != nil {
 			return []ent.Value{*id}
 		}
+	case apikey.EdgeMultiGroups:
+		ids := make([]ent.Value, 0, len(m.multi_groups))
+		for id := range m.multi_groups {
+			ids = append(ids, id)
+		}
+		return ids
 	case apikey.EdgeUsageLogs:
 		ids := make([]ent.Value, 0, len(m.usage_logs))
 		for id := range m.usage_logs {
@@ -2162,7 +2230,10 @@ func (m *APIKeyMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *APIKeyMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
+	if m.removedmulti_groups != nil {
+		edges = append(edges, apikey.EdgeMultiGroups)
+	}
 	if m.removedusage_logs != nil {
 		edges = append(edges, apikey.EdgeUsageLogs)
 	}
@@ -2173,6 +2244,12 @@ func (m *APIKeyMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *APIKeyMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case apikey.EdgeMultiGroups:
+		ids := make([]ent.Value, 0, len(m.removedmulti_groups))
+		for id := range m.removedmulti_groups {
+			ids = append(ids, id)
+		}
+		return ids
 	case apikey.EdgeUsageLogs:
 		ids := make([]ent.Value, 0, len(m.removedusage_logs))
 		for id := range m.removedusage_logs {
@@ -2185,12 +2262,15 @@ func (m *APIKeyMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *APIKeyMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 3)
+	edges := make([]string, 0, 4)
 	if m.cleareduser {
 		edges = append(edges, apikey.EdgeUser)
 	}
 	if m.clearedgroup {
 		edges = append(edges, apikey.EdgeGroup)
+	}
+	if m.clearedmulti_groups {
+		edges = append(edges, apikey.EdgeMultiGroups)
 	}
 	if m.clearedusage_logs {
 		edges = append(edges, apikey.EdgeUsageLogs)
@@ -2206,6 +2286,8 @@ func (m *APIKeyMutation) EdgeCleared(name string) bool {
 		return m.cleareduser
 	case apikey.EdgeGroup:
 		return m.clearedgroup
+	case apikey.EdgeMultiGroups:
+		return m.clearedmulti_groups
 	case apikey.EdgeUsageLogs:
 		return m.clearedusage_logs
 	}
@@ -2236,11 +2318,676 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 	case apikey.EdgeGroup:
 		m.ResetGroup()
 		return nil
+	case apikey.EdgeMultiGroups:
+		m.ResetMultiGroups()
+		return nil
 	case apikey.EdgeUsageLogs:
 		m.ResetUsageLogs()
 		return nil
 	}
 	return fmt.Errorf("unknown APIKey edge %s", name)
+}
+
+// APIKeyGroupMutation represents an operation that mutates the APIKeyGroup nodes in the graph.
+type APIKeyGroupMutation struct {
+	config
+	op                   Op
+	typ                  string
+	quota                *float64
+	addquota             *float64
+	quota_used           *float64
+	addquota_used        *float64
+	model_patterns       *[]string
+	appendmodel_patterns []string
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	api_key              *int64
+	clearedapi_key       bool
+	group                *int64
+	clearedgroup         bool
+	done                 bool
+	oldValue             func(context.Context) (*APIKeyGroup, error)
+	predicates           []predicate.APIKeyGroup
+}
+
+var _ ent.Mutation = (*APIKeyGroupMutation)(nil)
+
+// apikeygroupOption allows management of the mutation configuration using functional options.
+type apikeygroupOption func(*APIKeyGroupMutation)
+
+// newAPIKeyGroupMutation creates new mutation for the APIKeyGroup entity.
+func newAPIKeyGroupMutation(c config, op Op, opts ...apikeygroupOption) *APIKeyGroupMutation {
+	m := &APIKeyGroupMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAPIKeyGroup,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m APIKeyGroupMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m APIKeyGroupMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetAPIKeyID sets the "api_key_id" field.
+func (m *APIKeyGroupMutation) SetAPIKeyID(i int64) {
+	m.api_key = &i
+}
+
+// APIKeyID returns the value of the "api_key_id" field in the mutation.
+func (m *APIKeyGroupMutation) APIKeyID() (r int64, exists bool) {
+	v := m.api_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAPIKeyID resets all changes to the "api_key_id" field.
+func (m *APIKeyGroupMutation) ResetAPIKeyID() {
+	m.api_key = nil
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *APIKeyGroupMutation) SetGroupID(i int64) {
+	m.group = &i
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *APIKeyGroupMutation) GroupID() (r int64, exists bool) {
+	v := m.group
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *APIKeyGroupMutation) ResetGroupID() {
+	m.group = nil
+}
+
+// SetQuota sets the "quota" field.
+func (m *APIKeyGroupMutation) SetQuota(f float64) {
+	m.quota = &f
+	m.addquota = nil
+}
+
+// Quota returns the value of the "quota" field in the mutation.
+func (m *APIKeyGroupMutation) Quota() (r float64, exists bool) {
+	v := m.quota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// AddQuota adds f to the "quota" field.
+func (m *APIKeyGroupMutation) AddQuota(f float64) {
+	if m.addquota != nil {
+		*m.addquota += f
+	} else {
+		m.addquota = &f
+	}
+}
+
+// AddedQuota returns the value that was added to the "quota" field in this mutation.
+func (m *APIKeyGroupMutation) AddedQuota() (r float64, exists bool) {
+	v := m.addquota
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuota resets all changes to the "quota" field.
+func (m *APIKeyGroupMutation) ResetQuota() {
+	m.quota = nil
+	m.addquota = nil
+}
+
+// SetQuotaUsed sets the "quota_used" field.
+func (m *APIKeyGroupMutation) SetQuotaUsed(f float64) {
+	m.quota_used = &f
+	m.addquota_used = nil
+}
+
+// QuotaUsed returns the value of the "quota_used" field in the mutation.
+func (m *APIKeyGroupMutation) QuotaUsed() (r float64, exists bool) {
+	v := m.quota_used
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// AddQuotaUsed adds f to the "quota_used" field.
+func (m *APIKeyGroupMutation) AddQuotaUsed(f float64) {
+	if m.addquota_used != nil {
+		*m.addquota_used += f
+	} else {
+		m.addquota_used = &f
+	}
+}
+
+// AddedQuotaUsed returns the value that was added to the "quota_used" field in this mutation.
+func (m *APIKeyGroupMutation) AddedQuotaUsed() (r float64, exists bool) {
+	v := m.addquota_used
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuotaUsed resets all changes to the "quota_used" field.
+func (m *APIKeyGroupMutation) ResetQuotaUsed() {
+	m.quota_used = nil
+	m.addquota_used = nil
+}
+
+// SetModelPatterns sets the "model_patterns" field.
+func (m *APIKeyGroupMutation) SetModelPatterns(s []string) {
+	m.model_patterns = &s
+	m.appendmodel_patterns = nil
+}
+
+// ModelPatterns returns the value of the "model_patterns" field in the mutation.
+func (m *APIKeyGroupMutation) ModelPatterns() (r []string, exists bool) {
+	v := m.model_patterns
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// AppendModelPatterns adds s to the "model_patterns" field.
+func (m *APIKeyGroupMutation) AppendModelPatterns(s []string) {
+	m.appendmodel_patterns = append(m.appendmodel_patterns, s...)
+}
+
+// AppendedModelPatterns returns the list of values that were appended to the "model_patterns" field in this mutation.
+func (m *APIKeyGroupMutation) AppendedModelPatterns() ([]string, bool) {
+	if len(m.appendmodel_patterns) == 0 {
+		return nil, false
+	}
+	return m.appendmodel_patterns, true
+}
+
+// ClearModelPatterns clears the value of the "model_patterns" field.
+func (m *APIKeyGroupMutation) ClearModelPatterns() {
+	m.model_patterns = nil
+	m.appendmodel_patterns = nil
+	m.clearedFields[apikeygroup.FieldModelPatterns] = struct{}{}
+}
+
+// ModelPatternsCleared returns if the "model_patterns" field was cleared in this mutation.
+func (m *APIKeyGroupMutation) ModelPatternsCleared() bool {
+	_, ok := m.clearedFields[apikeygroup.FieldModelPatterns]
+	return ok
+}
+
+// ResetModelPatterns resets all changes to the "model_patterns" field.
+func (m *APIKeyGroupMutation) ResetModelPatterns() {
+	m.model_patterns = nil
+	m.appendmodel_patterns = nil
+	delete(m.clearedFields, apikeygroup.FieldModelPatterns)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *APIKeyGroupMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *APIKeyGroupMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *APIKeyGroupMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *APIKeyGroupMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *APIKeyGroupMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *APIKeyGroupMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearAPIKey clears the "api_key" edge to the APIKey entity.
+func (m *APIKeyGroupMutation) ClearAPIKey() {
+	m.clearedapi_key = true
+	m.clearedFields[apikeygroup.FieldAPIKeyID] = struct{}{}
+}
+
+// APIKeyCleared reports if the "api_key" edge to the APIKey entity was cleared.
+func (m *APIKeyGroupMutation) APIKeyCleared() bool {
+	return m.clearedapi_key
+}
+
+// APIKeyIDs returns the "api_key" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// APIKeyID instead. It exists only for internal usage by the builders.
+func (m *APIKeyGroupMutation) APIKeyIDs() (ids []int64) {
+	if id := m.api_key; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetAPIKey resets all changes to the "api_key" edge.
+func (m *APIKeyGroupMutation) ResetAPIKey() {
+	m.api_key = nil
+	m.clearedapi_key = false
+}
+
+// ClearGroup clears the "group" edge to the Group entity.
+func (m *APIKeyGroupMutation) ClearGroup() {
+	m.clearedgroup = true
+	m.clearedFields[apikeygroup.FieldGroupID] = struct{}{}
+}
+
+// GroupCleared reports if the "group" edge to the Group entity was cleared.
+func (m *APIKeyGroupMutation) GroupCleared() bool {
+	return m.clearedgroup
+}
+
+// GroupIDs returns the "group" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GroupID instead. It exists only for internal usage by the builders.
+func (m *APIKeyGroupMutation) GroupIDs() (ids []int64) {
+	if id := m.group; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGroup resets all changes to the "group" edge.
+func (m *APIKeyGroupMutation) ResetGroup() {
+	m.group = nil
+	m.clearedgroup = false
+}
+
+// Where appends a list predicates to the APIKeyGroupMutation builder.
+func (m *APIKeyGroupMutation) Where(ps ...predicate.APIKeyGroup) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the APIKeyGroupMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *APIKeyGroupMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.APIKeyGroup, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *APIKeyGroupMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *APIKeyGroupMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (APIKeyGroup).
+func (m *APIKeyGroupMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *APIKeyGroupMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.api_key != nil {
+		fields = append(fields, apikeygroup.FieldAPIKeyID)
+	}
+	if m.group != nil {
+		fields = append(fields, apikeygroup.FieldGroupID)
+	}
+	if m.quota != nil {
+		fields = append(fields, apikeygroup.FieldQuota)
+	}
+	if m.quota_used != nil {
+		fields = append(fields, apikeygroup.FieldQuotaUsed)
+	}
+	if m.model_patterns != nil {
+		fields = append(fields, apikeygroup.FieldModelPatterns)
+	}
+	if m.created_at != nil {
+		fields = append(fields, apikeygroup.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, apikeygroup.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *APIKeyGroupMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case apikeygroup.FieldAPIKeyID:
+		return m.APIKeyID()
+	case apikeygroup.FieldGroupID:
+		return m.GroupID()
+	case apikeygroup.FieldQuota:
+		return m.Quota()
+	case apikeygroup.FieldQuotaUsed:
+		return m.QuotaUsed()
+	case apikeygroup.FieldModelPatterns:
+		return m.ModelPatterns()
+	case apikeygroup.FieldCreatedAt:
+		return m.CreatedAt()
+	case apikeygroup.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *APIKeyGroupMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	return nil, errors.New("edge schema APIKeyGroup does not support getting old values")
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyGroupMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case apikeygroup.FieldAPIKeyID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIKeyID(v)
+		return nil
+	case apikeygroup.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case apikeygroup.FieldQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuota(v)
+		return nil
+	case apikeygroup.FieldQuotaUsed:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaUsed(v)
+		return nil
+	case apikeygroup.FieldModelPatterns:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelPatterns(v)
+		return nil
+	case apikeygroup.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case apikeygroup.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroup field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *APIKeyGroupMutation) AddedFields() []string {
+	var fields []string
+	if m.addquota != nil {
+		fields = append(fields, apikeygroup.FieldQuota)
+	}
+	if m.addquota_used != nil {
+		fields = append(fields, apikeygroup.FieldQuotaUsed)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *APIKeyGroupMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case apikeygroup.FieldQuota:
+		return m.AddedQuota()
+	case apikeygroup.FieldQuotaUsed:
+		return m.AddedQuotaUsed()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *APIKeyGroupMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case apikeygroup.FieldQuota:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuota(v)
+		return nil
+	case apikeygroup.FieldQuotaUsed:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuotaUsed(v)
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroup numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *APIKeyGroupMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(apikeygroup.FieldModelPatterns) {
+		fields = append(fields, apikeygroup.FieldModelPatterns)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *APIKeyGroupMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *APIKeyGroupMutation) ClearField(name string) error {
+	switch name {
+	case apikeygroup.FieldModelPatterns:
+		m.ClearModelPatterns()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroup nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *APIKeyGroupMutation) ResetField(name string) error {
+	switch name {
+	case apikeygroup.FieldAPIKeyID:
+		m.ResetAPIKeyID()
+		return nil
+	case apikeygroup.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case apikeygroup.FieldQuota:
+		m.ResetQuota()
+		return nil
+	case apikeygroup.FieldQuotaUsed:
+		m.ResetQuotaUsed()
+		return nil
+	case apikeygroup.FieldModelPatterns:
+		m.ResetModelPatterns()
+		return nil
+	case apikeygroup.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case apikeygroup.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroup field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *APIKeyGroupMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.api_key != nil {
+		edges = append(edges, apikeygroup.EdgeAPIKey)
+	}
+	if m.group != nil {
+		edges = append(edges, apikeygroup.EdgeGroup)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *APIKeyGroupMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case apikeygroup.EdgeAPIKey:
+		if id := m.api_key; id != nil {
+			return []ent.Value{*id}
+		}
+	case apikeygroup.EdgeGroup:
+		if id := m.group; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *APIKeyGroupMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *APIKeyGroupMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *APIKeyGroupMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedapi_key {
+		edges = append(edges, apikeygroup.EdgeAPIKey)
+	}
+	if m.clearedgroup {
+		edges = append(edges, apikeygroup.EdgeGroup)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *APIKeyGroupMutation) EdgeCleared(name string) bool {
+	switch name {
+	case apikeygroup.EdgeAPIKey:
+		return m.clearedapi_key
+	case apikeygroup.EdgeGroup:
+		return m.clearedgroup
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *APIKeyGroupMutation) ClearEdge(name string) error {
+	switch name {
+	case apikeygroup.EdgeAPIKey:
+		m.ClearAPIKey()
+		return nil
+	case apikeygroup.EdgeGroup:
+		m.ClearGroup()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroup unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *APIKeyGroupMutation) ResetEdge(name string) error {
+	switch name {
+	case apikeygroup.EdgeAPIKey:
+		m.ResetAPIKey()
+		return nil
+	case apikeygroup.EdgeGroup:
+		m.ResetGroup()
+		return nil
+	}
+	return fmt.Errorf("unknown APIKeyGroup edge %s", name)
 }
 
 // AccountMutation represents an operation that mutates the Account nodes in the graph.
@@ -8594,6 +9341,8 @@ type GroupMutation struct {
 	mcp_xml_inject                          *bool
 	supported_model_scopes                  *[]string
 	appendsupported_model_scopes            []string
+	priority                                *int
+	addpriority                             *int
 	sort_order                              *int
 	addsort_order                           *int
 	allow_messages_dispatch                 *bool
@@ -8611,6 +9360,9 @@ type GroupMutation struct {
 	usage_logs                              map[int64]struct{}
 	removedusage_logs                       map[int64]struct{}
 	clearedusage_logs                       bool
+	api_key_links                           map[int64]struct{}
+	removedapi_key_links                    map[int64]struct{}
+	clearedapi_key_links                    bool
 	accounts                                map[int64]struct{}
 	removedaccounts                         map[int64]struct{}
 	clearedaccounts                         bool
@@ -10286,6 +11038,62 @@ func (m *GroupMutation) ResetSupportedModelScopes() {
 	m.appendsupported_model_scopes = nil
 }
 
+// SetPriority sets the "priority" field.
+func (m *GroupMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *GroupMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *GroupMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *GroupMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *GroupMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (m *GroupMutation) SetSortOrder(i int) {
 	m.sort_order = &i
@@ -10630,6 +11438,60 @@ func (m *GroupMutation) ResetUsageLogs() {
 	m.removedusage_logs = nil
 }
 
+// AddAPIKeyLinkIDs adds the "api_key_links" edge to the APIKey entity by ids.
+func (m *GroupMutation) AddAPIKeyLinkIDs(ids ...int64) {
+	if m.api_key_links == nil {
+		m.api_key_links = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.api_key_links[ids[i]] = struct{}{}
+	}
+}
+
+// ClearAPIKeyLinks clears the "api_key_links" edge to the APIKey entity.
+func (m *GroupMutation) ClearAPIKeyLinks() {
+	m.clearedapi_key_links = true
+}
+
+// APIKeyLinksCleared reports if the "api_key_links" edge to the APIKey entity was cleared.
+func (m *GroupMutation) APIKeyLinksCleared() bool {
+	return m.clearedapi_key_links
+}
+
+// RemoveAPIKeyLinkIDs removes the "api_key_links" edge to the APIKey entity by IDs.
+func (m *GroupMutation) RemoveAPIKeyLinkIDs(ids ...int64) {
+	if m.removedapi_key_links == nil {
+		m.removedapi_key_links = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.api_key_links, ids[i])
+		m.removedapi_key_links[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedAPIKeyLinks returns the removed IDs of the "api_key_links" edge to the APIKey entity.
+func (m *GroupMutation) RemovedAPIKeyLinksIDs() (ids []int64) {
+	for id := range m.removedapi_key_links {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// APIKeyLinksIDs returns the "api_key_links" edge IDs in the mutation.
+func (m *GroupMutation) APIKeyLinksIDs() (ids []int64) {
+	for id := range m.api_key_links {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetAPIKeyLinks resets all changes to the "api_key_links" edge.
+func (m *GroupMutation) ResetAPIKeyLinks() {
+	m.api_key_links = nil
+	m.clearedapi_key_links = false
+	m.removedapi_key_links = nil
+}
+
 // AddAccountIDs adds the "accounts" edge to the Account entity by ids.
 func (m *GroupMutation) AddAccountIDs(ids ...int64) {
 	if m.accounts == nil {
@@ -10772,7 +11634,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 33)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -10860,6 +11722,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.supported_model_scopes != nil {
 		fields = append(fields, group.FieldSupportedModelScopes)
 	}
+	if m.priority != nil {
+		fields = append(fields, group.FieldPriority)
+	}
 	if m.sort_order != nil {
 		fields = append(fields, group.FieldSortOrder)
 	}
@@ -10935,6 +11800,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.McpXMLInject()
 	case group.FieldSupportedModelScopes:
 		return m.SupportedModelScopes()
+	case group.FieldPriority:
+		return m.Priority()
 	case group.FieldSortOrder:
 		return m.SortOrder()
 	case group.FieldAllowMessagesDispatch:
@@ -11008,6 +11875,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldMcpXMLInject(ctx)
 	case group.FieldSupportedModelScopes:
 		return m.OldSupportedModelScopes(ctx)
+	case group.FieldPriority:
+		return m.OldPriority(ctx)
 	case group.FieldSortOrder:
 		return m.OldSortOrder(ctx)
 	case group.FieldAllowMessagesDispatch:
@@ -11226,6 +12095,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSupportedModelScopes(v)
 		return nil
+	case group.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
 	case group.FieldSortOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -11300,6 +12176,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addfallback_group_id_on_invalid_request != nil {
 		fields = append(fields, group.FieldFallbackGroupIDOnInvalidRequest)
 	}
+	if m.addpriority != nil {
+		fields = append(fields, group.FieldPriority)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, group.FieldSortOrder)
 	}
@@ -11341,6 +12220,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFallbackGroupID()
 	case group.FieldFallbackGroupIDOnInvalidRequest:
 		return m.AddedFallbackGroupIDOnInvalidRequest()
+	case group.FieldPriority:
+		return m.AddedPriority()
 	case group.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -11456,6 +12337,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddFallbackGroupIDOnInvalidRequest(v)
+		return nil
+	case group.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
 		return nil
 	case group.FieldSortOrder:
 		v, ok := value.(int)
@@ -11671,6 +12559,9 @@ func (m *GroupMutation) ResetField(name string) error {
 	case group.FieldSupportedModelScopes:
 		m.ResetSupportedModelScopes()
 		return nil
+	case group.FieldPriority:
+		m.ResetPriority()
+		return nil
 	case group.FieldSortOrder:
 		m.ResetSortOrder()
 		return nil
@@ -11686,7 +12577,7 @@ func (m *GroupMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *GroupMutation) AddedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.api_keys != nil {
 		edges = append(edges, group.EdgeAPIKeys)
 	}
@@ -11698,6 +12589,9 @@ func (m *GroupMutation) AddedEdges() []string {
 	}
 	if m.usage_logs != nil {
 		edges = append(edges, group.EdgeUsageLogs)
+	}
+	if m.api_key_links != nil {
+		edges = append(edges, group.EdgeAPIKeyLinks)
 	}
 	if m.accounts != nil {
 		edges = append(edges, group.EdgeAccounts)
@@ -11736,6 +12630,12 @@ func (m *GroupMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case group.EdgeAPIKeyLinks:
+		ids := make([]ent.Value, 0, len(m.api_key_links))
+		for id := range m.api_key_links {
+			ids = append(ids, id)
+		}
+		return ids
 	case group.EdgeAccounts:
 		ids := make([]ent.Value, 0, len(m.accounts))
 		for id := range m.accounts {
@@ -11754,7 +12654,7 @@ func (m *GroupMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *GroupMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.removedapi_keys != nil {
 		edges = append(edges, group.EdgeAPIKeys)
 	}
@@ -11766,6 +12666,9 @@ func (m *GroupMutation) RemovedEdges() []string {
 	}
 	if m.removedusage_logs != nil {
 		edges = append(edges, group.EdgeUsageLogs)
+	}
+	if m.removedapi_key_links != nil {
+		edges = append(edges, group.EdgeAPIKeyLinks)
 	}
 	if m.removedaccounts != nil {
 		edges = append(edges, group.EdgeAccounts)
@@ -11804,6 +12707,12 @@ func (m *GroupMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case group.EdgeAPIKeyLinks:
+		ids := make([]ent.Value, 0, len(m.removedapi_key_links))
+		for id := range m.removedapi_key_links {
+			ids = append(ids, id)
+		}
+		return ids
 	case group.EdgeAccounts:
 		ids := make([]ent.Value, 0, len(m.removedaccounts))
 		for id := range m.removedaccounts {
@@ -11822,7 +12731,7 @@ func (m *GroupMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *GroupMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 6)
+	edges := make([]string, 0, 7)
 	if m.clearedapi_keys {
 		edges = append(edges, group.EdgeAPIKeys)
 	}
@@ -11834,6 +12743,9 @@ func (m *GroupMutation) ClearedEdges() []string {
 	}
 	if m.clearedusage_logs {
 		edges = append(edges, group.EdgeUsageLogs)
+	}
+	if m.clearedapi_key_links {
+		edges = append(edges, group.EdgeAPIKeyLinks)
 	}
 	if m.clearedaccounts {
 		edges = append(edges, group.EdgeAccounts)
@@ -11856,6 +12768,8 @@ func (m *GroupMutation) EdgeCleared(name string) bool {
 		return m.clearedsubscriptions
 	case group.EdgeUsageLogs:
 		return m.clearedusage_logs
+	case group.EdgeAPIKeyLinks:
+		return m.clearedapi_key_links
 	case group.EdgeAccounts:
 		return m.clearedaccounts
 	case group.EdgeAllowedUsers:
@@ -11887,6 +12801,9 @@ func (m *GroupMutation) ResetEdge(name string) error {
 		return nil
 	case group.EdgeUsageLogs:
 		m.ResetUsageLogs()
+		return nil
+	case group.EdgeAPIKeyLinks:
+		m.ResetAPIKeyLinks()
 		return nil
 	case group.EdgeAccounts:
 		m.ResetAccounts()

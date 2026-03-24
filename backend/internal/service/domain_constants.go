@@ -248,7 +248,8 @@ const (
 	SettingKeyAllowUngroupedKeyScheduling = "allow_ungrouped_key_scheduling"
 
 	// SettingKeyBackendModeEnabled Backend 模式：禁用用户注册和自助服务，仅管理员可登录
-	SettingKeyBackendModeEnabled = "backend_mode_enabled"
+	SettingKeyMultiGroupRoutingEnabled = "multi_group_routing_enabled"
+	SettingKeyBackendModeEnabled       = "backend_mode_enabled"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys (distinct from user "sk-" keys).

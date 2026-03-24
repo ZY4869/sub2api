@@ -10,6 +10,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/announcement"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
+	"github.com/Wei-Shaw/sub2api/ent/apikeygroup"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -126,6 +127,26 @@ func init() {
 	apikeyDescUsage7d := apikeyFields[16].Descriptor()
 	// apikey.DefaultUsage7d holds the default value on creation for the usage_7d field.
 	apikey.DefaultUsage7d = apikeyDescUsage7d.Default.(float64)
+	apikeygroupFields := schema.APIKeyGroup{}.Fields()
+	_ = apikeygroupFields
+	// apikeygroupDescQuota is the schema descriptor for quota field.
+	apikeygroupDescQuota := apikeygroupFields[2].Descriptor()
+	// apikeygroup.DefaultQuota holds the default value on creation for the quota field.
+	apikeygroup.DefaultQuota = apikeygroupDescQuota.Default.(float64)
+	// apikeygroupDescQuotaUsed is the schema descriptor for quota_used field.
+	apikeygroupDescQuotaUsed := apikeygroupFields[3].Descriptor()
+	// apikeygroup.DefaultQuotaUsed holds the default value on creation for the quota_used field.
+	apikeygroup.DefaultQuotaUsed = apikeygroupDescQuotaUsed.Default.(float64)
+	// apikeygroupDescCreatedAt is the schema descriptor for created_at field.
+	apikeygroupDescCreatedAt := apikeygroupFields[5].Descriptor()
+	// apikeygroup.DefaultCreatedAt holds the default value on creation for the created_at field.
+	apikeygroup.DefaultCreatedAt = apikeygroupDescCreatedAt.Default.(func() time.Time)
+	// apikeygroupDescUpdatedAt is the schema descriptor for updated_at field.
+	apikeygroupDescUpdatedAt := apikeygroupFields[6].Descriptor()
+	// apikeygroup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	apikeygroup.DefaultUpdatedAt = apikeygroupDescUpdatedAt.Default.(func() time.Time)
+	// apikeygroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	apikeygroup.UpdateDefaultUpdatedAt = apikeygroupDescUpdatedAt.UpdateDefault.(func() time.Time)
 	accountMixin := schema.Account{}.Mixin()
 	accountMixinHooks1 := accountMixin[1].Hooks()
 	account.Hooks[0] = accountMixinHooks1[0]
@@ -459,16 +480,20 @@ func init() {
 	groupDescSupportedModelScopes := groupFields[25].Descriptor()
 	// group.DefaultSupportedModelScopes holds the default value on creation for the supported_model_scopes field.
 	group.DefaultSupportedModelScopes = groupDescSupportedModelScopes.Default.([]string)
+	// groupDescPriority is the schema descriptor for priority field.
+	groupDescPriority := groupFields[26].Descriptor()
+	// group.DefaultPriority holds the default value on creation for the priority field.
+	group.DefaultPriority = groupDescPriority.Default.(int)
 	// groupDescSortOrder is the schema descriptor for sort_order field.
-	groupDescSortOrder := groupFields[26].Descriptor()
+	groupDescSortOrder := groupFields[27].Descriptor()
 	// group.DefaultSortOrder holds the default value on creation for the sort_order field.
 	group.DefaultSortOrder = groupDescSortOrder.Default.(int)
 	// groupDescAllowMessagesDispatch is the schema descriptor for allow_messages_dispatch field.
-	groupDescAllowMessagesDispatch := groupFields[27].Descriptor()
+	groupDescAllowMessagesDispatch := groupFields[28].Descriptor()
 	// group.DefaultAllowMessagesDispatch holds the default value on creation for the allow_messages_dispatch field.
 	group.DefaultAllowMessagesDispatch = groupDescAllowMessagesDispatch.Default.(bool)
 	// groupDescDefaultMappedModel is the schema descriptor for default_mapped_model field.
-	groupDescDefaultMappedModel := groupFields[28].Descriptor()
+	groupDescDefaultMappedModel := groupFields[29].Descriptor()
 	// group.DefaultDefaultMappedModel holds the default value on creation for the default_mapped_model field.
 	group.DefaultDefaultMappedModel = groupDescDefaultMappedModel.Default.(string)
 	// group.DefaultMappedModelValidator is a validator for the "default_mapped_model" field. It is called by the builders before save.

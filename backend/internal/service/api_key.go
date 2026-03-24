@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
@@ -44,6 +45,8 @@ type APIKey struct {
 	UpdatedAt           time.Time
 	User                *User
 	Group               *Group
+	GroupBindings       []APIKeyGroupBinding
+	SelectedGroupBinding *APIKeyGroupBinding
 
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)
@@ -62,8 +65,76 @@ type APIKey struct {
 	Window7dStart *time.Time // Start of current 7d window
 }
 
+type APIKeyGroupBinding struct {
+	APIKeyID      int64
+	GroupID       int64
+	Group         *Group
+	Quota         float64
+	QuotaUsed     float64
+	ModelPatterns []string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 func (k *APIKey) IsActive() bool {
 	return k.Status == StatusActive
+}
+
+func (k *APIKey) HasAnyGroupBinding() bool {
+	return len(k.GroupBindings) > 0 || k.GroupID != nil
+}
+
+func (k *APIKey) PrimaryGroupBinding() *APIKeyGroupBinding {
+	if k == nil || len(k.GroupBindings) == 0 {
+		return nil
+	}
+	return &k.GroupBindings[0]
+}
+
+func (k *APIKey) BindingsForPlatform(platform string) []APIKeyGroupBinding {
+	if k == nil || strings.TrimSpace(platform) == "" {
+		return nil
+	}
+	out := make([]APIKeyGroupBinding, 0, len(k.GroupBindings))
+	for _, binding := range k.GroupBindings {
+		if binding.Group != nil && strings.EqualFold(binding.Group.Platform, platform) {
+			out = append(out, binding)
+		}
+	}
+	return out
+}
+
+func (k *APIKey) GroupBindingByID(groupID int64) *APIKeyGroupBinding {
+	if k == nil {
+		return nil
+	}
+	for i := range k.GroupBindings {
+		if k.GroupBindings[i].GroupID == groupID {
+			return &k.GroupBindings[i]
+		}
+	}
+	return nil
+}
+
+func (k *APIKey) SyncLegacyGroupShadow() {
+	if k == nil {
+		return
+	}
+	if k.SelectedGroupBinding != nil {
+		k.GroupID = int64Ptr(k.SelectedGroupBinding.GroupID)
+		k.Group = k.SelectedGroupBinding.Group
+		return
+	}
+	if primary := k.PrimaryGroupBinding(); primary != nil {
+		k.GroupID = int64Ptr(primary.GroupID)
+		k.Group = primary.Group
+		return
+	}
+	if len(k.GroupBindings) == 0 && (k.GroupID != nil || k.Group != nil) {
+		return
+	}
+	k.GroupID = nil
+	k.Group = nil
 }
 
 // HasRateLimits returns true if any rate limit window is configured
@@ -133,6 +204,28 @@ func (k *APIKey) EffectiveUsage7d() float64 {
 		return 0
 	}
 	return k.Usage7d
+}
+
+func (b *APIKeyGroupBinding) IsQuotaExhausted() bool {
+	if b == nil || b.Quota <= 0 {
+		return false
+	}
+	return b.QuotaUsed >= b.Quota
+}
+
+func (b *APIKeyGroupBinding) QuotaRemaining() float64 {
+	if b == nil || b.Quota <= 0 {
+		return -1
+	}
+	remaining := b.Quota - b.QuotaUsed
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+func int64Ptr(v int64) *int64 {
+	return &v
 }
 
 // APIKeyListFilters holds optional filtering parameters for listing API keys.

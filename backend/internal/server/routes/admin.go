@@ -124,6 +124,7 @@ func registerModelRegistryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerAdminAPIKeyRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	apiKeys := admin.Group("/api-keys")
 	{
+		apiKeys.GET("/:id/groups", h.Admin.APIKey.GetGroups)
 		apiKeys.PUT("/:id", h.Admin.APIKey.UpdateGroup)
 	}
 }

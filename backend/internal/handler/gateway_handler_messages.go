@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 )
 
 func (h *GatewayHandler) Messages(c *gin.Context) {
@@ -104,6 +105,428 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	if userReleaseFunc != nil {
 		defer userReleaseFunc()
 	}
+	parsedReq.SessionContext = &service.SessionContext{ClientIP: ip.GetClientIP(c), UserAgent: c.GetHeader("User-Agent"), APIKeyID: apiKey.ID}
+	selectedSessionHash := h.gatewayService.GenerateSessionHash(parsedReq)
+	forcePlatform, hasForcePlatform := middleware2.GetForcePlatformFromContext(c)
+	allowedPlatforms := gatewayCompatiblePlatforms
+	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+		allowedPlatforms = []string{forcePlatform}
+	}
+	excludedGroupIDs := make(map[int64]struct{})
+
+	for {
+		currentAPIKey, currentSubscription, err := resolveSelectedGatewayAPIKey(
+			c,
+			h.settingService,
+			h.gatewayService,
+			h.billingCacheService,
+			apiKey,
+			subscription,
+			reqModel,
+			allowedPlatforms,
+			excludedGroupIDs,
+		)
+		if err != nil {
+			reqLog.Info("gateway.group_selection_failed", zap.Error(err))
+			status, code, message := groupSelectionErrorDetails(err)
+			h.handleStreamingAwareError(c, status, code, message, streamStarted)
+			return
+		}
+
+		currentPlatform := ""
+		if currentAPIKey.Group != nil {
+			currentPlatform = currentAPIKey.Group.Platform
+		}
+		if currentPlatform != service.PlatformGemini &&
+			currentPlatform != service.PlatformAnthropic &&
+			currentPlatform != service.PlatformAntigravity &&
+			currentPlatform != service.PlatformKiro {
+			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+				continue
+			}
+			h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "This endpoint does not support the selected platform", streamStarted)
+			return
+		}
+
+		sessionKey := selectedSessionHash
+		if currentPlatform == service.PlatformGemini && selectedSessionHash != "" {
+			sessionKey = "gemini:" + selectedSessionHash
+		}
+		var sessionBoundAccountID int64
+		if sessionKey != "" {
+			sessionBoundAccountID, _ = h.gatewayService.GetCachedSessionAccountID(c.Request.Context(), currentAPIKey.GroupID, sessionKey)
+			if sessionBoundAccountID > 0 {
+				prefetchedGroupID := int64(0)
+				if currentAPIKey.GroupID != nil {
+					prefetchedGroupID = *currentAPIKey.GroupID
+				}
+				ctx := service.WithPrefetchedStickySession(c.Request.Context(), sessionBoundAccountID, prefetchedGroupID, h.metadataBridgeEnabled())
+				c.Request = c.Request.WithContext(ctx)
+			}
+		}
+		hasBoundSession := sessionKey != "" && sessionBoundAccountID > 0
+
+		if currentPlatform == service.PlatformGemini {
+			fs := NewFailoverState(h.maxAccountSwitchesGemini, hasBoundSession)
+			if h.gatewayService.IsSingleAntigravityAccountGroup(c.Request.Context(), currentAPIKey.GroupID) {
+				ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+				c.Request = c.Request.WithContext(ctx)
+			}
+			for {
+				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, "")
+				if err != nil {
+					if len(fs.FailedAccountIDs) == 0 {
+						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							break
+						}
+						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
+						return
+					}
+					action := fs.HandleSelectionExhausted(c.Request.Context())
+					switch action {
+					case FailoverContinue:
+						ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+						c.Request = c.Request.WithContext(ctx)
+						continue
+					case FailoverCanceled:
+						return
+					default:
+						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							break
+						}
+						if fs.LastFailoverErr != nil {
+							h.handleFailoverExhausted(c, fs.LastFailoverErr, service.PlatformGemini, streamStarted)
+						} else {
+							h.handleFailoverExhaustedSimple(c, 502, streamStarted)
+						}
+						return
+					}
+				}
+				account := selection.Account
+				setOpsSelectedAccount(c, account.ID, account.Platform)
+				if account.IsInterceptWarmupEnabled() {
+					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
+					if interceptType != InterceptTypeNone {
+						if selection.Acquired && selection.ReleaseFunc != nil {
+							selection.ReleaseFunc()
+						}
+						if reqStream {
+							sendMockInterceptStream(c, reqModel, interceptType)
+						} else {
+							sendMockInterceptResponse(c, reqModel, interceptType)
+						}
+						return
+					}
+				}
+				accountReleaseFunc := selection.ReleaseFunc
+				if !selection.Acquired {
+					if selection.WaitPlan == nil {
+						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							break
+						}
+						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
+						return
+					}
+					accountWaitCounted := false
+					canWait, err := h.concurrencyHelper.IncrementAccountWaitCount(c.Request.Context(), account.ID, selection.WaitPlan.MaxWaiting)
+					if err != nil {
+						reqLog.Warn("gateway.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+					} else if !canWait {
+						reqLog.Info("gateway.account_wait_queue_full", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Int("max_waiting", selection.WaitPlan.MaxWaiting))
+						h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
+						return
+					}
+					if err == nil && canWait {
+						accountWaitCounted = true
+					}
+					releaseWait := func() {
+						if accountWaitCounted {
+							h.concurrencyHelper.DecrementAccountWaitCount(c.Request.Context(), account.ID)
+							accountWaitCounted = false
+						}
+					}
+					accountReleaseFunc, err = h.concurrencyHelper.AcquireAccountSlotWithWaitTimeout(c, account.ID, selection.WaitPlan.MaxConcurrency, selection.WaitPlan.Timeout, reqStream, &streamStarted)
+					if err != nil {
+						reqLog.Warn("gateway.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+						releaseWait()
+						h.handleConcurrencyError(c, err, "account", streamStarted)
+						return
+					}
+					releaseWait()
+					if err := h.gatewayService.BindStickySession(c.Request.Context(), currentAPIKey.GroupID, sessionKey, account.ID); err != nil {
+						reqLog.Warn("gateway.bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+					}
+				}
+				accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
+				var result *service.ForwardResult
+				requestCtx := c.Request.Context()
+				if fs.SwitchCount > 0 {
+					requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
+				}
+				if account.Platform == service.PlatformAntigravity {
+					result, err = h.antigravityGatewayService.ForwardGemini(requestCtx, c, account, reqModel, "generateContent", reqStream, body, hasBoundSession)
+				} else {
+					result, err = h.geminiCompatService.Forward(requestCtx, c, account, body)
+				}
+				if accountReleaseFunc != nil {
+					accountReleaseFunc()
+				}
+				if err != nil {
+					var failoverErr *service.UpstreamFailoverError
+					if errors.As(err, &failoverErr) {
+						action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, failoverErr)
+						switch action {
+						case FailoverContinue:
+							continue
+						case FailoverExhausted:
+							if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+								break
+							}
+							h.handleFailoverExhausted(c, fs.LastFailoverErr, service.PlatformGemini, streamStarted)
+							return
+						case FailoverCanceled:
+							return
+						}
+					}
+					wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+					reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
+					return
+				}
+				if account.IsAnthropicOAuthOrSetupToken() && account.GetBaseRPM() > 0 {
+					if err := h.gatewayService.IncrementAccountRPM(c.Request.Context(), account.ID); err != nil {
+						reqLog.Warn("gateway.rpm_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
+					}
+				}
+				userAgent := c.GetHeader("User-Agent")
+				clientIP := ip.GetClientIP(c)
+				h.submitUsageRecordTask(func(ctx context.Context) {
+					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", currentAPIKey.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
+					}
+				})
+				return
+			}
+			continue
+		}
+
+		runtimeAPIKey := currentAPIKey
+		runtimeSubscription := currentSubscription
+		var fallbackGroupID *int64
+		if runtimeAPIKey.Group != nil {
+			fallbackGroupID = runtimeAPIKey.Group.FallbackGroupIDOnInvalidRequest
+		}
+		fallbackUsed := false
+		if h.gatewayService.IsSingleAntigravityAccountGroup(c.Request.Context(), runtimeAPIKey.GroupID) {
+			ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+			c.Request = c.Request.WithContext(ctx)
+		}
+		for {
+			fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
+			retryWithFallback := false
+			for {
+				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), runtimeAPIKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
+				if err != nil {
+					if len(fs.FailedAccountIDs) == 0 {
+						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+							break
+						}
+						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
+						return
+					}
+					action := fs.HandleSelectionExhausted(c.Request.Context())
+					switch action {
+					case FailoverContinue:
+						ctx := service.WithSingleAccountRetry(c.Request.Context(), true, h.metadataBridgeEnabled())
+						c.Request = c.Request.WithContext(ctx)
+						continue
+					case FailoverCanceled:
+						return
+					default:
+						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+							break
+						}
+						if fs.LastFailoverErr != nil {
+							h.handleFailoverExhausted(c, fs.LastFailoverErr, currentPlatform, streamStarted)
+						} else {
+							h.handleFailoverExhaustedSimple(c, 502, streamStarted)
+						}
+						return
+					}
+				}
+				account := selection.Account
+				setOpsSelectedAccount(c, account.ID, account.Platform)
+				if account.IsInterceptWarmupEnabled() {
+					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
+					if interceptType != InterceptTypeNone {
+						if selection.Acquired && selection.ReleaseFunc != nil {
+							selection.ReleaseFunc()
+						}
+						if reqStream {
+							sendMockInterceptStream(c, reqModel, interceptType)
+						} else {
+							sendMockInterceptResponse(c, reqModel, interceptType)
+						}
+						return
+					}
+				}
+				accountReleaseFunc := selection.ReleaseFunc
+				if !selection.Acquired {
+					if selection.WaitPlan == nil {
+						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+							break
+						}
+						h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
+						return
+					}
+					accountWaitCounted := false
+					canWait, err := h.concurrencyHelper.IncrementAccountWaitCount(c.Request.Context(), account.ID, selection.WaitPlan.MaxWaiting)
+					if err != nil {
+						reqLog.Warn("gateway.account_wait_counter_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(err))
+					} else if !canWait {
+						reqLog.Info("gateway.account_wait_queue_full", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Int("max_waiting", selection.WaitPlan.MaxWaiting))
+						h.handleStreamingAwareError(c, http.StatusTooManyRequests, "rate_limit_error", "Too many pending requests, please retry later", streamStarted)
+						return
+					}
+					if err == nil && canWait {
+						accountWaitCounted = true
+					}
+					releaseWait := func() {
+						if accountWaitCounted {
+							h.concurrencyHelper.DecrementAccountWaitCount(c.Request.Context(), account.ID)
+							accountWaitCounted = false
+						}
+					}
+					accountReleaseFunc, err = h.concurrencyHelper.AcquireAccountSlotWithWaitTimeout(c, account.ID, selection.WaitPlan.MaxConcurrency, selection.WaitPlan.Timeout, reqStream, &streamStarted)
+					if err != nil {
+						reqLog.Warn("gateway.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(err))
+						releaseWait()
+						h.handleConcurrencyError(c, err, "account", streamStarted)
+						return
+					}
+					releaseWait()
+					if err := h.gatewayService.BindStickySession(c.Request.Context(), runtimeAPIKey.GroupID, sessionKey, account.ID); err != nil {
+						reqLog.Warn("gateway.bind_sticky_session_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(err))
+					}
+				}
+				accountReleaseFunc = wrapReleaseOnDone(c.Request.Context(), accountReleaseFunc)
+				var queueRelease func()
+				umqMode := h.getUserMsgQueueMode(account, parsedReq)
+				switch umqMode {
+				case config.UMQModeSerialize:
+					baseRPM := account.GetBaseRPM()
+					release, qErr := h.userMsgQueueHelper.AcquireWithWait(c, account.ID, baseRPM, reqStream, &streamStarted, h.cfg.Gateway.UserMessageQueue.WaitTimeout(), reqLog)
+					if qErr != nil {
+						reqLog.Warn("gateway.umq_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(qErr))
+					} else {
+						queueRelease = release
+					}
+				case config.UMQModeThrottle:
+					baseRPM := account.GetBaseRPM()
+					if tErr := h.userMsgQueueHelper.ThrottleWithPing(c, account.ID, baseRPM, reqStream, &streamStarted, h.cfg.Gateway.UserMessageQueue.WaitTimeout(), reqLog); tErr != nil {
+						reqLog.Warn("gateway.umq_throttle_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(tErr))
+					}
+				default:
+					if umqMode != "" {
+						reqLog.Warn("gateway.umq_unknown_mode", zap.String("mode", umqMode), zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID))
+					}
+				}
+				queueRelease = wrapReleaseOnDone(c.Request.Context(), queueRelease)
+				parsedReq.OnUpstreamAccepted = queueRelease
+				var result *service.ForwardResult
+				requestCtx := c.Request.Context()
+				if fs.SwitchCount > 0 {
+					requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
+				}
+				if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
+					result, err = h.antigravityGatewayService.Forward(requestCtx, c, account, body, hasBoundSession)
+				} else {
+					result, err = h.gatewayService.Forward(requestCtx, c, account, parsedReq)
+				}
+				if queueRelease != nil {
+					queueRelease()
+				}
+				parsedReq.OnUpstreamAccepted = nil
+				if accountReleaseFunc != nil {
+					accountReleaseFunc()
+				}
+				if err != nil {
+					var betaBlockedErr *service.BetaBlockedError
+					if errors.As(err, &betaBlockedErr) {
+						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", betaBlockedErr.Message)
+						return
+					}
+					var promptTooLongErr *service.PromptTooLongError
+					if errors.As(err, &promptTooLongErr) {
+						reqLog.Warn("gateway.prompt_too_long_from_antigravity", zap.Any("current_group_id", runtimeAPIKey.GroupID), zap.Any("fallback_group_id", fallbackGroupID), zap.Bool("fallback_used", fallbackUsed))
+						if !fallbackUsed && fallbackGroupID != nil && *fallbackGroupID > 0 {
+							fallbackGroup, err := h.gatewayService.ResolveGroupByID(c.Request.Context(), *fallbackGroupID)
+							if err != nil {
+								reqLog.Warn("gateway.resolve_fallback_group_failed", zap.Int64("fallback_group_id", *fallbackGroupID), zap.Error(err))
+								_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
+								return
+							}
+							if fallbackGroup.Platform != service.PlatformAnthropic || fallbackGroup.SubscriptionType == service.SubscriptionTypeSubscription || fallbackGroup.FallbackGroupIDOnInvalidRequest != nil {
+								reqLog.Warn("gateway.fallback_group_invalid", zap.Int64("fallback_group_id", fallbackGroup.ID), zap.String("fallback_platform", fallbackGroup.Platform), zap.String("fallback_subscription_type", fallbackGroup.SubscriptionType))
+								_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
+								return
+							}
+							fallbackAPIKey := cloneAPIKeyWithGroup(runtimeAPIKey, fallbackGroup)
+							if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), fallbackAPIKey.User, fallbackAPIKey, fallbackGroup, nil); err != nil {
+								status, code, message := billingErrorDetails(err)
+								h.handleStreamingAwareError(c, status, code, message, streamStarted)
+								return
+							}
+							ctx := context.WithValue(c.Request.Context(), ctxkey.ForcePlatform, "")
+							c.Request = c.Request.WithContext(ctx)
+							runtimeAPIKey = fallbackAPIKey
+							runtimeSubscription = nil
+							fallbackUsed = true
+							retryWithFallback = true
+							break
+						}
+						_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
+						return
+					}
+					var failoverErr *service.UpstreamFailoverError
+					if errors.As(err, &failoverErr) {
+						action := fs.HandleFailoverError(c.Request.Context(), h.gatewayService, account.ID, account.Platform, failoverErr)
+						switch action {
+						case FailoverContinue:
+							continue
+						case FailoverExhausted:
+							if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
+								break
+							}
+							h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
+							return
+						case FailoverCanceled:
+							return
+						}
+					}
+					wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+					reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
+					return
+				}
+				if account.IsAnthropicOAuthOrSetupToken() && account.GetBaseRPM() > 0 {
+					if err := h.gatewayService.IncrementAccountRPM(c.Request.Context(), account.ID); err != nil {
+						reqLog.Warn("gateway.rpm_increment_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Error(err))
+					}
+				}
+				userAgent := c.GetHeader("User-Agent")
+				clientIP := ip.GetClientIP(c)
+				h.submitUsageRecordTask(func(ctx context.Context) {
+					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: runtimeAPIKey, User: runtimeAPIKey.User, Account: account, Subscription: runtimeSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", runtimeAPIKey.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
+					}
+				})
+				return
+			}
+			if !retryWithFallback {
+				break
+			}
+		}
+	}
+	return
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
 		reqLog.Info("gateway.billing_eligibility_check_failed", zap.Error(err))
 		status, code, message := billingErrorDetails(err)

@@ -55,6 +55,7 @@ type Group struct {
 	SupportedModelScopes []string
 
 	// 分组排序
+	Priority  int
 	SortOrder int
 
 	// OpenAI Messages 调度配置（仅 openai 平台使用）

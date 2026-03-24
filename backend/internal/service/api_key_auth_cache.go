@@ -12,6 +12,7 @@ type APIKeyAuthSnapshot struct {
 	IPBlacklist []string                 `json:"ip_blacklist,omitempty"`
 	User        APIKeyAuthUserSnapshot   `json:"user"`
 	Group       *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
+	Groups      []APIKeyAuthGroupBindingSnapshot `json:"groups,omitempty"`
 
 	// Quota fields for API Key independent quota feature
 	Quota     float64 `json:"quota"`      // Quota limit in USD (0 = unlimited)
@@ -24,6 +25,14 @@ type APIKeyAuthSnapshot struct {
 	RateLimit5h float64 `json:"rate_limit_5h"`
 	RateLimit1d float64 `json:"rate_limit_1d"`
 	RateLimit7d float64 `json:"rate_limit_7d"`
+}
+
+type APIKeyAuthGroupBindingSnapshot struct {
+	GroupID       int64                    `json:"group_id"`
+	Quota         float64                  `json:"quota"`
+	QuotaUsed     float64                  `json:"quota_used"`
+	ModelPatterns []string                 `json:"model_patterns,omitempty"`
+	Group         *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
 }
 
 // APIKeyAuthUserSnapshot 用户快照
