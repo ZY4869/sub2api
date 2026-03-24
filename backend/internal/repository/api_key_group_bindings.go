@@ -4,14 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
+)
+
+var errAPIKeyGroupSchemaOutdated = infraerrors.ServiceUnavailable(
+	"API_KEY_GROUP_SCHEMA_OUTDATED",
+	"api key group bindings require the latest database migration; restart the service or apply the latest migrations",
 )
 
 type apiKeyGroupBindingWriter interface {
@@ -42,6 +50,28 @@ func (r *apiKeyRepository) SetAPIKeyGroups(ctx context.Context, keyID int64, bin
 	if exec == nil {
 		return fmt.Errorf("sql executor is not configured")
 	}
+
+	supported, err := supportsAPIKeyGroupBindingsSchema(ctx, exec)
+	if err != nil {
+		return err
+	}
+	if !supported {
+		if !canUseLegacyAPIKeyGroupShadow(bindings) {
+			return errAPIKeyGroupSchemaOutdated.WithMetadata(map[string]string{
+				"feature": "api_key_group_bindings",
+			})
+		}
+		exec, commit, rollback, err := beginAPIKeyGroupSQLTx(ctx, exec)
+		if err != nil {
+			return err
+		}
+		defer rollback()
+		if err := setLegacyAPIKeyGroupShadow(ctx, exec, keyID, bindings); err != nil {
+			return err
+		}
+		return commit()
+	}
+
 	exec, commit, rollback, err := beginAPIKeyGroupSQLTx(ctx, exec)
 	if err != nil {
 		return err
@@ -95,6 +125,13 @@ func (r *apiKeyRepository) RecomputeShadowGroupIDs(ctx context.Context, keyIDs [
 		return nil
 	}
 	if len(keyIDs) == 0 {
+		return nil
+	}
+	supported, err := supportsAPIKeyGroupBindingsSchema(ctx, exec)
+	if err != nil {
+		return err
+	}
+	if !supported {
 		return nil
 	}
 	for _, keyID := range keyIDs {
@@ -151,6 +188,9 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 		ORDER BY api_key_id ASC, group_id ASC
 	`, pq.Array(keyIDs))
 	if err != nil {
+		if isAPIKeyGroupSchemaMissingError(err) {
+			return out, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()
@@ -159,24 +199,24 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 	seenGroupIDs := make(map[int64]struct{})
 	for rows.Next() {
 		var (
-			apiKeyID     int64
-			groupID      int64
-			quota        float64
-			quotaUsed    float64
+			apiKeyID         int64
+			groupID          int64
+			quota            float64
+			quotaUsed        float64
 			modelPatternsRaw []byte
-			createdAt    sql.NullTime
-			updatedAt    sql.NullTime
+			createdAt        sql.NullTime
+			updatedAt        sql.NullTime
 		)
 		if err := rows.Scan(&apiKeyID, &groupID, &quota, &quotaUsed, &modelPatternsRaw, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		binding := service.APIKeyGroupBinding{
-			APIKeyID:   apiKeyID,
-			GroupID:    groupID,
-			Quota:      quota,
-			QuotaUsed:  quotaUsed,
-			CreatedAt:  createdAt.Time,
-			UpdatedAt:  updatedAt.Time,
+			APIKeyID:  apiKeyID,
+			GroupID:   groupID,
+			Quota:     quota,
+			QuotaUsed: quotaUsed,
+			CreatedAt: createdAt.Time,
+			UpdatedAt: updatedAt.Time,
 		}
 		if len(modelPatternsRaw) > 0 {
 			_ = json.Unmarshal(modelPatternsRaw, &binding.ModelPatterns)
@@ -188,6 +228,9 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 		}
 	}
 	if err := rows.Err(); err != nil {
+		if isAPIKeyGroupSchemaMissingError(err) {
+			return out, nil
+		}
 		return nil, err
 	}
 
@@ -357,4 +400,96 @@ func listAPIKeyIDsByUserAndGroup(ctx context.Context, exec sqlExecutor, userID, 
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+func supportsAPIKeyGroupBindingsSchema(ctx context.Context, exec sqlExecutor) (bool, error) {
+	exists, err := tableExistsSQL(ctx, exec, "api_key_groups")
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+	requiredColumns := map[string][]string{
+		"api_key_groups": {"api_key_id", "group_id", "quota", "quota_used", "model_patterns"},
+		"groups":         {"priority"},
+	}
+	for tableName, columns := range requiredColumns {
+		for _, columnName := range columns {
+			ok, err := columnExistsSQL(ctx, exec, tableName, columnName)
+			if err != nil {
+				return false, err
+			}
+			if !ok {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+func tableExistsSQL(ctx context.Context, exec sqlExecutor, tableName string) (bool, error) {
+	var exists bool
+	if err := exec.QueryRowContext(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, tableName).Scan(&exists); err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func columnExistsSQL(ctx context.Context, exec sqlExecutor, tableName, columnName string) (bool, error) {
+	var exists bool
+	if err := exec.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1
+			FROM information_schema.columns
+			WHERE table_schema = 'public'
+			  AND table_name = $1
+			  AND column_name = $2
+		)
+	`, tableName, columnName).Scan(&exists); err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func canUseLegacyAPIKeyGroupShadow(bindings []service.APIKeyGroupBinding) bool {
+	if len(bindings) > 1 {
+		return false
+	}
+	if len(bindings) == 0 {
+		return true
+	}
+	binding := bindings[0]
+	return binding.Quota <= 0 && binding.QuotaUsed <= 0 && len(binding.ModelPatterns) == 0
+}
+
+func setLegacyAPIKeyGroupShadow(ctx context.Context, exec sqlExecutor, keyID int64, bindings []service.APIKeyGroupBinding) error {
+	var groupID any
+	if len(bindings) > 0 {
+		groupID = bindings[0].GroupID
+	}
+	_, err := exec.ExecContext(ctx, `
+		UPDATE api_keys
+		SET group_id = $2,
+			updated_at = NOW()
+		WHERE id = $1
+		  AND deleted_at IS NULL
+	`, keyID, groupID)
+	return err
+}
+
+func isAPIKeyGroupSchemaMissingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pq.Error
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	if pgErr.Code != "42P01" && pgErr.Code != "42703" {
+		return false
+	}
+	msg := strings.ToLower(pgErr.Message)
+	return strings.Contains(msg, "api_key_groups") ||
+		(strings.Contains(msg, "priority") && strings.Contains(msg, "group"))
 }
