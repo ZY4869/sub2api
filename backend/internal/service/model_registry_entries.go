@@ -18,6 +18,8 @@ func (s *ModelRegistryService) List(ctx context.Context, filter ModelRegistryLis
 	search := strings.TrimSpace(strings.ToLower(filter.Search))
 	provider := strings.TrimSpace(strings.ToLower(filter.Provider))
 	platform := normalizeRegistryPlatform(filter.Platform)
+	exposure := normalizeLowerTrimmed(filter.Exposure)
+	status := normalizeRegistryStatus(filter.Status)
 	availability := strings.TrimSpace(strings.ToLower(filter.Availability))
 	for _, detail := range details {
 		if !filter.IncludeHidden && detail.Hidden {
@@ -38,6 +40,12 @@ func (s *ModelRegistryService) List(ctx context.Context, filter ModelRegistryLis
 			}
 		}
 		if provider != "" && strings.ToLower(detail.Provider) != provider {
+			continue
+		}
+		if exposure != "" && !modelregistry.HasExposure(detail.ModelEntry, exposure) {
+			continue
+		}
+		if strings.TrimSpace(filter.Status) != "" && detail.Status != status {
 			continue
 		}
 		if platform != "" {
@@ -251,6 +259,10 @@ func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input Bat
 	if len(models) == 0 {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "at least one model is required")
 	}
+	mode := normalizeBatchSyncExposureMode(input.Mode)
+	if mode == "" {
+		return nil, infraerrors.BadRequest("MODEL_REGISTRY_EXPOSURE_MODE_INVALID", "invalid exposure sync mode")
+	}
 	exposures, err := normalizeBatchSyncExposureTargets(input.Exposures)
 	if err != nil {
 		return nil, err
@@ -269,6 +281,7 @@ func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input Bat
 	}
 	result := &BatchSyncModelRegistryExposuresResult{
 		Exposures:     exposures,
+		Mode:          mode,
 		UpdatedModels: []string{},
 		SkippedModels: []string{},
 		FailedModels:  []ModelRegistryExposureSyncFailure{},
@@ -286,14 +299,14 @@ func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input Bat
 			result.SkippedModels = append(result.SkippedModels, modelID)
 			continue
 		}
-		mergedExposures := mergeRegistryStrings(entry.ExposedIn, exposures...)
-		if sameStringSlice(entry.ExposedIn, mergedExposures) {
+		nextExposures := syncModelRegistryExposures(entry.ExposedIn, exposures, mode)
+		if sameStringSlice(entry.ExposedIn, nextExposures) {
 			result.SkippedCount++
 			result.SkippedModels = append(result.SkippedModels, modelID)
 			continue
 		}
 		updated := entry
-		updated.ExposedIn = mergedExposures
+		updated.ExposedIn = nextExposures
 		normalized, normalizeErr := normalizePersistedEntry(updated)
 		if normalizeErr != nil {
 			result.FailedModels = append(result.FailedModels, ModelRegistryExposureSyncFailure{Model: modelID, Error: summarizeAccountModelImportError(normalizeErr)})
@@ -327,6 +340,28 @@ func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input Bat
 		}
 	}
 	return result, nil
+}
+
+func syncModelRegistryExposures(current []string, targets []string, mode string) []string {
+	switch mode {
+	case "remove":
+		removeSet := make(map[string]struct{}, len(targets))
+		for _, target := range targets {
+			removeSet[target] = struct{}{}
+		}
+		next := make([]string, 0, len(current))
+		for _, exposure := range current {
+			if _, shouldRemove := removeSet[exposure]; shouldRemove {
+				continue
+			}
+			next = append(next, exposure)
+		}
+		return next
+	case "replace":
+		return append([]string(nil), targets...)
+	default:
+		return mergeRegistryStrings(current, targets...)
+	}
 }
 
 func (s *ModelRegistryService) SetVisibility(ctx context.Context, input UpdateModelRegistryVisibilityInput) (*modelregistry.AdminModelDetail, error) {

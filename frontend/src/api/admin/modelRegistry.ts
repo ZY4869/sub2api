@@ -19,6 +19,8 @@ export interface ListModelRegistryParams {
   search?: string
   provider?: string
   platform?: string
+  exposure?: ModelRegistryExposureTarget
+  status?: 'stable' | 'beta' | 'deprecated'
   availability?: 'all' | 'available' | 'unavailable'
   sort_mode?: 'default' | 'category_latest'
   include_hidden?: boolean
@@ -47,6 +49,7 @@ export type ModelRegistryExposureTarget = 'whitelist' | 'use_key' | 'test' | 'ru
 export interface SyncModelRegistryExposuresPayload {
   models: string[]
   exposures: ModelRegistryExposureTarget[]
+  mode?: 'add' | 'remove' | 'replace'
 }
 
 export interface ModelRegistryExposureSyncFailure {
@@ -56,6 +59,7 @@ export interface ModelRegistryExposureSyncFailure {
 
 export interface SyncModelRegistryExposuresResult {
   exposures: ModelRegistryExposureTarget[]
+  mode: 'add' | 'remove' | 'replace'
   updated_count: number
   skipped_count: number
   failed_count: number

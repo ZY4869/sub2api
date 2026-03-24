@@ -69,41 +69,7 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		response.NotFound(c, "Account not found")
 		return
 	}
-	models := h.defaultAvailableModels(c.Request.Context(), account)
-	if scope, ok := service.ExtractAccountModelScopeV2(account.Extra); ok && scope != nil {
-		models = h.filterAvailableModelsByScope(c.Request.Context(), models, scope)
-		response.Success(c, models)
-		return
-	}
-	if account.Platform == service.PlatformAntigravity || account.Platform == service.PlatformSora {
-		response.Success(c, models)
-		return
-	}
-	if account.IsOpenAI() {
-		// OpenAI passthrough mode bypasses normal model rewrites, so the admin model list should
-		// fall back to defaults (consistent with gateway behavior).
-		if account.IsOpenAIPassthroughEnabled() {
-			response.Success(c, models)
-			return
-		}
-		mapping := account.GetModelMapping()
-		if len(mapping) == 0 {
-			response.Success(c, models)
-			return
-		}
-		response.Success(c, filterAvailableModelsByMapping(models, mapping))
-		return
-	}
-	if account.IsOAuth() {
-		response.Success(c, models)
-		return
-	}
-	mapping := account.GetModelMapping()
-	if len(mapping) == 0 {
-		response.Success(c, models)
-		return
-	}
-	response.Success(c, filterAvailableModelsByMapping(models, mapping))
+	response.Success(c, service.BuildAvailableTestModels(c.Request.Context(), account, h.modelRegistryService))
 }
 
 type availableModelItem struct {

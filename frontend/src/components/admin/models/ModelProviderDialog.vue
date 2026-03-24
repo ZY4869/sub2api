@@ -67,6 +67,8 @@
             :provider="activeProvider"
             :models="activeModels"
             :search-value="activeSearchValue"
+            :exposure-filter="activeExposureFilter"
+            :status-filter="activeStatusFilter"
             :selected-ids="activeSelectedIds"
             :total-count="activeGroup?.totalCount"
             :available-count="activeGroup?.availableCount"
@@ -75,11 +77,16 @@
             :is-activating="isActivating"
             :is-deactivating="isDeactivating"
             :is-deleting="isDeleting"
+            :is-syncing-test-exposure="isSyncingTestExposure"
             @update:search="emit('update:search', activeProvider, $event)"
             @search="emit('search', activeProvider, $event)"
+            @update:exposure="emit('update:exposure', activeProvider, $event)"
+            @update:status="emit('update:status', activeProvider, $event)"
             @toggle-selected="emit('toggle-selected', activeProvider, $event)"
             @toggle-all-selected="emit('toggle-all-selected', activeProvider, $event)"
             @clear-selection="emit('clear-selection', activeProvider)"
+            @add-to-test="emit('add-to-test', activeProvider, $event)"
+            @remove-from-test="emit('remove-from-test', activeProvider, $event)"
             @activate="emit('activate', activeProvider, $event)"
             @deactivate="emit('deactivate', activeProvider, $event)"
             @hard-delete="emit('hard-delete', activeProvider, $event)"
@@ -109,11 +116,14 @@ const props = defineProps<{
   activeProvider: string
   activeModels: ModelRegistryDetail[]
   activeSearchValue: string
+  activeExposureFilter: 'all' | 'test'
+  activeStatusFilter: 'all' | 'stable' | 'beta' | 'deprecated'
   activeSelectedIds: string[]
   hasMore: boolean
   isActivating: (modelId: string) => boolean
   isDeactivating: (modelId: string) => boolean
   isDeleting: (modelId: string) => boolean
+  isSyncingTestExposure: (modelId: string) => boolean
 }>()
 
 const emit = defineEmits<{
@@ -122,9 +132,13 @@ const emit = defineEmits<{
   (e: 'select-provider', provider: string): void
   (e: 'update:search', provider: string, value: string): void
   (e: 'search', provider: string, value: string): void
+  (e: 'update:exposure', provider: string, value: 'all' | 'test'): void
+  (e: 'update:status', provider: string, value: 'all' | 'stable' | 'beta' | 'deprecated'): void
   (e: 'toggle-selected', provider: string, modelId: string): void
   (e: 'toggle-all-selected', provider: string, checked: boolean): void
   (e: 'clear-selection', provider: string): void
+  (e: 'add-to-test', provider: string, modelIds: string[]): void
+  (e: 'remove-from-test', provider: string, modelIds: string[]): void
   (e: 'activate', provider: string, modelId: string): void
   (e: 'deactivate', provider: string, modelIds: string[]): void
   (e: 'hard-delete', provider: string, modelIds: string[]): void

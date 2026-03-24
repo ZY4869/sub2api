@@ -9,13 +9,31 @@
         {{ loadedCount }}/{{ resolvedTotalCount }} {{ t('admin.models.pages.all.loadMore') }}
       </div>
 
-      <div class="w-full lg:max-w-sm">
+      <div class="flex w-full flex-col gap-3 lg:max-w-3xl lg:flex-row lg:items-center">
         <SearchInput
           :model-value="searchValue"
           :placeholder="t('admin.models.pages.all.filterPlaceholder')"
           @update:model-value="emit('update:search', $event)"
           @search="emit('search', $event)"
         />
+        <select
+          class="input w-full lg:w-44"
+          :value="exposureFilter"
+          @change="handleExposureChange"
+        >
+          <option value="all">{{ t('common.all') }}</option>
+          <option value="test">{{ t('admin.models.pages.all.testOnly') }}</option>
+        </select>
+        <select
+          class="input w-full lg:w-44"
+          :value="statusFilter"
+          @change="handleStatusChange"
+        >
+          <option value="all">{{ t('common.all') }}</option>
+          <option value="stable">{{ t('admin.models.registry.lifecycleLabels.stable') }}</option>
+          <option value="beta">{{ t('admin.models.registry.lifecycleLabels.beta') }}</option>
+          <option value="deprecated">{{ t('admin.models.registry.lifecycleLabels.deprecated') }}</option>
+        </select>
       </div>
     </div>
 
@@ -44,6 +62,22 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="selectedNonTestCount === 0 || selectedMutating"
+          @click="handleBulkAddToTest"
+        >
+          {{ t('admin.models.pages.all.bulk.addToTest') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="selectedTestCount === 0 || selectedMutating"
+          @click="handleBulkRemoveFromTest"
+        >
+          {{ t('admin.models.pages.all.bulk.removeFromTest') }}
+        </button>
         <button
           type="button"
           class="btn btn-secondary btn-sm"
@@ -102,9 +136,8 @@
 
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-medium text-gray-900 dark:text-white">{{ model.id }}</p>
-                    <p v-if="model.display_name" class="text-xs text-gray-500 dark:text-gray-400">
-                      {{ model.display_name }}
+                    <p class="font-medium text-gray-900 dark:text-white">
+                      {{ model.display_name || model.id }}
                     </p>
                     <span
                       class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"
@@ -112,7 +145,26 @@
                     >
                       {{ model.available ? t('admin.models.registry.availableStatus') : t('admin.models.registry.unavailableStatus') }}
                     </span>
+                    <span
+                      v-if="hasTestExposure(model)"
+                      class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
+                    >
+                      {{ t('admin.models.pages.all.testBadge') }}
+                    </span>
+                    <span
+                      v-if="model.status === 'deprecated'"
+                      class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                    >
+                      {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
+                    </span>
                   </div>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ model.id }}</p>
+                  <p
+                    v-if="model.replaced_by"
+                    class="mt-1 text-xs text-amber-600 dark:text-amber-300"
+                  >
+                    {{ t('admin.models.registry.replacedByHint', { model: model.replaced_by }) }}
+                  </p>
                   <div class="mt-2">
                     <ModelPlatformsInline :platforms="model.platforms" />
                   </div>
@@ -121,6 +173,18 @@
             </div>
 
             <div class="flex shrink-0 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                :disabled="isModelMutating(model.id)"
+                @click="handleRowTestExposure(model)"
+              >
+                {{
+                  hasTestExposure(model)
+                    ? t('admin.models.pages.all.removeFromTest')
+                    : t('admin.models.pages.all.addToTest')
+                }}
+              </button>
               <button
                 v-if="!model.available"
                 type="button"
@@ -185,6 +249,8 @@ const props = withDefaults(defineProps<{
   provider: string
   models: ModelRegistryDetail[]
   searchValue?: string
+  exposureFilter?: 'all' | 'test'
+  statusFilter?: 'all' | 'stable' | 'beta' | 'deprecated'
   selectedIds?: string[]
   totalCount?: number
   availableCount?: number
@@ -193,17 +259,24 @@ const props = withDefaults(defineProps<{
   isActivating: (modelId: string) => boolean
   isDeactivating: (modelId: string) => boolean
   isDeleting: (modelId: string) => boolean
+  isSyncingTestExposure: (modelId: string) => boolean
 }>(), {
   searchValue: '',
+  exposureFilter: 'all',
+  statusFilter: 'all',
   selectedIds: () => []
 })
 
 const emit = defineEmits<{
   (e: 'update:search', value: string): void
   (e: 'search', value: string): void
+  (e: 'update:exposure', value: 'all' | 'test'): void
+  (e: 'update:status', value: 'all' | 'stable' | 'beta' | 'deprecated'): void
   (e: 'toggle-selected', modelId: string): void
   (e: 'toggle-all-selected', checked: boolean): void
   (e: 'clear-selection'): void
+  (e: 'add-to-test', modelIds: string[]): void
+  (e: 'remove-from-test', modelIds: string[]): void
   (e: 'activate', modelId: string): void
   (e: 'deactivate', modelIds: string[]): void
   (e: 'hard-delete', modelIds: string[]): void
@@ -219,13 +292,55 @@ const resolvedTotalCount = computed(() => props.totalCount ?? props.models.lengt
 const selectedCount = computed(() => props.selectedIds.length)
 const selectedModels = computed(() => props.models.filter((model) => selectedIdSet.value.has(model.id)))
 const selectedAvailableCount = computed(() => selectedModels.value.filter((model) => model.available).length)
+const selectedTestCount = computed(() => selectedModels.value.filter((model) => hasTestExposure(model)).length)
+const selectedNonTestCount = computed(() => selectedModels.value.filter((model) => !hasTestExposure(model)).length)
 const selectedMutating = computed(() => selectedModels.value.some((model) => isModelMutating(model.id)))
 const groupedModels = computed(() => groupModelRegistryModels(props.models))
 const availableBadgeClass = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
 const unavailableBadgeClass = 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-200'
 
 function isModelMutating(modelId: string) {
-  return props.isActivating(modelId) || props.isDeactivating(modelId) || props.isDeleting(modelId)
+  return props.isActivating(modelId) || props.isDeactivating(modelId) || props.isDeleting(modelId) || props.isSyncingTestExposure(modelId)
+}
+
+function hasTestExposure(model: ModelRegistryDetail) {
+  return Array.isArray(model.exposed_in) && model.exposed_in.includes('test')
+}
+
+function handleExposureChange(event: Event) {
+  const value = (event.target as HTMLSelectElement | null)?.value
+  emit('update:exposure', value === 'test' ? 'test' : 'all')
+}
+
+function handleStatusChange(event: Event) {
+  const value = (event.target as HTMLSelectElement | null)?.value
+  if (value === 'stable' || value === 'beta' || value === 'deprecated') {
+    emit('update:status', value)
+    return
+  }
+  emit('update:status', 'all')
+}
+
+function handleBulkAddToTest() {
+  if (selectedNonTestCount.value === 0) {
+    return
+  }
+  emit('add-to-test', selectedModels.value.filter((model) => !hasTestExposure(model)).map((model) => model.id))
+}
+
+function handleBulkRemoveFromTest() {
+  if (selectedTestCount.value === 0) {
+    return
+  }
+  emit('remove-from-test', selectedModels.value.filter((model) => hasTestExposure(model)).map((model) => model.id))
+}
+
+function handleRowTestExposure(model: ModelRegistryDetail) {
+  if (hasTestExposure(model)) {
+    emit('remove-from-test', [model.id])
+    return
+  }
+  emit('add-to-test', [model.id])
 }
 
 function handleSingleHardDelete(modelId: string) {

@@ -74,7 +74,23 @@ function mountModal() {
     global: {
       stubs: {
         BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
-        Select: { template: '<div class="select-stub"></div>' },
+        Select: {
+          props: ['modelValue', 'options'],
+          template: `
+            <div class="select-stub">
+              <div data-test="selected-option">
+                <slot name="selected" :option="options.find((opt) => opt.id === modelValue) || null" />
+              </div>
+              <div
+                v-for="option in options"
+                :key="option.id"
+                class="select-option-stub"
+              >
+                <slot name="option" :option="option" :selected="option.id === modelValue" />
+              </div>
+            </div>
+          `
+        },
         TextArea: {
           props: ['modelValue'],
           emits: ['update:modelValue'],
@@ -89,9 +105,9 @@ function mountModal() {
 describe('AccountTestModal', () => {
   beforeEach(() => {
     getAvailableModels.mockResolvedValue([
+      { id: 'gemini-3.1-flash-image', display_name: 'Gemini 3.1 Flash Image' },
       { id: 'gemini-2.0-flash', display_name: 'Gemini 2.0 Flash' },
-      { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' },
-      { id: 'gemini-3.1-flash-image', display_name: 'Gemini 3.1 Flash Image' }
+      { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' }
     ])
     copyToClipboard.mockReset()
     Object.defineProperty(globalThis, 'localStorage', {
@@ -105,7 +121,7 @@ describe('AccountTestModal', () => {
     })
     global.fetch = vi.fn().mockResolvedValue(
       createStreamResponse([
-        'data: {"type":"test_start","model":"gemini-2.5-flash-image"}\n',
+        'data: {"type":"test_start","model":"gemini-3.1-flash-image"}\n',
         'data: {"type":"image","image_url":"data:image/png;base64,QUJD","mime_type":"image/png"}\n',
         'data: {"type":"test_complete","success":true}\n'
       ])
@@ -144,5 +160,62 @@ describe('AccountTestModal', () => {
     const preview = wrapper.find('img[alt="gemini-test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('renders display name above model id and shows deprecated metadata in the selector content', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      {
+        id: 'claude-sonnet-legacy',
+        display_name: 'Claude Sonnet Legacy',
+        status: 'deprecated',
+        replaced_by: 'claude-sonnet-4.5'
+      }
+    ])
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 7,
+          name: 'Legacy Test',
+          platform: 'openai',
+          type: 'oauth',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div>
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => opt.id === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="option.id === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('Claude Sonnet Legacy')
+    expect(text).toContain('claude-sonnet-legacy')
+    expect(text).toContain('admin.models.registry.lifecycleLabels.deprecated')
+    expect(text).toContain('claude-sonnet-4.5')
   })
 })

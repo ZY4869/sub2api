@@ -77,8 +77,9 @@ func normalizePersistedEntry(entry modelregistry.ModelEntry) (modelregistry.Mode
 			entry.UIPriority = 5000
 		}
 	}
+	hadExplicitExposures := entry.ExposedIn != nil
 	entry.ExposedIn = normalizeStringList(entry.ExposedIn, normalizeLowerTrimmed)
-	if len(entry.ExposedIn) == 0 {
+	if len(entry.ExposedIn) == 0 && !hadExplicitExposures {
 		if seedEntry, ok := modelregistry.SeedModelByID(entry.ID); ok && len(seedEntry.ExposedIn) > 0 {
 			entry.ExposedIn = append([]string(nil), seedEntry.ExposedIn...)
 		} else {
@@ -208,6 +209,19 @@ var batchSyncExposureTargets = map[string]struct{}{
 	"use_key":   {},
 	"test":      {},
 	"runtime":   {},
+}
+
+func normalizeBatchSyncExposureMode(mode string) string {
+	switch normalizeLowerTrimmed(mode) {
+	case "", "add":
+		return "add"
+	case "remove":
+		return "remove"
+	case "replace":
+		return "replace"
+	default:
+		return ""
+	}
 }
 
 func normalizeBatchSyncExposureTargets(exposures []string) ([]string, error) {

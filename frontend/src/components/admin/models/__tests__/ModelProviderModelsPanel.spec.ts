@@ -52,6 +52,7 @@ function mountPanel(props?: Record<string, unknown>) {
       isActivating: () => false,
       isDeactivating: () => false,
       isDeleting: () => false,
+      isSyncingTestExposure: () => false,
       ...props
     },
     global: {
@@ -126,5 +127,67 @@ describe('ModelProviderModelsPanel', () => {
       [['gpt-5.4', 'gpt-image']],
       [['gpt-5.4']]
     ])
+  })
+
+  it('shows test and deprecated badges, and emits row add/remove test actions', async () => {
+    const wrapper = mountPanel({
+      models: [
+        createModel('gpt-5.4', true, {
+          exposed_in: ['runtime', 'test']
+        }),
+        createModel('gpt-legacy', false, {
+          status: 'deprecated',
+          replaced_by: 'gpt-5.4'
+        })
+      ]
+    })
+
+    expect(wrapper.text()).toContain('admin.models.pages.all.testBadge')
+    expect(wrapper.text()).toContain('admin.models.registry.lifecycleLabels.deprecated')
+    expect(wrapper.text()).toContain('gpt-legacy')
+
+    const buttons = wrapper.findAll('button')
+    const removeFromTest = buttons.find((button) => button.text() === 'admin.models.pages.all.removeFromTest')
+    const addToTest = buttons.find((button) => button.text() === 'admin.models.pages.all.addToTest')
+
+    expect(removeFromTest).toBeDefined()
+    expect(addToTest).toBeDefined()
+
+    await removeFromTest!.trigger('click')
+    await addToTest!.trigger('click')
+
+    expect(wrapper.emitted('remove-from-test')).toEqual([[['gpt-5.4']]])
+    expect(wrapper.emitted('add-to-test')).toEqual([[['gpt-legacy']]])
+  })
+
+  it('emits bulk add/remove test actions and filter updates', async () => {
+    const wrapper = mountPanel({
+      models: [
+        createModel('gpt-test', true, { exposed_in: ['runtime', 'test'] }),
+        createModel('gpt-runtime', true)
+      ],
+      selectedIds: ['gpt-test', 'gpt-runtime']
+    })
+
+    const selects = wrapper.findAll('select')
+    expect(selects).toHaveLength(2)
+
+    await selects[0].setValue('test')
+    await selects[1].setValue('deprecated')
+
+    const buttons = wrapper.findAll('button')
+    const bulkAddToTest = buttons.find((button) => button.text() === 'admin.models.pages.all.bulk.addToTest')
+    const bulkRemoveFromTest = buttons.find((button) => button.text() === 'admin.models.pages.all.bulk.removeFromTest')
+
+    expect(bulkAddToTest).toBeDefined()
+    expect(bulkRemoveFromTest).toBeDefined()
+
+    await bulkAddToTest!.trigger('click')
+    await bulkRemoveFromTest!.trigger('click')
+
+    expect(wrapper.emitted('update:exposure')).toEqual([['test']])
+    expect(wrapper.emitted('update:status')).toEqual([['deprecated']])
+    expect(wrapper.emitted('add-to-test')).toEqual([[['gpt-runtime']]])
+    expect(wrapper.emitted('remove-from-test')).toEqual([[['gpt-test']]])
   })
 })

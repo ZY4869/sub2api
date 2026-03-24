@@ -24,6 +24,8 @@ func (h *ModelRegistryHandler) List(c *gin.Context) {
 		Search:            c.Query("search"),
 		Provider:          c.Query("provider"),
 		Platform:          c.Query("platform"),
+		Exposure:          c.Query("exposure"),
+		Status:            c.Query("status"),
 		Availability:      c.Query("availability"),
 		SortMode:          c.Query("sort_mode"),
 		IncludeHidden:     parseBoolDefaultTrue(c.Query("include_hidden")),

@@ -6,6 +6,7 @@ import {
   hardDeleteModelRegistryEntries,
   listModelRegistry,
   listModelRegistryProviders,
+  syncModelRegistryExposures,
   type ModelRegistryDetail
 } from '@/api/admin/modelRegistry'
 import { useAppStore } from '@/stores/app'
@@ -26,6 +27,8 @@ type ProviderModelsState = {
   initialized: boolean
   search: string
   appliedSearch: string
+  exposure: 'all' | 'test'
+  status: 'all' | 'stable' | 'beta' | 'deprecated'
   selectedIds: string[]
   requestId: number
 }
@@ -47,6 +50,7 @@ export function useAdminModelRegistryProviders() {
   const activatingIds = ref<Set<string>>(new Set())
   const deactivatingIds = ref<Set<string>>(new Set())
   const deletingIds = ref<Set<string>>(new Set())
+  const syncingTestExposureIds = ref<Set<string>>(new Set())
   const items = ref<AdminModelRegistryProviderGroup[]>([])
   const pagination = reactive({
     page: 1,
@@ -68,6 +72,7 @@ export function useAdminModelRegistryProviders() {
   const isActivating = (modelId: string) => activatingIds.value.has(modelId)
   const isDeactivating = (modelId: string) => deactivatingIds.value.has(modelId)
   const isDeleting = (modelId: string) => deletingIds.value.has(modelId)
+  const isSyncingTestExposure = (modelId: string) => syncingTestExposureIds.value.has(modelId)
   const hasMoreProviders = computed(() => pagination.page < pagination.pages)
 
   function getProviderKey(provider: string) {
@@ -85,6 +90,8 @@ export function useAdminModelRegistryProviders() {
       initialized: false,
       search: '',
       appliedSearch: '',
+      exposure: 'all',
+      status: 'all',
       selectedIds: [],
       requestId: 0
     }
@@ -161,6 +168,8 @@ export function useAdminModelRegistryProviders() {
       const response = await listModelRegistry({
         provider: normalizedProvider,
         search: state.appliedSearch || undefined,
+        exposure: state.exposure === 'test' ? 'test' : undefined,
+        status: state.status === 'all' ? undefined : state.status,
         availability: 'all',
         sort_mode: 'category_latest',
         include_hidden: false,
@@ -232,6 +241,30 @@ export function useAdminModelRegistryProviders() {
     }
     state.appliedSearch = state.search
     void loadProviderModels(provider, true)
+  }
+
+  function setProviderExposure(provider: string, exposure: 'all' | 'test') {
+    const state = ensureProviderModelsState(provider)
+    if (state.exposure === exposure) {
+      return
+    }
+    state.exposure = exposure
+    state.selectedIds = []
+    if (state.initialized) {
+      void loadProviderModels(provider, true)
+    }
+  }
+
+  function setProviderStatus(provider: string, status: 'all' | 'stable' | 'beta' | 'deprecated') {
+    const state = ensureProviderModelsState(provider)
+    if (state.status === status) {
+      return
+    }
+    state.status = status
+    state.selectedIds = []
+    if (state.initialized) {
+      void loadProviderModels(provider, true)
+    }
   }
 
   function setProviderSelectedIds(provider: string, modelIds: string[]) {
@@ -321,6 +354,37 @@ export function useAdminModelRegistryProviders() {
     }
   }
 
+  async function updateTestExposure(provider: string, modelIds: string[], mode: 'add' | 'remove') {
+    const normalizedIds = normalizeModelIds(modelIds)
+    const pendingIds = normalizedIds.filter((modelId) => !isSyncingTestExposure(modelId))
+    if (pendingIds.length === 0) {
+      return
+    }
+    syncingTestExposureIds.value = addPendingIds(syncingTestExposureIds.value, pendingIds)
+    try {
+      await syncModelRegistryExposures({
+        models: pendingIds,
+        exposures: ['test'],
+        mode
+      })
+      appStore.showSuccess(
+        mode === 'add'
+          ? pendingIds.length > 1
+            ? t('admin.models.pages.all.bulk.addToTestSuccess', { count: pendingIds.length })
+            : t('admin.models.pages.all.addToTestSuccess')
+          : pendingIds.length > 1
+            ? t('admin.models.pages.all.bulk.removeFromTestSuccess', { count: pendingIds.length })
+            : t('admin.models.pages.all.removeFromTestSuccess')
+      )
+      await refreshProviderAfterMutation(provider)
+    } catch (error) {
+      console.error('[useAdminModelRegistryProviders] updateTestExposure failed', error)
+      appStore.showError(t('admin.models.pages.all.testExposureUpdateFailed'))
+    } finally {
+      syncingTestExposureIds.value = removePendingIds(syncingTestExposureIds.value, pendingIds)
+    }
+  }
+
   async function refreshProviderAfterMutation(provider: string) {
     clearProviderSelection(provider)
     invalidateModelRegistry()
@@ -342,6 +406,7 @@ export function useAdminModelRegistryProviders() {
     isActivating,
     isDeactivating,
     isDeleting,
+    isSyncingTestExposure,
     loadAll,
     loadMoreProviders,
     refreshAll,
@@ -349,6 +414,8 @@ export function useAdminModelRegistryProviders() {
     loadMoreProviderModels,
     getProviderModels: (provider: string) => provider ? ensureProviderModelsState(provider).items : [],
     getProviderSearch: (provider: string) => provider ? ensureProviderModelsState(provider).search : '',
+    getProviderExposure: (provider: string) => provider ? ensureProviderModelsState(provider).exposure : 'all',
+    getProviderStatus: (provider: string) => provider ? ensureProviderModelsState(provider).status : 'all',
     getProviderSelectedIds: (provider: string) => provider ? ensureProviderModelsState(provider).selectedIds : [],
     isProviderModelSelected: (provider: string, modelId: string) => provider ? ensureProviderModelsState(provider).selectedIds.includes(modelId) : false,
     isProviderLoading: (provider: string) => provider ? ensureProviderModelsState(provider).loading : false,
@@ -362,13 +429,17 @@ export function useAdminModelRegistryProviders() {
     },
     updateProviderSearch,
     setProviderSearch,
+    setProviderExposure,
+    setProviderStatus,
     setProviderSelectedIds,
     toggleProviderModelSelected,
     toggleAllProviderModelsSelected,
     clearProviderSelection,
     activateModel,
     deactivateModels,
-    hardDeleteModels
+    hardDeleteModels,
+    addModelsToTest: (provider: string, modelIds: string[]) => updateTestExposure(provider, modelIds, 'add'),
+    removeModelsFromTest: (provider: string, modelIds: string[]) => updateTestExposure(provider, modelIds, 'remove')
   }
 }
 

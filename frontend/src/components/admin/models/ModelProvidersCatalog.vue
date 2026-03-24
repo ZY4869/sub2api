@@ -52,19 +52,26 @@
           :providers="providerGroups"
           :get-models="getProviderModels"
           :get-search="getProviderSearch"
+          :get-exposure="getProviderExposure"
+          :get-status="getProviderStatus"
           :get-selected-ids="getProviderSelectedIds"
           :is-provider-loading="isProviderLoading"
           :provider-has-more-models="providerHasMoreModels"
           :is-activating="isActivating"
           :is-deactivating="isDeactivating"
           :is-deleting="isDeleting"
+          :is-syncing-test-exposure="isSyncingTestExposure"
           @expand="ensureProviderModels"
           @update:search="handleProviderSearchInput"
           @search="handleProviderSearch"
+          @update:exposure="setProviderExposure"
+          @update:status="setProviderStatus"
           @toggle-selected="toggleProviderModelSelected"
           @toggle-all-selected="toggleAllProviderModelsSelected"
           @clear-selection="clearProviderSelection"
           @load-more="loadMoreProviderModels"
+          @add-to-test="addModelsToTest"
+          @remove-from-test="removeModelsFromTest"
           @activate="activateModel"
           @deactivate="deactivateModels"
           @hard-delete="hardDeleteModels"
@@ -99,20 +106,27 @@
     :active-provider="activeProvider"
     :active-models="getProviderModels(activeProvider)"
     :active-search-value="getProviderSearch(activeProvider)"
+    :active-exposure-filter="getProviderExposure(activeProvider)"
+    :active-status-filter="getProviderStatus(activeProvider)"
     :active-selected-ids="getProviderSelectedIds(activeProvider)"
     :has-more="providerHasMoreModels(activeProvider)"
     :is-activating="isActivating"
     :is-deactivating="isDeactivating"
     :is-deleting="isDeleting"
+    :is-syncing-test-exposure="isSyncingTestExposure"
     @close="providerDialogOpen = false"
     @refresh="handleRefreshAll"
     @select-provider="selectProvider"
     @update:search="handleProviderSearchInput"
     @search="handleProviderSearch"
+    @update:exposure="setProviderExposure"
+    @update:status="setProviderStatus"
     @toggle-selected="toggleProviderModelSelected"
     @toggle-all-selected="toggleAllProviderModelsSelected"
     @clear-selection="clearProviderSelection"
     @load-more="loadMoreProviderModels"
+    @add-to-test="addModelsToTest"
+    @remove-from-test="removeModelsFromTest"
     @activate="activateModel"
     @deactivate="deactivateModels"
     @hard-delete="hardDeleteModels"
@@ -146,6 +160,7 @@ const {
   isActivating,
   isDeactivating,
   isDeleting,
+  isSyncingTestExposure,
   loadAll,
   loadMoreProviders,
   refreshAll,
@@ -153,14 +168,20 @@ const {
   loadMoreProviderModels,
   getProviderModels,
   getProviderSearch,
+  getProviderExposure,
+  getProviderStatus,
   getProviderSelectedIds,
   isProviderLoading,
   providerHasMoreModels,
   updateProviderSearch,
   setProviderSearch,
+  setProviderExposure,
+  setProviderStatus,
   toggleProviderModelSelected,
   toggleAllProviderModelsSelected,
   clearProviderSelection,
+  addModelsToTest,
+  removeModelsFromTest,
   activateModel,
   deactivateModels,
   hardDeleteModels

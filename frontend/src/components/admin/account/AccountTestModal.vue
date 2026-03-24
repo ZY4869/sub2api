@@ -47,12 +47,65 @@
         </label>
         <Select
           v-model="selectedModelId"
-          :options="availableModels"
+          :options="availableModelOptions"
           :disabled="loadingModels || status === 'connecting'"
+          searchable
           value-key="id"
           label-key="display_name"
           :placeholder="loadingModels ? t('common.loading') + '...' : t('admin.accounts.selectTestModel')"
-        />
+        >
+          <template #selected="{ option }">
+            <div v-if="option" class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="truncate font-medium text-gray-900 dark:text-white">
+                  {{ option.display_name || option.id }}
+                </span>
+                <span
+                  v-if="isDeprecatedModel(option)"
+                  class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                >
+                  {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
+                </span>
+              </div>
+              <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.id }}</div>
+            </div>
+            <span v-else>
+              {{ loadingModels ? `${t('common.loading')}...` : t('admin.accounts.selectTestModel') }}
+            </span>
+          </template>
+
+          <template #option="{ option, selected }">
+            <div class="flex min-w-0 flex-1 items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="truncate font-medium text-gray-900 dark:text-white">
+                    {{ option.display_name || option.id }}
+                  </span>
+                  <span
+                    v-if="isDeprecatedModel(option)"
+                    class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                  >
+                    {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
+                  </span>
+                </div>
+                <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.id }}</div>
+                <div
+                  v-if="option.replaced_by"
+                  class="truncate text-[11px] text-amber-600 dark:text-amber-300"
+                >
+                  {{ t('admin.models.registry.replacedByHint', { model: option.replaced_by }) }}
+                </div>
+              </div>
+              <Icon
+                v-if="selected"
+                name="check"
+                size="sm"
+                class="mt-0.5 shrink-0 text-primary-500"
+                :stroke-width="2"
+              />
+            </div>
+          </template>
+        </Select>
       </div>
       <div
         v-if="isKiroAccount"
@@ -61,7 +114,7 @@
         {{ t('admin.accounts.kiroTestModelSourceHint') }}
       </div>
       <div
-        v-else
+        v-else-if="isSoraAccount"
         class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
       >
         {{ t('admin.accounts.soraTestHint') }}
@@ -224,14 +277,12 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { sortModelsForTest } from '@/composables/useModelWhitelist'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
-import { pickLatestSeriesModelId } from '@/utils/pickLatestSeriesModelId'
 import type { Account, ClaudeModel } from '@/types'
 
 const { t } = useI18n()
@@ -245,6 +296,11 @@ interface OutputLine {
 interface PreviewImage {
   url: string
   mimeType?: string
+}
+
+type AccountTestModelOption = ClaudeModel & {
+  description: string
+  [key: string]: unknown
 }
 
 const props = defineProps<{
@@ -262,6 +318,12 @@ const outputLines = ref<OutputLine[]>([])
 const streamingContent = ref('')
 const errorMessage = ref('')
 const availableModels = ref<ClaudeModel[]>([])
+const availableModelOptions = computed<AccountTestModelOption[]>(() =>
+  availableModels.value.map((model) => ({
+    ...model,
+    description: model.id
+  }))
+)
 const selectedModelId = ref('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
@@ -277,7 +339,6 @@ const supportsGeminiImageTest = computed(() => {
   return props.account?.platform === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
 })
 
-// Load available models when modal opens
 watch(
   () => props.show,
   async (newVal) => {
@@ -307,17 +368,13 @@ const loadAvailableModels = async () => {
   }
 
   loadingModels.value = true
-  selectedModelId.value = '' // Reset selection before loading
+  selectedModelId.value = ''
   try {
     const models = await adminAPI.accounts.getAvailableModels(props.account.id)
-    availableModels.value = props.account.platform === 'gemini' || props.account.platform === 'antigravity'
-      ? sortModelsForTest(models)
-      : models
-
-    selectedModelId.value = pickLatestSeriesModelId(availableModels.value)
+    availableModels.value = models
+    selectedModelId.value = models[0]?.id || ''
   } catch (error) {
     console.error('Failed to load available models:', error)
-    // Fallback to empty list
     availableModels.value = []
     selectedModelId.value = ''
   } finally {
@@ -518,4 +575,6 @@ const copyOutput = () => {
   const text = outputLines.value.map((l) => l.text).join('\n')
   copyToClipboard(text, t('admin.accounts.outputCopied'))
 }
+
+const isDeprecatedModel = (model: Record<string, unknown> | null | undefined) => model?.status === 'deprecated'
 </script>

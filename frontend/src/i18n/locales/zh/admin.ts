@@ -101,6 +101,57 @@
       copyToSaleSuccess: '已将真实价格复制为出售价格',
       copyToSaleFailed: '复制真实价格到出售价格失败',
       pages: {
+        available: {
+          nav: '可用模型',
+          title: '可用模型',
+          description: '只有在这里启用的模型才会参与运行时路由、测试、快照生成与调度。'
+        },
+        all: {
+          nav: '全部模型',
+          title: '全部模型',
+          description: '管理完整模型来源、运行时条目、可见性、生命周期与可用状态。',
+          testOnly: '测试模型',
+          testBadge: '测试',
+          addToTest: '加入测试',
+          removeFromTest: '移出测试',
+          addToTestSuccess: '模型已加入测试模型',
+          removeFromTestSuccess: '模型已移出测试模型',
+          testExposureUpdateFailed: '更新测试模型暴露入口失败',
+          viewModes: {
+            grid: '网格',
+            list: '列表'
+          },
+          filterPlaceholder: '筛选当前提供商下的模型 ID',
+          loadMore: '加载更多',
+          hardDeleteSingleConfirm: '确认彻底删除 {model} 吗？',
+          categories: {
+            text: '大模型',
+            image: '图像',
+            video: '视频',
+            audio: '音频',
+            other: '其他'
+          },
+          bulk: {
+            selected: '已选择 {count} 个模型',
+            selectLoaded: '选择已加载项',
+            clear: '清空',
+            addToTest: '选中加入测试',
+            removeFromTest: '选中移出测试',
+            deactivate: '停用选中模型',
+            hardDelete: '彻底删除选中模型',
+            addToTestSuccess: '已将 {count} 个模型加入测试模型',
+            removeFromTestSuccess: '已将 {count} 个模型移出测试模型',
+            deactivateConfirm: '确认停用 {count} 个已启用模型吗？',
+            hardDeleteConfirm: '确认彻底删除 {count} 个模型吗？',
+            deactivateSuccess: '已停用 {count} 个模型',
+            hardDeleteSuccess: '已彻底删除 {count} 个模型'
+          }
+        },
+        pricing: {
+          nav: '模型价格',
+          title: '模型价格',
+          description: '在同一处查看并编辑真实价格与出售价格。'
+        },
         official: {
           nav: '真实价格',
           title: '真实价格',

@@ -36,6 +36,8 @@
           :provider="group.provider"
           :models="getModels(group.provider)"
           :search-value="getSearch(group.provider)"
+          :exposure-filter="getExposure(group.provider)"
+          :status-filter="getStatus(group.provider)"
           :selected-ids="getSelectedIds(group.provider)"
           :total-count="group.totalCount"
           :available-count="group.availableCount"
@@ -44,11 +46,16 @@
           :is-activating="isActivating"
           :is-deactivating="isDeactivating"
           :is-deleting="isDeleting"
+          :is-syncing-test-exposure="isSyncingTestExposure"
           @update:search="emit('update:search', group.provider, $event)"
           @search="emit('search', group.provider, $event)"
+          @update:exposure="emit('update:exposure', group.provider, $event)"
+          @update:status="emit('update:status', group.provider, $event)"
           @toggle-selected="emit('toggle-selected', group.provider, $event)"
           @toggle-all-selected="emit('toggle-all-selected', group.provider, $event)"
           @clear-selection="emit('clear-selection', group.provider)"
+          @add-to-test="emit('add-to-test', group.provider, $event)"
+          @remove-from-test="emit('remove-from-test', group.provider, $event)"
           @activate="emit('activate', group.provider, $event)"
           @deactivate="emit('deactivate', group.provider, $event)"
           @hard-delete="emit('hard-delete', group.provider, $event)"
@@ -71,20 +78,27 @@ defineProps<{
   providers: AdminModelRegistryProviderGroup[]
   getModels: (provider: string) => import('@/api/admin/modelRegistry').ModelRegistryDetail[]
   getSearch: (provider: string) => string
+  getExposure: (provider: string) => 'all' | 'test'
+  getStatus: (provider: string) => 'all' | 'stable' | 'beta' | 'deprecated'
   getSelectedIds: (provider: string) => string[]
   isProviderLoading: (provider: string) => boolean
   providerHasMoreModels: (provider: string) => boolean
   isActivating: (modelId: string) => boolean
   isDeactivating: (modelId: string) => boolean
   isDeleting: (modelId: string) => boolean
+  isSyncingTestExposure: (modelId: string) => boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'update:search', provider: string, value: string): void
   (e: 'search', provider: string, value: string): void
+  (e: 'update:exposure', provider: string, value: 'all' | 'test'): void
+  (e: 'update:status', provider: string, value: 'all' | 'stable' | 'beta' | 'deprecated'): void
   (e: 'toggle-selected', provider: string, modelId: string): void
   (e: 'toggle-all-selected', provider: string, checked: boolean): void
   (e: 'clear-selection', provider: string): void
+  (e: 'add-to-test', provider: string, modelIds: string[]): void
+  (e: 'remove-from-test', provider: string, modelIds: string[]): void
   (e: 'activate', provider: string, modelId: string): void
   (e: 'deactivate', provider: string, modelIds: string[]): void
   (e: 'hard-delete', provider: string, modelIds: string[]): void

@@ -14,121 +14,189 @@ import (
 
 type availableModelsAdminService struct {
 	*stubAdminService
-	account service.Account
+	accounts map[int64]service.Account
 }
 
 func (s *availableModelsAdminService) GetAccount(_ context.Context, id int64) (*service.Account, error) {
-	if s.account.ID == id {
-		acc := s.account
-		return &acc, nil
+	if account, ok := s.accounts[id]; ok {
+		copy := account
+		return &copy, nil
 	}
 	return s.stubAdminService.GetAccount(context.Background(), id)
 }
 
-func setupAvailableModelsRouter(adminSvc service.AdminService) *gin.Engine {
+func setupAvailableModelsRouter(adminSvc service.AdminService, registrySvc *service.ModelRegistryService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetModelRegistryService(registrySvc)
 	router.GET("/api/v1/admin/accounts/:id/models", handler.GetAvailableModels)
 	return router
 }
 
-func TestAccountHandlerGetAvailableModels_OpenAIOAuthUsesExplicitModelMapping(t *testing.T) {
-	svc := &availableModelsAdminService{
+func decodeAvailableModelsResponse(t *testing.T, rec *httptest.ResponseRecorder) []service.AvailableTestModel {
+	t.Helper()
+
+	var resp struct {
+		Data []service.AvailableTestModel `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	return resp.Data
+}
+
+func TestAccountHandlerGetAvailableModels_IgnoresAccountLevelMappingsAndScopes(t *testing.T) {
+	repo := service.NewModelRegistryService(newTestSettingRepo())
+	_, err := repo.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "custom-shared-b",
+		DisplayName: "Custom Shared B",
+		Platforms:   []string{"custom-tests"},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = repo.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "custom-shared-a",
+		DisplayName: "Custom Shared A",
+		Platforms:   []string{"custom-tests"},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = repo.ActivateModels(context.Background(), []string{"custom-shared-a", "custom-shared-b"})
+	require.NoError(t, err)
+
+	adminSvc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
-		account: service.Account{
-			ID:       42,
-			Name:     "openai-oauth",
-			Platform: service.PlatformOpenAI,
-			Type:     service.AccountTypeOAuth,
-			Status:   service.StatusActive,
-			Credentials: map[string]any{
-				"model_mapping": map[string]any{
-					"gpt-5": "gpt-5.1",
+		accounts: map[int64]service.Account{
+			42: {
+				ID:       42,
+				Name:     "mapping-account",
+				Platform: "custom-tests",
+				Type:     service.AccountTypeOAuth,
+				Status:   service.StatusActive,
+				Credentials: map[string]any{
+					"model_mapping": map[string]any{
+						"only-this-model": "custom-shared-a",
+					},
+				},
+			},
+			43: {
+				ID:       43,
+				Name:     "scope-account",
+				Platform: "custom-tests",
+				Type:     service.AccountTypeSetupToken,
+				Status:   service.StatusActive,
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"supported_models_by_provider": map[string]any{
+							"custom-tests": []any{"custom-shared-b"},
+						},
+					},
 				},
 			},
 		},
 	}
-	router := setupAvailableModelsRouter(svc)
+	router := setupAvailableModelsRouter(adminSvc, repo)
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/42/models", nil)
-	router.ServeHTTP(rec, req)
+	recA := httptest.NewRecorder()
+	reqA := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/42/models", nil)
+	router.ServeHTTP(recA, reqA)
+	require.Equal(t, http.StatusOK, recA.Code)
 
-	require.Equal(t, http.StatusOK, rec.Code)
+	recB := httptest.NewRecorder()
+	reqB := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/43/models", nil)
+	router.ServeHTTP(recB, reqB)
+	require.Equal(t, http.StatusOK, recB.Code)
 
-	var resp struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.Len(t, resp.Data, 1)
-	require.Equal(t, "gpt-5", resp.Data[0].ID)
+	modelsA := decodeAvailableModelsResponse(t, recA)
+	modelsB := decodeAvailableModelsResponse(t, recB)
+	require.Equal(t, modelsA, modelsB)
+	require.Equal(t, []string{"custom-shared-a", "custom-shared-b"}, []string{modelsA[0].ID, modelsA[1].ID})
 }
 
-func TestAccountHandlerGetAvailableModels_OpenAIOAuthPassthroughFallsBackToDefaults(t *testing.T) {
-	svc := &availableModelsAdminService{
+func TestAccountHandlerGetAvailableModels_DedupesCanonicalModelsAndSortsDeprecatedLast(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	_, err := registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "family-stable",
+		DisplayName: "Family Stable",
+		Platforms:   []string{"custom-dedupe"},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "family-old",
+		DisplayName: "Family Old",
+		Platforms:   []string{"custom-dedupe"},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+		Status:      "deprecated",
+		ReplacedBy:  "family-stable",
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:           "legacy-only",
+		DisplayName:  "Legacy Only",
+		Platforms:    []string{"custom-dedupe"},
+		UIPriority:   3,
+		ExposedIn:    []string{"test"},
+		Status:       "deprecated",
+		DeprecatedAt: "2026-01-01T00:00:00Z",
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"family-stable", "family-old", "legacy-only"})
+	require.NoError(t, err)
+
+	adminSvc := &availableModelsAdminService{
 		stubAdminService: newStubAdminService(),
-		account: service.Account{
-			ID:       43,
-			Name:     "openai-oauth-passthrough",
-			Platform: service.PlatformOpenAI,
-			Type:     service.AccountTypeOAuth,
-			Status:   service.StatusActive,
-			Credentials: map[string]any{
-				"model_mapping": map[string]any{
-					"gpt-5": "gpt-5.1",
-				},
-			},
-			Extra: map[string]any{
-				"openai_passthrough": true,
+		accounts: map[int64]service.Account{
+			44: {
+				ID:       44,
+				Name:     "dedupe-account",
+				Platform: "custom-dedupe",
+				Type:     service.AccountTypeOAuth,
+				Status:   service.StatusActive,
 			},
 		},
 	}
-	router := setupAvailableModelsRouter(svc)
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/43/models", nil)
-	router.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var resp struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.NotEmpty(t, resp.Data)
-	require.NotEqual(t, "gpt-5", resp.Data[0].ID)
-}
-
-func TestAccountHandlerGetAvailableModels_KiroFallsBackToBuiltinCatalog(t *testing.T) {
-	svc := &availableModelsAdminService{
-		stubAdminService: newStubAdminService(),
-		account: service.Account{
-			ID:       44,
-			Name:     "kiro-oauth",
-			Platform: service.PlatformKiro,
-			Type:     service.AccountTypeOAuth,
-			Status:   service.StatusActive,
-		},
-	}
-	router := setupAvailableModelsRouter(svc)
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/44/models", nil)
 	router.ServeHTTP(rec, req)
-
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp struct {
-		Data []struct {
-			ID string `json:"id"`
-		} `json:"data"`
+	models := decodeAvailableModelsResponse(t, rec)
+	require.Len(t, models, 2)
+	require.Equal(t, "family-stable", models[0].ID)
+	require.Equal(t, "family-stable", models[0].CanonicalID)
+	require.Equal(t, "legacy-only", models[1].ID)
+	require.Equal(t, "deprecated", models[1].Status)
+}
+
+func TestAccountHandlerGetAvailableModels_KiroFallsBackToBuiltinCatalog(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	account := service.Account{
+		ID:       45,
+		Name:     "kiro-oauth",
+		Platform: service.PlatformKiro,
+		Type:     service.AccountTypeOAuth,
+		Status:   service.StatusActive,
 	}
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	require.NotEmpty(t, resp.Data)
-	require.Equal(t, service.KiroBuiltinModelCatalog()[0].ID, resp.Data[0].ID)
+	adminSvc := &availableModelsAdminService{
+		stubAdminService: newStubAdminService(),
+		accounts: map[int64]service.Account{
+			45: account,
+		},
+	}
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/45/models", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	models := decodeAvailableModelsResponse(t, rec)
+	require.NotEmpty(t, models)
+	require.Equal(t, service.BuildAvailableTestModels(context.Background(), &account, registrySvc), models)
 }

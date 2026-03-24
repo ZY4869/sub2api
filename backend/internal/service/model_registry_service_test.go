@@ -171,6 +171,7 @@ func TestModelRegistryService_BatchSyncExposures_MergesAndIsIdempotent(t *testin
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"whitelist", "use_key", "runtime"}, result.Exposures)
+	require.Equal(t, "add", result.Mode)
 	require.Equal(t, 1, result.UpdatedCount)
 	require.Zero(t, result.SkippedCount)
 	require.Zero(t, result.FailedCount)
@@ -188,6 +189,31 @@ func TestModelRegistryService_BatchSyncExposures_MergesAndIsIdempotent(t *testin
 	require.Zero(t, result.UpdatedCount)
 	require.Equal(t, 1, result.SkippedCount)
 	require.Equal(t, []string{"gpt-test-sync"}, result.SkippedModels)
+}
+
+func TestModelRegistryService_BatchSyncExposures_RemoveModeRemovesTargetsOnly(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "gpt-test-remove",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"runtime", "test", "whitelist"},
+	})
+	require.NoError(t, err)
+
+	result, err := svc.BatchSyncExposures(context.Background(), BatchSyncModelRegistryExposuresInput{
+		Models:    []string{"gpt-test-remove"},
+		Exposures: []string{"test"},
+		Mode:      "remove",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "remove", result.Mode)
+	require.Equal(t, 1, result.UpdatedCount)
+
+	detail, err := svc.GetDetail(context.Background(), "gpt-test-remove")
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"runtime", "whitelist"}, detail.ExposedIn)
 }
 
 func TestModelRegistryService_BatchSyncExposures_SkipsTombstonedAndMissingModels(t *testing.T) {
@@ -227,6 +253,56 @@ func TestModelRegistryService_BatchSyncExposures_RejectsInvalidInput(t *testing.
 		Exposures: []string{"invalid"},
 	})
 	require.Error(t, err)
+
+	_, err = svc.BatchSyncExposures(context.Background(), BatchSyncModelRegistryExposuresInput{
+		Models:    []string{"gpt-test-sync"},
+		Exposures: []string{"test"},
+		Mode:      "invalid",
+	})
+	require.Error(t, err)
+}
+
+func TestModelRegistryService_List_FiltersByExposureAndStatus(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "provider-filter-stable-test",
+		Provider:  "provider-filter",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"runtime", "test"},
+	})
+	require.NoError(t, err)
+	_, err = svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "provider-filter-deprecated-test",
+		Provider:  "provider-filter",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"test"},
+		Status:    "deprecated",
+	})
+	require.NoError(t, err)
+	_, err = svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:        "provider-filter-runtime-only",
+		Provider:  "provider-filter",
+		Platforms: []string{PlatformOpenAI},
+		ExposedIn: []string{"runtime"},
+	})
+	require.NoError(t, err)
+
+	items, total, err := svc.List(context.Background(), ModelRegistryListFilter{
+		Provider:          "provider-filter",
+		Exposure:          "test",
+		Status:            "deprecated",
+		Availability:      "all",
+		IncludeHidden:     true,
+		IncludeTombstoned: true,
+		Page:              1,
+		PageSize:          20,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, total)
+	require.Len(t, items, 1)
+	require.Equal(t, "provider-filter-deprecated-test", items[0].ID)
 }
 
 func TestModelRegistryService_HardDeleteModels_TombstonesAndClearsState(t *testing.T) {

@@ -596,6 +596,10 @@ export interface ClaudeModel {
   type: string;
   display_name: string;
   created_at: string;
+  canonical_id?: string;
+  status?: "stable" | "beta" | "deprecated";
+  deprecated_at?: string;
+  replaced_by?: string;
 }
 
 export interface Proxy {

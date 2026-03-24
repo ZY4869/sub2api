@@ -4,6 +4,8 @@ type ModelRegistryListFilter struct {
 	Search            string
 	Provider          string
 	Platform          string
+	Exposure          string
+	Status            string
 	Availability      string
 	SortMode          string
 	IncludeHidden     bool
@@ -45,6 +47,7 @@ type UpdateModelRegistryVisibilityInput struct {
 type BatchSyncModelRegistryExposuresInput struct {
 	Models    []string `json:"models"`
 	Exposures []string `json:"exposures"`
+	Mode      string   `json:"mode"`
 }
 
 type UpdateModelRegistryAvailabilityInput struct {
@@ -62,6 +65,7 @@ type ModelRegistryExposureSyncFailure struct {
 
 type BatchSyncModelRegistryExposuresResult struct {
 	Exposures     []string                           `json:"exposures"`
+	Mode          string                             `json:"mode"`
 	UpdatedCount  int                                `json:"updated_count"`
 	SkippedCount  int                                `json:"skipped_count"`
 	FailedCount   int                                `json:"failed_count"`
