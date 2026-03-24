@@ -26,6 +26,7 @@ interface UseAccountsViewLiveSyncOptions {
   isAnyModalOpen: ComputedRef<boolean>
   isActionMenuOpen: ComputedRef<boolean>
   syncAccountRefs: (account: Account) => void
+  onListChanged?: () => void | Promise<void>
 }
 
 export function useAccountsViewLiveSync({
@@ -41,7 +42,8 @@ export function useAccountsViewLiveSync({
   baseHandlePageSizeChange,
   isAnyModalOpen,
   isActionMenuOpen,
-  syncAccountRefs
+  syncAccountRefs,
+  onListChanged
 }: UseAccountsViewLiveSyncOptions) {
   const autoRefreshETag = ref<string | null>(null)
   const autoRefreshFetching = ref(false)
@@ -75,6 +77,7 @@ export function useAccountsViewLiveSync({
       delete params.lite
     }
     await refreshTodayStats()
+    await onListChanged?.()
   }
 
   const reload = async () => {
@@ -83,6 +86,7 @@ export function useAccountsViewLiveSync({
     pendingTodayStatsRefresh.value = false
     await baseReload()
     await refreshTodayStats()
+    await onListChanged?.()
   }
 
   const debouncedReload = () => {
@@ -168,6 +172,7 @@ export function useAccountsViewLiveSync({
         pagination.pages = result.data.pages || 0
         mergeAccountsIncrementally(result.data.items || [])
         hasPendingListSync.value = false
+        await onListChanged?.()
       }
 
       await refreshTodayStats()

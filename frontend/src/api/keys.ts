@@ -3,8 +3,13 @@
  * Handles CRUD operations for user API keys
  */
 
-import { apiClient } from './client'
-import type { ApiKey, CreateApiKeyRequest, UpdateApiKeyRequest, PaginatedResponse } from '@/types'
+import { apiClient } from "./client";
+import type {
+  ApiKey,
+  CreateApiKeyRequest,
+  UpdateApiKeyRequest,
+  PaginatedResponse,
+} from "@/types";
 
 /**
  * List all API keys for current user
@@ -19,14 +24,14 @@ export async function list(
   pageSize: number = 10,
   filters?: { search?: string; status?: string; group_id?: number | string },
   options?: {
-    signal?: AbortSignal
-  }
+    signal?: AbortSignal;
+  },
 ): Promise<PaginatedResponse<ApiKey>> {
-  const { data } = await apiClient.get<PaginatedResponse<ApiKey>>('/keys', {
+  const { data } = await apiClient.get<PaginatedResponse<ApiKey>>("/keys", {
     params: { page, page_size: pageSize, ...filters },
-    signal: options?.signal
-  })
-  return data
+    signal: options?.signal,
+  });
+  return data;
 }
 
 /**
@@ -35,8 +40,8 @@ export async function list(
  * @returns API key details
  */
 export async function getById(id: number): Promise<ApiKey> {
-  const { data } = await apiClient.get<ApiKey>(`/keys/${id}`)
-  return data
+  const { data } = await apiClient.get<ApiKey>(`/keys/${id}`);
+  return data;
 }
 
 /**
@@ -59,39 +64,49 @@ export async function create(
   ipBlacklist?: string[],
   quota?: number,
   expiresInDays?: number,
-  rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number }
+  rateLimitData?: {
+    rate_limit_5h?: number;
+    rate_limit_1d?: number;
+    rate_limit_7d?: number;
+  },
 ): Promise<ApiKey> {
-  const payload: CreateApiKeyRequest = { name }
+  const payload: CreateApiKeyRequest = { name };
   if (groupId !== undefined) {
-    payload.group_id = groupId
+    payload.group_id = groupId;
   }
   if (customKey) {
-    payload.custom_key = customKey
+    payload.custom_key = customKey;
   }
   if (ipWhitelist && ipWhitelist.length > 0) {
-    payload.ip_whitelist = ipWhitelist
+    payload.ip_whitelist = ipWhitelist;
   }
   if (ipBlacklist && ipBlacklist.length > 0) {
-    payload.ip_blacklist = ipBlacklist
+    payload.ip_blacklist = ipBlacklist;
   }
   if (quota !== undefined && quota > 0) {
-    payload.quota = quota
+    payload.quota = quota;
   }
   if (expiresInDays !== undefined && expiresInDays > 0) {
-    payload.expires_in_days = expiresInDays
+    payload.expires_in_days = expiresInDays;
   }
   if (rateLimitData?.rate_limit_5h && rateLimitData.rate_limit_5h > 0) {
-    payload.rate_limit_5h = rateLimitData.rate_limit_5h
+    payload.rate_limit_5h = rateLimitData.rate_limit_5h;
   }
   if (rateLimitData?.rate_limit_1d && rateLimitData.rate_limit_1d > 0) {
-    payload.rate_limit_1d = rateLimitData.rate_limit_1d
+    payload.rate_limit_1d = rateLimitData.rate_limit_1d;
   }
   if (rateLimitData?.rate_limit_7d && rateLimitData.rate_limit_7d > 0) {
-    payload.rate_limit_7d = rateLimitData.rate_limit_7d
+    payload.rate_limit_7d = rateLimitData.rate_limit_7d;
   }
 
-  const { data } = await apiClient.post<ApiKey>('/keys', payload)
-  return data
+  return createWithPayload(payload);
+}
+
+export async function createWithPayload(
+  payload: CreateApiKeyRequest,
+): Promise<ApiKey> {
+  const { data } = await apiClient.post<ApiKey>("/keys", payload);
+  return data;
 }
 
 /**
@@ -100,9 +115,12 @@ export async function create(
  * @param updates - Fields to update
  * @returns Updated API key
  */
-export async function update(id: number, updates: UpdateApiKeyRequest): Promise<ApiKey> {
-  const { data } = await apiClient.put<ApiKey>(`/keys/${id}`, updates)
-  return data
+export async function update(
+  id: number,
+  updates: UpdateApiKeyRequest,
+): Promise<ApiKey> {
+  const { data } = await apiClient.put<ApiKey>(`/keys/${id}`, updates);
+  return data;
 }
 
 /**
@@ -111,8 +129,8 @@ export async function update(id: number, updates: UpdateApiKeyRequest): Promise<
  * @returns Success confirmation
  */
 export async function deleteKey(id: number): Promise<{ message: string }> {
-  const { data } = await apiClient.delete<{ message: string }>(`/keys/${id}`)
-  return data
+  const { data } = await apiClient.delete<{ message: string }>(`/keys/${id}`);
+  return data;
 }
 
 /**
@@ -121,17 +139,21 @@ export async function deleteKey(id: number): Promise<{ message: string }> {
  * @param status - New status
  * @returns Updated API key
  */
-export async function toggleStatus(id: number, status: 'active' | 'inactive'): Promise<ApiKey> {
-  return update(id, { status })
+export async function toggleStatus(
+  id: number,
+  status: "active" | "inactive",
+): Promise<ApiKey> {
+  return update(id, { status });
 }
 
 export const keysAPI = {
   list,
   getById,
   create,
+  createWithPayload,
   update,
   delete: deleteKey,
-  toggleStatus
-}
+  toggleStatus,
+};
 
-export default keysAPI
+export default keysAPI;

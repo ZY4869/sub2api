@@ -33,6 +33,7 @@ type AdminService interface {
 	AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error)
 	ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*ReplaceUserGroupResult, error)
 	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string) ([]Account, int64, error)
+	GetAccountStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error)
 	ListArchivedGroups(ctx context.Context, filters ArchivedAccountGroupFilters) ([]ArchivedAccountGroupSummary, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
@@ -154,26 +155,26 @@ type UpdateGroupInput struct {
 	CopyAccountsFromGroupIDs        []int64
 }
 type CreateAccountInput struct {
-	Name                  string
-	Notes                 *string
-	Platform              string
-	Type                  string
-	Credentials           map[string]any
-	Extra                 map[string]any
-	ProxyID               *int64
-	Concurrency           int
-	Priority              int
-	RateMultiplier        *float64
-	LoadFactor            *int
-	GroupIDs              []int64
-	Status                string
-	LifecycleState        string
-	LifecycleReasonCode   string
+	Name                   string
+	Notes                  *string
+	Platform               string
+	Type                   string
+	Credentials            map[string]any
+	Extra                  map[string]any
+	ProxyID                *int64
+	Concurrency            int
+	Priority               int
+	RateMultiplier         *float64
+	LoadFactor             *int
+	GroupIDs               []int64
+	Status                 string
+	LifecycleState         string
+	LifecycleReasonCode    string
 	LifecycleReasonMessage string
-	ExpiresAt             *int64
-	AutoPauseOnExpired    *bool
-	SkipDefaultGroupBind  bool
-	SkipMixedChannelCheck bool
+	ExpiresAt              *int64
+	AutoPauseOnExpired     *bool
+	SkipDefaultGroupBind   bool
+	SkipMixedChannelCheck  bool
 }
 type UpdateAccountInput struct {
 	Name                  string
@@ -193,22 +194,22 @@ type UpdateAccountInput struct {
 	SkipMixedChannelCheck bool
 }
 type BulkUpdateAccountsInput struct {
-	AccountIDs            []int64
-	Name                  string
-	ProxyID               *int64
-	Concurrency           *int
-	Priority              *int
-	RateMultiplier        *float64
-	LoadFactor            *int
-	Status                string
-	Schedulable           *bool
-	GroupIDs              *[]int64
-	Credentials           map[string]any
-	Extra                 map[string]any
-	LifecycleState        string
-	LifecycleReasonCode   string
+	AccountIDs             []int64
+	Name                   string
+	ProxyID                *int64
+	Concurrency            *int
+	Priority               *int
+	RateMultiplier         *float64
+	LoadFactor             *int
+	Status                 string
+	Schedulable            *bool
+	GroupIDs               *[]int64
+	Credentials            map[string]any
+	Extra                  map[string]any
+	LifecycleState         string
+	LifecycleReasonCode    string
 	LifecycleReasonMessage string
-	SkipMixedChannelCheck bool
+	SkipMixedChannelCheck  bool
 }
 type BulkUpdateAccountResult struct {
 	AccountID int64  `json:"account_id"`

@@ -15,6 +15,7 @@ type stubAdminService struct {
 	apiKeys              []service.APIKey
 	groups               []service.Group
 	accounts             []service.Account
+	accountSummary       *service.AccountStatusSummary
 	archivedGroups       []service.ArchivedAccountGroupSummary
 	proxies              []service.Proxy
 	proxyCounts          []service.ProxyWithAccountCount
@@ -222,8 +223,17 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 		if accountType != "" && !strings.EqualFold(strings.TrimSpace(account.Type), strings.TrimSpace(accountType)) {
 			continue
 		}
-		if status != "" && !strings.EqualFold(strings.TrimSpace(account.Status), strings.TrimSpace(status)) {
-			continue
+		if status != "" {
+			switch strings.TrimSpace(strings.ToLower(status)) {
+			case "paused":
+				if account.Schedulable {
+					continue
+				}
+			default:
+				if !strings.EqualFold(strings.TrimSpace(account.Status), strings.TrimSpace(status)) {
+					continue
+				}
+			}
 		}
 		if search != "" {
 			name := strings.ToLower(account.Name)
@@ -231,7 +241,11 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 				continue
 			}
 		}
-		if groupID > 0 {
+		if groupID == service.AccountListGroupUngrouped {
+			if len(account.GroupIDs) > 0 {
+				continue
+			}
+		} else if groupID > 0 {
 			matched := false
 			for _, id := range account.GroupIDs {
 				if id == groupID {
@@ -271,8 +285,96 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 	return append([]service.Account(nil), filtered[start:end]...), total, nil
 }
 
+func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
+	if s.accountSummary != nil {
+		copySummary := *s.accountSummary
+		copySummary.ByStatus = cloneInt64Map(copySummary.ByStatus)
+		copySummary.ByPlatform = cloneInt64Map(copySummary.ByPlatform)
+		return &copySummary, nil
+	}
+
+	normalizedLifecycle := service.NormalizeAccountLifecycleInput(filters.Lifecycle)
+	search := strings.TrimSpace(strings.ToLower(filters.Search))
+	summary := &service.AccountStatusSummary{
+		ByStatus: map[string]int64{
+			"active":   0,
+			"inactive": 0,
+			"error":    0,
+		},
+		ByPlatform: map[string]int64{},
+	}
+
+	for _, account := range s.accounts {
+		accountLifecycle := service.NormalizeAccountLifecycleInput(account.LifecycleState)
+		if normalizedLifecycle != service.AccountLifecycleAll && accountLifecycle != normalizedLifecycle {
+			continue
+		}
+		if filters.AccountType != "" && !strings.EqualFold(strings.TrimSpace(account.Type), strings.TrimSpace(filters.AccountType)) {
+			continue
+		}
+		if search != "" && !strings.Contains(strings.ToLower(account.Name), search) {
+			continue
+		}
+
+		matchesGroup := true
+		if filters.GroupID == service.AccountListGroupUngrouped {
+			matchesGroup = len(account.GroupIDs) == 0
+		} else if filters.GroupID > 0 {
+			matchesGroup = false
+			for _, id := range account.GroupIDs {
+				if id == filters.GroupID {
+					matchesGroup = true
+					break
+				}
+			}
+		}
+		if !matchesGroup {
+			continue
+		}
+
+		if filters.Platform == "" || strings.EqualFold(strings.TrimSpace(account.Platform), strings.TrimSpace(filters.Platform)) {
+			summary.Total++
+			switch service.PresentAdminAccountStatus(account.Status) {
+			case "active":
+				summary.ByStatus["active"]++
+			case "inactive":
+				summary.ByStatus["inactive"]++
+			case "error":
+				summary.ByStatus["error"]++
+			}
+			if account.RateLimitResetAt != nil && account.RateLimitResetAt.After(time.Now()) {
+				summary.RateLimited++
+			}
+			if account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(time.Now()) {
+				summary.TempUnschedulable++
+			}
+			if account.OverloadUntil != nil && account.OverloadUntil.After(time.Now()) {
+				summary.Overloaded++
+			}
+			if !account.Schedulable {
+				summary.Paused++
+			}
+		}
+
+		summary.ByPlatform[account.Platform]++
+	}
+
+	return summary, nil
+}
+
 func (s *stubAdminService) ListArchivedGroups(ctx context.Context, filters service.ArchivedAccountGroupFilters) ([]service.ArchivedAccountGroupSummary, error) {
 	return append([]service.ArchivedAccountGroupSummary(nil), s.archivedGroups...), nil
+}
+
+func cloneInt64Map(src map[string]int64) map[string]int64 {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]int64, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
 }
 
 func (s *stubAdminService) RestoreBlacklistedAccount(ctx context.Context, id int64) (*service.Account, error) {

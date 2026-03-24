@@ -30,6 +30,11 @@ const hasFutureTimestamp = (value: string | null | undefined, now: number) => {
 
 const matchesGroupFilter = (account: Account, groupFilter: string) => {
   if (!groupFilter) return true
+  if (groupFilter === 'ungrouped') {
+    const hasGroupIDs = Array.isArray(account.group_ids) && account.group_ids.length > 0
+    const hasGroups = Array.isArray(account.groups) && account.groups.length > 0
+    return !hasGroupIDs && !hasGroups
+  }
 
   const groupID = Number(groupFilter)
   if (!Number.isFinite(groupID) || groupID <= 0) return true
@@ -55,6 +60,8 @@ export const accountMatchesFilters = (
   if (filters.status) {
     if (filters.status === 'rate_limited') {
       if (!hasFutureTimestamp(account.rate_limit_reset_at, now)) return false
+    } else if (filters.status === 'paused') {
+      if (account.schedulable) return false
     } else if (filters.status === 'temp_unschedulable') {
       if (!hasFutureTimestamp(account.temp_unschedulable_until, now)) return false
     } else if (account.status !== filters.status) {

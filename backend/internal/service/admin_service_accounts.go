@@ -22,6 +22,16 @@ func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int,
 	}
 	return accounts, result.Total, nil
 }
+func (s *adminServiceImpl) GetAccountStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
+	filters.Platform = strings.TrimSpace(filters.Platform)
+	filters.AccountType = strings.TrimSpace(filters.AccountType)
+	filters.Search = strings.TrimSpace(filters.Search)
+	filters.Lifecycle = NormalizeAccountLifecycleInput(filters.Lifecycle)
+	if filters.Lifecycle == AccountLifecycleAll {
+		filters.Lifecycle = AccountLifecycleAll
+	}
+	return s.accountRepo.GetStatusSummary(ctx, filters)
+}
 func (s *adminServiceImpl) GetAccount(ctx context.Context, id int64) (*Account, error) {
 	return s.accountRepo.GetByID(ctx, id)
 }

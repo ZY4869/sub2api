@@ -2,20 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"time"
 )
-
-type adminAPIKeyGroupBindingWriter interface {
-	GetAPIKeyGroups(ctx context.Context, keyID int64) ([]APIKeyGroupBinding, error)
-	SetAPIKeyGroups(ctx context.Context, keyID int64, bindings []APIKeyGroupBinding) error
-}
 
 func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool) ([]Group, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
@@ -376,14 +369,12 @@ func (s *adminServiceImpl) GetAPIKeyGroups(ctx context.Context, keyID int64) ([]
 	if err != nil {
 		return nil, err
 	}
-	if writer, ok := s.apiKeyRepo.(adminAPIKeyGroupBindingWriter); ok {
-		bindings, err := writer.GetAPIKeyGroups(ctx, keyID)
-		if err != nil {
-			return nil, err
-		}
-		if len(bindings) > 0 {
-			return bindings, nil
-		}
+	bindings, err := s.apiKeyRepo.GetAPIKeyGroups(ctx, keyID)
+	if err != nil {
+		return nil, err
+	}
+	if len(bindings) > 0 {
+		return bindings, nil
 	}
 	if len(apiKey.GroupBindings) > 0 {
 		return append([]APIKeyGroupBinding(nil), apiKey.GroupBindings...), nil
@@ -406,14 +397,18 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID in
 		return nil, err
 	}
 
-	writer, ok := s.apiKeyRepo.(adminAPIKeyGroupBindingWriter)
-	if !ok {
-		return nil, infraerrors.InternalServer("API_KEY_GROUP_BINDINGS_UNAVAILABLE", "api key group bindings repository is not configured")
+	owner, err := s.userRepo.GetByID(ctx, apiKey.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
 	}
 
-	normalizedInputs, err := normalizeAdminAPIKeyGroupInputs(inputs)
-	if err != nil {
-		return nil, err
+	groupInputs := make([]APIKeyGroupUpdateInput, 0, len(inputs))
+	for _, input := range inputs {
+		groupInputs = append(groupInputs, APIKeyGroupUpdateInput{
+			GroupID:       input.GroupID,
+			Quota:         input.Quota,
+			ModelPatterns: append([]string(nil), input.ModelPatterns...),
+		})
 	}
 
 	opCtx := ctx
@@ -429,59 +424,28 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID in
 		opCtx = dbent.NewTxContext(ctx, tx)
 	}
 
-	existingBindings, err := writer.GetAPIKeyGroups(opCtx, keyID)
+	existingBindings, err := s.apiKeyRepo.GetAPIKeyGroups(opCtx, keyID)
 	if err != nil {
 		return nil, err
 	}
-	existingByGroupID := make(map[int64]APIKeyGroupBinding, len(existingBindings))
-	for _, binding := range existingBindings {
-		existingByGroupID[binding.GroupID] = binding
+	bindings, grantedGroups, err := buildAPIKeyGroupBindings(
+		opCtx,
+		apiKeyGroupBindingMutationDeps{
+			groupRepo:   s.groupRepo,
+			userRepo:    s.userRepo,
+			userSubRepo: s.userSubRepo,
+		},
+		owner,
+		apiKey.ID,
+		existingBindings,
+		groupInputs,
+		true,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	bindings := make([]APIKeyGroupBinding, 0, len(normalizedInputs))
-	grantedGroups := make([]AdminGrantedGroupAccess, 0)
-	for _, input := range normalizedInputs {
-		group, err := s.groupRepo.GetByID(opCtx, input.GroupID)
-		if err != nil {
-			return nil, err
-		}
-		if !group.IsActive() {
-			return nil, infraerrors.BadRequest("GROUP_NOT_ACTIVE", "target group is not active")
-		}
-		if group.IsSubscriptionType() {
-			if s.userSubRepo == nil {
-				return nil, infraerrors.InternalServer("SUBSCRIPTION_REPOSITORY_UNAVAILABLE", "subscription repository is not configured")
-			}
-			if _, err := s.userSubRepo.GetActiveByUserIDAndGroupID(opCtx, apiKey.UserID, group.ID); err != nil {
-				if errors.Is(err, ErrSubscriptionNotFound) {
-					return nil, infraerrors.BadRequest("SUBSCRIPTION_REQUIRED", "user does not have an active subscription for this group")
-				}
-				return nil, err
-			}
-		} else if group.IsExclusive {
-			if err := s.userRepo.AddGroupToAllowedGroups(opCtx, apiKey.UserID, group.ID); err != nil {
-				return nil, fmt.Errorf("add group to user allowed groups: %w", err)
-			}
-			grantedGroups = append(grantedGroups, AdminGrantedGroupAccess{
-				GroupID:   group.ID,
-				GroupName: group.Name,
-			})
-		}
-
-		binding := APIKeyGroupBinding{
-			APIKeyID:      apiKey.ID,
-			GroupID:       group.ID,
-			Group:         group,
-			Quota:         input.Quota,
-			ModelPatterns: append([]string(nil), input.ModelPatterns...),
-		}
-		if existing, ok := existingByGroupID[group.ID]; ok {
-			binding.QuotaUsed = existing.QuotaUsed
-		}
-		bindings = append(bindings, binding)
-	}
-
-	if err := writer.SetAPIKeyGroups(opCtx, keyID, bindings); err != nil {
+	if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, keyID, bindings); err != nil {
 		return nil, fmt.Errorf("set api key groups: %w", err)
 	}
 
@@ -510,48 +474,6 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID in
 		result.GrantedGroupName = first.GroupName
 	}
 	return result, nil
-}
-
-func normalizeAdminAPIKeyGroupInputs(inputs []AdminAPIKeyGroupUpdateInput) ([]AdminAPIKeyGroupUpdateInput, error) {
-	if len(inputs) == 0 {
-		return []AdminAPIKeyGroupUpdateInput{}, nil
-	}
-
-	seen := make(map[int64]struct{}, len(inputs))
-	normalized := make([]AdminAPIKeyGroupUpdateInput, 0, len(inputs))
-	for _, input := range inputs {
-		if input.GroupID <= 0 {
-			return nil, infraerrors.BadRequest("INVALID_GROUP_BINDING", "group_id must be positive")
-		}
-		if input.Quota < 0 {
-			return nil, infraerrors.BadRequest("INVALID_GROUP_BINDING", "quota must be non-negative")
-		}
-		if _, exists := seen[input.GroupID]; exists {
-			return nil, infraerrors.BadRequest("INVALID_GROUP_BINDING", "duplicate group binding")
-		}
-		seen[input.GroupID] = struct{}{}
-
-		modelPatterns := make([]string, 0, len(input.ModelPatterns))
-		patternSeen := make(map[string]struct{}, len(input.ModelPatterns))
-		for _, pattern := range input.ModelPatterns {
-			trimmed := strings.TrimSpace(pattern)
-			if trimmed == "" {
-				continue
-			}
-			if _, exists := patternSeen[trimmed]; exists {
-				continue
-			}
-			patternSeen[trimmed] = struct{}{}
-			modelPatterns = append(modelPatterns, trimmed)
-		}
-
-		normalized = append(normalized, AdminAPIKeyGroupUpdateInput{
-			GroupID:       input.GroupID,
-			Quota:         input.Quota,
-			ModelPatterns: modelPatterns,
-		})
-	}
-	return normalized, nil
 }
 
 func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {

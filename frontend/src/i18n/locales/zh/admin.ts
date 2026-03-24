@@ -1236,6 +1236,27 @@
       allStatus: '全部状态',
       allGroups: '全部分组',
       ungroupedGroup: '未分组',
+      viewMode: {
+        table: '表格',
+        card: '卡片'
+      },
+      platformTabs: {
+        all: '全部'
+      },
+      summary: {
+        total: '总计',
+        active: '活跃',
+        error: '错误',
+        rateLimited: '限流',
+        paused: '暂停'
+      },
+      groupView: {
+        enable: '分组视图',
+        disable: '平铺视图',
+        ungrouped: '未分组',
+        stats: '{count} 个账号',
+        currentPageScope: '按当前页结果分组'
+      },
       oauthType: 'OAuth',
       // Schedulable toggle
       schedulable: '参与调度',

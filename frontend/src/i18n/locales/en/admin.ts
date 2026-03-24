@@ -1154,6 +1154,27 @@ export default {
       allStatus: 'All Status',
       allGroups: 'All Groups',
       ungroupedGroup: 'Ungrouped',
+      viewMode: {
+        table: 'Table',
+        card: 'Card'
+      },
+      platformTabs: {
+        all: 'All'
+      },
+      summary: {
+        total: 'Total',
+        active: 'Active',
+        error: 'Error',
+        rateLimited: 'Rate Limited',
+        paused: 'Paused'
+      },
+      groupView: {
+        enable: 'Group View',
+        disable: 'Flat View',
+        ungrouped: 'Ungrouped',
+        stats: '{count} accounts',
+        currentPageScope: 'Grouped from current page results'
+      },
       oauthType: 'OAuth',
       setupToken: 'Setup Token',
       apiKey: 'API Key',

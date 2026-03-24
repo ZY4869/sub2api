@@ -38,6 +38,7 @@ type AccountRepository interface {
 
 	List(ctx context.Context, params pagination.PaginationParams) ([]Account, *pagination.PaginationResult, error)
 	ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string) ([]Account, *pagination.PaginationResult, error)
+	GetStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error)
 	ListByGroup(ctx context.Context, groupID int64) ([]Account, error)
 	ListActive(ctx context.Context) ([]Account, error)
 	ListByPlatform(ctx context.Context, platform string) ([]Account, error)
@@ -82,19 +83,19 @@ type AccountRepository interface {
 // AccountBulkUpdate describes the fields that can be updated in a bulk operation.
 // Nil pointers mean "do not change".
 type AccountBulkUpdate struct {
-	Name           *string
-	ProxyID        *int64
-	Concurrency    *int
-	Priority       *int
-	RateMultiplier *float64
-	LoadFactor     *int
-	Status         *string
-	Schedulable    *bool
-	LifecycleState *string
-	LifecycleReasonCode *string
+	Name                   *string
+	ProxyID                *int64
+	Concurrency            *int
+	Priority               *int
+	RateMultiplier         *float64
+	LoadFactor             *int
+	Status                 *string
+	Schedulable            *bool
+	LifecycleState         *string
+	LifecycleReasonCode    *string
 	LifecycleReasonMessage *string
-	Credentials    map[string]any
-	Extra          map[string]any
+	Credentials            map[string]any
+	Extra                  map[string]any
 }
 
 // CreateAccountRequest 创建账号请求

@@ -15,8 +15,11 @@
           :auto-refresh-intervals="autoRefreshIntervals"
           :auto-refresh-interval-seconds="autoRefreshIntervalSeconds"
           :toggleable-columns="toggleableColumns"
+          :view-mode="viewMode"
+          :group-view-enabled="groupViewEnabled"
           @update:filters="handleFilterUpdate"
           @update:search-query="handleSearchQueryUpdate"
+          @update:view-mode="viewMode = $event"
           @change="debouncedReload"
           @refresh="handleManualRefresh"
           @refresh-usage="handleRefreshActualUsage"
@@ -30,22 +33,38 @@
           @set-auto-refresh-enabled="setAutoRefreshEnabled"
           @set-auto-refresh-interval="handleAutoRefreshIntervalChange"
           @toggle-column="toggleColumn"
+          @toggle-group-view="groupViewEnabled = !groupViewEnabled"
         />
       </template>
       <template #table>
-        <AccountBulkActionsBar
-          :selected-ids="selIds"
-          :selected-platforms="selPlatforms"
-          @archive="openArchiveSelectedModal"
-          @delete="handleBulkDelete"
-          @reset-status="handleBulkResetStatus"
-          @refresh-token="handleBulkRefreshToken"
-          @edit="showBulkEdit = true"
-          @clear="clearSelection"
-          @select-page="selectPage"
-          @toggle-schedulable="handleBulkToggleSchedulable"
-        />
         <div class="space-y-4">
+          <AccountPlatformTabs
+            :model-value="String(params.platform || '')"
+            :platform-counts="accountSummary.by_platform"
+            @update:model-value="handlePlatformTabChange"
+          />
+
+          <AccountStatusSummaryBar
+            :summary="accountSummary"
+            :loading="summaryLoading"
+            :error="summaryError"
+            :active-status="String(params.status || '')"
+            @select-status="handleSummaryStatusSelect"
+          />
+
+          <AccountBulkActionsBar
+            :selected-ids="selIds"
+            :selected-platforms="selPlatforms"
+            @archive="openArchiveSelectedModal"
+            @delete="handleBulkDelete"
+            @reset-status="handleBulkResetStatus"
+            @refresh-token="handleBulkRefreshToken"
+            @edit="showBulkEdit = true"
+            @clear="clearSelection"
+            @select-page="selectPage"
+            @toggle-schedulable="handleBulkToggleSchedulable"
+          />
+
           <ArchivedAccountGroupsPanel
             :filters="params"
             :columns="archivedColumns"
@@ -64,7 +83,49 @@
             @changed="handleArchivedPanelChanged"
           />
           <div ref="accountTableRef">
+            <AccountGroupedView
+              v-if="groupViewEnabled"
+              :accounts="accounts"
+              :groups="groups"
+              :group-filter="String(params.group || '')"
+              :view-mode="viewMode"
+              :columns="cols"
+              :selected-ids="selIds"
+              :loading="loading"
+              :toggling-schedulable="togglingSchedulable"
+              :today-stats-by-account-id="todayStatsByAccountId"
+              :today-stats-loading="todayStatsLoading"
+              :today-stats-error="todayStatsError"
+              :usage-manual-refresh-token="usageManualRefreshToken"
+              :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
+              @toggle-selected="toggleSel"
+              @toggle-section-selected="handleToggleSectionSelected"
+              @show-temp-unsched="handleShowTempUnsched"
+              @toggle-schedulable="handleToggleSchedulable"
+              @edit="handleEdit"
+              @delete="handleDelete"
+              @open-menu="handleOpenMenu"
+            />
+
+            <AccountCardGrid
+              v-else-if="viewMode === 'card'"
+              :accounts="accounts"
+              :loading="loading"
+              :selected-ids="selIds"
+              :toggling-schedulable="togglingSchedulable"
+              :today-stats-by-account-id="todayStatsByAccountId"
+              :today-stats-loading="todayStatsLoading"
+              :usage-manual-refresh-token="usageManualRefreshToken"
+              @toggle-selected="toggleSel"
+              @show-temp-unsched="handleShowTempUnsched"
+              @toggle-schedulable="handleToggleSchedulable"
+              @edit="handleEdit"
+              @delete="handleDelete"
+              @open-menu="handleOpenMenu"
+            />
+
             <AccountsViewTable
+              v-else
               :columns="cols"
               :accounts="accounts"
               :loading="loading"
@@ -88,6 +149,15 @@
               @page-size-change="handlePageSizeChange"
             />
           </div>
+
+          <Pagination
+            v-if="showStandalonePagination && pagination.total > 0"
+            :page="pagination.page"
+            :total="pagination.total"
+            :page-size="pagination.page_size"
+            @update:page="handlePageChange"
+            @update:page-size="handlePageSizeChange"
+          />
         </div>
       </template>
     </TablePageLayout>
@@ -177,7 +247,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useModelInventoryStore } from '@/stores'
 import { invalidateModelRegistry } from '@/stores/modelRegistry'
 import { adminAPI } from '@/api/admin'
+import { useAccountStatusSummary } from '@/composables/useAccountStatusSummary'
 import { useAccountActionMenu } from '@/composables/useAccountActionMenu'
+import { useAccountViewMode } from '@/composables/useAccountViewMode'
 import { useAccountsViewLiveSync } from '@/composables/useAccountsViewLiveSync'
 import { useAccountsViewListPatching } from '@/composables/useAccountsViewListPatching'
 import { useTableLoader } from '@/composables/useTableLoader'
@@ -185,7 +257,12 @@ import { useSwipeSelect } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
+import Pagination from '@/components/common/Pagination.vue'
+import AccountCardGrid from '@/components/admin/account/AccountCardGrid.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
+import AccountGroupedView from '@/components/admin/account/AccountGroupedView.vue'
+import AccountPlatformTabs from '@/components/admin/account/AccountPlatformTabs.vue'
+import AccountStatusSummaryBar from '@/components/admin/account/AccountStatusSummaryBar.vue'
 import ArchivedAccountGroupsPanel from '@/components/admin/account/ArchivedAccountGroupsPanel.vue'
 import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDialogsHost.vue'
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
@@ -230,6 +307,7 @@ const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
 const accountTableRef = ref<HTMLElement | null>(null)
 const importingModelsAccountId = ref<number | null>(null)
+const { viewMode, groupViewEnabled } = useAccountViewMode()
 const selPlatforms = computed<AccountPlatform[]>(() => {
   const platforms = new Set(
     accounts.value
@@ -338,6 +416,15 @@ const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
   Object.assign(params, newFilters)
 }
 
+const {
+  summary: accountSummaryState,
+  loading: summaryLoading,
+  error: summaryError,
+  refresh: refreshAccountSummary
+} = useAccountStatusSummary(params)
+
+const accountSummary = computed(() => accountSummaryState.value)
+
 const currentArchiveSourceGroup = computed<AdminGroup | null>(() => {
   const rawGroup = String(params.group || '').trim()
   if (rawGroup === '' || rawGroup === 'ungrouped') {
@@ -440,7 +527,8 @@ const {
   baseHandlePageSizeChange,
   isAnyModalOpen,
   isActionMenuOpen,
-  syncAccountRefs
+  syncAccountRefs,
+  onListChanged: refreshAccountSummary
 })
 
 const handleManualRefresh = async () => {
@@ -531,6 +619,12 @@ const refreshArchivedPanel = () => {
   archivedPanelRefreshToken.value += 1
 }
 
+const refreshAccountSummarySafe = () => {
+  refreshAccountSummary().catch((error) => {
+    console.error('Failed to refresh account summary:', error)
+  })
+}
+
 const handleEdit = (a: Account) => { edAcc.value = a; showEdit.value = true }
 const handleOpenMenu = ({ account, event }: { account: Account; event: MouseEvent }) => {
   openMenu({ account, event })
@@ -538,6 +632,24 @@ const handleOpenMenu = ({ account, event }: { account: Account; event: MouseEven
 const toggleSelectAllVisible = (checked: boolean) => {
   toggleVisible(checked)
 }
+const handleToggleSectionSelected = ({ ids, checked }: { ids: number[]; checked: boolean }) => {
+  ids.forEach((id) => {
+    if (checked) {
+      select(id)
+      return
+    }
+    deselect(id)
+  })
+}
+const handlePlatformTabChange = (value: string) => {
+  params.platform = value
+  debouncedReload()
+}
+const handleSummaryStatusSelect = (status: string) => {
+  params.status = String(params.status || '') === status ? '' : status
+  debouncedReload()
+}
+const showStandalonePagination = computed(() => groupViewEnabled.value || viewMode.value === 'card')
 const handleBulkDelete = async () => { if(!confirm(t('common.confirm'))) return; try { await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id))); clearSelection(); reload() } catch (error) { console.error('Failed to bulk delete accounts:', error) } }
 const openArchiveSelectedModal = () => {
   if (selIds.value.length === 0) {
@@ -758,6 +870,7 @@ const handleBulkToggleSchedulable = async (schedulable: boolean) => {
       if (hasIds) clearSelection()
       else setSelectedIds(accountIds)
     }
+    refreshAccountSummarySafe()
   } catch (error) {
     console.error('Failed to bulk toggle schedulable:', error)
     appStore.showError(t('common.error'))
@@ -788,6 +901,7 @@ const handleArchivedGroupAccounts = async () => {
 const handleAccountUpdated = (updatedAccount: Account) => {
   const editedArchived = edAcc.value?.id === updatedAccount.id && edAcc.value.lifecycle_state === 'archived'
   patchAccountInList(updatedAccount)
+  refreshAccountSummarySafe()
   enterAutoRefreshSilentWindow()
   if (editedArchived || (updatedAccount.lifecycle_state && updatedAccount.lifecycle_state !== 'normal')) {
     refreshArchivedPanel()
@@ -862,6 +976,7 @@ const handleRefresh = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.refreshCredentials(a.id)
     patchAccountInList(updated)
+    refreshAccountSummarySafe()
     enterAutoRefreshSilentWindow()
     if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
       refreshArchivedPanel()
@@ -874,6 +989,7 @@ const handleRecoverState = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.recoverState(a.id)
     patchAccountInList(updated)
+    refreshAccountSummarySafe()
     enterAutoRefreshSilentWindow()
     if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
       refreshArchivedPanel()
@@ -919,6 +1035,7 @@ const handleResetQuota = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.resetAccountQuota(a.id)
     patchAccountInList(updated)
+    refreshAccountSummarySafe()
     enterAutoRefreshSilentWindow()
     if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
       refreshArchivedPanel()
@@ -951,6 +1068,7 @@ const handleToggleSchedulable = async (a: Account) => {
   try {
     const updated = await adminAPI.accounts.setSchedulable(a.id, nextSchedulable)
     updateSchedulableInList([a.id], updated?.schedulable ?? nextSchedulable)
+    refreshAccountSummarySafe()
     enterAutoRefreshSilentWindow()
     if (a.lifecycle_state === 'archived' || updated.lifecycle_state === 'archived') {
       refreshArchivedPanel()
@@ -967,6 +1085,7 @@ const handleTempUnschedReset = async (updated: Account) => {
   showTempUnsched.value = false
   tempUnschedAcc.value = null
   patchAccountInList(updated)
+  refreshAccountSummarySafe()
   enterAutoRefreshSilentWindow()
   if (updated.lifecycle_state === 'archived') {
     refreshArchivedPanel()

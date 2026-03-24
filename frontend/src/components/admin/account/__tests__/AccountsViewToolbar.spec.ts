@@ -29,6 +29,8 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       autoRefreshCountdown: 15,
       autoRefreshIntervals: [5, 10, 15, 30],
       autoRefreshIntervalSeconds: 10,
+      viewMode: 'table',
+      groupViewEnabled: false,
       toggleableColumns: [
         { key: 'proxy', label: 'Proxy', visible: true },
         { key: 'notes', label: 'Notes', visible: false }
@@ -38,6 +40,11 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
     global: {
       stubs: {
         Icon: true,
+        AccountViewModeToggle: {
+          props: ['modelValue'],
+          emits: ['update:modelValue'],
+          template: '<button class="view-mode-toggle" @click="$emit(\'update:modelValue\', \'card\')" />'
+        },
         AccountTableFilters: {
           emits: ['update:filters', 'update:searchQuery', 'change'],
           template: `
@@ -70,6 +77,7 @@ describe('AccountsViewToolbar', () => {
   it('forwards filter, search and toolbar actions', async () => {
     const wrapper = mountToolbar()
 
+    await wrapper.get('.view-mode-toggle').trigger('click')
     await wrapper.get('.filters-update').trigger('click')
     await wrapper.get('.filters-search').trigger('click')
     await wrapper.get('.filters-change').trigger('click')
@@ -82,6 +90,7 @@ describe('AccountsViewToolbar', () => {
 
     expect(wrapper.text()).not.toContain('admin.accounts.viewArchived')
     expect(wrapper.text()).not.toContain('admin.accounts.batchCreate')
+    expect(wrapper.emitted('update:view-mode')).toEqual([['card']])
     expect(wrapper.emitted('update:filters')).toEqual([[{ platform: 'openai' }]])
     expect(wrapper.emitted('update:searchQuery')).toEqual([['claude']])
     expect(wrapper.emitted('change')).toEqual([[]])
@@ -144,6 +153,9 @@ describe('AccountsViewToolbar', () => {
       button.text().includes('admin.errorPassthrough.title')
     )?.trigger('click')
     await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.groupView.enable')
+    )?.trigger('click')
+    await wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.listPendingSyncAction')
     )?.trigger('click')
 
@@ -153,6 +165,7 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('import-data')).toEqual([[]])
     expect(wrapper.emitted('export-data')).toEqual([[]])
     expect(wrapper.emitted('show-error-passthrough')).toEqual([[]])
+    expect(wrapper.emitted('toggle-group-view')).toEqual([[]])
     expect(wrapper.emitted('sync-pending-list')).toEqual([[]])
   })
 })

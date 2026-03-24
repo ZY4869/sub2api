@@ -68,6 +68,9 @@ type APIKeyRepository interface {
 	CountByGroupID(ctx context.Context, groupID int64) (int64, error)
 	ListKeysByUserID(ctx context.Context, userID int64) ([]string, error)
 	ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error)
+	GetAPIKeyGroups(ctx context.Context, keyID int64) ([]APIKeyGroupBinding, error)
+	SetAPIKeyGroups(ctx context.Context, keyID int64, bindings []APIKeyGroupBinding) error
+	IncrementAPIKeyGroupQuotaUsed(ctx context.Context, keyID, groupID int64, amount float64) error
 
 	// Quota methods
 	IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error)
@@ -149,11 +152,12 @@ type APIKeyAuthCacheInvalidator interface {
 
 // CreateAPIKeyRequest 创建API Key请求
 type CreateAPIKeyRequest struct {
-	Name        string   `json:"name"`
-	GroupID     *int64   `json:"group_id"`
-	CustomKey   *string  `json:"custom_key"`   // 可选的自定义key
-	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单
-	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单
+	Name        string                    `json:"name"`
+	GroupID     *int64                    `json:"group_id"`
+	Groups      *[]APIKeyGroupUpdateInput `json:"groups"`
+	CustomKey   *string                   `json:"custom_key"`   // 可选的自定义key
+	IPWhitelist []string                  `json:"ip_whitelist"` // IP 白名单
+	IPBlacklist []string                  `json:"ip_blacklist"` // IP 黑名单
 
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
@@ -167,11 +171,12 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest 更新API Key请求
 type UpdateAPIKeyRequest struct {
-	Name        *string  `json:"name"`
-	GroupID     *int64   `json:"group_id"`
-	Status      *string  `json:"status"`
-	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单（空数组清空）
-	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单（空数组清空）
+	Name        *string                   `json:"name"`
+	GroupID     *int64                    `json:"group_id"`
+	Groups      *[]APIKeyGroupUpdateInput `json:"groups"`
+	Status      *string                   `json:"status"`
+	IPWhitelist []string                  `json:"ip_whitelist"` // IP 白名单（空数组清空）
+	IPBlacklist []string                  `json:"ip_blacklist"` // IP 黑名单（空数组清空）
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -327,80 +332,71 @@ func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group 
 
 // Create 创建API Key
 func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
-	// 验证用户存在
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 
-	// 验证 IP 白名单格式
+	requestedGroups, err := resolveRequestedAPIKeyGroupUpdates(req.GroupID, req.Groups)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(req.IPWhitelist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPWhitelist); len(invalid) > 0 {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
 
-	// 验证 IP 黑名单格式
 	if len(req.IPBlacklist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPBlacklist); len(invalid) > 0 {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
 
-	// 验证分组权限（如果指定了分组）
-	if req.GroupID != nil {
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
-		}
-
-		// 检查用户是否可以绑定该分组
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
-		}
-	}
-
 	var key string
 
-	// 判断是否使用自定义Key
 	if req.CustomKey != nil && *req.CustomKey != "" {
-		// 检查限流（仅对自定义key进行限流）
 		if err := s.checkAPIKeyRateLimit(ctx, userID); err != nil {
 			return nil, err
 		}
 
-		// 验证自定义Key格式
 		if err := s.ValidateCustomKey(*req.CustomKey); err != nil {
 			return nil, err
 		}
 
-		// 检查Key是否已存在
 		exists, err := s.apiKeyRepo.ExistsByKey(ctx, *req.CustomKey)
 		if err != nil {
 			return nil, fmt.Errorf("check key exists: %w", err)
 		}
 		if exists {
-			// Key已存在，增加错误计数
 			s.incrementAPIKeyErrorCount(ctx, userID)
 			return nil, ErrAPIKeyExists
 		}
 
 		key = *req.CustomKey
 	} else {
-		// 生成随机API Key
-		var err error
 		key, err = s.GenerateKey()
 		if err != nil {
 			return nil, fmt.Errorf("generate key: %w", err)
 		}
 	}
 
-	// 创建API Key记录
+	opCtx := ctx
+	var txStarter apiKeyGroupMutationTxStarter
+	if starter, ok := s.apiKeyRepo.(apiKeyGroupMutationTxStarter); ok {
+		txStarter = starter
+	}
+	opCtx, tx, rollback, err := beginAPIKeyMutationTx(ctx, txStarter)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer rollback()
+
 	apiKey := &APIKey{
 		UserID:      userID,
 		Key:         key,
 		Name:        req.Name,
-		GroupID:     req.GroupID,
 		Status:      StatusActive,
 		IPWhitelist: req.IPWhitelist,
 		IPBlacklist: req.IPBlacklist,
@@ -411,20 +407,51 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		RateLimit7d: req.RateLimit7d,
 	}
 
-	// Set expiration time if specified
 	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {
 		expiresAt := time.Now().AddDate(0, 0, *req.ExpiresInDays)
 		apiKey.ExpiresAt = &expiresAt
 	}
 
-	if err := s.apiKeyRepo.Create(ctx, apiKey); err != nil {
+	if err := s.apiKeyRepo.Create(opCtx, apiKey); err != nil {
 		return nil, fmt.Errorf("create api key: %w", err)
 	}
 
-	s.InvalidateAuthCacheByKey(ctx, apiKey.Key)
-	s.compileAPIKeyIPRules(apiKey)
+	if requestedGroups != nil {
+		bindings, _, err := buildAPIKeyGroupBindings(
+			opCtx,
+			apiKeyGroupBindingMutationDeps{
+				groupRepo:   s.groupRepo,
+				userRepo:    s.userRepo,
+				userSubRepo: s.userSubRepo,
+			},
+			user,
+			apiKey.ID,
+			nil,
+			*requestedGroups,
+			user.IsAdmin(),
+		)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, apiKey.ID, bindings); err != nil {
+			return nil, fmt.Errorf("set api key groups: %w", err)
+		}
+	}
 
-	return apiKey, nil
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit transaction: %w", err)
+		}
+	}
+
+	createdKey, err := s.apiKeyRepo.GetByID(ctx, apiKey.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get api key: %w", err)
+	}
+	s.InvalidateAuthCacheByKey(ctx, createdKey.Key)
+	s.compileAPIKeyIPRules(createdKey)
+
+	return createdKey, nil
 }
 
 // List 获取用户的API Key列表
@@ -522,86 +549,77 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		return nil, ErrInsufficientPerms
 	}
 
-	// 验证 IP 白名单格式
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+
+	requestedGroups, err := resolveRequestedAPIKeyGroupUpdates(req.GroupID, req.Groups)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(req.IPWhitelist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPWhitelist); len(invalid) > 0 {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
 
-	// 验证 IP 黑名单格式
 	if len(req.IPBlacklist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPBlacklist); len(invalid) > 0 {
 			return nil, fmt.Errorf("%w: %v", ErrInvalidIPPattern, invalid)
 		}
 	}
 
-	// 更新字段
+	opCtx := ctx
+	var txStarter apiKeyGroupMutationTxStarter
+	if starter, ok := s.apiKeyRepo.(apiKeyGroupMutationTxStarter); ok {
+		txStarter = starter
+	}
+	opCtx, tx, rollback, err := beginAPIKeyMutationTx(ctx, txStarter)
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	defer rollback()
+
 	if req.Name != nil {
 		apiKey.Name = *req.Name
 	}
 
-	if req.GroupID != nil {
-		// 验证分组权限
-		user, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil {
-			return nil, fmt.Errorf("get user: %w", err)
-		}
-
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
-		}
-
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
-		}
-
-		apiKey.GroupID = req.GroupID
-	}
-
 	if req.Status != nil {
 		apiKey.Status = *req.Status
-		// 如果状态改变，清除Redis缓存
 		if s.cache != nil {
-			_ = s.cache.DeleteCreateAttemptCount(ctx, apiKey.UserID)
+			_ = s.cache.DeleteCreateAttemptCount(opCtx, apiKey.UserID)
 		}
 	}
 
-	// Update quota fields
 	if req.Quota != nil {
 		apiKey.Quota = *req.Quota
-		// If quota is increased and status was quota_exhausted, reactivate
 		if apiKey.Status == StatusAPIKeyQuotaExhausted && *req.Quota > apiKey.QuotaUsed {
 			apiKey.Status = StatusActive
 		}
 	}
 	if req.ResetQuota != nil && *req.ResetQuota {
 		apiKey.QuotaUsed = 0
-		// If resetting quota and status was quota_exhausted, reactivate
 		if apiKey.Status == StatusAPIKeyQuotaExhausted {
 			apiKey.Status = StatusActive
 		}
 	}
 	if req.ClearExpiration {
 		apiKey.ExpiresAt = nil
-		// If clearing expiry and status was expired, reactivate
 		if apiKey.Status == StatusAPIKeyExpired {
 			apiKey.Status = StatusActive
 		}
 	} else if req.ExpiresAt != nil {
 		apiKey.ExpiresAt = req.ExpiresAt
-		// If extending expiry and status was expired, reactivate
 		if apiKey.Status == StatusAPIKeyExpired && time.Now().Before(*req.ExpiresAt) {
 			apiKey.Status = StatusActive
 		}
 	}
 
-	// 更新 IP 限制（空数组会清空设置）
 	apiKey.IPWhitelist = req.IPWhitelist
 	apiKey.IPBlacklist = req.IPBlacklist
 
-	// Update rate limit configuration
 	if req.RateLimit5h != nil {
 		apiKey.RateLimit5h = *req.RateLimit5h
 	}
@@ -621,19 +639,54 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		apiKey.Window7dStart = nil
 	}
 
-	if err := s.apiKeyRepo.Update(ctx, apiKey); err != nil {
+	if err := s.apiKeyRepo.Update(opCtx, apiKey); err != nil {
 		return nil, fmt.Errorf("update api key: %w", err)
 	}
 
-	s.InvalidateAuthCacheByKey(ctx, apiKey.Key)
-	s.compileAPIKeyIPRules(apiKey)
-
-	// Invalidate Redis rate limit cache so reset takes effect immediately
-	if resetRateLimit && s.rateLimitCacheInvalid != nil {
-		_ = s.rateLimitCacheInvalid.InvalidateAPIKeyRateLimit(ctx, apiKey.ID)
+	if requestedGroups != nil {
+		existingBindings, err := s.apiKeyRepo.GetAPIKeyGroups(opCtx, apiKey.ID)
+		if err != nil {
+			return nil, fmt.Errorf("get api key groups: %w", err)
+		}
+		bindings, _, err := buildAPIKeyGroupBindings(
+			opCtx,
+			apiKeyGroupBindingMutationDeps{
+				groupRepo:   s.groupRepo,
+				userRepo:    s.userRepo,
+				userSubRepo: s.userSubRepo,
+			},
+			user,
+			apiKey.ID,
+			existingBindings,
+			*requestedGroups,
+			user.IsAdmin(),
+		)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, apiKey.ID, bindings); err != nil {
+			return nil, fmt.Errorf("set api key groups: %w", err)
+		}
 	}
 
-	return apiKey, nil
+	if tx != nil {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit transaction: %w", err)
+		}
+	}
+
+	updatedKey, err := s.apiKeyRepo.GetByID(ctx, apiKey.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get api key: %w", err)
+	}
+	s.InvalidateAuthCacheByKey(ctx, updatedKey.Key)
+	s.compileAPIKeyIPRules(updatedKey)
+
+	if resetRateLimit && s.rateLimitCacheInvalid != nil {
+		_ = s.rateLimitCacheInvalid.InvalidateAPIKeyRateLimit(ctx, updatedKey.ID)
+	}
+
+	return updatedKey, nil
 }
 
 // Delete 删除API Key

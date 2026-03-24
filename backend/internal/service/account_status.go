@@ -9,6 +9,8 @@ func NormalizeAdminAccountStatusInput(status string) string {
 		return ""
 	case StatusActive:
 		return StatusActive
+	case "paused":
+		return "paused"
 	case "inactive", StatusDisabled:
 		return StatusDisabled
 	case StatusError:

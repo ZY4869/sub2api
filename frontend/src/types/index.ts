@@ -587,6 +587,7 @@ export type AccountType =
   | "bedrock"
   | "upstream";
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
+export type AccountViewMode = "table" | "card";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
 
@@ -798,6 +799,20 @@ export interface Account {
   current_window_cost?: number | null; // 閻熸粎澧楅幐鍛婃櫠閻樼數鐜绘俊銈傚亾鐟滅増绋撻幏褰掑捶椤撶喐娈?
   active_sessions?: number | null; // 閻熸粎澧楅幐鍛婃櫠閻樿娲及韫囨洍鏀繛鏉戝悑娣囨椽鎯佹禒瀣瀬?
   current_rpm?: number | null; // 閻熸粎澧楅幐鍛婃櫠閻樿绀嗛柛鈩冪⊕鐎?RPM 闁荤姳璁查崜婵嬪汲?
+}
+
+export interface AccountStatusSummary {
+  total: number;
+  by_status: {
+    active: number;
+    inactive: number;
+    error: number;
+  };
+  rate_limited: number;
+  temp_unschedulable: number;
+  overloaded: number;
+  paused: number;
+  by_platform: Partial<Record<AccountPlatform, number>>;
 }
 
 // Account Usage types

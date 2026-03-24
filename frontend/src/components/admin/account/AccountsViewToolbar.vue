@@ -16,6 +16,23 @@
         @create="emit('create')"
       >
         <template #after>
+          <AccountViewModeToggle
+            :model-value="viewMode"
+            @update:model-value="emit('update:view-mode', $event)"
+          />
+
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="emit('toggle-group-view')"
+          >
+            {{
+              groupViewEnabled
+                ? t('admin.accounts.groupView.disable')
+                : t('admin.accounts.groupView.enable')
+            }}
+          </button>
+
           <button
             type="button"
             class="btn btn-secondary"
@@ -174,8 +191,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AdminGroup } from '@/types'
+import type { AdminGroup, AccountViewMode } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
+import AccountViewModeToggle from './AccountViewModeToggle.vue'
 import AccountTableActions from './AccountTableActions.vue'
 import AccountTableFilters from './AccountTableFilters.vue'
 
@@ -198,6 +216,8 @@ const props = defineProps<{
   autoRefreshIntervals: readonly number[]
   autoRefreshIntervalSeconds: number
   toggleableColumns: ToggleableColumn[]
+  viewMode: AccountViewMode
+  groupViewEnabled: boolean
 }>()
 
 const emit = defineEmits<{
@@ -216,6 +236,8 @@ const emit = defineEmits<{
   'set-auto-refresh-enabled': [value: boolean]
   'set-auto-refresh-interval': [value: number]
   'toggle-column': [key: string]
+  'update:view-mode': [value: AccountViewMode]
+  'toggle-group-view': []
 }>()
 
 const { t } = useI18n()

@@ -23,6 +23,8 @@ type userRepoStubForGroupUpdate struct {
 	addGroupCalled bool
 	addedUserID    int64
 	addedGroupID   int64
+	user           *User
+	getErr         error
 }
 
 func (s *userRepoStubForGroupUpdate) AddGroupToAllowedGroups(_ context.Context, userID int64, groupID int64) error {
@@ -33,8 +35,15 @@ func (s *userRepoStubForGroupUpdate) AddGroupToAllowedGroups(_ context.Context, 
 }
 
 func (s *userRepoStubForGroupUpdate) Create(context.Context, *User) error { panic("unexpected") }
-func (s *userRepoStubForGroupUpdate) GetByID(context.Context, int64) (*User, error) {
-	panic("unexpected")
+func (s *userRepoStubForGroupUpdate) GetByID(_ context.Context, userID int64) (*User, error) {
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	if s.user != nil {
+		clone := *s.user
+		return &clone, nil
+	}
+	return &User{ID: userID}, nil
 }
 func (s *userRepoStubForGroupUpdate) GetByEmail(context.Context, string) (*User, error) {
 	panic("unexpected")
@@ -76,10 +85,11 @@ func (s *userRepoStubForGroupUpdate) DisableTotp(context.Context, int64) error {
 
 // apiKeyRepoStubForGroupUpdate implements APIKeyRepository for AdminUpdateAPIKeyGroupID tests.
 type apiKeyRepoStubForGroupUpdate struct {
-	key       *APIKey
-	getErr    error
-	updateErr error
-	updated   *APIKey // captures what was passed to Update
+	key           *APIKey
+	getErr        error
+	updateErr     error
+	updated       *APIKey // captures what was passed to Update/SetAPIKeyGroups
+	groupBindings []APIKeyGroupBinding
 }
 
 func (s *apiKeyRepoStubForGroupUpdate) GetByID(_ context.Context, _ int64) (*APIKey, error) {
@@ -87,6 +97,10 @@ func (s *apiKeyRepoStubForGroupUpdate) GetByID(_ context.Context, _ int64) (*API
 		return nil, s.getErr
 	}
 	clone := *s.key
+	if len(s.groupBindings) > 0 {
+		clone.GroupBindings = append([]APIKeyGroupBinding(nil), s.groupBindings...)
+	}
+	clone.SyncLegacyGroupShadow()
 	return &clone, nil
 }
 func (s *apiKeyRepoStubForGroupUpdate) Update(_ context.Context, key *APIKey) error {
@@ -141,6 +155,27 @@ func (s *apiKeyRepoStubForGroupUpdate) ListKeysByUserID(context.Context, int64) 
 	panic("unexpected")
 }
 func (s *apiKeyRepoStubForGroupUpdate) ListKeysByGroupID(context.Context, int64) ([]string, error) {
+	panic("unexpected")
+}
+func (s *apiKeyRepoStubForGroupUpdate) GetAPIKeyGroups(context.Context, int64) ([]APIKeyGroupBinding, error) {
+	if len(s.groupBindings) == 0 {
+		return append([]APIKeyGroupBinding(nil), s.key.GroupBindings...), nil
+	}
+	return append([]APIKeyGroupBinding(nil), s.groupBindings...), nil
+}
+func (s *apiKeyRepoStubForGroupUpdate) SetAPIKeyGroups(_ context.Context, _ int64, bindings []APIKeyGroupBinding) error {
+	if s.updateErr != nil {
+		return s.updateErr
+	}
+	s.groupBindings = append([]APIKeyGroupBinding(nil), bindings...)
+	clone := *s.key
+	clone.GroupBindings = append([]APIKeyGroupBinding(nil), bindings...)
+	clone.SyncLegacyGroupShadow()
+	s.key = &clone
+	s.updated = &clone
+	return nil
+}
+func (s *apiKeyRepoStubForGroupUpdate) IncrementAPIKeyGroupQuotaUsed(context.Context, int64, int64, float64) error {
 	panic("unexpected")
 }
 func (s *apiKeyRepoStubForGroupUpdate) IncrementQuotaUsed(context.Context, int64, float64) (float64, error) {

@@ -174,7 +174,7 @@
   </DataTable>
 
   <Pagination
-    v-if="pagination.total > 0"
+    v-if="showPagination && pagination.total > 0"
     :page="pagination.page"
     :total="pagination.total"
     :page-size="pagination.page_size"
@@ -199,7 +199,7 @@ import AccountUsageResetCell from '@/components/account/AccountUsageResetCell.vu
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 
-defineProps<{
+withDefaults(defineProps<{
   columns: Column[]
   accounts: Account[]
   loading: boolean
@@ -216,7 +216,10 @@ defineProps<{
     page: number
     page_size: number
   }
-}>()
+  showPagination?: boolean
+}>(), {
+  showPagination: true
+})
 
 const emit = defineEmits<{
   'toggle-select-all-visible': [checked: boolean]

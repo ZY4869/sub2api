@@ -6,6 +6,7 @@
 import { apiClient } from '../client'
 import type {
   Account,
+  AccountStatusSummary,
   ArchivedAccountGroupSummary,
   ArchiveGroupAccountsRequest,
   ArchiveGroupAccountsResult,
@@ -504,6 +505,19 @@ export async function listArchivedGroups(filters?: {
   return Array.isArray(data) ? data.map(normalizeArchivedGroupSummary) : []
 }
 
+export async function getStatusSummary(filters?: {
+  platform?: string
+  type?: string
+  group?: string
+  search?: string
+  lifecycle?: string
+}): Promise<AccountStatusSummary> {
+  const { data } = await apiClient.get<AccountStatusSummary>('/admin/accounts/summary', {
+    params: filters
+  })
+  return normalizeAccountStatusSummary(data)
+}
+
 function normalizeArchivedGroupSummary(raw: any): ArchivedAccountGroupSummary {
   return {
     group_id: Number(raw?.group_id ?? raw?.GroupID ?? 0),
@@ -513,6 +527,32 @@ function normalizeArchivedGroupSummary(raw: any): ArchivedAccountGroupSummary {
     invalid_count: Number(raw?.invalid_count ?? raw?.InvalidCount ?? 0),
     latest_updated_at: String(raw?.latest_updated_at ?? raw?.LatestUpdatedAt ?? '')
   }
+}
+
+function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
+  return {
+    total: Number(raw?.total ?? raw?.Total ?? 0),
+    by_status: {
+      active: Number(raw?.by_status?.active ?? raw?.ByStatus?.active ?? 0),
+      inactive: Number(raw?.by_status?.inactive ?? raw?.ByStatus?.inactive ?? 0),
+      error: Number(raw?.by_status?.error ?? raw?.ByStatus?.error ?? 0)
+    },
+    rate_limited: Number(raw?.rate_limited ?? raw?.RateLimited ?? 0),
+    temp_unschedulable: Number(raw?.temp_unschedulable ?? raw?.TempUnschedulable ?? 0),
+    overloaded: Number(raw?.overloaded ?? raw?.Overloaded ?? 0),
+    paused: Number(raw?.paused ?? raw?.Paused ?? 0),
+    by_platform: normalizePlatformCounts(raw?.by_platform ?? raw?.ByPlatform)
+  }
+}
+
+function normalizePlatformCounts(raw: any): Partial<Record<Account['platform'], number>> {
+  if (!raw || typeof raw !== 'object') {
+    return {}
+  }
+  return Object.entries(raw).reduce<Partial<Record<Account['platform'], number>>>((acc, [key, value]) => {
+    acc[key as Account['platform']] = Number(value ?? 0)
+    return acc
+  }, {})
 }
 
 export async function unarchiveAccounts(accountIds: number[]): Promise<UnarchiveAccountsResult> {
@@ -918,6 +958,7 @@ export const accountsAPI = {
   refreshOpenAIToken,
   validateSoraSessionToken,
   batchArchiveAccounts,
+  getStatusSummary,
   listArchivedGroups,
   unarchiveAccounts,
   retestBlacklistedAccounts,

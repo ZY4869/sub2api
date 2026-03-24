@@ -6,8 +6,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
-	dbaccountgroup "github.com/Wei-Shaw/sub2api/ent/accountgroup"
-	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -324,37 +322,8 @@ func (r *accountRepository) List(ctx context.Context, params pagination.Paginati
 	return r.ListWithFilters(ctx, params, "", "", "", "", 0, service.AccountLifecycleNormal)
 }
 func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string) ([]service.Account, *pagination.PaginationResult, error) {
-	q := r.client.Account.Query()
-	if platform != "" {
-		q = q.Where(dbaccount.PlatformEQ(platform))
-	}
-	if accountType != "" {
-		q = q.Where(dbaccount.TypeEQ(accountType))
-	}
-	if status != "" {
-		switch status {
-		case "rate_limited":
-			q = q.Where(dbaccount.RateLimitResetAtGT(time.Now()))
-		case "temp_unschedulable":
-			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
-				col := s.C("temp_unschedulable_until")
-				s.Where(entsql.And(entsql.Not(entsql.IsNull(col)), entsql.GT(col, entsql.Expr("NOW()"))))
-			}))
-		default:
-			q = q.Where(dbaccount.StatusEQ(status))
-		}
-	}
-	if search != "" {
-		q = q.Where(dbaccount.NameContainsFold(search))
-	}
-	if groupID == service.AccountListGroupUngrouped {
-		q = q.Where(dbaccount.Not(dbaccount.HasAccountGroups()))
-	} else if groupID > 0 {
-		q = q.Where(dbaccount.HasAccountGroupsWith(dbaccountgroup.GroupIDEQ(groupID)))
-	}
-	if predicate := lifecyclePredicate(lifecycle); predicate != nil {
-		q = q.Where(predicate)
-	}
+	filters := normalizeAdminAccountListFilters(platform, accountType, status, search, groupID, lifecycle)
+	q := applyAdminAccountListFilters(r.client.Account.Query(), filters)
 	total, err := q.Count(ctx)
 	if err != nil {
 		return nil, nil, err

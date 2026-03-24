@@ -41,6 +41,8 @@ func (r *accountRepository) ListArchivedGroups(ctx context.Context, filters serv
 		whereClauses = append(whereClauses, "a.rate_limit_reset_at IS NOT NULL", "a.rate_limit_reset_at > NOW()")
 	case "temp_unschedulable":
 		whereClauses = append(whereClauses, "a.temp_unschedulable_until IS NOT NULL", "a.temp_unschedulable_until > NOW()")
+	case "paused":
+		whereClauses = append(whereClauses, "a.schedulable = FALSE")
 	default:
 		whereClauses = append(whereClauses, fmt.Sprintf("a.status = $%d", argIndex))
 		args = append(args, status)
