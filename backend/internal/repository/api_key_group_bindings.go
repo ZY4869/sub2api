@@ -29,6 +29,11 @@ type apiKeyGroupBindingWriter interface {
 	RecomputeShadowGroupIDs(ctx context.Context, keyIDs []int64) error
 }
 
+type apiKeyGroupExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
 type sqlTxStarter interface {
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
@@ -175,7 +180,7 @@ func (r *apiKeyRepository) hydrateAPIKeyGroups(ctx context.Context, keys []*serv
 	return nil
 }
 
-func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec sqlExecutor, keyIDs []int64) (map[int64][]service.APIKeyGroupBinding, error) {
+func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec apiKeyGroupExecutor, keyIDs []int64) (map[int64][]service.APIKeyGroupBinding, error) {
 	out := make(map[int64][]service.APIKeyGroupBinding, len(keyIDs))
 	if r == nil || exec == nil || len(keyIDs) == 0 {
 		return out, nil
@@ -269,15 +274,15 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 	return out, nil
 }
 
-func apiKeyGroupSQLExecutor(ctx context.Context, repo *apiKeyRepository) sqlExecutor {
+func apiKeyGroupSQLExecutor(ctx context.Context, repo *apiKeyRepository) apiKeyGroupExecutor {
 	if repo == nil {
 		return nil
 	}
 	if tx := dbent.TxFromContext(ctx); tx != nil {
-		if exec, ok := any(tx.Client()).(sqlExecutor); ok {
+		if exec, ok := any(tx.Client()).(apiKeyGroupExecutor); ok {
 			return exec
 		}
-		if exec, ok := any(tx).(sqlExecutor); ok {
+		if exec, ok := any(tx).(apiKeyGroupExecutor); ok {
 			return exec
 		}
 	}
@@ -301,7 +306,12 @@ func (r *apiKeyRepository) loadAPIKeyBindingGroups(ctx context.Context, groupIDs
 	return out, nil
 }
 
-func beginAPIKeyGroupSQLTx(ctx context.Context, exec sqlExecutor) (sqlExecutor, func() error, func(), error) {
+func beginAPIKeyGroupSQLTx(ctx context.Context, exec apiKeyGroupExecutor) (apiKeyGroupExecutor, func() error, func(), error) {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		if txExec, ok := any(tx.Client()).(apiKeyGroupExecutor); ok {
+			return txExec, func() error { return nil }, func() {}, nil
+		}
+	}
 	if tx, ok := exec.(*sql.Tx); ok {
 		return tx, func() error { return nil }, func() {}, nil
 	}
@@ -316,7 +326,7 @@ func beginAPIKeyGroupSQLTx(ctx context.Context, exec sqlExecutor) (sqlExecutor, 
 	return tx, tx.Commit, func() { _ = tx.Rollback() }, nil
 }
 
-func recomputeAPIKeyShadowGroup(ctx context.Context, exec sqlExecutor, keyID int64) error {
+func recomputeAPIKeyShadowGroup(ctx context.Context, exec apiKeyGroupExecutor, keyID int64) error {
 	if _, err := exec.ExecContext(ctx, `
 		UPDATE api_keys AS ak
 		SET group_id = sub.group_id,
@@ -344,14 +354,14 @@ func recomputeAPIKeyShadowGroup(ctx context.Context, exec sqlExecutor, keyID int
 	return err
 }
 
-func listAPIKeyIDsByGroupID(ctx context.Context, exec sqlExecutor, groupID int64, params pagination.PaginationParams) ([]int64, int64, error) {
+func listAPIKeyIDsByGroupID(ctx context.Context, exec apiKeyGroupExecutor, groupID int64, params pagination.PaginationParams) ([]int64, int64, error) {
 	var total int64
-	if err := exec.QueryRowContext(ctx, `
+	if err := scanSingleRow(ctx, exec, `
 		SELECT COUNT(DISTINCT ag.api_key_id)
 		FROM api_key_groups ag
 		JOIN api_keys ak ON ak.id = ag.api_key_id
 		WHERE ag.group_id = $1 AND ak.deleted_at IS NULL
-	`, groupID).Scan(&total); err != nil {
+	`, []any{groupID}, &total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := exec.QueryContext(ctx, `
@@ -381,7 +391,7 @@ func listAPIKeyIDsByGroupID(ctx context.Context, exec sqlExecutor, groupID int64
 	return ids, total, nil
 }
 
-func listAPIKeyIDsByUserAndGroup(ctx context.Context, exec sqlExecutor, userID, oldGroupID int64) ([]int64, error) {
+func listAPIKeyIDsByUserAndGroup(ctx context.Context, exec apiKeyGroupExecutor, userID, oldGroupID int64) ([]int64, error) {
 	rows, err := exec.QueryContext(ctx, `
 		SELECT DISTINCT ag.api_key_id
 		FROM api_key_groups ag
@@ -405,7 +415,7 @@ func listAPIKeyIDsByUserAndGroup(ctx context.Context, exec sqlExecutor, userID, 
 	return ids, rows.Err()
 }
 
-func supportsAPIKeyGroupBindingsSchema(ctx context.Context, exec sqlExecutor) (bool, error) {
+func supportsAPIKeyGroupBindingsSchema(ctx context.Context, exec apiKeyGroupExecutor) (bool, error) {
 	exists, err := tableExistsSQL(ctx, exec, "api_key_groups")
 	if err != nil {
 		return false, err
@@ -431,17 +441,17 @@ func supportsAPIKeyGroupBindingsSchema(ctx context.Context, exec sqlExecutor) (b
 	return true, nil
 }
 
-func tableExistsSQL(ctx context.Context, exec sqlExecutor, tableName string) (bool, error) {
+func tableExistsSQL(ctx context.Context, exec apiKeyGroupExecutor, tableName string) (bool, error) {
 	var exists bool
-	if err := exec.QueryRowContext(ctx, `SELECT to_regclass('public.' || $1) IS NOT NULL`, tableName).Scan(&exists); err != nil {
+	if err := scanSingleRow(ctx, exec, `SELECT to_regclass('public.' || $1) IS NOT NULL`, []any{tableName}, &exists); err != nil {
 		return false, err
 	}
 	return exists, nil
 }
 
-func columnExistsSQL(ctx context.Context, exec sqlExecutor, tableName, columnName string) (bool, error) {
+func columnExistsSQL(ctx context.Context, exec apiKeyGroupExecutor, tableName, columnName string) (bool, error) {
 	var exists bool
-	if err := exec.QueryRowContext(ctx, `
+	if err := scanSingleRow(ctx, exec, `
 		SELECT EXISTS (
 			SELECT 1
 			FROM information_schema.columns
@@ -449,7 +459,7 @@ func columnExistsSQL(ctx context.Context, exec sqlExecutor, tableName, columnNam
 			  AND table_name = $1
 			  AND column_name = $2
 		)
-	`, tableName, columnName).Scan(&exists); err != nil {
+	`, []any{tableName, columnName}, &exists); err != nil {
 		return false, err
 	}
 	return exists, nil
@@ -466,7 +476,7 @@ func canUseLegacyAPIKeyGroupShadow(bindings []service.APIKeyGroupBinding) bool {
 	return binding.Quota <= 0 && binding.QuotaUsed <= 0 && len(binding.ModelPatterns) == 0
 }
 
-func setLegacyAPIKeyGroupShadow(ctx context.Context, exec sqlExecutor, keyID int64, bindings []service.APIKeyGroupBinding) error {
+func setLegacyAPIKeyGroupShadow(ctx context.Context, exec apiKeyGroupExecutor, keyID int64, bindings []service.APIKeyGroupBinding) error {
 	var groupID any
 	if len(bindings) > 0 {
 		groupID = bindings[0].GroupID
