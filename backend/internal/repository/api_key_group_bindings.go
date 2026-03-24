@@ -274,6 +274,9 @@ func apiKeyGroupSQLExecutor(ctx context.Context, repo *apiKeyRepository) sqlExec
 		return nil
 	}
 	if tx := dbent.TxFromContext(ctx); tx != nil {
+		if exec, ok := any(tx.Client()).(sqlExecutor); ok {
+			return exec
+		}
 		if exec, ok := any(tx).(sqlExecutor); ok {
 			return exec
 		}
@@ -286,7 +289,7 @@ func (r *apiKeyRepository) loadAPIKeyBindingGroups(ctx context.Context, groupIDs
 	if len(groupIDs) == 0 {
 		return out, nil
 	}
-	groups, err := r.client.Group.Query().
+	groups, err := clientFromContext(ctx, r.client).Group.Query().
 		Where(group.IDIn(groupIDs...), group.DeletedAtIsNil()).
 		All(ctx)
 	if err != nil {

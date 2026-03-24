@@ -425,7 +425,7 @@ func (r *apiKeyRepository) SearchAPIKeys(ctx context.Context, userID int64, keyw
 
 // ClearGroupIDByGroupID 将指定分组的所有 API Key 的 group_id 设为 nil
 func (r *apiKeyRepository) ClearGroupIDByGroupID(ctx context.Context, groupID int64) (int64, error) {
-	exec, commit, rollback, err := beginAPIKeyGroupSQLTx(ctx, r.sql)
+	exec, commit, rollback, err := beginAPIKeyGroupSQLTx(ctx, apiKeyGroupSQLExecutor(ctx, r))
 	if err != nil {
 		return 0, err
 	}
@@ -452,7 +452,7 @@ func (r *apiKeyRepository) ClearGroupIDByGroupID(ctx context.Context, groupID in
 
 // UpdateGroupIDByUserAndGroup 将用户下绑定 oldGroupID 的所有 Key 迁移到 newGroupID
 func (r *apiKeyRepository) UpdateGroupIDByUserAndGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (int64, error) {
-	exec, commit, rollback, err := beginAPIKeyGroupSQLTx(ctx, r.sql)
+	exec, commit, rollback, err := beginAPIKeyGroupSQLTx(ctx, apiKeyGroupSQLExecutor(ctx, r))
 	if err != nil {
 		return 0, err
 	}
