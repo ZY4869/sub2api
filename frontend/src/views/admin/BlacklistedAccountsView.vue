@@ -47,7 +47,12 @@
           </template>
 
           <template #cell-platform="{ row }">
-            <PlatformTypeBadge :platform="row.platform" :type="row.type" :plan-type="row.credentials?.plan_type" />
+            <PlatformTypeBadge
+              :platform="row.platform"
+              :gateway-protocol="row.gateway_protocol"
+              :type="row.type"
+              :plan-type="row.credentials?.plan_type"
+            />
           </template>
 
           <template #cell-groups="{ row }">
@@ -145,6 +150,7 @@ const platformOptions = computed(() => [
   { value: 'kiro', label: 'Kiro' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'copilot', label: 'Copilot' },
+  { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') },
   { value: 'gemini', label: 'Gemini' },
   { value: 'antigravity', label: 'Antigravity' },
   { value: 'sora', label: 'Sora' }

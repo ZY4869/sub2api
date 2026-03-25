@@ -3,8 +3,6 @@ package admin
 import (
 	"context"
 	"errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -83,7 +81,8 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 	if account == nil {
 		return []availableModelItem{}
 	}
-	if account.Platform == service.PlatformSora {
+	runtimePlatform := service.RoutingPlatformForAccount(account)
+	if runtimePlatform == service.PlatformSora {
 		defaults := service.DefaultSoraModels(nil)
 		items := make([]availableModelItem, 0, len(defaults))
 		for _, model := range defaults {
@@ -91,10 +90,10 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 		}
 		return items
 	}
-	if account.Platform == service.PlatformKiro {
+	if runtimePlatform == service.PlatformKiro {
 		if h.modelRegistryService != nil {
 			for _, exposures := range [][]string{{"test"}, {"runtime", "whitelist"}} {
-				entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, exposures...)
+				entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, runtimePlatform, exposures...)
 				if err != nil || len(entries) == 0 {
 					continue
 				}
@@ -123,7 +122,7 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 	}
 	if h.modelRegistryService != nil {
 		for _, exposures := range [][]string{{"test"}, {"runtime", "whitelist"}} {
-			entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, account.Platform, exposures...)
+			entries, err := h.modelRegistryService.GetModelsByPlatform(ctx, runtimePlatform, exposures...)
 			if err != nil || len(entries) == 0 {
 				continue
 			}
@@ -138,16 +137,15 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 			return items
 		}
 	}
-	if account.Platform == service.PlatformCopilot {
-		items := make([]availableModelItem, 0, len(openai.DefaultModels))
-		for _, model := range openai.DefaultModels {
-			items = append(items, availableModelItem{ID: model.ID, Type: model.Type, DisplayName: model.DisplayName, CreatedAt: ""})
-		}
-		return items
-	}
-	items := make([]availableModelItem, 0, len(claude.DefaultModels))
-	for _, model := range claude.DefaultModels {
-		items = append(items, availableModelItem{ID: model.ID, Type: model.Type, DisplayName: model.DisplayName, CreatedAt: model.CreatedAt})
+	defaults := service.BuildAvailableTestModels(ctx, account, nil)
+	items := make([]availableModelItem, 0, len(defaults))
+	for _, model := range defaults {
+		items = append(items, availableModelItem{
+			ID:          model.ID,
+			Type:        model.Type,
+			DisplayName: model.DisplayName,
+			CreatedAt:   model.CreatedAt,
+		})
 	}
 	return items
 }

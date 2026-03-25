@@ -59,6 +59,7 @@ type CreateAccountRequest struct {
 	Name                    string         `json:"name" binding:"required"`
 	Notes                   *string        `json:"notes"`
 	Platform                string         `json:"platform" binding:"required"`
+	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini"`
 	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream"`
 	Credentials             map[string]any `json:"credentials" binding:"required"`
 	Extra                   map[string]any `json:"extra"`
@@ -78,6 +79,7 @@ type ImportAccountModelsRequest struct {
 type UpdateAccountRequest struct {
 	Name                    string         `json:"name"`
 	Notes                   *string        `json:"notes"`
+	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini"`
 	Type                    string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream"`
 	Credentials             map[string]any `json:"credentials"`
 	Extra                   map[string]any `json:"extra"`
@@ -108,9 +110,10 @@ type BulkUpdateAccountsRequest struct {
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
 }
 type CheckMixedChannelRequest struct {
-	Platform  string  `json:"platform" binding:"required"`
-	GroupIDs  []int64 `json:"group_ids"`
-	AccountID *int64  `json:"account_id"`
+	Platform        string  `json:"platform" binding:"required"`
+	GatewayProtocol string  `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini"`
+	GroupIDs        []int64 `json:"group_ids"`
+	AccountID       *int64  `json:"account_id"`
 }
 type AccountWithConcurrency struct {
 	*dto.Account
@@ -136,7 +139,8 @@ func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	if req.AccountID != nil {
 		accountID = *req.AccountID
 	}
-	err := h.adminService.CheckMixedChannelRisk(c.Request.Context(), accountID, req.Platform, req.GroupIDs)
+	platform := service.RoutingPlatformFromValues(req.Platform, withGatewayProtocol(req.Platform, nil, req.GatewayProtocol, ""))
+	err := h.adminService.CheckMixedChannelRisk(c.Request.Context(), accountID, platform, req.GroupIDs)
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {

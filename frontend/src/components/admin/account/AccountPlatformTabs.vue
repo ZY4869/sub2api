@@ -43,6 +43,7 @@ const tabs = computed(() => [
   { value: 'kiro', countKey: 'kiro' as const, label: t('admin.accounts.platforms.kiro') },
   { value: 'openai', countKey: 'openai' as const, label: t('admin.accounts.platforms.openai') },
   { value: 'copilot', countKey: 'copilot' as const, label: t('admin.accounts.platforms.copilot') },
+  { value: 'protocol_gateway', countKey: 'protocol_gateway' as const, label: t('admin.accounts.platforms.protocol_gateway') },
   { value: 'gemini', countKey: 'gemini' as const, label: t('admin.accounts.platforms.gemini') },
   { value: 'antigravity', countKey: 'antigravity' as const, label: t('admin.accounts.platforms.antigravity') },
   { value: 'sora', countKey: 'sora' as const, label: t('admin.accounts.platforms.sora') }

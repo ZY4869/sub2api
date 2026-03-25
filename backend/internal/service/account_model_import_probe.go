@@ -26,7 +26,7 @@ const (
 )
 
 func (s *AccountModelImportService) detectModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
-	switch account.Platform {
+	switch RoutingPlatformForAccount(account) {
 	case PlatformOpenAI:
 		models, err := s.detectOpenAIModels(ctx, account)
 		if err != nil {
@@ -423,7 +423,7 @@ func geminiImportProbeFields(account *Account, statusCode int, probeSource strin
 	}
 	return []zap.Field{
 		zap.Int64("account_id", account.ID),
-		zap.String("platform", account.Platform),
+		zap.String("platform", RoutingPlatformForAccount(account)),
 		zap.String("type", account.Type),
 		zap.String("oauth_type", account.GeminiOAuthType()),
 		zap.String("base_host", extractImportBaseHost(account.GetGeminiBaseURL(geminicli.AIStudioBaseURL))),

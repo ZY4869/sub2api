@@ -54,6 +54,7 @@
     <template #cell-platform_type="{ row }">
       <PlatformTypeBadge
         :platform="row.platform"
+        :gateway-protocol="row.gateway_protocol"
         :type="row.type"
         :plan-type="row.credentials?.plan_type"
       />

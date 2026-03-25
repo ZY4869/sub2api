@@ -73,6 +73,7 @@
         <AccountCreatePlatformTypeEditor
           v-model:platform="form.platform"
           v-model:account-category="accountCategory"
+          v-model:gateway-protocol="gatewayProtocol"
           v-model:add-method="addMethod"
           v-model:sora-account-type="soraAccountType"
           v-model:antigravity-account-type="antigravityAccountType"
@@ -109,12 +110,14 @@
           v-model:allowed-models="allowedModels"
           v-model:gemini-tier-ai-studio="geminiTierAIStudio"
           :platform="form.platform"
+          :gateway-protocol="gatewayProtocol"
+          :effective-platform="effectivePlatform"
           mode="create"
           :model-scope-disabled="isOpenAIModelRestrictionDisabled"
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
-          :show-gemini-tier="form.platform === 'gemini'"
+          :show-gemini-tier="effectivePlatform === 'gemini'"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -166,7 +169,7 @@
       <AccountModelScopeEditor
         v-if="accountCategory === 'oauth-based' && form.platform !== 'antigravity'"
         :disabled="isOpenAIModelRestrictionDisabled"
-        :platform="form.platform"
+        :platform="effectivePlatform"
         :mode="modelRestrictionMode"
         :allowed-models="allowedModels"
         :model-mappings="modelMappings"
@@ -192,7 +195,7 @@
 
       <!-- Intercept Warmup Requests (Anthropic/Antigravity) -->
       <div
-        v-if="form.platform === 'anthropic' || form.platform === 'antigravity'"
+        v-if="effectivePlatform === 'anthropic' || form.platform === 'antigravity'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -223,7 +226,7 @@
       </div>
 
       <AccountQuotaControlEditor
-        v-if="form.platform === 'anthropic' && accountCategory === 'oauth-based'"
+        v-if="effectivePlatform === 'anthropic' && accountCategory === 'oauth-based'"
         v-model:state="quotaControlState"
         :umq-mode-options="umqModeOptions"
       />
@@ -239,15 +242,15 @@
       />
 
       <AccountGatewaySettingsEditor
-        :show-open-ai-passthrough="form.platform === 'openai'"
+        :show-open-ai-passthrough="effectivePlatform === 'openai'"
         :open-ai-passthrough-enabled="openaiPassthroughEnabled"
-        :show-open-ai-ws-mode="form.platform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
+        :show-open-ai-ws-mode="effectivePlatform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
         :open-ai-ws-mode="openaiResponsesWebSocketV2Mode"
         :open-ai-ws-mode-options="openAIWSModeOptions"
         :open-ai-ws-mode-concurrency-hint-key="openAIWSModeConcurrencyHintKey"
-        :show-anthropic-passthrough="form.platform === 'anthropic' && accountCategory === 'apikey'"
+        :show-anthropic-passthrough="effectivePlatform === 'anthropic' && accountCategory === 'apikey'"
         :anthropic-passthrough-enabled="anthropicPassthroughEnabled"
-        :show-codex-cli-only="form.platform === 'openai' && accountCategory === 'oauth-based'"
+        :show-codex-cli-only="effectivePlatform === 'openai' && accountCategory === 'oauth-based'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
@@ -261,7 +264,7 @@
         v-model:group-ids="form.group_ids"
         v-model:mixed-scheduling="mixedScheduling"
         :groups="groups"
-        :platform="form.platform"
+        :platform="effectivePlatform"
         :simple-mode="authStore.isSimpleMode"
         :show-mixed-scheduling="form.platform === 'antigravity'"
       />
@@ -377,7 +380,9 @@ import type {
   AdminGroup,
   AccountPlatform,
   AccountType,
-  Account
+  Account,
+  GatewayProtocol,
+  GroupPlatform
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKeyBasicSettingsEditor.vue'
@@ -423,6 +428,10 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
+import {
+  isProtocolGatewayPlatform,
+  resolveEffectiveAccountPlatform
+} from '@/utils/accountProtocolGateway'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
   OPENAI_WS_MODE_OFF,
@@ -512,6 +521,7 @@ const autoImportModels = ref(false)
 const copilotSubmitting = ref(false)
 const accountCategory = ref<'oauth-based' | 'apikey'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
+const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const apiKeyValue = ref('')
 const editQuotaLimit = ref<number | null>(null)
@@ -557,9 +567,13 @@ const umqModeOptions = quotaControl.umqModeOptions
 const geminiTierGoogleOne = ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>('google_one_free')
 const geminiTierGcp = ref<'gcp_standard' | 'gcp_enterprise'>('gcp_standard')
 const geminiTierAIStudio = ref<'aistudio_free' | 'aistudio_paid'>('aistudio_free')
+const effectivePlatform = computed<GroupPlatform>(() => {
+  const platform = resolveEffectiveAccountPlatform(form.platform, gatewayProtocol.value)
+  return platform === 'protocol_gateway' ? 'openai' : platform
+})
 
 const geminiSelectedTier = computed(() => {
-  if (form.platform !== 'gemini') return ''
+  if (effectivePlatform.value !== 'gemini') return ''
   if (accountCategory.value === 'apikey') return geminiTierAIStudio.value
   switch (geminiOAuthType.value) {
     case 'google_one':
@@ -578,13 +592,13 @@ const openAIWSModeOptions = computed(() => [
 
 const openaiResponsesWebSocketV2Mode = computed({
   get: () => {
-    if (form.platform === 'openai' && accountCategory.value === 'apikey') {
+    if (effectivePlatform.value === 'openai' && accountCategory.value === 'apikey') {
       return openaiAPIKeyResponsesWebSocketV2Mode.value
     }
     return openaiOAuthResponsesWebSocketV2Mode.value
   },
   set: (mode: OpenAIWSMode) => {
-    if (form.platform === 'openai' && accountCategory.value === 'apikey') {
+    if (effectivePlatform.value === 'openai' && accountCategory.value === 'apikey') {
       openaiAPIKeyResponsesWebSocketV2Mode.value = mode
       return
     }
@@ -597,7 +611,7 @@ const openAIWSModeConcurrencyHintKey = computed(() =>
 )
 
 const isOpenAIModelRestrictionDisabled = computed(() =>
-  form.platform === 'openai' && openaiPassthroughEnabled.value
+  effectivePlatform.value === 'openai' && openaiPassthroughEnabled.value
 )
 
 const geminiHelpLinks = {
@@ -606,7 +620,7 @@ const geminiHelpLinks = {
 }
 
 // Computed: current preset mappings based on platform
-const presetMappings = computed(() => getPresetMappingsByPlatform(form.platform))
+const presetMappings = computed(() => getPresetMappingsByPlatform(effectivePlatform.value))
 
 const form = reactive({
   name: '',
@@ -652,9 +666,10 @@ const {
   reset: resetMixedChannelRisk,
   requiresCheck: requiresMixedChannelCheck
 } = useAccountMixedChannelRisk({
-  currentPlatform: () => form.platform,
+  currentPlatform: () => effectivePlatform.value,
   buildCheckPayload: () => ({
     platform: form.platform,
+    gateway_protocol: isProtocolGatewayPlatform(form.platform) ? gatewayProtocol.value : undefined,
     group_ids: form.group_ids
   }),
   buildWarningText: (details) => t('admin.accounts.mixedChannelWarning', { ...details }),
@@ -712,7 +727,7 @@ watch(
     if (newVal) {
       // Modal opened - default to unrestricted model scope unless user selects explicitly.
       allowedModels.value = accountCategory.value === 'apikey'
-        ? [...getModelsByPlatform(form.platform, 'whitelist')]
+        ? [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
         : []
       if (form.platform === 'antigravity') {
         loadAntigravityDefaultMappings()
@@ -727,9 +742,13 @@ watch(
 
 // Sync form.type based on accountCategory, addMethod, and platform-specific type
 watch(
-  [accountCategory, addMethod, antigravityAccountType, soraAccountType],
+  [accountCategory, addMethod, antigravityAccountType, soraAccountType, gatewayProtocol],
   ([category, method, agType, soraType]) => {
     if (form.platform === 'antigravity' && agType === 'upstream') {
+      form.type = 'apikey'
+      return
+    }
+    if (form.platform === 'protocol_gateway') {
       form.type = 'apikey'
       return
     }
@@ -750,11 +769,15 @@ watch(
 watch(
   () => form.platform,
   (newPlatform) => {
-    apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform)
+    apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     allowedModels.value = []
     modelMappings.value = []
     if (newPlatform !== 'anthropic') {
       addMethod.value = 'oauth'
+    }
+    if (newPlatform === 'protocol_gateway') {
+      accountCategory.value = 'apikey'
+      form.type = 'apikey'
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
@@ -764,7 +787,7 @@ watch(
       antigravityModelMappings.value = []
     }
     // Reset Anthropic/Antigravity-specific settings when switching to other platforms
-    if (newPlatform !== 'anthropic' && newPlatform !== 'antigravity') {
+    if (effectivePlatform.value !== 'anthropic' && newPlatform !== 'antigravity') {
       interceptWarmupRequests.value = false
     }
     if (newPlatform === 'sora') {
@@ -777,13 +800,13 @@ watch(
       accountCategory.value = 'oauth-based'
       form.type = 'oauth'
     }
-    if (newPlatform !== 'openai') {
+    if (effectivePlatform.value !== 'openai') {
       openaiPassthroughEnabled.value = false
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
     }
-    if (newPlatform !== 'anthropic') {
+    if (effectivePlatform.value !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
     }
     // Reset OAuth states
@@ -797,9 +820,34 @@ watch(
   }
 )
 
+watch(
+  gatewayProtocol,
+  (newProtocol, oldProtocol) => {
+    if (form.platform !== 'protocol_gateway' || newProtocol === oldProtocol) {
+      return
+    }
+    apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(form.platform, newProtocol)
+    allowedModels.value = []
+    modelMappings.value = []
+    if (oldProtocol === 'openai' && newProtocol !== 'openai') {
+      openaiPassthroughEnabled.value = false
+      openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
+      openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
+      codexCLIOnlyEnabled.value = false
+    }
+    if (oldProtocol === 'anthropic' && newProtocol !== 'anthropic') {
+      anthropicPassthroughEnabled.value = false
+      interceptWarmupRequests.value = false
+    }
+    if (modelRestrictionMode.value === 'whitelist') {
+      allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
+    }
+  }
+)
+
 // Gemini AI Studio OAuth availability (requires operator-configured OAuth client)
 watch(
-  [accountCategory, () => form.platform],
+  [accountCategory, effectivePlatform],
   ([category, platform]) => {
     if (platform === 'openai' && category !== 'oauth-based') {
       codexCLIOnlyEnabled.value = false
@@ -811,7 +859,7 @@ watch(
 )
 
 watch(
-  [() => props.show, () => form.platform, accountCategory],
+  [() => props.show, effectivePlatform, accountCategory],
   async ([show, platform, category]) => {
     if (!show || platform !== 'gemini' || category !== 'oauth-based') {
       geminiAIStudioOAuthEnabled.value = false
@@ -828,10 +876,10 @@ watch(
 
 // Auto-fill related models when switching to whitelist mode or changing platform
 watch(
-  [modelRestrictionMode, () => form.platform],
+  [modelRestrictionMode, effectivePlatform],
   ([newMode]) => {
     if (newMode === 'whitelist') {
-      allowedModels.value = [...getModelsByPlatform(form.platform, 'whitelist')]
+      allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
     }
   }
 )
@@ -950,6 +998,7 @@ const { resetForm } = useCreateAccountReset({
   autoImportModels,
   accountCategory,
   addMethod,
+  gatewayProtocol,
   apiKeyBaseUrl,
   apiKeyValue,
   editQuotaLimit,
@@ -996,7 +1045,7 @@ const { resetForm } = useCreateAccountReset({
 
 const buildAccountExtra = (base?: Record<string, unknown>) => {
   const openaiExtra = buildOpenAIExtra({
-    platform: form.platform,
+    platform: effectivePlatform.value,
     accountCategory: accountCategory.value,
     base,
     openaiOAuthResponsesWebSocketV2Mode: openaiOAuthResponsesWebSocketV2Mode.value,
@@ -1006,7 +1055,7 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
   })
 
   return buildAnthropicExtra({
-    platform: form.platform,
+    platform: effectivePlatform.value,
     accountCategory: accountCategory.value,
     base: openaiExtra,
     anthropicPassthroughEnabled: anthropicPassthroughEnabled.value
@@ -1254,14 +1303,14 @@ const handleSubmit = async () => {
   }
 
   // Determine default base URL based on platform
-  const defaultBaseUrl = resolveAccountApiKeyDefaultBaseUrl(form.platform)
+  const defaultBaseUrl = resolveAccountApiKeyDefaultBaseUrl(form.platform, gatewayProtocol.value)
 
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
   }
-  if (form.platform === 'gemini') {
+  if (effectivePlatform.value === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value
   }
 
@@ -1277,7 +1326,13 @@ const handleSubmit = async () => {
 
   applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
   const extra = buildAccountExtra()
-  await createAccountAndFinish(form.platform, 'apikey', credentials, extra)
+  await createAccountAndFinish(
+    form.platform,
+    'apikey',
+    credentials,
+    extra,
+    isProtocolGatewayPlatform(form.platform) ? gatewayProtocol.value : undefined
+  )
 }
 
 const goBackToBasicInfo = () => {

@@ -135,6 +135,7 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 		}
 	}
 
+	runtimePlatform := EffectiveProtocol(account)
 	customErrorCodesEnabled := account.IsCustomErrorCodesEnabled()
 
 	// 池模式默认不标记本地账号状态；仅当用户显式配置自定义错误码时按本地策略处理。
@@ -176,7 +177,7 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 	case 401:
 		// OAuth 账号在 401 错误时临时不可调度（给 token 刷新窗口）；非 OAuth 账号保持原有 SetError 行为。
 		// Antigravity 除外：其 401 由 applyErrorPolicy 的 temp_unschedulable_rules 自行控制。
-		if account.Type == AccountTypeOAuth && account.Platform != PlatformAntigravity {
+		if account.Type == AccountTypeOAuth && runtimePlatform != PlatformAntigravity {
 			// 1. 失效缓存
 			if s.tokenCacheInvalidator != nil {
 				if err := s.tokenCacheInvalidator.InvalidateToken(ctx, account); err != nil {
@@ -191,7 +192,7 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 			if err := s.accountRepo.Update(ctx, account); err != nil {
 				slog.Warn("oauth_401_force_refresh_update_failed", "account_id", account.ID, "error", err)
 			} else {
-				slog.Info("oauth_401_force_refresh_set", "account_id", account.ID, "platform", account.Platform)
+				slog.Info("oauth_401_force_refresh_set", "account_id", account.ID, "platform", runtimePlatform)
 			}
 			// 3. 临时不可调度，替代 SetError（保持 status=active 让刷新服务能拾取）
 			msg := "Authentication failed (401): invalid or expired credentials"
@@ -229,7 +230,7 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 			"service.ratelimit",
 			"[HandleUpstreamErrorRaw] account_id=%d platform=%s type=%s status=403 request_id=%s cf_ray=%s upstream_msg=%s raw_body=%s",
 			account.ID,
-			account.Platform,
+			runtimePlatform,
 			account.Type,
 			strings.TrimSpace(headers.Get("x-request-id")),
 			strings.TrimSpace(headers.Get("cf-ray")),
@@ -265,7 +266,7 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 // PreCheckUsage proactively checks local quota before dispatching a request.
 // Returns false when the account should be skipped.
 func (s *RateLimitService) PreCheckUsage(ctx context.Context, account *Account, requestedModel string) (bool, error) {
-	if account == nil || account.Platform != PlatformGemini {
+	if account == nil || EffectiveProtocol(account) != PlatformGemini {
 		return true, nil
 	}
 	if s.usageRepo == nil || s.geminiQuotaService == nil {
@@ -404,7 +405,7 @@ func (s *RateLimitService) PreCheckUsageBatch(ctx context.Context, accounts []*A
 	}
 	quotaAccounts := make([]quotaAccount, 0, len(accounts))
 	for _, account := range accounts {
-		if account == nil || account.Platform != PlatformGemini {
+		if account == nil || EffectiveProtocol(account) != PlatformGemini {
 			continue
 		}
 		quota, ok := s.geminiQuotaService.QuotaForAccount(ctx, account)
@@ -645,7 +646,7 @@ func (s *RateLimitService) handleAuthError(ctx context.Context, account *Account
 // Antigravity 平台区分 validation/violation/generic 三种类型，均 SetError 永久禁用；
 // 其他平台保持原有 SetError 行为。
 func (s *RateLimitService) handle403(ctx context.Context, account *Account, upstreamMsg string, responseBody []byte) (shouldDisable bool) {
-	if account.Platform == PlatformAntigravity {
+	if EffectiveProtocol(account) == PlatformAntigravity {
 		return s.handleAntigravity403(ctx, account, upstreamMsg, responseBody)
 	}
 	// 非 Antigravity 平台：保持原有行为
@@ -710,8 +711,9 @@ func (s *RateLimitService) handleCustomErrorCode(ctx context.Context, account *A
 // handle429 处理429限流错误
 // 解析响应头获取重置时间，标记账号为限流状态
 func (s *RateLimitService) handle429(ctx context.Context, account *Account, headers http.Header, responseBody []byte) {
+	runtimePlatform := EffectiveProtocol(account)
 	// 1. OpenAI 平台：优先尝试解析 x-codex-* 响应头（用于 rate_limit_exceeded）
-	if account.Platform == PlatformOpenAI {
+	if runtimePlatform == PlatformOpenAI {
 		s.persistOpenAICodexSnapshot(ctx, account, headers)
 		if resetAt := s.calculateOpenAI429ResetTime(headers); resetAt != nil {
 			if err := s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt); err != nil {
@@ -749,7 +751,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 
 	// 4. 如果响应头没有，尝试从响应体解析（OpenAI usage_limit_reached, Gemini）
 	if resetTimestamp == "" {
-		switch account.Platform {
+		switch runtimePlatform {
 		case PlatformOpenAI:
 			// 尝试解析 OpenAI 的 usage_limit_reached 错误
 			if resetAt := parseOpenAIRateLimitResetTime(responseBody); resetAt != nil {
@@ -758,7 +760,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 					slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 					return
 				}
-				slog.Info("account_rate_limited", "account_id", account.ID, "platform", account.Platform, "reset_at", resetTime, "reset_in", time.Until(resetTime).Truncate(time.Second))
+				slog.Info("account_rate_limited", "account_id", account.ID, "platform", runtimePlatform, "reset_at", resetTime, "reset_in", time.Until(resetTime).Truncate(time.Second))
 				return
 			}
 		case PlatformGemini, PlatformAntigravity:
@@ -769,24 +771,24 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 					slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 					return
 				}
-				slog.Info("account_rate_limited", "account_id", account.ID, "platform", account.Platform, "reset_at", resetTime, "reset_in", time.Until(resetTime).Truncate(time.Second))
+				slog.Info("account_rate_limited", "account_id", account.ID, "platform", runtimePlatform, "reset_at", resetTime, "reset_in", time.Until(resetTime).Truncate(time.Second))
 				return
 			}
 		}
 
 		// Anthropic 平台：没有限流重置时间的 429 可能是非真实限流（如 Extra usage required），
 		// 不标记账号限流状态，直接透传错误给客户端
-		if account.Platform == PlatformAnthropic {
+		if runtimePlatform == PlatformAnthropic {
 			slog.Warn("rate_limit_429_no_reset_time_skipped",
 				"account_id", account.ID,
-				"platform", account.Platform,
+				"platform", runtimePlatform,
 				"reason", "no rate limit reset time in headers, likely not a real rate limit")
 			return
 		}
 
 		// 其他平台：没有重置时间，使用默认5分钟
 		resetAt := time.Now().Add(5 * time.Minute)
-		slog.Warn("rate_limit_no_reset_time", "account_id", account.ID, "platform", account.Platform, "using_default", "5m")
+		slog.Warn("rate_limit_no_reset_time", "account_id", account.ID, "platform", runtimePlatform, "using_default", "5m")
 		if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetAt); err != nil {
 			slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 		}
@@ -1364,7 +1366,7 @@ func (s *RateLimitService) tryTempUnschedulable(ctx context.Context, account *Ac
 	// 401 首次命中可临时不可调度（给 token 刷新窗口）；
 	// 若历史上已因 401 进入过临时不可调度，则本次应升级为 error（返回 false 交由默认错误逻辑处理）。
 	// Antigravity 跳过：其 401 由 applyErrorPolicy 的 temp_unschedulable_rules 自行控制，无需升级逻辑。
-	if statusCode == http.StatusUnauthorized && account.Platform != PlatformAntigravity {
+	if statusCode == http.StatusUnauthorized && EffectiveProtocol(account) != PlatformAntigravity {
 		reason := account.TempUnschedulableReason
 		// 缓存可能没有 reason，从 DB 回退读取
 		if reason == "" {

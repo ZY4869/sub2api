@@ -441,7 +441,7 @@ func (s *SchedulerSnapshotService) rebuildByAccount(ctx context.Context, account
 	}
 
 	var firstErr error
-	if err := s.rebuildBucketsForPlatform(ctx, account.Platform, groupIDs, reason); err != nil {
+	if err := s.rebuildBucketsForPlatform(ctx, RoutingPlatformForAccount(account), groupIDs, reason); err != nil {
 		firstErr = err
 	}
 	if account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
@@ -624,10 +624,7 @@ func (s *SchedulerSnapshotService) loadAccountsFromDB(ctx context.Context, bucke
 	}
 
 	requireUngrouped := !s.isRunModeSimple()
-	platforms := []string{bucket.Platform}
-	if useMixed {
-		platforms = append(platforms, PlatformAntigravity)
-	}
+	platforms := QueryPlatformsForGroupPlatform(bucket.Platform, useMixed)
 	merged := make([]Account, 0)
 	for _, p := range platforms {
 		list, err := s.accountRepo.ListByPlatform(ctx, p)
@@ -742,15 +739,13 @@ func filterPoolMembers(accounts []Account, opts poolFilterOptions) []Account {
 		}
 
 		if opts.useMixed {
-			if acc.Platform != opts.bucketPlatform {
+			if !MatchesGroupPlatform(&acc, opts.bucketPlatform) {
 				if acc.Platform != PlatformAntigravity || !acc.IsMixedSchedulingEnabled() {
 					continue
 				}
 			}
-		} else {
-			if acc.Platform != opts.bucketPlatform {
-				continue
-			}
+		} else if !MatchesGroupPlatform(&acc, opts.bucketPlatform) {
+			continue
 		}
 
 		seen[acc.ID] = struct{}{}

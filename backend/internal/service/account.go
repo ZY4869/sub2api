@@ -28,20 +28,20 @@ type Account struct {
 	Priority    int
 	// RateMultiplier 账号计费倍率（>=0，允许 0 表示该账号计费为 0）。
 	// 使用指针用于兼容旧版本调度缓存（Redis）中缺字段的情况：nil 表示按 1.0 处理。
-	RateMultiplier     *float64
-	LoadFactor         *int // 调度负载因子；nil 表示使用 Concurrency
-	Status             string
-	LifecycleState     string
-	LifecycleReasonCode string
+	RateMultiplier         *float64
+	LoadFactor             *int // 调度负载因子；nil 表示使用 Concurrency
+	Status                 string
+	LifecycleState         string
+	LifecycleReasonCode    string
 	LifecycleReasonMessage string
-	ErrorMessage       string
-	LastUsedAt         *time.Time
-	ExpiresAt          *time.Time
-	AutoPauseOnExpired bool
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	BlacklistedAt      *time.Time
-	BlacklistPurgeAt   *time.Time
+	ErrorMessage           string
+	LastUsedAt             *time.Time
+	ExpiresAt              *time.Time
+	AutoPauseOnExpired     bool
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	BlacklistedAt          *time.Time
+	BlacklistPurgeAt       *time.Time
 
 	Schedulable bool
 
@@ -147,11 +147,11 @@ func (a *Account) IsOAuth() bool {
 }
 
 func (a *Account) IsGemini() bool {
-	return a.Platform == PlatformGemini
+	return EffectiveProtocol(a) == PlatformGemini
 }
 
 func (a *Account) GeminiOAuthType() string {
-	if a.Platform != PlatformGemini || a.Type != AccountTypeOAuth {
+	if EffectiveProtocol(a) != PlatformGemini || a.Type != AccountTypeOAuth {
 		return ""
 	}
 	oauthType := strings.TrimSpace(a.GetCredential("oauth_type"))
@@ -167,7 +167,7 @@ func (a *Account) GeminiTierID() string {
 }
 
 func (a *Account) IsGeminiCodeAssist() bool {
-	if a.Platform != PlatformGemini || a.Type != AccountTypeOAuth {
+	if EffectiveProtocol(a) != PlatformGemini || a.Type != AccountTypeOAuth {
 		return false
 	}
 	oauthType := a.GeminiOAuthType()
@@ -586,6 +586,14 @@ func (a *Account) GetExtraString(key string) string {
 	return ""
 }
 
+func (a *Account) GatewayProtocol() string {
+	return GetAccountGatewayProtocol(a)
+}
+
+func (a *Account) EffectiveProtocol() string {
+	return EffectiveProtocol(a)
+}
+
 func (a *Account) GetClaudeUserID() string {
 	if v := strings.TrimSpace(a.GetExtraString("claude_user_id")); v != "" {
 		return v
@@ -790,11 +798,11 @@ func (a *Account) IsAPIKeyOrBedrock() bool {
 }
 
 func (a *Account) IsOpenAI() bool {
-	return IsOpenAIFamily(a.Platform)
+	return IsOpenAIFamily(EffectiveProtocol(a))
 }
 
 func (a *Account) IsAnthropic() bool {
-	return IsAnthropicFamily(a.Platform)
+	return IsAnthropicFamily(EffectiveProtocol(a))
 }
 
 func (a *Account) IsOpenAIOAuth() bool {

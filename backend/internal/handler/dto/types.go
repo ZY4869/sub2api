@@ -64,8 +64,8 @@ type APIKey struct {
 	Reset1dAt     *time.Time `json:"reset_1d_at,omitempty"`
 	Reset7dAt     *time.Time `json:"reset_7d_at,omitempty"`
 
-	User  *User  `json:"user,omitempty"`
-	Group *Group `json:"group,omitempty"`
+	User   *User            `json:"user,omitempty"`
+	Group  *Group           `json:"group,omitempty"`
 	Groups []APIKeyGroupDTO `json:"api_key_groups,omitempty"`
 }
 
@@ -148,30 +148,31 @@ type AdminGroup struct {
 }
 
 type Account struct {
-	ID                 int64          `json:"id"`
-	Name               string         `json:"name"`
-	Notes              *string        `json:"notes"`
-	Platform           string         `json:"platform"`
-	Type               string         `json:"type"`
-	Credentials        map[string]any `json:"credentials"`
-	Extra              map[string]any `json:"extra"`
-	ProxyID            *int64         `json:"proxy_id"`
-	Concurrency        int            `json:"concurrency"`
-	LoadFactor         *int           `json:"load_factor,omitempty"`
-	Priority           int            `json:"priority"`
-	RateMultiplier     float64        `json:"rate_multiplier"`
-	Status             string         `json:"status"`
-	LifecycleState     string         `json:"lifecycle_state"`
-	LifecycleReasonCode string        `json:"lifecycle_reason_code"`
-	LifecycleReasonMessage string     `json:"lifecycle_reason_message"`
-	ErrorMessage       string         `json:"error_message"`
-	LastUsedAt         *time.Time     `json:"last_used_at"`
-	ExpiresAt          *int64         `json:"expires_at"`
-	AutoPauseOnExpired bool           `json:"auto_pause_on_expired"`
-	CreatedAt          time.Time      `json:"created_at"`
-	UpdatedAt          time.Time      `json:"updated_at"`
-	BlacklistedAt      *time.Time     `json:"blacklisted_at"`
-	BlacklistPurgeAt   *time.Time     `json:"blacklist_purge_at"`
+	ID                     int64          `json:"id"`
+	Name                   string         `json:"name"`
+	Notes                  *string        `json:"notes"`
+	Platform               string         `json:"platform"`
+	GatewayProtocol        string         `json:"gateway_protocol,omitempty"`
+	Type                   string         `json:"type"`
+	Credentials            map[string]any `json:"credentials"`
+	Extra                  map[string]any `json:"extra"`
+	ProxyID                *int64         `json:"proxy_id"`
+	Concurrency            int            `json:"concurrency"`
+	LoadFactor             *int           `json:"load_factor,omitempty"`
+	Priority               int            `json:"priority"`
+	RateMultiplier         float64        `json:"rate_multiplier"`
+	Status                 string         `json:"status"`
+	LifecycleState         string         `json:"lifecycle_state"`
+	LifecycleReasonCode    string         `json:"lifecycle_reason_code"`
+	LifecycleReasonMessage string         `json:"lifecycle_reason_message"`
+	ErrorMessage           string         `json:"error_message"`
+	LastUsedAt             *time.Time     `json:"last_used_at"`
+	ExpiresAt              *int64         `json:"expires_at"`
+	AutoPauseOnExpired     bool           `json:"auto_pause_on_expired"`
+	CreatedAt              time.Time      `json:"created_at"`
+	UpdatedAt              time.Time      `json:"updated_at"`
+	BlacklistedAt          *time.Time     `json:"blacklisted_at"`
+	BlacklistPurgeAt       *time.Time     `json:"blacklist_purge_at"`
 
 	Schedulable bool `json:"schedulable"`
 
@@ -310,11 +311,12 @@ type AdminProxyWithAccountCount struct {
 }
 
 type ProxyAccountSummary struct {
-	ID       int64   `json:"id"`
-	Name     string  `json:"name"`
-	Platform string  `json:"platform"`
-	Type     string  `json:"type"`
-	Notes    *string `json:"notes,omitempty"`
+	ID              int64   `json:"id"`
+	Name            string  `json:"name"`
+	Platform        string  `json:"platform"`
+	GatewayProtocol string  `json:"gateway_protocol,omitempty"`
+	Type            string  `json:"type"`
+	Notes           *string `json:"notes,omitempty"`
 }
 
 type RedeemCode struct {

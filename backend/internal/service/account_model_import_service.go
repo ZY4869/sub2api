@@ -129,10 +129,11 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 	if !account.IsActive() {
 		return nil, infraerrors.BadRequest("ACCOUNT_INACTIVE", "account must be active to import models")
 	}
+	runtimePlatform := RoutingPlatformForAccount(account)
 	log := logger.FromContext(ctx)
 	log.Info("account model import: started",
 		zap.Int64("account_id", account.ID),
-		zap.String("platform", account.Platform),
+		zap.String("platform", runtimePlatform),
 		zap.String("type", account.Type),
 		zap.String("trigger", normalizeImportTrigger(trigger)),
 	)
@@ -140,7 +141,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 	if err != nil {
 		log.Warn("account model import: detect models failed",
 			zap.Int64("account_id", account.ID),
-			zap.String("platform", account.Platform),
+			zap.String("platform", runtimePlatform),
 			zap.String("type", account.Type),
 			zap.Error(err),
 		)
@@ -213,7 +214,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		canonicalRegistryModels[canonicalModel] = ""
 		registryResult, registryErr := s.modelRegistryService.UpsertDiscoveredEntry(ctx, UpsertDiscoveredEntryInput{
 			ModelID:        sourceRegistryID,
-			SourcePlatform: account.Platform,
+			SourcePlatform: runtimePlatform,
 		})
 		if registryErr != nil {
 			detail := summarizeAccountModelImportError(registryErr)
@@ -225,7 +226,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 				Detail:         detail,
 			})
 			result.FailedModels = append(result.FailedModels, AccountModelImportFailure{Model: sourceModel, Error: detail})
-			log.Warn("account model import: upsert registry entry failed", zap.Int64("account_id", account.ID), zap.String("platform", account.Platform), zap.String("model", sourceRegistryID), zap.Error(registryErr))
+			log.Warn("account model import: upsert registry entry failed", zap.Int64("account_id", account.ID), zap.String("platform", runtimePlatform), zap.String("model", sourceRegistryID), zap.Error(registryErr))
 			continue
 		}
 		if registryResult == nil {
@@ -272,7 +273,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 
 	log.Info("account model import: completed",
 		zap.Int64("account_id", account.ID),
-		zap.String("platform", account.Platform),
+		zap.String("platform", runtimePlatform),
 		zap.String("trigger", result.Trigger),
 		zap.String("probe_source", result.ProbeSource),
 		zap.Int("detected_count", len(result.DetectedModels)),

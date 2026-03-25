@@ -246,7 +246,7 @@ func (r *proxyRepository) CountAccountsByProxyID(ctx context.Context, proxyID in
 
 func (r *proxyRepository) ListAccountSummariesByProxyID(ctx context.Context, proxyID int64) ([]service.ProxyAccountSummary, error) {
 	rows, err := r.sql.QueryContext(ctx, `
-		SELECT id, name, platform, type, notes
+		SELECT id, name, platform, COALESCE(extra->>'gateway_protocol', ''), type, notes
 		FROM accounts
 		WHERE proxy_id = $1 AND deleted_at IS NULL
 		ORDER BY id DESC
@@ -259,13 +259,14 @@ func (r *proxyRepository) ListAccountSummariesByProxyID(ctx context.Context, pro
 	out := make([]service.ProxyAccountSummary, 0)
 	for rows.Next() {
 		var (
-			id       int64
-			name     string
-			platform string
-			accType  string
-			notes    sql.NullString
+			id              int64
+			name            string
+			platform        string
+			gatewayProtocol string
+			accType         string
+			notes           sql.NullString
 		)
-		if err := rows.Scan(&id, &name, &platform, &accType, &notes); err != nil {
+		if err := rows.Scan(&id, &name, &platform, &gatewayProtocol, &accType, &notes); err != nil {
 			return nil, err
 		}
 		var notesPtr *string
@@ -273,11 +274,12 @@ func (r *proxyRepository) ListAccountSummariesByProxyID(ctx context.Context, pro
 			notesPtr = &notes.String
 		}
 		out = append(out, service.ProxyAccountSummary{
-			ID:       id,
-			Name:     name,
-			Platform: platform,
-			Type:     accType,
-			Notes:    notesPtr,
+			ID:              id,
+			Name:            name,
+			Platform:        platform,
+			GatewayProtocol: gatewayProtocol,
+			Type:            accType,
+			Notes:           notesPtr,
 		})
 	}
 	if err := rows.Err(); err != nil {

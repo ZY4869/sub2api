@@ -10,7 +10,8 @@ func (h *AccountHandler) prepareAccountModelScope(ctx context.Context, platform 
 	if h.modelRegistryService == nil {
 		return credentials, extra, nil
 	}
-	mapping, selectedModels, hasScope, err := h.modelRegistryService.BuildModelMappingFromScopeV2(ctx, platform, accountType, extra)
+	effectivePlatform := service.EffectiveProtocolFromValues(platform, extra)
+	mapping, selectedModels, hasScope, err := h.modelRegistryService.BuildModelMappingFromScopeV2(ctx, effectivePlatform, accountType, extra)
 	if err != nil || !hasScope {
 		return credentials, extra, err
 	}
@@ -39,7 +40,7 @@ func (h *AccountHandler) enrichAccountExtraWithModelScope(ctx context.Context, a
 	if _, ok := service.ExtractAccountModelScopeV2(extra); ok {
 		return extra
 	}
-	scope := h.modelRegistryService.InferAccountModelScopeV2(ctx, account.Platform, account.Type, account.GetModelMapping())
+	scope := h.modelRegistryService.InferAccountModelScopeV2(ctx, account.EffectiveProtocol(), account.Type, account.GetModelMapping())
 	if scope == nil {
 		return extra
 	}

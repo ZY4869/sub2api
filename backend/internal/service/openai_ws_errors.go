@@ -183,7 +183,7 @@ func isOpenAIWSRateLimitError(codeRaw, errTypeRaw, msgRaw string) bool {
 	return false
 }
 func (s *OpenAIGatewayService) persistOpenAIWSRateLimitSignal(ctx context.Context, account *Account, headers http.Header, responseBody []byte, codeRaw, errTypeRaw, msgRaw string) {
-	if s == nil || s.rateLimitService == nil || account == nil || account.Platform != PlatformOpenAI {
+	if s == nil || s.rateLimitService == nil || account == nil || !account.IsOpenAI() {
 		return
 	}
 	if !isOpenAIWSRateLimitError(codeRaw, errTypeRaw, msgRaw) {

@@ -284,6 +284,7 @@ import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
 import type { Account, ClaudeModel } from '@/types'
+import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -328,6 +329,9 @@ const selectedModelId = ref('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
 let eventSource: EventSource | null = null
+const runtimePlatform = computed(() =>
+  props.account ? resolveEffectiveAccountPlatformFromAccount(props.account) : null
+)
 const isSoraAccount = computed(() => props.account?.platform === 'sora')
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const generatedImages = ref<PreviewImage[]>([])
@@ -336,7 +340,7 @@ const supportsGeminiImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
 
-  return props.account?.platform === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+  return runtimePlatform.value === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
 })
 
 watch(

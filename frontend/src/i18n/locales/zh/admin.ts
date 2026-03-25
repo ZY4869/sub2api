@@ -1349,6 +1349,7 @@
         anthropic: 'Anthropic',
         kiro: 'Kiro',
         copilot: 'GitHub Copilot',
+        protocol_gateway: '协议网关',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1627,6 +1628,26 @@
         apiKeyPassthrough: '自动透传（仅替换认证）',
         apiKeyPassthroughDesc:
           '仅对 Anthropic API Key 生效。开启后，messages/count_tokens 请求将透传上游并仅替换认证，保留计费/并发/审计及必要安全过滤；关闭即可回滚到现有兼容链路。'
+      },
+      protocolGateway: {
+        protocolLabel: '子协议',
+        protocolHint: '协议网关账号会按所选子协议复用现有官方调度、测试和模型导入逻辑。',
+        apiKeyOnly: '统一使用 Base URL + API Key 接入兼容协议上游',
+        migrationSuggestion: '你正在为官方平台填写自定义 Base URL。建议改用“协议网关”，便于后续按子协议做分组、调度和模型归类。',
+        protocols: {
+          openai: {
+            baseUrlHint: '填写兼容 OpenAI 协议的上游地址，留空使用官方 OpenAI API',
+            apiKeyHint: '填写上游发放的 OpenAI 兼容 API Key'
+          },
+          anthropic: {
+            baseUrlHint: '填写兼容 Anthropic 协议的上游地址，留空使用官方 Anthropic API',
+            apiKeyHint: '填写上游发放的 Anthropic 兼容 API Key'
+          },
+          gemini: {
+            baseUrlHint: '填写兼容 Gemini 协议的上游地址，留空使用官方 Gemini API',
+            apiKeyHint: '填写上游发放的 Gemini 兼容 API Key'
+          }
+        }
       },
       modelRestriction: '模型限制（可选）',
       modelWhitelist: '模型白名单',

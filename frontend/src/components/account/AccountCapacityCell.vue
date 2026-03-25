@@ -83,6 +83,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account } from '@/types'
+import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 import QuotaBadge from './QuotaBadge.vue'
 
 const props = defineProps<{
@@ -90,6 +91,7 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const runtimePlatform = computed(() => resolveEffectiveAccountPlatformFromAccount(props.account))
 
 // 当前并发数
 const currentConcurrency = computed(() => props.account.current_concurrency || 0)
@@ -97,7 +99,7 @@ const currentConcurrency = computed(() => props.account.current_concurrency || 0
 // 是否为 Anthropic OAuth/SetupToken 账号
 const isAnthropicOAuthOrSetupToken = computed(() => {
   return (
-    props.account.platform === 'anthropic' &&
+    runtimePlatform.value === 'anthropic' &&
     (props.account.type === 'oauth' || props.account.type === 'setup-token')
   )
 })

@@ -30,7 +30,10 @@ type testModelCandidate struct {
 }
 
 func BuildAvailableTestModels(ctx context.Context, account *Account, registry *ModelRegistryService) []AvailableTestModel {
-	if account == nil || account.Platform == PlatformSora {
+	if account == nil {
+		return []AvailableTestModel{}
+	}
+	if RoutingPlatformForAccount(account) == PlatformSora {
 		return []AvailableTestModel{}
 	}
 
@@ -45,6 +48,7 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 	if registry == nil {
 		return nil, modelregistry.SeedModels()
 	}
+	runtimePlatform := RoutingPlatformForAccount(account)
 
 	details, err := registry.adminDetails(ctx)
 	if err != nil {
@@ -58,7 +62,7 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 			continue
 		}
 		resolutionEntries = append(resolutionEntries, detail.ModelEntry)
-		if !modelregistry.SupportsPlatform(detail.ModelEntry, account.Platform) {
+		if !modelregistry.SupportsPlatform(detail.ModelEntry, runtimePlatform) {
 			continue
 		}
 		if !modelregistry.HasExposure(detail.ModelEntry, "test") {
@@ -250,7 +254,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 		return []AvailableTestModel{}
 	}
 
-	switch account.Platform {
+	switch RoutingPlatformForAccount(account) {
 	case PlatformKiro:
 		items := KiroBuiltinModelCatalog()
 		result := make([]AvailableTestModel, 0, len(items))

@@ -391,7 +391,7 @@ func (s *AccountService) TestCredentials(ctx context.Context, id int64) error {
 	}
 
 	// 根据平台执行不同的测试逻辑
-	switch account.Platform {
+	switch EffectiveProtocol(account) {
 	case PlatformAnthropic:
 		// TODO: 测试Anthropic API凭证
 		return nil
@@ -402,6 +402,6 @@ func (s *AccountService) TestCredentials(ctx context.Context, id int64) error {
 		// TODO: 测试Gemini API凭证
 		return nil
 	default:
-		return fmt.Errorf("unsupported platform: %s", account.Platform)
+		return fmt.Errorf("unsupported platform: %s", EffectiveProtocol(account))
 	}
 }

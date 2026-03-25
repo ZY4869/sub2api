@@ -111,7 +111,7 @@ func (s *GeminiMessagesCompatService) isAccountUsableForRequestWithPrecheck(ctx 
 	return true
 }
 func (s *GeminiMessagesCompatService) isAccountValidForPlatform(account *Account, platform string, useMixedScheduling bool) bool {
-	if account.Platform == platform {
+	if MatchesGroupPlatform(account, platform) {
 		return true
 	}
 	if useMixedScheduling && account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
@@ -211,10 +211,7 @@ func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Co
 		return accounts, err
 	}
 	useMixedScheduling := platform == PlatformGemini && !hasForcePlatform
-	queryPlatforms := []string{platform}
-	if useMixedScheduling {
-		queryPlatforms = []string{platform, PlatformAntigravity}
-	}
+	queryPlatforms := QueryPlatformsForGroupPlatform(platform, useMixedScheduling)
 	if groupID != nil {
 		return s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, queryPlatforms)
 	}

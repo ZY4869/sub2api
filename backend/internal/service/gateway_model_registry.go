@@ -44,6 +44,9 @@ func registryRouteForAccount(account *Account) string {
 	if account == nil {
 		return "default"
 	}
+	if IsProtocolGatewayAccount(account) {
+		return ProtocolGatewayRegistryRoute(account)
+	}
 	switch account.Platform {
 	case PlatformAnthropic:
 		if account.Type == AccountTypeAPIKey {

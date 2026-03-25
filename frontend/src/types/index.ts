@@ -579,7 +579,9 @@ export type AccountPlatform =
   | "copilot"
   | "gemini"
   | "antigravity"
-  | "sora";
+  | "sora"
+  | "protocol_gateway";
+export type GatewayProtocol = "openai" | "anthropic" | "gemini";
 export type AccountType =
   | "oauth"
   | "setup-token"
@@ -634,6 +636,7 @@ export interface ProxyAccountSummary {
   id: number;
   name: string;
   platform: AccountPlatform;
+  gateway_protocol?: GatewayProtocol;
   type: AccountType;
   notes?: string | null;
 }
@@ -718,6 +721,7 @@ export interface Account {
   name: string;
   notes?: string | null;
   platform: AccountPlatform;
+  gateway_protocol?: GatewayProtocol;
   type: AccountType;
   lifecycle_state?: AccountLifecycleState;
   lifecycle_reason_code?: string | null;
@@ -946,6 +950,7 @@ export interface CreateAccountRequest {
   name: string;
   notes?: string | null;
   platform: AccountPlatform;
+  gateway_protocol?: GatewayProtocol;
   type: AccountType;
   lifecycle_state?: AccountLifecycleState;
   lifecycle_reason_code?: string | null;
@@ -1021,6 +1026,7 @@ export interface UnarchiveAccountsResult {
 export interface UpdateAccountRequest {
   name?: string;
   notes?: string | null;
+  gateway_protocol?: GatewayProtocol;
   type?: AccountType;
   lifecycle_state?: AccountLifecycleState;
   lifecycle_reason_code?: string | null;
@@ -1042,6 +1048,7 @@ export interface UpdateAccountRequest {
 
 export interface CheckMixedChannelRequest {
   platform: AccountPlatform;
+  gateway_protocol?: GatewayProtocol;
   group_ids: number[];
   account_id?: number;
 }

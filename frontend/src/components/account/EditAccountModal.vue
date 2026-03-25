@@ -28,17 +28,35 @@
 
       <!-- API Key fields (only for apikey type) -->
       <div v-if="account.type === 'apikey'" class="space-y-4">
+        <div v-if="isProtocolGatewayAccount">
+          <label class="input-label">{{ t('admin.accounts.protocolGateway.protocolLabel') }}</label>
+          <select v-model="gatewayProtocol" class="input">
+            <option
+              v-for="option in gatewayProtocolOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+          <p class="input-hint">{{ t('admin.accounts.protocolGateway.protocolHint') }}</p>
+        </div>
+
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="editBaseUrl"
           v-model:api-key="editApiKey"
           v-model:model-scope-mode="modelRestrictionMode"
           v-model:allowed-models="allowedModels"
+          v-model:gemini-tier-ai-studio="geminiTierAIStudio"
           :platform="account.platform"
+          :gateway-protocol="gatewayProtocol"
+          :effective-platform="effectivePlatform"
           mode="edit"
           :model-scope-disabled="isOpenAIModelRestrictionDisabled"
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
+          :show-gemini-tier="effectivePlatform === 'gemini'"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -60,9 +78,9 @@
       </div>
 
       <AccountModelScopeEditor
-        v-if="account.platform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token')"
+        v-if="effectivePlatform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token')"
         :disabled="isOpenAIModelRestrictionDisabled"
-        :platform="account?.platform || 'anthropic'"
+        :platform="effectivePlatform"
         :mode="modelRestrictionMode"
         :allowed-models="allowedModels"
         :model-mappings="modelMappings"
@@ -108,7 +126,7 @@
 
       <!-- Intercept Warmup Requests (Anthropic/Antigravity) -->
       <div
-        v-if="account?.platform === 'anthropic' || account?.platform === 'antigravity'"
+        v-if="effectivePlatform === 'anthropic' || account?.platform === 'antigravity'"
         class="border-t border-gray-200 pt-4 dark:border-dark-600"
       >
         <div class="flex items-center justify-between">
@@ -149,15 +167,15 @@
       />
 
       <AccountGatewaySettingsEditor
-        :show-open-ai-passthrough="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
+        :show-open-ai-passthrough="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-passthrough-enabled="openaiPassthroughEnabled"
-        :show-open-ai-ws-mode="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
+        :show-open-ai-ws-mode="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-ws-mode="openaiResponsesWebSocketV2Mode"
         :open-ai-ws-mode-options="openAIWSModeOptions"
         :open-ai-ws-mode-concurrency-hint-key="openAIWSModeConcurrencyHintKey"
-        :show-anthropic-passthrough="account?.platform === 'anthropic' && account?.type === 'apikey'"
+        :show-anthropic-passthrough="effectivePlatform === 'anthropic' && account?.type === 'apikey'"
         :anthropic-passthrough-enabled="anthropicPassthroughEnabled"
-        :show-codex-cli-only="account?.platform === 'openai' && account?.type === 'oauth'"
+        :show-codex-cli-only="effectivePlatform === 'openai' && account?.type === 'oauth'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
@@ -197,7 +215,7 @@
       <AccountAutoPauseToggle v-model:enabled="autoPauseOnExpired" />
 
       <AccountQuotaControlEditor
-        v-if="account?.platform === 'anthropic' && (account?.type === 'oauth' || account?.type === 'setup-token')"
+        v-if="effectivePlatform === 'anthropic' && (account?.type === 'oauth' || account?.type === 'setup-token')"
         v-model:state="quotaControlState"
         :umq-mode-options="umqModeOptions"
       />
@@ -213,7 +231,7 @@
         v-model:group-ids="form.group_ids"
         v-model:mixed-scheduling="mixedScheduling"
         :groups="groups"
-        :platform="account?.platform || null"
+        :platform="effectivePlatform"
         :simple-mode="authStore.isSimpleMode"
         :show-mixed-scheduling="account?.platform === 'antigravity'"
         mixed-scheduling-readonly
@@ -276,7 +294,7 @@ import { adminAPI } from '@/api/admin'
 import { useAnthropicQuotaControl } from '@/composables/useAnthropicQuotaControl'
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
-import type { Account, Proxy, AdminGroup } from '@/types'
+import type { Account, Proxy, AdminGroup, GatewayProtocol, GroupPlatform } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKeyBasicSettingsEditor.vue'
@@ -326,6 +344,13 @@ import {
   buildModelMappingObject
 } from '@/composables/useModelWhitelist'
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
+import {
+  PROTOCOL_GATEWAY_PROTOCOLS,
+  isProtocolGatewayPlatform,
+  resolveAccountGatewayProtocol,
+  resolveEffectiveAccountPlatform,
+  resolveGatewayProtocolDescriptor
+} from '@/utils/accountProtocolGateway'
 
 interface Props {
   show: boolean
@@ -350,6 +375,7 @@ const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('an
 
 // State
 const submitting = ref(false)
+const gatewayProtocol = ref<GatewayProtocol>('openai')
 const editBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const editApiKey = ref('')
 const modelMappings = ref<ModelMapping[]>([])
@@ -383,19 +409,33 @@ const editQuotaWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
 const editQuotaWeeklyResetDay = ref<number | null>(null)
 const editQuotaWeeklyResetHour = ref<number | null>(null)
 const editQuotaResetTimezone = ref<string | null>(null)
+const geminiTierAIStudio = ref<'aistudio_free' | 'aistudio_paid'>('aistudio_free')
+const effectivePlatform = computed<GroupPlatform>(() => {
+  const platform = resolveEffectiveAccountPlatform(props.account?.platform || 'anthropic', gatewayProtocol.value)
+  return platform === 'protocol_gateway' ? 'openai' : platform
+})
+const isProtocolGatewayAccount = computed(() =>
+  isProtocolGatewayPlatform(props.account?.platform)
+)
+const gatewayProtocolOptions = computed(() =>
+  PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
+    value: id,
+    label: resolveGatewayProtocolDescriptor(id)?.displayName || id
+  }))
+)
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
   { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
 ])
 const openaiResponsesWebSocketV2Mode = computed({
   get: () => {
-    if (props.account?.type === 'apikey') {
+    if (effectivePlatform.value === 'openai' && props.account?.type === 'apikey') {
       return openaiAPIKeyResponsesWebSocketV2Mode.value
     }
     return openaiOAuthResponsesWebSocketV2Mode.value
   },
   set: (mode: OpenAIWSMode) => {
-    if (props.account?.type === 'apikey') {
+    if (effectivePlatform.value === 'openai' && props.account?.type === 'apikey') {
       openaiAPIKeyResponsesWebSocketV2Mode.value = mode
       return
     }
@@ -406,15 +446,15 @@ const openAIWSModeConcurrencyHintKey = computed(() =>
   resolveOpenAIWSModeConcurrencyHintKey(openaiResponsesWebSocketV2Mode.value)
 )
 const isOpenAIModelRestrictionDisabled = computed(() =>
-  props.account?.platform === 'openai' && openaiPassthroughEnabled.value
+  effectivePlatform.value === 'openai' && openaiPassthroughEnabled.value
 )
 
 // Computed: current preset mappings based on platform
-const presetMappings = computed(() => getPresetMappingsByPlatform(props.account?.platform || 'anthropic'))
+const presetMappings = computed(() => getPresetMappingsByPlatform(effectivePlatform.value))
 
 // Computed: default base URL based on platform
 const defaultBaseUrl = computed(() => {
-  return resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic')
+  return resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic', gatewayProtocol.value)
 })
 
 function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
@@ -499,13 +539,14 @@ const {
   reset: resetMixedChannelRisk,
   requiresCheck: requiresMixedChannelCheck
 } = useAccountMixedChannelRisk({
-  currentPlatform: () => props.account?.platform ?? null,
+  currentPlatform: () => effectivePlatform.value,
   buildCheckPayload: () => {
     if (!props.account) {
       return null
     }
     return {
       platform: props.account.platform,
+      gateway_protocol: isProtocolGatewayPlatform(props.account.platform) ? gatewayProtocol.value : undefined,
       group_ids: form.group_ids,
       account_id: props.account.id
     }
@@ -539,6 +580,11 @@ watch(
   ([show, newAccount]) => {
     if (show && newAccount) {
       resetMixedChannelRisk()
+      gatewayProtocol.value = resolveAccountGatewayProtocol(newAccount) || 'openai'
+      const runtimePlatform = resolveEffectiveAccountPlatform(
+        newAccount.platform,
+        resolveAccountGatewayProtocol(newAccount) || gatewayProtocol.value
+      )
       form.name = newAccount.name
       form.notes = newAccount.notes || ''
       form.proxy_id = newAccount.proxy_id
@@ -567,7 +613,7 @@ watch(
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
       anthropicPassthroughEnabled.value = false
-      if (newAccount.platform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
+      if (runtimePlatform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
         openaiPassthroughEnabled.value = extra?.openai_passthrough === true || extra?.openai_oauth_passthrough === true
         openaiOAuthResponsesWebSocketV2Mode.value = resolveOpenAIWSModeFromExtra(extra, {
           modeKey: 'openai_oauth_responses_websockets_v2_mode',
@@ -585,7 +631,7 @@ watch(
           codexCLIOnlyEnabled.value = extra?.codex_cli_only === true
         }
       }
-      if (newAccount.platform === 'anthropic' && newAccount.type === 'apikey') {
+      if (runtimePlatform === 'anthropic' && newAccount.type === 'apikey') {
         anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
       }
 
@@ -623,6 +669,12 @@ watch(
         editQuotaWeeklyResetHour.value = null
         editQuotaResetTimezone.value = null
       }
+      if (runtimePlatform === 'gemini' && newAccount.type === 'apikey') {
+        const tier = String(credentials?.tier_id || '').trim().toLowerCase()
+        geminiTierAIStudio.value = tier === 'aistudio_paid' ? 'aistudio_paid' : 'aistudio_free'
+      } else {
+        geminiTierAIStudio.value = 'aistudio_free'
+      }
 
       if (newAccount.platform === 'antigravity') {
         const credentials = newAccount.credentials as Record<string, unknown> | undefined
@@ -657,7 +709,7 @@ watch(
       // Initialize API Key fields for apikey type
       if (newAccount.type === 'apikey' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
-        const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform)
+        const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
         editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
 
         // Load model mappings and detect mode
@@ -692,13 +744,13 @@ watch(
         const credentials = newAccount.credentials as Record<string, unknown>
         editBaseUrl.value = (credentials.base_url as string) || ''
       } else {
-        const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform)
+        const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
         editBaseUrl.value = platformDefaultUrl
 
         const loadedFromScope = loadModelScopeFromExtra(extra)
 
         // Backward-compatible: some legacy OpenAI OAuth accounts may store model mappings in credentials.
-        if (!loadedFromScope && newAccount.platform === 'openai' && newAccount.credentials) {
+        if (!loadedFromScope && runtimePlatform === 'openai' && newAccount.credentials) {
           const oauthCredentials = newAccount.credentials as Record<string, unknown>
           const existingMappings = oauthCredentials.model_mapping as Record<string, string> | undefined
           if (existingMappings && typeof existingMappings === 'object') {
@@ -808,6 +860,7 @@ const submitUpdateAccount = async (accountID: number, updatePayload: Record<stri
 const handleSubmit = async () => {
   if (!props.account) return
   const accountID = props.account.id
+  const runtimePlatform = effectivePlatform.value
 
   if (form.status !== 'active' && form.status !== 'inactive' && form.status !== 'error') {
     appStore.showError(t('admin.accounts.pleaseSelectStatus'))
@@ -831,11 +884,16 @@ const handleSubmit = async () => {
     if (props.account.type === 'apikey') {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
       const newBaseUrl = editBaseUrl.value.trim() || defaultBaseUrl.value
-      const shouldApplyModelMapping = !(props.account.platform === 'openai' && openaiPassthroughEnabled.value)
+      const shouldApplyModelMapping = !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value)
 
       const newCredentials: Record<string, unknown> = {
         ...currentCredentials,
         base_url: newBaseUrl
+      }
+      if (runtimePlatform === 'gemini') {
+        newCredentials.tier_id = geminiTierAIStudio.value
+      } else {
+        delete newCredentials.tier_id
       }
 
       if (editApiKey.value.trim()) {
@@ -895,7 +953,7 @@ const handleSubmit = async () => {
       updatePayload.credentials = newCredentials
     }
 
-    if (props.account.platform === 'openai' && props.account.type === 'oauth') {
+    if (runtimePlatform === 'openai' && props.account.type === 'oauth') {
       const currentCredentials = (updatePayload.credentials as Record<string, unknown>) ||
         ((props.account.credentials as Record<string, unknown>) || {})
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
@@ -915,7 +973,7 @@ const handleSubmit = async () => {
       updatePayload.credentials = newCredentials
     }
 
-    if (props.account.platform === 'antigravity') {
+    if (runtimePlatform === 'antigravity') {
       const currentCredentials = (updatePayload.credentials as Record<string, unknown>) ||
         ((props.account.credentials as Record<string, unknown>) || {})
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
@@ -935,7 +993,7 @@ const handleSubmit = async () => {
       updatePayload.credentials = newCredentials
     }
 
-    if (props.account.platform === 'antigravity') {
+    if (runtimePlatform === 'antigravity') {
       const currentExtra = (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       if (mixedScheduling.value) {
@@ -946,12 +1004,12 @@ const handleSubmit = async () => {
       updatePayload.extra = newExtra
     }
 
-    if (props.account.platform === 'anthropic' && (props.account.type === 'oauth' || props.account.type === 'setup-token')) {
+    if (runtimePlatform === 'anthropic' && (props.account.type === 'oauth' || props.account.type === 'setup-token')) {
       const currentExtra = (props.account.extra as Record<string, unknown>) || {}
       updatePayload.extra = quotaControl.buildExtra(currentExtra)
     }
 
-    if (props.account.platform === 'anthropic' && props.account.type === 'apikey') {
+    if (runtimePlatform === 'anthropic' && props.account.type === 'apikey') {
       const currentExtra = (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       if (anthropicPassthroughEnabled.value) {
@@ -962,7 +1020,7 @@ const handleSubmit = async () => {
       updatePayload.extra = newExtra
     }
 
-    if (props.account.platform === 'openai' && (props.account.type === 'oauth' || props.account.type === 'apikey')) {
+    if (runtimePlatform === 'openai' && (props.account.type === 'oauth' || props.account.type === 'apikey')) {
       const currentExtra = (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }
       const hadCodexCLIOnlyEnabled = currentExtra.codex_cli_only === true
@@ -993,6 +1051,40 @@ const handleSubmit = async () => {
       }
 
       updatePayload.extra = newExtra
+    }
+
+    if (isProtocolGatewayAccount.value) {
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
+        (props.account.extra as Record<string, unknown>) || {}
+      updatePayload.gateway_protocol = gatewayProtocol.value
+      updatePayload.extra = {
+        ...currentExtra,
+        gateway_protocol: gatewayProtocol.value
+      }
+    }
+
+    if (props.account.type !== 'bedrock') {
+      const normalizedExtra: Record<string, unknown> = {
+        ...(((updatePayload.extra as Record<string, unknown>) ||
+          (props.account.extra as Record<string, unknown>) ||
+          {}) as Record<string, unknown>)
+      }
+      if (runtimePlatform !== 'openai') {
+        delete normalizedExtra.openai_passthrough
+        delete normalizedExtra.openai_oauth_passthrough
+        delete normalizedExtra.codex_cli_only
+        delete normalizedExtra.openai_oauth_responses_websockets_v2_mode
+        delete normalizedExtra.openai_apikey_responses_websockets_v2_mode
+        delete normalizedExtra.openai_oauth_responses_websockets_v2_enabled
+        delete normalizedExtra.openai_apikey_responses_websockets_v2_enabled
+        delete normalizedExtra.responses_websockets_v2_enabled
+        delete normalizedExtra.openai_ws_enabled
+      }
+      if (runtimePlatform !== 'anthropic') {
+        delete normalizedExtra.anthropic_passthrough
+      }
+      updatePayload.extra =
+        Object.keys(normalizedExtra).length > 0 ? normalizedExtra : undefined
     }
 
     if (props.account.type === 'apikey' || props.account.type === 'bedrock') {
@@ -1053,13 +1145,13 @@ const handleSubmit = async () => {
         (props.account.extra as Record<string, unknown>) ||
         undefined),
       {
-        platform: props.account.platform,
-        enabled: props.account.platform === 'antigravity'
+        platform: runtimePlatform,
+        enabled: runtimePlatform === 'antigravity'
           ? true
-          : !(props.account.platform === 'openai' && openaiPassthroughEnabled.value),
-        mode: props.account.platform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
+          : !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
+        mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
         allowedModels: allowedModels.value,
-        modelMappings: props.account.platform === 'antigravity'
+        modelMappings: runtimePlatform === 'antigravity'
           ? antigravityModelMappings.value
           : modelMappings.value
       }

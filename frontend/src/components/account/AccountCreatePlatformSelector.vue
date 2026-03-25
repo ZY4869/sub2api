@@ -36,6 +36,11 @@ const platformOptions = computed<
     activeClass: 'text-blue-600 dark:text-blue-400'
   },
   {
+    value: 'protocol_gateway',
+    label: t('admin.accounts.platforms.protocol_gateway'),
+    activeClass: 'text-slate-600 dark:text-slate-300'
+  },
+  {
     value: 'gemini',
     label: t('admin.accounts.platforms.gemini'),
     activeClass: 'text-blue-600 dark:text-blue-400'

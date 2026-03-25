@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { AddMethod } from '@/composables/useAccountOAuth'
-import type { AccountPlatform, AccountType } from '@/types'
+import type { AccountPlatform, AccountType, GatewayProtocol } from '@/types'
 import { getModelsByPlatform } from '@/composables/useModelWhitelist'
 import {
   DEFAULT_POOL_MODE_RETRY_COUNT,
@@ -36,6 +36,7 @@ interface UseCreateAccountResetOptions {
   autoImportModels: Ref<boolean>
   accountCategory: Ref<'oauth-based' | 'apikey'>
   addMethod: Ref<AddMethod>
+  gatewayProtocol: Ref<GatewayProtocol>
   apiKeyBaseUrl: Ref<string>
   apiKeyValue: Ref<string>
   editQuotaLimit: Ref<number | null>
@@ -98,6 +99,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.form.expires_at = null
     options.accountCategory.value = 'oauth-based'
     options.addMethod.value = 'oauth'
+    options.gatewayProtocol.value = 'openai'
     options.apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl('anthropic')
     options.apiKeyValue.value = ''
     options.editQuotaLimit.value = null

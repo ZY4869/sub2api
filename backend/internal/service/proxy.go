@@ -54,9 +54,10 @@ type ProxyWithAccountCount struct {
 }
 
 type ProxyAccountSummary struct {
-	ID       int64
-	Name     string
-	Platform string
-	Type     string
-	Notes    *string
+	ID              int64
+	Name            string
+	Platform        string
+	GatewayProtocol string
+	Type            string
+	Notes           *string
 }

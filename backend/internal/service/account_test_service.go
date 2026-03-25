@@ -316,11 +316,11 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.testGeminiAccountConnection(c, account, modelID, prompt)
 	}
 
-	if account.Platform == PlatformAntigravity {
+	if RoutingPlatformForAccount(account) == PlatformAntigravity {
 		return s.routeAntigravityTest(c, account, modelID, prompt)
 	}
 
-	if account.Platform == PlatformSora {
+	if RoutingPlatformForAccount(account) == PlatformSora {
 		return s.testSoraAccountConnection(c, account)
 	}
 
@@ -329,7 +329,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
 func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string) error {
-	if account != nil && account.Platform == PlatformKiro {
+	if account != nil && RoutingPlatformForAccount(account) == PlatformKiro {
 		return s.testKiroAccountConnection(c, account, modelID)
 	}
 	ctx := c.Request.Context()

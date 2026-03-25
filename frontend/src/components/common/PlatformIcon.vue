@@ -17,6 +17,11 @@
       d="M4 2.5A1.5 1.5 0 0 1 5.5 1h3A1.5 1.5 0 0 1 10 2.5v7.086l6.47-7.116A1.5 1.5 0 0 1 17.58 2H21a1 1 0 0 1 .74 1.673l-6.517 7.283 6.616 8.382A1 1 0 0 1 21.054 21h-3.291a1.5 1.5 0 0 1-1.177-.57L10 12.14V19.5A1.5 1.5 0 0 1 8.5 21h-3A1.5 1.5 0 0 1 4 19.5v-17Z"
     />
   </svg>
+  <!-- Protocol Gateway icon -->
+  <svg v-else-if="platform === 'protocol_gateway'" :class="sizeClass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h9m0 0-3-3m3 3-3 3M20 17h-9m0 0 3-3m-3 3 3 3" />
+    <path stroke-linecap="round" stroke-linejoin="round" d="M7 12h10" />
+  </svg>
   <!-- Gemini logo (simple star) -->
   <svg v-else-if="platform === 'gemini'" :class="sizeClass" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 2l1.89 7.2L21 12l-7.11 2.8L12 22l-1.89-7.2L3 12l7.11-2.8L12 2z" />
@@ -48,10 +53,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { GroupPlatform } from '@/types'
+import type { AccountPlatform, GroupPlatform } from '@/types'
 
 interface Props {
-  platform?: GroupPlatform
+  platform?: AccountPlatform | GroupPlatform
   size?: 'xs' | 'sm' | 'md' | 'lg'
 }
 

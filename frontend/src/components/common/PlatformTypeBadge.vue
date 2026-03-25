@@ -29,8 +29,17 @@
         <span>{{ typeLabel }}</span>
       </span>
     </div>
-    <!-- Row 2: Plan type + Privacy mode (only if either exists) -->
-    <div v-if="planLabel || privacyBadge" class="inline-flex items-center overflow-hidden rounded-md">
+    <!-- Row 2: Gateway protocol + Plan type + Privacy mode -->
+    <div
+      v-if="gatewayProtocolBadge || planLabel || privacyBadge"
+      class="inline-flex items-center overflow-hidden rounded-md"
+    >
+      <span
+        v-if="gatewayProtocolBadge"
+        :class="['inline-flex items-center gap-1 px-1.5 py-1', gatewayProtocolBadge.class]"
+      >
+        <span>{{ gatewayProtocolBadge.label }}</span>
+      </span>
       <span v-if="planLabel" :class="['inline-flex items-center gap-1 px-1.5 py-1', typeClass]">
         <span>{{ planLabel }}</span>
       </span>
@@ -51,7 +60,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AccountPlatform, AccountType } from '@/types'
+import type { AccountPlatform, AccountType, GatewayProtocol } from '@/types'
+import {
+  isProtocolGatewayPlatform,
+  resolveGatewayProtocolLabel
+} from '@/utils/accountProtocolGateway'
 import PlatformIcon from './PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -59,6 +72,7 @@ const { t } = useI18n()
 
 interface Props {
   platform: AccountPlatform
+  gatewayProtocol?: GatewayProtocol
   type: AccountType
   planType?: string
   privacyMode?: string
@@ -67,6 +81,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const platformLabel = computed(() => {
+  if (props.platform === 'protocol_gateway') return t('admin.accounts.platforms.protocol_gateway')
   if (props.platform === 'anthropic') return 'Anthropic'
   if (props.platform === 'kiro') return 'Kiro'
   if (props.platform === 'openai') return 'OpenAI'
@@ -74,6 +89,28 @@ const platformLabel = computed(() => {
   if (props.platform === 'antigravity') return 'Antigravity'
   if (props.platform === 'sora') return 'Sora'
   return 'Gemini'
+})
+
+const gatewayProtocolBadge = computed(() => {
+  if (!isProtocolGatewayPlatform(props.platform)) return null
+  const label = resolveGatewayProtocolLabel(props.gatewayProtocol)
+  if (!label) return null
+  if (props.gatewayProtocol === 'anthropic') {
+    return {
+      label,
+      class: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+    }
+  }
+  if (props.gatewayProtocol === 'gemini') {
+    return {
+      label,
+      class: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+    }
+  }
+  return {
+    label,
+    class: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+  }
 })
 
 const typeLabel = computed(() => {
@@ -113,6 +150,9 @@ const platformClass = computed(() => {
   if (props.platform === 'anthropic') {
     return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
   }
+  if (props.platform === 'protocol_gateway') {
+    return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+  }
   if (props.platform === 'kiro') {
     return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
   }
@@ -134,6 +174,9 @@ const platformClass = computed(() => {
 const typeClass = computed(() => {
   if (props.platform === 'anthropic') {
     return 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+  }
+  if (props.platform === 'protocol_gateway') {
+    return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
   }
   if (props.platform === 'kiro') {
     return 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'

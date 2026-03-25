@@ -31,12 +31,14 @@
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account, GeminiCredentials } from '@/types'
+import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 
 const props = defineProps<{
   account: Account
 }>()
 
 const { t } = useI18n()
+const runtimePlatform = computed(() => resolveEffectiveAccountPlatformFromAccount(props.account))
 
 const now = ref(new Date())
 let timer: ReturnType<typeof setInterval> | null = null
@@ -57,7 +59,7 @@ const isGoogleOne = computed(() => {
 
 // 是否应该显示配额信息
 const shouldShowQuota = computed(() => {
-  return props.account.platform === 'gemini'
+  return runtimePlatform.value === 'gemini'
 })
 
 // Tier 标签文本

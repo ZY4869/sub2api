@@ -25,7 +25,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 	}
 	useMixed := (platform == PlatformAnthropic || platform == PlatformGemini) && !hasForcePlatform
 	if useMixed {
-		platforms := []string{platform, PlatformAntigravity}
+		platforms := QueryPlatformsForGroupPlatform(platform, true)
 		var accounts []Account
 		var err error
 		if groupID != nil {
@@ -44,6 +44,9 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 			if acc.Platform == PlatformAntigravity && !acc.IsMixedSchedulingEnabled() {
 				continue
 			}
+			if acc.Platform != PlatformAntigravity && !MatchesGroupPlatform(&acc, platform) {
+				continue
+			}
 			filtered = append(filtered, acc)
 		}
 		slog.Debug("account_scheduling_list_mixed", "group_id", derefGroupID(groupID), "platform", platform, "raw_count", len(accounts), "filtered_count", len(filtered))
@@ -54,22 +57,29 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 	}
 	var accounts []Account
 	var err error
+	queryPlatforms := QueryPlatformsForGroupPlatform(platform, false)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
-		accounts, err = s.accountRepo.ListSchedulableByPlatform(ctx, platform)
+		accounts, err = s.accountRepo.ListSchedulableByPlatforms(ctx, queryPlatforms)
 	} else if groupID != nil {
-		accounts, err = s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, *groupID, platform)
+		accounts, err = s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, queryPlatforms)
 	} else {
-		accounts, err = s.accountRepo.ListSchedulableUngroupedByPlatform(ctx, platform)
+		accounts, err = s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, queryPlatforms)
 	}
 	if err != nil {
 		slog.Debug("account_scheduling_list_failed", "group_id", derefGroupID(groupID), "platform", platform, "error", err)
 		return nil, useMixed, err
 	}
-	slog.Debug("account_scheduling_list_single", "group_id", derefGroupID(groupID), "platform", platform, "count", len(accounts))
+	filtered := make([]Account, 0, len(accounts))
 	for _, acc := range accounts {
+		if MatchesGroupPlatform(&acc, platform) {
+			filtered = append(filtered, acc)
+		}
+	}
+	slog.Debug("account_scheduling_list_single", "group_id", derefGroupID(groupID), "platform", platform, "count", len(filtered))
+	for _, acc := range filtered {
 		slog.Debug("account_scheduling_account_detail", "account_id", acc.ID, "name", acc.Name, "platform", acc.Platform, "type", acc.Type, "status", acc.Status, "tls_fingerprint", acc.IsTLSFingerprintEnabled())
 	}
-	return accounts, useMixed, nil
+	return filtered, useMixed, nil
 }
 func (s *GatewayService) listSoraSchedulableAccounts(ctx context.Context, groupID *int64) ([]Account, bool, error) {
 	const useMixed = false
@@ -114,12 +124,12 @@ func (s *GatewayService) isAccountAllowedForPlatform(account *Account, platform 
 		return false
 	}
 	if useMixed {
-		if account.Platform == platform {
+		if MatchesGroupPlatform(account, platform) {
 			return true
 		}
 		return account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled()
 	}
-	return account.Platform == platform
+	return MatchesGroupPlatform(account, platform)
 }
 func (s *GatewayService) isSoraAccountSchedulable(account *Account) bool {
 	return s.soraUnschedulableReason(account) == ""

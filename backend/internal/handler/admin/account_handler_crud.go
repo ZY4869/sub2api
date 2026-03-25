@@ -19,10 +19,15 @@ func (h *AccountHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "rate_multiplier must be >= 0")
 		return
 	}
+	if err := validateProtocolGatewayType(req.Platform, req.Type, req.GatewayProtocol); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	sanitizeExtraBaseRPM(req.Extra)
+	extra := withGatewayProtocol(req.Platform, req.Extra, req.GatewayProtocol, "")
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		credentials, extra, scopeErr := h.prepareAccountModelScope(ctx, req.Platform, req.Type, req.Credentials, req.Extra)
+		credentials, extra, scopeErr := h.prepareAccountModelScope(ctx, req.Platform, req.Type, req.Credentials, extra)
 		if scopeErr != nil {
 			return nil, scopeErr
 		}
@@ -79,8 +84,13 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	if accountType == "" && accountBeforeUpdate != nil {
 		accountType = accountBeforeUpdate.Type
 	}
+	if err := validateProtocolGatewayType(accountBeforeUpdate.Platform, accountType, req.GatewayProtocol); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
-	credentials, extra, scopeErr := h.prepareAccountModelScope(c.Request.Context(), accountBeforeUpdate.Platform, accountType, req.Credentials, req.Extra)
+	extra := withGatewayProtocol(accountBeforeUpdate.Platform, req.Extra, req.GatewayProtocol, accountBeforeUpdate.GetExtraString("gateway_protocol"))
+	credentials, extra, scopeErr := h.prepareAccountModelScope(c.Request.Context(), accountBeforeUpdate.Platform, accountType, req.Credentials, extra)
 	if scopeErr != nil {
 		response.ErrorFrom(c, scopeErr)
 		return
@@ -96,4 +106,37 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+func validateProtocolGatewayType(platform string, accountType string, gatewayProtocol string) error {
+	if !service.IsProtocolGatewayPlatform(platform) {
+		return nil
+	}
+	if accountType != service.AccountTypeAPIKey {
+		return errors.New("protocol_gateway accounts only support apikey type")
+	}
+	if service.NormalizeGatewayProtocol(gatewayProtocol) == "" {
+		return errors.New("protocol_gateway accounts require gateway_protocol")
+	}
+	return nil
+}
+
+func withGatewayProtocol(platform string, extra map[string]any, gatewayProtocol string, fallback string) map[string]any {
+	if !service.IsProtocolGatewayPlatform(platform) {
+		return cloneStringAnyMap(extra)
+	}
+	nextExtra := cloneStringAnyMap(extra)
+	if nextExtra == nil {
+		nextExtra = map[string]any{}
+	}
+	protocol := service.NormalizeGatewayProtocol(gatewayProtocol)
+	if protocol == "" {
+		protocol = service.NormalizeGatewayProtocol(fallback)
+	}
+	if protocol == "" {
+		delete(nextExtra, "gateway_protocol")
+		return nextExtra
+	}
+	nextExtra["gateway_protocol"] = protocol
+	return nextExtra
 }

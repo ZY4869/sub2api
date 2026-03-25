@@ -221,6 +221,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		Name:                    a.Name,
 		Notes:                   a.Notes,
 		Platform:                a.Platform,
+		GatewayProtocol:         service.GetAccountGatewayProtocol(a),
 		Type:                    a.Type,
 		Credentials:             credentials,
 		Extra:                   a.Extra,
@@ -478,11 +479,12 @@ func ProxyAccountSummaryFromService(a *service.ProxyAccountSummary) *ProxyAccoun
 		return nil
 	}
 	return &ProxyAccountSummary{
-		ID:       a.ID,
-		Name:     a.Name,
-		Platform: a.Platform,
-		Type:     a.Type,
-		Notes:    a.Notes,
+		ID:              a.ID,
+		Name:            a.Name,
+		Platform:        a.Platform,
+		GatewayProtocol: a.GatewayProtocol,
+		Type:            a.Type,
+		Notes:           a.Notes,
 	}
 }
 

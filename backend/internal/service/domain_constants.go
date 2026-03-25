@@ -20,13 +20,14 @@ const (
 
 // Platform constants
 const (
-	PlatformAnthropic   = domain.PlatformAnthropic
-	PlatformOpenAI      = domain.PlatformOpenAI
-	PlatformGemini      = domain.PlatformGemini
-	PlatformAntigravity = domain.PlatformAntigravity
-	PlatformSora        = domain.PlatformSora
-	PlatformKiro        = domain.PlatformKiro
-	PlatformCopilot     = domain.PlatformCopilot
+	PlatformAnthropic       = domain.PlatformAnthropic
+	PlatformOpenAI          = domain.PlatformOpenAI
+	PlatformGemini          = domain.PlatformGemini
+	PlatformProtocolGateway = domain.PlatformProtocolGateway
+	PlatformAntigravity     = domain.PlatformAntigravity
+	PlatformSora            = domain.PlatformSora
+	PlatformKiro            = domain.PlatformKiro
+	PlatformCopilot         = domain.PlatformCopilot
 )
 
 // Account type constants

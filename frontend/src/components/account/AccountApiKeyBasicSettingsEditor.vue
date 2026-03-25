@@ -2,13 +2,14 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelRegistryPreset } from '@/generated/modelRegistry'
-import type { AccountPlatform } from '@/types'
+import type { AccountPlatform, GatewayProtocol } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import {
   resolveAccountApiKeyBaseUrlHintKey,
   resolveAccountApiKeyDefaultBaseUrl,
   resolveAccountApiKeyHintKey,
   resolveAccountApiKeyPlaceholder,
+  shouldSuggestProtocolGateway,
   type AccountApiKeySettingsMode
 } from '@/utils/accountApiKeyBasicSettings'
 import AccountModelScopeEditor from './AccountModelScopeEditor.vue'
@@ -17,6 +18,8 @@ type GeminiAiStudioTier = 'aistudio_free' | 'aistudio_paid'
 
 const props = withDefaults(defineProps<{
   platform: AccountPlatform
+  gatewayProtocol?: GatewayProtocol
+  effectivePlatform?: AccountPlatform
   mode: AccountApiKeySettingsMode
   modelScopeDisabled?: boolean
   modelMappings: ModelMapping[]
@@ -25,7 +28,9 @@ const props = withDefaults(defineProps<{
   showGeminiTier?: boolean
 }>(), {
   modelScopeDisabled: false,
-  showGeminiTier: false
+  showGeminiTier: false,
+  gatewayProtocol: undefined,
+  effectivePlatform: undefined
 })
 
 const emit = defineEmits<{
@@ -42,18 +47,37 @@ const geminiTierAiStudio = defineModel<GeminiAiStudioTier>('geminiTierAiStudio')
 
 const { t } = useI18n()
 
-const baseUrlHint = computed(() => t(resolveAccountApiKeyBaseUrlHintKey(props.platform, props.mode)))
-const baseUrlPlaceholder = computed(() => resolveAccountApiKeyDefaultBaseUrl(props.platform))
-const apiKeyHint = computed(() => t(resolveAccountApiKeyHintKey(props.platform, props.mode)))
+const resolvedEffectivePlatform = computed(() => props.effectivePlatform || props.platform)
+const baseUrlHint = computed(() =>
+  t(resolveAccountApiKeyBaseUrlHintKey(props.platform, props.mode, props.gatewayProtocol))
+)
+const baseUrlPlaceholder = computed(() =>
+  resolveAccountApiKeyDefaultBaseUrl(props.platform, props.gatewayProtocol)
+)
+const apiKeyHint = computed(() =>
+  t(resolveAccountApiKeyHintKey(props.platform, props.mode, props.gatewayProtocol))
+)
 const apiKeyLabel = computed(() =>
   props.mode === 'create' ? t('admin.accounts.apiKeyRequired') : t('admin.accounts.apiKey')
 )
-const apiKeyPlaceholder = computed(() => resolveAccountApiKeyPlaceholder(props.platform))
-const showModelScopeEditor = computed(() => props.platform !== 'antigravity')
+const apiKeyPlaceholder = computed(() =>
+  resolveAccountApiKeyPlaceholder(props.platform, props.gatewayProtocol)
+)
+const showModelScopeEditor = computed(() => resolvedEffectivePlatform.value !== 'antigravity')
+const showProtocolGatewaySuggestion = computed(() =>
+  shouldSuggestProtocolGateway(props.platform, baseUrl.value)
+)
 </script>
 
 <template>
   <div class="space-y-4">
+    <div
+      v-if="showProtocolGatewaySuggestion"
+      class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300"
+    >
+      {{ t('admin.accounts.protocolGateway.migrationSuggestion') }}
+    </div>
+
     <div>
       <label class="input-label">{{ t('admin.accounts.baseUrl') }}</label>
       <input
@@ -89,7 +113,7 @@ const showModelScopeEditor = computed(() => props.platform !== 'antigravity')
     <AccountModelScopeEditor
       v-if="showModelScopeEditor"
       :disabled="modelScopeDisabled"
-      :platform="platform"
+      :platform="resolvedEffectivePlatform"
       :mode="modelScopeMode"
       :allowed-models="allowedModels"
       :model-mappings="modelMappings"

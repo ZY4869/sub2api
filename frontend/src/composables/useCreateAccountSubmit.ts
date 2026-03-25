@@ -2,8 +2,18 @@ import { ref, type ComputedRef, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Account, AccountPlatform, AccountType, CreateAccountRequest } from '@/types'
+import type {
+  Account,
+  AccountPlatform,
+  AccountType,
+  CreateAccountRequest,
+  GatewayProtocol
+} from '@/types'
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
+import {
+  isProtocolGatewayPlatform,
+  resolveEffectiveAccountPlatform
+} from '@/utils/accountProtocolGateway'
 import type { ModelMapping } from '@/utils/accountFormShared'
 
 interface UseCreateAccountSubmitOptions {
@@ -52,18 +62,22 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
   const submitting = ref(false)
 
   const buildPayloadWithModelScope = (payload: CreateAccountRequest): CreateAccountRequest => {
+    const runtimePlatform = resolveEffectiveAccountPlatform(
+      payload.platform,
+      payload.gateway_protocol
+    )
     return {
       ...payload,
       extra: buildAccountModelScopeExtra(payload.extra as Record<string, unknown> | undefined, {
-        platform: payload.platform,
+        platform: runtimePlatform,
         enabled:
-          payload.platform === 'antigravity'
+          runtimePlatform === 'antigravity'
             ? true
-            : !(payload.platform === 'openai' && options.isOpenAIModelRestrictionDisabled.value),
-        mode: payload.platform === 'antigravity' ? 'mapping' : options.modelRestrictionMode.value,
+            : !(runtimePlatform === 'openai' && options.isOpenAIModelRestrictionDisabled.value),
+        mode: runtimePlatform === 'antigravity' ? 'mapping' : options.modelRestrictionMode.value,
         allowedModels: options.allowedModels.value,
         modelMappings:
-          payload.platform === 'antigravity'
+          runtimePlatform === 'antigravity'
             ? options.antigravityModelMappings.value
             : options.modelMappings.value
       })
@@ -150,17 +164,33 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
     platform: AccountPlatform,
     type: AccountType,
     credentials: Record<string, unknown>,
-    extra?: Record<string, unknown>
+    extra?: Record<string, unknown>,
+    gatewayProtocol?: GatewayProtocol
   ): Promise<Account | null> => {
     if (!options.applyTempUnschedConfig(credentials)) {
       return null
     }
 
-    const finalExtra = type === 'apikey' || type === 'bedrock' ? applyQuotaLimits(extra) : extra
+    const extraWithGateway = (() => {
+      const nextExtra = { ...(extra || {}) }
+      if (!isProtocolGatewayPlatform(platform)) {
+        delete nextExtra.gateway_protocol
+      } else if (gatewayProtocol) {
+        nextExtra.gateway_protocol = gatewayProtocol
+      }
+      return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+    })()
+
+    const finalExtra =
+      type === 'apikey' || type === 'bedrock'
+        ? applyQuotaLimits(extraWithGateway)
+        : extraWithGateway
+
     return doCreateAccount({
       name: options.form.name,
       notes: options.form.notes,
       platform,
+      gateway_protocol: isProtocolGatewayPlatform(platform) ? gatewayProtocol : undefined,
       type,
       credentials,
       extra: finalExtra,

@@ -2,7 +2,11 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AddMethod } from '@/composables/useAccountOAuth'
-import type { AccountPlatform } from '@/types'
+import type { AccountPlatform, GatewayProtocol } from '@/types'
+import {
+  PROTOCOL_GATEWAY_PROTOCOLS,
+  resolveGatewayProtocolDescriptor
+} from '@/utils/accountProtocolGateway'
 import AccountCreateAddMethodSelector from './AccountCreateAddMethodSelector.vue'
 import AccountCreateTypeCardGroup from './AccountCreateTypeCardGroup.vue'
 import AccountGeminiAccountTypeEditor from './AccountGeminiAccountTypeEditor.vue'
@@ -48,6 +52,7 @@ const geminiTierGcp = defineModel<GeminiGcpTier>('geminiTierGcp', { required: tr
 const geminiTierAiStudio = defineModel<GeminiAiStudioTier>('geminiTierAiStudio', { required: true })
 const upstreamBaseUrl = defineModel<string>('upstreamBaseUrl', { required: true })
 const upstreamApiKey = defineModel<string>('upstreamApiKey', { required: true })
+const gatewayProtocol = defineModel<GatewayProtocol>('gatewayProtocol', { required: true })
 const { t } = useI18n()
 
 function selectAccountCategory(next: AccountCategory) {
@@ -125,6 +130,24 @@ const openAIOptions = computed<TypeOption[]>(() => [
   }
 ])
 
+const protocolGatewayOptions = computed<TypeOption[]>(() => [
+  {
+    key: 'apikey',
+    title: 'API Key',
+    description: t('admin.accounts.protocolGateway.apiKeyOnly'),
+    icon: 'key',
+    accent: 'green',
+    active: true
+  }
+])
+
+const gatewayProtocolOptions = computed(() =>
+  PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
+    value: id,
+    label: resolveGatewayProtocolDescriptor(id)?.displayName || id
+  }))
+)
+
 const antigravityOptions = computed<TypeOption[]>(() => [
   {
     key: 'oauth',
@@ -190,6 +213,27 @@ function handleAntigravitySelect(key: string) {
       tour="account-form-type"
       @select="handleOpenAISelect"
     />
+
+    <div v-else-if="platform === 'protocol_gateway'" class="space-y-4">
+      <AccountCreateTypeCardGroup
+        :label="t('admin.accounts.accountType')"
+        :options="protocolGatewayOptions"
+      />
+
+      <div>
+        <label class="input-label">{{ t('admin.accounts.protocolGateway.protocolLabel') }}</label>
+        <select v-model="gatewayProtocol" class="input">
+          <option
+            v-for="option in gatewayProtocolOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+        <p class="input-hint">{{ t('admin.accounts.protocolGateway.protocolHint') }}</p>
+      </div>
+    </div>
 
     <AccountGeminiAccountTypeEditor
       v-else-if="platform === 'gemini'"

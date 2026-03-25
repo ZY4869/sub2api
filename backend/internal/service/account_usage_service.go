@@ -298,7 +298,7 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 		return nil, fmt.Errorf("get account failed: %w", err)
 	}
 
-	if account.Platform == PlatformOpenAI && account.Type == AccountTypeOAuth {
+	if EffectiveProtocol(account) == PlatformOpenAI && account.Type == AccountTypeOAuth {
 		usage, err := s.getOpenAIUsage(ctx, account, force)
 		if err == nil {
 			s.tryClearRecoverableAccountError(ctx, account)
@@ -306,7 +306,7 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 		return usage, err
 	}
 
-	if account.Platform == PlatformGemini {
+	if EffectiveProtocol(account) == PlatformGemini {
 		usage, err := s.getGeminiUsage(ctx, account)
 		if err == nil {
 			s.tryClearRecoverableAccountError(ctx, account)

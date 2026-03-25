@@ -4,6 +4,8 @@ import "strings"
 
 func NormalizePlatformFamily(platform string) string {
 	switch strings.TrimSpace(strings.ToLower(platform)) {
+	case PlatformProtocolGateway:
+		return PlatformProtocolGateway
 	case "claude", PlatformAnthropic, PlatformKiro:
 		return PlatformAnthropic
 	case PlatformOpenAI, PlatformCopilot:
@@ -34,6 +36,8 @@ func DisplayPlatformName(platform string) string {
 	switch strings.TrimSpace(strings.ToLower(platform)) {
 	case PlatformAntigravity:
 		return "Antigravity"
+	case PlatformProtocolGateway:
+		return "Protocol Gateway"
 	case PlatformAnthropic, "claude":
 		return "Anthropic"
 	case PlatformKiro:

@@ -14,6 +14,7 @@ import type {
   UsageProgress,
   WindowStats,
 } from '@/types'
+import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { resolveCodexUsageWindow } from '@/utils/codexUsage'
 import { formatLocalAbsoluteTime, formatLocalTimestamp, parseEffectiveResetAt } from '@/utils/usageResetTime'
@@ -83,13 +84,17 @@ function getUsageLoadErrorMessage(): string {
   return typeof translated === 'string' && translated.trim() !== '' ? translated : 'Error'
 }
 
+function getRuntimePlatform(account: Account): string {
+  return resolveEffectiveAccountPlatformFromAccount(account)
+}
+
 function shouldFallbackToActiveAnthropicUsage(
   account: Account,
   source: LoadUsageOptions['source'] | undefined,
   usageInfo: AccountUsageInfo,
 ): boolean {
   return (
-    (account.platform === 'anthropic' || account.platform === 'kiro') &&
+    (getRuntimePlatform(account) === 'anthropic' || getRuntimePlatform(account) === 'kiro') &&
     account.type === 'oauth' &&
     source === 'passive' &&
     !usageInfo.seven_day
@@ -97,16 +102,17 @@ function shouldFallbackToActiveAnthropicUsage(
 }
 
 export function canAccountFetchUsage(account: Account): boolean {
-  if (account.platform === 'anthropic' || account.platform === 'kiro') {
+  const runtimePlatform = getRuntimePlatform(account)
+  if (runtimePlatform === 'anthropic' || runtimePlatform === 'kiro') {
     return account.type === 'oauth' || account.type === 'setup-token'
   }
-  if (account.platform === 'gemini') {
+  if (runtimePlatform === 'gemini') {
     return true
   }
-  if (account.platform === 'antigravity') {
+  if (runtimePlatform === 'antigravity') {
     return account.type === 'oauth'
   }
-  if (account.platform === 'openai' || account.platform === 'copilot') {
+  if (runtimePlatform === 'openai' || runtimePlatform === 'copilot') {
     return account.type === 'oauth'
   }
   return false
@@ -127,7 +133,7 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
 
   const source =
     options.source ??
-    ((account.platform === 'anthropic' || account.platform === 'kiro') &&
+    ((getRuntimePlatform(account) === 'anthropic' || getRuntimePlatform(account) === 'kiro') &&
     (account.type === 'oauth' || account.type === 'setup-token')
       ? 'passive'
       : undefined)
@@ -154,7 +160,7 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
       entry.usageInfo = resolvedUsageInfo
       entry.preferOpenAIFetchedUsage = Boolean(
         options.force &&
-          (account.platform === 'openai' || account.platform === 'copilot') &&
+          (getRuntimePlatform(account) === 'openai' || getRuntimePlatform(account) === 'copilot') &&
           account.type === 'oauth',
       )
     })
@@ -255,7 +261,7 @@ export function invalidateAccountUsagePresentationCache(accountIDs: number[]): v
 }
 
 export function resolveActualUsageRefreshLoadOptions(account: Account): LoadUsageOptions {
-  if ((account.platform === 'anthropic' || account.platform === 'kiro') && account.type === 'oauth') {
+  if ((getRuntimePlatform(account) === 'anthropic' || getRuntimePlatform(account) === 'kiro') && account.type === 'oauth') {
     return { source: 'active' }
   }
 
@@ -313,10 +319,11 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   const lastExpiredOpenAIUsageRefresh = ref<{ key: string; requestedAt: number } | null>(null)
 
   const loadingRows = computed(() => {
-    if (account.value.platform === 'anthropic') {
+    const runtimePlatform = getRuntimePlatform(account.value)
+    if (runtimePlatform === 'anthropic') {
       return account.value.type === 'oauth' ? 3 : 1
     }
-    if (account.value.platform === 'openai') return 2
+    if (runtimePlatform === 'openai') return 2
     return 1
   })
 
@@ -355,7 +362,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   const hasOpenAIUsageFallback = computed(() => openAIFetchedRows.value.length > 0)
 
   const isActiveOpenAIRateLimited = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return false
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return false
     if (!account.value.rate_limit_reset_at) return false
 
     const resetAt = Date.parse(account.value.rate_limit_reset_at)
@@ -363,7 +370,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const isOpenAICodexSnapshotStale = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return false
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return false
 
     const updatedAtRaw = account.value.extra?.codex_usage_updated_at
     if (!updatedAtRaw) return true
@@ -375,7 +382,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const openAICodexEarliestResetAt = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return null
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return null
 
     let earliestResetAt: string | null = null
     let earliestResetMs = Number.POSITIVE_INFINITY
@@ -415,7 +422,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const openAIResolvedRows = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return []
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return []
 
     if (shouldUseFetchedOpenAIUsage.value) {
       return mergeOpenAIUsageRows(openAIFetchedRows.value, codexRows.value)
@@ -425,12 +432,12 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const shouldPreferFetchedOpenAIMeta = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return false
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return false
     return shouldUseFetchedOpenAIUsage.value || (!hasCompleteCodexUsage.value && hasOpenAIUsageFallback.value)
   })
 
   const shouldAutoLoadUsageOnMount = computed(() => {
-    if (account.value.platform === 'openai' && account.value.type === 'oauth') {
+    if (getRuntimePlatform(account.value) === 'openai' && account.value.type === 'oauth') {
       return isActiveOpenAIRateLimited.value || !hasCompleteCodexUsage.value || isOpenAICodexSnapshotStale.value
     }
     return shouldFetchUsage.value
@@ -602,25 +609,25 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const geminiTier = computed(() => {
-    if (account.value.platform !== 'gemini') return null
+    if (getRuntimePlatform(account.value) !== 'gemini') return null
     const credentials = account.value.credentials as GeminiCredentials | undefined
     return credentials?.tier_id || null
   })
 
   const geminiOAuthType = computed(() => {
-    if (account.value.platform !== 'gemini') return null
+    if (getRuntimePlatform(account.value) !== 'gemini') return null
     const credentials = account.value.credentials as GeminiCredentials | undefined
     return (credentials?.oauth_type || '').trim() || null
   })
 
   const isGeminiCodeAssist = computed(() => {
-    if (account.value.platform !== 'gemini') return false
+    if (getRuntimePlatform(account.value) !== 'gemini') return false
     const credentials = account.value.credentials as GeminiCredentials | undefined
     return credentials?.oauth_type === 'code_assist' || (!credentials?.oauth_type && !!credentials?.project_id)
   })
 
   const geminiChannelShort = computed((): 'ai studio' | 'gcp' | 'google one' | 'client' | null => {
-    if (account.value.platform !== 'gemini') return null
+    if (getRuntimePlatform(account.value) !== 'gemini') return null
     if (account.value.type === 'apikey') return 'ai studio'
     if (geminiOAuthType.value === 'google_one') return 'google one'
     if (isGeminiCodeAssist.value) return 'gcp'
@@ -629,7 +636,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const geminiUserLevel = computed((): string | null => {
-    if (account.value.platform !== 'gemini') return null
+    if (getRuntimePlatform(account.value) !== 'gemini') return null
 
     const tier = (geminiTier.value || '').toString().trim()
     const tierLower = tier.toLowerCase()
@@ -667,7 +674,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const geminiAuthTypeLabel = computed(() => {
-    if (account.value.platform !== 'gemini' || !geminiChannelShort.value) return null
+    if (getRuntimePlatform(account.value) !== 'gemini' || !geminiChannelShort.value) return null
     return geminiUserLevel.value ? `${geminiChannelShort.value} ${geminiUserLevel.value}` : geminiChannelShort.value
   })
 
@@ -734,7 +741,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const geminiUsesSharedDaily = computed(() => {
-    if (account.value.platform !== 'gemini') return false
+    if (getRuntimePlatform(account.value) !== 'gemini') return false
     return (
       !!usageInfo.value?.gemini_shared_daily ||
       !!usageInfo.value?.gemini_shared_minute ||
@@ -744,7 +751,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const geminiRows = computed(() => {
-    if (account.value.platform !== 'gemini' || !usageInfo.value) return []
+    if (getRuntimePlatform(account.value) !== 'gemini' || !usageInfo.value) return []
 
     if (geminiUsesSharedDaily.value) {
       return buildRows(buildProgressRow('gemini-shared-daily', '1d', usageInfo.value.gemini_shared_daily, 'indigo'))
@@ -806,12 +813,12 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   )
 
   const openAIRefreshRows = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return []
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return []
     return openAIResolvedRows.value
   })
 
   const openAIEarliestResetAt = computed(() => {
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return null
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return null
 
     let earliestResetAt: string | null = null
     let earliestResetMs = Number.POSITIVE_INFINITY
@@ -855,7 +862,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
 
   watch(openAIUsageRefreshKey, (nextKey, prevKey) => {
     if (!prevKey || nextKey === prevKey) return
-    if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return
     if (!isActiveOpenAIRateLimited.value && hasCompleteCodexUsage.value && !isOpenAICodexSnapshotStale.value) return
 
     loadUsage().catch((error) => {
@@ -866,7 +873,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   watch(
     () => [account.value.id, openAIEarliestResetAt.value, nowMs.value] as const,
     ([accountID, earliestResetAt, currentNow]) => {
-      if (account.value.platform !== 'openai' || account.value.type !== 'oauth') return
+      if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return
       if (!earliestResetAt) return
 
       const resetAtMs = Date.parse(earliestResetAt)
@@ -900,7 +907,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     let state: AccountUsagePresentation['state'] = 'empty'
     let windowRows: AccountUsagePresentationRow[] = []
 
-    if (account.value.platform === 'openai' && account.value.type === 'oauth') {
+    if (getRuntimePlatform(account.value) === 'openai' && account.value.type === 'oauth') {
       meta.snapshotUpdatedAtText = shouldPreferFetchedOpenAIMeta.value
         ? fetchedSnapshotUpdatedAtText.value || openAISnapshotUpdatedAtText.value || undefined
         : openAISnapshotUpdatedAtText.value || fetchedSnapshotUpdatedAtText.value || undefined
@@ -922,7 +929,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
         state = 'bars'
         windowRows = openAIFetchedRows.value
       }
-    } else if (account.value.platform === 'anthropic' && (account.value.type === 'oauth' || account.value.type === 'setup-token')) {
+    } else if (getRuntimePlatform(account.value) === 'anthropic' && (account.value.type === 'oauth' || account.value.type === 'setup-token')) {
       if (currentState.loading) {
         state = 'loading'
       } else if (currentState.error) {
@@ -937,7 +944,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
           meta.sampledBadgeTooltip = t('admin.accounts.usageWindow.passiveSampled')
         }
       }
-    } else if (account.value.platform === 'antigravity' && account.value.type === 'oauth') {
+    } else if (getRuntimePlatform(account.value) === 'antigravity' && account.value.type === 'oauth') {
       meta.antigravityTierLabel = antigravityTierLabel.value
       meta.antigravityTierClass = antigravityTierClass.value
       meta.hasIneligibleTiers = hasIneligibleTiers.value
@@ -950,7 +957,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
         state = 'bars'
         windowRows = antigravityRows.value
       }
-    } else if (account.value.platform === 'gemini') {
+    } else if (getRuntimePlatform(account.value) === 'gemini') {
       meta.geminiAuthTypeLabel = geminiAuthTypeLabel.value
       meta.geminiTierClass = geminiTierClass.value
       meta.geminiQuotaPolicyChannel = geminiQuotaPolicyChannel.value

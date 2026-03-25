@@ -21,7 +21,7 @@ func (s *adminServiceImpl) checkMixedChannelRisk(ctx context.Context, currentAcc
 			if currentAccountID > 0 && account.ID == currentAccountID {
 				continue
 			}
-			otherPlatform := getAccountPlatform(account.Platform)
+			otherPlatform := DisplayAccountProtocolName(&account)
 			if otherPlatform == "" {
 				continue
 			}

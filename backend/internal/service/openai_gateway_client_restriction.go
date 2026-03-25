@@ -171,7 +171,7 @@ func (s *OpenAIGatewayService) writeOpenAIWSFallbackErrorResponse(c *gin.Context
 	}
 	setOpsUpstreamError(c, statusCode, upstreamMessage, "")
 	if account != nil {
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: account.Platform, AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: statusCode, Kind: "ws_error", Message: upstreamMessage})
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: statusCode, Kind: "ws_error", Message: upstreamMessage})
 	}
 	c.JSON(statusCode, gin.H{"error": gin.H{"type": errType, "message": clientMessage}})
 	return true

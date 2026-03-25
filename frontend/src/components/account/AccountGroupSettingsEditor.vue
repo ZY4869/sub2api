@@ -2,11 +2,11 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupSelector from '@/components/common/GroupSelector.vue'
-import type { AdminGroup, AccountPlatform } from '@/types'
+import type { AdminGroup, GroupPlatform } from '@/types'
 
 const props = withDefaults(defineProps<{
   groups: AdminGroup[]
-  platform: AccountPlatform | null
+  platform: GroupPlatform | null
   simpleMode: boolean
   showMixedScheduling?: boolean
   mixedSchedulingReadonly?: boolean

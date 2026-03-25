@@ -46,10 +46,14 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 	return accounts, nil
 }
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
+	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
+		return nil, err
+	}
+	bindingPlatform := RoutingPlatformFromValues(input.Platform, input.Extra)
 	groupIDs := input.GroupIDs
 	if len(groupIDs) == 0 && !input.SkipDefaultGroupBind {
-		defaultGroupName := input.Platform + "-default"
-		groups, err := s.groupRepo.ListActiveByPlatform(ctx, input.Platform)
+		defaultGroupName := bindingPlatform + "-default"
+		groups, err := s.groupRepo.ListActiveByPlatform(ctx, bindingPlatform)
 		if err == nil {
 			for _, g := range groups {
 				if g.Name == defaultGroupName {
@@ -59,8 +63,16 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 			}
 		}
 	}
-	if len(groupIDs) > 0 && shouldEnforceMixedChannelCheck(input.Platform, input.SkipMixedChannelCheck) {
-		if err := s.checkMixedChannelRisk(ctx, 0, input.Platform, groupIDs); err != nil {
+	if len(groupIDs) > 0 {
+		if err := s.validateGroupIDsExist(ctx, groupIDs); err != nil {
+			return nil, err
+		}
+		if err := s.validateAccountGroupBindings(ctx, groupIDs, input.Platform, input.Extra); err != nil {
+			return nil, err
+		}
+	}
+	if len(groupIDs) > 0 && shouldEnforceMixedChannelCheck(bindingPlatform, input.SkipMixedChannelCheck) {
+		if err := s.checkMixedChannelRisk(ctx, 0, bindingPlatform, groupIDs); err != nil {
 			return nil, err
 		}
 	}
@@ -184,6 +196,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		}
 		account.Extra = input.Extra
 	}
+	if err := validateProtocolGatewayAccountInput(account.Platform, account.Type, account.Extra); err != nil {
+		return nil, err
+	}
 	if input.ProxyID != nil {
 		if *input.ProxyID == 0 {
 			account.ProxyID = nil
@@ -241,8 +256,12 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		if err := s.validateGroupIDsExist(ctx, *input.GroupIDs); err != nil {
 			return nil, err
 		}
-		if shouldEnforceMixedChannelCheck(account.Platform, input.SkipMixedChannelCheck) {
-			if err := s.checkMixedChannelRisk(ctx, account.ID, account.Platform, *input.GroupIDs); err != nil {
+		if err := s.validateAccountGroupBindings(ctx, *input.GroupIDs, account.Platform, account.Extra); err != nil {
+			return nil, err
+		}
+		bindingPlatform := RoutingPlatformFromValues(account.Platform, account.Extra)
+		if shouldEnforceMixedChannelCheck(bindingPlatform, input.SkipMixedChannelCheck) {
+			if err := s.checkMixedChannelRisk(ctx, account.ID, bindingPlatform, *input.GroupIDs); err != nil {
 				return nil, err
 			}
 		}
@@ -285,7 +304,17 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		for _, account := range accounts {
 			if account != nil {
 				accountsByID[account.ID] = account
-				platformByID[account.ID] = account.Platform
+				platformByID[account.ID] = RoutingPlatformForAccount(account)
+			}
+		}
+		if input.GroupIDs != nil {
+			for _, account := range accountsByID {
+				if account == nil {
+					continue
+				}
+				if err := s.validateAccountGroupBindings(ctx, *input.GroupIDs, account.Platform, account.Extra); err != nil {
+					return nil, err
+				}
 			}
 		}
 		if needMixedChannelCheck && input.SkipMixedChannelCheck {
@@ -392,6 +421,19 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		result.Results = append(result.Results, entry)
 	}
 	return result, nil
+}
+
+func validateProtocolGatewayAccountInput(platform string, accountType string, extra map[string]any) error {
+	if !IsProtocolGatewayPlatform(platform) {
+		return nil
+	}
+	if accountType != AccountTypeAPIKey {
+		return errors.New("protocol_gateway accounts only support apikey type")
+	}
+	if ResolveAccountGatewayProtocol(platform, extra) == "" {
+		return errors.New("protocol_gateway accounts require gateway_protocol")
+	}
+	return nil
 }
 func (s *adminServiceImpl) DeleteAccount(ctx context.Context, id int64) error {
 	if err := s.accountRepo.Delete(ctx, id); err != nil {

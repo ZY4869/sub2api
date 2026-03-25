@@ -1191,6 +1191,7 @@ export default {
         kiro: 'Kiro',
         openai: 'OpenAI',
         copilot: 'GitHub Copilot',
+        protocol_gateway: 'Protocol Gateway',
         gemini: 'Gemini',
         antigravity: 'Antigravity',
         sora: 'Sora'
@@ -1481,6 +1482,26 @@ export default {
         apiKeyPassthrough: 'Auto passthrough (auth only)',
         apiKeyPassthroughDesc:
           'Only applies to Anthropic API Key accounts. When enabled, messages/count_tokens are forwarded in passthrough mode with auth replacement only, while billing/concurrency/audit and safety filtering are preserved. Disable to roll back immediately.'
+      },
+      protocolGateway: {
+        protocolLabel: 'Subprotocol',
+        protocolHint: 'Protocol Gateway accounts reuse the existing official scheduling, test, and model-import flows based on the selected subprotocol.',
+        apiKeyOnly: 'Use Base URL + API Key to connect compatible upstream gateways',
+        migrationSuggestion: 'You are using a custom Base URL on an official platform account. Consider moving it to Protocol Gateway so grouping, routing, and model categorization stay aligned with the actual subprotocol.',
+        protocols: {
+          openai: {
+            baseUrlHint: 'Enter an OpenAI-compatible upstream URL, or leave default for official OpenAI API',
+            apiKeyHint: 'Enter the OpenAI-compatible API key issued by your upstream'
+          },
+          anthropic: {
+            baseUrlHint: 'Enter an Anthropic-compatible upstream URL, or leave default for official Anthropic API',
+            apiKeyHint: 'Enter the Anthropic-compatible API key issued by your upstream'
+          },
+          gemini: {
+            baseUrlHint: 'Enter a Gemini-compatible upstream URL, or leave default for official Gemini API',
+            apiKeyHint: 'Enter the Gemini-compatible API key issued by your upstream'
+          }
+        }
       },
       modelRestriction: 'Model Restriction (Optional)',
       modelWhitelist: 'Model Whitelist',

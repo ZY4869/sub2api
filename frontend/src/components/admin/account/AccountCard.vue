@@ -25,6 +25,7 @@
         </div>
         <PlatformTypeBadge
           :platform="account.platform"
+          :gateway-protocol="account.gateway_protocol"
           :type="account.type"
           :plan-type="String(account.credentials?.plan_type || '') || undefined"
         />
