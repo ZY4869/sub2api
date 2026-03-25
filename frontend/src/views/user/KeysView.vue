@@ -524,11 +524,15 @@
     <BaseDialog
       :show="showCreateModal || showEditModal"
       :title="showEditModal ? t('keys.editKey') : t('keys.createKey')"
-      width="normal"
+      width="wide"
       @close="closeModals"
     >
-      <form id="key-form" @submit.prevent="handleSubmit" class="space-y-5">
-        <div>
+      <form
+        id="key-form"
+        @submit.prevent="handleSubmit"
+        class="grid items-start gap-4 lg:grid-cols-2"
+      >
+        <div class="lg:col-span-2">
           <label class="input-label">{{ t("keys.nameLabel") }}</label>
           <input
             v-model="formData.name"
@@ -540,7 +544,7 @@
           />
         </div>
 
-        <div>
+        <div class="lg:col-span-2">
           <label class="input-label">
             {{
               isAdminMode
@@ -604,7 +608,7 @@
         </div>
 
         <!-- IP Restriction Section -->
-        <div class="space-y-3">
+        <div class="space-y-3 lg:col-span-2">
           <div class="flex items-center justify-between">
             <label class="input-label mb-0">{{
               t("keys.ipRestriction")
@@ -632,7 +636,10 @@
             </button>
           </div>
 
-          <div v-if="formData.enable_ip_restriction" class="space-y-4 pt-2">
+          <div
+            v-if="formData.enable_ip_restriction"
+            class="grid gap-3 pt-2 md:grid-cols-2"
+          >
             <div>
               <label class="input-label">{{ t("keys.ipWhitelist") }}</label>
               <textarea
@@ -658,7 +665,7 @@
         </div>
 
         <!-- Quota Limit Section -->
-        <div class="space-y-3">
+        <div class="space-y-3 lg:col-span-2">
           <label class="input-label">{{ t("keys.quotaLimit") }}</label>
           <!-- Switch commented out - always show input, 0 = unlimited
           <div class="flex items-center justify-between">
@@ -729,7 +736,7 @@
         </div>
 
         <!-- Rate Limit Section -->
-        <div class="space-y-3">
+        <div class="space-y-3 lg:col-span-2">
           <div class="flex items-center justify-between">
             <label class="input-label mb-0">{{
               t("keys.rateLimitSection")
@@ -755,223 +762,225 @@
             </button>
           </div>
 
-          <div v-if="formData.enable_rate_limit" class="space-y-4 pt-2">
+          <div v-if="formData.enable_rate_limit" class="space-y-3 pt-2">
             <p class="input-hint -mt-2">{{ t("keys.rateLimitHint") }}</p>
-            <!-- 5-Hour Limit -->
-            <div>
-              <label class="input-label">{{ t("keys.rateLimit5h") }}</label>
-              <div class="relative">
-                <span
-                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-                  >$</span
-                >
-                <input
-                  v-model.number="formData.rate_limit_5h"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pl-7"
-                  :placeholder="'0'"
-                />
-              </div>
-              <!-- Usage info (edit mode only) -->
-              <div
-                v-if="
-                  showEditModal && selectedKey && selectedKey.rate_limit_5h > 0
-                "
-                class="mt-2"
-              >
-                <div class="flex items-center gap-2">
-                  <div
-                    class="flex-1 rounded-lg bg-gray-100 px-3 py-2 dark:bg-dark-700 text-sm"
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <!-- 5-Hour Limit -->
+              <div>
+                <label class="input-label">{{ t("keys.rateLimit5h") }}</label>
+                <div class="relative">
+                  <span
+                    class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    >$</span
                   >
-                    <span
+                  <input
+                    v-model.number="formData.rate_limit_5h"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input pl-7"
+                    :placeholder="'0'"
+                  />
+                </div>
+                <!-- Usage info (edit mode only) -->
+                <div
+                  v-if="
+                    showEditModal && selectedKey && selectedKey.rate_limit_5h > 0
+                  "
+                  class="mt-2"
+                >
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm dark:bg-dark-700"
+                    >
+                      <span
+                        :class="[
+                          'font-medium',
+                          selectedKey.usage_5h >= selectedKey.rate_limit_5h
+                            ? 'text-red-500'
+                            : selectedKey.usage_5h >=
+                                selectedKey.rate_limit_5h * 0.8
+                              ? 'text-yellow-500'
+                              : 'text-gray-900 dark:text-white',
+                        ]"
+                      >
+                        ${{ selectedKey.usage_5h?.toFixed(4) || "0.0000" }}
+                      </span>
+                      <span class="mx-2 text-gray-400">/</span>
+                      <span class="text-gray-500 dark:text-gray-400">
+                        ${{ selectedKey.rate_limit_5h?.toFixed(2) || "0.00" }}
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600"
+                  >
+                    <div
                       :class="[
-                        'font-medium',
+                        'h-full rounded-full transition-all',
                         selectedKey.usage_5h >= selectedKey.rate_limit_5h
-                          ? 'text-red-500'
+                          ? 'bg-red-500'
                           : selectedKey.usage_5h >=
                               selectedKey.rate_limit_5h * 0.8
-                            ? 'text-yellow-500'
-                            : 'text-gray-900 dark:text-white',
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500',
                       ]"
-                    >
-                      ${{ selectedKey.usage_5h?.toFixed(4) || "0.0000" }}
-                    </span>
-                    <span class="mx-2 text-gray-400">/</span>
-                    <span class="text-gray-500 dark:text-gray-400">
-                      ${{ selectedKey.rate_limit_5h?.toFixed(2) || "0.00" }}
-                    </span>
+                      :style="{
+                        width:
+                          Math.min(
+                            (selectedKey.usage_5h / selectedKey.rate_limit_5h) *
+                              100,
+                            100,
+                          ) + '%',
+                      }"
+                    />
                   </div>
                 </div>
-                <div
-                  class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600"
-                >
-                  <div
-                    :class="[
-                      'h-full rounded-full transition-all',
-                      selectedKey.usage_5h >= selectedKey.rate_limit_5h
-                        ? 'bg-red-500'
-                        : selectedKey.usage_5h >=
-                            selectedKey.rate_limit_5h * 0.8
-                          ? 'bg-yellow-500'
-                          : 'bg-green-500',
-                    ]"
-                    :style="{
-                      width:
-                        Math.min(
-                          (selectedKey.usage_5h / selectedKey.rate_limit_5h) *
-                            100,
-                          100,
-                        ) + '%',
-                    }"
+              </div>
+
+              <!-- Daily Limit -->
+              <div>
+                <label class="input-label">{{ t("keys.rateLimit1d") }}</label>
+                <div class="relative">
+                  <span
+                    class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    >$</span
+                  >
+                  <input
+                    v-model.number="formData.rate_limit_1d"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input pl-7"
+                    :placeholder="'0'"
                   />
                 </div>
-              </div>
-            </div>
-
-            <!-- Daily Limit -->
-            <div>
-              <label class="input-label">{{ t("keys.rateLimit1d") }}</label>
-              <div class="relative">
-                <span
-                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-                  >$</span
+                <!-- Usage info (edit mode only) -->
+                <div
+                  v-if="
+                    showEditModal && selectedKey && selectedKey.rate_limit_1d > 0
+                  "
+                  class="mt-2"
                 >
-                <input
-                  v-model.number="formData.rate_limit_1d"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pl-7"
-                  :placeholder="'0'"
-                />
-              </div>
-              <!-- Usage info (edit mode only) -->
-              <div
-                v-if="
-                  showEditModal && selectedKey && selectedKey.rate_limit_1d > 0
-                "
-                class="mt-2"
-              >
-                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm dark:bg-dark-700"
+                    >
+                      <span
+                        :class="[
+                          'font-medium',
+                          selectedKey.usage_1d >= selectedKey.rate_limit_1d
+                            ? 'text-red-500'
+                            : selectedKey.usage_1d >=
+                                selectedKey.rate_limit_1d * 0.8
+                              ? 'text-yellow-500'
+                              : 'text-gray-900 dark:text-white',
+                        ]"
+                      >
+                        ${{ selectedKey.usage_1d?.toFixed(4) || "0.0000" }}
+                      </span>
+                      <span class="mx-2 text-gray-400">/</span>
+                      <span class="text-gray-500 dark:text-gray-400">
+                        ${{ selectedKey.rate_limit_1d?.toFixed(2) || "0.00" }}
+                      </span>
+                    </div>
+                  </div>
                   <div
-                    class="flex-1 rounded-lg bg-gray-100 px-3 py-2 dark:bg-dark-700 text-sm"
+                    class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600"
                   >
-                    <span
+                    <div
                       :class="[
-                        'font-medium',
+                        'h-full rounded-full transition-all',
                         selectedKey.usage_1d >= selectedKey.rate_limit_1d
-                          ? 'text-red-500'
+                          ? 'bg-red-500'
                           : selectedKey.usage_1d >=
                               selectedKey.rate_limit_1d * 0.8
-                            ? 'text-yellow-500'
-                            : 'text-gray-900 dark:text-white',
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500',
                       ]"
-                    >
-                      ${{ selectedKey.usage_1d?.toFixed(4) || "0.0000" }}
-                    </span>
-                    <span class="mx-2 text-gray-400">/</span>
-                    <span class="text-gray-500 dark:text-gray-400">
-                      ${{ selectedKey.rate_limit_1d?.toFixed(2) || "0.00" }}
-                    </span>
+                      :style="{
+                        width:
+                          Math.min(
+                            (selectedKey.usage_1d / selectedKey.rate_limit_1d) *
+                              100,
+                            100,
+                          ) + '%',
+                      }"
+                    />
                   </div>
                 </div>
-                <div
-                  class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600"
-                >
-                  <div
-                    :class="[
-                      'h-full rounded-full transition-all',
-                      selectedKey.usage_1d >= selectedKey.rate_limit_1d
-                        ? 'bg-red-500'
-                        : selectedKey.usage_1d >=
-                            selectedKey.rate_limit_1d * 0.8
-                          ? 'bg-yellow-500'
-                          : 'bg-green-500',
-                    ]"
-                    :style="{
-                      width:
-                        Math.min(
-                          (selectedKey.usage_1d / selectedKey.rate_limit_1d) *
-                            100,
-                          100,
-                        ) + '%',
-                    }"
+              </div>
+
+              <!-- 7-Day Limit -->
+              <div>
+                <label class="input-label">{{ t("keys.rateLimit7d") }}</label>
+                <div class="relative">
+                  <span
+                    class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    >$</span
+                  >
+                  <input
+                    v-model.number="formData.rate_limit_7d"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input pl-7"
+                    :placeholder="'0'"
                   />
                 </div>
-              </div>
-            </div>
-
-            <!-- 7-Day Limit -->
-            <div>
-              <label class="input-label">{{ t("keys.rateLimit7d") }}</label>
-              <div class="relative">
-                <span
-                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-                  >$</span
+                <!-- Usage info (edit mode only) -->
+                <div
+                  v-if="
+                    showEditModal && selectedKey && selectedKey.rate_limit_7d > 0
+                  "
+                  class="mt-2"
                 >
-                <input
-                  v-model.number="formData.rate_limit_7d"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  class="input pl-7"
-                  :placeholder="'0'"
-                />
-              </div>
-              <!-- Usage info (edit mode only) -->
-              <div
-                v-if="
-                  showEditModal && selectedKey && selectedKey.rate_limit_7d > 0
-                "
-                class="mt-2"
-              >
-                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="flex-1 rounded-lg bg-gray-100 px-3 py-2 text-sm dark:bg-dark-700"
+                    >
+                      <span
+                        :class="[
+                          'font-medium',
+                          selectedKey.usage_7d >= selectedKey.rate_limit_7d
+                            ? 'text-red-500'
+                            : selectedKey.usage_7d >=
+                                selectedKey.rate_limit_7d * 0.8
+                              ? 'text-yellow-500'
+                              : 'text-gray-900 dark:text-white',
+                        ]"
+                      >
+                        ${{ selectedKey.usage_7d?.toFixed(4) || "0.0000" }}
+                      </span>
+                      <span class="mx-2 text-gray-400">/</span>
+                      <span class="text-gray-500 dark:text-gray-400">
+                        ${{ selectedKey.rate_limit_7d?.toFixed(2) || "0.00" }}
+                      </span>
+                    </div>
+                  </div>
                   <div
-                    class="flex-1 rounded-lg bg-gray-100 px-3 py-2 dark:bg-dark-700 text-sm"
+                    class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600"
                   >
-                    <span
+                    <div
                       :class="[
-                        'font-medium',
+                        'h-full rounded-full transition-all',
                         selectedKey.usage_7d >= selectedKey.rate_limit_7d
-                          ? 'text-red-500'
+                          ? 'bg-red-500'
                           : selectedKey.usage_7d >=
                               selectedKey.rate_limit_7d * 0.8
-                            ? 'text-yellow-500'
-                            : 'text-gray-900 dark:text-white',
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500',
                       ]"
-                    >
-                      ${{ selectedKey.usage_7d?.toFixed(4) || "0.0000" }}
-                    </span>
-                    <span class="mx-2 text-gray-400">/</span>
-                    <span class="text-gray-500 dark:text-gray-400">
-                      ${{ selectedKey.rate_limit_7d?.toFixed(2) || "0.00" }}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600"
-                >
-                  <div
-                    :class="[
-                      'h-full rounded-full transition-all',
-                      selectedKey.usage_7d >= selectedKey.rate_limit_7d
-                        ? 'bg-red-500'
-                        : selectedKey.usage_7d >=
-                            selectedKey.rate_limit_7d * 0.8
-                          ? 'bg-yellow-500'
-                          : 'bg-green-500',
-                    ]"
-                    :style="{
-                      width:
-                        Math.min(
-                          (selectedKey.usage_7d / selectedKey.rate_limit_7d) *
+                      :style="{
+                        width:
+                          Math.min(
+                            (selectedKey.usage_7d / selectedKey.rate_limit_7d) *
+                              100,
                             100,
-                          100,
-                        ) + '%',
-                    }"
-                  />
+                          ) + '%',
+                      }"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -1,15 +1,15 @@
 <template>
-  <div class="space-y-3">
+  <div class="space-y-2">
     <div
       v-for="(binding, index) in rows"
       :key="`${index}-${binding.group_id}`"
-      class="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-dark-500 dark:bg-dark-800"
+      class="rounded-xl border border-gray-200 bg-gray-50 p-2.5 dark:border-dark-500 dark:bg-dark-800"
     >
       <div
         :class="
           adminMode
-            ? 'grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_140px]'
-            : 'grid gap-3'
+            ? 'grid gap-2.5 lg:grid-cols-[minmax(0,1.5fr)_160px]'
+            : 'grid gap-2.5'
         "
       >
         <div>
@@ -49,11 +49,11 @@
         </div>
       </div>
 
-      <div v-if="adminMode" class="mt-3">
+      <div v-if="adminMode" class="mt-2">
         <label class="input-label">{{ t("admin.users.modelPatterns") }}</label>
         <textarea
           class="input"
-          rows="3"
+          rows="2"
           :value="binding.model_patterns_text"
           placeholder="claude-opus-*"
           @input="onModelPatternsInput(index, $event)"
@@ -61,10 +61,10 @@
         <p class="input-hint">{{ t("admin.users.modelPatternsHint") }}</p>
       </div>
 
-      <div class="mt-3 flex justify-end">
+      <div class="mt-2 flex justify-end">
         <button
           type="button"
-          class="btn btn-secondary"
+          class="btn btn-secondary btn-sm"
           @click="removeRow(index)"
         >
           {{ t("admin.users.removeGroupBinding") }}
@@ -72,12 +72,12 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <div v-if="adminMode" class="text-xs text-gray-500 dark:text-gray-400">
         {{ t("admin.users.groupQuotaHint") }}
       </div>
 
-      <button type="button" class="btn btn-secondary" @click="addRow">
+      <button type="button" class="btn btn-secondary btn-sm" @click="addRow">
         {{ t("admin.users.addGroupBinding") }}
       </button>
     </div>
