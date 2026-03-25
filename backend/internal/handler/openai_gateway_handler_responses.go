@@ -161,6 +161,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 
 	for {
+		if isRequestCanceled(c.Request.Context(), nil) {
+			return
+		}
 		currentAPIKey, currentSubscription, err := resolveSelectedOpenAIAPIKey(
 			c,
 			h.settingService,
@@ -173,6 +176,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			excludedGroupIDs,
 		)
 		if err != nil {
+			if isRequestCanceled(c.Request.Context(), err) {
+				return
+			}
 			reqLog.Info("openai.group_selection_failed", zap.Error(err))
 			status, code, message := groupSelectionErrorDetails(err)
 			h.handleStreamingAwareError(c, status, code, message, streamStarted)
@@ -188,6 +194,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		var lastFailoverErr *service.UpstreamFailoverError
 
 		for {
+			if isRequestCanceled(c.Request.Context(), nil) {
+				return
+			}
 			// Select account supporting the requested model
 			reqLog.Debug("openai.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 			selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
@@ -200,6 +209,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				service.OpenAIUpstreamTransportAny,
 			)
 			if err != nil {
+				if isRequestCanceled(c.Request.Context(), err) {
+					return
+				}
 				reqLog.Warn("openai.account_select_failed",
 					zap.Error(err),
 					zap.Int("excluded_account_count", len(failedAccountIDs)),

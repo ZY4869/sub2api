@@ -219,6 +219,9 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 	excludedGroupIDs := make(map[int64]struct{})
 
 	for {
+		if isRequestCanceled(c.Request.Context(), nil) {
+			return
+		}
 		currentAPIKey, currentSubscription, err := resolveSelectedGatewayAPIKey(
 			c,
 			h.settingService,
@@ -231,6 +234,9 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 			excludedGroupIDs,
 		)
 		if err != nil {
+			if isRequestCanceled(c.Request.Context(), err) {
+				return
+			}
 			reqLog.Info("sora.group_selection_failed", zap.Error(err))
 			status, code, message := groupSelectionErrorDetails(err)
 			h.handleStreamingAwareError(c, status, code, message, streamStarted)
@@ -244,8 +250,14 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 		var lastFailoverHeaders http.Header
 
 		for {
+			if isRequestCanceled(c.Request.Context(), nil) {
+				return
+			}
 			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionHash, reqModel, failedAccountIDs, "")
 			if err != nil {
+				if isRequestCanceled(c.Request.Context(), err) {
+					return
+				}
 				reqLog.Warn("sora.account_select_failed",
 					zap.Error(err),
 					zap.Any("group_id", currentAPIKey.GroupID),

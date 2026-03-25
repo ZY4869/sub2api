@@ -100,6 +100,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 
 	for {
+		if isRequestCanceled(c.Request.Context(), nil) {
+			return
+		}
 		currentAPIKey, currentSubscription, err := resolveSelectedOpenAIAPIKey(
 			c,
 			h.settingService,
@@ -112,6 +115,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			excludedGroupIDs,
 		)
 		if err != nil {
+			if isRequestCanceled(c.Request.Context(), err) {
+				return
+			}
 			reqLog.Info("openai_chat_completions.group_selection_failed", zap.Error(err))
 			status, code, message := groupSelectionErrorDetails(err)
 			h.handleStreamingAwareError(c, status, code, message, streamStarted)
@@ -127,6 +133,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		var lastFailoverErr *service.UpstreamFailoverError
 
 		for {
+			if isRequestCanceled(c.Request.Context(), nil) {
+				return
+			}
 			c.Set("openai_chat_completions_fallback_model", "")
 			reqLog.Debug("openai_chat_completions.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 			selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
@@ -139,6 +148,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				service.OpenAIUpstreamTransportAny,
 			)
 			if err != nil {
+				if isRequestCanceled(c.Request.Context(), err) {
+					return
+				}
 				reqLog.Warn("openai_chat_completions.account_select_failed",
 					zap.Error(err),
 					zap.Int("excluded_account_count", len(failedAccountIDs)),
@@ -164,6 +176,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						if err == nil && selection != nil {
 							c.Set("openai_chat_completions_fallback_model", defaultModel)
 						}
+					}
+					if isRequestCanceled(c.Request.Context(), err) {
+						return
 					}
 					if err != nil {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {

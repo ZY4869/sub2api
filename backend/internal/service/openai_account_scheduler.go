@@ -315,7 +315,14 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 	}
 
 	account, err := s.service.getSchedulableAccount(ctx, accountID)
-	if err != nil || account == nil {
+	if err != nil {
+		if isContextDoneError(ctx, err) {
+			return nil, err
+		}
+		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
+		return nil, nil
+	}
+	if account == nil {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, nil
 	}
@@ -686,9 +693,18 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	selectionOrder := buildOpenAIWeightedSelectionOrder(rankedCandidates, req)
 
 	for i := 0; i < len(selectionOrder); i++ {
+		if isContextDoneError(ctx, nil) {
+			return nil, len(candidates), topK, loadSkew, ctx.Err()
+		}
 		candidate := selectionOrder[i]
 		fresh := s.service.resolveFreshSchedulableOpenAIAccount(ctx, candidate.account, req.RequestedModel)
-		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
+		if fresh == nil {
+			if isContextDoneError(ctx, nil) {
+				return nil, len(candidates), topK, loadSkew, ctx.Err()
+			}
+			continue
+		}
+		if !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
 			continue
 		}
 		result, acquireErr := s.service.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
@@ -710,8 +726,17 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	cfg := s.service.schedulingConfig()
 	// WaitPlan.MaxConcurrency 使用 Concurrency（非 EffectiveLoadFactor），因为 WaitPlan 控制的是 Redis 实际并发槽位等待。
 	for _, candidate := range selectionOrder {
+		if isContextDoneError(ctx, nil) {
+			return nil, len(candidates), topK, loadSkew, ctx.Err()
+		}
 		fresh := s.service.resolveFreshSchedulableOpenAIAccount(ctx, candidate.account, req.RequestedModel)
-		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
+		if fresh == nil {
+			if isContextDoneError(ctx, nil) {
+				return nil, len(candidates), topK, loadSkew, ctx.Err()
+			}
+			continue
+		}
+		if !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
 			continue
 		}
 		return &AccountSelectionResult{

@@ -155,6 +155,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	var selection *service.AccountSelectionResult
 	var scheduleDecision service.OpenAIAccountScheduleDecision
 	for {
+		if isRequestCanceled(ctx, nil) {
+			return
+		}
 		currentAPIKey, currentSubscription, err = resolveSelectedOpenAIAPIKey(
 			c,
 			h.settingService,
@@ -167,6 +170,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			excludedGroupIDs,
 		)
 		if err != nil {
+			if isRequestCanceled(ctx, err) {
+				return
+			}
 			reqLog.Info("openai.websocket_group_selection_failed", zap.Error(err))
 			closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "billing or group selection failed")
 			return
@@ -188,6 +194,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			nil,
 			service.OpenAIUpstreamTransportResponsesWebsocketV2,
 		)
+		if isRequestCanceled(ctx, err) {
+			return
+		}
 		if err == nil && selection != nil && selection.Account != nil {
 			break
 		}

@@ -115,6 +115,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 	maxAccountSwitches := h.maxAccountSwitches
 
 	for {
+		if isRequestCanceled(c.Request.Context(), nil) {
+			return
+		}
 		currentAPIKey, currentSubscription, err := resolveSelectedOpenAIAPIKey(
 			c,
 			h.settingService,
@@ -127,6 +130,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			excludedGroupIDs,
 		)
 		if err != nil {
+			if isRequestCanceled(c.Request.Context(), err) {
+				return
+			}
 			reqLog.Info("openai_messages.group_selection_failed", zap.Error(err))
 			status, code, message := groupSelectionErrorDetails(err)
 			h.anthropicStreamingAwareError(c, status, code, message, streamStarted)
@@ -146,6 +152,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		var lastFailoverErr *service.UpstreamFailoverError
 
 		for {
+			if isRequestCanceled(c.Request.Context(), nil) {
+				return
+			}
 			c.Set("openai_messages_fallback_model", "")
 			reqLog.Debug("openai_messages.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
 			selection, scheduleDecision, err := h.gatewayService.SelectAccountWithScheduler(
@@ -158,6 +167,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				service.OpenAIUpstreamTransportAny,
 			)
 			if err != nil {
+				if isRequestCanceled(c.Request.Context(), err) {
+					return
+				}
 				reqLog.Warn("openai_messages.account_select_failed",
 					zap.Error(err),
 					zap.Int("excluded_account_count", len(failedAccountIDs)),
@@ -183,6 +195,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						if err == nil && selection != nil {
 							c.Set("openai_messages_fallback_model", defaultModel)
 						}
+					}
+					if isRequestCanceled(c.Request.Context(), err) {
+						return
 					}
 					if err != nil {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
