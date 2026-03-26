@@ -218,6 +218,7 @@ export function useAccountsViewLiveSync({
     todayStatsError,
     load,
     reload,
+    refreshAccountsIncrementally,
     debouncedReload,
     handlePageChange,
     handlePageSizeChange,

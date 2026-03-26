@@ -64,7 +64,9 @@
             :loading="summaryLoading"
             :error="summaryError"
             :active-status="String(params.status || '')"
+            :active-runtime-view="String(params.runtime_view || 'all')"
             @select-status="handleSummaryStatusSelect"
+            @select-runtime-view="handleRuntimeViewSelect"
           />
 
           <AccountBulkActionsBar
@@ -239,7 +241,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -250,6 +252,7 @@ import { adminAPI } from '@/api/admin'
 import { useAccountStatusSummary } from '@/composables/useAccountStatusSummary'
 import { useAccountActionMenu } from '@/composables/useAccountActionMenu'
 import { useAccountViewMode } from '@/composables/useAccountViewMode'
+import { useAccountsRuntimeSummary } from '@/composables/useAccountsRuntimeSummary'
 import { useAccountsViewLiveSync } from '@/composables/useAccountsViewLiveSync'
 import { useAccountsViewListPatching } from '@/composables/useAccountsViewListPatching'
 import { useTableLoader } from '@/composables/useTableLoader'
@@ -285,6 +288,7 @@ import type {
   Account,
   AccountRateLimitReason,
   AccountPlatform,
+  AccountRuntimeView,
   AccountType,
   Proxy as AccountProxy,
   AdminGroup,
@@ -450,7 +454,8 @@ const {
     search: '',
     lifecycle: 'normal',
     limited_view: limitedMode.value ? 'limited_only' : (loadHideLimitedPreference() ? 'normal_only' : 'all'),
-    limited_reason: ''
+    limited_reason: '',
+    runtime_view: 'all'
   }
 })
 
@@ -474,8 +479,6 @@ const {
 } = useAccountStatusSummary(summaryParams)
 
 const accountSummary = computed(() => accountSummaryState.value)
-const toolbarSummary = computed(() => accountSummary.value)
-const limitedAccountsCount = computed(() => accountSummary.value.limited_breakdown.total)
 const activeLimitedReason = computed<AccountRateLimitReason | ''>(() => {
   const value = String(params.limited_reason || '')
   return value === 'rate_429' || value === 'usage_5h' || value === 'usage_7d' ? value : ''
@@ -560,6 +563,7 @@ const {
   todayStatsError,
   load,
   reload,
+  refreshAccountsIncrementally,
   debouncedReload,
   handlePageChange,
   handlePageSizeChange,
@@ -587,14 +591,63 @@ const {
   onListChanged: refreshAccountSummary
 })
 
+const isLiveSyncBlocked = computed(() => loading.value || isAnyModalOpen.value || isActionMenuOpen.value)
+const pendingRuntimeListRefresh = ref(false)
+const runtimeSummaryParams = computed<AccountListRequestParams>(() => ({
+  platform: String(params.platform || ''),
+  type: String(params.type || ''),
+  group: String(params.group || ''),
+  search: String(params.search || ''),
+  lifecycle: String(params.lifecycle || ''),
+  limited_view: limitedMode.value ? 'limited_only' : 'all',
+  limited_reason: limitedMode.value ? '' : String(params.limited_reason || ''),
+  runtime_view: String(params.runtime_view || 'all')
+}))
+const triggerRuntimeInUseRefresh = async () => {
+  if (limitedMode.value || String(params.runtime_view || 'all') !== 'in_use_only') {
+    pendingRuntimeListRefresh.value = false
+    return
+  }
+  if (isLiveSyncBlocked.value) {
+    pendingRuntimeListRefresh.value = true
+    return
+  }
+  pendingRuntimeListRefresh.value = false
+  await refreshAccountsIncrementally()
+}
+const {
+  summary: runtimeSummaryState,
+  refresh: refreshRuntimeSummary
+} = useAccountsRuntimeSummary(runtimeSummaryParams, {
+  enabled: computed(() => !limitedMode.value),
+  onSummaryChanged: async () => {
+    await triggerRuntimeInUseRefresh()
+  }
+})
+const toolbarSummary = computed(() => ({
+  ...accountSummary.value,
+  in_use: limitedMode.value ? 0 : runtimeSummaryState.value.in_use
+}))
+const limitedAccountsCount = computed(() => accountSummary.value.limited_breakdown.total)
+
+watch(isLiveSyncBlocked, (blocked, wasBlocked) => {
+  if (wasBlocked && !blocked && pendingRuntimeListRefresh.value) {
+    triggerRuntimeInUseRefresh().catch((error) => {
+      console.error('Failed to refresh in-use accounts after page became idle:', error)
+    })
+  }
+})
+
 const handleManualRefresh = async () => {
   await load()
+  await refreshRuntimeSummary(true)
   refreshArchivedPanel()
   usageManualRefreshToken.value += 1
 }
 
 const handleSyncPendingListChanges = async () => {
   await syncPendingListChanges()
+  await refreshRuntimeSummary(true)
   refreshArchivedPanel()
   usageManualRefreshToken.value += 1
 }
@@ -677,6 +730,9 @@ const refreshAccountSummarySafe = () => {
   refreshAccountSummary().catch((error) => {
     console.error('Failed to refresh account summary:', error)
   })
+  refreshRuntimeSummary(true).catch((error) => {
+    console.error('Failed to refresh account runtime summary:', error)
+  })
 }
 
 const handleEdit = (a: Account) => { edAcc.value = a; showEdit.value = true }
@@ -705,6 +761,13 @@ const handleSummaryStatusSelect = (status: string) => {
     return
   }
   params.status = String(params.status || '') === status ? '' : status
+  debouncedReload()
+}
+const handleRuntimeViewSelect = (runtimeView: AccountRuntimeView | string) => {
+  if (limitedMode.value) {
+    return
+  }
+  params.runtime_view = String(params.runtime_view || 'all') === runtimeView ? 'all' : runtimeView
   debouncedReload()
 }
 const handleLimitedReasonSelect = (reason: AccountRateLimitReason | '') => {

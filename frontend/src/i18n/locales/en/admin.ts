@@ -1164,6 +1164,7 @@ export default {
       summary: {
         total: 'Total',
         active: 'Active',
+        inUse: 'In Use',
         error: 'Error',
         rateLimited: 'Rate Limited',
         paused: 'Paused'

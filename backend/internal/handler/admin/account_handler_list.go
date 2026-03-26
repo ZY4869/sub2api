@@ -61,6 +61,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	lifecycle := service.NormalizeAccountLifecycleInput(c.DefaultQuery("lifecycle", service.AccountLifecycleNormal))
 	limitedView := service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll))
 	limitedReason := service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason"))
+	runtimeView := service.NormalizeAccountRuntimeViewInput(c.DefaultQuery("runtime_view", service.AccountRuntimeViewAll))
 	search := c.Query("search")
 	search = strings.TrimSpace(search)
 	if len(search) > 100 {
@@ -81,6 +82,11 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 	requestCtx := service.WithAccountLimitedFilters(c.Request.Context(), limitedView, limitedReason)
+	requestCtx, _, err := h.buildRuntimeQueryContext(requestCtx, runtimeView)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	accounts, total, err := h.adminService.ListAccounts(requestCtx, page, pageSize, platform, accountType, status, search, groupID, lifecycle)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -175,7 +181,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 		result[i] = item
 	}
-	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, lifecycle, search, limitedView, limitedReason, lite)
+	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, lifecycle, search, limitedView, limitedReason, runtimeView, lite)
 	if etag != "" {
 		c.Header("ETag", etag)
 		c.Header("Vary", "If-None-Match")
@@ -186,21 +192,22 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 	response.Paginated(c, result, total, page, pageSize)
 }
-func buildAccountsListETag(items []AccountWithConcurrency, total int64, page, pageSize int, platform, accountType, status, lifecycle, search, limitedView, limitedReason string, lite bool) string {
+func buildAccountsListETag(items []AccountWithConcurrency, total int64, page, pageSize int, platform, accountType, status, lifecycle, search, limitedView, limitedReason, runtimeView string, lite bool) string {
 	payload := struct {
-		Total       int64                    `json:"total"`
-		Page        int                      `json:"page"`
-		PageSize    int                      `json:"page_size"`
-		Platform    string                   `json:"platform"`
-		AccountType string                   `json:"type"`
-		Status      string                   `json:"status"`
-		Lifecycle   string                   `json:"lifecycle"`
-		Search      string                   `json:"search"`
-		LimitedView string                   `json:"limited_view"`
-		LimitedReason string                 `json:"limited_reason"`
-		Lite        bool                     `json:"lite"`
-		Items       []AccountWithConcurrency `json:"items"`
-	}{Total: total, Page: page, PageSize: pageSize, Platform: platform, AccountType: accountType, Status: status, Lifecycle: lifecycle, Search: search, LimitedView: limitedView, LimitedReason: limitedReason, Lite: lite, Items: items}
+		Total         int64                    `json:"total"`
+		Page          int                      `json:"page"`
+		PageSize      int                      `json:"page_size"`
+		Platform      string                   `json:"platform"`
+		AccountType   string                   `json:"type"`
+		Status        string                   `json:"status"`
+		Lifecycle     string                   `json:"lifecycle"`
+		Search        string                   `json:"search"`
+		LimitedView   string                   `json:"limited_view"`
+		LimitedReason string                   `json:"limited_reason"`
+		RuntimeView   string                   `json:"runtime_view"`
+		Lite          bool                     `json:"lite"`
+		Items         []AccountWithConcurrency `json:"items"`
+	}{Total: total, Page: page, PageSize: pageSize, Platform: platform, AccountType: accountType, Status: status, Lifecycle: lifecycle, Search: search, LimitedView: limitedView, LimitedReason: limitedReason, RuntimeView: runtimeView, Lite: lite, Items: items}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return ""

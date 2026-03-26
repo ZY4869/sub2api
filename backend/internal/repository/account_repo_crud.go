@@ -326,6 +326,12 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 	limitedFilters := service.AccountLimitedFiltersFromContext(ctx)
 	filters.LimitedView = limitedFilters.LimitedView
 	filters.LimitedReason = limitedFilters.LimitedReason
+	runtimeFilters := service.AccountRuntimeFiltersFromContext(ctx)
+	filters.RuntimeView = runtimeFilters.RuntimeView
+	filters.CandidateAccountIDs = runtimeFilters.CandidateAccountIDs
+	if filters.RuntimeView == service.AccountRuntimeViewInUseOnly && len(filters.CandidateAccountIDs) == 0 {
+		return []service.Account{}, paginationResultFromTotal(0, params), nil
+	}
 	q := applyAdminAccountListFilters(r.client.Account.Query(), filters)
 	total, err := q.Count(ctx)
 	if err != nil {

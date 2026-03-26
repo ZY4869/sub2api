@@ -29,6 +29,7 @@ func (s *adminServiceImpl) GetAccountStatusSummary(ctx context.Context, filters 
 	filters.Lifecycle = NormalizeAccountLifecycleInput(filters.Lifecycle)
 	filters.LimitedView = NormalizeAccountLimitedViewInput(filters.LimitedView)
 	filters.LimitedReason = NormalizeAccountRateLimitReasonInput(filters.LimitedReason)
+	filters.RuntimeView = NormalizeAccountRuntimeViewInput(filters.RuntimeView)
 	if filters.Lifecycle == AccountLifecycleAll {
 		filters.Lifecycle = AccountLifecycleAll
 	}

@@ -26,6 +26,7 @@ describe('admin accounts summary api', () => {
         TempUnschedulable: 2,
         Overloaded: 1,
         Paused: 4,
+        InUse: 2,
         ByPlatform: {
           openai: 5,
           kiro: 4
@@ -53,6 +54,7 @@ describe('admin accounts summary api', () => {
       temp_unschedulable: 2,
       overloaded: 1,
       paused: 4,
+      in_use: 2,
       by_platform: {
         openai: 5,
         kiro: 4
@@ -83,6 +85,42 @@ describe('admin accounts summary api', () => {
       params: {
         limited_view: 'limited_only',
         limited_reason: 'usage_7d'
+      }
+    })
+  })
+
+  it('normalizes runtime summary payload fields', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        InUse: 6
+      }
+    })
+
+    const { getRuntimeSummary } = await import('../accounts')
+    const result = await getRuntimeSummary()
+
+    expect(result).toEqual({
+      in_use: 6
+    })
+  })
+
+  it('passes runtime filters through runtime summary request params', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        in_use: 0
+      }
+    })
+
+    const { getRuntimeSummary } = await import('../accounts')
+    await getRuntimeSummary({
+      runtime_view: 'in_use_only',
+      limited_view: 'limited_only'
+    })
+
+    expect(getMock).toHaveBeenCalledWith('/admin/accounts/runtime-summary', {
+      params: {
+        runtime_view: 'in_use_only',
+        limited_view: 'limited_only'
       }
     })
   })

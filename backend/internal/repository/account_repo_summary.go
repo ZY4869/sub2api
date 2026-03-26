@@ -11,6 +11,12 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 	normalized := normalizeAdminAccountListFilters(filters.Platform, filters.AccountType, "", filters.Search, filters.GroupID, filters.Lifecycle)
 	normalized.LimitedView = service.NormalizeAccountLimitedViewInput(filters.LimitedView)
 	normalized.LimitedReason = service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason)
+	normalized.RuntimeView = service.NormalizeAccountRuntimeViewInput(filters.RuntimeView)
+	runtimeFilters := service.AccountRuntimeFiltersFromContext(ctx)
+	if runtimeFilters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+		normalized.RuntimeView = runtimeFilters.RuntimeView
+		normalized.CandidateAccountIDs = runtimeFilters.CandidateAccountIDs
+	}
 	summary := &service.AccountStatusSummary{
 		ByStatus: map[string]int64{
 			"active":   0,
@@ -18,6 +24,9 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			"error":    0,
 		},
 		ByPlatform: map[string]int64{},
+	}
+	if normalized.RuntimeView == service.AccountRuntimeViewInUseOnly && len(normalized.CandidateAccountIDs) == 0 {
+		return summary, nil
 	}
 
 	baseWhere := []string{"a.deleted_at IS NULL"}

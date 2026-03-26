@@ -2,10 +2,10 @@
   <div class="space-y-2">
     <div
       v-if="loading"
-      class="grid grid-cols-3 gap-2 sm:grid-cols-5"
+      class="grid grid-cols-3 gap-2 sm:grid-cols-6"
     >
       <div
-        v-for="item in 5"
+        v-for="item in 6"
         :key="item"
         class="h-11 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800"
       ></div>
@@ -13,7 +13,7 @@
 
     <div
       v-else
-      class="grid grid-cols-3 gap-2 sm:grid-cols-5"
+      class="grid grid-cols-3 gap-2 sm:grid-cols-6"
     >
       <button
         v-for="card in cards"
@@ -22,7 +22,7 @@
         class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left shadow-sm transition"
         :class="[card.bgClass, cardClasses(card)]"
         :data-card-key="card.key"
-        @click="emit('select-status', card.statusValue)"
+        @click="handleCardClick(card)"
       >
         <div class="flex min-w-0 items-center gap-2">
           <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 shadow-sm ring-1 ring-white/80 dark:bg-white/10 dark:ring-white/10">
@@ -55,14 +55,17 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   error?: string | null
   activeStatus?: string
+  activeRuntimeView?: string
 }>(), {
   loading: false,
   error: null,
-  activeStatus: ''
+  activeStatus: '',
+  activeRuntimeView: 'all'
 })
 
 const emit = defineEmits<{
   'select-status': [status: string]
+  'select-runtime-view': [runtimeView: string]
 }>()
 
 const { t } = useI18n()
@@ -72,7 +75,8 @@ type SummaryCard = {
   label: string
   count: number
   statusValue: string
-  iconName: 'database' | 'sparkles' | 'exclamationTriangle' | 'bolt' | 'lock'
+  runtimeValue?: string
+  iconName: 'database' | 'sparkles' | 'exclamationTriangle' | 'bolt' | 'lock' | 'play'
   iconClass: string
   labelClass: string
   countClass: string
@@ -101,6 +105,18 @@ const cards = computed<SummaryCard[]>(() => [
     labelClass: 'text-emerald-700 dark:text-emerald-200',
     countClass: 'text-emerald-700 dark:text-emerald-300',
     bgClass: 'bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20'
+  },
+  {
+    key: 'in_use',
+    label: t('admin.accounts.summary.inUse'),
+    count: props.summary.in_use,
+    statusValue: '',
+    runtimeValue: 'in_use_only',
+    iconName: 'play',
+    iconClass: 'text-sky-600 dark:text-sky-300',
+    labelClass: 'text-sky-700 dark:text-sky-200',
+    countClass: 'text-sky-700 dark:text-sky-300',
+    bgClass: 'bg-gradient-to-br from-sky-50 to-sky-100/60 dark:from-sky-950/40 dark:to-sky-900/20'
   },
   {
     key: 'error',
@@ -138,11 +154,21 @@ const cards = computed<SummaryCard[]>(() => [
 ])
 
 const cardClasses = (card: { key: string; statusValue: string }) => {
-  const isActive = card.statusValue === ''
-    ? !props.activeStatus
-    : props.activeStatus === card.statusValue
+  const isActive = card.key === 'in_use'
+    ? props.activeRuntimeView === 'in_use_only'
+    : card.key === 'total'
+      ? !props.activeStatus && props.activeRuntimeView !== 'in_use_only'
+      : props.activeStatus === card.statusValue
   return isActive
     ? 'border-primary-300 ring-2 ring-primary-400/50 dark:border-primary-500'
     : 'border-transparent hover:border-gray-300 dark:border-transparent dark:hover:border-dark-500'
+}
+
+const handleCardClick = (card: SummaryCard) => {
+  if (card.runtimeValue) {
+    emit('select-runtime-view', card.runtimeValue)
+    return
+  }
+  emit('select-status', card.statusValue)
 }
 </script>

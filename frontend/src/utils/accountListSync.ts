@@ -1,5 +1,5 @@
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
-import type { Account, AccountLimitedView, AccountRateLimitReason, WindowStats } from '@/types'
+import type { Account, AccountLimitedView, AccountRateLimitReason, AccountRuntimeView, WindowStats } from '@/types'
 
 export interface AccountListFilters {
   platform?: string
@@ -10,6 +10,7 @@ export interface AccountListFilters {
   lifecycle?: string
   limited_view?: AccountLimitedView | string
   limited_reason?: AccountRateLimitReason | string
+  runtime_view?: AccountRuntimeView | string
 }
 
 export type AccountListRequestParams = AccountListFilters & {
@@ -49,6 +50,10 @@ const isAccountActivelyLimited = (account: Account, now: number) => {
   return hasFutureTimestamp(account.rate_limit_reset_at, now)
 }
 
+const isAccountInUse = (account: Account) => {
+  return Number(account.current_concurrency || 0) > 0 || Number(account.active_sessions ?? 0) > 0
+}
+
 const resolveAccountLifecycle = (account: Account) => account.lifecycle_state || 'normal'
 
 export const accountMatchesFilters = (
@@ -70,6 +75,7 @@ export const accountMatchesFilters = (
     if (!isLimited) return false
     if ((account.rate_limit_reason || '') !== filters.limited_reason) return false
   }
+  if (filters.runtime_view === 'in_use_only' && !isAccountInUse(account)) return false
 
   if (filters.status) {
     if (filters.status === 'rate_limited') {

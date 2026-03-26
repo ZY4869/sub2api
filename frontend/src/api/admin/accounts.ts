@@ -6,6 +6,7 @@
 import { apiClient } from '../client'
 import type {
   Account,
+  AccountRuntimeSummary,
   AccountStatusSummary,
   ArchivedAccountGroupSummary,
   ArchiveGroupAccountsRequest,
@@ -47,6 +48,7 @@ export async function list(
     lifecycle?: string
     limited_view?: string
     limited_reason?: string
+    runtime_view?: string
   },
   options?: {
     signal?: AbortSignal
@@ -69,6 +71,12 @@ export interface AccountListWithEtagResult {
   data: PaginatedResponse<Account> | null
 }
 
+export interface AccountRuntimeSummaryWithEtagResult {
+  notModified: boolean
+  etag: string | null
+  data: AccountRuntimeSummary | null
+}
+
 export async function listWithEtag(
   page: number = 1,
   pageSize: number = 20,
@@ -82,6 +90,7 @@ export async function listWithEtag(
     lifecycle?: string
     limited_view?: string
     limited_reason?: string
+    runtime_view?: string
   },
   options?: {
     signal?: AbortSignal
@@ -517,11 +526,72 @@ export async function getStatusSummary(filters?: {
   lifecycle?: string
   limited_view?: string
   limited_reason?: string
+  runtime_view?: string
 }): Promise<AccountStatusSummary> {
   const { data } = await apiClient.get<AccountStatusSummary>('/admin/accounts/summary', {
     params: filters
   })
   return normalizeAccountStatusSummary(data)
+}
+
+export async function getRuntimeSummary(filters?: {
+  platform?: string
+  type?: string
+  group?: string
+  search?: string
+  lifecycle?: string
+  limited_view?: string
+  limited_reason?: string
+  runtime_view?: string
+}): Promise<AccountRuntimeSummary> {
+  const { data } = await apiClient.get<AccountRuntimeSummary>('/admin/accounts/runtime-summary', {
+    params: filters
+  })
+  return normalizeAccountRuntimeSummary(data)
+}
+
+export async function getRuntimeSummaryWithEtag(
+  filters?: {
+    platform?: string
+    type?: string
+    group?: string
+    search?: string
+    lifecycle?: string
+    limited_view?: string
+    limited_reason?: string
+    runtime_view?: string
+  },
+  options?: {
+    signal?: AbortSignal
+    etag?: string | null
+  }
+): Promise<AccountRuntimeSummaryWithEtagResult> {
+  const headers: Record<string, string> = {}
+  if (options?.etag) {
+    headers['If-None-Match'] = options.etag
+  }
+
+  const response = await apiClient.get<AccountRuntimeSummary>('/admin/accounts/runtime-summary', {
+    params: filters,
+    headers,
+    signal: options?.signal,
+    validateStatus: (status) => (status >= 200 && status < 300) || status === 304
+  })
+
+  const etagHeader = typeof response.headers?.etag === 'string' ? response.headers.etag : null
+  if (response.status === 304) {
+    return {
+      notModified: true,
+      etag: etagHeader,
+      data: null
+    }
+  }
+
+  return {
+    notModified: false,
+    etag: etagHeader,
+    data: normalizeAccountRuntimeSummary(response.data)
+  }
 }
 
 function normalizeArchivedGroupSummary(raw: any): ArchivedAccountGroupSummary {
@@ -547,6 +617,7 @@ function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
     temp_unschedulable: Number(raw?.temp_unschedulable ?? raw?.TempUnschedulable ?? 0),
     overloaded: Number(raw?.overloaded ?? raw?.Overloaded ?? 0),
     paused: Number(raw?.paused ?? raw?.Paused ?? 0),
+    in_use: Number(raw?.in_use ?? raw?.InUse ?? 0),
     by_platform: normalizePlatformCounts(raw?.by_platform ?? raw?.ByPlatform),
     limited_breakdown: {
       total: Number(raw?.limited_breakdown?.total ?? raw?.LimitedBreakdown?.total ?? 0),
@@ -554,6 +625,12 @@ function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
       usage_5h: Number(raw?.limited_breakdown?.usage_5h ?? raw?.LimitedBreakdown?.usage_5h ?? 0),
       usage_7d: Number(raw?.limited_breakdown?.usage_7d ?? raw?.LimitedBreakdown?.usage_7d ?? 0)
     }
+  }
+}
+
+function normalizeAccountRuntimeSummary(raw: any): AccountRuntimeSummary {
+  return {
+    in_use: Number(raw?.in_use ?? raw?.InUse ?? 0)
   }
 }
 
@@ -976,6 +1053,8 @@ export const accountsAPI = {
   validateSoraSessionToken,
   batchArchiveAccounts,
   getStatusSummary,
+  getRuntimeSummary,
+  getRuntimeSummaryWithEtag,
   listArchivedGroups,
   unarchiveAccounts,
   retestBlacklistedAccounts,

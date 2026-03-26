@@ -1246,6 +1246,7 @@
       summary: {
         total: '总计',
         active: '活跃',
+        inUse: '正在使用',
         error: '错误',
         rateLimited: '限流',
         paused: '暂停'

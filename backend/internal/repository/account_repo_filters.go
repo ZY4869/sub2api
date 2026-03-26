@@ -11,17 +11,20 @@ import (
 	dbaccountgroup "github.com/Wei-Shaw/sub2api/ent/accountgroup"
 	dbpredicate "github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 type adminAccountListFilters struct {
-	Platform    string
-	AccountType string
-	Status      string
-	Search      string
-	GroupID     int64
-	Lifecycle   string
-	LimitedView   string
-	LimitedReason string
+	Platform            string
+	AccountType         string
+	Status              string
+	Search              string
+	GroupID             int64
+	Lifecycle           string
+	LimitedView         string
+	LimitedReason       string
+	RuntimeView         string
+	CandidateAccountIDs []int64
 }
 
 func normalizeAdminAccountListFilters(platform, accountType, status, search string, groupID int64, lifecycle string) adminAccountListFilters {
@@ -36,6 +39,14 @@ func normalizeAdminAccountListFilters(platform, accountType, status, search stri
 }
 
 func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountListFilters) *dbent.AccountQuery {
+	if filters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+		if len(filters.CandidateAccountIDs) == 0 {
+			return q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(entsql.ExprP("1 = 0"))
+			}))
+		}
+		q = q.Where(dbaccount.IDIn(filters.CandidateAccountIDs...))
+	}
 	if filters.Platform != "" {
 		q = q.Where(dbaccount.PlatformEQ(filters.Platform))
 	}
@@ -75,6 +86,15 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 }
 
 func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, argIndex int, filters adminAccountListFilters, tableAlias string, includePlatform bool) ([]string, []any, int) {
+	if filters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+		if len(filters.CandidateAccountIDs) == 0 {
+			whereClauses = append(whereClauses, "1 = 0")
+			return whereClauses, args, argIndex
+		}
+		whereClauses = append(whereClauses, fmt.Sprintf("%s.id = ANY($%d)", tableAlias, argIndex))
+		args = append(args, pq.Array(filters.CandidateAccountIDs))
+		argIndex++
+	}
 	if includePlatform && filters.Platform != "" {
 		whereClauses = append(whereClauses, fmt.Sprintf("%s.platform = $%d", tableAlias, argIndex))
 		args = append(args, filters.Platform)

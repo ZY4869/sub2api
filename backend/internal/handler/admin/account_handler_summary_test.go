@@ -24,6 +24,7 @@ func TestAccountHandlerGetStatusSummaryUsesSnakeCaseJSON(t *testing.T) {
 		TempUnschedulable: 1,
 		Overloaded:        1,
 		Paused:            4,
+		InUse:             2,
 		ByPlatform: map[string]int64{
 			"openai": 7,
 			"kiro":   5,
@@ -50,6 +51,7 @@ func TestAccountHandlerGetStatusSummaryUsesSnakeCaseJSON(t *testing.T) {
 			TempUnschedulable int64            `json:"temp_unschedulable"`
 			Overloaded        int64            `json:"overloaded"`
 			Paused            int64            `json:"paused"`
+			InUse             int64            `json:"in_use"`
 			ByPlatform        map[string]int64 `json:"by_platform"`
 		} `json:"data"`
 	}
@@ -63,6 +65,7 @@ func TestAccountHandlerGetStatusSummaryUsesSnakeCaseJSON(t *testing.T) {
 	require.Equal(t, int64(1), resp.Data.TempUnschedulable)
 	require.Equal(t, int64(1), resp.Data.Overloaded)
 	require.Equal(t, int64(4), resp.Data.Paused)
+	require.Equal(t, int64(2), resp.Data.InUse)
 	require.Equal(t, int64(7), resp.Data.ByPlatform["openai"])
 	require.Equal(t, int64(5), resp.Data.ByPlatform["kiro"])
 }

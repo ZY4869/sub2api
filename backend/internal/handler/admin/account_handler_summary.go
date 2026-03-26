@@ -29,18 +29,45 @@ func (h *AccountHandler) GetStatusSummary(c *gin.Context) {
 		}
 	}
 
-	summary, err := h.adminService.GetAccountStatusSummary(c.Request.Context(), service.AccountStatusSummaryFilters{
-		Platform:    c.Query("platform"),
-		AccountType: c.Query("type"),
-		Search:      search,
-		GroupID:     groupID,
-		Lifecycle:   c.DefaultQuery("lifecycle", service.AccountLifecycleNormal),
-		LimitedView: service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll)),
+	filters := service.AccountStatusSummaryFilters{
+		Platform:      c.Query("platform"),
+		AccountType:   c.Query("type"),
+		Search:        search,
+		GroupID:       groupID,
+		Lifecycle:     c.DefaultQuery("lifecycle", service.AccountLifecycleNormal),
+		LimitedView:   service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll)),
 		LimitedReason: service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason")),
-	})
+		RuntimeView:   service.NormalizeAccountRuntimeViewInput(c.DefaultQuery("runtime_view", service.AccountRuntimeViewAll)),
+	}
+	requestCtx := service.WithAccountLimitedFilters(c.Request.Context(), filters.LimitedView, filters.LimitedReason)
+	requestCtx, candidateIDs, err := h.buildRuntimeQueryContext(requestCtx, filters.RuntimeView)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	summary, err := h.adminService.GetAccountStatusSummary(requestCtx, filters)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if filters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+		if len(candidateIDs) == 0 {
+			summary.InUse = 0
+		} else {
+			summary.InUse = summary.Total
+		}
+		response.Success(c, summary)
+		return
+	}
+	if h.concurrencyService == nil && h.sessionLimitCache == nil {
+		response.Success(c, summary)
+		return
+	}
+	inUseCount, err := h.countInUseAccounts(c.Request.Context(), filters)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	summary.InUse = inUseCount
 	response.Success(c, summary)
 }

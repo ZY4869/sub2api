@@ -3,6 +3,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -59,6 +60,28 @@ func (s *ConcurrencyCacheSuite) TestAccountSlot_AcquireAndRelease() {
 	cur, err = s.cache.GetAccountConcurrency(s.ctx, accountID)
 	require.NoError(s.T(), err, "GetAccountConcurrency after release")
 	require.Equal(s.T(), 1, cur, "expected 1 after release")
+}
+
+func (s *ConcurrencyCacheSuite) TestAccountSlot_TracksActiveAccountSet() {
+	reader, ok := s.cache.(interface {
+		GetTrackedActiveAccountIDs(context.Context) ([]int64, error)
+	})
+	require.True(s.T(), ok)
+
+	accountID := int64(77)
+	okAcquire, err := s.cache.AcquireAccountSlot(s.ctx, accountID, 2, "req-active")
+	require.NoError(s.T(), err)
+	require.True(s.T(), okAcquire)
+
+	activeIDs, err := reader.GetTrackedActiveAccountIDs(s.ctx)
+	require.NoError(s.T(), err)
+	require.Contains(s.T(), activeIDs, accountID)
+
+	require.NoError(s.T(), s.cache.ReleaseAccountSlot(s.ctx, accountID, "req-active"))
+
+	activeIDs, err = reader.GetTrackedActiveAccountIDs(s.ctx)
+	require.NoError(s.T(), err)
+	require.NotContains(s.T(), activeIDs, accountID)
 }
 
 func (s *ConcurrencyCacheSuite) TestAccountSlot_TTL() {

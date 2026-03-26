@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -23,7 +24,8 @@ import (
 const (
 	// 会话限制键前缀
 	// 格式: session_limit:account:{accountID}
-	sessionLimitKeyPrefix = "session_limit:account:"
+	sessionLimitKeyPrefix    = "session_limit:account:"
+	sessionLimitActiveSetKey = "session_limit:account:active"
 
 	// 窗口费用缓存键前缀
 	// 格式: window_cost:account:{accountID}
@@ -43,9 +45,11 @@ var (
 	// 返回: 1 = 允许, 0 = 拒绝
 	registerSessionScript = redis.NewScript(`
 		local key = KEYS[1]
+		local activeSet = KEYS[2]
 		local maxSessions = tonumber(ARGV[1])
 		local idleTimeout = tonumber(ARGV[2])
 		local sessionUUID = ARGV[3]
+		local accountID = ARGV[4]
 
 		-- 使用 Redis 服务器时间，确保多实例时钟一致
 		local timeResult = redis.call('TIME')
@@ -61,6 +65,9 @@ var (
 			-- 会话已存在，刷新时间戳
 			redis.call('ZADD', key, now, sessionUUID)
 			redis.call('EXPIRE', key, idleTimeout + 60)
+			if activeSet ~= false and activeSet ~= nil and accountID ~= nil and accountID ~= '' then
+				redis.call('SADD', activeSet, accountID)
+			end
 			return 1
 		end
 
@@ -70,6 +77,9 @@ var (
 			-- 未达上限，添加新会话
 			redis.call('ZADD', key, now, sessionUUID)
 			redis.call('EXPIRE', key, idleTimeout + 60)
+			if activeSet ~= false and activeSet ~= nil and accountID ~= nil and accountID ~= '' then
+				redis.call('SADD', activeSet, accountID)
+			end
 			return 1
 		end
 
@@ -83,8 +93,10 @@ var (
 	// ARGV[2] = sessionUUID
 	refreshSessionScript = redis.NewScript(`
 		local key = KEYS[1]
+		local activeSet = KEYS[2]
 		local idleTimeout = tonumber(ARGV[1])
 		local sessionUUID = ARGV[2]
+		local accountID = ARGV[3]
 
 		local timeResult = redis.call('TIME')
 		local now = tonumber(timeResult[1])
@@ -94,6 +106,9 @@ var (
 		if exists ~= false then
 			redis.call('ZADD', key, now, sessionUUID)
 			redis.call('EXPIRE', key, idleTimeout + 60)
+			if activeSet ~= false and activeSet ~= nil and accountID ~= nil and accountID ~= '' then
+				redis.call('SADD', activeSet, accountID)
+			end
 		end
 		return 1
 	`)
@@ -103,7 +118,9 @@ var (
 	// ARGV[1] = idleTimeout（秒）
 	getActiveSessionCountScript = redis.NewScript(`
 		local key = KEYS[1]
+		local activeSet = KEYS[2]
 		local idleTimeout = tonumber(ARGV[1])
+		local accountID = ARGV[2]
 
 		local timeResult = redis.call('TIME')
 		local now = tonumber(timeResult[1])
@@ -112,7 +129,20 @@ var (
 		-- 清理过期会话
 		redis.call('ZREMRANGEBYSCORE', key, '-inf', expireBefore)
 
-		return redis.call('ZCARD', key)
+		local count = redis.call('ZCARD', key)
+		if count == 0 then
+			redis.call('DEL', key)
+			if activeSet ~= false and activeSet ~= nil and accountID ~= nil and accountID ~= '' then
+				redis.call('SREM', activeSet, accountID)
+			end
+		else
+			redis.call('EXPIRE', key, idleTimeout + 60)
+			if activeSet ~= false and activeSet ~= nil and accountID ~= nil and accountID ~= '' then
+				redis.call('SADD', activeSet, accountID)
+			end
+		end
+
+		return count
 	`)
 
 	// isSessionActiveScript 检查会话是否活跃
@@ -185,6 +215,42 @@ func windowCostKey(accountID int64) string {
 	return fmt.Sprintf("%s%d", windowCostKeyPrefix, accountID)
 }
 
+func (c *sessionLimitCache) syncActiveSessionAccounts(ctx context.Context, counts map[int64]int, idleTimeouts map[int64]time.Duration) error {
+	if len(counts) == 0 {
+		return nil
+	}
+	pipe := c.rdb.Pipeline()
+	for accountID, count := range counts {
+		key := sessionLimitKey(accountID)
+		member := strconv.FormatInt(accountID, 10)
+		if count > 0 {
+			ttl := c.defaultIdleTimeout + time.Minute
+			if idleTimeouts != nil {
+				if customTTL, ok := idleTimeouts[accountID]; ok && customTTL > 0 {
+					ttl = customTTL + time.Minute
+				}
+			}
+			pipe.SAdd(ctx, sessionLimitActiveSetKey, member)
+			pipe.Expire(ctx, key, ttl)
+			continue
+		}
+		pipe.SRem(ctx, sessionLimitActiveSetKey, member)
+		pipe.Del(ctx, key)
+	}
+	if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
+		return err
+	}
+	return nil
+}
+
+func (c *sessionLimitCache) GetTrackedActiveAccountIDs(ctx context.Context) ([]int64, error) {
+	members, err := c.rdb.SMembers(ctx, sessionLimitActiveSetKey).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return nil, err
+	}
+	return parseTrackedAccountIDs(members), nil
+}
+
 // RegisterSession 注册会话活动
 func (c *sessionLimitCache) RegisterSession(ctx context.Context, accountID int64, sessionUUID string, maxSessions int, idleTimeout time.Duration) (bool, error) {
 	if sessionUUID == "" || maxSessions <= 0 {
@@ -197,7 +263,7 @@ func (c *sessionLimitCache) RegisterSession(ctx context.Context, accountID int64
 		idleTimeoutSeconds = int(c.defaultIdleTimeout.Seconds())
 	}
 
-	result, err := registerSessionScript.Run(ctx, c.rdb, []string{key}, maxSessions, idleTimeoutSeconds, sessionUUID).Int()
+	result, err := registerSessionScript.Run(ctx, c.rdb, []string{key, sessionLimitActiveSetKey}, maxSessions, idleTimeoutSeconds, sessionUUID, strconv.FormatInt(accountID, 10)).Int()
 	if err != nil {
 		return true, err // 失败开放：缓存错误时允许请求通过
 	}
@@ -216,7 +282,7 @@ func (c *sessionLimitCache) RefreshSession(ctx context.Context, accountID int64,
 		idleTimeoutSeconds = int(c.defaultIdleTimeout.Seconds())
 	}
 
-	_, err := refreshSessionScript.Run(ctx, c.rdb, []string{key}, idleTimeoutSeconds, sessionUUID).Result()
+	_, err := refreshSessionScript.Run(ctx, c.rdb, []string{key, sessionLimitActiveSetKey}, idleTimeoutSeconds, sessionUUID, strconv.FormatInt(accountID, 10)).Result()
 	return err
 }
 
@@ -225,7 +291,7 @@ func (c *sessionLimitCache) GetActiveSessionCount(ctx context.Context, accountID
 	key := sessionLimitKey(accountID)
 	idleTimeoutSeconds := int(c.defaultIdleTimeout.Seconds())
 
-	result, err := getActiveSessionCountScript.Run(ctx, c.rdb, []string{key}, idleTimeoutSeconds).Int()
+	result, err := getActiveSessionCountScript.Run(ctx, c.rdb, []string{key, sessionLimitActiveSetKey}, idleTimeoutSeconds, strconv.FormatInt(accountID, 10)).Int()
 	if err != nil {
 		return 0, err
 	}
@@ -254,7 +320,7 @@ func (c *sessionLimitCache) GetActiveSessionCountBatch(ctx context.Context, acco
 			}
 		}
 		idleTimeoutSeconds := int(idleTimeout.Seconds())
-		cmds[accountID] = getActiveSessionCountScript.Run(ctx, pipe, []string{key}, idleTimeoutSeconds)
+		cmds[accountID] = getActiveSessionCountScript.Run(ctx, pipe, []string{key, sessionLimitActiveSetKey}, idleTimeoutSeconds, strconv.FormatInt(accountID, 10))
 	}
 
 	// 执行 pipeline，即使部分失败也尝试获取成功的结果
@@ -264,6 +330,10 @@ func (c *sessionLimitCache) GetActiveSessionCountBatch(ctx context.Context, acco
 		if result, err := cmd.Int(); err == nil {
 			results[accountID] = result
 		}
+	}
+
+	if err := c.syncActiveSessionAccounts(ctx, results, idleTimeouts); err != nil {
+		return nil, err
 	}
 
 	return results, nil

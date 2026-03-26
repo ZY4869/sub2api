@@ -283,6 +283,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		accounts.GET("", h.Admin.Account.List)
 		accounts.GET("/summary", h.Admin.Account.GetStatusSummary)
+		accounts.GET("/runtime-summary", h.Admin.Account.GetRuntimeSummary)
 		accounts.GET("/archived-groups", h.Admin.Account.ListArchivedGroups)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
 		accounts.POST("", h.Admin.Account.Create)

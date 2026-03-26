@@ -23,6 +23,7 @@ const summary = {
   temp_unschedulable: 1,
   overloaded: 1,
   paused: 2,
+  in_use: 3,
   by_platform: {
     openai: 50
   },
@@ -35,7 +36,7 @@ const summary = {
 }
 
 describe('AccountStatusSummaryBar', () => {
-  it('renders five horizontal summary cards with icon slots and right-aligned counts', () => {
+  it('renders six horizontal summary cards with icon slots and right-aligned counts', () => {
     const wrapper = mount(AccountStatusSummaryBar, {
       props: {
         summary
@@ -48,9 +49,10 @@ describe('AccountStatusSummaryBar', () => {
     })
 
     const cards = wrapper.findAll('button[data-card-key]')
-    expect(cards).toHaveLength(5)
+    expect(cards).toHaveLength(6)
     expect(cards[0].attributes('data-card-key')).toBe('total')
     expect(cards[1].attributes('data-card-key')).toBe('active')
+    expect(cards[2].attributes('data-card-key')).toBe('in_use')
     expect(cards[0].classes()).toContain('justify-between')
     expect(cards[1].text()).toContain('admin.accounts.summary.active')
     expect(cards[1].text()).toContain('67')
@@ -72,5 +74,41 @@ describe('AccountStatusSummaryBar', () => {
     await wrapper.get('[data-card-key="rate_limited"]').trigger('click')
 
     expect(wrapper.emitted('select-status')).toEqual([['rate_limited']])
+  })
+
+  it('emits runtime view selection when clicking the in-use card', async () => {
+    const wrapper = mount(AccountStatusSummaryBar, {
+      props: {
+        summary,
+        activeRuntimeView: 'all'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.get('[data-card-key="in_use"]').trigger('click')
+
+    expect(wrapper.emitted('select-runtime-view')).toEqual([['in_use_only']])
+  })
+
+  it('only highlights the in-use card when runtime view is active', () => {
+    const wrapper = mount(AccountStatusSummaryBar, {
+      props: {
+        summary,
+        activeStatus: '',
+        activeRuntimeView: 'in_use_only'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.get('[data-card-key="in_use"]').classes()).toContain('ring-2')
+    expect(wrapper.get('[data-card-key="total"]').classes()).not.toContain('ring-2')
   })
 })

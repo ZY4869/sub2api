@@ -88,6 +88,10 @@ type ConcurrencyService struct {
 	cache ConcurrencyCache
 }
 
+type concurrencyTrackedActiveAccountReader interface {
+	GetTrackedActiveAccountIDs(ctx context.Context) ([]int64, error)
+}
+
 // NewConcurrencyService creates a new ConcurrencyService
 func NewConcurrencyService(cache ConcurrencyCache) *ConcurrencyService {
 	return &ConcurrencyService{cache: cache}
@@ -357,4 +361,15 @@ func (s *ConcurrencyService) GetAccountConcurrencyBatch(ctx context.Context, acc
 		return result, nil
 	}
 	return s.cache.GetAccountConcurrencyBatch(ctx, accountIDs)
+}
+
+func (s *ConcurrencyService) GetTrackedActiveAccountIDs(ctx context.Context) ([]int64, error) {
+	if s == nil || s.cache == nil {
+		return nil, nil
+	}
+	reader, ok := s.cache.(concurrencyTrackedActiveAccountReader)
+	if !ok {
+		return nil, nil
+	}
+	return reader.GetTrackedActiveAccountIDs(ctx)
 }

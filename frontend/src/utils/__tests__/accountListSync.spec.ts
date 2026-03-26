@@ -95,6 +95,29 @@ describe('accountListSync', () => {
     expect(accountMatchesFilters(limitedAccount, { limited_reason: 'rate_429' }, now)).toBe(false)
   })
 
+  it('matches runtime view filter for in-use accounts', () => {
+    expect(
+      accountMatchesFilters(
+        createAccount({ current_concurrency: 1 }),
+        { runtime_view: 'in_use_only' }
+      )
+    ).toBe(true)
+
+    expect(
+      accountMatchesFilters(
+        createAccount({ active_sessions: 2 }),
+        { runtime_view: 'in_use_only' }
+      )
+    ).toBe(true)
+
+    expect(
+      accountMatchesFilters(
+        createAccount({ current_concurrency: 0, active_sessions: 0 }),
+        { runtime_view: 'in_use_only' }
+      )
+    ).toBe(false)
+  })
+
   it('preserves runtime fields when patch payload omits them', () => {
     const current = createAccount({
       current_concurrency: 3,

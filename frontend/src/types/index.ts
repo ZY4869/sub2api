@@ -590,6 +590,7 @@ export type AccountType =
   | "upstream";
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
 export type AccountLimitedView = "all" | "normal_only" | "limited_only";
+export type AccountRuntimeView = "all" | "in_use_only";
 export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d";
 export type AccountViewMode = "table" | "card";
 export type OAuthAddMethod = "oauth" | "setup-token";
@@ -819,6 +820,7 @@ export interface AccountStatusSummary {
   temp_unschedulable: number;
   overloaded: number;
   paused: number;
+  in_use: number;
   by_platform: Partial<Record<AccountPlatform, number>>;
   limited_breakdown: {
     total: number;
@@ -826,6 +828,10 @@ export interface AccountStatusSummary {
     usage_5h: number;
     usage_7d: number;
   };
+}
+
+export interface AccountRuntimeSummary {
+  in_use: number;
 }
 
 // Account Usage types
