@@ -11,6 +11,7 @@ export default {
     groups: 'Groups',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
+    limitedAccounts: 'Limited Accounts',
     blacklist: 'Blacklist',
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',

@@ -103,7 +103,7 @@ func TestExtractOpenAICodexProbeSnapshotAccepts429WithResetAt(t *testing.T) {
 	headers.Set("x-codex-secondary-reset-after-seconds", "18000")
 	headers.Set("x-codex-secondary-window-minutes", "300")
 
-	updates, resetAt, err := extractOpenAICodexProbeSnapshot(&http.Response{StatusCode: http.StatusTooManyRequests, Header: headers})
+	updates, resetAt, reason, err := extractOpenAICodexProbeSnapshot(&http.Response{StatusCode: http.StatusTooManyRequests, Header: headers})
 	if err != nil {
 		t.Fatalf("extractOpenAICodexProbeSnapshot() error = %v", err)
 	}
@@ -113,13 +113,16 @@ func TestExtractOpenAICodexProbeSnapshotAccepts429WithResetAt(t *testing.T) {
 	if resetAt == nil {
 		t.Fatal("expected resetAt from exhausted codex headers")
 	}
+	if reason != AccountRateLimitReasonUsage7d {
+		t.Fatalf("reason = %q, want %q", reason, AccountRateLimitReasonUsage7d)
+	}
 }
 
 func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsRateLimit(t *testing.T) {
 	t.Parallel()
 
 	repo := &accountUsageCodexProbeRepo{
-		updateExtraCh: make(chan map[string]any, 1),
+		updateExtraCh: make(chan map[string]any, 2),
 		rateLimitCh:   make(chan time.Time, 1),
 	}
 	svc := &AccountUsageService{accountRepo: repo}
@@ -128,7 +131,7 @@ func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsRateLimit(t *tes
 	svc.persistOpenAICodexProbeSnapshot(321, map[string]any{
 		"codex_7d_used_percent": 100.0,
 		"codex_7d_reset_at":     resetAt.Format(time.RFC3339),
-	}, &resetAt)
+	}, &resetAt, AccountRateLimitReasonUsage7d)
 
 	select {
 	case updates := <-repo.updateExtraCh:
@@ -146,6 +149,15 @@ func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsRateLimit(t *tes
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("waiting for codex probe rate limit persistence timed out")
+	}
+
+	select {
+	case updates := <-repo.updateExtraCh:
+		if got := updates["rate_limit_reason"]; got != AccountRateLimitReasonUsage7d {
+			t.Fatalf("rate_limit_reason = %v, want %q", got, AccountRateLimitReasonUsage7d)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("waiting for codex probe rate-limit reason persistence timed out")
 	}
 }
 

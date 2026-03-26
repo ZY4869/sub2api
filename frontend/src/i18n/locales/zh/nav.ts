@@ -11,6 +11,7 @@ export default {
     groups: '分组管理',
     subscriptions: '订阅管理',
     accounts: '账号管理',
+    limitedAccounts: '受限账号',
     blacklist: '黑名单',
     proxies: 'IP管理',
     redeemCodes: '兑换码',
@@ -26,10 +27,8 @@ export default {
     logout: '退出登录',
     github: 'GitHub',
     mySubscriptions: '我的订阅',
-    buySubscription: '充值/订阅',
+    buySubscription: '充值 / 订阅',
     docs: '文档',
     sora: 'Sora 创作'
   },
-
-  // Auth,
 }

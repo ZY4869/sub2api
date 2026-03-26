@@ -162,7 +162,15 @@ func (r *accountRepository) ClearTempUnschedulable(ctx context.Context, id int64
 	return nil
 }
 func (r *accountRepository) ClearRateLimit(ctx context.Context, id int64) error {
-	_, err := r.client.Account.Update().Where(dbaccount.IDEQ(id)).ClearRateLimitedAt().ClearRateLimitResetAt().ClearOverloadUntil().Save(ctx)
+	_, err := r.sql.ExecContext(ctx, `
+		UPDATE accounts
+		SET rate_limited_at = NULL,
+			rate_limit_reset_at = NULL,
+			overload_until = NULL,
+			extra = COALESCE(extra, '{}'::jsonb) - 'rate_limit_reason',
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`, id)
 	if err != nil {
 		return err
 	}

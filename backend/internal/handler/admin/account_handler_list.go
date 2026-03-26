@@ -59,6 +59,8 @@ func (h *AccountHandler) List(c *gin.Context) {
 	accountType := c.Query("type")
 	status := service.NormalizeAdminAccountStatusInput(c.Query("status"))
 	lifecycle := service.NormalizeAccountLifecycleInput(c.DefaultQuery("lifecycle", service.AccountLifecycleNormal))
+	limitedView := service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll))
+	limitedReason := service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason"))
 	search := c.Query("search")
 	search = strings.TrimSpace(search)
 	if len(search) > 100 {
@@ -78,7 +80,8 @@ func (h *AccountHandler) List(c *gin.Context) {
 			groupID = parsedGroupID
 		}
 	}
-	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, lifecycle)
+	requestCtx := service.WithAccountLimitedFilters(c.Request.Context(), limitedView, limitedReason)
+	accounts, total, err := h.adminService.ListAccounts(requestCtx, page, pageSize, platform, accountType, status, search, groupID, lifecycle)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -172,7 +175,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 		result[i] = item
 	}
-	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, lifecycle, search, lite)
+	etag := buildAccountsListETag(result, total, page, pageSize, platform, accountType, status, lifecycle, search, limitedView, limitedReason, lite)
 	if etag != "" {
 		c.Header("ETag", etag)
 		c.Header("Vary", "If-None-Match")
@@ -183,7 +186,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	}
 	response.Paginated(c, result, total, page, pageSize)
 }
-func buildAccountsListETag(items []AccountWithConcurrency, total int64, page, pageSize int, platform, accountType, status, lifecycle, search string, lite bool) string {
+func buildAccountsListETag(items []AccountWithConcurrency, total int64, page, pageSize int, platform, accountType, status, lifecycle, search, limitedView, limitedReason string, lite bool) string {
 	payload := struct {
 		Total       int64                    `json:"total"`
 		Page        int                      `json:"page"`
@@ -193,9 +196,11 @@ func buildAccountsListETag(items []AccountWithConcurrency, total int64, page, pa
 		Status      string                   `json:"status"`
 		Lifecycle   string                   `json:"lifecycle"`
 		Search      string                   `json:"search"`
+		LimitedView string                   `json:"limited_view"`
+		LimitedReason string                 `json:"limited_reason"`
 		Lite        bool                     `json:"lite"`
 		Items       []AccountWithConcurrency `json:"items"`
-	}{Total: total, Page: page, PageSize: pageSize, Platform: platform, AccountType: accountType, Status: status, Lifecycle: lifecycle, Search: search, Lite: lite, Items: items}
+	}{Total: total, Page: page, PageSize: pageSize, Platform: platform, AccountType: accountType, Status: status, Lifecycle: lifecycle, Search: search, LimitedView: limitedView, LimitedReason: limitedReason, Lite: lite, Items: items}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return ""

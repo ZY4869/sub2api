@@ -1,5 +1,5 @@
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
-import type { Account, WindowStats } from '@/types'
+import type { Account, AccountLimitedView, AccountRateLimitReason, WindowStats } from '@/types'
 
 export interface AccountListFilters {
   platform?: string
@@ -8,6 +8,8 @@ export interface AccountListFilters {
   group?: string
   search?: string
   lifecycle?: string
+  limited_view?: AccountLimitedView | string
+  limited_reason?: AccountRateLimitReason | string
 }
 
 export type AccountListRequestParams = AccountListFilters & {
@@ -43,6 +45,10 @@ const matchesGroupFilter = (account: Account, groupFilter: string) => {
   return account.groups?.some(group => group.id === groupID) ?? false
 }
 
+const isAccountActivelyLimited = (account: Account, now: number) => {
+  return hasFutureTimestamp(account.rate_limit_reset_at, now)
+}
+
 const resolveAccountLifecycle = (account: Account) => account.lifecycle_state || 'normal'
 
 export const accountMatchesFilters = (
@@ -57,9 +63,17 @@ export const accountMatchesFilters = (
   }
   if (!matchesGroupFilter(account, filters.group || '')) return false
 
+  const isLimited = isAccountActivelyLimited(account, now)
+  if (filters.limited_view === 'normal_only' && isLimited) return false
+  if (filters.limited_view === 'limited_only' && !isLimited) return false
+  if (filters.limited_reason) {
+    if (!isLimited) return false
+    if ((account.rate_limit_reason || '') !== filters.limited_reason) return false
+  }
+
   if (filters.status) {
     if (filters.status === 'rate_limited') {
-      if (!hasFutureTimestamp(account.rate_limit_reset_at, now)) return false
+      if (!isLimited) return false
     } else if (filters.status === 'paused') {
       if (account.schedulable) return false
     } else if (filters.status === 'temp_unschedulable') {
@@ -94,6 +108,7 @@ export const shouldReplaceAutoRefreshRow = (current: Account, next: Account) => 
     current.active_sessions !== next.active_sessions ||
     current.schedulable !== next.schedulable ||
     current.status !== next.status ||
+    current.rate_limit_reason !== next.rate_limit_reason ||
     current.rate_limit_reset_at !== next.rate_limit_reset_at ||
     current.overload_until !== next.overload_until ||
     current.temp_unschedulable_until !== next.temp_unschedulable_until ||

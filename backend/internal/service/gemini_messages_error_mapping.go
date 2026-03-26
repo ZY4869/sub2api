@@ -252,11 +252,11 @@ func (s *GeminiMessagesCompatService) handleGeminiUpstreamError(ctx context.Cont
 				logger.LegacyPrintf("service.gemini_messages_compat", "[Gemini 429] Account %d rate limited, fallback to 5min", account.ID)
 			}
 		}
-		_ = s.accountRepo.SetRateLimited(ctx, account.ID, ra)
+		_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, ra, AccountRateLimitReason429)
 		return
 	}
 	resetTime := time.Unix(*resetAt, 0)
-	_ = s.accountRepo.SetRateLimited(ctx, account.ID, resetTime)
+	_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, resetTime, AccountRateLimitReason429)
 	logger.LegacyPrintf("service.gemini_messages_compat", "[Gemini 429] Account %d rate limited until %v (oauth_type=%s, tier=%s)", account.ID, resetTime, oauthType, tierID)
 }
 func ParseGeminiRateLimitResetTime(body []byte) *int64 {

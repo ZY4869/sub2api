@@ -178,6 +178,7 @@ type Account struct {
 
 	RateLimitedAt    *time.Time `json:"rate_limited_at"`
 	RateLimitResetAt *time.Time `json:"rate_limit_reset_at"`
+	RateLimitReason  string     `json:"rate_limit_reason,omitempty"`
 	OverloadUntil    *time.Time `json:"overload_until"`
 
 	TempUnschedulableUntil  *time.Time `json:"temp_unschedulable_until"`

@@ -347,14 +347,15 @@ func (h *AccountHandler) listAllProxies(ctx context.Context) ([]service.Proxy, e
 	return out, nil
 }
 
-func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, lifecycle, search string) ([]service.Account, error) {
+func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, accountType, status, lifecycle, search, limitedView, limitedReason string) ([]service.Account, error) {
 	page := 1
 	pageSize := dataPageCap
 	var out []service.Account
 	normalizedStatus := service.NormalizeAdminAccountStatusInput(status)
 	normalizedLifecycle := service.NormalizeAccountLifecycleInput(lifecycle)
+	filteredCtx := service.WithAccountLimitedFilters(ctx, limitedView, limitedReason)
 	for {
-		items, total, err := h.adminService.ListAccounts(ctx, page, pageSize, platform, accountType, normalizedStatus, search, 0, normalizedLifecycle)
+		items, total, err := h.adminService.ListAccounts(filteredCtx, page, pageSize, platform, accountType, normalizedStatus, search, 0, normalizedLifecycle)
 		if err != nil {
 			return nil, err
 		}
@@ -387,11 +388,13 @@ func (h *AccountHandler) resolveExportAccounts(ctx context.Context, ids []int64,
 	accountType := c.Query("type")
 	status := c.Query("status")
 	lifecycle := c.Query("lifecycle")
+	limitedView := service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll))
+	limitedReason := service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason"))
 	search := strings.TrimSpace(c.Query("search"))
 	if len(search) > 100 {
 		search = search[:100]
 	}
-	return h.listAccountsFiltered(ctx, platform, accountType, status, lifecycle, search)
+	return h.listAccountsFiltered(ctx, platform, accountType, status, lifecycle, search, limitedView, limitedReason)
 }
 
 func (h *AccountHandler) resolveExportProxies(ctx context.Context, accounts []service.Account) ([]service.Proxy, error) {

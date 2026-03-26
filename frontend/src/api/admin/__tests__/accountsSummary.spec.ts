@@ -29,6 +29,12 @@ describe('admin accounts summary api', () => {
         ByPlatform: {
           openai: 5,
           kiro: 4
+        },
+        LimitedBreakdown: {
+          total: 3,
+          rate_429: 1,
+          usage_5h: 1,
+          usage_7d: 1
         }
       }
     })
@@ -50,6 +56,33 @@ describe('admin accounts summary api', () => {
       by_platform: {
         openai: 5,
         kiro: 4
+      },
+      limited_breakdown: {
+        total: 3,
+        rate_429: 1,
+        usage_5h: 1,
+        usage_7d: 1
+      }
+    })
+  })
+
+  it('passes limited filters through summary request params', async () => {
+    getMock.mockResolvedValue({
+      data: {
+        total: 0
+      }
+    })
+
+    const { getStatusSummary } = await import('../accounts')
+    await getStatusSummary({
+      limited_view: 'limited_only',
+      limited_reason: 'usage_7d'
+    })
+
+    expect(getMock).toHaveBeenCalledWith('/admin/accounts/summary', {
+      params: {
+        limited_view: 'limited_only',
+        limited_reason: 'usage_7d'
       }
     })
   })

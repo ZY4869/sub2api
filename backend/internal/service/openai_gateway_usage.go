@@ -327,6 +327,22 @@ func codexRateLimitResetAtFromSnapshot(snapshot *OpenAICodexUsageSnapshot, fallb
 	}
 	return nil
 }
+func codexRateLimitReasonFromSnapshot(snapshot *OpenAICodexUsageSnapshot) string {
+	if snapshot == nil {
+		return AccountRateLimitReason429
+	}
+	normalized := snapshot.Normalize()
+	if normalized == nil {
+		return AccountRateLimitReason429
+	}
+	if codexUsagePercentExhausted(normalized.Used7dPercent) {
+		return AccountRateLimitReasonUsage7d
+	}
+	if codexUsagePercentExhausted(normalized.Used5hPercent) {
+		return AccountRateLimitReasonUsage5h
+	}
+	return AccountRateLimitReason429
+}
 func codexRateLimitResetAtFromExtra(extra map[string]any, now time.Time) *time.Time {
 	if len(extra) == 0 {
 		return nil
@@ -360,7 +376,7 @@ func syncOpenAICodexRateLimitFromExtra(ctx context.Context, repo AccountReposito
 	if !changed || resetAt == nil || repo == nil || account == nil || account.ID <= 0 {
 		return resetAt
 	}
-	_ = repo.SetRateLimited(ctx, account.ID, *resetAt)
+	_ = setAccountRateLimited(ctx, repo, account.ID, *resetAt, AccountRateLimitReason(account, now))
 	return resetAt
 }
 func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, accountID int64, snapshot *OpenAICodexUsageSnapshot) {
@@ -391,7 +407,7 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 			_ = s.accountRepo.UpdateExtra(updateCtx, accountID, updates)
 		}
 		if resetAt != nil {
-			_ = s.accountRepo.SetRateLimited(updateCtx, accountID, *resetAt)
+			_ = setAccountRateLimited(updateCtx, s.accountRepo, accountID, *resetAt, codexRateLimitReasonFromSnapshot(snapshot))
 		}
 	}()
 }

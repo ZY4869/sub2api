@@ -784,7 +784,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		}
 		if snapshot := ParseCodexRateLimitHeaders(resp.Header); snapshot != nil {
 			if resetAt := codexRateLimitResetAtFromSnapshot(snapshot, time.Now()); resetAt != nil {
-				_ = s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt)
+				_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, codexRateLimitReasonFromSnapshot(snapshot))
 				account.RateLimitResetAt = resetAt
 			}
 		}
@@ -794,7 +794,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		body, _ := io.ReadAll(resp.Body)
 		if useChatGPTOAuth && s.accountRepo != nil {
 			if resetAt := (&RateLimitService{}).calculateOpenAI429ResetTime(resp.Header); resetAt != nil {
-				_ = s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt)
+				_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, codexRateLimitReasonFromSnapshot(ParseCodexRateLimitHeaders(resp.Header)))
 				account.RateLimitResetAt = resetAt
 			}
 		}

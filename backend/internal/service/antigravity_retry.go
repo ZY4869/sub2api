@@ -678,7 +678,7 @@ func (s *AntigravityGatewayService) handleUpstreamError(ctx context.Context, pre
 		}
 		ra := s.resolveResetTime(resetAt, defaultDur)
 		logger.LegacyPrintf("service.antigravity_gateway", "%s status=429 rate_limited account=%d reset_at=%v reset_in=%v (fallback)", prefix, account.ID, ra.Format("15:04:05"), time.Until(ra).Truncate(time.Second))
-		if err := s.accountRepo.SetRateLimited(ctx, account.ID, ra); err != nil {
+		if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, ra, AccountRateLimitReason429); err != nil {
 			logger.LegacyPrintf("service.antigravity_gateway", "%s status=429 rate_limit_set_failed account=%d error=%v", prefix, account.ID, err)
 		}
 		return nil

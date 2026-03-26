@@ -32,6 +32,7 @@ type openAICodexSnapshotAsyncRepo struct {
 type openAICodexExtraListRepo struct {
 	stubOpenAIAccountRepo
 	rateLimitCh chan time.Time
+	updateExtra []map[string]any
 }
 
 func (r *openAIWSRateLimitSignalRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
@@ -70,6 +71,15 @@ func (r *openAICodexExtraListRepo) SetRateLimited(_ context.Context, _ int64, re
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
 	}
+	return nil
+}
+
+func (r *openAICodexExtraListRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+	copied := make(map[string]any, len(updates))
+	for key, value := range updates {
+		copied[key] = value
+	}
+	r.updateExtra = append(r.updateExtra, copied)
 	return nil
 }
 

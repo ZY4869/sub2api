@@ -2,7 +2,7 @@
   <div class="flex items-center gap-2">
     <!-- Rate Limit Display (429) - Two-line layout -->
     <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
-      <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
+      <span class="badge text-xs badge-warning">{{ rateLimitStatusLabel }}</span>
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ rateLimitResumeText }}</span>
     </div>
 
@@ -63,13 +63,13 @@
         class="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
       >
         <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        429
+        {{ rateLimitBadgeText }}
       </span>
       <!-- Tooltip -->
       <div
         class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
       >
-        {{ t('admin.accounts.status.rateLimitedUntil', { time: formatDateTime(account.rate_limit_reset_at) }) }}
+        {{ rateLimitTooltipText }}
         <div
           class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
         ></div>
@@ -311,7 +311,48 @@ const rateLimitCountdown = computed(() => {
 
 const rateLimitResumeText = computed(() => {
   if (!rateLimitCountdown.value) return ''
-  return t('admin.accounts.status.rateLimitedAutoResume', { time: rateLimitCountdown.value })
+  switch (props.account.rate_limit_reason) {
+    case 'usage_5h':
+      return t('admin.accounts.status.usage5hAutoResume', { time: rateLimitCountdown.value })
+    case 'usage_7d':
+      return t('admin.accounts.status.usage7dAutoResume', { time: rateLimitCountdown.value })
+    default:
+      return t('admin.accounts.status.rateLimitedAutoResume', { time: rateLimitCountdown.value })
+  }
+})
+
+const rateLimitStatusLabel = computed(() => {
+  switch (props.account.rate_limit_reason) {
+    case 'usage_5h':
+      return t('admin.accounts.status.usage5h')
+    case 'usage_7d':
+      return t('admin.accounts.status.usage7d')
+    default:
+      return t('admin.accounts.status.rateLimited')
+  }
+})
+
+const rateLimitBadgeText = computed(() => {
+  switch (props.account.rate_limit_reason) {
+    case 'usage_5h':
+      return '5h'
+    case 'usage_7d':
+      return '7d'
+    default:
+      return '429'
+  }
+})
+
+const rateLimitTooltipText = computed(() => {
+  const time = formatDateTime(props.account.rate_limit_reset_at)
+  switch (props.account.rate_limit_reason) {
+    case 'usage_5h':
+      return t('admin.accounts.status.usage5hUntil', { time })
+    case 'usage_7d':
+      return t('admin.accounts.status.usage7dUntil', { time })
+    default:
+      return t('admin.accounts.status.rateLimitedUntil', { time })
+  }
 })
 
 // Computed: countdown text for overload (529)

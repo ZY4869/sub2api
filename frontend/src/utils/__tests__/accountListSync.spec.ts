@@ -25,6 +25,7 @@ const createAccount = (overrides: Partial<Account> = {}): Account => ({
   schedulable: true,
   rate_limited_at: null,
   rate_limit_reset_at: null,
+  rate_limit_reason: null,
   overload_until: null,
   temp_unschedulable_until: null,
   temp_unschedulable_reason: null,
@@ -81,6 +82,19 @@ describe('accountListSync', () => {
     ).toBe(false)
   })
 
+  it('matches limited view and limited reason filters', () => {
+    const now = new Date('2026-03-14T10:00:00Z').getTime()
+    const limitedAccount = createAccount({
+      rate_limit_reset_at: '2026-03-14T10:05:00Z',
+      rate_limit_reason: 'usage_7d'
+    })
+
+    expect(accountMatchesFilters(limitedAccount, { limited_view: 'limited_only' }, now)).toBe(true)
+    expect(accountMatchesFilters(limitedAccount, { limited_view: 'normal_only' }, now)).toBe(false)
+    expect(accountMatchesFilters(limitedAccount, { limited_reason: 'usage_7d' }, now)).toBe(true)
+    expect(accountMatchesFilters(limitedAccount, { limited_reason: 'rate_429' }, now)).toBe(false)
+  })
+
   it('preserves runtime fields when patch payload omits them', () => {
     const current = createAccount({
       current_concurrency: 3,
@@ -114,5 +128,18 @@ describe('accountListSync', () => {
 
     expect(shouldReplaceAutoRefreshRow(current, next)).toBe(true)
     expect(shouldReplaceAutoRefreshRow(current, current)).toBe(false)
+  })
+
+  it('replaces rows when rate-limit reason changes', () => {
+    const current = createAccount({
+      rate_limit_reset_at: '2026-03-14T10:05:00Z',
+      rate_limit_reason: 'rate_429'
+    })
+    const next = createAccount({
+      rate_limit_reset_at: '2026-03-14T10:05:00Z',
+      rate_limit_reason: 'usage_5h'
+    })
+
+    expect(shouldReplaceAutoRefreshRow(current, next)).toBe(true)
   })
 })

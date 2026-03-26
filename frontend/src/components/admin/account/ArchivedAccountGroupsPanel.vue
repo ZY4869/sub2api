@@ -1,5 +1,5 @@
 <template>
-  <div class="mb-4 space-y-3">
+  <div class="mb-2 space-y-2">
     <div class="flex items-center justify-between gap-3">
       <div>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white">

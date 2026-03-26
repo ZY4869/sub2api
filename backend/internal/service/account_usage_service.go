@@ -661,18 +661,18 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	updates, resetAt, err := extractOpenAICodexProbeSnapshot(resp)
+	updates, resetAt, reason, err := extractOpenAICodexProbeSnapshot(resp)
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(updates) > 0 || resetAt != nil {
-		s.persistOpenAICodexProbeSnapshot(account.ID, updates, resetAt)
+		s.persistOpenAICodexProbeSnapshot(account.ID, updates, resetAt, reason)
 		return updates, resetAt, nil
 	}
 	return nil, nil, nil
 }
 
-func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, updates map[string]any, resetAt *time.Time) {
+func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, updates map[string]any, resetAt *time.Time, reason string) {
 	if s == nil || s.accountRepo == nil || accountID <= 0 {
 		return
 	}
@@ -687,32 +687,33 @@ func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, u
 			_ = s.accountRepo.UpdateExtra(updateCtx, accountID, updates)
 		}
 		if resetAt != nil {
-			_ = s.accountRepo.SetRateLimited(updateCtx, accountID, *resetAt)
+			_ = setAccountRateLimited(updateCtx, s.accountRepo, accountID, *resetAt, reason)
 		}
 	}()
 }
 
-func extractOpenAICodexProbeSnapshot(resp *http.Response) (map[string]any, *time.Time, error) {
+func extractOpenAICodexProbeSnapshot(resp *http.Response) (map[string]any, *time.Time, string, error) {
 	if resp == nil {
-		return nil, nil, nil
+		return nil, nil, "", nil
 	}
 	if snapshot := ParseCodexRateLimitHeaders(resp.Header); snapshot != nil {
 		baseTime := time.Now()
 		updates := buildCodexUsageExtraUpdates(snapshot, baseTime)
 		resetAt := codexRateLimitResetAtFromSnapshot(snapshot, baseTime)
+		reason := codexRateLimitReasonFromSnapshot(snapshot)
 		if len(updates) > 0 {
-			return updates, resetAt, nil
+			return updates, resetAt, reason, nil
 		}
-		return nil, resetAt, nil
+		return nil, resetAt, reason, nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, nil, fmt.Errorf("openai codex probe returned status %d", resp.StatusCode)
+		return nil, nil, "", fmt.Errorf("openai codex probe returned status %d", resp.StatusCode)
 	}
-	return nil, nil, nil
+	return nil, nil, "", nil
 }
 
 func extractOpenAICodexProbeUpdates(resp *http.Response) (map[string]any, error) {
-	updates, _, err := extractOpenAICodexProbeSnapshot(resp)
+	updates, _, _, err := extractOpenAICodexProbeSnapshot(resp)
 	return updates, err
 }
 

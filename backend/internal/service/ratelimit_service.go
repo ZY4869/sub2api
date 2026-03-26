@@ -716,7 +716,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 	if runtimePlatform == PlatformOpenAI {
 		s.persistOpenAICodexSnapshot(ctx, account, headers)
 		if resetAt := s.calculateOpenAI429ResetTime(headers); resetAt != nil {
-			if err := s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt); err != nil {
+			if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, codexRateLimitReasonFromSnapshot(ParseCodexRateLimitHeaders(headers))); err != nil {
 				slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 				return
 			}
@@ -727,7 +727,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 
 	// 2. Anthropic 平台：尝试解析 per-window 头（5h / 7d），选择实际触发的窗口
 	if result := calculateAnthropic429ResetTime(headers); result != nil {
-		if err := s.accountRepo.SetRateLimited(ctx, account.ID, result.resetAt); err != nil {
+		if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, result.resetAt, result.reason); err != nil {
 			slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 			return
 		}
@@ -756,7 +756,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 			// 尝试解析 OpenAI 的 usage_limit_reached 错误
 			if resetAt := parseOpenAIRateLimitResetTime(responseBody); resetAt != nil {
 				resetTime := time.Unix(*resetAt, 0)
-				if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetTime); err != nil {
+				if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, resetTime, AccountRateLimitReason429); err != nil {
 					slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 					return
 				}
@@ -767,7 +767,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 			// 尝试解析 Gemini 格式（用于其他平台）
 			if resetAt := ParseGeminiRateLimitResetTime(responseBody); resetAt != nil {
 				resetTime := time.Unix(*resetAt, 0)
-				if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetTime); err != nil {
+				if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, resetTime, AccountRateLimitReason429); err != nil {
 					slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 					return
 				}
@@ -789,7 +789,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 		// 其他平台：没有重置时间，使用默认5分钟
 		resetAt := time.Now().Add(5 * time.Minute)
 		slog.Warn("rate_limit_no_reset_time", "account_id", account.ID, "platform", runtimePlatform, "using_default", "5m")
-		if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetAt); err != nil {
+		if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, resetAt, AccountRateLimitReason429); err != nil {
 			slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 		}
 		return
@@ -800,7 +800,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 	if err != nil {
 		slog.Warn("rate_limit_reset_parse_failed", "reset_timestamp", resetTimestamp, "error", err)
 		resetAt := time.Now().Add(5 * time.Minute)
-		if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetAt); err != nil {
+		if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, resetAt, AccountRateLimitReason429); err != nil {
 			slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 		}
 		return
@@ -809,7 +809,7 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 	resetAt := time.Unix(ts, 0)
 
 	// 标记限流状态
-	if err := s.accountRepo.SetRateLimited(ctx, account.ID, resetAt); err != nil {
+	if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, resetAt, AccountRateLimitReason429); err != nil {
 		slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 		return
 	}
@@ -876,6 +876,7 @@ func (s *RateLimitService) calculateOpenAI429ResetTime(headers http.Header) *tim
 type anthropic429Result struct {
 	resetAt       time.Time  // The correct reset time to use for SetRateLimited
 	fiveHourReset *time.Time // 5h window reset timestamp (for session window calculation), nil if not available
+	reason        string
 }
 
 // calculateAnthropic429ResetTime parses Anthropic's per-window rate-limit headers
@@ -938,7 +939,14 @@ func calculateAnthropic429ResetTime(headers http.Header) *anthropic429Result {
 	if chosen == nil {
 		return nil
 	}
-	return &anthropic429Result{resetAt: *chosen, fiveHourReset: reset5h}
+	reason := AccountRateLimitReason429
+	switch {
+	case is7dExceeded:
+		reason = AccountRateLimitReasonUsage7d
+	case is5hExceeded:
+		reason = AccountRateLimitReasonUsage5h
+	}
+	return &anthropic429Result{resetAt: *chosen, fiveHourReset: reset5h, reason: reason}
 }
 
 // isAnthropicWindowExceeded checks whether a given Anthropic rate-limit window

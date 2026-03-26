@@ -1168,6 +1168,19 @@ export default {
         rateLimited: 'Rate Limited',
         paused: 'Paused'
       },
+      limited: {
+        title: 'Limited Accounts',
+        description: 'Review currently limited accounts and split 429 from 5h and 7d caps.',
+        entry: 'Limited Accounts ({count})',
+        hideToggleOn: 'Hide Limited: On',
+        hideToggleOff: 'Hide Limited: Off',
+        summary: {
+          all: 'All Limited',
+          rate429: '429',
+          usage5h: '5h Cap',
+          usage7d: '7d Cap'
+        }
+      },
       groupView: {
         enable: 'Group View',
         disable: 'Flat View',
@@ -1219,10 +1232,16 @@ export default {
         paused: 'Paused',
         limited: 'Limited',
         rateLimited: 'Rate Limited',
+        usage5h: '5h Cap',
+        usage7d: '7d Cap',
         overloaded: 'Overloaded',
         tempUnschedulable: 'Temp Unschedulable',
         rateLimitedUntil: 'Rate limited and removed from scheduling. Auto resumes at {time}',
         rateLimitedAutoResume: 'Auto resumes in {time}',
+        usage5hUntil: '5h cap reached and removed from scheduling. Auto resumes at {time}',
+        usage7dUntil: '7d cap reached and removed from scheduling. Auto resumes at {time}',
+        usage5hAutoResume: '5h cap auto resumes in {time}',
+        usage7dAutoResume: '7d cap auto resumes in {time}',
         modelRateLimitedUntil: '{model} rate limited until {time}',
         overloadedUntil: 'Overloaded until {time}',
         viewTempUnschedDetails: 'View temp unschedulable details'

@@ -9,6 +9,8 @@ import (
 
 func (r *accountRepository) GetStatusSummary(ctx context.Context, filters service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
 	normalized := normalizeAdminAccountListFilters(filters.Platform, filters.AccountType, "", filters.Search, filters.GroupID, filters.Lifecycle)
+	normalized.LimitedView = service.NormalizeAccountLimitedViewInput(filters.LimitedView)
+	normalized.LimitedReason = service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason)
 	summary := &service.AccountStatusSummary{
 		ByStatus: map[string]int64{
 			"active":   0,
@@ -20,7 +22,12 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 
 	baseWhere := []string{"a.deleted_at IS NULL"}
 	baseArgs := make([]any, 0, 6)
-	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 5, normalized, "a", true)
+	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 8, normalized, "a", true)
+	reasonExpr := accountRateLimitReasonSQL(accountLimitedSQLColumns{
+		Extra:            "f.extra",
+		RateLimitResetAt: "f.rate_limit_reset_at",
+		SessionWindowEnd: "f.session_window_end",
+	})
 	aggregateQuery := `
 		WITH filtered AS (
 			SELECT
@@ -30,9 +37,23 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 				a.schedulable,
 				a.rate_limit_reset_at,
 				a.temp_unschedulable_until,
-				a.overload_until
+				a.overload_until,
+				a.extra,
+				a.session_window_end
 			FROM accounts a
 			WHERE ` + strings.Join(baseWhere, " AND ") + `
+		),
+		classified AS (
+			SELECT
+				f.id,
+				f.platform,
+				f.status,
+				f.schedulable,
+				f.rate_limit_reset_at,
+				f.temp_unschedulable_until,
+				f.overload_until,
+				` + reasonExpr + ` AS rate_limit_reason
+			FROM filtered f
 		)
 		SELECT
 			COUNT(*) AS total,
@@ -42,10 +63,22 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			COUNT(*) FILTER (WHERE rate_limit_reset_at IS NOT NULL AND rate_limit_reset_at > NOW()) AS rate_limited_count,
 			COUNT(*) FILTER (WHERE temp_unschedulable_until IS NOT NULL AND temp_unschedulable_until > NOW()) AS temp_unschedulable_count,
 			COUNT(*) FILTER (WHERE overload_until IS NOT NULL AND overload_until > NOW()) AS overloaded_count,
-			COUNT(*) FILTER (WHERE schedulable = FALSE) AS paused_count
-		FROM filtered
+			COUNT(*) FILTER (WHERE schedulable = FALSE) AS paused_count,
+			COUNT(*) FILTER (WHERE rate_limit_reason <> '') AS limited_total,
+			COUNT(*) FILTER (WHERE rate_limit_reason = $5) AS limited_rate_429,
+			COUNT(*) FILTER (WHERE rate_limit_reason = $6) AS limited_usage_5h,
+			COUNT(*) FILTER (WHERE rate_limit_reason = $7) AS limited_usage_7d
+		FROM classified
 	`
-	aggregateArgs := append([]any{service.StatusActive, service.StatusDisabled, service.StatusError, "inactive"}, baseArgs...)
+	aggregateArgs := append([]any{
+		service.StatusActive,
+		service.StatusDisabled,
+		service.StatusError,
+		"inactive",
+		service.AccountRateLimitReason429,
+		service.AccountRateLimitReasonUsage5h,
+		service.AccountRateLimitReasonUsage7d,
+	}, baseArgs...)
 	var activeCount int64
 	var inactiveCount int64
 	var errorCount int64
@@ -58,6 +91,10 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		&summary.TempUnschedulable,
 		&summary.Overloaded,
 		&summary.Paused,
+		&summary.LimitedBreakdown.Total,
+		&summary.LimitedBreakdown.Rate429,
+		&summary.LimitedBreakdown.Usage5h,
+		&summary.LimitedBreakdown.Usage7d,
 	); err != nil {
 		return nil, err
 	}

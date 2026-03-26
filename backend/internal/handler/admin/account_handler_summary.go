@@ -35,6 +35,8 @@ func (h *AccountHandler) GetStatusSummary(c *gin.Context) {
 		Search:      search,
 		GroupID:     groupID,
 		Lifecycle:   c.DefaultQuery("lifecycle", service.AccountLifecycleNormal),
+		LimitedView: service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll)),
+		LimitedReason: service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason")),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

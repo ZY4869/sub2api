@@ -541,7 +541,12 @@ func (s *AccountRepoSuite) TestSetRateLimited() {
 }
 
 func (s *AccountRepoSuite) TestClearRateLimit() {
-	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-clear"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name: "acc-clear",
+		Extra: map[string]any{
+			"rate_limit_reason": service.AccountRateLimitReasonUsage5h,
+		},
+	})
 	until := time.Now().Add(1 * time.Hour)
 	s.Require().NoError(s.repo.SetOverloaded(s.ctx, account.ID, until))
 	s.Require().NoError(s.repo.SetRateLimited(s.ctx, account.ID, until))
@@ -553,6 +558,8 @@ func (s *AccountRepoSuite) TestClearRateLimit() {
 	s.Require().Nil(got.RateLimitedAt)
 	s.Require().Nil(got.RateLimitResetAt)
 	s.Require().Nil(got.OverloadUntil)
+	_, exists := got.Extra["rate_limit_reason"]
+	s.Require().False(exists)
 }
 
 func (s *AccountRepoSuite) TestTempUnschedulableFieldsLoadedByGetByIDAndGetByIDs() {

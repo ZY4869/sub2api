@@ -168,4 +168,25 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('toggle-group-view')).toEqual([[]])
     expect(wrapper.emitted('sync-pending-list')).toEqual([[]])
   })
+
+  it('renders limited account controls and forwards their actions', async () => {
+    const wrapper = mountToolbar({
+      showLimitedControls: true,
+      hideLimitedAccounts: true,
+      limitedAccountsCount: 7
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.limited.hideToggleOn')
+    expect(wrapper.text()).toContain('admin.accounts.limited.entry')
+
+    await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.limited.hideToggleOn')
+    )?.trigger('click')
+    await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.limited.entry')
+    )?.trigger('click')
+
+    expect(wrapper.emitted('toggle-hide-limited')).toEqual([[]])
+    expect(wrapper.emitted('open-limited-page')).toEqual([[]])
+  })
 })

@@ -17,6 +17,9 @@
           :toggleable-columns="toggleableColumns"
           :view-mode="viewMode"
           :group-view-enabled="groupViewEnabled"
+          :show-limited-controls="!limitedMode"
+          :hide-limited-accounts="hideLimitedAccounts"
+          :limited-accounts-count="limitedAccountsCount"
           @update:filters="handleFilterUpdate"
           @update:search-query="handleSearchQueryUpdate"
           @update:view-mode="viewMode = $event"
@@ -34,18 +37,30 @@
           @set-auto-refresh-interval="handleAutoRefreshIntervalChange"
           @toggle-column="toggleColumn"
           @toggle-group-view="groupViewEnabled = !groupViewEnabled"
+          @toggle-hide-limited="toggleHideLimitedAccounts"
+          @open-limited-page="openLimitedAccountsPage"
         />
       </template>
       <template #table>
-        <div class="space-y-4">
+        <div class="space-y-2">
           <AccountPlatformTabs
             :model-value="String(params.platform || '')"
-            :platform-counts="accountSummary.by_platform"
+            :platform-counts="toolbarSummary.by_platform"
             @update:model-value="handlePlatformTabChange"
           />
 
+          <AccountLimitedSummaryBar
+            v-if="limitedMode"
+            :summary="toolbarSummary"
+            :loading="summaryLoading"
+            :error="summaryError"
+            :active-reason="activeLimitedReason"
+            @select-reason="handleLimitedReasonSelect"
+          />
+
           <AccountStatusSummaryBar
-            :summary="accountSummary"
+            v-else
+            :summary="toolbarSummary"
             :loading="summaryLoading"
             :error="summaryError"
             :active-status="String(params.status || '')"
@@ -66,6 +81,7 @@
           />
 
           <ArchivedAccountGroupsPanel
+            v-if="!limitedMode"
             :filters="params"
             :columns="archivedColumns"
             :toggling-schedulable="togglingSchedulable"
@@ -242,6 +258,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useModelInventoryStore } from '@/stores'
@@ -261,6 +278,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import AccountCardGrid from '@/components/admin/account/AccountCardGrid.vue'
 import AccountBulkActionsBar from '@/components/admin/account/AccountBulkActionsBar.vue'
 import AccountGroupedView from '@/components/admin/account/AccountGroupedView.vue'
+import AccountLimitedSummaryBar from '@/components/admin/account/AccountLimitedSummaryBar.vue'
 import AccountPlatformTabs from '@/components/admin/account/AccountPlatformTabs.vue'
 import AccountStatusSummaryBar from '@/components/admin/account/AccountStatusSummaryBar.vue'
 import ArchivedAccountGroupsPanel from '@/components/admin/account/ArchivedAccountGroupsPanel.vue'
@@ -283,6 +301,7 @@ import {
 import type { AccountListRequestParams } from '@/utils/accountListSync'
 import type {
   Account,
+  AccountRateLimitReason,
   AccountPlatform,
   AccountType,
   Proxy as AccountProxy,
@@ -290,7 +309,15 @@ import type {
   ClaudeModel
 } from '@/types'
 
+const props = withDefaults(defineProps<{
+  limitedMode?: boolean
+}>(), {
+  limitedMode: false
+})
+
+const limitedMode = computed(() => props.limitedMode)
 const { t } = useI18n()
+const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const modelInventoryStore = useModelInventoryStore()
@@ -363,6 +390,31 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
 const ARCHIVED_ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort-archived'
+const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY = 'account-hide-limited-accounts'
+
+const loadHideLimitedPreference = () => {
+  if (typeof window === 'undefined') {
+    return true
+  }
+  try {
+    const saved = localStorage.getItem(HIDE_LIMITED_ACCOUNTS_STORAGE_KEY)
+    return saved === null ? true : saved === 'true'
+  } catch (error) {
+    console.error('Failed to load limited accounts visibility:', error)
+    return true
+  }
+}
+
+const saveHideLimitedPreference = (value: boolean) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    localStorage.setItem(HIDE_LIMITED_ACCOUNTS_STORAGE_KEY, String(value))
+  } catch (error) {
+    console.error('Failed to save limited accounts visibility:', error)
+  }
+}
 
 const loadSavedColumns = () => {
   try {
@@ -409,21 +461,44 @@ const {
   handlePageSizeChange: baseHandlePageSizeChange
 } = useTableLoader<Account, AccountListRequestParams>({
   fetchFn: adminAPI.accounts.list,
-  initialParams: { platform: '', type: '', status: '', group: '', search: '', lifecycle: 'normal' }
+  initialParams: {
+    platform: '',
+    type: '',
+    status: '',
+    group: '',
+    search: '',
+    lifecycle: 'normal',
+    limited_view: limitedMode.value ? 'limited_only' : (loadHideLimitedPreference() ? 'normal_only' : 'all'),
+    limited_reason: ''
+  }
 })
+
+const hideLimitedAccounts = computed(() => !limitedMode.value && String(params.limited_view || '') === 'normal_only')
 
 const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
   Object.assign(params, newFilters)
 }
+
+const summaryParams = computed<AccountListRequestParams>(() => ({
+  ...params,
+  limited_view: limitedMode.value ? 'limited_only' : 'all',
+  limited_reason: limitedMode.value ? '' : String(params.limited_reason || '')
+}))
 
 const {
   summary: accountSummaryState,
   loading: summaryLoading,
   error: summaryError,
   refresh: refreshAccountSummary
-} = useAccountStatusSummary(params)
+} = useAccountStatusSummary(summaryParams)
 
 const accountSummary = computed(() => accountSummaryState.value)
+const toolbarSummary = computed(() => accountSummary.value)
+const limitedAccountsCount = computed(() => accountSummary.value.limited_breakdown.total)
+const activeLimitedReason = computed<AccountRateLimitReason | ''>(() => {
+  const value = String(params.limited_reason || '')
+  return value === 'rate_429' || value === 'usage_5h' || value === 'usage_7d' ? value : ''
+})
 
 const currentArchiveSourceGroup = computed<AdminGroup | null>(() => {
   const rawGroup = String(params.group || '').trim()
@@ -646,8 +721,30 @@ const handlePlatformTabChange = (value: string) => {
   debouncedReload()
 }
 const handleSummaryStatusSelect = (status: string) => {
+  if (!limitedMode.value && status === 'rate_limited') {
+    openLimitedAccountsPage()
+    return
+  }
   params.status = String(params.status || '') === status ? '' : status
   debouncedReload()
+}
+const handleLimitedReasonSelect = (reason: AccountRateLimitReason | '') => {
+  params.limited_reason = activeLimitedReason.value === reason ? '' : reason
+  debouncedReload()
+}
+const toggleHideLimitedAccounts = () => {
+  const nextHidden = !hideLimitedAccounts.value
+  params.limited_view = nextHidden ? 'normal_only' : 'all'
+  if (nextHidden && String(params.status || '') === 'rate_limited') {
+    params.status = ''
+  }
+  saveHideLimitedPreference(nextHidden)
+  debouncedReload()
+}
+const openLimitedAccountsPage = () => {
+  router.push({ path: '/admin/accounts/limited' }).catch((error) => {
+    console.error('Failed to open limited accounts page:', error)
+  })
 }
 const showStandalonePagination = computed(() => groupViewEnabled.value || viewMode.value === 'card')
 const handleBulkDelete = async () => { if(!confirm(t('common.confirm'))) return; try { await Promise.all(selIds.value.map(id => adminAPI.accounts.delete(id))); clearSelection(); reload() } catch (error) { console.error('Failed to bulk delete accounts:', error) } }

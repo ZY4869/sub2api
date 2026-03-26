@@ -6,6 +6,15 @@ type AccountStatusSummaryFilters struct {
 	Search      string
 	GroupID     int64
 	Lifecycle   string
+	LimitedView   string
+	LimitedReason string
+}
+
+type AccountLimitedBreakdown struct {
+	Total    int64 `json:"total"`
+	Rate429  int64 `json:"rate_429"`
+	Usage5h  int64 `json:"usage_5h"`
+	Usage7d  int64 `json:"usage_7d"`
 }
 
 type AccountStatusSummary struct {
@@ -16,4 +25,5 @@ type AccountStatusSummary struct {
 	Overloaded        int64            `json:"overloaded"`
 	Paused            int64            `json:"paused"`
 	ByPlatform        map[string]int64 `json:"by_platform"`
+	LimitedBreakdown  AccountLimitedBreakdown `json:"limited_breakdown"`
 }

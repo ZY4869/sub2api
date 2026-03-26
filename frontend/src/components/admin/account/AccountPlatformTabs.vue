@@ -1,11 +1,11 @@
 <template>
   <div class="overflow-x-auto">
-    <div class="inline-flex min-w-full items-center gap-2 border-b border-gray-200 pb-1 dark:border-dark-700">
+    <div class="inline-flex min-w-full items-center gap-1 border-b border-gray-200 pb-0 dark:border-dark-700">
       <button
         v-for="tab in tabs"
         :key="tab.value"
         type="button"
-        class="inline-flex items-center gap-2 whitespace-nowrap rounded-t-xl border-b-2 px-4 py-2 text-sm font-medium transition-colors"
+        class="inline-flex items-center gap-2 whitespace-nowrap rounded-t-xl border-b-2 px-3 py-1.5 text-sm font-medium transition-colors"
         :class="modelValue === tab.value ? 'border-primary-600 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
         @click="emit('update:modelValue', tab.value)"
       >

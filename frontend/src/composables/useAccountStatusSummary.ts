@@ -15,7 +15,13 @@ const createEmptySummary = (): AccountStatusSummary => ({
   temp_unschedulable: 0,
   overloaded: 0,
   paused: 0,
-  by_platform: {}
+  by_platform: {},
+  limited_breakdown: {
+    total: 0,
+    rate_429: 0,
+    usage_5h: 0,
+    usage_7d: 0
+  }
 })
 
 export function useAccountStatusSummary(
@@ -37,7 +43,9 @@ export function useAccountStatusSummary(
       type: String(params.type || ''),
       group: String(params.group || ''),
       search: String(params.search || ''),
-      lifecycle: String(params.lifecycle || '')
+      lifecycle: String(params.lifecycle || ''),
+      limited_view: String(params.limited_view || ''),
+      limited_reason: String(params.limited_reason || '')
     }
   })
 

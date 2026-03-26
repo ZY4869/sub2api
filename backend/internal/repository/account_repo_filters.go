@@ -20,6 +20,8 @@ type adminAccountListFilters struct {
 	Search      string
 	GroupID     int64
 	Lifecycle   string
+	LimitedView   string
+	LimitedReason string
 }
 
 func normalizeAdminAccountListFilters(platform, accountType, status, search string, groupID int64, lifecycle string) adminAccountListFilters {
@@ -66,6 +68,9 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 	if predicate := lifecyclePredicate(filters.Lifecycle); predicate != nil {
 		q = q.Where(predicate)
 	}
+	if predicate := limitedAccountPredicate(filters); predicate != nil {
+		q = q.Where(predicate)
+	}
 	return q
 }
 
@@ -97,5 +102,6 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 		args = append(args, filters.Lifecycle)
 		argIndex++
 	}
+	whereClauses, args, argIndex = appendAdminLimitedWhereClauses(whereClauses, args, argIndex, filters, tableAlias)
 	return whereClauses, args, argIndex
 }

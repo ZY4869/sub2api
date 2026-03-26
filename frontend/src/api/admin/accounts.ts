@@ -45,6 +45,8 @@ export async function list(
     search?: string
     lite?: string
     lifecycle?: string
+    limited_view?: string
+    limited_reason?: string
   },
   options?: {
     signal?: AbortSignal
@@ -78,6 +80,8 @@ export async function listWithEtag(
     search?: string
     lite?: string
     lifecycle?: string
+    limited_view?: string
+    limited_reason?: string
   },
   options?: {
     signal?: AbortSignal
@@ -511,6 +515,8 @@ export async function getStatusSummary(filters?: {
   group?: string
   search?: string
   lifecycle?: string
+  limited_view?: string
+  limited_reason?: string
 }): Promise<AccountStatusSummary> {
   const { data } = await apiClient.get<AccountStatusSummary>('/admin/accounts/summary', {
     params: filters
@@ -541,7 +547,13 @@ function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
     temp_unschedulable: Number(raw?.temp_unschedulable ?? raw?.TempUnschedulable ?? 0),
     overloaded: Number(raw?.overloaded ?? raw?.Overloaded ?? 0),
     paused: Number(raw?.paused ?? raw?.Paused ?? 0),
-    by_platform: normalizePlatformCounts(raw?.by_platform ?? raw?.ByPlatform)
+    by_platform: normalizePlatformCounts(raw?.by_platform ?? raw?.ByPlatform),
+    limited_breakdown: {
+      total: Number(raw?.limited_breakdown?.total ?? raw?.LimitedBreakdown?.total ?? 0),
+      rate_429: Number(raw?.limited_breakdown?.rate_429 ?? raw?.LimitedBreakdown?.rate_429 ?? 0),
+      usage_5h: Number(raw?.limited_breakdown?.usage_5h ?? raw?.LimitedBreakdown?.usage_5h ?? 0),
+      usage_7d: Number(raw?.limited_breakdown?.usage_7d ?? raw?.LimitedBreakdown?.usage_7d ?? 0)
+    }
   }
 }
 

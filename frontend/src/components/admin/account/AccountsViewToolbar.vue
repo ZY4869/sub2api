@@ -34,6 +34,28 @@
           </button>
 
           <button
+            v-if="showLimitedControls"
+            type="button"
+            class="btn btn-secondary"
+            @click="emit('toggle-hide-limited')"
+          >
+            {{
+              hideLimitedAccounts
+                ? t('admin.accounts.limited.hideToggleOn')
+                : t('admin.accounts.limited.hideToggleOff')
+            }}
+          </button>
+
+          <button
+            v-if="showLimitedControls"
+            type="button"
+            class="btn btn-secondary"
+            @click="emit('open-limited-page')"
+          >
+            {{ t('admin.accounts.limited.entry', { count: limitedAccountsCount }) }}
+          </button>
+
+          <button
             type="button"
             class="btn btn-secondary"
             :title="t('admin.accounts.refreshActualUsage')"
@@ -218,6 +240,9 @@ const props = defineProps<{
   toggleableColumns: ToggleableColumn[]
   viewMode: AccountViewMode
   groupViewEnabled: boolean
+  showLimitedControls?: boolean
+  hideLimitedAccounts?: boolean
+  limitedAccountsCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -238,6 +263,8 @@ const emit = defineEmits<{
   'toggle-column': [key: string]
   'update:view-mode': [value: AccountViewMode]
   'toggle-group-view': []
+  'toggle-hide-limited': []
+  'open-limited-page': []
 }>()
 
 const { t } = useI18n()

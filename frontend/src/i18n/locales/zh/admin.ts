@@ -1250,6 +1250,19 @@
         rateLimited: '限流',
         paused: '暂停'
       },
+      limited: {
+        title: '受限账号',
+        description: '集中查看当前受限账号，并区分 429、5 小时上限和 7 天上限。',
+        entry: '受限账号（{count}）',
+        hideToggleOn: '隐藏受限账号：开',
+        hideToggleOff: '隐藏受限账号：关',
+        summary: {
+          all: '全部受限',
+          rate429: '429',
+          usage5h: '5h 上限',
+          usage7d: '7d 上限'
+        }
+      },
       groupView: {
         enable: '分组视图',
         disable: '平铺视图',
@@ -1379,10 +1392,16 @@
         paused: '暂停',
         limited: '限流',
         rateLimited: '限流中',
+        usage5h: '5h 上限',
+        usage7d: '7d 上限',
         overloaded: '过载中',
         tempUnschedulable: '临时不可调度',
         rateLimitedUntil: '限流中，当前不参与调度，预计 {time} 自动恢复',
         rateLimitedAutoResume: '{time} 自动恢复',
+        usage5hUntil: '已到达 5 小时上限，当前不参与调度，预计 {time} 自动恢复',
+        usage7dUntil: '已到达 7 天上限，当前不参与调度，预计 {time} 自动恢复',
+        usage5hAutoResume: '{time} 后自动恢复 5 小时额度',
+        usage7dAutoResume: '{time} 后自动恢复 7 天额度',
         modelRateLimitedUntil: '{model} 限流至 {time}',
         overloadedUntil: '负载过重，重置时间：{time}',
         viewTempUnschedDetails: '查看临时不可调度详情'

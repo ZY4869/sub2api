@@ -589,6 +589,8 @@ export type AccountType =
   | "bedrock"
   | "upstream";
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
+export type AccountLimitedView = "all" | "normal_only" | "limited_only";
+export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d";
 export type AccountViewMode = "table" | "card";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
@@ -757,6 +759,7 @@ export interface Account {
   schedulable: boolean;
   rate_limited_at: string | null;
   rate_limit_reset_at: string | null;
+  rate_limit_reason?: AccountRateLimitReason | null;
   overload_until: string | null;
   temp_unschedulable_until: string | null;
   temp_unschedulable_reason: string | null;
@@ -817,6 +820,12 @@ export interface AccountStatusSummary {
   overloaded: number;
   paused: number;
   by_platform: Partial<Record<AccountPlatform, number>>;
+  limited_breakdown: {
+    total: number;
+    rate_429: number;
+    usage_5h: number;
+    usage_7d: number;
+  };
 }
 
 // Account Usage types
