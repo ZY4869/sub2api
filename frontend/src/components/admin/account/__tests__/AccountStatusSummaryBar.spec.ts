@@ -111,4 +111,22 @@ describe('AccountStatusSummaryBar', () => {
     expect(wrapper.get('[data-card-key="in_use"]').classes()).toContain('ring-2')
     expect(wrapper.get('[data-card-key="total"]').classes()).not.toContain('ring-2')
   })
+
+  it('highlights the total card when no runtime or status filter is active', () => {
+    const wrapper = mount(AccountStatusSummaryBar, {
+      props: {
+        summary,
+        activeStatus: '',
+        activeRuntimeView: 'all'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.get('[data-card-key="total"]').classes()).toContain('ring-2')
+    expect(wrapper.get('[data-card-key="in_use"]').classes()).not.toContain('ring-2')
+  })
 })

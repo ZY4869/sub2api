@@ -466,7 +466,11 @@ const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
 }
 
 const summaryParams = computed<AccountListRequestParams>(() => ({
-  ...params,
+  platform: String(params.platform || ''),
+  type: String(params.type || ''),
+  group: String(params.group || ''),
+  search: String(params.search || ''),
+  lifecycle: String(params.lifecycle || ''),
   limited_view: limitedMode.value ? 'limited_only' : 'all',
   limited_reason: limitedMode.value ? '' : String(params.limited_reason || '')
 }))
@@ -759,6 +763,9 @@ const handleSummaryStatusSelect = (status: string) => {
   if (!limitedMode.value && status === 'rate_limited') {
     openLimitedAccountsPage()
     return
+  }
+  if (!limitedMode.value) {
+    params.runtime_view = 'all'
   }
   params.status = String(params.status || '') === status ? '' : status
   debouncedReload()
