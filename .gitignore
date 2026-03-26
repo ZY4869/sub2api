@@ -82,6 +82,7 @@ merge-backups/
 %TEMP%/
 *.tmp
 *.temp
+tmp-swb-*.map
 *.log
 *.bak
 .cache/
