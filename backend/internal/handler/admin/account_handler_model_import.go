@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -33,7 +34,7 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 		response.NotFound(c, "Account not found")
 		return
 	}
-	result, err := h.accountModelImportService.ImportAccountModels(ctx, account, req.Trigger)
+	result, err := h.accountModelImportService.ImportAccountModels(ctx, account, req.Trigger, req.Models)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -56,6 +57,98 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 	}
 	response.Success(c, result)
 }
+
+type probeProtocolGatewayModelsRequest struct {
+	GatewayProtocol string `json:"gateway_protocol" binding:"required,oneof=openai anthropic gemini"`
+	BaseURL         string `json:"base_url"`
+	APIKey          string `json:"api_key" binding:"required"`
+	ProxyID         *int64 `json:"proxy_id"`
+}
+
+type probeProtocolGatewayModelItem struct {
+	ID            string `json:"id"`
+	DisplayName   string `json:"display_name"`
+	RegistryState string `json:"registry_state"`
+	RegistryModel string `json:"registry_model_id,omitempty"`
+}
+
+type probeProtocolGatewayModelsResponse struct {
+	ProbeSource string                          `json:"probe_source"`
+	ProbeNotice string                          `json:"probe_notice,omitempty"`
+	Models      []probeProtocolGatewayModelItem `json:"models"`
+}
+
+func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
+	if h.accountModelImportService == nil {
+		response.InternalError(c, "Account model import service unavailable")
+		return
+	}
+	var req probeProtocolGatewayModelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	descriptor, ok := service.ProtocolGatewayDescriptorByID(req.GatewayProtocol)
+	if !ok {
+		response.BadRequest(c, "Invalid gateway protocol")
+		return
+	}
+
+	draftAccount := &service.Account{
+		Name:     "protocol-gateway-probe",
+		Platform: service.PlatformProtocolGateway,
+		Type:     service.AccountTypeAPIKey,
+		Status:   service.StatusActive,
+		Credentials: map[string]any{
+			"api_key":  strings.TrimSpace(req.APIKey),
+			"base_url": strings.TrimSpace(req.BaseURL),
+		},
+		Extra: map[string]any{
+			"gateway_protocol": descriptor.ID,
+		},
+	}
+	if strings.TrimSpace(req.BaseURL) == "" {
+		draftAccount.Credentials["base_url"] = descriptor.DefaultBaseURL
+	}
+	if req.ProxyID != nil {
+		draftAccount.ProxyID = req.ProxyID
+		if proxy, err := h.adminService.GetProxy(c.Request.Context(), *req.ProxyID); err == nil && proxy != nil {
+			draftAccount.Proxy = proxy
+		}
+	}
+
+	result, err := h.accountModelImportService.ProbeAccountModels(c.Request.Context(), draftAccount)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	items := make([]probeProtocolGatewayModelItem, 0, len(result.DetectedModels))
+	for _, modelID := range result.DetectedModels {
+		item := probeProtocolGatewayModelItem{
+			ID:            modelID,
+			DisplayName:   service.FormatModelCatalogDisplayName(modelID),
+			RegistryState: "missing",
+		}
+		if h.modelRegistryService != nil {
+			if detail, detailErr := h.modelRegistryService.GetDetail(c.Request.Context(), modelID); detailErr == nil && detail != nil {
+				item.RegistryState = "existing"
+				item.RegistryModel = detail.ID
+			} else if resolution, resolutionErr := h.modelRegistryService.ExplainResolution(c.Request.Context(), modelID); resolutionErr == nil && resolution != nil {
+				item.RegistryState = "existing"
+				item.RegistryModel = firstNonEmptyString(resolution.EffectiveID, resolution.CanonicalID, resolution.Entry.ID)
+			}
+		}
+		items = append(items, item)
+	}
+
+	response.Success(c, probeProtocolGatewayModelsResponse{
+		ProbeSource: result.ProbeSource,
+		ProbeNotice: result.ProbeNotice,
+		Models:      items,
+	})
+}
+
 func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -68,6 +161,15 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		return
 	}
 	response.Success(c, service.BuildAvailableTestModels(c.Request.Context(), account, h.modelRegistryService))
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 type availableModelItem struct {

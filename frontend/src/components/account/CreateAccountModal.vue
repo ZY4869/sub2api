@@ -114,6 +114,7 @@
           :effective-platform="effectivePlatform"
           mode="create"
           :model-scope-disabled="isOpenAIModelRestrictionDisabled"
+          :skip-model-scope-editor="form.platform === 'protocol_gateway'"
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
@@ -121,6 +122,16 @@
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
+        />
+
+        <AccountProtocolGatewayModelProbeEditor
+          v-if="form.platform === 'protocol_gateway'"
+          v-model:allowed-models="allowedModels"
+          v-model:probed-models="protocolGatewayProbeModels"
+          :gateway-protocol="gatewayProtocol"
+          :base-url="apiKeyBaseUrl"
+          :api-key="apiKeyValue"
+          :proxy-id="form.proxy_id"
         />
 
         <AccountPoolModeEditor
@@ -323,6 +334,7 @@
         :is-manual-input-method="isManualInputMethod"
         :current-o-auth-loading="currentOAuthLoading"
         :can-exchange-code="canExchangeCode"
+        :show-auto-import="form.platform !== 'protocol_gateway'"
         @close="handleClose"
         @back="goBackToBasicInfo"
         @exchange-code="handleExchangeCode"
@@ -355,7 +367,10 @@ import {
 } from '@/composables/useModelWhitelist'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
-import type { AccountModelImportResult } from '@/api/admin/accounts'
+import type {
+  AccountModelImportResult,
+  ProtocolGatewayProbeModel
+} from '@/api/admin/accounts'
 import {
   useAccountOAuth,
   type AddMethod
@@ -401,6 +416,7 @@ import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
+import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
@@ -536,6 +552,7 @@ const editQuotaResetTimezone = ref<string | null>(null)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MODE_RETRY_COUNT))
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
@@ -720,15 +737,28 @@ const loadAntigravityDefaultMappings = async () => {
   antigravityModelMappings.value = [...await fetchAntigravityDefaultMappings()]
 }
 
+const selectedProtocolGatewayMissingModels = computed(() => {
+  if (!isProtocolGatewayPlatform(form.platform)) {
+    return []
+  }
+  const selected = new Set(allowedModels.value)
+  return protocolGatewayProbeModels.value.filter(
+    (model) => model.registry_state === 'missing' && selected.has(model.id)
+  )
+})
+
 // Watchers
 watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
-      // Modal opened - default to unrestricted model scope unless user selects explicitly.
-      allowedModels.value = accountCategory.value === 'apikey'
-        ? [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
-        : []
+      allowedModels.value =
+        form.platform === 'protocol_gateway'
+          ? []
+          : accountCategory.value === 'apikey'
+            ? [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
+            : []
+      protocolGatewayProbeModels.value = []
       if (form.platform === 'antigravity') {
         loadAntigravityDefaultMappings()
       } else {
@@ -771,6 +801,7 @@ watch(
   (newPlatform) => {
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     allowedModels.value = []
+    protocolGatewayProbeModels.value = []
     modelMappings.value = []
     if (newPlatform !== 'anthropic') {
       addMethod.value = 'oauth'
@@ -828,6 +859,7 @@ watch(
     }
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(form.platform, newProtocol)
     allowedModels.value = []
+    protocolGatewayProbeModels.value = []
     modelMappings.value = []
     if (oldProtocol === 'openai' && newProtocol !== 'openai') {
       openaiPassthroughEnabled.value = false
@@ -878,6 +910,9 @@ watch(
 watch(
   [modelRestrictionMode, effectivePlatform],
   ([newMode]) => {
+    if (form.platform === 'protocol_gateway') {
+      return
+    }
     if (newMode === 'whitelist') {
       allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
     }
@@ -917,8 +952,44 @@ const addAntigravityPresetMapping = (from: string, to: string) => {
   antigravityModelMappings.value.push({ from, to })
 }
 
+const syncProtocolGatewaySelectedModels = async (createdAccount: Account) => {
+  const selectedMissingModels = selectedProtocolGatewayMissingModels.value
+  if (!selectedMissingModels.length) {
+    return
+  }
+
+  try {
+    const result = await adminAPI.accounts.importModels(createdAccount.id, {
+      trigger: 'create',
+      models: selectedMissingModels.map((model) => model.id)
+    })
+    const syncableModels = extractSyncableRegistryModels(result)
+    if (syncableModels.length > 0) {
+      await adminAPI.modelRegistry.syncModelRegistryExposures({
+        models: syncableModels,
+        exposures: ['runtime', 'test', 'whitelist'],
+        mode: 'add'
+      })
+      invalidateModelRegistry()
+      modelInventoryStore.invalidate()
+    }
+
+    const failedCount = result.failed_models?.length || 0
+    if (failedCount > 0) {
+      appStore.showWarning(t('admin.accounts.protocolGateway.probeImportPartial', { failed: failedCount }))
+    }
+  } catch (error: any) {
+    console.error('Failed to sync selected protocol gateway models:', error)
+    appStore.showWarning(error?.message || t('admin.accounts.protocolGateway.probeImportFailed'))
+  }
+}
+
 const maybeImportCreatedAccounts = async (createdAccounts: Account[]) => {
   pendingImportedModelsResult.value = null
+  if (createdAccounts.length > 0 && isProtocolGatewayPlatform(form.platform)) {
+    await syncProtocolGatewaySelectedModels(createdAccounts[0])
+    return
+  }
   if (!autoImportModels.value || createdAccounts.length === 0) {
     return
   }

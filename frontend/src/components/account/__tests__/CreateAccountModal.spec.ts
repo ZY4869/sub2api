@@ -18,4 +18,10 @@ describe('CreateAccountModal', () => {
     expect(source).toContain('hidden h-0.5 w-8 bg-gray-300 dark:bg-dark-600 sm:block')
     expect(source).toContain('min-w-0 break-words text-sm font-medium text-gray-700 dark:text-gray-300')
   })
+
+  it('uses the protocol gateway probe editor and hides the generic auto-import toggle for that platform', () => {
+    expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
+    expect(source).toContain(":skip-model-scope-editor=\"form.platform === 'protocol_gateway'\"")
+    expect(source).toContain(":show-auto-import=\"form.platform !== 'protocol_gateway'\"")
+  })
 })

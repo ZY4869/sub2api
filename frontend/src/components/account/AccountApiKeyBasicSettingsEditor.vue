@@ -22,12 +22,14 @@ const props = withDefaults(defineProps<{
   effectivePlatform?: AccountPlatform
   mode: AccountApiKeySettingsMode
   modelScopeDisabled?: boolean
+  skipModelScopeEditor?: boolean
   modelMappings: ModelMapping[]
   presetMappings: ModelRegistryPreset[]
   getMappingKey: (mapping: ModelMapping) => string
   showGeminiTier?: boolean
 }>(), {
   modelScopeDisabled: false,
+  skipModelScopeEditor: false,
   showGeminiTier: false,
   gatewayProtocol: undefined,
   effectivePlatform: undefined
@@ -63,7 +65,9 @@ const apiKeyLabel = computed(() =>
 const apiKeyPlaceholder = computed(() =>
   resolveAccountApiKeyPlaceholder(props.platform, props.gatewayProtocol)
 )
-const showModelScopeEditor = computed(() => resolvedEffectivePlatform.value !== 'antigravity')
+const showModelScopeEditor = computed(() =>
+  !props.skipModelScopeEditor && resolvedEffectivePlatform.value !== 'antigravity'
+)
 const showProtocolGatewaySuggestion = computed(() =>
   shouldSuggestProtocolGateway(props.platform, baseUrl.value)
 )

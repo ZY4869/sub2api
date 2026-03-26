@@ -11,6 +11,7 @@ import AccountCreateAddMethodSelector from './AccountCreateAddMethodSelector.vue
 import AccountCreateTypeCardGroup from './AccountCreateTypeCardGroup.vue'
 import AccountGeminiAccountTypeEditor from './AccountGeminiAccountTypeEditor.vue'
 import AccountUpstreamSettingsEditor from './AccountUpstreamSettingsEditor.vue'
+import Select from '@/components/common/Select.vue'
 
 type AccountCategory = 'oauth-based' | 'apikey'
 type SoraAccountType = 'oauth' | 'apikey'
@@ -144,7 +145,8 @@ const protocolGatewayOptions = computed<TypeOption[]>(() => [
 const gatewayProtocolOptions = computed(() =>
   PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
     value: id,
-    label: resolveGatewayProtocolDescriptor(id)?.displayName || id
+    label: resolveGatewayProtocolDescriptor(id)?.displayName || id,
+    requestFormatsText: (resolveGatewayProtocolDescriptor(id)?.requestFormats || []).join(', ')
   }))
 )
 
@@ -222,15 +224,41 @@ function handleAntigravitySelect(key: string) {
 
       <div>
         <label class="input-label">{{ t('admin.accounts.protocolGateway.protocolLabel') }}</label>
-        <select v-model="gatewayProtocol" class="input">
-          <option
-            v-for="option in gatewayProtocolOptions"
-            :key="option.value"
-            :value="option.value"
-          >
-            {{ option.label }}
-          </option>
-        </select>
+        <Select
+          v-model="gatewayProtocol"
+          :options="gatewayProtocolOptions"
+          value-key="value"
+          label-key="label"
+        >
+          <template #selected="{ option }">
+            <div
+              v-if="option"
+              class="flex min-w-0 items-center gap-2 text-left"
+              :title="`${option.label} ${option.requestFormatsText}`"
+            >
+              <span class="shrink-0 font-medium text-gray-900 dark:text-white">
+                {{ option.label }}
+              </span>
+              <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
+                {{ option.requestFormatsText }}
+              </span>
+            </div>
+          </template>
+
+          <template #option="{ option }">
+            <div
+              class="flex min-w-0 items-center gap-2"
+              :title="`${option.label} ${option.requestFormatsText}`"
+            >
+              <span class="shrink-0 font-medium text-gray-900 dark:text-white">
+                {{ option.label }}
+              </span>
+              <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
+                {{ option.requestFormatsText }}
+              </span>
+            </div>
+          </template>
+        </Select>
         <p class="input-hint">{{ t('admin.accounts.protocolGateway.protocolHint') }}</p>
       </div>
     </div>

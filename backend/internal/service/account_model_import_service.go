@@ -122,7 +122,7 @@ func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, acco
 	}, nil
 }
 
-func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, account *Account, trigger string) (*AccountModelImportResult, error) {
+func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, account *Account, trigger string, selectedModels ...[]string) (*AccountModelImportResult, error) {
 	if account == nil {
 		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
 	}
@@ -150,7 +150,8 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 	if probeResult == nil {
 		return nil, infraerrors.InternalServer("MODEL_IMPORT_PROBE_RESULT_MISSING", "model import probe result is missing")
 	}
-	if len(probeResult.Models) == 0 {
+	filteredProbeModels := filterSelectedImportedModels(probeResult.Models, selectedModels...)
+	if len(filteredProbeModels) == 0 {
 		return nil, infraerrors.BadRequest("MODEL_IMPORT_EMPTY", "no models detected for account")
 	}
 	if s.modelRegistryService == nil {
@@ -165,7 +166,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 	if probeSource == "" {
 		probeSource = accountModelProbeSourceUpstream
 	}
-	uniqueDetected, _ := normalizeImportedModelIDs(probeResult.Models)
+	uniqueDetected, _ := normalizeImportedModelIDs(filteredProbeModels)
 	result := &AccountModelImportResult{
 		AccountID:      account.ID,
 		DetectedModels: uniqueDetected,
@@ -173,8 +174,8 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
 		Trigger:        normalizeImportTrigger(trigger),
 	}
-	canonicalRegistryModels := make(map[string]string, len(probeResult.Models))
-	for _, sourceModel := range sortImportedSourceModels(probeResult.Models) {
+	canonicalRegistryModels := make(map[string]string, len(filteredProbeModels))
+	for _, sourceModel := range sortImportedSourceModels(filteredProbeModels) {
 		sourceModel = strings.TrimSpace(sourceModel)
 		sourceRegistryID := normalizeRegistryID(sourceModel)
 		canonicalModel := sourceRegistryID
@@ -282,6 +283,30 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		zap.Int("failed_count", len(result.FailedModels)),
 	)
 	return result, nil
+}
+
+func filterSelectedImportedModels(models []string, selectedModels ...[]string) []string {
+	if len(selectedModels) == 0 || len(selectedModels[0]) == 0 {
+		return append([]string{}, models...)
+	}
+	selected := make(map[string]struct{}, len(selectedModels[0]))
+	for _, modelID := range selectedModels[0] {
+		if normalized := normalizeRegistryID(modelID); normalized != "" {
+			selected[normalized] = struct{}{}
+		}
+	}
+	if len(selected) == 0 {
+		return append([]string{}, models...)
+	}
+	filtered := make([]string, 0, len(models))
+	for _, modelID := range models {
+		if normalized := normalizeRegistryID(modelID); normalized != "" {
+			if _, ok := selected[normalized]; ok {
+				filtered = append(filtered, modelID)
+			}
+		}
+	}
+	return filtered
 }
 
 func sortImportedSourceModels(models []string) []string {

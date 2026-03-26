@@ -51,6 +51,14 @@ export function buildAccountModelScopeExtra(
         item.protocol_ids.includes(modelId)
     )
     if (!entry) {
+      const fallbackProvider = (options.platform || '').trim().toLowerCase()
+      if (!fallbackProvider) {
+        continue
+      }
+      const current = supportedModelsByProvider[fallbackProvider] || []
+      if (!current.includes(modelId)) {
+        supportedModelsByProvider[fallbackProvider] = [...current, modelId]
+      }
       continue
     }
     const provider = (entry.provider || options.platform || '').trim().toLowerCase()

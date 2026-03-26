@@ -37,6 +37,7 @@ type stubAdminService struct {
 	checkMixedErr        error
 	lastUnarchiveInput   *service.UnarchiveAccountsInput
 	lastBlacklistedID    int64
+	lastBlacklistInput   *service.BlacklistAccountInput
 	lastMixedCheck       struct {
 		accountID int64
 		platform  string
@@ -517,11 +518,22 @@ func (s *stubAdminService) SetAccountSchedulable(ctx context.Context, id int64, 
 	return &account, nil
 }
 
-func (s *stubAdminService) BlacklistAccount(ctx context.Context, id int64) (*service.Account, error) {
+func (s *stubAdminService) BlacklistAccount(ctx context.Context, id int64, input *service.BlacklistAccountInput) (*service.Account, error) {
 	if s.blacklistErr != nil {
 		return nil, s.blacklistErr
 	}
 	s.lastBlacklistedID = id
+	if input != nil {
+		copied := *input
+		if input.Feedback != nil {
+			feedback := *input.Feedback
+			feedback.MessageKeywords = append([]string(nil), input.Feedback.MessageKeywords...)
+			copied.Feedback = &feedback
+		}
+		s.lastBlacklistInput = &copied
+	} else {
+		s.lastBlacklistInput = nil
+	}
 	for i := range s.accounts {
 		if s.accounts[i].ID != id {
 			continue

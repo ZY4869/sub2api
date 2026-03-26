@@ -2,20 +2,22 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
 type blacklistAccountRepoStub struct {
 	AccountRepository
-	account          *Account
-	markBlacklisted  int
-	lastReasonCode   string
-	lastReasonMsg    string
-	lastBlacklisted  time.Time
-	lastPurgeAt      time.Time
+	account         *Account
+	markBlacklisted int
+	lastReasonCode  string
+	lastReasonMsg   string
+	lastBlacklisted time.Time
+	lastPurgeAt     time.Time
 }
 
 func (s *blacklistAccountRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
@@ -42,6 +44,62 @@ func (s *blacklistAccountRepoStub) MarkBlacklisted(_ context.Context, id int64, 
 	return nil
 }
 
+type blacklistCandidateSettingRepoStub struct {
+	values map[string]string
+}
+
+func (s *blacklistCandidateSettingRepoStub) Get(_ context.Context, _ string) (*Setting, error) {
+	return nil, ErrSettingNotFound
+}
+
+func (s *blacklistCandidateSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	if value, ok := s.values[key]; ok {
+		return value, nil
+	}
+	return "", ErrSettingNotFound
+}
+
+func (s *blacklistCandidateSettingRepoStub) Set(_ context.Context, key, value string) error {
+	if s.values == nil {
+		s.values = make(map[string]string)
+	}
+	s.values[key] = value
+	return nil
+}
+
+func (s *blacklistCandidateSettingRepoStub) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
+	out := make(map[string]string, len(keys))
+	for _, key := range keys {
+		if value, ok := s.values[key]; ok {
+			out[key] = value
+		}
+	}
+	return out, nil
+}
+
+func (s *blacklistCandidateSettingRepoStub) SetMultiple(_ context.Context, settings map[string]string) error {
+	if s.values == nil {
+		s.values = make(map[string]string)
+	}
+	for key, value := range settings {
+		s.values[key] = value
+	}
+	return nil
+}
+
+func (s *blacklistCandidateSettingRepoStub) GetAll(_ context.Context) (map[string]string, error) {
+	out := make(map[string]string, len(s.values))
+	for key, value := range s.values {
+		out[key] = value
+	}
+	return out, nil
+}
+
+func (s *blacklistCandidateSettingRepoStub) Delete(_ context.Context, key string) error {
+	delete(s.values, key)
+	return nil
+}
+
 func TestAdminServiceBlacklistAccountMarksLifecycleAndRetention(t *testing.T) {
 	repo := &blacklistAccountRepoStub{
 		account: &Account{
@@ -54,7 +112,7 @@ func TestAdminServiceBlacklistAccountMarksLifecycleAndRetention(t *testing.T) {
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	account, err := svc.BlacklistAccount(context.Background(), 42)
+	account, err := svc.BlacklistAccount(context.Background(), 42, nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
 	require.Equal(t, AccountLifecycleBlacklisted, account.LifecycleState)
@@ -84,9 +142,57 @@ func TestAdminServiceBlacklistAccountIsIdempotentForBlacklistedAccount(t *testin
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	account, err := svc.BlacklistAccount(context.Background(), 84)
+	account, err := svc.BlacklistAccount(context.Background(), 84, nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
 	require.Equal(t, 0, repo.markBlacklisted)
 	require.Equal(t, "already blacklisted", account.LifecycleReasonMessage)
+}
+
+func TestAdminServiceBlacklistAccountRecordsFeedbackCandidate(t *testing.T) {
+	repo := &blacklistAccountRepoStub{
+		account: &Account{
+			ID:             99,
+			Name:           "openai-99",
+			Platform:       PlatformOpenAI,
+			Type:           AccountTypeAPIKey,
+			Status:         StatusActive,
+			Schedulable:    true,
+			LifecycleState: AccountLifecycleNormal,
+		},
+	}
+	settingRepo := &blacklistCandidateSettingRepoStub{values: map[string]string{}}
+	svc := &adminServiceImpl{
+		accountRepo:    repo,
+		settingService: NewSettingService(settingRepo, &config.Config{}),
+	}
+
+	account, err := svc.BlacklistAccount(context.Background(), 99, &BlacklistAccountInput{
+		Source: "test_modal",
+		Feedback: &BlacklistFeedbackInput{
+			Fingerprint:    "abc12345",
+			AdviceDecision: string(BlacklistAdviceRecommendBlacklist),
+			Action:         "blacklist",
+			Platform:       PlatformOpenAI,
+			StatusCode:     401,
+			ErrorCode:      "invalid_api_key",
+			MessageKeywords: []string{
+				"invalid",
+				"key",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, account)
+
+	raw, ok := settingRepo.values[SettingKeyBlacklistRuleCandidates]
+	require.True(t, ok)
+
+	var settings BlacklistRuleCandidateSettings
+	require.NoError(t, json.Unmarshal([]byte(raw), &settings))
+	require.Len(t, settings.Rules, 1)
+	require.Equal(t, "abc12345", settings.Rules[0].Fingerprint)
+	require.Equal(t, "openai", settings.Rules[0].Platform)
+	require.Equal(t, "invalid_api_key", settings.Rules[0].ErrorCode)
+	require.Equal(t, "blacklist", settings.Rules[0].AdminAction)
 }

@@ -206,6 +206,29 @@
         </div>
       </div>
 
+      <div
+        v-if="blacklistAdvice"
+        class="rounded-xl border px-4 py-3"
+        :class="blacklistAdviceClasses"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold">
+              {{ blacklistAdviceTitle }}
+            </div>
+            <p class="mt-1 whitespace-pre-wrap text-xs leading-5 opacity-90">
+              {{ blacklistAdviceMessage }}
+            </p>
+          </div>
+          <span
+            class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            :class="blacklistAdviceBadgeClasses"
+          >
+            {{ blacklistAdviceBadge }}
+          </span>
+        </div>
+      </div>
+
       <!-- Test Info -->
       <div class="flex items-center justify-between px-1 text-xs text-gray-500 dark:text-gray-400">
         <div class="flex items-center gap-3">
@@ -235,6 +258,21 @@
           :disabled="status === 'connecting'"
         >
           {{ t('common.close') }}
+        </button>
+        <button
+          @click="handleBlacklist"
+          :disabled="blacklistButtonDisabled"
+          :class="[
+            'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
+            blacklistButtonDisabled
+              ? 'cursor-not-allowed bg-rose-200 text-rose-500 dark:bg-rose-950/40 dark:text-rose-300/60'
+              : blacklistAdvice?.decision === 'not_recommended'
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'bg-rose-500 text-white hover:bg-rose-600'
+          ]"
+        >
+          <Icon name="ban" size="sm" :stroke-width="2" />
+          <span>{{ blacklistButtonLabel }}</span>
         </button>
         <button
           @click="startTest"
@@ -283,6 +321,10 @@ import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
+import type {
+  BlacklistAdvicePayload,
+  BlacklistFeedbackPayload
+} from '@/api/admin/accounts'
 import type { Account, ClaudeModel } from '@/types'
 import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 
@@ -311,6 +353,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (
+    e: 'blacklist',
+    payload: { account: Account; source: 'test_modal'; feedback?: BlacklistFeedbackPayload }
+  ): void
 }>()
 
 const terminalRef = ref<HTMLElement | null>(null)
@@ -329,6 +375,7 @@ const selectedModelId = ref('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
 let eventSource: EventSource | null = null
+const blacklistAdvice = ref<BlacklistAdvicePayload | null>(null)
 const runtimePlatform = computed(() =>
   props.account ? resolveEffectiveAccountPlatformFromAccount(props.account) : null
 )
@@ -342,6 +389,77 @@ const supportsGeminiImageTest = computed(() => {
 
   return runtimePlatform.value === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
 })
+
+const blacklistAdviceTitle = computed(() => {
+  switch (blacklistAdvice.value?.decision) {
+    case 'auto_blacklisted':
+      return t('admin.accounts.testBlacklist.autoTitle')
+    case 'recommend_blacklist':
+      return t('admin.accounts.testBlacklist.recommendTitle')
+    case 'not_recommended':
+      return t('admin.accounts.testBlacklist.notRecommendedTitle')
+    default:
+      return ''
+  }
+})
+
+const blacklistAdviceMessage = computed(() => {
+  if (!blacklistAdvice.value) {
+    return ''
+  }
+  const reason = blacklistAdvice.value.reason_message || t('admin.accounts.testBlacklist.noReason')
+  if (blacklistAdvice.value.decision === 'not_recommended') {
+    return `${reason}\n${t('admin.accounts.testBlacklist.manualOverrideHint')}`
+  }
+  return reason
+})
+
+const blacklistAdviceBadge = computed(() => {
+  switch (blacklistAdvice.value?.decision) {
+    case 'auto_blacklisted':
+      return t('admin.accounts.testBlacklist.autoBadge')
+    case 'recommend_blacklist':
+      return t('admin.accounts.testBlacklist.recommendBadge')
+    case 'not_recommended':
+      return t('admin.accounts.testBlacklist.notRecommendedBadge')
+    default:
+      return ''
+  }
+})
+
+const blacklistAdviceClasses = computed(() => {
+  switch (blacklistAdvice.value?.decision) {
+    case 'auto_blacklisted':
+      return 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100'
+    case 'recommend_blacklist':
+      return 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100'
+    default:
+      return 'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100'
+  }
+})
+
+const blacklistAdviceBadgeClasses = computed(() => {
+  switch (blacklistAdvice.value?.decision) {
+    case 'auto_blacklisted':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200'
+    case 'recommend_blacklist':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200'
+    default:
+      return 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200'
+  }
+})
+
+const blacklistButtonDisabled = computed(() =>
+  !props.account ||
+  status.value === 'connecting' ||
+  blacklistAdvice.value?.decision === 'auto_blacklisted'
+)
+
+const blacklistButtonLabel = computed(() =>
+  blacklistAdvice.value?.decision === 'auto_blacklisted'
+    ? t('admin.accounts.testBlacklist.buttonDone')
+    : t('admin.accounts.testBlacklist.button')
+)
 
 watch(
   () => props.show,
@@ -392,6 +510,7 @@ const resetState = () => {
   streamingContent.value = ''
   errorMessage.value = ''
   generatedImages.value = []
+  blacklistAdvice.value = null
 }
 
 const handleClose = () => {
@@ -496,6 +615,55 @@ const startTest = async () => {
   }
 }
 
+const normalizeBlacklistAdvicePayload = (payload: unknown): BlacklistAdvicePayload | null => {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+  const data = payload as Record<string, unknown>
+  const decision = String(data.decision || '').trim() as BlacklistAdvicePayload['decision']
+  if (!decision) {
+    return null
+  }
+  return {
+    decision,
+    reason_code: typeof data.reason_code === 'string' ? data.reason_code : undefined,
+    reason_message: typeof data.reason_message === 'string' ? data.reason_message : undefined,
+    already_blacklisted: Boolean(data.already_blacklisted),
+    feedback_fingerprint:
+      typeof data.feedback_fingerprint === 'string' ? data.feedback_fingerprint : undefined,
+    collect_feedback: Boolean(data.collect_feedback),
+    platform: typeof data.platform === 'string' ? data.platform : undefined,
+    status_code: typeof data.status_code === 'number' ? data.status_code : undefined,
+    error_code: typeof data.error_code === 'string' ? data.error_code : undefined,
+    message_keywords: Array.isArray(data.message_keywords)
+      ? data.message_keywords.filter((item): item is string => typeof item === 'string')
+      : undefined
+  }
+}
+
+const handleBlacklist = () => {
+  if (!props.account || blacklistButtonDisabled.value) {
+    return
+  }
+  const feedback =
+    blacklistAdvice.value?.feedback_fingerprint
+      ? {
+          fingerprint: blacklistAdvice.value.feedback_fingerprint,
+          advice_decision: blacklistAdvice.value.decision,
+          action: 'blacklist' as const,
+          platform: blacklistAdvice.value.platform,
+          status_code: blacklistAdvice.value.status_code,
+          error_code: blacklistAdvice.value.error_code,
+          message_keywords: blacklistAdvice.value.message_keywords
+        }
+      : undefined
+  emit('blacklist', {
+    account: props.account,
+    source: 'test_modal',
+    feedback
+  })
+}
+
 const handleEvent = (event: {
   type: string
   text?: string
@@ -549,6 +717,19 @@ const handleEvent = (event: {
         addLine(t('admin.accounts.geminiImageReceived', { count: generatedImages.value.length }), 'text-purple-300')
       }
       break
+
+    case 'blacklist_advice': {
+      const advice = normalizeBlacklistAdvicePayload(event.data)
+      if (!advice) {
+        break
+      }
+      blacklistAdvice.value = advice
+      addLine(
+        advice.reason_message || blacklistAdviceTitle.value,
+        advice.decision === 'not_recommended' ? 'text-sky-300' : 'text-amber-300'
+      )
+      break
+    }
 
     case 'test_complete':
       // Move streaming content to output lines

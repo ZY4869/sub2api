@@ -74,7 +74,8 @@ type CreateAccountRequest struct {
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
 }
 type ImportAccountModelsRequest struct {
-	Trigger string `json:"trigger"`
+	Trigger string   `json:"trigger"`
+	Models  []string `json:"models"`
 }
 type UpdateAccountRequest struct {
 	Name                    string         `json:"name"`
@@ -108,6 +109,10 @@ type BulkUpdateAccountsRequest struct {
 	Credentials             map[string]any `json:"credentials"`
 	Extra                   map[string]any `json:"extra"`
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"`
+}
+type BlacklistAccountRequest struct {
+	Source   string                          `json:"source"`
+	Feedback *service.BlacklistFeedbackInput `json:"feedback"`
 }
 type CheckMixedChannelRequest struct {
 	Platform        string  `json:"platform" binding:"required"`

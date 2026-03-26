@@ -671,8 +671,41 @@ export async function retestBlacklistedAccounts(accountIds: number[]): Promise<B
   return data
 }
 
-export async function blacklist(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/blacklist`)
+export type BlacklistAdviceDecision =
+  | 'auto_blacklisted'
+  | 'recommend_blacklist'
+  | 'not_recommended'
+
+export interface BlacklistAdvicePayload {
+  decision: BlacklistAdviceDecision
+  reason_code?: string
+  reason_message?: string
+  already_blacklisted?: boolean
+  feedback_fingerprint?: string
+  collect_feedback?: boolean
+  platform?: string
+  status_code?: number
+  error_code?: string
+  message_keywords?: string[]
+}
+
+export interface BlacklistFeedbackPayload {
+  fingerprint?: string
+  advice_decision?: BlacklistAdviceDecision | string
+  action: 'blacklist'
+  platform?: string
+  status_code?: number
+  error_code?: string
+  message_keywords?: string[]
+}
+
+export interface BlacklistAccountPayload {
+  source?: 'manual_menu' | 'test_modal' | string
+  feedback?: BlacklistFeedbackPayload
+}
+
+export async function blacklist(id: number, payload?: BlacklistAccountPayload): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/blacklist`, payload)
   return data
 }
 
@@ -811,9 +844,35 @@ export interface AccountModelImportResult {
 
 export async function importModels(
   id: number,
-  payload: { trigger?: string } = {}
+  payload: { trigger?: string; models?: string[] } = {}
 ): Promise<AccountModelImportResult> {
   const { data } = await apiClient.post<AccountModelImportResult>(`/admin/accounts/${id}/import-models`, payload)
+  return data
+}
+
+export interface ProtocolGatewayProbeModel {
+  id: string
+  display_name: string
+  registry_state: 'existing' | 'missing'
+  registry_model_id?: string
+}
+
+export interface ProtocolGatewayProbeResponse {
+  probe_source: string
+  probe_notice?: string
+  models: ProtocolGatewayProbeModel[]
+}
+
+export async function probeProtocolGatewayModels(payload: {
+  gateway_protocol: string
+  base_url?: string
+  api_key: string
+  proxy_id?: number | null
+}): Promise<ProtocolGatewayProbeResponse> {
+  const { data } = await apiClient.post<ProtocolGatewayProbeResponse>(
+    '/admin/accounts/protocol-gateway/probe-models',
+    payload
+  )
   return data
 }
 
@@ -1047,6 +1106,7 @@ export const accountsAPI = {
   setSchedulable,
   getAvailableModels,
   importModels,
+  probeProtocolGatewayModels,
   generateAuthUrl,
   exchangeCode,
   refreshOpenAIToken,

@@ -44,7 +44,7 @@ type AdminService interface {
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
 	SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error)
-	BlacklistAccount(ctx context.Context, id int64) (*Account, error)
+	BlacklistAccount(ctx context.Context, id int64, input *BlacklistAccountInput) (*Account, error)
 	RestoreBlacklistedAccount(ctx context.Context, id int64) (*Account, error)
 	UnarchiveAccounts(ctx context.Context, input *UnarchiveAccountsInput) (*UnarchiveAccountsResult, error)
 	BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error)
@@ -216,6 +216,10 @@ type BulkUpdateAccountResult struct {
 	AccountID int64  `json:"account_id"`
 	Success   bool   `json:"success"`
 	Error     string `json:"error,omitempty"`
+}
+type BlacklistAccountInput struct {
+	Source   string                  `json:"source,omitempty"`
+	Feedback *BlacklistFeedbackInput `json:"feedback,omitempty"`
 }
 type AdminUpdateAPIKeyGroupIDResult struct {
 	APIKey                 *APIKey

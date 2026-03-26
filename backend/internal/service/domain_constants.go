@@ -214,6 +214,9 @@ const (
 	// SettingKeyBetaPolicySettings stores JSON config for beta policy rules.
 	SettingKeyBetaPolicySettings = "beta_policy_settings"
 
+	// SettingKeyBlacklistRuleCandidates stores JSON feedback samples for blacklist suggestions.
+	SettingKeyBlacklistRuleCandidates = "blacklist_rule_candidates"
+
 	// =========================
 	// Sora S3 存储配置
 	// =========================

@@ -81,6 +81,7 @@ func (s *ModelRegistryService) BuildModelMappingFromScopeV2(ctx context.Context,
 			}
 			detail, ok := detailIndex[canonicalID]
 			if !ok {
+				mapping[canonicalID] = canonicalID
 				continue
 			}
 			targetModel := canonicalID

@@ -102,4 +102,30 @@ describe('AccountApiKeyBasicSettingsEditor', () => {
     expect(wrapper.emitted('remove-mapping')?.[0]).toEqual([1])
     expect(wrapper.emitted('add-preset')?.[0]).toEqual([{ from: 'a', to: 'b' }])
   })
+
+  it('hides model scope editor when skipModelScopeEditor is enabled', () => {
+    const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
+      props: {
+        platform: 'protocol_gateway',
+        gatewayProtocol: 'openai',
+        effectivePlatform: 'openai',
+        mode: 'create',
+        baseUrl: 'https://example.com',
+        apiKey: 'sk-test',
+        modelScopeMode: 'whitelist',
+        allowedModels: [],
+        modelMappings: [],
+        presetMappings: [],
+        getMappingKey: () => 'mapping-1',
+        skipModelScopeEditor: true
+      },
+      global: {
+        stubs: {
+          AccountModelScopeEditor: modelScopeStub
+        }
+      }
+    })
+
+    expect(wrapper.find('[data-testid="model-scope"]').exists()).toBe(false)
+  })
 })

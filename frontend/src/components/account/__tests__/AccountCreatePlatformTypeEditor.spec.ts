@@ -52,6 +52,7 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
       geminiTierGoogleOne: 'google_one_free',
       geminiTierGcp: 'gcp_standard',
       geminiTierAiStudio: 'aistudio_free',
+      gatewayProtocol: 'openai',
       upstreamBaseUrl: '',
       upstreamApiKey: '',
       aiStudioOAuthEnabled: false,
@@ -62,7 +63,27 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
     global: {
       stubs: {
         AccountGeminiAccountTypeEditor: geminiStub,
-        AccountUpstreamSettingsEditor: upstreamStub
+        AccountUpstreamSettingsEditor: upstreamStub,
+        Select: {
+          props: ['modelValue', 'options'],
+          emits: ['update:modelValue'],
+          template: `
+            <div data-testid="select-stub">
+              <div data-testid="selected-option">
+                <slot name="selected" :option="options.find((item) => item.value === modelValue) || null" />
+              </div>
+              <button
+                v-for="option in options"
+                :key="option.value"
+                type="button"
+                class="select-option"
+                @click="$emit('update:modelValue', option.value)"
+              >
+                <slot name="option" :option="option" />
+              </button>
+            </div>
+          `
+        }
       }
     }
   })
@@ -153,5 +174,26 @@ describe('AccountCreatePlatformTypeEditor', () => {
       expect(wrapper.find('[data-testid="gemini-stub"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="upstream-stub"]').exists()).toBe(false)
     }
+  })
+
+  it('shows protocol gateway request formats on the same row', async () => {
+    const wrapper = createWrapper({
+      platform: 'protocol_gateway',
+      accountCategory: 'apikey',
+      gatewayProtocol: 'openai'
+    })
+
+    expect(wrapper.get('[data-testid="selected-option"]').text()).toContain('OpenAI')
+    expect(wrapper.get('[data-testid="selected-option"]').text()).toContain('/v1/chat/completions')
+    expect(wrapper.text()).toContain('/v1/responses')
+    expect(wrapper.text()).toContain('/v1/messages')
+
+    const anthropicButton = wrapper.findAll('.select-option').find((button) =>
+      button.text().includes('Anthropic')
+    )
+    expect(anthropicButton).toBeTruthy()
+
+    await anthropicButton!.trigger('click')
+    expect(wrapper.emitted('update:gatewayProtocol')).toContainEqual(['anthropic'])
   })
 })

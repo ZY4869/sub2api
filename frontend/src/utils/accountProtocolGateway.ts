@@ -3,6 +3,7 @@ import type { Account, AccountPlatform, GatewayProtocol } from '@/types'
 export interface ProtocolGatewayDescriptor {
   id: GatewayProtocol
   displayName: string
+  requestFormats: string[]
   defaultBaseUrl: string
   apiKeyPlaceholder: string
   baseUrlHintKey: string
@@ -20,6 +21,7 @@ export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatew
   openai: {
     id: 'openai',
     displayName: 'OpenAI',
+    requestFormats: ['/v1/chat/completions', '/v1/responses'],
     defaultBaseUrl: 'https://api.openai.com',
     apiKeyPlaceholder: 'sk-proj-...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.openai.baseUrlHint',
@@ -31,6 +33,7 @@ export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatew
   anthropic: {
     id: 'anthropic',
     displayName: 'Anthropic',
+    requestFormats: ['/v1/messages'],
     defaultBaseUrl: 'https://api.anthropic.com',
     apiKeyPlaceholder: 'sk-ant-...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.anthropic.baseUrlHint',
@@ -42,6 +45,7 @@ export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatew
   gemini: {
     id: 'gemini',
     displayName: 'Gemini',
+    requestFormats: ['/v1beta/models/{model}:generateContent'],
     defaultBaseUrl: 'https://generativelanguage.googleapis.com',
     apiKeyPlaceholder: 'AIza...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.gemini.baseUrlHint',

@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"errors"
+	"io"
 	"strconv"
 	"sync"
 
@@ -15,12 +17,12 @@ type BlacklistRetestRequest struct {
 }
 
 type BlacklistRetestAccountResult struct {
-	AccountID     int64  `json:"account_id"`
-	Success       bool   `json:"success"`
-	Restored      bool   `json:"restored"`
-	ErrorMessage  string `json:"error_message,omitempty"`
-	ResponseText  string `json:"response_text,omitempty"`
-	LatencyMs     int64  `json:"latency_ms,omitempty"`
+	AccountID    int64  `json:"account_id"`
+	Success      bool   `json:"success"`
+	Restored     bool   `json:"restored"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	ResponseText string `json:"response_text,omitempty"`
+	LatencyMs    int64  `json:"latency_ms,omitempty"`
 }
 
 func (h *AccountHandler) Blacklist(c *gin.Context) {
@@ -30,7 +32,16 @@ func (h *AccountHandler) Blacklist(c *gin.Context) {
 		return
 	}
 
-	account, err := h.adminService.BlacklistAccount(c.Request.Context(), accountID)
+	var req BlacklistAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	account, err := h.adminService.BlacklistAccount(c.Request.Context(), accountID, &service.BlacklistAccountInput{
+		Source:   req.Source,
+		Feedback: req.Feedback,
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

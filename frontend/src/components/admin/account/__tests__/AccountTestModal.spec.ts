@@ -33,6 +33,9 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.geminiImageReceived' && params?.count) {
           return `received-${params.count}`
         }
+        if (key === 'admin.models.registry.replacedByHint' && params?.model) {
+          return `replaced-by-${params.model}`
+        }
         return messages[key] || key
       }
     })
@@ -216,6 +219,80 @@ describe('AccountTestModal', () => {
     expect(text).toContain('Claude Sonnet Legacy')
     expect(text).toContain('claude-sonnet-legacy')
     expect(text).toContain('admin.models.registry.lifecycleLabels.deprecated')
-    expect(text).toContain('claude-sonnet-4.5')
+    expect(text).toContain('replaced-by-claude-sonnet-4.5')
+  })
+
+  it('shows blacklist advice and emits direct blacklist feedback from the test modal', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"gemini-3.1-flash-image"}\n',
+        'data: {"type":"blacklist_advice","data":{"decision":"recommend_blacklist","reason_code":"invalid_api_key","reason_message":"invalid api key","feedback_fingerprint":"fp-123","collect_feedback":true,"platform":"gemini","status_code":401,"error_code":"invalid_api_key","message_keywords":["invalid","key"]}}\n',
+        'data: {"type":"error","error":"API returned 401: invalid api key"}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.accounts.testBlacklist.recommendTitle')
+    expect(wrapper.text()).toContain('invalid api key')
+
+    const blacklistButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.testBlacklist.button')
+    )
+    expect(blacklistButton).toBeTruthy()
+
+    await blacklistButton!.trigger('click')
+
+    expect(wrapper.emitted('blacklist')).toEqual([[
+      {
+        account: expect.objectContaining({ id: 42, name: 'Gemini Image Test' }),
+        source: 'test_modal',
+        feedback: {
+          fingerprint: 'fp-123',
+          advice_decision: 'recommend_blacklist',
+          action: 'blacklist',
+          platform: 'gemini',
+          status_code: 401,
+          error_code: 'invalid_api_key',
+          message_keywords: ['invalid', 'key']
+        }
+      }
+    ]])
+  })
+
+  it('disables the blacklist button when the test result was auto blacklisted', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"gemini-3.1-flash-image"}\n',
+        'data: {"type":"blacklist_advice","data":{"decision":"auto_blacklisted","reason_code":"workspace_deactivated","reason_message":"workspace deactivated","already_blacklisted":true}}\n',
+        'data: {"type":"error","error":"API returned 402: workspace deactivated"}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const blacklistButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.testBlacklist.buttonDone')
+    )
+    expect(blacklistButton).toBeTruthy()
+    expect(blacklistButton!.attributes('disabled')).toBeDefined()
   })
 })

@@ -1,7 +1,10 @@
 package admin
 
 import (
+	"errors"
+	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -23,6 +26,12 @@ type batchTodayStatsRequest struct {
 
 type setSchedulableRequest struct {
 	Schedulable bool `json:"schedulable"`
+}
+
+type accountTestRequest struct {
+	ModelID string `json:"model_id"`
+	Model   string `json:"model"`
+	Prompt  string `json:"prompt"`
 }
 
 func (h *AccountHandler) PreviewFromCRS(c *gin.Context) {
@@ -91,8 +100,23 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		return
 	}
 
-	modelID := c.Query("model")
-	prompt := c.Query("prompt")
+	var req accountTestRequest
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	modelID := strings.TrimSpace(req.ModelID)
+	if modelID == "" {
+		modelID = strings.TrimSpace(req.Model)
+	}
+	if modelID == "" {
+		modelID = strings.TrimSpace(c.Query("model"))
+	}
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
+		prompt = strings.TrimSpace(c.Query("prompt"))
+	}
 	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt); err != nil {
 		return
 	}

@@ -222,6 +222,7 @@
       @recover-state="handleRecoverState"
       @reset-quota="handleResetQuota"
       @blacklist="handleBlacklistAccount"
+      @test-blacklist="handleTestBlacklistAccount"
       @import-models="handleImportModels"
       @close-sync="showSync = false"
       @reload="handleReloadRequested"
@@ -271,6 +272,7 @@ import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDial
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
 import AccountsViewToolbar from '@/components/admin/account/AccountsViewToolbar.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
+import type { BlacklistFeedbackPayload } from '@/api/admin/accounts'
 import {
   canAccountFetchUsage,
   invalidateAccountUsagePresentationCache,
@@ -1198,6 +1200,26 @@ const handleBlacklistAccount = async (a: Account) => {
     appStore.showSuccess(t('admin.accounts.blacklist.addSuccess'))
   } catch (error: any) {
     console.error('Failed to blacklist account:', error)
+    appStore.showError(error?.message || t('admin.accounts.blacklist.addFailed'))
+  }
+}
+const handleTestBlacklistAccount = async (payload: {
+  account: Account
+  source: 'test_modal'
+  feedback?: BlacklistFeedbackPayload
+}) => {
+  try {
+    const updated = await adminAPI.accounts.blacklist(payload.account.id, {
+      source: payload.source,
+      feedback: payload.feedback
+    })
+    patchAccountInList(updated)
+    refreshAccountSummarySafe()
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('admin.accounts.blacklist.addSuccess'))
+    await closeTestModal()
+  } catch (error: any) {
+    console.error('Failed to blacklist account from test modal:', error)
     appStore.showError(error?.message || t('admin.accounts.blacklist.addFailed'))
   }
 }

@@ -36,7 +36,7 @@ func ensureBlacklistedAccountNotRestored(account *Account, desiredStatus string,
 	return nil
 }
 
-func (s *adminServiceImpl) BlacklistAccount(ctx context.Context, id int64) (*Account, error) {
+func (s *adminServiceImpl) BlacklistAccount(ctx context.Context, id int64, input *BlacklistAccountInput) (*Account, error) {
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,26 @@ func (s *adminServiceImpl) BlacklistAccount(ctx context.Context, id int64) (*Acc
 	if err := s.accountRepo.MarkBlacklisted(ctx, id, manualBlacklistReasonCode, manualBlacklistReasonMessage, now, purgeAt); err != nil {
 		return nil, err
 	}
-	return s.accountRepo.GetByID(ctx, id)
+	updatedAccount, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if s.settingService != nil && input != nil && input.Feedback != nil {
+		feedback := *input.Feedback
+		if feedback.Platform == "" {
+			feedback.Platform = RoutingPlatformForAccount(updatedAccount)
+		}
+		if feedback.Action == "" {
+			feedback.Action = "blacklist"
+		}
+		if feedback.AdviceDecision == "" {
+			feedback.AdviceDecision = string(BlacklistAdviceNotRecommended)
+		}
+		if err := s.settingService.RecordBlacklistRuleCandidate(ctx, feedback); err != nil {
+			return nil, err
+		}
+	}
+	return updatedAccount, nil
 }
 
 func (s *adminServiceImpl) RestoreBlacklistedAccount(ctx context.Context, id int64) (*Account, error) {

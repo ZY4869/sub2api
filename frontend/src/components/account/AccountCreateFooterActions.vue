@@ -10,9 +10,11 @@ const props = withDefaults(
     isManualInputMethod: boolean
     currentOAuthLoading: boolean
     canExchangeCode: boolean
+    showAutoImport?: boolean
     formId?: string
   }>(),
   {
+    showAutoImport: true,
     formId: 'create-account-form'
   }
 )
@@ -40,7 +42,7 @@ const exchangeLabel = computed(() =>
 
 <template>
   <div v-if="step === 1" class="flex flex-wrap items-center justify-between gap-3">
-    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+    <label v-if="showAutoImport" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
       <input
         v-model="autoImportModels"
         type="checkbox"
@@ -85,7 +87,7 @@ const exchangeLabel = computed(() =>
   </div>
 
   <div v-else class="flex flex-wrap items-center justify-between gap-3">
-    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+    <label v-if="showAutoImport" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
       <input
         v-model="autoImportModels"
         type="checkbox"

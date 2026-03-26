@@ -32,6 +32,7 @@
     :show="showTest"
     :account="testingAccount"
     @close="emit('close-test')"
+    @blacklist="emit('test-blacklist', $event)"
   />
   <AccountStatsModal
     :show="showStats"
@@ -137,7 +138,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { SelectOption } from '@/components/common/Select.vue'
-import type { AccountModelImportResult } from '@/api/admin/accounts'
+import type {
+  AccountModelImportResult,
+  BlacklistFeedbackPayload
+} from '@/api/admin/accounts'
 import type { ModelRegistryExposureTarget } from '@/api/admin/modelRegistry'
 import type {
   Account,
@@ -233,6 +237,7 @@ const emit = defineEmits<{
   'reset-quota': [account: Account]
   'import-models': [account: Account]
   blacklist: [account: Account]
+  'test-blacklist': [payload: { account: Account; source: 'test_modal'; feedback?: BlacklistFeedbackPayload }]
   'close-sync': []
   reload: []
   'close-import-data': []

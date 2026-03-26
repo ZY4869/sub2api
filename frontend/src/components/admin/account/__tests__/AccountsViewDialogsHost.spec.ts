@@ -240,4 +240,50 @@ describe('AccountsViewDialogsHost', () => {
     expect(wrapper.emitted('blacklist')).toEqual([[{ id: 7, name: 'openai-7' }]])
     expect(wrapper.emitted('close-menu')).toEqual([[]])
   })
+
+  it('forwards test modal blacklist events', async () => {
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        showTest: true,
+        testingAccount: {
+          id: 9,
+          name: 'openai-9',
+          platform: 'openai',
+          type: 'apikey',
+          status: 'active'
+        }
+      },
+      global: {
+        stubs: createStubs({
+          AccountTestModal: {
+            emits: ['close', 'blacklist'],
+            template: `
+              <div>
+                <button
+                  class="test-blacklist"
+                  @click="$emit('blacklist', {
+                    account: { id: 9, name: 'openai-9' },
+                    source: 'test_modal',
+                    feedback: { fingerprint: 'fp-9', action: 'blacklist' }
+                  })"
+                />
+              </div>
+            `
+          }
+        })
+      }
+    })
+
+    await wrapper.get('.test-blacklist').trigger('click')
+
+    expect(wrapper.emitted('test-blacklist')).toEqual([[
+      {
+        account: { id: 9, name: 'openai-9' },
+        source: 'test_modal',
+        feedback: { fingerprint: 'fp-9', action: 'blacklist' }
+      }
+    ]])
+  })
 })
