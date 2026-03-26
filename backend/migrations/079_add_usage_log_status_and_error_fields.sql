@@ -1,0 +1,11 @@
+ALTER TABLE usage_logs
+ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'succeeded',
+ADD COLUMN IF NOT EXISTS http_status INT NULL,
+ADD COLUMN IF NOT EXISTS error_code VARCHAR(128) NULL,
+ADD COLUMN IF NOT EXISTS error_message VARCHAR(1024) NULL,
+ADD COLUMN IF NOT EXISTS simulated_client VARCHAR(32) NULL;
+
+UPDATE usage_logs
+SET status = 'succeeded'
+WHERE status IS NULL OR BTRIM(status) = '';
+

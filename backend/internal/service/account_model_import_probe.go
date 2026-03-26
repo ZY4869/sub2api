@@ -26,6 +26,9 @@ const (
 )
 
 func (s *AccountModelImportService) detectModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
+	if IsProtocolGatewayAccount(account) && GetAccountGatewayProtocol(account) == GatewayProtocolMixed {
+		return s.detectMixedProtocolGatewayModels(ctx, account)
+	}
 	switch RoutingPlatformForAccount(account) {
 	case PlatformOpenAI:
 		models, err := s.detectOpenAIModels(ctx, account)
@@ -72,6 +75,74 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 	default:
 		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "current account platform does not support model import")
 	}
+}
+
+func (s *AccountModelImportService) detectMixedProtocolGatewayModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
+	acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
+	if len(acceptedProtocols) == 0 {
+		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "mixed protocol gateway account requires accepted protocols")
+	}
+	mergedModels := make([]string, 0)
+	detailByID := make(map[string]AccountModelProbeModel)
+	sources := make([]string, 0, len(acceptedProtocols))
+	notices := make([]string, 0, len(acceptedProtocols))
+	for _, protocol := range acceptedProtocols {
+		protocolAccount := ResolveProtocolGatewayInboundAccount(account, protocol)
+		probeResult, err := s.detectModels(ctx, protocolAccount)
+		if err != nil {
+			return nil, err
+		}
+		if probeResult == nil {
+			continue
+		}
+		source := strings.TrimSpace(probeResult.Source)
+		if source != "" {
+			sources = append(sources, source)
+		}
+		if notice := strings.TrimSpace(probeResult.Notice); notice != "" {
+			notices = append(notices, notice)
+		}
+		for _, modelID := range probeResult.Models {
+			modelID = strings.TrimSpace(modelID)
+			if modelID == "" {
+				continue
+			}
+			if _, exists := detailByID[modelID]; !exists {
+				mergedModels = append(mergedModels, modelID)
+				detailByID[modelID] = AccountModelProbeModel{
+					ID:             modelID,
+					DisplayName:    FormatModelCatalogDisplayName(modelID),
+					SourceProtocol: protocol,
+				}
+			}
+		}
+		for _, detail := range probeResult.Details {
+			modelID := strings.TrimSpace(detail.ID)
+			if modelID == "" {
+				continue
+			}
+			if existing, ok := detailByID[modelID]; ok {
+				if strings.TrimSpace(detail.DisplayName) != "" {
+					existing.DisplayName = detail.DisplayName
+				}
+				if existing.SourceProtocol == "" {
+					existing.SourceProtocol = protocol
+				}
+				detailByID[modelID] = existing
+			}
+		}
+	}
+	sort.Strings(mergedModels)
+	details := make([]AccountModelProbeModel, 0, len(mergedModels))
+	for _, modelID := range mergedModels {
+		details = append(details, detailByID[modelID])
+	}
+	return &accountModelProbeResult{
+		Models:  mergedModels,
+		Details: details,
+		Source:  strings.Join(uniqueStrings(sources), "+"),
+		Notice:  strings.Join(uniqueStrings(notices), "; "),
+	}, nil
 }
 
 func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, account *Account) ([]string, error) {

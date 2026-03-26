@@ -1526,6 +1526,18 @@ export default {
         probeSelectedCount: '{count} model(s) selected',
         registryExisting: 'Already in local registry',
         registryMissing: 'Missing locally, will be added after create',
+        acceptedProtocolsTitle: 'Accepted Protocols',
+        acceptedProtocolsHint: 'Mixed gateway accounts can accept multiple request formats. Disable protocol families you do not want to expose.',
+        clientProfilesTitle: 'Simulated Clients',
+        clientProfilesHint: 'Only applies when a model route explicitly matches. Unmatched requests automatically fall back to native protocol forwarding.',
+        clientProfileCodex: 'Codex',
+        clientProfileCodexHint: 'Reuse Codex CLI headers, UA, and OpenAI/Codex behavior.',
+        clientProfileGeminiCli: 'Gemini CLI',
+        clientProfileGeminiCliHint: 'Reuse Gemini CLI headers and Gemini CLI request normalization.',
+        applyAllCodex: 'Apply Codex To All',
+        applyAllGeminiCli: 'Apply Gemini CLI To All',
+        clearSimulations: 'Clear Simulations',
+        clearSimulation: 'Clear Simulation',
         probeRequiredApiKey: 'Enter the API key before probing models',
         probeFailed: 'Failed to probe upstream models',
         probeEmpty: 'Detected upstream models will appear here after you click "Probe And Fetch Models".',
@@ -1543,6 +1555,10 @@ export default {
           gemini: {
             baseUrlHint: 'Enter a Gemini-compatible upstream URL, or leave default for official Gemini API',
             apiKeyHint: 'Enter the Gemini-compatible API key issued by your upstream'
+          },
+          mixed: {
+            baseUrlHint: 'Enter one unified gateway URL that can forward OpenAI / Anthropic / Gemini traffic from the same account.',
+            apiKeyHint: 'Enter the shared gateway API key. Mixed mode routes traffic by accepted protocol and model simulation rules.'
           }
         }
       },

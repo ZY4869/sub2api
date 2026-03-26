@@ -394,10 +394,15 @@ type UsageLog struct {
 
 	BillingType  int8   `json:"billing_type"`
 	RequestType  string `json:"request_type"`
+	Status       string `json:"status"`
 	Stream       bool   `json:"stream"`
 	OpenAIWSMode bool   `json:"openai_ws_mode"`
 	DurationMs   *int   `json:"duration_ms"`
 	FirstTokenMs *int   `json:"first_token_ms"`
+	HTTPStatus   *int   `json:"http_status,omitempty"`
+	ErrorCode    *string `json:"error_code,omitempty"`
+	ErrorMessage *string `json:"error_message,omitempty"`
+	SimulatedClient *string `json:"simulated_client,omitempty"`
 
 	// 图片生成字段
 	ImageCount int     `json:"image_count"`

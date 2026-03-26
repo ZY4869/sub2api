@@ -48,20 +48,36 @@ type AccountModelImportResult struct {
 
 type AccountModelProbeSummary struct {
 	DetectedModels []string `json:"detected_models"`
+	Models         []AccountModelProbeModel `json:"models,omitempty"`
 	ProbeSource    string   `json:"probe_source"`
 	ProbeNotice    string   `json:"probe_notice,omitempty"`
 }
 
+type AccountModelProbeModel struct {
+	ID             string `json:"id"`
+	DisplayName    string `json:"display_name"`
+	SourceProtocol string `json:"source_protocol,omitempty"`
+}
+
 type accountModelProbeResult struct {
-	Models []string
-	Source string
-	Notice string
+	Models  []string
+	Details []AccountModelProbeModel
+	Source  string
+	Notice  string
 }
 
 func newAccountModelProbeResult(models []string) *accountModelProbeResult {
+	details := make([]AccountModelProbeModel, 0, len(models))
+	for _, modelID := range models {
+		details = append(details, AccountModelProbeModel{
+			ID:          modelID,
+			DisplayName: FormatModelCatalogDisplayName(modelID),
+		})
+	}
 	return &accountModelProbeResult{
-		Models: models,
-		Source: accountModelProbeSourceUpstream,
+		Models:  models,
+		Details: details,
+		Source:  accountModelProbeSourceUpstream,
 	}
 }
 
@@ -117,6 +133,7 @@ func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, acco
 
 	return &AccountModelProbeSummary{
 		DetectedModels: detectedModels,
+		Models:         normalizeAccountModelProbeDetails(probeResult.Details, detectedModels),
 		ProbeSource:    probeSource,
 		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
 	}, nil
@@ -320,6 +337,39 @@ func sortImportedSourceModels(models []string) []string {
 		return len(left) < len(right)
 	})
 	return items
+}
+
+func normalizeAccountModelProbeDetails(details []AccountModelProbeModel, detectedModels []string) []AccountModelProbeModel {
+	if len(detectedModels) == 0 {
+		return []AccountModelProbeModel{}
+	}
+	detailByID := make(map[string]AccountModelProbeModel, len(details))
+	for _, detail := range details {
+		modelID := strings.TrimSpace(detail.ID)
+		if modelID == "" {
+			continue
+		}
+		detail.ID = modelID
+		if strings.TrimSpace(detail.DisplayName) == "" {
+			detail.DisplayName = FormatModelCatalogDisplayName(modelID)
+		}
+		detail.SourceProtocol = NormalizeGatewayProtocol(detail.SourceProtocol)
+		if _, exists := detailByID[modelID]; !exists {
+			detailByID[modelID] = detail
+		}
+	}
+	result := make([]AccountModelProbeModel, 0, len(detectedModels))
+	for _, modelID := range detectedModels {
+		if detail, ok := detailByID[modelID]; ok {
+			result = append(result, detail)
+			continue
+		}
+		result = append(result, AccountModelProbeModel{
+			ID:          modelID,
+			DisplayName: FormatModelCatalogDisplayName(modelID),
+		})
+	}
+	return result
 }
 
 func summarizeAccountModelImportError(err error) string {

@@ -401,6 +401,18 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							break
 						}
+						h.submitFailedUsageRecordTask(
+							"handler.sora_gateway.chat_completions",
+							c,
+							currentAPIKey,
+							currentSubscription,
+							account,
+							reqModel,
+							clientStream,
+							0,
+							failoverErr,
+							err,
+						)
 						h.handleFailoverExhausted(c, lastFailoverStatus, lastFailoverHeaders, lastFailoverBody, streamStarted)
 						return
 					}
@@ -442,6 +454,18 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 					zap.Bool("tls_fingerprint_enabled", tlsFingerprintEnabled),
 					zap.Error(err),
 				)
+				h.submitFailedUsageRecordTask(
+					"handler.sora_gateway.chat_completions",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					clientStream,
+					0,
+					nil,
+					err,
+				)
 				return
 			}
 
@@ -449,7 +473,7 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 			clientIP := ip.GetClientIP(c)
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
-			upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+			upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
 			// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{

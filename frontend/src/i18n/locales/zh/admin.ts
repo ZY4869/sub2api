@@ -1672,6 +1672,18 @@
         probeSelectedCount: '已选择 {count} 个模型',
         registryExisting: '模型库已存在',
         registryMissing: '模型库缺失，创建后自动入库',
+        acceptedProtocolsTitle: '接受协议',
+        acceptedProtocolsHint: 'Mixed 子协议可同时接收多种请求格式，你可以按需要关闭不参与的协议族。',
+        clientProfilesTitle: '模拟客户端',
+        clientProfilesHint: '仅在显式命中模型路由时生效。未命中任何路由的请求会自动回落到原生协议转发。',
+        clientProfileCodex: 'Codex',
+        clientProfileCodexHint: '复用 Codex CLI 的请求头、UA 与 OpenAI/Codex 行为。',
+        clientProfileGeminiCli: 'Gemini CLI',
+        clientProfileGeminiCliHint: '复用 Gemini CLI 的请求头与 Gemini CLI 请求归一化。',
+        applyAllCodex: '全部按 Codex',
+        applyAllGeminiCli: '全部按 Gemini CLI',
+        clearSimulations: '清空模拟',
+        clearSimulation: '清除模拟',
         probeRequiredApiKey: '请先填写 API Key 再进行取模',
         probeFailed: '探测上游模型失败',
         probeEmpty: '点击“探测并取模”后，这里会列出上游支持的模型。',
@@ -1689,6 +1701,10 @@
           gemini: {
             baseUrlHint: '填写兼容 Gemini 协议的上游地址，留空使用官方 Gemini API',
             apiKeyHint: '填写上游发放的 Gemini 兼容 API Key'
+          },
+          mixed: {
+            baseUrlHint: '填写统一协议网关地址，支持同一账号同时转发 OpenAI / Anthropic / Gemini 请求。',
+            apiKeyHint: '填写网关统一 API Key；Mixed 模式会按接受协议与模型路由决定实际转发行为。'
           }
         }
       },

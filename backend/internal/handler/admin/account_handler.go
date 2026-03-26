@@ -59,7 +59,7 @@ type CreateAccountRequest struct {
 	Name                    string         `json:"name" binding:"required"`
 	Notes                   *string        `json:"notes"`
 	Platform                string         `json:"platform" binding:"required"`
-	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini"`
+	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini mixed"`
 	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream"`
 	Credentials             map[string]any `json:"credentials" binding:"required"`
 	Extra                   map[string]any `json:"extra"`
@@ -80,7 +80,7 @@ type ImportAccountModelsRequest struct {
 type UpdateAccountRequest struct {
 	Name                    string         `json:"name"`
 	Notes                   *string        `json:"notes"`
-	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini"`
+	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini mixed"`
 	Type                    string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream"`
 	Credentials             map[string]any `json:"credentials"`
 	Extra                   map[string]any `json:"extra"`
@@ -116,7 +116,7 @@ type BlacklistAccountRequest struct {
 }
 type CheckMixedChannelRequest struct {
 	Platform        string  `json:"platform" binding:"required"`
-	GatewayProtocol string  `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini"`
+	GatewayProtocol string  `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini mixed"`
 	GroupIDs        []int64 `json:"group_ids"`
 	AccountID       *int64  `json:"account_id"`
 }

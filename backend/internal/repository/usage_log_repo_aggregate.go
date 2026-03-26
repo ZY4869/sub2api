@@ -24,7 +24,7 @@ func (r *usageLogRepository) GetUserStatsAggregated(ctx context.Context, userID 
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(COALESCE(duration_ms, 0)), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
 	`
@@ -46,7 +46,7 @@ func (r *usageLogRepository) GetAPIKeyStatsAggregated(ctx context.Context, apiKe
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(COALESCE(duration_ms, 0)), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE api_key_id = $1 AND created_at >= $2 AND created_at < $3
 	`
@@ -68,7 +68,7 @@ func (r *usageLogRepository) GetAccountStatsAggregated(ctx context.Context, acco
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(COALESCE(duration_ms, 0)), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE account_id = $1 AND created_at >= $2 AND created_at < $3
 	`
@@ -90,7 +90,7 @@ func (r *usageLogRepository) GetModelStatsAggregated(ctx context.Context, modelN
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(COALESCE(duration_ms, 0)), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE model = $1 AND created_at >= $2 AND created_at < $3
 	`
@@ -113,7 +113,7 @@ func (r *usageLogRepository) GetDailyStatsAggregated(ctx context.Context, userID
 			COALESCE(SUM(cache_creation_tokens + cache_read_tokens), 0) as total_cache_tokens,
 			COALESCE(SUM(total_cost), 0) as total_cost,
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
-			COALESCE(AVG(COALESCE(duration_ms, 0)), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2 AND created_at < $3
 		GROUP BY 1
@@ -410,7 +410,7 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE user_id = $1
 	`
@@ -474,7 +474,7 @@ func (r *usageLogRepository) GetAPIKeyDashboardStats(ctx context.Context, apiKey
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE api_key_id = $1
 	`
@@ -1039,7 +1039,7 @@ func (r *usageLogRepository) GetGlobalStats(ctx context.Context, startTime, endT
 			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
-			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE created_at >= $1 AND created_at <= $2
 	`
@@ -1097,7 +1097,7 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 			COUNT(*) FILTER (WHERE billing_exempt_reason = 'admin_free') as admin_free_requests,
 			COALESCE(SUM(total_cost) FILTER (WHERE billing_exempt_reason = 'admin_free'), 0) as admin_free_standard_cost,
 			COALESCE(SUM(total_cost * COALESCE(account_rate_multiplier, 1)), 0) as total_account_cost,
-			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
+			COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms
 		FROM usage_logs
 		%s
 	`, buildWhere(conditions))

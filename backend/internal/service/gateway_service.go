@@ -164,6 +164,7 @@ type ForwardResult struct {
 	Usage            ClaudeUsage
 	Model            string
 	UpstreamModel    string
+	SimulatedClient  string
 	ReasoningEffort  *string
 	Stream           bool
 	Duration         time.Duration
@@ -404,6 +405,10 @@ func (s *GatewayService) shouldFailoverOn400(respBody []byte) bool {
 
 func ExtractUpstreamErrorMessage(body []byte) string {
 	return extractUpstreamErrorMessage(body)
+}
+
+func ExtractUpstreamErrorCode(body []byte) string {
+	return extractUpstreamErrorCode(body)
 }
 
 func extractUpstreamErrorMessage(body []byte) string {

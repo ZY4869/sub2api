@@ -214,6 +214,44 @@
             </div>
           </template>
 
+          <template #cell-status="{ row }">
+            <div class="max-w-[280px] space-y-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="getStatusBadgeClass(row.status)"
+                >
+                  {{ getStatusLabel(row.status) }}
+                </span>
+                <span
+                  v-if="row.simulated_client"
+                  class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-700 dark:text-primary-300"
+                >
+                  {{ getSimulatedClientLabel(row.simulated_client) }}
+                </span>
+              </div>
+              <div
+                v-if="row.status === 'failed'"
+                class="space-y-1 text-xs text-rose-600 dark:text-rose-300"
+              >
+                <div class="flex flex-wrap gap-x-3 gap-y-1">
+                  <span v-if="row.http_status != null">
+                    <span class="font-medium">{{ t("usage.httpStatus") }}:</span>
+                    {{ row.http_status }}
+                  </span>
+                  <span v-if="row.error_code">
+                    <span class="font-medium">{{ t("usage.errorCode") }}:</span>
+                    {{ row.error_code }}
+                  </span>
+                </div>
+                <div v-if="row.error_message" :title="row.error_message" class="truncate">
+                  <span class="font-medium">{{ t("usage.errorMessage") }}:</span>
+                  <span class="ml-1">{{ truncateUsageErrorMessage(row.error_message) }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
           <template #cell-reasoning_effort="{ row }">
             <span class="text-sm text-gray-900 dark:text-white">
               {{ formatReasoningEffort(row.reasoning_effort) }}
@@ -806,6 +844,7 @@ const usageStats = ref<UsageStatsResponse | null>(null);
 const columns = computed<Column[]>(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
+  { key: "status", label: t("usage.status"), sortable: false },
   { key: "thinking_enabled", label: t("usage.thinkingMode"), sortable: false },
   {
     key: "reasoning_effort",
@@ -905,6 +944,31 @@ const getRequestTypeBadgeClass = (log: UsageLog): string => {
   if (requestType === "sync")
     return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
   return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+};
+
+const getStatusLabel = (status: UsageLog["status"]): string =>
+  status === "failed" ? t("usage.statusFailed") : t("usage.statusSucceeded");
+
+const getStatusBadgeClass = (status: UsageLog["status"]): string =>
+  status === "failed"
+    ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
+
+const getSimulatedClientLabel = (
+  client: UsageLog["simulated_client"],
+): string => {
+  if (client === "gemini_cli") {
+    return t("usage.simulatedClientGeminiCli");
+  }
+  return t("usage.simulatedClientCodex");
+};
+
+const truncateUsageErrorMessage = (message: string): string => {
+  const trimmed = message.trim();
+  if (trimmed.length <= 120) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, 117)}...`;
 };
 
 const getRequestTypeExportText = (log: UsageLog): string => {
@@ -1083,10 +1147,15 @@ const exportToCSV = async () => {
       "Time",
       "API Key Name",
       "Model",
+      "Status",
+      "Simulated Client",
       "Thinking Mode",
       "Reasoning Effort",
       "Inbound Endpoint",
       "Type",
+      "HTTP Status",
+      "Error Code",
+      "Error Message",
       "Input Tokens",
       "Output Tokens",
       "Cache Read Tokens",
@@ -1103,10 +1172,15 @@ const exportToCSV = async () => {
         log.created_at,
         log.api_key?.name || "",
         log.model,
+        getStatusLabel(log.status),
+        log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffort(log.reasoning_effort),
         log.inbound_endpoint || "",
         getRequestTypeExportText(log),
+        log.http_status ?? "",
+        log.error_code || "",
+        log.error_message || "",
         log.input_tokens,
         log.output_tokens,
         log.cache_read_tokens,

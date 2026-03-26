@@ -1,4 +1,11 @@
-import type { Account, AccountPlatform, GatewayProtocol } from '@/types'
+import type {
+  Account,
+  AccountPlatform,
+  GatewayAcceptedProtocol,
+  GatewayClientProfile,
+  GatewayClientRoute,
+  GatewayProtocol
+} from '@/types'
 
 export interface ProtocolGatewayDescriptor {
   id: GatewayProtocol
@@ -10,12 +17,14 @@ export interface ProtocolGatewayDescriptor {
   apiKeyHintKey: string
   modelImportStrategy: GatewayProtocol
   testStrategy: GatewayProtocol
-  targetGroupPlatform: GatewayProtocol
+  targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
 export const PROTOCOL_GATEWAY_PLATFORM = 'protocol_gateway' as const
 
-export const PROTOCOL_GATEWAY_PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const
+export const PROTOCOL_GATEWAY_PROTOCOLS = ['openai', 'anthropic', 'gemini', 'mixed'] as const
+export const PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const
+export const PROTOCOL_GATEWAY_CLIENT_PROFILES = ['codex', 'gemini_cli'] as const
 
 export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatewayDescriptor> = {
   openai: {
@@ -53,6 +62,23 @@ export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatew
     modelImportStrategy: 'gemini',
     testStrategy: 'gemini',
     targetGroupPlatform: 'gemini'
+  },
+  mixed: {
+    id: 'mixed',
+    displayName: 'Mixed',
+    requestFormats: [
+      '/v1/chat/completions',
+      '/v1/responses',
+      '/v1/messages',
+      '/v1beta/models/{model}:generateContent'
+    ],
+    defaultBaseUrl: '',
+    apiKeyPlaceholder: 'gateway-key-...',
+    baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.mixed.baseUrlHint',
+    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.mixed.apiKeyHint',
+    modelImportStrategy: 'mixed',
+    testStrategy: 'mixed',
+    targetGroupPlatform: ''
   }
 }
 
@@ -79,6 +105,83 @@ export function resolveGatewayProtocolDescriptor(
   return normalized ? PROTOCOL_GATEWAY_DESCRIPTORS[normalized] : null
 }
 
+export function isGatewayAcceptedProtocol(value: unknown): value is GatewayAcceptedProtocol {
+  return typeof value === 'string' && (PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS as readonly string[]).includes(value)
+}
+
+export function normalizeGatewayAcceptedProtocol(value: unknown): GatewayAcceptedProtocol | '' {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  const normalized = value.trim().toLowerCase()
+  return isGatewayAcceptedProtocol(normalized) ? normalized : ''
+}
+
+export function normalizeGatewayAcceptedProtocols(
+  gatewayProtocol: GatewayProtocol | '' | undefined,
+  acceptedProtocols?: unknown
+): GatewayAcceptedProtocol[] {
+  if (gatewayProtocol && gatewayProtocol !== 'mixed') {
+    return [gatewayProtocol]
+  }
+  const rawValues = Array.isArray(acceptedProtocols) ? acceptedProtocols : []
+  const normalized = rawValues
+    .map((value) => normalizeGatewayAcceptedProtocol(value))
+    .filter((value): value is GatewayAcceptedProtocol => Boolean(value))
+  const unique = [...new Set(normalized)]
+  return unique.length > 0 ? unique : [...PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS]
+}
+
+export function isGatewayClientProfile(value: unknown): value is GatewayClientProfile {
+  return typeof value === 'string' && (PROTOCOL_GATEWAY_CLIENT_PROFILES as readonly string[]).includes(value)
+}
+
+export function normalizeGatewayClientProfile(value: unknown): GatewayClientProfile | '' {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  const normalized = value.trim().toLowerCase()
+  return isGatewayClientProfile(normalized) ? normalized : ''
+}
+
+export function supportedGatewayClientProfilesForProtocol(protocol: GatewayAcceptedProtocol): GatewayClientProfile[] {
+  switch (protocol) {
+    case 'openai':
+      return ['codex']
+    case 'gemini':
+      return ['gemini_cli']
+    default:
+      return []
+  }
+}
+
+export function normalizeGatewayClientRoutes(value: unknown): GatewayClientRoute[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') {
+        return null
+      }
+      const route = item as Record<string, unknown>
+      const protocol = normalizeGatewayAcceptedProtocol(route.protocol)
+      const matchType = route.match_type === 'exact' || route.match_type === 'prefix' ? route.match_type : ''
+      const matchValue = typeof route.match_value === 'string' ? route.match_value.trim() : ''
+      const clientProfile = normalizeGatewayClientProfile(route.client_profile)
+      if (!protocol || !matchType || !matchValue || !clientProfile) {
+        return null
+      }
+      return {
+        protocol,
+        match_type: matchType,
+        match_value: matchValue,
+        client_profile: clientProfile
+      } satisfies GatewayClientRoute
+    })
+    .filter((value): value is GatewayClientRoute => Boolean(value))
+}
+
 export function resolveAccountGatewayProtocol(
   account?: Pick<Account, 'platform' | 'gateway_protocol' | 'extra'> | null
 ): GatewayProtocol | '' {
@@ -98,7 +201,33 @@ export function resolveEffectiveAccountPlatform(
   if (!isProtocolGatewayPlatform(platform)) {
     return platform
   }
-  return normalizeGatewayProtocol(gatewayProtocol) || platform
+  const normalizedProtocol = normalizeGatewayProtocol(gatewayProtocol)
+  if (!normalizedProtocol || normalizedProtocol === 'mixed') {
+    return platform
+  }
+  return normalizedProtocol
+}
+
+export function resolveEffectiveAccountPlatforms(
+  platform: AccountPlatform,
+  gatewayProtocol?: unknown,
+  acceptedProtocols?: unknown
+): AccountPlatform[] {
+  if (!isProtocolGatewayPlatform(platform)) {
+    return [platform]
+  }
+
+  const normalizedProtocol = normalizeGatewayProtocol(gatewayProtocol)
+  if (normalizedProtocol && normalizedProtocol !== 'mixed') {
+    return [normalizedProtocol]
+  }
+
+  const normalizedAccepted = normalizeGatewayAcceptedProtocols(
+    normalizedProtocol || 'mixed',
+    acceptedProtocols
+  )
+
+  return normalizedAccepted.length > 0 ? [...normalizedAccepted] : ['openai']
 }
 
 export function resolveEffectiveAccountPlatformFromAccount(

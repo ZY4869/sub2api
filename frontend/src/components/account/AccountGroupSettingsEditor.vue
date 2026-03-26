@@ -7,6 +7,7 @@ import type { AdminGroup, GroupPlatform } from '@/types'
 const props = withDefaults(defineProps<{
   groups: AdminGroup[]
   platform: GroupPlatform | null
+  platforms?: GroupPlatform[]
   simpleMode: boolean
   showMixedScheduling?: boolean
   mixedSchedulingReadonly?: boolean
@@ -33,6 +34,12 @@ const mixedSchedulingInputClass = computed(() =>
 )
 
 const groupPlatform = computed(() => props.platform || undefined)
+const groupPlatforms = computed(() => {
+  if (!Array.isArray(props.platforms) || props.platforms.length === 0) {
+    return undefined
+  }
+  return props.platforms
+})
 </script>
 
 <template>
@@ -71,6 +78,7 @@ const groupPlatform = computed(() => props.platform || undefined)
       v-model="groupIds"
       :groups="groups"
       :platform="groupPlatform"
+      :platforms="groupPlatforms"
       :mixed-scheduling="mixedScheduling"
       data-tour="account-form-groups"
     />

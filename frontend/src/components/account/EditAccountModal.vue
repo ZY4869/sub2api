@@ -79,6 +79,7 @@
           :effective-platform="effectivePlatform"
           mode="edit"
           :model-scope-disabled="isOpenAIModelRestrictionDisabled"
+          :skip-model-scope-editor="isProtocolGatewayAccount"
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
@@ -86,6 +87,19 @@
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
+        />
+
+        <AccountProtocolGatewayModelProbeEditor
+          v-if="isProtocolGatewayAccount"
+          v-model:allowed-models="allowedModels"
+          v-model:probed-models="protocolGatewayProbeModels"
+          v-model:accepted-protocols="gatewayAcceptedProtocols"
+          v-model:client-profiles="gatewayClientProfiles"
+          v-model:client-routes="gatewayClientRoutes"
+          :gateway-protocol="gatewayProtocol"
+          :base-url="editBaseUrl"
+          :api-key="resolvedProtocolGatewayApiKey"
+          :proxy-id="form.proxy_id"
         />
 
         <AccountPoolModeEditor
@@ -258,6 +272,7 @@
         v-model:mixed-scheduling="mixedScheduling"
         :groups="groups"
         :platform="effectivePlatform"
+        :platforms="effectiveGroupPlatforms"
         :simple-mode="authStore.isSimpleMode"
         :show-mixed-scheduling="account?.platform === 'antigravity'"
         mixed-scheduling-readonly
@@ -332,6 +347,7 @@ import AccountGroupSettingsEditor from '@/components/account/AccountGroupSetting
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
+import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
 import AccountTempUnschedRulesEditor from '@/components/account/AccountTempUnschedRulesEditor.vue'
@@ -370,13 +386,23 @@ import {
   buildModelMappingObject
 } from '@/composables/useModelWhitelist'
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
+import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import {
   PROTOCOL_GATEWAY_PROTOCOLS,
   isProtocolGatewayPlatform,
+  normalizeGatewayAcceptedProtocols,
+  normalizeGatewayClientProfile,
+  normalizeGatewayClientRoutes,
   resolveAccountGatewayProtocol,
   resolveEffectiveAccountPlatform,
+  resolveEffectiveAccountPlatforms,
   resolveGatewayProtocolDescriptor
 } from '@/utils/accountProtocolGateway'
+import type {
+  GatewayAcceptedProtocol,
+  GatewayClientProfile,
+  GatewayClientRoute
+} from '@/types'
 
 interface Props {
   show: boolean
@@ -407,6 +433,10 @@ const editApiKey = ref('')
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
+const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
+const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
+const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
 const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MODE_RETRY_COUNT))
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
@@ -440,9 +470,26 @@ const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(props.account?.platform || 'anthropic', gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
 })
+const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
+  if (!isProtocolGatewayPlatform(props.account?.platform)) {
+    return undefined
+  }
+  return resolveEffectiveAccountPlatforms(
+    props.account?.platform || 'protocol_gateway',
+    gatewayProtocol.value,
+    gatewayAcceptedProtocols.value
+  ) as GroupPlatform[]
+})
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
 )
+const resolvedProtocolGatewayApiKey = computed(() => {
+  if (editApiKey.value.trim()) {
+    return editApiKey.value.trim()
+  }
+  const currentCredentials = (props.account?.credentials as Record<string, unknown>) || {}
+  return typeof currentCredentials.api_key === 'string' ? currentCredentials.api_key : ''
+})
 const gatewayProtocolOptions = computed(() =>
   PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
     value: id,
@@ -608,6 +655,18 @@ watch(
     if (show && newAccount) {
       resetMixedChannelRisk()
       gatewayProtocol.value = resolveAccountGatewayProtocol(newAccount) || 'openai'
+      gatewayAcceptedProtocols.value = normalizeGatewayAcceptedProtocols(
+        gatewayProtocol.value,
+        newAccount.extra?.gateway_accepted_protocols
+      )
+      gatewayClientProfiles.value = (Array.isArray(newAccount.extra?.gateway_client_profiles)
+        ? newAccount.extra?.gateway_client_profiles
+        : []
+      )
+        .map((value) => normalizeGatewayClientProfile(value))
+        .filter((value): value is GatewayClientProfile => Boolean(value))
+      gatewayClientRoutes.value = normalizeGatewayClientRoutes(newAccount.extra?.gateway_client_routes)
+      protocolGatewayProbeModels.value = []
       const runtimePlatform = resolveEffectiveAccountPlatform(
         newAccount.platform,
         resolveAccountGatewayProtocol(newAccount) || gatewayProtocol.value
@@ -810,9 +869,34 @@ watch(
       resetMixedChannelRisk()
       resetTempUnschedRules()
       quotaControl.reset()
+      gatewayAcceptedProtocols.value = ['openai']
+      gatewayClientProfiles.value = []
+      gatewayClientRoutes.value = []
+      protocolGatewayProbeModels.value = []
     }
   },
   { immediate: true }
+)
+
+watch(
+  gatewayProtocol,
+  (newProtocol, oldProtocol) => {
+    if (!isProtocolGatewayAccount.value || newProtocol === oldProtocol) {
+      return
+    }
+    gatewayAcceptedProtocols.value = normalizeGatewayAcceptedProtocols(
+      newProtocol,
+      gatewayAcceptedProtocols.value
+    )
+    gatewayClientProfiles.value = []
+    gatewayClientRoutes.value = []
+    protocolGatewayProbeModels.value = []
+    allowedModels.value = []
+    editBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(
+      props.account?.platform || 'protocol_gateway',
+      newProtocol
+    )
+  }
 )
 
 // Model mapping helpers
@@ -1086,7 +1170,10 @@ const handleSubmit = async () => {
       updatePayload.gateway_protocol = gatewayProtocol.value
       updatePayload.extra = {
         ...currentExtra,
-        gateway_protocol: gatewayProtocol.value
+        gateway_protocol: gatewayProtocol.value,
+        gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+        gateway_client_profiles: [...gatewayClientProfiles.value],
+        gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
       }
     }
 

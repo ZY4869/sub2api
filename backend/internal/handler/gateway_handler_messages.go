@@ -282,6 +282,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 							if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 								break
 							}
+							h.submitFailedUsageRecordTask(
+								"handler.gateway.messages",
+								c,
+								currentAPIKey,
+								currentSubscription,
+								account,
+								reqModel,
+								reqStream,
+								0,
+								service.EffectiveProtocol(account),
+								fs.LastFailoverErr,
+								err,
+							)
 							h.handleFailoverExhausted(c, fs.LastFailoverErr, service.PlatformGemini, streamStarted)
 							return
 						case FailoverCanceled:
@@ -289,6 +302,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						}
 					}
 					wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+					h.submitFailedUsageRecordTask(
+						"handler.gateway.messages",
+						c,
+						currentAPIKey,
+						currentSubscription,
+						account,
+						reqModel,
+						reqStream,
+						0,
+						service.EffectiveProtocol(account),
+						nil,
+						err,
+					)
 					reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
 					return
 				}
@@ -497,6 +523,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 							if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
 								break
 							}
+							h.submitFailedUsageRecordTask(
+								"handler.gateway.messages",
+								c,
+								runtimeAPIKey,
+								runtimeSubscription,
+								account,
+								reqModel,
+								reqStream,
+								0,
+								service.EffectiveProtocol(account),
+								fs.LastFailoverErr,
+								err,
+							)
 							h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
 							return
 						case FailoverCanceled:
@@ -504,6 +543,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						}
 					}
 					wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+					h.submitFailedUsageRecordTask(
+						"handler.gateway.messages",
+						c,
+						runtimeAPIKey,
+						runtimeSubscription,
+						account,
+						reqModel,
+						reqStream,
+						0,
+						service.EffectiveProtocol(account),
+						nil,
+						err,
+					)
 					reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
 					return
 				}
@@ -662,6 +714,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					case FailoverContinue:
 						continue
 					case FailoverExhausted:
+						h.submitFailedUsageRecordTask(
+							"handler.gateway.messages",
+							c,
+							apiKey,
+							subscription,
+							account,
+							reqModel,
+							reqStream,
+							0,
+							service.EffectiveProtocol(account),
+							fs.LastFailoverErr,
+							err,
+						)
 						h.handleFailoverExhausted(c, fs.LastFailoverErr, service.PlatformGemini, streamStarted)
 						return
 					case FailoverCanceled:
@@ -669,6 +734,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					}
 				}
 				wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+				h.submitFailedUsageRecordTask(
+					"handler.gateway.messages",
+					c,
+					apiKey,
+					subscription,
+					account,
+					reqModel,
+					reqStream,
+					0,
+					service.EffectiveProtocol(account),
+					nil,
+					err,
+				)
 				reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
 				return
 			}
@@ -863,6 +941,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					case FailoverContinue:
 						continue
 					case FailoverExhausted:
+						h.submitFailedUsageRecordTask(
+							"handler.gateway.messages",
+							c,
+							currentAPIKey,
+							currentSubscription,
+							account,
+							reqModel,
+							reqStream,
+							0,
+							service.EffectiveProtocol(account),
+							fs.LastFailoverErr,
+							err,
+						)
 						h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
 						return
 					case FailoverCanceled:
@@ -870,6 +961,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					}
 				}
 				wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+				h.submitFailedUsageRecordTask(
+					"handler.gateway.messages",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					reqStream,
+					0,
+					service.EffectiveProtocol(account),
+					nil,
+					err,
+				)
 				reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
 				return
 			}

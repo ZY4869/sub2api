@@ -284,6 +284,18 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							break
 						}
+						h.submitFailedUsageRecordTask(
+							"handler.openai_gateway.messages",
+							c,
+							currentAPIKey,
+							currentSubscription,
+							account,
+							reqModel,
+							reqStream,
+							time.Duration(forwardDurationMs)*time.Millisecond,
+							failoverErr,
+							err,
+						)
 						h.handleAnthropicFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -298,6 +310,18 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 				wroteFallback := h.ensureAnthropicErrorResponse(c, streamStarted)
+				h.submitFailedUsageRecordTask(
+					"handler.openai_gateway.messages",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					reqStream,
+					time.Duration(forwardDurationMs)*time.Millisecond,
+					nil,
+					err,
+				)
 				reqLog.Warn("openai_messages.forward_failed",
 					zap.Int64("account_id", account.ID),
 					zap.Bool("fallback_error_response_written", wroteFallback),

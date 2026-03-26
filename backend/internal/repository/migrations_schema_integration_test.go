@@ -44,6 +44,11 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	requireColumn(t, tx, "usage_logs", "billing_type", "smallint", 0, false)
 	requireColumn(t, tx, "usage_logs", "request_type", "smallint", 0, false)
 	requireColumn(t, tx, "usage_logs", "openai_ws_mode", "boolean", 0, false)
+	requireColumn(t, tx, "usage_logs", "status", "character varying", 16, false)
+	requireColumn(t, tx, "usage_logs", "http_status", "integer", 0, true)
+	requireColumn(t, tx, "usage_logs", "error_code", "character varying", 128, true)
+	requireColumn(t, tx, "usage_logs", "error_message", "character varying", 1024, true)
+	requireColumn(t, tx, "usage_logs", "simulated_client", "character varying", 32, true)
 
 	// usage_billing_dedup: billing idempotency narrow table
 	var usageBillingDedupRegclass sql.NullString

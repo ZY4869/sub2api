@@ -15,6 +15,36 @@ const (
 	BillingExemptReasonAdminFree = "admin_free"
 )
 
+const (
+	UsageLogStatusSucceeded = "succeeded"
+	UsageLogStatusFailed    = "failed"
+
+	UsageLogSimulatedClientCodex     = GatewayClientProfileCodex
+	UsageLogSimulatedClientGeminiCLI = GatewayClientProfileGeminiCLI
+)
+
+func NormalizeUsageLogStatus(status string) string {
+	switch strings.TrimSpace(strings.ToLower(status)) {
+	case UsageLogStatusFailed:
+		return UsageLogStatusFailed
+	default:
+		return UsageLogStatusSucceeded
+	}
+}
+
+func NormalizeUsageLogSimulatedClient(client string) *string {
+	switch strings.TrimSpace(strings.ToLower(client)) {
+	case UsageLogSimulatedClientCodex:
+		value := UsageLogSimulatedClientCodex
+		return &value
+	case UsageLogSimulatedClientGeminiCLI:
+		value := UsageLogSimulatedClientGeminiCLI
+		return &value
+	default:
+		return nil
+	}
+}
+
 func BillingExemptReasonPtr(reason string) *string {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
@@ -149,14 +179,19 @@ type UsageLog struct {
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
 
-	BillingType  int8
-	RequestType  RequestType
-	Stream       bool
-	OpenAIWSMode bool
-	DurationMs   *int
-	FirstTokenMs *int
-	UserAgent    *string
-	IPAddress    *string
+	BillingType     int8
+	RequestType     RequestType
+	Status          string
+	Stream          bool
+	OpenAIWSMode    bool
+	DurationMs      *int
+	FirstTokenMs    *int
+	UserAgent       *string
+	IPAddress       *string
+	HTTPStatus      *int
+	ErrorCode       *string
+	ErrorMessage    *string
+	SimulatedClient *string
 
 	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 	CacheTTLOverridden bool
@@ -195,5 +230,14 @@ func (u *UsageLog) SyncRequestTypeAndLegacyFields() {
 	}
 	requestType := u.EffectiveRequestType()
 	u.RequestType = requestType
+	u.Status = NormalizeUsageLogStatus(u.Status)
+	u.SimulatedClient = NormalizeUsageLogSimulatedClient(stringPtrValue(u.SimulatedClient))
 	u.Stream, u.OpenAIWSMode = ApplyLegacyRequestFields(requestType, u.Stream, u.OpenAIWSMode)
+}
+
+func stringPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

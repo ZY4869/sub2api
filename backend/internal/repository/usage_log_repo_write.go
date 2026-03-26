@@ -59,12 +59,17 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			account_rate_multiplier,
 			billing_type,
 			request_type,
+			status,
 			stream,
 			openai_ws_mode,
 			duration_ms,
 			first_token_ms,
 			user_agent,
 			ip_address,
+			http_status,
+			error_code,
+			error_message,
+			simulated_client,
 			image_count,
 			image_size,
 			media_type,
@@ -81,7 +86,7 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			$9, $10, $11, $12,
 			$13, $14,
 			$15, $16, $17, $18, $19, $20,
-			$21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41
+			$21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -101,11 +106,16 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	inboundEndpoint := nullString(log.InboundEndpoint)
 	upstreamEndpoint := nullString(log.UpstreamEndpoint)
 	billingExemptReason := nullString(log.BillingExemptReason)
+	status := service.NormalizeUsageLogStatus(log.Status)
+	httpStatus := nullInt(log.HTTPStatus)
+	errorCode := nullString(log.ErrorCode)
+	errorMessage := nullString(log.ErrorMessage)
+	simulatedClient := nullString(service.NormalizeUsageLogSimulatedClient(nullStringValue(log.SimulatedClient)))
 	var requestIDArg any
 	if requestID != "" {
 		requestIDArg = requestID
 	}
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, upstreamModel, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, log.ImageCount, imageSize, mediaType, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, upstreamModel, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, log.ImageCount, imageSize, mediaType, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, log.CacheTTLOverridden, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"

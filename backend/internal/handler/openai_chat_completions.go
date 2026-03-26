@@ -265,6 +265,18 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							break
 						}
+						h.submitFailedUsageRecordTask(
+							"handler.openai_gateway.chat_completions",
+							c,
+							currentAPIKey,
+							currentSubscription,
+							account,
+							reqModel,
+							reqStream,
+							time.Duration(forwardDurationMs)*time.Millisecond,
+							failoverErr,
+							err,
+						)
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -279,6 +291,18 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 				wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+				h.submitFailedUsageRecordTask(
+					"handler.openai_gateway.chat_completions",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					reqStream,
+					time.Duration(forwardDurationMs)*time.Millisecond,
+					nil,
+					err,
+				)
 				reqLog.Warn("openai_chat_completions.forward_failed",
 					zap.Int64("account_id", account.ID),
 					zap.Bool("fallback_error_response_written", wroteFallback),
@@ -303,7 +327,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					Account:          account,
 					Subscription:     currentSubscription,
 					InboundEndpoint:  GetInboundEndpoint(c),
-					UpstreamEndpoint: GetUpstreamEndpoint(c, account.Platform),
+					UpstreamEndpoint: GetUpstreamEndpoint(c, service.EffectiveProtocol(account)),
 					UserAgent:        userAgent,
 					IPAddress:        clientIP,
 					APIKeyService:    h.apiKeyService,

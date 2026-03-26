@@ -481,6 +481,18 @@ const getRequestTypeLabel = (log: AdminUsageLog): string => {
   return t("usage.unknown");
 };
 
+const getStatusLabel = (status: AdminUsageLog["status"]): string =>
+  status === "failed" ? t("usage.statusFailed") : t("usage.statusSucceeded");
+
+const getSimulatedClientLabel = (
+  client: AdminUsageLog["simulated_client"],
+): string => {
+  if (client === "gemini_cli") {
+    return t("usage.simulatedClientGeminiCli");
+  }
+  return t("usage.simulatedClientCodex");
+};
+
 const exportToExcel = async () => {
   if (exporting.value) return;
   exporting.value = true;
@@ -498,11 +510,16 @@ const exportToExcel = async () => {
       t("usage.apiKeyFilter"),
       t("admin.usage.account"),
       t("usage.model"),
+      t("usage.status"),
+      t("usage.simulatedClient"),
       t("usage.upstreamModel"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
       t("admin.usage.group"),
       t("usage.type"),
+      t("usage.httpStatus"),
+      t("usage.errorCode"),
+      t("usage.errorMessage"),
       t("admin.usage.inputTokens"),
       t("admin.usage.outputTokens"),
       t("admin.usage.cacheReadTokens"),
@@ -550,11 +567,16 @@ const exportToExcel = async () => {
         log.api_key?.name || "",
         log.account?.name || "",
         log.model,
+        getStatusLabel(log.status),
+        log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
         log.upstream_model || "",
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffort(log.reasoning_effort),
         log.group?.name || "",
         getRequestTypeLabel(log),
+        log.http_status ?? "",
+        log.error_code || "",
+        log.error_message || "",
         log.input_tokens,
         log.output_tokens,
         log.cache_read_tokens,
@@ -620,6 +642,7 @@ const allColumns = computed(() => [
   { key: "api_key", label: t("usage.apiKeyFilter"), sortable: false },
   { key: "account", label: t("admin.usage.account"), sortable: false },
   { key: "model", label: t("usage.model"), sortable: true },
+  { key: "status", label: t("usage.status"), sortable: false },
   { key: "thinking_enabled", label: t("usage.thinkingMode"), sortable: false },
   {
     key: "reasoning_effort",

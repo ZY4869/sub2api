@@ -581,7 +581,15 @@ export type AccountPlatform =
   | "antigravity"
   | "sora"
   | "protocol_gateway";
-export type GatewayProtocol = "openai" | "anthropic" | "gemini";
+export type GatewayProtocol = "openai" | "anthropic" | "gemini" | "mixed";
+export type GatewayAcceptedProtocol = "openai" | "anthropic" | "gemini";
+export type GatewayClientProfile = "codex" | "gemini_cli";
+export interface GatewayClientRoute {
+  protocol: GatewayAcceptedProtocol;
+  match_type: "exact" | "prefix";
+  match_value: string;
+  client_profile: GatewayClientProfile;
+}
 export type AccountType =
   | "oauth"
   | "setup-token"
@@ -1159,6 +1167,8 @@ export type RedeemCodeType =
   | "subscription"
   | "invitation";
 export type UsageRequestType = "unknown" | "sync" | "stream" | "ws_v2";
+export type UsageLogStatus = "succeeded" | "failed";
+export type UsageLogSimulatedClient = "codex" | "gemini_cli";
 export type TokenDisplayMode = "full" | "compact";
 
 export interface UsageLog {
@@ -1196,10 +1206,15 @@ export interface UsageLog {
   billing_type: number;
 
   request_type?: UsageRequestType;
+  status: UsageLogStatus;
   stream: boolean;
   openai_ws_mode?: boolean;
   duration_ms: number;
   first_token_ms: number | null;
+  http_status?: number | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  simulated_client?: UsageLogSimulatedClient | null;
 
   // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厽鍋ㄩ柣鏃傤焾閻忓洭鎮楀☉娆樻畷妞?
   image_count: number;

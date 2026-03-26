@@ -312,6 +312,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							break
 						}
+						h.submitFailedUsageRecordTask(
+							"handler.openai_gateway.responses",
+							c,
+							currentAPIKey,
+							currentSubscription,
+							account,
+							reqModel,
+							reqStream,
+							time.Since(forwardStart),
+							failoverErr,
+							err,
+						)
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -326,6 +338,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				}
 				h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, false, nil)
 				wroteFallback := h.ensureForwardErrorResponse(c, streamStarted)
+				h.submitFailedUsageRecordTask(
+					"handler.openai_gateway.responses",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					reqStream,
+					time.Since(forwardStart),
+					nil,
+					err,
+				)
 				fields := []zap.Field{
 					zap.Int64("account_id", account.ID),
 					zap.Bool("fallback_error_response_written", wroteFallback),

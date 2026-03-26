@@ -27,21 +27,26 @@ func (s *adminServiceImpl) validateAccountGroupBindings(ctx context.Context, gro
 		if _, ok := allowed[group.Platform]; ok {
 			continue
 		}
+		accountPlatforms := strings.Join(RoutingPlatformsFromValues(accountPlatform, extra), ",")
+		if accountPlatforms == "" {
+			accountPlatforms = RoutingPlatformFromValues(accountPlatform, extra)
+		}
 		return infraerrors.BadRequest(
 			"INVALID_GROUP_BINDING",
-			fmt.Sprintf("account platform %s cannot bind group platform %s", RoutingPlatformFromValues(accountPlatform, extra), group.Platform),
+			fmt.Sprintf("account platform %s cannot bind group platform %s", accountPlatforms, group.Platform),
 		)
 	}
 	return nil
 }
 
 func allowedGroupPlatformsForAccount(accountPlatform string, extra map[string]any) map[string]struct{} {
-	platform := RoutingPlatformFromValues(accountPlatform, extra)
-	if platform == "" {
+	platforms := RoutingPlatformsFromValues(accountPlatform, extra)
+	if len(platforms) == 0 {
 		return nil
 	}
-	allowed := map[string]struct{}{
-		platform: {},
+	allowed := make(map[string]struct{}, len(platforms)+2)
+	for _, platform := range platforms {
+		allowed[platform] = struct{}{}
 	}
 	if strings.EqualFold(accountPlatform, PlatformAntigravity) && extraBool(extra, "mixed_scheduling") {
 		allowed[PlatformAnthropic] = struct{}{}

@@ -21,6 +21,7 @@ import (
 )
 
 func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformGemini)
 	startTime := time.Now()
 	var req struct {
 		Model  string `json:"model"`
@@ -37,6 +38,11 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 	if account.Type == AccountTypeAPIKey {
 		mappedModel = account.GetMappedModel(req.Model)
 	}
+	simulatedClient := ""
+	if route := MatchGatewayClientRoute(account, PlatformGemini, mappedModel); route != nil {
+		simulatedClient = route.ClientProfile
+	}
+	shouldMimicGeminiCLI := simulatedClient == GatewayClientProfileGeminiCLI
 	geminiReq, err := convertClaudeMessagesToGeminiGenerateContent(body)
 	if err != nil {
 		return nil, s.writeClaudeError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
@@ -79,6 +85,9 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			}
 			upstreamReq.Header.Set("Content-Type", "application/json")
 			upstreamReq.Header.Set("x-goog-api-key", apiKey)
+			if shouldMimicGeminiCLI {
+				upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+			}
 			return upstreamReq, "x-request-id", nil
 		}
 		requestIDHeader = "x-request-id"
@@ -118,7 +127,9 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				}
 				upstreamReq.Header.Set("Content-Type", "application/json")
 				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
-				upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				if shouldMimicGeminiCLI {
+					upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				}
 				return upstreamReq, "x-request-id", nil
 			} else {
 				baseURL := account.GetGeminiBaseURL(geminicli.AIStudioBaseURL)
@@ -136,6 +147,9 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				}
 				upstreamReq.Header.Set("Content-Type", "application/json")
 				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
+				if shouldMimicGeminiCLI {
+					upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				}
 				return upstreamReq, "x-request-id", nil
 			}
 		}
@@ -375,7 +389,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func isGeminiSignatureRelatedError(respBody []byte) bool {
 	msg := strings.ToLower(strings.TrimSpace(extractAntigravityErrorMessage(respBody)))
@@ -385,6 +399,7 @@ func isGeminiSignatureRelatedError(respBody []byte) bool {
 	return strings.Contains(msg, "thought_signature") || strings.Contains(msg, "signature")
 }
 func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.Context, account *Account, originalModel string, action string, stream bool, body []byte) (*ForwardResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformGemini)
 	startTime := time.Now()
 	if strings.TrimSpace(originalModel) == "" {
 		return nil, s.writeGoogleError(c, http.StatusBadRequest, "Missing model in URL")
@@ -408,6 +423,11 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	if account.Type == AccountTypeAPIKey {
 		mappedModel = account.GetMappedModel(originalModel)
 	}
+	simulatedClient := ""
+	if route := MatchGatewayClientRoute(account, PlatformGemini, mappedModel); route != nil {
+		simulatedClient = route.ClientProfile
+	}
+	shouldMimicGeminiCLI := simulatedClient == GatewayClientProfileGeminiCLI
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
@@ -443,6 +463,9 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			}
 			upstreamReq.Header.Set("Content-Type", "application/json")
 			upstreamReq.Header.Set("x-goog-api-key", apiKey)
+			if shouldMimicGeminiCLI {
+				upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+			}
 			return upstreamReq, "x-request-id", nil
 		}
 		requestIDHeader = "x-request-id"
@@ -478,7 +501,9 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				}
 				upstreamReq.Header.Set("Content-Type", "application/json")
 				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
-				upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				if shouldMimicGeminiCLI {
+					upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				}
 				return upstreamReq, "x-request-id", nil
 			} else {
 				baseURL := account.GetGeminiBaseURL(geminicli.AIStudioBaseURL)
@@ -496,6 +521,9 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				}
 				upstreamReq.Header.Set("Content-Type", "application/json")
 				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
+				if shouldMimicGeminiCLI {
+					upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				}
 				return upstreamReq, "x-request-id", nil
 			}
 		}
@@ -531,7 +559,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			if action == "countTokens" {
 				estimated := estimateGeminiCountTokens(body)
 				c.JSON(http.StatusOK, map[string]any{"totalTokens": estimated})
-				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 			}
 			setOpsUpstreamError(c, 0, safeErr, "")
 			return nil, s.writeGoogleError(c, http.StatusBadGateway, "Upstream request failed after retries: "+safeErr)
@@ -575,7 +603,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			if action == "countTokens" {
 				estimated := estimateGeminiCountTokens(body)
 				c.JSON(http.StatusOK, map[string]any{"totalTokens": estimated})
-				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 			}
 			resp = &http.Response{StatusCode: resp.StatusCode, Header: resp.Header.Clone(), Body: io.NopCloser(bytes.NewReader(respBody))}
 			break
@@ -598,7 +626,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		if action == "countTokens" && isOAuth && isGeminiInsufficientScope(resp.Header, respBody) {
 			estimated := estimateGeminiCountTokens(body)
 			c.JSON(http.StatusOK, map[string]any{"totalTokens": estimated})
-			return &ForwardResult{RequestID: requestID, Usage: ClaudeUsage{}, Model: originalModel, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+			return &ForwardResult{RequestID: requestID, Usage: ClaudeUsage{}, Model: originalModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 		}
 		if s.rateLimitService != nil {
 			switch s.rateLimitService.CheckErrorPolicy(ctx, account, resp.StatusCode, respBody) {
@@ -719,7 +747,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func (s *GeminiMessagesCompatService) checkErrorPolicyInLoop(ctx context.Context, account *Account, resp *http.Response) (matched bool, rebuilt *http.Response) {
 	if resp.StatusCode < 400 || s.rateLimitService == nil {

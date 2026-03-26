@@ -64,12 +64,17 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.AccountRateMultiplier,
 			log.BillingType,
 			int16(service.RequestTypeWSV2),
+			service.UsageLogStatusSucceeded,
 			true,
 			true,
 			sqlmock.AnyArg(), // duration_ms
 			sqlmock.AnyArg(), // first_token_ms
 			sqlmock.AnyArg(), // user_agent
 			sqlmock.AnyArg(), // ip_address
+			sqlmock.AnyArg(), // http_status
+			sqlmock.AnyArg(), // error_code
+			sqlmock.AnyArg(), // error_message
+			sqlmock.AnyArg(), // simulated_client
 			log.ImageCount,
 			sqlmock.AnyArg(), // image_size
 			sqlmock.AnyArg(), // media_type
@@ -137,8 +142,13 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.AccountRateMultiplier,
 			log.BillingType,
 			int16(service.RequestTypeSync),
+			service.UsageLogStatusSucceeded,
 			false,
 			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -205,8 +215,13 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			log.AccountRateMultiplier,
 			log.BillingType,
 			int16(service.RequestTypeSync),
+			service.UsageLogStatusSucceeded,
 			false,
 			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -449,10 +464,15 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_rate_multiplier
 			int16(service.BillingTypeBalance),
 			int16(service.RequestTypeWSV2),
+			service.UsageLogStatusSucceeded,
 			false, // legacy stream
 			false, // legacy openai ws
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
 			0,
@@ -495,10 +515,15 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),
 			int16(service.RequestTypeUnknown),
+			service.UsageLogStatusSucceeded,
 			true,
 			false,
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
 			0,
@@ -539,10 +564,15 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			int16(service.BillingTypeBalance),
 			int16(service.RequestTypeSync),
+			service.UsageLogStatusSucceeded,
 			false,
 			false,
 			sql.NullInt64{},
 			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
 			0,

@@ -44,12 +44,6 @@ type OpenAIRecordUsageInput struct {
 func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRecordUsageInput) error {
 	result := input.Result
 
-	// Skip records where all tokens are zero (upstream did not provide usage).
-	if result.Usage.InputTokens == 0 && result.Usage.OutputTokens == 0 &&
-		result.Usage.CacheCreationInputTokens == 0 && result.Usage.CacheReadInputTokens == 0 {
-		return nil
-	}
-
 	apiKey := input.APIKey
 	user := input.User
 	account := input.Account
@@ -128,6 +122,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		RateMultiplier:        multiplier,
 		AccountRateMultiplier: &accountRateMultiplier,
 		BillingType:           billingType,
+		Status:                UsageLogStatusSucceeded,
 		Stream:                result.Stream,
 		OpenAIWSMode:          result.OpenAIWSMode,
 		DurationMs:            &durationMs,
@@ -146,6 +141,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	if subscription != nil {
 		usageLog.SubscriptionID = &subscription.ID
+	}
+	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
+		usageLog.SimulatedClient = simulatedClient
 	}
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {

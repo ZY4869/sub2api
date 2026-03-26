@@ -59,17 +59,19 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 }
 
 type probeProtocolGatewayModelsRequest struct {
-	GatewayProtocol string `json:"gateway_protocol" binding:"required,oneof=openai anthropic gemini"`
-	BaseURL         string `json:"base_url"`
-	APIKey          string `json:"api_key" binding:"required"`
-	ProxyID         *int64 `json:"proxy_id"`
+	GatewayProtocol   string   `json:"gateway_protocol" binding:"required,oneof=openai anthropic gemini mixed"`
+	AcceptedProtocols []string `json:"accepted_protocols"`
+	BaseURL           string   `json:"base_url"`
+	APIKey            string   `json:"api_key" binding:"required"`
+	ProxyID           *int64   `json:"proxy_id"`
 }
 
 type probeProtocolGatewayModelItem struct {
-	ID            string `json:"id"`
-	DisplayName   string `json:"display_name"`
-	RegistryState string `json:"registry_state"`
-	RegistryModel string `json:"registry_model_id,omitempty"`
+	ID             string `json:"id"`
+	DisplayName    string `json:"display_name"`
+	RegistryState  string `json:"registry_state"`
+	RegistryModel  string `json:"registry_model_id,omitempty"`
+	SourceProtocol string `json:"source_protocol,omitempty"`
 }
 
 type probeProtocolGatewayModelsResponse struct {
@@ -104,7 +106,10 @@ func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 			"base_url": strings.TrimSpace(req.BaseURL),
 		},
 		Extra: map[string]any{
-			"gateway_protocol": descriptor.ID,
+			"gateway_protocol":          descriptor.ID,
+			"gateway_accepted_protocols": service.NormalizeGatewayAcceptedProtocols(descriptor.ID, map[string]any{
+				"gateway_accepted_protocols": req.AcceptedProtocols,
+			}),
 		},
 	}
 	if strings.TrimSpace(req.BaseURL) == "" {
@@ -123,12 +128,14 @@ func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 		return
 	}
 
-	items := make([]probeProtocolGatewayModelItem, 0, len(result.DetectedModels))
-	for _, modelID := range result.DetectedModels {
+	items := make([]probeProtocolGatewayModelItem, 0, len(result.Models))
+	for _, detectedModel := range result.Models {
+		modelID := detectedModel.ID
 		item := probeProtocolGatewayModelItem{
-			ID:            modelID,
-			DisplayName:   service.FormatModelCatalogDisplayName(modelID),
-			RegistryState: "missing",
+			ID:             modelID,
+			DisplayName:    detectedModel.DisplayName,
+			RegistryState:  "missing",
+			SourceProtocol: detectedModel.SourceProtocol,
 		}
 		if h.modelRegistryService != nil {
 			if detail, detailErr := h.modelRegistryService.GetDetail(c.Request.Context(), modelID); detailErr == nil && detail != nil {

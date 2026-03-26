@@ -128,6 +128,9 @@
           v-if="form.platform === 'protocol_gateway'"
           v-model:allowed-models="allowedModels"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:accepted-protocols="gatewayAcceptedProtocols"
+          v-model:client-profiles="gatewayClientProfiles"
+          v-model:client-routes="gatewayClientRoutes"
           :gateway-protocol="gatewayProtocol"
           :base-url="apiKeyBaseUrl"
           :api-key="apiKeyValue"
@@ -276,6 +279,7 @@
         v-model:mixed-scheduling="mixedScheduling"
         :groups="groups"
         :platform="effectivePlatform"
+        :platforms="effectiveGroupPlatforms"
         :simple-mode="authStore.isSimpleMode"
         :show-mixed-scheduling="form.platform === 'antigravity'"
       />
@@ -353,7 +357,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, toRef, watch } from 'vue'
+import { ref, reactive, computed, toRef, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useModelInventoryStore } from '@/stores'
@@ -396,6 +400,9 @@ import type {
   AccountPlatform,
   AccountType,
   Account,
+  GatewayAcceptedProtocol,
+  GatewayClientProfile,
+  GatewayClientRoute,
   GatewayProtocol,
   GroupPlatform
 } from '@/types'
@@ -446,6 +453,7 @@ import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSe
 import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
 import {
   isProtocolGatewayPlatform,
+  resolveEffectiveAccountPlatforms,
   resolveEffectiveAccountPlatform
 } from '@/utils/accountProtocolGateway'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
@@ -553,6 +561,9 @@ const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
+const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
+const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
+const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
 const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MODE_RETRY_COUNT))
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
@@ -587,6 +598,16 @@ const geminiTierAIStudio = ref<'aistudio_free' | 'aistudio_paid'>('aistudio_free
 const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(form.platform, gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
+})
+const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
+  if (!isProtocolGatewayPlatform(form.platform)) {
+    return undefined
+  }
+  return resolveEffectiveAccountPlatforms(
+    form.platform,
+    gatewayProtocol.value,
+    gatewayAcceptedProtocols.value
+  ) as GroupPlatform[]
 })
 
 const geminiSelectedTier = computed(() => {
@@ -759,6 +780,9 @@ watch(
             ? [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
             : []
       protocolGatewayProbeModels.value = []
+      gatewayAcceptedProtocols.value = ['openai']
+      gatewayClientProfiles.value = []
+      gatewayClientRoutes.value = []
       if (form.platform === 'antigravity') {
         loadAntigravityDefaultMappings()
       } else {
@@ -802,6 +826,8 @@ watch(
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     allowedModels.value = []
     protocolGatewayProbeModels.value = []
+    gatewayClientProfiles.value = []
+    gatewayClientRoutes.value = []
     modelMappings.value = []
     if (newPlatform !== 'anthropic') {
       addMethod.value = 'oauth'
@@ -809,6 +835,11 @@ watch(
     if (newPlatform === 'protocol_gateway') {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
+      gatewayAcceptedProtocols.value = gatewayProtocol.value === 'mixed'
+        ? ['openai', 'anthropic', 'gemini']
+        : [gatewayProtocol.value as GatewayAcceptedProtocol]
+    } else {
+      gatewayAcceptedProtocols.value = ['openai']
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
@@ -861,6 +892,11 @@ watch(
     allowedModels.value = []
     protocolGatewayProbeModels.value = []
     modelMappings.value = []
+    gatewayAcceptedProtocols.value = newProtocol === 'mixed'
+      ? ['openai', 'anthropic', 'gemini']
+      : [newProtocol as GatewayAcceptedProtocol]
+    gatewayClientProfiles.value = []
+    gatewayClientRoutes.value = []
     if (oldProtocol === 'openai' && newProtocol !== 'openai') {
       openaiPassthroughEnabled.value = false
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -1084,6 +1120,10 @@ const { resetForm } = useCreateAccountReset({
   modelMappings,
   modelRestrictionMode,
   allowedModels,
+  protocolGatewayProbedModels: protocolGatewayProbeModels as unknown as Ref<Array<Record<string, unknown>>>,
+  gatewayAcceptedProtocols,
+  gatewayClientProfiles,
+  gatewayClientRoutes,
   loadAntigravityDefaultMappings,
   poolModeState,
   customErrorCodesState,
@@ -1125,12 +1165,24 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     codexCLIOnlyEnabled: codexCLIOnlyEnabled.value
   })
 
-  return buildAnthropicExtra({
+  const anthropicExtra = buildAnthropicExtra({
     platform: effectivePlatform.value,
     accountCategory: accountCategory.value,
     base: openaiExtra,
     anthropicPassthroughEnabled: anthropicPassthroughEnabled.value
   })
+
+  if (!isProtocolGatewayPlatform(form.platform)) {
+    return anthropicExtra
+  }
+
+  return {
+    ...(anthropicExtra || {}),
+    gateway_protocol: gatewayProtocol.value,
+    gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+    gateway_client_profiles: [...gatewayClientProfiles.value],
+    gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
+  }
 }
 
 const buildSoraAccountExtra = (

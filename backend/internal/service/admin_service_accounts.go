@@ -433,8 +433,29 @@ func validateProtocolGatewayAccountInput(platform string, accountType string, ex
 	if accountType != AccountTypeAPIKey {
 		return errors.New("protocol_gateway accounts only support apikey type")
 	}
-	if ResolveAccountGatewayProtocol(platform, extra) == "" {
+	protocol := ResolveAccountGatewayProtocol(platform, extra)
+	if protocol == "" {
 		return errors.New("protocol_gateway accounts require gateway_protocol")
+	}
+	acceptedProtocols := ResolveAccountGatewayAcceptedProtocols(platform, extra)
+	if len(acceptedProtocols) == 0 {
+		return errors.New("protocol_gateway accounts require at least one accepted protocol")
+	}
+	profiles := ResolveAccountGatewayClientProfiles(platform, extra)
+	for _, profile := range profiles {
+		if NormalizeGatewayClientProfile(profile) == "" {
+			return errors.New("protocol_gateway accounts contain invalid gateway_client_profiles")
+		}
+	}
+	routes := ResolveAccountGatewayClientRoutes(platform, extra)
+	if rawRoutes, ok := extra[gatewayExtraClientRoutesKey]; ok {
+		rawItems, ok := rawRoutes.([]any)
+		if ok && len(rawItems) > 0 && len(routes) != len(rawItems) {
+			return errors.New("protocol_gateway accounts contain invalid gateway_client_routes")
+		}
+	}
+	if protocol != GatewayProtocolMixed && len(acceptedProtocols) != 1 {
+		return errors.New("single protocol protocol_gateway accounts cannot use multiple accepted protocols")
 	}
 	return nil
 }

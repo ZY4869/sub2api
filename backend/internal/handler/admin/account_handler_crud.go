@@ -122,21 +122,5 @@ func validateProtocolGatewayType(platform string, accountType string, gatewayPro
 }
 
 func withGatewayProtocol(platform string, extra map[string]any, gatewayProtocol string, fallback string) map[string]any {
-	if !service.IsProtocolGatewayPlatform(platform) {
-		return cloneStringAnyMap(extra)
-	}
-	nextExtra := cloneStringAnyMap(extra)
-	if nextExtra == nil {
-		nextExtra = map[string]any{}
-	}
-	protocol := service.NormalizeGatewayProtocol(gatewayProtocol)
-	if protocol == "" {
-		protocol = service.NormalizeGatewayProtocol(fallback)
-	}
-	if protocol == "" {
-		delete(nextExtra, "gateway_protocol")
-		return nextExtra
-	}
-	nextExtra["gateway_protocol"] = protocol
-	return nextExtra
+	return service.NormalizeProtocolGatewayExtra(platform, extra, gatewayProtocol, fallback)
 }

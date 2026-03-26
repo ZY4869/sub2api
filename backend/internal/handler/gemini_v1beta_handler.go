@@ -655,12 +655,38 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							break
 						}
+						h.submitFailedUsageRecordTask(
+							"handler.gemini_v1beta.models",
+							c,
+							currentAPIKey,
+							currentSubscription,
+							account,
+							modelName,
+							stream,
+							0,
+							service.PlatformGemini,
+							fs.LastFailoverErr,
+							err,
+						)
 						h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
 						return
 					case FailoverCanceled:
 						return
 					}
 				}
+				h.submitFailedUsageRecordTask(
+					"handler.gemini_v1beta.models",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					modelName,
+					stream,
+					0,
+					service.PlatformGemini,
+					nil,
+					err,
+				)
 				reqLog.Error("gemini.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
 				return
 			}
@@ -684,7 +710,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
-			upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+			upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 					Result:                result,
@@ -964,12 +990,38 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				case FailoverContinue:
 					continue
 				case FailoverExhausted:
+					h.submitFailedUsageRecordTask(
+						"handler.gemini_v1beta.models",
+						c,
+						apiKey,
+						subscription,
+						account,
+						modelName,
+						stream,
+						0,
+						service.PlatformGemini,
+						fs.LastFailoverErr,
+						err,
+					)
 					h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
 					return
 				case FailoverCanceled:
 					return
 				}
 			}
+			h.submitFailedUsageRecordTask(
+				"handler.gemini_v1beta.models",
+				c,
+				apiKey,
+				subscription,
+				account,
+				modelName,
+				stream,
+				0,
+				service.PlatformGemini,
+				nil,
+				err,
+			)
 			// ForwardNative already wrote the response
 			reqLog.Error("gemini.forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 			return
@@ -997,7 +1049,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 		requestPayloadHash := service.HashUsageRequestPayload(body)
 		inboundEndpoint := GetInboundEndpoint(c)
-		upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
+		upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 				Result:                result,

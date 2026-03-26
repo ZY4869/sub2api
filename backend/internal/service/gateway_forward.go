@@ -16,6 +16,7 @@ import (
 )
 
 func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, parsed *ParsedRequest) (*ForwardResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformAnthropic)
 	startTime := time.Now()
 	if parsed == nil {
 		return nil, fmt.Errorf("parse request: empty request")

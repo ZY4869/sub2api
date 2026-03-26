@@ -855,6 +855,7 @@ export interface ProtocolGatewayProbeModel {
   display_name: string
   registry_state: 'existing' | 'missing'
   registry_model_id?: string
+  source_protocol?: 'openai' | 'anthropic' | 'gemini'
 }
 
 export interface ProtocolGatewayProbeResponse {
@@ -865,6 +866,7 @@ export interface ProtocolGatewayProbeResponse {
 
 export async function probeProtocolGatewayModels(payload: {
   gateway_protocol: string
+  accepted_protocols?: string[]
   base_url?: string
   api_key: string
   proxy_id?: number | null

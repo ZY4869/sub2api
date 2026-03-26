@@ -1,6 +1,13 @@
 import type { Ref } from 'vue'
 import type { AddMethod } from '@/composables/useAccountOAuth'
-import type { AccountPlatform, AccountType, GatewayProtocol } from '@/types'
+import type {
+  AccountPlatform,
+  AccountType,
+  GatewayAcceptedProtocol,
+  GatewayClientProfile,
+  GatewayClientRoute,
+  GatewayProtocol
+} from '@/types'
 import { getModelsByPlatform } from '@/composables/useModelWhitelist'
 import {
   DEFAULT_POOL_MODE_RETRY_COUNT,
@@ -51,6 +58,10 @@ interface UseCreateAccountResetOptions {
   modelMappings: Ref<ModelMapping[]>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
+  protocolGatewayProbedModels?: Ref<Array<Record<string, unknown>>>
+  gatewayAcceptedProtocols?: Ref<GatewayAcceptedProtocol[]>
+  gatewayClientProfiles?: Ref<GatewayClientProfile[]>
+  gatewayClientRoutes?: Ref<GatewayClientRoute[]>
   loadAntigravityDefaultMappings: () => Promise<void>
   poolModeState: AccountPoolModeState
   customErrorCodesState: AccountCustomErrorCodesState
@@ -114,6 +125,10 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.modelMappings.value = []
     options.modelRestrictionMode.value = 'whitelist'
     options.allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')]
+    options.protocolGatewayProbedModels && (options.protocolGatewayProbedModels.value = [])
+    options.gatewayAcceptedProtocols && (options.gatewayAcceptedProtocols.value = ['openai'])
+    options.gatewayClientProfiles && (options.gatewayClientProfiles.value = [])
+    options.gatewayClientRoutes && (options.gatewayClientRoutes.value = [])
 
     options.loadAntigravityDefaultMappings()
     resetAccountPoolModeState(options.poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)

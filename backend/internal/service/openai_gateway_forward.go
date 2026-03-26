@@ -18,6 +18,7 @@ import (
 )
 
 func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*OpenAIForwardResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI)
 	startTime := time.Now()
 	restrictionResult := s.detectCodexClientRestriction(c, account)
 	apiKeyID := getAPIKeyIDFromContext(c)
@@ -30,6 +31,18 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	reqModel, reqStream, promptCacheKey := extractOpenAIRequestMetaFromBody(body)
 	originalModel := reqModel
 	isCodexCLI := openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator")) || (s.cfg != nil && s.cfg.Gateway.ForceCodexCLI)
+	simulatedClient := ""
+	resolveSimulatedClient := func(model string) string {
+		route := MatchGatewayClientRoute(account, PlatformOpenAI, model)
+		if route == nil {
+			return ""
+		}
+		return route.ClientProfile
+	}
+	if profile := resolveSimulatedClient(account.GetMappedModel(reqModel)); profile == GatewayClientProfileCodex {
+		simulatedClient = profile
+		isCodexCLI = true
+	}
 	wsDecision := s.getOpenAIWSProtocolResolver().Resolve(account)
 	clientTransport := GetOpenAIClientTransport(c)
 	wsDecision = resolveOpenAIWSDecisionByClientTransport(wsDecision, clientTransport)
@@ -49,7 +62,11 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
 	if passthroughEnabled {
 		reasoningEffort := extractOpenAIReasoningEffortFromBody(body, reqModel)
-		return s.forwardOpenAIPassthrough(ctx, c, account, originalBody, reqModel, reasoningEffort, reqStream, startTime)
+		result, forwardErr := s.forwardOpenAIPassthrough(ctx, c, account, originalBody, reqModel, reasoningEffort, reqStream, startTime)
+		if result != nil {
+			result.SimulatedClient = simulatedClient
+		}
+		return result, forwardErr
 	}
 	reqBody, err := getOpenAIRequestBodyMap(c, body)
 	if err != nil {
@@ -162,6 +179,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if codexResult.PromptCacheKey != "" {
 			promptCacheKey = codexResult.PromptCacheKey
 		}
+	}
+	if profile := resolveSimulatedClient(mappedModel); profile == GatewayClientProfileCodex {
+		simulatedClient = profile
+		isCodexCLI = true
 	}
 	runtimePlatform := EffectiveProtocol(account)
 	if !isCodexCLI {
@@ -352,6 +373,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if wsErr == nil {
 			if wsResult != nil {
 				wsResult.UpstreamModel = mappedModel
+				wsResult.SimulatedClient = simulatedClient
 			}
 			firstTokenMs := int64(0)
 			hasFirstTokenMs := wsResult != nil && wsResult.FirstTokenMs != nil
@@ -458,6 +480,6 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 		reasoningEffort := extractOpenAIReasoningEffort(reqBody, originalModel)
 		serviceTier := extractOpenAIServiceTier(reqBody)
-		return &OpenAIForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, ServiceTier: serviceTier, ReasoningEffort: reasoningEffort, Stream: reqStream, OpenAIWSMode: false, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs}, nil
+		return &OpenAIForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, ServiceTier: serviceTier, ReasoningEffort: reasoningEffort, Stream: reqStream, OpenAIWSMode: false, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs}, nil
 	}
 }

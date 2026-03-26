@@ -51,6 +51,7 @@ interface Props {
   modelValue: number[]
   groups: AdminGroup[]
   platform?: GroupPlatform // Optional platform filter
+  platforms?: GroupPlatform[]
   mixedScheduling?: boolean // For antigravity accounts: allow anthropic/gemini groups
 }
 
@@ -61,6 +62,10 @@ const emit = defineEmits<{
 
 // Filter groups by platform if specified
 const filteredGroups = computed(() => {
+  if (Array.isArray(props.platforms) && props.platforms.length > 0) {
+    const allowedPlatforms = new Set(props.platforms)
+    return props.groups.filter((g) => allowedPlatforms.has(g.platform))
+  }
   if (!props.platform) {
     return props.groups
   }

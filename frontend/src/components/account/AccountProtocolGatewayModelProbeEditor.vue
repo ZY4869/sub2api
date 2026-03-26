@@ -1,5 +1,59 @@
 <template>
   <section class="space-y-3 rounded-2xl border border-gray-200 bg-white/80 p-4 dark:border-dark-600 dark:bg-dark-700/60">
+    <div
+      v-if="gatewayProtocol === 'mixed'"
+      class="space-y-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-4 dark:border-dark-500 dark:bg-dark-800/60"
+    >
+      <div class="space-y-1">
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {{ t('admin.accounts.protocolGateway.acceptedProtocolsTitle') }}
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.protocolGateway.acceptedProtocolsHint') }}
+        </p>
+      </div>
+
+      <div class="grid gap-2 sm:grid-cols-3">
+        <button
+          v-for="protocol in acceptedProtocolOptions"
+          :key="protocol.value"
+          type="button"
+          :class="selectionCardClass(isAcceptedProtocolSelected(protocol.value))"
+          @click="toggleAcceptedProtocol(protocol.value)"
+        >
+          <span class="font-medium">{{ protocol.label }}</span>
+          <span class="truncate text-xs opacity-80">{{ protocol.requestFormats }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="availableClientProfiles.length > 0"
+      class="space-y-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-4 dark:border-dark-500 dark:bg-dark-800/60"
+    >
+      <div class="space-y-1">
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {{ t('admin.accounts.protocolGateway.clientProfilesTitle') }}
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.protocolGateway.clientProfilesHint') }}
+        </p>
+      </div>
+
+      <div class="grid gap-2 sm:grid-cols-2">
+        <button
+          v-for="profile in availableClientProfiles"
+          :key="profile"
+          type="button"
+          :class="selectionCardClass(isClientProfileSelected(profile))"
+          @click="toggleClientProfile(profile)"
+        >
+          <span class="font-medium">{{ clientProfileLabel(profile) }}</span>
+          <span class="text-xs opacity-80">{{ clientProfileHint(profile) }}</span>
+        </button>
+      </div>
+    </div>
+
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div class="space-y-1">
         <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -19,6 +73,35 @@
         <Icon v-if="probing" name="refresh" size="sm" class="animate-spin" :stroke-width="2" />
         <Icon v-else name="search" size="sm" :stroke-width="2" />
         <span>{{ t('admin.accounts.protocolGateway.probeAction') }}</span>
+      </button>
+    </div>
+
+    <div
+      v-if="probedModels.length > 0 && availableClientProfiles.length > 0"
+      class="flex flex-wrap items-center gap-2"
+    >
+      <button
+        v-if="supportsProfile('codex')"
+        type="button"
+        class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-300"
+        @click="applyProfileToAll('codex')"
+      >
+        {{ t('admin.accounts.protocolGateway.applyAllCodex') }}
+      </button>
+      <button
+        v-if="supportsProfile('gemini_cli')"
+        type="button"
+        class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-300"
+        @click="applyProfileToAll('gemini_cli')"
+      >
+        {{ t('admin.accounts.protocolGateway.applyAllGeminiCli') }}
+      </button>
+      <button
+        type="button"
+        class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-rose-300 hover:text-rose-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-rose-500 dark:hover:text-rose-300"
+        @click="clearAllProfiles"
+      >
+        {{ t('admin.accounts.protocolGateway.clearSimulations') }}
       </button>
     </div>
 
@@ -57,6 +140,20 @@
               {{ model.display_name || model.id }}
             </div>
             <div class="truncate text-xs opacity-80">{{ model.id }}</div>
+            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span
+                v-if="resolveModelProtocol(model)"
+                class="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
+              >
+                {{ protocolLabel(resolveModelProtocol(model)) }}
+              </span>
+              <span
+                v-if="currentRouteProfile(model)"
+                class="inline-flex items-center rounded-full bg-primary-500/15 px-2 py-0.5 font-medium text-primary-700 dark:text-primary-200"
+              >
+                {{ clientProfileLabel(currentRouteProfile(model)!) }}
+              </span>
+            </div>
           </div>
           <span
             v-if="isSelected(model.id)"
@@ -76,6 +173,31 @@
           <span v-if="model.registry_model_id" class="truncate opacity-80">
             {{ model.registry_model_id }}
           </span>
+        </div>
+
+        <div
+          v-if="isSelected(model.id) && availableProfilesForModel(model).length > 0"
+          class="mt-3 flex flex-wrap items-center gap-2"
+          @click.stop
+        >
+          <button
+            v-for="profile in availableProfilesForModel(model)"
+            :key="`${model.id}-${profile}`"
+            type="button"
+            class="rounded-lg border px-2 py-1 text-[11px] font-medium transition"
+            :class="routeButtonClass(model, profile)"
+            @click.stop="setModelClientProfile(model, profile)"
+          >
+            {{ clientProfileLabel(profile) }}
+          </button>
+          <button
+            v-if="currentRouteProfile(model)"
+            type="button"
+            class="rounded-lg border border-white/60 px-2 py-1 text-[11px] font-medium text-gray-700 transition hover:border-rose-300 hover:text-rose-600 dark:border-white/10 dark:text-gray-200 dark:hover:border-rose-500 dark:hover:text-rose-300"
+            @click.stop="setModelClientProfile(model, '')"
+          >
+            {{ t('admin.accounts.protocolGateway.clearSimulation') }}
+          </button>
         </div>
       </button>
     </div>
@@ -99,7 +221,19 @@ import type {
 } from '@/api/admin/accounts'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
-import type { GatewayProtocol } from '@/types'
+import type {
+  GatewayAcceptedProtocol,
+  GatewayClientProfile,
+  GatewayClientRoute,
+  GatewayProtocol
+} from '@/types'
+import {
+  normalizeGatewayAcceptedProtocol,
+  normalizeGatewayAcceptedProtocols,
+  normalizeGatewayClientRoutes,
+  resolveGatewayProtocolDescriptor,
+  supportedGatewayClientProfilesForProtocol
+} from '@/utils/accountProtocolGateway'
 
 const props = defineProps<{
   gatewayProtocol: GatewayProtocol
@@ -114,6 +248,9 @@ const emit = defineEmits<{
 
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
 const probedModels = defineModel<ProtocolGatewayProbeModel[]>('probedModels', { required: true })
+const acceptedProtocols = defineModel<GatewayAcceptedProtocol[]>('acceptedProtocols', { required: true })
+const clientProfiles = defineModel<GatewayClientProfile[]>('clientProfiles', { required: true })
+const clientRoutes = defineModel<GatewayClientRoute[]>('clientRoutes', { required: true })
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -123,6 +260,25 @@ const probeSource = ref('')
 const probeNotice = ref('')
 
 const trimmedApiKey = computed(() => props.apiKey.trim())
+const acceptedProtocolOptions = computed(() =>
+  ['openai', 'anthropic', 'gemini'].map((value) => {
+    const descriptor = resolveGatewayProtocolDescriptor(value)
+    return {
+      value: value as GatewayAcceptedProtocol,
+      label: descriptor?.displayName || value,
+      requestFormats: (descriptor?.requestFormats || []).join(', ')
+    }
+  })
+)
+const normalizedAcceptedProtocols = computed(() =>
+  normalizeGatewayAcceptedProtocols(props.gatewayProtocol, acceptedProtocols.value)
+)
+const availableClientProfiles = computed<GatewayClientProfile[]>(() => {
+  const values = normalizedAcceptedProtocols.value.flatMap((protocol) =>
+    supportedGatewayClientProfilesForProtocol(protocol)
+  )
+  return [...new Set(values)]
+})
 
 watch(
   () => [props.gatewayProtocol, props.baseUrl, props.apiKey, props.proxyId, probedModels.value.length] as const,
@@ -134,14 +290,169 @@ watch(
   }
 )
 
+watch(
+  () => props.gatewayProtocol,
+  () => {
+    const nextProtocols = normalizeGatewayAcceptedProtocols(props.gatewayProtocol, acceptedProtocols.value)
+    if (JSON.stringify(nextProtocols) !== JSON.stringify(acceptedProtocols.value)) {
+      acceptedProtocols.value = nextProtocols
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  [normalizedAcceptedProtocols, availableClientProfiles],
+  () => {
+    const supportedProfiles = new Set(availableClientProfiles.value)
+    const nextProfiles = clientProfiles.value.filter((profile) => supportedProfiles.has(profile))
+    if (JSON.stringify(nextProfiles) !== JSON.stringify(clientProfiles.value)) {
+      clientProfiles.value = nextProfiles
+    }
+
+    const selectedProfiles = new Set(nextProfiles)
+    const nextRoutes = normalizeGatewayClientRoutes(clientRoutes.value).filter((route) => {
+      return (
+        normalizedAcceptedProtocols.value.includes(route.protocol) &&
+        selectedProfiles.has(route.client_profile) &&
+        supportedGatewayClientProfilesForProtocol(route.protocol).includes(route.client_profile)
+      )
+    })
+    if (JSON.stringify(nextRoutes) !== JSON.stringify(clientRoutes.value)) {
+      clientRoutes.value = nextRoutes
+    }
+  },
+  { immediate: true }
+)
+
 const isSelected = (modelId: string) => allowedModels.value.includes(modelId)
+const isAcceptedProtocolSelected = (protocol: GatewayAcceptedProtocol) =>
+  normalizedAcceptedProtocols.value.includes(protocol)
+const isClientProfileSelected = (profile: GatewayClientProfile) =>
+  clientProfiles.value.includes(profile)
 
 const toggleModel = (modelId: string) => {
   if (isSelected(modelId)) {
     allowedModels.value = allowedModels.value.filter((item) => item !== modelId)
+    clientRoutes.value = clientRoutes.value.filter((route) => route.match_value !== modelId)
     return
   }
   allowedModels.value = [...allowedModels.value, modelId]
+}
+
+const toggleAcceptedProtocol = (protocol: GatewayAcceptedProtocol) => {
+  if (props.gatewayProtocol !== 'mixed') {
+    acceptedProtocols.value = normalizeGatewayAcceptedProtocols(props.gatewayProtocol, [protocol])
+    return
+  }
+
+  const next = isAcceptedProtocolSelected(protocol)
+    ? acceptedProtocols.value.filter((item) => item !== protocol)
+    : [...acceptedProtocols.value, protocol]
+
+  acceptedProtocols.value = normalizeGatewayAcceptedProtocols(props.gatewayProtocol, next)
+}
+
+const toggleClientProfile = (profile: GatewayClientProfile) => {
+  if (isClientProfileSelected(profile)) {
+    clientProfiles.value = clientProfiles.value.filter((item) => item !== profile)
+    clientRoutes.value = clientRoutes.value.filter((route) => route.client_profile !== profile)
+    return
+  }
+  clientProfiles.value = [...clientProfiles.value, profile]
+}
+
+const resolveModelProtocol = (model: ProtocolGatewayProbeModel): GatewayAcceptedProtocol => {
+  const sourceProtocol = normalizeGatewayAcceptedProtocol(model.source_protocol)
+  if (sourceProtocol) {
+    return sourceProtocol
+  }
+  if (props.gatewayProtocol !== 'mixed') {
+    return props.gatewayProtocol as GatewayAcceptedProtocol
+  }
+  return normalizedAcceptedProtocols.value[0] || 'openai'
+}
+
+const protocolLabel = (protocol: GatewayAcceptedProtocol) =>
+  resolveGatewayProtocolDescriptor(protocol)?.displayName || protocol
+
+const routeKeyForModel = (model: ProtocolGatewayProbeModel) =>
+  `${resolveModelProtocol(model)}:${model.id}`
+
+const routeProfileMap = computed(() => {
+  const map = new Map<string, GatewayClientProfile>()
+  for (const route of clientRoutes.value) {
+    if (route.match_type !== 'exact') {
+      continue
+    }
+    map.set(`${route.protocol}:${route.match_value}`, route.client_profile)
+  }
+  return map
+})
+
+const currentRouteProfile = (model: ProtocolGatewayProbeModel) =>
+  routeProfileMap.value.get(routeKeyForModel(model))
+
+const availableProfilesForModel = (model: ProtocolGatewayProbeModel) => {
+  const protocol = resolveModelProtocol(model)
+  return supportedGatewayClientProfilesForProtocol(protocol).filter((profile) =>
+    clientProfiles.value.includes(profile)
+  )
+}
+
+const setModelClientProfile = (
+  model: ProtocolGatewayProbeModel,
+  profile: GatewayClientProfile | ''
+) => {
+  const protocol = resolveModelProtocol(model)
+  const nextRoutes = clientRoutes.value.filter(
+    (route) =>
+      !(route.match_type === 'exact' && route.protocol === protocol && route.match_value === model.id)
+  )
+
+  if (profile) {
+    if (!clientProfiles.value.includes(profile)) {
+      clientProfiles.value = [...clientProfiles.value, profile]
+    }
+    nextRoutes.push({
+      protocol,
+      match_type: 'exact',
+      match_value: model.id,
+      client_profile: profile
+    })
+  }
+
+  clientRoutes.value = normalizeGatewayClientRoutes(nextRoutes)
+}
+
+const supportsProfile = (profile: GatewayClientProfile) =>
+  availableClientProfiles.value.includes(profile)
+
+const applyProfileToAll = (profile: GatewayClientProfile) => {
+  if (!supportsProfile(profile)) {
+    return
+  }
+  if (!clientProfiles.value.includes(profile)) {
+    clientProfiles.value = [...clientProfiles.value, profile]
+  }
+  const nextRoutes = clientRoutes.value.filter((route) => route.match_type !== 'exact')
+  for (const model of probedModels.value) {
+    const protocol = resolveModelProtocol(model)
+    if (!supportedGatewayClientProfilesForProtocol(protocol).includes(profile)) {
+      continue
+    }
+    nextRoutes.push({
+      protocol,
+      match_type: 'exact',
+      match_value: model.id,
+      client_profile: profile
+    })
+  }
+  clientRoutes.value = normalizeGatewayClientRoutes(nextRoutes)
+}
+
+const clearAllProfiles = () => {
+  clientRoutes.value = clientRoutes.value.filter((route) => route.match_type !== 'exact')
 }
 
 const cardClasses = (model: ProtocolGatewayProbeModel) => {
@@ -160,6 +471,30 @@ const cardClasses = (model: ProtocolGatewayProbeModel) => {
   ]
 }
 
+const selectionCardClass = (selected: boolean) => [
+  'flex min-w-0 flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left transition',
+  selected
+    ? 'border-primary-300 bg-primary-50 text-primary-900 ring-2 ring-primary-400/40 dark:border-primary-500/60 dark:bg-primary-500/10 dark:text-primary-100'
+    : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-600 dark:border-dark-500 dark:bg-dark-700/80 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-200'
+]
+
+const routeButtonClass = (model: ProtocolGatewayProbeModel, profile: GatewayClientProfile) => {
+  const active = currentRouteProfile(model) === profile
+  return active
+    ? 'border-primary-300 bg-primary-500 text-white dark:border-primary-400'
+    : 'border-white/60 text-gray-700 hover:border-primary-300 hover:text-primary-600 dark:border-white/10 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-200'
+}
+
+const clientProfileLabel = (profile: GatewayClientProfile) =>
+  profile === 'codex'
+    ? t('admin.accounts.protocolGateway.clientProfileCodex')
+    : t('admin.accounts.protocolGateway.clientProfileGeminiCli')
+
+const clientProfileHint = (profile: GatewayClientProfile) =>
+  profile === 'codex'
+    ? t('admin.accounts.protocolGateway.clientProfileCodexHint')
+    : t('admin.accounts.protocolGateway.clientProfileGeminiCliHint')
+
 const handleProbe = async () => {
   if (probing.value) {
     return
@@ -173,6 +508,7 @@ const handleProbe = async () => {
   try {
     const result = await adminAPI.accounts.probeProtocolGatewayModels({
       gateway_protocol: props.gatewayProtocol,
+      accepted_protocols: normalizedAcceptedProtocols.value,
       base_url: props.baseUrl.trim() || undefined,
       api_key: trimmedApiKey.value,
       proxy_id: props.proxyId ?? undefined

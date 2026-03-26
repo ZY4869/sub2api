@@ -74,6 +74,44 @@
           </div>
         </template>
 
+        <template #cell-status="{ row }">
+          <div class="max-w-[280px] space-y-1">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                :class="getStatusBadgeClass(row.status)"
+              >
+                {{ getStatusLabel(row.status) }}
+              </span>
+              <span
+                v-if="row.simulated_client"
+                class="inline-flex items-center rounded-full bg-primary-500/10 px-2 py-0.5 text-xs font-medium text-primary-700 dark:text-primary-300"
+              >
+                {{ getSimulatedClientLabel(row.simulated_client) }}
+              </span>
+            </div>
+            <div
+              v-if="row.status === 'failed'"
+              class="space-y-1 text-xs text-rose-600 dark:text-rose-300"
+            >
+              <div class="flex flex-wrap gap-x-3 gap-y-1">
+                <span v-if="row.http_status != null">
+                  <span class="font-medium">{{ t("usage.httpStatus") }}:</span>
+                  {{ row.http_status }}
+                </span>
+                <span v-if="row.error_code">
+                  <span class="font-medium">{{ t("usage.errorCode") }}:</span>
+                  {{ row.error_code }}
+                </span>
+              </div>
+              <div v-if="row.error_message" :title="row.error_message" class="truncate">
+                <span class="font-medium">{{ t("usage.errorMessage") }}:</span>
+                <span class="ml-1">{{ truncateUsageErrorMessage(row.error_message) }}</span>
+              </div>
+            </div>
+          </div>
+        </template>
+
         <template #cell-thinking_enabled="{ row }">
           <span class="text-sm text-gray-900 dark:text-white">
             {{ formatThinkingEnabled(row.thinking_enabled) }}
@@ -712,6 +750,31 @@ const getRequestTypeBadgeClass = (row: AdminUsageLog): string => {
   if (requestType === "sync")
     return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
   return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+};
+
+const getStatusLabel = (status: AdminUsageLog["status"]): string =>
+  status === "failed" ? t("usage.statusFailed") : t("usage.statusSucceeded");
+
+const getStatusBadgeClass = (status: AdminUsageLog["status"]): string =>
+  status === "failed"
+    ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
+
+const getSimulatedClientLabel = (
+  client: AdminUsageLog["simulated_client"],
+): string => {
+  if (client === "gemini_cli") {
+    return t("usage.simulatedClientGeminiCli");
+  }
+  return t("usage.simulatedClientCodex");
+};
+
+const truncateUsageErrorMessage = (message: string): string => {
+  const trimmed = message.trim();
+  if (trimmed.length <= 120) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, 117)}...`;
 };
 
 const formatCacheTokens = (tokens: number): string => {
