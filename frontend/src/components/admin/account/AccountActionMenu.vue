@@ -45,6 +45,11 @@
               <Icon name="refresh" size="sm" />
               {{ t('admin.accounts.resetQuota') }}
             </button>
+            <div v-if="showBlacklistAction" class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
+            <button v-if="showBlacklistAction" @click="$emit('blacklist', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-gray-100 dark:hover:bg-dark-700">
+              <Icon name="ban" size="sm" />
+              {{ t('admin.accounts.blacklist.addNow') }}
+            </button>
           </template>
         </div>
       </div>
@@ -60,7 +65,18 @@ import { useUiNow } from '@/composables/useUiNow'
 import type { Account } from '@/types'
 
 const props = defineProps<{ show: boolean; account: Account | null; position: { top: number; left: number } | null }>()
-const emit = defineEmits(['close', 'test', 'stats', 'schedule', 'import-models', 'reauth', 'refresh-token', 'recover-state', 'reset-quota'])
+const emit = defineEmits<{
+  close: []
+  test: [account: Account]
+  stats: [account: Account]
+  schedule: [account: Account]
+  'import-models': [account: Account]
+  reauth: [account: Account]
+  'refresh-token': [account: Account]
+  'recover-state': [account: Account]
+  'reset-quota': [account: Account]
+  blacklist: [account: Account]
+}>()
 const { t } = useI18n()
 
 const { nowMs } = useUiNow()
@@ -115,6 +131,7 @@ const hasQuotaLimit = computed(() => {
     (props.account?.quota_weekly_limit ?? 0) > 0
   )
 })
+const showBlacklistAction = computed(() => props.account?.lifecycle_state !== 'blacklisted')
 
 const handleKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') emit('close')

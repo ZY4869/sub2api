@@ -44,6 +44,7 @@ type AdminService interface {
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
 	SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error)
+	BlacklistAccount(ctx context.Context, id int64) (*Account, error)
 	RestoreBlacklistedAccount(ctx context.Context, id int64) (*Account, error)
 	UnarchiveAccounts(ctx context.Context, input *UnarchiveAccountsInput) (*UnarchiveAccountsResult, error)
 	BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error)

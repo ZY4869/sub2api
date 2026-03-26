@@ -11,6 +11,8 @@ type HardBanMatch struct {
 }
 
 type hardBanErrorEnvelope struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 	Error struct {
 		Message string `json:"message"`
 		Code    string `json:"code"`
@@ -27,17 +29,24 @@ func DetectHardBannedAccount(statusCode int, responseBody []byte) *HardBanMatch 
 	candidate := strings.ToLower(bodyText)
 	envelope := hardBanErrorEnvelope{}
 	if err := json.Unmarshal(responseBody, &envelope); err == nil {
-		code := strings.ToLower(strings.TrimSpace(envelope.Error.Code))
-		message := strings.TrimSpace(envelope.Error.Message)
+		code, message := extractHardBanCodeAndMessage(envelope)
 		switch code {
 		case "account_deactivated":
 			return &HardBanMatch{ReasonCode: "account_deactivated", ReasonMessage: firstNonEmptyHardBanString(message, bodyText)}
 		case "organization_disabled":
 			return &HardBanMatch{ReasonCode: "organization_disabled", ReasonMessage: firstNonEmptyHardBanString(message, bodyText)}
+		case "deactivated_workspace":
+			if statusCode == 402 {
+				return &HardBanMatch{ReasonCode: "workspace_deactivated", ReasonMessage: firstNonEmptyHardBanString(message, bodyText)}
+			}
 		}
 		if looksLikeDeactivatedMessage(strings.ToLower(message)) {
 			return &HardBanMatch{ReasonCode: "account_deactivated", ReasonMessage: firstNonEmptyHardBanString(message, bodyText)}
 		}
+	}
+
+	if statusCode == 402 && looksLikeWorkspaceDeactivatedCode(candidate) {
+		return &HardBanMatch{ReasonCode: "workspace_deactivated", ReasonMessage: bodyText}
 	}
 
 	switch {
@@ -86,4 +95,28 @@ func firstNonEmptyHardBanString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func extractHardBanCodeAndMessage(envelope hardBanErrorEnvelope) (string, string) {
+	code := strings.ToLower(strings.TrimSpace(envelope.Error.Code))
+	if code == "" {
+		code = strings.ToLower(strings.TrimSpace(envelope.Code))
+	}
+
+	message := strings.TrimSpace(envelope.Error.Message)
+	if message == "" {
+		message = strings.TrimSpace(envelope.Message)
+	}
+
+	return code, message
+}
+
+func looksLikeWorkspaceDeactivatedCode(candidate string) bool {
+	if candidate == "" {
+		return false
+	}
+
+	return candidate == "deactivated_workspace" ||
+		strings.Contains(candidate, "\"code\":\"deactivated_workspace\"") ||
+		strings.Contains(candidate, "\"code\": \"deactivated_workspace\"")
 }

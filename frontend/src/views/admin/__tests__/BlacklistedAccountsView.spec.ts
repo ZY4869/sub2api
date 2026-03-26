@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import BlacklistedAccountsView from '../BlacklistedAccountsView.vue'
 
 const {
@@ -108,6 +108,12 @@ describe('BlacklistedAccountsView', () => {
         }
       ]
     })
+    vi.stubGlobal('confirm', vi.fn(() => true))
+    deleteAccount.mockResolvedValue({ message: 'ok' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('supports batch retest restore from blacklist', async () => {
@@ -137,5 +143,102 @@ describe('BlacklistedAccountsView', () => {
 
     expect(retestBlacklistedAccounts).toHaveBeenCalledWith([1])
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.retestSuccess')
+  })
+
+  it('supports batch delete for selected blacklisted accounts', async () => {
+    const wrapper = mount(BlacklistedAccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
+          SearchInput: true,
+          Select: true,
+          DataTable: DataTableStub,
+          Pagination: true,
+          PlatformTypeBadge: true,
+          AccountGroupsCell: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[1].setValue(true)
+
+    const buttons = wrapper.findAll('button')
+    const batchDeleteButton = buttons.find((button) => button.text().includes('admin.accounts.blacklist.batchDelete'))
+    expect(batchDeleteButton).toBeTruthy()
+
+    await batchDeleteButton!.trigger('click')
+    await flushPromises()
+
+    expect(confirm).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeleteConfirm')
+    expect(deleteAccount).toHaveBeenCalledWith(1)
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeleteSuccess')
+  })
+
+  it('shows partial warning when batch delete only succeeds for some accounts', async () => {
+    listAccounts.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          name: 'blacklisted-1',
+          platform: 'openai',
+          type: 'apikey',
+          groups: [],
+          lifecycle_reason_message: 'account deactivated',
+          blacklisted_at: '2026-03-23T12:00:00Z',
+          blacklist_purge_at: '2026-03-26T12:00:00Z'
+        },
+        {
+          id: 2,
+          name: 'blacklisted-2',
+          platform: 'openai',
+          type: 'apikey',
+          groups: [],
+          lifecycle_reason_message: 'workspace deactivated',
+          blacklisted_at: '2026-03-23T13:00:00Z',
+          blacklist_purge_at: '2026-03-26T13:00:00Z'
+        }
+      ],
+      total: 2,
+      pages: 1
+    })
+    deleteAccount
+      .mockResolvedValueOnce({ message: 'ok' })
+      .mockRejectedValueOnce(new Error('delete failed'))
+
+    const wrapper = mount(BlacklistedAccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
+          SearchInput: true,
+          Select: true,
+          DataTable: DataTableStub,
+          Pagination: true,
+          PlatformTypeBadge: true,
+          AccountGroupsCell: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const checkboxes = wrapper.findAll('input[type="checkbox"]')
+    await checkboxes[1].setValue(true)
+    await checkboxes[2].setValue(true)
+
+    const batchDeleteButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.blacklist.batchDelete')
+    )
+    expect(batchDeleteButton).toBeTruthy()
+
+    await batchDeleteButton!.trigger('click')
+    await flushPromises()
+
+    expect(deleteAccount).toHaveBeenCalledTimes(2)
+    expect(showWarning).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeletePartial')
   })
 })

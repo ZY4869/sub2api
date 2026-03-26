@@ -32,9 +32,11 @@ type stubAdminService struct {
 	updateAccountErr     error
 	bulkUpdateAccountErr error
 	unarchiveErr         error
+	blacklistErr         error
 	strictAccountLookup  bool
 	checkMixedErr        error
 	lastUnarchiveInput   *service.UnarchiveAccountsInput
+	lastBlacklistedID    int64
 	lastMixedCheck       struct {
 		accountID int64
 		platform  string
@@ -512,6 +514,48 @@ func (s *stubAdminService) SetAccountError(ctx context.Context, id int64, errorM
 
 func (s *stubAdminService) SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*service.Account, error) {
 	account := service.Account{ID: id, Name: "account", Status: service.StatusActive, Schedulable: schedulable}
+	return &account, nil
+}
+
+func (s *stubAdminService) BlacklistAccount(ctx context.Context, id int64) (*service.Account, error) {
+	if s.blacklistErr != nil {
+		return nil, s.blacklistErr
+	}
+	s.lastBlacklistedID = id
+	for i := range s.accounts {
+		if s.accounts[i].ID != id {
+			continue
+		}
+		if service.NormalizeAccountLifecycleInput(s.accounts[i].LifecycleState) != service.AccountLifecycleBlacklisted {
+			now := time.Now().UTC()
+			purgeAt := now.Add(service.AccountBlacklistRetention)
+			s.accounts[i].LifecycleState = service.AccountLifecycleBlacklisted
+			s.accounts[i].LifecycleReasonCode = "manual_blacklist"
+			s.accounts[i].LifecycleReasonMessage = "Added to blacklist by admin"
+			s.accounts[i].BlacklistedAt = &now
+			s.accounts[i].BlacklistPurgeAt = &purgeAt
+			s.accounts[i].Status = service.StatusDisabled
+			s.accounts[i].Schedulable = false
+		}
+		account := s.accounts[i]
+		return &account, nil
+	}
+	if s.strictAccountLookup {
+		return nil, service.ErrAccountNotFound
+	}
+	now := time.Now().UTC()
+	purgeAt := now.Add(service.AccountBlacklistRetention)
+	account := service.Account{
+		ID:                     id,
+		Name:                   "account",
+		Status:                 service.StatusDisabled,
+		Schedulable:            false,
+		LifecycleState:         service.AccountLifecycleBlacklisted,
+		LifecycleReasonCode:    "manual_blacklist",
+		LifecycleReasonMessage: "Added to blacklist by admin",
+		BlacklistedAt:          &now,
+		BlacklistPurgeAt:       &purgeAt,
+	}
 	return &account, nil
 }
 

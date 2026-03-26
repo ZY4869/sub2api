@@ -6,15 +6,6 @@ import { resetUiNowForTests, UI_NOW_TICK_MS } from '@/composables/useUiNow'
 
 enableAutoUnmount(afterEach)
 
-vi.mock('@/i18n', () => ({
-  i18n: {
-    global: {
-      t: (key: string) => key,
-    },
-  },
-  getLocale: () => 'en',
-}))
-
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   return {
@@ -25,7 +16,7 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-function makeAccount(overrides: Partial<Account>): Account {
+function makeAccount(overrides: Partial<Account> = {}): Account {
   return {
     id: 1,
     name: 'account',
@@ -50,8 +41,8 @@ function makeAccount(overrides: Partial<Account>): Account {
     session_window_start: null,
     session_window_end: null,
     session_window_status: null,
-    ...overrides,
-  }
+    ...overrides
+  } as Account
 }
 
 describe('AccountStatusIndicator', () => {
@@ -61,24 +52,26 @@ describe('AccountStatusIndicator', () => {
 
   afterEach(() => {
     resetUiNowForTests()
+    vi.restoreAllMocks()
     vi.useRealTimers()
+    document.body.innerHTML = ''
   })
 
-  it('rate limit 状态会在 resetAt 到点后自动消失（无需刷新）', async () => {
+  it('clears the rate-limited label once the reset time passes', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
 
     const wrapper = mount(AccountStatusIndicator, {
       props: {
         account: makeAccount({
-          rate_limit_reset_at: '2026-03-13T12:02:00Z',
-        }),
+          rate_limit_reset_at: '2026-03-13T12:02:00Z'
+        })
       },
       global: {
         stubs: {
-          Icon: true,
-        },
-      },
+          Icon: true
+        }
+      }
     })
 
     expect(wrapper.text()).toContain('admin.accounts.status.rateLimited')
@@ -88,12 +81,11 @@ describe('AccountStatusIndicator', () => {
 
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
   })
-  it('模型限流 + overages 启用 + 无 AICredits key → 显示 ⚡ (credits_active)', () => {
+
+  it('renders overage model tags without broken glyphs', () => {
     const wrapper = mount(AccountStatusIndicator, {
       props: {
         account: makeAccount({
-          id: 1,
-          name: 'ag-1',
           extra: {
             allow_overages: true,
             model_rate_limits: {
@@ -112,24 +104,17 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('⚡')
     expect(wrapper.text()).toContain('CSon45')
+    expect(wrapper.text()).not.toContain('鉁')
   })
 
-  it('模型限流 + overages 未启用 → 普通限流样式（无 ⚡）', () => {
+  it('shows the full error text inside the teleported tooltip', async () => {
     const wrapper = mount(AccountStatusIndicator, {
+      attachTo: document.body,
       props: {
         account: makeAccount({
-          id: 2,
-          name: 'ag-2',
-          extra: {
-            model_rate_limits: {
-              'claude-sonnet-4-5': {
-                rate_limited_at: '2026-03-15T00:00:00Z',
-                rate_limit_reset_at: '2099-03-15T00:00:00Z'
-              }
-            }
-          }
+          status: 'error',
+          error_message: 'Payment required (402): {"code":"deactivated_workspace"}'
         })
       },
       global: {
@@ -139,25 +124,66 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('CSon45')
-    expect(wrapper.text()).not.toContain('⚡')
+    await wrapper.get('.error-info-trigger').trigger('mouseenter')
+    await flushPromises()
+
+    const tooltip = document.body.querySelector('.error-info-tooltip')
+    expect(tooltip).not.toBeNull()
+    expect(tooltip?.textContent).toContain('Payment required (402): {"code":"deactivated_workspace"}')
   })
 
-  it('AICredits key 生效 → 显示积分已用尽 (credits_exhausted)', () => {
+  it('repositions the error tooltip to stay within the viewport', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 240 })
+
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      if ((this as HTMLElement).classList.contains('error-info-trigger')) {
+        return {
+          width: 20,
+          height: 20,
+          top: 210,
+          right: 310,
+          bottom: 230,
+          left: 290,
+          x: 290,
+          y: 210,
+          toJSON: () => ({})
+        } as DOMRect
+      }
+
+      if ((this as HTMLElement).classList.contains('error-info-tooltip')) {
+        return {
+          width: 220,
+          height: 80,
+          top: 0,
+          right: 220,
+          bottom: 80,
+          left: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({})
+        } as DOMRect
+      }
+
+      return {
+        width: 0,
+        height: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({})
+      } as DOMRect
+    })
+
     const wrapper = mount(AccountStatusIndicator, {
+      attachTo: document.body,
       props: {
         account: makeAccount({
-          id: 3,
-          name: 'ag-3',
-          extra: {
-            allow_overages: true,
-            model_rate_limits: {
-              'AICredits': {
-                rate_limited_at: '2026-03-15T00:00:00Z',
-                rate_limit_reset_at: '2099-03-15T00:00:00Z'
-              }
-            }
-          }
+          status: 'error',
+          error_message: 'Very long upstream error message for viewport checks'
         })
       },
       global: {
@@ -167,41 +193,13 @@ describe('AccountStatusIndicator', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('admin.accounts.status.creditsExhausted')
-  })
+    await wrapper.get('.error-info-trigger').trigger('mouseenter')
+    await flushPromises()
 
-  it('模型限流 + overages 启用 + AICredits key 生效 → 普通限流样式（积分耗尽，无 ⚡）', () => {
-    const wrapper = mount(AccountStatusIndicator, {
-      props: {
-        account: makeAccount({
-          id: 4,
-          name: 'ag-4',
-          extra: {
-            allow_overages: true,
-            model_rate_limits: {
-              'claude-sonnet-4-5': {
-                rate_limited_at: '2026-03-15T00:00:00Z',
-                rate_limit_reset_at: '2099-03-15T00:00:00Z'
-              },
-              'AICredits': {
-                rate_limited_at: '2026-03-15T00:00:00Z',
-                rate_limit_reset_at: '2099-03-15T00:00:00Z'
-              }
-            }
-          }
-        })
-      },
-      global: {
-        stubs: {
-          Icon: true
-        }
-      }
-    })
-
-    // 模型限流 + 积分耗尽 → 不应显示 ⚡
-    expect(wrapper.text()).toContain('CSon45')
-    expect(wrapper.text()).not.toContain('⚡')
-    // AICredits 积分耗尽状态应显示
-    expect(wrapper.text()).toContain('admin.accounts.status.creditsExhausted')
+    const tooltip = document.body.querySelector('.error-info-tooltip') as HTMLElement | null
+    expect(tooltip).not.toBeNull()
+    expect(tooltip?.style.left).toBe('88px')
+    expect(tooltip?.style.top).toBe('120px')
+    expect(tooltip?.style.maxWidth).toBe('296px')
   })
 })

@@ -19,14 +19,20 @@
         v-for="card in cards"
         :key="card.key"
         type="button"
-        class="rounded-xl border px-3 py-2 text-left shadow-sm transition"
+        class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left shadow-sm transition"
         :class="[card.bgClass, cardClasses(card)]"
+        :data-card-key="card.key"
         @click="emit('select-status', card.statusValue)"
       >
-        <div class="text-[10px] font-semibold uppercase tracking-wider" :class="card.eyebrowClass">
-          {{ card.label }}
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/70 shadow-sm ring-1 ring-white/80 dark:bg-white/10 dark:ring-white/10">
+            <Icon :name="card.iconName" size="sm" :class="card.iconClass" :stroke-width="2" />
+          </span>
+          <span class="min-w-0 text-sm font-semibold leading-tight" :class="card.labelClass">
+            {{ card.label }}
+          </span>
         </div>
-        <div class="mt-0.5 text-lg font-semibold leading-none" :class="card.countClass">
+        <div class="shrink-0 text-lg font-semibold leading-none" :class="card.countClass">
           {{ card.count }}
         </div>
       </button>
@@ -41,6 +47,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Icon from '@/components/icons/Icon.vue'
 import type { AccountStatusSummary } from '@/types'
 
 const props = withDefaults(defineProps<{
@@ -60,13 +67,27 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const cards = computed(() => [
+type SummaryCard = {
+  key: string
+  label: string
+  count: number
+  statusValue: string
+  iconName: 'database' | 'sparkles' | 'exclamationTriangle' | 'bolt' | 'lock'
+  iconClass: string
+  labelClass: string
+  countClass: string
+  bgClass: string
+}
+
+const cards = computed<SummaryCard[]>(() => [
   {
     key: 'total',
     label: t('admin.accounts.summary.total'),
     count: props.summary.total,
     statusValue: '',
-    eyebrowClass: 'text-primary-600 dark:text-primary-400',
+    iconName: 'database',
+    iconClass: 'text-primary-600 dark:text-primary-300',
+    labelClass: 'text-primary-700 dark:text-primary-200',
     countClass: 'text-primary-700 dark:text-primary-300',
     bgClass: 'bg-gradient-to-br from-primary-50 to-primary-100/60 dark:from-primary-950/40 dark:to-primary-900/20'
   },
@@ -75,7 +96,9 @@ const cards = computed(() => [
     label: t('admin.accounts.summary.active'),
     count: props.summary.by_status.active,
     statusValue: 'active',
-    eyebrowClass: 'text-emerald-600 dark:text-emerald-400',
+    iconName: 'sparkles',
+    iconClass: 'text-emerald-600 dark:text-emerald-300',
+    labelClass: 'text-emerald-700 dark:text-emerald-200',
     countClass: 'text-emerald-700 dark:text-emerald-300',
     bgClass: 'bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20'
   },
@@ -84,7 +107,9 @@ const cards = computed(() => [
     label: t('admin.accounts.summary.error'),
     count: props.summary.by_status.error,
     statusValue: 'error',
-    eyebrowClass: 'text-red-600 dark:text-red-400',
+    iconName: 'exclamationTriangle',
+    iconClass: 'text-red-600 dark:text-red-300',
+    labelClass: 'text-red-700 dark:text-red-200',
     countClass: 'text-red-700 dark:text-red-300',
     bgClass: 'bg-gradient-to-br from-red-50 to-red-100/60 dark:from-red-950/40 dark:to-red-900/20'
   },
@@ -93,7 +118,9 @@ const cards = computed(() => [
     label: t('admin.accounts.summary.rateLimited'),
     count: props.summary.rate_limited,
     statusValue: 'rate_limited',
-    eyebrowClass: 'text-amber-600 dark:text-amber-400',
+    iconName: 'bolt',
+    iconClass: 'text-amber-600 dark:text-amber-300',
+    labelClass: 'text-amber-700 dark:text-amber-200',
     countClass: 'text-amber-700 dark:text-amber-300',
     bgClass: 'bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-950/40 dark:to-amber-900/20'
   },
@@ -102,7 +129,9 @@ const cards = computed(() => [
     label: t('admin.accounts.summary.paused'),
     count: props.summary.paused,
     statusValue: 'paused',
-    eyebrowClass: 'text-slate-600 dark:text-slate-400',
+    iconName: 'lock',
+    iconClass: 'text-slate-600 dark:text-slate-300',
+    labelClass: 'text-slate-700 dark:text-slate-200',
     countClass: 'text-slate-700 dark:text-slate-300',
     bgClass: 'bg-gradient-to-br from-slate-50 to-slate-100/60 dark:from-slate-800/40 dark:to-slate-700/20'
   }

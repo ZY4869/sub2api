@@ -219,6 +219,7 @@
       @refresh-token="handleRefresh"
       @recover-state="handleRecoverState"
       @reset-quota="handleResetQuota"
+      @blacklist="handleBlacklistAccount"
       @import-models="handleImportModels"
       @close-sync="showSync = false"
       @reload="handleReloadRequested"
@@ -1113,6 +1114,21 @@ const handleResetQuota = async (a: Account) => {
     appStore.showSuccess(t('common.success'))
   } catch (error) {
     console.error('Failed to reset quota:', error)
+  }
+}
+const handleBlacklistAccount = async (a: Account) => {
+  if (!window.confirm(t('admin.accounts.blacklist.addConfirm', { name: a.name }))) {
+    return
+  }
+  try {
+    const updated = await adminAPI.accounts.blacklist(a.id)
+    patchAccountInList(updated)
+    refreshAccountSummarySafe()
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('admin.accounts.blacklist.addSuccess'))
+  } catch (error: any) {
+    console.error('Failed to blacklist account:', error)
+    appStore.showError(error?.message || t('admin.accounts.blacklist.addFailed'))
   }
 }
 const handleDelete = (a: Account) => { deletingAcc.value = a; showDeleteDialog.value = true }

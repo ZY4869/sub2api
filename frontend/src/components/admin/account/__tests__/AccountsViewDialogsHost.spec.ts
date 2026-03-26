@@ -200,4 +200,44 @@ describe('AccountsViewDialogsHost', () => {
       [{ source_group_id: 9, source_group_name: 'Prod Group', archived_count: 3, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' }]
     ])
   })
+
+  it('forwards blacklist events from the action menu', async () => {
+    const account = {
+      id: 7,
+      name: 'openai-7',
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true
+    }
+
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        menuShow: true,
+        menuAccount: account,
+        menuPosition: { top: 10, left: 20 }
+      },
+      global: {
+        stubs: createStubs({
+          AccountActionMenu: {
+            emits: ['blacklist', 'close'],
+            template: `
+              <div>
+                <button class="menu-blacklist" @click="$emit('blacklist', { id: 7, name: 'openai-7' })" />
+                <button class="menu-close" @click="$emit('close')" />
+              </div>
+            `
+          }
+        })
+      }
+    })
+
+    await wrapper.get('.menu-blacklist').trigger('click')
+    await wrapper.get('.menu-close').trigger('click')
+
+    expect(wrapper.emitted('blacklist')).toEqual([[{ id: 7, name: 'openai-7' }]])
+    expect(wrapper.emitted('close-menu')).toEqual([[]])
+  })
 })

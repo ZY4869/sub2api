@@ -594,6 +594,11 @@ export async function retestBlacklistedAccounts(accountIds: number[]): Promise<B
   return data
 }
 
+export async function blacklist(id: number): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/blacklist`)
+  return data
+}
+
 export async function archiveGroupAccounts(
   payload: ArchiveGroupAccountsRequest
 ): Promise<ArchiveGroupAccountsResult> {
@@ -974,6 +979,7 @@ export const accountsAPI = {
   listArchivedGroups,
   unarchiveAccounts,
   retestBlacklistedAccounts,
+  blacklist,
   archiveGroupAccounts,
   batchUpdateCredentials,
   bulkUpdate,

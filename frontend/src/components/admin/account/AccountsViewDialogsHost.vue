@@ -57,6 +57,7 @@
     @recover-state="emit('recover-state', $event)"
     @reset-quota="emit('reset-quota', $event)"
     @import-models="emit('import-models', $event)"
+    @blacklist="emit('blacklist', $event)"
   />
   <SyncFromCrsModal
     :show="showSync"
@@ -231,6 +232,7 @@ const emit = defineEmits<{
   'recover-state': [account: Account]
   'reset-quota': [account: Account]
   'import-models': [account: Account]
+  blacklist: [account: Account]
   'close-sync': []
   reload: []
   'close-import-data': []

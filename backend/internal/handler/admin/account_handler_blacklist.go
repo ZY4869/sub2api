@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"strconv"
 	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -20,6 +21,21 @@ type BlacklistRetestAccountResult struct {
 	ErrorMessage  string `json:"error_message,omitempty"`
 	ResponseText  string `json:"response_text,omitempty"`
 	LatencyMs     int64  `json:"latency_ms,omitempty"`
+}
+
+func (h *AccountHandler) Blacklist(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	account, err := h.adminService.BlacklistAccount(c.Request.Context(), accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
 }
 
 func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
