@@ -19,14 +19,14 @@
         v-for="card in cards"
         :key="card.key"
         type="button"
-        class="rounded-xl border bg-white px-3 py-2 text-left shadow-sm transition dark:bg-dark-800"
-        :class="cardClasses(card)"
+        class="rounded-xl border px-3 py-2 text-left shadow-sm transition"
+        :class="[card.bgClass, cardClasses(card)]"
         @click="emit('select-status', card.statusValue)"
       >
         <div class="text-[10px] font-semibold uppercase tracking-wider" :class="card.eyebrowClass">
           {{ card.label }}
         </div>
-        <div class="mt-0.5 text-lg font-semibold leading-none text-gray-900 dark:text-white">
+        <div class="mt-0.5 text-lg font-semibold leading-none" :class="card.countClass">
           {{ card.count }}
         </div>
       </button>
@@ -66,35 +66,45 @@ const cards = computed(() => [
     label: t('admin.accounts.summary.total'),
     count: props.summary.total,
     statusValue: '',
-    eyebrowClass: 'text-primary-600 dark:text-primary-400'
+    eyebrowClass: 'text-primary-600 dark:text-primary-400',
+    countClass: 'text-primary-700 dark:text-primary-300',
+    bgClass: 'bg-gradient-to-br from-primary-50 to-primary-100/60 dark:from-primary-950/40 dark:to-primary-900/20'
   },
   {
     key: 'active',
     label: t('admin.accounts.summary.active'),
     count: props.summary.by_status.active,
     statusValue: 'active',
-    eyebrowClass: 'text-emerald-600 dark:text-emerald-400'
+    eyebrowClass: 'text-emerald-600 dark:text-emerald-400',
+    countClass: 'text-emerald-700 dark:text-emerald-300',
+    bgClass: 'bg-gradient-to-br from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20'
   },
   {
     key: 'error',
     label: t('admin.accounts.summary.error'),
     count: props.summary.by_status.error,
     statusValue: 'error',
-    eyebrowClass: 'text-red-600 dark:text-red-400'
+    eyebrowClass: 'text-red-600 dark:text-red-400',
+    countClass: 'text-red-700 dark:text-red-300',
+    bgClass: 'bg-gradient-to-br from-red-50 to-red-100/60 dark:from-red-950/40 dark:to-red-900/20'
   },
   {
     key: 'rate_limited',
     label: t('admin.accounts.summary.rateLimited'),
     count: props.summary.rate_limited,
     statusValue: 'rate_limited',
-    eyebrowClass: 'text-amber-600 dark:text-amber-400'
+    eyebrowClass: 'text-amber-600 dark:text-amber-400',
+    countClass: 'text-amber-700 dark:text-amber-300',
+    bgClass: 'bg-gradient-to-br from-amber-50 to-amber-100/60 dark:from-amber-950/40 dark:to-amber-900/20'
   },
   {
     key: 'paused',
     label: t('admin.accounts.summary.paused'),
     count: props.summary.paused,
     statusValue: 'paused',
-    eyebrowClass: 'text-slate-600 dark:text-slate-300'
+    eyebrowClass: 'text-slate-600 dark:text-slate-400',
+    countClass: 'text-slate-700 dark:text-slate-300',
+    bgClass: 'bg-gradient-to-br from-slate-50 to-slate-100/60 dark:from-slate-800/40 dark:to-slate-700/20'
   }
 ])
 
@@ -103,7 +113,7 @@ const cardClasses = (card: { key: string; statusValue: string }) => {
     ? !props.activeStatus
     : props.activeStatus === card.statusValue
   return isActive
-    ? 'border-primary-300 ring-2 ring-primary-500/70 dark:border-primary-500'
-    : 'border-gray-200 hover:border-gray-300 dark:border-dark-700 dark:hover:border-dark-500'
+    ? 'border-primary-300 ring-2 ring-primary-400/50 dark:border-primary-500'
+    : 'border-transparent hover:border-gray-300 dark:border-transparent dark:hover:border-dark-500'
 }
 </script>

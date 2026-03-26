@@ -80,24 +80,6 @@
             @toggle-schedulable="handleBulkToggleSchedulable"
           />
 
-          <ArchivedAccountGroupsPanel
-            v-if="!limitedMode"
-            :filters="params"
-            :columns="archivedColumns"
-            :toggling-schedulable="togglingSchedulable"
-            :today-stats-by-account-id="todayStatsByAccountId"
-            :today-stats-loading="todayStatsLoading"
-            :today-stats-error="todayStatsError"
-            :usage-manual-refresh-token="usageManualRefreshToken"
-            :sort-storage-key="ARCHIVED_ACCOUNT_SORT_STORAGE_KEY"
-            :refresh-token="archivedPanelRefreshToken"
-            @edit="handleEdit"
-            @delete="handleDelete"
-            @open-menu="handleOpenMenu"
-            @show-temp-unsched="handleShowTempUnsched"
-            @toggle-schedulable="handleToggleSchedulable"
-            @changed="handleArchivedPanelChanged"
-          />
           <div ref="accountTableRef">
             <AccountGroupedView
               v-if="groupViewEnabled"
@@ -281,7 +263,6 @@ import AccountGroupedView from '@/components/admin/account/AccountGroupedView.vu
 import AccountLimitedSummaryBar from '@/components/admin/account/AccountLimitedSummaryBar.vue'
 import AccountPlatformTabs from '@/components/admin/account/AccountPlatformTabs.vue'
 import AccountStatusSummaryBar from '@/components/admin/account/AccountStatusSummaryBar.vue'
-import ArchivedAccountGroupsPanel from '@/components/admin/account/ArchivedAccountGroupsPanel.vue'
 import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDialogsHost.vue'
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
 import AccountsViewToolbar from '@/components/admin/account/AccountsViewToolbar.vue'
@@ -389,7 +370,6 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
-const ARCHIVED_ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort-archived'
 const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY = 'account-hide-limited-accounts'
 
 const loadHideLimitedPreference = () => {
@@ -678,8 +658,6 @@ const cols = computed(() =>
     col.key === 'select' || col.key === 'name' || col.key === 'actions' || !hiddenColumns.has(col.key)
   )
 )
-const archivedColumns = computed(() => cols.value.filter((col) => col.key !== 'select'))
-
 const { patchAccountInList } = useAccountsViewListPatching({
   accounts,
   params,
@@ -923,11 +901,6 @@ const refreshGroups = async () => {
 
 const refreshListAndArchivedPanel = async () => {
   refreshArchivedPanel()
-  await reload()
-}
-
-const handleArchivedPanelChanged = async () => {
-  await refreshGroups()
   await reload()
 }
 
