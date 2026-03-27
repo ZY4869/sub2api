@@ -106,6 +106,20 @@ func (h *ModelRegistryHandler) SyncExposures(c *gin.Context) {
 	response.Success(c, result)
 }
 
+func (h *ModelRegistryHandler) MoveProvider(c *gin.Context) {
+	var req service.MoveModelRegistryProviderInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.modelRegistryService.MoveEntriesToProvider(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 func (h *ModelRegistryHandler) Activate(c *gin.Context) {
 	var req service.UpdateModelRegistryAvailabilityInput
 	if err := c.ShouldBindJSON(&req); err != nil {

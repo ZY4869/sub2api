@@ -125,81 +125,106 @@
       <span>{{ t('admin.accounts.protocolGateway.probeSelectedCount', { count: allowedModels.length }) }}</span>
     </div>
 
-    <div v-if="probedModels.length > 0" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <button
-        v-for="model in probedModels"
-        :key="model.id"
-        type="button"
-        :title="model.id"
-        :class="cardClasses(model)"
-        @click="toggleModel(model.id)"
+    <div v-if="probedModels.length > 0" class="space-y-4">
+      <section
+        v-for="group in groupedProbedModels"
+        :key="group.protocol"
+        class="space-y-3"
       >
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <div class="truncate text-sm font-semibold">
-              {{ model.display_name || model.id }}
-            </div>
-            <div class="truncate text-xs opacity-80">{{ model.id }}</div>
-            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-              <span
-                v-if="resolveModelProtocol(model)"
-                class="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
-              >
-                {{ protocolLabel(resolveModelProtocol(model)) }}
-              </span>
-              <span
-                v-if="currentRouteProfile(model)"
-                class="inline-flex items-center rounded-full bg-primary-500/15 px-2 py-0.5 font-medium text-primary-700 dark:text-primary-200"
-              >
-                {{ clientProfileLabel(currentRouteProfile(model)!) }}
-              </span>
-            </div>
-          </div>
-          <span
-            v-if="isSelected(model.id)"
-            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/80 text-emerald-600 shadow-sm dark:bg-white/10 dark:text-emerald-300"
-          >
-            <Icon name="check" size="sm" :stroke-width="2" />
-          </span>
-        </div>
-        <div class="mt-3 flex items-center justify-between gap-3 text-xs">
-          <span class="truncate">
-            {{
-              model.registry_state === 'existing'
-                ? t('admin.accounts.protocolGateway.registryExisting')
-                : t('admin.accounts.protocolGateway.registryMissing')
-            }}
-          </span>
-          <span v-if="model.registry_model_id" class="truncate opacity-80">
-            {{ model.registry_model_id }}
-          </span>
-        </div>
-
-        <div
-          v-if="isSelected(model.id) && availableProfilesForModel(model).length > 0"
-          class="mt-3 flex flex-wrap items-center gap-2"
-          @click.stop
+        <header
+          v-if="shouldShowProtocolGrouping"
+          class="flex items-center justify-between gap-3"
         >
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              {{ group.label }}
+            </span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              {{ group.requestFormats }}
+            </span>
+          </div>
+          <span class="text-xs text-gray-400 dark:text-gray-500">
+            {{ group.models.length }}
+          </span>
+        </header>
+
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <button
-            v-for="profile in availableProfilesForModel(model)"
-            :key="`${model.id}-${profile}`"
+            v-for="model in group.models"
+            :key="`${group.protocol}:${model.id}`"
             type="button"
-            class="rounded-lg border px-2 py-1 text-[11px] font-medium transition"
-            :class="routeButtonClass(model, profile)"
-            @click.stop="setModelClientProfile(model, profile)"
+            :title="model.id"
+            :class="cardClasses(model)"
+            @click="toggleModel(model.id)"
           >
-            {{ clientProfileLabel(profile) }}
-          </button>
-          <button
-            v-if="currentRouteProfile(model)"
-            type="button"
-            class="rounded-lg border border-white/60 px-2 py-1 text-[11px] font-medium text-gray-700 transition hover:border-rose-300 hover:text-rose-600 dark:border-white/10 dark:text-gray-200 dark:hover:border-rose-500 dark:hover:text-rose-300"
-            @click.stop="setModelClientProfile(model, '')"
-          >
-            {{ t('admin.accounts.protocolGateway.clearSimulation') }}
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="truncate text-sm font-semibold">
+                  {{ model.display_name || model.id }}
+                </div>
+                <div class="truncate text-xs opacity-80">{{ model.id }}</div>
+                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span
+                    v-if="resolveModelProtocol(model)"
+                    class="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                  >
+                    {{ protocolLabel(resolveModelProtocol(model)) }}
+                  </span>
+                  <span
+                    v-if="currentRouteProfile(model)"
+                    class="inline-flex items-center rounded-full bg-primary-500/15 px-2 py-0.5 font-medium text-primary-700 dark:text-primary-200"
+                  >
+                    {{ clientProfileLabel(currentRouteProfile(model)!) }}
+                  </span>
+                </div>
+              </div>
+              <span
+                v-if="isSelected(model.id)"
+                class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/80 text-emerald-600 shadow-sm dark:bg-white/10 dark:text-emerald-300"
+              >
+                <Icon name="check" size="sm" :stroke-width="2" />
+              </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between gap-3 text-xs">
+              <span class="truncate">
+                {{
+                  model.registry_state === 'existing'
+                    ? t('admin.accounts.protocolGateway.registryExisting')
+                    : t('admin.accounts.protocolGateway.registryMissing')
+                }}
+              </span>
+              <span v-if="model.registry_model_id" class="truncate opacity-80">
+                {{ model.registry_model_id }}
+              </span>
+            </div>
+
+            <div
+              v-if="isSelected(model.id) && availableProfilesForModel(model).length > 0"
+              class="mt-3 flex flex-wrap items-center gap-2"
+              @click.stop
+            >
+              <button
+                v-for="profile in availableProfilesForModel(model)"
+                :key="`${model.id}-${profile}`"
+                type="button"
+                class="rounded-lg border px-2 py-1 text-[11px] font-medium transition"
+                :class="routeButtonClass(model, profile)"
+                @click.stop="setModelClientProfile(model, profile)"
+              >
+                {{ clientProfileLabel(profile) }}
+              </button>
+              <button
+                v-if="currentRouteProfile(model)"
+                type="button"
+                class="rounded-lg border border-white/60 px-2 py-1 text-[11px] font-medium text-gray-700 transition hover:border-rose-300 hover:text-rose-600 dark:border-white/10 dark:text-gray-200 dark:hover:border-rose-500 dark:hover:text-rose-300"
+                @click.stop="setModelClientProfile(model, '')"
+              >
+                {{ t('admin.accounts.protocolGateway.clearSimulation') }}
+              </button>
+            </div>
           </button>
         </div>
-      </button>
+      </section>
     </div>
 
     <div
@@ -228,6 +253,7 @@ import type {
   GatewayProtocol
 } from '@/types'
 import {
+  PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS,
   normalizeGatewayAcceptedProtocol,
   normalizeGatewayAcceptedProtocols,
   normalizeGatewayClientRoutes,
@@ -279,6 +305,7 @@ const availableClientProfiles = computed<GatewayClientProfile[]>(() => {
   )
   return [...new Set(values)]
 })
+const shouldShowProtocolGrouping = computed(() => props.gatewayProtocol === 'mixed')
 
 watch(
   () => [props.gatewayProtocol, props.baseUrl, props.apiKey, props.proxyId, probedModels.value.length] as const,
@@ -375,6 +402,30 @@ const resolveModelProtocol = (model: ProtocolGatewayProbeModel): GatewayAccepted
 
 const protocolLabel = (protocol: GatewayAcceptedProtocol) =>
   resolveGatewayProtocolDescriptor(protocol)?.displayName || protocol
+
+const groupedProbedModels = computed(() => {
+  const grouped = new Map<GatewayAcceptedProtocol, ProtocolGatewayProbeModel[]>()
+  for (const model of probedModels.value) {
+    const protocol = resolveModelProtocol(model)
+    const bucket = grouped.get(protocol)
+    if (bucket) {
+      bucket.push(model)
+      continue
+    }
+    grouped.set(protocol, [model])
+  }
+
+  const orderedProtocols = PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS.filter((protocol) => grouped.has(protocol))
+  return orderedProtocols.map((protocol) => {
+    const descriptor = resolveGatewayProtocolDescriptor(protocol)
+    return {
+      protocol,
+      label: descriptor?.displayName || protocol,
+      requestFormats: (descriptor?.requestFormats || []).join(', '),
+      models: grouped.get(protocol) || []
+    }
+  })
+})
 
 const routeKeyForModel = (model: ProtocolGatewayProbeModel) =>
   `${resolveModelProtocol(model)}:${model.id}`

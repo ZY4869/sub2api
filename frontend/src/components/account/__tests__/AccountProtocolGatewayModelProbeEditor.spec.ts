@@ -66,7 +66,10 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         apiKey: 'sk-test',
         proxyId: 12,
         allowedModels: [],
-        probedModels: []
+        probedModels: [],
+        acceptedProtocols: ['openai'],
+        clientProfiles: [],
+        clientRoutes: []
       },
       global: {
         stubs: {
@@ -75,12 +78,16 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
       }
     })
 
-    const probeButton = wrapper.find('button')
-    await probeButton.trigger('click')
+    const probeButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'admin.accounts.protocolGateway.probeAction')
+    expect(probeButton).toBeTruthy()
+    await probeButton!.trigger('click')
     await flushPromises()
 
     expect(probeProtocolGatewayModels).toHaveBeenCalledWith({
       gateway_protocol: 'openai',
+      accepted_protocols: ['openai'],
       base_url: 'https://gateway.example.com',
       api_key: 'sk-test',
       proxy_id: 12
@@ -98,7 +105,10 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         baseUrl: '',
         apiKey: '',
         allowedModels: [],
-        probedModels: []
+        probedModels: [],
+        acceptedProtocols: ['anthropic'],
+        clientProfiles: [],
+        clientRoutes: []
       },
       global: {
         stubs: {
@@ -113,5 +123,68 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
 
     expect(probeProtocolGatewayModels).not.toHaveBeenCalled()
     expect(showWarning).not.toHaveBeenCalled()
+  })
+
+  it('groups mixed probe results by source protocol and applies profile batches by compatibility', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'mixed',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        allowedModels: ['gpt-4.1', 'gemini-2.5-pro'],
+        probedModels: [
+          {
+            id: 'gpt-4.1',
+            display_name: 'GPT-4.1',
+            registry_state: 'existing',
+            registry_model_id: 'gpt-4.1',
+            source_protocol: 'openai'
+          },
+          {
+            id: 'gemini-2.5-pro',
+            display_name: 'Gemini 2.5 Pro',
+            registry_state: 'missing',
+            source_protocol: 'gemini'
+          }
+        ],
+        acceptedProtocols: ['openai', 'gemini'],
+        clientProfiles: ['codex', 'gemini_cli'],
+        clientRoutes: [
+          {
+            protocol: 'openai',
+            match_type: 'exact',
+            match_value: 'gpt-4.1',
+            client_profile: 'codex'
+          }
+        ]
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('OpenAI')
+    expect(wrapper.text()).toContain('Gemini')
+    expect(wrapper.text()).toContain('/v1/chat/completions')
+    expect(wrapper.text()).toContain('/v1beta/models/{model}:generateContent')
+    expect(wrapper.text()).toContain('admin.accounts.protocolGateway.clientProfileCodex')
+
+    const applyAllGeminiCliButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'admin.accounts.protocolGateway.applyAllGeminiCli')
+    expect(applyAllGeminiCliButton).toBeTruthy()
+
+    await applyAllGeminiCliButton!.trigger('click')
+
+    expect(wrapper.emitted('update:clientRoutes')?.[0]?.[0]).toEqual([
+      {
+        protocol: 'gemini',
+        match_type: 'exact',
+        match_value: 'gemini-2.5-pro',
+        client_profile: 'gemini_cli'
+      }
+    ])
   })
 })

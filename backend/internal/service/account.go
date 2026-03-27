@@ -1164,14 +1164,21 @@ func (a *Account) IsAnthropicOAuthOrSetupToken() bool {
 // 仅适用于 Anthropic OAuth/SetupToken 类型账号
 // 启用后将模拟 Claude Code (Node.js) 客户端的 TLS 握手特征
 func (a *Account) IsTLSFingerprintEnabled() bool {
-	// 仅支持 Anthropic OAuth/SetupToken 账号
-	if !a.IsAnthropicOAuthOrSetupToken() {
+	if a == nil || a.Extra == nil {
 		return false
 	}
-	if a.Extra == nil {
+	if a.IsAnthropicOAuthOrSetupToken() {
+		if v, ok := a.Extra[enableTLSFingerprintKey]; ok {
+			if enabled, ok := v.(bool); ok {
+				return enabled
+			}
+		}
 		return false
 	}
-	if v, ok := a.Extra["enable_tls_fingerprint"]; ok {
+	if !IsClaudeClientMimicEnabled(a, EffectiveProtocol(a)) {
+		return false
+	}
+	if v, ok := a.Extra[enableTLSFingerprintKey]; ok {
 		if enabled, ok := v.(bool); ok {
 			return enabled
 		}
@@ -1204,13 +1211,21 @@ func (a *Account) GetUserMsgQueueMode() string {
 // 启用后将在一段时间内（15分钟）固定 metadata.user_id 中的 session ID，
 // 使上游认为请求来自同一个会话
 func (a *Account) IsSessionIDMaskingEnabled() bool {
-	if !a.IsAnthropicOAuthOrSetupToken() {
+	if a == nil || a.Extra == nil {
 		return false
 	}
-	if a.Extra == nil {
+	if a.IsAnthropicOAuthOrSetupToken() {
+		if v, ok := a.Extra[sessionIDMaskingEnabledKey]; ok {
+			if enabled, ok := v.(bool); ok {
+				return enabled
+			}
+		}
 		return false
 	}
-	if v, ok := a.Extra["session_id_masking_enabled"]; ok {
+	if !IsClaudeClientMimicEnabled(a, EffectiveProtocol(a)) {
+		return false
+	}
+	if v, ok := a.Extra[sessionIDMaskingEnabledKey]; ok {
 		if enabled, ok := v.(bool); ok {
 			return enabled
 		}

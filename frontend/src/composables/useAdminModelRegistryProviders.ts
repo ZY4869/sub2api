@@ -6,6 +6,7 @@ import {
   hardDeleteModelRegistryEntries,
   listModelRegistry,
   listModelRegistryProviders,
+  moveModelRegistryProvider,
   syncModelRegistryExposures,
   type ModelRegistryDetail
 } from '@/api/admin/modelRegistry'
@@ -50,6 +51,7 @@ export function useAdminModelRegistryProviders() {
   const activatingIds = ref<Set<string>>(new Set())
   const deactivatingIds = ref<Set<string>>(new Set())
   const deletingIds = ref<Set<string>>(new Set())
+  const movingIds = ref<Set<string>>(new Set())
   const syncingTestExposureIds = ref<Set<string>>(new Set())
   const items = ref<AdminModelRegistryProviderGroup[]>([])
   const pagination = reactive({
@@ -72,6 +74,7 @@ export function useAdminModelRegistryProviders() {
   const isActivating = (modelId: string) => activatingIds.value.has(modelId)
   const isDeactivating = (modelId: string) => deactivatingIds.value.has(modelId)
   const isDeleting = (modelId: string) => deletingIds.value.has(modelId)
+  const isMoving = (modelId: string) => movingIds.value.has(modelId)
   const isSyncingTestExposure = (modelId: string) => syncingTestExposureIds.value.has(modelId)
   const hasMoreProviders = computed(() => pagination.page < pagination.pages)
 
@@ -385,15 +388,86 @@ export function useAdminModelRegistryProviders() {
     }
   }
 
+  async function moveModelsToProvider(provider: string, targetProvider: string, modelIds: string[]) {
+    const sourceProvider = getProviderKey(provider)
+    const nextProvider = getProviderKey(targetProvider)
+    const pendingIds = normalizeModelIds(modelIds).filter((modelId) => !isMoving(modelId))
+    if (pendingIds.length === 0 || !nextProvider || nextProvider === sourceProvider) {
+      return
+    }
+    movingIds.value = addPendingIds(movingIds.value, pendingIds)
+    try {
+      const result = await moveModelRegistryProvider({
+        models: pendingIds,
+        target_provider: nextProvider
+      })
+
+      if (result.failed_count === 0 && result.updated_count > 0) {
+        appStore.showSuccess(
+          t('admin.models.pages.all.bulk.moveProviderSuccess', {
+            count: result.updated_count,
+            provider: formatModelCatalogProvider(nextProvider)
+          })
+        )
+      } else if (result.updated_count === 0 && result.failed_count === 0) {
+        appStore.showWarning(t('admin.models.pages.all.bulk.moveProviderNoop'))
+      } else if (result.updated_count > 0) {
+        appStore.showWarning(
+          t('admin.models.pages.all.bulk.moveProviderPartial', {
+            updated: result.updated_count,
+            failed: result.failed_count
+          }),
+          {
+            details: result.failed_models?.map((item) => `${item.model}: ${item.error}`),
+            persistent: true
+          }
+        )
+      } else {
+        appStore.showError(
+          t('admin.models.pages.all.bulk.moveProviderFailed', {
+            provider: formatModelCatalogProvider(nextProvider)
+          }),
+          {
+            details: result.failed_models?.map((item) => `${item.model}: ${item.error}`),
+            persistent: true
+          }
+        )
+      }
+
+      await refreshProvidersAfterMutation([sourceProvider, nextProvider])
+    } catch (error) {
+      console.error('[useAdminModelRegistryProviders] move provider failed', error)
+      appStore.showError(t('admin.models.pages.all.bulk.moveProviderRequestFailed'))
+    } finally {
+      movingIds.value = removePendingIds(movingIds.value, pendingIds)
+    }
+  }
+
   async function refreshProviderAfterMutation(provider: string) {
-    clearProviderSelection(provider)
+    await refreshProvidersAfterMutation([provider])
+  }
+
+  async function refreshProvidersAfterMutation(providers: string[]) {
+    const normalizedProviders = [...new Set(
+      providers
+        .map((provider) => getProviderKey(provider))
+        .filter((provider) => provider.length > 0)
+    )]
+    for (const provider of normalizedProviders) {
+      clearProviderSelection(provider)
+    }
     invalidateModelRegistry()
     modelInventoryStore.invalidate()
-    await Promise.allSettled([
+    const tasks: Array<Promise<unknown>> = [
       loadProviderSummaries(true),
-      loadProviderModels(provider, true),
       ensureModelRegistryFresh(true)
-    ])
+    ]
+    for (const provider of normalizedProviders) {
+      if (ensureProviderModelsState(provider).initialized) {
+        tasks.push(loadProviderModels(provider, true))
+      }
+    }
+    await Promise.allSettled(tasks)
   }
 
   return {
@@ -406,6 +480,7 @@ export function useAdminModelRegistryProviders() {
     isActivating,
     isDeactivating,
     isDeleting,
+    isMoving,
     isSyncingTestExposure,
     loadAll,
     loadMoreProviders,
@@ -438,6 +513,7 @@ export function useAdminModelRegistryProviders() {
     activateModel,
     deactivateModels,
     hardDeleteModels,
+    moveModelsToProvider,
     addModelsToTest: (provider: string, modelIds: string[]) => updateTestExposure(provider, modelIds, 'add'),
     removeModelsFromTest: (provider: string, modelIds: string[]) => updateTestExposure(provider, modelIds, 'remove')
   }

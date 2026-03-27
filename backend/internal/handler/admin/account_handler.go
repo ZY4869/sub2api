@@ -144,7 +144,7 @@ func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	if req.AccountID != nil {
 		accountID = *req.AccountID
 	}
-	platform := service.RoutingPlatformFromValues(req.Platform, withGatewayProtocol(req.Platform, nil, req.GatewayProtocol, ""))
+	platform := service.RoutingPlatformFromValues(req.Platform, withGatewayProtocol(req.Platform, "", nil, req.GatewayProtocol, ""))
 	err := h.adminService.CheckMixedChannelRisk(c.Request.Context(), accountID, platform, req.GroupIDs)
 	if err != nil {
 		var mixedErr *service.MixedChannelError

@@ -49,9 +49,11 @@ function mountPanel(props?: Record<string, unknown>) {
       provider: 'openai',
       models: [],
       selectedIds: [],
+      moveTargetOptions: [],
       isActivating: () => false,
       isDeactivating: () => false,
       isDeleting: () => false,
+      isMoving: () => false,
       isSyncingTestExposure: () => false,
       ...props
     },
@@ -170,7 +172,7 @@ describe('ModelProviderModelsPanel', () => {
     })
 
     const selects = wrapper.findAll('select')
-    expect(selects).toHaveLength(2)
+    expect(selects).toHaveLength(3)
 
     await selects[0].setValue('test')
     await selects[1].setValue('deprecated')
@@ -189,5 +191,41 @@ describe('ModelProviderModelsPanel', () => {
     expect(wrapper.emitted('update:status')).toEqual([['deprecated']])
     expect(wrapper.emitted('add-to-test')).toEqual([[['gpt-runtime']]])
     expect(wrapper.emitted('remove-from-test')).toEqual([[['gpt-test']]])
+  })
+
+  it('emits move-provider after selecting a target provider and confirming', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    const wrapper = mountPanel({
+      models: [
+        createModel('gpt-5.4', true),
+        createModel('gpt-5.4-mini', true)
+      ],
+      selectedIds: ['gpt-5.4', 'gpt-5.4-mini'],
+      moveTargetOptions: [
+        { value: 'openai', label: 'OpenAI' },
+        { value: 'anthropic', label: 'Anthropic' }
+      ]
+    })
+
+    const selects = wrapper.findAll('select')
+    const moveTargetSelect = selects[2]
+    expect(moveTargetSelect.exists()).toBe(true)
+
+    await moveTargetSelect.setValue('anthropic')
+
+    const moveButton = wrapper.findAll('button').find((button) =>
+      button.text() === 'admin.models.pages.all.bulk.moveProvider'
+    )
+    expect(moveButton).toBeDefined()
+
+    await moveButton!.trigger('click')
+
+    expect(wrapper.emitted('move-provider')).toEqual([[
+      {
+        targetProvider: 'anthropic',
+        modelIds: ['gpt-5.4', 'gpt-5.4-mini']
+      }
+    ]])
   })
 })

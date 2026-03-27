@@ -205,6 +205,9 @@ type Account struct {
 	RPMStickyBuffer  *int    `json:"rpm_sticky_buffer,omitempty"`
 	UserMsgQueueMode *string `json:"user_msg_queue_mode,omitempty"`
 
+	// Claude 客户端模拟（协议网关 Anthropic API Key 账号有效）
+	ClaudeCodeMimicEnabled *bool `json:"claude_code_mimic_enabled,omitempty"`
+
 	// TLS指纹伪装（仅 Anthropic OAuth/SetupToken 账号有效）
 	// 从 extra 字段提取，方便前端显示和编辑
 	EnableTLSFingerprint *bool `json:"enable_tls_fingerprint,omitempty"`

@@ -60,6 +60,7 @@
           :is-activating="isActivating"
           :is-deactivating="isDeactivating"
           :is-deleting="isDeleting"
+          :is-moving="isMoving"
           :is-syncing-test-exposure="isSyncingTestExposure"
           @expand="ensureProviderModels"
           @update:search="handleProviderSearchInput"
@@ -75,6 +76,7 @@
           @activate="activateModel"
           @deactivate="deactivateModels"
           @hard-delete="hardDeleteModels"
+          @move-provider="moveModelsToProvider"
         />
 
         <div class="flex flex-col items-center gap-3 px-4 pb-6 pt-2">
@@ -113,6 +115,7 @@
     :is-activating="isActivating"
     :is-deactivating="isDeactivating"
     :is-deleting="isDeleting"
+    :is-moving="isMoving"
     :is-syncing-test-exposure="isSyncingTestExposure"
     @close="providerDialogOpen = false"
     @refresh="handleRefreshAll"
@@ -130,6 +133,7 @@
     @activate="activateModel"
     @deactivate="deactivateModels"
     @hard-delete="hardDeleteModels"
+    @move-provider="moveModelsToProvider"
   />
 </template>
 
@@ -160,6 +164,7 @@ const {
   isActivating,
   isDeactivating,
   isDeleting,
+  isMoving,
   isSyncingTestExposure,
   loadAll,
   loadMoreProviders,
@@ -184,7 +189,8 @@ const {
   removeModelsFromTest,
   activateModel,
   deactivateModels,
-  hardDeleteModels
+  hardDeleteModels,
+  moveModelsToProvider
 } = useAdminModelRegistryProviders()
 
 const firstProvider = computed(() => providerGroups.value[0]?.provider || '')

@@ -22,6 +22,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/util/soraerror"
@@ -68,6 +69,9 @@ type AccountTestService struct {
 	accountModelImportService *AccountModelImportService
 	claudeTokenProvider       *ClaudeTokenProvider
 	modelRegistryService      *ModelRegistryService
+	gatewayService            *GatewayService
+	openAIGatewayService      *OpenAIGatewayService
+	geminiCompatService       *GeminiMessagesCompatService
 	openAITokenProvider       *OpenAITokenProvider
 	geminiTokenProvider       *GeminiTokenProvider
 	antigravityGatewayService *AntigravityGatewayService
@@ -104,6 +108,18 @@ func NewAccountTestService(
 
 func (s *AccountTestService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *AccountTestService) SetGatewayService(gatewayService *GatewayService) {
+	s.gatewayService = gatewayService
+}
+
+func (s *AccountTestService) SetOpenAIGatewayService(openAIGatewayService *OpenAIGatewayService) {
+	s.openAIGatewayService = openAIGatewayService
+}
+
+func (s *AccountTestService) SetGeminiCompatService(geminiCompatService *GeminiMessagesCompatService) {
+	s.geminiCompatService = geminiCompatService
 }
 
 func (s *AccountTestService) SetClaudeTokenProvider(claudeTokenProvider *ClaudeTokenProvider) {
@@ -295,10 +311,150 @@ func createTestPayload(modelID string) (map[string]any, error) {
 	}, nil
 }
 
+func createAnthropicStandardTestPayload(modelID string) map[string]any {
+	return map[string]any{
+		"model": modelID,
+		"messages": []map[string]any{
+			{
+				"role":    "user",
+				"content": "hi",
+			},
+		},
+		"max_tokens": 64,
+		"stream":     true,
+	}
+}
+
+func gatewayTestSourceProtocolLabel(sourceProtocol string) string {
+	if descriptor, ok := ProtocolGatewayDescriptorByID(sourceProtocol); ok {
+		return descriptor.DisplayName
+	}
+	return sourceProtocol
+}
+
+func gatewayTestSimulatedClientLabel(simulatedClient string) string {
+	switch strings.TrimSpace(simulatedClient) {
+	case GatewayClientProfileCodex:
+		return "Codex"
+	case GatewayClientProfileGeminiCLI:
+		return "Gemini CLI"
+	case "claude_client_mimic":
+		return "Claude Client Mimic"
+	default:
+		return simulatedClient
+	}
+}
+
+func (s *AccountTestService) sendProtocolGatewayRuntimeMetaEvents(c *gin.Context, sourceProtocol string, simulatedClient string) {
+	if c == nil {
+		return
+	}
+	if normalizedProtocol := normalizeTestSourceProtocol(sourceProtocol); normalizedProtocol != "" {
+		s.sendEvent(c, TestEvent{
+			Type: "content",
+			Text: fmt.Sprintf("Gateway source protocol: %s", gatewayTestSourceProtocolLabel(normalizedProtocol)),
+			Data: map[string]any{
+				"kind":   "runtime_meta",
+				"key":    "resolved_protocol",
+				"value":  normalizedProtocol,
+				"label":  gatewayTestSourceProtocolLabel(normalizedProtocol),
+				"source": "protocol_gateway_test",
+			},
+		})
+	}
+	if label := gatewayTestSimulatedClientLabel(simulatedClient); strings.TrimSpace(label) != "" {
+		s.sendEvent(c, TestEvent{
+			Type: "content",
+			Text: fmt.Sprintf("Gateway simulated client: %s", label),
+			Data: map[string]any{
+				"kind":   "runtime_meta",
+				"key":    "simulated_client",
+				"value":  simulatedClient,
+				"label":  label,
+				"source": "protocol_gateway_test",
+			},
+		})
+	}
+}
+
+func (s *AccountTestService) resolveRequestedSourceProtocol(ctx context.Context, account *Account, modelID string, requested string) (string, error) {
+	if !IsProtocolGatewayAccount(account) {
+		return "", nil
+	}
+	acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
+	if len(acceptedProtocols) == 1 {
+		return acceptedProtocols[0], nil
+	}
+	if normalizedRequested := normalizeTestSourceProtocol(requested); normalizedRequested != "" {
+		for _, protocol := range acceptedProtocols {
+			if protocol == normalizedRequested {
+				return normalizedRequested, nil
+			}
+		}
+		return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_INVALID", "selected source_protocol is not accepted by this account")
+	}
+	if strings.TrimSpace(modelID) == "" {
+		return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "mixed protocol gateway test requires source_protocol")
+	}
+	normalizedModelID := normalizeRegistryID(modelID)
+	matchedProtocol := ""
+	for _, candidate := range BuildAvailableTestModels(ctx, account, s.modelRegistryService) {
+		if candidate.ID != strings.TrimSpace(modelID) && candidate.CanonicalID != normalizedModelID {
+			continue
+		}
+		protocol := normalizeTestSourceProtocol(candidate.SourceProtocol)
+		if protocol == "" {
+			continue
+		}
+		if matchedProtocol == "" {
+			matchedProtocol = protocol
+			continue
+		}
+		if matchedProtocol != protocol {
+			return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "mixed protocol gateway test requires source_protocol")
+		}
+	}
+	if matchedProtocol == "" {
+		return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "mixed protocol gateway test requires source_protocol")
+	}
+	return matchedProtocol, nil
+}
+
+func (s *AccountTestService) resolveGatewayTestSimulatedClient(ctx context.Context, account *Account, sourceProtocol string, modelID string) string {
+	if account == nil || !IsProtocolGatewayAccount(account) {
+		return ""
+	}
+	if normalizedProtocol := normalizeTestSourceProtocol(sourceProtocol); normalizedProtocol == "" {
+		return ""
+	}
+	trimmedModelID := strings.TrimSpace(modelID)
+	if trimmedModelID != "" {
+		if route := MatchGatewayClientRoute(account, sourceProtocol, trimmedModelID); route != nil {
+			return route.ClientProfile
+		}
+		if s.modelRegistryService != nil {
+			if canonicalModelID, ok, err := s.modelRegistryService.ResolveModel(ctx, trimmedModelID); err == nil && ok && canonicalModelID != "" {
+				if route := MatchGatewayClientRoute(account, sourceProtocol, canonicalModelID); route != nil {
+					return route.ClientProfile
+				}
+				if protocolModelID := s.resolveTestModelID(ctx, account, canonicalModelID); protocolModelID != "" {
+					if route := MatchGatewayClientRoute(account, sourceProtocol, protocolModelID); route != nil {
+						return route.ClientProfile
+					}
+				}
+			}
+		}
+	}
+	if IsClaudeClientMimicEnabled(account, sourceProtocol) {
+		return "claude_client_mimic"
+	}
+	return ""
+}
+
 // TestAccountConnection tests an account's connection by sending a test request
 // All account types use full Claude Code client characteristics, only auth header differs
 // modelID is optional - if empty, defaults to claude.DefaultTestModel
-func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string) error {
+func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, testMode string) error {
 	ctx := c.Request.Context()
 
 	// Get account
@@ -307,13 +463,37 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.sendErrorAndEnd(c, "Account not found")
 	}
 
-	// Route to platform-specific test method
+	resolvedSourceProtocol, err := s.resolveRequestedSourceProtocol(ctx, account, modelID, sourceProtocol)
+	if err != nil {
+		return err
+	}
+	if resolvedSourceProtocol != "" {
+		account = ResolveProtocolGatewayInboundAccount(account, resolvedSourceProtocol)
+	}
+	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedSourceProtocol, modelID)
+	normalizedTestMode := normalizeAccountTestMode(testMode)
+	if RoutingPlatformForAccount(account) != PlatformSora {
+		s.setResolvedTestRuntimeMeta(c, normalizedTestMode, RoutingPlatformForAccount(account), resolvedSourceProtocol, simulatedClient)
+	}
+
+	if normalizedTestMode == AccountTestModeRealForward {
+		return s.testAccountConnectionRealForward(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
+	}
+
+	return s.testAccountConnectionHealthCheck(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
+}
+
+func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, account *Account, modelID string, prompt string, resolvedSourceProtocol string, simulatedClient string) error {
+	if account == nil {
+		return s.sendErrorAndEnd(c, "Account not found")
+	}
+
 	if account.IsOpenAI() {
-		return s.testOpenAIAccountConnection(c, account, modelID)
+		return s.testOpenAIAccountConnection(c, account, modelID, resolvedSourceProtocol, simulatedClient)
 	}
 
 	if account.IsGemini() {
-		return s.testGeminiAccountConnection(c, account, modelID, prompt)
+		return s.testGeminiAccountConnection(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
 	}
 
 	if RoutingPlatformForAccount(account) == PlatformAntigravity {
@@ -324,15 +504,16 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.testSoraAccountConnection(c, account)
 	}
 
-	return s.testClaudeAccountConnection(c, account, modelID)
+	return s.testClaudeAccountConnection(c, account, modelID, resolvedSourceProtocol, simulatedClient)
 }
 
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
-func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string) error {
+func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string, sourceProtocol string, simulatedClient string) error {
 	if account != nil && RoutingPlatformForAccount(account) == PlatformKiro {
 		return s.testKiroAccountConnection(c, account, modelID)
 	}
 	ctx := c.Request.Context()
+	shouldMimicClaudeClient := IsClaudeClientMimicEnabled(account, sourceProtocol)
 
 	// Determine the model to use
 	testModelID := modelID
@@ -349,7 +530,6 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	if account.IsBedrock() {
 		return s.testBedrockAccountConnection(c, ctx, account, testModelID)
 	}
-	testModelID = s.resolveTestModelID(ctx, account, testModelID)
 	testModelID = s.resolveTestModelID(ctx, account, testModelID)
 
 	// Determine authentication method and API URL
@@ -401,15 +581,20 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
-	// Create Claude Code style payload (same for all account types)
-	payload, err := createTestPayload(testModelID)
-	if err != nil {
-		return s.sendErrorAndEnd(c, "Failed to create test payload")
+	var payloadBytes []byte
+	if shouldMimicClaudeClient || useBearer {
+		payload, payloadErr := createTestPayload(testModelID)
+		if payloadErr != nil {
+			return s.sendErrorAndEnd(c, "Failed to create test payload")
+		}
+		payloadBytes, _ = json.Marshal(payload)
+	} else {
+		payloadBytes, _ = json.Marshal(createAnthropicStandardTestPayload(testModelID))
 	}
-	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+	s.sendResolvedTestRuntimeMetaEvents(c)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(payloadBytes))
 	if err != nil {
@@ -420,9 +605,10 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("anthropic-version", "2023-06-01")
 
-	// Apply Claude Code client headers
-	for key, value := range claude.DefaultHeaders {
-		req.Header.Set(key, value)
+	if shouldMimicClaudeClient || useBearer {
+		for key, value := range claude.DefaultHeaders {
+			req.Header.Set(key, value)
+		}
 	}
 
 	// Set authentication header
@@ -430,7 +616,9 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		req.Header.Set("anthropic-beta", claude.DefaultBetaHeader)
 		req.Header.Set("Authorization", "Bearer "+authToken)
 	} else {
-		req.Header.Set("anthropic-beta", claude.APIKeyBetaHeader)
+		if shouldMimicClaudeClient {
+			req.Header.Set("anthropic-beta", claude.APIKeyBetaHeader)
+		}
 		req.Header.Set("x-api-key", authToken)
 	}
 
@@ -656,7 +844,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 }
 
 // testOpenAIAccountConnection tests an OpenAI account's connection
-func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string) error {
+func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, sourceProtocol string, simulatedClient string) error {
 	ctx := c.Request.Context()
 
 	// Default to openai.DefaultTestModel for OpenAI testing
@@ -737,6 +925,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 
 	// Send test_start event
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+	s.sendResolvedTestRuntimeMetaEvents(c)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(payloadBytes))
 	if err != nil {
@@ -746,6 +935,10 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	// Set common headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+authToken)
+	if simulatedClient == GatewayClientProfileCodex {
+		req.Header.Set("Originator", resolveOpenAIUpstreamOriginator(c, true))
+		req.Header.Set("User-Agent", codexCLIUserAgent)
+	}
 
 	if isCopilotOAuthAccount(account) {
 		req.Header.Set("Accept", "text/event-stream")
@@ -809,8 +1002,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 }
 
 // testGeminiAccountConnection tests a Gemini account's connection
-func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
+func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, sourceProtocol string, simulatedClient string) error {
 	ctx := c.Request.Context()
+	shouldMimicGeminiCLI := simulatedClient == GatewayClientProfileGeminiCLI
 
 	// Determine the model to use
 	testModelID := modelID
@@ -845,9 +1039,9 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	switch account.Type {
 	case AccountTypeAPIKey:
-		req, err = s.buildGeminiAPIKeyRequest(ctx, account, testModelID, payload)
+		req, err = s.buildGeminiAPIKeyRequest(ctx, account, testModelID, payload, shouldMimicGeminiCLI)
 	case AccountTypeOAuth:
-		req, err = s.buildGeminiOAuthRequest(ctx, account, testModelID, payload)
+		req, err = s.buildGeminiOAuthRequest(ctx, account, testModelID, payload, shouldMimicGeminiCLI)
 	default:
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account type: %s", account.Type))
 	}
@@ -858,6 +1052,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 
 	// Send test_start event
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
+	s.sendResolvedTestRuntimeMetaEvents(c)
 
 	// Get proxy and execute request
 	proxyURL := ""
@@ -1576,9 +1771,9 @@ func truncateSoraErrorBody(body []byte, max int) string {
 func (s *AccountTestService) routeAntigravityTest(c *gin.Context, account *Account, modelID string, prompt string) error {
 	if account.Type == AccountTypeAPIKey {
 		if strings.HasPrefix(modelID, "gemini-") {
-			return s.testGeminiAccountConnection(c, account, modelID, prompt)
+			return s.testGeminiAccountConnection(c, account, modelID, prompt, "", "")
 		}
-		return s.testClaudeAccountConnection(c, account, modelID)
+		return s.testClaudeAccountConnection(c, account, modelID, "", "")
 	}
 	return s.testAntigravityAccountConnection(c, account, modelID)
 }
@@ -1624,7 +1819,7 @@ func (s *AccountTestService) testAntigravityAccountConnection(c *gin.Context, ac
 }
 
 // buildGeminiAPIKeyRequest builds request for Gemini API Key accounts
-func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, account *Account, modelID string, payload []byte) (*http.Request, error) {
+func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, account *Account, modelID string, payload []byte, mimicGeminiCLI bool) (*http.Request, error) {
 	apiKey := account.GetCredential("api_key")
 	if strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf("no API key available")
@@ -1650,12 +1845,15 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", apiKey)
+	if mimicGeminiCLI {
+		req.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+	}
 
 	return req, nil
 }
 
 // buildGeminiOAuthRequest builds request for Gemini OAuth accounts
-func (s *AccountTestService) buildGeminiOAuthRequest(ctx context.Context, account *Account, modelID string, payload []byte) (*http.Request, error) {
+func (s *AccountTestService) buildGeminiOAuthRequest(ctx context.Context, account *Account, modelID string, payload []byte, mimicGeminiCLI bool) (*http.Request, error) {
 	if s.geminiTokenProvider == nil {
 		return nil, fmt.Errorf("gemini token provider not configured")
 	}
@@ -1685,6 +1883,9 @@ func (s *AccountTestService) buildGeminiOAuthRequest(ctx context.Context, accoun
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+accessToken)
+		if mimicGeminiCLI {
+			req.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+		}
 		return req, nil
 	}
 
@@ -2067,7 +2268,7 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, accountID in
 	ginCtx, _ := gin.CreateTestContext(w)
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 
-	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, "")
+	testErr := s.TestAccountConnection(ginCtx, accountID, modelID, "", "", string(AccountTestModeHealthCheck))
 
 	finishedAt := time.Now()
 	body := w.Body.String()

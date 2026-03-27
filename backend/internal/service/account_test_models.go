@@ -13,14 +13,15 @@ import (
 )
 
 type AvailableTestModel struct {
-	ID           string `json:"id"`
-	Type         string `json:"type"`
-	DisplayName  string `json:"display_name"`
-	CreatedAt    string `json:"created_at"`
-	CanonicalID  string `json:"canonical_id,omitempty"`
-	Status       string `json:"status,omitempty"`
-	DeprecatedAt string `json:"deprecated_at,omitempty"`
-	ReplacedBy   string `json:"replaced_by,omitempty"`
+	ID             string `json:"id"`
+	Type           string `json:"type"`
+	DisplayName    string `json:"display_name"`
+	CreatedAt      string `json:"created_at"`
+	CanonicalID    string `json:"canonical_id,omitempty"`
+	SourceProtocol string `json:"source_protocol,omitempty"`
+	Status         string `json:"status,omitempty"`
+	DeprecatedAt   string `json:"deprecated_at,omitempty"`
+	ReplacedBy     string `json:"replaced_by,omitempty"`
 }
 
 type testModelCandidate struct {
@@ -37,14 +38,36 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 		return []AvailableTestModel{}
 	}
 
-	candidates, resolutionEntries := buildRegistryTestModelCandidates(ctx, account, registry)
-	if len(candidates) == 0 {
-		candidates, resolutionEntries = buildFallbackTestModelCandidates(ctx, account, registry)
+	sourceProtocols := protocolGatewayTestSourceProtocols(account)
+	if len(sourceProtocols) == 0 {
+		return buildAvailableTestModelsForSource(ctx, account, registry, "")
+	}
+
+	candidates := make([]testModelCandidate, 0)
+	resolutionEntries := []modelregistry.ModelEntry{}
+	for _, sourceProtocol := range sourceProtocols {
+		protocolAccount := ResolveProtocolGatewayInboundAccount(account, sourceProtocol)
+		sourceCandidates, sourceEntries := buildRegistryTestModelCandidates(ctx, protocolAccount, registry, sourceProtocol)
+		if len(sourceCandidates) == 0 {
+			sourceCandidates, sourceEntries = buildFallbackTestModelCandidates(ctx, protocolAccount, registry, sourceProtocol)
+		}
+		candidates = append(candidates, sourceCandidates...)
+		if len(sourceEntries) > 0 {
+			resolutionEntries = sourceEntries
+		}
 	}
 	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
 }
 
-func buildRegistryTestModelCandidates(ctx context.Context, account *Account, registry *ModelRegistryService) ([]testModelCandidate, []modelregistry.ModelEntry) {
+func buildAvailableTestModelsForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) []AvailableTestModel {
+	candidates, resolutionEntries := buildRegistryTestModelCandidates(ctx, account, registry, sourceProtocol)
+	if len(candidates) == 0 {
+		candidates, resolutionEntries = buildFallbackTestModelCandidates(ctx, account, registry, sourceProtocol)
+	}
+	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
+}
+
+func buildRegistryTestModelCandidates(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) ([]testModelCandidate, []modelregistry.ModelEntry) {
 	if registry == nil {
 		return nil, modelregistry.SeedModels()
 	}
@@ -70,13 +93,14 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		}
 		candidates = append(candidates, testModelCandidate{
 			model: AvailableTestModel{
-				ID:           detail.ID,
-				Type:         "model",
-				DisplayName:  firstNonEmptyTestModelLabel(detail.DisplayName, detail.ID),
-				CreatedAt:    "",
-				Status:       strings.TrimSpace(detail.Status),
-				DeprecatedAt: strings.TrimSpace(detail.DeprecatedAt),
-				ReplacedBy:   strings.TrimSpace(detail.ReplacedBy),
+				ID:             detail.ID,
+				Type:           "model",
+				DisplayName:    firstNonEmptyTestModelLabel(detail.DisplayName, detail.ID),
+				CreatedAt:      "",
+				SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
+				Status:         strings.TrimSpace(detail.Status),
+				DeprecatedAt:   strings.TrimSpace(detail.DeprecatedAt),
+				ReplacedBy:     strings.TrimSpace(detail.ReplacedBy),
 			},
 			source:     strings.TrimSpace(detail.Source),
 			uiPriority: detail.UIPriority,
@@ -85,7 +109,7 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 	return candidates, resolutionEntries
 }
 
-func buildFallbackTestModelCandidates(ctx context.Context, account *Account, registry *ModelRegistryService) ([]testModelCandidate, []modelregistry.ModelEntry) {
+func buildFallbackTestModelCandidates(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) ([]testModelCandidate, []modelregistry.ModelEntry) {
 	resolutionEntries := modelregistry.SeedModels()
 	metadata := map[string]modelregistry.AdminModelDetail{}
 	if registry != nil {
@@ -117,16 +141,12 @@ func buildFallbackTestModelCandidates(ctx context.Context, account *Account, reg
 			uiPriority = detail.UIPriority
 			source = strings.TrimSpace(detail.Source)
 		}
+		item.SourceProtocol = normalizeTestSourceProtocol(sourceProtocol)
+		item.Status = status
+		item.DeprecatedAt = deprecatedAt
+		item.ReplacedBy = replacedBy
 		candidates = append(candidates, testModelCandidate{
-			model: AvailableTestModel{
-				ID:           item.ID,
-				Type:         item.Type,
-				DisplayName:  firstNonEmptyTestModelLabel(item.DisplayName, item.ID),
-				CreatedAt:    item.CreatedAt,
-				Status:       status,
-				DeprecatedAt: deprecatedAt,
-				ReplacedBy:   replacedBy,
-			},
+			model:      item,
 			source:     source,
 			uiPriority: uiPriority,
 		})
@@ -152,7 +172,10 @@ func dedupeAndSortAvailableTestModels(candidates []testModelCandidate, resolutio
 			canonicalID = resolved
 		}
 		candidate.model.CanonicalID = canonicalID
-		grouped[canonicalID] = append(grouped[canonicalID], candidate)
+		grouped[testModelDedupeKey(canonicalID, candidate.model.SourceProtocol)] = append(
+			grouped[testModelDedupeKey(canonicalID, candidate.model.SourceProtocol)],
+			candidate,
+		)
 	}
 
 	deduped := make([]AvailableTestModel, 0, len(grouped))
@@ -185,6 +208,9 @@ func compareTestModelCandidates(left testModelCandidate, right testModelCandidat
 	if sourceRank := compareTestModelSource(left.source, right.source); sourceRank != 0 {
 		return sourceRank
 	}
+	if protocolRank := compareSourceProtocol(left.model.SourceProtocol, right.model.SourceProtocol); protocolRank != 0 {
+		return protocolRank
+	}
 	if left.uiPriority != right.uiPriority {
 		return left.uiPriority - right.uiPriority
 	}
@@ -211,6 +237,9 @@ func compareAvailableTestModels(left AvailableTestModel, right AvailableTestMode
 	if leftLabel != rightLabel {
 		return strings.Compare(leftLabel, rightLabel)
 	}
+	if protocolRank := compareSourceProtocol(left.SourceProtocol, right.SourceProtocol); protocolRank != 0 {
+		return protocolRank
+	}
 	return strings.Compare(left.ID, right.ID)
 }
 
@@ -227,6 +256,54 @@ func testModelSourceRank(source string) int {
 	default:
 		return 2
 	}
+}
+
+func compareSourceProtocol(left string, right string) int {
+	return sourceProtocolRank(left) - sourceProtocolRank(right)
+}
+
+func sourceProtocolRank(sourceProtocol string) int {
+	switch normalizeTestSourceProtocol(sourceProtocol) {
+	case PlatformOpenAI:
+		return 0
+	case PlatformAnthropic:
+		return 1
+	case PlatformGemini:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func testModelDedupeKey(canonicalID string, sourceProtocol string) string {
+	sourceProtocol = normalizeTestSourceProtocol(sourceProtocol)
+	if sourceProtocol == "" {
+		return canonicalID
+	}
+	return canonicalID + "::" + sourceProtocol
+}
+
+func normalizeTestSourceProtocol(sourceProtocol string) string {
+	switch NormalizeGatewayProtocol(sourceProtocol) {
+	case PlatformOpenAI, PlatformAnthropic, PlatformGemini:
+		return NormalizeGatewayProtocol(sourceProtocol)
+	default:
+		return ""
+	}
+}
+
+func protocolGatewayTestSourceProtocols(account *Account) []string {
+	if !IsProtocolGatewayAccount(account) {
+		return nil
+	}
+	acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
+	result := make([]string, 0, len(acceptedProtocols))
+	for _, protocol := range acceptedProtocols {
+		if normalized := normalizeTestSourceProtocol(protocol); normalized != "" {
+			result = append(result, normalized)
+		}
+	}
+	return result
 }
 
 func isDeprecatedTestModel(model AvailableTestModel) bool {

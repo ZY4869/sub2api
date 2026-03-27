@@ -439,12 +439,18 @@ func ProvideAccountTestService(
 	openAITokenProvider *OpenAITokenProvider,
 	geminiTokenProvider *GeminiTokenProvider,
 	antigravityGatewayService *AntigravityGatewayService,
+	gatewayService *GatewayService,
+	openAIGatewayService *OpenAIGatewayService,
+	geminiCompatService *GeminiMessagesCompatService,
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
 ) *AccountTestService {
 	svc := NewAccountTestService(accountRepo, accountModelImportService, geminiTokenProvider, antigravityGatewayService, httpUpstream, cfg)
 	svc.SetClaudeTokenProvider(claudeTokenProvider)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
+	svc.SetGatewayService(gatewayService)
+	svc.SetOpenAIGatewayService(openAIGatewayService)
+	svc.SetGeminiCompatService(geminiCompatService)
 	return svc
 }
 

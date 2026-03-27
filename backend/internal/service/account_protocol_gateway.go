@@ -15,6 +15,9 @@ const (
 	gatewayExtraAcceptedProtocolsKey = "gateway_accepted_protocols"
 	gatewayExtraClientProfilesKey    = "gateway_client_profiles"
 	gatewayExtraClientRoutesKey      = "gateway_client_routes"
+	claudeCodeMimicEnabledKey        = "claude_code_mimic_enabled"
+	enableTLSFingerprintKey          = "enable_tls_fingerprint"
+	sessionIDMaskingEnabledKey       = "session_id_masking_enabled"
 )
 
 type ProtocolGatewayDescriptor struct {
@@ -34,6 +37,16 @@ type GatewayClientRoute struct {
 	MatchType     string
 	MatchValue    string
 	ClientProfile string
+}
+
+type GatewayClientProfileDescriptor struct {
+	ID                   string
+	DisplayName          string
+	DebugTag             string
+	DefaultTestModel     string
+	RequestHeaderProfile string
+	RequestBodyProfile   string
+	CompatibleProtocols  []string
 }
 
 var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
@@ -85,12 +98,24 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 
 var gatewayBaseProtocols = []string{PlatformOpenAI, PlatformAnthropic, PlatformGemini}
 
-var gatewayClientProfileCompatibility = map[string]map[string]struct{}{
+var gatewayClientProfileDescriptors = map[string]GatewayClientProfileDescriptor{
 	GatewayClientProfileCodex: {
-		PlatformOpenAI: {},
+		ID:                   GatewayClientProfileCodex,
+		DisplayName:          "Codex",
+		DebugTag:             "codex",
+		DefaultTestModel:     "gpt-5.1-codex",
+		RequestHeaderProfile: "codex",
+		RequestBodyProfile:   "codex",
+		CompatibleProtocols:  []string{PlatformOpenAI},
 	},
 	GatewayClientProfileGeminiCLI: {
-		PlatformGemini: {},
+		ID:                   GatewayClientProfileGeminiCLI,
+		DisplayName:          "Gemini CLI",
+		DebugTag:             "gemini_cli",
+		DefaultTestModel:     "gemini-2.5-pro",
+		RequestHeaderProfile: "gemini_cli",
+		RequestBodyProfile:   "gemini_cli",
+		CompatibleProtocols:  []string{PlatformGemini},
 	},
 }
 
@@ -109,10 +134,15 @@ func ProtocolGatewayDescriptorByID(id string) (ProtocolGatewayDescriptor, bool) 
 
 func NormalizeGatewayClientProfile(profile string) string {
 	normalized := strings.TrimSpace(strings.ToLower(profile))
-	if _, ok := gatewayClientProfileCompatibility[normalized]; ok {
+	if _, ok := gatewayClientProfileDescriptors[normalized]; ok {
 		return normalized
 	}
 	return ""
+}
+
+func GatewayClientProfileDescriptorByID(id string) (GatewayClientProfileDescriptor, bool) {
+	descriptor, ok := gatewayClientProfileDescriptors[NormalizeGatewayClientProfile(id)]
+	return descriptor, ok
 }
 
 func NormalizeGatewayClientRouteMatchType(matchType string) string {
@@ -311,17 +341,20 @@ func ResolveAccountGatewayClientRoutes(platform string, extra map[string]any) []
 }
 
 func GatewayClientProfileSupportsProtocol(profile string, protocol string) bool {
-	profile = NormalizeGatewayClientProfile(profile)
 	protocol = NormalizeGatewayProtocol(protocol)
 	if profile == "" || protocol == "" || protocol == GatewayProtocolMixed {
 		return false
 	}
-	allowedProtocols, ok := gatewayClientProfileCompatibility[profile]
+	descriptor, ok := GatewayClientProfileDescriptorByID(profile)
 	if !ok {
 		return false
 	}
-	_, ok = allowedProtocols[protocol]
-	return ok
+	for _, allowedProtocol := range descriptor.CompatibleProtocols {
+		if NormalizeGatewayProtocol(allowedProtocol) == protocol {
+			return true
+		}
+	}
+	return false
 }
 
 func gatewayClientProfileMatchesAnyAcceptedProtocol(profile string, acceptedProtocols map[string]struct{}) bool {
@@ -484,6 +517,89 @@ func ProtocolGatewayRegistryRoute(account *Account) string {
 	return "default"
 }
 
+func SupportsProtocolGatewayClaudeClientMimicValues(platform string, accountType string, extra map[string]any) bool {
+	if !IsProtocolGatewayPlatform(platform) || strings.TrimSpace(strings.ToLower(accountType)) != AccountTypeAPIKey {
+		return false
+	}
+	for _, protocol := range ResolveAccountGatewayAcceptedProtocols(platform, extra) {
+		if protocol == PlatformAnthropic {
+			return true
+		}
+	}
+	return false
+}
+
+func SupportsProtocolGatewayClaudeClientMimic(account *Account) bool {
+	if account == nil {
+		return false
+	}
+	return SupportsProtocolGatewayClaudeClientMimicValues(account.Platform, account.Type, account.Extra)
+}
+
+func SupportsClaudeClientMimic(account *Account) bool {
+	if account == nil {
+		return false
+	}
+	if account.IsAnthropicOAuthOrSetupToken() {
+		return true
+	}
+	return SupportsProtocolGatewayClaudeClientMimic(account)
+}
+
+func IsClaudeClientMimicEnabled(account *Account, sourceProtocol string) bool {
+	if account == nil {
+		return false
+	}
+	if account.IsAnthropicOAuthOrSetupToken() {
+		return true
+	}
+	if !SupportsProtocolGatewayClaudeClientMimic(account) {
+		return false
+	}
+	resolvedProtocol := NormalizeGatewayProtocol(sourceProtocol)
+	if resolvedProtocol == "" {
+		resolvedProtocol = EffectiveProtocol(account)
+	}
+	if resolvedProtocol != PlatformAnthropic {
+		return false
+	}
+	if account.Extra == nil {
+		return false
+	}
+	enabled, ok := account.Extra[claudeCodeMimicEnabledKey].(bool)
+	return ok && enabled
+}
+
+func NormalizeClaudeClientMimicExtra(platform string, accountType string, extra map[string]any) map[string]any {
+	nextExtra := cloneProtocolGatewayExtraMap(extra)
+	if nextExtra == nil {
+		return nil
+	}
+
+	if SupportsProtocolGatewayClaudeClientMimicValues(platform, accountType, nextExtra) {
+		enabled, _ := nextExtra[claudeCodeMimicEnabledKey].(bool)
+		if enabled {
+			nextExtra[claudeCodeMimicEnabledKey] = true
+			normalizeOptionalBoolExtraKey(nextExtra, enableTLSFingerprintKey)
+			normalizeOptionalBoolExtraKey(nextExtra, sessionIDMaskingEnabledKey)
+			return nextExtra
+		}
+		delete(nextExtra, claudeCodeMimicEnabledKey)
+		delete(nextExtra, enableTLSFingerprintKey)
+		delete(nextExtra, sessionIDMaskingEnabledKey)
+		return nextExtra
+	}
+
+	delete(nextExtra, claudeCodeMimicEnabledKey)
+	if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeOAuth ||
+		strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeSetupToken {
+		return nextExtra
+	}
+	delete(nextExtra, enableTLSFingerprintKey)
+	delete(nextExtra, sessionIDMaskingEnabledKey)
+	return nextExtra
+}
+
 func DisplayAccountProtocolName(account *Account) string {
 	if account == nil {
 		return ""
@@ -590,6 +706,18 @@ func cloneProtocolGatewayExtraMap(src map[string]any) map[string]any {
 		dst[key] = value
 	}
 	return dst
+}
+
+func normalizeOptionalBoolExtraKey(extra map[string]any, key string) {
+	if len(extra) == 0 {
+		return
+	}
+	enabled, ok := extra[key].(bool)
+	if !ok || !enabled {
+		delete(extra, key)
+		return
+	}
+	extra[key] = true
 }
 
 func stringAny(value any) string {

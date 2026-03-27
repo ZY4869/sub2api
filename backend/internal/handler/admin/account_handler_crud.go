@@ -24,7 +24,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 		return
 	}
 	sanitizeExtraBaseRPM(req.Extra)
-	extra := withGatewayProtocol(req.Platform, req.Extra, req.GatewayProtocol, "")
+	extra := withGatewayProtocol(req.Platform, req.Type, req.Extra, req.GatewayProtocol, "")
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		credentials, extra, scopeErr := h.prepareAccountModelScope(ctx, req.Platform, req.Type, req.Credentials, extra)
@@ -89,7 +89,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
-	extra := withGatewayProtocol(accountBeforeUpdate.Platform, req.Extra, req.GatewayProtocol, accountBeforeUpdate.GetExtraString("gateway_protocol"))
+	extra := withGatewayProtocol(accountBeforeUpdate.Platform, accountType, req.Extra, req.GatewayProtocol, accountBeforeUpdate.GetExtraString("gateway_protocol"))
 	credentials, extra, scopeErr := h.prepareAccountModelScope(c.Request.Context(), accountBeforeUpdate.Platform, accountType, req.Credentials, extra)
 	if scopeErr != nil {
 		response.ErrorFrom(c, scopeErr)
@@ -121,6 +121,7 @@ func validateProtocolGatewayType(platform string, accountType string, gatewayPro
 	return nil
 }
 
-func withGatewayProtocol(platform string, extra map[string]any, gatewayProtocol string, fallback string) map[string]any {
-	return service.NormalizeProtocolGatewayExtra(platform, extra, gatewayProtocol, fallback)
+func withGatewayProtocol(platform string, accountType string, extra map[string]any, gatewayProtocol string, fallback string) map[string]any {
+	normalized := service.NormalizeProtocolGatewayExtra(platform, extra, gatewayProtocol, fallback)
+	return service.NormalizeClaudeClientMimicExtra(platform, accountType, normalized)
 }

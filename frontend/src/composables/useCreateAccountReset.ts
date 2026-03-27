@@ -62,6 +62,9 @@ interface UseCreateAccountResetOptions {
   gatewayAcceptedProtocols?: Ref<GatewayAcceptedProtocol[]>
   gatewayClientProfiles?: Ref<GatewayClientProfile[]>
   gatewayClientRoutes?: Ref<GatewayClientRoute[]>
+  claudeCodeMimicEnabled?: Ref<boolean>
+  claudeTLSFingerprintEnabled?: Ref<boolean>
+  claudeSessionIDMaskingEnabled?: Ref<boolean>
   loadAntigravityDefaultMappings: () => Promise<void>
   poolModeState: AccountPoolModeState
   customErrorCodesState: AccountCustomErrorCodesState
@@ -129,6 +132,9 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.gatewayAcceptedProtocols && (options.gatewayAcceptedProtocols.value = ['openai'])
     options.gatewayClientProfiles && (options.gatewayClientProfiles.value = [])
     options.gatewayClientRoutes && (options.gatewayClientRoutes.value = [])
+    options.claudeCodeMimicEnabled && (options.claudeCodeMimicEnabled.value = false)
+    options.claudeTLSFingerprintEnabled && (options.claudeTLSFingerprintEnabled.value = false)
+    options.claudeSessionIDMaskingEnabled && (options.claudeSessionIDMaskingEnabled.value = false)
 
     options.loadAntigravityDefaultMappings()
     resetAccountPoolModeState(options.poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)

@@ -195,7 +195,17 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
  * @param id - Account ID
  * @returns Test result
  */
-export async function testAccount(id: number): Promise<{
+export type AccountTestMode = 'real_forward' | 'health_check'
+
+export interface AccountTestRequestPayload {
+  model_id?: string
+  model?: string
+  prompt?: string
+  source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  test_mode?: AccountTestMode
+}
+
+export async function testAccount(id: number, payload: AccountTestRequestPayload = {}): Promise<{
   success: boolean
   message: string
   latency_ms?: number
@@ -204,7 +214,7 @@ export async function testAccount(id: number): Promise<{
     success: boolean
     message: string
     latency_ms?: number
-  }>(`/admin/accounts/${id}/test`)
+  }>(`/admin/accounts/${id}/test`, payload)
   return data
 }
 

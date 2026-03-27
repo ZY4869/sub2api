@@ -41,16 +41,46 @@
         </span>
       </div>
 
+      <div v-if="supportsTestModes" class="space-y-1.5">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.accounts.testModeLabel') }}
+        </label>
+        <div class="grid gap-2 sm:grid-cols-2">
+          <button
+            v-for="option in testModeOptions"
+            :key="option.value"
+            :data-test="`test-mode-${option.value}`"
+            type="button"
+            :disabled="status === 'connecting'"
+            :class="[
+              'rounded-xl border px-4 py-3 text-left transition-all',
+              selectedTestMode === option.value
+                ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-500/10 dark:text-primary-200'
+                : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200 dark:hover:border-primary-500/60',
+              status === 'connecting' ? 'cursor-not-allowed opacity-70' : ''
+            ]"
+            @click="selectTestMode(option.value)"
+          >
+            <div class="text-sm font-semibold">
+              {{ option.label }}
+            </div>
+            <p class="mt-1 text-xs leading-5 opacity-80">
+              {{ option.description }}
+            </p>
+          </button>
+        </div>
+      </div>
+
       <div v-if="!isSoraAccount" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.selectTestModel') }}
         </label>
         <Select
-          v-model="selectedModelId"
+          v-model="selectedModelKey"
           :options="availableModelOptions"
           :disabled="loadingModels || status === 'connecting'"
           searchable
-          value-key="id"
+          value-key="key"
           label-key="display_name"
           :placeholder="loadingModels ? t('common.loading') + '...' : t('admin.accounts.selectTestModel')"
         >
@@ -59,6 +89,12 @@
               <div class="flex items-center gap-2">
                 <span class="truncate font-medium text-gray-900 dark:text-white">
                   {{ option.display_name || option.id }}
+                </span>
+                <span
+                  v-if="option.source_protocol"
+                  class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
+                >
+                  {{ protocolSourceLabel(option.source_protocol) }}
                 </span>
                 <span
                   v-if="isDeprecatedModel(option)"
@@ -80,6 +116,12 @@
                 <div class="flex flex-wrap items-center gap-2">
                   <span class="truncate font-medium text-gray-900 dark:text-white">
                     {{ option.display_name || option.id }}
+                  </span>
+                  <span
+                    v-if="option.source_protocol"
+                    class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
+                  >
+                    {{ protocolSourceLabel(option.source_protocol) }}
                   </span>
                   <span
                     v-if="isDeprecatedModel(option)"
@@ -207,6 +249,24 @@
       </div>
 
       <div
+        v-if="runtimeContextItems.length > 0"
+        class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-900 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
+      >
+        <div class="text-sm font-semibold">
+          {{ t('admin.accounts.testRuntimeContextTitle') }}
+        </div>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span
+            v-for="item in runtimeContextItems"
+            :key="item.key"
+            class="inline-flex items-center rounded-full bg-white/80 px-2.5 py-1 font-medium text-sky-700 dark:bg-white/10 dark:text-sky-200"
+          >
+            {{ item.label }}
+          </span>
+        </div>
+      </div>
+
+      <div
         v-if="blacklistAdvice"
         class="rounded-xl border px-4 py-3"
         :class="blacklistAdviceClasses"
@@ -276,10 +336,10 @@
         </button>
         <button
           @click="startTest"
-          :disabled="status === 'connecting' || (!isSoraAccount && !selectedModelId)"
+          :disabled="status === 'connecting' || (!isSoraAccount && !selectedModelKey)"
           :class="[
             'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-            status === 'connecting' || (!isSoraAccount && !selectedModelId)
+            status === 'connecting' || (!isSoraAccount && !selectedModelKey)
               ? 'cursor-not-allowed bg-primary-400 text-white'
               : status === 'success'
                 ? 'bg-green-500 text-white hover:bg-green-600'
@@ -326,7 +386,18 @@ import type {
   BlacklistFeedbackPayload
 } from '@/api/admin/accounts'
 import type { Account, ClaudeModel } from '@/types'
-import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
+import {
+  DEFAULT_ACCOUNT_TEST_MODE,
+  type AccountTestMode,
+  loadAccountTestModePreference,
+  normalizeAccountTestMode,
+  saveAccountTestModePreference
+} from '@/utils/accountTestMode'
+import {
+  normalizeGatewayAcceptedProtocol,
+  resolveEffectiveAccountPlatformFromAccount,
+  resolveGatewayProtocolLabel
+} from '@/utils/accountProtocolGateway'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -342,6 +413,7 @@ interface PreviewImage {
 }
 
 type AccountTestModelOption = ClaudeModel & {
+  key: string
   description: string
   [key: string]: unknown
 }
@@ -368,26 +440,101 @@ const availableModels = ref<ClaudeModel[]>([])
 const availableModelOptions = computed<AccountTestModelOption[]>(() =>
   availableModels.value.map((model) => ({
     ...model,
+    key: buildModelOptionKey(model),
     description: model.id
   }))
 )
-const selectedModelId = ref('')
+const selectedModelKey = ref('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
 let eventSource: EventSource | null = null
 const blacklistAdvice = ref<BlacklistAdvicePayload | null>(null)
+const selectedTestMode = ref<AccountTestMode>(DEFAULT_ACCOUNT_TEST_MODE)
 const runtimePlatform = computed(() =>
   props.account ? resolveEffectiveAccountPlatformFromAccount(props.account) : null
+)
+const supportsTestModes = computed(() => !isSoraAccount.value)
+const selectedModelOption = computed(() =>
+  availableModelOptions.value.find((model) => model.key === selectedModelKey.value) || null
+)
+const selectedModelId = computed(() => selectedModelOption.value?.id || '')
+const selectedSourceProtocol = computed(() =>
+  normalizeGatewayAcceptedProtocol(selectedModelOption.value?.source_protocol)
 )
 const isSoraAccount = computed(() => props.account?.platform === 'sora')
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const generatedImages = ref<PreviewImage[]>([])
+const runtimeContext = ref<{
+  testMode: '' | AccountTestMode
+  platform: string
+  sourceProtocol: '' | 'openai' | 'anthropic' | 'gemini'
+  simulatedClient: string
+}>({
+  testMode: '',
+  platform: '',
+  sourceProtocol: '',
+  simulatedClient: ''
+})
+const testModeOptions = computed(() => [
+  {
+    value: 'real_forward' as const,
+    label: t('admin.accounts.testModes.realForward'),
+    description: t('admin.accounts.testModes.realForwardHint')
+  },
+  {
+    value: 'health_check' as const,
+    label: t('admin.accounts.testModes.healthCheck'),
+    description: t('admin.accounts.testModes.healthCheckHint')
+  }
+])
+const effectiveTestPlatform = computed(() =>
+  selectedSourceProtocol.value || runtimePlatform.value
+)
 const supportsGeminiImageTest = computed(() => {
   if (isSoraAccount.value) return false
   const modelID = selectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
 
-  return runtimePlatform.value === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+  return effectiveTestPlatform.value === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+})
+const runtimeContextItems = computed(() => {
+  const items: Array<{ key: string; label: string }> = []
+  const testModeLabel = runtimeTestModeLabel(runtimeContext.value.testMode)
+  if (testModeLabel) {
+    items.push({
+      key: 'test_mode',
+      label: t('admin.accounts.testRuntimeContextMode', {
+        mode: testModeLabel
+      })
+    })
+  }
+  const platformLabel = runtimePlatformLabel(runtimeContext.value.platform)
+  if (platformLabel) {
+    items.push({
+      key: 'resolved_platform',
+      label: t('admin.accounts.testRuntimeContextPlatform', {
+        platform: platformLabel
+      })
+    })
+  }
+  if (runtimeContext.value.sourceProtocol) {
+    items.push({
+      key: 'source_protocol',
+      label: t('admin.accounts.testRuntimeContextProtocol', {
+        protocol: protocolSourceLabel(runtimeContext.value.sourceProtocol)
+      })
+    })
+  }
+  const simulatedClientLabel = runtimeSimulatedClientLabel(runtimeContext.value.simulatedClient)
+  if (simulatedClientLabel) {
+    items.push({
+      key: 'simulated_client',
+      label: t('admin.accounts.testRuntimeContextClient', {
+        client: simulatedClientLabel
+      })
+    })
+  }
+  return items
 })
 
 const blacklistAdviceTitle = computed(() => {
@@ -461,11 +608,54 @@ const blacklistButtonLabel = computed(() =>
     : t('admin.accounts.testBlacklist.button')
 )
 
+function buildModelOptionKey(model: ClaudeModel) {
+  return `${normalizeGatewayAcceptedProtocol(model.source_protocol) || 'default'}::${model.id}`
+}
+
+function protocolSourceLabel(sourceProtocol?: unknown) {
+  return resolveGatewayProtocolLabel(sourceProtocol) || String(sourceProtocol || '').trim()
+}
+
+function runtimeSimulatedClientLabel(simulatedClient?: string | null) {
+  switch (String(simulatedClient || '').trim()) {
+    case 'codex':
+      return t('admin.accounts.protocolGateway.clientProfileCodex')
+    case 'gemini_cli':
+      return t('admin.accounts.protocolGateway.clientProfileGeminiCli')
+    case 'claude_client_mimic':
+      return t('admin.accounts.protocolGateway.clientProfileClaudeMimic')
+    default:
+      return ''
+  }
+}
+
+function runtimeTestModeLabel(mode?: AccountTestMode | string | null) {
+  switch (normalizeAccountTestMode(mode)) {
+    case 'health_check':
+      return t('admin.accounts.testModes.healthCheck')
+    default:
+      return t('admin.accounts.testModes.realForward')
+  }
+}
+
+function runtimePlatformLabel(platform?: string | null) {
+  const normalized = String(platform || '').trim()
+  if (!normalized) {
+    return ''
+  }
+  const translationKey = `admin.accounts.platforms.${normalized}`
+  const translated = t(translationKey)
+  return translated === translationKey ? normalized : translated
+}
+
 watch(
   () => props.show,
   async (newVal) => {
     if (newVal && props.account) {
       testPrompt.value = ''
+      selectedTestMode.value = supportsTestModes.value
+        ? loadAccountTestModePreference()
+        : DEFAULT_ACCOUNT_TEST_MODE
       resetState()
       await loadAvailableModels()
     } else {
@@ -474,9 +664,18 @@ watch(
   }
 )
 
-watch(selectedModelId, () => {
+watch([selectedModelId, effectiveTestPlatform], () => {
   if (supportsGeminiImageTest.value && !testPrompt.value.trim()) {
     testPrompt.value = t('admin.accounts.geminiImagePromptDefault')
+  }
+})
+
+watch(selectedModelKey, () => {
+  runtimeContext.value = {
+    testMode: '',
+    platform: '',
+    sourceProtocol: '',
+    simulatedClient: ''
   }
 })
 
@@ -484,23 +683,32 @@ const loadAvailableModels = async () => {
   if (!props.account) return
   if (props.account.platform === 'sora') {
     availableModels.value = []
-    selectedModelId.value = ''
+    selectedModelKey.value = ''
     loadingModels.value = false
     return
   }
 
   loadingModels.value = true
-  selectedModelId.value = ''
+  selectedModelKey.value = ''
   try {
     const models = await adminAPI.accounts.getAvailableModels(props.account.id)
     availableModels.value = models
-    selectedModelId.value = models[0]?.id || ''
+    selectedModelKey.value = models[0] ? buildModelOptionKey(models[0]) : ''
   } catch (error) {
     console.error('Failed to load available models:', error)
     availableModels.value = []
-    selectedModelId.value = ''
+    selectedModelKey.value = ''
   } finally {
     loadingModels.value = false
+  }
+}
+
+const resetRuntimeContext = () => {
+  runtimeContext.value = {
+    testMode: '',
+    platform: '',
+    sourceProtocol: '',
+    simulatedClient: ''
   }
 }
 
@@ -511,6 +719,7 @@ const resetState = () => {
   errorMessage.value = ''
   generatedImages.value = []
   blacklistAdvice.value = null
+  resetRuntimeContext()
 }
 
 const handleClose = () => {
@@ -541,6 +750,55 @@ const scrollToBottom = async () => {
   }
 }
 
+const selectTestMode = (mode: AccountTestMode) => {
+  if (status.value === 'connecting') {
+    return
+  }
+  const normalized = normalizeAccountTestMode(mode)
+  selectedTestMode.value = normalized
+  saveAccountTestModePreference(normalized)
+}
+
+const resolveTestRequestBody = () => {
+  if (isSoraAccount.value) {
+    return {}
+  }
+  return {
+    model_id: selectedModelId.value,
+    model: selectedModelId.value,
+    test_mode: selectedTestMode.value,
+    source_protocol: selectedSourceProtocol.value || undefined,
+    prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
+  }
+}
+
+const resolveResponseErrorMessage = async (response: Response) => {
+  try {
+    const contentType = response.headers?.get?.('content-type') || ''
+    if (contentType.includes('application/json')) {
+      const payload = await response.json()
+      const message = String(
+        payload?.message ||
+        payload?.error ||
+        payload?.detail ||
+        payload?.msg ||
+        ''
+      ).trim()
+      if (message) {
+        return message
+      }
+    } else {
+      const text = (await response.text()).trim()
+      if (text) {
+        return text
+      }
+    }
+  } catch (error) {
+    console.error('Failed to parse test error response:', error)
+  }
+  return `HTTP error! status: ${response.status}`
+}
+
 const startTest = async () => {
   if (!props.account || (!isSoraAccount.value && !selectedModelId.value)) return
 
@@ -548,6 +806,14 @@ const startTest = async () => {
   status.value = 'connecting'
   addLine(t('admin.accounts.startingTestForAccount', { name: props.account.name }), 'text-blue-400')
   addLine(t('admin.accounts.testAccountTypeLabel', { type: props.account.type }), 'text-gray-400')
+  if (supportsTestModes.value) {
+    addLine(
+      t('admin.accounts.testModeLine', {
+        mode: runtimeTestModeLabel(selectedTestMode.value)
+      }),
+      'text-purple-300'
+    )
+  }
   addLine('', 'text-gray-300')
 
   closeEventSource()
@@ -563,19 +829,11 @@ const startTest = async () => {
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(
-        isSoraAccount.value
-          ? {}
-          : {
-              model_id: selectedModelId.value,
-              model: selectedModelId.value,
-              prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
-            }
-      )
+      body: JSON.stringify(resolveTestRequestBody())
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(await resolveResponseErrorMessage(response))
     }
 
     const reader = response.body?.getReader()
@@ -697,6 +955,32 @@ const handleEvent = (event: {
 
     case 'content':
       if (event.data?.kind === 'runtime_meta') {
+        const runtimeKey = String(event.data.key || '').trim()
+        const runtimeValue = String(event.data.value || '').trim()
+        if (runtimeKey === 'resolved_protocol') {
+          runtimeContext.value = {
+            ...runtimeContext.value,
+            sourceProtocol: normalizeGatewayAcceptedProtocol(runtimeValue)
+          }
+        }
+        if (runtimeKey === 'resolved_platform') {
+          runtimeContext.value = {
+            ...runtimeContext.value,
+            platform: runtimeValue
+          }
+        }
+        if (runtimeKey === 'test_mode') {
+          runtimeContext.value = {
+            ...runtimeContext.value,
+            testMode: normalizeAccountTestMode(runtimeValue)
+          }
+        }
+        if (runtimeKey === 'simulated_client') {
+          runtimeContext.value = {
+            ...runtimeContext.value,
+            simulatedClient: runtimeValue
+          }
+        }
         if (event.text) {
           addLine(event.text, 'text-sky-300')
         }

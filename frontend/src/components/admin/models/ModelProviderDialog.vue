@@ -70,6 +70,7 @@
             :exposure-filter="activeExposureFilter"
             :status-filter="activeStatusFilter"
             :selected-ids="activeSelectedIds"
+            :move-target-options="providers.map((item) => ({ value: item.provider, label: item.label }))"
             :total-count="activeGroup?.totalCount"
             :available-count="activeGroup?.availableCount"
             :loading="loading"
@@ -77,6 +78,7 @@
             :is-activating="isActivating"
             :is-deactivating="isDeactivating"
             :is-deleting="isDeleting"
+            :is-moving="isMoving"
             :is-syncing-test-exposure="isSyncingTestExposure"
             @update:search="emit('update:search', activeProvider, $event)"
             @search="emit('search', activeProvider, $event)"
@@ -90,6 +92,7 @@
             @activate="emit('activate', activeProvider, $event)"
             @deactivate="emit('deactivate', activeProvider, $event)"
             @hard-delete="emit('hard-delete', activeProvider, $event)"
+            @move-provider="emit('move-provider', activeProvider, $event)"
             @load-more="emit('load-more', activeProvider)"
           />
         </div>
@@ -123,6 +126,7 @@ const props = defineProps<{
   isActivating: (modelId: string) => boolean
   isDeactivating: (modelId: string) => boolean
   isDeleting: (modelId: string) => boolean
+  isMoving: (modelId: string) => boolean
   isSyncingTestExposure: (modelId: string) => boolean
 }>()
 
@@ -142,6 +146,7 @@ const emit = defineEmits<{
   (e: 'activate', provider: string, modelId: string): void
   (e: 'deactivate', provider: string, modelIds: string[]): void
   (e: 'hard-delete', provider: string, modelIds: string[]): void
+  (e: 'move-provider', provider: string, payload: { targetProvider: string; modelIds: string[] }): void
   (e: 'load-more', provider: string): void
 }>()
 

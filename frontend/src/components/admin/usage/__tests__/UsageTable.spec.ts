@@ -6,6 +6,13 @@ import UsageTable from '../UsageTable.vue'
 
 const messages: Record<string, string> = {
   'usage.costDetails': 'Cost Breakdown',
+  'usage.statusFailed': 'Failed',
+  'usage.statusSucceeded': 'Succeeded',
+  'usage.httpStatus': 'HTTP Status',
+  'usage.errorCode': 'Error Code',
+  'usage.errorMessage': 'Error Message',
+  'usage.simulatedClientCodex': 'Codex',
+  'usage.simulatedClientGeminiCli': 'Gemini CLI',
   'admin.usage.inputCost': 'Input Cost',
   'admin.usage.outputCost': 'Output Cost',
   'admin.usage.cacheCreationCost': 'Cache Creation Cost',
@@ -39,6 +46,7 @@ const DataTableStub = {
   template: `
     <div>
       <div v-for="row in data" :key="row.request_id">
+        <slot name="cell-status" :row="row" />
         <slot name="cell-cost" :row="row" />
       </div>
     </div>
@@ -107,5 +115,52 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('$5.0000 / 1M tokens')
     expect(text).toContain('$30.0000 / 1M tokens')
     expect(text).toContain('$0.069568')
+  })
+
+  it('renders failed status rows with simulated client and error details', async () => {
+    const row = {
+      request_id: 'req-admin-failed',
+      status: 'failed',
+      simulated_client: 'codex',
+      http_status: 429,
+      error_code: 'rate_limited',
+      error_message: 'Rate limit exceeded for this account',
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('Failed')
+    expect(text).toContain('Codex')
+    expect(text).toContain('HTTP Status')
+    expect(text).toContain('429')
+    expect(text).toContain('Error Code')
+    expect(text).toContain('rate_limited')
+    expect(text).toContain('Error Message')
+    expect(text).toContain('Rate limit exceeded for this account')
   })
 })

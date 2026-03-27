@@ -94,6 +94,28 @@
         >
           {{ t('admin.models.pages.all.bulk.hardDelete') }}
         </button>
+        <select
+          v-model="selectedMoveTarget"
+          class="input min-w-[12rem] text-sm"
+          :disabled="selectedCount === 0 || selectedMutating || availableMoveTargets.length === 0"
+        >
+          <option value="">{{ t('admin.models.pages.all.bulk.moveProviderPlaceholder') }}</option>
+          <option
+            v-for="option in availableMoveTargets"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          :disabled="selectedCount === 0 || selectedMutating || !selectedMoveTarget"
+          @click="handleBulkMoveProvider"
+        >
+          {{ t('admin.models.pages.all.bulk.moveProvider') }}
+        </button>
       </div>
     </div>
 
@@ -235,7 +257,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelRegistryDetail } from '@/api/admin/modelRegistry'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -252,6 +274,7 @@ const props = withDefaults(defineProps<{
   exposureFilter?: 'all' | 'test'
   statusFilter?: 'all' | 'stable' | 'beta' | 'deprecated'
   selectedIds?: string[]
+  moveTargetOptions?: Array<{ value: string; label: string }>
   totalCount?: number
   availableCount?: number
   loading?: boolean
@@ -259,12 +282,14 @@ const props = withDefaults(defineProps<{
   isActivating: (modelId: string) => boolean
   isDeactivating: (modelId: string) => boolean
   isDeleting: (modelId: string) => boolean
+  isMoving: (modelId: string) => boolean
   isSyncingTestExposure: (modelId: string) => boolean
 }>(), {
   searchValue: '',
   exposureFilter: 'all',
   statusFilter: 'all',
-  selectedIds: () => []
+  selectedIds: () => [],
+  moveTargetOptions: () => []
 })
 
 const emit = defineEmits<{
@@ -280,10 +305,12 @@ const emit = defineEmits<{
   (e: 'activate', modelId: string): void
   (e: 'deactivate', modelIds: string[]): void
   (e: 'hard-delete', modelIds: string[]): void
+  (e: 'move-provider', payload: { targetProvider: string; modelIds: string[] }): void
   (e: 'load-more'): void
 }>()
 
 const { t } = useI18n()
+const selectedMoveTarget = ref('')
 
 const selectedIdSet = computed(() => new Set(props.selectedIds || []))
 const loadedCount = computed(() => props.models.length)
@@ -296,11 +323,31 @@ const selectedTestCount = computed(() => selectedModels.value.filter((model) => 
 const selectedNonTestCount = computed(() => selectedModels.value.filter((model) => !hasTestExposure(model)).length)
 const selectedMutating = computed(() => selectedModels.value.some((model) => isModelMutating(model.id)))
 const groupedModels = computed(() => groupModelRegistryModels(props.models))
+const availableMoveTargets = computed(() =>
+  (props.moveTargetOptions || []).filter((option) => option.value !== props.provider)
+)
 const availableBadgeClass = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
 const unavailableBadgeClass = 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-200'
 
+watch(
+  () => props.provider,
+  () => {
+    selectedMoveTarget.value = ''
+  }
+)
+
+watch(selectedCount, (count) => {
+  if (count === 0) {
+    selectedMoveTarget.value = ''
+  }
+})
+
 function isModelMutating(modelId: string) {
-  return props.isActivating(modelId) || props.isDeactivating(modelId) || props.isDeleting(modelId) || props.isSyncingTestExposure(modelId)
+  return props.isActivating(modelId) ||
+    props.isDeactivating(modelId) ||
+    props.isDeleting(modelId) ||
+    props.isMoving(modelId) ||
+    props.isSyncingTestExposure(modelId)
 }
 
 function hasTestExposure(model: ModelRegistryDetail) {
@@ -368,5 +415,21 @@ function handleBulkHardDelete() {
     return
   }
   emit('hard-delete', [...props.selectedIds])
+}
+
+function handleBulkMoveProvider() {
+  if (selectedCount.value === 0 || !selectedMoveTarget.value) {
+    return
+  }
+  if (!window.confirm(t('admin.models.pages.all.bulk.moveProviderConfirm', {
+    count: selectedCount.value,
+    provider: availableMoveTargets.value.find((option) => option.value === selectedMoveTarget.value)?.label || selectedMoveTarget.value
+  }))) {
+    return
+  }
+  emit('move-provider', {
+    targetProvider: selectedMoveTarget.value,
+    modelIds: [...props.selectedIds]
+  })
 }
 </script>

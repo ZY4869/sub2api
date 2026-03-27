@@ -80,18 +80,18 @@ function mountModal() {
         Select: {
           props: ['modelValue', 'options'],
           template: `
-            <div class="select-stub">
-              <div data-test="selected-option">
-                <slot name="selected" :option="options.find((opt) => opt.id === modelValue) || null" />
-              </div>
-              <div
+        <div class="select-stub">
+          <div data-test="selected-option">
+                <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+          </div>
+          <div
                 v-for="option in options"
-                :key="option.id"
+                :key="option.key || option.id"
                 class="select-option-stub"
               >
-                <slot name="option" :option="option" :selected="option.id === modelValue" />
+                <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
               </div>
-            </div>
+        </div>
           `
         },
         TextArea: {
@@ -157,6 +157,7 @@ describe('AccountTestModal', () => {
     expect(JSON.parse(request.body)).toEqual({
       model: 'gemini-3.1-flash-image',
       model_id: 'gemini-3.1-flash-image',
+      test_mode: 'real_forward',
       prompt: 'draw a tiny orange cat astronaut'
     })
 
@@ -194,10 +195,10 @@ describe('AccountTestModal', () => {
             template: `
               <div>
                 <div data-test="selected-option">
-                  <slot name="selected" :option="options.find((opt) => opt.id === modelValue) || null" />
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
                 </div>
-                <div v-for="option in options" :key="option.id" data-test="option">
-                  <slot name="option" :option="option" :selected="option.id === modelValue" />
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
                 </div>
               </div>
             `
@@ -267,6 +268,118 @@ describe('AccountTestModal', () => {
         }
       }
     ]])
+  })
+
+  it('persists the selected test mode and submits health_check when switched', async () => {
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const healthCheckButton = wrapper.find('[data-test="test-mode-health_check"]')
+    expect(healthCheckButton.exists()).toBe(true)
+
+    await healthCheckButton.trigger('click')
+
+    expect(globalThis.localStorage.setItem).toHaveBeenCalledWith(
+      'sub2api.admin.accounts.test_mode',
+      'health_check'
+    )
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model: 'gemini-3.1-flash-image',
+      model_id: 'gemini-3.1-flash-image',
+      test_mode: 'health_check',
+      prompt: 'Generate a cute orange cat astronaut sticker on a clean pastel background.'
+    })
+  })
+
+  it('submits source_protocol for protocol gateway models and renders runtime context', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      {
+        id: 'claude-sonnet-4-5',
+        display_name: 'Claude Sonnet 4.5',
+        source_protocol: 'anthropic'
+      }
+    ])
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"claude-sonnet-4-5"}\n',
+        'data: {"type":"content","text":"Gateway source protocol: Anthropic","data":{"kind":"runtime_meta","key":"resolved_protocol","value":"anthropic","label":"Anthropic","source":"protocol_gateway_test"}}\n',
+        'data: {"type":"content","text":"Gateway simulated client: Claude Client Mimic","data":{"kind":"runtime_meta","key":"simulated_client","value":"claude_client_mimic","label":"Claude Client Mimic","source":"protocol_gateway_test"}}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 88,
+          name: 'Gateway Anthropic',
+          platform: 'protocol_gateway',
+          gateway_protocol: 'mixed',
+          extra: {
+            gateway_accepted_protocols: ['anthropic']
+          },
+          type: 'apikey',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div>
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model: 'claude-sonnet-4-5',
+      model_id: 'claude-sonnet-4-5',
+      test_mode: 'real_forward',
+      source_protocol: 'anthropic',
+      prompt: ''
+    })
+    expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextTitle')
+    expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextProtocol')
+    expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextClient')
   })
 
   it('disables the blacklist button when the test result was auto blacklisted', async () => {

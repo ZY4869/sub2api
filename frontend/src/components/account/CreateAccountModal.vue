@@ -124,6 +124,13 @@
           @add-preset="addPresetMapping($event.from, $event.to)"
         />
 
+        <AccountProtocolGatewayClaudeMimicEditor
+          v-if="showProtocolGatewayClaudeMimicEditor"
+          v-model:enabled="claudeCodeMimicEnabled"
+          v-model:tls-fingerprint-enabled="claudeTLSFingerprintEnabled"
+          v-model:session-id-masking-enabled="claudeSessionIDMaskingEnabled"
+        />
+
         <AccountProtocolGatewayModelProbeEditor
           v-if="form.platform === 'protocol_gateway'"
           v-model:allowed-models="allowedModels"
@@ -423,6 +430,7 @@ import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
+import AccountProtocolGatewayClaudeMimicEditor from '@/components/account/AccountProtocolGatewayClaudeMimicEditor.vue'
 import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
@@ -452,9 +460,11 @@ import {
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
 import {
+  applyProtocolGatewayClaudeClientMimicExtra,
   isProtocolGatewayPlatform,
   resolveEffectiveAccountPlatforms,
-  resolveEffectiveAccountPlatform
+  resolveEffectiveAccountPlatform,
+  supportsProtocolGatewayClaudeClientMimic
 } from '@/utils/accountProtocolGateway'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
@@ -564,6 +574,9 @@ const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
+const claudeCodeMimicEnabled = ref(false)
+const claudeTLSFingerprintEnabled = ref(false)
+const claudeSessionIDMaskingEnabled = ref(false)
 const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MODE_RETRY_COUNT))
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
@@ -609,6 +622,14 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
     gatewayAcceptedProtocols.value
   ) as GroupPlatform[]
 })
+const showProtocolGatewayClaudeMimicEditor = computed(() =>
+  supportsProtocolGatewayClaudeClientMimic({
+    platform: form.platform,
+    type: form.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
+)
 
 const geminiSelectedTier = computed(() => {
   if (effectivePlatform.value !== 'gemini') return ''
@@ -768,6 +789,12 @@ const selectedProtocolGatewayMissingModels = computed(() => {
   )
 })
 
+const resetProtocolGatewayClaudeMimicState = () => {
+  claudeCodeMimicEnabled.value = false
+  claudeTLSFingerprintEnabled.value = false
+  claudeSessionIDMaskingEnabled.value = false
+}
+
 // Watchers
 watch(
   () => props.show,
@@ -783,6 +810,7 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
+      resetProtocolGatewayClaudeMimicState()
       if (form.platform === 'antigravity') {
         loadAntigravityDefaultMappings()
       } else {
@@ -828,6 +856,7 @@ watch(
     protocolGatewayProbeModels.value = []
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    resetProtocolGatewayClaudeMimicState()
     modelMappings.value = []
     if (newPlatform !== 'anthropic') {
       addMethod.value = 'oauth'
@@ -909,6 +938,20 @@ watch(
     }
     if (modelRestrictionMode.value === 'whitelist') {
       allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
+    }
+  }
+)
+
+watch(
+  [showProtocolGatewayClaudeMimicEditor, claudeCodeMimicEnabled],
+  ([supported, enabled]) => {
+    if (!supported) {
+      resetProtocolGatewayClaudeMimicState()
+      return
+    }
+    if (!enabled) {
+      claudeTLSFingerprintEnabled.value = false
+      claudeSessionIDMaskingEnabled.value = false
     }
   }
 )
@@ -1124,6 +1167,9 @@ const { resetForm } = useCreateAccountReset({
   gatewayAcceptedProtocols,
   gatewayClientProfiles,
   gatewayClientRoutes,
+  claudeCodeMimicEnabled,
+  claudeTLSFingerprintEnabled,
+  claudeSessionIDMaskingEnabled,
   loadAntigravityDefaultMappings,
   poolModeState,
   customErrorCodesState,
@@ -1176,13 +1222,21 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     return anthropicExtra
   }
 
-  return {
+  return applyProtocolGatewayClaudeClientMimicExtra({
     ...(anthropicExtra || {}),
     gateway_protocol: gatewayProtocol.value,
     gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
     gateway_client_profiles: [...gatewayClientProfiles.value],
     gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
-  }
+  }, {
+    platform: form.platform,
+    type: form.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value,
+    claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+    enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+    sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+  })
 }
 
 const buildSoraAccountExtra = (

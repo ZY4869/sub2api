@@ -6,8 +6,10 @@ const {
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
   hardDeleteModelRegistryEntries,
+  moveModelRegistryProvider,
   showError,
   showSuccess,
+  showWarning,
   modelInventoryInvalidate,
   ensureModelRegistryFresh,
   invalidateModelRegistry
@@ -17,8 +19,10 @@ const {
   activateModelRegistryEntries: vi.fn(),
   deactivateModelRegistryEntries: vi.fn(),
   hardDeleteModelRegistryEntries: vi.fn(),
+  moveModelRegistryProvider: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
+  showWarning: vi.fn(),
   modelInventoryInvalidate: vi.fn(),
   ensureModelRegistryFresh: vi.fn(() => Promise.resolve()),
   invalidateModelRegistry: vi.fn()
@@ -29,13 +33,15 @@ vi.mock('@/api/admin/modelRegistry', () => ({
   listModelRegistryProviders,
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
-  hardDeleteModelRegistryEntries
+  hardDeleteModelRegistryEntries,
+  moveModelRegistryProvider
 }))
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
     showError,
-    showSuccess
+    showSuccess,
+    showWarning
   })
 }))
 
@@ -86,8 +92,10 @@ describe('useAdminModelRegistryProviders', () => {
     activateModelRegistryEntries.mockReset()
     deactivateModelRegistryEntries.mockReset()
     hardDeleteModelRegistryEntries.mockReset()
+    moveModelRegistryProvider.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
+    showWarning.mockReset()
     modelInventoryInvalidate.mockReset()
     ensureModelRegistryFresh.mockClear()
     invalidateModelRegistry.mockReset()
@@ -311,5 +319,91 @@ describe('useAdminModelRegistryProviders', () => {
       'gpt-5.4',
       'gpt-5.4-mini'
     ])
+  })
+
+  it('moves selected models to another provider and refreshes both provider groups', async () => {
+    listModelRegistryProviders
+      .mockResolvedValueOnce({
+        items: [
+          { provider: 'openai', total_count: 2, available_count: 2 },
+          { provider: 'anthropic', total_count: 1, available_count: 1 }
+        ],
+        total: 2,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [
+          { provider: 'openai', total_count: 1, available_count: 1 },
+          { provider: 'anthropic', total_count: 2, available_count: 2 }
+        ],
+        total: 2,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+
+    listModelRegistry
+      .mockResolvedValueOnce({
+        items: [
+          createRegistryModel('gpt-5.4', 'openai', true),
+          createRegistryModel('gpt-5.4-mini', 'openai', true)
+        ],
+        total: 2,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [createRegistryModel('claude-3.7-sonnet', 'anthropic', true)],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [createRegistryModel('gpt-5.4-mini', 'openai', true)],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [
+          createRegistryModel('claude-3.7-sonnet', 'anthropic', true),
+          createRegistryModel('gpt-5.4', 'anthropic', true)
+        ],
+        total: 2,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+
+    moveModelRegistryProvider.mockResolvedValue({
+      updated_count: 1,
+      skipped_count: 0,
+      failed_count: 0,
+      updated_models: ['gpt-5.4']
+    })
+
+    const subject = useAdminModelRegistryProviders()
+
+    await subject.loadAll()
+    await subject.ensureProviderModels('openai')
+    await subject.ensureProviderModels('anthropic')
+
+    await subject.moveModelsToProvider('openai', 'anthropic', ['gpt-5.4'])
+
+    expect(moveModelRegistryProvider).toHaveBeenCalledWith({
+      models: ['gpt-5.4'],
+      target_provider: 'anthropic'
+    })
+    expect(showSuccess).toHaveBeenCalledWith('admin.models.pages.all.bulk.moveProviderSuccess')
+    expect(subject.getProviderSelectedIds('openai')).toEqual([])
+    expect(subject.getProviderSelectedIds('anthropic')).toEqual([])
+    expect(invalidateModelRegistry).toHaveBeenCalled()
+    expect(modelInventoryInvalidate).toHaveBeenCalled()
+    expect(ensureModelRegistryFresh).toHaveBeenCalledWith(true)
   })
 })

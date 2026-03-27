@@ -89,6 +89,13 @@
           @add-preset="addPresetMapping($event.from, $event.to)"
         />
 
+        <AccountProtocolGatewayClaudeMimicEditor
+          v-if="showProtocolGatewayClaudeMimicEditor"
+          v-model:enabled="claudeCodeMimicEnabled"
+          v-model:tls-fingerprint-enabled="claudeTLSFingerprintEnabled"
+          v-model:session-id-masking-enabled="claudeSessionIDMaskingEnabled"
+        />
+
         <AccountProtocolGatewayModelProbeEditor
           v-if="isProtocolGatewayAccount"
           v-model:allowed-models="allowedModels"
@@ -347,6 +354,7 @@ import AccountGroupSettingsEditor from '@/components/account/AccountGroupSetting
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
+import AccountProtocolGatewayClaudeMimicEditor from '@/components/account/AccountProtocolGatewayClaudeMimicEditor.vue'
 import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
@@ -388,6 +396,7 @@ import {
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
 import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import {
+  applyProtocolGatewayClaudeClientMimicExtra,
   PROTOCOL_GATEWAY_PROTOCOLS,
   isProtocolGatewayPlatform,
   normalizeGatewayAcceptedProtocols,
@@ -396,7 +405,8 @@ import {
   resolveAccountGatewayProtocol,
   resolveEffectiveAccountPlatform,
   resolveEffectiveAccountPlatforms,
-  resolveGatewayProtocolDescriptor
+  resolveGatewayProtocolDescriptor,
+  supportsProtocolGatewayClaudeClientMimic
 } from '@/utils/accountProtocolGateway'
 import type {
   GatewayAcceptedProtocol,
@@ -437,6 +447,9 @@ const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
+const claudeCodeMimicEnabled = ref(false)
+const claudeTLSFingerprintEnabled = ref(false)
+const claudeSessionIDMaskingEnabled = ref(false)
 const poolModeState = reactive(createDefaultAccountPoolModeState(DEFAULT_POOL_MODE_RETRY_COUNT))
 const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState())
 const interceptWarmupRequests = ref(false)
@@ -482,6 +495,14 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 })
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
+)
+const showProtocolGatewayClaudeMimicEditor = computed(() =>
+  supportsProtocolGatewayClaudeClientMimic({
+    platform: props.account?.platform,
+    type: props.account?.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
 )
 const resolvedProtocolGatewayApiKey = computed(() => {
   if (editApiKey.value.trim()) {
@@ -648,6 +669,12 @@ const expiresAtInput = computed({
   }
 })
 
+const resetProtocolGatewayClaudeMimicState = () => {
+  claudeCodeMimicEnabled.value = false
+  claudeTLSFingerprintEnabled.value = false
+  claudeSessionIDMaskingEnabled.value = false
+}
+
 // Watchers
 watch(
   () => [props.show, props.account] as const,
@@ -666,6 +693,10 @@ watch(
         .map((value) => normalizeGatewayClientProfile(value))
         .filter((value): value is GatewayClientProfile => Boolean(value))
       gatewayClientRoutes.value = normalizeGatewayClientRoutes(newAccount.extra?.gateway_client_routes)
+      claudeCodeMimicEnabled.value =
+        newAccount.claude_code_mimic_enabled === true || newAccount.extra?.claude_code_mimic_enabled === true
+      claudeTLSFingerprintEnabled.value = newAccount.enable_tls_fingerprint === true
+      claudeSessionIDMaskingEnabled.value = newAccount.session_id_masking_enabled === true
       protocolGatewayProbeModels.value = []
       const runtimePlatform = resolveEffectiveAccountPlatform(
         newAccount.platform,
@@ -872,6 +903,7 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
+      resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
     }
   },
@@ -896,6 +928,20 @@ watch(
       props.account?.platform || 'protocol_gateway',
       newProtocol
     )
+  }
+)
+
+watch(
+  [showProtocolGatewayClaudeMimicEditor, claudeCodeMimicEnabled],
+  ([supported, enabled]) => {
+    if (!supported) {
+      resetProtocolGatewayClaudeMimicState()
+      return
+    }
+    if (!enabled) {
+      claudeTLSFingerprintEnabled.value = false
+      claudeSessionIDMaskingEnabled.value = false
+    }
   }
 )
 
@@ -1168,13 +1214,21 @@ const handleSubmit = async () => {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
         (props.account.extra as Record<string, unknown>) || {}
       updatePayload.gateway_protocol = gatewayProtocol.value
-      updatePayload.extra = {
+      updatePayload.extra = applyProtocolGatewayClaudeClientMimicExtra({
         ...currentExtra,
         gateway_protocol: gatewayProtocol.value,
         gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
         gateway_client_profiles: [...gatewayClientProfiles.value],
         gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
-      }
+      }, {
+        platform: props.account.platform,
+        type: props.account.type,
+        gatewayProtocol: gatewayProtocol.value,
+        acceptedProtocols: gatewayAcceptedProtocols.value,
+        claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+        enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+        sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+      })
     }
 
     if (props.account.type !== 'bedrock') {

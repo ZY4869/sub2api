@@ -298,6 +298,14 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 			out.CacheTTLOverrideTarget = &target
 		}
 	}
+	if service.SupportsProtocolGatewayClaudeClientMimic(a) {
+		mimicEnabled := service.IsClaudeClientMimicEnabled(a, service.PlatformAnthropic)
+		out.ClaudeCodeMimicEnabled = &mimicEnabled
+		tlsEnabled := a.IsTLSFingerprintEnabled()
+		out.EnableTLSFingerprint = &tlsEnabled
+		sessionMaskingEnabled := a.IsSessionIDMaskingEnabled()
+		out.EnableSessionIDMasking = &sessionMaskingEnabled
+	}
 
 	// 提取账号配额限制（apikey / bedrock 类型有效）
 	if a.IsAPIKeyOrBedrock() {

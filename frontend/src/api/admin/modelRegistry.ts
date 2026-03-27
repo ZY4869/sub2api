@@ -44,6 +44,11 @@ export interface HardDeleteModelRegistryEntriesPayload {
   models: string[]
 }
 
+export interface MoveModelRegistryProviderPayload {
+  models: string[]
+  target_provider: string
+}
+
 export type ModelRegistryExposureTarget = 'whitelist' | 'use_key' | 'test' | 'runtime'
 
 export interface SyncModelRegistryExposuresPayload {
@@ -66,6 +71,20 @@ export interface SyncModelRegistryExposuresResult {
   updated_models: string[]
   skipped_models?: string[]
   failed_models?: ModelRegistryExposureSyncFailure[]
+}
+
+export interface MoveModelRegistryProviderFailure {
+  model: string
+  error: string
+}
+
+export interface MoveModelRegistryProviderResult {
+  updated_count: number
+  skipped_count: number
+  failed_count: number
+  updated_models: string[]
+  skipped_models?: string[]
+  failed_models?: MoveModelRegistryProviderFailure[]
 }
 
 export async function listModelRegistry(
@@ -142,6 +161,13 @@ export async function syncModelRegistryExposures(
   return data
 }
 
+export async function moveModelRegistryProvider(
+  payload: MoveModelRegistryProviderPayload
+): Promise<MoveModelRegistryProviderResult> {
+  const { data } = await apiClient.post<MoveModelRegistryProviderResult>('/admin/models/registry/move-provider', payload)
+  return data
+}
+
 export const modelRegistryAPI = {
   listModelRegistry,
   listModelRegistryProviders,
@@ -152,7 +178,8 @@ export const modelRegistryAPI = {
   hardDeleteModelRegistryEntries,
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
-  syncModelRegistryExposures
+  syncModelRegistryExposures,
+  moveModelRegistryProvider
 }
 
 export default modelRegistryAPI

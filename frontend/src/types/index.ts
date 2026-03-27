@@ -611,6 +611,7 @@ export interface ClaudeModel {
   display_name: string;
   created_at: string;
   canonical_id?: string;
+  source_protocol?: "openai" | "anthropic" | "gemini";
   status?: "stable" | "beta" | "deprecated";
   deprecated_at?: string;
   replaced_by?: string;
@@ -794,6 +795,7 @@ export interface Account {
 
   // TLS闂佸湱顭堝ú銊バуΔ浣割嚤妞ゅ繐娴傚Λ鍛存煥濞戞澧旂紒?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
   enable_tls_fingerprint?: boolean | null;
+  claude_code_mimic_enabled?: boolean | null;
 
   // 婵炴潙鍚嬫穱娲儊缁测偓D婵炲鈷堟禍锝壦夋繝鍥ㄦ櫖闁割偅绮庨惌?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
   // 闂佸憡鍑归崹鎶藉极閵堝瑙﹂幖杈剧磿濞堟椽鏌?5闂佸憡甯掑Λ婵嬪箰閹捐绀冮柛娑卞幗缁佸ジ鎮?metadata.user_id 婵炴垶鎼╅崢鎯р枔?session ID

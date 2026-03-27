@@ -563,7 +563,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 		clientHeaders = c.Request.Header
 	}
 	var fingerprint *Fingerprint
-	if account.IsOAuth() && s.identityService != nil {
+	if mimicClaudeCode && s.identityService != nil {
 		fp, err := s.identityService.GetOrCreateFingerprint(ctx, account.ID, clientHeaders)
 		if err != nil {
 			logger.LegacyPrintf("service.gateway", "Warning: failed to get fingerprint for account %d: %v", account.ID, err)
@@ -603,7 +603,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	if req.Header.Get("anthropic-version") == "" {
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
-	if tokenType == "oauth" {
+	if tokenType == "oauth" || mimicClaudeCode {
 		applyClaudeOAuthHeaderDefaults(req, reqStream)
 	}
 	policyFilterSet := s.getBetaPolicyFilterSet(ctx, c, account)
@@ -620,7 +620,12 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(s.getBetaHeader(modelID, clientBetaHeader), effectiveDropSet))
 		}
 	} else {
-		if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
+		if mimicClaudeCode {
+			applyClaudeCodeMimicHeaders(req, reqStream)
+			incomingBeta := req.Header.Get("anthropic-beta")
+			requiredBetas := []string{claude.BetaClaudeCode, claude.BetaInterleavedThinking, claude.BetaFineGrainedToolStreaming}
+			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, effectiveDropWithClaudeCodeSet))
+		} else if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
 			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(existingBeta, effectiveDropSet))
 		} else if s.cfg != nil && s.cfg.Gateway.InjectBetaForAPIKey {
 			if requestNeedsBetaFeatures(body) {
@@ -630,7 +635,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 			}
 		}
 	}
-	if c != nil && tokenType == "oauth" {
+	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
 	if s.debugClaudeMimicEnabled() {

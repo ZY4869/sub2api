@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -151,4 +152,115 @@ func TestImportModels_OpenAIOAuthUpdatesKnownModelsSnapshot(t *testing.T) {
 	require.Equal(t, service.OpenAIKnownModelsSourceImportModels, adminSvc.updatedAccounts[0].Extra["openai_known_models_source"])
 	require.Equal(t, []string{"gpt-5.4", "gpt-4.1-mini"}, adminSvc.updatedAccounts[0].Extra["openai_known_models"])
 	require.NotEmpty(t, adminSvc.updatedAccounts[0].Extra["openai_known_models_updated_at"])
+}
+
+type handlerMixedProbeHTTPUpstream struct{}
+
+func (u *handlerMixedProbeHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+	return u.DoWithTLS(req, proxyURL, accountID, accountConcurrency, false)
+}
+
+func (u *handlerMixedProbeHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
+	switch {
+	case strings.HasSuffix(req.URL.Path, "/v1/models"):
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       ioNopCloser(`{"data":[{"id":"gpt-5.4"},{"id":"shared-model"}]}`),
+			Request:    req,
+		}, nil
+	case strings.HasSuffix(req.URL.Path, "/v1beta/models"):
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       ioNopCloser(`{"models":[{"name":"models/gemini-2.5-pro"},{"name":"models/shared-model"}]}`),
+			Request:    req,
+		}, nil
+	default:
+		return nil, errors.New("unexpected path: " + req.URL.Path)
+	}
+}
+
+func TestProbeProtocolGatewayModels_MixedReturnsSourceProtocolAndRegistryState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	adminSvc := newStubAdminService()
+
+	repo := &handlerModelImportSettingRepoStub{values: make(map[string]string)}
+	modelRegistryService := service.NewModelRegistryService(repo)
+	_, err := modelRegistryService.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.4",
+		Provider:    service.PlatformOpenAI,
+		DisplayName: "GPT-5.4",
+		ExposedIn:   []string{"runtime", "test", "whitelist"},
+	})
+	require.NoError(t, err)
+
+	cfg := &config.Config{}
+	cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+	upstream := &handlerMixedProbeHTTPUpstream{}
+	geminiCompatService := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, upstream, nil, cfg)
+	importSvc := service.NewAccountModelImportService(nil, geminiCompatService, upstream, nil)
+	importSvc.SetModelRegistryService(modelRegistryService)
+
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	handler.SetAccountModelImportService(importSvc)
+	handler.SetModelRegistryService(modelRegistryService)
+
+	router := gin.New()
+	router.POST("/api/v1/admin/accounts/protocol-gateway/probe-models", handler.ProbeProtocolGatewayModels)
+
+	body, err := json.Marshal(map[string]any{
+		"gateway_protocol":   "mixed",
+		"accepted_protocols": []string{"openai", "gemini"},
+		"base_url":           "http://gateway.local.test",
+		"api_key":            "gateway-key",
+	})
+	require.NoError(t, err)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/protocol-gateway/probe-models", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			ProbeSource string `json:"probe_source"`
+			Models      []struct {
+				ID             string `json:"id"`
+				RegistryState  string `json:"registry_state"`
+				RegistryModel  string `json:"registry_model_id"`
+				SourceProtocol string `json:"source_protocol"`
+			} `json:"models"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Equal(t, "upstream", resp.Data.ProbeSource)
+	require.Len(t, resp.Data.Models, 3)
+
+	modelsByID := make(map[string]struct {
+		RegistryState  string
+		RegistryModel  string
+		SourceProtocol string
+	}, len(resp.Data.Models))
+	for _, model := range resp.Data.Models {
+		modelsByID[model.ID] = struct {
+			RegistryState  string
+			RegistryModel  string
+			SourceProtocol string
+		}{
+			RegistryState:  model.RegistryState,
+			RegistryModel:  model.RegistryModel,
+			SourceProtocol: model.SourceProtocol,
+		}
+	}
+
+	require.Equal(t, "existing", modelsByID["gpt-5.4"].RegistryState)
+	require.Equal(t, "gpt-5.4", modelsByID["gpt-5.4"].RegistryModel)
+	require.Equal(t, service.PlatformOpenAI, modelsByID["gpt-5.4"].SourceProtocol)
+	require.Equal(t, service.PlatformGemini, modelsByID["gemini-2.5-pro"].SourceProtocol)
+	require.Equal(t, service.PlatformOpenAI, modelsByID["shared-model"].SourceProtocol)
 }

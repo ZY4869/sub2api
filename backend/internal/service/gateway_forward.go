@@ -57,7 +57,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		originalModel = reqModel
 	}
 	isClaudeCode := isClaudeCodeRequest(ctx, c, parsed)
-	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCode
+	shouldMimicClaudeCode := IsClaudeClientMimicEnabled(account, PlatformAnthropic) && !isClaudeCode
 	if shouldMimicClaudeCode {
 		if !strings.Contains(strings.ToLower(reqModel), "haiku") && !systemIncludesClaudeCodePrompt(parsed.System) {
 			body = injectClaudeCodePrompt(body, parsed.System)

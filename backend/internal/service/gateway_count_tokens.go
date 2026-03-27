@@ -33,7 +33,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		reqModel = parsed.Model
 	}
 	isClaudeCode := isClaudeCodeRequest(ctx, c, parsed)
-	shouldMimicClaudeCode := account.IsOAuth() && !isClaudeCode
+	shouldMimicClaudeCode := IsClaudeClientMimicEnabled(account, PlatformAnthropic) && !isClaudeCode
 	if shouldMimicClaudeCode {
 		normalizeOpts := claudeOAuthNormalizeOptions{stripSystemCacheControl: true}
 		body, reqModel = normalizeClaudeOAuthRequestBody(body, reqModel, normalizeOpts)
@@ -284,7 +284,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if c != nil && c.Request != nil {
 		clientHeaders = c.Request.Header
 	}
-	if account.IsOAuth() && s.identityService != nil {
+	if mimicClaudeCode && s.identityService != nil {
 		fp, err := s.identityService.GetOrCreateFingerprint(ctx, account.ID, clientHeaders)
 		if err == nil {
 			accountUUID := account.GetExtraString("account_uuid")
@@ -312,7 +312,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 			}
 		}
 	}
-	if account.IsOAuth() && s.identityService != nil {
+	if mimicClaudeCode && s.identityService != nil {
 		fp, _ := s.identityService.GetOrCreateFingerprint(ctx, account.ID, clientHeaders)
 		if fp != nil {
 			s.identityService.ApplyFingerprint(req, fp)
@@ -324,7 +324,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if req.Header.Get("anthropic-version") == "" {
 		req.Header.Set("anthropic-version", "2023-06-01")
 	}
-	if tokenType == "oauth" {
+	if tokenType == "oauth" || mimicClaudeCode {
 		applyClaudeOAuthHeaderDefaults(req, false)
 	}
 	ctEffectiveDropSet := mergeDropSets(s.getBetaPolicyFilterSet(ctx, c, account))
@@ -347,7 +347,12 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 			}
 		}
 	} else {
-		if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
+		if mimicClaudeCode {
+			applyClaudeCodeMimicHeaders(req, false)
+			incomingBeta := req.Header.Get("anthropic-beta")
+			requiredBetas := []string{claude.BetaClaudeCode, claude.BetaInterleavedThinking, claude.BetaFineGrainedToolStreaming, claude.BetaTokenCounting}
+			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, ctEffectiveDropSet))
+		} else if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
 			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(existingBeta, ctEffectiveDropSet))
 		} else if s.cfg != nil && s.cfg.Gateway.InjectBetaForAPIKey {
 			if requestNeedsBetaFeatures(body) {
@@ -357,7 +362,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 			}
 		}
 	}
-	if c != nil && tokenType == "oauth" {
+	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
 	if s.debugClaudeMimicEnabled() {

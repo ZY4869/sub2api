@@ -50,6 +50,11 @@ type BatchSyncModelRegistryExposuresInput struct {
 	Mode      string   `json:"mode"`
 }
 
+type MoveModelRegistryProviderInput struct {
+	Models         []string `json:"models"`
+	TargetProvider string   `json:"target_provider"`
+}
+
 type UpdateModelRegistryAvailabilityInput struct {
 	Models []string `json:"models"`
 }
@@ -72,6 +77,20 @@ type BatchSyncModelRegistryExposuresResult struct {
 	UpdatedModels []string                           `json:"updated_models"`
 	SkippedModels []string                           `json:"skipped_models,omitempty"`
 	FailedModels  []ModelRegistryExposureSyncFailure `json:"failed_models,omitempty"`
+}
+
+type ModelRegistryProviderMoveFailure struct {
+	Model string `json:"model"`
+	Error string `json:"error"`
+}
+
+type MoveModelRegistryProviderResult struct {
+	UpdatedCount  int                              `json:"updated_count"`
+	SkippedCount  int                              `json:"skipped_count"`
+	FailedCount   int                              `json:"failed_count"`
+	UpdatedModels []string                         `json:"updated_models"`
+	SkippedModels []string                         `json:"skipped_models,omitempty"`
+	FailedModels  []ModelRegistryProviderMoveFailure `json:"failed_models,omitempty"`
 }
 
 type UpsertDiscoveredEntryInput struct {

@@ -342,6 +342,91 @@ func (s *ModelRegistryService) BatchSyncExposures(ctx context.Context, input Bat
 	return result, nil
 }
 
+func (s *ModelRegistryService) MoveEntriesToProvider(ctx context.Context, input MoveModelRegistryProviderInput) (*MoveModelRegistryProviderResult, error) {
+	models := normalizeStringList(input.Models, normalizeRegistryID)
+	if len(models) == 0 {
+		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "at least one model is required")
+	}
+	targetProvider := normalizeRegistryPlatform(input.TargetProvider)
+	if targetProvider == "" {
+		return nil, infraerrors.BadRequest("MODEL_PROVIDER_REQUIRED", "target provider is required")
+	}
+	entries, _, _, tombstones, err := s.mergedEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+	runtimeIndex := make(map[string]int, len(runtimeEntries))
+	for index, entry := range runtimeEntries {
+		runtimeIndex[entry.ID] = index
+	}
+	result := &MoveModelRegistryProviderResult{
+		UpdatedModels: []string{},
+		SkippedModels: []string{},
+		FailedModels:  []ModelRegistryProviderMoveFailure{},
+	}
+	for _, modelID := range models {
+		if _, tombstoned := tombstones[modelID]; tombstoned {
+			result.SkippedCount++
+			result.SkippedModels = append(result.SkippedModels, modelID)
+			continue
+		}
+		entry, exists := entries[modelID]
+		if !exists {
+			result.SkippedCount++
+			result.SkippedModels = append(result.SkippedModels, modelID)
+			continue
+		}
+		if normalizeRegistryPlatform(entry.Provider) == targetProvider {
+			result.SkippedCount++
+			result.SkippedModels = append(result.SkippedModels, modelID)
+			continue
+		}
+		rebuilt, rebuildErr := rebuildModelRegistryProviderEntry(entry, targetProvider)
+		if rebuildErr != nil {
+			result.FailedCount++
+			result.FailedModels = append(result.FailedModels, ModelRegistryProviderMoveFailure{
+				Model: modelID,
+				Error: summarizeAccountModelImportError(rebuildErr),
+			})
+			continue
+		}
+		if index, exists := runtimeIndex[rebuilt.ID]; exists {
+			runtimeEntries[index] = rebuilt
+		} else {
+			runtimeIndex[rebuilt.ID] = len(runtimeEntries)
+			runtimeEntries = append(runtimeEntries, rebuilt)
+		}
+		result.UpdatedCount++
+		result.UpdatedModels = append(result.UpdatedModels, rebuilt.ID)
+	}
+	if result.UpdatedCount == 0 {
+		return result, nil
+	}
+	if err := s.persistRuntimeEntries(ctx, runtimeEntries); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func rebuildModelRegistryProviderEntry(entry modelregistry.ModelEntry, targetProvider string) (modelregistry.ModelEntry, error) {
+	rebuilt := modelregistry.ModelEntry{
+		ID:                entry.ID,
+		DisplayName:       entry.DisplayName,
+		Provider:          normalizeRegistryPlatform(targetProvider),
+		Aliases:           append([]string(nil), entry.Aliases...),
+		ExposedIn:         append([]string(nil), entry.ExposedIn...),
+		Status:            entry.Status,
+		DeprecatedAt:      entry.DeprecatedAt,
+		ReplacedBy:        entry.ReplacedBy,
+		DeprecationNotice: entry.DeprecationNotice,
+	}
+	return normalizePersistedEntry(rebuilt)
+}
+
 func syncModelRegistryExposures(current []string, targets []string, mode string) []string {
 	switch mode {
 	case "remove":

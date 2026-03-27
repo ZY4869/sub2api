@@ -29,9 +29,11 @@ type setSchedulableRequest struct {
 }
 
 type accountTestRequest struct {
-	ModelID string `json:"model_id"`
-	Model   string `json:"model"`
-	Prompt  string `json:"prompt"`
+	ModelID        string `json:"model_id"`
+	Model          string `json:"model"`
+	Prompt         string `json:"prompt"`
+	SourceProtocol string `json:"source_protocol"`
+	TestMode       string `json:"test_mode"`
 }
 
 func (h *AccountHandler) PreviewFromCRS(c *gin.Context) {
@@ -117,7 +119,18 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	if prompt == "" {
 		prompt = strings.TrimSpace(c.Query("prompt"))
 	}
-	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt); err != nil {
+	sourceProtocol := strings.TrimSpace(req.SourceProtocol)
+	if sourceProtocol == "" {
+		sourceProtocol = strings.TrimSpace(c.Query("source_protocol"))
+	}
+	testMode := strings.TrimSpace(req.TestMode)
+	if testMode == "" {
+		testMode = strings.TrimSpace(c.Query("test_mode"))
+	}
+	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt, sourceProtocol, testMode); err != nil {
+		if !c.Writer.Written() {
+			response.ErrorFrom(c, err)
+		}
 		return
 	}
 }

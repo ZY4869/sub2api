@@ -1,6 +1,7 @@
 import type {
   Account,
   AccountPlatform,
+  AccountType,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
@@ -244,4 +245,90 @@ export function resolveEffectiveAccountPlatformFromAccount(
 
 export function resolveGatewayProtocolLabel(gatewayProtocol?: unknown): string {
   return resolveGatewayProtocolDescriptor(gatewayProtocol)?.displayName || ''
+}
+
+const CLAUDE_MIMIC_ENABLED_KEY = 'claude_code_mimic_enabled'
+const CLAUDE_TLS_FINGERPRINT_KEY = 'enable_tls_fingerprint'
+const CLAUDE_SESSION_MASKING_KEY = 'session_id_masking_enabled'
+
+export function supportsProtocolGatewayClaudeClientMimic(options: {
+  platform?: AccountPlatform | string | null
+  type?: AccountType | string | null
+  gatewayProtocol?: unknown
+  acceptedProtocols?: unknown
+}): boolean {
+  if (!isProtocolGatewayPlatform(options.platform)) {
+    return false
+  }
+  if (String(options.type || '').trim().toLowerCase() !== 'apikey') {
+    return false
+  }
+
+  const acceptedProtocols = normalizeGatewayAcceptedProtocols(
+    normalizeGatewayProtocol(options.gatewayProtocol) || 'mixed',
+    options.acceptedProtocols
+  )
+
+  return acceptedProtocols.includes('anthropic')
+}
+
+export function supportsProtocolGatewayClaudeClientMimicAccount(
+  account?: Pick<Account, 'platform' | 'type' | 'gateway_protocol' | 'extra'> | null
+): boolean {
+  if (!account) {
+    return false
+  }
+
+  return supportsProtocolGatewayClaudeClientMimic({
+    platform: account.platform,
+    type: account.type,
+    gatewayProtocol: account.gateway_protocol ?? account.extra?.gateway_protocol,
+    acceptedProtocols: account.extra?.gateway_accepted_protocols
+  })
+}
+
+export function applyProtocolGatewayClaudeClientMimicExtra(
+  base: Record<string, unknown> | undefined,
+  options: {
+    platform?: AccountPlatform | string | null
+    type?: AccountType | string | null
+    gatewayProtocol?: unknown
+    acceptedProtocols?: unknown
+    claudeCodeMimicEnabled?: boolean
+    enableTLSFingerprint?: boolean
+    sessionIDMaskingEnabled?: boolean
+  }
+): Record<string, unknown> | undefined {
+  const nextExtra: Record<string, unknown> = { ...(base || {}) }
+  const supported = supportsProtocolGatewayClaudeClientMimic(options)
+
+  if (!supported) {
+    delete nextExtra[CLAUDE_MIMIC_ENABLED_KEY]
+    delete nextExtra[CLAUDE_TLS_FINGERPRINT_KEY]
+    delete nextExtra[CLAUDE_SESSION_MASKING_KEY]
+    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+  }
+
+  if (!options.claudeCodeMimicEnabled) {
+    delete nextExtra[CLAUDE_MIMIC_ENABLED_KEY]
+    delete nextExtra[CLAUDE_TLS_FINGERPRINT_KEY]
+    delete nextExtra[CLAUDE_SESSION_MASKING_KEY]
+    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+  }
+
+  nextExtra[CLAUDE_MIMIC_ENABLED_KEY] = true
+
+  if (options.enableTLSFingerprint) {
+    nextExtra[CLAUDE_TLS_FINGERPRINT_KEY] = true
+  } else {
+    delete nextExtra[CLAUDE_TLS_FINGERPRINT_KEY]
+  }
+
+  if (options.sessionIDMaskingEnabled) {
+    nextExtra[CLAUDE_SESSION_MASKING_KEY] = true
+  } else {
+    delete nextExtra[CLAUDE_SESSION_MASKING_KEY]
+  }
+
+  return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
 }
