@@ -372,6 +372,7 @@ export type GroupPlatform =
   | "kiro"
   | "openai"
   | "copilot"
+  | "grok"
   | "gemini"
   | "antigravity"
   | "sora";
@@ -577,6 +578,7 @@ export type AccountPlatform =
   | "kiro"
   | "openai"
   | "copilot"
+  | "grok"
   | "gemini"
   | "antigravity"
   | "sora"
@@ -594,6 +596,7 @@ export type AccountType =
   | "oauth"
   | "setup-token"
   | "apikey"
+  | "sso"
   | "bedrock"
   | "upstream";
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";

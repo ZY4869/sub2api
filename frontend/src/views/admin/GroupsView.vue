@@ -90,9 +90,11 @@
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                     : value === 'copilot'
                       ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
-                    : value === 'antigravity'
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : value === 'grok'
+                        ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                      : value === 'antigravity'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
               ]"
             >
               <PlatformIcon :platform="value" size="xs" />
@@ -1809,6 +1811,8 @@
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                         : group.platform === 'copilot'
                           ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
+                        : group.platform === 'grok'
+                          ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
                         : group.platform === 'antigravity'
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -1932,6 +1936,7 @@ const platformOptions = computed(() => [
   { value: 'kiro', label: 'Kiro' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'copilot', label: 'Copilot' },
+  { value: 'grok', label: 'Grok' },
   { value: 'gemini', label: 'Gemini' },
   { value: 'antigravity', label: 'Antigravity' },
   { value: 'sora', label: 'Sora' }
@@ -1943,6 +1948,7 @@ const platformFilterOptions = computed(() => [
   { value: 'kiro', label: 'Kiro' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'copilot', label: 'Copilot' },
+  { value: 'grok', label: 'Grok' },
   { value: 'gemini', label: 'Gemini' },
   { value: 'antigravity', label: 'Antigravity' },
   { value: 'sora', label: 'Sora' }

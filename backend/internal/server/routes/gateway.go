@@ -47,7 +47,10 @@ func RegisterGatewayRoutes(
 	{
 		// /v1/messages: auto-route based on group platform
 		gateway.POST("/messages", func(c *gin.Context) {
-			if platform := getGroupPlatform(c); platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
+			if platform := getGroupPlatform(c); platform == service.PlatformGrok {
+				writeGrokMessagesUnsupported(c)
+				return
+			} else if platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
 				h.OpenAIGateway.Messages(c)
 				return
 			}
@@ -55,7 +58,10 @@ func RegisterGatewayRoutes(
 		})
 		// /v1/messages/count_tokens: OpenAI groups get 404
 		gateway.POST("/messages/count_tokens", func(c *gin.Context) {
-			if platform := getGroupPlatform(c); platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
+			if platform := getGroupPlatform(c); platform == service.PlatformGrok {
+				writeGrokMessagesUnsupported(c)
+				return
+			} else if platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
 				c.JSON(http.StatusNotFound, gin.H{
 					"type": "error",
 					"error": gin.H{
@@ -69,16 +75,95 @@ func RegisterGatewayRoutes(
 		})
 		gateway.GET("/models", h.Gateway.Models)
 		gateway.GET("/usage", h.Gateway.Usage)
-		// OpenAI Responses API
-		gateway.POST("/responses", h.OpenAIGateway.Responses)
-		gateway.POST("/responses/*subpath", h.OpenAIGateway.Responses)
-		gateway.GET("/responses", h.OpenAIGateway.ResponsesWebSocket)
-		// OpenAI Chat Completions API
-		gateway.POST("/chat/completions", h.OpenAIGateway.ChatCompletions)
+		gateway.POST("/responses", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/responses")
+				return
+			}
+			h.OpenAIGateway.Responses(c)
+		})
+		gateway.POST("/responses/*subpath", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/responses")
+				return
+			}
+			h.OpenAIGateway.Responses(c)
+		})
+		gateway.GET("/responses", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/responses")
+				return
+			}
+			h.OpenAIGateway.ResponsesWebSocket(c)
+		})
+		gateway.POST("/chat/completions", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/chat/completions")
+				return
+			}
+			h.OpenAIGateway.ChatCompletions(c)
+		})
+		gateway.POST("/images/generations", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/images/generations")
+				return
+			}
+			writeGrokAliasUnavailable(c, "/v1/images/generations")
+		})
+		gateway.POST("/images/edits", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/images/edits")
+				return
+			}
+			writeGrokAliasUnavailable(c, "/v1/images/edits")
+		})
+		gateway.POST("/videos/generations", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/videos/generations")
+				return
+			}
+			writeGrokAliasUnavailable(c, "/v1/videos/generations")
+		})
+		gateway.GET("/videos/:request_id", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				writeGrokUnsupported(c, "/v1/videos/:request_id")
+				return
+			}
+			writeGrokAliasUnavailable(c, "/v1/videos/:request_id")
+		})
 	}
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
 	gemini := r.Group("/v1beta")
+	grokV1 := r.Group("/grok/v1")
+	grokV1.Use(bodyLimit)
+	grokV1.Use(clientRequestID)
+	grokV1.Use(opsErrorLogger)
+	grokV1.Use(endpointNorm)
+	grokV1.Use(middleware.ForcePlatform(service.PlatformGrok))
+	grokV1.Use(gin.HandlerFunc(apiKeyAuth))
+	grokV1.Use(requireGroupAnthropic)
+	{
+		grokV1.GET("/models", h.Gateway.Models)
+		grokV1.POST("/chat/completions", func(c *gin.Context) {
+			writeGrokUnsupported(c, "/grok/v1/chat/completions")
+		})
+		grokV1.POST("/responses", func(c *gin.Context) {
+			writeGrokUnsupported(c, "/grok/v1/responses")
+		})
+		grokV1.POST("/images/generations", func(c *gin.Context) {
+			writeGrokUnsupported(c, "/grok/v1/images/generations")
+		})
+		grokV1.POST("/images/edits", func(c *gin.Context) {
+			writeGrokUnsupported(c, "/grok/v1/images/edits")
+		})
+		grokV1.POST("/videos/generations", func(c *gin.Context) {
+			writeGrokUnsupported(c, "/grok/v1/videos/generations")
+		})
+		grokV1.GET("/videos/:request_id", func(c *gin.Context) {
+			writeGrokUnsupported(c, "/grok/v1/videos/:request_id")
+		})
+	}
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)
@@ -93,11 +178,35 @@ func RegisterGatewayRoutes(
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）
-	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.Responses)
-	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.Responses)
-	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.ResponsesWebSocket)
+	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			writeGrokUnsupported(c, "/responses")
+			return
+		}
+		h.OpenAIGateway.Responses(c)
+	})
+	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			writeGrokUnsupported(c, "/responses")
+			return
+		}
+		h.OpenAIGateway.Responses(c)
+	})
+	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			writeGrokUnsupported(c, "/responses")
+			return
+		}
+		h.OpenAIGateway.ResponsesWebSocket(c)
+	})
 	// OpenAI Chat Completions API（不带v1前缀的别名）
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.OpenAIGateway.ChatCompletions)
+	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			writeGrokUnsupported(c, "/chat/completions")
+			return
+		}
+		h.OpenAIGateway.ChatCompletions(c)
+	})
 
 	// Antigravity 模型列表
 	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
@@ -158,6 +267,9 @@ func RegisterGatewayRoutes(
 
 // getGroupPlatform extracts the group platform from the API Key stored in context.
 func getGroupPlatform(c *gin.Context) string {
+	if forcedPlatform, ok := middleware.GetForcePlatformFromContext(c); ok && forcedPlatform != "" {
+		return forcedPlatform
+	}
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok {
 		return ""
@@ -185,4 +297,36 @@ func getGroupPlatform(c *gin.Context) string {
 		return apiKey.Group.Platform
 	}
 	return openAIPlatform
+}
+
+func isGrokGroup(c *gin.Context) bool {
+	return service.IsGrokPlatform(getGroupPlatform(c))
+}
+
+func writeGrokMessagesUnsupported(c *gin.Context) {
+	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+		"type": "error",
+		"error": gin.H{
+			"type":    "invalid_request_error",
+			"message": "Grok groups do not support /v1/messages endpoints",
+		},
+	})
+}
+
+func writeGrokUnsupported(c *gin.Context, path string) {
+	c.AbortWithStatusJSON(http.StatusNotImplemented, gin.H{
+		"error": gin.H{
+			"type":    "invalid_request_error",
+			"message": "Grok routing for " + path + " is not enabled in this build",
+		},
+	})
+}
+
+func writeGrokAliasUnavailable(c *gin.Context, path string) {
+	c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+		"error": gin.H{
+			"type":    "not_found_error",
+			"message": path + " is reserved for Grok groups only",
+		},
+	})
 }

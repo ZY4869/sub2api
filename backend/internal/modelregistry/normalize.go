@@ -29,6 +29,8 @@ func NormalizePlatform(platform string) string {
 	switch platform {
 	case "claude":
 		return "anthropic"
+	case "xai":
+		return "grok"
 	default:
 		return platform
 	}

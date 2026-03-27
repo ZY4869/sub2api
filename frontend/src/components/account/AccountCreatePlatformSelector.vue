@@ -36,6 +36,11 @@ const platformOptions = computed<
     activeClass: 'text-blue-600 dark:text-blue-400'
   },
   {
+    value: 'grok',
+    label: t('admin.accounts.platforms.grok'),
+    activeClass: 'text-slate-700 dark:text-slate-200'
+  },
+  {
     value: 'protocol_gateway',
     label: t('admin.accounts.platforms.protocol_gateway'),
     activeClass: 'text-slate-600 dark:text-slate-300'

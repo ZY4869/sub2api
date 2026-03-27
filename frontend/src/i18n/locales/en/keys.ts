@@ -63,6 +63,10 @@ export default {
         note: 'Make sure the config directory exists. macOS/Linux users can run mkdir -p ~/.codex to create it.',
         noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Create it manually if it does not exist.',
       },
+      grok: {
+        description: 'Grok groups use OpenAI/xAI-compatible access. Use the root alias by default, or switch to the dedicated /grok/v1 route when you want to pin Grok explicitly.',
+        note: 'Codex CLI examples use the root alias for compatibility. OpenCode examples include both the root alias and the dedicated /grok/v1 route.',
+      },
       cliTabs: {
         claudeCode: 'Claude Code',
         geminiCli: 'Gemini CLI',

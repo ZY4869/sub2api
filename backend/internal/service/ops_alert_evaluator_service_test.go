@@ -14,11 +14,17 @@ var _ OpsRepository = (*stubOpsRepo)(nil)
 
 type stubOpsRepo struct {
 	OpsRepository
-	overview *OpsDashboardOverview
-	err      error
+	overview      *OpsDashboardOverview
+	err           error
+	overviewCalls int
+	overviewModes []OpsQueryMode
 }
 
 func (s *stubOpsRepo) GetDashboardOverview(ctx context.Context, filter *OpsDashboardFilter) (*OpsDashboardOverview, error) {
+	s.overviewCalls++
+	if filter != nil {
+		s.overviewModes = append(s.overviewModes, filter.QueryMode)
+	}
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -201,7 +207,7 @@ func TestComputeRuleMetricNewIndicators(t *testing.T) {
 			rule := &OpsAlertRule{
 				MetricType: tt.metricType,
 			}
-			gotValue, gotOK := svc.computeRuleMetric(ctx, rule, nil, start, end, platform, tt.groupID)
+			gotValue, gotOK := svc.computeRuleMetric(ctx, rule, nil, start, end, platform, tt.groupID, newOpsAlertEvaluationCache())
 			require.Equal(t, tt.wantOK, gotOK)
 			if !tt.wantOK {
 				return
@@ -209,4 +215,115 @@ func TestComputeRuleMetricNewIndicators(t *testing.T) {
 			require.InDelta(t, tt.wantValue, gotValue, 0.0001)
 		})
 	}
+}
+
+func TestComputeRuleMetricCachesOverviewPerEvaluationCycle(t *testing.T) {
+	t.Parallel()
+
+	groupID := int64(101)
+	start := time.Now().UTC().Add(-5 * time.Minute)
+	end := time.Now().UTC()
+	repo := &stubOpsRepo{
+		overview: &OpsDashboardOverview{
+			RequestCountSLA:   10,
+			SLA:               0.9,
+			ErrorRate:         0.1,
+			UpstreamErrorRate: 0.02,
+		},
+	}
+
+	svc := &OpsAlertEvaluatorService{opsRepo: repo}
+	cache := newOpsAlertEvaluationCache()
+
+	tests := []struct {
+		metricType string
+		wantValue  float64
+	}{
+		{metricType: "success_rate", wantValue: 90},
+		{metricType: "error_rate", wantValue: 10},
+		{metricType: "upstream_error_rate", wantValue: 2},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.metricType, func(t *testing.T) {
+			got, ok := svc.computeRuleMetric(
+				context.Background(),
+				&OpsAlertRule{MetricType: tt.metricType},
+				nil,
+				start,
+				end,
+				"openai",
+				&groupID,
+				cache,
+			)
+			require.True(t, ok)
+			require.InDelta(t, tt.wantValue, got, 0.0001)
+		})
+	}
+
+	require.Equal(t, 1, repo.overviewCalls)
+	require.Equal(t, []OpsQueryMode{OpsQueryModeAuto}, repo.overviewModes)
+	require.Equal(t, 1, cache.stats.OverviewMisses)
+	require.Equal(t, 2, cache.stats.OverviewHits)
+}
+
+func TestComputeRuleMetricCachesAvailabilityPerEvaluationCycle(t *testing.T) {
+	t.Parallel()
+
+	groupID := int64(101)
+	calls := 0
+	availability := &OpsAccountAvailability{
+		Group: &GroupAvailability{
+			GroupID:        groupID,
+			TotalAccounts:  10,
+			AvailableCount: 8,
+			RateLimitCount: 2,
+		},
+		Accounts: map[int64]*AccountAvailability{
+			1: {IsRateLimited: true},
+			2: {HasError: true},
+			3: {IsOverloaded: true},
+		},
+	}
+
+	svc := &OpsAlertEvaluatorService{
+		opsService: &OpsService{
+			getAccountAvailability: func(_ context.Context, _ string, gotGroupID *int64) (*OpsAccountAvailability, error) {
+				calls++
+				require.NotNil(t, gotGroupID)
+				require.Equal(t, groupID, *gotGroupID)
+				return availability, nil
+			},
+		},
+	}
+
+	cache := newOpsAlertEvaluationCache()
+	tests := []struct {
+		metricType string
+		wantValue  float64
+	}{
+		{metricType: "group_available_ratio", wantValue: 80},
+		{metricType: "account_rate_limited_count", wantValue: 1},
+		{metricType: "overload_account_count", wantValue: 1},
+	}
+
+	for _, tt := range tests {
+		got, ok := svc.computeRuleMetric(
+			context.Background(),
+			&OpsAlertRule{MetricType: tt.metricType},
+			nil,
+			time.Now().UTC().Add(-5*time.Minute),
+			time.Now().UTC(),
+			"openai",
+			&groupID,
+			cache,
+		)
+		require.True(t, ok)
+		require.InDelta(t, tt.wantValue, got, 0.0001)
+	}
+
+	require.Equal(t, 1, calls)
+	require.Equal(t, 1, cache.stats.AvailabilityMisses)
+	require.Equal(t, 2, cache.stats.AvailabilityHits)
 }

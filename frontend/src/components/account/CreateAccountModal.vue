@@ -90,6 +90,32 @@
           @open-gemini-help="showGeminiHelpDialog = true"
         />
 
+        <div
+          v-if="form.platform === 'grok'"
+          class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
+        >
+          <div v-if="form.type === 'sso'">
+            <label class="input-label">{{ t('admin.accounts.grokToken') }}</label>
+            <textarea
+              v-model="grokSSOToken"
+              rows="4"
+              class="input"
+              :placeholder="t('admin.accounts.grokTokenPlaceholder')"
+            />
+            <p class="input-hint">{{ t('admin.accounts.grokTokenHint') }}</p>
+          </div>
+
+          <div>
+            <label class="input-label">{{ t('admin.accounts.grokTier') }}</label>
+            <select v-model="grokTier" class="input">
+              <option value="basic">{{ t('admin.accounts.grokTierBasic') }}</option>
+              <option value="super">{{ t('admin.accounts.grokTierSuper') }}</option>
+              <option value="heavy">{{ t('admin.accounts.grokTierHeavy') }}</option>
+            </select>
+            <p class="input-hint">{{ t('admin.accounts.grokTierHint') }}</p>
+          </div>
+        </div>
+
       <!-- Antigravity model restriction (applies to OAuth + Upstream) -->
       <AccountAntigravityModelMappingEditor
         v-if="form.platform === 'antigravity'"
@@ -558,6 +584,8 @@ const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const apiKeyValue = ref('')
+const grokSSOToken = ref('')
+const grokTier = ref<'basic' | 'super' | 'heavy'>('basic')
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -741,6 +769,9 @@ const isOAuthFlow = computed(() => {
   if (form.platform === 'antigravity' && antigravityAccountType.value === 'upstream') {
     return false
   }
+  if (form.platform === 'grok') {
+    return false
+  }
   return accountCategory.value === 'oauth-based'
 })
 
@@ -830,6 +861,10 @@ watch(
       form.type = 'apikey'
       return
     }
+    if (form.platform === 'grok') {
+      form.type = category === 'oauth-based' ? 'sso' : 'apikey'
+      return
+    }
     if (form.platform === 'protocol_gateway') {
       form.type = 'apikey'
       return
@@ -869,6 +904,14 @@ watch(
         : [gatewayProtocol.value as GatewayAcceptedProtocol]
     } else {
       gatewayAcceptedProtocols.value = ['openai']
+    }
+    if (newPlatform === 'grok') {
+      accountCategory.value = 'oauth-based'
+      form.type = 'sso'
+      grokTier.value = 'basic'
+    } else {
+      grokSSOToken.value = ''
+      grokTier.value = 'basic'
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()
@@ -1151,6 +1194,8 @@ const { resetForm } = useCreateAccountReset({
   gatewayProtocol,
   apiKeyBaseUrl,
   apiKeyValue,
+  grokSSOToken,
+  grokTier,
   editQuotaLimit,
   editQuotaDailyLimit,
   editQuotaWeeklyLimit,
@@ -1461,6 +1506,39 @@ const handleSubmit = async () => {
     return
   }
 
+  if (form.platform === 'grok' && form.type === 'sso') {
+    if (!form.name.trim()) {
+      appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+      return
+    }
+    if (!grokSSOToken.value.trim()) {
+      appStore.showError(t('admin.accounts.pleaseEnterGrokToken'))
+      return
+    }
+
+    const credentials: Record<string, unknown> = {
+      sso_token: grokSSOToken.value.trim()
+    }
+    if (!isOpenAIModelRestrictionDisabled.value) {
+      const modelMapping = buildModelMappingObject(
+        modelRestrictionMode.value,
+        allowedModels.value,
+        modelMappings.value
+      )
+      if (modelMapping) {
+        credentials.model_mapping = modelMapping
+      }
+    }
+
+    await createAccountAndFinish(
+      form.platform,
+      'sso',
+      credentials,
+      buildAccountExtra({ grok_tier: grokTier.value })
+    )
+    return
+  }
+
   // For apikey type, create directly
   if (!apiKeyValue.value.trim()) {
     appStore.showError(t('admin.accounts.pleaseEnterApiKey'))
@@ -1502,7 +1580,7 @@ const handleSubmit = async () => {
   applyAccountCustomErrorCodesStateToCredentials(credentials, customErrorCodesState)
 
   applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
-  const extra = buildAccountExtra()
+  const extra = buildAccountExtra(form.platform === 'grok' ? { grok_tier: grokTier.value } : undefined)
   await createAccountAndFinish(
     form.platform,
     'apikey',

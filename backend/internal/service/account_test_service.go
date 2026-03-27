@@ -492,6 +492,10 @@ func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, ac
 		return s.testOpenAIAccountConnection(c, account, modelID, resolvedSourceProtocol, simulatedClient)
 	}
 
+	if account.IsGrok() {
+		return s.testGrokAccountConnection(c, account, modelID)
+	}
+
 	if account.IsGemini() {
 		return s.testGeminiAccountConnection(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
 	}

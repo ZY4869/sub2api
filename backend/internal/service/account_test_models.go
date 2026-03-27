@@ -381,6 +381,13 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 			})
 		}
 		return result
+	case PlatformGrok:
+		return []AvailableTestModel{
+			{ID: "grok-4", Type: "model", DisplayName: "grok-4", Status: "stable"},
+			{ID: "grok-3-beta", Type: "model", DisplayName: "grok-3-beta", Status: "stable"},
+			{ID: "grok-3-fast-beta", Type: "model", DisplayName: "grok-3-fast-beta", Status: "stable"},
+			{ID: "grok-2-image", Type: "model", DisplayName: "grok-2-image", Status: "stable"},
+		}
 	default:
 		result := make([]AvailableTestModel, 0, len(claude.DefaultModels))
 		for _, item := range claude.DefaultModels {

@@ -52,6 +52,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
 		return nil, err
 	}
+	if err := validateGrokAccountInput(input.Platform, input.Type, input.Credentials, input.Extra); err != nil {
+		return nil, err
+	}
 	bindingPlatform := RoutingPlatformFromValues(input.Platform, input.Extra)
 	groupIDs := input.GroupIDs
 	if len(groupIDs) == 0 && !input.SkipDefaultGroupBind {
@@ -105,6 +108,10 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	credentials := input.Credentials
 	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformKiro) {
 		credentials = NormalizeKiroCredentialsForStorage(credentials)
+	}
+	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformGrok) {
+		input.Extra = normalizeGrokExtraForStorage(input.Extra)
+		credentials = normalizeGrokCredentialsForStorage(input.Type, credentials, ResolveGrokTier(input.Extra))
 	}
 	account := &Account{
 		Name:                   input.Name,
@@ -202,6 +209,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err := validateProtocolGatewayAccountInput(account.Platform, account.Type, account.Extra); err != nil {
 		return nil, err
 	}
+	if err := validateGrokAccountInput(account.Platform, account.Type, account.Credentials, account.Extra); err != nil {
+		return nil, err
+	}
 	if input.ProxyID != nil {
 		if *input.ProxyID == 0 {
 			account.ProxyID = nil
@@ -254,6 +264,10 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
 			return nil, errors.New("base_url 必须以 http:// 或 https:// 开头")
 		}
+	}
+	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGrok) {
+		account.Extra = normalizeGrokExtraForStorage(account.Extra)
+		account.Credentials = normalizeGrokCredentialsForStorage(account.Type, account.Credentials, ResolveGrokTier(account.Extra))
 	}
 	if input.GroupIDs != nil {
 		if err := s.validateGroupIDsExist(ctx, *input.GroupIDs); err != nil {
@@ -459,6 +473,106 @@ func validateProtocolGatewayAccountInput(platform string, accountType string, ex
 	}
 	return nil
 }
+
+func validateGrokAccountInput(platform string, accountType string, credentials map[string]any, extra map[string]any) error {
+	if !strings.EqualFold(strings.TrimSpace(platform), PlatformGrok) {
+		return nil
+	}
+	switch strings.TrimSpace(strings.ToLower(accountType)) {
+	case AccountTypeAPIKey, AccountTypeSSO:
+	default:
+		return errors.New("grok accounts only support apikey or sso type")
+	}
+	if len(credentials) == 0 {
+		return errors.New("grok accounts require credentials")
+	}
+	if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeAPIKey {
+		apiKey, _ := credentials["api_key"].(string)
+		if strings.TrimSpace(apiKey) == "" {
+			return errors.New("grok apikey accounts require credentials.api_key")
+		}
+	}
+	if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeSSO {
+		ssoToken, _ := credentials["sso_token"].(string)
+		if strings.TrimSpace(ssoToken) == "" {
+			return errors.New("grok sso accounts require credentials.sso_token")
+		}
+	}
+	if len(extra) > 0 {
+		if rawTier, ok := extra["grok_tier"].(string); ok && strings.TrimSpace(rawTier) != "" && normalizeGrokTier(extra) == "" {
+			return errors.New("grok accounts require extra.grok_tier: basic|super|heavy")
+		}
+		if rawCapabilities, ok := extra["grok_capabilities"]; ok {
+			if _, ok := rawCapabilities.(map[string]any); !ok {
+				return errors.New("grok accounts require extra.grok_capabilities to be an object")
+			}
+		}
+	}
+	return nil
+}
+
+func normalizeGrokCredentialsForStorage(accountType string, credentials map[string]any, tier string) map[string]any {
+	if len(credentials) == 0 {
+		credentials = map[string]any{}
+	}
+	normalized := make(map[string]any, len(credentials)+2)
+	for key, value := range credentials {
+		normalized[key] = value
+	}
+	tier = NormalizeGrokTierValue(tier)
+	if tier == "" {
+		tier = GrokTierBasic
+	}
+	switch strings.TrimSpace(strings.ToLower(accountType)) {
+	case AccountTypeAPIKey:
+		apiKey, _ := normalized["api_key"].(string)
+		normalized["api_key"] = NormalizeGrokCredentialValue(AccountTypeAPIKey, apiKey)
+		baseURL, _ := normalized["base_url"].(string)
+		baseURL = strings.TrimSpace(baseURL)
+		if baseURL == "" {
+			normalized["base_url"] = "https://api.x.ai"
+		} else {
+			normalized["base_url"] = strings.TrimRight(baseURL, "/")
+		}
+	case AccountTypeSSO:
+		ssoToken, _ := normalized["sso_token"].(string)
+		normalized["sso_token"] = NormalizeGrokCredentialValue(AccountTypeSSO, ssoToken)
+		if _, ok := normalized["model_mapping"].(map[string]any); !ok {
+			normalized["model_mapping"] = DefaultGrokModelMappingForTier(tier)
+		}
+	}
+	return normalized
+}
+
+func normalizeGrokExtraForStorage(extra map[string]any) map[string]any {
+	if len(extra) == 0 {
+		extra = map[string]any{}
+	}
+	normalized := make(map[string]any, len(extra)+1)
+	for key, value := range extra {
+		normalized[key] = value
+	}
+	tier := normalizeGrokTier(extra)
+	if tier == "" {
+		tier = GrokTierBasic
+	}
+	normalized["grok_tier"] = tier
+	normalized["grok_capabilities"] = ResolveGrokCapabilities(normalized).ToMap()
+	return normalized
+}
+
+func normalizeGrokTier(extra map[string]any) string {
+	if len(extra) == 0 {
+		return ""
+	}
+	value, _ := extra["grok_tier"].(string)
+	return NormalizeGrokTierValue(value)
+}
+
+func defaultGrokCapabilitiesForTier(tier string) map[string]any {
+	return DefaultGrokCapabilitiesForTier(tier).ToMap()
+}
+
 func (s *adminServiceImpl) DeleteAccount(ctx context.Context, id int64) error {
 	if err := s.accountRepo.Delete(ctx, id); err != nil {
 		return err

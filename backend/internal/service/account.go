@@ -553,6 +553,9 @@ func (a *Account) GetBaseURL() string {
 	}
 	baseURL := a.GetCredential("base_url")
 	if baseURL == "" {
+		if a.Platform == PlatformGrok {
+			return "https://api.x.ai"
+		}
 		return "https://api.anthropic.com"
 	}
 	if a.Platform == PlatformAntigravity {
@@ -801,6 +804,18 @@ func (a *Account) IsOpenAI() bool {
 	return IsOpenAIFamily(EffectiveProtocol(a))
 }
 
+func (a *Account) IsGrok() bool {
+	return EffectiveProtocol(a) == PlatformGrok
+}
+
+func (a *Account) IsGrokSSO() bool {
+	return a.IsGrok() && a.Type == AccountTypeSSO
+}
+
+func (a *Account) IsGrokAPIKey() bool {
+	return a.IsGrok() && a.Type == AccountTypeAPIKey
+}
+
 func (a *Account) IsAnthropic() bool {
 	return IsAnthropicFamily(EffectiveProtocol(a))
 }
@@ -853,6 +868,20 @@ func (a *Account) GetOpenAIApiKey() string {
 		return ""
 	}
 	return a.GetCredential("api_key")
+}
+
+func (a *Account) GetGrokAPIKey() string {
+	if !a.IsGrokAPIKey() {
+		return ""
+	}
+	return a.GetCredential("api_key")
+}
+
+func (a *Account) GetGrokSSOToken() string {
+	if !a.IsGrokSSO() {
+		return ""
+	}
+	return a.GetCredential("sso_token")
 }
 
 func (a *Account) GetOpenAIUserAgent() string {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { opsAPI, type OpsRuntimeLogConfig, type OpsSystemLog, type OpsSystemLogSinkHealth } from '@/api/admin/ops'
 import Pagination from '@/components/common/Pagination.vue'
 import { useAppStore } from '@/stores'
@@ -31,6 +31,8 @@ const health = ref<OpsSystemLogSinkHealth>({
 
 const runtimeLoading = ref(false)
 const runtimeSaving = ref(false)
+const hasRuntimeConfigLoaded = ref(false)
+const hasRefreshedFromParent = ref(false)
 const runtimeConfig = reactive<OpsRuntimeLogConfig>({
   level: 'info',
   enable_sampling: false,
@@ -51,7 +53,7 @@ const filters = reactive({
   client_request_id: '',
   user_id: '',
   account_id: '',
-  platform: '',
+  platform: props.platformFilter || '',
   model: '',
   q: ''
 })
@@ -285,18 +287,34 @@ const resetFilters = () => {
   fetchLogs()
 }
 
+const refreshFromParent = async () => {
+  if (!hasRuntimeConfigLoaded.value) {
+    hasRuntimeConfigLoaded.value = true
+    await Promise.all([fetchLogs(), fetchHealth(), loadRuntimeConfig()])
+  } else {
+    await Promise.all([fetchLogs(), fetchHealth()])
+  }
+  hasRefreshedFromParent.value = true
+}
+
 watch(() => props.platformFilter, (v) => {
   if (v && !filters.platform) {
     filters.platform = v
     page.value = 1
-    fetchLogs()
+    if (hasRefreshedFromParent.value) {
+      void fetchLogs()
+    }
   }
 })
 
-watch(() => props.refreshToken, () => {
-  fetchLogs()
-  fetchHealth()
-})
+watch(
+  () => props.refreshToken,
+  (token) => {
+    if (token <= 0) return
+    void refreshFromParent()
+  },
+  { immediate: true }
+)
 
 const onPageChange = (next: number) => {
   page.value = next
@@ -316,12 +334,6 @@ const applyFilters = () => {
 
 const hasData = computed(() => logs.value.length > 0)
 
-onMounted(async () => {
-  if (props.platformFilter) {
-    filters.platform = props.platformFilter
-  }
-  await Promise.all([fetchLogs(), fetchHealth(), loadRuntimeConfig()])
-})
 </script>
 
 <template>

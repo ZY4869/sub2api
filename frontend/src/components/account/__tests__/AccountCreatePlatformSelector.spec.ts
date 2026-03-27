@@ -9,6 +9,8 @@ vi.mock('vue-i18n', async () => {
     'admin.accounts.platforms.kiro': 'Kiro',
     'admin.accounts.platforms.openai': 'OpenAI',
     'admin.accounts.platforms.copilot': 'GitHub Copilot',
+    'admin.accounts.platforms.grok': 'Grok',
+    'admin.accounts.platforms.protocol_gateway': 'Protocol Gateway',
     'admin.accounts.platforms.gemini': 'Gemini',
     'admin.accounts.platforms.antigravity': 'Antigravity',
     'admin.accounts.platforms.sora': 'Sora'
@@ -48,6 +50,8 @@ describe('AccountCreatePlatformSelector', () => {
       'Kiro',
       'OpenAI',
       'GitHub Copilot',
+      'Grok',
+      'Protocol Gateway',
       'Gemini',
       'Antigravity',
       'Sora'
@@ -55,7 +59,7 @@ describe('AccountCreatePlatformSelector', () => {
     expect(wrapper.findAll('button')[0].classes()).toContain('min-w-0')
     expect(wrapper.findAll('button')[0].classes()).toContain('whitespace-normal')
 
-    await wrapper.findAll('button')[3].trigger('click')
-    expect(wrapper.emitted('update:platform')).toEqual([['copilot']])
+    await wrapper.findAll('button')[4].trigger('click')
+    expect(wrapper.emitted('update:platform')).toEqual([['grok']])
   })
 })

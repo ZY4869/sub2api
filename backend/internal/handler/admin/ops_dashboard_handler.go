@@ -65,34 +65,21 @@ func (h *OpsHandler) GetDashboardThroughputTrend(c *gin.Context) {
 		return
 	}
 
-	startTime, endTime, err := parseOpsTimeRange(c, "1h")
+	filter, startTime, endTime, err := buildOpsDashboardFilterFromRequest(c, "1h")
 	if err != nil {
+		if err == errInvalidGroupID {
+			response.BadRequest(c, err.Error())
+			return
+		}
 		response.BadRequest(c, err.Error())
 		return
 	}
-
-	filter := &service.OpsDashboardFilter{
-		StartTime: startTime,
-		EndTime:   endTime,
-		Platform:  strings.TrimSpace(c.Query("platform")),
-		QueryMode: parseOpsQueryMode(c),
-	}
-	if v := strings.TrimSpace(c.Query("group_id")); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || id <= 0 {
-			response.BadRequest(c, "Invalid group_id")
-			return
-		}
-		filter.GroupID = &id
-	}
-
 	bucketSeconds := pickThroughputBucketSeconds(endTime.Sub(startTime))
-	data, err := h.opsService.GetThroughputTrend(c.Request.Context(), filter, bucketSeconds)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, data)
+	cacheKey := buildOpsDashboardReadCacheKey(c, "1h", filter, bucketSeconds)
+
+	respondCachedOpsDashboardRead(c, opsDashboardThroughputTrendCache, cacheKey, func() (any, error) {
+		return h.opsService.GetThroughputTrend(c.Request.Context(), filter, bucketSeconds)
+	})
 }
 
 // GetDashboardLatencyHistogram returns the latency distribution histogram (success requests).
@@ -107,33 +94,20 @@ func (h *OpsHandler) GetDashboardLatencyHistogram(c *gin.Context) {
 		return
 	}
 
-	startTime, endTime, err := parseOpsTimeRange(c, "1h")
+	filter, _, _, err := buildOpsDashboardFilterFromRequest(c, "1h")
 	if err != nil {
+		if err == errInvalidGroupID {
+			response.BadRequest(c, err.Error())
+			return
+		}
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	filter := &service.OpsDashboardFilter{
-		StartTime: startTime,
-		EndTime:   endTime,
-		Platform:  strings.TrimSpace(c.Query("platform")),
-		QueryMode: parseOpsQueryMode(c),
-	}
-	if v := strings.TrimSpace(c.Query("group_id")); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || id <= 0 {
-			response.BadRequest(c, "Invalid group_id")
-			return
-		}
-		filter.GroupID = &id
-	}
-
-	data, err := h.opsService.GetLatencyHistogram(c.Request.Context(), filter)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, data)
+	cacheKey := buildOpsDashboardReadCacheKey(c, "1h", filter, 0)
+	respondCachedOpsDashboardRead(c, opsDashboardLatencyHistogramCache, cacheKey, func() (any, error) {
+		return h.opsService.GetLatencyHistogram(c.Request.Context(), filter)
+	})
 }
 
 // GetDashboardErrorTrend returns error counts time series (raw path).
@@ -190,33 +164,20 @@ func (h *OpsHandler) GetDashboardErrorDistribution(c *gin.Context) {
 		return
 	}
 
-	startTime, endTime, err := parseOpsTimeRange(c, "1h")
+	filter, _, _, err := buildOpsDashboardFilterFromRequest(c, "1h")
 	if err != nil {
+		if err == errInvalidGroupID {
+			response.BadRequest(c, err.Error())
+			return
+		}
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	filter := &service.OpsDashboardFilter{
-		StartTime: startTime,
-		EndTime:   endTime,
-		Platform:  strings.TrimSpace(c.Query("platform")),
-		QueryMode: parseOpsQueryMode(c),
-	}
-	if v := strings.TrimSpace(c.Query("group_id")); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || id <= 0 {
-			response.BadRequest(c, "Invalid group_id")
-			return
-		}
-		filter.GroupID = &id
-	}
-
-	data, err := h.opsService.GetErrorDistribution(c.Request.Context(), filter)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, data)
+	cacheKey := buildOpsDashboardReadCacheKey(c, "1h", filter, 0)
+	respondCachedOpsDashboardRead(c, opsDashboardErrorDistributionCache, cacheKey, func() (any, error) {
+		return h.opsService.GetErrorDistribution(c.Request.Context(), filter)
+	})
 }
 
 // GetDashboardOpenAITokenStats returns OpenAI token efficiency stats grouped by model.

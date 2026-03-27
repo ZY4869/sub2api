@@ -287,10 +287,11 @@ async function loadData() {
 // 刷新节奏由父组件统一控制（OpsDashboard Header 的刷新状态/倒计时）
 watch(
   () => props.refreshToken,
-  () => {
-    if (!realtimeEnabled.value) return
-    loadData()
-  }
+  (token) => {
+    if (token <= 0) return
+    void loadData()
+  },
+  { immediate: true }
 )
 
 // 切换用户视图时重新加载数据
@@ -329,15 +330,6 @@ function formatDuration(seconds: number): string {
 }
 
 
-watch(
-  () => realtimeEnabled.value,
-  async (enabled) => {
-    if (enabled) {
-      await loadData()
-    }
-  },
-  { immediate: true }
-)
 </script>
 
 <template>

@@ -46,6 +46,8 @@ interface UseCreateAccountResetOptions {
   gatewayProtocol: Ref<GatewayProtocol>
   apiKeyBaseUrl: Ref<string>
   apiKeyValue: Ref<string>
+  grokSSOToken: Ref<string>
+  grokTier: Ref<'basic' | 'super' | 'heavy'>
   editQuotaLimit: Ref<number | null>
   editQuotaDailyLimit: Ref<number | null>
   editQuotaWeeklyLimit: Ref<number | null>
@@ -116,6 +118,8 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.gatewayProtocol.value = 'openai'
     options.apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl('anthropic')
     options.apiKeyValue.value = ''
+    options.grokSSOToken.value = ''
+    options.grokTier.value = 'basic'
     options.editQuotaLimit.value = null
     options.editQuotaDailyLimit.value = null
     options.editQuotaWeeklyLimit.value = null

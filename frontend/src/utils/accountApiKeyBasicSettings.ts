@@ -19,6 +19,7 @@ export function resolveAccountApiKeyDefaultBaseUrl(
 ): string {
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.defaultBaseUrl
+  if (platform === 'grok') return 'https://api.x.ai'
   if (platform === 'openai' || platform === 'sora') return 'https://api.openai.com'
   if (platform === 'copilot') return 'https://api.githubcopilot.com'
   if (platform === 'gemini') return 'https://generativelanguage.googleapis.com'
@@ -32,6 +33,7 @@ export function resolveAccountApiKeyPlaceholder(
 ): string {
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.apiKeyPlaceholder
+  if (platform === 'grok') return 'xai-...'
   if (platform === 'openai' || platform === 'sora') return 'sk-proj-...'
   if (platform === 'copilot') return 'ghu_...'
   if (platform === 'gemini') return 'AIza...'
@@ -46,6 +48,7 @@ export function resolveAccountApiKeyBaseUrlHintKey(
 ): string {
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.baseUrlHintKey
+  if (platform === 'grok') return 'admin.accounts.grokDedicatedRouteHint'
   if (mode === 'create' && platform === 'sora') return 'admin.accounts.soraUpstreamBaseUrlHint'
   if (platform === 'openai' || platform === 'sora' || platform === 'copilot') return 'admin.accounts.openai.baseUrlHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.baseUrlHint'
@@ -61,6 +64,7 @@ export function resolveAccountApiKeyHintKey(
   if (mode === 'edit') return 'admin.accounts.leaveEmptyToKeep'
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.apiKeyHintKey
+  if (platform === 'grok') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'openai' || platform === 'sora' || platform === 'copilot') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.apiKeyHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.apiKeyHint'

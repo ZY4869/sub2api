@@ -54,6 +54,8 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 			return nil, err
 		}
 		return newAccountModelProbeResult(models), nil
+	case PlatformGrok:
+		return s.detectGrokModels(ctx, account)
 	case PlatformAntigravity:
 		models, err := s.detectAntigravityModels(ctx, account)
 		if err != nil {

@@ -44,7 +44,13 @@ func DisplayPlatformName(platform string) string {
 		return "Kiro"
 	case PlatformCopilot:
 		return "Copilot"
+	case PlatformGrok:
+		return "Grok"
 	default:
 		return ""
 	}
+}
+
+func IsGrokPlatform(platform string) bool {
+	return strings.TrimSpace(strings.ToLower(platform)) == PlatformGrok
 }

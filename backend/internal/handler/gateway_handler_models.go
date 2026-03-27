@@ -28,6 +28,18 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"object": "list", "data": service.DefaultSoraModels(h.cfg)})
 		return
 	}
+	if platform == service.PlatformGrok {
+		if entries := h.registryEntriesForPlatform(c.Request.Context(), platform); len(entries) > 0 {
+			c.JSON(http.StatusOK, gin.H{"object": "list", "data": registryEntriesToClaudeModels(entries)})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": []claude.Model{
+			{ID: "grok-4", Type: "model", DisplayName: "grok-4", CreatedAt: ""},
+			{ID: "grok-3-beta", Type: "model", DisplayName: "grok-3-beta", CreatedAt: ""},
+			{ID: "grok-2-image", Type: "model", DisplayName: "grok-2-image", CreatedAt: ""},
+		}})
+		return
+	}
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, "")
 	defaultEntries := h.registryEntriesForPlatform(c.Request.Context(), platform)
 	if len(availableModels) > 0 {

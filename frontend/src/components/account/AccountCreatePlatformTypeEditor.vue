@@ -142,6 +142,25 @@ const protocolGatewayOptions = computed<TypeOption[]>(() => [
   }
 ])
 
+const grokOptions = computed<TypeOption[]>(() => [
+  {
+    key: 'oauth-based',
+    title: t('admin.accounts.types.grokSso'),
+    description: t('admin.accounts.types.grokSsoHint'),
+    icon: 'sparkles',
+    accent: 'green',
+    active: accountCategory.value === 'oauth-based'
+  },
+  {
+    key: 'apikey',
+    title: 'API Key',
+    description: t('admin.accounts.grokDedicatedRouteHint'),
+    icon: 'key',
+    accent: 'purple',
+    active: accountCategory.value === 'apikey'
+  }
+])
+
 const gatewayProtocolOptions = computed(() =>
   PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
     value: id,
@@ -181,6 +200,10 @@ function handleOpenAISelect(key: string) {
   selectAccountCategory(key as AccountCategory)
 }
 
+function handleGrokSelect(key: string) {
+  selectAccountCategory(key as AccountCategory)
+}
+
 function handleSoraSelect(key: string) {
   selectSoraAccountType(key as SoraAccountType)
 }
@@ -214,6 +237,14 @@ function handleAntigravitySelect(key: string) {
       :options="openAIOptions"
       tour="account-form-type"
       @select="handleOpenAISelect"
+    />
+
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'grok'"
+      :label="t('admin.accounts.accountType')"
+      :options="grokOptions"
+      tour="account-form-type"
+      @select="handleGrokSelect"
     />
 
     <div v-else-if="platform === 'protocol_gateway'" class="space-y-4">

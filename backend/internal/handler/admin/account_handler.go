@@ -60,7 +60,7 @@ type CreateAccountRequest struct {
 	Notes                   *string        `json:"notes"`
 	Platform                string         `json:"platform" binding:"required"`
 	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini mixed"`
-	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream"`
+	Type                    string         `json:"type" binding:"required,oneof=oauth setup-token apikey upstream sso"`
 	Credentials             map[string]any `json:"credentials" binding:"required"`
 	Extra                   map[string]any `json:"extra"`
 	ProxyID                 *int64         `json:"proxy_id"`
@@ -81,7 +81,7 @@ type UpdateAccountRequest struct {
 	Name                    string         `json:"name"`
 	Notes                   *string        `json:"notes"`
 	GatewayProtocol         string         `json:"gateway_protocol" binding:"omitempty,oneof=openai anthropic gemini mixed"`
-	Type                    string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream"`
+	Type                    string         `json:"type" binding:"omitempty,oneof=oauth setup-token apikey upstream sso"`
 	Credentials             map[string]any `json:"credentials"`
 	Extra                   map[string]any `json:"extra"`
 	ProxyID                 *int64         `json:"proxy_id"`

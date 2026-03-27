@@ -71,6 +71,7 @@ func RegisterAdminRoutes(
 
 		// 订阅管理
 		registerSubscriptionRoutes(admin, h)
+		registerGrokRoutes(admin, h)
 
 		// 使用记录管理
 		registerUsageRoutes(admin, h)
@@ -333,6 +334,15 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/exchange-setup-token-code", h.Admin.OAuth.ExchangeSetupTokenCode)
 		accounts.POST("/cookie-auth", h.Admin.OAuth.CookieAuth)
 		accounts.POST("/setup-token-cookie-auth", h.Admin.OAuth.SetupTokenCookieAuth)
+	}
+}
+
+func registerGrokRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	grok := admin.Group("/grok")
+	{
+		grok.POST("/import/preview", h.Admin.Account.PreviewGrokImport)
+		grok.POST("/import", h.Admin.Account.ImportGrok)
+		grok.POST("/accounts/:id/test", h.Admin.Account.TestGrokAccount)
 	}
 }
 

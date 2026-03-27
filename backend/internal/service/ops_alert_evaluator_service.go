@@ -61,6 +61,116 @@ type opsAlertRuleState struct {
 	ConsecutiveBreaches int
 }
 
+type opsAlertEvaluationCache struct {
+	overview     map[string]opsAlertOverviewCacheEntry
+	availability map[string]opsAlertAvailabilityCacheEntry
+	stats        opsAlertEvaluationCacheStats
+}
+
+type opsAlertEvaluationCacheStats struct {
+	OverviewHits       int
+	OverviewMisses     int
+	AvailabilityHits   int
+	AvailabilityMisses int
+}
+
+type opsAlertOverviewCacheEntry struct {
+	overview *OpsDashboardOverview
+	err      error
+}
+
+type opsAlertAvailabilityCacheEntry struct {
+	availability *OpsAccountAvailability
+	err          error
+}
+
+func newOpsAlertEvaluationCache() *opsAlertEvaluationCache {
+	return &opsAlertEvaluationCache{
+		overview:     make(map[string]opsAlertOverviewCacheEntry),
+		availability: make(map[string]opsAlertAvailabilityCacheEntry),
+	}
+}
+
+func (c *opsAlertEvaluationCache) getOverview(
+	key string,
+	load func() (*OpsDashboardOverview, error),
+) (*OpsDashboardOverview, error) {
+	if c == nil {
+		return load()
+	}
+	if entry, ok := c.overview[key]; ok {
+		c.stats.OverviewHits++
+		return entry.overview, entry.err
+	}
+
+	overview, err := load()
+	c.overview[key] = opsAlertOverviewCacheEntry{
+		overview: overview,
+		err:      err,
+	}
+	c.stats.OverviewMisses++
+	return overview, err
+}
+
+func (c *opsAlertEvaluationCache) getAvailability(
+	key string,
+	load func() (*OpsAccountAvailability, error),
+) (*OpsAccountAvailability, error) {
+	if c == nil {
+		return load()
+	}
+	if entry, ok := c.availability[key]; ok {
+		c.stats.AvailabilityHits++
+		return entry.availability, entry.err
+	}
+
+	availability, err := load()
+	c.availability[key] = opsAlertAvailabilityCacheEntry{
+		availability: availability,
+		err:          err,
+	}
+	c.stats.AvailabilityMisses++
+	return availability, err
+}
+
+func (c *opsAlertEvaluationCache) formatStats() string {
+	if c == nil {
+		return "overview_cache_hits=0 overview_cache_misses=0 availability_cache_hits=0 availability_cache_misses=0"
+	}
+	return fmt.Sprintf(
+		"overview_cache_hits=%d overview_cache_misses=%d availability_cache_hits=%d availability_cache_misses=%d",
+		c.stats.OverviewHits,
+		c.stats.OverviewMisses,
+		c.stats.AvailabilityHits,
+		c.stats.AvailabilityMisses,
+	)
+}
+
+func buildOpsAlertOverviewCacheKey(start, end time.Time, platform string, groupID *int64) string {
+	return fmt.Sprintf(
+		"%s|%s|%s|%d",
+		start.UTC().Format(time.RFC3339),
+		end.UTC().Format(time.RFC3339),
+		strings.TrimSpace(strings.ToLower(platform)),
+		normalizedOpsAlertCacheGroupID(groupID),
+	)
+}
+
+func buildOpsAlertAvailabilityCacheKey(platform string, groupID *int64) string {
+	return fmt.Sprintf(
+		"%s|%d",
+		strings.TrimSpace(strings.ToLower(platform)),
+		normalizedOpsAlertCacheGroupID(groupID),
+	)
+}
+
+func normalizedOpsAlertCacheGroupID(groupID *int64) int64 {
+	if groupID == nil || *groupID <= 0 {
+		return 0
+	}
+	return *groupID
+}
+
 func NewOpsAlertEvaluatorService(
 	opsService *OpsService,
 	opsRepo OpsRepository,
@@ -204,6 +314,7 @@ func (s *OpsAlertEvaluatorService) evaluateOnce(interval time.Duration) {
 	}
 
 	systemMetrics, _ := s.opsRepo.GetLatestSystemMetrics(ctx, 1)
+	evalCache := newOpsAlertEvaluationCache()
 
 	// Cleanup stale state for removed rules.
 	s.pruneRuleStates(rules)
@@ -223,7 +334,7 @@ func (s *OpsAlertEvaluatorService) evaluateOnce(interval time.Duration) {
 		windowStart := safeEnd.Add(-time.Duration(windowMinutes) * time.Minute)
 		windowEnd := safeEnd
 
-		metricValue, ok := s.computeRuleMetric(ctx, rule, systemMetrics, windowStart, windowEnd, scopePlatform, scopeGroupID)
+		metricValue, ok := s.computeRuleMetric(ctx, rule, systemMetrics, windowStart, windowEnd, scopePlatform, scopeGroupID, evalCache)
 		if !ok {
 			s.resetRuleState(rule.ID, now)
 			continue
@@ -307,7 +418,19 @@ func (s *OpsAlertEvaluatorService) evaluateOnce(interval time.Duration) {
 		}
 	}
 
-	result := truncateString(fmt.Sprintf("rules=%d enabled=%d evaluated=%d created=%d resolved=%d emails_sent=%d", rulesTotal, rulesEnabled, rulesEvaluated, eventsCreated, eventsResolved, emailsSent), 2048)
+	result := truncateString(
+		fmt.Sprintf(
+			"rules=%d enabled=%d evaluated=%d created=%d resolved=%d emails_sent=%d %s",
+			rulesTotal,
+			rulesEnabled,
+			rulesEvaluated,
+			eventsCreated,
+			eventsResolved,
+			emailsSent,
+			evalCache.formatStats(),
+		),
+		2048,
+	)
 	s.recordHeartbeatSuccess(runAt, time.Since(startedAt), result)
 }
 
@@ -437,6 +560,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 	end time.Time,
 	platform string,
 	groupID *int64,
+	evalCache *opsAlertEvaluationCache,
 ) (float64, bool) {
 	if rule == nil {
 		return 0, false
@@ -464,7 +588,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -479,7 +603,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -488,7 +612,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -499,7 +623,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -513,7 +637,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -525,7 +649,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -541,7 +665,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		if s == nil || s.opsService == nil {
 			return 0, false
 		}
-		availability, err := s.opsService.GetAccountAvailability(ctx, platform, groupID)
+		availability, err := s.getCachedAccountAvailability(ctx, platform, groupID, evalCache)
 		if err != nil || availability == nil {
 			return 0, false
 		}
@@ -550,13 +674,7 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 		})), true
 	}
 
-	overview, err := s.opsRepo.GetDashboardOverview(ctx, &OpsDashboardFilter{
-		StartTime: start,
-		EndTime:   end,
-		Platform:  platform,
-		GroupID:   groupID,
-		QueryMode: OpsQueryModeRaw,
-	})
+	overview, err := s.getCachedDashboardOverview(ctx, start, end, platform, groupID, evalCache)
 	if err != nil {
 		return 0, false
 	}
@@ -583,6 +701,46 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 	default:
 		return 0, false
 	}
+}
+
+func (s *OpsAlertEvaluatorService) getCachedAccountAvailability(
+	ctx context.Context,
+	platform string,
+	groupID *int64,
+	evalCache *opsAlertEvaluationCache,
+) (*OpsAccountAvailability, error) {
+	if s == nil || s.opsService == nil {
+		return nil, nil
+	}
+
+	cacheKey := buildOpsAlertAvailabilityCacheKey(platform, groupID)
+	return evalCache.getAvailability(cacheKey, func() (*OpsAccountAvailability, error) {
+		return s.opsService.GetAccountAvailability(ctx, platform, groupID)
+	})
+}
+
+func (s *OpsAlertEvaluatorService) getCachedDashboardOverview(
+	ctx context.Context,
+	start time.Time,
+	end time.Time,
+	platform string,
+	groupID *int64,
+	evalCache *opsAlertEvaluationCache,
+) (*OpsDashboardOverview, error) {
+	if s == nil || s.opsRepo == nil {
+		return nil, nil
+	}
+
+	cacheKey := buildOpsAlertOverviewCacheKey(start, end, platform, groupID)
+	return evalCache.getOverview(cacheKey, func() (*OpsDashboardOverview, error) {
+		return s.opsRepo.GetDashboardOverview(ctx, &OpsDashboardFilter{
+			StartTime: start,
+			EndTime:   end,
+			Platform:  platform,
+			GroupID:   groupID,
+			QueryMode: OpsQueryModeAuto,
+		})
+	})
 }
 
 func compareMetric(value float64, operator string, threshold float64) bool {

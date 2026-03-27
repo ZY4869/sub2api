@@ -226,6 +226,8 @@ func accountModelScopeRouteKey(platform string, accountType string) string {
 		return "antigravity"
 	case PlatformSora:
 		return "sora"
+	case PlatformGrok:
+		return "grok"
 	default:
 		return normalizedPlatform
 	}

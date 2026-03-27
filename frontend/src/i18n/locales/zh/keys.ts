@@ -64,6 +64,10 @@ export default {
         noteWindows:
           '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'
       },
+      grok: {
+        description: 'Grok 鍒嗙粍浣跨敤 OpenAI / xAI 鍏煎璁块棶鏂瑰紡銆傞粯璁や娇鐢ㄦ牴璺緞鍒悕锛屽闇€寮哄埗鍛戒腑 Grok 涓撳睘璺敱锛屽彲鏀圭敤 /grok/v1銆?',
+        note: 'Codex CLI 绀轰緥榛樿浣跨敤鏍瑰叆鍙ｄ互淇濇寔鍏煎鎬с€侽penCode 绀轰緥浼氬悓鏃舵彁渚涙牴鍏ュ彛鍜? /grok/v1 涓撳睘鍏ュ彛銆?',
+      },
       cliTabs: {
         claudeCode: 'Claude Code',
         geminiCli: 'Gemini CLI',

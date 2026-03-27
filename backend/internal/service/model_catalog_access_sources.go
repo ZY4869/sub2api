@@ -123,8 +123,10 @@ func modelCatalogRequestPlatforms(record *modelCatalogRecord) []string {
 		provider = inferModelProvider(record.model)
 	}
 	switch provider {
-	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformSora:
+	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformSora, PlatformGrok:
 		return []string{provider}
+	case "xai":
+		return []string{PlatformGrok}
 	default:
 		return nil
 	}
@@ -222,7 +224,7 @@ func modelCatalogAccessSourceForAccount(account *Account) string {
 		return ""
 	}
 	switch account.Type {
-	case AccountTypeOAuth, AccountTypeSetupToken:
+	case AccountTypeOAuth, AccountTypeSetupToken, AccountTypeSSO:
 		return ModelCatalogAccessSourceLogin
 	case AccountTypeAPIKey, AccountTypeUpstream:
 		return ModelCatalogAccessSourceKey

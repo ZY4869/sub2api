@@ -43,6 +43,7 @@ const PLATFORM_ICON_MAP: Record<string, { slug: string; badge: string }> = {
   kiro: { slug: 'kiro', badge: 'Ki' },
   openai: { slug: 'openai', badge: 'OA' },
   copilot: { slug: 'githubcopilot', badge: 'GH' },
+  grok: { slug: 'xai', badge: 'Gr' },
   protocol_gateway: { slug: 'openrouter', badge: 'PG' },
   gemini: { slug: 'google', badge: 'Ge' },
   antigravity: { slug: 'antigravity', badge: 'AG' },

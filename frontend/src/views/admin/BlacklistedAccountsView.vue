@@ -155,6 +155,7 @@ const platformOptions = computed(() => [
   { value: 'kiro', label: 'Kiro' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'copilot', label: 'Copilot' },
+  { value: 'grok', label: 'Grok' },
   { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') },
   { value: 'gemini', label: 'Gemini' },
   { value: 'antigravity', label: 'Antigravity' },

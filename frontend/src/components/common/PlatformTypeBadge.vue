@@ -86,6 +86,7 @@ const platformLabel = computed(() => {
   if (props.platform === 'kiro') return 'Kiro'
   if (props.platform === 'openai') return 'OpenAI'
   if (props.platform === 'copilot') return 'Copilot'
+  if (props.platform === 'grok') return 'Grok'
   if (props.platform === 'antigravity') return 'Antigravity'
   if (props.platform === 'sora') return 'Sora'
   return 'Gemini'
@@ -121,6 +122,8 @@ const typeLabel = computed(() => {
       return 'Token'
     case 'apikey':
       return 'Key'
+    case 'sso':
+      return 'SSO'
     case 'bedrock':
       return 'AWS'
     default:
@@ -162,6 +165,9 @@ const platformClass = computed(() => {
   if (props.platform === 'copilot') {
     return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
   }
+  if (props.platform === 'grok') {
+    return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+  }
   if (props.platform === 'antigravity') {
     return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
   }
@@ -186,6 +192,9 @@ const typeClass = computed(() => {
   }
   if (props.platform === 'copilot') {
     return 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400'
+  }
+  if (props.platform === 'grok') {
+    return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
   }
   if (props.platform === 'antigravity') {
     return 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'

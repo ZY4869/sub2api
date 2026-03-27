@@ -124,6 +124,23 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(wrapper.emitted('update:accountCategory')).toContainEqual(['apikey'])
   })
 
+  it('switches grok account types between sso and apikey', async () => {
+    const wrapper = createWrapper({
+      platform: 'grok',
+      accountCategory: 'oauth-based'
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.types.grokSso')
+
+    const apiKeyButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('API Key')
+    )
+    expect(apiKeyButton).toBeTruthy()
+
+    await apiKeyButton!.trigger('click')
+    expect(wrapper.emitted('update:accountCategory')).toContainEqual(['apikey'])
+  })
+
   it('bridges gemini help events to the parent', async () => {
     const wrapper = createWrapper({
       platform: 'gemini',

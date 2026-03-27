@@ -181,6 +181,7 @@ const activeClientTab = ref<string>('claude')
 const defaultClientTab = computed(() => {
   switch (props.platform) {
     case 'openai':
+    case 'grok':
       return 'codex'
     case 'gemini':
       return 'gemini'
@@ -267,6 +268,12 @@ const SparkleIcon = {
 const clientTabs = computed((): TabConfig[] => {
   if (!props.platform) return []
   switch (props.platform) {
+    case 'grok':
+      return [
+        { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
+        { id: 'codex-ws', label: t('keys.useKeyModal.cliTabs.codexCliWs'), icon: TerminalIcon },
+        { id: 'opencode', label: t('keys.useKeyModal.cliTabs.opencode'), icon: TerminalIcon }
+      ]
     case 'openai': {
       const tabs: TabConfig[] = [
         { id: 'codex', label: t('keys.useKeyModal.cliTabs.codexCli'), icon: TerminalIcon },
@@ -322,6 +329,8 @@ const currentTabs = computed(() => {
 
 const platformDescription = computed(() => {
   switch (props.platform) {
+    case 'grok':
+      return t('keys.useKeyModal.grok.description')
     case 'openai':
       if (activeClientTab.value === 'claude') {
         return t('keys.useKeyModal.description')
@@ -338,6 +347,8 @@ const platformDescription = computed(() => {
 
 const platformNote = computed(() => {
   switch (props.platform) {
+    case 'grok':
+      return t('keys.useKeyModal.grok.note')
     case 'openai':
       if (activeClientTab.value === 'claude') {
         return t('keys.useKeyModal.note')
@@ -385,6 +396,7 @@ const currentFiles = computed((): FileConfig[] => {
     return trimmed.endsWith('/v1') ? trimmed : `${trimmed}/v1`
   }
   const apiBase = ensureV1(baseRoot)
+  const grokBase = ensureV1(`${baseRoot}/grok`)
   const antigravityBase = ensureV1(`${baseRoot}/antigravity`)
   const antigravityGeminiBase = (() => {
     const trimmed = `${baseRoot}/antigravity`.replace(/\/+$/, '')
@@ -401,6 +413,11 @@ const currentFiles = computed((): FileConfig[] => {
         return [generateOpenCodeConfig('anthropic', apiBase, apiKey)]
       case 'openai':
         return [generateOpenCodeConfig('openai', apiBase, apiKey)]
+      case 'grok':
+        return [
+          generateOpenCodeConfig('openai', apiBase, apiKey, 'opencode.json (Root Alias)'),
+          generateOpenCodeConfig('openai', grokBase, apiKey, 'opencode.json (/grok/v1)')
+        ]
       case 'gemini':
         return [generateOpenCodeConfig('gemini', geminiBase, apiKey)]
       case 'antigravity':
@@ -415,6 +432,7 @@ const currentFiles = computed((): FileConfig[] => {
 
   switch (props.platform) {
     case 'openai':
+    case 'grok':
       if (activeClientTab.value === 'claude') {
         return generateAnthropicFiles(baseUrl, apiKey)
       }
