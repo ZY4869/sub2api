@@ -161,6 +161,12 @@
       >
         {{ t('admin.accounts.soraTestHint') }}
       </div>
+      <div
+        v-else-if="isGrokAccount"
+        class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300"
+      >
+        {{ t(grokTestHintKey) }}
+      </div>
 
       <div v-if="supportsGeminiImageTest" class="space-y-1.5">
         <TextArea
@@ -453,7 +459,7 @@ const selectedTestMode = ref<AccountTestMode>(DEFAULT_ACCOUNT_TEST_MODE)
 const runtimePlatform = computed(() =>
   props.account ? resolveEffectiveAccountPlatformFromAccount(props.account) : null
 )
-const supportsTestModes = computed(() => !isSoraAccount.value)
+const supportsTestModes = computed(() => !isSoraAccount.value && !isGrokAccount.value)
 const selectedModelOption = computed(() =>
   availableModelOptions.value.find((model) => model.key === selectedModelKey.value) || null
 )
@@ -462,6 +468,7 @@ const selectedSourceProtocol = computed(() =>
   normalizeGatewayAcceptedProtocol(selectedModelOption.value?.source_protocol)
 )
 const isSoraAccount = computed(() => props.account?.platform === 'sora')
+const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const generatedImages = ref<PreviewImage[]>([])
 const runtimeContext = ref<{
@@ -536,6 +543,11 @@ const runtimeContextItems = computed(() => {
   }
   return items
 })
+const grokTestHintKey = computed(() =>
+  props.account?.type === 'sso'
+    ? 'admin.accounts.grokTestSsoHint'
+    : 'admin.accounts.grokTestApiKeyHint'
+)
 
 const blacklistAdviceTitle = computed(() => {
   switch (blacklistAdvice.value?.decision) {
@@ -763,6 +775,12 @@ const resolveTestRequestBody = () => {
   if (isSoraAccount.value) {
     return {}
   }
+  if (isGrokAccount.value) {
+    return {
+      model_id: selectedModelId.value,
+      model: selectedModelId.value
+    }
+  }
   return {
     model_id: selectedModelId.value,
     model: selectedModelId.value,
@@ -819,18 +837,16 @@ const startTest = async () => {
   closeEventSource()
 
   try {
-    // Create EventSource for SSE
-    const url = `/api/v1/admin/accounts/${props.account.id}/test`
-
-    // Use fetch with streaming for SSE since EventSource doesn't support POST
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(resolveTestRequestBody())
-    })
+    const response = isGrokAccount.value
+      ? await adminAPI.accounts.testGrokAccount(props.account.id, resolveTestRequestBody())
+      : await fetch(`/api/v1/admin/accounts/${props.account.id}/test`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(resolveTestRequestBody())
+        })
 
     if (!response.ok) {
       throw new Error(await resolveResponseErrorMessage(response))
@@ -987,8 +1003,12 @@ const handleEvent = (event: {
         break
       }
       if (event.text) {
-        streamingContent.value += event.text
-        scrollToBottom()
+        if (isGrokAccount.value || selectedTestMode.value === 'health_check') {
+          addLine(event.text, 'text-sky-300')
+        } else {
+          streamingContent.value += event.text
+          scrollToBottom()
+        }
       }
       break
 

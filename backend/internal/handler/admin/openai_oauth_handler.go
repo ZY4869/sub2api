@@ -259,6 +259,7 @@ func (h *OpenAIOAuthHandler) RefreshAccountToken(c *gin.Context) {
 	// Use OpenAI OAuth service to refresh token
 	tokenInfo, err := h.openaiOAuthService.RefreshAccountToken(c.Request.Context(), account)
 	if err != nil {
+		h.adminService.EnsureOpenAIPrivacy(c.Request.Context(), account)
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -280,6 +281,7 @@ func (h *OpenAIOAuthHandler) RefreshAccountToken(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.adminService.EnsureOpenAIPrivacy(c.Request.Context(), updatedAccount)
 
 	response.Success(c, dto.AccountFromService(updatedAccount))
 }
@@ -381,6 +383,7 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.adminService.ForceOpenAIPrivacy(c.Request.Context(), account)
 
 	response.Success(c, dto.AccountFromService(account))
 }

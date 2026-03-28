@@ -555,6 +555,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsEndpointContext(c, account.GetMappedModel(modelName), service.RequestTypeFromLegacy(stream, false))
 
 			if sessionBoundAccountID > 0 && sessionBoundAccountID != account.ID {
 				reqLog.Info("gemini.sticky_session_account_switched",
@@ -891,6 +892,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
+		setOpsEndpointContext(c, account.GetMappedModel(modelName), service.RequestTypeFromLegacy(stream, false))
 
 		// 检测账号切换：如果粘性会话绑定的账号与当前选择的账号不同，清除 thoughtSignature
 		// 注意：Gemini 原生 API 的 thoughtSignature 与具体上游账号强相关；跨账号透传会导致 400。

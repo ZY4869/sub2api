@@ -15,6 +15,7 @@ export interface AnthropicQuotaControlState {
   rpmStickyBuffer: number | null
   userMsgQueueMode: string
   tlsFingerprintEnabled: boolean
+  tlsFingerprintProfileId: number | null
   sessionIdMaskingEnabled: boolean
   cacheTTLOverrideEnabled: boolean
   cacheTTLOverrideTarget: string
@@ -27,6 +28,22 @@ export const DEFAULT_CACHE_TTL_OVERRIDE_TARGET = '5m'
 
 const hasPositiveNumber = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
+
+const parseProfileId = (value: unknown): number | null => {
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    (value === -1 || value > 0)
+  ) {
+    return value
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number.parseInt(value.trim(), 10)
+    return Number.isFinite(parsed) && (parsed === -1 || parsed > 0) ? parsed : null
+  }
+  return null
+}
 
 export const createDefaultAnthropicQuotaControlState = (): AnthropicQuotaControlState => ({
   windowCostEnabled: false,
@@ -41,6 +58,7 @@ export const createDefaultAnthropicQuotaControlState = (): AnthropicQuotaControl
   rpmStickyBuffer: null,
   userMsgQueueMode: '',
   tlsFingerprintEnabled: false,
+  tlsFingerprintProfileId: null,
   sessionIdMaskingEnabled: false,
   cacheTTLOverrideEnabled: false,
   cacheTTLOverrideTarget: DEFAULT_CACHE_TTL_OVERRIDE_TARGET
@@ -81,6 +99,9 @@ export const readAnthropicQuotaControlState = (
 
   state.userMsgQueueMode = account.user_msg_queue_mode ?? ''
   state.tlsFingerprintEnabled = account.enable_tls_fingerprint === true
+  state.tlsFingerprintProfileId =
+    parseProfileId(account.tls_fingerprint_profile_id) ??
+    parseProfileId(account.extra?.tls_fingerprint_profile_id)
   state.sessionIdMaskingEnabled = account.session_id_masking_enabled === true
 
   if (account.cache_ttl_override_enabled === true) {
@@ -141,8 +162,14 @@ export const buildAnthropicQuotaControlExtra = (
 
   if (state.tlsFingerprintEnabled) {
     extra.enable_tls_fingerprint = true
+    if (state.tlsFingerprintProfileId !== null) {
+      extra.tls_fingerprint_profile_id = state.tlsFingerprintProfileId
+    } else {
+      delete extra.tls_fingerprint_profile_id
+    }
   } else {
     delete extra.enable_tls_fingerprint
+    delete extra.tls_fingerprint_profile_id
   }
 
   if (state.sessionIdMaskingEnabled) {

@@ -18,6 +18,10 @@ const (
 	EndpointMessages        = "/v1/messages"
 	EndpointChatCompletions = "/v1/chat/completions"
 	EndpointResponses       = "/v1/responses"
+	EndpointImagesGen       = "/v1/images/generations"
+	EndpointImagesEdits     = "/v1/images/edits"
+	EndpointVideosGen       = "/v1/videos/generations"
+	EndpointVideosStatus    = "/v1/videos/:request_id"
 	EndpointGeminiModels    = "/v1beta/models"
 )
 
@@ -42,6 +46,14 @@ func NormalizeInboundEndpoint(path string) string {
 	switch {
 	case strings.Contains(path, EndpointChatCompletions):
 		return EndpointChatCompletions
+	case strings.Contains(path, EndpointImagesGen):
+		return EndpointImagesGen
+	case strings.Contains(path, EndpointImagesEdits):
+		return EndpointImagesEdits
+	case strings.Contains(path, "/v1/videos/") && !strings.Contains(path, EndpointVideosGen):
+		return EndpointVideosStatus
+	case strings.Contains(path, EndpointVideosGen):
+		return EndpointVideosGen
 	case strings.Contains(path, EndpointMessages):
 		return EndpointMessages
 	case strings.Contains(path, EndpointResponses):
@@ -85,6 +97,21 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 	case service.PlatformSora:
 		return EndpointChatCompletions
 
+	case service.PlatformGrok:
+		if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
+			return EndpointResponses + suffix
+		}
+		if strings.Contains(rawRequestPath, "/videos/") && !strings.Contains(rawRequestPath, EndpointVideosGen) {
+			return normalizeVideoStatusPath(rawRequestPath)
+		}
+		switch inbound {
+		case EndpointChatCompletions, EndpointResponses, EndpointImagesGen, EndpointImagesEdits, EndpointVideosGen:
+			return inbound
+		case EndpointVideosStatus:
+			return normalizeVideoStatusPath(rawRequestPath)
+		}
+		return inbound
+
 	case service.PlatformAntigravity:
 		// Antigravity accounts serve both Claude and Gemini.
 		if inbound == EndpointGeminiModels {
@@ -95,6 +122,22 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	// Unknown platform — fall back to inbound.
 	return inbound
+}
+
+func normalizeVideoStatusPath(rawPath string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(rawPath), "/")
+	if trimmed == "" {
+		return EndpointVideosStatus
+	}
+	idx := strings.LastIndex(trimmed, "/videos/")
+	if idx < 0 {
+		return EndpointVideosStatus
+	}
+	requestID := strings.TrimSpace(trimmed[idx+len("/videos/"):])
+	if requestID == "" {
+		return EndpointVideosStatus
+	}
+	return "/v1/videos/" + requestID
 }
 
 // responsesSubpathSuffix extracts the part after "/responses" in a raw

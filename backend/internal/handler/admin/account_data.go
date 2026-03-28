@@ -355,7 +355,7 @@ func (h *AccountHandler) listAccountsFiltered(ctx context.Context, platform, acc
 	normalizedLifecycle := service.NormalizeAccountLifecycleInput(lifecycle)
 	filteredCtx := service.WithAccountLimitedFilters(ctx, limitedView, limitedReason)
 	for {
-		items, total, err := h.adminService.ListAccounts(filteredCtx, page, pageSize, platform, accountType, normalizedStatus, search, 0, normalizedLifecycle)
+		items, total, err := h.adminService.ListAccounts(filteredCtx, page, pageSize, platform, accountType, normalizedStatus, search, 0, normalizedLifecycle, "")
 		if err != nil {
 			return nil, err
 		}

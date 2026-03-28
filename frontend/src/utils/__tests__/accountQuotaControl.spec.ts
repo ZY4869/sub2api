@@ -24,6 +24,7 @@ describe('accountQuotaControl', () => {
       rpm_sticky_buffer: 6,
       user_msg_queue_mode: 'serialize',
       enable_tls_fingerprint: true,
+      tls_fingerprint_profile_id: -1,
       session_id_masking_enabled: true,
       cache_ttl_override_enabled: true,
       cache_ttl_override_target: '1h'
@@ -42,6 +43,7 @@ describe('accountQuotaControl', () => {
       rpmStickyBuffer: 6,
       userMsgQueueMode: 'serialize',
       tlsFingerprintEnabled: true,
+      tlsFingerprintProfileId: -1,
       sessionIdMaskingEnabled: true,
       cacheTTLOverrideEnabled: true,
       cacheTTLOverrideTarget: '1h'
@@ -57,6 +59,7 @@ describe('accountQuotaControl', () => {
     state.rpmLimitEnabled = true
     state.userMsgQueueMode = 'throttle'
     state.tlsFingerprintEnabled = true
+    state.tlsFingerprintProfileId = -1
     state.sessionIdMaskingEnabled = true
     state.cacheTTLOverrideEnabled = true
 
@@ -76,6 +79,7 @@ describe('accountQuotaControl', () => {
       rpm_strategy: 'tiered',
       user_msg_queue_mode: 'throttle',
       enable_tls_fingerprint: true,
+      tls_fingerprint_profile_id: -1,
       session_id_masking_enabled: true,
       cache_ttl_override_enabled: true,
       cache_ttl_override_target: DEFAULT_CACHE_TTL_OVERRIDE_TARGET

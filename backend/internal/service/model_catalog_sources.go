@@ -287,6 +287,8 @@ func inferModelProvider(model string) string {
 		return PlatformAnthropic
 	case strings.HasPrefix(model, "gemini"):
 		return PlatformGemini
+	case strings.HasPrefix(model, "grok"):
+		return PlatformGrok
 	case strings.HasPrefix(model, "gpt"), strings.HasPrefix(model, "sora"), strings.HasPrefix(model, "codex"), openAIReasoningModelPattern.MatchString(model), strings.HasPrefix(model, "prompt-enhance"):
 		return PlatformOpenAI
 	default:
@@ -301,6 +303,9 @@ func inferModelMode(model string, current string) string {
 	model = CanonicalizeModelNameForPricing(model)
 	if config, ok := soraModelConfigs[model]; ok {
 		return config.Type
+	}
+	if strings.Contains(model, "video") {
+		return "video"
 	}
 	if strings.Contains(model, "image") {
 		return "image"

@@ -293,7 +293,8 @@ export default {
         outputCost: 'Output Price',
         cacheCreationCost: 'Cache Create Price',
         cacheReadCost: 'Cache Read Price',
-        imageCost: 'Image Price'
+        imageCost: 'Image Price',
+        videoRequestCost: 'Video Request Price'
       },
       filters: {
         allProviders: 'All Providers',
@@ -339,7 +340,8 @@ export default {
         inputTier: 'Input Tiered Pricing',
         outputTier: 'Output Tiered Pricing',
         cache: 'Cache Pricing',
-        image: 'Image Pricing'
+        image: 'Image Pricing',
+        video: 'Video Pricing'
       },
       editor: {
         officialTitle: 'Official Pricing',
@@ -360,6 +362,7 @@ export default {
       units: {
         perMillionTokens: 'USD / 1M tokens',
         perImage: 'USD / image',
+        perVideoRequest: 'USD / video request',
         tokens: 'tokens'
       },
       fields: {
@@ -377,7 +380,8 @@ export default {
         cacheCreationCostAbove1h: 'Cache Create Price (>1h)',
         cacheReadCost: 'Cache Read Price',
         cacheReadPriorityCost: 'Cache Read Priority Price',
-        imageCost: 'Image Price'
+        imageCost: 'Image Price',
+        videoRequestCost: 'Video Request Price'
       },
       modes: {
         chat: 'Chat',
@@ -1468,6 +1472,14 @@ export default {
       failedToLoad: 'Failed to load accounts',
       failedToRefresh: 'Failed to refresh token',
       failedToDelete: 'Failed to delete account',
+      allPrivacyModes: 'All Privacy States',
+      privacyUnset: 'Unset',
+      privacyTrainingOff: 'Training data sharing disabled',
+      privacyCfBlocked: 'Blocked by Cloudflare, training may still be enabled',
+      privacyFailed: 'Failed to disable training data sharing',
+      setPrivacy: 'Set Privacy',
+      setPrivacySuccess: 'Privacy settings updated',
+      setPrivacyFailed: 'Failed to update privacy settings',
       failedToClearRateLimit: 'Failed to clear rate limit',
       deleteConfirm: "Are you sure you want to delete '{name}'? This action cannot be undone.",
       // Create/Edit Account Modal
@@ -1689,7 +1701,14 @@ export default {
         },
         tlsFingerprint: {
           label: 'TLS Fingerprint Simulation',
-          hint: 'Simulate Node.js/Claude Code client TLS fingerprint'
+          hint: 'Simulate the TLS fingerprint of Node.js/Claude Code clients',
+          profileLabel: 'TLS profile',
+          profileHint: 'Built-in default uses the bundled profile; random profile picks one from saved templates.',
+          profileDefault: 'Built-in default profile',
+          profileRandom: 'Random saved profile',
+          profileMissing: 'Bound profile #{id} (not visible in current list)',
+          profileEmpty: 'No custom profile has been created yet. You can still use the built-in default profile.',
+          loadingProfiles: 'Loading TLS fingerprint profiles...'
         },
         sessionIdMasking: {
           label: 'Session ID Masking',
@@ -1790,6 +1809,46 @@ export default {
       grokTierSuper: 'Super',
       grokTierHeavy: 'Heavy',
       grokDedicatedRouteHint: 'Grok API Key accounts default to https://api.x.ai. User-facing API keys can call both the root alias and the dedicated /grok/v1 routes.',
+      grokDerivedMappingTitle: 'Capability-derived model mapping',
+      grokDerivedMappingHint: 'SSO accounts only expose models that pass both Grok capability checks and account model_mapping. Leave the token blank to keep the current value, or reset the mapping to the tier defaults below.',
+      grokApplyCapabilityMapping: 'Restore Tier Mapping',
+      grokTestApiKeyHint: 'This probe checks the official xAI API path and lists detected Grok models for the current API key.',
+      grokTestSsoHint: 'This probe checks the reverse runtime, current Grok tier capabilities, and the visible model set after model_mapping filtering.',
+      grokImport: {
+        title: 'Batch Import Grok Accounts',
+        description: 'Import old Grok pool exports, SSO token lists, or official API key lists directly inside the create flow.',
+        previewAction: 'Preview Import',
+        previewing: 'Previewing...',
+        importing: 'Importing...',
+        previewFailed: 'Failed to preview Grok import payload',
+        importFailed: 'Failed to import Grok accounts',
+        previewExpired: 'The payload changed after preview. Run preview again before importing.',
+        contentLabel: 'Import Content',
+        skipDefaultGroupBind: 'Skip default group binding when creating imported accounts',
+        previewSummary: 'Preview Result',
+        importSummary: 'Import Result',
+        detectedKind: 'Detected: {kind}',
+        previewCounts: 'Total {total} · Ready {ready} · Skipped {skipped} · Failed {failed}',
+        importCounts: 'Created {created} · Skipped {skipped} · Failed {failed}',
+        legacyBadge: 'Legacy Export',
+        ssoBadge: 'SSO Tokens',
+        apikeyBadge: 'Official API Keys',
+        sources: {
+          legacy: 'Legacy Export',
+          sso: 'SSO List',
+          apikey: 'API Key List'
+        },
+        sourceHints: {
+          legacy: 'Accepts old Grok pool exports and mixed account dumps.',
+          sso: 'Paste one SSO token per line or a JSON array/list.',
+          apikey: 'Paste xAI API keys or JSON lists exported from your key manager.'
+        },
+        placeholders: {
+          legacy: '[{\"name\":\"grok-heavy-1\",\"type\":\"sso\",\"credentials\":{\"sso_token\":\"Bearer ...\"}}]',
+          sso: 'Bearer xxxxx\nyyyyy\nzzzzz',
+          apikey: 'xai-xxxxxx\nxai-yyyyyy'
+        }
+      },
       // Upstream type
       upstream: {
         baseUrl: 'Upstream Base URL',
@@ -3015,6 +3074,7 @@ export default {
         type: 'Type',
         context: 'Context',
         platform: 'Platform',
+        endpoint: 'Endpoint',
         model: 'Model',
         group: 'Group',
         user: 'User',
@@ -3035,7 +3095,10 @@ export default {
         typeRequest: 'Request',
         typeAuth: 'Auth',
         typeRouting: 'Routing',
-        typeInternal: 'Internal'
+        typeInternal: 'Internal',
+        requestTypeSync: 'Sync',
+        requestTypeStream: 'Stream',
+        requestTypeWsV2: 'WS'
       },
       // Error Details Modal
       errorDetails: {
@@ -3115,6 +3178,10 @@ export default {
         basicInfo: 'Basic Info',
         platform: 'Platform',
         model: 'Model',
+        inboundEndpoint: 'Inbound Endpoint',
+        upstreamEndpoint: 'Upstream Endpoint',
+        requestType: 'Request Type',
+        upstreamUrl: 'Upstream URL',
         group: 'Group',
         user: 'User',
         account: 'Account',
@@ -4049,6 +4116,49 @@ export default {
       failedToSave: 'Failed to save rule',
       failedToDelete: 'Failed to delete rule',
       failedToToggle: 'Failed to toggle status'
+    },
+
+    tlsFingerprintProfiles: {
+      title: 'TLS Fingerprint Profiles',
+      shortTitle: 'TLS Profiles',
+      description: 'Manage reusable TLS fingerprint profiles for Anthropic OAuth/SetupToken accounts and Claude client mimic flows.',
+      create: 'Create Profile',
+      edit: 'Edit Profile',
+      deleteTitle: 'Delete TLS Fingerprint Profile',
+      emptyTitle: 'No TLS fingerprint profiles yet',
+      emptyDescription: 'Create one to bind a fixed profile or use random profile selection in account quota control.',
+      summary: 'Cipher Suites {cipherSuites} / Curves {curves} / Extensions {extensions} / ALPN {alpn}',
+      columns: {
+        name: 'Name',
+        grease: 'GREASE',
+        summary: 'Summary',
+        updatedAt: 'Updated',
+        actions: 'Actions'
+      },
+      form: {
+        name: 'Profile Name',
+        description: 'Description',
+        enableGrease: 'Enable GREASE',
+        cipherSuites: 'Cipher Suites',
+        curves: 'Curves',
+        pointFormats: 'Point Formats',
+        signatureAlgorithms: 'Signature Algorithms',
+        alpnProtocols: 'ALPN Protocols',
+        supportedVersions: 'Supported Versions',
+        keyShareGroups: 'Key Share Groups',
+        pskModes: 'PSK Modes',
+        extensions: 'Extensions',
+        numberListPlaceholder: 'Use commas or new lines for integers, e.g. 4865,4866',
+        stringListPlaceholder: 'Use commas or new lines for strings, e.g. h2,http/1.1'
+      },
+      nameRequired: 'Please enter a profile name',
+      created: 'TLS fingerprint profile created successfully',
+      updated: 'TLS fingerprint profile updated successfully',
+      deleted: 'TLS fingerprint profile deleted successfully',
+      deleteConfirm: 'Are you sure you want to delete profile "{name}"?',
+      loadFailed: 'Failed to load TLS fingerprint profiles',
+      saveFailed: 'Failed to save TLS fingerprint profile',
+      deleteFailed: 'Failed to delete TLS fingerprint profile'
     }
   },
 

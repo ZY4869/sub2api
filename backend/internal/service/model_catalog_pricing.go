@@ -86,6 +86,7 @@ func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
 		CacheReadInputTokenCost:                  modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCost),
 		CacheReadInputTokenCostPriority:          modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCostPriority),
 		OutputCostPerImage:                       modelCatalogFloat64Ptr(pricing.OutputCostPerImage),
+		OutputCostPerVideoRequest:                modelCatalogFloat64Ptr(pricing.OutputCostPerVideoRequest),
 	}
 }
 
@@ -109,6 +110,7 @@ func pricingFromBilling(pricing *ModelPricing) *ModelCatalogPricing {
 		CacheReadInputTokenCost:                  modelCatalogFloat64Ptr(pricing.CacheReadPricePerToken),
 		CacheReadInputTokenCostPriority:          modelCatalogFloat64Ptr(pricing.CacheReadPricePerTokenPriority),
 		OutputCostPerImage:                       modelCatalogFloat64Ptr(pricing.OutputPricePerImage),
+		OutputCostPerVideoRequest:                modelCatalogFloat64Ptr(pricing.OutputPricePerVideoRequest),
 	}
 }
 
@@ -167,6 +169,7 @@ func mergeCatalogPricing(target *ModelCatalogPricing, patch *ModelCatalogPricing
 	assignFloat(&target.CacheReadInputTokenCost, patch.CacheReadInputTokenCost)
 	assignFloat(&target.CacheReadInputTokenCostPriority, patch.CacheReadInputTokenCostPriority)
 	assignFloat(&target.OutputCostPerImage, patch.OutputCostPerImage)
+	assignFloat(&target.OutputCostPerVideoRequest, patch.OutputCostPerVideoRequest)
 }
 
 func pricingEmpty(pricing *ModelCatalogPricing) bool {
@@ -185,7 +188,8 @@ func pricingEmpty(pricing *ModelCatalogPricing) bool {
 			pricing.CacheCreationInputTokenCostAbove1hr == nil &&
 			pricing.CacheReadInputTokenCost == nil &&
 			pricing.CacheReadInputTokenCostPriority == nil &&
-			pricing.OutputCostPerImage == nil)
+			pricing.OutputCostPerImage == nil &&
+			pricing.OutputCostPerVideoRequest == nil)
 }
 
 func (s *ModelCatalogService) loadOfficialPriceOverrides(ctx context.Context) map[string]*ModelPricingOverride {
@@ -219,6 +223,7 @@ func validateOverridePricing(pricing ModelCatalogPricing) error {
 		pricing.CacheReadInputTokenCost,
 		pricing.CacheReadInputTokenCostPriority,
 		pricing.OutputCostPerImage,
+		pricing.OutputCostPerVideoRequest,
 	}
 	for _, value := range values {
 		if value == nil {

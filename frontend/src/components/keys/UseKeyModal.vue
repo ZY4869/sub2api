@@ -416,7 +416,8 @@ const currentFiles = computed((): FileConfig[] => {
       case 'grok':
         return [
           generateOpenCodeConfig('openai', apiBase, apiKey, 'opencode.json (Root Alias)'),
-          generateOpenCodeConfig('openai', grokBase, apiKey, 'opencode.json (/grok/v1)')
+          generateOpenCodeConfig('openai', grokBase, apiKey, 'opencode.json (/grok/v1)'),
+          generateGrokExampleFile(grokBase, apiKey)
         ]
       case 'gemini':
         return [generateOpenCodeConfig('gemini', geminiBase, apiKey)]
@@ -432,7 +433,6 @@ const currentFiles = computed((): FileConfig[] => {
 
   switch (props.platform) {
     case 'openai':
-    case 'grok':
       if (activeClientTab.value === 'claude') {
         return generateAnthropicFiles(baseUrl, apiKey)
       }
@@ -440,6 +440,11 @@ const currentFiles = computed((): FileConfig[] => {
         return generateOpenAIWsFiles(baseUrl, apiKey)
       }
       return generateOpenAIFiles(baseUrl, apiKey)
+    case 'grok':
+      if (activeClientTab.value === 'codex-ws') {
+        return [...generateOpenAIWsFiles(baseUrl, apiKey), generateGrokExampleFile(grokBase, apiKey)]
+      }
+      return [...generateOpenAIFiles(baseUrl, apiKey), generateGrokExampleFile(grokBase, apiKey)]
     case 'gemini':
       return [generateGeminiCliContent(baseUrl, apiKey)]
     case 'antigravity':
@@ -624,6 +629,45 @@ responses_websockets_v2 = true`
       content: authContent
     }
   ]
+}
+
+function generateGrokExampleFile(baseUrl: string, apiKey: string): FileConfig {
+  const content = `# Responses
+curl -X POST "${baseUrl}/responses" \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "grok-3-beta",
+    "input": "Give me a 3-line runtime status summary."
+  }'
+
+# Images
+curl -X POST "${baseUrl}/images/generations" \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "grok-imagine-image",
+    "prompt": "An orange synthwave city at sunrise"
+  }'
+
+# Videos
+curl -X POST "${baseUrl}/videos/generations" \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "grok-imagine-video",
+    "prompt": "A slow aerial shot over neon rain streets"
+  }'
+
+# Video Status
+curl -X GET "${baseUrl}/videos/<request_id>" \\
+  -H "Authorization: Bearer ${apiKey}"`
+
+  return {
+    path: 'curl-examples.sh',
+    content,
+    hint: t('keys.useKeyModal.grok.examplesHint')
+  }
 }
 
 function getOpenCodeModelIds(platform: string): string[] {

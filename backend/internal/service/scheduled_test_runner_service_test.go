@@ -149,7 +149,7 @@ func (s *scheduledTestAccountRepoStub) List(ctx context.Context, params paginati
 	panic("unexpected List call")
 }
 
-func (s *scheduledTestAccountRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64) ([]Account, *pagination.PaginationResult, error) {
+func (s *scheduledTestAccountRepoStub) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
 	panic("unexpected ListWithFilters call")
 }
 

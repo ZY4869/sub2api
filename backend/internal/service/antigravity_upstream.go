@@ -230,7 +230,7 @@ func (s *AntigravityGatewayService) Forward(ctx context.Context, c *gin.Context,
 		usage = streamRes.usage
 		firstTokenMs = streamRes.firstTokenMs
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: billingModel, Stream: claudeReq.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: billingModel, Stream: claudeReq.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect}, nil
 }
 func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Context, account *Account, originalModel string, action string, stream bool, body []byte, isStickySession bool) (*ForwardResult, error) {
 	startTime := time.Now()
@@ -290,13 +290,13 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	if err != nil {
 		if switchErr, ok := IsAntigravityAccountSwitchError(err); ok {
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-				Platform:          account.Platform,
-				AccountID:         account.ID,
-				AccountName:       account.Name,
+				Platform:           account.Platform,
+				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: 0,
-				Kind:             "failover",
-				Message:          "rate_limit_switch",
-				Detail:           switchErr.RateLimitedModel,
+				Kind:               "failover",
+				Message:            "rate_limit_switch",
+				Detail:             switchErr.RateLimitedModel,
 			})
 			return nil, &UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable, ForceCacheBilling: switchErr.IsStickySession}
 		}
@@ -357,14 +357,14 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 			upstreamDetail := s.getUpstreamErrorDetail(unwrappedForOps)
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-				Platform:          account.Platform,
-				AccountID:         account.ID,
-				AccountName:       account.Name,
+				Platform:           account.Platform,
+				AccountID:          account.ID,
+				AccountName:        account.Name,
 				UpstreamStatusCode: resp.StatusCode,
 				UpstreamRequestID:  requestID,
-				Kind:             "signature_error",
-				Message:          upstreamMsg,
-				Detail:           upstreamDetail,
+				Kind:               "signature_error",
+				Message:            upstreamMsg,
+				Detail:             upstreamDetail,
 			})
 			rectified, changed, rectErr := rectifyGeminiThoughtSignatures(injectedBody)
 			if rectErr == nil && changed {
@@ -376,23 +376,23 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 					if retryErr != nil {
 						if switchErr, ok := IsAntigravityAccountSwitchError(retryErr); ok {
 							appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-								Platform:          account.Platform,
-								AccountID:         account.ID,
-								AccountName:       account.Name,
+								Platform:           account.Platform,
+								AccountID:          account.ID,
+								AccountName:        account.Name,
 								UpstreamStatusCode: 0,
-								Kind:             "failover",
-								Message:          "rate_limit_switch",
-								Detail:           switchErr.RateLimitedModel,
+								Kind:               "failover",
+								Message:            "rate_limit_switch",
+								Detail:             switchErr.RateLimitedModel,
 							})
 							return nil, &UpstreamFailoverError{StatusCode: http.StatusServiceUnavailable, ForceCacheBilling: switchErr.IsStickySession}
 						}
 						appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-							Platform:          account.Platform,
-							AccountID:         account.ID,
-							AccountName:       account.Name,
+							Platform:           account.Platform,
+							AccountID:          account.ID,
+							AccountName:        account.Name,
 							UpstreamStatusCode: 0,
-							Kind:             "signature_retry_request_error",
-							Message:          sanitizeUpstreamErrorMessage(retryErr.Error()),
+							Kind:               "signature_retry_request_error",
+							Message:            sanitizeUpstreamErrorMessage(retryErr.Error()),
 						})
 						if c.Request.Context().Err() != nil {
 							return nil, s.writeGoogleError(c, http.StatusBadGateway, "Client disconnected before upstream response")
@@ -458,7 +458,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	if isImageGenerationModel(mappedModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: billingModel, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: billingModel, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {
 	startTime := time.Now()

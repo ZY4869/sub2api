@@ -55,6 +55,7 @@ type ModelPricing struct {
 	OutputPricePerTokenAboveThreshold         float64
 	OutputPricePerTokenPriorityAboveThreshold float64
 	OutputPricePerImage                       float64 // 每张图片价格 (USD)
+	OutputPricePerVideoRequest                float64 // 每次视频请求价格 (USD)
 	CacheCreationPricePerToken                float64 // 缓存创建每token价格 (USD)
 	CacheReadPricePerToken                    float64 // 缓存读取每token价格 (USD)
 	CacheReadPricePerTokenPriority            float64 // priority service tier 下缓存读取每token价格 (USD)
@@ -384,6 +385,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				OutputPricePerTokenAboveThreshold:         litellmPricing.OutputCostPerTokenAboveThreshold,
 				OutputPricePerTokenPriorityAboveThreshold: litellmPricing.OutputCostPerTokenPriorityAboveThreshold,
 				OutputPricePerImage:                       litellmPricing.OutputCostPerImage,
+				OutputPricePerVideoRequest:                litellmPricing.OutputCostPerVideoRequest,
 				CacheCreationPricePerToken:                litellmPricing.CacheCreationInputTokenCost,
 				CacheReadPricePerToken:                    litellmPricing.CacheReadInputTokenCost,
 				CacheReadPricePerTokenPriority:            litellmPricing.CacheReadInputTokenCostPriority,
@@ -506,6 +508,9 @@ func applyModelPricingOverride(pricing *ModelPricing, override *ModelPricingOver
 	}
 	if override.OutputCostPerImage != nil {
 		cloned.OutputPricePerImage = *override.OutputCostPerImage
+	}
+	if override.OutputCostPerVideoRequest != nil {
+		cloned.OutputPricePerVideoRequest = *override.OutputCostPerVideoRequest
 	}
 	return &cloned
 }
@@ -879,6 +884,21 @@ func (s *BillingService) CalculateSoraVideoCost(model string, groupConfig *SoraP
 	return &CostBreakdown{
 		TotalCost:  totalCost,
 		ActualCost: actualCost,
+	}
+}
+
+// CalculateVideoRequestCost calculates one-shot video request billing using model pricing.
+func (s *BillingService) CalculateVideoRequestCost(model string, rateMultiplier float64) *CostBreakdown {
+	unitPrice := 0.0
+	if pricing, err := s.getPricingForBilling(model); err == nil && pricing != nil && pricing.OutputPricePerVideoRequest > 0 {
+		unitPrice = pricing.OutputPricePerVideoRequest
+	}
+	if rateMultiplier <= 0 {
+		rateMultiplier = 1.0
+	}
+	return &CostBreakdown{
+		TotalCost:  unitPrice,
+		ActualCost: unitPrice * rateMultiplier,
 	}
 }
 

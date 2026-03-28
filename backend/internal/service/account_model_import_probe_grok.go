@@ -36,9 +36,14 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 		return newAccountModelProbeResult(models), nil
 	}
 	if account.IsGrokSSO() {
-		result := newAccountModelProbeResult(DefaultGrokModelIDsForTier(ResolveGrokTier(account.Extra)))
+		visibleModels := GrokVisibleModelIDsForAccount(account)
+		result := newAccountModelProbeResult(visibleModels)
 		result.Source = accountModelProbeSourceGrokSSOCapability
-		result.Notice = "SSO accounts currently expose capability-derived models before reverse runtime probing is enabled"
+		if len(account.GetModelMapping()) > 0 {
+			result.Notice = "SSO accounts expose capability-derived models filtered by account model_mapping"
+		} else {
+			result.Notice = "SSO accounts expose capability-derived models before upstream probing"
+		}
 		return result, nil
 	}
 	return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Grok account type does not support model import")

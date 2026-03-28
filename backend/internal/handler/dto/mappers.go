@@ -285,6 +285,9 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 			enabled := true
 			out.EnableTLSFingerprint = &enabled
 		}
+		if profileID := a.GetTLSFingerprintProfileID(); profileID != 0 {
+			out.TLSFingerprintProfileID = &profileID
+		}
 		// 会话ID伪装开关
 		if a.IsSessionIDMaskingEnabled() {
 			enabled := true
@@ -303,6 +306,9 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		out.ClaudeCodeMimicEnabled = &mimicEnabled
 		tlsEnabled := a.IsTLSFingerprintEnabled()
 		out.EnableTLSFingerprint = &tlsEnabled
+		if profileID := a.GetTLSFingerprintProfileID(); profileID != 0 {
+			out.TLSFingerprintProfileID = &profileID
+		}
 		sessionMaskingEnabled := a.IsSessionIDMaskingEnabled()
 		out.EnableSessionIDMasking = &sessionMaskingEnabled
 	}
@@ -558,13 +564,17 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 	// 普通用户 DTO：严禁包含管理员字段（例如 account_rate_multiplier、ip_address、account）。
 	requestType := l.EffectiveRequestType()
 	stream, openAIWSMode := service.ApplyLegacyRequestFields(requestType, l.Stream, l.OpenAIWSMode)
+	requestedModel := l.RequestedModel
+	if requestedModel == "" {
+		requestedModel = l.Model
+	}
 	return UsageLog{
 		ID:                    l.ID,
 		UserID:                l.UserID,
 		APIKeyID:              l.APIKeyID,
 		AccountID:             l.AccountID,
 		RequestID:             l.RequestID,
-		Model:                 l.Model,
+		Model:                 requestedModel,
 		UpstreamModel:         l.UpstreamModel,
 		ServiceTier:           l.ServiceTier,
 		ReasoningEffort:       l.ReasoningEffort,

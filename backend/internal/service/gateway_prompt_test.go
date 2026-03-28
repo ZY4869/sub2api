@@ -134,6 +134,11 @@ func TestSystemIncludesClaudeCodePrompt(t *testing.T) {
 	}
 }
 
+func TestSystemIncludesClaudeCodePrompt_JSONRawMessage(t *testing.T) {
+	raw := json.RawMessage(`[{"type":"text","text":"` + claudeCodeSystemPrompt + `"}]`)
+	require.True(t, systemIncludesClaudeCodePrompt(raw))
+}
+
 func TestInjectClaudeCodePrompt(t *testing.T) {
 	claudePrefix := strings.TrimSpace(claudeCodeSystemPrompt)
 
@@ -233,4 +238,25 @@ func TestInjectClaudeCodePrompt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInjectClaudeCodePrompt_JSONRawMessage(t *testing.T) {
+	claudePrefix := strings.TrimSpace(claudeCodeSystemPrompt)
+	body := []byte(`{"model":"claude-3","system":[{"type":"text","text":"Custom prompt"}]}`)
+	raw := json.RawMessage(`[{"type":"text","text":"Custom prompt"}]`)
+
+	result := injectClaudeCodePrompt(body, raw)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(result, &parsed))
+
+	system, ok := parsed["system"].([]any)
+	require.True(t, ok)
+	require.Len(t, system, 2)
+
+	first := system[0].(map[string]any)
+	require.Equal(t, claudeCodeSystemPrompt, first["text"])
+
+	second := system[1].(map[string]any)
+	require.Equal(t, claudePrefix+"\n\nCustom prompt", second["text"])
 }

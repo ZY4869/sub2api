@@ -14,7 +14,7 @@ func (s *AccountTestService) testGrokAccountConnection(c *gin.Context, account *
 
 	requestedModel := strings.TrimSpace(modelID)
 	if requestedModel == "" {
-		defaultModels := DefaultGrokModelIDsForTier(ResolveGrokTier(account.Extra))
+		defaultModels := GrokVisibleModelIDsForAccount(account)
 		if len(defaultModels) > 0 {
 			requestedModel = defaultModels[0]
 		}
@@ -59,25 +59,41 @@ func (s *AccountTestService) testGrokAPIKeyConnection(c *gin.Context, account *A
 }
 
 func (s *AccountTestService) testGrokSSOConnection(c *gin.Context, account *Account, requestedModel string) error {
-	token := strings.TrimSpace(account.GetGrokSSOToken())
-	if token == "" {
-		return s.sendErrorAndEnd(c, "Grok SSO account is missing sso_token")
+	if s.grokGatewayService == nil {
+		return s.sendErrorAndEnd(c, "Grok reverse runtime is not configured")
 	}
 
-	tier := ResolveGrokTier(account.Extra)
-	capabilities := ResolveGrokCapabilities(account.Extra)
-	if requestedModel != "" && IsGrokHeavyModel(requestedModel) && !capabilities.AllowHeavyModel {
-		return s.sendErrorAndEnd(c, fmt.Sprintf("Requested model %s requires heavy tier", requestedModel))
+	probe, err := s.grokGatewayService.ProbeSSOAccount(c.Request.Context(), account, requestedModel)
+	if probe == nil {
+		probe = &GrokSSOProbeResult{
+			Tier:             ResolveGrokTier(account.Extra),
+			Capabilities:     ResolveGrokCapabilities(account.Extra),
+			CapabilityModels: GrokCapabilityModelIDsForAccount(account),
+			VisibleModels:    GrokVisibleModelIDsForAccount(account),
+			RequestedModel:   strings.TrimSpace(requestedModel),
+		}
 	}
 
-	s.sendEvent(c, TestEvent{Type: "content", Text: "SSO token present and normalized"})
-	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Tier: %s", tier)})
-	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Capabilities: heavy=%t, video=%s/%ds", capabilities.AllowHeavyModel, capabilities.VideoMaxResolution, capabilities.VideoMaxDurationSeconds)})
-	models := DefaultGrokModelIDsForTier(tier)
-	if len(models) > 0 {
-		s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Capability-derived models: %s", strings.Join(limitStringSlice(models, 6), ", "))})
+	s.sendEvent(c, TestEvent{Type: "content", Text: "Reverse runtime connectivity probe started"})
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Tier: %s", probe.Tier)})
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Capabilities: heavy=%t, video=%s/%ds", probe.Capabilities.AllowHeavyModel, probe.Capabilities.VideoMaxResolution, probe.Capabilities.VideoMaxDurationSeconds)})
+	if len(probe.CapabilityModels) > 0 {
+		s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Capability-derived models: %s", strings.Join(limitStringSlice(probe.CapabilityModels, 8), ", "))})
 	}
-	s.sendEvent(c, TestEvent{Type: "content", Text: "Reverse runtime validation is pending in the current build; this check verifies the stored capability profile only"})
+	if len(probe.VisibleModels) > 0 {
+		s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Visible models after model_mapping: %s", strings.Join(limitStringSlice(probe.VisibleModels, 8), ", "))})
+	}
+	if err != nil {
+		return s.sendErrorAndEnd(c, fmt.Sprintf("Grok reverse runtime probe failed: %s", err.Error()))
+	}
+
+	s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Reverse runtime connectivity OK (requested=%s mapped=%s)", probe.RequestedModel, probe.MappedModel)})
+	if probe.ResponseID != "" {
+		s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Upstream response id: %s", probe.ResponseID)})
+	}
+	if probe.ConversationID != "" {
+		s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Conversation id: %s", probe.ConversationID)})
+	}
 	s.sendEvent(c, TestEvent{Type: "test_complete", Success: true})
 	return nil
 }

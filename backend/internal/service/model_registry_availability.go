@@ -36,6 +36,19 @@ var modelRegistryAvailableBootstrapInputsV20260317 = []string{
 	"claude-haiku-4.5",
 }
 
+var modelRegistryAvailableBootstrapInputsV20260328 = []string{
+	"grok-4",
+	"grok-4-0709",
+	"grok-3-beta",
+	"grok-3-mini-beta",
+	"grok-3-fast-beta",
+	"grok-2",
+	"grok-2-vision",
+	"grok-imagine-image",
+	"grok-imagine-video",
+	"grok-2-image",
+}
+
 var modelRegistryAvailableBootstrapRuntimeEntriesV20260313 = []modelregistry.ModelEntry{
 	{
 		ID:               "gpt-5.4-pro",
@@ -132,7 +145,10 @@ func (s *ModelRegistryService) ensureAvailableModelsInitialized(ctx context.Cont
 	if err := s.ensureAvailableModelsBootstrapV20260313(ctx); err != nil {
 		return err
 	}
-	return s.ensureAvailableModelsBootstrapV20260317(ctx)
+	if err := s.ensureAvailableModelsBootstrapV20260317(ctx); err != nil {
+		return err
+	}
+	return s.ensureAvailableModelsBootstrapV20260328(ctx)
 }
 
 func (s *ModelRegistryService) migrateAvailableModels(ctx context.Context) error {
@@ -165,6 +181,10 @@ func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260313(ctx conte
 
 func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260317(ctx context.Context) error {
 	return s.ensureAvailableModelsBootstrap(ctx, "20260317", SettingKeyModelRegistryAvailableModelsBootstrapV20260317, modelRegistryAvailableBootstrapInputsV20260317)
+}
+
+func (s *ModelRegistryService) ensureAvailableModelsBootstrapV20260328(ctx context.Context) error {
+	return s.ensureAvailableModelsBootstrap(ctx, "20260328", SettingKeyModelRegistryAvailableModelsBootstrapV20260328, modelRegistryAvailableBootstrapInputsV20260328)
 }
 
 func (s *ModelRegistryService) ensureAvailableModelsBootstrap(ctx context.Context, version string, markerKey string, inputs []string) error {

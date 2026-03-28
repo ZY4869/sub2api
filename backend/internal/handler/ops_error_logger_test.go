@@ -87,6 +87,38 @@ func TestAttachOpsRequestBodyToEntry_InvalidJSONKeepsSize(t *testing.T) {
 	require.Equal(t, int64(1), OpsErrorLogSanitizedTotal())
 }
 
+func TestSetOpsEndpointContext_StoresMappingAndRequestType(t *testing.T) {
+	resetOpsErrorLoggerStateForTest(t)
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	setOpsEndpointContext(c, "gpt-5.1-codex", service.RequestTypeStream)
+
+	require.Equal(t, "gpt-5.1-codex", resolveOpsUpstreamModel(c))
+	requestType := resolveOpsRequestType(c, false)
+	require.NotNil(t, requestType)
+	require.Equal(t, int16(service.RequestTypeStream), *requestType)
+}
+
+func TestResolveOpsRequestType_FallsBackToWebsocket(t *testing.T) {
+	resetOpsErrorLoggerStateForTest(t)
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodGet, "/v1/responses", nil)
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Connection", "Upgrade")
+	c.Request = req
+
+	requestType := resolveOpsRequestType(c, false)
+	require.NotNil(t, requestType)
+	require.Equal(t, int16(service.RequestTypeWSV2), *requestType)
+}
+
 func TestEnqueueOpsErrorLog_QueueFullDrop(t *testing.T) {
 	resetOpsErrorLoggerStateForTest(t)
 

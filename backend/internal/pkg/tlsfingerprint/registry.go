@@ -9,7 +9,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 )
 
-// DefaultProfileName is the name of the built-in Claude CLI profile.
+// DefaultProfileName is the registry key of the built-in default profile.
 const DefaultProfileName = "claude_cli_v2"
 
 // Registry manages TLS fingerprint profiles.
@@ -48,11 +48,17 @@ func NewRegistryFromConfig(cfg *config.TLSFingerprintConfig) *Registry {
 	// Load custom profiles from config
 	for name, profileCfg := range cfg.Profiles {
 		profile := &Profile{
-			Name:         profileCfg.Name,
-			EnableGREASE: profileCfg.EnableGREASE,
-			CipherSuites: profileCfg.CipherSuites,
-			Curves:       profileCfg.Curves,
-			PointFormats: profileCfg.PointFormats,
+			Name:                profileCfg.Name,
+			EnableGREASE:        profileCfg.EnableGREASE,
+			CipherSuites:        profileCfg.CipherSuites,
+			Curves:              profileCfg.Curves,
+			PointFormats:        profileCfg.PointFormats,
+			SignatureAlgorithms: profileCfg.SignatureAlgorithms,
+			ALPNProtocols:       profileCfg.ALPNProtocols,
+			SupportedVersions:   profileCfg.SupportedVersions,
+			KeyShareGroups:      profileCfg.KeyShareGroups,
+			PSKModes:            profileCfg.PSKModes,
+			Extensions:          profileCfg.Extensions,
 		}
 
 		// If the profile has empty values, they will use defaults in dialer
@@ -67,7 +73,7 @@ func NewRegistryFromConfig(cfg *config.TLSFingerprintConfig) *Registry {
 // registerBuiltinProfile adds the default Claude CLI profile to the registry.
 func (r *Registry) registerBuiltinProfile() {
 	defaultProfile := &Profile{
-		Name:         "Claude CLI 2.x (Node.js 20.x + OpenSSL 3.x)",
+		Name:         "Built-in Default (Node.js 24.x)",
 		EnableGREASE: false, // Node.js does not use GREASE
 		// Empty slices will cause dialer to use built-in defaults
 		CipherSuites: nil,

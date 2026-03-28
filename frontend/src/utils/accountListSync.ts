@@ -6,6 +6,7 @@ export interface AccountListFilters {
   type?: string
   status?: string
   group?: string
+  privacy_mode?: string
   search?: string
   lifecycle?: string
   limited_view?: AccountLimitedView | string
@@ -55,6 +56,7 @@ const isAccountInUse = (account: Account) => {
 }
 
 const resolveAccountLifecycle = (account: Account) => account.lifecycle_state || 'normal'
+const resolveAccountPrivacyMode = (account: Account) => String(account.extra?.privacy_mode || '').trim()
 
 export const accountMatchesFilters = (
   account: Account,
@@ -63,6 +65,14 @@ export const accountMatchesFilters = (
 ) => {
   if (filters.platform && account.platform !== filters.platform) return false
   if (filters.type && account.type !== filters.type) return false
+  if (filters.privacy_mode) {
+    const privacyMode = resolveAccountPrivacyMode(account)
+    if (filters.privacy_mode === 'unset') {
+      if (privacyMode) return false
+    } else if (privacyMode !== filters.privacy_mode) {
+      return false
+    }
+  }
   if (filters.lifecycle && filters.lifecycle !== 'all' && resolveAccountLifecycle(account) !== filters.lifecycle) {
     return false
   }

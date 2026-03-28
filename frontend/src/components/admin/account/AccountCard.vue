@@ -28,6 +28,7 @@
           :gateway-protocol="account.gateway_protocol"
           :type="account.type"
           :plan-type="String(account.credentials?.plan_type || '') || undefined"
+          :privacy-mode="String(account.extra?.privacy_mode || '') || undefined"
         />
       </div>
 

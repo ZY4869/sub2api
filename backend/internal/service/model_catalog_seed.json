@@ -16,5 +16,15 @@
   {"model":"gemini-3-pro-image","display_name":"Gemini 3 Pro Image","provider":"gemini","mode":"image","canonical_model_id":"gemini-3-pro-image-preview","pricing_lookup_model_id":"gemini-3-pro-image-preview"},
   {"model":"gemini-3.1-pro","display_name":"Gemini 3.1 Pro","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.1-pro-preview","pricing_lookup_model_id":"gemini-3.1-pro-preview"},
   {"model":"gemini-3.1-flash-lite","display_name":"Gemini 3.1 Flash Lite","provider":"gemini","mode":"chat","canonical_model_id":"gemini-3.1-flash-lite-preview","pricing_lookup_model_id":"gemini-3.1-flash-lite-preview"},
-  {"model":"gemini-3.1-flash-image","display_name":"Gemini 3.1 Flash Image","provider":"gemini","mode":"image","canonical_model_id":"gemini-3.1-flash-image-preview","pricing_lookup_model_id":"gemini-3.1-flash-image-preview"}
+  {"model":"gemini-3.1-flash-image","display_name":"Gemini 3.1 Flash Image","provider":"gemini","mode":"image","canonical_model_id":"gemini-3.1-flash-image-preview","pricing_lookup_model_id":"gemini-3.1-flash-image-preview"},
+  {"model":"grok-4","display_name":"Grok-4","provider":"grok","mode":"chat","canonical_model_id":"grok-4","pricing_lookup_model_id":"grok-4"},
+  {"model":"grok-4-0709","display_name":"Grok-4-0709","provider":"grok","mode":"chat","canonical_model_id":"grok-4-0709","pricing_lookup_model_id":"grok-4-0709"},
+  {"model":"grok-3-beta","display_name":"Grok-3 Beta","provider":"grok","mode":"chat","canonical_model_id":"grok-3-beta","pricing_lookup_model_id":"grok-3-beta"},
+  {"model":"grok-3-mini-beta","display_name":"Grok-3 Mini Beta","provider":"grok","mode":"chat","canonical_model_id":"grok-3-mini-beta","pricing_lookup_model_id":"grok-3-mini-beta"},
+  {"model":"grok-3-fast-beta","display_name":"Grok-3 Fast Beta","provider":"grok","mode":"chat","canonical_model_id":"grok-3-fast-beta","pricing_lookup_model_id":"grok-3-fast-beta"},
+  {"model":"grok-2","display_name":"Grok-2","provider":"grok","mode":"chat","canonical_model_id":"grok-2","pricing_lookup_model_id":"grok-2"},
+  {"model":"grok-2-vision","display_name":"Grok-2 Vision","provider":"grok","mode":"chat","canonical_model_id":"grok-2-vision","pricing_lookup_model_id":"grok-2-vision"},
+  {"model":"grok-imagine-image","display_name":"Grok Imagine Image","provider":"grok","mode":"image","canonical_model_id":"grok-imagine-image","pricing_lookup_model_id":"grok-imagine-image"},
+  {"model":"grok-imagine-video","display_name":"Grok Imagine Video","provider":"grok","mode":"video","canonical_model_id":"grok-imagine-video","pricing_lookup_model_id":"grok-imagine-video"},
+  {"model":"grok-2-image","display_name":"Grok-2 Image","provider":"grok","mode":"image","canonical_model_id":"grok-2-image","pricing_lookup_model_id":"grok-2-image"}
 ]

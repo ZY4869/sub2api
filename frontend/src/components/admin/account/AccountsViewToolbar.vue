@@ -132,6 +132,16 @@
             <span class="hidden md:inline">{{ t('admin.errorPassthrough.title') }}</span>
           </button>
 
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :title="t('admin.tlsFingerprintProfiles.title')"
+            @click="emit('show-tls-fingerprint-profiles')"
+          >
+            <span class="hidden md:inline">{{ t('admin.tlsFingerprintProfiles.title') }}</span>
+            <span class="md:hidden">{{ t('admin.tlsFingerprintProfiles.shortTitle') }}</span>
+          </button>
+
           <div class="relative" ref="columnDropdownRef">
             <button
               type="button"
@@ -257,6 +267,7 @@ const emit = defineEmits<{
   'import-data': []
   'export-data': []
   'show-error-passthrough': []
+  'show-tls-fingerprint-profiles': []
   'sync-pending-list': []
   'set-auto-refresh-enabled': [value: boolean]
   'set-auto-refresh-interval': [value: number]

@@ -418,6 +418,13 @@ func ProvideModelCatalogService(
 	return svc
 }
 
+func ProvideTLSFingerprintProfileService(
+	repo TLSFingerprintProfileRepository,
+	cache TLSFingerprintProfileCache,
+) *TLSFingerprintProfileService {
+	return NewTLSFingerprintProfileService(repo, cache)
+}
+
 func ProvideAccountModelImportService(
 	modelCatalogService *ModelCatalogService,
 	modelRegistryService *ModelRegistryService,
@@ -425,10 +432,12 @@ func ProvideAccountModelImportService(
 	openAITokenProvider *OpenAITokenProvider,
 	httpUpstream HTTPUpstream,
 	proxyRepo ProxyRepository,
+	tlsFingerprintProfileService *TLSFingerprintProfileService,
 ) *AccountModelImportService {
 	svc := NewAccountModelImportService(modelCatalogService, geminiCompatService, httpUpstream, proxyRepo)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
+	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	return svc
 }
 
@@ -440,17 +449,66 @@ func ProvideAccountTestService(
 	geminiTokenProvider *GeminiTokenProvider,
 	antigravityGatewayService *AntigravityGatewayService,
 	gatewayService *GatewayService,
+	grokGatewayService *GrokGatewayService,
 	openAIGatewayService *OpenAIGatewayService,
 	geminiCompatService *GeminiMessagesCompatService,
 	httpUpstream HTTPUpstream,
 	cfg *config.Config,
+	tlsFingerprintProfileService *TLSFingerprintProfileService,
 ) *AccountTestService {
 	svc := NewAccountTestService(accountRepo, accountModelImportService, geminiTokenProvider, antigravityGatewayService, httpUpstream, cfg)
 	svc.SetClaudeTokenProvider(claudeTokenProvider)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
 	svc.SetGatewayService(gatewayService)
+	svc.SetGrokGatewayService(grokGatewayService)
 	svc.SetOpenAIGatewayService(openAIGatewayService)
 	svc.SetGeminiCompatService(geminiCompatService)
+	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	return svc
+}
+
+func ProvideGatewayService(
+	accountRepo AccountRepository,
+	groupRepo GroupRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	identityService *IdentityService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	claudeTokenProvider *ClaudeTokenProvider,
+	sessionLimitCache SessionLimitCache,
+	rpmCache RPMCache,
+	digestStore *DigestSessionStore,
+	settingService *SettingService,
+	tlsFingerprintProfileService *TLSFingerprintProfileService,
+) *GatewayService {
+	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestStore, settingService)
+	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	return svc
+}
+
+func ProvideAccountUsageService(
+	accountRepo AccountRepository,
+	usageLogRepo UsageLogRepository,
+	usageFetcher ClaudeUsageFetcher,
+	geminiQuotaService *GeminiQuotaService,
+	antigravityQuotaFetcher *AntigravityQuotaFetcher,
+	cache *UsageCache,
+	identityCache IdentityCache,
+	tlsFingerprintProfileService *TLSFingerprintProfileService,
+) *AccountUsageService {
+	svc := NewAccountUsageService(accountRepo, usageLogRepo, usageFetcher, geminiQuotaService, antigravityQuotaFetcher, cache, identityCache)
+	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	return svc
 }
 
@@ -501,8 +559,9 @@ var ProviderSet = wire.NewSet(
 	NewAdminService,
 	ProvideModelRegistryService,
 	ProvideModelCatalogService,
+	ProvideTLSFingerprintProfileService,
 	ProvideAccountModelImportService,
-	NewGatewayService,
+	ProvideGatewayService,
 	ProvideSoraMediaStorage,
 	ProvideSoraMediaCleanupService,
 	ProvideSoraSDKClient,
@@ -512,6 +571,8 @@ var ProviderSet = wire.NewSet(
 	NewSoraGenerationService,
 	NewSoraGatewayService,
 	NewOpenAIGatewayService,
+	NewGrokGatewayService,
+	NewGrokReverseClient,
 	NewOAuthService,
 	NewOpenAIOAuthService,
 	NewCopilotOAuthService,
@@ -529,7 +590,7 @@ var ProviderSet = wire.NewSet(
 	ProvideClaudeTokenProvider,
 	NewAntigravityGatewayService,
 	ProvideRateLimitService,
-	NewAccountUsageService,
+	ProvideAccountUsageService,
 	ProvideAccountTestService,
 	ProvideSettingService,
 	NewDataManagementService,

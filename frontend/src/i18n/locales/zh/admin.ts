@@ -308,7 +308,8 @@
         outputCost: '输出价',
         cacheCreationCost: '缓存写入价',
         cacheReadCost: '缓存读取价',
-        imageCost: '图片价'
+        imageCost: '图片价',
+        videoRequestCost: '视频按次价'
       },
       filters: {
         allProviders: '全部提供商',
@@ -353,7 +354,8 @@
         inputTier: '输入分段定价',
         outputTier: '输出分段定价',
         cache: '缓存定价',
-        image: '图片定价'
+        image: '图片定价',
+        video: '视频定价'
       },
       editor: {
         officialTitle: '真实价格',
@@ -374,6 +376,7 @@
       units: {
         perMillionTokens: 'USD / 1M tokens',
         perImage: 'USD / image',
+        perVideoRequest: 'USD / video request',
         tokens: 'tokens'
       },
       fields: {
@@ -391,7 +394,8 @@
         cacheCreationCostAbove1h: '缓存写入价（>1h）',
         cacheReadCost: '缓存读取价',
         cacheReadPriorityCost: '缓存读取 Priority 价',
-        imageCost: '图片价'
+        imageCost: '图片价',
+        videoRequestCost: '视频按次价'
       },
       modes: {
         chat: '聊天',
@@ -1618,7 +1622,15 @@
       failedToLoad: '加载账号列表失败',
       failedToSave: '保存账号失败',
       failedToDelete: '删除账号失败',
+      allPrivacyModes: '全部 Privacy 状态',
+      privacyUnset: '未设置',
+      privacyTrainingOff: '已关闭训练数据共享',
+      privacyCfBlocked: '被 Cloudflare 拦截，训练可能仍开启',
+      privacyFailed: '关闭训练数据共享失败',
       failedToRefresh: '刷新 Cookie 失败',
+      setPrivacy: '设置隐私',
+      setPrivacySuccess: '隐私设置已更新',
+      setPrivacyFailed: '设置隐私失败',
       // Create/Edit Account Modal
       platform: '平台',
       accountName: '账号名称',
@@ -1831,7 +1843,14 @@
         },
         tlsFingerprint: {
           label: 'TLS 指纹模拟',
-          hint: '模拟 Node.js/Claude Code 客户端的 TLS 指纹'
+          hint: '模拟 Node.js/Claude Code 客户端的 TLS 指纹',
+          profileLabel: 'TLS 指纹模板',
+          profileHint: '内置默认会使用程序内置模板；随机模板会在已保存模板中随机挑选。',
+          profileDefault: '内置默认模板',
+          profileRandom: '随机模板',
+          profileMissing: '已绑定模板 #{id}（当前列表不可见）',
+          profileEmpty: '暂未创建自定义模板，仍可继续使用内置默认模板。',
+          loadingProfiles: '正在加载 TLS 指纹模板...'
         },
         sessionIdMasking: {
           label: '会话 ID 伪装',
@@ -1933,6 +1952,46 @@
       grokTierSuper: 'Super',
       grokTierHeavy: 'Heavy',
       grokDedicatedRouteHint: 'Grok API Key 默认使用 https://api.x.ai；用户侧 API Key 调用可同时使用根入口和 /grok/v1 专属入口。',
+      grokDerivedMappingTitle: '能力派生模型映射',
+      grokDerivedMappingHint: 'SSO 账号只会暴露同时通过 Grok capability 校验和 account model_mapping 约束的模型。留空 SSO Token 表示保留原值，也可以一键恢复为当前档位默认映射。',
+      grokApplyCapabilityMapping: '恢复档位默认映射',
+      grokTestApiKeyHint: '该探测会走 xAI 官方 API 通路，并展示当前 API Key 可见的 Grok 模型结果。',
+      grokTestSsoHint: '该探测会走 reverse runtime，并展示当前 Grok 档位能力和 model_mapping 过滤后的可见模型。',
+      grokImport: {
+        title: '批量导入 Grok 账号',
+        description: '在创建流程内直接导入旧版 Grok 池导出、SSO Token 列表或官方 API Key 列表。',
+        previewAction: '预览导入',
+        previewing: '预览中...',
+        importing: '导入中...',
+        previewFailed: '预览 Grok 导入内容失败',
+        importFailed: '导入 Grok 账号失败',
+        previewExpired: '导入内容在预览后已变更，请重新预览后再导入。',
+        contentLabel: '导入内容',
+        skipDefaultGroupBind: '创建导入账号时跳过默认分组绑定',
+        previewSummary: '预览结果',
+        importSummary: '导入结果',
+        detectedKind: '识别类型：{kind}',
+        previewCounts: '总计 {total} · 就绪 {ready} · 跳过 {skipped} · 失败 {failed}',
+        importCounts: '创建 {created} · 跳过 {skipped} · 失败 {failed}',
+        legacyBadge: '旧导出',
+        ssoBadge: 'SSO Token',
+        apikeyBadge: '官方 API Key',
+        sources: {
+          legacy: '旧导出兼容',
+          sso: 'SSO 列表',
+          apikey: 'API Key 列表'
+        },
+        sourceHints: {
+          legacy: '兼容旧版 Grok 池导出和混合账号 JSON。',
+          sso: '支持逐行粘贴 SSO Token，或导入 JSON 数组/对象列表。',
+          apikey: '支持逐行粘贴 xAI API Key，或导入密钥管理器导出的 JSON 列表。'
+        },
+        placeholders: {
+          legacy: '[{\"name\":\"grok-heavy-1\",\"type\":\"sso\",\"credentials\":{\"sso_token\":\"Bearer ...\"}}]',
+          sso: 'Bearer xxxxx\nyyyyy\nzzzzz',
+          apikey: 'xai-xxxxxx\nxai-yyyyyy'
+        }
+      },
       // Upstream type
       upstream: {
         baseUrl: '上游 Base URL',
@@ -3181,6 +3240,7 @@
         type: '类型',
         context: '上下文',
         platform: '平台',
+        endpoint: '接口',
         model: '模型',
         group: '分组',
         user: '用户',
@@ -3201,7 +3261,10 @@
         typeRequest: '请求',
         typeAuth: '认证',
         typeRouting: '路由',
-        typeInternal: '内部'
+        typeInternal: '内部',
+        requestTypeSync: '同步',
+        requestTypeStream: '流式',
+        requestTypeWsV2: 'WS'
       },
       // Error Details Modal
       errorDetails: {
@@ -3281,6 +3344,10 @@
         basicInfo: '基本信息',
         platform: '平台',
         model: '模型',
+        inboundEndpoint: '入口接口',
+        upstreamEndpoint: '上游接口',
+        requestType: '请求类型',
+        upstreamUrl: '上游 URL',
         group: '分组',
         user: '用户',
         account: '账号',
@@ -4214,6 +4281,49 @@
       failedToSave: '保存规则失败',
       failedToDelete: '删除规则失败',
       failedToToggle: '切换状态失败'
+    },
+
+    tlsFingerprintProfiles: {
+      title: 'TLS 指纹模板',
+      shortTitle: 'TLS 模板',
+      description: '管理 Anthropic OAuth/SetupToken 与 Claude 客户端模拟可复用的 TLS 指纹模板。',
+      create: '创建模板',
+      edit: '编辑模板',
+      deleteTitle: '删除 TLS 指纹模板',
+      emptyTitle: '暂无 TLS 指纹模板',
+      emptyDescription: '创建后可在账号配额控制中选择固定模板或随机模板。',
+      summary: 'Cipher Suites {cipherSuites} / Curves {curves} / Extensions {extensions} / ALPN {alpn}',
+      columns: {
+        name: '名称',
+        grease: 'GREASE',
+        summary: '摘要',
+        updatedAt: '更新时间',
+        actions: '操作'
+      },
+      form: {
+        name: '模板名称',
+        description: '描述',
+        enableGrease: '启用 GREASE',
+        cipherSuites: 'Cipher Suites',
+        curves: 'Curves',
+        pointFormats: 'Point Formats',
+        signatureAlgorithms: 'Signature Algorithms',
+        alpnProtocols: 'ALPN Protocols',
+        supportedVersions: 'Supported Versions',
+        keyShareGroups: 'Key Share Groups',
+        pskModes: 'PSK Modes',
+        extensions: 'Extensions',
+        numberListPlaceholder: '使用逗号或换行分隔整数，例如 4865,4866',
+        stringListPlaceholder: '使用逗号或换行分隔字符串，例如 h2,http/1.1'
+      },
+      nameRequired: '请输入模板名称',
+      created: 'TLS 指纹模板创建成功',
+      updated: 'TLS 指纹模板更新成功',
+      deleted: 'TLS 指纹模板删除成功',
+      deleteConfirm: '确定要删除模板 “{name}” 吗？',
+      loadFailed: '加载 TLS 指纹模板失败',
+      saveFailed: '保存 TLS 指纹模板失败',
+      deleteFailed: '删除 TLS 指纹模板失败'
     }
   },
 

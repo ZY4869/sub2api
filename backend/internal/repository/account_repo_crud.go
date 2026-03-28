@@ -319,10 +319,10 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	return nil
 }
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
-	return r.ListWithFilters(ctx, params, "", "", "", "", 0, service.AccountLifecycleNormal)
+	return r.ListWithFilters(ctx, params, "", "", "", "", 0, service.AccountLifecycleNormal, "")
 }
-func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string) ([]service.Account, *pagination.PaginationResult, error) {
-	filters := normalizeAdminAccountListFilters(platform, accountType, status, search, groupID, lifecycle)
+func (r *accountRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+	filters := normalizeAdminAccountListFilters(platform, accountType, status, search, groupID, lifecycle, privacyMode)
 	limitedFilters := service.AccountLimitedFiltersFromContext(ctx)
 	filters.LimitedView = limitedFilters.LimitedView
 	filters.LimitedReason = limitedFilters.LimitedReason

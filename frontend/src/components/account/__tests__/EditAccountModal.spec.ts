@@ -108,6 +108,33 @@ function buildAccount() {
   } as any
 }
 
+function buildGrokSsoAccount() {
+  return {
+    id: 2,
+    name: 'Grok SSO',
+    notes: '',
+    platform: 'grok',
+    type: 'sso',
+    credentials: {
+      sso_token: 'Bearer old-token',
+      model_mapping: {
+        'grok-3-beta': 'grok-3-beta'
+      }
+    },
+    extra: {
+      grok_tier: 'super'
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
@@ -120,6 +147,7 @@ function mountModal(account = buildAccount()) {
       stubs: {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
+        AccountModelScopeEditor: true,
         Select: true,
         Icon: true,
         ProxySelector: true,
@@ -154,6 +182,33 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
       'gpt-5.2': 'gpt-5.2'
+    })
+  })
+
+  it('submits Grok SSO token replacement and grok_tier updates', async () => {
+    const account = buildGrokSsoAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    const tokenInput = wrapper.find('textarea[placeholder="admin.accounts.leaveEmptyToKeep"]')
+    expect(tokenInput.exists()).toBe(true)
+    await tokenInput.setValue('Bearer new-token')
+
+    const tierSelect = wrapper.find('select.input')
+    expect(tierSelect.exists()).toBe(true)
+    await tierSelect.setValue('heavy')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.sso_token).toBe('Bearer new-token')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.grok_tier).toBe('heavy')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
+      'grok-3-beta': 'grok-3-beta'
     })
   })
 })

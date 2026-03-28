@@ -28,6 +28,7 @@ function createProps() {
     showTest: false,
     showStats: false,
     showErrorPassthrough: false,
+    showTlsFingerprintProfiles: false,
     showSchedulePanel: false,
     includeProxyOnExport: true,
     proxies: [],
@@ -71,6 +72,7 @@ function createStubs(overrides: Record<string, unknown> = {}) {
     TempUnschedStatusModal: true,
     ConfirmDialog: true,
     ErrorPassthroughRulesModal: true,
+    TLSFingerprintProfilesModal: true,
     ...overrides
   }
 }

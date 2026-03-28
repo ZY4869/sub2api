@@ -137,7 +137,7 @@ func (h *AccountHandler) executeArchiveGroupAccounts(ctx context.Context, req *A
 func (h *AccountHandler) listAllAccountsForArchiveGroup(ctx context.Context, groupID int64) ([]*service.Account, error) {
 	collected := make([]*service.Account, 0)
 	for page := 1; ; page++ {
-		items, total, err := h.adminService.ListAccounts(ctx, page, archiveGroupListPageSize, "", "", "", "", groupID, service.AccountLifecycleNormal)
+		items, total, err := h.adminService.ListAccounts(ctx, page, archiveGroupListPageSize, "", "", "", "", groupID, service.AccountLifecycleNormal, "")
 		if err != nil {
 			return nil, err
 		}

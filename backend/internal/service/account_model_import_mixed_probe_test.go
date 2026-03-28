@@ -16,10 +16,10 @@ type accountModelImportMixedProbeUpstreamStub struct {
 }
 
 func (s *accountModelImportMixedProbeUpstreamStub) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
-	return s.DoWithTLS(req, proxyURL, accountID, accountConcurrency, false)
+	return s.DoWithTLS(req, proxyURL, accountID, accountConcurrency, nil)
 }
 
-func (s *accountModelImportMixedProbeUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
+func (s *accountModelImportMixedProbeUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *TLSFingerprintProfile) (*http.Response, error) {
 	if req == nil {
 		return nil, errors.New("request is nil")
 	}

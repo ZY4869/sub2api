@@ -17,6 +17,7 @@ import (
 	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
@@ -241,11 +242,11 @@ type ClaudeUsageResponse struct {
 
 // ClaudeUsageFetchOptions 包含获取 Claude 用量数据所需的所有选项
 type ClaudeUsageFetchOptions struct {
-	AccessToken          string       // OAuth access token
-	ProxyURL             string       // 代理 URL（可选）
-	AccountID            int64        // 账号 ID（用于 TLS 指纹选择）
-	EnableTLSFingerprint bool         // 是否启用 TLS 指纹伪装
-	Fingerprint          *Fingerprint // 缓存的指纹信息（User-Agent 等）
+	AccessToken string                  // OAuth access token
+	ProxyURL    string                  // 代理 URL（可选）
+	AccountID   int64                   // 账号 ID（用于日志与追踪）
+	TLSProfile  *tlsfingerprint.Profile // TLS 指纹配置（可选）
+	Fingerprint *Fingerprint            // 缓存的指纹信息（User-Agent 等）
 }
 
 // ClaudeUsageFetcher fetches usage data from Anthropic OAuth API
@@ -257,14 +258,15 @@ type ClaudeUsageFetcher interface {
 
 // AccountUsageService 账号使用量查询服务
 type AccountUsageService struct {
-	accountRepo             AccountRepository
-	usageLogRepo            UsageLogRepository
-	usageFetcher            ClaudeUsageFetcher
-	geminiQuotaService      *GeminiQuotaService
-	antigravityQuotaFetcher *AntigravityQuotaFetcher
-	cache                   *UsageCache
-	identityCache           IdentityCache
-	openAICodexProbe        func(ctx context.Context, account *Account) (map[string]any, *time.Time, error)
+	accountRepo                  AccountRepository
+	usageLogRepo                 UsageLogRepository
+	usageFetcher                 ClaudeUsageFetcher
+	geminiQuotaService           *GeminiQuotaService
+	antigravityQuotaFetcher      *AntigravityQuotaFetcher
+	cache                        *UsageCache
+	identityCache                IdentityCache
+	openAICodexProbe             func(ctx context.Context, account *Account) (map[string]any, *time.Time, error)
+	tlsFingerprintProfileService *TLSFingerprintProfileService
 }
 
 // NewAccountUsageService 创建AccountUsageService实例
@@ -286,6 +288,10 @@ func NewAccountUsageService(
 		cache:                   cache,
 		identityCache:           identityCache,
 	}
+}
+
+func (s *AccountUsageService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
+	s.tlsFingerprintProfileService = tlsFingerprintProfileService
 }
 
 // GetUsage 获取账号使用量
@@ -1185,10 +1191,10 @@ func (s *AccountUsageService) fetchOAuthUsageRaw(ctx context.Context, account *A
 
 	// 构建完整的选项
 	opts := &ClaudeUsageFetchOptions{
-		AccessToken:          accessToken,
-		ProxyURL:             proxyURL,
-		AccountID:            account.ID,
-		EnableTLSFingerprint: account.IsTLSFingerprintEnabled(),
+		AccessToken: accessToken,
+		ProxyURL:    proxyURL,
+		AccountID:   account.ID,
+		TLSProfile:  resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService),
 	}
 
 	// 尝试获取缓存的 Fingerprint（包含 User-Agent 等信息）

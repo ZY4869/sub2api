@@ -252,6 +252,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.String("schedule_layer", scheduleDecision.Layer),
 		zap.Int("candidate_count", scheduleDecision.CandidateCount),
 	)
+	setOpsSelectedAccount(c, account.ID, account.Platform)
+	setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeWSV2)
 
 	hooks := &service.OpenAIWSIngressHooks{
 		BeforeTurn: func(turn int) error {

@@ -32,6 +32,7 @@
           @import-data="showImportData = true"
           @export-data="openExportDataDialog"
           @show-error-passthrough="showErrorPassthrough = true"
+          @show-tls-fingerprint-profiles="showTLSFingerprintProfiles = true"
           @sync-pending-list="handleSyncPendingListChanges"
           @set-auto-refresh-enabled="setAutoRefreshEnabled"
           @set-auto-refresh-interval="handleAutoRefreshIntervalChange"
@@ -177,6 +178,7 @@
       :show-test="showTest"
       :show-stats="showStats"
       :show-error-passthrough="showErrorPassthrough"
+      :show-tls-fingerprint-profiles="showTLSFingerprintProfiles"
       :show-schedule-panel="showSchedulePanel"
       :proxies="proxies"
       :groups="groups"
@@ -219,6 +221,7 @@
       @schedule="handleSchedule"
       @reauth="handleReAuth"
       @refresh-token="handleRefresh"
+      @set-privacy="handleSetPrivacy"
       @recover-state="handleRecoverState"
       @reset-quota="handleResetQuota"
       @blacklist="handleBlacklistAccount"
@@ -237,6 +240,7 @@
       @confirm-export="handleExportData"
       @close-export="showExportDataDialog = false"
       @close-error-passthrough="showErrorPassthrough = false"
+      @close-tls-fingerprint-profiles="showTLSFingerprintProfiles = false"
     />
   </AppLayout>
 </template>
@@ -354,6 +358,7 @@ const showReAuth = ref(false)
 const showTest = ref(false)
 const showStats = ref(false)
 const showErrorPassthrough = ref(false)
+const showTLSFingerprintProfiles = ref(false)
 const edAcc = ref<Account | null>(null)
 const tempUnschedAcc = ref<Account | null>(null)
 const deletingAcc = ref<Account | null>(null)
@@ -453,6 +458,7 @@ const {
     type: '',
     status: '',
     group: '',
+    privacy_mode: '',
     search: '',
     lifecycle: 'normal',
     limited_view: limitedMode.value ? 'limited_only' : (loadHideLimitedPreference() ? 'normal_only' : 'all'),
@@ -471,6 +477,7 @@ const summaryParams = computed<AccountListRequestParams>(() => ({
   platform: String(params.platform || ''),
   type: String(params.type || ''),
   group: String(params.group || ''),
+  privacy_mode: String(params.privacy_mode || ''),
   search: String(params.search || ''),
   lifecycle: String(params.lifecycle || ''),
   limited_view: limitedMode.value ? 'limited_only' : 'all',
@@ -603,6 +610,7 @@ const runtimeSummaryParams = computed<AccountListRequestParams>(() => ({
   platform: String(params.platform || ''),
   type: String(params.type || ''),
   group: String(params.group || ''),
+  privacy_mode: String(params.privacy_mode || ''),
   search: String(params.search || ''),
   lifecycle: String(params.lifecycle || ''),
   limited_view: limitedMode.value ? 'limited_only' : 'all',
@@ -1126,6 +1134,18 @@ const handleRefresh = async (a: Account) => {
     }
   } catch (error) {
     console.error('Failed to refresh credentials:', error)
+  }
+}
+const handleSetPrivacy = async (a: Account) => {
+  try {
+    const updated = await adminAPI.accounts.setPrivacy(a.id)
+    patchAccountInList(updated)
+    refreshAccountSummarySafe()
+    enterAutoRefreshSilentWindow()
+    appStore.showSuccess(t('admin.accounts.setPrivacySuccess'))
+  } catch (error: any) {
+    console.error('Failed to set privacy:', error)
+    appStore.showError(error?.message || t('admin.accounts.setPrivacyFailed'))
   }
 }
 const handleRecoverState = async (a: Account) => {

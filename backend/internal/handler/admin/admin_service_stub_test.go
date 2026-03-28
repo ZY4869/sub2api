@@ -215,7 +215,7 @@ func (s *stubAdminService) BatchSetGroupRateMultipliers(_ context.Context, _ int
 	return nil
 }
 
-func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string) ([]service.Account, int64, error) {
+func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]service.Account, int64, error) {
 	filtered := make([]service.Account, 0, len(s.accounts))
 	search = strings.TrimSpace(strings.ToLower(search))
 	lifecycle = service.NormalizeAccountLifecycleInput(lifecycle)
@@ -779,6 +779,10 @@ func (s *stubAdminService) ResetAccountQuota(ctx context.Context, id int64) erro
 }
 
 func (s *stubAdminService) EnsureOpenAIPrivacy(ctx context.Context, account *service.Account) string {
+	return ""
+}
+
+func (s *stubAdminService) ForceOpenAIPrivacy(ctx context.Context, account *service.Account) string {
 	return ""
 }
 

@@ -61,6 +61,8 @@ temp/
 deploy/install.sh
 deploy/sub2api.service
 deploy/sub2api-sudoers
+deploy/runtime/
+deploy/runtime-data/
 
 # GoReleaser
 .goreleaser.yaml

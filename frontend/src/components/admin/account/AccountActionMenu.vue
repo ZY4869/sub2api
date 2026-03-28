@@ -36,6 +36,10 @@
                 {{ t('admin.accounts.refreshToken') }}
               </button>
             </template>
+            <button v-if="supportsPrivacy" @click="$emit('set-privacy', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-emerald-600 hover:bg-gray-100 dark:hover:bg-dark-700">
+              <Icon name="shield" size="sm" />
+              {{ t('admin.accounts.setPrivacy') }}
+            </button>
             <div v-if="hasRecoverableState" class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
             <button v-if="hasRecoverableState" @click="$emit('recover-state', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-emerald-600 hover:bg-gray-100 dark:hover:bg-dark-700">
               <Icon name="sync" size="sm" />
@@ -73,6 +77,7 @@ const emit = defineEmits<{
   'import-models': [account: Account]
   reauth: [account: Account]
   'refresh-token': [account: Account]
+  'set-privacy': [account: Account]
   'recover-state': [account: Account]
   'reset-quota': [account: Account]
   blacklist: [account: Account]
@@ -131,6 +136,7 @@ const hasQuotaLimit = computed(() => {
     (props.account?.quota_weekly_limit ?? 0) > 0
   )
 })
+const supportsPrivacy = computed(() => props.account?.platform === 'openai' && props.account?.type === 'oauth')
 const showBlacklistAction = computed(() => props.account?.lifecycle_state !== 'blacklisted')
 
 const handleKeydown = (event: KeyboardEvent) => {

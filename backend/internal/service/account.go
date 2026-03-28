@@ -1215,6 +1215,39 @@ func (a *Account) IsTLSFingerprintEnabled() bool {
 	return false
 }
 
+func (a *Account) GetTLSFingerprintProfileID() int64 {
+	if a == nil || a.Extra == nil {
+		return 0
+	}
+	value, ok := a.Extra["tls_fingerprint_profile_id"]
+	if !ok || value == nil {
+		return 0
+	}
+	switch v := value.(type) {
+	case int:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int64:
+		return v
+	case float64:
+		return int64(v)
+	case json.Number:
+		if parsed, err := v.Int64(); err == nil {
+			return parsed
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0
+		}
+		if parsed, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
+
 // GetUserMsgQueueMode 获取用户消息队列模式
 // "serialize" = 串行队列, "throttle" = 软性限速, "" = 未设置（使用全局配置）
 func (a *Account) GetUserMsgQueueMode() string {

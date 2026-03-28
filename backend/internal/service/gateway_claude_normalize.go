@@ -253,7 +253,22 @@ func isClaudeCodeRequest(ctx context.Context, c *gin.Context, parsed *ParsedRequ
 	}
 	return isClaudeCodeClient(c.GetHeader("User-Agent"), parsed.MetadataUserID)
 }
+func normalizeSystemParam(system any) any {
+	raw, ok := system.(json.RawMessage)
+	if !ok {
+		return system
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	var parsed any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil
+	}
+	return parsed
+}
 func systemIncludesClaudeCodePrompt(system any) bool {
+	system = normalizeSystemParam(system)
 	switch v := system.(type) {
 	case string:
 		return hasClaudeCodePrefix(v)
@@ -325,6 +340,7 @@ func filterSystemBlocksByPrefix(body []byte) []byte {
 	return body
 }
 func injectClaudeCodePrompt(body []byte, system any) []byte {
+	system = normalizeSystemParam(system)
 	claudeCodePrefix := strings.TrimSpace(claudeCodeSystemPrompt)
 
 	claudeCodeBlockRaw := `{"type":"text","text":` + strconv.Quote(claudeCodeSystemPrompt) + `,"cache_control":{"type":"ephemeral"}}`

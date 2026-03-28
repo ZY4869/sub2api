@@ -153,6 +153,9 @@ describe('AccountsViewToolbar', () => {
       button.text().includes('admin.errorPassthrough.title')
     )?.trigger('click')
     await wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.tlsFingerprintProfiles.title')
+    )?.trigger('click')
+    await wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.groupView.enable')
     )?.trigger('click')
     await wrapper.findAll('button').find((button) =>
@@ -165,6 +168,7 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('import-data')).toEqual([[]])
     expect(wrapper.emitted('export-data')).toEqual([[]])
     expect(wrapper.emitted('show-error-passthrough')).toEqual([[]])
+    expect(wrapper.emitted('show-tls-fingerprint-profiles')).toEqual([[]])
     expect(wrapper.emitted('toggle-group-view')).toEqual([[]])
     expect(wrapper.emitted('sync-pending-list')).toEqual([[]])
   })
