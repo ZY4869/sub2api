@@ -36,6 +36,7 @@ func ProvideAdminHandlers(
 	modelCatalogHandler *admin.ModelCatalogHandler,
 	modelRegistryHandler *admin.ModelRegistryHandler,
 	scheduledTestHandler *admin.ScheduledTestHandler,
+	tlsFingerprintProfileHandler *admin.TLSFingerprintProfileHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:        dashboardHandler,
@@ -64,6 +65,7 @@ func ProvideAdminHandlers(
 		ModelCatalog:     modelCatalogHandler,
 		ModelRegistry:    modelRegistryHandler,
 		ScheduledTest:    scheduledTestHandler,
+		TLSFingerprintProfile: tlsFingerprintProfileHandler,
 	}
 }
 
@@ -147,6 +149,21 @@ func ProvideGatewayHandler(
 	return handler
 }
 
+func ProvideGrokGatewayHandler(
+	gatewayService *service.GatewayService,
+	grokGatewayService *service.GrokGatewayService,
+	concurrencyService *service.ConcurrencyService,
+	billingCacheService *service.BillingCacheService,
+	apiKeyService *service.APIKeyService,
+	usageRecordWorkerPool *service.UsageRecordWorkerPool,
+	cfg *config.Config,
+	settingService *service.SettingService,
+) *GrokGatewayHandler {
+	handler := NewGrokGatewayHandler(gatewayService, grokGatewayService, concurrencyService, billingCacheService, apiKeyService, usageRecordWorkerPool, cfg)
+	handler.SetSettingService(settingService)
+	return handler
+}
+
 // ProvideSystemHandler creates admin.SystemHandler with UpdateService
 func ProvideSystemHandler(updateService *service.UpdateService, lockService *service.SystemOperationLockService) *admin.SystemHandler {
 	return admin.NewSystemHandler(updateService, lockService)
@@ -170,6 +187,7 @@ func ProvideHandlers(
 	adminHandlers *AdminHandlers,
 	gatewayHandler *GatewayHandler,
 	openaiGatewayHandler *OpenAIGatewayHandler,
+	grokGatewayHandler *GrokGatewayHandler,
 	soraGatewayHandler *SoraGatewayHandler,
 	soraClientHandler *SoraClientHandler,
 	settingHandler *SettingHandler,
@@ -189,6 +207,7 @@ func ProvideHandlers(
 		Admin:         adminHandlers,
 		Gateway:       gatewayHandler,
 		OpenAIGateway: openaiGatewayHandler,
+		GrokGateway:   grokGatewayHandler,
 		SoraGateway:   soraGatewayHandler,
 		SoraClient:    soraClientHandler,
 		Setting:       settingHandler,
@@ -209,6 +228,7 @@ var ProviderSet = wire.NewSet(
 	NewAnnouncementHandler,
 	ProvideGatewayHandler,
 	NewOpenAIGatewayHandler,
+	ProvideGrokGatewayHandler,
 	NewSoraGatewayHandler,
 	NewSoraClientHandler,
 	NewTotpHandler,
@@ -241,6 +261,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewModelCatalogHandler,
 	admin.NewModelRegistryHandler,
 	admin.NewScheduledTestHandler,
+	admin.NewTLSFingerprintProfileHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

@@ -145,11 +145,17 @@ type TLSFingerprintConfig struct {
 	Profiles map[string]TLSProfileConfig `mapstructure:"profiles"`
 }
 type TLSProfileConfig struct {
-	Name         string   `mapstructure:"name"`
-	EnableGREASE bool     `mapstructure:"enable_grease"`
-	CipherSuites []uint16 `mapstructure:"cipher_suites"`
-	Curves       []uint16 `mapstructure:"curves"`
-	PointFormats []uint8  `mapstructure:"point_formats"`
+	Name                string   `mapstructure:"name"`
+	EnableGREASE        bool     `mapstructure:"enable_grease"`
+	CipherSuites        []uint16 `mapstructure:"cipher_suites"`
+	Curves              []uint16 `mapstructure:"curves"`
+	PointFormats        []uint16 `mapstructure:"point_formats"`
+	SignatureAlgorithms []uint16 `mapstructure:"signature_algorithms"`
+	ALPNProtocols       []string `mapstructure:"alpn_protocols"`
+	SupportedVersions   []uint16 `mapstructure:"supported_versions"`
+	KeyShareGroups      []uint16 `mapstructure:"key_share_groups"`
+	PSKModes            []uint16 `mapstructure:"psk_modes"`
+	Extensions          []uint16 `mapstructure:"extensions"`
 }
 type GatewaySchedulingConfig struct {
 	StickySessionMaxWaiting    int           `mapstructure:"sticky_session_max_waiting"`

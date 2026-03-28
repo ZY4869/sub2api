@@ -75,11 +75,17 @@ type OpsInsertErrorLogInput struct {
 	GroupID   *int64
 	ClientIP  *string
 
-	Platform    string
-	Model       string
-	RequestPath string
-	Stream      bool
-	UserAgent   string
+	Platform         string
+	Model            string
+	RequestPath      string
+	Stream           bool
+	InboundEndpoint  string
+	UpstreamEndpoint string
+	RequestedModel   string
+	UpstreamModel    string
+	RequestType      *int16
+	UpstreamURL      string
+	UserAgent        string
 
 	ErrorPhase        string
 	ErrorType         string

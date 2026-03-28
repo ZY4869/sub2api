@@ -24,6 +24,8 @@ var grokSharedModelIDs = []string{
 	"grok-3-fast-beta",
 	"grok-2",
 	"grok-2-vision",
+	"grok-imagine-image",
+	"grok-imagine-video",
 	"grok-2-image",
 	"grok-beta",
 	"grok-vision-beta",

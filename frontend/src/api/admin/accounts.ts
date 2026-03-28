@@ -43,6 +43,7 @@ export async function list(
     type?: string
     status?: string
     group?: string
+    privacy_mode?: string
     search?: string
     lite?: string
     lifecycle?: string
@@ -85,6 +86,7 @@ export async function listWithEtag(
     type?: string
     group?: string
     status?: string
+    privacy_mode?: string
     search?: string
     lite?: string
     lifecycle?: string
@@ -205,6 +207,51 @@ export interface AccountTestRequestPayload {
   test_mode?: AccountTestMode
 }
 
+export interface GrokImportParseError {
+  index: number
+  message: string
+}
+
+export interface GrokImportPreviewItem {
+  index: number
+  name: string
+  type: string
+  detected_kind: string
+  credential_masked: string
+  source_pool?: string
+  grok_tier: string
+  priority: number
+  concurrency: number
+  status: 'ready' | 'skipped' | 'failed'
+  reason?: string
+}
+
+export interface GrokImportPreviewResponse {
+  detected_kind?: string
+  total: number
+  items: GrokImportPreviewItem[]
+  errors?: GrokImportParseError[]
+}
+
+export interface GrokImportResultItem {
+  index: number
+  name: string
+  type: string
+  status: 'created' | 'skipped' | 'failed'
+  reason?: string
+  account_id?: number
+  source_pool?: string
+}
+
+export interface GrokImportResult {
+  detected_kind?: string
+  created: number
+  skipped: number
+  failed: number
+  errors?: GrokImportParseError[]
+  results: GrokImportResultItem[]
+}
+
 export async function testAccount(id: number, payload: AccountTestRequestPayload = {}): Promise<{
   success: boolean
   message: string
@@ -218,6 +265,42 @@ export async function testAccount(id: number, payload: AccountTestRequestPayload
   return data
 }
 
+export async function previewGrokImport(payload: {
+  content: string
+  skip_default_group_bind?: boolean
+}): Promise<GrokImportPreviewResponse> {
+  const { data } = await apiClient.post<GrokImportPreviewResponse>('/admin/grok/import/preview', payload)
+  return data
+}
+
+export async function importGrok(payload: {
+  content: string
+  skip_default_group_bind?: boolean
+}): Promise<GrokImportResult> {
+  const { data } = await apiClient.post<GrokImportResult>('/admin/grok/import', payload)
+  return data
+}
+
+function buildAdminStreamUrl(path: string): string {
+  const base = String(apiClient.defaults.baseURL || '').replace(/\/+$/, '')
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${base}${normalizedPath}`
+}
+
+export async function testGrokAccount(
+  id: number,
+  payload: AccountTestRequestPayload = {}
+): Promise<Response> {
+  return fetch(buildAdminStreamUrl(`/admin/grok/accounts/${id}/test`), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+}
+
 /**
  * Refresh account credentials
  * @param id - Account ID
@@ -225,6 +308,11 @@ export async function testAccount(id: number, payload: AccountTestRequestPayload
  */
 export async function refreshCredentials(id: number): Promise<Account> {
   const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/refresh`)
+  return data
+}
+
+export async function setPrivacy(id: number): Promise<Account> {
+  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/set-privacy`)
   return data
 }
 
@@ -1094,7 +1182,11 @@ export const accountsAPI = {
   delete: deleteAccount,
   toggleStatus,
   testAccount,
+  previewGrokImport,
+  importGrok,
+  testGrokAccount,
   refreshCredentials,
+  setPrivacy,
   startCopilotDeviceFlow,
   pollCopilotDeviceFlow,
   createCopilotAccountFromDevice,

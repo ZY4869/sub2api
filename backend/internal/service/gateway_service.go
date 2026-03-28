@@ -201,37 +201,38 @@ func (s *GatewayService) TempUnscheduleRetryableError(ctx context.Context, accou
 }
 
 type GatewayService struct {
-	accountRepo           AccountRepository
-	groupRepo             GroupRepository
-	usageLogRepo          UsageLogRepository
-	usageBillingRepo      UsageBillingRepository
-	userRepo              UserRepository
-	userSubRepo           UserSubscriptionRepository
-	userGroupRateRepo     UserGroupRateRepository
-	cache                 GatewayCache
-	digestStore           *DigestSessionStore
-	cfg                   *config.Config
-	schedulerSnapshot     *SchedulerSnapshotService
-	billingService        *BillingService
-	rateLimitService      *RateLimitService
-	billingCacheService   *BillingCacheService
-	identityService       *IdentityService
-	httpUpstream          HTTPUpstream
-	deferredService       *DeferredService
-	concurrencyService    *ConcurrencyService
-	claudeTokenProvider   *ClaudeTokenProvider
-	sessionLimitCache     SessionLimitCache
-	rpmCache              RPMCache
-	userGroupRateResolver *userGroupRateResolver
-	userGroupRateCache    *gocache.Cache
-	userGroupRateSF       singleflight.Group
-	modelsListCache       *gocache.Cache
-	modelsListCacheTTL    time.Duration
-	settingService        *SettingService
-	modelRegistryService  *ModelRegistryService
-	responseHeaderFilter  *responseheaders.CompiledHeaderFilter
-	debugModelRouting     atomic.Bool
-	debugClaudeMimic      atomic.Bool
+	accountRepo                  AccountRepository
+	groupRepo                    GroupRepository
+	usageLogRepo                 UsageLogRepository
+	usageBillingRepo             UsageBillingRepository
+	userRepo                     UserRepository
+	userSubRepo                  UserSubscriptionRepository
+	userGroupRateRepo            UserGroupRateRepository
+	cache                        GatewayCache
+	digestStore                  *DigestSessionStore
+	cfg                          *config.Config
+	schedulerSnapshot            *SchedulerSnapshotService
+	billingService               *BillingService
+	rateLimitService             *RateLimitService
+	billingCacheService          *BillingCacheService
+	identityService              *IdentityService
+	httpUpstream                 HTTPUpstream
+	deferredService              *DeferredService
+	concurrencyService           *ConcurrencyService
+	claudeTokenProvider          *ClaudeTokenProvider
+	sessionLimitCache            SessionLimitCache
+	rpmCache                     RPMCache
+	userGroupRateResolver        *userGroupRateResolver
+	userGroupRateCache           *gocache.Cache
+	userGroupRateSF              singleflight.Group
+	modelsListCache              *gocache.Cache
+	modelsListCacheTTL           time.Duration
+	settingService               *SettingService
+	modelRegistryService         *ModelRegistryService
+	tlsFingerprintProfileService *TLSFingerprintProfileService
+	responseHeaderFilter         *responseheaders.CompiledHeaderFilter
+	debugModelRouting            atomic.Bool
+	debugClaudeMimic             atomic.Bool
 }
 
 func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository, usageLogRepo UsageLogRepository, usageBillingRepo UsageBillingRepository, userRepo UserRepository, userSubRepo UserSubscriptionRepository, userGroupRateRepo UserGroupRateRepository, cache GatewayCache, cfg *config.Config, schedulerSnapshot *SchedulerSnapshotService, concurrencyService *ConcurrencyService, billingService *BillingService, rateLimitService *RateLimitService, billingCacheService *BillingCacheService, identityService *IdentityService, httpUpstream HTTPUpstream, deferredService *DeferredService, claudeTokenProvider *ClaudeTokenProvider, sessionLimitCache SessionLimitCache, rpmCache RPMCache, digestStore *DigestSessionStore, settingService *SettingService) *GatewayService {
@@ -273,6 +274,10 @@ func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository,
 
 func (s *GatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *GatewayService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
+	s.tlsFingerprintProfileService = tlsFingerprintProfileService
 }
 
 func (s *GatewayService) GetAccessToken(ctx context.Context, account *Account) (string, string, error) {

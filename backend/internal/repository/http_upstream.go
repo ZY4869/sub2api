@@ -167,9 +167,9 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 //   - 当 enableTLSFingerprint=true 时，使用 utls 库模拟 Claude CLI 的 TLS 指纹
 //   - 指纹模板根据 accountID % len(profiles) 自动选择
 //   - 支持直连、HTTP/HTTPS 代理、SOCKS5 代理三种场景
-func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
-	// 如果未启用 TLS 指纹，直接使用标准请求路径
-	if !enableTLSFingerprint {
+func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *tlsfingerprint.Profile) (*http.Response, error) {
+	// 如果未提供 TLS 指纹 profile，直接使用标准请求路径
+	if tlsProfile == nil {
 		return s.Do(req, proxyURL, accountID, accountConcurrency)
 	}
 
@@ -188,19 +188,10 @@ func (s *httpUpstreamService) DoWithTLS(req *http.Request, proxyURL string, acco
 		return nil, err
 	}
 
-	// 获取 TLS 指纹 Profile
-	registry := tlsfingerprint.GlobalRegistry()
-	profile := registry.GetProfileByAccountID(accountID)
-	if profile == nil {
-		// 如果获取不到 profile，回退到普通请求
-		slog.Debug("tls_fingerprint_no_profile", "account_id", accountID, "fallback", "standard_request")
-		return s.Do(req, proxyURL, accountID, accountConcurrency)
-	}
-
-	slog.Debug("tls_fingerprint_using_profile", "account_id", accountID, "profile", profile.Name, "grease", profile.EnableGREASE)
+	slog.Debug("tls_fingerprint_using_profile", "account_id", accountID, "profile", tlsProfile.Name, "grease", tlsProfile.EnableGREASE)
 
 	// 获取或创建带 TLS 指纹的客户端
-	entry, err := s.acquireClientWithTLS(proxyURL, accountID, accountConcurrency, profile)
+	entry, err := s.acquireClientWithTLS(proxyURL, accountID, accountConcurrency, tlsProfile)
 	if err != nil {
 		slog.Debug("tls_fingerprint_acquire_client_failed", "account_id", accountID, "error", err)
 		return nil, err
@@ -241,8 +232,9 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 		return nil, err
 	}
 	// TLS 指纹客户端使用独立的缓存键，加 "tls:" 前缀
-	cacheKey := "tls:" + buildCacheKey(isolation, proxyKey, accountID)
-	poolKey := s.buildPoolKey(isolation, accountConcurrency) + ":tls"
+	profileKey := buildTLSProfileKey(profile)
+	cacheKey := "tls:" + buildCacheKey(isolation, proxyKey, accountID) + ":" + profileKey
+	poolKey := s.buildPoolKey(isolation, accountConcurrency) + ":tls:" + profileKey
 
 	now := time.Now()
 	nowUnix := now.UnixNano()
@@ -320,6 +312,25 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 	s.evictOverLimitLocked()
 	s.mu.Unlock()
 	return entry, nil
+}
+
+func buildTLSProfileKey(profile *tlsfingerprint.Profile) string {
+	if profile == nil {
+		return "default"
+	}
+	return fmt.Sprintf("%s|%t|%v|%v|%v|%v|%v|%v|%v|%v|%v",
+		profile.Name,
+		profile.EnableGREASE,
+		profile.CipherSuites,
+		profile.Curves,
+		profile.PointFormats,
+		profile.SignatureAlgorithms,
+		profile.ALPNProtocols,
+		profile.SupportedVersions,
+		profile.KeyShareGroups,
+		profile.PSKModes,
+		profile.Extensions,
+	)
 }
 
 func (s *httpUpstreamService) shouldValidateResolvedIP() bool {

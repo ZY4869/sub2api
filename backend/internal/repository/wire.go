@@ -47,6 +47,10 @@ func ProvideSessionLimitCache(rdb *redis.Client, cfg *config.Config) service.Ses
 	return NewSessionLimitCache(rdb, defaultIdleTimeoutMinutes)
 }
 
+func ProvidePrivacyClientFactory() service.PrivacyClientFactory {
+	return CreatePrivacyReqClient
+}
+
 // ProviderSet is the Wire provider set for all repositories
 var ProviderSet = wire.NewSet(
 	NewUserRepository,
@@ -74,6 +78,7 @@ var ProviderSet = wire.NewSet(
 	NewUserAttributeValueRepository,
 	NewUserGroupRateRepository,
 	NewErrorPassthroughRepository,
+	NewTLSFingerprintProfileRepository,
 
 	// Cache implementations
 	NewGatewayCache,
@@ -83,6 +88,7 @@ var ProviderSet = wire.NewSet(
 	NewTimeoutCounterCache,
 	ProvideConcurrencyCache,
 	ProvideSessionLimitCache,
+	ProvidePrivacyClientFactory,
 	NewRPMCache,
 	NewUserMsgQueueCache,
 	NewDashboardCache,
@@ -97,6 +103,7 @@ var ProviderSet = wire.NewSet(
 	NewTotpCache,
 	NewRefreshTokenCache,
 	NewErrorPassthroughCache,
+	NewTLSFingerprintProfileCache,
 
 	// Encryptors
 	NewAESEncryptor,

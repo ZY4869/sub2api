@@ -114,6 +114,11 @@
             </select>
             <p class="input-hint">{{ t('admin.accounts.grokTierHint') }}</p>
           </div>
+
+          <AccountGrokImportPanel
+            :show="show"
+            @imported="handleGrokImportCompleted"
+          />
         </div>
 
       <!-- Antigravity model restriction (applies to OAuth + Upstream) -->
@@ -427,6 +432,7 @@ import { useCreateAccountReset } from '@/composables/useCreateAccountReset'
 import { useCreateAccountSoraAccessTokenImport } from '@/composables/useCreateAccountSoraAccessTokenImport'
 import { useCreateAccountSoraSessionTokenValidation } from '@/composables/useCreateAccountSoraSessionTokenValidation'
 import { useCreateAccountSubmit } from '@/composables/useCreateAccountSubmit'
+import type { GrokImportResult } from '@/api/admin/accounts'
 import type {
   Proxy,
   AdminGroup,
@@ -451,6 +457,7 @@ import AccountCreatePlatformTypeEditor from '@/components/account/AccountCreateP
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
+import AccountGrokImportPanel from '@/components/account/AccountGrokImportPanel.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
@@ -1588,6 +1595,12 @@ const handleSubmit = async () => {
     extra,
     isProtocolGatewayPlatform(form.platform) ? gatewayProtocol.value : undefined
   )
+}
+
+const handleGrokImportCompleted = (result: GrokImportResult) => {
+  if (result.created > 0) {
+    emit('created')
+  }
 }
 
 const goBackToBasicInfo = () => {

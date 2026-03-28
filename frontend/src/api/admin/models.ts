@@ -20,6 +20,7 @@ export interface ModelCatalogPricing {
   cache_read_input_token_cost?: number
   cache_read_input_token_cost_priority?: number
   output_cost_per_image?: number
+  output_cost_per_video_request?: number
 }
 
 export interface ModelPricingOverride extends ModelCatalogPricing {

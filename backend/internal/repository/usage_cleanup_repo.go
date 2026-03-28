@@ -356,11 +356,8 @@ func buildUsageCleanupWhere(filters service.UsageCleanupFilters) (string, []any)
 	}
 	if filters.Model != nil {
 		model := strings.TrimSpace(*filters.Model)
-		if model != "" {
-			conditions = append(conditions, fmt.Sprintf("model = $%d", idx))
-			args = append(args, model)
-			idx++
-		}
+		conditions, args = appendRawUsageLogModelWhereCondition(conditions, args, model)
+		idx = len(args) + 1
 	}
 	if filters.RequestType != nil {
 		condition, conditionArgs := buildRequestTypeFilterCondition(idx, *filters.RequestType)

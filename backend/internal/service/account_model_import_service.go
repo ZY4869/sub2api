@@ -47,10 +47,10 @@ type AccountModelImportResult struct {
 }
 
 type AccountModelProbeSummary struct {
-	DetectedModels []string `json:"detected_models"`
+	DetectedModels []string                 `json:"detected_models"`
 	Models         []AccountModelProbeModel `json:"models,omitempty"`
-	ProbeSource    string   `json:"probe_source"`
-	ProbeNotice    string   `json:"probe_notice,omitempty"`
+	ProbeSource    string                   `json:"probe_source"`
+	ProbeNotice    string                   `json:"probe_notice,omitempty"`
 }
 
 type AccountModelProbeModel struct {
@@ -82,12 +82,13 @@ func newAccountModelProbeResult(models []string) *accountModelProbeResult {
 }
 
 type AccountModelImportService struct {
-	modelCatalogService  *ModelCatalogService
-	modelRegistryService *ModelRegistryService
-	geminiCompatService  *GeminiMessagesCompatService
-	openAITokenProvider  *OpenAITokenProvider
-	httpUpstream         HTTPUpstream
-	proxyRepo            ProxyRepository
+	modelCatalogService          *ModelCatalogService
+	modelRegistryService         *ModelRegistryService
+	geminiCompatService          *GeminiMessagesCompatService
+	openAITokenProvider          *OpenAITokenProvider
+	httpUpstream                 HTTPUpstream
+	proxyRepo                    ProxyRepository
+	tlsFingerprintProfileService *TLSFingerprintProfileService
 }
 
 func NewAccountModelImportService(
@@ -110,6 +111,10 @@ func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService
 
 func (s *AccountModelImportService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
 	s.openAITokenProvider = openAITokenProvider
+}
+
+func (s *AccountModelImportService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
+	s.tlsFingerprintProfileService = tlsFingerprintProfileService
 }
 
 func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, account *Account) (*AccountModelProbeSummary, error) {

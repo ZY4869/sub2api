@@ -52,7 +52,7 @@ func (r *usageLogRepository) ListByAccountAndTimeRange(ctx context.Context, acco
 	return logs, nil, err
 }
 func (r *usageLogRepository) ListByModelAndTimeRange(ctx context.Context, modelName string, startTime, endTime time.Time) ([]service.UsageLog, *pagination.PaginationResult, error) {
-	query := "SELECT " + usageLogSelectColumns + " FROM usage_logs WHERE model = $1 AND created_at >= $2 AND created_at < $3 ORDER BY id DESC LIMIT 10000"
+	query := "SELECT " + usageLogSelectColumns + " FROM usage_logs WHERE " + rawUsageLogModelColumn + " = $1 AND created_at >= $2 AND created_at < $3 ORDER BY id DESC LIMIT 10000"
 	logs, err := r.queryUsageLogs(ctx, query, modelName, startTime, endTime)
 	return logs, nil, err
 }

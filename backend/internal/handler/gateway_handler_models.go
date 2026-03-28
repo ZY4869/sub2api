@@ -36,6 +36,8 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"object": "list", "data": []claude.Model{
 			{ID: "grok-4", Type: "model", DisplayName: "grok-4", CreatedAt: ""},
 			{ID: "grok-3-beta", Type: "model", DisplayName: "grok-3-beta", CreatedAt: ""},
+			{ID: "grok-imagine-image", Type: "model", DisplayName: "grok-imagine-image", CreatedAt: ""},
+			{ID: "grok-imagine-video", Type: "model", DisplayName: "grok-imagine-video", CreatedAt: ""},
 			{ID: "grok-2-image", Type: "model", DisplayName: "grok-2-image", CreatedAt: ""},
 		}})
 		return

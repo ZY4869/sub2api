@@ -83,13 +83,14 @@ func (r *openAICodexExtraListRepo) UpdateExtra(_ context.Context, _ int64, updat
 	return nil
 }
 
-func (r *openAICodexExtraListRepo) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string) ([]Account, *pagination.PaginationResult, error) {
+func (r *openAICodexExtraListRepo) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
 	_ = platform
 	_ = accountType
 	_ = status
 	_ = search
 	_ = groupID
 	_ = lifecycle
+	_ = privacyMode
 	return r.accounts, &pagination.PaginationResult{Total: int64(len(r.accounts)), Page: params.Page, PageSize: params.PageSize}, nil
 }
 
@@ -502,7 +503,7 @@ func TestAdminService_ListAccounts_ExhaustedCodexExtraReturnsRateLimitedAccount(
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, "", "", 0, AccountLifecycleNormal)
+	accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, "", "", 0, AccountLifecycleNormal, "")
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
 	require.Len(t, accounts, 1)

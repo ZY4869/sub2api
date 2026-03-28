@@ -389,7 +389,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func isGeminiSignatureRelatedError(respBody []byte) bool {
 	msg := strings.ToLower(strings.TrimSpace(extractAntigravityErrorMessage(respBody)))
@@ -559,7 +559,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			if action == "countTokens" {
 				estimated := estimateGeminiCountTokens(body)
 				c.JSON(http.StatusOK, map[string]any{"totalTokens": estimated})
-				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 			}
 			setOpsUpstreamError(c, 0, safeErr, "")
 			return nil, s.writeGoogleError(c, http.StatusBadGateway, "Upstream request failed after retries: "+safeErr)
@@ -603,7 +603,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			if action == "countTokens" {
 				estimated := estimateGeminiCountTokens(body)
 				c.JSON(http.StatusOK, map[string]any{"totalTokens": estimated})
-				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+				return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 			}
 			resp = &http.Response{StatusCode: resp.StatusCode, Header: resp.Header.Clone(), Body: io.NopCloser(bytes.NewReader(respBody))}
 			break
@@ -626,7 +626,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 		if action == "countTokens" && isOAuth && isGeminiInsufficientScope(resp.Header, respBody) {
 			estimated := estimateGeminiCountTokens(body)
 			c.JSON(http.StatusOK, map[string]any{"totalTokens": estimated})
-			return &ForwardResult{RequestID: requestID, Usage: ClaudeUsage{}, Model: originalModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+			return &ForwardResult{RequestID: requestID, Usage: ClaudeUsage{}, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 		}
 		if s.rateLimitService != nil {
 			switch s.rateLimitService.CheckErrorPolicy(ctx, account, resp.StatusCode, respBody) {
@@ -747,7 +747,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func (s *GeminiMessagesCompatService) checkErrorPolicyInLoop(ctx context.Context, account *Account, resp *http.Response) (matched bool, rebuilt *http.Response) {
 	if resp.StatusCode < 400 || s.rateLimitService == nil {

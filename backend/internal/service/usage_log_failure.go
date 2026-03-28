@@ -150,6 +150,7 @@ func buildFailedUsageLogBase(
 		AccountID:             account.ID,
 		RequestID:             resolveUsageBillingRequestID(ctx, input.RequestID),
 		Model:                 strings.TrimSpace(input.Model),
+		RequestedModel:        strings.TrimSpace(input.Model),
 		UpstreamModel:         optionalNonEqualStringPtr(input.UpstreamModel, input.Model),
 		ReasoningEffort:       input.ReasoningEffort,
 		ThinkingEnabled:       input.ThinkingEnabled,

@@ -72,6 +72,15 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		return nil, modelregistry.SeedModels()
 	}
 	runtimePlatform := RoutingPlatformForAccount(account)
+	visibleGrokModels := GrokVisibleModelIDsForAccount(account)
+	visibleGrokSet := map[string]struct{}{}
+	if runtimePlatform == PlatformGrok && account != nil && account.IsGrokSSO() {
+		for _, modelID := range visibleGrokModels {
+			if normalized := normalizeRegistryID(modelID); normalized != "" {
+				visibleGrokSet[normalized] = struct{}{}
+			}
+		}
+	}
 
 	details, err := registry.adminDetails(ctx)
 	if err != nil {
@@ -91,6 +100,11 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		if !modelregistry.HasExposure(detail.ModelEntry, "test") {
 			continue
 		}
+		if len(visibleGrokSet) > 0 {
+			if _, ok := visibleGrokSet[normalizeRegistryID(detail.ID)]; !ok {
+				continue
+			}
+		}
 		candidates = append(candidates, testModelCandidate{
 			model: AvailableTestModel{
 				ID:             detail.ID,
@@ -105,6 +119,33 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 			source:     strings.TrimSpace(detail.Source),
 			uiPriority: detail.UIPriority,
 		})
+	}
+	if len(visibleGrokSet) > 0 {
+		seen := make(map[string]struct{}, len(candidates))
+		for _, candidate := range candidates {
+			seen[normalizeRegistryID(candidate.model.ID)] = struct{}{}
+		}
+		for _, modelID := range visibleGrokModels {
+			normalized := normalizeRegistryID(modelID)
+			if normalized == "" {
+				continue
+			}
+			if _, ok := seen[normalized]; ok {
+				continue
+			}
+			seen[normalized] = struct{}{}
+			candidates = append(candidates, testModelCandidate{
+				model: AvailableTestModel{
+					ID:             modelID,
+					Type:           "model",
+					DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
+					SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
+					Status:         "stable",
+				},
+				source:     "runtime",
+				uiPriority: fallbackTestModelPriority(modelID),
+			})
+		}
 	}
 	return candidates, resolutionEntries
 }
@@ -382,12 +423,17 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 		}
 		return result
 	case PlatformGrok:
-		return []AvailableTestModel{
-			{ID: "grok-4", Type: "model", DisplayName: "grok-4", Status: "stable"},
-			{ID: "grok-3-beta", Type: "model", DisplayName: "grok-3-beta", Status: "stable"},
-			{ID: "grok-3-fast-beta", Type: "model", DisplayName: "grok-3-fast-beta", Status: "stable"},
-			{ID: "grok-2-image", Type: "model", DisplayName: "grok-2-image", Status: "stable"},
+		models := GrokVisibleModelIDsForAccount(account)
+		result := make([]AvailableTestModel, 0, len(models))
+		for _, modelID := range models {
+			result = append(result, AvailableTestModel{
+				ID:          modelID,
+				Type:        "model",
+				DisplayName: modelID,
+				Status:      "stable",
+			})
 		}
+		return result
 	default:
 		result := make([]AvailableTestModel, 0, len(claude.DefaultModels))
 		for _, item := range claude.DefaultModels {

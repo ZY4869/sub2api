@@ -21,6 +21,7 @@ var (
 	}
 	claudeCompatiblePlatforms = []string{service.PlatformAnthropic, service.PlatformAntigravity, service.PlatformKiro}
 	geminiCompatiblePlatforms = []string{service.PlatformGemini, service.PlatformAntigravity}
+	grokCompatiblePlatforms   = []string{service.PlatformGrok}
 	soraCompatiblePlatforms   = []string{service.PlatformSora}
 )
 

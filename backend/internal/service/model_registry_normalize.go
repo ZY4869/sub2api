@@ -109,6 +109,9 @@ func defaultPlatformsForProvider(provider string) []string {
 }
 
 func defaultModalitiesForMode(mode string) []string {
+	if mode == "video" {
+		return []string{"text", "video"}
+	}
 	if mode == "image" {
 		return []string{"text", "image"}
 	}
@@ -116,6 +119,9 @@ func defaultModalitiesForMode(mode string) []string {
 }
 
 func defaultCapabilitiesForMode(mode string) []string {
+	if mode == "video" {
+		return []string{"video_generation"}
+	}
 	if mode == "image" {
 		return []string{"image_generation"}
 	}

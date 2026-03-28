@@ -18,11 +18,17 @@ import (
 
 // Profile contains TLS fingerprint configuration.
 type Profile struct {
-	Name         string // Profile name for identification
-	CipherSuites []uint16
-	Curves       []uint16
-	PointFormats []uint8
-	EnableGREASE bool
+	Name                string // Profile name for identification
+	CipherSuites        []uint16
+	Curves              []uint16
+	PointFormats        []uint16
+	EnableGREASE        bool
+	SignatureAlgorithms []uint16 // Empty uses defaultSignatureAlgorithms
+	ALPNProtocols       []string // Empty uses ["http/1.1"]
+	SupportedVersions   []uint16 // Empty uses [TLS1.3, TLS1.2]
+	KeyShareGroups      []uint16 // Empty uses [X25519]
+	PSKModes            []uint16 // Empty uses [psk_dhe_ke]
+	Extensions          []uint16 // Empty uses the default Node.js 24.x order
 }
 
 // Dialer creates TLS connections with custom fingerprints.
@@ -45,154 +51,62 @@ type SOCKS5ProxyDialer struct {
 	proxyURL *url.URL
 }
 
-// Default TLS fingerprint values captured from Claude CLI 2.x (Node.js 20.x + OpenSSL 3.x)
-// Captured using: tshark -i lo -f "tcp port 8443" -Y "tls.handshake.type == 1" -V
-// JA3 Hash: 1a28e69016765d92e3b381168d68922c
-//
-// Note: JA3/JA4 may have slight variations due to:
-// - Session ticket presence/absence
-// - Extension negotiation state
+// Default TLS fingerprint values captured from Claude Code (Node.js 24.x).
 var (
-	// defaultCipherSuites contains all 59 cipher suites from Claude CLI
-	// Order is critical for JA3 fingerprint matching
+	// defaultCipherSuites contains the 17 cipher suites from Node.js 24.x.
 	defaultCipherSuites = []uint16{
-		// TLS 1.3 cipher suites (MUST be first)
+		// TLS 1.3 cipher suites
+		0x1301, // TLS_AES_128_GCM_SHA256
 		0x1302, // TLS_AES_256_GCM_SHA384
 		0x1303, // TLS_CHACHA20_POLY1305_SHA256
-		0x1301, // TLS_AES_128_GCM_SHA256
 
 		// ECDHE + AES-GCM
-		0xc02f, // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 		0xc02b, // TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-		0xc030, // TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+		0xc02f, // TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 		0xc02c, // TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+		0xc030, // TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
 
-		// DHE + AES-GCM
-		0x009e, // TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
-
-		// ECDHE/DHE + AES-CBC-SHA256/384
-		0xc027, // TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-		0x0067, // TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
-		0xc028, // TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-		0x006b, // TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
-
-		// DHE-DSS/RSA + AES-GCM
-		0x00a3, // TLS_DHE_DSS_WITH_AES_256_GCM_SHA384
-		0x009f, // TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
-
-		// ChaCha20-Poly1305
+		// ECDHE + ChaCha20-Poly1305
 		0xcca9, // TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
 		0xcca8, // TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-		0xccaa, // TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 
-		// AES-CCM (256-bit)
-		0xc0af, // TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
-		0xc0ad, // TLS_ECDHE_ECDSA_WITH_AES_256_CCM
-		0xc0a3, // TLS_DHE_RSA_WITH_AES_256_CCM_8
-		0xc09f, // TLS_DHE_RSA_WITH_AES_256_CCM
-
-		// ARIA (256-bit)
-		0xc05d, // TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384
-		0xc061, // TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384
-		0xc057, // TLS_DHE_DSS_WITH_ARIA_256_GCM_SHA384
-		0xc053, // TLS_DHE_RSA_WITH_ARIA_256_GCM_SHA384
-
-		// DHE-DSS + AES-GCM (128-bit)
-		0x00a2, // TLS_DHE_DSS_WITH_AES_128_GCM_SHA256
-
-		// AES-CCM (128-bit)
-		0xc0ae, // TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
-		0xc0ac, // TLS_ECDHE_ECDSA_WITH_AES_128_CCM
-		0xc0a2, // TLS_DHE_RSA_WITH_AES_128_CCM_8
-		0xc09e, // TLS_DHE_RSA_WITH_AES_128_CCM
-
-		// ARIA (128-bit)
-		0xc05c, // TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256
-		0xc060, // TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256
-		0xc056, // TLS_DHE_DSS_WITH_ARIA_128_GCM_SHA256
-		0xc052, // TLS_DHE_RSA_WITH_ARIA_128_GCM_SHA256
-
-		// ECDHE/DHE + AES-CBC-SHA384/256 (more)
-		0xc024, // TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-		0x006a, // TLS_DHE_DSS_WITH_AES_256_CBC_SHA256
-		0xc023, // TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
-		0x0040, // TLS_DHE_DSS_WITH_AES_128_CBC_SHA256
-
-		// ECDHE/DHE + AES-CBC-SHA (legacy)
-		0xc00a, // TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
-		0xc014, // TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
-		0x0039, // TLS_DHE_RSA_WITH_AES_256_CBC_SHA
-		0x0038, // TLS_DHE_DSS_WITH_AES_256_CBC_SHA
+		// ECDHE + AES-CBC-SHA (legacy fallback)
 		0xc009, // TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
 		0xc013, // TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
-		0x0033, // TLS_DHE_RSA_WITH_AES_128_CBC_SHA
-		0x0032, // TLS_DHE_DSS_WITH_AES_128_CBC_SHA
+		0xc00a, // TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+		0xc014, // TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
 
-		// RSA + AES-GCM/CCM/ARIA (non-PFS, 256-bit)
-		0x009d, // TLS_RSA_WITH_AES_256_GCM_SHA384
-		0xc0a1, // TLS_RSA_WITH_AES_256_CCM_8
-		0xc09d, // TLS_RSA_WITH_AES_256_CCM
-		0xc051, // TLS_RSA_WITH_ARIA_256_GCM_SHA384
-
-		// RSA + AES-GCM/CCM/ARIA (non-PFS, 128-bit)
+		// RSA + AES-GCM (non-PFS)
 		0x009c, // TLS_RSA_WITH_AES_128_GCM_SHA256
-		0xc0a0, // TLS_RSA_WITH_AES_128_CCM_8
-		0xc09c, // TLS_RSA_WITH_AES_128_CCM
-		0xc050, // TLS_RSA_WITH_ARIA_128_GCM_SHA256
+		0x009d, // TLS_RSA_WITH_AES_256_GCM_SHA384
 
-		// RSA + AES-CBC (non-PFS, legacy)
-		0x003d, // TLS_RSA_WITH_AES_256_CBC_SHA256
-		0x003c, // TLS_RSA_WITH_AES_128_CBC_SHA256
-		0x0035, // TLS_RSA_WITH_AES_256_CBC_SHA
+		// RSA + AES-CBC-SHA (non-PFS, legacy)
 		0x002f, // TLS_RSA_WITH_AES_128_CBC_SHA
-
-		// Renegotiation indication
-		0x00ff, // TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+		0x0035, // TLS_RSA_WITH_AES_256_CBC_SHA
 	}
 
-	// defaultCurves contains the 10 supported groups from Claude CLI (including FFDHE)
+	// defaultCurves contains the 3 supported groups from Node.js 24.x.
 	defaultCurves = []utls.CurveID{
-		utls.X25519,          // 0x001d
-		utls.CurveP256,       // 0x0017 (secp256r1)
-		utls.CurveID(0x001e), // x448
-		utls.CurveP521,       // 0x0019 (secp521r1)
-		utls.CurveP384,       // 0x0018 (secp384r1)
-		utls.CurveID(0x0100), // ffdhe2048
-		utls.CurveID(0x0101), // ffdhe3072
-		utls.CurveID(0x0102), // ffdhe4096
-		utls.CurveID(0x0103), // ffdhe6144
-		utls.CurveID(0x0104), // ffdhe8192
+		utls.X25519,
+		utls.CurveP256,
+		utls.CurveP384,
 	}
 
-	// defaultPointFormats contains all 3 point formats from Claude CLI
-	defaultPointFormats = []uint8{
-		0, // uncompressed
-		1, // ansiX962_compressed_prime
-		2, // ansiX962_compressed_char2
+	defaultPointFormats = []uint16{
+		0,
 	}
 
-	// defaultSignatureAlgorithms contains the 20 signature algorithms from Claude CLI
+	// defaultSignatureAlgorithms contains the 9 signature algorithms from Node.js 24.x.
 	defaultSignatureAlgorithms = []utls.SignatureScheme{
 		0x0403, // ecdsa_secp256r1_sha256
-		0x0503, // ecdsa_secp384r1_sha384
-		0x0603, // ecdsa_secp521r1_sha512
-		0x0807, // ed25519
-		0x0808, // ed448
-		0x0809, // rsa_pss_pss_sha256
-		0x080a, // rsa_pss_pss_sha384
-		0x080b, // rsa_pss_pss_sha512
 		0x0804, // rsa_pss_rsae_sha256
-		0x0805, // rsa_pss_rsae_sha384
-		0x0806, // rsa_pss_rsae_sha512
 		0x0401, // rsa_pkcs1_sha256
+		0x0503, // ecdsa_secp384r1_sha384
+		0x0805, // rsa_pss_rsae_sha384
 		0x0501, // rsa_pkcs1_sha384
+		0x0806, // rsa_pss_rsae_sha512
 		0x0601, // rsa_pkcs1_sha512
-		0x0303, // ecdsa_sha224
-		0x0301, // rsa_pkcs1_sha224
-		0x0302, // dsa_sha224
-		0x0402, // dsa_sha256
-		0x0502, // dsa_sha384
-		0x0602, // dsa_sha512
+		0x0201, // rsa_pkcs1_sha1
 	}
 )
 
@@ -491,70 +405,137 @@ func toUTLSCurves(curves []uint16) []utls.CurveID {
 	return result
 }
 
+func toUint8s(values []uint16) []uint8 {
+	result := make([]uint8, len(values))
+	for i, value := range values {
+		result[i] = uint8(value)
+	}
+	return result
+}
+
+var defaultExtensionOrder = []uint16{
+	0,
+	65037,
+	23,
+	65281,
+	10,
+	11,
+	35,
+	16,
+	5,
+	13,
+	18,
+	51,
+	45,
+	43,
+}
+
+func isGREASEValue(value uint16) bool {
+	return value&0x0f0f == 0x0a0a && value>>8 == value&0xff
+}
+
 // buildClientHelloSpecFromProfile constructs ClientHelloSpec from a Profile.
 // This is a standalone function that can be used by both Dialer and HTTPProxyDialer.
 func buildClientHelloSpecFromProfile(profile *Profile) *utls.ClientHelloSpec {
-	// Get cipher suites
-	var cipherSuites []uint16
+	cipherSuites := defaultCipherSuites
 	if profile != nil && len(profile.CipherSuites) > 0 {
 		cipherSuites = profile.CipherSuites
-	} else {
-		cipherSuites = defaultCipherSuites
 	}
 
-	// Get curves
-	var curves []utls.CurveID
+	curves := defaultCurves
 	if profile != nil && len(profile.Curves) > 0 {
 		curves = toUTLSCurves(profile.Curves)
-	} else {
-		curves = defaultCurves
 	}
 
-	// Get point formats
-	var pointFormats []uint8
+	pointFormats := defaultPointFormats
 	if profile != nil && len(profile.PointFormats) > 0 {
 		pointFormats = profile.PointFormats
-	} else {
-		pointFormats = defaultPointFormats
 	}
 
-	// Check if GREASE is enabled
+	signatureAlgorithms := defaultSignatureAlgorithms
+	if profile != nil && len(profile.SignatureAlgorithms) > 0 {
+		signatureAlgorithms = make([]utls.SignatureScheme, len(profile.SignatureAlgorithms))
+		for i, value := range profile.SignatureAlgorithms {
+			signatureAlgorithms[i] = utls.SignatureScheme(value)
+		}
+	}
+
+	alpnProtocols := []string{"http/1.1"}
+	if profile != nil && len(profile.ALPNProtocols) > 0 {
+		alpnProtocols = profile.ALPNProtocols
+	}
+
+	supportedVersions := []uint16{utls.VersionTLS13, utls.VersionTLS12}
+	if profile != nil && len(profile.SupportedVersions) > 0 {
+		supportedVersions = profile.SupportedVersions
+	}
+
+	keyShareGroups := []utls.CurveID{utls.X25519}
+	if profile != nil && len(profile.KeyShareGroups) > 0 {
+		keyShareGroups = toUTLSCurves(profile.KeyShareGroups)
+	}
+
+	pskModes := []uint16{uint16(utls.PskModeDHE)}
+	if profile != nil && len(profile.PSKModes) > 0 {
+		pskModes = profile.PSKModes
+	}
+
 	enableGREASE := profile != nil && profile.EnableGREASE
 
-	extensions := make([]utls.TLSExtension, 0, 16)
-
-	if enableGREASE {
-		extensions = append(extensions, &utls.UtlsGREASEExtension{})
+	keyShares := make([]utls.KeyShare, len(keyShareGroups))
+	for i, group := range keyShareGroups {
+		keyShares[i] = utls.KeyShare{Group: group}
 	}
 
-	// SNI extension - MUST be explicitly added for HelloCustom mode
-	// utls will populate the server name from Config.ServerName
-	extensions = append(extensions, &utls.SNIExtension{})
+	extensionOrder := defaultExtensionOrder
+	if profile != nil && len(profile.Extensions) > 0 {
+		extensionOrder = profile.Extensions
+	}
 
-	// Claude CLI extension order (captured from tshark):
-	// server_name(0), ec_point_formats(11), supported_groups(10), session_ticket(35),
-	// alpn(16), encrypt_then_mac(22), extended_master_secret(23),
-	// signature_algorithms(13), supported_versions(43),
-	// psk_key_exchange_modes(45), key_share(51)
-	extensions = append(extensions,
-		&utls.SupportedPointsExtension{SupportedPoints: pointFormats},
-		&utls.SupportedCurvesExtension{Curves: curves},
-		&utls.SessionTicketExtension{},
-		&utls.ALPNExtension{AlpnProtocols: []string{"http/1.1"}},
-		&utls.GenericExtension{Id: 22},
-		&utls.ExtendedMasterSecretExtension{},
-		&utls.SignatureAlgorithmsExtension{SupportedSignatureAlgorithms: defaultSignatureAlgorithms},
-		&utls.SupportedVersionsExtension{Versions: []uint16{
-			utls.VersionTLS13,
-			utls.VersionTLS12,
-		}},
-		&utls.PSKKeyExchangeModesExtension{Modes: []uint8{utls.PskModeDHE}},
-		&utls.KeyShareExtension{KeyShares: []utls.KeyShare{
-			{Group: utls.X25519},
-		}},
-	)
+	extensions := make([]utls.TLSExtension, 0, len(extensionOrder)+2)
+	for _, id := range extensionOrder {
+		if isGREASEValue(id) {
+			extensions = append(extensions, &utls.UtlsGREASEExtension{})
+			continue
+		}
+		switch id {
+		case 0:
+			extensions = append(extensions, &utls.SNIExtension{})
+		case 5:
+			extensions = append(extensions, &utls.StatusRequestExtension{})
+		case 10:
+			extensions = append(extensions, &utls.SupportedCurvesExtension{Curves: curves})
+		case 11:
+			extensions = append(extensions, &utls.SupportedPointsExtension{SupportedPoints: toUint8s(pointFormats)})
+		case 13:
+			extensions = append(extensions, &utls.SignatureAlgorithmsExtension{SupportedSignatureAlgorithms: signatureAlgorithms})
+		case 16:
+			extensions = append(extensions, &utls.ALPNExtension{AlpnProtocols: alpnProtocols})
+		case 18:
+			extensions = append(extensions, &utls.SCTExtension{})
+		case 23:
+			extensions = append(extensions, &utls.ExtendedMasterSecretExtension{})
+		case 35:
+			extensions = append(extensions, &utls.SessionTicketExtension{})
+		case 43:
+			extensions = append(extensions, &utls.SupportedVersionsExtension{Versions: supportedVersions})
+		case 45:
+			extensions = append(extensions, &utls.PSKKeyExchangeModesExtension{Modes: toUint8s(pskModes)})
+		case 50:
+			extensions = append(extensions, &utls.SignatureAlgorithmsCertExtension{SupportedSignatureAlgorithms: signatureAlgorithms})
+		case 51:
+			extensions = append(extensions, &utls.KeyShareExtension{KeyShares: keyShares})
+		case 0xfe0d:
+			extensions = append(extensions, &utls.GREASEEncryptedClientHelloExtension{})
+		case 0xff01:
+			extensions = append(extensions, &utls.RenegotiationInfoExtension{})
+		default:
+			extensions = append(extensions, &utls.GenericExtension{Id: id})
+		}
+	}
 
-	if enableGREASE {
+	if enableGREASE && (profile == nil || len(profile.Extensions) == 0) {
+		extensions = append([]utls.TLSExtension{&utls.UtlsGREASEExtension{}}, extensions...)
 		extensions = append(extensions, &utls.UtlsGREASEExtension{})
 	}
 

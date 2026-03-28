@@ -798,6 +798,7 @@ export interface Account {
 
   // TLS闂佸湱顭堝ú銊バуΔ浣割嚤妞ゅ繐娴傚Λ鍛存煥濞戞澧旂紒?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
   enable_tls_fingerprint?: boolean | null;
+  tls_fingerprint_profile_id?: number | null;
   claude_code_mimic_enabled?: boolean | null;
 
   // 婵炴潙鍚嬫穱娲儊缁测偓D婵炲鈷堟禍锝壦夋繝鍥ㄦ櫖闁割偅绮庨惌?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?

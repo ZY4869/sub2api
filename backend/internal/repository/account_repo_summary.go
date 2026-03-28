@@ -8,7 +8,7 @@ import (
 )
 
 func (r *accountRepository) GetStatusSummary(ctx context.Context, filters service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
-	normalized := normalizeAdminAccountListFilters(filters.Platform, filters.AccountType, "", filters.Search, filters.GroupID, filters.Lifecycle)
+	normalized := normalizeAdminAccountListFilters(filters.Platform, filters.AccountType, "", filters.Search, filters.GroupID, filters.Lifecycle, "")
 	normalized.LimitedView = service.NormalizeAccountLimitedViewInput(filters.LimitedView)
 	normalized.LimitedReason = service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason)
 	normalized.RuntimeView = service.NormalizeAccountRuntimeViewInput(filters.RuntimeView)

@@ -2,7 +2,10 @@ package admin
 
 import (
 	"context"
+	"errors"
+	"io"
 	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -227,7 +230,19 @@ func (h *AccountHandler) TestGrokAccount(c *gin.Context) {
 		response.BadRequest(c, "Account is not a Grok account")
 		return
 	}
-	if err := h.accountTestService.TestAccountConnection(c, accountID, "", "", "", string(service.AccountTestModeHealthCheck)); err != nil && !c.Writer.Written() {
+
+	var req accountTestRequest
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	modelID := strings.TrimSpace(req.ModelID)
+	if modelID == "" {
+		modelID = strings.TrimSpace(req.Model)
+	}
+
+	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, "", "", string(service.AccountTestModeHealthCheck)); err != nil && !c.Writer.Written() {
 		response.ErrorFrom(c, err)
 	}
 }
@@ -236,7 +251,7 @@ func (h *AccountHandler) listExistingGrokCredentialKeys(ctx context.Context) (ma
 	result := make(map[string]struct{})
 	page := 1
 	for {
-		accounts, total, err := h.adminService.ListAccounts(ctx, page, grokImportPageSize, service.PlatformGrok, "", "", "", 0, service.AccountLifecycleAll)
+		accounts, total, err := h.adminService.ListAccounts(ctx, page, grokImportPageSize, service.PlatformGrok, "", "", "", 0, service.AccountLifecycleAll, "")
 		if err != nil {
 			return nil, err
 		}

@@ -32,6 +32,7 @@ type AdminHandlers struct {
 	ModelCatalog     *admin.ModelCatalogHandler
 	ModelRegistry    *admin.ModelRegistryHandler
 	ScheduledTest    *admin.ScheduledTestHandler
+	TLSFingerprintProfile *admin.TLSFingerprintProfileHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -47,6 +48,7 @@ type Handlers struct {
 	Admin         *AdminHandlers
 	Gateway       *GatewayHandler
 	OpenAIGateway *OpenAIGatewayHandler
+	GrokGateway   *GrokGatewayHandler
 	SoraGateway   *SoraGatewayHandler
 	SoraClient    *SoraClientHandler
 	Setting       *SettingHandler

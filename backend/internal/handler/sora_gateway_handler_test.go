@@ -130,7 +130,14 @@ func (r *stubAccountRepo) Delete(ctx context.Context, id int64) error           
 func (r *stubAccountRepo) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+	_ = platform
+	_ = accountType
+	_ = status
+	_ = search
+	_ = groupID
+	_ = lifecycle
+	_ = privacyMode
 	return nil, nil, nil
 }
 func (r *stubAccountRepo) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {

@@ -77,56 +77,66 @@ func RegisterGatewayRoutes(
 		gateway.GET("/usage", h.Gateway.Usage)
 		gateway.POST("/responses", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/responses")
+				h.GrokGateway.Responses(c)
 				return
 			}
 			h.OpenAIGateway.Responses(c)
 		})
 		gateway.POST("/responses/*subpath", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/responses")
+				h.GrokGateway.Responses(c)
+				return
+			}
+			h.OpenAIGateway.Responses(c)
+		})
+		gateway.GET("/responses/*subpath", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				h.GrokGateway.Responses(c)
+				return
+			}
+			h.OpenAIGateway.Responses(c)
+		})
+		gateway.DELETE("/responses/*subpath", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				h.GrokGateway.Responses(c)
 				return
 			}
 			h.OpenAIGateway.Responses(c)
 		})
 		gateway.GET("/responses", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/responses")
-				return
-			}
 			h.OpenAIGateway.ResponsesWebSocket(c)
 		})
 		gateway.POST("/chat/completions", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/chat/completions")
+				h.GrokGateway.ChatCompletions(c)
 				return
 			}
 			h.OpenAIGateway.ChatCompletions(c)
 		})
 		gateway.POST("/images/generations", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/images/generations")
+				h.GrokGateway.ImagesGeneration(c)
 				return
 			}
 			writeGrokAliasUnavailable(c, "/v1/images/generations")
 		})
 		gateway.POST("/images/edits", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/images/edits")
+				h.GrokGateway.ImagesEdits(c)
 				return
 			}
 			writeGrokAliasUnavailable(c, "/v1/images/edits")
 		})
 		gateway.POST("/videos/generations", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/videos/generations")
+				h.GrokGateway.VideosGeneration(c)
 				return
 			}
 			writeGrokAliasUnavailable(c, "/v1/videos/generations")
 		})
 		gateway.GET("/videos/:request_id", func(c *gin.Context) {
 			if isGrokGroup(c) {
-				writeGrokUnsupported(c, "/v1/videos/:request_id")
+				h.GrokGateway.VideoStatus(c)
 				return
 			}
 			writeGrokAliasUnavailable(c, "/v1/videos/:request_id")
@@ -145,24 +155,15 @@ func RegisterGatewayRoutes(
 	grokV1.Use(requireGroupAnthropic)
 	{
 		grokV1.GET("/models", h.Gateway.Models)
-		grokV1.POST("/chat/completions", func(c *gin.Context) {
-			writeGrokUnsupported(c, "/grok/v1/chat/completions")
-		})
-		grokV1.POST("/responses", func(c *gin.Context) {
-			writeGrokUnsupported(c, "/grok/v1/responses")
-		})
-		grokV1.POST("/images/generations", func(c *gin.Context) {
-			writeGrokUnsupported(c, "/grok/v1/images/generations")
-		})
-		grokV1.POST("/images/edits", func(c *gin.Context) {
-			writeGrokUnsupported(c, "/grok/v1/images/edits")
-		})
-		grokV1.POST("/videos/generations", func(c *gin.Context) {
-			writeGrokUnsupported(c, "/grok/v1/videos/generations")
-		})
-		grokV1.GET("/videos/:request_id", func(c *gin.Context) {
-			writeGrokUnsupported(c, "/grok/v1/videos/:request_id")
-		})
+		grokV1.POST("/chat/completions", h.GrokGateway.ChatCompletions)
+		grokV1.POST("/responses", h.GrokGateway.Responses)
+		grokV1.POST("/responses/*subpath", h.GrokGateway.Responses)
+		grokV1.GET("/responses/*subpath", h.GrokGateway.Responses)
+		grokV1.DELETE("/responses/*subpath", h.GrokGateway.Responses)
+		grokV1.POST("/images/generations", h.GrokGateway.ImagesGeneration)
+		grokV1.POST("/images/edits", h.GrokGateway.ImagesEdits)
+		grokV1.POST("/videos/generations", h.GrokGateway.VideosGeneration)
+		grokV1.GET("/videos/:request_id", h.GrokGateway.VideoStatus)
 	}
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
@@ -180,32 +181,70 @@ func RegisterGatewayRoutes(
 	// OpenAI Responses API（不带v1前缀的别名）
 	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
-			writeGrokUnsupported(c, "/responses")
+			h.GrokGateway.Responses(c)
 			return
 		}
 		h.OpenAIGateway.Responses(c)
 	})
 	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
-			writeGrokUnsupported(c, "/responses")
+			h.GrokGateway.Responses(c)
+			return
+		}
+		h.OpenAIGateway.Responses(c)
+	})
+	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.Responses(c)
+			return
+		}
+		h.OpenAIGateway.Responses(c)
+	})
+	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.Responses(c)
 			return
 		}
 		h.OpenAIGateway.Responses(c)
 	})
 	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			writeGrokUnsupported(c, "/responses")
-			return
-		}
 		h.OpenAIGateway.ResponsesWebSocket(c)
 	})
 	// OpenAI Chat Completions API（不带v1前缀的别名）
 	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
-			writeGrokUnsupported(c, "/chat/completions")
+			h.GrokGateway.ChatCompletions(c)
 			return
 		}
 		h.OpenAIGateway.ChatCompletions(c)
+	})
+	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.ImagesGeneration(c)
+			return
+		}
+		writeGrokAliasUnavailable(c, "/images/generations")
+	})
+	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.ImagesEdits(c)
+			return
+		}
+		writeGrokAliasUnavailable(c, "/images/edits")
+	})
+	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.VideosGeneration(c)
+			return
+		}
+		writeGrokAliasUnavailable(c, "/videos/generations")
+	})
+	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.VideoStatus(c)
+			return
+		}
+		writeGrokAliasUnavailable(c, "/videos/:request_id")
 	})
 
 	// Antigravity 模型列表

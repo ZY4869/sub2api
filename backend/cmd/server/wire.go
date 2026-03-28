@@ -41,9 +41,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		// Server layer ProviderSet
 		server.ProviderSet,
 
-		// Privacy client factory for OpenAI training opt-out
-		providePrivacyClientFactory,
-
 		// BuildInfo provider
 		provideServiceBuildInfo,
 
@@ -54,10 +51,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		wire.Struct(new(Application), "Server", "Cleanup"),
 	)
 	return nil, nil
-}
-
-func providePrivacyClientFactory() service.PrivacyClientFactory {
-	return repository.CreatePrivacyReqClient
 }
 
 func provideServiceBuildInfo(buildInfo handler.BuildInfo) service.BuildInfo {

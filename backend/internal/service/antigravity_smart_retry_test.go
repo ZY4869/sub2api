@@ -93,7 +93,7 @@ func (m *mockSmartRetryUpstream) Do(req *http.Request, proxyURL string, accountI
 	}, respErr
 }
 
-func (m *mockSmartRetryUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
+func (m *mockSmartRetryUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *TLSFingerprintProfile) (*http.Response, error) {
 	return m.Do(req, proxyURL, accountID, accountConcurrency)
 }
 

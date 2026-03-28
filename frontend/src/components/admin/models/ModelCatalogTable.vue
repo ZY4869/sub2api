@@ -67,6 +67,10 @@
       <span :class="priceHeaderChipClass">{{ t('admin.models.columns.imageCost') }}</span>
     </template>
 
+    <template #header-output_cost_per_video_request>
+      <span :class="priceHeaderChipClass">{{ t('admin.models.columns.videoRequestCost') }}</span>
+    </template>
+
     <template #cell-input_cost_per_token="{ row }">
       <ModelCatalogPriceValue
         :value="pricingFor(row)?.input_cost_per_token"
@@ -107,6 +111,15 @@
       <ModelCatalogPriceValue
         :value="pricingFor(row)?.output_cost_per_image"
         unit="image"
+        :exchange-rate="exchangeRate"
+        :display-mode="priceDisplayMode"
+      />
+    </template>
+
+    <template #cell-output_cost_per_video_request="{ row }">
+      <ModelCatalogPriceValue
+        :value="pricingFor(row)?.output_cost_per_video_request"
+        unit="video_request"
         :exchange-rate="exchangeRate"
         :display-mode="priceDisplayMode"
       />
@@ -176,6 +189,7 @@ const columns = computed<Column[]>(() => [
   { key: 'cache_creation_input_token_cost', label: t('admin.models.columns.cacheCreationCost') },
   { key: 'cache_read_input_token_cost', label: t('admin.models.columns.cacheReadCost') },
   { key: 'output_cost_per_image', label: t('admin.models.columns.imageCost') },
+  { key: 'output_cost_per_video_request', label: t('admin.models.columns.videoRequestCost') },
   { key: 'actions', label: t('common.actions') }
 ])
 

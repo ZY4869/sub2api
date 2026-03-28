@@ -24,4 +24,9 @@ describe('CreateAccountModal', () => {
     expect(source).toContain(":skip-model-scope-editor=\"form.platform === 'protocol_gateway'\"")
     expect(source).toContain(":show-auto-import=\"form.platform !== 'protocol_gateway'\"")
   })
+
+  it('embeds the Grok batch import panel alongside the single-account Grok fields', () => {
+    expect(source).toContain('AccountGrokImportPanel')
+    expect(source).toContain("@imported=\"handleGrokImportCompleted\"")
+  })
 })

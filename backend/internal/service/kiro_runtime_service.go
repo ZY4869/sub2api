@@ -14,9 +14,10 @@ import (
 )
 
 type KiroRuntimeService struct {
-	accountRepo         AccountRepository
-	httpUpstream        HTTPUpstream
-	claudeTokenProvider *ClaudeTokenProvider
+	accountRepo                  AccountRepository
+	httpUpstream                 HTTPUpstream
+	claudeTokenProvider          *ClaudeTokenProvider
+	tlsFingerprintProfileService *TLSFingerprintProfileService
 }
 
 func NewKiroRuntimeService(accountRepo AccountRepository, httpUpstream HTTPUpstream, claudeTokenProvider *ClaudeTokenProvider) *KiroRuntimeService {
@@ -25,6 +26,10 @@ func NewKiroRuntimeService(accountRepo AccountRepository, httpUpstream HTTPUpstr
 		httpUpstream:        httpUpstream,
 		claudeTokenProvider: claudeTokenProvider,
 	}
+}
+
+func (s *KiroRuntimeService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
+	s.tlsFingerprintProfileService = tlsFingerprintProfileService
 }
 
 func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account, input KiroRuntimeExecuteInput) (*KiroRuntimeExecuteResult, error) {
@@ -50,6 +55,7 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 
 	var lastErr error
 	for idx, endpoint := range buildKiroEndpointConfigs(region) {
@@ -60,7 +66,7 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 		}
 		s.applyKiroRequestHeaders(req, account, token, endpoint)
 
-		resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+		resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 		if err != nil {
 			lastErr = err
 			s.logKiroRuntimeAttempt("kiro_runtime_request_failed", account, region, endpoint, fallbackUsed, profileARN, err, 0)
@@ -163,7 +169,8 @@ func (s *KiroRuntimeService) tryListAvailableProfiles(ctx context.Context, accou
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil || resp == nil {
 		return ""
 	}

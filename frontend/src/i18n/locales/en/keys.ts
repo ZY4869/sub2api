@@ -66,6 +66,7 @@ export default {
       grok: {
         description: 'Grok groups use OpenAI/xAI-compatible access. Use the root alias by default, or switch to the dedicated /grok/v1 route when you want to pin Grok explicitly.',
         note: 'Codex CLI examples use the root alias for compatibility. OpenCode examples include both the root alias and the dedicated /grok/v1 route.',
+        examplesHint: 'Includes ready-to-run curl examples for responses, images, video generation, and video status polling.',
       },
       cliTabs: {
         claudeCode: 'Claude Code',

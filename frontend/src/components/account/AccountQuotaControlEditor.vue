@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { adminAPI } from '@/api/admin'
+import type { TLSFingerprintProfile } from '@/api/admin/tlsFingerprintProfile'
 import type { AnthropicQuotaControlState } from '@/utils/accountQuotaControl'
 
 interface Option {
@@ -13,6 +16,63 @@ defineProps<{
 const state = defineModel<AnthropicQuotaControlState>('state', { required: true })
 
 const { t } = useI18n()
+const tlsFingerprintProfiles = ref<TLSFingerprintProfile[]>([])
+const tlsFingerprintProfilesLoading = ref(false)
+const tlsFingerprintProfilesLoaded = ref(false)
+
+const loadTLSFingerprintProfiles = async () => {
+  if (tlsFingerprintProfilesLoading.value || tlsFingerprintProfilesLoaded.value) {
+    return
+  }
+  tlsFingerprintProfilesLoading.value = true
+  try {
+    tlsFingerprintProfiles.value = await adminAPI.tlsFingerprintProfiles.list()
+    tlsFingerprintProfilesLoaded.value = true
+  } catch (error) {
+    console.error('Failed to load TLS fingerprint profiles:', error)
+  } finally {
+    tlsFingerprintProfilesLoading.value = false
+  }
+}
+
+watch(
+  () => state.value.tlsFingerprintEnabled,
+  (enabled) => {
+    if (enabled) {
+      loadTLSFingerprintProfiles().catch((error) => {
+        console.error('Failed to initialize TLS fingerprint profiles:', error)
+      })
+    }
+  },
+  { immediate: true }
+)
+
+const tlsFingerprintProfileValue = computed({
+  get: () =>
+    state.value.tlsFingerprintProfileId === null
+      ? 'default'
+      : String(state.value.tlsFingerprintProfileId),
+  set: (value: string) => {
+    if (value === 'default') {
+      state.value.tlsFingerprintProfileId = null
+      return
+    }
+    const parsed = Number.parseInt(value, 10)
+    state.value.tlsFingerprintProfileId = Number.isFinite(parsed) ? parsed : null
+  }
+})
+
+const selectedTLSFingerprintProfile = computed(() =>
+  tlsFingerprintProfiles.value.find((profile) => profile.id === state.value.tlsFingerprintProfileId) ?? null
+)
+
+const missingTLSFingerprintProfileId = computed(() => {
+  const profileId = state.value.tlsFingerprintProfileId
+  if (profileId === null || profileId <= 0) {
+    return null
+  }
+  return selectedTLSFingerprintProfile.value ? null : profileId
+})
 </script>
 
 <template>
@@ -276,6 +336,46 @@ const { t } = useI18n()
             ]"
           />
         </button>
+      </div>
+      <div v-if="state.tlsFingerprintEnabled" class="mt-3 space-y-3">
+        <div>
+          <label class="input-label text-xs">{{ t('admin.accounts.quotaControl.tlsFingerprint.profileLabel') }}</label>
+          <select
+            v-model="tlsFingerprintProfileValue"
+            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-dark-500 dark:bg-dark-700 dark:text-white"
+          >
+            <option value="default">{{ t('admin.accounts.quotaControl.tlsFingerprint.profileDefault') }}</option>
+            <option value="-1">{{ t('admin.accounts.quotaControl.tlsFingerprint.profileRandom') }}</option>
+            <option
+              v-if="missingTLSFingerprintProfileId !== null"
+              :value="String(missingTLSFingerprintProfileId)"
+            >
+              {{ t('admin.accounts.quotaControl.tlsFingerprint.profileMissing', { id: missingTLSFingerprintProfileId }) }}
+            </option>
+            <option v-for="profile in tlsFingerprintProfiles" :key="profile.id" :value="String(profile.id)">
+              {{ profile.name }}
+            </option>
+          </select>
+          <p class="input-hint">
+            {{
+              tlsFingerprintProfilesLoading
+                ? t('admin.accounts.quotaControl.tlsFingerprint.loadingProfiles')
+                : t('admin.accounts.quotaControl.tlsFingerprint.profileHint')
+            }}
+          </p>
+          <p
+            v-if="selectedTLSFingerprintProfile?.description"
+            class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+          >
+            {{ selectedTLSFingerprintProfile.description }}
+          </p>
+          <p
+            v-else-if="!tlsFingerprintProfilesLoading && tlsFingerprintProfiles.length === 0"
+            class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+          >
+            {{ t('admin.accounts.quotaControl.tlsFingerprint.profileEmpty') }}
+          </p>
+        </div>
       </div>
     </div>
 

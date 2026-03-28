@@ -57,7 +57,7 @@ func (u *httpUpstreamSequence) Do(req *http.Request, proxyURL string, accountID 
 	}, nil
 }
 
-func (u *httpUpstreamSequence) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
+func (u *httpUpstreamSequence) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *TLSFingerprintProfile) (*http.Response, error) {
 	return u.Do(req, proxyURL, accountID, accountConcurrency)
 }
 

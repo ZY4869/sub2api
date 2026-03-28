@@ -290,6 +290,7 @@ func (h *SoraGatewayHandler) ChatCompletions(c *gin.Context) {
 
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(clientStream, false))
 			proxyBound := account.ProxyID != nil
 			proxyID := int64(0)
 			if account.ProxyID != nil {

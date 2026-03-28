@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
@@ -212,6 +213,11 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			reqLog.Debug("openai_chat_completions.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			_ = scheduleDecision
 			setOpsSelectedAccount(c, account.ID, account.Platform)
+			routingModel := reqModel
+			if fallback := strings.TrimSpace(c.GetString("openai_chat_completions_fallback_model")); fallback != "" {
+				routingModel = fallback
+			}
+			setOpsEndpointContext(c, account.GetMappedModel(routingModel), service.RequestTypeFromLegacy(reqStream, false))
 
 			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 			if !acquired {

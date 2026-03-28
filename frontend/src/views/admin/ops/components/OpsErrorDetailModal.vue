@@ -59,7 +59,38 @@
         <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
           <div class="text-xs font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.errorDetail.model') }}</div>
           <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
-            {{ detail.model || '—' }}
+            <div>{{ getRequestedModel(detail) || '—' }}</div>
+            <div v-if="shouldShowModelMapping(detail)" class="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400">
+              -> {{ detail.upstream_model }}
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.errorDetail.inboundEndpoint') }}</div>
+          <div class="mt-1 break-all font-mono text-sm font-medium text-gray-900 dark:text-white">
+            {{ getInboundEndpoint(detail) || '—' }}
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.errorDetail.upstreamEndpoint') }}</div>
+          <div class="mt-1 break-all font-mono text-sm font-medium text-gray-900 dark:text-white">
+            {{ detail.upstream_endpoint || '—' }}
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.errorDetail.requestType') }}</div>
+          <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+            {{ formatRequestType(detail.request_type) }}
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="text-xs font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.errorDetail.upstreamUrl') }}</div>
+          <div class="mt-1 break-all font-mono text-sm font-medium text-gray-900 dark:text-white">
+            {{ detail.upstream_url || '—' }}
           </div>
         </div>
 
@@ -304,5 +335,32 @@ const statusClass = computed(() => {
   if (code >= 400) return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30'
   return 'bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-900/30 dark:text-gray-400 dark:ring-gray-500/30'
 })
+
+function getRequestedModel(value: OpsErrorDetail | null): string {
+  return String(value?.requested_model || value?.model || '').trim()
+}
+
+function shouldShowModelMapping(value: OpsErrorDetail | null): boolean {
+  const requested = getRequestedModel(value)
+  const upstream = String(value?.upstream_model || '').trim()
+  return requested !== '' && upstream !== '' && upstream !== requested
+}
+
+function getInboundEndpoint(value: OpsErrorDetail | null): string {
+  return String(value?.inbound_endpoint || value?.request_path || '').trim()
+}
+
+function formatRequestType(value: number | null | undefined): string {
+  switch (value) {
+    case 1:
+      return t('admin.ops.errorLog.requestTypeSync')
+    case 2:
+      return t('admin.ops.errorLog.requestTypeStream')
+    case 3:
+      return t('admin.ops.errorLog.requestTypeWsV2')
+    default:
+      return '—'
+  }
+}
 
 </script>

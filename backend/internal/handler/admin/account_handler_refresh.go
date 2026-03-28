@@ -17,11 +17,13 @@ func (h *AccountHandler) refreshSingleAccount(ctx context.Context, account *serv
 
 	refreshed, err := h.adminService.RefreshAccountCredentials(ctx, account.ID)
 	if err != nil {
+		h.adminService.EnsureOpenAIPrivacy(ctx, account)
 		return nil, "", err
 	}
 	if refreshed == nil {
 		refreshed = account
 	}
+	h.adminService.EnsureOpenAIPrivacy(ctx, refreshed)
 
 	warning := ""
 	if h.tokenCacheInvalidator != nil && refreshed.IsOAuth() {

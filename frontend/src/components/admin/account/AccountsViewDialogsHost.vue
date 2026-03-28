@@ -55,6 +55,7 @@
     @schedule="emit('schedule', $event)"
     @reauth="emit('reauth', $event)"
     @refresh-token="emit('refresh-token', $event)"
+    @set-privacy="emit('set-privacy', $event)"
     @recover-state="emit('recover-state', $event)"
     @reset-quota="emit('reset-quota', $event)"
     @import-models="emit('import-models', $event)"
@@ -133,6 +134,10 @@
     :show="showErrorPassthrough"
     @close="emit('close-error-passthrough')"
   />
+  <TLSFingerprintProfilesModal
+    :show="showTlsFingerprintProfiles"
+    @close="emit('close-tls-fingerprint-profiles')"
+  />
 </template>
 
 <script setup lang="ts">
@@ -161,6 +166,7 @@ import {
   TempUnschedStatusModal
 } from '@/components/account'
 import ErrorPassthroughRulesModal from '@/components/admin/ErrorPassthroughRulesModal.vue'
+import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfilesModal.vue'
 import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImportExposureSyncDialog.vue'
 import AccountActionMenu from './AccountActionMenu.vue'
 import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
@@ -186,6 +192,7 @@ defineProps<{
   showTest: boolean
   showStats: boolean
   showErrorPassthrough: boolean
+  showTlsFingerprintProfiles: boolean
   showSchedulePanel: boolean
   proxies: Proxy[]
   groups: AdminGroup[]
@@ -233,6 +240,7 @@ const emit = defineEmits<{
   schedule: [account: Account]
   reauth: [account: Account]
   'refresh-token': [account: Account]
+  'set-privacy': [account: Account]
   'recover-state': [account: Account]
   'reset-quota': [account: Account]
   'import-models': [account: Account]
@@ -251,6 +259,7 @@ const emit = defineEmits<{
   'confirm-export': []
   'close-export': []
   'close-error-passthrough': []
+  'close-tls-fingerprint-profiles': []
 }>()
 
 const { t } = useI18n()

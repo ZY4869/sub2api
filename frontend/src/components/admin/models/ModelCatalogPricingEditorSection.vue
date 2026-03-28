@@ -8,6 +8,7 @@
       <div class="rounded-lg bg-white/70 px-3 py-2 text-xs text-gray-500 dark:bg-dark-900/60 dark:text-gray-400">
         <div>{{ t('admin.models.units.perMillionTokens') }}</div>
         <div>{{ t('admin.models.units.perImage') }}</div>
+        <div>{{ t('admin.models.units.perVideoRequest') }}</div>
       </div>
     </div>
 
@@ -283,7 +284,13 @@ function placeholder(unit: ModelCatalogPricingUnit) {
   if (unit === 'threshold') {
     return String(MODEL_CATALOG_DEFAULT_THRESHOLD)
   }
-  return unit === 'token' ? t('admin.models.units.perMillionTokens') : t('admin.models.units.perImage')
+  if (unit === 'token') {
+    return t('admin.models.units.perMillionTokens')
+  }
+  if (unit === 'video_request') {
+    return t('admin.models.units.perVideoRequest')
+  }
+  return t('admin.models.units.perImage')
 }
 
 function updateField(key: ModelCatalogPricingKey, value: string) {

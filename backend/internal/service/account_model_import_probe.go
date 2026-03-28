@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"go.uber.org/zap"
 )
 
@@ -378,7 +379,11 @@ func (s *AccountModelImportService) doImportGET(ctx context.Context, account *Ac
 	if err != nil {
 		return nil, infraerrors.BadRequest("MODEL_IMPORT_PROXY_RESOLVE_FAILED", "failed to resolve account proxy for model import").WithCause(err)
 	}
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, enableTLSFingerprint)
+	var tlsProfile *tlsfingerprint.Profile
+	if enableTLSFingerprint {
+		tlsProfile = resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
+	}
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", "failed to request upstream model list").WithCause(err)
 	}

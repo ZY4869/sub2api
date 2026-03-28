@@ -114,6 +114,7 @@ func countModelCatalogPricingFields(pricing *ModelCatalogPricing) int {
 		pricing.CacheReadInputTokenCost != nil,
 		pricing.CacheReadInputTokenCostPriority != nil,
 		pricing.OutputCostPerImage != nil,
+		pricing.OutputCostPerVideoRequest != nil,
 	}
 	for _, present := range values {
 		if present {

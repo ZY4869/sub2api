@@ -2,15 +2,17 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountTestModal from '../AccountTestModal.vue'
 
-const { getAvailableModels, copyToClipboard } = vi.hoisted(() => ({
+const { getAvailableModels, copyToClipboard, testGrokAccount } = vi.hoisted(() => ({
   getAvailableModels: vi.fn(),
-  copyToClipboard: vi.fn()
+  copyToClipboard: vi.fn(),
+  testGrokAccount: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      getAvailableModels
+      getAvailableModels,
+      testGrokAccount
     }
   }
 }))
@@ -112,6 +114,7 @@ describe('AccountTestModal', () => {
       { id: 'gemini-2.0-flash', display_name: 'Gemini 2.0 Flash' },
       { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' }
     ])
+    testGrokAccount.mockReset()
     copyToClipboard.mockReset()
     Object.defineProperty(globalThis, 'localStorage', {
       value: {
@@ -407,5 +410,76 @@ describe('AccountTestModal', () => {
     )
     expect(blacklistButton).toBeTruthy()
     expect(blacklistButton!.attributes('disabled')).toBeDefined()
+  })
+
+  it('uses the Grok-specific test endpoint and renders probe lines as terminal output', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'grok-3-beta', display_name: 'Grok 3 Beta' }
+    ])
+    testGrokAccount.mockResolvedValueOnce(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"grok-3-beta"}\n',
+        'data: {"type":"content","text":"Reverse runtime connectivity probe started"}\n',
+        'data: {"type":"content","text":"Visible models after model_mapping: grok-3-beta"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    )
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 9,
+          name: 'Grok Reverse',
+          platform: 'grok',
+          type: 'sso',
+          status: 'active'
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div>
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="test-mode-health_check"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('admin.accounts.grokTestSsoHint')
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(testGrokAccount).toHaveBeenCalledWith(9, {
+      model: 'grok-3-beta',
+      model_id: 'grok-3-beta'
+    })
+    expect(wrapper.text()).toContain('Reverse runtime connectivity probe started')
+    expect(wrapper.text()).toContain('Visible models after model_mapping: grok-3-beta')
   })
 })

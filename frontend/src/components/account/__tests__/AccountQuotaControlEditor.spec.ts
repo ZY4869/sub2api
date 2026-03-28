@@ -1,8 +1,20 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick, reactive } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountQuotaControlEditor from '../AccountQuotaControlEditor.vue'
 import { createDefaultAnthropicQuotaControlState } from '@/utils/accountQuotaControl'
+
+const { listProfilesMock } = vi.hoisted(() => ({
+  listProfilesMock: vi.fn()
+}))
+
+vi.mock('@/api/admin', () => ({
+  adminAPI: {
+    tlsFingerprintProfiles: {
+      list: listProfilesMock
+    }
+  }
+}))
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -15,6 +27,17 @@ vi.mock('vue-i18n', async () => {
 })
 
 describe('AccountQuotaControlEditor', () => {
+  beforeEach(() => {
+    listProfilesMock.mockReset()
+    listProfilesMock.mockResolvedValue([
+      {
+        id: 7,
+        name: 'Node 24',
+        description: 'Default Node.js-like template'
+      }
+    ])
+  })
+
   it('updates quota state through toggles and inputs', async () => {
     const state = reactive(createDefaultAnthropicQuotaControlState())
     const wrapper = mount(AccountQuotaControlEditor, {
@@ -41,5 +64,32 @@ describe('AccountQuotaControlEditor', () => {
     await nextTick()
     await wrapper.find('select').setValue('1h')
     expect(state.cacheTTLOverrideTarget).toBe('1h')
+  })
+
+  it('loads TLS fingerprint profiles and writes selected profile id', async () => {
+    const state = reactive(createDefaultAnthropicQuotaControlState())
+    state.tlsFingerprintEnabled = true
+
+    const wrapper = mount(AccountQuotaControlEditor, {
+      props: {
+        state,
+        umqModeOptions: [
+          { value: '', label: 'Off' },
+          { value: 'throttle', label: 'Throttle' },
+          { value: 'serialize', label: 'Serialize' }
+        ]
+      }
+    })
+
+    await flushPromises()
+
+    const selects = wrapper.findAll('select')
+    expect(selects).toHaveLength(1)
+    await selects[0]?.setValue('-1')
+    expect(state.tlsFingerprintProfileId).toBe(-1)
+
+    await selects[0]?.setValue('7')
+    expect(state.tlsFingerprintProfileId).toBe(7)
+    expect(wrapper.text()).toContain('Default Node.js-like template')
   })
 })

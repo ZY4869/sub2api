@@ -57,6 +57,7 @@
         :gateway-protocol="row.gateway_protocol"
         :type="row.type"
         :plan-type="row.credentials?.plan_type"
+        :privacy-mode="String(row.extra?.privacy_mode || '') || undefined"
       />
     </template>
 

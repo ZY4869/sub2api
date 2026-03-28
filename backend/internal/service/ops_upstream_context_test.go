@@ -45,3 +45,8 @@ func TestAppendOpsUpstreamError_UsesRequestBodyStringFromContext(t *testing.T) {
 	require.Len(t, events, 1)
 	require.Equal(t, `{"model":"gpt-4"}`, events[0].UpstreamRequestBody)
 }
+
+func TestSafeUpstreamURL_StripsQueryAndFragment(t *testing.T) {
+	require.Equal(t, "https://api.example.com/v1/responses", safeUpstreamURL("https://api.example.com/v1/responses?token=secret#frag"))
+	require.Equal(t, "", safeUpstreamURL("   "))
+}

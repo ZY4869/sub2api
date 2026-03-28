@@ -87,7 +87,7 @@ func (u *handlerModelImportHTTPUpstream) Do(*http.Request, string, int64, int) (
 	return nil, errors.New("unexpected Do call")
 }
 
-func (u *handlerModelImportHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
+func (u *handlerModelImportHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *service.TLSFingerprintProfile) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Header:     make(http.Header),
@@ -157,10 +157,10 @@ func TestImportModels_OpenAIOAuthUpdatesKnownModelsSnapshot(t *testing.T) {
 type handlerMixedProbeHTTPUpstream struct{}
 
 func (u *handlerMixedProbeHTTPUpstream) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
-	return u.DoWithTLS(req, proxyURL, accountID, accountConcurrency, false)
+	return u.DoWithTLS(req, proxyURL, accountID, accountConcurrency, nil)
 }
 
-func (u *handlerMixedProbeHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error) {
+func (u *handlerMixedProbeHTTPUpstream) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *service.TLSFingerprintProfile) (*http.Response, error) {
 	switch {
 	case strings.HasSuffix(req.URL.Path, "/v1/models"):
 		return &http.Response{

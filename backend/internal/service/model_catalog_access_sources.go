@@ -33,7 +33,7 @@ func (s *ModelCatalogService) listAllActiveAccounts(ctx context.Context) ([]Acco
 	page := 1
 
 	for {
-		items, total, err := s.adminService.ListAccounts(ctx, page, modelCatalogAccessSourcePageSize, "", "", StatusActive, "", 0, AccountLifecycleAll)
+		items, total, err := s.adminService.ListAccounts(ctx, page, modelCatalogAccessSourcePageSize, "", "", StatusActive, "", 0, AccountLifecycleAll, "")
 		if err != nil {
 			return nil, err
 		}

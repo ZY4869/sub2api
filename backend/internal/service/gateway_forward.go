@@ -78,6 +78,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 		body = filterSystemBlocksByPrefix(body)
 	}
 	body = enforceCacheControlLimit(body)
+	body = StripEmptyTextBlocks(body)
 	mappedModel := reqModel
 	mappingSource := ""
 	if account.Type == AccountTypeAPIKey {
@@ -112,12 +113,14 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 	logger.LegacyPrintf("service.gateway", "[Forward] Using account: ID=%d Name=%s Platform=%s Type=%s TLSFingerprint=%v Proxy=%s", account.ID, account.Name, RoutingPlatformForAccount(account), account.Type, account.IsTLSFingerprintEnabled(), proxyURL)
 	setOpsUpstreamRequestBody(c, body)
 	var resp *http.Response
 	var kiroRuntime *KiroRuntimeService
 	if account.Platform == PlatformKiro {
 		kiroRuntime = NewKiroRuntimeService(s.accountRepo, s.httpUpstream, s.claudeTokenProvider)
+		kiroRuntime.SetTLSFingerprintProfileService(s.tlsFingerprintProfileService)
 	}
 	retryStart := time.Now()
 	for attempt := 1; attempt <= maxRetryAttempts; attempt++ {
@@ -139,7 +142,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			if buildErr != nil {
 				return nil, buildErr
 			}
-			resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+			resp, err = s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 		}
 		if err != nil {
 			if resp != nil && resp.Body != nil {
@@ -174,7 +177,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 					filteredBody := FilterThinkingBlocksForRetry(body)
 					retryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 					if buildErr == nil {
-						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+						retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 						if retryErr == nil {
 							if retryResp.StatusCode < 400 {
 								logger.LegacyPrintf("service.gateway", "Account %d: signature error retry succeeded (thinking downgraded)", account.ID)
@@ -196,7 +199,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 									filteredBody2 := FilterSignatureSensitiveBlocksForRetry(body)
 									retryReq2, buildErr2 := s.buildUpstreamRequest(ctx, c, account, filteredBody2, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 									if buildErr2 == nil {
-										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+										retryResp2, retryErr2 := s.httpUpstream.DoWithTLS(retryReq2, proxyURL, account.ID, account.Concurrency, tlsProfile)
 										if retryErr2 == nil {
 											resp = retryResp2
 											break
@@ -237,7 +240,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 						logger.LegacyPrintf("service.gateway", "Account %d: detected budget_tokens constraint error, retrying with rectified budget (budget_tokens=%d, max_tokens=%d)", account.ID, BudgetRectifyBudgetTokens, BudgetRectifyMaxTokens)
 						budgetRetryReq, buildErr := s.buildUpstreamRequest(ctx, c, account, rectifiedBody, token, tokenType, reqModel, reqStream, shouldMimicClaudeCode)
 						if buildErr == nil {
-							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+							budgetRetryResp, retryErr := s.httpUpstream.DoWithTLS(budgetRetryReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 							if retryErr == nil {
 								resp = budgetRetryResp
 								break

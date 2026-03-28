@@ -21,13 +21,14 @@ type adminAccountListFilters struct {
 	Search              string
 	GroupID             int64
 	Lifecycle           string
+	PrivacyMode         string
 	LimitedView         string
 	LimitedReason       string
 	RuntimeView         string
 	CandidateAccountIDs []int64
 }
 
-func normalizeAdminAccountListFilters(platform, accountType, status, search string, groupID int64, lifecycle string) adminAccountListFilters {
+func normalizeAdminAccountListFilters(platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) adminAccountListFilters {
 	return adminAccountListFilters{
 		Platform:    strings.TrimSpace(platform),
 		AccountType: strings.TrimSpace(accountType),
@@ -35,6 +36,7 @@ func normalizeAdminAccountListFilters(platform, accountType, status, search stri
 		Search:      strings.TrimSpace(search),
 		GroupID:     groupID,
 		Lifecycle:   service.NormalizeAccountLifecycleInput(lifecycle),
+		PrivacyMode: strings.TrimSpace(privacyMode),
 	}
 }
 
@@ -79,6 +81,21 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 	if predicate := lifecyclePredicate(filters.Lifecycle); predicate != nil {
 		q = q.Where(predicate)
 	}
+	if filters.PrivacyMode != "" {
+		switch filters.PrivacyMode {
+		case "unset":
+			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(entsql.Or(
+					entsql.IsNull(s.C("extra")),
+					entsql.Not(entsql.ExprP("COALESCE(extra, '{}'::jsonb) ? 'privacy_mode'")),
+				))
+			}))
+		default:
+			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+				s.Where(entsql.ExprP("COALESCE(extra, '{}'::jsonb) ->> 'privacy_mode' = ?", filters.PrivacyMode))
+			}))
+		}
+	}
 	if predicate := limitedAccountPredicate(filters); predicate != nil {
 		q = q.Where(predicate)
 	}
@@ -109,6 +126,15 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 		whereClauses = append(whereClauses, fmt.Sprintf("%s.name ILIKE $%d", tableAlias, argIndex))
 		args = append(args, "%"+filters.Search+"%")
 		argIndex++
+	}
+	if filters.PrivacyMode != "" {
+		if filters.PrivacyMode == "unset" {
+			whereClauses = append(whereClauses, fmt.Sprintf("NOT (COALESCE(%s.extra, '{}'::jsonb) ? 'privacy_mode')", tableAlias))
+		} else {
+			whereClauses = append(whereClauses, fmt.Sprintf("COALESCE(%s.extra, '{}'::jsonb) ->> 'privacy_mode' = $%d", tableAlias, argIndex))
+			args = append(args, filters.PrivacyMode)
+			argIndex++
+		}
 	}
 	if filters.GroupID == service.AccountListGroupUngrouped {
 		whereClauses = append(whereClauses, fmt.Sprintf("NOT EXISTS (SELECT 1 FROM account_groups agf WHERE agf.account_id = %s.id)", tableAlias))

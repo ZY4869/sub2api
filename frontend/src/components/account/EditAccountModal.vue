@@ -26,6 +26,60 @@
         <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
       </div>
 
+      <div
+        v-if="isGrokAccount"
+        class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
+      >
+        <div v-if="isGrokSSOAccount">
+          <label class="input-label">{{ t('admin.accounts.grokToken') }}</label>
+          <textarea
+            v-model="editGrokSSOToken"
+            rows="4"
+            class="input"
+            :placeholder="t('admin.accounts.leaveEmptyToKeep')"
+          />
+          <p class="input-hint">{{ t('admin.accounts.grokTokenHint') }}</p>
+        </div>
+
+        <div>
+          <label class="input-label">{{ t('admin.accounts.grokTier') }}</label>
+          <select v-model="editGrokTier" class="input">
+            <option value="basic">{{ t('admin.accounts.grokTierBasic') }}</option>
+            <option value="super">{{ t('admin.accounts.grokTierSuper') }}</option>
+            <option value="heavy">{{ t('admin.accounts.grokTierHeavy') }}</option>
+          </select>
+          <p class="input-hint">{{ t('admin.accounts.grokTierHint') }}</p>
+        </div>
+
+        <div
+          v-if="isGrokSSOAccount"
+          class="space-y-3 rounded-lg border border-slate-200 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-950/40"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {{ t('admin.accounts.grokDerivedMappingTitle') }}
+              </div>
+              <p class="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                {{ t('admin.accounts.grokDerivedMappingHint') }}
+              </p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" @click="applyDefaultGrokCapabilityMapping">
+              {{ t('admin.accounts.grokApplyCapabilityMapping') }}
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="model in grokCapabilityModels"
+              :key="model"
+              class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              {{ model }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- API Key fields (only for apikey type) -->
       <div v-if="account.type === 'apikey'" class="space-y-4">
         <div v-if="isProtocolGatewayAccount">
@@ -125,7 +179,7 @@
       </div>
 
       <AccountModelScopeEditor
-        v-if="effectivePlatform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token')"
+        v-if="effectivePlatform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token' || account.type === 'sso')"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
         :mode="modelRestrictionMode"
@@ -396,6 +450,13 @@ import {
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
 import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import {
+  grokDefaultModelIdsForTier,
+  grokDefaultModelMappingForTier,
+  mappingRecordToRows,
+  normalizeGrokTier,
+  type GrokTier
+} from '@/utils/grokAccount'
+import {
   applyProtocolGatewayClaudeClientMimicExtra,
   PROTOCOL_GATEWAY_PROTOCOLS,
   isProtocolGatewayPlatform,
@@ -440,6 +501,8 @@ const submitting = ref(false)
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const editBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const editApiKey = ref('')
+const editGrokSSOToken = ref('')
+const editGrokTier = ref<GrokTier>('basic')
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -496,6 +559,9 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
 )
+const isGrokAccount = computed(() => props.account?.platform === 'grok')
+const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
+const grokCapabilityModels = computed(() => grokDefaultModelIdsForTier(editGrokTier.value))
 const showProtocolGatewayClaudeMimicEditor = computed(() =>
   supportsProtocolGatewayClaudeClientMimic({
     platform: props.account?.platform,
@@ -589,6 +655,37 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
   }
 
   return false
+}
+
+function applyModelRestrictionFromRecord(value: unknown) {
+  const entries = Object.entries(value && typeof value === 'object' ? value as Record<string, unknown> : {})
+    .map(([from, to]) => ({ from: String(from || '').trim(), to: String(to || '').trim() }))
+    .filter((row) => row.from.length > 0 && row.to.length > 0)
+
+  if (entries.length === 0) {
+    modelRestrictionMode.value = 'whitelist'
+    allowedModels.value = []
+    modelMappings.value = []
+    return
+  }
+
+  const isWhitelistMode = entries.every(({ from, to }) => from === to)
+  if (isWhitelistMode) {
+    modelRestrictionMode.value = 'whitelist'
+    allowedModels.value = entries.map(({ from }) => from)
+    modelMappings.value = []
+    return
+  }
+
+  modelRestrictionMode.value = 'mapping'
+  modelMappings.value = entries
+  allowedModels.value = []
+}
+
+function applyDefaultGrokCapabilityMapping() {
+  modelRestrictionMode.value = 'mapping'
+  modelMappings.value = mappingRecordToRows(grokDefaultModelMappingForTier(editGrokTier.value))
+  allowedModels.value = []
 }
 
 
@@ -723,6 +820,8 @@ watch(
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
       mixedScheduling.value = extra?.mixed_scheduling === true
+      editGrokSSOToken.value = ''
+      editGrokTier.value = normalizeGrokTier(extra?.grok_tier)
 
       // Load OpenAI passthrough toggle (OpenAI OAuth/API Key)
       openaiPassthroughEnabled.value = false
@@ -829,34 +928,18 @@ watch(
         const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
         editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
 
-        // Load model mappings and detect mode
-        const existingMappings = credentials.model_mapping as Record<string, string> | undefined
-        if (existingMappings && typeof existingMappings === 'object') {
-          const entries = Object.entries(existingMappings)
-
-          // Detect if this is whitelist mode (all from === to) or mapping mode
-          const isWhitelistMode = entries.length > 0 && entries.every(([from, to]) => from === to)
-
-          if (isWhitelistMode) {
-            // Whitelist mode: populate allowedModels
-            modelRestrictionMode.value = 'whitelist'
-            allowedModels.value = entries.map(([from]) => from)
-            modelMappings.value = []
-          } else {
-            // Mapping mode: populate modelMappings
-            modelRestrictionMode.value = 'mapping'
-            modelMappings.value = entries.map(([from, to]) => ({ from, to }))
-            allowedModels.value = []
-          }
-        } else {
-          // No mappings: default to whitelist mode with empty selection (allow all)
-          modelRestrictionMode.value = 'whitelist'
-          modelMappings.value = []
-          allowedModels.value = []
-        }
+        applyModelRestrictionFromRecord(credentials.model_mapping)
 
         loadAccountPoolModeStateFromCredentials(poolModeState, credentials, DEFAULT_POOL_MODE_RETRY_COUNT)
         loadAccountCustomErrorCodesStateFromCredentials(customErrorCodesState, credentials)
+      } else if (newAccount.type === 'sso' && newAccount.platform === 'grok' && newAccount.credentials) {
+        const credentials = newAccount.credentials as Record<string, unknown>
+        editBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
+        applyModelRestrictionFromRecord(
+          credentials.model_mapping || grokDefaultModelMappingForTier(editGrokTier.value)
+        )
+        resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
+        resetAccountCustomErrorCodesState(customErrorCodesState)
       } else if (newAccount.type === 'upstream' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
         editBaseUrl.value = (credentials.base_url as string) || ''
@@ -869,24 +952,7 @@ watch(
         // Backward-compatible: some legacy OpenAI OAuth accounts may store model mappings in credentials.
         if (!loadedFromScope && runtimePlatform === 'openai' && newAccount.credentials) {
           const oauthCredentials = newAccount.credentials as Record<string, unknown>
-          const existingMappings = oauthCredentials.model_mapping as Record<string, string> | undefined
-          if (existingMappings && typeof existingMappings === 'object') {
-            const entries = Object.entries(existingMappings)
-            const isWhitelistMode = entries.length > 0 && entries.every(([from, to]) => from === to)
-            if (isWhitelistMode) {
-              modelRestrictionMode.value = 'whitelist'
-              allowedModels.value = entries.map(([from]) => from)
-              modelMappings.value = []
-            } else {
-              modelRestrictionMode.value = 'mapping'
-              modelMappings.value = entries.map(([from, to]) => ({ from, to }))
-              allowedModels.value = []
-            }
-          } else {
-            modelRestrictionMode.value = 'whitelist'
-            modelMappings.value = []
-            allowedModels.value = []
-          }
+          applyModelRestrictionFromRecord(oauthCredentials.model_mapping)
         } else if (!loadedFromScope) {
           modelRestrictionMode.value = 'whitelist'
           modelMappings.value = []
@@ -1130,6 +1196,22 @@ const handleSubmit = async () => {
       updatePayload.credentials = newCredentials
     }
 
+    if (runtimePlatform === 'grok' && props.account.type === 'sso') {
+      const currentCredentials = (updatePayload.credentials as Record<string, unknown>) ||
+        ((props.account.credentials as Record<string, unknown>) || {})
+      const newCredentials: Record<string, unknown> = { ...currentCredentials }
+      if (editGrokSSOToken.value.trim()) {
+        newCredentials.sso_token = editGrokSSOToken.value.trim()
+      }
+      const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
+      if (modelMapping) {
+        newCredentials.model_mapping = modelMapping
+      } else {
+        delete newCredentials.model_mapping
+      }
+      updatePayload.credentials = newCredentials
+    }
+
     if (runtimePlatform === 'antigravity') {
       const currentCredentials = (updatePayload.credentials as Record<string, unknown>) ||
         ((props.account.credentials as Record<string, unknown>) || {})
@@ -1159,6 +1241,15 @@ const handleSubmit = async () => {
         delete newExtra.mixed_scheduling
       }
       updatePayload.extra = newExtra
+    }
+
+    if (props.account.platform === 'grok') {
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
+        (props.account.extra as Record<string, unknown>) || {}
+      updatePayload.extra = {
+        ...currentExtra,
+        grok_tier: editGrokTier.value
+      }
     }
 
     if (runtimePlatform === 'anthropic' && (props.account.type === 'oauth' || props.account.type === 'setup-token')) {

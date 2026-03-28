@@ -65,22 +65,24 @@ const (
 
 // AccountTestService handles account testing operations
 type AccountTestService struct {
-	accountRepo               AccountRepository
-	accountModelImportService *AccountModelImportService
-	claudeTokenProvider       *ClaudeTokenProvider
-	modelRegistryService      *ModelRegistryService
-	gatewayService            *GatewayService
-	openAIGatewayService      *OpenAIGatewayService
-	geminiCompatService       *GeminiMessagesCompatService
-	openAITokenProvider       *OpenAITokenProvider
-	geminiTokenProvider       *GeminiTokenProvider
-	antigravityGatewayService *AntigravityGatewayService
-	httpUpstream              HTTPUpstream
-	cfg                       *config.Config
-	backgroundRunner          func(func())
-	soraTestGuardMu           sync.Mutex
-	soraTestLastRun           map[int64]time.Time
-	soraTestCooldown          time.Duration
+	accountRepo                  AccountRepository
+	accountModelImportService    *AccountModelImportService
+	claudeTokenProvider          *ClaudeTokenProvider
+	modelRegistryService         *ModelRegistryService
+	gatewayService               *GatewayService
+	grokGatewayService           *GrokGatewayService
+	openAIGatewayService         *OpenAIGatewayService
+	geminiCompatService          *GeminiMessagesCompatService
+	openAITokenProvider          *OpenAITokenProvider
+	geminiTokenProvider          *GeminiTokenProvider
+	antigravityGatewayService    *AntigravityGatewayService
+	httpUpstream                 HTTPUpstream
+	tlsFingerprintProfileService *TLSFingerprintProfileService
+	cfg                          *config.Config
+	backgroundRunner             func(func())
+	soraTestGuardMu              sync.Mutex
+	soraTestLastRun              map[int64]time.Time
+	soraTestCooldown             time.Duration
 }
 
 const defaultSoraTestCooldown = 10 * time.Second
@@ -114,6 +116,10 @@ func (s *AccountTestService) SetGatewayService(gatewayService *GatewayService) {
 	s.gatewayService = gatewayService
 }
 
+func (s *AccountTestService) SetGrokGatewayService(grokGatewayService *GrokGatewayService) {
+	s.grokGatewayService = grokGatewayService
+}
+
 func (s *AccountTestService) SetOpenAIGatewayService(openAIGatewayService *OpenAIGatewayService) {
 	s.openAIGatewayService = openAIGatewayService
 }
@@ -128,6 +134,10 @@ func (s *AccountTestService) SetClaudeTokenProvider(claudeTokenProvider *ClaudeT
 
 func (s *AccountTestService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
 	s.openAITokenProvider = openAITokenProvider
+}
+
+func (s *AccountTestService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
+	s.tlsFingerprintProfileService = tlsFingerprintProfileService
 }
 
 func (s *AccountTestService) runBackgroundTask(fn func()) {
@@ -631,8 +641,9 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -669,6 +680,7 @@ func (s *AccountTestService) testKiroAccountConnection(c *gin.Context, account *
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 
 	runtime := NewKiroRuntimeService(s.accountRepo, s.httpUpstream, s.claudeTokenProvider)
+	runtime.SetTLSFingerprintProfileService(s.tlsFingerprintProfileService)
 	result, err := runtime.ExecuteClaude(ctx, account, KiroRuntimeExecuteInput{
 		Body:           payloadBytes,
 		ModelID:        testModelID,
@@ -812,7 +824,7 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 		proxyURL = account.Proxy.URL()
 	}
 
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, false)
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, nil)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -963,8 +975,9 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -1063,8 +1076,9 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
 	}
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, account.IsTLSFingerprintEnabled())
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Request failed: %s", err.Error()))
 	}
@@ -1336,8 +1350,12 @@ func (s *AccountTestService) testSoraAccountConnection(c *gin.Context, account *
 		proxyURL = account.Proxy.URL()
 	}
 	enableSoraTLSFingerprint := s.shouldEnableSoraTLSFingerprint()
+	soraTLSProfile := defaultTLSFingerprintProfile()
+	if !enableSoraTLSFingerprint {
+		soraTLSProfile = nil
+	}
 
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, enableSoraTLSFingerprint)
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, soraTLSProfile)
 	if err != nil {
 		recorder.addStep("me", "failed", 0, "network_error", err.Error())
 		s.emitSoraProbeSummary(c, recorder)
@@ -1402,7 +1420,7 @@ func (s *AccountTestService) testSoraAccountConnection(c *gin.Context, account *
 		subReq.Header.Set("Origin", "https://sora.chatgpt.com")
 		subReq.Header.Set("Referer", "https://sora.chatgpt.com/")
 
-		subResp, subErr := s.httpUpstream.DoWithTLS(subReq, proxyURL, account.ID, account.Concurrency, enableSoraTLSFingerprint)
+		subResp, subErr := s.httpUpstream.DoWithTLS(subReq, proxyURL, account.ID, account.Concurrency, soraTLSProfile)
 		if subErr != nil {
 			recorder.addStep("subscription", "failed", 0, "network_error", subErr.Error())
 			s.sendEvent(c, TestEvent{Type: "content", Text: fmt.Sprintf("Subscription check skipped: %s", subErr.Error())})
@@ -1589,7 +1607,11 @@ func (s *AccountTestService) fetchSoraTestEndpoint(
 	req.Header.Set("Origin", "https://sora.chatgpt.com")
 	req.Header.Set("Referer", "https://sora.chatgpt.com/")
 
-	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, enableTLSFingerprint)
+	tlsProfile := defaultTLSFingerprintProfile()
+	if !enableTLSFingerprint {
+		tlsProfile = nil
+	}
+	resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil {
 		return 0, nil, nil, err
 	}

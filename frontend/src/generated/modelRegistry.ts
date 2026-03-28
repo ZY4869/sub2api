@@ -33,11 +33,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-03-22T13:19:24Z"
+export const generatedModelRegistryBuiltAt = "2026-03-28T05:48:35Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"70179fc2a44925ad6cfaed49de6724514a4b56afc632fe3e17ae6f74d20aa177\"",
-  "updated_at": "2026-03-22T13:19:24Z",
+  "etag": "W/\"2f2be371da1f30fea1a92fc12e609bc63bfb1902f3e2527fb21670deb8887453\"",
+  "updated_at": "2026-03-28T05:48:35Z",
   "models": [
     {
       "id": "abab6.5-chat",
@@ -294,9 +294,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-4",
       "display_name": "Grok-4",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-4"
@@ -311,6 +311,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 0,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -750,9 +752,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-4-0709",
       "display_name": "Grok-4-0709",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-4-0709"
@@ -767,6 +769,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 1,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -1203,9 +1207,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-3-beta",
       "display_name": "Grok-3-beta",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-3-beta"
@@ -1220,6 +1224,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 2,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -1603,9 +1609,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-3-mini-beta",
       "display_name": "Grok-3-mini-beta",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-3-mini-beta"
@@ -1620,6 +1626,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 3,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -2023,9 +2031,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-3-fast-beta",
       "display_name": "Grok-3-fast-beta",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-3-fast-beta"
@@ -2040,6 +2048,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 4,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -2419,9 +2429,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-2",
       "display_name": "Grok-2",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-2"
@@ -2436,6 +2446,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 5,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -2841,9 +2853,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     {
       "id": "grok-2-vision",
       "display_name": "Grok-2-vision",
-      "provider": "xai",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
         "grok-2-vision"
@@ -2861,6 +2873,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "ui_priority": 6,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -3226,28 +3240,30 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-2-image",
-      "display_name": "Grok-2-image",
-      "provider": "xai",
+      "id": "grok-imagine-image",
+      "display_name": "Grok Imagine Image",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
-        "grok-2-image"
+        "grok-imagine-image"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-2-image"
+        "grok-imagine-image"
       ],
       "modalities": [
         "text",
         "image"
       ],
       "capabilities": [
-        "image"
+        "image_generation"
       ],
       "ui_priority": 7,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -3534,25 +3550,30 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-beta",
-      "display_name": "Grok-beta",
-      "provider": "xai",
+      "id": "grok-imagine-video",
+      "display_name": "Grok Imagine Video",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
-        "grok-beta"
+        "grok-imagine-video"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-beta"
+        "grok-imagine-video"
       ],
       "modalities": [
-        "text"
+        "text",
+        "video"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "video_generation"
+      ],
       "ui_priority": 8,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -3841,18 +3862,18 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-vision-beta",
-      "display_name": "Grok-vision-beta",
-      "provider": "xai",
+      "id": "grok-2-image",
+      "display_name": "Grok-2-image",
+      "provider": "grok",
       "platforms": [
-        "xai"
+        "grok"
       ],
       "protocol_ids": [
-        "grok-vision-beta"
+        "grok-2-image"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-vision-beta"
+        "grok-2-image"
       ],
       "modalities": [
         "text",
@@ -3863,6 +3884,8 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "ui_priority": 9,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -4171,6 +4194,31 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-beta",
+      "display_name": "Grok-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 10,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
       "id": "qwen2.5-14b-instruct",
       "display_name": "Qwen2.5-14b-instruct",
       "provider": "qwen",
@@ -4356,6 +4404,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 11,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "grok-vision-beta",
+      "display_name": "Grok-vision-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-vision-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-vision-beta"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 11,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },

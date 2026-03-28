@@ -26,6 +26,7 @@ import apiKeysAPI from './apiKeys'
 import scheduledTestsAPI from './scheduledTests'
 import modelsAPI from './models'
 import modelRegistryAPI from './modelRegistry'
+import tlsFingerprintProfilesAPI from './tlsFingerprintProfile'
 
 /**
  * Unified admin API object for convenient access
@@ -53,7 +54,8 @@ export const adminAPI = {
   apiKeys: apiKeysAPI,
   models: modelsAPI,
   modelRegistry: modelRegistryAPI,
-  scheduledTests: scheduledTestsAPI
+  scheduledTests: scheduledTestsAPI,
+  tlsFingerprintProfiles: tlsFingerprintProfilesAPI
 }
 
 export {
@@ -79,7 +81,8 @@ export {
   apiKeysAPI,
   modelsAPI,
   modelRegistryAPI,
-  scheduledTestsAPI
+  scheduledTestsAPI,
+  tlsFingerprintProfilesAPI
 }
 
 export default adminAPI
@@ -89,3 +92,8 @@ export type { BalanceHistoryItem } from './users'
 export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from './errorPassthrough'
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { ModelCatalogItem, ModelCatalogDetail, ModelCatalogPricing, UpdatePricingOverridePayload } from './models'
+export type {
+  TLSFingerprintProfile,
+  CreateTLSFingerprintProfileRequest,
+  UpdateTLSFingerprintProfileRequest
+} from './tlsFingerprintProfile'

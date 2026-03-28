@@ -2,8 +2,8 @@ import type { ModelCatalogExchangeRate, ModelCatalogPricing } from '@/api/admin/
 import { TOKENS_PER_MILLION } from './usagePricing'
 
 export type ModelCatalogPricingKey = keyof ModelCatalogPricing
-export type ModelCatalogPricingUnit = 'token' | 'image' | 'threshold'
-export type ModelCatalogPricingGroup = 'inputTier' | 'outputTier' | 'cache' | 'image'
+export type ModelCatalogPricingUnit = 'token' | 'image' | 'video_request' | 'threshold'
+export type ModelCatalogPricingGroup = 'inputTier' | 'outputTier' | 'cache' | 'image' | 'video'
 
 export interface ModelCatalogPricingField {
   key: ModelCatalogPricingKey
@@ -16,7 +16,8 @@ export const MODEL_CATALOG_PRICING_GROUPS: Array<{ key: ModelCatalogPricingGroup
   { key: 'inputTier', labelKey: 'admin.models.groups.inputTier' },
   { key: 'outputTier', labelKey: 'admin.models.groups.outputTier' },
   { key: 'cache', labelKey: 'admin.models.groups.cache' },
-  { key: 'image', labelKey: 'admin.models.groups.image' }
+  { key: 'image', labelKey: 'admin.models.groups.image' },
+  { key: 'video', labelKey: 'admin.models.groups.video' }
 ]
 
 export const MODEL_CATALOG_PRICING_FIELDS: ModelCatalogPricingField[] = [
@@ -34,7 +35,8 @@ export const MODEL_CATALOG_PRICING_FIELDS: ModelCatalogPricingField[] = [
   { key: 'cache_creation_input_token_cost_above_1hr', labelKey: 'admin.models.fields.cacheCreationCostAbove1h', unit: 'token', group: 'cache' },
   { key: 'cache_read_input_token_cost', labelKey: 'admin.models.fields.cacheReadCost', unit: 'token', group: 'cache' },
   { key: 'cache_read_input_token_cost_priority', labelKey: 'admin.models.fields.cacheReadPriorityCost', unit: 'token', group: 'cache' },
-  { key: 'output_cost_per_image', labelKey: 'admin.models.fields.imageCost', unit: 'image', group: 'image' }
+  { key: 'output_cost_per_image', labelKey: 'admin.models.fields.imageCost', unit: 'image', group: 'image' },
+  { key: 'output_cost_per_video_request', labelKey: 'admin.models.fields.videoRequestCost', unit: 'video_request', group: 'video' }
 ]
 
 export function tokenPriceToMillion(value?: number): number | null {

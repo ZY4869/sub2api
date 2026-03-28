@@ -73,6 +73,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		return
 	}
 	setOpsSelectedAccount(c, account.ID, account.Platform)
+	setOpsEndpointContext(c, account.GetMappedModel(parsedReq.Model), service.RequestTypeSync)
 	if err := h.gatewayService.ForwardCountTokens(c.Request.Context(), c, account, parsedReq); err != nil {
 		reqLog.Error("gateway.count_tokens_forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		return

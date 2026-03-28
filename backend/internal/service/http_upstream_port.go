@@ -1,6 +1,10 @@
 package service
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
+)
 
 // HTTPUpstream 上游 HTTP 请求接口
 // 用于向上游 API（Claude、OpenAI、Gemini 等）发送请求
@@ -51,5 +55,5 @@ type HTTPUpstream interface {
 	// 注意:
 	//   - 调用方必须关闭 resp.Body，否则会导致连接泄漏
 	//   - TLS 指纹客户端与普通客户端使用不同的缓存键，互不影响
-	DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, enableTLSFingerprint bool) (*http.Response, error)
+	DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *tlsfingerprint.Profile) (*http.Response, error)
 }

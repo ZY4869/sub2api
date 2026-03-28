@@ -218,8 +218,22 @@ func (s *OpsService) prepareErrorLogInput(ctx context.Context, entry *OpsInsertE
 	}
 
 	// Sanitize upstream error context if provided by gateway services.
+	entry.InboundEndpoint = truncateString(strings.TrimSpace(entry.InboundEndpoint), 128)
+	entry.UpstreamEndpoint = truncateString(strings.TrimSpace(entry.UpstreamEndpoint), 128)
+	entry.RequestedModel = truncateString(strings.TrimSpace(entry.RequestedModel), 100)
+	entry.UpstreamModel = truncateString(strings.TrimSpace(entry.UpstreamModel), 100)
+	entry.UpstreamURL = truncateString(safeUpstreamURL(entry.UpstreamURL), 1024)
 	if entry.UpstreamStatusCode != nil && *entry.UpstreamStatusCode <= 0 {
 		entry.UpstreamStatusCode = nil
+	}
+	if entry.RequestType != nil {
+		requestType := RequestTypeFromInt16(*entry.RequestType)
+		if requestType == RequestTypeUnknown {
+			entry.RequestType = nil
+		} else {
+			value := int16(requestType)
+			entry.RequestType = &value
+		}
 	}
 	if entry.UpstreamErrorMessage != nil {
 		msg := strings.TrimSpace(*entry.UpstreamErrorMessage)
@@ -273,6 +287,7 @@ func sanitizeOpsUpstreamErrors(entry *OpsInsertErrorLogInput) error {
 		out.Platform = strings.TrimSpace(out.Platform)
 		out.UpstreamRequestID = truncateString(strings.TrimSpace(out.UpstreamRequestID), 128)
 		out.Kind = truncateString(strings.TrimSpace(out.Kind), 64)
+		out.UpstreamURL = truncateString(safeUpstreamURL(out.UpstreamURL), 1024)
 
 		if out.AccountID < 0 {
 			out.AccountID = 0

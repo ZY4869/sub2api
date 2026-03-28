@@ -21,6 +21,9 @@
                 {{ t('admin.ops.errorLog.platform') }}
               </th>
               <th class="border-b border-gray-200 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:border-dark-700 dark:text-dark-400">
+                {{ t('admin.ops.errorLog.endpoint') }}
+              </th>
+              <th class="border-b border-gray-200 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:border-dark-700 dark:text-dark-400">
                 {{ t('admin.ops.errorLog.model') }}
               </th>
               <th class="border-b border-gray-200 px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:border-dark-700 dark:text-dark-400">
@@ -42,7 +45,7 @@
           </thead>
           <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
             <tr v-if="rows.length === 0">
-              <td colspan="9" class="py-12 text-center text-sm text-gray-400 dark:text-dark-500">
+              <td colspan="10" class="py-12 text-center text-sm text-gray-400 dark:text-dark-500">
                 {{ t('admin.ops.errorLog.noErrors') }}
               </td>
             </tr>
@@ -81,13 +84,28 @@
                 </span>
               </td>
 
+              <!-- Endpoint -->
+              <td class="px-4 py-2">
+                <div class="max-w-[180px]" :title="getEndpointTooltip(log)">
+                  <div class="truncate font-mono text-[11px] text-gray-700 dark:text-gray-300">
+                    {{ getInboundEndpoint(log) || '-' }}
+                  </div>
+                  <div v-if="shouldShowUpstreamEndpoint(log)" class="truncate text-[10px] text-gray-400 dark:text-gray-500">
+                    -> {{ log.upstream_endpoint }}
+                  </div>
+                </div>
+              </td>
+
               <!-- Model -->
               <td class="px-4 py-2">
-                <div class="max-w-[120px] truncate" :title="log.model">
-                  <span v-if="log.model" class="font-mono text-[11px] text-gray-700 dark:text-gray-300">
-                    {{ log.model }}
+                <div class="max-w-[140px]" :title="getModelTooltip(log)">
+                  <span v-if="getRequestedModel(log)" class="block truncate font-mono text-[11px] text-gray-700 dark:text-gray-300">
+                    {{ getRequestedModel(log) }}
                   </span>
-                  <span v-else class="text-xs text-gray-400">-</span>
+                  <span v-if="shouldShowModelMapping(log)" class="block truncate text-[10px] text-gray-400 dark:text-gray-500">
+                    -> {{ log.upstream_model }}
+                  </span>
+                  <span v-if="!getRequestedModel(log)" class="text-xs text-gray-400">-</span>
                 </div>
               </td>
 
@@ -123,7 +141,7 @@
 
               <!-- Status -->
               <td class="whitespace-nowrap px-4 py-2">
-                <div class="flex items-center gap-1.5">
+                <div class="flex flex-wrap items-center gap-1.5">
                   <span
                     :class="[
                       'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset',
@@ -131,6 +149,12 @@
                     ]"
                   >
                     {{ log.status_code }}
+                  </span>
+                  <span
+                    v-if="log.request_type != null"
+                    :class="['rounded px-1.5 py-0.5 text-[10px] font-bold', getRequestTypeClass(log.request_type)]"
+                  >
+                    {{ formatRequestType(log.request_type) }}
                   </span>
                   <span
                     v-if="log.severity"
@@ -239,6 +263,64 @@ function getStatusClass(code: number): string {
   if (code === 429) return 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-500/30'
   if (code >= 400) return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30'
   return 'bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-900/30 dark:text-gray-400 dark:ring-gray-500/30'
+}
+
+function getInboundEndpoint(log: OpsErrorLog): string {
+  return String(log.inbound_endpoint || log.request_path || '').trim()
+}
+
+function shouldShowUpstreamEndpoint(log: OpsErrorLog): boolean {
+  const inbound = getInboundEndpoint(log)
+  const upstream = String(log.upstream_endpoint || '').trim()
+  return upstream !== '' && upstream !== inbound
+}
+
+function getEndpointTooltip(log: OpsErrorLog): string {
+  const inbound = getInboundEndpoint(log)
+  const upstream = String(log.upstream_endpoint || '').trim()
+  return upstream && upstream !== inbound ? `${inbound} -> ${upstream}` : inbound
+}
+
+function getRequestedModel(log: OpsErrorLog): string {
+  return String(log.requested_model || log.model || '').trim()
+}
+
+function shouldShowModelMapping(log: OpsErrorLog): boolean {
+  const requested = getRequestedModel(log)
+  const upstream = String(log.upstream_model || '').trim()
+  return requested !== '' && upstream !== '' && upstream !== requested
+}
+
+function getModelTooltip(log: OpsErrorLog): string {
+  const requested = getRequestedModel(log)
+  const upstream = String(log.upstream_model || '').trim()
+  return upstream && upstream !== requested ? `${requested} -> ${upstream}` : requested
+}
+
+function formatRequestType(value: number | null | undefined): string {
+  switch (value) {
+    case 1:
+      return t('admin.ops.errorLog.requestTypeSync')
+    case 2:
+      return t('admin.ops.errorLog.requestTypeStream')
+    case 3:
+      return t('admin.ops.errorLog.requestTypeWsV2')
+    default:
+      return t('common.unknown')
+  }
+}
+
+function getRequestTypeClass(value: number | null | undefined): string {
+  switch (value) {
+    case 3:
+      return 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+    case 2:
+      return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+    case 1:
+      return 'bg-gray-100 text-gray-700 dark:bg-dark-700 dark:text-gray-200'
+    default:
+      return 'bg-gray-100 text-gray-500 dark:bg-dark-700 dark:text-gray-400'
+  }
 }
 
 function formatSmartMessage(msg: string): string {

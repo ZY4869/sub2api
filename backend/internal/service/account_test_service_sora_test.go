@@ -24,9 +24,9 @@ func (u *queuedHTTPUpstream) Do(_ *http.Request, _ string, _ int64, _ int) (*htt
 	return nil, fmt.Errorf("unexpected Do call")
 }
 
-func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, _ string, _ int64, _ int, enableTLSFingerprint bool) (*http.Response, error) {
+func (u *queuedHTTPUpstream) DoWithTLS(req *http.Request, _ string, _ int64, _ int, tlsProfile *TLSFingerprintProfile) (*http.Response, error) {
 	u.requests = append(u.requests, req)
-	u.tlsFlags = append(u.tlsFlags, enableTLSFingerprint)
+	u.tlsFlags = append(u.tlsFlags, tlsProfile != nil)
 	if len(u.responses) == 0 {
 		return nil, fmt.Errorf("no mocked response")
 	}

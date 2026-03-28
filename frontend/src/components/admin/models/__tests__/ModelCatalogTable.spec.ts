@@ -15,6 +15,7 @@ const translations: Record<string, string> = {
   'admin.models.columns.cacheCreationCost': 'Cache Create Price',
   'admin.models.columns.cacheReadCost': 'Cache Read Price',
   'admin.models.columns.imageCost': 'Image Price',
+  'admin.models.columns.videoRequestCost': 'Video Request Price',
   'admin.models.accessSources.login': 'Login',
   'admin.models.accessSources.key': 'Key',
   'admin.models.sources.dynamic': 'Dynamic',
@@ -79,7 +80,8 @@ describe('ModelCatalogTable', () => {
               output_cost_per_token: 0.2,
               cache_creation_input_token_cost: 0.3,
               cache_read_input_token_cost: 0.4,
-              output_cost_per_image: 0.5
+              output_cost_per_image: 0.5,
+              output_cost_per_video_request: 12
             }
           }
         ],
@@ -110,13 +112,14 @@ describe('ModelCatalogTable', () => {
     expect(wrapper.text()).not.toContain('Delete')
 
     const headerChips = wrapper.findAll('thead th span.rounded-full')
-    expect(headerChips).toHaveLength(5)
+    expect(headerChips).toHaveLength(6)
     expect(headerChips.map((chip) => chip.text())).toEqual([
       'Input Price',
       'Output Price',
       'Cache Create Price',
       'Cache Read Price',
-      'Image Price'
+      'Image Price',
+      'Video Request Price'
     ])
   })
 })

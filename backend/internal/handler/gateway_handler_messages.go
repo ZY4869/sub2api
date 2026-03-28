@@ -17,6 +17,32 @@ import (
 	"strings"
 )
 
+func forwardFailedLogFields(account *service.Account, wroteFallback bool, err error) []zap.Field {
+	fields := []zap.Field{
+		zap.Bool("fallback_error_response_written", wroteFallback),
+		zap.Error(err),
+	}
+	if account == nil {
+		return fields
+	}
+	fields = append(fields,
+		zap.Int64("account_id", account.ID),
+		zap.String("account_name", account.Name),
+		zap.String("account_platform", account.Platform),
+	)
+	if account.Proxy != nil {
+		fields = append(fields,
+			zap.Int64("proxy_id", account.Proxy.ID),
+			zap.String("proxy_name", account.Proxy.Name),
+			zap.String("proxy_host", account.Proxy.Host),
+			zap.Int("proxy_port", account.Proxy.Port),
+		)
+	} else if account.ProxyID != nil {
+		fields = append(fields, zap.Int64p("proxy_id", account.ProxyID))
+	}
+	return fields
+}
+
 func (h *GatewayHandler) Messages(c *gin.Context) {
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
 	if !ok {
@@ -204,6 +230,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 				account := selection.Account
 				setOpsSelectedAccount(c, account.ID, account.Platform)
+				setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 					if interceptType != InterceptTypeNone {
@@ -315,7 +342,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						nil,
 						err,
 					)
-					reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
+					reqLog.Error("gateway.forward_failed", append([]zap.Field{zap.Any("group_id", currentAPIKey.GroupID)}, forwardFailedLogFields(account, wroteFallback, err)...)...)
 					return
 				}
 				if account.IsAnthropicOAuthOrSetupToken() && account.GetBaseRPM() > 0 {
@@ -381,6 +408,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 				account := selection.Account
 				setOpsSelectedAccount(c, account.ID, account.Platform)
+				setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 					if interceptType != InterceptTypeNone {
@@ -556,7 +584,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						nil,
 						err,
 					)
-					reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
+					reqLog.Error("gateway.forward_failed", append([]zap.Field{zap.Any("group_id", runtimeAPIKey.GroupID)}, forwardFailedLogFields(account, wroteFallback, err)...)...)
 					return
 				}
 				if account.IsAnthropicOAuthOrSetupToken() && account.GetBaseRPM() > 0 {
@@ -642,6 +670,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
 				interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 				if interceptType != InterceptTypeNone {
@@ -747,7 +776,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					nil,
 					err,
 				)
-				reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
+				reqLog.Error("gateway.forward_failed", forwardFailedLogFields(account, wroteFallback, err)...)
 				return
 			}
 			if account.IsAnthropicOAuthOrSetupToken() && account.GetBaseRPM() > 0 {
@@ -805,6 +834,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
 				interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 				if interceptType != InterceptTypeNone {
@@ -974,7 +1004,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					nil,
 					err,
 				)
-				reqLog.Error("gateway.forward_failed", zap.Int64("account_id", account.ID), zap.Bool("fallback_error_response_written", wroteFallback), zap.Error(err))
+				reqLog.Error("gateway.forward_failed", forwardFailedLogFields(account, wroteFallback, err)...)
 				return
 			}
 			if account.IsAnthropicOAuthOrSetupToken() && account.GetBaseRPM() > 0 {
