@@ -16,6 +16,11 @@ type BlacklistRetestRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
 }
 
+type BlacklistBatchDeleteRequest struct {
+	IDs       []int64 `json:"ids"`
+	DeleteAll bool    `json:"delete_all"`
+}
+
 type BlacklistRetestAccountResult struct {
 	AccountID    int64  `json:"account_id"`
 	Success      bool   `json:"success"`
@@ -126,4 +131,30 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 
 	_ = g.Wait()
 	response.Success(c, gin.H{"results": results})
+}
+
+func (h *AccountHandler) BatchDeleteBlacklisted(c *gin.Context) {
+	var req BlacklistBatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	accountIDs := normalizeInt64IDList(req.IDs)
+	switch {
+	case req.DeleteAll && len(accountIDs) > 0:
+		response.BadRequest(c, "ids and delete_all cannot be provided together")
+		return
+	case !req.DeleteAll && len(accountIDs) == 0:
+		response.BadRequest(c, "either ids or delete_all=true is required")
+		return
+	}
+
+	result, err := h.adminService.BatchDeleteBlacklistedAccounts(c.Request.Context(), accountIDs, req.DeleteAll)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, result)
 }

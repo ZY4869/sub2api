@@ -73,6 +73,7 @@ type AccountRepository interface {
 	BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error)
 	MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error
 	RestoreBlacklisted(ctx context.Context, id int64) error
+	ListBlacklistedIDs(ctx context.Context) ([]int64, error)
 	ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]Account, error)
 	// IncrementQuotaUsed 原子递增 API Key 账号的配额用量（总/日/周）
 	IncrementQuotaUsed(ctx context.Context, id int64, amount float64) error

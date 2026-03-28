@@ -31,6 +31,7 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       autoRefreshIntervalSeconds: 10,
       viewMode: 'table',
       groupViewEnabled: false,
+      platformCountSortOrder: 'count_asc',
       toggleableColumns: [
         { key: 'proxy', label: 'Proxy', visible: true },
         { key: 'notes', label: 'Notes', visible: false }
@@ -192,5 +193,19 @@ describe('AccountsViewToolbar', () => {
 
     expect(wrapper.emitted('toggle-hide-limited')).toEqual([[]])
     expect(wrapper.emitted('open-limited-page')).toEqual([[]])
+  })
+
+  it('renders the platform count sort toggle and emits the next mode', async () => {
+    const wrapper = mountToolbar({
+      platformCountSortOrder: 'count_asc'
+    })
+
+    const button = wrapper.get('[data-platform-sort-button="true"]')
+    expect(button.text()).toContain('admin.accounts.platformSort.countAsc')
+    expect(button.attributes('title')).toBe('admin.accounts.platformSort.toggleDesc')
+
+    await button.trigger('click')
+
+    expect(wrapper.emitted('update:platform-count-sort-order')).toEqual([['count_desc']])
   })
 })

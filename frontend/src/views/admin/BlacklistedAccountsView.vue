@@ -2,25 +2,34 @@
   <AppLayout>
     <TablePageLayout prefer-page-scroll>
       <template #filters>
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-3">
-            <SearchInput
-              :model-value="String(params.search || '')"
-              :placeholder="t('admin.accounts.blacklist.searchPlaceholder')"
-              class="w-full sm:w-64"
-              @update:model-value="handleSearchUpdate"
-              @search="reload"
-            />
-            <Select :model-value="params.platform" class="w-40" :options="platformOptions" @update:model-value="handlePlatformUpdate" @change="reload" />
-            <Select :model-value="params.group" class="w-48" :options="groupOptions" @update:model-value="handleGroupUpdate" @change="reload" />
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <SearchInput
+                :model-value="String(params.search || '')"
+                :placeholder="t('admin.accounts.blacklist.searchPlaceholder')"
+                class="w-full sm:w-64"
+                @update:model-value="handleSearchUpdate"
+                @search="reload"
+              />
+              <Select :model-value="params.platform" class="w-40" :options="platformOptions" @update:model-value="handlePlatformUpdate" @change="reload" />
+              <Select :model-value="params.group" class="w-48" :options="groupOptions" @update:model-value="handleGroupUpdate" @change="reload" />
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="btn btn-primary" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchRetest">
+                {{ t('admin.accounts.blacklist.batchRetest', { count: selectedIds.length }) }}
+              </button>
+              <button type="button" class="btn btn-danger" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchDelete">
+                {{ t('admin.accounts.blacklist.batchDelete', { count: selectedIds.length }) }}
+              </button>
+              <button type="button" class="btn btn-danger" :disabled="totalBlacklistedCount === 0 || submitting" @click="handleDeleteAllBlacklisted">
+                {{ t('admin.accounts.blacklist.deleteAll', { count: totalBlacklistedCount }) }}
+              </button>
+            </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <button type="button" class="btn btn-primary" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchRetest">
-              {{ t('admin.accounts.blacklist.batchRetest', { count: selectedIds.length }) }}
-            </button>
-            <button type="button" class="btn btn-danger" :disabled="selectedIds.length === 0 || submitting" @click="handleBatchDelete">
-              {{ t('admin.accounts.blacklist.batchDelete', { count: selectedIds.length }) }}
-            </button>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
+            <span>{{ t('admin.accounts.blacklist.totalCountLabel') }} {{ totalBlacklistedCount }}</span>
+            <span>{{ t('admin.accounts.blacklist.currentResultLabel') }} {{ pagination.total }}</span>
           </div>
         </div>
       </template>
@@ -120,6 +129,7 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const groups = ref<AdminGroup[]>([])
 const submitting = ref(false)
+const totalBlacklistedCount = ref(0)
 
 const {
   items: accounts,
@@ -180,6 +190,16 @@ const handleGroupUpdate = (value: string | number | boolean | null) => {
   params.group = String(value || '')
 }
 
+const refreshTotalBlacklistedCount = async () => {
+  const response = await adminAPI.accounts.list(1, 1, { lifecycle: 'blacklisted' })
+  totalBlacklistedCount.value = response.total || 0
+}
+
+const refreshBlacklistView = async () => {
+  clearSelection()
+  await Promise.all([reload(), refreshTotalBlacklistedCount()])
+}
+
 const summarizeRetest = (results: Awaited<ReturnType<typeof adminAPI.accounts.retestBlacklistedAccounts>>['results']) => {
   const restored = results.filter((item) => item.restored).length
   const failed = results.length - restored
@@ -200,8 +220,7 @@ const runRetest = async (accountIds: number[]) => {
   try {
     const response = await adminAPI.accounts.retestBlacklistedAccounts(accountIds)
     summarizeRetest(response.results)
-    clearSelection()
-    await reload()
+    await refreshBlacklistView()
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.blacklist.retestFailed'))
   } finally {
@@ -225,8 +244,7 @@ const handleDelete = async (accountId: number, accountName: string) => {
   try {
     await adminAPI.accounts.delete(accountId)
     appStore.showSuccess(t('admin.accounts.blacklist.deleteSuccess'))
-    clearSelection()
-    await reload()
+    await refreshBlacklistView()
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.blacklist.deleteFailed'))
   } finally {
@@ -234,32 +252,49 @@ const handleDelete = async (accountId: number, accountName: string) => {
   }
 }
 
-const summarizeBatchDelete = (successCount: number, failedCount: number) => {
-  if (successCount > 0 && failedCount === 0) {
-    appStore.showSuccess(t('admin.accounts.blacklist.batchDeleteSuccess', { count: successCount }))
+const summarizeBatchDelete = (
+  result: Awaited<ReturnType<typeof adminAPI.accounts.batchDeleteBlacklistedAccounts>>,
+  mode: 'selected' | 'all'
+) => {
+  const successCount = result.deleted_count
+  const failedCount = result.failed_count
+  if (failedCount === 0) {
+    appStore.showSuccess(
+      t(mode === 'all' ? 'admin.accounts.blacklist.deleteAllSuccess' : 'admin.accounts.blacklist.batchDeleteSuccess', {
+        count: successCount
+      })
+    )
     return
   }
   if (successCount > 0) {
-    appStore.showWarning(t('admin.accounts.blacklist.batchDeletePartial', { success: successCount, failed: failedCount }))
+    appStore.showWarning(
+      t(mode === 'all' ? 'admin.accounts.blacklist.deleteAllPartial' : 'admin.accounts.blacklist.batchDeletePartial', {
+        success: successCount,
+        failed: failedCount
+      })
+    )
     return
   }
-  appStore.showError(t('admin.accounts.blacklist.batchDeleteFailed'))
+  appStore.showError(t(mode === 'all' ? 'admin.accounts.blacklist.deleteAllFailed' : 'admin.accounts.blacklist.batchDeleteFailed'))
 }
 
-const runBatchDelete = async (accountIds: number[]) => {
-  if (accountIds.length === 0 || submitting.value) return
+const runBatchDelete = async (
+  payload: { ids?: number[]; delete_all?: boolean },
+  mode: 'selected' | 'all'
+) => {
+  if (submitting.value) return
+  if (mode === 'selected' && (!payload.ids || payload.ids.length === 0)) return
+  if (mode === 'all' && totalBlacklistedCount.value === 0) return
   submitting.value = true
   try {
-    const results = await Promise.allSettled(accountIds.map((accountId) => adminAPI.accounts.delete(accountId)))
-    const successCount = results.filter((result) => result.status === 'fulfilled').length
-    const failedCount = results.length - successCount
-    summarizeBatchDelete(successCount, failedCount)
-    if (successCount > 0) {
-      clearSelection()
-      await reload()
-    }
+    const result = await adminAPI.accounts.batchDeleteBlacklistedAccounts(payload)
+    summarizeBatchDelete(result, mode)
+    await refreshBlacklistView()
   } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.blacklist.batchDeleteFailed'))
+    appStore.showError(
+      error?.message ||
+        t(mode === 'all' ? 'admin.accounts.blacklist.deleteAllFailed' : 'admin.accounts.blacklist.batchDeleteFailed')
+    )
   } finally {
     submitting.value = false
   }
@@ -273,17 +308,29 @@ const handleBatchDelete = async () => {
   if (!window.confirm(t('admin.accounts.blacklist.batchDeleteConfirm', { count: accountIds.length }))) {
     return
   }
-  await runBatchDelete(accountIds)
+  await runBatchDelete({ ids: accountIds }, 'selected')
 }
 
-onMounted(async () => {
-  reload().catch((error) => {
+const handleDeleteAllBlacklisted = async () => {
+  if (totalBlacklistedCount.value === 0) {
+    return
+  }
+  if (!window.confirm(t('admin.accounts.blacklist.deleteAllConfirm', { count: totalBlacklistedCount.value }))) {
+    return
+  }
+  await runBatchDelete({ delete_all: true }, 'all')
+}
+
+onMounted(() => {
+  refreshBlacklistView().catch((error) => {
     console.error('Failed to load blacklisted accounts:', error)
   })
-  try {
-    groups.value = await adminAPI.groups.getAll()
-  } catch (error) {
-    console.error('Failed to load groups for blacklisted accounts:', error)
-  }
+  adminAPI.groups.getAll()
+    .then((allGroups) => {
+      groups.value = allGroups
+    })
+    .catch((error) => {
+      console.error('Failed to load groups for blacklisted accounts:', error)
+    })
 })
 </script>

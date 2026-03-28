@@ -75,3 +75,83 @@ func TestAccountHandlerBlacklistReturnsNotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, rec.Code)
 }
+
+func TestAccountHandlerBatchDeleteBlacklistedByIDs(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{ID: 61, Name: "blacklisted-61", LifecycleState: service.AccountLifecycleBlacklisted},
+		{ID: 62, Name: "active-62", LifecycleState: service.AccountLifecycleNormal},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/batch-delete", handler.BatchDeleteBlacklisted)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/batch-delete", bytes.NewReader([]byte(`{"ids":[61,62,999]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, []int64{61, 62, 999}, adminSvc.lastBatchDeleteInput.ids)
+	require.False(t, adminSvc.lastBatchDeleteInput.deleteAll)
+	require.Contains(t, rec.Body.String(), "\"deleted_ids\":[61]")
+	require.Contains(t, rec.Body.String(), "\"failed_count\":2")
+}
+
+func TestAccountHandlerBatchDeleteBlacklistedDeleteAll(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{ID: 71, Name: "blacklisted-71", LifecycleState: service.AccountLifecycleBlacklisted},
+		{ID: 72, Name: "blacklisted-72", LifecycleState: service.AccountLifecycleBlacklisted},
+		{ID: 73, Name: "active-73", LifecycleState: service.AccountLifecycleNormal},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/batch-delete", handler.BatchDeleteBlacklisted)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/batch-delete", bytes.NewReader([]byte(`{"delete_all":true}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Empty(t, adminSvc.lastBatchDeleteInput.ids)
+	require.True(t, adminSvc.lastBatchDeleteInput.deleteAll)
+	require.Contains(t, rec.Body.String(), "\"deleted_count\":2")
+}
+
+func TestAccountHandlerBatchDeleteBlacklistedRequiresMode(t *testing.T) {
+	adminSvc := newStubAdminService()
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/batch-delete", handler.BatchDeleteBlacklisted)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/batch-delete", bytes.NewReader([]byte(`{}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestAccountHandlerBatchDeleteBlacklistedRejectsMixedMode(t *testing.T) {
+	adminSvc := newStubAdminService()
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/batch-delete", handler.BatchDeleteBlacklisted)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/batch-delete", bytes.NewReader([]byte(`{"ids":[88],"delete_all":true}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}

@@ -5,6 +5,7 @@ import BlacklistedAccountsView from '../BlacklistedAccountsView.vue'
 const {
   listAccounts,
   retestBlacklistedAccounts,
+  batchDeleteBlacklistedAccounts,
   deleteAccount,
   getAllGroups,
   showSuccess,
@@ -13,6 +14,7 @@ const {
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   retestBlacklistedAccounts: vi.fn(),
+  batchDeleteBlacklistedAccounts: vi.fn(),
   deleteAccount: vi.fn(),
   getAllGroups: vi.fn(),
   showSuccess: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock('@/api/admin', () => ({
     accounts: {
       list: listAccounts,
       retestBlacklistedAccounts,
+      batchDeleteBlacklistedAccounts,
       delete: deleteAccount
     },
     groups: {
@@ -73,28 +76,33 @@ describe('BlacklistedAccountsView', () => {
   beforeEach(() => {
     listAccounts.mockReset()
     retestBlacklistedAccounts.mockReset()
+    batchDeleteBlacklistedAccounts.mockReset()
     deleteAccount.mockReset()
     getAllGroups.mockReset()
     showSuccess.mockReset()
     showWarning.mockReset()
     showError.mockReset()
 
-    listAccounts.mockResolvedValue({
-      items: [
-        {
-          id: 1,
-          name: 'blacklisted-1',
-          platform: 'openai',
-          type: 'apikey',
-          groups: [],
-          lifecycle_reason_message: 'account deactivated',
-          blacklisted_at: '2026-03-23T12:00:00Z',
-          blacklist_purge_at: '2026-03-26T12:00:00Z'
-        }
-      ],
+    listAccounts.mockImplementation(async (_page: number, pageSize: number, _filters: unknown, options?: { signal?: AbortSignal }) => ({
+      items: options?.signal
+        ? [
+            {
+              id: 1,
+              name: 'blacklisted-1',
+              platform: 'openai',
+              type: 'apikey',
+              groups: [],
+              lifecycle_reason_message: 'account deactivated',
+              blacklisted_at: '2026-03-23T12:00:00Z',
+              blacklist_purge_at: '2026-03-26T12:00:00Z'
+            }
+          ]
+        : [],
       total: 1,
+      page: 1,
+      page_size: pageSize,
       pages: 1
-    })
+    }))
     getAllGroups.mockResolvedValue([{ id: 1, name: 'OpenAI Group' }])
     retestBlacklistedAccounts.mockResolvedValue({
       results: [
@@ -107,6 +115,12 @@ describe('BlacklistedAccountsView', () => {
           latency_ms: 120
         }
       ]
+    })
+    batchDeleteBlacklistedAccounts.mockResolvedValue({
+      deleted_ids: [1],
+      failed: [],
+      deleted_count: 1,
+      failed_count: 0
     })
     vi.stubGlobal('confirm', vi.fn(() => true))
     deleteAccount.mockResolvedValue({ message: 'ok' })
@@ -134,6 +148,9 @@ describe('BlacklistedAccountsView', () => {
 
     await flushPromises()
 
+    expect(wrapper.text()).toContain('admin.accounts.blacklist.totalCountLabel')
+    expect(wrapper.text()).toContain('admin.accounts.blacklist.currentResultLabel')
+
     const checkboxes = wrapper.findAll('input[type="checkbox"]')
     expect(checkboxes).toHaveLength(2)
 
@@ -143,6 +160,7 @@ describe('BlacklistedAccountsView', () => {
 
     expect(retestBlacklistedAccounts).toHaveBeenCalledWith([1])
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.retestSuccess')
+    expect(listAccounts.mock.calls.length).toBeGreaterThan(2)
   })
 
   it('supports batch delete for selected blacklisted accounts', async () => {
@@ -174,40 +192,116 @@ describe('BlacklistedAccountsView', () => {
     await flushPromises()
 
     expect(confirm).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeleteConfirm')
-    expect(deleteAccount).toHaveBeenCalledWith(1)
+    expect(batchDeleteBlacklistedAccounts).toHaveBeenCalledWith({ ids: [1] })
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeleteSuccess')
+    expect(listAccounts.mock.calls.length).toBeGreaterThan(2)
+  })
+
+  it('supports deleting the entire blacklist without selection', async () => {
+    listAccounts.mockImplementation(async (_page: number, pageSize: number, _filters: unknown, options?: { signal?: AbortSignal }) => ({
+      items: options?.signal
+        ? [
+            {
+              id: 1,
+              name: 'blacklisted-1',
+              platform: 'openai',
+              type: 'apikey',
+              groups: [],
+              lifecycle_reason_message: 'account deactivated',
+              blacklisted_at: '2026-03-23T12:00:00Z',
+              blacklist_purge_at: '2026-03-26T12:00:00Z'
+            },
+            {
+              id: 2,
+              name: 'blacklisted-2',
+              platform: 'openai',
+              type: 'apikey',
+              groups: [],
+              lifecycle_reason_message: 'workspace deactivated',
+              blacklisted_at: '2026-03-23T13:00:00Z',
+              blacklist_purge_at: '2026-03-26T13:00:00Z'
+            }
+          ]
+        : [],
+      total: 2,
+      page: 1,
+      page_size: pageSize,
+      pages: 1
+    }))
+    batchDeleteBlacklistedAccounts.mockResolvedValue({
+      deleted_ids: [1, 2],
+      failed: [],
+      deleted_count: 2,
+      failed_count: 0
+    })
+
+    const wrapper = mount(BlacklistedAccountsView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
+          SearchInput: true,
+          Select: true,
+          DataTable: DataTableStub,
+          Pagination: true,
+          PlatformTypeBadge: true,
+          AccountGroupsCell: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const deleteAllButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.blacklist.deleteAll')
+    )
+    expect(deleteAllButton).toBeTruthy()
+
+    await deleteAllButton!.trigger('click')
+    await flushPromises()
+
+    expect(confirm).toHaveBeenCalledWith('admin.accounts.blacklist.deleteAllConfirm')
+    expect(batchDeleteBlacklistedAccounts).toHaveBeenCalledWith({ delete_all: true })
+    expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.deleteAllSuccess')
   })
 
   it('shows partial warning when batch delete only succeeds for some accounts', async () => {
-    listAccounts.mockResolvedValue({
-      items: [
-        {
-          id: 1,
-          name: 'blacklisted-1',
-          platform: 'openai',
-          type: 'apikey',
-          groups: [],
-          lifecycle_reason_message: 'account deactivated',
-          blacklisted_at: '2026-03-23T12:00:00Z',
-          blacklist_purge_at: '2026-03-26T12:00:00Z'
-        },
-        {
-          id: 2,
-          name: 'blacklisted-2',
-          platform: 'openai',
-          type: 'apikey',
-          groups: [],
-          lifecycle_reason_message: 'workspace deactivated',
-          blacklisted_at: '2026-03-23T13:00:00Z',
-          blacklist_purge_at: '2026-03-26T13:00:00Z'
-        }
-      ],
+    listAccounts.mockImplementation(async (_page: number, pageSize: number, _filters: unknown, options?: { signal?: AbortSignal }) => ({
+      items: options?.signal
+        ? [
+            {
+              id: 1,
+              name: 'blacklisted-1',
+              platform: 'openai',
+              type: 'apikey',
+              groups: [],
+              lifecycle_reason_message: 'account deactivated',
+              blacklisted_at: '2026-03-23T12:00:00Z',
+              blacklist_purge_at: '2026-03-26T12:00:00Z'
+            },
+            {
+              id: 2,
+              name: 'blacklisted-2',
+              platform: 'openai',
+              type: 'apikey',
+              groups: [],
+              lifecycle_reason_message: 'workspace deactivated',
+              blacklisted_at: '2026-03-23T13:00:00Z',
+              blacklist_purge_at: '2026-03-26T13:00:00Z'
+            }
+          ]
+        : [],
       total: 2,
+      page: 1,
+      page_size: pageSize,
       pages: 1
+    }))
+    batchDeleteBlacklistedAccounts.mockResolvedValue({
+      deleted_ids: [1],
+      failed: [{ id: 2, reason: 'delete failed' }],
+      deleted_count: 1,
+      failed_count: 1
     })
-    deleteAccount
-      .mockResolvedValueOnce({ message: 'ok' })
-      .mockRejectedValueOnce(new Error('delete failed'))
 
     const wrapper = mount(BlacklistedAccountsView, {
       global: {
@@ -238,7 +332,7 @@ describe('BlacklistedAccountsView', () => {
     await batchDeleteButton!.trigger('click')
     await flushPromises()
 
-    expect(deleteAccount).toHaveBeenCalledTimes(2)
+    expect(batchDeleteBlacklistedAccounts).toHaveBeenCalledWith({ ids: [1, 2] })
     expect(showWarning).toHaveBeenCalledWith('admin.accounts.blacklist.batchDeletePartial')
   })
 })

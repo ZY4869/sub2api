@@ -1256,6 +1256,12 @@
       platformTabs: {
         all: '全部'
       },
+      platformSort: {
+        countAsc: '平台排序：少到多',
+        countDesc: '平台排序：多到少',
+        toggleAsc: '切换为少到多',
+        toggleDesc: '切换为多到少'
+      },
       summary: {
         total: '总计',
         active: '活跃',
@@ -1569,8 +1575,11 @@
         title: '黑名单',
         description: '管理命中硬封禁规则的账号，支持复测恢复或立即删除。',
         searchPlaceholder: '搜索黑名单账号...',
+        totalCountLabel: '黑名单总数',
+        currentResultLabel: '当前结果',
         batchRetest: '批量复测恢复 ({count})',
         batchDelete: '批量删除 ({count})',
+        deleteAll: '全量删除 ({count})',
         selected: '已选择 {count} 个黑名单账号',
         blacklistedAt: '拉黑时间',
         purgeAt: '自动删除时间',
@@ -1587,6 +1596,10 @@
         batchDeleteSuccess: '已成功删除 {count} 个黑名单账号',
         batchDeletePartial: '部分删除成功：成功 {success} 个，失败 {failed} 个',
         batchDeleteFailed: '批量删除黑名单账号失败',
+        deleteAllConfirm: '确定全量删除整个黑名单中的 {count} 个账号吗？将忽略当前筛选，且此操作无法撤销。',
+        deleteAllSuccess: '已成功全量删除 {count} 个黑名单账号',
+        deleteAllPartial: '全量删除部分完成：成功 {success} 个，失败 {failed} 个',
+        deleteAllFailed: '全量删除黑名单账号失败',
         deleteConfirm: "确定立即删除黑名单账号 '{name}' 吗？此操作无法撤销。",
         deleteSuccess: '黑名单账号已删除',
         deleteFailed: '删除黑名单账号失败'

@@ -286,14 +286,35 @@ const SummaryBarStub = defineComponent({
   `
 })
 
+const ToolbarStub = defineComponent({
+  name: 'AccountsViewToolbar',
+  props: ['platformCountSortOrder'],
+  emits: ['update:platform-count-sort-order'],
+  template: `
+    <div>
+      <div class="toolbar-platform-sort">{{ platformCountSortOrder }}</div>
+      <button
+        class="toolbar-platform-sort-toggle"
+        @click="$emit('update:platform-count-sort-order', 'count_desc')"
+      />
+    </div>
+  `
+})
+
+const PlatformTabsStub = defineComponent({
+  name: 'AccountPlatformTabs',
+  props: ['sortOrder'],
+  template: '<div class="platform-tabs-sort-order">{{ sortOrder }}</div>'
+})
+
 const mountView = () =>
   mount(AccountsView, {
     global: {
       stubs: {
         AppLayout: { template: '<div><slot /></div>' },
         TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
-        AccountsViewToolbar: { template: '<div />' },
-        AccountPlatformTabs: true,
+        AccountsViewToolbar: ToolbarStub,
+        AccountPlatformTabs: PlatformTabsStub,
         AccountStatusSummaryBar: SummaryBarStub,
         AccountLimitedSummaryBar: true,
         AccountBulkActionsBar: true,
@@ -450,6 +471,41 @@ describe('AccountsView', () => {
 
     expect(mockState.tableParams.status).toBe('rate_limited')
     expect(mockState.tableParams.limited_view).toBe('normal_only')
+
+    wrapper.unmount()
+  })
+
+  it('defaults platform tab sort order to count_asc and passes it to the toolbar and tabs', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_asc')
+    expect(wrapper.get('.platform-tabs-sort-order').text()).toBe('count_asc')
+
+    wrapper.unmount()
+  })
+
+  it('restores the saved platform tab sort order from localStorage', async () => {
+    localStorage.setItem('account-platform-count-sort-order', 'count_desc')
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
+    expect(wrapper.get('.platform-tabs-sort-order').text()).toBe('count_desc')
+
+    wrapper.unmount()
+  })
+
+  it('updates platform tab sort order from the toolbar and persists it locally', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.toolbar-platform-sort-toggle').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
+    expect(wrapper.get('.platform-tabs-sort-order').text()).toBe('count_desc')
+    expect(localStorage.getItem('account-platform-count-sort-order')).toBe('count_desc')
 
     wrapper.unmount()
   })

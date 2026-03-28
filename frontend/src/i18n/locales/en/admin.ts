@@ -1174,6 +1174,12 @@ export default {
       platformTabs: {
         all: 'All'
       },
+      platformSort: {
+        countAsc: 'Platform Sort: Few to Many',
+        countDesc: 'Platform Sort: Many to Few',
+        toggleAsc: 'Switch to few to many',
+        toggleDesc: 'Switch to many to few'
+      },
       summary: {
         total: 'Total',
         active: 'Active',
@@ -1421,8 +1427,11 @@ export default {
         title: 'Blacklist',
         description: 'Manage accounts flagged as hard-banned, retest them for recovery, or delete them immediately.',
         searchPlaceholder: 'Search blacklisted accounts...',
+        totalCountLabel: 'Total Blacklisted',
+        currentResultLabel: 'Current Results',
         batchRetest: 'Batch Retest Restore ({count})',
         batchDelete: 'Batch Delete ({count})',
+        deleteAll: 'Delete All ({count})',
         selected: '{count} blacklisted account(s) selected',
         blacklistedAt: 'Blacklisted At',
         purgeAt: 'Auto Delete At',
@@ -1439,6 +1448,10 @@ export default {
         batchDeleteSuccess: 'Deleted {count} blacklisted account(s)',
         batchDeletePartial: 'Partially deleted: {success} succeeded, {failed} failed',
         batchDeleteFailed: 'Failed to batch delete blacklisted accounts',
+        deleteAllConfirm: 'Delete all {count} blacklisted account(s) from the entire blacklist immediately? Current filters will be ignored and this cannot be undone.',
+        deleteAllSuccess: 'Deleted all {count} blacklisted account(s)',
+        deleteAllPartial: 'Delete all partially succeeded: {success} deleted, {failed} failed',
+        deleteAllFailed: 'Failed to delete all blacklisted accounts',
         deleteConfirm: "Delete blacklisted account '{name}' immediately? This action cannot be undone.",
         deleteSuccess: 'Blacklisted account deleted',
         deleteFailed: 'Failed to delete blacklisted account'

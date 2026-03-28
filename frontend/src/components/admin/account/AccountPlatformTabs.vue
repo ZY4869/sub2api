@@ -5,6 +5,7 @@
         v-for="tab in tabs"
         :key="tab.value"
         type="button"
+        :data-tab-value="tab.dataValue"
         class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-t-xl border-b-2 px-3 py-1.5 text-sm font-medium transition-colors"
         :class="modelValue === tab.value ? 'border-primary-600 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
         @click="emit('update:modelValue', tab.value)"
@@ -36,9 +37,21 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { buildLobeIconSources } from '@/utils/lobeIconResolver'
 import LobeStaticIcon from '@/components/common/LobeStaticIcon.vue'
-import type { AccountPlatform } from '@/types'
+import type { AccountPlatform, AccountPlatformCountSortOrder } from '@/types'
 
-const PLATFORM_ICON_MAP: Record<string, { slug: string; badge: string }> = {
+const PLATFORM_ORDER: AccountPlatform[] = [
+  'anthropic',
+  'kiro',
+  'openai',
+  'copilot',
+  'grok',
+  'protocol_gateway',
+  'gemini',
+  'antigravity',
+  'sora'
+]
+
+const PLATFORM_ICON_MAP: Record<AccountPlatform, { slug: string; badge: string }> = {
   anthropic: { slug: 'anthropic', badge: 'An' },
   kiro: { slug: 'kiro', badge: 'Ki' },
   openai: { slug: 'openai', badge: 'OA' },
@@ -50,9 +63,14 @@ const PLATFORM_ICON_MAP: Record<string, { slug: string; badge: string }> = {
   sora: { slug: 'sora', badge: 'So' }
 }
 
+const PLATFORM_ORDER_INDEX = new Map(
+  PLATFORM_ORDER.map((platform, index) => [platform, index])
+)
+
 const props = defineProps<{
   modelValue: string
   platformCounts?: Partial<Record<AccountPlatform, number>>
+  sortOrder: AccountPlatformCountSortOrder
 }>()
 
 const emit = defineEmits<{
@@ -61,18 +79,43 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const resolveCount = (platform: AccountPlatform) => props.platformCounts?.[platform] ?? 0
+
+const sortedPlatforms = computed(() => [...PLATFORM_ORDER].sort((left, right) => {
+  const leftCount = resolveCount(left)
+  const rightCount = resolveCount(right)
+  const leftHasAccounts = leftCount > 0
+  const rightHasAccounts = rightCount > 0
+
+  if (leftHasAccounts !== rightHasAccounts) {
+    return leftHasAccounts ? -1 : 1
+  }
+
+  if (leftHasAccounts && rightHasAccounts && leftCount !== rightCount) {
+    return props.sortOrder === 'count_desc' ? rightCount - leftCount : leftCount - rightCount
+  }
+
+  return (PLATFORM_ORDER_INDEX.get(left) ?? 0) - (PLATFORM_ORDER_INDEX.get(right) ?? 0)
+}))
+
 const tabs = computed(() => [
-  { value: '', countKey: undefined, label: t('admin.accounts.platformTabs.all'), iconSources: null, badgeText: null },
-  ...Object.entries(PLATFORM_ICON_MAP).map(([value, icon]) => ({
-    value,
-    countKey: value as AccountPlatform,
-    label: t(`admin.accounts.platforms.${value}`),
-    iconSources: buildLobeIconSources([icon.slug]),
-    badgeText: icon.badge
+  {
+    value: '',
+    dataValue: 'all',
+    countKey: undefined,
+    label: t('admin.accounts.platformTabs.all'),
+    iconSources: null,
+    badgeText: null
+  },
+  ...sortedPlatforms.value.map((platform) => ({
+    value: platform,
+    dataValue: platform,
+    countKey: platform,
+    label: t(`admin.accounts.platforms.${platform}`),
+    iconSources: buildLobeIconSources([PLATFORM_ICON_MAP[platform].slug]),
+    badgeText: PLATFORM_ICON_MAP[platform].badge
   }))
 ])
-
-const resolveCount = (platform: AccountPlatform) => props.platformCounts?.[platform] ?? 0
 
 void props
 </script>

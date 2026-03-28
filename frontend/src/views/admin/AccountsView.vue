@@ -17,12 +17,14 @@
           :toggleable-columns="toggleableColumns"
           :view-mode="viewMode"
           :group-view-enabled="groupViewEnabled"
+          :platform-count-sort-order="platformCountSortOrder"
           :show-limited-controls="!limitedMode"
           :hide-limited-accounts="hideLimitedAccounts"
           :limited-accounts-count="limitedAccountsCount"
           @update:filters="handleFilterUpdate"
           @update:search-query="handleSearchQueryUpdate"
           @update:view-mode="viewMode = $event"
+          @update:platform-count-sort-order="handlePlatformCountSortOrderUpdate"
           @change="debouncedReload"
           @refresh="handleManualRefresh"
           @refresh-usage="handleRefreshActualUsage"
@@ -47,6 +49,7 @@
           <AccountPlatformTabs
             :model-value="String(params.platform || '')"
             :platform-counts="toolbarSummary.by_platform"
+            :sort-order="platformCountSortOrder"
             @update:model-value="handlePlatformTabChange"
           />
 
@@ -294,6 +297,7 @@ import type {
   Account,
   AccountRateLimitReason,
   AccountPlatform,
+  AccountPlatformCountSortOrder,
   AccountRuntimeView,
   AccountType,
   Proxy as AccountProxy,
@@ -383,6 +387,7 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
 const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY = 'account-always-hide-limited-accounts'
+const PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY = 'account-platform-count-sort-order'
 
 const loadHideLimitedPreference = () => {
   if (typeof window === 'undefined') {
@@ -405,6 +410,30 @@ const saveHideLimitedPreference = (value: boolean) => {
     localStorage.setItem(HIDE_LIMITED_ACCOUNTS_STORAGE_KEY, String(value))
   } catch (error) {
     console.error('Failed to save limited accounts visibility:', error)
+  }
+}
+
+const loadPlatformCountSortOrderPreference = (): AccountPlatformCountSortOrder => {
+  if (typeof window === 'undefined') {
+    return 'count_asc'
+  }
+  try {
+    const saved = localStorage.getItem(PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY)
+    return saved === 'count_desc' ? 'count_desc' : 'count_asc'
+  } catch (error) {
+    console.error('Failed to load platform count sort order:', error)
+    return 'count_asc'
+  }
+}
+
+const savePlatformCountSortOrderPreference = (value: AccountPlatformCountSortOrder) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    localStorage.setItem(PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY, value)
+  } catch (error) {
+    console.error('Failed to save platform count sort order:', error)
   }
 }
 
@@ -468,9 +497,15 @@ const {
 })
 
 const hideLimitedAccounts = computed(() => !limitedMode.value && String(params.limited_view || '') === 'normal_only')
+const platformCountSortOrder = ref<AccountPlatformCountSortOrder>(loadPlatformCountSortOrderPreference())
 
 const handleFilterUpdate = (newFilters: Record<string, unknown>) => {
   Object.assign(params, newFilters)
+}
+
+const handlePlatformCountSortOrderUpdate = (value: AccountPlatformCountSortOrder) => {
+  platformCountSortOrder.value = value
+  savePlatformCountSortOrderPreference(value)
 }
 
 const summaryParams = computed<AccountListRequestParams>(() => ({

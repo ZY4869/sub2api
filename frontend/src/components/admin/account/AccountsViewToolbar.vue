@@ -34,6 +34,16 @@
           </button>
 
           <button
+            type="button"
+            class="btn btn-secondary"
+            data-platform-sort-button="true"
+            :title="platformSortToggleTitle"
+            @click="emit('update:platform-count-sort-order', nextPlatformCountSortOrder)"
+          >
+            {{ platformSortLabel }}
+          </button>
+
+          <button
             v-if="showLimitedControls"
             type="button"
             class="btn btn-secondary"
@@ -223,7 +233,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { AdminGroup, AccountViewMode } from '@/types'
+import type { AdminGroup, AccountPlatformCountSortOrder, AccountViewMode } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
 import AccountViewModeToggle from './AccountViewModeToggle.vue'
 import AccountTableActions from './AccountTableActions.vue'
@@ -250,6 +260,7 @@ const props = defineProps<{
   toggleableColumns: ToggleableColumn[]
   viewMode: AccountViewMode
   groupViewEnabled: boolean
+  platformCountSortOrder: AccountPlatformCountSortOrder
   showLimitedControls?: boolean
   hideLimitedAccounts?: boolean
   limitedAccountsCount?: number
@@ -273,6 +284,7 @@ const emit = defineEmits<{
   'set-auto-refresh-interval': [value: number]
   'toggle-column': [key: string]
   'update:view-mode': [value: AccountViewMode]
+  'update:platform-count-sort-order': [value: AccountPlatformCountSortOrder]
   'toggle-group-view': []
   'toggle-hide-limited': []
   'open-limited-page': []
@@ -298,6 +310,19 @@ const currentGroup = computed<AdminGroup | null>(() => {
 })
 
 const canArchiveCurrentGroup = computed(() => currentGroup.value !== null)
+const nextPlatformCountSortOrder = computed<AccountPlatformCountSortOrder>(() => (
+  props.platformCountSortOrder === 'count_desc' ? 'count_asc' : 'count_desc'
+))
+const platformSortLabel = computed(() => (
+  props.platformCountSortOrder === 'count_desc'
+    ? t('admin.accounts.platformSort.countDesc')
+    : t('admin.accounts.platformSort.countAsc')
+))
+const platformSortToggleTitle = computed(() => (
+  nextPlatformCountSortOrder.value === 'count_desc'
+    ? t('admin.accounts.platformSort.toggleDesc')
+    : t('admin.accounts.platformSort.toggleAsc')
+))
 
 const handleFiltersUpdate = (value: Record<string, unknown>) => {
   emit('update:filters', value)

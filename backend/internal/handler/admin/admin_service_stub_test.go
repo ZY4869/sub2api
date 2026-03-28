@@ -33,12 +33,17 @@ type stubAdminService struct {
 	bulkUpdateAccountErr error
 	unarchiveErr         error
 	blacklistErr         error
+	batchDeleteErr       error
 	strictAccountLookup  bool
 	checkMixedErr        error
 	lastUnarchiveInput   *service.UnarchiveAccountsInput
 	lastBlacklistedID    int64
 	lastBlacklistInput   *service.BlacklistAccountInput
-	lastMixedCheck       struct {
+	lastBatchDeleteInput struct {
+		ids       []int64
+		deleteAll bool
+	}
+	lastMixedCheck struct {
 		accountID int64
 		platform  string
 		groupIDs  []int64
@@ -522,6 +527,67 @@ func (s *stubAdminService) UpdateAccount(ctx context.Context, id int64, input *s
 
 func (s *stubAdminService) DeleteAccount(ctx context.Context, id int64) error {
 	return nil
+}
+
+func (s *stubAdminService) BatchDeleteBlacklistedAccounts(ctx context.Context, ids []int64, deleteAll bool) (*service.BlacklistedBatchDeleteResult, error) {
+	s.lastBatchDeleteInput.ids = append([]int64(nil), ids...)
+	s.lastBatchDeleteInput.deleteAll = deleteAll
+	if s.batchDeleteErr != nil {
+		return nil, s.batchDeleteErr
+	}
+	if deleteAll {
+		deletedIDs := make([]int64, 0)
+		nextAccounts := make([]service.Account, 0, len(s.accounts))
+		for _, account := range s.accounts {
+			if service.NormalizeAccountLifecycleInput(account.LifecycleState) == service.AccountLifecycleBlacklisted {
+				deletedIDs = append(deletedIDs, account.ID)
+				continue
+			}
+			nextAccounts = append(nextAccounts, account)
+		}
+		s.accounts = nextAccounts
+		return &service.BlacklistedBatchDeleteResult{
+			DeletedIDs:   deletedIDs,
+			Failed:       []service.BlacklistedBatchDeleteFailure{},
+			DeletedCount: len(deletedIDs),
+			FailedCount:  0,
+		}, nil
+	}
+
+	result := &service.BlacklistedBatchDeleteResult{
+		DeletedIDs: make([]int64, 0, len(ids)),
+		Failed:     make([]service.BlacklistedBatchDeleteFailure, 0),
+	}
+	nextAccounts := make([]service.Account, 0, len(s.accounts))
+	toDelete := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		toDelete[id] = struct{}{}
+	}
+	accountByID := make(map[int64]service.Account, len(s.accounts))
+	for _, account := range s.accounts {
+		accountByID[account.ID] = account
+	}
+	for _, id := range ids {
+		account, ok := accountByID[id]
+		switch {
+		case !ok:
+			result.Failed = append(result.Failed, service.BlacklistedBatchDeleteFailure{ID: id, Reason: "account not found"})
+		case service.NormalizeAccountLifecycleInput(account.LifecycleState) != service.AccountLifecycleBlacklisted:
+			result.Failed = append(result.Failed, service.BlacklistedBatchDeleteFailure{ID: id, Reason: "account is not blacklisted"})
+		default:
+			result.DeletedIDs = append(result.DeletedIDs, id)
+		}
+	}
+	for _, account := range s.accounts {
+		if _, ok := toDelete[account.ID]; ok && service.NormalizeAccountLifecycleInput(account.LifecycleState) == service.AccountLifecycleBlacklisted {
+			continue
+		}
+		nextAccounts = append(nextAccounts, account)
+	}
+	s.accounts = nextAccounts
+	result.DeletedCount = len(result.DeletedIDs)
+	result.FailedCount = len(result.Failed)
+	return result, nil
 }
 
 func (s *stubAdminService) RefreshAccountCredentials(ctx context.Context, id int64) (*service.Account, error) {

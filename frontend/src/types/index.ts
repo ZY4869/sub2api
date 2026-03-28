@@ -583,6 +583,7 @@ export type AccountPlatform =
   | "antigravity"
   | "sora"
   | "protocol_gateway";
+export type AccountPlatformCountSortOrder = "count_asc" | "count_desc";
 export type GatewayProtocol = "openai" | "anthropic" | "gemini" | "mixed";
 export type GatewayAcceptedProtocol = "openai" | "anthropic" | "gemini";
 export type GatewayClientProfile = "codex" | "gemini_cli";

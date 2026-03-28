@@ -40,6 +40,7 @@ type AdminService interface {
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
 	UpdateAccount(ctx context.Context, id int64, input *UpdateAccountInput) (*Account, error)
 	DeleteAccount(ctx context.Context, id int64) error
+	BatchDeleteBlacklistedAccounts(ctx context.Context, ids []int64, deleteAll bool) (*BlacklistedBatchDeleteResult, error)
 	RefreshAccountCredentials(ctx context.Context, id int64) (*Account, error)
 	ClearAccountError(ctx context.Context, id int64) (*Account, error)
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
@@ -284,6 +285,16 @@ type ProxyBatchDeleteResult struct {
 	Skipped    []ProxyBatchDeleteSkipped `json:"skipped"`
 }
 type ProxyBatchDeleteSkipped struct {
+	ID     int64  `json:"id"`
+	Reason string `json:"reason"`
+}
+type BlacklistedBatchDeleteResult struct {
+	DeletedIDs   []int64                         `json:"deleted_ids"`
+	Failed       []BlacklistedBatchDeleteFailure `json:"failed"`
+	DeletedCount int                             `json:"deleted_count"`
+	FailedCount  int                             `json:"failed_count"`
+}
+type BlacklistedBatchDeleteFailure struct {
 	ID     int64  `json:"id"`
 	Reason string `json:"reason"`
 }
