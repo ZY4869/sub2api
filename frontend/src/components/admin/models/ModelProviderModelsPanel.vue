@@ -96,6 +96,7 @@
         </button>
         <select
           v-model="selectedMoveTarget"
+          data-test="bulk-move-provider-target"
           class="input min-w-[12rem] text-sm"
           :disabled="selectedCount === 0 || selectedMutating || availableMoveTargets.length === 0"
         >
@@ -110,12 +111,21 @@
         </select>
         <button
           type="button"
+          data-test="bulk-move-provider-button"
           class="btn btn-secondary btn-sm"
-          :disabled="selectedCount === 0 || selectedMutating || !selectedMoveTarget"
+          :disabled="selectedCount === 0 || selectedMutating || availableMoveTargets.length === 0"
           @click="handleBulkMoveProvider"
         >
           {{ t('admin.models.pages.all.bulk.moveProvider') }}
         </button>
+      </div>
+
+      <div
+        v-if="availableMoveTargets.length > 0"
+        data-test="bulk-move-provider-hint"
+        class="text-xs text-primary-700 dark:text-primary-300"
+      >
+        {{ t('admin.models.pages.all.bulk.moveProviderHint') }}
       </div>
     </div>
 
@@ -265,6 +275,7 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import ModelPlatformsInline from '@/components/common/ModelPlatformsInline.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
+import { useAppStore } from '@/stores/app'
 import { groupModelRegistryModels } from '@/utils/modelRegistryCategories'
 
 const props = withDefaults(defineProps<{
@@ -310,6 +321,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const appStore = useAppStore()
 const selectedMoveTarget = ref('')
 
 const selectedIdSet = computed(() => new Set(props.selectedIds || []))
@@ -418,7 +430,11 @@ function handleBulkHardDelete() {
 }
 
 function handleBulkMoveProvider() {
-  if (selectedCount.value === 0 || !selectedMoveTarget.value) {
+  if (selectedCount.value === 0) {
+    return
+  }
+  if (!selectedMoveTarget.value) {
+    appStore.showWarning(t('admin.models.pages.all.bulk.moveProviderSelectRequired'))
     return
   }
   if (!window.confirm(t('admin.models.pages.all.bulk.moveProviderConfirm', {

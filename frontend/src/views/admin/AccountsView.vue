@@ -49,7 +49,6 @@
           <AccountPlatformTabs
             :model-value="String(params.platform || '')"
             :platform-counts="toolbarSummary.by_platform"
-            :sort-order="platformCountSortOrder"
             @update:model-value="handlePlatformTabChange"
           />
 
@@ -89,7 +88,7 @@
           <div ref="accountTableRef">
             <AccountGroupedView
               v-if="groupViewEnabled"
-              :accounts="accounts"
+              :accounts="displayAccounts"
               :groups="groups"
               :group-filter="String(params.group || '')"
               :view-mode="viewMode"
@@ -102,6 +101,7 @@
               :today-stats-error="todayStatsError"
               :usage-manual-refresh-token="usageManualRefreshToken"
               :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
+              :preserve-input-order="true"
               @toggle-selected="toggleSel"
               @toggle-section-selected="handleToggleSectionSelected"
               @show-temp-unsched="handleShowTempUnsched"
@@ -113,7 +113,7 @@
 
             <AccountCardGrid
               v-else-if="viewMode === 'card'"
-              :accounts="accounts"
+              :accounts="displayAccounts"
               :loading="loading"
               :selected-ids="selIds"
               :toggling-schedulable="togglingSchedulable"
@@ -131,7 +131,7 @@
             <AccountsViewTable
               v-else
               :columns="cols"
-              :accounts="accounts"
+              :accounts="displayAccounts"
               :loading="loading"
               :all-visible-selected="allVisibleSelected"
               :selected-ids="selIds"
@@ -141,6 +141,7 @@
               :today-stats-error="todayStatsError"
               :usage-manual-refresh-token="usageManualRefreshToken"
               :sort-storage-key="ACCOUNT_SORT_STORAGE_KEY"
+              :preserve-input-order="true"
               :pagination="pagination"
               @toggle-select-all-visible="toggleSelectAllVisible"
               @toggle-selected="toggleSel"
@@ -388,6 +389,20 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
 const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY = 'account-always-hide-limited-accounts'
 const PLATFORM_COUNT_SORT_ORDER_STORAGE_KEY = 'account-platform-count-sort-order'
+const ACCOUNT_PLATFORM_DISPLAY_ORDER: AccountPlatform[] = [
+  'anthropic',
+  'kiro',
+  'openai',
+  'copilot',
+  'grok',
+  'protocol_gateway',
+  'gemini',
+  'antigravity',
+  'sora'
+]
+const ACCOUNT_PLATFORM_ORDER_INDEX = new Map(
+  ACCOUNT_PLATFORM_DISPLAY_ORDER.map((platform, index) => [platform, index])
+)
 
 const loadHideLimitedPreference = () => {
   if (typeof window === 'undefined') {
@@ -683,6 +698,34 @@ const toolbarSummary = computed(() => ({
         0
       )
 }))
+const displayAccounts = computed<Account[]>(() => {
+  const pagePlatformCounts = accounts.value.reduce<Partial<Record<AccountPlatform, number>>>((acc, account) => {
+    acc[account.platform] = (acc[account.platform] ?? 0) + 1
+    return acc
+  }, {})
+
+  return accounts.value
+    .map((account, index) => ({
+      account,
+      index,
+      count: toolbarSummary.value.by_platform[account.platform] ?? pagePlatformCounts[account.platform] ?? 0,
+      platformRank: ACCOUNT_PLATFORM_ORDER_INDEX.get(account.platform) ?? Number.MAX_SAFE_INTEGER
+    }))
+    .sort((left, right) => {
+      if (left.count !== right.count) {
+        return platformCountSortOrder.value === 'count_desc'
+          ? right.count - left.count
+          : left.count - right.count
+      }
+
+      if (left.platformRank !== right.platformRank) {
+        return left.platformRank - right.platformRank
+      }
+
+      return left.index - right.index
+    })
+    .map((item) => item.account)
+})
 const limitedAccountsCount = computed(() => accountSummary.value.limited_breakdown.total)
 
 watch(isLiveSyncBlocked, (blocked, wasBlocked) => {

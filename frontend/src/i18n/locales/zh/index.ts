@@ -30,6 +30,15 @@ const zhAdmin = admin as any
 const zhAdminOverrides = adminModelOverrides as any
 const zhAdminModels = zhAdmin.admin?.models ?? {}
 const zhAdminOverrideModels = zhAdminOverrides.admin?.models ?? {}
+const zhAdminPages = zhAdminModels.pages ?? {}
+const zhAdminOverridePages = zhAdminOverrideModels.pages ?? {}
+const zhAdminAllModelsPage = zhAdminPages.all ?? {}
+const zhAdminOverrideAllModelsPage = zhAdminOverridePages.all ?? {}
+
+const mergeLocaleBranch = (base: Record<string, any> = {}, override: Record<string, any> = {}) => ({
+  ...base,
+  ...override
+})
 
 export default {
   ...home,
@@ -58,22 +67,24 @@ export default {
       ...zhAdminOverrideModels,
       pages: {
         available: {
-          ...zhAdminModels.pages?.available,
-          ...zhAdminOverrideModels.pages?.available
+          ...zhAdminPages.available,
+          ...zhAdminOverridePages.available
         },
-        all: {
-          ...zhAdminModels.pages?.all,
-          ...zhAdminOverrideModels.pages?.all
-        },
+        all: mergeLocaleBranch(zhAdminAllModelsPage, {
+          ...zhAdminOverrideAllModelsPage,
+          viewModes: mergeLocaleBranch(zhAdminAllModelsPage.viewModes, zhAdminOverrideAllModelsPage.viewModes),
+          categories: mergeLocaleBranch(zhAdminAllModelsPage.categories, zhAdminOverrideAllModelsPage.categories),
+          bulk: mergeLocaleBranch(zhAdminAllModelsPage.bulk, zhAdminOverrideAllModelsPage.bulk)
+        }),
         pricing: {
-          ...zhAdminModels.pages?.pricing,
-          ...zhAdminOverrideModels.pages?.pricing
+          ...zhAdminPages.pricing,
+          ...zhAdminOverridePages.pricing
         },
         official: {
-          ...zhAdminModels.pages?.official
+          ...zhAdminPages.official
         },
         sale: {
-          ...zhAdminModels.pages?.sale
+          ...zhAdminPages.sale
         }
       },
       registry: {

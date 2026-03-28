@@ -58,6 +58,7 @@
         :today-stats-error="todayStatsError"
         :usage-manual-refresh-token="usageManualRefreshToken"
         :sort-storage-key="sectionSortStorageKey"
+        :preserve-input-order="preserveInputOrder"
         :pagination="pagination"
         :show-pagination="false"
         @toggle-select-all-visible="emit('toggle-section-selected', { ids: accountIds, checked: $event })"
@@ -110,6 +111,7 @@ const props = defineProps<{
   todayStatsError: string | null
   usageManualRefreshToken: number
   sortStorageKey: string
+  preserveInputOrder?: boolean
 }>()
 
 const emit = defineEmits<{

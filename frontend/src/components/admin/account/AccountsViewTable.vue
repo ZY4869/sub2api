@@ -7,6 +7,7 @@
     default-sort-key="name"
     default-sort-order="asc"
     :sort-storage-key="sortStorageKey"
+    :preserve-input-order="preserveInputOrder"
   >
     <template #header-select>
       <input
@@ -213,6 +214,7 @@ withDefaults(defineProps<{
   todayStatsError: string | null
   usageManualRefreshToken: number
   sortStorageKey: string
+  preserveInputOrder?: boolean
   pagination: {
     total: number
     page: number
@@ -220,6 +222,7 @@ withDefaults(defineProps<{
   }
   showPagination?: boolean
 }>(), {
+  preserveInputOrder: false,
   showPagination: true
 })
 

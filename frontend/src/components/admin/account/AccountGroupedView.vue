@@ -21,6 +21,7 @@
       :today-stats-error="todayStatsError"
       :usage-manual-refresh-token="usageManualRefreshToken"
       :sort-storage-key="sortStorageKey"
+      :preserve-input-order="preserveInputOrder"
       @toggle-selected="emit('toggle-selected', $event)"
       @toggle-section-selected="emit('toggle-section-selected', $event)"
       @show-temp-unsched="emit('show-temp-unsched', $event)"
@@ -59,6 +60,7 @@ const props = defineProps<{
   todayStatsError: string | null
   usageManualRefreshToken: number
   sortStorageKey: string
+  preserveInputOrder?: boolean
 }>()
 
 const emit = defineEmits<{

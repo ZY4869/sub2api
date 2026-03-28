@@ -1,11 +1,12 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent, toValue } from 'vue'
+import { computed, defineComponent, toValue } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockState = vi.hoisted(() => ({
   summaryParamsSource: null as any,
   runtimeParamsSource: null as any,
   tableParams: null as any,
+  tableItems: [] as any[],
   routerPush: vi.fn(),
   debouncedReload: vi.fn(),
   refreshAccountSummary: vi.fn(),
@@ -86,7 +87,7 @@ vi.mock('@/composables/useTableLoader', async () => {
       const params = reactive({ ...(options.initialParams || {}) })
       mockState.tableParams = params
       return {
-        items: ref([]),
+        items: ref(mockState.tableItems),
         loading: ref(false),
         params,
         pagination: reactive({
@@ -125,7 +126,9 @@ vi.mock('@/composables/useAccountStatusSummary', async () => {
           in_use: 0,
           remaining_available: 11,
           by_platform: {
-            openai: 50
+            openai: 50,
+            protocol_gateway: 2,
+            gemini: 1
           },
           limited_breakdown: {
             total: 5,
@@ -303,8 +306,31 @@ const ToolbarStub = defineComponent({
 
 const PlatformTabsStub = defineComponent({
   name: 'AccountPlatformTabs',
-  props: ['sortOrder'],
-  template: '<div class="platform-tabs-sort-order">{{ sortOrder }}</div>'
+  inheritAttrs: false,
+  props: ['platformCounts'],
+  template: `
+    <div>
+      <div class="platform-tabs-order">all,anthropic,kiro,openai,copilot,grok,protocol_gateway,gemini,antigravity,sora</div>
+      <div class="platform-tabs-sort-attr">{{ $attrs['sort-order'] || '' }}</div>
+    </div>
+  `
+})
+
+const AccountsViewTableStub = defineComponent({
+  name: 'AccountsViewTable',
+  props: ['accounts', 'preserveInputOrder'],
+  setup(props: { accounts?: Array<{ name: string }>; preserveInputOrder?: boolean }) {
+    const accountOrder = computed(() => (props.accounts ?? []).map((account) => account.name).join(','))
+    return {
+      accountOrder
+    }
+  },
+  template: `
+    <div>
+      <div class="table-account-order">{{ accountOrder }}</div>
+      <div class="table-preserve-input-order">{{ preserveInputOrder }}</div>
+    </div>
+  `
 })
 
 const mountView = () =>
@@ -320,7 +346,7 @@ const mountView = () =>
         AccountBulkActionsBar: true,
         AccountGroupedView: true,
         AccountCardGrid: true,
-        AccountsViewTable: true,
+        AccountsViewTable: AccountsViewTableStub,
         AccountsViewDialogsHost: true,
         Pagination: true
       }
@@ -333,6 +359,12 @@ describe('AccountsView', () => {
     mockState.summaryParamsSource = null
     mockState.runtimeParamsSource = null
     mockState.tableParams = null
+    mockState.tableItems = [
+      { id: 1, name: 'OpenAI-1', platform: 'openai', type: 'apikey', status: 'active', schedulable: true },
+      { id: 2, name: 'Gemini-1', platform: 'gemini', type: 'apikey', status: 'active', schedulable: true },
+      { id: 3, name: 'OpenAI-2', platform: 'openai', type: 'apikey', status: 'active', schedulable: true },
+      { id: 4, name: 'Gateway-1', platform: 'protocol_gateway', type: 'apikey', status: 'active', schedulable: true }
+    ]
     mockState.routerPush.mockReset().mockResolvedValue(undefined)
     mockState.debouncedReload.mockReset()
     mockState.refreshAccountSummary.mockReset()
@@ -475,28 +507,32 @@ describe('AccountsView', () => {
     wrapper.unmount()
   })
 
-  it('defaults platform tab sort order to count_asc and passes it to the toolbar and tabs', async () => {
+  it('defaults platform sort order to count_asc and applies it to the account list instead of tabs', async () => {
     const wrapper = mountView()
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_asc')
-    expect(wrapper.get('.platform-tabs-sort-order').text()).toBe('count_asc')
+    expect(wrapper.get('.table-account-order').text()).toBe('Gemini-1,Gateway-1,OpenAI-1,OpenAI-2')
+    expect(wrapper.get('.table-preserve-input-order').text()).toBe('true')
+    expect(wrapper.get('.platform-tabs-order').text()).toBe('all,anthropic,kiro,openai,copilot,grok,protocol_gateway,gemini,antigravity,sora')
+    expect(wrapper.get('.platform-tabs-sort-attr').text()).toBe('')
 
     wrapper.unmount()
   })
 
-  it('restores the saved platform tab sort order from localStorage', async () => {
+  it('restores the saved platform sort order from localStorage and reorders the account list', async () => {
     localStorage.setItem('account-platform-count-sort-order', 'count_desc')
     const wrapper = mountView()
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
-    expect(wrapper.get('.platform-tabs-sort-order').text()).toBe('count_desc')
+    expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gateway-1,Gemini-1')
+    expect(wrapper.get('.platform-tabs-sort-attr').text()).toBe('')
 
     wrapper.unmount()
   })
 
-  it('updates platform tab sort order from the toolbar and persists it locally', async () => {
+  it('updates platform sort order from the toolbar and persists the reordered list locally', async () => {
     const wrapper = mountView()
     await flushPromises()
 
@@ -504,7 +540,7 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
-    expect(wrapper.get('.platform-tabs-sort-order').text()).toBe('count_desc')
+    expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gateway-1,Gemini-1')
     expect(localStorage.getItem('account-platform-count-sort-order')).toBe('count_desc')
 
     wrapper.unmount()

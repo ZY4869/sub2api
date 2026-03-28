@@ -16,10 +16,20 @@ vi.mock('vue-i18n', async () => {
 })
 
 describe('AccountGroupedView', () => {
-  it('duplicates multi-group accounts across sections and keeps ungrouped accounts separate', () => {
+  it('duplicates multi-group accounts across sections, keeps ungrouped accounts separate, and preserves account order within each section', () => {
     const wrapper = mount(AccountGroupedView, {
       props: {
         accounts: [
+          {
+            id: 3,
+            name: 'BeforeShared',
+            platform: 'grok',
+            type: 'apikey',
+            status: 'active',
+            schedulable: true,
+            groups: [{ id: 1, name: 'A' }],
+            group_ids: [1]
+          },
           {
             id: 1,
             name: 'Shared',
@@ -61,14 +71,14 @@ describe('AccountGroupedView', () => {
         stubs: {
           AccountGroupSection: {
             props: ['title', 'accounts'],
-            template: '<div class="group-section">{{ title }}:{{ accounts[0]?.id }}</div>'
+            template: '<div class="group-section">{{ title }}:{{ accounts.map((account) => account.id).join(",") }}</div>'
           }
         }
       }
     })
 
     const text = wrapper.text()
-    expect(text).toContain('A:1')
+    expect(text).toContain('A:3,1')
     expect(text).toContain('B:1')
     expect(text).toContain('admin.accounts.groupView.ungrouped:2')
   })

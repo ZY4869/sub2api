@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import AccountPlatformTabs from '../AccountPlatformTabs.vue'
-import type { AccountPlatform, AccountPlatformCountSortOrder } from '@/types'
+import type { AccountPlatform } from '@/types'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -21,7 +21,6 @@ const mountTabs = (
   overrides: Partial<{
     modelValue: string
     platformCounts: Partial<Record<AccountPlatform, number>>
-    sortOrder: AccountPlatformCountSortOrder
   }> = {}
 ) => mount(AccountPlatformTabs, {
   props: {
@@ -31,7 +30,6 @@ const mountTabs = (
       openai: 4,
       grok: 2
     },
-    sortOrder: 'count_asc',
     ...overrides
   },
   global: {
@@ -48,16 +46,16 @@ const resolveOrder = (wrapper: ReturnType<typeof mountTabs>) => (
 )
 
 describe('AccountPlatformTabs', () => {
-  it('keeps the all tab first and sorts non-zero platforms from few to many', () => {
+  it('keeps the fixed platform order regardless of platform counts', () => {
     const wrapper = mountTabs()
 
     expect(resolveOrder(wrapper)).toEqual([
       'all',
       'anthropic',
-      'grok',
-      'openai',
       'kiro',
+      'openai',
       'copilot',
+      'grok',
       'protocol_gateway',
       'gemini',
       'antigravity',
@@ -65,34 +63,22 @@ describe('AccountPlatformTabs', () => {
     ])
   })
 
-  it('sorts non-zero platforms from many to few when count_desc is selected', () => {
-    const wrapper = mountTabs({
-      sortOrder: 'count_desc'
-    })
-
-    expect(resolveOrder(wrapper).slice(0, 4)).toEqual([
-      'all',
-      'openai',
-      'grok',
-      'anthropic'
-    ])
-  })
-
-  it('keeps static platform order for equal counts and places zero-count platforms last', () => {
+  it('does not reorder tabs when counts change', () => {
     const wrapper = mountTabs({
       platformCounts: {
-        openai: 2,
-        grok: 2
+        openai: 99,
+        protocol_gateway: 1,
+        gemini: 50
       }
     })
 
     expect(resolveOrder(wrapper)).toEqual([
       'all',
-      'openai',
-      'grok',
       'anthropic',
       'kiro',
+      'openai',
       'copilot',
+      'grok',
       'protocol_gateway',
       'gemini',
       'antigravity',

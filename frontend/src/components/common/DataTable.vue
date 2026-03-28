@@ -316,6 +316,11 @@ interface Props {
    */
   sortStorageKey?: string
   /**
+   * Preserve the input data order on initial render and ignore persisted sort state.
+   * Users can still sort manually within the current session.
+   */
+  preserveInputOrder?: boolean
+  /**
    * Enable server-side sorting mode. When true, clicking sort headers
    * will emit 'sort' events instead of performing client-side sorting.
    */
@@ -332,6 +337,7 @@ const props = withDefaults(defineProps<Props>(), {
   stickyActionsColumn: true,
   expandableActions: true,
   defaultSortOrder: 'asc',
+  preserveInputOrder: false,
   serverSideSort: false
 })
 
@@ -391,7 +397,18 @@ const writePersistedSortState = (state: PersistedSortState) => {
   }
 }
 
+const clearPersistedSortState = () => {
+  if (!props.sortStorageKey) return
+  try {
+    localStorage.removeItem(props.sortStorageKey)
+  } catch (e) {
+    console.error('[DataTable] Failed to clear persisted sort state:', e)
+  }
+}
+
 const resolveInitialSortState = (): PersistedSortState | null => {
+  if (props.preserveInputOrder) return null
+
   const persisted = readPersistedSortState()
   if (persisted) return persisted
 
@@ -607,6 +624,9 @@ const getAdaptivePaddingClass = () => {
 const didInitSort = ref(false)
 
 onMounted(() => {
+  if (props.preserveInputOrder) {
+    clearPersistedSortState()
+  }
   const initial = resolveInitialSortState()
   applySortState(initial)
   didInitSort.value = true
@@ -618,12 +638,20 @@ watch(
     // If current sort key is no longer sortable/visible, fall back to default/persisted.
     const normalized = normalizeSortKey(sortKey.value)
     if (!sortKey.value) {
+      if (props.preserveInputOrder) {
+        return
+      }
       const initial = resolveInitialSortState()
       applySortState(initial)
       return
     }
 
     if (!normalized) {
+      if (props.preserveInputOrder) {
+        sortKey.value = ''
+        sortOrder.value = 'asc'
+        return
+      }
       const fallback = resolveInitialSortState()
       if (fallback) {
         applySortState(fallback)
@@ -641,6 +669,7 @@ watch(
   ([nextKey, nextOrder]) => {
     if (!didInitSort.value) return
     if (!props.sortStorageKey) return
+    if (props.preserveInputOrder) return
     const key = normalizeSortKey(nextKey)
     if (!key) return
     writePersistedSortState({ key, order: normalizeSortOrder(nextOrder) })
