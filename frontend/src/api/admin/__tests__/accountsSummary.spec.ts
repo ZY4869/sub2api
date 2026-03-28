@@ -27,6 +27,7 @@ describe('admin accounts summary api', () => {
         Overloaded: 1,
         Paused: 4,
         InUse: 2,
+        RemainingAvailable: 5,
         ByPlatform: {
           openai: 5,
           kiro: 4
@@ -55,6 +56,7 @@ describe('admin accounts summary api', () => {
       overloaded: 1,
       paused: 4,
       in_use: 2,
+      remaining_available: 5,
       by_platform: {
         openai: 5,
         kiro: 4
@@ -77,12 +79,14 @@ describe('admin accounts summary api', () => {
 
     const { getStatusSummary } = await import('../accounts')
     await getStatusSummary({
+      privacy_mode: 'private',
       limited_view: 'limited_only',
       limited_reason: 'usage_7d'
     })
 
     expect(getMock).toHaveBeenCalledWith('/admin/accounts/summary', {
       params: {
+        privacy_mode: 'private',
         limited_view: 'limited_only',
         limited_reason: 'usage_7d'
       }
@@ -113,12 +117,14 @@ describe('admin accounts summary api', () => {
 
     const { getRuntimeSummary } = await import('../accounts')
     await getRuntimeSummary({
+      privacy_mode: 'unset',
       runtime_view: 'in_use_only',
       limited_view: 'limited_only'
     })
 
     expect(getMock).toHaveBeenCalledWith('/admin/accounts/runtime-summary', {
       params: {
+        privacy_mode: 'unset',
         runtime_view: 'in_use_only',
         limited_view: 'limited_only'
       }

@@ -1177,6 +1177,7 @@ export default {
       summary: {
         total: 'Total',
         active: 'Active',
+        remainingAvailable: 'Remaining Available',
         inUse: 'In Use',
         error: 'Error',
         rateLimited: 'Rate Limited',
@@ -1186,8 +1187,8 @@ export default {
         title: 'Limited Accounts',
         description: 'Review currently limited accounts and split 429 from 5h and 7d caps.',
         entry: 'Limited Accounts ({count})',
-        hideToggleOn: 'Hide Limited: On',
-        hideToggleOff: 'Hide Limited: Off',
+        hideToggleOn: 'Always Hide Limited: On',
+        hideToggleOff: 'Always Hide Limited: Off',
         summary: {
           all: 'All Limited',
           rate429: '429',

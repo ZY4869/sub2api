@@ -165,6 +165,7 @@
         <AccountProtocolGatewayModelProbeEditor
           v-if="form.platform === 'protocol_gateway'"
           v-model:allowed-models="allowedModels"
+          v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           v-model:accepted-protocols="gatewayAcceptedProtocols"
           v-model:client-profiles="gatewayClientProfiles"
@@ -838,6 +839,9 @@ watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
+      if (form.platform === 'protocol_gateway') {
+        modelRestrictionMode.value = 'mapping'
+      }
       allowedModels.value =
         form.platform === 'protocol_gateway'
           ? []
@@ -906,6 +910,7 @@ watch(
     if (newPlatform === 'protocol_gateway') {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
+      modelRestrictionMode.value = 'mapping'
       gatewayAcceptedProtocols.value = gatewayProtocol.value === 'mixed'
         ? ['openai', 'anthropic', 'gemini']
         : [gatewayProtocol.value as GatewayAcceptedProtocol]
@@ -1702,4 +1707,3 @@ const handleExchangeCode = async () => {
   }
 }
 </script>
-

@@ -123,6 +123,7 @@ vi.mock('@/composables/useAccountStatusSummary', async () => {
           overloaded: 1,
           paused: 2,
           in_use: 0,
+          remaining_available: 11,
           by_platform: {
             openai: 50
           },
@@ -337,6 +338,7 @@ describe('AccountsView', () => {
       platform: '',
       type: '',
       group: '',
+      privacy_mode: '',
       search: '',
       lifecycle: 'normal',
       limited_view: 'all',
@@ -346,6 +348,7 @@ describe('AccountsView', () => {
       platform: '',
       type: '',
       group: '',
+      privacy_mode: '',
       search: '',
       lifecycle: 'normal',
       limited_view: 'all',
@@ -363,6 +366,7 @@ describe('AccountsView', () => {
       platform: '',
       type: '',
       group: '',
+      privacy_mode: '',
       search: '',
       lifecycle: 'normal',
       limited_view: 'all',
@@ -372,6 +376,7 @@ describe('AccountsView', () => {
       platform: '',
       type: '',
       group: '',
+      privacy_mode: '',
       search: '',
       lifecycle: 'normal',
       limited_view: 'all',
@@ -420,15 +425,31 @@ describe('AccountsView', () => {
     wrapper.unmount()
   })
 
-  it('keeps the limited card navigation behavior unchanged', async () => {
+  it('filters rate-limited accounts in place when limited hiding is disabled', async () => {
     const wrapper = mountView()
     await flushPromises()
 
     await wrapper.get('.summary-rate-limited-button').trigger('click')
     await flushPromises()
 
-    expect(mockState.routerPush).toHaveBeenCalledWith({ path: '/admin/accounts/limited' })
-    expect(mockState.debouncedReload).not.toHaveBeenCalled()
+    expect(mockState.routerPush).not.toHaveBeenCalled()
+    expect(mockState.tableParams.status).toBe('rate_limited')
+    expect(mockState.tableParams.limited_view).toBe('all')
+    expect(mockState.debouncedReload).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('keeps limited accounts hidden on board selection when always-hide is enabled', async () => {
+    localStorage.setItem('account-always-hide-limited-accounts', 'true')
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.summary-rate-limited-button').trigger('click')
+    await flushPromises()
+
+    expect(mockState.tableParams.status).toBe('rate_limited')
+    expect(mockState.tableParams.limited_view).toBe('normal_only')
 
     wrapper.unmount()
   })

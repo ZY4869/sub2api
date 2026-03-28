@@ -382,7 +382,7 @@ const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 
 // Sorting settings
 const ACCOUNT_SORT_STORAGE_KEY = 'account-table-sort'
-const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY = 'account-hide-limited-accounts'
+const HIDE_LIMITED_ACCOUNTS_STORAGE_KEY = 'account-always-hide-limited-accounts'
 
 const loadHideLimitedPreference = () => {
   if (typeof window === 'undefined') {
@@ -390,10 +390,10 @@ const loadHideLimitedPreference = () => {
   }
   try {
     const saved = localStorage.getItem(HIDE_LIMITED_ACCOUNTS_STORAGE_KEY)
-    return saved === null ? true : saved === 'true'
+    return saved === 'true'
   } catch (error) {
     console.error('Failed to load limited accounts visibility:', error)
-    return true
+    return false
   }
 }
 
@@ -640,7 +640,13 @@ const {
 })
 const toolbarSummary = computed(() => ({
   ...accountSummary.value,
-  in_use: limitedMode.value ? 0 : runtimeSummaryState.value.in_use
+  in_use: limitedMode.value ? 0 : runtimeSummaryState.value.in_use,
+  remaining_available: limitedMode.value
+    ? 0
+    : Math.max(
+        (accountSummary.value.remaining_available + accountSummary.value.in_use) - runtimeSummaryState.value.in_use,
+        0
+      )
 }))
 const limitedAccountsCount = computed(() => accountSummary.value.limited_breakdown.total)
 
@@ -765,27 +771,48 @@ const handleToggleSectionSelected = ({ ids, checked }: { ids: number[]; checked:
     deselect(id)
   })
 }
-const handlePlatformTabChange = (value: string) => {
-  params.platform = value
+const applyBoardSelection = (next: {
+  platform?: string
+  status?: string
+  runtimeView?: string
+}) => {
+  if (!limitedMode.value) {
+    params.limited_view = hideLimitedAccounts.value ? 'normal_only' : 'all'
+    params.limited_reason = ''
+  }
+  if (typeof next.platform !== 'undefined') {
+    params.platform = next.platform
+  }
+  if (typeof next.status !== 'undefined') {
+    params.status = next.status
+  }
+  if (typeof next.runtimeView !== 'undefined') {
+    params.runtime_view = next.runtimeView
+  }
   debouncedReload()
 }
+
+const handlePlatformTabChange = (value: string) => {
+  applyBoardSelection({
+    platform: value
+  })
+}
 const handleSummaryStatusSelect = (status: string) => {
-  if (!limitedMode.value && status === 'rate_limited') {
-    openLimitedAccountsPage()
-    return
-  }
-  if (!limitedMode.value) {
-    params.runtime_view = 'all'
-  }
-  params.status = String(params.status || '') === status ? '' : status
-  debouncedReload()
+  const nextStatus = String(params.status || '') === status ? '' : status
+  applyBoardSelection({
+    status: nextStatus,
+    runtimeView: limitedMode.value ? String(params.runtime_view || 'all') : 'all'
+  })
 }
 const handleRuntimeViewSelect = (runtimeView: AccountRuntimeView | string) => {
   if (limitedMode.value) {
     return
   }
-  params.runtime_view = String(params.runtime_view || 'all') === runtimeView ? 'all' : runtimeView
-  debouncedReload()
+  const nextRuntimeView = String(params.runtime_view || 'all') === runtimeView ? 'all' : runtimeView
+  applyBoardSelection({
+    status: '',
+    runtimeView: nextRuntimeView
+  })
 }
 const handleLimitedReasonSelect = (reason: AccountRateLimitReason | '') => {
   params.limited_reason = activeLimitedReason.value === reason ? '' : reason

@@ -153,6 +153,7 @@
         <AccountProtocolGatewayModelProbeEditor
           v-if="isProtocolGatewayAccount"
           v-model:allowed-models="allowedModels"
+          v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           v-model:accepted-protocols="gatewayAcceptedProtocols"
           v-model:client-profiles="gatewayClientProfiles"
@@ -624,6 +625,35 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
     return false
   }
   const scope = raw as Record<string, unknown>
+  const rawManualRows = scope.manual_mapping_rows
+  if (Array.isArray(rawManualRows)) {
+    const entries = rawManualRows
+      .map((item) => {
+        const row = item as Record<string, unknown>
+        return {
+          from: String(row?.from || '').trim(),
+          to: String(row?.to || '').trim()
+        }
+      })
+      .filter((row) => row.from.length > 0 && row.to.length > 0)
+    if (entries.length > 0) {
+      modelRestrictionMode.value = 'mapping'
+      modelMappings.value = entries
+      if (isProtocolGatewayAccount.value) {
+        const selectedModels = [...new Set(entries.map(({ to }) => to))]
+        allowedModels.value = selectedModels
+        protocolGatewayProbeModels.value = selectedModels.map((modelId) => ({
+          id: modelId,
+          display_name: modelId,
+          registry_state: 'existing',
+          registry_model_id: modelId
+        }))
+      } else {
+        allowedModels.value = []
+      }
+      return true
+    }
+  }
 
   const rawManualMappings = scope.manual_mappings
   if (rawManualMappings && typeof rawManualMappings === 'object') {
@@ -633,7 +663,18 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
     if (entries.length > 0) {
       modelRestrictionMode.value = 'mapping'
       modelMappings.value = entries
-      allowedModels.value = []
+      if (isProtocolGatewayAccount.value) {
+        const selectedModels = [...new Set(entries.map(({ to }) => to))]
+        allowedModels.value = selectedModels
+        protocolGatewayProbeModels.value = selectedModels.map((modelId) => ({
+          id: modelId,
+          display_name: modelId,
+          registry_state: 'existing',
+          registry_model_id: modelId
+        }))
+      } else {
+        allowedModels.value = []
+      }
       return true
     }
   }
@@ -647,9 +688,21 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
     }
     const unique = [...new Set(values)].sort()
     if (unique.length > 0) {
-      modelRestrictionMode.value = 'whitelist'
-      allowedModels.value = unique
-      modelMappings.value = []
+      if (isProtocolGatewayAccount.value) {
+        modelRestrictionMode.value = 'mapping'
+        allowedModels.value = unique
+        modelMappings.value = unique.map((modelId) => ({ from: modelId, to: modelId }))
+        protocolGatewayProbeModels.value = unique.map((modelId) => ({
+          id: modelId,
+          display_name: modelId,
+          registry_state: 'existing',
+          registry_model_id: modelId
+        }))
+      } else {
+        modelRestrictionMode.value = 'whitelist'
+        allowedModels.value = unique
+        modelMappings.value = []
+      }
       return true
     }
   }
@@ -666,6 +719,22 @@ function applyModelRestrictionFromRecord(value: unknown) {
     modelRestrictionMode.value = 'whitelist'
     allowedModels.value = []
     modelMappings.value = []
+    if (isProtocolGatewayAccount.value) {
+      protocolGatewayProbeModels.value = []
+    }
+    return
+  }
+
+  if (isProtocolGatewayAccount.value) {
+    modelRestrictionMode.value = 'mapping'
+    modelMappings.value = entries
+    allowedModels.value = [...new Set(entries.map(({ to }) => to))]
+    protocolGatewayProbeModels.value = [...new Set(entries.map(({ to }) => to))].map((modelId) => ({
+      id: modelId,
+      display_name: modelId,
+      registry_state: 'existing',
+      registry_model_id: modelId
+    }))
     return
   }
 
@@ -928,7 +997,10 @@ watch(
         const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
         editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
 
-        applyModelRestrictionFromRecord(credentials.model_mapping)
+        const loadedFromScope = loadModelScopeFromExtra(extra)
+        if (!loadedFromScope) {
+          applyModelRestrictionFromRecord(credentials.model_mapping)
+        }
 
         loadAccountPoolModeStateFromCredentials(poolModeState, credentials, DEFAULT_POOL_MODE_RETRY_COUNT)
         loadAccountCustomErrorCodesStateFromCredentials(customErrorCodesState, credentials)
@@ -971,6 +1043,7 @@ watch(
       gatewayClientRoutes.value = []
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
+      modelMappings.value = []
     }
   },
   { immediate: true }
@@ -990,6 +1063,7 @@ watch(
     gatewayClientRoutes.value = []
     protocolGatewayProbeModels.value = []
     allowedModels.value = []
+    modelMappings.value = []
     editBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(
       props.account?.platform || 'protocol_gateway',
       newProtocol

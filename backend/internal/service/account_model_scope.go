@@ -9,10 +9,16 @@ import (
 )
 
 type AccountModelScopeV2 struct {
-	SupportedProviders        []string            `json:"supported_providers"`
-	SupportedModelsByProvider map[string][]string `json:"supported_models_by_provider"`
-	AdvancedProviderOverride  bool                `json:"advanced_provider_override"`
-	ManualMappings            map[string]string   `json:"manual_mappings"`
+	SupportedProviders        []string                            `json:"supported_providers"`
+	SupportedModelsByProvider map[string][]string                 `json:"supported_models_by_provider"`
+	AdvancedProviderOverride  bool                                `json:"advanced_provider_override"`
+	ManualMappingRows         []AccountModelScopeManualMappingRow `json:"manual_mapping_rows,omitempty"`
+	ManualMappings            map[string]string                   `json:"manual_mappings"`
+}
+
+type AccountModelScopeManualMappingRow struct {
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 func ExtractAccountModelScopeV2(extra map[string]any) (*AccountModelScopeV2, bool) {
@@ -31,9 +37,10 @@ func ExtractAccountModelScopeV2(extra map[string]any) (*AccountModelScopeV2, boo
 		SupportedProviders:        normalizeStringSliceAny(scopeMap["supported_providers"], normalizeRegistryPlatform),
 		SupportedModelsByProvider: normalizeStringSliceMapAny(scopeMap["supported_models_by_provider"], normalizeRegistryID),
 		AdvancedProviderOverride:  parseBoolAny(scopeMap["advanced_provider_override"]),
+		ManualMappingRows:         normalizeManualMappingRowsAny(scopeMap["manual_mapping_rows"]),
 		ManualMappings:            normalizeStringMapAny(scopeMap["manual_mappings"], normalizeRegistryID, normalizeRegistryID),
 	}
-	if len(scope.SupportedProviders) == 0 && len(scope.SupportedModelsByProvider) == 0 && len(scope.ManualMappings) == 0 {
+	if len(scope.SupportedProviders) == 0 && len(scope.SupportedModelsByProvider) == 0 && len(scope.ManualMappings) == 0 && len(scope.ManualMappingRows) == 0 {
 		return nil, false
 	}
 	return scope, true
@@ -97,11 +104,22 @@ func (s *ModelRegistryService) BuildModelMappingFromScopeV2(ctx context.Context,
 		}
 	}
 
-	for from, to := range scope.ManualMappings {
-		if from == "" || to == "" {
-			continue
+	if len(scope.ManualMappingRows) > 0 {
+		for _, row := range scope.ManualMappingRows {
+			from := strings.TrimSpace(row.From)
+			to := strings.TrimSpace(row.To)
+			if from == "" || to == "" {
+				continue
+			}
+			mapping[from] = to
 		}
-		mapping[from] = to
+	} else {
+		for from, to := range scope.ManualMappings {
+			if from == "" || to == "" {
+				continue
+			}
+			mapping[from] = to
+		}
 	}
 
 	sort.Strings(selectedModels)
@@ -130,6 +148,7 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 	scope := &AccountModelScopeV2{
 		SupportedProviders:        []string{},
 		SupportedModelsByProvider: map[string][]string{},
+		ManualMappingRows:         []AccountModelScopeManualMappingRow{},
 		ManualMappings:            map[string]string{},
 	}
 	providerSet := map[string]struct{}{}
@@ -144,11 +163,13 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 			canonicalID = normalizeRegistryID(from)
 		}
 		if canonicalID == "" {
+			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
 			scope.ManualMappings[from] = to
 			continue
 		}
 		detail, ok := detailIndex[canonicalID]
 		if !ok {
+			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
 			scope.ManualMappings[from] = to
 			continue
 		}
@@ -168,6 +189,7 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 			expectedTarget = normalizeRegistryID(resolved)
 		}
 		if normalizeRegistryID(from) != canonicalID || normalizeRegistryID(to) != expectedTarget {
+			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
 			scope.ManualMappings[from] = to
 		}
 	}
@@ -180,7 +202,13 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 		sort.Strings(models)
 		scope.SupportedModelsByProvider[provider] = models
 	}
-	if len(scope.SupportedProviders) == 0 && len(scope.ManualMappings) == 0 {
+	sort.Slice(scope.ManualMappingRows, func(i, j int) bool {
+		if scope.ManualMappingRows[i].From == scope.ManualMappingRows[j].From {
+			return scope.ManualMappingRows[i].To < scope.ManualMappingRows[j].To
+		}
+		return scope.ManualMappingRows[i].From < scope.ManualMappingRows[j].From
+	})
+	if len(scope.SupportedProviders) == 0 && len(scope.ManualMappings) == 0 && len(scope.ManualMappingRows) == 0 {
 		return nil
 	}
 	return scope
@@ -198,10 +226,21 @@ func (scope *AccountModelScopeV2) ToMap() map[string]any {
 	for from, to := range scope.ManualMappings {
 		manualMappings[from] = to
 	}
+	manualMappingRows := make([]map[string]any, 0, len(scope.ManualMappingRows))
+	for _, row := range scope.ManualMappingRows {
+		if strings.TrimSpace(row.From) == "" || strings.TrimSpace(row.To) == "" {
+			continue
+		}
+		manualMappingRows = append(manualMappingRows, map[string]any{
+			"from": row.From,
+			"to":   row.To,
+		})
+	}
 	return map[string]any{
 		"supported_providers":          append([]string(nil), scope.SupportedProviders...),
 		"supported_models_by_provider": modelsByProvider,
 		"advanced_provider_override":   scope.AdvancedProviderOverride,
+		"manual_mapping_rows":          manualMappingRows,
 		"manual_mappings":              manualMappings,
 	}
 }
@@ -301,6 +340,48 @@ func normalizeStringMapAny(raw any, normalizeKey func(string) string, normalizeV
 		result[normalizedKey] = normalizedValue
 	}
 	return result
+}
+
+func normalizeManualMappingRowsAny(raw any) []AccountModelScopeManualMappingRow {
+	values, ok := raw.([]any)
+	if !ok {
+		if typed, ok := raw.([]map[string]any); ok {
+			values = make([]any, 0, len(typed))
+			for _, item := range typed {
+				values = append(values, item)
+			}
+		} else {
+			return nil
+		}
+	}
+	rows := make([]AccountModelScopeManualMappingRow, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, item := range values {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		from, ok := entry["from"].(string)
+		if !ok {
+			continue
+		}
+		to, ok := entry["to"].(string)
+		if !ok {
+			continue
+		}
+		from = strings.TrimSpace(from)
+		to = strings.TrimSpace(to)
+		if from == "" || to == "" {
+			continue
+		}
+		key := from + "\x00" + to
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		rows = append(rows, AccountModelScopeManualMappingRow{From: from, To: to})
+	}
+	return rows
 }
 
 func parseBoolAny(raw any) bool {

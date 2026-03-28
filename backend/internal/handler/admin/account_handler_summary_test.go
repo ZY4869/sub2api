@@ -25,6 +25,7 @@ func TestAccountHandlerGetStatusSummaryUsesSnakeCaseJSON(t *testing.T) {
 		Overloaded:        1,
 		Paused:            4,
 		InUse:             2,
+		DispatchableCount: 7,
 		ByPlatform: map[string]int64{
 			"openai": 7,
 			"kiro":   5,
@@ -45,14 +46,15 @@ func TestAccountHandlerGetStatusSummaryUsesSnakeCaseJSON(t *testing.T) {
 	var resp struct {
 		Code int `json:"code"`
 		Data struct {
-			Total             int64            `json:"total"`
-			ByStatus          map[string]int64 `json:"by_status"`
-			RateLimited       int64            `json:"rate_limited"`
-			TempUnschedulable int64            `json:"temp_unschedulable"`
-			Overloaded        int64            `json:"overloaded"`
-			Paused            int64            `json:"paused"`
-			InUse             int64            `json:"in_use"`
-			ByPlatform        map[string]int64 `json:"by_platform"`
+			Total              int64            `json:"total"`
+			ByStatus           map[string]int64 `json:"by_status"`
+			RateLimited        int64            `json:"rate_limited"`
+			TempUnschedulable  int64            `json:"temp_unschedulable"`
+			Overloaded         int64            `json:"overloaded"`
+			Paused             int64            `json:"paused"`
+			InUse              int64            `json:"in_use"`
+			RemainingAvailable int64            `json:"remaining_available"`
+			ByPlatform         map[string]int64 `json:"by_platform"`
 		} `json:"data"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
@@ -66,6 +68,55 @@ func TestAccountHandlerGetStatusSummaryUsesSnakeCaseJSON(t *testing.T) {
 	require.Equal(t, int64(1), resp.Data.Overloaded)
 	require.Equal(t, int64(4), resp.Data.Paused)
 	require.Equal(t, int64(2), resp.Data.InUse)
+	require.Equal(t, int64(5), resp.Data.RemainingAvailable)
 	require.Equal(t, int64(7), resp.Data.ByPlatform["openai"])
 	require.Equal(t, int64(5), resp.Data.ByPlatform["kiro"])
+}
+
+func TestAccountHandlerGetStatusSummaryFiltersPrivacyModeAndComputesRemainingAvailable(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.accounts = []service.Account{
+		{
+			ID:          1,
+			Name:        "private-openai",
+			Platform:    service.PlatformOpenAI,
+			Type:        service.AccountTypeAPIKey,
+			Status:      service.StatusActive,
+			Schedulable: true,
+			Extra: map[string]any{
+				"privacy_mode": "private",
+			},
+		},
+		{
+			ID:          2,
+			Name:        "public-openai",
+			Platform:    service.PlatformOpenAI,
+			Type:        service.AccountTypeAPIKey,
+			Status:      service.StatusActive,
+			Schedulable: true,
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.GET("/api/v1/admin/accounts/summary", handler.GetStatusSummary)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/summary?platform=openai&privacy_mode=private", nil)
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Code int `json:"code"`
+		Data struct {
+			Total              int64 `json:"total"`
+			RemainingAvailable int64 `json:"remaining_available"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, 0, resp.Code)
+	require.Equal(t, int64(1), resp.Data.Total)
+	require.Equal(t, int64(1), resp.Data.RemainingAvailable)
 }

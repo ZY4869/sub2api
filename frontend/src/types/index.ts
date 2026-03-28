@@ -835,6 +835,7 @@ export interface AccountStatusSummary {
   overloaded: number;
   paused: number;
   in_use: number;
+  remaining_available: number;
   by_platform: Partial<Record<AccountPlatform, number>>;
   limited_breakdown: {
     total: number;

@@ -264,6 +264,9 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 		if lifecycle != service.AccountLifecycleAll && accountLifecycle != lifecycle {
 			continue
 		}
+		if !matchesPrivacyMode(account, privacyMode) {
+			continue
+		}
 		filtered = append(filtered, account)
 	}
 
@@ -318,6 +321,9 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 		if search != "" && !strings.Contains(strings.ToLower(account.Name), search) {
 			continue
 		}
+		if !matchesPrivacyMode(account, filters.PrivacyMode) {
+			continue
+		}
 
 		matchesGroup := true
 		if filters.GroupID == service.AccountListGroupUngrouped {
@@ -357,12 +363,31 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 			if !account.Schedulable {
 				summary.Paused++
 			}
+			if account.Status == service.StatusActive &&
+				account.Schedulable &&
+				(account.RateLimitResetAt == nil || !account.RateLimitResetAt.After(time.Now())) &&
+				(account.TempUnschedulableUntil == nil || !account.TempUnschedulableUntil.After(time.Now())) &&
+				(account.OverloadUntil == nil || !account.OverloadUntil.After(time.Now())) {
+				summary.DispatchableCount++
+			}
 		}
 
 		summary.ByPlatform[account.Platform]++
 	}
 
 	return summary, nil
+}
+
+func matchesPrivacyMode(account service.Account, privacyMode string) bool {
+	normalized := strings.TrimSpace(privacyMode)
+	if normalized == "" {
+		return true
+	}
+	accountPrivacyMode := strings.TrimSpace(account.GetExtraString("privacy_mode"))
+	if normalized == "unset" {
+		return accountPrivacyMode == ""
+	}
+	return accountPrivacyMode == normalized
 }
 
 func (s *stubAdminService) ListArchivedGroups(ctx context.Context, filters service.ArchivedAccountGroupFilters) ([]service.ArchivedAccountGroupSummary, error) {

@@ -50,6 +50,7 @@ func (h *AccountHandler) GetRuntimeSummary(c *gin.Context) {
 		Search:        search,
 		GroupID:       groupID,
 		Lifecycle:     c.DefaultQuery("lifecycle", service.AccountLifecycleNormal),
+		PrivacyMode:   strings.TrimSpace(c.Query("privacy_mode")),
 		LimitedView:   service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll)),
 		LimitedReason: service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason")),
 		RuntimeView:   service.NormalizeAccountRuntimeViewInput(c.DefaultQuery("runtime_view", service.AccountRuntimeViewAll)),
@@ -191,6 +192,17 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 	}
 	if accountType := strings.TrimSpace(filters.AccountType); accountType != "" && !strings.EqualFold(account.Type, accountType) {
 		return false
+	}
+	privacyMode := strings.TrimSpace(filters.PrivacyMode)
+	if privacyMode != "" {
+		accountPrivacyMode := strings.TrimSpace(account.GetExtraString("privacy_mode"))
+		if privacyMode == "unset" {
+			if accountPrivacyMode != "" {
+				return false
+			}
+		} else if accountPrivacyMode != privacyMode {
+			return false
+		}
 	}
 	search := strings.TrimSpace(strings.ToLower(filters.Search))
 	if search != "" && !strings.Contains(strings.ToLower(account.Name), search) {

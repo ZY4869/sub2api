@@ -43,6 +43,7 @@ function mountRuntimeSummary(options: {
     platform: '',
     type: '',
     group: '',
+    privacy_mode: 'private',
     search: '',
     lifecycle: 'normal',
     limited_view: 'all',
@@ -94,7 +95,7 @@ describe('useAccountsRuntimeSummary', () => {
     await Promise.resolve()
 
     expect(apiMocks.getRuntimeSummaryWithEtag).toHaveBeenCalledWith(
-      expect.objectContaining({ runtime_view: 'all' }),
+      expect.objectContaining({ runtime_view: 'all', privacy_mode: 'private' }),
       { etag: null }
     )
     expect(exposed.summary.value.in_use).toBe(4)
@@ -126,7 +127,7 @@ describe('useAccountsRuntimeSummary', () => {
 
     expect(intervalMocks.resume).toHaveBeenCalled()
     expect(apiMocks.getRuntimeSummaryWithEtag).toHaveBeenLastCalledWith(
-      expect.objectContaining({ runtime_view: 'all' }),
+      expect.objectContaining({ runtime_view: 'all', privacy_mode: 'private' }),
       { etag: null }
     )
     wrapper.unmount()

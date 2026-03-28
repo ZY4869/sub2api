@@ -155,7 +155,7 @@
             type="button"
             :title="model.id"
             :class="cardClasses(model)"
-            @click="toggleModel(model.id)"
+            @click="toggleModel(model)"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
@@ -222,6 +222,41 @@
                 {{ t('admin.accounts.protocolGateway.clearSimulation') }}
               </button>
             </div>
+
+            <div
+              v-if="isSelected(model.id)"
+              class="mt-3 space-y-2 rounded-xl border border-white/60 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5"
+              @click.stop
+            >
+              <div class="grid gap-2 md:grid-cols-2">
+                <label class="space-y-1 text-left">
+                  <span class="text-[11px] font-medium uppercase tracking-wide opacity-70">
+                    {{ t('admin.accounts.requestModel') }}
+                  </span>
+                  <input
+                    :value="currentAlias(model.id)"
+                    type="text"
+                    class="input h-10 bg-white/90 text-sm dark:bg-dark-900/60"
+                    :placeholder="model.id"
+                    @input="updateModelAlias(model, ($event.target as HTMLInputElement).value)"
+                    @blur="normalizeModelAlias(model)"
+                    @click.stop
+                  />
+                </label>
+                <label class="space-y-1 text-left">
+                  <span class="text-[11px] font-medium uppercase tracking-wide opacity-70">
+                    {{ t('admin.accounts.actualModel') }}
+                  </span>
+                  <input
+                    :value="model.id"
+                    type="text"
+                    class="input h-10 cursor-not-allowed bg-gray-100/90 text-sm text-gray-500 dark:bg-dark-900/60 dark:text-gray-400"
+                    readonly
+                    @click.stop
+                  />
+                </label>
+              </div>
+            </div>
           </button>
         </div>
       </section>
@@ -252,6 +287,7 @@ import type {
   GatewayClientRoute,
   GatewayProtocol
 } from '@/types'
+import type { ModelMapping } from '@/utils/accountFormShared'
 import {
   PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS,
   normalizeGatewayAcceptedProtocol,
@@ -273,6 +309,7 @@ const emit = defineEmits<{
 }>()
 
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
+const modelMappings = defineModel<ModelMapping[]>('modelMappings', { required: true })
 const probedModels = defineModel<ProtocolGatewayProbeModel[]>('probedModels', { required: true })
 const acceptedProtocols = defineModel<GatewayAcceptedProtocol[]>('acceptedProtocols', { required: true })
 const clientProfiles = defineModel<GatewayClientProfile[]>('clientProfiles', { required: true })
@@ -352,19 +389,87 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => [allowedModels.value.join('\x00'), modelMappings.value.length] as const,
+  () => {
+    const selected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
+    const nextMappings = modelMappings.value.filter((row) => selected.has(row.to.trim()))
+    if (nextMappings.length !== modelMappings.value.length) {
+      modelMappings.value = nextMappings
+    }
+    const nextRoutes = clientRoutes.value.filter((route) => selected.has(route.match_value.trim()))
+    if (nextRoutes.length !== clientRoutes.value.length) {
+      clientRoutes.value = normalizeGatewayClientRoutes(nextRoutes)
+    }
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [probedModels.value.length, modelMappings.value.length] as const,
+  ([modelCount, mappingCount]) => {
+    if (modelCount > 0 || mappingCount === 0) {
+      return
+    }
+    const seen = new Set<string>()
+    probedModels.value = modelMappings.value
+      .map((row) => row.to.trim())
+      .filter((modelId) => {
+        if (!modelId || seen.has(modelId)) {
+          return false
+        }
+        seen.add(modelId)
+        return true
+      })
+      .map((modelId) => ({
+        id: modelId,
+        display_name: modelId,
+        registry_state: 'existing' as const,
+        registry_model_id: modelId
+      }))
+  },
+  { immediate: true }
+)
+
 const isSelected = (modelId: string) => allowedModels.value.includes(modelId)
 const isAcceptedProtocolSelected = (protocol: GatewayAcceptedProtocol) =>
   normalizedAcceptedProtocols.value.includes(protocol)
 const isClientProfileSelected = (profile: GatewayClientProfile) =>
   clientProfiles.value.includes(profile)
 
-const toggleModel = (modelId: string) => {
-  if (isSelected(modelId)) {
-    allowedModels.value = allowedModels.value.filter((item) => item !== modelId)
-    clientRoutes.value = clientRoutes.value.filter((route) => route.match_value !== modelId)
+const findMappingIndexByTarget = (modelId: string) =>
+  modelMappings.value.findIndex((row) => row.to.trim() === modelId)
+
+const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
+  const index = findMappingIndexByTarget(model.id)
+  if (index >= 0) {
+    const nextMappings = [...modelMappings.value]
+    const current = nextMappings[index]
+    nextMappings[index] = {
+      from: current.from || model.id,
+      to: model.id
+    }
+    modelMappings.value = nextMappings
     return
   }
-  allowedModels.value = [...allowedModels.value, modelId]
+  modelMappings.value = [
+    ...modelMappings.value,
+    {
+      from: model.id,
+      to: model.id
+    }
+  ]
+}
+
+const toggleModel = (model: ProtocolGatewayProbeModel) => {
+  if (isSelected(model.id)) {
+    allowedModels.value = allowedModels.value.filter((item) => item !== model.id)
+    clientRoutes.value = clientRoutes.value.filter((route) => route.match_value !== model.id)
+    modelMappings.value = modelMappings.value.filter((row) => row.to.trim() !== model.id)
+    return
+  }
+  allowedModels.value = [...allowedModels.value, model.id]
+  ensureMappingForModel(model)
 }
 
 const toggleAcceptedProtocol = (protocol: GatewayAcceptedProtocol) => {
@@ -444,6 +549,26 @@ const routeProfileMap = computed(() => {
 const currentRouteProfile = (model: ProtocolGatewayProbeModel) =>
   routeProfileMap.value.get(routeKeyForModel(model))
 
+const currentAlias = (modelId: string) =>
+  modelMappings.value.find((row) => row.to.trim() === modelId)?.from || modelId
+
+const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
+  ensureMappingForModel(model)
+  modelMappings.value = modelMappings.value.map((row) =>
+    row.to.trim() === model.id
+      ? {
+          from: value,
+          to: model.id
+        }
+      : row
+  )
+}
+
+const normalizeModelAlias = (model: ProtocolGatewayProbeModel) => {
+  const nextAlias = currentAlias(model.id).trim() || model.id
+  updateModelAlias(model, nextAlias)
+}
+
 const availableProfilesForModel = (model: ProtocolGatewayProbeModel) => {
   const protocol = resolveModelProtocol(model)
   return supportedGatewayClientProfilesForProtocol(protocol).filter((profile) =>
@@ -487,7 +612,7 @@ const applyProfileToAll = (profile: GatewayClientProfile) => {
     clientProfiles.value = [...clientProfiles.value, profile]
   }
   const nextRoutes = clientRoutes.value.filter((route) => route.match_type !== 'exact')
-  for (const model of probedModels.value) {
+  for (const model of probedModels.value.filter((item) => isSelected(item.id))) {
     const protocol = resolveModelProtocol(model)
     if (!supportedGatewayClientProfilesForProtocol(protocol).includes(profile)) {
       continue
@@ -564,8 +689,17 @@ const handleProbe = async () => {
       api_key: trimmedApiKey.value,
       proxy_id: props.proxyId ?? undefined
     })
+    const aliasByTarget = new Map(
+      modelMappings.value
+        .map((row) => [row.to.trim(), row.from.trim()] as const)
+        .filter(([target, alias]) => Boolean(target) && Boolean(alias))
+    )
     probedModels.value = result.models
     allowedModels.value = result.models.map((model) => model.id)
+    modelMappings.value = result.models.map((model) => ({
+      from: aliasByTarget.get(model.id) || model.id,
+      to: model.id
+    }))
     probeSource.value = result.probe_source || ''
     probeNotice.value = result.probe_notice || ''
     emit('probed', result)

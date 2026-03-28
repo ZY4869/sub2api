@@ -35,6 +35,7 @@ func (h *AccountHandler) GetStatusSummary(c *gin.Context) {
 		Search:        search,
 		GroupID:       groupID,
 		Lifecycle:     c.DefaultQuery("lifecycle", service.AccountLifecycleNormal),
+		PrivacyMode:   strings.TrimSpace(c.Query("privacy_mode")),
 		LimitedView:   service.NormalizeAccountLimitedViewInput(c.DefaultQuery("limited_view", service.AccountLimitedViewAll)),
 		LimitedReason: service.NormalizeAccountRateLimitReasonInput(c.Query("limited_reason")),
 		RuntimeView:   service.NormalizeAccountRuntimeViewInput(c.DefaultQuery("runtime_view", service.AccountRuntimeViewAll)),
@@ -56,10 +57,12 @@ func (h *AccountHandler) GetStatusSummary(c *gin.Context) {
 		} else {
 			summary.InUse = summary.Total
 		}
+		summary.RemainingAvailable = 0
 		response.Success(c, summary)
 		return
 	}
 	if h.concurrencyService == nil && h.sessionLimitCache == nil {
+		summary.RemainingAvailable = clampRemainingAvailable(summary.DispatchableCount, summary.InUse)
 		response.Success(c, summary)
 		return
 	}
@@ -69,5 +72,14 @@ func (h *AccountHandler) GetStatusSummary(c *gin.Context) {
 		return
 	}
 	summary.InUse = inUseCount
+	summary.RemainingAvailable = clampRemainingAvailable(summary.DispatchableCount, inUseCount)
 	response.Success(c, summary)
+}
+
+func clampRemainingAvailable(dispatchableCount int64, inUseCount int64) int64 {
+	remaining := dispatchableCount - inUseCount
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
 }

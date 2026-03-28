@@ -32,6 +32,7 @@ export function useAccountsRuntimeSummary(
       platform: String(params.platform || ''),
       type: String(params.type || ''),
       group: String(params.group || ''),
+      privacy_mode: String(params.privacy_mode || ''),
       search: String(params.search || ''),
       lifecycle: String(params.lifecycle || ''),
       limited_view: String(params.limited_view || ''),

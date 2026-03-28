@@ -106,7 +106,7 @@ func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 			"base_url": strings.TrimSpace(req.BaseURL),
 		},
 		Extra: map[string]any{
-			"gateway_protocol":          descriptor.ID,
+			"gateway_protocol": descriptor.ID,
 			"gateway_accepted_protocols": service.NormalizeGatewayAcceptedProtocols(descriptor.ID, map[string]any{
 				"gateway_accepted_protocols": req.AcceptedProtocols,
 			}),
@@ -295,6 +295,10 @@ func (h *AccountHandler) filterAvailableModelsByScope(ctx context.Context, defau
 		for _, modelID := range models {
 			appendAllowed(modelID)
 		}
+	}
+	for _, row := range scope.ManualMappingRows {
+		appendAllowed(row.From)
+		appendAllowed(row.To)
 	}
 	for from, to := range scope.ManualMappings {
 		appendAllowed(from)

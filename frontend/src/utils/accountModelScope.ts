@@ -33,13 +33,21 @@ export function buildAccountModelScopeExtra(
             .filter(([from, to]) => Boolean(from) && Boolean(to))
         )
       : {}
+  const manualMappingRows =
+    options.mode === 'mapping'
+      ? options.modelMappings
+          .map((item) => ({ from: item.from.trim(), to: item.to.trim() }))
+          .filter((item) => Boolean(item.from) && Boolean(item.to))
+      : []
 
   const selectedModels =
     options.mode === 'whitelist'
       ? options.allowedModels
-      : options.modelMappings
-          .map((item) => item.from.trim())
-          .filter((value) => value && !value.includes('*'))
+      : (options.allowedModels.length > 0
+          ? options.allowedModels
+          : options.modelMappings
+              .map((item) => item.from.trim())
+              .filter((value) => value && !value.includes('*')))
 
   const supportedModelsByProvider: Record<string, string[]> = {}
 
@@ -76,7 +84,7 @@ export function buildAccountModelScopeExtra(
     supportedModelsByProvider[provider] = [...supportedModelsByProvider[provider]].sort()
   }
 
-  if (supportedProviders.length === 0 && Object.keys(manualMappings).length === 0) {
+  if (supportedProviders.length === 0 && Object.keys(manualMappings).length === 0 && manualMappingRows.length === 0) {
     delete nextExtra.model_scope_v2
     return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
   }
@@ -85,6 +93,7 @@ export function buildAccountModelScopeExtra(
     supported_providers: supportedProviders,
     supported_models_by_provider: supportedModelsByProvider,
     advanced_provider_override: false,
+    manual_mapping_rows: manualMappingRows,
     manual_mappings: manualMappings
   }
   return nextExtra

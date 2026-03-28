@@ -620,6 +620,7 @@ export async function getStatusSummary(filters?: {
   platform?: string
   type?: string
   group?: string
+  privacy_mode?: string
   search?: string
   lifecycle?: string
   limited_view?: string
@@ -636,6 +637,7 @@ export async function getRuntimeSummary(filters?: {
   platform?: string
   type?: string
   group?: string
+  privacy_mode?: string
   search?: string
   lifecycle?: string
   limited_view?: string
@@ -653,6 +655,7 @@ export async function getRuntimeSummaryWithEtag(
     platform?: string
     type?: string
     group?: string
+    privacy_mode?: string
     search?: string
     lifecycle?: string
     limited_view?: string
@@ -716,6 +719,7 @@ function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
     overloaded: Number(raw?.overloaded ?? raw?.Overloaded ?? 0),
     paused: Number(raw?.paused ?? raw?.Paused ?? 0),
     in_use: Number(raw?.in_use ?? raw?.InUse ?? 0),
+    remaining_available: Number(raw?.remaining_available ?? raw?.RemainingAvailable ?? 0),
     by_platform: normalizePlatformCounts(raw?.by_platform ?? raw?.ByPlatform),
     limited_breakdown: {
       total: Number(raw?.limited_breakdown?.total ?? raw?.LimitedBreakdown?.total ?? 0),

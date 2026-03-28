@@ -1259,6 +1259,7 @@
       summary: {
         total: '总计',
         active: '活跃',
+        remainingAvailable: '剩余可用',
         inUse: '正在使用',
         error: '错误',
         rateLimited: '限流',
@@ -1268,8 +1269,8 @@
         title: '受限账号',
         description: '集中查看当前受限账号，并区分 429、5 小时上限和 7 天上限。',
         entry: '受限账号（{count}）',
-        hideToggleOn: '隐藏受限账号：开',
-        hideToggleOff: '隐藏受限账号：关',
+        hideToggleOn: '始终隐藏限流账号：开',
+        hideToggleOff: '始终隐藏限流账号：关',
         summary: {
           all: '全部受限',
           rate429: '429',

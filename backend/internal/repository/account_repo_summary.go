@@ -8,7 +8,7 @@ import (
 )
 
 func (r *accountRepository) GetStatusSummary(ctx context.Context, filters service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
-	normalized := normalizeAdminAccountListFilters(filters.Platform, filters.AccountType, "", filters.Search, filters.GroupID, filters.Lifecycle, "")
+	normalized := normalizeAdminAccountListFilters(filters.Platform, filters.AccountType, "", filters.Search, filters.GroupID, filters.Lifecycle, filters.PrivacyMode)
 	normalized.LimitedView = service.NormalizeAccountLimitedViewInput(filters.LimitedView)
 	normalized.LimitedReason = service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason)
 	normalized.RuntimeView = service.NormalizeAccountRuntimeViewInput(filters.RuntimeView)
@@ -69,6 +69,13 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			COUNT(*) FILTER (WHERE status = $1) AS active_count,
 			COUNT(*) FILTER (WHERE status = $2 OR status = $4) AS inactive_count,
 			COUNT(*) FILTER (WHERE status = $3) AS error_count,
+			COUNT(*) FILTER (
+				WHERE status = $1
+					AND schedulable = TRUE
+					AND (rate_limit_reset_at IS NULL OR rate_limit_reset_at <= NOW())
+					AND (temp_unschedulable_until IS NULL OR temp_unschedulable_until <= NOW())
+					AND (overload_until IS NULL OR overload_until <= NOW())
+			) AS dispatchable_count,
 			COUNT(*) FILTER (WHERE rate_limit_reset_at IS NOT NULL AND rate_limit_reset_at > NOW()) AS rate_limited_count,
 			COUNT(*) FILTER (WHERE temp_unschedulable_until IS NOT NULL AND temp_unschedulable_until > NOW()) AS temp_unschedulable_count,
 			COUNT(*) FILTER (WHERE overload_until IS NOT NULL AND overload_until > NOW()) AS overloaded_count,
@@ -96,6 +103,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		&activeCount,
 		&inactiveCount,
 		&errorCount,
+		&summary.DispatchableCount,
 		&summary.RateLimited,
 		&summary.TempUnschedulable,
 		&summary.Overloaded,
