@@ -1853,16 +1853,26 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 
 	baseURL := account.GetCredential("base_url")
 	if baseURL == "" {
-		baseURL = geminicli.AIStudioBaseURL
+		if account.IsGeminiVertexExpress() {
+			baseURL = geminicli.VertexAIBaseURL
+		} else {
+			baseURL = geminicli.AIStudioBaseURL
+		}
 	}
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use streamGenerateContent for real-time feedback
 	fullURL := fmt.Sprintf("%s/v1beta/models/%s:streamGenerateContent?alt=sse",
 		strings.TrimRight(normalizedBaseURL, "/"), modelID)
+	if account.IsGeminiVertexExpress() {
+		actionPath, err := account.GeminiVertexExpressModelActionPath(modelID, "streamGenerateContent")
+		if err != nil {
+			return nil, err
+		}
+		fullURL = strings.TrimRight(normalizedBaseURL, "/") + actionPath
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", fullURL, bytes.NewReader(payload))
 	if err != nil {
@@ -1870,7 +1880,14 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", apiKey)
+	if account.IsGeminiVertexExpress() {
+		query := req.URL.Query()
+		query.Set("key", apiKey)
+		query.Set("alt", "sse")
+		req.URL.RawQuery = query.Encode()
+	} else {
+		req.Header.Set("x-goog-api-key", apiKey)
+	}
 	if mimicGeminiCLI {
 		req.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
 	}

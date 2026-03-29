@@ -46,6 +46,22 @@ func (s *GatewayService) GetAPIKeyPublicModels(ctx context.Context, apiKey *APIK
 				continue
 			}
 			mapping := account.GetModelMapping()
+			if len(mapping) == 0 && account.IsGeminiVertexSource() && strings.EqualFold(bindingPlatform, PlatformGemini) {
+				for _, source := range GeminiVertexCatalogModelIDs() {
+					entry, ok := buildAPIKeyPublicModelEntry(mode, DefaultVertexPublicModelAlias(source), source, bindingPlatform)
+					if !ok {
+						continue
+					}
+					if _, matched := bindingMatchesModel(binding.ModelPatterns, entry.PublicID); !matched {
+						continue
+					}
+					if _, exists := entriesByID[entry.PublicID]; exists {
+						continue
+					}
+					entriesByID[entry.PublicID] = entry
+				}
+				continue
+			}
 			if len(mapping) == 0 {
 				continue
 			}

@@ -688,6 +688,7 @@ export interface ProxyQualityCheckResult {
 export interface GeminiCredentials {
   // API Key authentication
   api_key?: string;
+  gemini_api_variant?: "ai_studio" | "vertex_express" | string;
 
   // OAuth authentication
   access_token?: string;

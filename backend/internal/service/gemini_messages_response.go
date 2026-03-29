@@ -359,15 +359,17 @@ func (s *GeminiMessagesCompatService) ForwardAIStudioGET(ctx context.Context, ac
 	if path == "" || !strings.HasPrefix(path, "/") {
 		return nil, errors.New("invalid path")
 	}
-	baseURL := account.GetGeminiBaseURL(geminicli.AIStudioBaseURL)
-	if account.IsGeminiVertexAI() {
-		baseURL = account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
-		vertexPath, err := buildGeminiVertexGETPath(account, path)
-		if err != nil {
-			return nil, err
+	if account.IsGeminiVertexExpress() || account.IsGeminiVertexAI() {
+		switch {
+		case path == "/v1beta/models":
+			return buildGeminiVertexCatalogModelsResponse()
+		case strings.HasPrefix(path, "/v1beta/models/"):
+			return buildGeminiVertexCatalogModelResponse(strings.TrimPrefix(path, "/v1beta/models/"))
+		default:
+			return nil, fmt.Errorf("unsupported vertex AI GET path: %s", path)
 		}
-		path = vertexPath
 	}
+	baseURL := account.GetGeminiBaseURL(geminicli.AIStudioBaseURL)
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
 		return nil, err

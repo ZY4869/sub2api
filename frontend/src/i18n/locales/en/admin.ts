@@ -2197,8 +2197,15 @@ export default {
         },
         vertex: {
           formTitle: 'Vertex AI Official Credentials',
-          formDescription: 'Upload a Google Cloud service account JSON. The server exchanges it for short-lived Bearer tokens using the official Google flow instead of browser OAuth redirects.',
-          formInlineHint: 'Vertex AI credentials are saved directly on this page and use the official service account token exchange flow.',
+          formDescription: 'Supports both Service Account and Vertex AI Studio Key official flows. Service Account probing first validates the official countTokens path, then returns the built-in Vertex model catalog without browser OAuth redirects.',
+          formInlineHint: 'Vertex AI credentials are saved directly on this page and can switch between Service Account and Vertex AI Studio Key modes.',
+          authModeLabel: 'Auth Mode',
+          authModes: {
+            serviceAccountTitle: 'Service Account',
+            serviceAccountDesc: 'Upload a Google Cloud service account JSON and let the server exchange short-lived Bearer tokens with the official flow.',
+            expressTitle: 'Vertex AI Studio Key',
+            expressDesc: 'Use a Vertex AI Express Mode / Studio Key to call the official Vertex API directly with API key auth.'
+          },
           projectId: 'GCP Project ID',
           projectIdPlaceholder: 'my-gcp-project',
           projectIdHint: 'Used to build the Vertex AI Publisher Models API path. The value is prefetched from the uploaded JSON when available.',
@@ -2208,7 +2215,7 @@ export default {
           locationHint: 'The dropdown includes the currently documented Google model endpoint regions.',
           locationRequired: 'Enter the Vertex AI location',
           serviceAccountJson: 'Service Account JSON',
-          serviceAccountJsonHint: 'Only `type=service_account` JSON files are supported. The file must contain client_email, private_key, and token_uri.',
+          serviceAccountJsonHint: 'Only `type=service_account` JSON files are supported. The file must contain client_email, private_key, and token_uri. Model probing first validates the official countTokens path, then returns the built-in Vertex model catalog.',
           serviceAccountJsonInvalid: 'The uploaded file is not a valid Vertex AI service account JSON file.',
           serviceAccountJsonRequired: 'Upload a Vertex AI service account JSON file.',
           uploadFile: 'Upload JSON',
@@ -2225,8 +2232,13 @@ export default {
           accessTokenRequired: 'Enter the Vertex AI Access Token',
           expiresAt: 'Expires At',
           expiresAtHint: 'Only used by legacy manually-entered token accounts.',
+          expressApiKey: 'Vertex AI Studio Key',
+          expressApiKeyPlaceholder: 'AIza...',
+          expressApiKeyHint: 'Uses the official Vertex AI Studio / Express Mode API key with `key=` query authentication.',
+          expressApiKeyRequired: 'Enter the Vertex AI Studio Key',
           baseUrl: 'Base URL',
           baseUrlHint: 'The official endpoint is derived from the selected region. Manual edits stop auto-overrides.',
+          expressBaseUrlHint: 'Defaults to the official Express Mode endpoint `https://aiplatform.googleapis.com`. Manual edits stop auto-overrides.',
           legacyTitle: 'Legacy Manual Token Compatibility',
           legacyHint: 'This account is still using the older manual Access Token mode. You can keep it as-is or upload a service account JSON to migrate.'
         }

@@ -19,6 +19,7 @@ var defaultSensitiveKeys = map[string]struct{}{
 	"refresh_token":      {},
 	"id_token":           {},
 	"client_secret":      {},
+	"api_key":            {},
 	"password":           {},
 }
 
@@ -30,6 +31,7 @@ var defaultSensitiveKeyList = []string{
 	"refresh_token",
 	"id_token",
 	"client_secret",
+	"api_key",
 	"password",
 }
 

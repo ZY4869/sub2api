@@ -92,9 +92,11 @@
 
         <AccountGeminiVertexCredentialsEditor
           v-if="form.platform === 'gemini' && accountCategory === 'vertex_ai'"
+          v-model:auth-mode="geminiVertexAuthMode"
           v-model:project-id="geminiVertexProjectId"
           v-model:location="geminiVertexLocation"
           v-model:service-account-json="geminiVertexServiceAccountJson"
+          v-model:api-key="geminiVertexApiKey"
           v-model:legacy-access-token="geminiVertexAccessToken"
           v-model:legacy-expires-at-input="geminiVertexExpiresAtInput"
           v-model:base-url="geminiVertexBaseUrl"
@@ -107,7 +109,7 @@
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           platform="gemini"
-          account-type="oauth"
+          :account-type="geminiVertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'"
           :credentials="vertexProbeCredentials"
           :probe-ready="isVertexProbeReady"
           :proxy-id="form.proxy_id"
@@ -168,7 +170,7 @@
       />
 
       <!-- API Key input (only for apikey type, excluding Antigravity which has its own fields) -->
-      <div v-if="form.type === 'apikey' && form.platform !== 'antigravity'" class="space-y-4">
+      <div v-if="showCommonApiKeySection" class="space-y-4">
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="apiKeyBaseUrl"
           v-model:api-key="apiKeyValue"
@@ -554,7 +556,12 @@ import {
   type GeminiBrowserOAuthType,
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
-import { resolveVertexBaseUrl } from '@/utils/vertexAi'
+import {
+  GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
+  resolveVertexAuthBaseUrl,
+  resolveVertexBaseUrl,
+  type VertexAuthMode
+} from '@/utils/vertexAi'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
   OPENAI_WS_MODE_OFF,
@@ -682,9 +689,11 @@ const antigravityAccountType = ref<'oauth' | 'upstream'>('oauth') // For antigra
 const soraAccountType = ref<'oauth' | 'apikey'>('oauth') // For sora: oauth or apikey (upstream)
 const upstreamBaseUrl = ref('') // For upstream type: base URL
 const upstreamApiKey = ref('') // For upstream type: API key
+const geminiVertexAuthMode = ref<VertexAuthMode>('service_account')
 const geminiVertexProjectId = ref('')
 const geminiVertexLocation = ref('')
 const geminiVertexServiceAccountJson = ref('')
+const geminiVertexApiKey = ref('')
 const geminiVertexAccessToken = ref('')
 const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
@@ -703,11 +712,22 @@ const upstreamProbeCredentials = computed<Record<string, unknown>>(() => ({
   base_url: upstreamBaseUrl.value.trim()
 }))
 const vertexProbeCredentials = computed<Record<string, unknown>>(() => {
+  const baseUrl = geminiVertexBaseUrl.value.trim() || resolveVertexAuthBaseUrl(
+    geminiVertexAuthMode.value,
+    geminiVertexLocation.value
+  )
+  if (geminiVertexAuthMode.value === 'express_api_key') {
+    return {
+      gemini_api_variant: GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
+      api_key: geminiVertexApiKey.value.trim(),
+      base_url: baseUrl
+    }
+  }
   const credentials: Record<string, unknown> = {
     oauth_type: 'vertex_ai',
     vertex_project_id: geminiVertexProjectId.value.trim(),
     vertex_location: geminiVertexLocation.value.trim(),
-    base_url: geminiVertexBaseUrl.value.trim() || resolveVertexBaseUrl(geminiVertexLocation.value)
+    base_url: baseUrl
   }
   if (geminiVertexServiceAccountJson.value.trim()) {
     credentials.vertex_service_account_json = geminiVertexServiceAccountJson.value.trim()
@@ -719,12 +739,20 @@ const vertexProbeCredentials = computed<Record<string, unknown>>(() => {
 })
 const isApiKeyProbeReady = computed(() => Boolean(apiKeyValue.value.trim()))
 const isUpstreamProbeReady = computed(() => Boolean(upstreamApiKey.value.trim()))
-const isVertexProbeReady = computed(() =>
-  Boolean(
+const isVertexProbeReady = computed(() => {
+  if (geminiVertexAuthMode.value === 'express_api_key') {
+    return Boolean(geminiVertexApiKey.value.trim())
+  }
+  return Boolean(
     geminiVertexProjectId.value.trim() &&
       geminiVertexLocation.value.trim() &&
       (geminiVertexServiceAccountJson.value.trim() || geminiVertexAccessToken.value.trim())
   )
+})
+const showCommonApiKeySection = computed(() =>
+  form.type === 'apikey' &&
+  form.platform !== 'antigravity' &&
+  !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
 const antigravityModelMappings = ref<ModelMapping[]>([])
 const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
@@ -969,8 +997,8 @@ watch(
 
 // Sync form.type based on accountCategory, addMethod, and platform-specific type
 watch(
-  [accountCategory, addMethod, antigravityAccountType, soraAccountType, gatewayProtocol],
-  ([category, method, agType, soraType]) => {
+  [accountCategory, addMethod, antigravityAccountType, soraAccountType, gatewayProtocol, geminiVertexAuthMode],
+  ([category, method, agType, soraType, _gatewayProtocol, vertexAuthMode]) => {
     if (form.platform === 'antigravity' && agType === 'upstream') {
       form.type = 'apikey'
       return
@@ -987,7 +1015,11 @@ watch(
       form.type = 'apikey'
       return
     }
-    if (category === 'oauth-based' || category === 'vertex_ai') {
+    if (form.platform === 'gemini' && category === 'vertex_ai') {
+      form.type = vertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'
+      return
+    }
+    if (category === 'oauth-based') {
       form.type = form.platform === 'anthropic' ? method as AccountType : 'oauth'
     } else {
       form.type = 'apikey'
@@ -1014,9 +1046,11 @@ watch(
       if (accountCategory.value === 'vertex_ai') {
         accountCategory.value = 'oauth-based'
       }
+      geminiVertexAuthMode.value = 'service_account'
       geminiVertexProjectId.value = ''
       geminiVertexLocation.value = ''
       geminiVertexServiceAccountJson.value = ''
+      geminiVertexApiKey.value = ''
       geminiVertexAccessToken.value = ''
       geminiVertexExpiresAtInput.value = ''
       geminiVertexBaseUrl.value = ''
@@ -1355,9 +1389,11 @@ const { resetForm } = useCreateAccountReset({
   antigravityAccountType,
   upstreamBaseUrl,
   upstreamApiKey,
+  geminiVertexAuthMode,
   geminiVertexProjectId,
   geminiVertexLocation,
   geminiVertexServiceAccountJson,
+  geminiVertexApiKey,
   geminiVertexAccessToken,
   geminiVertexExpiresAtInput,
   geminiVertexBaseUrl,
@@ -1674,6 +1710,25 @@ const handleSubmit = async () => {
   if (form.platform === 'gemini' && accountCategory.value === 'vertex_ai') {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+      return
+    }
+    if (geminiVertexAuthMode.value === 'express_api_key') {
+      if (!geminiVertexApiKey.value.trim()) {
+        appStore.showError(t('admin.accounts.gemini.vertex.expressApiKeyRequired'))
+        return
+      }
+
+      const credentials: Record<string, unknown> = {
+        gemini_api_variant: GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
+        api_key: geminiVertexApiKey.value.trim(),
+        base_url: geminiVertexBaseUrl.value.trim() || resolveVertexAuthBaseUrl('express_api_key', '')
+      }
+      const modelMapping = buildModelMappingObject('mapping', [], modelMappings.value)
+      if (modelMapping) {
+        credentials.model_mapping = modelMapping
+      }
+
+      await createAccountAndFinish('gemini', 'apikey', credentials)
       return
     }
     if (!geminiVertexProjectId.value.trim()) {

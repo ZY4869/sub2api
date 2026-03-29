@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -251,6 +252,30 @@ func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, acco
 		return nil, infraerrors.InternalServer("MODEL_IMPORT_GEMINI_SERVICE_UNAVAILABLE", "gemini model import service is not configured")
 	}
 	log := logger.FromContext(ctx)
+	if account != nil && account.IsGeminiVertexExpress() {
+		if err := s.validateGeminiVertexExpressKey(ctx, account); err != nil {
+			log.Warn("account model import: gemini vertex express validation failed",
+				append(geminiImportProbeFields(account, http.StatusBadGateway, accountModelProbeSourceVertexExpressCatalog), zap.Error(err))...,
+			)
+			return nil, err
+		}
+		return newGeminiVertexCatalogProbeResult(
+			accountModelProbeSourceVertexExpressCatalog,
+			"Vertex AI Studio Key uses the official Express Mode countTokens validation and the built-in Vertex model catalog because Vertex Express does not expose a standard realtime /models endpoint",
+		), nil
+	}
+	if account != nil && account.IsGeminiVertexAI() {
+		if err := s.validateGeminiVertexServiceAccount(ctx, account); err != nil {
+			log.Warn("account model import: gemini vertex service account validation failed",
+				append(geminiImportProbeFields(account, http.StatusBadGateway, accountModelProbeSourceVertexServiceAccountCatalog), zap.Error(err))...,
+			)
+			return nil, err
+		}
+		return newGeminiVertexCatalogProbeResult(
+			accountModelProbeSourceVertexServiceAccountCatalog,
+			"Vertex AI Service Account uses the official countTokens validation and the built-in Vertex model catalog because Vertex publisher models does not expose a standard realtime GET /models endpoint",
+		), nil
+	}
 	result, err := s.geminiCompatService.ForwardAIStudioGET(ctx, account, "/v1beta/models")
 	if err != nil {
 		return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", "failed to request upstream model list").WithCause(err)
@@ -280,6 +305,128 @@ func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, acco
 		return nil, err
 	}
 	return newAccountModelProbeResult(models), nil
+}
+
+func newGeminiVertexCatalogProbeResult(source string, notice string) *accountModelProbeResult {
+	models := GeminiVertexCatalogModelIDs()
+	details := make([]AccountModelProbeModel, 0, len(models))
+	for _, model := range GeminiVertexCatalogModels() {
+		details = append(details, AccountModelProbeModel{
+			ID:          strings.TrimPrefix(model.Name, "models/"),
+			DisplayName: model.DisplayName,
+		})
+	}
+	return &accountModelProbeResult{
+		Models:  models,
+		Details: details,
+		Source:  source,
+		Notice:  notice,
+	}
+}
+
+func (s *AccountModelImportService) validateGeminiVertexServiceAccount(ctx context.Context, account *Account) error {
+	if account == nil {
+		return infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+	}
+	if s.geminiCompatService == nil || s.geminiCompatService.tokenProvider == nil {
+		return infraerrors.InternalServer("MODEL_IMPORT_GEMINI_TOKEN_PROVIDER_UNAVAILABLE", "gemini token provider is not configured")
+	}
+	if s.httpUpstream == nil {
+		return infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
+	}
+	accessToken, err := s.geminiCompatService.tokenProvider.GetAccessToken(ctx, account)
+	if err != nil {
+		return err
+	}
+	baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+	normalizedBaseURL, err := s.geminiCompatService.validateUpstreamBaseURL(baseURL)
+	if err != nil {
+		return err
+	}
+	actionPath, err := account.GeminiVertexModelActionPath(geminicli.DefaultTestModel, "countTokens")
+	if err != nil {
+		return err
+	}
+	reqBody := []byte(`{"contents":[{"role":"user","parts":[{"text":"ping"}]}]}`)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(normalizedBaseURL, "/")+actionPath, bytes.NewReader(reqBody))
+	if err != nil {
+		return infraerrors.InternalServer("MODEL_IMPORT_REQUEST_BUILD_FAILED", "failed to build Vertex service account probe request").WithCause(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	proxyURL, err := s.resolveImportProxyURL(ctx, account)
+	if err != nil {
+		return infraerrors.BadRequest("MODEL_IMPORT_PROXY_RESOLVE_FAILED", "failed to resolve account proxy for model import").WithCause(err)
+	}
+	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	if err != nil {
+		return infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", "failed to validate Vertex service account access").WithCause(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxImportBodyBytes))
+	if readErr != nil {
+		return infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_READ_FAILED", "failed to read Vertex service account validation response").WithCause(readErr)
+	}
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		return nil
+	}
+	return newAccountModelImportUpstreamStatusErrorForOperation("vertex service account validation failed", resp.StatusCode, body)
+}
+
+func (s *AccountModelImportService) validateGeminiVertexExpressKey(ctx context.Context, account *Account) error {
+	if account == nil {
+		return infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+	}
+	apiKey := strings.TrimSpace(account.GetCredential("api_key"))
+	if apiKey == "" {
+		return infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Gemini API key for model import")
+	}
+	if s.httpUpstream == nil {
+		return infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
+	}
+	baseURL := account.GetGeminiVertexExpressBaseURL(geminicli.VertexAIBaseURL)
+	normalizedBaseURL, err := s.geminiCompatService.validateUpstreamBaseURL(baseURL)
+	if err != nil {
+		return err
+	}
+	actionPath, err := account.GeminiVertexExpressModelActionPath(geminicli.DefaultTestModel, "countTokens")
+	if err != nil {
+		return err
+	}
+	reqBody := []byte(`{"contents":[{"role":"user","parts":[{"text":"ping"}]}]}`)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(normalizedBaseURL, "/")+actionPath, bytes.NewReader(reqBody))
+	if err != nil {
+		return infraerrors.InternalServer("MODEL_IMPORT_REQUEST_BUILD_FAILED", "failed to build Vertex Express probe request").WithCause(err)
+	}
+	query := req.URL.Query()
+	query.Set("key", apiKey)
+	req.URL.RawQuery = query.Encode()
+	req.Header.Set("Content-Type", "application/json")
+	proxyURL, err := s.resolveImportProxyURL(ctx, account)
+	if err != nil {
+		return infraerrors.BadRequest("MODEL_IMPORT_PROXY_RESOLVE_FAILED", "failed to resolve account proxy for model import").WithCause(err)
+	}
+	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	if err != nil {
+		return infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", "failed to validate Vertex Express API key").WithCause(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxImportBodyBytes))
+	if readErr != nil {
+		return infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_READ_FAILED", "failed to read Vertex Express validation response").WithCause(readErr)
+	}
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		return nil
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		lowerBody := strings.ToLower(string(body))
+		if strings.Contains(lowerBody, "not found") || strings.Contains(lowerBody, "requested entity was not found") {
+			return nil
+		}
+	}
+	return newAccountModelImportUpstreamStatusErrorForOperation("vertex express validation failed", resp.StatusCode, body)
 }
 
 func (s *AccountModelImportService) detectSoraModels(ctx context.Context, account *Account) ([]string, error) {
@@ -452,7 +599,11 @@ func parseGeminiModelList(body []byte) ([]string, error) {
 }
 
 func newAccountModelImportUpstreamStatusError(statusCode int, body []byte) error {
-	message := fmt.Sprintf("upstream model listing failed with status %d", statusCode)
+	return newAccountModelImportUpstreamStatusErrorForOperation("upstream model listing failed", statusCode, body)
+}
+
+func newAccountModelImportUpstreamStatusErrorForOperation(operation string, statusCode int, body []byte) error {
+	message := fmt.Sprintf("%s with status %d", strings.TrimSpace(operation), statusCode)
 	if truncated := truncateImportBody(body); truncated != "" {
 		message = fmt.Sprintf("%s: %s", message, truncated)
 	}
@@ -505,6 +656,7 @@ func geminiImportProbeFields(account *Account, statusCode int, probeSource strin
 		zap.String("platform", RoutingPlatformForAccount(account)),
 		zap.String("type", account.Type),
 		zap.String("oauth_type", account.GeminiOAuthType()),
+		zap.String("gemini_api_variant", account.GeminiAPIKeyVariant()),
 		zap.String("base_host", extractImportBaseHost(baseURL)),
 		zap.String("vertex_location", account.GetGeminiVertexLocation()),
 		zap.Int("status", statusCode),

@@ -2328,8 +2328,15 @@
         },
         vertex: {
           formTitle: 'Vertex AI 官方凭据',
-          formDescription: '上传 Google Cloud service account JSON，由服务端按官方方式换取短期 Bearer token；不会进入浏览器 OAuth 跳转。',
-          formInlineHint: 'Vertex AI 会在当前页面直接保存 service account 凭据，并自动使用官方 token exchange。',
+          formDescription: '支持 Service Account 和 Vertex AI Studio Key 两种官方接入方式；Service Account 取模会先校验官方 countTokens 路径，再返回内置 Vertex 模型目录；不会进入浏览器 OAuth 跳转。',
+          formInlineHint: 'Vertex AI 会在当前页面直接保存凭据，可在 Service Account 与 Vertex AI Studio Key 之间切换。',
+          authModeLabel: '认证方式',
+          authModes: {
+            serviceAccountTitle: 'Service Account',
+            serviceAccountDesc: '上传 Google Cloud service account JSON，由服务端按官方方式换取短期 Bearer token。',
+            expressTitle: 'Vertex AI Studio Key',
+            expressDesc: '使用 Vertex AI Express Mode / Studio Key 直接通过官方 Vertex API Key 发起请求。'
+          },
           projectId: 'GCP Project ID',
           projectIdPlaceholder: 'my-gcp-project',
           projectIdHint: '用于拼接 Vertex AI Publisher Models API 路径；上传文件后会优先从 JSON 中预填。',
@@ -2339,7 +2346,7 @@
           locationHint: '下拉包含当前 Google 官方开放的 Google model endpoint 地区。',
           locationRequired: '请输入 Vertex AI 的区域 Location',
           serviceAccountJson: 'Service Account JSON',
-          serviceAccountJsonHint: '仅支持 `type=service_account` 的 JSON 文件，必须包含 client_email、private_key、token_uri。',
+          serviceAccountJsonHint: '仅支持 `type=service_account` 的 JSON 文件，必须包含 client_email、private_key、token_uri。探测模型时会先校验官方 countTokens 路径，再返回内置 Vertex 模型目录。',
           serviceAccountJsonInvalid: '上传的文件不是合法的 Vertex AI service account JSON',
           serviceAccountJsonRequired: '请上传 Vertex AI 的 service account JSON 文件',
           uploadFile: '上传 JSON 文件',
@@ -2356,8 +2363,13 @@
           accessTokenRequired: '请输入 Vertex AI 的 Access Token',
           expiresAt: '过期时间',
           expiresAtHint: '仅旧版手填 token 账号会使用该字段。',
+          expressApiKey: 'Vertex AI Studio Key',
+          expressApiKeyPlaceholder: 'AIza...',
+          expressApiKeyHint: '使用官方 Vertex AI Studio / Express Mode API Key，通过 `key=` 查询参数鉴权。',
+          expressApiKeyRequired: '请输入 Vertex AI Studio Key',
           baseUrl: 'Base URL',
           baseUrlHint: '会根据所选地区自动推导官方地址；手动修改后将不再自动覆盖。',
+          expressBaseUrlHint: '默认使用官方 Express Mode 地址 `https://aiplatform.googleapis.com`；手动修改后将不再自动覆盖。',
           legacyTitle: '旧版手填 Token 兼容',
           legacyHint: '当前账号仍在使用旧的手填 Access Token 模式。你可以继续保留，或上传 service account JSON 完成迁移。'
         }

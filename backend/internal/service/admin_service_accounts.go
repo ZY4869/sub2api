@@ -109,6 +109,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformKiro) {
 		credentials = NormalizeKiroCredentialsForStorage(credentials)
 	}
+	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformGemini) {
+		credentials = NormalizeGeminiCredentialsForStorage(input.Type, credentials)
+	}
 	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformGrok) {
 		input.Extra = normalizeGrokExtraForStorage(input.Extra)
 		credentials = normalizeGrokCredentialsForStorage(input.Type, credentials, ResolveGrokTier(input.Extra))
@@ -193,6 +196,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		credentials := input.Credentials
 		if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformKiro) {
 			credentials = NormalizeKiroCredentialsForStorage(credentials)
+		}
+		if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGemini) {
+			credentials = NormalizeGeminiCredentialsForStorage(account.Type, credentials)
 		}
 		account.Credentials = credentials
 	} else if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformKiro) {

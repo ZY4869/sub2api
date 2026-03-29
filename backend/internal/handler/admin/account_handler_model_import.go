@@ -107,6 +107,9 @@ func (h *AccountHandler) ProbeModels(c *gin.Context) {
 		Credentials: service.MergeStringAnyMap(nil, req.Credentials),
 		Extra:       service.MergeStringAnyMap(nil, req.Extra),
 	}
+	if strings.EqualFold(draftAccount.Platform, service.PlatformGemini) {
+		draftAccount.Credentials = service.NormalizeGeminiCredentialsForStorage(draftAccount.Type, draftAccount.Credentials)
+	}
 	if req.ProxyID != nil {
 		draftAccount.ProxyID = req.ProxyID
 		if proxy, err := h.adminService.GetProxy(c.Request.Context(), *req.ProxyID); err == nil && proxy != nil {

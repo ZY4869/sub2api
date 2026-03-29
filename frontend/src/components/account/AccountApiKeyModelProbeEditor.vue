@@ -132,6 +132,7 @@ import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import { buildDefaultVertexAlias, isGeminiVertexSourceCredentials } from '@/utils/vertexAi'
 
 const props = defineProps<{
   platform: string
@@ -153,6 +154,11 @@ const probeSource = ref('')
 const probeNotice = ref('')
 const aliasDrafts = ref<Record<string, string>>({})
 const hasInitializedFromMappings = ref(false)
+const isVertexSource = () =>
+  props.platform === 'gemini' && isGeminiVertexSourceCredentials(props.credentials)
+
+const defaultAlias = (modelId: string) =>
+  isVertexSource() ? buildDefaultVertexAlias(modelId) : modelId
 
 watch(
   () => [probedModels.value.length, modelMappings.value.length] as const,
@@ -198,7 +204,7 @@ const currentAlias = (modelId: string) => {
   if (Object.prototype.hasOwnProperty.call(aliasDrafts.value, modelId)) {
     return aliasDrafts.value[modelId]
   }
-  return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? modelId
+  return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? defaultAlias(modelId)
 }
 
 const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
@@ -260,7 +266,7 @@ const handleProbe = async () => {
     probedModels.value = result.models
     allowedModels.value = result.models.map((model) => model.id)
     modelMappings.value = result.models.map((model) => ({
-      from: aliasByTarget.get(model.id) || model.id,
+      from: aliasByTarget.get(model.id) || defaultAlias(model.id),
       to: model.id
     }))
     probeSource.value = result.probe_source || ''

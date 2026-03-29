@@ -12,7 +12,13 @@ export interface VertexServiceAccountSummary {
   token_uri: string
 }
 
+export type VertexAuthMode = 'service_account' | 'express_api_key'
+
+export const GEMINI_API_KEY_VARIANT_AI_STUDIO = 'ai_studio'
+export const GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS = 'vertex_express'
 export const VERTEX_DEFAULT_LOCATION = 'global'
+export const VERTEX_DEFAULT_ALIAS_PREFIX = 'Vertex-'
+export const VERTEX_EXPRESS_DEFAULT_BASE_URL = 'https://aiplatform.googleapis.com'
 
 const VERTEX_LOCATION_DEFINITIONS = [
   { value: 'global', zh: '全球', en: 'Global' },
@@ -58,10 +64,38 @@ export function normalizeVertexLocation(value: unknown): string {
 
 export function resolveVertexBaseUrl(location: unknown): string {
   const normalized = normalizeVertexLocation(location)
-  if (normalized === 'global') {
-    return 'https://aiplatform.googleapis.com'
+  if (normalized === VERTEX_DEFAULT_LOCATION) {
+    return VERTEX_EXPRESS_DEFAULT_BASE_URL
   }
   return `https://${normalized}-aiplatform.googleapis.com`
+}
+
+export function resolveVertexAuthBaseUrl(authMode: VertexAuthMode, location: unknown): string {
+  if (authMode === 'express_api_key') {
+    return VERTEX_EXPRESS_DEFAULT_BASE_URL
+  }
+  return resolveVertexBaseUrl(location)
+}
+
+export function isGeminiVertexExpressVariant(value: unknown): boolean {
+  return String(value || '').trim().toLowerCase() === GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS
+}
+
+export function isGeminiVertexSourceCredentials(value: unknown): boolean {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const credentials = value as Record<string, unknown>
+  const oauthType = String(credentials.oauth_type || '').trim().toLowerCase()
+  return oauthType === 'vertex_ai' || isGeminiVertexExpressVariant(credentials.gemini_api_variant)
+}
+
+export function buildDefaultVertexAlias(modelId: string): string {
+  const trimmed = modelId.trim()
+  if (!trimmed) {
+    return VERTEX_DEFAULT_ALIAS_PREFIX
+  }
+  return `${VERTEX_DEFAULT_ALIAS_PREFIX}${trimmed}`
 }
 
 export function extractVertexServiceAccountSummary(raw: string): VertexServiceAccountSummary {

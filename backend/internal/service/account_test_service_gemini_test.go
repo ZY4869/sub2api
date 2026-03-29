@@ -194,3 +194,43 @@ func TestBuildGeminiOAuthRequest_VertexAIRequiresAccessToken(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "access_token not found in credentials")
 }
+
+func TestBuildGeminiAPIKeyRequest_VertexExpressUsesPublisherModelsURL(t *testing.T) {
+	t.Parallel()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.Security{
+				URLAllowlist: config.URLAllowlist{
+					AllowInsecureHTTP: true,
+				},
+			},
+		},
+	}
+	account := &Account{
+		ID:       305,
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key":            "vertex-express-key",
+			"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+		},
+	}
+
+	req, err := svc.buildGeminiAPIKeyRequest(
+		context.Background(),
+		account,
+		"gemini-2.5-pro",
+		[]byte(`{"contents":[]}`),
+		true,
+	)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		geminicli.VertexAIBaseURL+"/v1/publishers/google/models/gemini-2.5-pro:streamGenerateContent?alt=sse&key=vertex-express-key",
+		req.URL.String(),
+	)
+	require.Empty(t, req.Header.Get("x-goog-api-key"))
+	require.Equal(t, "application/json", req.Header.Get("Content-Type"))
+	require.Equal(t, geminicli.GeminiCLIUserAgent, req.Header.Get("User-Agent"))
+}

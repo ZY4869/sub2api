@@ -116,6 +116,7 @@ func isGeminiCredentialConfigError(err error) bool {
 		strings.Contains(message, "missing vertex_location") ||
 		strings.Contains(message, "missing vertex_service_account_json") ||
 		strings.Contains(message, "vertex_service_account_json") ||
+		strings.Contains(message, "gemini api_key not configured") ||
 		strings.Contains(message, "access_token not found") ||
 		strings.Contains(message, "vertex ai access token expired") ||
 		strings.Contains(message, "vertex ai credentials missing service account json")
@@ -127,6 +128,9 @@ func geminiBaseURLForLogging(account *Account) string {
 	}
 	if account.IsGeminiVertexAI() {
 		return account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+	}
+	if account.IsGeminiVertexExpress() {
+		return account.GetGeminiVertexExpressBaseURL(geminicli.VertexAIBaseURL)
 	}
 	return account.GetGeminiBaseURL(geminicli.AIStudioBaseURL)
 }

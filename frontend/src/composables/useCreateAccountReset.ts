@@ -22,6 +22,7 @@ import {
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { GeminiOAuthType } from '@/utils/geminiAccount'
+import type { VertexAuthMode } from '@/utils/vertexAi'
 
 interface CreateAccountFormShape {
   name: string
@@ -82,9 +83,11 @@ interface UseCreateAccountResetOptions {
   antigravityAccountType: Ref<'oauth' | 'upstream'>
   upstreamBaseUrl: Ref<string>
   upstreamApiKey: Ref<string>
+  geminiVertexAuthMode: Ref<VertexAuthMode>
   geminiVertexProjectId: Ref<string>
   geminiVertexLocation: Ref<string>
   geminiVertexServiceAccountJson: Ref<string>
+  geminiVertexApiKey: Ref<string>
   geminiVertexAccessToken: Ref<string>
   geminiVertexExpiresAtInput: Ref<string>
   geminiVertexBaseUrl: Ref<string>
@@ -161,9 +164,11 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.antigravityAccountType.value = 'oauth'
     options.upstreamBaseUrl.value = ''
     options.upstreamApiKey.value = ''
+    options.geminiVertexAuthMode.value = 'service_account'
     options.geminiVertexProjectId.value = ''
     options.geminiVertexLocation.value = ''
     options.geminiVertexServiceAccountJson.value = ''
+    options.geminiVertexApiKey.value = ''
     options.geminiVertexAccessToken.value = ''
     options.geminiVertexExpiresAtInput.value = ''
     options.geminiVertexBaseUrl.value = ''

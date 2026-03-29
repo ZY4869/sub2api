@@ -27,6 +27,17 @@ func TestRedactText_QueryLike(t *testing.T) {
 	}
 }
 
+func TestRedactText_APIKey(t *testing.T) {
+	in := "api_key=vertex-secret-key"
+	out := RedactText(in)
+	if strings.Contains(out, "vertex-secret-key") {
+		t.Fatalf("expected api key redacted, got %q", out)
+	}
+	if !strings.Contains(out, "api_key=***") {
+		t.Fatalf("expected api key placeholder, got %q", out)
+	}
+}
+
 func TestRedactText_GOCSPX(t *testing.T) {
 	in := "client_secret=GOCSPX-your-client-secret"
 	out := RedactText(in)

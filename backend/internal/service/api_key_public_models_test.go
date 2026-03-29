@@ -53,3 +53,86 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 	got := svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformAnthropic, "claude-sonnet-4-20250514")
 	require.Equal(t, "friendly-sonnet", got)
 }
+
+func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefix(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          2,
+				Name:        "vertex-express",
+				Platform:    PlatformGemini,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":            "vertex-express-key",
+					"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+				},
+			},
+		},
+	}
+	svc := &GatewayService{accountRepo: repo}
+	apiKey := &APIKey{
+		ID:               11,
+		ModelDisplayMode: APIKeyModelDisplayModeAliasOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 21,
+				Group: &Group{
+					ID:       21,
+					Name:     "gemini-group",
+					Platform: PlatformGemini,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entry, ok := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash"))
+	require.True(t, ok)
+	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.PublicID)
+	require.Equal(t, "gemini-2.0-flash", entry.SourceID)
+	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.DisplayName)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertexPrefix(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          3,
+				Name:        "vertex-express",
+				Platform:    PlatformGemini,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":            "vertex-express-key",
+					"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+				},
+			},
+		},
+	}
+	svc := &GatewayService{accountRepo: repo}
+	apiKey := &APIKey{
+		ID:               12,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 22,
+				Group: &Group{
+					ID:       22,
+					Name:     "gemini-group",
+					Platform: PlatformGemini,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entry, ok := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
+	require.True(t, ok)
+	require.Equal(t, "gemini-2.0-flash", entry.PublicID)
+	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.AliasID)
+	require.Equal(t, "gemini-2.0-flash", entry.SourceID)
+	require.Equal(t, "gemini-2.0-flash", entry.DisplayName)
+}

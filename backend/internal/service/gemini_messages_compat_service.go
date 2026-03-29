@@ -50,17 +50,23 @@ func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx cont
 		switch a.Type {
 		case AccountTypeAPIKey:
 			if strings.TrimSpace(a.GetCredential("api_key")) != "" {
+				if a.IsGeminiVertexExpress() {
+					return 1
+				}
 				return 0
 			}
 			return 9
 		case AccountTypeOAuth:
 			if strings.TrimSpace(a.GetCredential("project_id")) == "" {
-				return 1
-			}
-			if strings.TrimSpace(a.GetCredential("oauth_type")) == "ai_studio" {
+				if a.IsGeminiVertexAI() {
+					return 3
+				}
 				return 2
 			}
-			return 3
+			if strings.TrimSpace(a.GetCredential("oauth_type")) == "ai_studio" {
+				return 4
+			}
+			return 5
 		default:
 			return 10
 		}

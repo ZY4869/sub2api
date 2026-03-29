@@ -13,10 +13,12 @@ import (
 )
 
 const (
-	accountModelProbeSourceUpstream                 = "upstream"
-	accountModelProbeSourceGeminiCLIDefaultFallback = "gemini_cli_default_fallback"
-	accountModelProbeSourceKiroBuiltinCatalog       = "kiro_builtin_catalog"
-	accountModelProbeSourceCopilotStaticFallback    = "copilot_static_fallback"
+	accountModelProbeSourceUpstream                    = "upstream"
+	accountModelProbeSourceGeminiCLIDefaultFallback    = "gemini_cli_default_fallback"
+	accountModelProbeSourceVertexExpressCatalog        = "vertex_express_catalog"
+	accountModelProbeSourceVertexServiceAccountCatalog = "vertex_service_account_catalog"
+	accountModelProbeSourceKiroBuiltinCatalog          = "kiro_builtin_catalog"
+	accountModelProbeSourceCopilotStaticFallback       = "copilot_static_fallback"
 )
 
 type AccountModelImportFailure struct {
