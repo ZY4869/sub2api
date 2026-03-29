@@ -80,6 +80,43 @@ type probeProtocolGatewayModelsResponse struct {
 	Models      []probeProtocolGatewayModelItem `json:"models"`
 }
 
+type probeAccountModelsRequest struct {
+	Platform    string         `json:"platform" binding:"required"`
+	Type        string         `json:"type" binding:"required"`
+	Credentials map[string]any `json:"credentials"`
+	Extra       map[string]any `json:"extra"`
+	ProxyID     *int64         `json:"proxy_id"`
+}
+
+func (h *AccountHandler) ProbeModels(c *gin.Context) {
+	if h.accountModelImportService == nil {
+		response.InternalError(c, "Account model import service unavailable")
+		return
+	}
+	var req probeAccountModelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	draftAccount := &service.Account{
+		Name:        "account-probe",
+		Platform:    strings.TrimSpace(req.Platform),
+		Type:        strings.TrimSpace(req.Type),
+		Status:      service.StatusActive,
+		Credentials: service.MergeStringAnyMap(nil, req.Credentials),
+		Extra:       service.MergeStringAnyMap(nil, req.Extra),
+	}
+	if req.ProxyID != nil {
+		draftAccount.ProxyID = req.ProxyID
+		if proxy, err := h.adminService.GetProxy(c.Request.Context(), *req.ProxyID); err == nil && proxy != nil {
+			draftAccount.Proxy = proxy
+		}
+	}
+
+	h.writeProbeModelsResponse(c, draftAccount)
+}
+
 func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 	if h.accountModelImportService == nil {
 		response.InternalError(c, "Account model import service unavailable")
@@ -122,6 +159,10 @@ func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 		}
 	}
 
+	h.writeProbeModelsResponse(c, draftAccount)
+}
+
+func (h *AccountHandler) writeProbeModelsResponse(c *gin.Context, draftAccount *service.Account) {
 	result, err := h.accountModelImportService.ProbeAccountModels(c.Request.Context(), draftAccount)
 	if err != nil {
 		response.ErrorFrom(c, err)

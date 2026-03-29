@@ -458,7 +458,7 @@ func TestProbeAccountModels_UsesGeminiVertexPublisherListing(t *testing.T) {
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(
 		t,
-		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models",
+		"https://us-central1-aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models",
 		upstream.lastReq.URL.String(),
 	)
 	require.Equal(t, "Bearer vertex-access-token", upstream.lastReq.Header.Get("Authorization"))
@@ -535,7 +535,7 @@ func TestProbeAccountModels_GeminiVertexRequiresProjectLocationAndToken(t *testi
 
 		_, err := svc.ProbeAccountModels(context.Background(), account)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "access_token not found in credentials")
+		require.Contains(t, err.Error(), "vertex ai credentials missing service account JSON and legacy access_token")
 	})
 }
 

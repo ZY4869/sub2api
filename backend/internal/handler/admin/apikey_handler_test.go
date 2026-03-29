@@ -117,6 +117,28 @@ func TestAdminAPIKeyHandler_UpdateGroup_Unbind(t *testing.T) {
 	require.Nil(t, resp.Data.APIKey.GroupID)
 }
 
+func TestAdminAPIKeyHandler_UpdateGroup_ModelDisplayModeOnly(t *testing.T) {
+	router := setupAPIKeyHandler(newStubAdminService())
+	body := `{"model_display_mode":"source_only"}`
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/api-keys/10", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Data struct {
+			APIKey struct {
+				ModelDisplayMode string `json:"model_display_mode"`
+			} `json:"api_key"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Equal(t, "source_only", resp.Data.APIKey.ModelDisplayMode)
+}
+
 func TestAdminAPIKeyHandler_UpdateGroup_ServiceError(t *testing.T) {
 	svc := &failingUpdateGroupService{
 		stubAdminService: newStubAdminService(),
@@ -197,6 +219,6 @@ type failingUpdateGroupService struct {
 	err error
 }
 
-func (f *failingUpdateGroupService) AdminUpdateAPIKeyGroupID(_ context.Context, _ int64, _ *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
+func (f *failingUpdateGroupService) AdminUpdateAPIKeyGroupID(_ context.Context, _ int64, _ *int64, _ *string) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
 	return nil, f.err
 }

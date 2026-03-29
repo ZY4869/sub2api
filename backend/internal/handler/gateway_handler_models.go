@@ -5,6 +5,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -40,6 +41,10 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 			{ID: "grok-imagine-video", Type: "model", DisplayName: "grok-imagine-video", CreatedAt: ""},
 			{ID: "grok-2-image", Type: "model", DisplayName: "grok-2-image", CreatedAt: ""},
 		}})
+		return
+	}
+	if publicEntries := h.gatewayService.GetAPIKeyPublicModels(c.Request.Context(), apiKey, platform); len(publicEntries) > 0 {
+		c.JSON(http.StatusOK, gin.H{"object": "list", "data": apiKeyPublicEntriesToClaudeModels(publicEntries)})
 		return
 	}
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, "")
@@ -94,6 +99,43 @@ func registryEntriesToClaudeModels(entries []modelregistry.ModelEntry) []claude.
 		models = append(models, claude.Model{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
 	}
 	return models
+}
+
+func apiKeyPublicEntriesToClaudeModels(entries []service.APIKeyPublicModelEntry) []claude.Model {
+	models := make([]claude.Model, 0, len(entries))
+	for _, entry := range entries {
+		displayName := entry.DisplayName
+		if displayName == "" {
+			displayName = entry.PublicID
+		}
+		models = append(models, claude.Model{
+			ID:          entry.PublicID,
+			Type:        "model",
+			DisplayName: displayName,
+			CreatedAt:   "",
+		})
+	}
+	return models
+}
+
+func apiKeyPublicEntriesToGeminiModels(entries []service.APIKeyPublicModelEntry) gemini.ModelsListResponse {
+	models := make([]gemini.Model, 0, len(entries))
+	for _, entry := range entries {
+		models = append(models, apiKeyPublicEntryToGeminiModel(entry))
+	}
+	return gemini.ModelsListResponse{Models: models}
+}
+
+func apiKeyPublicEntryToGeminiModel(entry service.APIKeyPublicModelEntry) gemini.Model {
+	displayName := entry.DisplayName
+	if displayName == "" {
+		displayName = entry.PublicID
+	}
+	return gemini.Model{
+		Name:                       "models/" + entry.PublicID,
+		DisplayName:                displayName,
+		SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent"},
+	}
 }
 
 func (h *GatewayHandler) resolveParsedRequestModel(ctx context.Context, parsed *service.ParsedRequest) {

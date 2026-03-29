@@ -442,6 +442,7 @@ export interface ApiKey {
   user_id: number;
   key: string;
   name: string;
+  model_display_mode?: "alias_only" | "source_only" | "alias_and_source";
   group_id: number | null;
   group_ids?: number[];
   api_key_groups?: ApiKeyGroup[];
@@ -707,6 +708,7 @@ export interface GeminiCredentials {
   project_id?: string;
   vertex_project_id?: string;
   vertex_location?: string;
+  vertex_service_account_json?: string;
   token_type?: string;
   scope?: string;
   expires_at?: string;

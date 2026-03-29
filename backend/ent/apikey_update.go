@@ -100,6 +100,20 @@ func (_u *APIKeyUpdate) SetNillableName(v *string) *APIKeyUpdate {
 	return _u
 }
 
+// SetModelDisplayMode sets the "model_display_mode" field.
+func (_u *APIKeyUpdate) SetModelDisplayMode(v string) *APIKeyUpdate {
+	_u.mutation.SetModelDisplayMode(v)
+	return _u
+}
+
+// SetNillableModelDisplayMode sets the "model_display_mode" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableModelDisplayMode(v *string) *APIKeyUpdate {
+	if v != nil {
+		_u.SetModelDisplayMode(*v)
+	}
+	return _u
+}
+
 // SetGroupID sets the "group_id" field.
 func (_u *APIKeyUpdate) SetGroupID(v int64) *APIKeyUpdate {
 	_u.mutation.SetGroupID(v)
@@ -591,6 +605,11 @@ func (_u *APIKeyUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ModelDisplayMode(); ok {
+		if err := apikey.ModelDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "model_display_mode", err: fmt.Errorf(`ent: validator failed for field "APIKey.model_display_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
@@ -628,6 +647,9 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ModelDisplayMode(); ok {
+		_spec.SetField(apikey.FieldModelDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)
@@ -976,6 +998,20 @@ func (_u *APIKeyUpdateOne) SetName(v string) *APIKeyUpdateOne {
 func (_u *APIKeyUpdateOne) SetNillableName(v *string) *APIKeyUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetModelDisplayMode sets the "model_display_mode" field.
+func (_u *APIKeyUpdateOne) SetModelDisplayMode(v string) *APIKeyUpdateOne {
+	_u.mutation.SetModelDisplayMode(v)
+	return _u
+}
+
+// SetNillableModelDisplayMode sets the "model_display_mode" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableModelDisplayMode(v *string) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetModelDisplayMode(*v)
 	}
 	return _u
 }
@@ -1484,6 +1520,11 @@ func (_u *APIKeyUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "APIKey.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ModelDisplayMode(); ok {
+		if err := apikey.ModelDisplayModeValidator(v); err != nil {
+			return &ValidationError{Name: "model_display_mode", err: fmt.Errorf(`ent: validator failed for field "APIKey.model_display_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
@@ -1538,6 +1579,9 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(apikey.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ModelDisplayMode(); ok {
+		_spec.SetField(apikey.FieldModelDisplayMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(apikey.FieldStatus, field.TypeString, value)

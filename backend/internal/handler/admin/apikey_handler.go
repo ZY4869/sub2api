@@ -12,7 +12,7 @@ import (
 )
 
 type adminAPIKeyGroupsUpdater interface {
-	AdminUpdateAPIKeyGroups(ctx context.Context, keyID int64, inputs []service.AdminAPIKeyGroupUpdateInput) (*service.AdminUpdateAPIKeyGroupsResult, error)
+	AdminUpdateAPIKeyGroups(ctx context.Context, keyID int64, inputs []service.AdminAPIKeyGroupUpdateInput, modelDisplayMode *string) (*service.AdminUpdateAPIKeyGroupsResult, error)
 }
 
 type adminAPIKeyGroupsReader interface {
@@ -33,8 +33,9 @@ func NewAdminAPIKeyHandler(adminService service.AdminService) *AdminAPIKeyHandle
 
 // AdminUpdateAPIKeyGroupRequest represents the request to update an API key's group
 type AdminUpdateAPIKeyGroupRequest struct {
-	GroupID *int64                  `json:"group_id"`
-	Groups  []APIKeyGroupBindingReq `json:"groups"`
+	GroupID          *int64                  `json:"group_id"`
+	Groups           []APIKeyGroupBindingReq `json:"groups"`
+	ModelDisplayMode *string                 `json:"model_display_mode"`
 }
 
 type APIKeyGroupBindingReq struct {
@@ -58,7 +59,7 @@ func (h *AdminAPIKeyHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	if updater, ok := h.adminService.(adminAPIKeyGroupsUpdater); ok && (len(req.Groups) > 0 || req.GroupID != nil) {
+	if updater, ok := h.adminService.(adminAPIKeyGroupsUpdater); ok && (len(req.Groups) > 0 || req.GroupID != nil || req.ModelDisplayMode != nil) {
 		inputs := make([]service.AdminAPIKeyGroupUpdateInput, 0, len(req.Groups))
 		if len(req.Groups) > 0 {
 			for _, item := range req.Groups {
@@ -72,7 +73,7 @@ func (h *AdminAPIKeyHandler) UpdateGroup(c *gin.Context) {
 			inputs = append(inputs, service.AdminAPIKeyGroupUpdateInput{GroupID: *req.GroupID})
 		}
 
-		result, err := updater.AdminUpdateAPIKeyGroups(c.Request.Context(), keyID, inputs)
+		result, err := updater.AdminUpdateAPIKeyGroups(c.Request.Context(), keyID, inputs, req.ModelDisplayMode)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return
@@ -87,7 +88,7 @@ func (h *AdminAPIKeyHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	result, err := h.adminService.AdminUpdateAPIKeyGroupID(c.Request.Context(), keyID, req.GroupID)
+	result, err := h.adminService.AdminUpdateAPIKeyGroupID(c.Request.Context(), keyID, req.GroupID, req.ModelDisplayMode)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

@@ -15,6 +15,12 @@ const (
 	StatusAPIKeyExpired        = "expired"
 )
 
+const (
+	APIKeyModelDisplayModeAliasOnly      = "alias_only"
+	APIKeyModelDisplayModeSourceOnly     = "source_only"
+	APIKeyModelDisplayModeAliasAndSource = "alias_and_source"
+)
+
 // Rate limit window durations
 const (
 	RateLimitWindow5h = 5 * time.Hour
@@ -29,23 +35,24 @@ func IsWindowExpired(windowStart *time.Time, duration time.Duration) bool {
 }
 
 type APIKey struct {
-	ID          int64
-	UserID      int64
-	Key         string
-	Name        string
-	GroupID     *int64
-	Status      string
-	IPWhitelist []string
-	IPBlacklist []string
+	ID               int64
+	UserID           int64
+	Key              string
+	Name             string
+	ModelDisplayMode string
+	GroupID          *int64
+	Status           string
+	IPWhitelist      []string
+	IPBlacklist      []string
 	// 预编译的 IP 规则，用于认证热路径避免重复 ParseIP/ParseCIDR。
-	CompiledIPWhitelist *ip.CompiledIPRules `json:"-"`
-	CompiledIPBlacklist *ip.CompiledIPRules `json:"-"`
-	LastUsedAt          *time.Time
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	User                *User
-	Group               *Group
-	GroupBindings       []APIKeyGroupBinding
+	CompiledIPWhitelist  *ip.CompiledIPRules `json:"-"`
+	CompiledIPBlacklist  *ip.CompiledIPRules `json:"-"`
+	LastUsedAt           *time.Time
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	User                 *User
+	Group                *Group
+	GroupBindings        []APIKeyGroupBinding
 	SelectedGroupBinding *APIKeyGroupBinding
 
 	// Quota fields
@@ -78,6 +85,24 @@ type APIKeyGroupBinding struct {
 
 func (k *APIKey) IsActive() bool {
 	return k.Status == StatusActive
+}
+
+func NormalizeAPIKeyModelDisplayMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case APIKeyModelDisplayModeSourceOnly:
+		return APIKeyModelDisplayModeSourceOnly
+	case APIKeyModelDisplayModeAliasAndSource:
+		return APIKeyModelDisplayModeAliasAndSource
+	default:
+		return APIKeyModelDisplayModeAliasOnly
+	}
+}
+
+func (k *APIKey) EffectiveModelDisplayMode() string {
+	if k == nil {
+		return APIKeyModelDisplayModeAliasOnly
+	}
+	return NormalizeAPIKeyModelDisplayMode(k.ModelDisplayMode)
 }
 
 func (k *APIKey) HasAnyGroupBinding() bool {

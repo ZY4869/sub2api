@@ -44,6 +44,16 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
 		return
 	}
+	effectivePlatform := service.PlatformGemini
+	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+		effectivePlatform = forcePlatform
+	} else if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
+		effectivePlatform = apiKey.Group.Platform
+	}
+	if publicEntries := h.gatewayService.GetAPIKeyPublicModels(c.Request.Context(), apiKey, effectivePlatform); len(publicEntries) > 0 {
+		c.JSON(http.StatusOK, apiKeyPublicEntriesToGeminiModels(publicEntries))
+		return
+	}
 	{
 		subscription, _ := middleware.GetSubscriptionFromContext(c)
 		allowedPlatforms := geminiCompatiblePlatforms
@@ -163,13 +173,19 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
 		return
 	}
+	modelName := strings.TrimSpace(c.Param("model"))
+	effectivePlatform := service.PlatformGemini
+	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+		effectivePlatform = forcePlatform
+	} else if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
+		effectivePlatform = apiKey.Group.Platform
+	}
+	if publicEntry, ok := h.gatewayService.FindAPIKeyPublicModel(c.Request.Context(), apiKey, effectivePlatform, modelName); ok {
+		c.JSON(http.StatusOK, apiKeyPublicEntryToGeminiModel(*publicEntry))
+		return
+	}
+	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, effectivePlatform, modelName)
 	{
-		modelName := strings.TrimSpace(c.Param("model"))
-		if modelName == "" {
-			googleError(c, http.StatusBadRequest, "Missing model in URL")
-			return
-		}
-
 		subscription, _ := middleware.GetSubscriptionFromContext(c)
 		allowedPlatforms := geminiCompatiblePlatforms
 		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
@@ -185,7 +201,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 				h.billingCacheService,
 				apiKey,
 				subscription,
-				modelName,
+				selectionModel,
 				allowedPlatforms,
 				excludedGroupIDs,
 			)
@@ -243,7 +259,6 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 
-	modelName := strings.TrimSpace(c.Param("model"))
 	if modelName == "" {
 		googleError(c, http.StatusBadRequest, "Missing model in URL")
 		return
@@ -319,6 +334,13 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleError(c, http.StatusNotFound, err.Error())
 		return
 	}
+	selectionPlatform := service.PlatformGemini
+	if forcePlatform, ok := middleware.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcePlatform) != "" {
+		selectionPlatform = forcePlatform
+	} else if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
+		selectionPlatform = apiKey.Group.Platform
+	}
+	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, selectionPlatform, modelName)
 
 	stream := action == "streamGenerateContent"
 	reqLog = reqLog.With(zap.String("model", modelName), zap.String("action", action), zap.Bool("stream", stream))
@@ -405,7 +427,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			modelName,
+			selectionModel,
 			selectedAllowedPlatforms,
 			excludedGroupIDs,
 		)
@@ -528,7 +550,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 
 		for {
-			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, modelName, fs.FailedAccountIDs, "")
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "")
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -555,7 +577,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			setOpsEndpointContext(c, account.GetMappedModel(modelName), service.RequestTypeFromLegacy(stream, false))
+			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(stream, false))
 
 			if sessionBoundAccountID > 0 && sessionBoundAccountID != account.ID {
 				reqLog.Info("gemini.sticky_session_account_switched",
@@ -871,7 +893,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	}
 
 	for {
-		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, modelName, fs.FailedAccountIDs, "") // Gemini 不使用会话限制
+		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "") // Gemini 不使用会话限制
 		if err != nil {
 			if len(fs.FailedAccountIDs) == 0 {
 				googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
@@ -892,7 +914,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 		account := selection.Account
 		setOpsSelectedAccount(c, account.ID, account.Platform)
-		setOpsEndpointContext(c, account.GetMappedModel(modelName), service.RequestTypeFromLegacy(stream, false))
+		setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(stream, false))
 
 		// 检测账号切换：如果粘性会话绑定的账号与当前选择的账号不同，清除 thoughtSignature
 		// 注意：Gemini 原生 API 的 thoughtSignature 与具体上游账号强相关；跨账号透传会导致 400。

@@ -84,6 +84,7 @@ interface UseCreateAccountResetOptions {
   upstreamApiKey: Ref<string>
   geminiVertexProjectId: Ref<string>
   geminiVertexLocation: Ref<string>
+  geminiVertexServiceAccountJson: Ref<string>
   geminiVertexAccessToken: Ref<string>
   geminiVertexExpiresAtInput: Ref<string>
   geminiVertexBaseUrl: Ref<string>
@@ -162,6 +163,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.upstreamApiKey.value = ''
     options.geminiVertexProjectId.value = ''
     options.geminiVertexLocation.value = ''
+    options.geminiVertexServiceAccountJson.value = ''
     options.geminiVertexAccessToken.value = ''
     options.geminiVertexExpiresAtInput.value = ''
     options.geminiVertexBaseUrl.value = ''

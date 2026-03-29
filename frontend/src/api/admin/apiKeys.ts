@@ -16,6 +16,7 @@ export interface UpdateApiKeyGroupResult {
 export interface UpdateApiKeyGroupsPayload {
   group_id?: number | null
   groups?: ApiKeyGroupBindingInput[]
+  model_display_mode?: 'alias_only' | 'source_only' | 'alias_and_source'
 }
 
 /**

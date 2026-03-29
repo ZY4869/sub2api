@@ -35,9 +35,20 @@ func (a *Account) GetGeminiVertexBaseURL(defaultBaseURL string) string {
 	}
 	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
 	if baseURL == "" {
+		if resolvedBaseURL := DefaultGeminiVertexBaseURL(a.GetGeminiVertexLocation()); resolvedBaseURL != "" {
+			return resolvedBaseURL
+		}
 		return defaultBaseURL
 	}
 	return baseURL
+}
+
+func DefaultGeminiVertexBaseURL(location string) string {
+	location = strings.TrimSpace(strings.ToLower(location))
+	if location == "" || location == "global" {
+		return "https://aiplatform.googleapis.com"
+	}
+	return fmt.Sprintf("https://%s-aiplatform.googleapis.com", location)
 }
 
 func (a *Account) GeminiVertexModelsPath() (string, error) {
@@ -103,8 +114,11 @@ func isGeminiCredentialConfigError(err error) bool {
 	return strings.Contains(message, "missing project_id") ||
 		strings.Contains(message, "missing vertex_project_id") ||
 		strings.Contains(message, "missing vertex_location") ||
+		strings.Contains(message, "missing vertex_service_account_json") ||
+		strings.Contains(message, "vertex_service_account_json") ||
 		strings.Contains(message, "access_token not found") ||
-		strings.Contains(message, "vertex ai access token expired")
+		strings.Contains(message, "vertex ai access token expired") ||
+		strings.Contains(message, "vertex ai credentials missing service account json")
 }
 
 func geminiBaseURLForLogging(account *Account) string {

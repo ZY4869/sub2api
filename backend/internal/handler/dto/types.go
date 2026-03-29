@@ -34,21 +34,22 @@ type AdminUser struct {
 }
 
 type APIKey struct {
-	ID          int64      `json:"id"`
-	UserID      int64      `json:"user_id"`
-	Key         string     `json:"key"`
-	Name        string     `json:"name"`
-	GroupID     *int64     `json:"group_id"`
-	GroupIDs    []int64    `json:"group_ids,omitempty"`
-	Status      string     `json:"status"`
-	IPWhitelist []string   `json:"ip_whitelist"`
-	IPBlacklist []string   `json:"ip_blacklist"`
-	LastUsedAt  *time.Time `json:"last_used_at"`
-	Quota       float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
-	QuotaUsed   float64    `json:"quota_used"` // Used quota amount in USD
-	ExpiresAt   *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID               int64      `json:"id"`
+	UserID           int64      `json:"user_id"`
+	Key              string     `json:"key"`
+	Name             string     `json:"name"`
+	ModelDisplayMode string     `json:"model_display_mode"`
+	GroupID          *int64     `json:"group_id"`
+	GroupIDs         []int64    `json:"group_ids,omitempty"`
+	Status           string     `json:"status"`
+	IPWhitelist      []string   `json:"ip_whitelist"`
+	IPBlacklist      []string   `json:"ip_blacklist"`
+	LastUsedAt       *time.Time `json:"last_used_at"`
+	Quota            float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
+	QuotaUsed        float64    `json:"quota_used"` // Used quota amount in USD
+	ExpiresAt        *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 
 	// Rate limit fields
 	RateLimit5h   float64    `json:"rate_limit_5h"`
@@ -210,7 +211,7 @@ type Account struct {
 
 	// TLS指纹伪装（仅 Anthropic OAuth/SetupToken 账号有效）
 	// 从 extra 字段提取，方便前端显示和编辑
-	EnableTLSFingerprint   *bool  `json:"enable_tls_fingerprint,omitempty"`
+	EnableTLSFingerprint    *bool  `json:"enable_tls_fingerprint,omitempty"`
 	TLSFingerprintProfileID *int64 `json:"tls_fingerprint_profile_id,omitempty"`
 
 	// 会话ID伪装（仅 Anthropic OAuth/SetupToken 账号有效）
@@ -396,16 +397,16 @@ type UsageLog struct {
 	BillingExemptReason *string `json:"billing_exempt_reason,omitempty"`
 	RateMultiplier      float64 `json:"rate_multiplier"`
 
-	BillingType  int8   `json:"billing_type"`
-	RequestType  string `json:"request_type"`
-	Status       string `json:"status"`
-	Stream       bool   `json:"stream"`
-	OpenAIWSMode bool   `json:"openai_ws_mode"`
-	DurationMs   *int   `json:"duration_ms"`
-	FirstTokenMs *int   `json:"first_token_ms"`
-	HTTPStatus   *int   `json:"http_status,omitempty"`
-	ErrorCode    *string `json:"error_code,omitempty"`
-	ErrorMessage *string `json:"error_message,omitempty"`
+	BillingType     int8    `json:"billing_type"`
+	RequestType     string  `json:"request_type"`
+	Status          string  `json:"status"`
+	Stream          bool    `json:"stream"`
+	OpenAIWSMode    bool    `json:"openai_ws_mode"`
+	DurationMs      *int    `json:"duration_ms"`
+	FirstTokenMs    *int    `json:"first_token_ms"`
+	HTTPStatus      *int    `json:"http_status,omitempty"`
+	ErrorCode       *string `json:"error_code,omitempty"`
+	ErrorMessage    *string `json:"error_message,omitempty"`
 	SimulatedClient *string `json:"simulated_client,omitempty"`
 
 	// 图片生成字段

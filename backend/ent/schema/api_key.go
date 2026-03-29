@@ -41,6 +41,10 @@ func (APIKey) Fields() []ent.Field {
 		field.String("name").
 			MaxLen(100).
 			NotEmpty(),
+		field.String("model_display_mode").
+			MaxLen(32).
+			SchemaType(map[string]string{dialect.Postgres: "varchar(32)"}).
+			Default("alias_only"),
 		field.Int64("group_id").
 			Optional().
 			Nillable(),

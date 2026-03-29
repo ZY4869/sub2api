@@ -989,6 +989,21 @@ export interface ProtocolGatewayProbeResponse {
   models: ProtocolGatewayProbeModel[]
 }
 
+export interface AccountProbeModelsPayload {
+  platform: string
+  type: string
+  credentials?: Record<string, unknown>
+  extra?: Record<string, unknown>
+  proxy_id?: number | null
+}
+
+export type AccountProbeModelsResponse = ProtocolGatewayProbeResponse
+
+export async function probeModels(payload: AccountProbeModelsPayload): Promise<AccountProbeModelsResponse> {
+  const { data } = await apiClient.post<AccountProbeModelsResponse>('/admin/accounts/probe-models', payload)
+  return data
+}
+
 export async function probeProtocolGatewayModels(payload: {
   gateway_protocol: string
   accepted_protocols?: string[]
@@ -1237,6 +1252,7 @@ export const accountsAPI = {
   setSchedulable,
   getAvailableModels,
   importModels,
+  probeModels,
   probeProtocolGatewayModels,
   generateAuthUrl,
   exchangeCode,

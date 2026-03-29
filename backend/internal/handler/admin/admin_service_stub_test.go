@@ -847,7 +847,7 @@ func (s *stubAdminService) UpdateGroupSortOrders(ctx context.Context, updates []
 	return nil
 }
 
-func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
+func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64, modelDisplayMode *string) (*service.AdminUpdateAPIKeyGroupIDResult, error) {
 	for i := range s.apiKeys {
 		if s.apiKeys[i].ID == keyID {
 			k := s.apiKeys[i]
@@ -858,6 +858,9 @@ func (s *stubAdminService) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 					gid := *groupID
 					k.GroupID = &gid
 				}
+			}
+			if modelDisplayMode != nil {
+				k.ModelDisplayMode = service.NormalizeAPIKeyModelDisplayMode(*modelDisplayMode)
 			}
 			return &service.AdminUpdateAPIKeyGroupIDResult{APIKey: &k}, nil
 		}

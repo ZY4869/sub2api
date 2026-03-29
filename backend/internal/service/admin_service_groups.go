@@ -391,10 +391,28 @@ func (s *adminServiceImpl) GetAPIKeyGroups(ctx context.Context, keyID int64) ([]
 	return nil, nil
 }
 
-func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID int64, inputs []AdminAPIKeyGroupUpdateInput) (*AdminUpdateAPIKeyGroupsResult, error) {
+func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID int64, inputs []AdminAPIKeyGroupUpdateInput, modelDisplayMode *string) (*AdminUpdateAPIKeyGroupsResult, error) {
 	apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 	if err != nil {
 		return nil, err
+	}
+	if modelDisplayMode != nil {
+		apiKey.ModelDisplayMode = NormalizeAPIKeyModelDisplayMode(*modelDisplayMode)
+	}
+	if len(inputs) == 0 {
+		if modelDisplayMode != nil {
+			if err := s.apiKeyRepo.Update(ctx, apiKey); err != nil {
+				return nil, err
+			}
+		}
+		updatedAPIKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
+		if err != nil {
+			return nil, err
+		}
+		if s.authCacheInvalidator != nil {
+			s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, updatedAPIKey.Key)
+		}
+		return &AdminUpdateAPIKeyGroupsResult{APIKey: updatedAPIKey}, nil
 	}
 
 	owner, err := s.userRepo.GetByID(ctx, apiKey.UserID)
@@ -448,6 +466,12 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID in
 	if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, keyID, bindings); err != nil {
 		return nil, fmt.Errorf("set api key groups: %w", err)
 	}
+	apiKey.GroupBindings = append([]APIKeyGroupBinding(nil), bindings...)
+	apiKey.SelectedGroupBinding = nil
+	apiKey.SyncLegacyGroupShadow()
+	if err := s.apiKeyRepo.Update(opCtx, apiKey); err != nil {
+		return nil, fmt.Errorf("update api key metadata: %w", err)
+	}
 
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
@@ -476,11 +500,24 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID in
 	return result, nil
 }
 
-func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64) (*AdminUpdateAPIKeyGroupIDResult, error) {
+func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID int64, groupID *int64, modelDisplayMode *string) (*AdminUpdateAPIKeyGroupIDResult, error) {
 	if groupID == nil {
 		apiKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 		if err != nil {
 			return nil, err
+		}
+		if modelDisplayMode != nil {
+			apiKey.ModelDisplayMode = NormalizeAPIKeyModelDisplayMode(*modelDisplayMode)
+			if err := s.apiKeyRepo.Update(ctx, apiKey); err != nil {
+				return nil, err
+			}
+			apiKey, err = s.apiKeyRepo.GetByID(ctx, keyID)
+			if err != nil {
+				return nil, err
+			}
+			if s.authCacheInvalidator != nil {
+				s.authCacheInvalidator.InvalidateAuthCacheByKey(ctx, apiKey.Key)
+			}
 		}
 		return &AdminUpdateAPIKeyGroupIDResult{APIKey: apiKey}, nil
 	}
@@ -491,7 +528,7 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroupID(ctx context.Context, keyID i
 	if *groupID > 0 {
 		inputs = append(inputs, AdminAPIKeyGroupUpdateInput{GroupID: *groupID})
 	}
-	result, err := s.AdminUpdateAPIKeyGroups(ctx, keyID, inputs)
+	result, err := s.AdminUpdateAPIKeyGroups(ctx, keyID, inputs, modelDisplayMode)
 	if err != nil {
 		return nil, err
 	}

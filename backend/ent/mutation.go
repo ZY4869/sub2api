@@ -84,6 +84,7 @@ type APIKeyMutation struct {
 	deleted_at          *time.Time
 	key                 *string
 	name                *string
+	model_display_mode  *string
 	status              *string
 	last_used_at        *time.Time
 	ip_whitelist        *[]string
@@ -451,6 +452,42 @@ func (m *APIKeyMutation) OldName(ctx context.Context) (v string, err error) {
 // ResetName resets all changes to the "name" field.
 func (m *APIKeyMutation) ResetName() {
 	m.name = nil
+}
+
+// SetModelDisplayMode sets the "model_display_mode" field.
+func (m *APIKeyMutation) SetModelDisplayMode(s string) {
+	m.model_display_mode = &s
+}
+
+// ModelDisplayMode returns the value of the "model_display_mode" field in the mutation.
+func (m *APIKeyMutation) ModelDisplayMode() (r string, exists bool) {
+	v := m.model_display_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelDisplayMode returns the old "model_display_mode" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldModelDisplayMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelDisplayMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelDisplayMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelDisplayMode: %w", err)
+	}
+	return oldValue.ModelDisplayMode, nil
+}
+
+// ResetModelDisplayMode resets all changes to the "model_display_mode" field.
+func (m *APIKeyMutation) ResetModelDisplayMode() {
+	m.model_display_mode = nil
 }
 
 // SetGroupID sets the "group_id" field.
@@ -1557,7 +1594,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -1575,6 +1612,9 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, apikey.FieldName)
+	}
+	if m.model_display_mode != nil {
+		fields = append(fields, apikey.FieldModelDisplayMode)
 	}
 	if m.group != nil {
 		fields = append(fields, apikey.FieldGroupID)
@@ -1647,6 +1687,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.Key()
 	case apikey.FieldName:
 		return m.Name()
+	case apikey.FieldModelDisplayMode:
+		return m.ModelDisplayMode()
 	case apikey.FieldGroupID:
 		return m.GroupID()
 	case apikey.FieldStatus:
@@ -1702,6 +1744,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldKey(ctx)
 	case apikey.FieldName:
 		return m.OldName(ctx)
+	case apikey.FieldModelDisplayMode:
+		return m.OldModelDisplayMode(ctx)
 	case apikey.FieldGroupID:
 		return m.OldGroupID(ctx)
 	case apikey.FieldStatus:
@@ -1786,6 +1830,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case apikey.FieldModelDisplayMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelDisplayMode(v)
 		return nil
 	case apikey.FieldGroupID:
 		v, ok := value.(int64)
@@ -2128,6 +2179,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldName:
 		m.ResetName()
+		return nil
+	case apikey.FieldModelDisplayMode:
+		m.ResetModelDisplayMode()
 		return nil
 	case apikey.FieldGroupID:
 		m.ResetGroupID()

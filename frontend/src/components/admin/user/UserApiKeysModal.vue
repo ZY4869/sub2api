@@ -186,6 +186,28 @@
               @update:model-value="updateDraftBindings(key.id, $event)"
             />
 
+            <div
+              class="grid gap-2 md:grid-cols-[minmax(0,220px)_1fr] md:items-center"
+            >
+              <label
+                class="text-sm font-medium text-gray-700 dark:text-gray-200"
+                :for="`model-display-mode-${key.id}`"
+              >
+                {{ t("admin.users.modelDisplayMode") }}
+              </label>
+              <Select
+                :id="`model-display-mode-${key.id}`"
+                :model-value="
+                  draftModelDisplayModeByKeyId[key.id] || 'alias_only'
+                "
+                :options="modelDisplayModeOptions"
+                @update:model-value="updateDraftModelDisplayMode(key.id, $event)"
+              />
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t("admin.users.modelDisplayModeHint") }}
+            </p>
+
             <div class="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
@@ -242,6 +264,7 @@ import { useAppStore } from "@/stores/app";
 import { formatDateTime } from "@/utils/format";
 import type { AdminGroup, AdminUser, ApiKey, ApiKeyGroup } from "@/types";
 import BaseDialog from "@/components/common/BaseDialog.vue";
+import Select from "@/components/common/Select.vue";
 import GroupBadge from "@/components/common/GroupBadge.vue";
 import APIKeyGroupBindingsEditor from "@/components/keys/APIKeyGroupBindingsEditor.vue";
 import {
@@ -266,6 +289,7 @@ const editingKeyIds = ref<Record<number, boolean>>({});
 const draftBindingsByKeyId = ref<Record<number, EditableApiKeyGroupBinding[]>>(
   {},
 );
+const draftModelDisplayModeByKeyId = ref<Record<number, string>>({});
 
 const sortedGroups = computed(() =>
   [...allGroups.value].sort((a, b) => {
@@ -274,6 +298,21 @@ const sortedGroups = computed(() =>
     return a.name.localeCompare(b.name);
   }),
 );
+
+const modelDisplayModeOptions = computed(() => [
+  {
+    label: t("admin.users.modelDisplayModes.aliasOnly"),
+    value: "alias_only",
+  },
+  {
+    label: t("admin.users.modelDisplayModes.sourceOnly"),
+    value: "source_only",
+  },
+  {
+    label: t("admin.users.modelDisplayModes.aliasAndSource"),
+    value: "alias_and_source",
+  },
+]);
 
 const groupMap = computed(() => {
   return new Map(sortedGroups.value.map((group) => [group.id, group] as const));
@@ -294,6 +333,7 @@ watch(
 const resetEditorState = () => {
   editingKeyIds.value = {};
   draftBindingsByKeyId.value = {};
+  draftModelDisplayModeByKeyId.value = {};
   savingKeyIds.value = new Set<number>();
 };
 
@@ -344,15 +384,22 @@ const startEditingBindings = (key: ApiKey) => {
       ? bindings.map(bindingToEditableDraft)
       : [createEmptyEditableBinding()],
   };
+  draftModelDisplayModeByKeyId.value = {
+    ...draftModelDisplayModeByKeyId.value,
+    [key.id]: key.model_display_mode || "alias_only",
+  };
 };
 
 const cancelEditingBindings = (keyId: number) => {
   const nextEditing = { ...editingKeyIds.value };
   const nextDrafts = { ...draftBindingsByKeyId.value };
+  const nextModes = { ...draftModelDisplayModeByKeyId.value };
   delete nextEditing[keyId];
   delete nextDrafts[keyId];
+  delete nextModes[keyId];
   editingKeyIds.value = nextEditing;
   draftBindingsByKeyId.value = nextDrafts;
+  draftModelDisplayModeByKeyId.value = nextModes;
 };
 
 const toggleBindingsEditor = (key: ApiKey) => {
@@ -373,6 +420,16 @@ const updateDraftBindings = (
   };
 };
 
+const updateDraftModelDisplayMode = (
+  keyId: number,
+  mode: string | number | boolean | null,
+) => {
+  draftModelDisplayModeByKeyId.value = {
+    ...draftModelDisplayModeByKeyId.value,
+    [keyId]: String(mode || "alias_only"),
+  };
+};
+
 const saveBindings = async (key: ApiKey) => {
   savingKeyIds.value = new Set(savingKeyIds.value).add(key.id);
   try {
@@ -382,6 +439,12 @@ const saveBindings = async (key: ApiKey) => {
     );
     const result = await adminAPI.apiKeys.updateApiKeyGroup(key.id, {
       groups: payload,
+      model_display_mode:
+        (draftModelDisplayModeByKeyId.value[key.id] as
+          | "alias_only"
+          | "source_only"
+          | "alias_and_source"
+          | undefined) || "alias_only",
     });
     const index = apiKeys.value.findIndex((item) => item.id === key.id);
     if (index !== -1) {

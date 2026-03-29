@@ -94,6 +94,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model is required")
 		return
 	}
+	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, "", reqModel)
 	streamStarted := false
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
@@ -148,7 +149,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			reqModel,
+			selectionModel,
 			allowedPlatforms,
 			excludedGroupIDs,
 		)
@@ -199,7 +200,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				c.Request = c.Request.WithContext(ctx)
 			}
 			for {
-				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, "")
+				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "")
 				if err != nil {
 					if len(fs.FailedAccountIDs) == 0 {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -230,7 +231,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 				account := selection.Account
 				setOpsSelectedAccount(c, account.ID, account.Platform)
-				setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
+				setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 					if interceptType != InterceptTypeNone {
@@ -377,7 +378,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
 			retryWithFallback := false
 			for {
-				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), runtimeAPIKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
+				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), runtimeAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
 				if err != nil {
 					if len(fs.FailedAccountIDs) == 0 {
 						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
@@ -408,7 +409,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 				account := selection.Account
 				setOpsSelectedAccount(c, account.ID, account.Platform)
-				setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
+				setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 					if interceptType != InterceptTypeNone {
@@ -645,7 +646,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			c.Request = c.Request.WithContext(ctx)
 		}
 		for {
-			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, "")
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "")
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
 					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
@@ -670,7 +671,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
+			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
 				interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 				if interceptType != InterceptTypeNone {
@@ -809,7 +810,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
 		retryWithFallback := false
 		for {
-			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
 					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts: "+err.Error(), streamStarted)
@@ -834,7 +835,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
+			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
 				interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 				if interceptType != InterceptTypeNone {

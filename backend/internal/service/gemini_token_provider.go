@@ -59,8 +59,9 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 
 	expiresAt := account.GetCredentialAsTime("expires_at")
 	isVertexAI := account.IsGeminiVertexAI()
-	if isVertexAI && expiresAt != nil && time.Until(*expiresAt) <= 0 {
-		return "", errors.New("vertex ai access token expired; please update access_token manually")
+	vertexServiceAccountJSON := strings.TrimSpace(account.GetCredential("vertex_service_account_json"))
+	if isVertexAI && vertexServiceAccountJSON == "" && expiresAt != nil && time.Until(*expiresAt) <= 0 {
+		return "", errors.New("vertex ai access token expired; please update the legacy access_token or upload a service account JSON")
 	}
 
 	cacheKey := GeminiTokenCacheKey(account)
@@ -70,6 +71,9 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		if token, err := p.tokenCache.GetAccessToken(ctx, cacheKey); err == nil && strings.TrimSpace(token) != "" {
 			return token, nil
 		}
+	}
+	if isVertexAI && vertexServiceAccountJSON != "" {
+		return p.getVertexServiceAccountAccessToken(ctx, account, cacheKey)
 	}
 
 	// 2) Refresh if needed (pre-expiry skew).
@@ -104,6 +108,9 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 
 	accessToken := account.GetCredential("access_token")
 	if strings.TrimSpace(accessToken) == "" {
+		if isVertexAI {
+			return "", errors.New("vertex ai credentials missing service account JSON and legacy access_token")
+		}
 		return "", errors.New("access_token not found in credentials")
 	}
 

@@ -85,6 +85,11 @@ func Name(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldName, v))
 }
 
+// ModelDisplayMode applies equality check predicate on the "model_display_mode" field. It's identical to ModelDisplayModeEQ.
+func ModelDisplayMode(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldModelDisplayMode, v))
+}
+
 // GroupID applies equality check predicate on the "group_id" field. It's identical to GroupIDEQ.
 func GroupID(v int64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldGroupID, v))
@@ -438,6 +443,71 @@ func NameEqualFold(v string) predicate.APIKey {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldContainsFold(FieldName, v))
+}
+
+// ModelDisplayModeEQ applies the EQ predicate on the "model_display_mode" field.
+func ModelDisplayModeEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeNEQ applies the NEQ predicate on the "model_display_mode" field.
+func ModelDisplayModeNEQ(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeIn applies the In predicate on the "model_display_mode" field.
+func ModelDisplayModeIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldModelDisplayMode, vs...))
+}
+
+// ModelDisplayModeNotIn applies the NotIn predicate on the "model_display_mode" field.
+func ModelDisplayModeNotIn(vs ...string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldModelDisplayMode, vs...))
+}
+
+// ModelDisplayModeGT applies the GT predicate on the "model_display_mode" field.
+func ModelDisplayModeGT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeGTE applies the GTE predicate on the "model_display_mode" field.
+func ModelDisplayModeGTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeLT applies the LT predicate on the "model_display_mode" field.
+func ModelDisplayModeLT(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeLTE applies the LTE predicate on the "model_display_mode" field.
+func ModelDisplayModeLTE(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeContains applies the Contains predicate on the "model_display_mode" field.
+func ModelDisplayModeContains(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContains(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeHasPrefix applies the HasPrefix predicate on the "model_display_mode" field.
+func ModelDisplayModeHasPrefix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasPrefix(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeHasSuffix applies the HasSuffix predicate on the "model_display_mode" field.
+func ModelDisplayModeHasSuffix(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldHasSuffix(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeEqualFold applies the EqualFold predicate on the "model_display_mode" field.
+func ModelDisplayModeEqualFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEqualFold(FieldModelDisplayMode, v))
+}
+
+// ModelDisplayModeContainsFold applies the ContainsFold predicate on the "model_display_mode" field.
+func ModelDisplayModeContainsFold(v string) predicate.APIKey {
+	return predicate.APIKey(sql.FieldContainsFold(FieldModelDisplayMode, v))
 }
 
 // GroupIDEQ applies the EQ predicate on the "group_id" field.
