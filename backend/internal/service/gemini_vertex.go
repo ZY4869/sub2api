@@ -8,6 +8,15 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 )
 
+const defaultGeminiVertexValidationModel = "gemini-2.5-flash"
+
+var geminiVertexValidationCandidateModels = []string{
+	defaultGeminiVertexValidationModel,
+	"gemini-2.5-flash-lite",
+	"gemini-2.5-pro",
+	"gemini-2.0-flash",
+}
+
 func (a *Account) IsGeminiVertexAI() bool {
 	if a == nil || EffectiveProtocol(a) != PlatformGemini || a.Type != AccountTypeOAuth {
 		return false
@@ -49,6 +58,10 @@ func DefaultGeminiVertexBaseURL(location string) string {
 		return "https://aiplatform.googleapis.com"
 	}
 	return fmt.Sprintf("https://%s-aiplatform.googleapis.com", location)
+}
+
+func geminiVertexValidationModels() []string {
+	return append([]string(nil), geminiVertexValidationCandidateModels...)
 }
 
 func (a *Account) GeminiVertexModelsPath() (string, error) {

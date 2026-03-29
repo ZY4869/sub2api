@@ -2197,7 +2197,7 @@ export default {
         },
         vertex: {
           formTitle: 'Vertex AI Official Credentials',
-          formDescription: 'Supports both Service Account and Vertex AI Studio Key official flows. Service Account probing first validates the official countTokens path, then returns the built-in Vertex model catalog without browser OAuth redirects.',
+          formDescription: 'Supports both Service Account and Vertex AI Studio Key official flows. Service Account probing automatically tries the official Vertex validation models over countTokens before returning the built-in Vertex model catalog, without browser OAuth redirects.',
           formInlineHint: 'Vertex AI credentials are saved directly on this page and can switch between Service Account and Vertex AI Studio Key modes.',
           authModeLabel: 'Auth Mode',
           authModes: {
@@ -2215,7 +2215,7 @@ export default {
           locationHint: 'The dropdown includes the currently documented Google model endpoint regions.',
           locationRequired: 'Enter the Vertex AI location',
           serviceAccountJson: 'Service Account JSON',
-          serviceAccountJsonHint: 'Only `type=service_account` JSON files are supported. The file must contain client_email, private_key, and token_uri. Model probing first validates the official countTokens path, then returns the built-in Vertex model catalog.',
+          serviceAccountJsonHint: 'Only `type=service_account` JSON files are supported. The file must contain client_email, private_key, and token_uri. Model probing automatically tries the official Vertex validation models first. If upload succeeds but probing still fails, the issue is usually project, API, or model access rather than the JSON file format.',
           serviceAccountJsonInvalid: 'The uploaded file is not a valid Vertex AI service account JSON file.',
           serviceAccountJsonRequired: 'Upload a Vertex AI service account JSON file.',
           uploadFile: 'Upload JSON',

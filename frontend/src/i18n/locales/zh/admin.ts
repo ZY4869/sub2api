@@ -2328,7 +2328,7 @@
         },
         vertex: {
           formTitle: 'Vertex AI 官方凭据',
-          formDescription: '支持 Service Account 和 Vertex AI Studio Key 两种官方接入方式；Service Account 取模会先校验官方 countTokens 路径，再返回内置 Vertex 模型目录；不会进入浏览器 OAuth 跳转。',
+          formDescription: '支持 Service Account 和 Vertex AI Studio Key 两种官方接入方式；Service Account 取模会自动尝试官方 Vertex 校验模型的 countTokens 路径，再返回内置 Vertex 模型目录；不会进入浏览器 OAuth 跳转。',
           formInlineHint: 'Vertex AI 会在当前页面直接保存凭据，可在 Service Account 与 Vertex AI Studio Key 之间切换。',
           authModeLabel: '认证方式',
           authModes: {
@@ -2346,7 +2346,7 @@
           locationHint: '下拉包含当前 Google 官方开放的 Google model endpoint 地区。',
           locationRequired: '请输入 Vertex AI 的区域 Location',
           serviceAccountJson: 'Service Account JSON',
-          serviceAccountJsonHint: '仅支持 `type=service_account` 的 JSON 文件，必须包含 client_email、private_key、token_uri。探测模型时会先校验官方 countTokens 路径，再返回内置 Vertex 模型目录。',
+          serviceAccountJsonHint: '仅支持 `type=service_account` 的 JSON 文件，必须包含 client_email、private_key、token_uri。探测模型时会自动尝试官方 Vertex 校验模型；如果上传成功后仍探测失败，通常是项目、API 或模型访问权限问题，而不是 JSON 文件格式问题。',
           serviceAccountJsonInvalid: '上传的文件不是合法的 Vertex AI service account JSON',
           serviceAccountJsonRequired: '请上传 Vertex AI 的 service account JSON 文件',
           uploadFile: '上传 JSON 文件',

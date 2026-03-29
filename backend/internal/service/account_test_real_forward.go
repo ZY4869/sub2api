@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 )
@@ -263,7 +262,7 @@ func (s *AccountTestService) testGeminiRealForwardConnection(c *gin.Context, acc
 
 	testModelID := strings.TrimSpace(modelID)
 	if testModelID == "" {
-		testModelID = geminicli.DefaultTestModel
+		testModelID = defaultGeminiTestModelID(account)
 	}
 	testModelID = s.resolveTestModelID(c.Request.Context(), account, testModelID)
 	body := createGeminiTestPayload(testModelID, prompt)

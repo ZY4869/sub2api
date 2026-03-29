@@ -1018,6 +1018,13 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	return s.processOpenAIStream(c, resp.Body)
 }
 
+func defaultGeminiTestModelID(account *Account) string {
+	if account != nil && account.IsGeminiVertexSource() {
+		return defaultGeminiVertexValidationModel
+	}
+	return geminicli.DefaultTestModel
+}
+
 // testGeminiAccountConnection tests a Gemini account's connection
 func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account *Account, modelID string, prompt string, sourceProtocol string, simulatedClient string) error {
 	ctx := c.Request.Context()
@@ -1026,7 +1033,7 @@ func (s *AccountTestService) testGeminiAccountConnection(c *gin.Context, account
 	// Determine the model to use
 	testModelID := modelID
 	if testModelID == "" {
-		testModelID = geminicli.DefaultTestModel
+		testModelID = defaultGeminiTestModelID(account)
 	}
 
 	// For API Key accounts with model mapping, map the model

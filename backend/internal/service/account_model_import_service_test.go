@@ -95,11 +95,22 @@ type accountModelImportHTTPUpstreamStub struct {
 	err        error
 	headers    http.Header
 
+	responseSequence []accountModelImportHTTPResponseStep
+	sequenceIndex    int
+
 	lastReq                  *http.Request
 	lastProxyURL             string
 	lastAccountID            int64
 	lastAccountConcurrency   int
 	lastEnableTLSFingerprint bool
+	requestURLs              []string
+}
+
+type accountModelImportHTTPResponseStep struct {
+	statusCode int
+	body       string
+	err        error
+	headers    http.Header
 }
 
 func (s *accountModelImportHTTPUpstreamStub) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
@@ -112,23 +123,44 @@ func (s *accountModelImportHTTPUpstreamStub) DoWithTLS(req *http.Request, proxyU
 	s.lastAccountID = accountID
 	s.lastAccountConcurrency = accountConcurrency
 	s.lastEnableTLSFingerprint = tlsProfile != nil
-	if s.err != nil {
-		return nil, s.err
+	if req != nil && req.URL != nil {
+		s.requestURLs = append(s.requestURLs, req.URL.String())
 	}
+
 	statusCode := s.statusCode
+	body := s.body
+	respErr := s.err
+	respHeaders := s.headers
+
+	if len(s.responseSequence) > 0 {
+		index := s.sequenceIndex
+		if index >= len(s.responseSequence) {
+			index = len(s.responseSequence) - 1
+		}
+		step := s.responseSequence[index]
+		s.sequenceIndex++
+		statusCode = step.statusCode
+		body = step.body
+		respErr = step.err
+		respHeaders = step.headers
+	}
+
+	if respErr != nil {
+		return nil, respErr
+	}
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
-	respHeaders := make(http.Header)
-	for key, values := range s.headers {
+	clonedHeaders := make(http.Header)
+	for key, values := range respHeaders {
 		for _, value := range values {
-			respHeaders.Add(key, value)
+			clonedHeaders.Add(key, value)
 		}
 	}
 	return &http.Response{
 		StatusCode: statusCode,
-		Header:     respHeaders,
-		Body:       io.NopCloser(strings.NewReader(s.body)),
+		Header:     clonedHeaders,
+		Body:       io.NopCloser(strings.NewReader(body)),
 		Request:    req,
 	}, nil
 }
@@ -457,11 +489,11 @@ func TestProbeAccountModels_UsesGeminiVertexServiceAccountCatalogViaCountTokens(
 	require.Equal(t, expected, result.DetectedModels)
 	require.Len(t, result.Models, len(expected))
 	require.Equal(t, accountModelProbeSourceVertexServiceAccountCatalog, result.ProbeSource)
-	require.NotEmpty(t, result.ProbeNotice)
+	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash")
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(
 		t,
-		"https://us-central1-aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.0-flash:countTokens",
+		"https://us-central1-aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.5-flash:countTokens",
 		upstream.lastReq.URL.String(),
 	)
 	require.Equal(t, http.MethodPost, upstream.lastReq.Method)
@@ -567,10 +599,11 @@ func TestProbeAccountModels_UsesGeminiVertexGlobalCountTokensEndpoint(t *testing
 	result, err := svc.ProbeAccountModels(context.Background(), account)
 	require.NoError(t, err)
 	require.Equal(t, accountModelProbeSourceVertexServiceAccountCatalog, result.ProbeSource)
+	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash")
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(
 		t,
-		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.0-flash:countTokens",
+		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash:countTokens",
 		upstream.lastReq.URL.String(),
 	)
 }
@@ -598,15 +631,171 @@ func TestProbeAccountModels_UsesGeminiVertexExpressCatalog(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, result.DetectedModels)
 	require.Equal(t, accountModelProbeSourceVertexExpressCatalog, result.ProbeSource)
-	require.NotEmpty(t, result.ProbeNotice)
+	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash")
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(
 		t,
-		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.0-flash:countTokens?key=vertex-express-key",
+		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:countTokens?key=vertex-express-key",
 		upstream.lastReq.URL.String(),
 	)
 	require.Equal(t, http.MethodPost, upstream.lastReq.Method)
 	require.Empty(t, upstream.lastReq.Header.Get("x-goog-api-key"))
+}
+
+func TestProbeAccountModels_GeminiVertexServiceAccountFallsBackFromModel404(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		responseSequence: []accountModelImportHTTPResponseStep{
+			{
+				statusCode: http.StatusNotFound,
+				body:       `{"error":{"code":404,"message":"Publisher Model ` + "`projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash`" + ` was not found or your project does not have access to it. Please ensure you are using a valid model version.","status":"NOT_FOUND"}}`,
+			},
+			{
+				statusCode: http.StatusOK,
+				body:       `{"totalTokens":1}`,
+			},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	account := &Account{
+		ID:       121,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type":                  "vertex_ai",
+			"vertex_project_id":           "vertex-project",
+			"vertex_location":             "global",
+			"vertex_service_account_json": `{"type":"service_account","client_email":"svc@example.com","private_key":"test","token_uri":"https://oauth2.googleapis.com/token"}`,
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, accountModelProbeSourceVertexServiceAccountCatalog, result.ProbeSource)
+	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash-lite")
+	require.Equal(t, []string{
+		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash:countTokens",
+		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash-lite:countTokens",
+	}, upstream.requestURLs)
+}
+
+func TestProbeAccountModels_GeminiVertexServiceAccountFailsAfterAllCandidateModelsRejected(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		responseSequence: []accountModelImportHTTPResponseStep{
+			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
+			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
+			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
+			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	account := &Account{
+		ID:       122,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type":                  "vertex_ai",
+			"vertex_project_id":           "vertex-project",
+			"vertex_location":             "global",
+			"vertex_service_account_json": `{"type":"service_account","client_email":"svc@example.com","private_key":"test","token_uri":"https://oauth2.googleapis.com/token"}`,
+		},
+	}
+
+	_, err := svc.ProbeAccountModels(context.Background(), account)
+	require.Error(t, err)
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Contains(t, appErr.Message, "after trying Vertex validation models")
+	require.Contains(t, appErr.Message, "gemini-2.5-flash")
+	require.Contains(t, appErr.Message, "gemini-2.5-flash-lite")
+	require.Contains(t, appErr.Message, "gemini-2.5-pro")
+	require.Contains(t, appErr.Message, "gemini-2.0-flash")
+	require.Len(t, upstream.requestURLs, len(geminiVertexValidationCandidateModels))
+}
+
+func TestProbeAccountModels_GeminiVertexServiceAccountForbiddenDoesNotRetry(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		responseSequence: []accountModelImportHTTPResponseStep{
+			{
+				statusCode: http.StatusForbidden,
+				body:       `{"error":{"code":403,"message":"Permission denied.","status":"PERMISSION_DENIED"}}`,
+			},
+			{
+				statusCode: http.StatusOK,
+				body:       `{"totalTokens":1}`,
+			},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	account := &Account{
+		ID:       123,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type":                  "vertex_ai",
+			"vertex_project_id":           "vertex-project",
+			"vertex_location":             "global",
+			"vertex_service_account_json": `{"type":"service_account","client_email":"svc@example.com","private_key":"test","token_uri":"https://oauth2.googleapis.com/token"}`,
+		},
+	}
+
+	_, err := svc.ProbeAccountModels(context.Background(), account)
+	require.Error(t, err)
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Contains(t, appErr.Message, "status 403")
+	require.Len(t, upstream.requestURLs, 1)
+}
+
+func TestProbeAccountModels_GeminiVertexExpressFallsBackFromModel404(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		responseSequence: []accountModelImportHTTPResponseStep{
+			{
+				statusCode: http.StatusNotFound,
+				body:       `{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}`,
+			},
+			{
+				statusCode: http.StatusOK,
+				body:       `{"totalTokens":1}`,
+			},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatService(upstream)
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	account := &Account{
+		ID:       124,
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"api_key":            "vertex-express-key",
+			"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, accountModelProbeSourceVertexExpressCatalog, result.ProbeSource)
+	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash-lite")
+	require.Equal(t, []string{
+		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:countTokens?key=vertex-express-key",
+		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:countTokens?key=vertex-express-key",
+	}, upstream.requestURLs)
 }
 
 func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficientScope(t *testing.T) {
