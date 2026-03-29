@@ -1932,26 +1932,26 @@ const exclusiveOptions = computed(() => [
 ])
 
 const platformOptions = computed(() => [
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'kiro', label: 'Kiro' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'copilot', label: 'Copilot' },
-  { value: 'grok', label: 'Grok' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'antigravity', label: 'Antigravity' },
-  { value: 'sora', label: 'Sora' }
+  { value: 'anthropic', label: t('admin.groups.platforms.anthropic') },
+  { value: 'kiro', label: t('admin.groups.platforms.kiro') },
+  { value: 'openai', label: t('admin.groups.platforms.openai') },
+  { value: 'copilot', label: t('admin.groups.platforms.copilot') },
+  { value: 'grok', label: t('admin.groups.platforms.grok') },
+  { value: 'gemini', label: t('admin.groups.platforms.gemini') },
+  { value: 'antigravity', label: t('admin.groups.platforms.antigravity') },
+  { value: 'sora', label: t('admin.groups.platforms.sora') }
 ])
 
 const platformFilterOptions = computed(() => [
   { value: '', label: t('admin.groups.allPlatforms') },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'kiro', label: 'Kiro' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'copilot', label: 'Copilot' },
-  { value: 'grok', label: 'Grok' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'antigravity', label: 'Antigravity' },
-  { value: 'sora', label: 'Sora' }
+  { value: 'anthropic', label: t('admin.groups.platforms.anthropic') },
+  { value: 'kiro', label: t('admin.groups.platforms.kiro') },
+  { value: 'openai', label: t('admin.groups.platforms.openai') },
+  { value: 'copilot', label: t('admin.groups.platforms.copilot') },
+  { value: 'grok', label: t('admin.groups.platforms.grok') },
+  { value: 'gemini', label: t('admin.groups.platforms.gemini') },
+  { value: 'antigravity', label: t('admin.groups.platforms.antigravity') },
+  { value: 'sora', label: t('admin.groups.platforms.sora') }
 ])
 
 const editStatusOptions = computed(() => [

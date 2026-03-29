@@ -1,7 +1,7 @@
 import type { AccountPlatform } from '@/types'
 import { isOpenAIWSModeEnabled, type OpenAIWSMode } from '@/utils/openaiWsMode'
 
-export type AccountCategory = 'oauth-based' | 'apikey'
+export type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 
 export function buildOpenAIExtra(options: {
   platform: AccountPlatform

@@ -1562,13 +1562,13 @@ const qualityTargetLabel = (target: string) => {
     case 'base_connectivity':
       return t('admin.proxies.qualityTargetBase')
     case 'openai':
-      return 'OpenAI'
+      return t('admin.accounts.platforms.openai')
     case 'anthropic':
-      return 'Anthropic'
+      return t('admin.accounts.platforms.anthropic')
     case 'gemini':
-      return 'Gemini'
+      return t('admin.accounts.platforms.gemini')
     case 'sora':
-      return 'Sora'
+      return t('admin.accounts.platforms.sora')
     default:
       return target
   }

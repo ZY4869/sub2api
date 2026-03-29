@@ -862,7 +862,7 @@ export default {
         openai: 'OpenAI',
         copilot: 'GitHub Copilot',
         grok: 'Grok',
-        gemini: 'Gemini',
+        gemini: 'Google',
         antigravity: 'Antigravity',
         sora: 'Sora'
       },
@@ -1229,7 +1229,7 @@ export default {
         copilot: 'GitHub Copilot',
         protocol_gateway: 'Protocol Gateway',
         grok: 'Grok',
-        gemini: 'Gemini',
+        gemini: 'Google',
         antigravity: 'Antigravity',
         sora: 'Sora'
       },
@@ -2074,12 +2074,14 @@ export default {
           }
         },
         accountType: {
-          oauthTitle: 'OAuth (Gemini)',
-          oauthDesc: 'Authorize with your Google account and choose an OAuth type.',
-          apiKeyTitle: 'API Key (AI Studio)',
-          apiKeyDesc: 'Fastest setup. Use an AIza API key.',
+          oauthTitle: 'OAuth (Google)',
+          oauthDesc: 'Authorize with your Google account and choose an OAuth sign-in type.',
+          apiKeyTitle: 'AI Studio API Key',
+          apiKeyDesc: 'Fastest setup. Use an AIza API key from Google AI Studio.',
           apiKeyNote:
             'Best for light testing. Free tier has strict rate limits and data may be used for training.',
+          vertexHint:
+            'To use Vertex AI, switch directly to "Vertex AI".',
           apiKeyLink: 'Get API Key',
           quotaLink: 'Quota guide'
         },
@@ -2089,8 +2091,8 @@ export default {
           builtInRequirement: 'Requires a GCP project and Project ID.',
           googleOneDesc: 'Authorize with a personal Google account, ideal for Google One users.',
           gcpProjectLink: 'Create project',
-          advancedToggleShow: 'Show advanced options (custom OAuth client)',
-          advancedToggleHide: 'Hide advanced options (custom OAuth client)',
+          advancedToggleShow: 'Show AI Studio OAuth advanced options (custom OAuth client)',
+          advancedToggleHide: 'Hide AI Studio OAuth advanced options (custom OAuth client)',
           customTitle: 'Custom OAuth (AI Studio OAuth)',
           customDesc: 'Uses admin-configured OAuth client for org management.',
           customRequirement: 'Admin must configure Client ID and add you as a test user.',

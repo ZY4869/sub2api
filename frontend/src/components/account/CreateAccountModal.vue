@@ -91,7 +91,7 @@
         />
 
         <AccountGeminiVertexCredentialsEditor
-          v-if="form.platform === 'gemini' && accountCategory === 'oauth-based' && geminiOAuthType === 'vertex_ai'"
+          v-if="form.platform === 'gemini' && accountCategory === 'vertex_ai'"
           v-model:project-id="geminiVertexProjectId"
           v-model:location="geminiVertexLocation"
           v-model:access-token="geminiVertexAccessToken"
@@ -230,7 +230,7 @@
         />
       </div>
       <AccountModelScopeEditor
-        v-if="accountCategory === 'oauth-based' && form.platform !== 'antigravity'"
+        v-if="(accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity'"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
         :mode="modelRestrictionMode"
@@ -603,7 +603,7 @@ const kiroAuthRef = ref<{ reset: () => void } | null>(null)
 const step = ref(1)
 const autoImportModels = ref(false)
 const copilotSubmitting = ref(false)
-const accountCategory = ref<'oauth-based' | 'apikey'>('oauth-based') // UI selection for account category
+const accountCategory = ref<'oauth-based' | 'apikey' | 'vertex_ai'>('oauth-based') // UI selection for account category
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const gatewayProtocol = ref<GatewayProtocol>('openai')
 const apiKeyBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
@@ -691,6 +691,7 @@ const showProtocolGatewayClaudeMimicEditor = computed(() =>
 const geminiSelectedTier = computed(() => {
   if (effectivePlatform.value !== 'gemini') return ''
   if (accountCategory.value === 'apikey') return geminiTierAIStudio.value
+  if (accountCategory.value === 'vertex_ai') return ''
   switch (geminiOAuthType.value) {
     case 'google_one':
       return geminiTierGoogleOne.value
@@ -798,7 +799,7 @@ const isOAuthFlow = computed(() => {
   if (form.platform === 'antigravity' && antigravityAccountType.value === 'upstream') {
     return false
   }
-  if (form.platform === 'gemini' && isGeminiVertexAI(geminiOAuthType.value)) {
+  if (form.platform === 'gemini' && (accountCategory.value === 'vertex_ai' || isGeminiVertexAI(geminiOAuthType.value))) {
     return false
   }
   if (form.platform === 'grok') {
@@ -908,7 +909,7 @@ watch(
       form.type = 'apikey'
       return
     }
-    if (category === 'oauth-based') {
+    if (category === 'oauth-based' || category === 'vertex_ai') {
       form.type = form.platform === 'anthropic' ? method as AccountType : 'oauth'
     } else {
       form.type = 'apikey'
@@ -932,6 +933,9 @@ watch(
       addMethod.value = 'oauth'
     }
     if (newPlatform !== 'gemini') {
+      if (accountCategory.value === 'vertex_ai') {
+        accountCategory.value = 'oauth-based'
+      }
       geminiVertexProjectId.value = ''
       geminiVertexLocation.value = ''
       geminiVertexAccessToken.value = ''
@@ -1587,7 +1591,7 @@ const handleSubmit = async () => {
     return
   }
 
-  if (form.platform === 'gemini' && accountCategory.value === 'oauth-based' && isGeminiVertexAI(geminiOAuthType.value)) {
+  if (form.platform === 'gemini' && accountCategory.value === 'vertex_ai') {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
       return

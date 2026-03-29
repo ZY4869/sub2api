@@ -5,17 +5,17 @@ import type { AccountPlatform } from '@/types'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  const messages: Record<string, string> = {
+    'admin.accounts.platformTabs.all': 'All',
+    'admin.accounts.platforms.gemini': 'Google'
+  }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: (key: string) => messages[key] ?? key
     })
   }
 })
-
-vi.mock('@/utils/lobeIconResolver', () => ({
-  buildLobeIconSources: vi.fn(() => [])
-}))
 
 const mountTabs = (
   overrides: Partial<{
@@ -34,7 +34,9 @@ const mountTabs = (
   },
   global: {
     stubs: {
-      LobeStaticIcon: true
+      PlatformIcon: {
+        template: '<span data-testid="platform-icon" />'
+      }
     }
   }
 })
@@ -61,6 +63,12 @@ describe('AccountPlatformTabs', () => {
       'antigravity',
       'sora'
     ])
+  })
+
+  it('renders the gemini tab with the Google label', () => {
+    const wrapper = mountTabs()
+
+    expect(wrapper.get('[data-tab-value="gemini"]').text()).toContain('Google')
   })
 
   it('does not reorder tabs when counts change', () => {

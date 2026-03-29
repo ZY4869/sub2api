@@ -81,15 +81,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const platformLabel = computed(() => {
-  if (props.platform === 'protocol_gateway') return t('admin.accounts.platforms.protocol_gateway')
-  if (props.platform === 'anthropic') return 'Anthropic'
-  if (props.platform === 'kiro') return 'Kiro'
-  if (props.platform === 'openai') return 'OpenAI'
-  if (props.platform === 'copilot') return 'Copilot'
-  if (props.platform === 'grok') return 'Grok'
-  if (props.platform === 'antigravity') return 'Antigravity'
-  if (props.platform === 'sora') return 'Sora'
-  return 'Gemini'
+  return t(`admin.accounts.platforms.${props.platform}`)
 })
 
 const gatewayProtocolBadge = computed(() => {

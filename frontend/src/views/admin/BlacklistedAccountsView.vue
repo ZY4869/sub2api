@@ -161,15 +161,15 @@ const columns = computed<Column[]>(() => [
 
 const platformOptions = computed(() => [
   { value: '', label: t('admin.accounts.allPlatforms') },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'kiro', label: 'Kiro' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'copilot', label: 'Copilot' },
-  { value: 'grok', label: 'Grok' },
+  { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
+  { value: 'kiro', label: t('admin.accounts.platforms.kiro') },
+  { value: 'openai', label: t('admin.accounts.platforms.openai') },
+  { value: 'copilot', label: t('admin.accounts.platforms.copilot') },
+  { value: 'grok', label: t('admin.accounts.platforms.grok') },
   { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'antigravity', label: 'Antigravity' },
-  { value: 'sora', label: 'Sora' }
+  { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
+  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
+  { value: 'sora', label: t('admin.accounts.platforms.sora') }
 ])
 
 const groupOptions = computed(() => [

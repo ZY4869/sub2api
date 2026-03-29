@@ -908,7 +908,7 @@
         openai: 'OpenAI',
         copilot: 'GitHub Copilot',
         grok: 'Grok',
-        gemini: 'Gemini',
+        gemini: 'Google',
         antigravity: 'Antigravity',
         sora: 'Sora'
       },
@@ -1387,7 +1387,7 @@
         copilot: 'GitHub Copilot',
         protocol_gateway: '协议网关',
         grok: 'Grok',
-        gemini: 'Gemini',
+        gemini: 'Google',
         antigravity: 'Antigravity',
         sora: 'Sora'
       },
@@ -2207,11 +2207,12 @@
           }
         },
         accountType: {
-          oauthTitle: 'OAuth 授权（Gemini）',
-          oauthDesc: '使用 Google 账号授权，并选择 OAuth 子类型。',
-          apiKeyTitle: 'API 密钥（AI Studio）',
-          apiKeyDesc: '最快接入方式，使用 AIza API Key。',
+          oauthTitle: 'OAuth 授权（Google）',
+          oauthDesc: '使用 Google 账号授权，并选择 OAuth 登录方式。',
+          apiKeyTitle: 'AI Studio API Key',
+          apiKeyDesc: '最快接入方式，使用 Google AI Studio 的 AIza API Key。',
           apiKeyNote: '适合轻量测试。免费层限流严格，数据可能用于训练。',
+          vertexHint: '如果你要接入 Vertex AI，请直接切换到「Vertex AI」。',
           apiKeyLink: '获取 API Key',
           quotaLink: '配额说明'
         },
@@ -2221,8 +2222,8 @@
           builtInRequirement: '需要 GCP 项目并填写 Project ID。',
           googleOneDesc: '使用个人 Google 账号授权，适合 Google One 用户。',
           gcpProjectLink: '创建项目',
-          advancedToggleShow: '显示高级选项（自建 OAuth Client）',
-          advancedToggleHide: '隐藏高级选项（自建 OAuth Client）',
+          advancedToggleShow: '显示 AI Studio OAuth 高级选项（自建 OAuth Client）',
+          advancedToggleHide: '隐藏 AI Studio OAuth 高级选项（自建 OAuth Client）',
           customTitle: '自定义授权（AI Studio OAuth）',
           customDesc: '使用管理员预设的 OAuth 客户端，适合组织管理。',
           customRequirement: '需管理员配置 Client ID 并加入测试用户白名单。',

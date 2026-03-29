@@ -14,7 +14,7 @@ import AccountUpstreamSettingsEditor from './AccountUpstreamSettingsEditor.vue'
 import Select from '@/components/common/Select.vue'
 import type { GeminiOAuthType } from '@/utils/geminiAccount'
 
-type AccountCategory = 'oauth-based' | 'apikey'
+type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 type SoraAccountType = 'oauth' | 'apikey'
 type AntigravityAccountType = 'oauth' | 'upstream'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'

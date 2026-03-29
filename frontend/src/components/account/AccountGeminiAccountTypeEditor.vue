@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { GeminiOAuthType } from '@/utils/geminiAccount'
 
-type GeminiAccountCategory = 'oauth-based' | 'apikey'
+type GeminiAccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'
 type GeminiGcpTier = 'gcp_standard' | 'gcp_enterprise'
 type GeminiAiStudioTier = 'aistudio_free' | 'aistudio_paid'
@@ -29,6 +29,13 @@ const { t } = useI18n()
 
 const selectAccountCategory = (next: GeminiAccountCategory) => {
   accountCategory.value = next
+  if (next === 'vertex_ai') {
+    oauthType.value = 'vertex_ai'
+    return
+  }
+  if (next === 'oauth-based' && oauthType.value === 'vertex_ai') {
+    oauthType.value = 'google_one'
+  }
 }
 
 const selectOAuthType = (next: GeminiOAuthType) => {
@@ -37,6 +44,9 @@ const selectOAuthType = (next: GeminiOAuthType) => {
   }
 
   accountCategory.value = 'oauth-based'
+  if (next === 'ai_studio') {
+    showAdvanced.value = true
+  }
   oauthType.value = next
 }
 </script>
@@ -61,7 +71,7 @@ const selectOAuthType = (next: GeminiOAuthType) => {
       </button>
     </div>
 
-    <div class="mt-2 grid grid-cols-2 gap-3" data-tour="account-form-type">
+    <div class="mt-2 grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-tour="account-form-type">
       <button
         type="button"
         @click="selectAccountCategory('oauth-based')"
@@ -127,6 +137,36 @@ const selectOAuthType = (next: GeminiOAuthType) => {
           </span>
         </div>
       </button>
+
+      <button
+        type="button"
+        @click="selectAccountCategory('vertex_ai')"
+        :class="[
+          'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+          accountCategory === 'vertex_ai'
+            ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20'
+            : 'border-gray-200 hover:border-sky-300 dark:border-dark-600 dark:hover:border-sky-700'
+        ]"
+      >
+        <div
+          :class="[
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+            accountCategory === 'vertex_ai'
+              ? 'bg-sky-500 text-white'
+              : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
+          ]"
+        >
+          <Icon name="cloud" size="sm" />
+        </div>
+        <div>
+          <span class="block text-sm font-medium text-gray-900 dark:text-white">
+            {{ t('admin.accounts.gemini.oauthType.vertexTitle') }}
+          </span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.gemini.oauthType.vertexDesc') }}
+          </span>
+        </div>
+      </button>
     </div>
 
     <div
@@ -148,7 +188,7 @@ const selectOAuthType = (next: GeminiOAuthType) => {
 
     <div v-if="accountCategory === 'oauth-based'" class="mt-4">
       <label class="input-label">{{ t('admin.accounts.oauth.gemini.oauthTypeLabel') }}</label>
-      <div class="mt-2 grid grid-cols-2 gap-3">
+      <div class="mt-2 grid gap-3 md:grid-cols-2">
         <button
           type="button"
           @click="selectOAuthType('google_one')"
@@ -239,6 +279,7 @@ const selectOAuthType = (next: GeminiOAuthType) => {
             </div>
           </div>
         </button>
+
       </div>
 
       <div class="mt-3">
@@ -268,7 +309,7 @@ const selectOAuthType = (next: GeminiOAuthType) => {
         </button>
       </div>
 
-      <div v-if="showAdvanced" class="mt-3 grid gap-3 lg:grid-cols-2">
+      <div v-if="showAdvanced" class="mt-3">
         <div class="group relative">
           <button
             type="button"
@@ -337,54 +378,10 @@ const selectOAuthType = (next: GeminiOAuthType) => {
           </div>
         </div>
 
-        <button
-          type="button"
-          @click="selectOAuthType('vertex_ai')"
-          :class="[
-            'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
-            oauthType === 'vertex_ai'
-              ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20'
-              : 'border-gray-200 hover:border-sky-300 dark:border-dark-600 dark:hover:border-sky-700'
-          ]"
-        >
-          <div
-            :class="[
-              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-              oauthType === 'vertex_ai'
-                ? 'bg-sky-500 text-white'
-                : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
-            ]"
-          >
-            <Icon name="cloud" size="sm" />
-          </div>
-          <div class="min-w-0">
-            <span class="block text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('admin.accounts.gemini.oauthType.vertexTitle') }}
-            </span>
-            <span class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.gemini.oauthType.vertexDesc') }}
-            </span>
-            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.gemini.oauthType.vertexRequirement') }}
-            </div>
-            <div class="mt-2 flex flex-wrap gap-1">
-              <span
-                class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
-              >
-                {{ t('admin.accounts.gemini.oauthType.badges.manualToken') }}
-              </span>
-              <span
-                class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
-              >
-                {{ t('admin.accounts.gemini.oauthType.badges.orgManaged') }}
-              </span>
-            </div>
-          </div>
-        </button>
       </div>
     </div>
 
-    <div v-if="oauthType !== 'vertex_ai'" class="mt-4">
+    <div v-if="accountCategory === 'oauth-based'" class="mt-4">
       <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
       <div class="mt-2">
         <select v-if="oauthType === 'google_one'" v-model="tierGoogleOne" class="input">
@@ -407,7 +404,7 @@ const selectOAuthType = (next: GeminiOAuthType) => {
     </div>
 
     <p
-      v-else
+      v-else-if="accountCategory === 'vertex_ai'"
       class="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800/40 dark:bg-sky-900/20 dark:text-sky-200"
     >
       {{ t('admin.accounts.gemini.vertex.formInlineHint') }}

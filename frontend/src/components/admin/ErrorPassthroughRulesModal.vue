@@ -117,7 +117,7 @@
                     :key="platform"
                     class="badge badge-primary text-xs"
                   >
-                    {{ platform }}
+                    {{ getPlatformLabel(platform) }}
                   </span>
                   <span v-if="rule.platforms.length > 2" class="text-xs text-gray-500">
                     +{{ rule.platforms.length - 2 }}
@@ -485,12 +485,18 @@ const matchModeOptions = computed(() => [
   { value: 'all', label: t('admin.errorPassthrough.matchMode.all'), description: t('admin.errorPassthrough.matchMode.allHint') }
 ])
 
-const platformOptions = [
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'antigravity', label: 'Antigravity' }
-]
+const platformOptions = computed(() => [
+  { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
+  { value: 'openai', label: t('admin.accounts.platforms.openai') },
+  { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
+  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') }
+])
+
+const getPlatformLabel = (platform: string) => {
+  const key = `admin.accounts.platforms.${platform}`
+  const translated = t(key)
+  return translated === key ? platform : translated
+}
 
 // Load rules when dialog opens
 watch(() => props.show, (newVal) => {

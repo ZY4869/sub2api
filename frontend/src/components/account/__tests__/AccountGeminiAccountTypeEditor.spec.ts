@@ -29,14 +29,18 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
   })
 
 describe('AccountGeminiAccountTypeEditor', () => {
-  it('emits help and account category updates', async () => {
+  it('renders the three Google secondary entry cards and emits help/category updates', async () => {
     const wrapper = createWrapper()
 
     const helpButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.gemini.helpButton'))
     const apiKeyButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.gemini.accountType.apiKeyTitle'))
+    const oauthButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.gemini.accountType.oauthTitle'))
+    const vertexButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.gemini.oauthType.vertexTitle'))
 
     expect(helpButton).toBeTruthy()
+    expect(oauthButton).toBeTruthy()
     expect(apiKeyButton).toBeTruthy()
+    expect(vertexButton).toBeTruthy()
 
     await helpButton?.trigger('click')
     await apiKeyButton?.trigger('click')
@@ -65,6 +69,18 @@ describe('AccountGeminiAccountTypeEditor', () => {
     expect(withAdvancedWrapper.emitted('update:oauthType')).toBeUndefined()
   })
 
+  it('keeps the advanced panel open when selecting ai studio', async () => {
+    const wrapper = createWrapper({ showAdvanced: true, aiStudioOAuthEnabled: true })
+    const aiStudioButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.gemini.oauthType.customTitle')
+    )
+
+    expect(aiStudioButton).toBeTruthy()
+    await aiStudioButton?.trigger('click')
+
+    expect(wrapper.emitted('update:oauthType')).toContainEqual(['ai_studio'])
+  })
+
   it('updates oauth type and tier selections', async () => {
     const wrapper = createWrapper({ showAdvanced: true, aiStudioOAuthEnabled: true })
     const codeAssistButton = wrapper.findAll('button').find((button) => button.text().includes('GCP Code Assist'))
@@ -78,8 +94,8 @@ describe('AccountGeminiAccountTypeEditor', () => {
     expect(codeAssistSelectWrapper.emitted('update:tierGcp')).toEqual([['gcp_enterprise']])
   })
 
-  it('shows and selects the vertex ai branch without tier selector', async () => {
-    const wrapper = createWrapper({ showAdvanced: true, aiStudioOAuthEnabled: true, oauthType: 'code_assist' })
+  it('selects the vertex ai branch as a top-level Google entry', async () => {
+    const wrapper = createWrapper({ showAdvanced: false, aiStudioOAuthEnabled: true, oauthType: 'code_assist' })
     const vertexButton = wrapper.findAll('button').find((button) =>
       button.text().includes('admin.accounts.gemini.oauthType.vertexTitle')
     )
@@ -87,14 +103,30 @@ describe('AccountGeminiAccountTypeEditor', () => {
     expect(vertexButton).toBeTruthy()
     await vertexButton?.trigger('click')
 
+    expect(wrapper.emitted('update:accountCategory')).toContainEqual(['vertex_ai'])
     expect(wrapper.emitted('update:oauthType')).toContainEqual(['vertex_ai'])
+  })
 
-    const vertexWrapper = createWrapper({
-      showAdvanced: true,
+  it('shows the vertex credentials branch without oauth subtype or tier controls', () => {
+    const wrapper = createWrapper({
+      accountCategory: 'vertex_ai',
+      showAdvanced: false,
       aiStudioOAuthEnabled: true,
       oauthType: 'vertex_ai'
     })
-    expect(vertexWrapper.text()).toContain('admin.accounts.gemini.vertex.formInlineHint')
-    expect(vertexWrapper.find('select').exists()).toBe(false)
+
+    expect(wrapper.text()).toContain('admin.accounts.gemini.vertex.formInlineHint')
+    expect(wrapper.text()).not.toContain('admin.accounts.oauth.gemini.oauthTypeLabel')
+    expect(wrapper.text()).not.toContain('admin.accounts.gemini.oauthType.customTitle')
+    expect(wrapper.find('select').exists()).toBe(false)
+  })
+
+  it('shows the AI Studio API key helper note in api key mode', () => {
+    const wrapper = createWrapper({ accountCategory: 'apikey' })
+    const apiKeyLink = wrapper.find('a')
+
+    expect(wrapper.text()).toContain('admin.accounts.gemini.accountType.apiKeyNote')
+    expect(wrapper.text()).toContain('admin.accounts.gemini.accountType.apiKeyLink')
+    expect(apiKeyLink.attributes('href')).toBe('https://example.com/api-key')
   })
 })

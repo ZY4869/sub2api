@@ -11,7 +11,7 @@ vi.mock('vue-i18n', async () => {
     'admin.accounts.platforms.copilot': 'GitHub Copilot',
     'admin.accounts.platforms.grok': 'Grok',
     'admin.accounts.platforms.protocol_gateway': 'Protocol Gateway',
-    'admin.accounts.platforms.gemini': 'Gemini',
+    'admin.accounts.platforms.gemini': 'Google',
     'admin.accounts.platforms.antigravity': 'Antigravity',
     'admin.accounts.platforms.sora': 'Sora'
   }
@@ -52,7 +52,7 @@ describe('AccountCreatePlatformSelector', () => {
       'GitHub Copilot',
       'Grok',
       'Protocol Gateway',
-      'Gemini',
+      'Google',
       'Antigravity',
       'Sora'
     ])

@@ -42,7 +42,7 @@ interface UseCreateAccountResetOptions {
   step: Ref<number>
   form: CreateAccountFormShape
   autoImportModels: Ref<boolean>
-  accountCategory: Ref<'oauth-based' | 'apikey'>
+  accountCategory: Ref<'oauth-based' | 'apikey' | 'vertex_ai'>
   addMethod: Ref<AddMethod>
   gatewayProtocol: Ref<GatewayProtocol>
   apiKeyBaseUrl: Ref<string>
