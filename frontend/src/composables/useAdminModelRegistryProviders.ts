@@ -34,6 +34,11 @@ type ProviderModelsState = {
   requestId: number
 }
 
+type MoveProviderPayload = {
+  targetProvider: string
+  modelIds: string[]
+}
+
 export type AdminModelRegistryProviderGroup = {
   provider: string
   label: string
@@ -388,10 +393,15 @@ export function useAdminModelRegistryProviders() {
     }
   }
 
-  async function moveModelsToProvider(provider: string, targetProvider: string, modelIds: string[]) {
+  async function moveModelsToProvider(
+    provider: string,
+    targetProviderOrPayload: string | MoveProviderPayload,
+    modelIds: string[] = []
+  ) {
+    const moveInput = resolveMoveProviderInput(targetProviderOrPayload, modelIds)
     const sourceProvider = getProviderKey(provider)
-    const nextProvider = getProviderKey(targetProvider)
-    const pendingIds = normalizeModelIds(modelIds).filter((modelId) => !isMoving(modelId))
+    const nextProvider = getProviderKey(moveInput.targetProvider)
+    const pendingIds = normalizeModelIds(moveInput.modelIds).filter((modelId) => !isMoving(modelId))
     if (pendingIds.length === 0 || !nextProvider || nextProvider === sourceProvider) {
       return
     }
@@ -549,6 +559,22 @@ function normalizeModelIds(modelIds: string[]) {
       .map((modelId) => String(modelId || '').trim())
       .filter((modelId) => modelId.length > 0)
   )]
+}
+
+function resolveMoveProviderInput(
+  targetProviderOrPayload: string | MoveProviderPayload,
+  modelIds: string[]
+): MoveProviderPayload {
+  if (typeof targetProviderOrPayload === 'string') {
+    return {
+      targetProvider: targetProviderOrPayload,
+      modelIds
+    }
+  }
+  return {
+    targetProvider: String(targetProviderOrPayload?.targetProvider || ''),
+    modelIds: Array.isArray(targetProviderOrPayload?.modelIds) ? targetProviderOrPayload.modelIds : []
+  }
 }
 
 function addPendingId(current: Set<string>, modelId: string) {

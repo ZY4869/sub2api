@@ -406,4 +406,89 @@ describe('useAdminModelRegistryProviders', () => {
     expect(modelInventoryInvalidate).toHaveBeenCalled()
     expect(ensureModelRegistryFresh).toHaveBeenCalledWith(true)
   })
+
+  it('accepts move-provider payloads emitted from component events', async () => {
+    listModelRegistryProviders
+      .mockResolvedValueOnce({
+        items: [
+          { provider: 'openai', total_count: 1, available_count: 1 },
+          { provider: 'grok', total_count: 2, available_count: 2 }
+        ],
+        total: 2,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [
+          { provider: 'openai', total_count: 0, available_count: 0 },
+          { provider: 'grok', total_count: 3, available_count: 3 }
+        ],
+        total: 2,
+        page: 1,
+        page_size: 24,
+        pages: 1
+      })
+
+    listModelRegistry
+      .mockResolvedValueOnce({
+        items: [createRegistryModel('gpt-5.4', 'openai', true)],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [
+          createRegistryModel('grok-3-fast', 'grok', true),
+          createRegistryModel('grok-4-expert', 'grok', true)
+        ],
+        total: 2,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+      .mockResolvedValueOnce({
+        items: [
+          createRegistryModel('grok-3-fast', 'grok', true),
+          createRegistryModel('grok-4-expert', 'grok', true),
+          createRegistryModel('gpt-5.4', 'grok', true)
+        ],
+        total: 3,
+        page: 1,
+        page_size: 50,
+        pages: 1
+      })
+
+    moveModelRegistryProvider.mockResolvedValue({
+      updated_count: 1,
+      skipped_count: 0,
+      failed_count: 0,
+      updated_models: ['gpt-5.4']
+    })
+
+    const subject = useAdminModelRegistryProviders()
+
+    await subject.loadAll()
+    await subject.ensureProviderModels('openai')
+    await subject.ensureProviderModels('grok')
+
+    await subject.moveModelsToProvider('openai', {
+      targetProvider: 'grok',
+      modelIds: ['gpt-5.4']
+    })
+
+    expect(moveModelRegistryProvider).toHaveBeenCalledWith({
+      models: ['gpt-5.4'],
+      target_provider: 'grok'
+    })
+    expect(showSuccess).toHaveBeenCalledWith('admin.models.pages.all.bulk.moveProviderSuccess')
+  })
 })
