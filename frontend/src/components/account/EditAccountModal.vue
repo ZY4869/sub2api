@@ -179,6 +179,16 @@
 
       </div>
 
+      <AccountGeminiVertexCredentialsEditor
+        v-if="isGeminiVertexAccount"
+        v-model:project-id="geminiVertexProjectId"
+        v-model:location="geminiVertexLocation"
+        v-model:access-token="geminiVertexAccessToken"
+        v-model:expires-at-input="geminiVertexExpiresAtInput"
+        v-model:base-url="geminiVertexBaseUrl"
+        mode="edit"
+      />
+
       <AccountModelScopeEditor
         v-if="effectivePlatform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token' || account.type === 'sso')"
         :disabled="isOpenAIModelRestrictionDisabled"
@@ -405,6 +415,7 @@ import AccountAntigravityModelMappingEditor from '@/components/account/AccountAn
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
+import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGeminiVertexCredentialsEditor.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
@@ -470,6 +481,11 @@ import {
   resolveGatewayProtocolDescriptor,
   supportsProtocolGatewayClaudeClientMimic
 } from '@/utils/accountProtocolGateway'
+import {
+  normalizeGeminiOAuthType,
+  isGeminiVertexAI,
+  type GeminiOAuthType
+} from '@/utils/geminiAccount'
 import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
@@ -542,7 +558,13 @@ const editQuotaWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
 const editQuotaWeeklyResetDay = ref<number | null>(null)
 const editQuotaWeeklyResetHour = ref<number | null>(null)
 const editQuotaResetTimezone = ref<string | null>(null)
+const geminiOAuthType = ref<GeminiOAuthType>('code_assist')
 const geminiTierAIStudio = ref<'aistudio_free' | 'aistudio_paid'>('aistudio_free')
+const geminiVertexProjectId = ref('')
+const geminiVertexLocation = ref('')
+const geminiVertexAccessToken = ref('')
+const geminiVertexExpiresAtInput = ref('')
+const geminiVertexBaseUrl = ref('')
 const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(props.account?.platform || 'anthropic', gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
@@ -562,6 +584,11 @@ const isProtocolGatewayAccount = computed(() =>
 )
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
+const isGeminiVertexAccount = computed(() =>
+  effectivePlatform.value === 'gemini' &&
+  props.account?.type === 'oauth' &&
+  isGeminiVertexAI(geminiOAuthType.value)
+)
 const grokCapabilityModels = computed(() => grokDefaultModelIdsForTier(editGrokTier.value))
 const showProtocolGatewayClaudeMimicEditor = computed(() =>
   supportsProtocolGatewayClaudeClientMimic({
@@ -960,6 +987,32 @@ watch(
       } else {
         geminiTierAIStudio.value = 'aistudio_free'
       }
+      if (runtimePlatform === 'gemini' && newAccount.type === 'oauth') {
+        geminiOAuthType.value = normalizeGeminiOAuthType(credentials?.oauth_type)
+        if (isGeminiVertexAI(geminiOAuthType.value)) {
+          geminiVertexProjectId.value = String(credentials?.vertex_project_id || '').trim()
+          geminiVertexLocation.value = String(credentials?.vertex_location || '').trim()
+          geminiVertexAccessToken.value = ''
+          geminiVertexBaseUrl.value = String(credentials?.base_url || '').trim()
+          const rawExpiresAt = Number.parseInt(String(credentials?.expires_at || ''), 10)
+          geminiVertexExpiresAtInput.value = Number.isFinite(rawExpiresAt)
+            ? formatDateTimeLocal(rawExpiresAt)
+            : ''
+        } else {
+          geminiVertexProjectId.value = ''
+          geminiVertexLocation.value = ''
+          geminiVertexAccessToken.value = ''
+          geminiVertexExpiresAtInput.value = ''
+          geminiVertexBaseUrl.value = ''
+        }
+      } else {
+        geminiOAuthType.value = 'code_assist'
+        geminiVertexProjectId.value = ''
+        geminiVertexLocation.value = ''
+        geminiVertexAccessToken.value = ''
+        geminiVertexExpiresAtInput.value = ''
+        geminiVertexBaseUrl.value = ''
+      }
 
       if (newAccount.platform === 'antigravity') {
         const credentials = newAccount.credentials as Record<string, unknown> | undefined
@@ -1044,6 +1097,12 @@ watch(
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
       modelMappings.value = []
+      geminiOAuthType.value = 'code_assist'
+      geminiVertexProjectId.value = ''
+      geminiVertexLocation.value = ''
+      geminiVertexAccessToken.value = ''
+      geminiVertexExpiresAtInput.value = ''
+      geminiVertexBaseUrl.value = ''
     }
   },
   { immediate: true }
@@ -1241,6 +1300,47 @@ const handleSubmit = async () => {
     } else {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
+
+      if (isGeminiVertexAccount.value) {
+        if (!geminiVertexProjectId.value.trim()) {
+          appStore.showError(t('admin.accounts.gemini.vertex.projectIdRequired'))
+          return
+        }
+        if (!geminiVertexLocation.value.trim()) {
+          appStore.showError(t('admin.accounts.gemini.vertex.locationRequired'))
+          return
+        }
+
+        newCredentials.oauth_type = 'vertex_ai'
+        newCredentials.vertex_project_id = geminiVertexProjectId.value.trim()
+        newCredentials.vertex_location = geminiVertexLocation.value.trim()
+
+        const trimmedToken = geminiVertexAccessToken.value.trim()
+        if (trimmedToken) {
+          newCredentials.access_token = trimmedToken
+        } else if (!currentCredentials.access_token) {
+          appStore.showError(t('admin.accounts.gemini.vertex.accessTokenRequired'))
+          return
+        }
+
+        const baseURL = geminiVertexBaseUrl.value.trim()
+        if (baseURL) {
+          newCredentials.base_url = baseURL
+        } else {
+          delete newCredentials.base_url
+        }
+
+        const expiresAt = parseDateTimeLocal(geminiVertexExpiresAtInput.value)
+        if (expiresAt != null) {
+          newCredentials.expires_at = String(expiresAt)
+        } else {
+          delete newCredentials.expires_at
+        }
+
+        delete newCredentials.project_id
+        delete newCredentials.refresh_token
+        delete newCredentials.tier_id
+      }
 
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       if (!applyTempUnschedConfig(newCredentials)) {

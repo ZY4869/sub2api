@@ -22,7 +22,7 @@
           @click="toggleAcceptedProtocol(protocol.value)"
         >
           <span class="font-medium">{{ protocol.label }}</span>
-          <span class="truncate text-xs opacity-80">{{ protocol.requestFormats }}</span>
+          <span class="break-words text-left text-xs opacity-80" :title="protocol.requestFormats">{{ protocol.requestFormats }}</span>
         </button>
       </div>
     </div>
@@ -159,10 +159,10 @@
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <div class="truncate text-sm font-semibold">
+                <div class="break-words text-sm font-semibold" :title="model.display_name || model.id">
                   {{ model.display_name || model.id }}
                 </div>
-                <div class="truncate text-xs opacity-80">{{ model.id }}</div>
+                <div class="break-words text-xs opacity-80" :title="model.id">{{ model.id }}</div>
                 <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
                   <span
                     v-if="resolveModelProtocol(model)"
@@ -186,14 +186,14 @@
               </span>
             </div>
             <div class="mt-3 flex items-center justify-between gap-3 text-xs">
-              <span class="truncate">
+              <span class="break-words text-left">
                 {{
                   model.registry_state === 'existing'
                     ? t('admin.accounts.protocolGateway.registryExisting')
                     : t('admin.accounts.protocolGateway.registryMissing')
                 }}
               </span>
-              <span v-if="model.registry_model_id" class="truncate opacity-80">
+              <span v-if="model.registry_model_id" class="break-words text-right opacity-80" :title="model.registry_model_id">
                 {{ model.registry_model_id }}
               </span>
             </div>
@@ -239,7 +239,6 @@
                     class="input h-10 bg-white/90 text-sm dark:bg-dark-900/60"
                     :placeholder="model.id"
                     @input="updateModelAlias(model, ($event.target as HTMLInputElement).value)"
-                    @blur="normalizeModelAlias(model)"
                     @click.stop
                   />
                 </label>
@@ -321,6 +320,8 @@ const appStore = useAppStore()
 const probing = ref(false)
 const probeSource = ref('')
 const probeNotice = ref('')
+const aliasDrafts = ref<Record<string, string>>({})
+const hasInitializedFromMappings = ref(false)
 
 const trimmedApiKey = computed(() => props.apiKey.trim())
 const acceptedProtocolOptions = computed(() =>
@@ -408,10 +409,20 @@ watch(
 watch(
   () => [probedModels.value.length, modelMappings.value.length] as const,
   ([modelCount, mappingCount]) => {
-    if (modelCount > 0 || mappingCount === 0) {
+    if (hasInitializedFromMappings.value || modelCount > 0 || mappingCount === 0) {
       return
     }
+    hasInitializedFromMappings.value = true
     const seen = new Set<string>()
+    const nextDrafts = { ...aliasDrafts.value }
+    for (const row of modelMappings.value) {
+      const targetModel = row.to.trim()
+      if (!targetModel || Object.prototype.hasOwnProperty.call(nextDrafts, targetModel)) {
+        continue
+      }
+      nextDrafts[targetModel] = row.from
+    }
+    aliasDrafts.value = nextDrafts
     probedModels.value = modelMappings.value
       .map((row) => row.to.trim())
       .filter((modelId) => {
@@ -445,17 +456,23 @@ const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
   if (index >= 0) {
     const nextMappings = [...modelMappings.value]
     const current = nextMappings[index]
+    const draftAlias = Object.prototype.hasOwnProperty.call(aliasDrafts.value, model.id)
+      ? aliasDrafts.value[model.id]
+      : current.from
     nextMappings[index] = {
-      from: current.from || model.id,
+      from: draftAlias,
       to: model.id
     }
     modelMappings.value = nextMappings
     return
   }
+  const nextAlias = Object.prototype.hasOwnProperty.call(aliasDrafts.value, model.id)
+    ? aliasDrafts.value[model.id]
+    : model.id
   modelMappings.value = [
     ...modelMappings.value,
     {
-      from: model.id,
+      from: nextAlias,
       to: model.id
     }
   ]
@@ -549,10 +566,18 @@ const routeProfileMap = computed(() => {
 const currentRouteProfile = (model: ProtocolGatewayProbeModel) =>
   routeProfileMap.value.get(routeKeyForModel(model))
 
-const currentAlias = (modelId: string) =>
-  modelMappings.value.find((row) => row.to.trim() === modelId)?.from || modelId
+const currentAlias = (modelId: string) => {
+  if (Object.prototype.hasOwnProperty.call(aliasDrafts.value, modelId)) {
+    return aliasDrafts.value[modelId]
+  }
+  return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? modelId
+}
 
 const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
+  aliasDrafts.value = {
+    ...aliasDrafts.value,
+    [model.id]: value
+  }
   ensureMappingForModel(model)
   modelMappings.value = modelMappings.value.map((row) =>
     row.to.trim() === model.id
@@ -562,11 +587,6 @@ const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
         }
       : row
   )
-}
-
-const normalizeModelAlias = (model: ProtocolGatewayProbeModel) => {
-  const nextAlias = currentAlias(model.id).trim() || model.id
-  updateModelAlias(model, nextAlias)
 }
 
 const availableProfilesForModel = (model: ProtocolGatewayProbeModel) => {
@@ -691,8 +711,8 @@ const handleProbe = async () => {
     })
     const aliasByTarget = new Map(
       modelMappings.value
-        .map((row) => [row.to.trim(), row.from.trim()] as const)
-        .filter(([target, alias]) => Boolean(target) && Boolean(alias))
+        .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
+        .filter(([target]) => Boolean(target))
     )
     probedModels.value = result.models
     allowedModels.value = result.models.map((model) => model.id)

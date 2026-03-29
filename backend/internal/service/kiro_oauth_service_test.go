@@ -61,3 +61,43 @@ func TestKiroOAuthService_GenerateAuthURL_RejectsNonLoopbackRedirectURI(t *testi
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "KIRO_OAUTH_INVALID_REDIRECT_URI")
 }
+
+func TestKiroOAuthService_BuildAccountExtra_IncludesMembershipFields(t *testing.T) {
+	svc := NewKiroOAuthService(nil, &kiroOAuthClientStub{})
+	credits := 2000
+
+	extra := svc.BuildAccountExtra(&KiroTokenInfo{
+		Provider:      "aws",
+		Email:         "user@example.com",
+		Username:      "demo-user",
+		DisplayName:   "Demo User",
+		MemberLevel:   "kiro_pro_plus",
+		MemberCredits: &credits,
+	})
+
+	require.Equal(t, "aws", extra["provider"])
+	require.Equal(t, "kiro_browser_oauth", extra["source"])
+	require.Equal(t, "user@example.com", extra["email"])
+	require.Equal(t, "demo-user", extra["username"])
+	require.Equal(t, "Demo User", extra["display_name"])
+	require.Equal(t, "kiro_pro_plus", extra["kiro_member_level"])
+	require.Equal(t, 2000, extra["kiro_member_credits"])
+}
+
+func TestKiroOAuthService_BuildAccountExtra_IgnoresInvalidMembershipFields(t *testing.T) {
+	svc := NewKiroOAuthService(nil, &kiroOAuthClientStub{})
+	invalidCredits := -10
+
+	extra := svc.BuildAccountExtra(&KiroTokenInfo{
+		Provider:      "",
+		MemberLevel:   "invalid-tier",
+		MemberCredits: &invalidCredits,
+	})
+
+	require.Equal(t, "kiro", extra["provider"])
+	require.Equal(t, "kiro_browser_oauth", extra["source"])
+	_, hasLevel := extra["kiro_member_level"]
+	_, hasCredits := extra["kiro_member_credits"]
+	require.False(t, hasLevel)
+	require.False(t, hasCredits)
+}

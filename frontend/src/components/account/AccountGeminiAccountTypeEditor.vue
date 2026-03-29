@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import type { GeminiOAuthType } from '@/utils/geminiAccount'
 
 type GeminiAccountCategory = 'oauth-based' | 'apikey'
-type GeminiOAuthType = 'code_assist' | 'google_one' | 'ai_studio'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'
 type GeminiGcpTier = 'gcp_standard' | 'gcp_enterprise'
 type GeminiAiStudioTier = 'aistudio_free' | 'aistudio_paid'
@@ -268,76 +268,123 @@ const selectOAuthType = (next: GeminiOAuthType) => {
         </button>
       </div>
 
-      <div v-if="showAdvanced" class="mt-3 group relative">
+      <div v-if="showAdvanced" class="mt-3 grid gap-3 lg:grid-cols-2">
+        <div class="group relative">
+          <button
+            type="button"
+            :disabled="!aiStudioOAuthEnabled"
+            @click="selectOAuthType('ai_studio')"
+            :class="[
+              'flex w-full items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+              !aiStudioOAuthEnabled ? 'cursor-not-allowed opacity-60' : '',
+              oauthType === 'ai_studio'
+                ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
+                : 'border-gray-200 hover:border-amber-300 dark:border-dark-600 dark:hover:border-amber-700'
+            ]"
+          >
+            <div
+              :class="[
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                oauthType === 'ai_studio'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
+              ]"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+                />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('admin.accounts.gemini.oauthType.customTitle') }}
+              </span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.gemini.oauthType.customDesc') }}
+              </span>
+              <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.gemini.oauthType.customRequirement') }}
+              </div>
+              <div class="mt-2 flex flex-wrap gap-1">
+                <span
+                  class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                >
+                  {{ t('admin.accounts.gemini.oauthType.badges.orgManaged') }}
+                </span>
+                <span
+                  class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                >
+                  {{ t('admin.accounts.gemini.oauthType.badges.adminRequired') }}
+                </span>
+              </div>
+            </div>
+            <span
+              v-if="!aiStudioOAuthEnabled"
+              class="ml-auto shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+            >
+              {{ t('admin.accounts.oauth.gemini.aiStudioNotConfiguredShort') }}
+            </span>
+          </button>
+
+          <div
+            v-if="!aiStudioOAuthEnabled"
+            class="pointer-events-none absolute right-0 top-full z-50 mt-2 w-80 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
+          >
+            {{ t('admin.accounts.oauth.gemini.aiStudioNotConfiguredTip') }}
+          </div>
+        </div>
+
         <button
           type="button"
-          :disabled="!aiStudioOAuthEnabled"
-          @click="selectOAuthType('ai_studio')"
+          @click="selectOAuthType('vertex_ai')"
           :class="[
-            'flex w-full items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
-            !aiStudioOAuthEnabled ? 'cursor-not-allowed opacity-60' : '',
-            oauthType === 'ai_studio'
-              ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
-              : 'border-gray-200 hover:border-amber-300 dark:border-dark-600 dark:hover:border-amber-700'
+            'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+            oauthType === 'vertex_ai'
+              ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20'
+              : 'border-gray-200 hover:border-sky-300 dark:border-dark-600 dark:hover:border-sky-700'
           ]"
         >
           <div
             :class="[
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-              oauthType === 'ai_studio'
-                ? 'bg-amber-500 text-white'
+              oauthType === 'vertex_ai'
+                ? 'bg-sky-500 text-white'
                 : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
             ]"
           >
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
-              />
-            </svg>
+            <Icon name="cloud" size="sm" />
           </div>
           <div class="min-w-0">
             <span class="block text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('admin.accounts.gemini.oauthType.customTitle') }}
+              {{ t('admin.accounts.gemini.oauthType.vertexTitle') }}
             </span>
             <span class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.gemini.oauthType.customDesc') }}
+              {{ t('admin.accounts.gemini.oauthType.vertexDesc') }}
             </span>
             <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {{ t('admin.accounts.gemini.oauthType.customRequirement') }}
+              {{ t('admin.accounts.gemini.oauthType.vertexRequirement') }}
             </div>
             <div class="mt-2 flex flex-wrap gap-1">
               <span
-                class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
+              >
+                {{ t('admin.accounts.gemini.oauthType.badges.manualToken') }}
+              </span>
+              <span
+                class="rounded bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300"
               >
                 {{ t('admin.accounts.gemini.oauthType.badges.orgManaged') }}
               </span>
-              <span
-                class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-              >
-                {{ t('admin.accounts.gemini.oauthType.badges.adminRequired') }}
-              </span>
             </div>
           </div>
-          <span
-            v-if="!aiStudioOAuthEnabled"
-            class="ml-auto shrink-0 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-          >
-            {{ t('admin.accounts.oauth.gemini.aiStudioNotConfiguredShort') }}
-          </span>
         </button>
-
-        <div
-          v-if="!aiStudioOAuthEnabled"
-          class="pointer-events-none absolute right-0 top-full z-50 mt-2 w-80 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200"
-        >
-          {{ t('admin.accounts.oauth.gemini.aiStudioNotConfiguredTip') }}
-        </div>
       </div>
     </div>
 
-    <div class="mt-4">
+    <div v-if="oauthType !== 'vertex_ai'" class="mt-4">
       <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
       <div class="mt-2">
         <select v-if="oauthType === 'google_one'" v-model="tierGoogleOne" class="input">
@@ -358,5 +405,12 @@ const selectOAuthType = (next: GeminiOAuthType) => {
       </div>
       <p class="input-hint">{{ t('admin.accounts.gemini.tier.hint') }}</p>
     </div>
+
+    <p
+      v-else
+      class="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-800/40 dark:bg-sky-900/20 dark:text-sky-200"
+    >
+      {{ t('admin.accounts.gemini.vertex.formInlineHint') }}
+    </p>
   </div>
 </template>

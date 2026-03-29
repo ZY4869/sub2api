@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import type { GeminiBrowserOAuthType } from '@/utils/geminiAccount'
 
 export interface GeminiAuthUrlResponse {
   auth_url: string
@@ -19,7 +20,7 @@ export interface GeminiOAuthCapabilities {
 export interface GeminiAuthUrlRequest {
   proxy_id?: number
   project_id?: string
-  oauth_type?: 'code_assist' | 'google_one' | 'ai_studio'
+  oauth_type?: GeminiBrowserOAuthType
   tier_id?: string
 }
 
@@ -28,7 +29,7 @@ export interface GeminiExchangeCodeRequest {
   state: string
   code: string
   proxy_id?: number
-  oauth_type?: 'code_assist' | 'google_one' | 'ai_studio'
+  oauth_type?: GeminiBrowserOAuthType
   tier_id?: string
 }
 

@@ -691,7 +691,7 @@ export interface GeminiCredentials {
   // OAuth authentication
   access_token?: string;
   refresh_token?: string;
-  oauth_type?: "code_assist" | "google_one" | "ai_studio" | string;
+  oauth_type?: "code_assist" | "google_one" | "ai_studio" | "vertex_ai" | string;
   tier_id?:
     | "google_one_free"
     | "google_ai_pro"
@@ -705,9 +705,12 @@ export interface GeminiCredentials {
     | "ULTRA"
     | string;
   project_id?: string;
+  vertex_project_id?: string;
+  vertex_location?: string;
   token_type?: string;
   scope?: string;
   expires_at?: string;
+  base_url?: string;
   model_mapping?: Record<string, string>;
 }
 

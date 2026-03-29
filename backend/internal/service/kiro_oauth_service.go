@@ -33,20 +33,22 @@ type KiroExchangeCodeInput struct {
 }
 
 type KiroTokenInfo struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	ExpiresAt    string `json:"expires_at,omitempty"`
-	AuthMethod   string `json:"auth_method,omitempty"`
-	Provider     string `json:"provider,omitempty"`
-	ClientID     string `json:"client_id,omitempty"`
-	ClientSecret string `json:"client_secret,omitempty"`
-	ClientIDHash string `json:"client_id_hash,omitempty"`
-	StartURL     string `json:"start_url,omitempty"`
-	Region       string `json:"region,omitempty"`
-	ProfileArn   string `json:"profile_arn,omitempty"`
-	Email        string `json:"email,omitempty"`
-	Username     string `json:"username,omitempty"`
-	DisplayName  string `json:"display_name,omitempty"`
+	AccessToken   string `json:"access_token"`
+	RefreshToken  string `json:"refresh_token,omitempty"`
+	ExpiresAt     string `json:"expires_at,omitempty"`
+	AuthMethod    string `json:"auth_method,omitempty"`
+	Provider      string `json:"provider,omitempty"`
+	ClientID      string `json:"client_id,omitempty"`
+	ClientSecret  string `json:"client_secret,omitempty"`
+	ClientIDHash  string `json:"client_id_hash,omitempty"`
+	StartURL      string `json:"start_url,omitempty"`
+	Region        string `json:"region,omitempty"`
+	ProfileArn    string `json:"profile_arn,omitempty"`
+	Email         string `json:"email,omitempty"`
+	Username      string `json:"username,omitempty"`
+	DisplayName   string `json:"display_name,omitempty"`
+	MemberLevel   string `json:"kiro_member_level,omitempty"`
+	MemberCredits *int   `json:"kiro_member_credits,omitempty"`
 }
 
 type KiroClientRegistration struct {
@@ -259,6 +261,12 @@ func (s *KiroOAuthService) BuildAccountExtra(tokenInfo *KiroTokenInfo) map[strin
 	if v := strings.TrimSpace(tokenInfo.DisplayName); v != "" {
 		extra["display_name"] = v
 	}
+	if v := normalizeKiroMemberLevel(tokenInfo.MemberLevel); v != "" {
+		extra["kiro_member_level"] = v
+	}
+	if tokenInfo.MemberCredits != nil && *tokenInfo.MemberCredits >= 0 {
+		extra["kiro_member_credits"] = *tokenInfo.MemberCredits
+	}
 	return extra
 }
 
@@ -423,4 +431,19 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeKiroMemberLevel(level string) string {
+	switch strings.ToLower(strings.TrimSpace(level)) {
+	case "kiro_free":
+		return "kiro_free"
+	case "kiro_pro":
+		return "kiro_pro"
+	case "kiro_pro_plus":
+		return "kiro_pro_plus"
+	case "kiro_power":
+		return "kiro_power"
+	default:
+		return ""
+	}
 }

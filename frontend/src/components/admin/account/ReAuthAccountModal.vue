@@ -96,11 +96,14 @@
                 ? 'bg-purple-500 text-white'
                 : geminiOAuthType === 'code_assist'
                   ? 'bg-blue-500 text-white'
-                  : 'bg-amber-500 text-white'
+                  : geminiOAuthType === 'vertex_ai'
+                    ? 'bg-sky-500 text-white'
+                    : 'bg-amber-500 text-white'
             ]"
           >
             <Icon v-if="geminiOAuthType === 'google_one'" name="user" size="sm" />
             <Icon v-else-if="geminiOAuthType === 'code_assist'" name="cloud" size="sm" />
+            <Icon v-else-if="geminiOAuthType === 'vertex_ai'" name="cloud" size="sm" />
             <Icon v-else name="sparkles" size="sm" />
           </div>
           <div>
@@ -110,10 +113,23 @@
                   ? 'Google One'
                   : geminiOAuthType === 'code_assist'
                     ? t('admin.accounts.gemini.oauthType.builtInTitle')
-                    : t('admin.accounts.gemini.oauthType.customTitle')
+                    : geminiOAuthType === 'vertex_ai'
+                      ? t('admin.accounts.gemini.oauthType.vertexTitle')
+                      : t('admin.accounts.gemini.oauthType.customTitle')
               }}
             </span>
             <span class="text-xs text-gray-500 dark:text-gray-400">
+              {{
+                geminiOAuthType === 'google_one'
+                  ? t('admin.accounts.gemini.oauthType.googleOneDesc')
+                  : geminiOAuthType === 'code_assist'
+                    ? t('admin.accounts.gemini.oauthType.builtInDesc')
+                    : geminiOAuthType === 'vertex_ai'
+                      ? t('admin.accounts.gemini.oauthType.vertexDesc')
+                      : t('admin.accounts.gemini.oauthType.customDesc')
+              }}
+            </span>
+            <span v-if="false" class="text-xs text-gray-500 dark:text-gray-400">
               {{
                 geminiOAuthType === 'google_one'
                   ? '个人账号'
@@ -139,10 +155,18 @@
         v-else-if="isKiro"
         ref="kiroAuthRef"
         :proxy-id="account.proxy_id"
+        :initial-extra="account.extra"
         :submit-label="t('admin.accounts.reAuthorize')"
         :submitting="platformSubmitLoading"
         @submit="handleKiroReauthorize"
       />
+
+      <div
+        v-else-if="isGeminiVertexAccount"
+        class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+      >
+        {{ t('admin.accounts.reauthUnavailableForPlatform', { platform: 'Vertex AI' }) }}
+      </div>
 
       <OAuthAuthorizationFlow
         v-else
@@ -171,7 +195,7 @@
           {{ t('common.cancel') }}
         </button>
         <button
-          v-if="!isCopilot && !isKiro && isManualInputMethod"
+          v-if="!isCopilot && !isKiro && !isGeminiVertexAccount && isManualInputMethod"
           type="button"
           :disabled="!canExchangeCode"
           class="btn btn-primary"
@@ -222,6 +246,12 @@ import { useOpenAIOAuth } from '@/composables/useOpenAIOAuth'
 import { useGeminiOAuth } from '@/composables/useGeminiOAuth'
 import { useAntigravityOAuth } from '@/composables/useAntigravityOAuth'
 import type { Account } from '@/types'
+import {
+  isGeminiVertexAI,
+  normalizeGeminiOAuthType,
+  type GeminiBrowserOAuthType,
+  type GeminiOAuthType
+} from '@/utils/geminiAccount'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
@@ -268,7 +298,7 @@ const kiroAuthRef = ref<{ reset: () => void } | null>(null)
 
 // State
 const addMethod = ref<AddMethod>('oauth')
-const geminiOAuthType = ref<'code_assist' | 'google_one' | 'ai_studio'>('code_assist')
+const geminiOAuthType = ref<GeminiOAuthType>('code_assist')
 const platformSubmitLoading = ref(false)
 
 // Computed - check platform
@@ -280,6 +310,7 @@ const isGemini = computed(() => props.account?.platform === 'gemini')
 const isAnthropic = computed(() => props.account?.platform === 'anthropic')
 const isKiro = computed(() => props.account?.platform === 'kiro')
 const isAntigravity = computed(() => props.account?.platform === 'antigravity')
+const isGeminiVertexAccount = computed(() => isGemini.value && isGeminiVertexAI(geminiOAuthType.value))
 const activeOpenAIOAuth = computed(() => (isSora.value ? soraOAuth : openaiOAuth))
 
 // Computed - current OAuth state based on platform
@@ -311,14 +342,19 @@ const currentError = computed(() => {
 // Computed
 const isManualInputMethod = computed(() => {
   // OpenAI/Sora/Gemini/Antigravity always use manual input (no cookie auth option)
-  return isOpenAILike.value || isGemini.value || isAntigravity.value || oauthFlowRef.value?.inputMethod === 'manual'
+  return (
+    isOpenAILike.value ||
+    (isGemini.value && !isGeminiVertexAccount.value) ||
+    isAntigravity.value ||
+    oauthFlowRef.value?.inputMethod === 'manual'
+  )
 })
 
 const canExchangeCode = computed(() => {
   const authCode = oauthFlowRef.value?.authCode || ''
   const sessionId = currentSessionId.value
   const loading = currentLoading.value
-  return authCode.trim() && sessionId && !loading
+  return Boolean(authCode.trim() && sessionId && !loading)
 })
 
 // Watchers
@@ -335,12 +371,7 @@ watch(
       }
       if (isGemini.value) {
         const creds = (props.account.credentials || {}) as Record<string, unknown>
-        geminiOAuthType.value =
-          creds.oauth_type === 'google_one'
-            ? 'google_one'
-            : creds.oauth_type === 'ai_studio'
-              ? 'ai_studio'
-              : 'code_assist'
+        geminiOAuthType.value = normalizeGeminiOAuthType(creds.oauth_type)
       }
     } else {
       resetState()
@@ -421,10 +452,18 @@ const handleGenerateUrl = async () => {
   if (isOpenAILike.value) {
     await activeOpenAIOAuth.value.generateAuthUrl(props.account.proxy_id)
   } else if (isGemini.value) {
+    if (isGeminiVertexAccount.value) {
+      return
+    }
     const creds = (props.account.credentials || {}) as Record<string, unknown>
     const tierId = typeof creds.tier_id === 'string' ? creds.tier_id : undefined
     const projectId = geminiOAuthType.value === 'code_assist' ? oauthFlowRef.value?.projectId : undefined
-    await geminiOAuth.generateAuthUrl(props.account.proxy_id, projectId, geminiOAuthType.value, tierId)
+    await geminiOAuth.generateAuthUrl(
+      props.account.proxy_id,
+      projectId,
+      geminiOAuthType.value as GeminiBrowserOAuthType,
+      tierId
+    )
   } else if (isAntigravity.value) {
     await antigravityOAuth.generateAuthUrl(props.account.proxy_id)
   } else {
@@ -479,6 +518,9 @@ const handleExchangeCode = async () => {
       appStore.showError(oauthClient.error.value)
     }
   } else if (isGemini.value) {
+    if (isGeminiVertexAccount.value) {
+      return
+    }
     const sessionId = geminiOAuth.sessionId.value
     if (!sessionId) return
 
@@ -491,7 +533,7 @@ const handleExchangeCode = async () => {
       sessionId,
       state: stateToUse,
       proxyId: props.account.proxy_id,
-      oauthType: geminiOAuthType.value,
+      oauthType: geminiOAuthType.value as GeminiBrowserOAuthType,
       tierId: typeof (props.account.credentials as any)?.tier_id === 'string' ? ((props.account.credentials as any).tier_id as string) : undefined
     })
     if (!tokenInfo) return

@@ -77,4 +77,24 @@ describe('AccountGeminiAccountTypeEditor', () => {
     await codeAssistSelectWrapper.find('select').setValue('gcp_enterprise')
     expect(codeAssistSelectWrapper.emitted('update:tierGcp')).toEqual([['gcp_enterprise']])
   })
+
+  it('shows and selects the vertex ai branch without tier selector', async () => {
+    const wrapper = createWrapper({ showAdvanced: true, aiStudioOAuthEnabled: true, oauthType: 'code_assist' })
+    const vertexButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.gemini.oauthType.vertexTitle')
+    )
+
+    expect(vertexButton).toBeTruthy()
+    await vertexButton?.trigger('click')
+
+    expect(wrapper.emitted('update:oauthType')).toContainEqual(['vertex_ai'])
+
+    const vertexWrapper = createWrapper({
+      showAdvanced: true,
+      aiStudioOAuthEnabled: true,
+      oauthType: 'vertex_ai'
+    })
+    expect(vertexWrapper.text()).toContain('admin.accounts.gemini.vertex.formInlineHint')
+    expect(vertexWrapper.find('select').exists()).toBe(false)
+  })
 })

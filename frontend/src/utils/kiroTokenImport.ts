@@ -38,7 +38,11 @@ export function parseKiroTokenImport(rawInput: string): ParsedKiroTokenImport {
   }
 
   assignIfPresent(credentials, 'refresh_token', pickString(sources, ['refresh_token', 'refreshToken']))
-  assignIfPresent(credentials, 'expires_at', normalizeScalar(pickValue(sources, ['expires_at', 'expiresAt', 'expiration', 'expires'])))
+  assignIfPresent(
+    credentials,
+    'expires_at',
+    normalizeScalar(pickValue(sources, ['expires_at', 'expiresAt', 'expiration', 'expires']))
+  )
   assignIfPresent(credentials, 'auth_method', pickString(sources, ['auth_method', 'authMethod']))
   assignIfPresent(credentials, 'client_id', pickString(sources, ['client_id', 'clientId']))
   assignIfPresent(credentials, 'client_secret', pickString(sources, ['client_secret', 'clientSecret']))
@@ -61,11 +65,7 @@ export function parseKiroTokenImport(rawInput: string): ParsedKiroTokenImport {
     extra.source = 'kiro_import'
   }
 
-  const suggestedName = firstNonEmptyString(
-    extra.email,
-    extra.username,
-    extra.display_name
-  )
+  const suggestedName = firstNonEmptyString(extra.email, extra.username, extra.display_name)
 
   return {
     credentials,
@@ -88,7 +88,7 @@ function parseJSONObject(value: string): JsonRecord {
 
   if (Array.isArray(parsed)) {
     if (parsed.length !== 1 || !isRecord(parsed[0])) {
-      throw new Error('暂不支持批量导入多个 Kiro token JSON，请一次粘贴一个。')
+      throw new Error('暂不支持批量导入多个 Kiro token JSON，请一次只粘贴一个。')
     }
     return parsed[0]
   }

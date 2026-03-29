@@ -20,6 +20,11 @@
       {{ t('admin.accounts.kiroImport.hint') }}
     </p>
 
+    <AccountKiroMembershipFields
+      v-model:member-level="memberLevel"
+      v-model:member-credits="memberCredits"
+    />
+
     <div v-if="parseError" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
       {{ parseError }}
     </div>
@@ -56,20 +61,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AccountKiroMembershipFields from '@/components/account/AccountKiroMembershipFields.vue'
 import {
   parseKiroTokenImport,
   type ParsedKiroTokenImport
 } from '@/utils/kiroTokenImport'
+import type { KiroMemberLevel } from '@/utils/kiroMembership'
+import {
+  buildKiroMembershipExtra,
+  parseKiroMemberCredits,
+  readKiroMembershipFromExtra
+} from '@/utils/kiroMembership'
 
 interface Props {
   submitLabel: string
   submitting?: boolean
+  initialExtra?: Record<string, unknown> | null
 }
 
-withDefaults(defineProps<Props>(), {
-  submitting: false
+const props = withDefaults(defineProps<Props>(), {
+  submitting: false,
+  initialExtra: null
 })
 
 const emit = defineEmits<{
@@ -81,13 +95,37 @@ const { t } = useI18n()
 const rawInput = ref('')
 const parseError = ref('')
 const preview = ref<ParsedKiroTokenImport | null>(null)
+const memberLevel = ref<KiroMemberLevel>('kiro_free')
+const memberCredits = ref('50')
+
+function resetMembership() {
+  const membership = readKiroMembershipFromExtra(props.initialExtra)
+  memberLevel.value = membership.level
+  memberCredits.value = String(membership.credits)
+}
+
+watch(
+  () => props.initialExtra,
+  () => {
+    resetMembership()
+  },
+  { immediate: true }
+)
 
 function handleSubmit() {
   try {
     const parsed = parseKiroTokenImport(rawInput.value)
-    preview.value = parsed
+    const credits = parseKiroMemberCredits(memberCredits.value)
+    if (credits === null) {
+      throw new Error(t('admin.accounts.kiroMembership.invalidCredits'))
+    }
+    const nextPayload: ParsedKiroTokenImport = {
+      ...parsed,
+      extra: buildKiroMembershipExtra(memberLevel.value, credits, parsed.extra)
+    }
+    preview.value = nextPayload
     parseError.value = ''
-    emit('submit', parsed)
+    emit('submit', nextPayload)
   } catch (error: any) {
     preview.value = null
     parseError.value = error?.message || t('admin.accounts.kiroImport.parseFailed')
@@ -98,6 +136,7 @@ function reset() {
   rawInput.value = ''
   parseError.value = ''
   preview.value = null
+  resetMembership()
 }
 
 defineExpose({ reset })

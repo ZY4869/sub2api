@@ -56,7 +56,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 	var requestIDHeader string
 	var buildReq func(ctx context.Context) (*http.Request, string, error)
 	useUpstreamStream := req.Stream
-	if account.Type == AccountTypeOAuth && !req.Stream && strings.TrimSpace(account.GetCredential("project_id")) != "" {
+	if account.Type == AccountTypeOAuth && !req.Stream && !account.IsGeminiVertexAI() && strings.TrimSpace(account.GetCredential("project_id")) != "" {
 		useUpstreamStream = true
 	}
 	switch account.Type {
@@ -104,6 +104,31 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			action := "generateContent"
 			if useUpstreamStream {
 				action = "streamGenerateContent"
+			}
+			if account.IsGeminiVertexAI() {
+				baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+				normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
+				if err != nil {
+					return nil, "", err
+				}
+				actionPath, err := account.GeminiVertexModelActionPath(mappedModel, action)
+				if err != nil {
+					return nil, "", err
+				}
+				fullURL := strings.TrimRight(normalizedBaseURL, "/") + actionPath
+				if useUpstreamStream {
+					fullURL += "?alt=sse"
+				}
+				upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(geminiReq))
+				if err != nil {
+					return nil, "", err
+				}
+				upstreamReq.Header.Set("Content-Type", "application/json")
+				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
+				if shouldMimicGeminiCLI {
+					upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				}
+				return upstreamReq, "x-request-id", nil
 			}
 			if projectID != "" {
 				baseURL, err := s.validateUpstreamBaseURL(geminicli.GeminiCliBaseURL)
@@ -165,7 +190,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, err
 			}
-			if strings.Contains(err.Error(), "missing project_id") {
+			if isGeminiCredentialConfigError(err) {
 				return nil, s.writeClaudeError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 			}
 			return nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", err.Error())
@@ -434,7 +459,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	}
 	useUpstreamStream := stream
 	upstreamAction := action
-	if account.Type == AccountTypeOAuth && !stream && action == "generateContent" && strings.TrimSpace(account.GetCredential("project_id")) != "" {
+	if account.Type == AccountTypeOAuth && !stream && action == "generateContent" && !account.IsGeminiVertexAI() && strings.TrimSpace(account.GetCredential("project_id")) != "" {
 		useUpstreamStream = true
 		upstreamAction = "streamGenerateContent"
 	}
@@ -477,6 +502,31 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			accessToken, err := s.tokenProvider.GetAccessToken(ctx, account)
 			if err != nil {
 				return nil, "", err
+			}
+			if account.IsGeminiVertexAI() {
+				baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+				normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
+				if err != nil {
+					return nil, "", err
+				}
+				actionPath, err := account.GeminiVertexModelActionPath(mappedModel, upstreamAction)
+				if err != nil {
+					return nil, "", err
+				}
+				fullURL := strings.TrimRight(normalizedBaseURL, "/") + actionPath
+				if useUpstreamStream {
+					fullURL += "?alt=sse"
+				}
+				upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
+				if err != nil {
+					return nil, "", err
+				}
+				upstreamReq.Header.Set("Content-Type", "application/json")
+				upstreamReq.Header.Set("Authorization", "Bearer "+accessToken)
+				if shouldMimicGeminiCLI {
+					upstreamReq.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+				}
+				return upstreamReq, "x-request-id", nil
 			}
 			projectID := strings.TrimSpace(account.GetCredential("project_id"))
 			if projectID != "" && !forceAIStudio {
@@ -538,7 +588,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil, err
 			}
-			if strings.Contains(err.Error(), "missing project_id") {
+			if isGeminiCredentialConfigError(err) {
 				return nil, s.writeGoogleError(c, http.StatusBadRequest, err.Error())
 			}
 			return nil, s.writeGoogleError(c, http.StatusBadGateway, err.Error())

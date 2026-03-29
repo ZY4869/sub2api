@@ -1259,10 +1259,10 @@
         all: '全部'
       },
       platformSort: {
-        countAsc: '平台排序：少到多',
-        countDesc: '平台排序：多到少',
-        toggleAsc: '切换为少到多',
-        toggleDesc: '切换为多到少'
+        countAsc: '按平台数量排序账号列表：少到多',
+        countDesc: '按平台数量排序账号列表：多到少',
+        toggleAsc: '切换为按平台数量排序账号列表：少到多',
+        toggleDesc: '切换为按平台数量排序账号列表：多到少'
       },
       summary: {
         total: '总计',
@@ -2226,12 +2226,16 @@
           customTitle: '自定义授权（AI Studio OAuth）',
           customDesc: '使用管理员预设的 OAuth 客户端，适合组织管理。',
           customRequirement: '需管理员配置 Client ID 并加入测试用户白名单。',
+          vertexTitle: 'Vertex AI',
+          vertexDesc: '手动填写 GCP 项目、区域和 Bearer Token，直接走 Vertex AI Publisher Models。',
+          vertexRequirement: '不会自动刷新 token，过期后请手动更新 Access Token。',
           badges: {
             recommended: '推荐',
             highConcurrency: '高并发',
             noAdmin: '无需管理员配置',
             orgManaged: '组织管理',
-            adminRequired: '需要管理员'
+            adminRequired: '需要管理员',
+            manualToken: '手动 Token'
           }
         },
         setupGuide: {
@@ -2313,6 +2317,29 @@
           unlimited: '无限流',
           limited: '限流 {time}',
           now: '现在'
+        },
+        vertex: {
+          formTitle: 'Vertex AI 手动凭据',
+          formDescription: '填写 Vertex AI 项目、区域和 Bearer Token。该类型不会走 Google OAuth 跳转，也不会自动刷新 token。',
+          formInlineHint: 'Vertex AI 会在当前页面直接保存手动 Bearer 凭据，不会进入第二步 OAuth 跳转。',
+          projectId: 'GCP Project ID',
+          projectIdPlaceholder: 'my-gcp-project',
+          projectIdHint: '用于拼接 Vertex AI Publisher Models API 路径。',
+          projectIdRequired: '请输入 Vertex AI 的 GCP Project ID',
+          location: 'Location',
+          locationPlaceholder: 'us-central1',
+          locationHint: '例如 us-central1、us-east5、europe-west4。',
+          locationRequired: '请输入 Vertex AI 的区域 Location',
+          accessToken: 'Access Token',
+          accessTokenPlaceholder: '粘贴 Google Cloud Bearer Token',
+          accessTokenPlaceholderEdit: '留空则保留当前 Access Token；填写后将覆盖',
+          accessTokenHint: '只支持手动 Bearer Token。请确保 token 具备 Vertex AI 调用权限。',
+          accessTokenHintEdit: '为了安全，编辑时不会回显当前 token。留空表示继续使用已有 token。',
+          accessTokenRequired: '请输入 Vertex AI 的 Access Token',
+          expiresAt: '过期时间',
+          expiresAtHint: '可选。填写后用于本地过期提示；不填写则视为未知。',
+          baseUrl: 'Base URL',
+          baseUrlHint: '可选。留空使用官方 Vertex AI 地址。'
         }
       },
       // Re-Auth Modal
@@ -2409,6 +2436,23 @@
         username: '用户名',
         provider: '来源',
         parseFailed: 'Kiro token 解析失败'
+      },
+      kiroMembership: {
+        title: '会员信息',
+        description: '设置当前 Kiro 账号等级与积分。切换等级时会自动带出默认积分，你仍然可以手动改。',
+        level: '会员等级',
+        credits: '会员积分',
+        creditsHint: '请输入非负整数，创建账号和重新授权都会一并保存。',
+        invalidCredits: '会员积分必须是非负整数',
+        previewTitle: '会员预览',
+        previewLevel: '等级',
+        previewCredits: '积分',
+        levels: {
+          kiro_free: 'KIRO FREE',
+          kiro_pro: 'KIRO PRO',
+          kiro_pro_plus: 'KIRO PRO PLUS',
+          kiro_power: 'KIRO POWER'
+        }
       },
       // Test Modal
       testAccountConnection: '测试账号连接',

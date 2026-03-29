@@ -198,7 +198,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     ])
   })
 
-  it('supports editing chinese request model aliases and removes mappings when deselected', async () => {
+  it('supports editing request model aliases, keeps empty drafts, and removes mappings when deselected', async () => {
     const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
       props: {
         gatewayProtocol: 'openai',
@@ -229,15 +229,54 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(aliasInput.exists()).toBe(true)
 
     await aliasInput.setValue('中文别名')
-    await aliasInput.trigger('blur')
-
-    const mappingEvents = wrapper.emitted('update:modelMappings') || []
+    let mappingEvents = wrapper.emitted('update:modelMappings') || []
     expect(mappingEvents.at(-1)?.[0]).toEqual([{ from: '中文别名', to: 'gpt-4.1' }])
+
+    await aliasInput.setValue('')
+    mappingEvents = wrapper.emitted('update:modelMappings') || []
+    expect(mappingEvents.at(-1)?.[0]).toEqual([{ from: '', to: 'gpt-4.1' }])
 
     const modelCard = wrapper.find('button[title="gpt-4.1"]')
     await modelCard.trigger('click')
 
     expect(wrapper.emitted('update:allowedModels')?.at(-1)?.[0]).toEqual([])
     expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toEqual([])
+  })
+
+  it('renders long model details without truncating the content', () => {
+    const longDisplayName = 'A Very Long Upstream Model Name That Should Stay Visible In Full'
+    const longModelId = 'provider/collections/super-long-model-id-that-should-wrap-instead-of-truncating'
+    const longRegistryId = 'registry/super-long-model-id-that-should-also-remain-visible'
+
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'openai',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        allowedModels: [longModelId],
+        modelMappings: [{ from: longModelId, to: longModelId }],
+        probedModels: [
+          {
+            id: longModelId,
+            display_name: longDisplayName,
+            registry_state: 'existing',
+            registry_model_id: longRegistryId
+          }
+        ],
+        acceptedProtocols: ['openai'],
+        clientProfiles: [],
+        clientRoutes: []
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain(longDisplayName)
+    expect(wrapper.text()).toContain(longModelId)
+    expect(wrapper.text()).toContain(longRegistryId)
+    expect(wrapper.find(`button[title="${longModelId}"]`).exists()).toBe(true)
   })
 })

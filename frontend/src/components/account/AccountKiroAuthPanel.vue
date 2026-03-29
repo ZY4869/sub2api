@@ -31,6 +31,7 @@
       ref="importPanelRef"
       :submit-label="submitLabel"
       :submitting="submitting"
+      :initial-extra="initialExtra"
       @submit="emit('submit', $event)"
     />
 
@@ -75,6 +76,11 @@
       >
         {{ t('admin.accounts.kiroAuth.socialWarning') }}
       </div>
+
+      <AccountKiroMembershipFields
+        v-model:member-level="memberLevel"
+        v-model:member-credits="memberCredits"
+      />
 
       <div v-if="errorMessage" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
         {{ errorMessage }}
@@ -171,6 +177,8 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import AccountKiroMembershipFields from '@/components/account/AccountKiroMembershipFields.vue'
+import AccountKiroTokenImportPanel from '@/components/account/AccountKiroTokenImportPanel.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
@@ -180,17 +188,24 @@ import {
   type KiroExchangeCodeResult,
   type KiroOAuthMethod
 } from '@/utils/kiroOAuth'
-import AccountKiroTokenImportPanel from '@/components/account/AccountKiroTokenImportPanel.vue'
+import type { KiroMemberLevel } from '@/utils/kiroMembership'
+import {
+  buildKiroMembershipExtra,
+  parseKiroMemberCredits,
+  readKiroMembershipFromExtra
+} from '@/utils/kiroMembership'
 
 interface Props {
   proxyId?: number | null
   submitLabel: string
   submitting?: boolean
+  initialExtra?: Record<string, unknown> | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   proxyId: null,
-  submitting: false
+  submitting: false,
+  initialExtra: null
 })
 
 const emit = defineEmits<{
@@ -211,6 +226,8 @@ const parsedCode = ref('')
 const parsedState = ref('')
 const errorMessage = ref('')
 const loading = ref(false)
+const memberLevel = ref<KiroMemberLevel>('kiro_free')
+const memberCredits = ref('50')
 
 const methods = computed(() => [
   {
@@ -258,6 +275,14 @@ watch(activeTab, (tab) => {
     resetOAuthState()
   }
 })
+
+watch(
+  () => props.initialExtra,
+  () => {
+    resetMembership()
+  },
+  { immediate: true }
+)
 
 function tabClass(tab: 'oauth' | 'import') {
   return tab === activeTab.value
@@ -320,13 +345,20 @@ async function submitOAuth() {
   loading.value = true
   errorMessage.value = ''
   try {
+    const credits = parseKiroMemberCredits(memberCredits.value)
+    if (credits === null) {
+      errorMessage.value = t('admin.accounts.kiroMembership.invalidCredits')
+      return
+    }
     const tokenInfo = await adminAPI.accounts.exchangeKiroAuthCode({
       session_id: authState.value.session_id,
       code: parsedCode.value,
       state: resolvedState.value,
       proxy_id: props.proxyId
     })
-    emit('submit', buildKiroOAuthPayload(tokenInfo as KiroExchangeCodeResult))
+    const payload = buildKiroOAuthPayload(tokenInfo as KiroExchangeCodeResult)
+    payload.extra = buildKiroMembershipExtra(memberLevel.value, credits, payload.extra)
+    emit('submit', payload)
   } catch (error: any) {
     errorMessage.value = error?.message || t('admin.accounts.kiroAuth.exchangeFailed')
   } finally {
@@ -343,6 +375,12 @@ function resetOAuthState() {
   loading.value = false
 }
 
+function resetMembership() {
+  const membership = readKiroMembershipFromExtra(props.initialExtra)
+  memberLevel.value = membership.level
+  memberCredits.value = String(membership.credits)
+}
+
 function reset() {
   activeTab.value = 'oauth'
   selectedMethod.value = 'builder_id'
@@ -350,6 +388,7 @@ function reset() {
   region.value = 'us-east-1'
   importPanelRef.value?.reset()
   resetOAuthState()
+  resetMembership()
 }
 
 defineExpose({ reset })

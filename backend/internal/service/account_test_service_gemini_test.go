@@ -3,10 +3,13 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -56,4 +59,138 @@ func TestProcessGeminiStream_EmitsImageEvent(t *testing.T) {
 	require.Contains(t, body, "\"type\":\"image\"")
 	require.Contains(t, body, "\"image_url\":\"data:image/png;base64,QUJD\"")
 	require.Contains(t, body, "\"mime_type\":\"image/png\"")
+}
+
+func TestBuildGeminiOAuthRequest_VertexAIUsesPublisherModelsURL(t *testing.T) {
+	t.Parallel()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.Security{
+				URLAllowlist: config.URLAllowlist{
+					AllowInsecureHTTP: true,
+				},
+			},
+		},
+		geminiTokenProvider: &GeminiTokenProvider{
+			tokenCache: &accountModelImportGeminiTokenCacheStub{token: "vertex-access-token"},
+		},
+	}
+	account := &Account{
+		ID:       301,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"oauth_type":        "vertex_ai",
+			"vertex_project_id": "vertex-project",
+			"vertex_location":   "us-central1",
+		},
+	}
+
+	req, err := svc.buildGeminiOAuthRequest(
+		context.Background(),
+		account,
+		"gemini-2.5-pro",
+		[]byte(`{"contents":[]}`),
+		true,
+	)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		geminicli.VertexAIBaseURL+"/v1/projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:streamGenerateContent?alt=sse",
+		req.URL.String(),
+	)
+	require.Equal(t, "Bearer vertex-access-token", req.Header.Get("Authorization"))
+	require.Equal(t, "application/json", req.Header.Get("Content-Type"))
+	require.Equal(t, geminicli.GeminiCLIUserAgent, req.Header.Get("User-Agent"))
+}
+
+func TestBuildGeminiOAuthRequest_VertexAIRequiresProjectAndLocation(t *testing.T) {
+	t.Parallel()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.Security{
+				URLAllowlist: config.URLAllowlist{
+					AllowInsecureHTTP: true,
+				},
+			},
+		},
+		geminiTokenProvider: &GeminiTokenProvider{
+			tokenCache: &accountModelImportGeminiTokenCacheStub{token: "vertex-access-token"},
+		},
+	}
+
+	_, err := svc.buildGeminiOAuthRequest(
+		context.Background(),
+		&Account{
+			ID:       302,
+			Platform: PlatformGemini,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"oauth_type":      "vertex_ai",
+				"vertex_location": "us-central1",
+			},
+		},
+		"gemini-2.5-pro",
+		[]byte(`{"contents":[]}`),
+		false,
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing vertex_project_id")
+
+	_, err = svc.buildGeminiOAuthRequest(
+		context.Background(),
+		&Account{
+			ID:       303,
+			Platform: PlatformGemini,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"oauth_type":        "vertex_ai",
+				"vertex_project_id": "vertex-project",
+			},
+		},
+		"gemini-2.5-pro",
+		[]byte(`{"contents":[]}`),
+		false,
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing vertex_location")
+}
+
+func TestBuildGeminiOAuthRequest_VertexAIRequiresAccessToken(t *testing.T) {
+	t.Parallel()
+
+	svc := &AccountTestService{
+		cfg: &config.Config{
+			Security: config.Security{
+				URLAllowlist: config.URLAllowlist{
+					AllowInsecureHTTP: true,
+				},
+			},
+		},
+		geminiTokenProvider: &GeminiTokenProvider{
+			tokenCache: &accountModelImportGeminiTokenCacheStub{},
+		},
+	}
+	account := &Account{
+		ID:       304,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"oauth_type":        "vertex_ai",
+			"vertex_project_id": "vertex-project",
+			"vertex_location":   "us-central1",
+		},
+	}
+
+	_, err := svc.buildGeminiOAuthRequest(
+		context.Background(),
+		account,
+		"gemini-2.5-pro",
+		[]byte(`{"contents":[]}`),
+		false,
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "access_token not found in credentials")
 }

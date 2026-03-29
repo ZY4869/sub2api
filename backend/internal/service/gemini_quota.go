@@ -391,6 +391,8 @@ func geminiQuotaTierKeyForAccount(account *Account) string {
 		return GeminiTierGCPStandard
 	case "ai_studio":
 		return GeminiTierAIStudioFree
+	case "vertex_ai":
+		return ""
 	default:
 		// API Key accounts (type=apikey) have empty oauth_type and are treated as AI Studio.
 		return GeminiTierAIStudioFree

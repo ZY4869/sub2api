@@ -499,12 +499,14 @@ func geminiImportProbeFields(account *Account, statusCode int, probeSource strin
 			zap.String("probe_source", probeSource),
 		}
 	}
+	baseURL := geminiBaseURLForLogging(account)
 	return []zap.Field{
 		zap.Int64("account_id", account.ID),
 		zap.String("platform", RoutingPlatformForAccount(account)),
 		zap.String("type", account.Type),
 		zap.String("oauth_type", account.GeminiOAuthType()),
-		zap.String("base_host", extractImportBaseHost(account.GetGeminiBaseURL(geminicli.AIStudioBaseURL))),
+		zap.String("base_host", extractImportBaseHost(baseURL)),
+		zap.String("vertex_location", account.GetGeminiVertexLocation()),
 		zap.Int("status", statusCode),
 		zap.String("probe_source", probeSource),
 	}

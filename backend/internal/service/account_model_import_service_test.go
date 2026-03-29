@@ -430,6 +430,115 @@ func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T
 	require.Contains(t, stored, "gemini-test-model-b")
 }
 
+func TestProbeAccountModels_UsesGeminiVertexPublisherListing(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"models":[{"name":"projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.5-pro"},{"name":"publishers/google/models/gemini-2.0-flash-lite"}]}`,
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       115,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type":        "vertex_ai",
+			"vertex_project_id": "vertex-project",
+			"vertex_location":   "us-central1",
+		},
+	}
+
+	result, err := svc.ProbeAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gemini-2.5-pro", "gemini-2.0-flash-lite"}, result.DetectedModels)
+	require.Len(t, result.Models, 2)
+	require.Equal(t, accountModelProbeSourceUpstream, result.ProbeSource)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(
+		t,
+		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models",
+		upstream.lastReq.URL.String(),
+	)
+	require.Equal(t, "Bearer vertex-access-token", upstream.lastReq.Header.Get("Authorization"))
+	require.Empty(t, upstream.lastReq.Header.Get("x-goog-api-key"))
+}
+
+func TestProbeAccountModels_GeminiVertexRequiresProjectLocationAndToken(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"models":[{"name":"projects/x/locations/us-central1/publishers/google/models/gemini-2.5-pro"}]}`,
+	}
+
+	t.Run("missing project", func(t *testing.T) {
+		geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
+		svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+		account := &Account{
+			ID:       116,
+			Platform: PlatformGemini,
+			Type:     AccountTypeOAuth,
+			Status:   StatusActive,
+			Credentials: map[string]any{
+				"oauth_type":      "vertex_ai",
+				"vertex_location": "us-central1",
+			},
+		}
+
+		_, err := svc.ProbeAccountModels(context.Background(), account)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing vertex_project_id")
+	})
+
+	t.Run("missing location", func(t *testing.T) {
+		geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
+		svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+		account := &Account{
+			ID:       117,
+			Platform: PlatformGemini,
+			Type:     AccountTypeOAuth,
+			Status:   StatusActive,
+			Credentials: map[string]any{
+				"oauth_type":        "vertex_ai",
+				"vertex_project_id": "vertex-project",
+			},
+		}
+
+		_, err := svc.ProbeAccountModels(context.Background(), account)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing vertex_location")
+	})
+
+	t.Run("missing token", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Security.URLAllowlist.AllowInsecureHTTP = true
+		geminiCompatService := &GeminiMessagesCompatService{
+			httpUpstream: upstream,
+			cfg:          cfg,
+			tokenProvider: &GeminiTokenProvider{
+				tokenCache: &accountModelImportGeminiTokenCacheStub{},
+			},
+		}
+		svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+		account := &Account{
+			ID:       118,
+			Platform: PlatformGemini,
+			Type:     AccountTypeOAuth,
+			Status:   StatusActive,
+			Credentials: map[string]any{
+				"oauth_type":        "vertex_ai",
+				"vertex_project_id": "vertex-project",
+				"vertex_location":   "us-central1",
+			},
+		}
+
+		_, err := svc.ProbeAccountModels(context.Background(), account)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "access_token not found in credentials")
+	})
+}
+
 func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficientScope(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)

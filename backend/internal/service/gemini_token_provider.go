@@ -57,6 +57,12 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		return "", errors.New("not a gemini oauth account")
 	}
 
+	expiresAt := account.GetCredentialAsTime("expires_at")
+	isVertexAI := account.IsGeminiVertexAI()
+	if isVertexAI && expiresAt != nil && time.Until(*expiresAt) <= 0 {
+		return "", errors.New("vertex ai access token expired; please update access_token manually")
+	}
+
 	cacheKey := GeminiTokenCacheKey(account)
 
 	// 1) Try cache first.
@@ -67,8 +73,7 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 
 	// 2) Refresh if needed (pre-expiry skew).
-	expiresAt := account.GetCredentialAsTime("expires_at")
-	needsRefresh := expiresAt == nil || time.Until(*expiresAt) <= geminiTokenRefreshSkew
+	needsRefresh := !isVertexAI && (expiresAt == nil || time.Until(*expiresAt) <= geminiTokenRefreshSkew)
 
 	if needsRefresh && p.refreshAPI != nil && p.executor != nil {
 		result, err := p.refreshAPI.RefreshIfNeeded(ctx, account, p.executor, geminiTokenRefreshSkew)
@@ -108,7 +113,7 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	projectID := strings.TrimSpace(account.GetCredential("project_id"))
 	autoDetectProjectID := account.GetCredential("auto_detect_project_id") == "true"
 
-	if projectID == "" && autoDetectProjectID {
+	if !isVertexAI && projectID == "" && autoDetectProjectID {
 		if p.geminiOAuthService == nil {
 			return accessToken, nil
 		}
@@ -169,6 +174,12 @@ func (p *GeminiTokenProvider) GetAccessToken(ctx context.Context, account *Accou
 }
 
 func GeminiTokenCacheKey(account *Account) string {
+	if account == nil {
+		return "gemini:account:0"
+	}
+	if account != nil && account.IsGeminiVertexAI() {
+		return "gemini:account:" + strconv.FormatInt(account.ID, 10)
+	}
 	projectID := strings.TrimSpace(account.GetCredential("project_id"))
 	if projectID != "" {
 		return "gemini:" + projectID

@@ -94,6 +94,8 @@ type CreateKiroAccountFromOAuthRequest struct {
 	Code                    string   `json:"code" binding:"required"`
 	State                   string   `json:"state" binding:"required"`
 	ProxyID                 *int64   `json:"proxy_id"`
+	KiroMemberLevel         string   `json:"kiro_member_level"`
+	KiroMemberCredits       *int     `json:"kiro_member_credits"`
 	Name                    string   `json:"name"`
 	Notes                   *string  `json:"notes"`
 	Concurrency             int      `json:"concurrency"`
@@ -128,6 +130,8 @@ func (h *KiroOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	tokenInfo.MemberLevel = req.KiroMemberLevel
+	tokenInfo.MemberCredits = req.KiroMemberCredits
 
 	account, err := h.adminService.CreateAccount(c.Request.Context(), &service.CreateAccountInput{
 		Name:                  resolveKiroAccountName(req.Name, tokenInfo),
@@ -155,10 +159,12 @@ func (h *KiroOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 }
 
 type ReauthorizeKiroAccountFromOAuthRequest struct {
-	SessionID string `json:"session_id" binding:"required"`
-	Code      string `json:"code" binding:"required"`
-	State     string `json:"state" binding:"required"`
-	ProxyID   *int64 `json:"proxy_id"`
+	SessionID         string `json:"session_id" binding:"required"`
+	Code              string `json:"code" binding:"required"`
+	State             string `json:"state" binding:"required"`
+	ProxyID           *int64 `json:"proxy_id"`
+	KiroMemberLevel   string `json:"kiro_member_level"`
+	KiroMemberCredits *int   `json:"kiro_member_credits"`
 }
 
 func (h *KiroOAuthHandler) ReauthorizeAccountFromOAuth(c *gin.Context) {
@@ -203,6 +209,8 @@ func (h *KiroOAuthHandler) ReauthorizeAccountFromOAuth(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	tokenInfo.MemberLevel = req.KiroMemberLevel
+	tokenInfo.MemberCredits = req.KiroMemberCredits
 
 	credentials := h.kiroOAuthService.BuildAccountCredentials(tokenInfo)
 	credentials = service.MergeCredentials(account.Credentials, credentials)

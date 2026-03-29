@@ -1177,10 +1177,10 @@ export default {
         all: 'All'
       },
       platformSort: {
-        countAsc: 'Platform Sort: Few to Many',
-        countDesc: 'Platform Sort: Many to Few',
-        toggleAsc: 'Switch to few to many',
-        toggleDesc: 'Switch to many to few'
+        countAsc: 'Sort account list by platform count: Few to Many',
+        countDesc: 'Sort account list by platform count: Many to Few',
+        toggleAsc: 'Switch account list sort to few to many',
+        toggleDesc: 'Switch account list sort to many to few'
       },
       summary: {
         total: 'Total',
@@ -2094,12 +2094,16 @@ export default {
           customTitle: 'Custom OAuth (AI Studio OAuth)',
           customDesc: 'Uses admin-configured OAuth client for org management.',
           customRequirement: 'Admin must configure Client ID and add you as a test user.',
+          vertexTitle: 'Vertex AI',
+          vertexDesc: 'Manually configure GCP project, location, and Bearer token to call Vertex AI Publisher Models directly.',
+          vertexRequirement: 'Tokens are not refreshed automatically. Update the Access Token manually after expiry.',
           badges: {
             recommended: 'Recommended',
             highConcurrency: 'High concurrency',
             noAdmin: 'No admin setup',
             orgManaged: 'Org managed',
-            adminRequired: 'Admin required'
+            adminRequired: 'Admin required',
+            manualToken: 'Manual token'
           }
         },
         setupGuide: {
@@ -2181,6 +2185,29 @@ export default {
           unlimited: 'Unlimited',
           limited: 'Rate limited {time}',
           now: 'now'
+        },
+        vertex: {
+          formTitle: 'Vertex AI Manual Credentials',
+          formDescription: 'Provide your Vertex AI project, location, and Bearer token. This path skips Google OAuth redirects and never auto-refreshes tokens.',
+          formInlineHint: 'Vertex AI is saved directly from this step with manual Bearer credentials instead of entering the OAuth redirect flow.',
+          projectId: 'GCP Project ID',
+          projectIdPlaceholder: 'my-gcp-project',
+          projectIdHint: 'Used to build the Vertex AI Publisher Models API path.',
+          projectIdRequired: 'Enter the Vertex AI GCP Project ID',
+          location: 'Location',
+          locationPlaceholder: 'us-central1',
+          locationHint: 'Examples: us-central1, us-east5, europe-west4.',
+          locationRequired: 'Enter the Vertex AI location',
+          accessToken: 'Access Token',
+          accessTokenPlaceholder: 'Paste a Google Cloud Bearer token',
+          accessTokenPlaceholderEdit: 'Leave empty to keep the current Access Token, or paste a new one to replace it',
+          accessTokenHint: 'Only manual Bearer tokens are supported. Make sure the token can access Vertex AI.',
+          accessTokenHintEdit: 'For safety, the current token is never shown during edit. Leave empty to keep the existing token.',
+          accessTokenRequired: 'Enter the Vertex AI Access Token',
+          expiresAt: 'Expires At',
+          expiresAtHint: 'Optional. Used only for local expiry hints.',
+          baseUrl: 'Base URL',
+          baseUrlHint: 'Optional. Leave blank to use the official Vertex AI endpoint.'
         }
       },
       // Re-Auth Modal
@@ -2277,6 +2304,23 @@ export default {
         username: 'Username',
         provider: 'Provider',
         parseFailed: 'Failed to parse the Kiro token'
+      },
+      kiroMembership: {
+        title: 'Membership',
+        description: 'Set the Kiro membership tier and credits for this account. Changing the tier prefills the default credits, but you can still edit them.',
+        level: 'Membership Tier',
+        credits: 'Credits',
+        creditsHint: 'Use a non-negative integer. The values are saved on both create and re-authorize.',
+        invalidCredits: 'Credits must be a non-negative integer',
+        previewTitle: 'Membership Preview',
+        previewLevel: 'Tier',
+        previewCredits: 'Credits',
+        levels: {
+          kiro_free: 'KIRO FREE',
+          kiro_pro: 'KIRO PRO',
+          kiro_pro_plus: 'KIRO PRO PLUS',
+          kiro_power: 'KIRO POWER'
+        }
       },
       // Test Modal
       testAccountConnection: 'Test Account Connection',

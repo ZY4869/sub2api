@@ -90,6 +90,16 @@
           @open-gemini-help="showGeminiHelpDialog = true"
         />
 
+        <AccountGeminiVertexCredentialsEditor
+          v-if="form.platform === 'gemini' && accountCategory === 'oauth-based' && geminiOAuthType === 'vertex_ai'"
+          v-model:project-id="geminiVertexProjectId"
+          v-model:location="geminiVertexLocation"
+          v-model:access-token="geminiVertexAccessToken"
+          v-model:expires-at-input="geminiVertexExpiresAtInput"
+          v-model:base-url="geminiVertexBaseUrl"
+          mode="create"
+        />
+
         <div
           v-if="form.platform === 'grok'"
           class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
@@ -458,6 +468,7 @@ import AccountCreatePlatformTypeEditor from '@/components/account/AccountCreateP
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
+import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGeminiVertexCredentialsEditor.vue'
 import AccountGrokImportPanel from '@/components/account/AccountGrokImportPanel.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
@@ -500,6 +511,11 @@ import {
   resolveEffectiveAccountPlatform,
   supportsProtocolGatewayClaudeClientMimic
 } from '@/utils/accountProtocolGateway'
+import {
+  isGeminiVertexAI,
+  type GeminiBrowserOAuthType,
+  type GeminiOAuthType
+} from '@/utils/geminiAccount'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
   OPENAI_WS_MODE_OFF,
@@ -627,11 +643,16 @@ const antigravityAccountType = ref<'oauth' | 'upstream'>('oauth') // For antigra
 const soraAccountType = ref<'oauth' | 'apikey'>('oauth') // For sora: oauth or apikey (upstream)
 const upstreamBaseUrl = ref('') // For upstream type: base URL
 const upstreamApiKey = ref('') // For upstream type: API key
+const geminiVertexProjectId = ref('')
+const geminiVertexLocation = ref('')
+const geminiVertexAccessToken = ref('')
+const geminiVertexExpiresAtInput = ref('')
+const geminiVertexBaseUrl = ref('')
 const antigravityModelMappings = ref<ModelMapping[]>([])
 const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-model-mapping')
 const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-antigravity-model-mapping')
-const geminiOAuthType = ref<'code_assist' | 'google_one' | 'ai_studio'>('google_one')
+const geminiOAuthType = ref<GeminiOAuthType>('google_one')
 const geminiAIStudioOAuthEnabled = ref(false)
 
 const showAdvancedOAuth = ref(false)
@@ -777,6 +798,9 @@ const isOAuthFlow = computed(() => {
   if (form.platform === 'antigravity' && antigravityAccountType.value === 'upstream') {
     return false
   }
+  if (form.platform === 'gemini' && isGeminiVertexAI(geminiOAuthType.value)) {
+    return false
+  }
   if (form.platform === 'grok') {
     return false
   }
@@ -906,6 +930,13 @@ watch(
     modelMappings.value = []
     if (newPlatform !== 'anthropic') {
       addMethod.value = 'oauth'
+    }
+    if (newPlatform !== 'gemini') {
+      geminiVertexProjectId.value = ''
+      geminiVertexLocation.value = ''
+      geminiVertexAccessToken.value = ''
+      geminiVertexExpiresAtInput.value = ''
+      geminiVertexBaseUrl.value = ''
     }
     if (newPlatform === 'protocol_gateway') {
       accountCategory.value = 'apikey'
@@ -1241,6 +1272,11 @@ const { resetForm } = useCreateAccountReset({
   antigravityAccountType,
   upstreamBaseUrl,
   upstreamApiKey,
+  geminiVertexProjectId,
+  geminiVertexLocation,
+  geminiVertexAccessToken,
+  geminiVertexExpiresAtInput,
+  geminiVertexBaseUrl,
   resetTempUnschedRules,
   geminiOAuthType,
   geminiTierGoogleOne,
@@ -1551,6 +1587,43 @@ const handleSubmit = async () => {
     return
   }
 
+  if (form.platform === 'gemini' && accountCategory.value === 'oauth-based' && isGeminiVertexAI(geminiOAuthType.value)) {
+    if (!form.name.trim()) {
+      appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+      return
+    }
+    if (!geminiVertexProjectId.value.trim()) {
+      appStore.showError(t('admin.accounts.gemini.vertex.projectIdRequired'))
+      return
+    }
+    if (!geminiVertexLocation.value.trim()) {
+      appStore.showError(t('admin.accounts.gemini.vertex.locationRequired'))
+      return
+    }
+    if (!geminiVertexAccessToken.value.trim()) {
+      appStore.showError(t('admin.accounts.gemini.vertex.accessTokenRequired'))
+      return
+    }
+
+    const credentials: Record<string, unknown> = {
+      oauth_type: 'vertex_ai',
+      vertex_project_id: geminiVertexProjectId.value.trim(),
+      vertex_location: geminiVertexLocation.value.trim(),
+      access_token: geminiVertexAccessToken.value.trim()
+    }
+    const expiresAt = parseDateTimeLocal(geminiVertexExpiresAtInput.value)
+    if (expiresAt != null) {
+      credentials.expires_at = String(expiresAt)
+    }
+    const baseUrl = geminiVertexBaseUrl.value.trim()
+    if (baseUrl) {
+      credentials.base_url = baseUrl
+    }
+
+    await createAccountAndFinish('gemini', 'oauth', credentials)
+    return
+  }
+
   // For apikey type, create directly
   if (!apiKeyValue.value.trim()) {
     appStore.showError(t('admin.accounts.pleaseEnterApiKey'))
@@ -1628,7 +1701,7 @@ const handleGenerateUrl = async () => {
     await geminiOAuth.generateAuthUrl(
       form.proxy_id,
       oauthFlowRef.value?.projectId,
-      geminiOAuthType.value,
+      geminiOAuthType.value as GeminiBrowserOAuthType,
       geminiSelectedTier.value
     )
   } else if (form.platform === 'antigravity') {
@@ -1675,7 +1748,7 @@ const handleGeminiExchange = async (authCode: string) => {
       sessionId: geminiOAuth.sessionId.value,
       state: stateToUse,
       proxyId: form.proxy_id,
-      oauthType: geminiOAuthType.value,
+      oauthType: geminiOAuthType.value as GeminiBrowserOAuthType,
       tierId: geminiSelectedTier.value
     })
     if (!tokenInfo) return

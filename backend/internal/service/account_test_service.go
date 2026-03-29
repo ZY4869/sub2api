@@ -1890,6 +1890,30 @@ func (s *AccountTestService) buildGeminiOAuthRequest(ctx context.Context, accoun
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
+	if account.IsGeminiVertexAI() {
+		baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
+		if err != nil {
+			return nil, err
+		}
+		actionPath, err := account.GeminiVertexModelActionPath(modelID, "streamGenerateContent")
+		if err != nil {
+			return nil, err
+		}
+		fullURL := fmt.Sprintf("%s%s?alt=sse", strings.TrimRight(normalizedBaseURL, "/"), actionPath)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(payload))
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		if mimicGeminiCLI {
+			req.Header.Set("User-Agent", geminicli.GeminiCLIUserAgent)
+		}
+		return req, nil
+	}
+
 	projectID := strings.TrimSpace(account.GetCredential("project_id"))
 	if projectID == "" {
 		// AI Studio OAuth mode (no project_id): call generativelanguage API directly with Bearer token.

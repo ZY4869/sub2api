@@ -15,6 +15,23 @@ func TestGeminiTokenCacheKey(t *testing.T) {
 		expected string
 	}{
 		{
+			name: "vertex_ai_always_uses_account_id",
+			account: &Account{
+				ID:       99,
+				Platform: PlatformGemini,
+				Type:     AccountTypeOAuth,
+				Credentials: map[string]any{
+					"oauth_type":        "vertex_ai",
+					"vertex_project_id": "vertex-project",
+					"vertex_location":   "us-central1",
+					"project_id":        "legacy-project-id",
+					"access_token":      "vertex-token",
+					"base_url":          "https://aiplatform.googleapis.com",
+				},
+			},
+			expected: "gemini:account:99",
+		},
+		{
 			name: "with_project_id",
 			account: &Account{
 				ID: 100,

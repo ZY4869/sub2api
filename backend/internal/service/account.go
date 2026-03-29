@@ -155,8 +155,13 @@ func (a *Account) GeminiOAuthType() string {
 		return ""
 	}
 	oauthType := strings.TrimSpace(a.GetCredential("oauth_type"))
-	if oauthType == "" && strings.TrimSpace(a.GetCredential("project_id")) != "" {
-		return "code_assist"
+	if oauthType == "" {
+		if strings.TrimSpace(a.GetCredential("vertex_project_id")) != "" {
+			return "vertex_ai"
+		}
+		if strings.TrimSpace(a.GetCredential("project_id")) != "" {
+			return "code_assist"
+		}
 	}
 	return oauthType
 }

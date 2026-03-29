@@ -360,6 +360,14 @@ func (s *GeminiMessagesCompatService) ForwardAIStudioGET(ctx context.Context, ac
 		return nil, errors.New("invalid path")
 	}
 	baseURL := account.GetGeminiBaseURL(geminicli.AIStudioBaseURL)
+	if account.IsGeminiVertexAI() {
+		baseURL = account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+		vertexPath, err := buildGeminiVertexGETPath(account, path)
+		if err != nil {
+			return nil, err
+		}
+		path = vertexPath
+	}
 	normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 	if err != nil {
 		return nil, err

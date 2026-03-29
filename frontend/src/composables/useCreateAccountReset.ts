@@ -21,6 +21,7 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
+import type { GeminiOAuthType } from '@/utils/geminiAccount'
 
 interface CreateAccountFormShape {
   name: string
@@ -81,8 +82,13 @@ interface UseCreateAccountResetOptions {
   antigravityAccountType: Ref<'oauth' | 'upstream'>
   upstreamBaseUrl: Ref<string>
   upstreamApiKey: Ref<string>
+  geminiVertexProjectId: Ref<string>
+  geminiVertexLocation: Ref<string>
+  geminiVertexAccessToken: Ref<string>
+  geminiVertexExpiresAtInput: Ref<string>
+  geminiVertexBaseUrl: Ref<string>
   resetTempUnschedRules: () => void
-  geminiOAuthType: Ref<'google_one' | 'ai_studio' | 'code_assist'>
+  geminiOAuthType: Ref<GeminiOAuthType>
   geminiTierGoogleOne: Ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>
   geminiTierGcp: Ref<'gcp_standard' | 'gcp_enterprise'>
   geminiTierAIStudio: Ref<'aistudio_free' | 'aistudio_paid'>
@@ -154,6 +160,11 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.antigravityAccountType.value = 'oauth'
     options.upstreamBaseUrl.value = ''
     options.upstreamApiKey.value = ''
+    options.geminiVertexProjectId.value = ''
+    options.geminiVertexLocation.value = ''
+    options.geminiVertexAccessToken.value = ''
+    options.geminiVertexExpiresAtInput.value = ''
+    options.geminiVertexBaseUrl.value = ''
     options.resetTempUnschedRules()
     options.geminiOAuthType.value = 'code_assist'
     options.geminiTierGoogleOne.value = 'google_one_free'
