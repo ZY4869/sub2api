@@ -229,6 +229,7 @@ type GatewayService struct {
 	modelsListCacheTTL           time.Duration
 	settingService               *SettingService
 	modelRegistryService         *ModelRegistryService
+	vertexCatalogService         VertexCatalogProvider
 	tlsFingerprintProfileService *TLSFingerprintProfileService
 	responseHeaderFilter         *responseheaders.CompiledHeaderFilter
 	debugModelRouting            atomic.Bool
@@ -274,6 +275,10 @@ func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository,
 
 func (s *GatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *GatewayService) SetVertexCatalogService(vertexCatalogService VertexCatalogProvider) {
+	s.vertexCatalogService = vertexCatalogService
 }
 
 func (s *GatewayService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {

@@ -134,7 +134,7 @@ func apiKeyPublicEntryToGeminiModel(entry service.APIKeyPublicModelEntry) gemini
 	return gemini.Model{
 		Name:                       "models/" + entry.PublicID,
 		DisplayName:                displayName,
-		SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent"},
+		SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
 	}
 }
 

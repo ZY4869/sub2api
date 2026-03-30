@@ -71,7 +71,14 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefi
 			},
 		},
 	}
-	svc := &GatewayService{accountRepo: repo}
+	svc := &GatewayService{
+		accountRepo: repo,
+		vertexCatalogService: newTestVertexCatalogProvider(&VertexCatalogResult{
+			CallableUnion: []VertexCatalogModel{
+				{ID: "gemini-2.0-flash", DisplayName: "Gemini 2.0 Flash"},
+			},
+		}),
+	}
 	apiKey := &APIKey{
 		ID:               11,
 		ModelDisplayMode: APIKeyModelDisplayModeAliasOnly,
@@ -88,11 +95,24 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefi
 		},
 	}
 
-	entry, ok := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash"))
+	entries := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformGemini)
+	require.Len(t, entries, 1)
+	require.Equal(t, "gemini-2.0-flash", entries[0].PublicID)
+	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entries[0].AliasID)
+	require.Equal(t, "gemini-2.0-flash", entries[0].SourceID)
+
+	entry, ok := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
 	require.True(t, ok)
-	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.PublicID)
+	require.Equal(t, "gemini-2.0-flash", entry.PublicID)
+	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.AliasID)
 	require.Equal(t, "gemini-2.0-flash", entry.SourceID)
-	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.DisplayName)
+	_, aliasVisible := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash"))
+	require.False(t, aliasVisible)
+	require.Equal(
+		t,
+		DefaultVertexPublicModelAlias("gemini-2.0-flash"),
+		svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash")),
+	)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertexPrefix(t *testing.T) {
@@ -108,11 +128,22 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertex
 				Credentials: map[string]any{
 					"api_key":            "vertex-express-key",
 					"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+					"model_mapping": map[string]any{
+						"friendly-flash": "gemini-2.0-flash",
+						"friendly-pro":   "gemini-3.1-pro-preview",
+					},
 				},
 			},
 		},
 	}
-	svc := &GatewayService{accountRepo: repo}
+	svc := &GatewayService{
+		accountRepo: repo,
+		vertexCatalogService: newTestVertexCatalogProvider(&VertexCatalogResult{
+			CallableUnion: []VertexCatalogModel{
+				{ID: "gemini-2.0-flash", DisplayName: "Gemini 2.0 Flash"},
+			},
+		}),
+	}
 	apiKey := &APIKey{
 		ID:               12,
 		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
@@ -129,10 +160,17 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertex
 		},
 	}
 
+	entries := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformGemini)
+	require.Len(t, entries, 1)
+	require.Equal(t, "gemini-2.0-flash", entries[0].PublicID)
+	require.Equal(t, "friendly-flash", entries[0].AliasID)
+	require.Equal(t, "gemini-2.0-flash", entries[0].SourceID)
+
 	entry, ok := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
 	require.True(t, ok)
 	require.Equal(t, "gemini-2.0-flash", entry.PublicID)
-	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.AliasID)
+	require.Equal(t, "friendly-flash", entry.AliasID)
 	require.Equal(t, "gemini-2.0-flash", entry.SourceID)
-	require.Equal(t, "gemini-2.0-flash", entry.DisplayName)
+	_, missing := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-3.1-pro-preview")
+	require.False(t, missing)
 }

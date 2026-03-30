@@ -253,37 +253,37 @@ func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, acco
 	}
 	log := logger.FromContext(ctx)
 	if account != nil && account.IsGeminiVertexExpress() {
-		validatedModel, err := s.validateGeminiVertexExpressKey(ctx, account)
+		if s.vertexCatalogService == nil {
+			return nil, infraerrors.InternalServer("MODEL_IMPORT_VERTEX_CATALOG_UNAVAILABLE", "vertex catalog service is not configured")
+		}
+		catalog, err := s.vertexCatalogService.GetCatalog(ctx, account, true)
 		if err != nil {
-			log.Warn("account model import: gemini vertex express validation failed",
+			log.Warn("account model import: gemini vertex express official catalog failed",
 				append(geminiImportProbeFields(account, http.StatusBadGateway, accountModelProbeSourceVertexExpressCatalog), zap.Error(err))...,
 			)
 			return nil, err
 		}
-		return newGeminiVertexCatalogProbeResult(
+		return newGeminiVertexProbeResult(
+			catalog,
 			accountModelProbeSourceVertexExpressCatalog,
-			formatGeminiVertexProbeNotice(
-				"Vertex AI Studio Key",
-				validatedModel,
-				"Vertex Express does not expose a standard realtime /models endpoint",
-			),
+			formatGeminiVertexProbeNotice("Vertex Express official publisherModels + verified countTokens extras", catalog),
 		), nil
 	}
 	if account != nil && account.IsGeminiVertexAI() {
-		validatedModel, err := s.validateGeminiVertexServiceAccount(ctx, account)
+		if s.vertexCatalogService == nil {
+			return nil, infraerrors.InternalServer("MODEL_IMPORT_VERTEX_CATALOG_UNAVAILABLE", "vertex catalog service is not configured")
+		}
+		catalog, err := s.vertexCatalogService.GetCatalog(ctx, account, true)
 		if err != nil {
-			log.Warn("account model import: gemini vertex service account validation failed",
+			log.Warn("account model import: gemini vertex service account official catalog failed",
 				append(geminiImportProbeFields(account, http.StatusBadGateway, accountModelProbeSourceVertexServiceAccountCatalog), zap.Error(err))...,
 			)
 			return nil, err
 		}
-		return newGeminiVertexCatalogProbeResult(
+		return newGeminiVertexProbeResult(
+			catalog,
 			accountModelProbeSourceVertexServiceAccountCatalog,
-			formatGeminiVertexProbeNotice(
-				"Vertex AI Service Account",
-				validatedModel,
-				"Vertex publisher models does not expose a standard realtime GET /models endpoint",
-			),
+			formatGeminiVertexProbeNotice("Vertex service account official publisherModels + verified countTokens extras", catalog),
 		), nil
 	}
 	result, err := s.geminiCompatService.ForwardAIStudioGET(ctx, account, "/v1beta/models")
@@ -317,31 +317,46 @@ func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, acco
 	return newAccountModelProbeResult(models), nil
 }
 
-func newGeminiVertexCatalogProbeResult(source string, notice string) *accountModelProbeResult {
-	models := GeminiVertexCatalogModelIDs()
-	details := make([]AccountModelProbeModel, 0, len(models))
-	for _, model := range GeminiVertexCatalogModels() {
-		details = append(details, AccountModelProbeModel{
-			ID:          strings.TrimPrefix(model.Name, "models/"),
-			DisplayName: model.DisplayName,
-		})
+func newGeminiVertexProbeResult(catalog *VertexCatalogResult, source string, notice string) *accountModelProbeResult {
+	displayedModels := make([]string, 0)
+	details := make([]AccountModelProbeModel, 0)
+	if catalog != nil {
+		for _, model := range catalog.OfficialModels {
+			displayedModels = append(displayedModels, model.ID)
+			details = append(details, AccountModelProbeModel{
+				ID:                 model.ID,
+				DisplayName:        model.DisplayName,
+				UpstreamSource:     model.UpstreamSource,
+				Availability:       model.Availability,
+				AvailabilityReason: model.AvailabilityReason,
+			})
+		}
+		for _, model := range catalog.VerifiedExtras {
+			displayedModels = append(displayedModels, model.ID)
+			details = append(details, AccountModelProbeModel{
+				ID:                 model.ID,
+				DisplayName:        model.DisplayName,
+				UpstreamSource:     model.UpstreamSource,
+				Availability:       model.Availability,
+				AvailabilityReason: model.AvailabilityReason,
+			})
+		}
 	}
+	displayedModels, _ = normalizeImportedModelIDs(displayedModels)
 	return &accountModelProbeResult{
-		Models:  models,
+		Models:  displayedModels,
 		Details: details,
 		Source:  source,
 		Notice:  notice,
 	}
 }
 
-func formatGeminiVertexProbeNotice(subject string, validatedModel string, limitation string) string {
+func formatGeminiVertexProbeNotice(subject string, catalog *VertexCatalogResult) string {
 	subject = strings.TrimSpace(subject)
-	limitation = strings.TrimSpace(limitation)
-	validatedModel = strings.TrimSpace(validatedModel)
-	if validatedModel == "" {
-		return fmt.Sprintf("%s uses the official countTokens validation and the built-in Vertex model catalog because %s", subject, limitation)
+	if catalog == nil {
+		return subject
 	}
-	return fmt.Sprintf("%s uses the official countTokens validation with `%s` and the built-in Vertex model catalog because %s", subject, validatedModel, limitation)
+	return fmt.Sprintf("%s; official=%d callable=%d verified_extra=%d", subject, len(catalog.OfficialModels), len(catalog.CallableUnion), len(catalog.VerifiedExtras))
 }
 
 func (s *AccountModelImportService) validateGeminiVertexServiceAccount(ctx context.Context, account *Account) (string, error) {

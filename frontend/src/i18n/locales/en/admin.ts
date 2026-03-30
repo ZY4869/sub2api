@@ -2253,6 +2253,11 @@ export default {
         selectedCount: '{count} selected',
         probeSourceLabel: 'Probe source: ',
         probeNoticeLabel: 'Probe notice: ',
+        sourceOfficial: 'Official',
+        sourceVerifiedExtra: 'Verified extra',
+        availabilityCallable: 'Callable',
+        availabilityUncallable: 'Uncallable',
+        selectedUncallableWarning: 'This model is currently uncallable. It will not be exposed from external /v1beta/models after import, so keep it only if you understand the risk.',
         registryExisting: 'Already in registry',
         registryMissing: 'Missing from registry'
       },

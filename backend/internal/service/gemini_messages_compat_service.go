@@ -25,6 +25,7 @@ type GeminiMessagesCompatService struct {
 	cache                     GatewayCache
 	schedulerSnapshot         *SchedulerSnapshotService
 	tokenProvider             *GeminiTokenProvider
+	vertexCatalogService      VertexCatalogProvider
 	rateLimitService          *RateLimitService
 	httpUpstream              HTTPUpstream
 	antigravityGatewayService *AntigravityGatewayService
@@ -34,6 +35,10 @@ type GeminiMessagesCompatService struct {
 
 func NewGeminiMessagesCompatService(accountRepo AccountRepository, groupRepo GroupRepository, cache GatewayCache, schedulerSnapshot *SchedulerSnapshotService, tokenProvider *GeminiTokenProvider, rateLimitService *RateLimitService, httpUpstream HTTPUpstream, antigravityGatewayService *AntigravityGatewayService, cfg *config.Config) *GeminiMessagesCompatService {
 	return &GeminiMessagesCompatService{accountRepo: accountRepo, groupRepo: groupRepo, cache: cache, schedulerSnapshot: schedulerSnapshot, tokenProvider: tokenProvider, rateLimitService: rateLimitService, httpUpstream: httpUpstream, antigravityGatewayService: antigravityGatewayService, cfg: cfg, responseHeaderFilter: compileResponseHeaderFilter(cfg)}
+}
+
+func (s *GeminiMessagesCompatService) SetVertexCatalogService(vertexCatalogService VertexCatalogProvider) {
+	s.vertexCatalogService = vertexCatalogService
 }
 func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx context.Context, groupID *int64) (*Account, error) {
 	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, PlatformGemini, true)

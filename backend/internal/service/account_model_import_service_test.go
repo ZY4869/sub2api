@@ -465,11 +465,52 @@ func TestImportAccountModels_ImportsGeminiModelsFromAIStudioListing(t *testing.T
 func TestProbeAccountModels_UsesGeminiVertexServiceAccountCatalogViaCountTokens(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		body: `{"totalTokens":1}`,
-	}
-	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	vertexCatalog := newTestVertexCatalogProvider(&VertexCatalogResult{
+		OfficialModels: []VertexCatalogModel{
+			{
+				ID:                 "gemini-2.5-flash",
+				DisplayName:        "Gemini 2.5 Flash",
+				UpstreamSource:     vertexCatalogOfficialSource,
+				Availability:       vertexCatalogCallableAvailability,
+				AvailabilityReason: vertexCatalogCallableReason,
+			},
+			{
+				ID:                 "gemini-2.5-pro",
+				DisplayName:        "Gemini 2.5 Pro",
+				UpstreamSource:     vertexCatalogOfficialSource,
+				Availability:       vertexCatalogFailedAvailability,
+				AvailabilityReason: "status 403 PERMISSION_DENIED",
+			},
+		},
+		VerifiedExtras: []VertexCatalogModel{
+			{
+				ID:                 "gemini-3.1-pro-preview",
+				DisplayName:        "Gemini 3.1 Pro Preview",
+				UpstreamSource:     vertexCatalogVerifiedExtraSource,
+				Availability:       vertexCatalogCallableAvailability,
+				AvailabilityReason: vertexCatalogCallableReason,
+			},
+		},
+		CallableUnion: []VertexCatalogModel{
+			{
+				ID:                 "gemini-2.5-flash",
+				DisplayName:        "Gemini 2.5 Flash",
+				UpstreamSource:     vertexCatalogOfficialSource,
+				Availability:       vertexCatalogCallableAvailability,
+				AvailabilityReason: vertexCatalogCallableReason,
+			},
+			{
+				ID:                 "gemini-3.1-pro-preview",
+				DisplayName:        "Gemini 3.1 Pro Preview",
+				UpstreamSource:     vertexCatalogVerifiedExtraSource,
+				Availability:       vertexCatalogCallableAvailability,
+				AvailabilityReason: vertexCatalogCallableReason,
+			},
+		},
+	})
+	geminiCompatService := newTestGeminiCompatService(nil)
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	svc.SetVertexCatalogService(vertexCatalog)
 	account := &Account{
 		ID:       115,
 		Platform: PlatformGemini,
@@ -485,137 +526,56 @@ func TestProbeAccountModels_UsesGeminiVertexServiceAccountCatalogViaCountTokens(
 
 	result, err := svc.ProbeAccountModels(context.Background(), account)
 	require.NoError(t, err)
-	expected, _ := normalizeImportedModelIDs(GeminiVertexCatalogModelIDs())
-	require.Equal(t, expected, result.DetectedModels)
-	require.Len(t, result.Models, len(expected))
+	require.Equal(t, []bool{true}, vertexCatalog.forceRefreshCalls)
 	require.Equal(t, accountModelProbeSourceVertexServiceAccountCatalog, result.ProbeSource)
-	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash")
-	require.NotNil(t, upstream.lastReq)
-	require.Equal(
-		t,
-		"https://us-central1-aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.5-flash:countTokens",
-		upstream.lastReq.URL.String(),
-	)
-	require.Equal(t, http.MethodPost, upstream.lastReq.Method)
-	require.Equal(t, "Bearer vertex-access-token", upstream.lastReq.Header.Get("Authorization"))
-	require.Empty(t, upstream.lastReq.Header.Get("x-goog-api-key"))
-}
+	require.Contains(t, result.ProbeNotice, "official=2")
+	require.Contains(t, result.ProbeNotice, "callable=2")
+	require.Contains(t, result.ProbeNotice, "verified_extra=1")
+	require.Equal(t, []string{"gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview"}, result.DetectedModels)
 
-func TestProbeAccountModels_GeminiVertexRequiresProjectLocationAndToken(t *testing.T) {
-	repo := newAccountModelImportSettingRepoStub()
-	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		body: `{"models":[{"name":"projects/x/locations/us-central1/publishers/google/models/gemini-2.5-pro"}]}`,
-	}
+	officialCallable, ok := findProbeModelByID(result.Models, "gemini-2.5-flash")
+	require.True(t, ok)
+	require.Equal(t, vertexCatalogOfficialSource, officialCallable.UpstreamSource)
+	require.Equal(t, vertexCatalogCallableAvailability, officialCallable.Availability)
 
-	t.Run("missing project", func(t *testing.T) {
-		geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-		svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-		account := &Account{
-			ID:       116,
-			Platform: PlatformGemini,
-			Type:     AccountTypeOAuth,
-			Status:   StatusActive,
-			Credentials: map[string]any{
-				"oauth_type":      "vertex_ai",
-				"vertex_location": "us-central1",
-			},
-		}
+	officialUncallable, ok := findProbeModelByID(result.Models, "gemini-2.5-pro")
+	require.True(t, ok)
+	require.Equal(t, vertexCatalogOfficialSource, officialUncallable.UpstreamSource)
+	require.Equal(t, vertexCatalogFailedAvailability, officialUncallable.Availability)
+	require.Contains(t, officialUncallable.AvailabilityReason, "403")
 
-		_, err := svc.ProbeAccountModels(context.Background(), account)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing vertex_project_id")
-	})
-
-	t.Run("missing location", func(t *testing.T) {
-		geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-		svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-		account := &Account{
-			ID:       117,
-			Platform: PlatformGemini,
-			Type:     AccountTypeOAuth,
-			Status:   StatusActive,
-			Credentials: map[string]any{
-				"oauth_type":        "vertex_ai",
-				"vertex_project_id": "vertex-project",
-			},
-		}
-
-		_, err := svc.ProbeAccountModels(context.Background(), account)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing vertex_location")
-	})
-
-	t.Run("missing token", func(t *testing.T) {
-		cfg := &config.Config{}
-		cfg.Security.URLAllowlist.AllowInsecureHTTP = true
-		geminiCompatService := &GeminiMessagesCompatService{
-			httpUpstream: upstream,
-			cfg:          cfg,
-			tokenProvider: &GeminiTokenProvider{
-				tokenCache: &accountModelImportGeminiTokenCacheStub{},
-			},
-		}
-		svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-		account := &Account{
-			ID:       118,
-			Platform: PlatformGemini,
-			Type:     AccountTypeOAuth,
-			Status:   StatusActive,
-			Credentials: map[string]any{
-				"oauth_type":        "vertex_ai",
-				"vertex_project_id": "vertex-project",
-				"vertex_location":   "us-central1",
-			},
-		}
-
-		_, err := svc.ProbeAccountModels(context.Background(), account)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "vertex ai credentials missing service account JSON and legacy access_token")
-	})
-}
-
-func TestProbeAccountModels_UsesGeminiVertexGlobalCountTokensEndpoint(t *testing.T) {
-	repo := newAccountModelImportSettingRepoStub()
-	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		body: `{"totalTokens":1}`,
-	}
-	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-	account := &Account{
-		ID:       120,
-		Platform: PlatformGemini,
-		Type:     AccountTypeOAuth,
-		Status:   StatusActive,
-		Credentials: map[string]any{
-			"oauth_type":                  "vertex_ai",
-			"vertex_project_id":           "vertex-project",
-			"vertex_location":             "global",
-			"vertex_service_account_json": `{"type":"service_account","client_email":"svc@example.com","private_key":"test","token_uri":"https://oauth2.googleapis.com/token"}`,
-		},
-	}
-
-	result, err := svc.ProbeAccountModels(context.Background(), account)
-	require.NoError(t, err)
-	require.Equal(t, accountModelProbeSourceVertexServiceAccountCatalog, result.ProbeSource)
-	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash")
-	require.NotNil(t, upstream.lastReq)
-	require.Equal(
-		t,
-		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash:countTokens",
-		upstream.lastReq.URL.String(),
-	)
+	verifiedExtra, ok := findProbeModelByID(result.Models, "gemini-3.1-pro-preview")
+	require.True(t, ok)
+	require.Equal(t, vertexCatalogVerifiedExtraSource, verifiedExtra.UpstreamSource)
+	require.Equal(t, vertexCatalogCallableAvailability, verifiedExtra.Availability)
 }
 
 func TestProbeAccountModels_UsesGeminiVertexExpressCatalog(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		body: `{"totalTokens":1}`,
-	}
-	geminiCompatService := newTestGeminiCompatService(upstream)
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	vertexCatalog := newTestVertexCatalogProvider(&VertexCatalogResult{
+		OfficialModels: []VertexCatalogModel{
+			{
+				ID:                 "gemini-2.0-flash",
+				DisplayName:        "Gemini 2.0 Flash",
+				UpstreamSource:     vertexCatalogOfficialSource,
+				Availability:       vertexCatalogCallableAvailability,
+				AvailabilityReason: vertexCatalogCallableReason,
+			},
+		},
+		CallableUnion: []VertexCatalogModel{
+			{
+				ID:                 "gemini-2.0-flash",
+				DisplayName:        "Gemini 2.0 Flash",
+				UpstreamSource:     vertexCatalogOfficialSource,
+				Availability:       vertexCatalogCallableAvailability,
+				AvailabilityReason: vertexCatalogCallableReason,
+			},
+		},
+	})
+	geminiCompatService := newTestGeminiCompatService(nil)
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	svc.SetVertexCatalogService(vertexCatalog)
 	account := &Account{
 		ID:       119,
 		Platform: PlatformGemini,
@@ -629,115 +589,23 @@ func TestProbeAccountModels_UsesGeminiVertexExpressCatalog(t *testing.T) {
 
 	result, err := svc.ProbeAccountModels(context.Background(), account)
 	require.NoError(t, err)
-	require.NotEmpty(t, result.DetectedModels)
+	require.Equal(t, []bool{true}, vertexCatalog.forceRefreshCalls)
 	require.Equal(t, accountModelProbeSourceVertexExpressCatalog, result.ProbeSource)
-	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash")
-	require.NotNil(t, upstream.lastReq)
-	require.Equal(
-		t,
-		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:countTokens?key=vertex-express-key",
-		upstream.lastReq.URL.String(),
-	)
-	require.Equal(t, http.MethodPost, upstream.lastReq.Method)
-	require.Empty(t, upstream.lastReq.Header.Get("x-goog-api-key"))
+	require.Equal(t, []string{"gemini-2.0-flash"}, result.DetectedModels)
+	detail, ok := findProbeModelByID(result.Models, "gemini-2.0-flash")
+	require.True(t, ok)
+	require.Equal(t, vertexCatalogOfficialSource, detail.UpstreamSource)
+	require.Equal(t, vertexCatalogCallableAvailability, detail.Availability)
 }
 
-func TestProbeAccountModels_GeminiVertexServiceAccountFallsBackFromModel404(t *testing.T) {
+func TestProbeAccountModels_VertexCatalogErrorsPropagate(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		responseSequence: []accountModelImportHTTPResponseStep{
-			{
-				statusCode: http.StatusNotFound,
-				body:       `{"error":{"code":404,"message":"Publisher Model ` + "`projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash`" + ` was not found or your project does not have access to it. Please ensure you are using a valid model version.","status":"NOT_FOUND"}}`,
-			},
-			{
-				statusCode: http.StatusOK,
-				body:       `{"totalTokens":1}`,
-			},
-		},
-	}
-	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-	account := &Account{
-		ID:       121,
-		Platform: PlatformGemini,
-		Type:     AccountTypeOAuth,
-		Status:   StatusActive,
-		Credentials: map[string]any{
-			"oauth_type":                  "vertex_ai",
-			"vertex_project_id":           "vertex-project",
-			"vertex_location":             "global",
-			"vertex_service_account_json": `{"type":"service_account","client_email":"svc@example.com","private_key":"test","token_uri":"https://oauth2.googleapis.com/token"}`,
-		},
-	}
-
-	result, err := svc.ProbeAccountModels(context.Background(), account)
-	require.NoError(t, err)
-	require.Equal(t, accountModelProbeSourceVertexServiceAccountCatalog, result.ProbeSource)
-	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash-lite")
-	require.Equal(t, []string{
-		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash:countTokens",
-		"https://aiplatform.googleapis.com/v1/projects/vertex-project/locations/global/publishers/google/models/gemini-2.5-flash-lite:countTokens",
-	}, upstream.requestURLs)
-}
-
-func TestProbeAccountModels_GeminiVertexServiceAccountFailsAfterAllCandidateModelsRejected(t *testing.T) {
-	repo := newAccountModelImportSettingRepoStub()
-	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		responseSequence: []accountModelImportHTTPResponseStep{
-			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
-			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
-			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
-			{statusCode: http.StatusNotFound, body: `{"error":{"code":404,"message":"Publisher Model not found or your project does not have access to it.","status":"NOT_FOUND"}}`},
-		},
-	}
-	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-	account := &Account{
-		ID:       122,
-		Platform: PlatformGemini,
-		Type:     AccountTypeOAuth,
-		Status:   StatusActive,
-		Credentials: map[string]any{
-			"oauth_type":                  "vertex_ai",
-			"vertex_project_id":           "vertex-project",
-			"vertex_location":             "global",
-			"vertex_service_account_json": `{"type":"service_account","client_email":"svc@example.com","private_key":"test","token_uri":"https://oauth2.googleapis.com/token"}`,
-		},
-	}
-
-	_, err := svc.ProbeAccountModels(context.Background(), account)
-	require.Error(t, err)
-
-	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
-	require.Contains(t, appErr.Message, "after trying Vertex validation models")
-	require.Contains(t, appErr.Message, "gemini-2.5-flash")
-	require.Contains(t, appErr.Message, "gemini-2.5-flash-lite")
-	require.Contains(t, appErr.Message, "gemini-2.5-pro")
-	require.Contains(t, appErr.Message, "gemini-2.0-flash")
-	require.Len(t, upstream.requestURLs, len(geminiVertexValidationCandidateModels))
-}
-
-func TestProbeAccountModels_GeminiVertexServiceAccountForbiddenDoesNotRetry(t *testing.T) {
-	repo := newAccountModelImportSettingRepoStub()
-	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		responseSequence: []accountModelImportHTTPResponseStep{
-			{
-				statusCode: http.StatusForbidden,
-				body:       `{"error":{"code":403,"message":"Permission denied.","status":"PERMISSION_DENIED"}}`,
-			},
-			{
-				statusCode: http.StatusOK,
-				body:       `{"totalTokens":1}`,
-			},
-		},
-	}
-	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "vertex-access-token")
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
+	expectedErr := infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", "vertex official model listing failed with status 403")
+	vertexCatalog := &testVertexCatalogProvider{err: expectedErr}
+	geminiCompatService := newTestGeminiCompatService(nil)
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	svc.SetVertexCatalogService(vertexCatalog)
 	account := &Account{
 		ID:       123,
 		Platform: PlatformGemini,
@@ -752,50 +620,8 @@ func TestProbeAccountModels_GeminiVertexServiceAccountForbiddenDoesNotRetry(t *t
 	}
 
 	_, err := svc.ProbeAccountModels(context.Background(), account)
-	require.Error(t, err)
-
-	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
-	require.Contains(t, appErr.Message, "status 403")
-	require.Len(t, upstream.requestURLs, 1)
-}
-
-func TestProbeAccountModels_GeminiVertexExpressFallsBackFromModel404(t *testing.T) {
-	repo := newAccountModelImportSettingRepoStub()
-	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
-	upstream := &accountModelImportHTTPUpstreamStub{
-		responseSequence: []accountModelImportHTTPResponseStep{
-			{
-				statusCode: http.StatusNotFound,
-				body:       `{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}`,
-			},
-			{
-				statusCode: http.StatusOK,
-				body:       `{"totalTokens":1}`,
-			},
-		},
-	}
-	geminiCompatService := newTestGeminiCompatService(upstream)
-	svc := NewAccountModelImportService(catalogService, geminiCompatService, upstream, nil)
-	account := &Account{
-		ID:       124,
-		Platform: PlatformGemini,
-		Type:     AccountTypeAPIKey,
-		Status:   StatusActive,
-		Credentials: map[string]any{
-			"api_key":            "vertex-express-key",
-			"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
-		},
-	}
-
-	result, err := svc.ProbeAccountModels(context.Background(), account)
-	require.NoError(t, err)
-	require.Equal(t, accountModelProbeSourceVertexExpressCatalog, result.ProbeSource)
-	require.Contains(t, result.ProbeNotice, "gemini-2.5-flash-lite")
-	require.Equal(t, []string{
-		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:countTokens?key=vertex-express-key",
-		"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:countTokens?key=vertex-express-key",
-	}, upstream.requestURLs)
+	require.ErrorIs(t, err, expectedErr)
+	require.Equal(t, []bool{true}, vertexCatalog.forceRefreshCalls)
 }
 
 func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficientScope(t *testing.T) {

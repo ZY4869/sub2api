@@ -201,6 +201,29 @@ func buildGeminiVertexCatalogModelsResponse() (*UpstreamHTTPResult, error) {
 	})
 }
 
+func buildGeminiVertexCatalogModelsResponseFromCatalog(models []VertexCatalogModel) (*UpstreamHTTPResult, error) {
+	items := make([]pkggemini.Model, 0, len(models))
+	for _, model := range models {
+		modelID := strings.TrimSpace(model.ID)
+		if modelID == "" {
+			continue
+		}
+		displayName := strings.TrimSpace(model.DisplayName)
+		if displayName == "" {
+			displayName = FormatModelCatalogDisplayName(modelID)
+		}
+		items = append(items, pkggemini.Model{
+			Name:                       "models/" + modelID,
+			DisplayName:                displayName,
+			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
+		})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Name < items[j].Name
+	})
+	return buildGeminiUpstreamJSONResult(http.StatusOK, pkggemini.ModelsListResponse{Models: items})
+}
+
 func buildGeminiVertexCatalogModelResponse(modelID string) (*UpstreamHTTPResult, error) {
 	model, ok := findGeminiVertexCatalogModel(modelID)
 	if !ok {
@@ -213,6 +236,31 @@ func buildGeminiVertexCatalogModelResponse(modelID string) (*UpstreamHTTPResult,
 		})
 	}
 	return buildGeminiUpstreamJSONResult(http.StatusOK, model)
+}
+
+func buildGeminiVertexCatalogModelResponseFromCatalog(modelID string, models []VertexCatalogModel) (*UpstreamHTTPResult, error) {
+	modelID = strings.TrimSpace(strings.TrimPrefix(modelID, "models/"))
+	for _, item := range models {
+		if strings.TrimSpace(item.ID) != modelID {
+			continue
+		}
+		displayName := strings.TrimSpace(item.DisplayName)
+		if displayName == "" {
+			displayName = FormatModelCatalogDisplayName(modelID)
+		}
+		return buildGeminiUpstreamJSONResult(http.StatusOK, pkggemini.Model{
+			Name:                       "models/" + modelID,
+			DisplayName:                displayName,
+			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
+		})
+	}
+	return buildGeminiUpstreamJSONResult(http.StatusNotFound, map[string]any{
+		"error": map[string]any{
+			"code":    http.StatusNotFound,
+			"message": "Model not found",
+			"status":  "NOT_FOUND",
+		},
+	})
 }
 
 func buildGeminiUpstreamJSONResult(statusCode int, payload any) (*UpstreamHTTPResult, error) {
@@ -245,6 +293,7 @@ func (s *GeminiMessagesCompatService) buildGeminiAPIKeyUpstreamRequest(
 		return nil, "", fmt.Errorf("gemini api_key not configured")
 	}
 	if account.IsGeminiVertexExpress() {
+		mappedModel = normalizeVertexUpstreamModelID(mappedModel)
 		baseURL := account.GetGeminiVertexExpressBaseURL(geminicli.VertexAIBaseURL)
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {

@@ -84,6 +84,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				action = "streamGenerateContent"
 			}
 			if account.IsGeminiVertexAI() {
+				mappedModel = normalizeVertexUpstreamModelID(mappedModel)
 				baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
 				normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 				if err != nil {

@@ -360,11 +360,18 @@ func (s *GeminiMessagesCompatService) ForwardAIStudioGET(ctx context.Context, ac
 		return nil, errors.New("invalid path")
 	}
 	if account.IsGeminiVertexExpress() || account.IsGeminiVertexAI() {
+		if s.vertexCatalogService == nil {
+			return nil, fmt.Errorf("vertex catalog service is not configured")
+		}
+		catalog, err := s.vertexCatalogService.GetCatalog(ctx, account, false)
+		if err != nil {
+			return nil, err
+		}
 		switch {
 		case path == "/v1beta/models":
-			return buildGeminiVertexCatalogModelsResponse()
+			return buildGeminiVertexCatalogModelsResponseFromCatalog(catalog.CallableUnion)
 		case strings.HasPrefix(path, "/v1beta/models/"):
-			return buildGeminiVertexCatalogModelResponse(strings.TrimPrefix(path, "/v1beta/models/"))
+			return buildGeminiVertexCatalogModelResponseFromCatalog(strings.TrimPrefix(path, "/v1beta/models/"), catalog.CallableUnion)
 		default:
 			return nil, fmt.Errorf("unsupported vertex AI GET path: %s", path)
 		}

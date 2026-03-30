@@ -57,6 +57,31 @@
               {{ model.display_name || model.id }}
             </div>
             <div class="break-words text-xs opacity-80" :title="model.id">{{ model.id }}</div>
+            <div
+              v-if="model.upstream_source || model.availability"
+              class="mt-2 flex flex-wrap items-center gap-2"
+            >
+              <span
+                v-if="model.upstream_source"
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                :class="sourceBadgeClasses(model)"
+              >
+                {{ sourceBadgeText(model) }}
+              </span>
+              <span
+                v-if="model.availability"
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                :class="availabilityBadgeClasses(model)"
+              >
+                {{ availabilityBadgeText(model) }}
+              </span>
+            </div>
+            <div
+              v-if="model.availability === 'uncallable' && model.availability_reason"
+              class="mt-2 break-words text-xs text-rose-700 dark:text-rose-200"
+            >
+              {{ model.availability_reason }}
+            </div>
           </div>
           <span
             v-if="isSelected(model.id)"
@@ -84,6 +109,12 @@
           class="mt-3 space-y-2 rounded-xl border border-white/60 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5"
           @click.stop
         >
+          <div
+            v-if="model.availability === 'uncallable'"
+            class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+          >
+            {{ t('admin.accounts.apiKeyProbe.selectedUncallableWarning') }}
+          </div>
           <div class="grid gap-2 md:grid-cols-2">
             <label class="space-y-1 text-left">
               <span class="text-[11px] font-medium uppercase tracking-wide opacity-70">
@@ -153,6 +184,7 @@ const probing = ref(false)
 const probeSource = ref('')
 const probeNotice = ref('')
 const aliasDrafts = ref<Record<string, string>>({})
+const manualUncallableSelections = ref<string[]>([])
 const hasInitializedFromMappings = ref(false)
 const isVertexSource = () =>
   props.platform === 'gemini' && isGeminiVertexSourceCredentials(props.credentials)
@@ -199,6 +231,27 @@ watch(
 )
 
 const isSelected = (modelId: string) => allowedModels.value.includes(modelId)
+const isCallableModel = (model: ProtocolGatewayProbeModel) => model.availability !== 'uncallable'
+
+const sourceBadgeText = (model: ProtocolGatewayProbeModel) =>
+  model.upstream_source === 'verified_extra'
+    ? t('admin.accounts.apiKeyProbe.sourceVerifiedExtra')
+    : t('admin.accounts.apiKeyProbe.sourceOfficial')
+
+const availabilityBadgeText = (model: ProtocolGatewayProbeModel) =>
+  model.availability === 'uncallable'
+    ? t('admin.accounts.apiKeyProbe.availabilityUncallable')
+    : t('admin.accounts.apiKeyProbe.availabilityCallable')
+
+const sourceBadgeClasses = (model: ProtocolGatewayProbeModel) =>
+  model.upstream_source === 'verified_extra'
+    ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-200'
+    : 'bg-slate-100 text-slate-700 dark:bg-slate-900/60 dark:text-slate-200'
+
+const availabilityBadgeClasses = (model: ProtocolGatewayProbeModel) =>
+  model.availability === 'uncallable'
+    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200'
+    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
 
 const currentAlias = (modelId: string) => {
   if (Object.prototype.hasOwnProperty.call(aliasDrafts.value, modelId)) {
@@ -220,10 +273,17 @@ const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
 }
 
 const toggleModel = (model: ProtocolGatewayProbeModel) => {
+  const nextManualSelections = new Set(manualUncallableSelections.value)
   if (isSelected(model.id)) {
+    nextManualSelections.delete(model.id)
+    manualUncallableSelections.value = [...nextManualSelections]
     allowedModels.value = allowedModels.value.filter((item) => item !== model.id)
     modelMappings.value = modelMappings.value.filter((row) => row.to.trim() !== model.id)
     return
+  }
+  if (!isCallableModel(model)) {
+    nextManualSelections.add(model.id)
+    manualUncallableSelections.value = [...nextManualSelections]
   }
   allowedModels.value = [...allowedModels.value, model.id]
   ensureMappingForModel(model)
@@ -239,7 +299,9 @@ const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
 
 const cardClasses = (model: ProtocolGatewayProbeModel) => [
   'rounded-2xl border px-4 py-3 text-left transition',
-  model.registry_state === 'existing'
+  model.availability === 'uncallable'
+    ? 'border-rose-200 bg-rose-50/90 text-rose-950 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-100'
+    : model.registry_state === 'existing'
     ? 'border-emerald-200 bg-emerald-50/90 text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-100'
     : 'border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-100',
   isSelected(model.id)
@@ -263,12 +325,19 @@ const handleProbe = async () => {
         .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
         .filter(([target]) => Boolean(target))
     )
+    const selectedUncallable = new Set(manualUncallableSelections.value)
+    const nextAllowedModels = result.models
+      .filter((model) => isCallableModel(model) || selectedUncallable.has(model.id))
+      .map((model) => model.id)
     probedModels.value = result.models
-    allowedModels.value = result.models.map((model) => model.id)
-    modelMappings.value = result.models.map((model) => ({
-      from: aliasByTarget.get(model.id) || defaultAlias(model.id),
-      to: model.id
+    allowedModels.value = nextAllowedModels
+    modelMappings.value = nextAllowedModels.map((modelId) => ({
+      from: aliasByTarget.get(modelId) || defaultAlias(modelId),
+      to: modelId
     }))
+    manualUncallableSelections.value = result.models
+      .filter((model) => model.availability === 'uncallable' && selectedUncallable.has(model.id))
+      .map((model) => model.id)
     probeSource.value = result.probe_source || ''
     probeNotice.value = result.probe_notice || ''
   } catch (error: any) {

@@ -2384,6 +2384,11 @@
         selectedCount: '已选 {count} 个',
         probeSourceLabel: '探测来源：',
         probeNoticeLabel: '探测说明：',
+        sourceOfficial: '官方主源',
+        sourceVerifiedExtra: '补充验证命中',
+        availabilityCallable: '可调用',
+        availabilityUncallable: '不可调用',
+        selectedUncallableWarning: '该模型当前探测为不可调用，导入后不会出现在外部 /v1beta/models 列表中，请确认风险后再保留。',
         registryExisting: '模型注册表已存在',
         registryMissing: '模型注册表待补充'
       },

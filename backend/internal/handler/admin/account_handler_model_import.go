@@ -67,11 +67,14 @@ type probeProtocolGatewayModelsRequest struct {
 }
 
 type probeProtocolGatewayModelItem struct {
-	ID             string `json:"id"`
-	DisplayName    string `json:"display_name"`
-	RegistryState  string `json:"registry_state"`
-	RegistryModel  string `json:"registry_model_id,omitempty"`
-	SourceProtocol string `json:"source_protocol,omitempty"`
+	ID                 string `json:"id"`
+	DisplayName        string `json:"display_name"`
+	RegistryState      string `json:"registry_state"`
+	RegistryModel      string `json:"registry_model_id,omitempty"`
+	SourceProtocol     string `json:"source_protocol,omitempty"`
+	UpstreamSource     string `json:"upstream_source,omitempty"`
+	Availability       string `json:"availability,omitempty"`
+	AvailabilityReason string `json:"availability_reason,omitempty"`
 }
 
 type probeProtocolGatewayModelsResponse struct {
@@ -176,10 +179,13 @@ func (h *AccountHandler) writeProbeModelsResponse(c *gin.Context, draftAccount *
 	for _, detectedModel := range result.Models {
 		modelID := detectedModel.ID
 		item := probeProtocolGatewayModelItem{
-			ID:             modelID,
-			DisplayName:    detectedModel.DisplayName,
-			RegistryState:  "missing",
-			SourceProtocol: detectedModel.SourceProtocol,
+			ID:                 modelID,
+			DisplayName:        detectedModel.DisplayName,
+			RegistryState:      "missing",
+			SourceProtocol:     detectedModel.SourceProtocol,
+			UpstreamSource:     detectedModel.UpstreamSource,
+			Availability:       detectedModel.Availability,
+			AvailabilityReason: detectedModel.AvailabilityReason,
 		}
 		if h.modelRegistryService != nil {
 			if detail, detailErr := h.modelRegistryService.GetDetail(c.Request.Context(), modelID); detailErr == nil && detail != nil {

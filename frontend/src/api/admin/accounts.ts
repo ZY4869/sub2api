@@ -981,6 +981,9 @@ export interface ProtocolGatewayProbeModel {
   registry_state: 'existing' | 'missing'
   registry_model_id?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  upstream_source?: 'official' | 'verified_extra'
+  availability?: 'callable' | 'uncallable'
+  availability_reason?: string
 }
 
 export interface ProtocolGatewayProbeResponse {

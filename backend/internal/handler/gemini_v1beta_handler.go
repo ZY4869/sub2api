@@ -104,7 +104,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 					googleError(c, http.StatusBadGateway, err.Error())
 					return
 				}
-				if shouldFallbackGeminiModels(res) {
+				if shouldFallbackGeminiModelsForAccount(account, res) {
 					c.JSON(http.StatusOK, gemini.FallbackModelsList())
 					return
 				}
@@ -152,7 +152,7 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		googleError(c, http.StatusBadGateway, err.Error())
 		return
 	}
-	if shouldFallbackGeminiModels(res) {
+	if shouldFallbackGeminiModelsForAccount(account, res) {
 		c.JSON(http.StatusOK, gemini.FallbackModelsList())
 		return
 	}
@@ -235,7 +235,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 					googleError(c, http.StatusBadGateway, err.Error())
 					return
 				}
-				if shouldFallbackGeminiModels(res) {
+				if shouldFallbackGeminiModelsForAccount(account, res) {
 					c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
 					return
 				}
@@ -288,7 +288,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		googleError(c, http.StatusBadGateway, err.Error())
 		return
 	}
-	if shouldFallbackGeminiModels(res) {
+	if shouldFallbackGeminiModelsForAccount(account, res) {
 		c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
 		return
 	}
@@ -1239,6 +1239,13 @@ func shouldFallbackGeminiModels(res *service.UpstreamHTTPResult) bool {
 		return true
 	}
 	return false
+}
+
+func shouldFallbackGeminiModelsForAccount(account *service.Account, res *service.UpstreamHTTPResult) bool {
+	if account != nil && account.IsGeminiVertexSource() {
+		return false
+	}
+	return shouldFallbackGeminiModels(res)
 }
 
 // extractGeminiCLISessionHash 从 Gemini CLI 请求中提取会话标识。

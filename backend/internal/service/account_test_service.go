@@ -1874,6 +1874,7 @@ func (s *AccountTestService) buildGeminiAPIKeyRequest(ctx context.Context, accou
 	fullURL := fmt.Sprintf("%s/v1beta/models/%s:streamGenerateContent?alt=sse",
 		strings.TrimRight(normalizedBaseURL, "/"), modelID)
 	if account.IsGeminiVertexExpress() {
+		modelID = normalizeVertexUpstreamModelID(modelID)
 		actionPath, err := account.GeminiVertexExpressModelActionPath(modelID, "streamGenerateContent")
 		if err != nil {
 			return nil, err
@@ -1915,6 +1916,7 @@ func (s *AccountTestService) buildGeminiOAuthRequest(ctx context.Context, accoun
 	}
 
 	if account.IsGeminiVertexAI() {
+		modelID = normalizeVertexUpstreamModelID(modelID)
 		baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
 		normalizedBaseURL, err := s.validateUpstreamBaseURL(baseURL)
 		if err != nil {

@@ -59,6 +59,9 @@ type AccountModelProbeModel struct {
 	ID             string `json:"id"`
 	DisplayName    string `json:"display_name"`
 	SourceProtocol string `json:"source_protocol,omitempty"`
+	UpstreamSource string `json:"upstream_source,omitempty"`
+	Availability   string `json:"availability,omitempty"`
+	AvailabilityReason string `json:"availability_reason,omitempty"`
 }
 
 type accountModelProbeResult struct {
@@ -87,6 +90,7 @@ type AccountModelImportService struct {
 	modelCatalogService          *ModelCatalogService
 	modelRegistryService         *ModelRegistryService
 	geminiCompatService          *GeminiMessagesCompatService
+	vertexCatalogService         VertexCatalogProvider
 	openAITokenProvider          *OpenAITokenProvider
 	httpUpstream                 HTTPUpstream
 	proxyRepo                    ProxyRepository
@@ -113,6 +117,10 @@ func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService
 
 func (s *AccountModelImportService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
 	s.openAITokenProvider = openAITokenProvider
+}
+
+func (s *AccountModelImportService) SetVertexCatalogService(vertexCatalogService VertexCatalogProvider) {
+	s.vertexCatalogService = vertexCatalogService
 }
 
 func (s *AccountModelImportService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
@@ -361,6 +369,9 @@ func normalizeAccountModelProbeDetails(details []AccountModelProbeModel, detecte
 			detail.DisplayName = FormatModelCatalogDisplayName(modelID)
 		}
 		detail.SourceProtocol = NormalizeGatewayProtocol(detail.SourceProtocol)
+		detail.UpstreamSource = strings.TrimSpace(detail.UpstreamSource)
+		detail.Availability = strings.TrimSpace(detail.Availability)
+		detail.AvailabilityReason = strings.TrimSpace(detail.AvailabilityReason)
 		if _, exists := detailByID[modelID]; !exists {
 			detailByID[modelID] = detail
 		}

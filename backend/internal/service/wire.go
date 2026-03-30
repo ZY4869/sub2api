@@ -425,10 +425,20 @@ func ProvideTLSFingerprintProfileService(
 	return NewTLSFingerprintProfileService(repo, cache)
 }
 
+func ProvideVertexUpstreamCatalogService(
+	httpUpstream HTTPUpstream,
+	geminiTokenProvider *GeminiTokenProvider,
+	proxyRepo ProxyRepository,
+	cfg *config.Config,
+) *VertexUpstreamCatalogService {
+	return NewVertexUpstreamCatalogService(httpUpstream, geminiTokenProvider, proxyRepo, cfg)
+}
+
 func ProvideAccountModelImportService(
 	modelCatalogService *ModelCatalogService,
 	modelRegistryService *ModelRegistryService,
 	geminiCompatService *GeminiMessagesCompatService,
+	vertexCatalogService *VertexUpstreamCatalogService,
 	openAITokenProvider *OpenAITokenProvider,
 	httpUpstream HTTPUpstream,
 	proxyRepo ProxyRepository,
@@ -437,7 +447,11 @@ func ProvideAccountModelImportService(
 	svc := NewAccountModelImportService(modelCatalogService, geminiCompatService, httpUpstream, proxyRepo)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
+	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	if geminiCompatService != nil {
+		geminiCompatService.SetVertexCatalogService(vertexCatalogService)
+	}
 	return svc
 }
 
@@ -490,9 +504,11 @@ func ProvideGatewayService(
 	rpmCache RPMCache,
 	digestStore *DigestSessionStore,
 	settingService *SettingService,
+	vertexCatalogService *VertexUpstreamCatalogService,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
 ) *GatewayService {
 	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestStore, settingService)
+	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	return svc
 }
@@ -560,6 +576,7 @@ var ProviderSet = wire.NewSet(
 	ProvideModelRegistryService,
 	ProvideModelCatalogService,
 	ProvideTLSFingerprintProfileService,
+	ProvideVertexUpstreamCatalogService,
 	ProvideAccountModelImportService,
 	ProvideGatewayService,
 	ProvideSoraMediaStorage,
