@@ -64,6 +64,14 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 	}
 	if filters.Status != "" {
 		switch filters.Status {
+		case service.StatusActive:
+			q = q.Where(
+				dbaccount.StatusEQ(filters.Status),
+				dbaccount.Or(
+					dbaccount.RateLimitResetAtIsNil(),
+					dbaccount.RateLimitResetAtLTE(time.Now()),
+				),
+			)
 		case "rate_limited":
 			q = q.Where(dbaccount.RateLimitResetAtGT(time.Now()))
 		case "temp_unschedulable":
@@ -135,6 +143,14 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 	if filters.AccountType != "" {
 		whereClauses = append(whereClauses, fmt.Sprintf("%s.type = $%d", tableAlias, argIndex))
 		args = append(args, filters.AccountType)
+		argIndex++
+	}
+	if filters.Status == service.StatusActive {
+		whereClauses = append(whereClauses,
+			fmt.Sprintf("%s.status = $%d", tableAlias, argIndex),
+			fmt.Sprintf("(%s.rate_limit_reset_at IS NULL OR %s.rate_limit_reset_at <= NOW())", tableAlias, tableAlias),
+		)
+		args = append(args, filters.Status)
 		argIndex++
 	}
 	if filters.Search != "" {
