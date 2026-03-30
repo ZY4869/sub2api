@@ -8,8 +8,8 @@ const source = readFileSync(
 )
 
 describe('CreateAccountModal', () => {
-  it('uses an extra-wide dialog with local horizontal overflow protection', () => {
-    expect(source).toContain('width="extra-wide"')
+  it('uses the dedicated account-wide dialog with local horizontal overflow protection', () => {
+    expect(source).toContain('width="account-wide"')
     expect(source).toContain('class="min-w-0 overflow-x-hidden"')
   })
 

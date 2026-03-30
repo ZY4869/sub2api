@@ -8,9 +8,17 @@ import {
   shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
 
-const t = (key: string, named?: Record<string, unknown>) => (
-  named ? `${key}:${JSON.stringify(named)}` : key
-)
+const translatedHints: Record<string, string> = {
+  'admin.accounts.modelImportErrorHints.openai_api_model_read':
+    'OpenAI model list permission hint'
+}
+
+const t = (key: string, named?: Record<string, unknown>) => {
+  if (key in translatedHints) {
+    return translatedHints[key]
+  }
+  return named ? `${key}:${JSON.stringify(named)}` : key
+}
 
 describe('resolveAccountModelImportErrorMessage', () => {
   it('prefers response detail over generic error message', () => {
@@ -25,6 +33,19 @@ describe('resolveAccountModelImportErrorMessage', () => {
     })
 
     expect(message).toBe('account must be active to import models')
+  })
+
+  it('appends provider-specific repair hints from structured metadata', () => {
+    const message = resolveAccountModelImportErrorMessage(t, {
+      message: 'upstream model listing failed with status 403',
+      metadata: {
+        hint_key: 'openai_api_model_read'
+      }
+    })
+
+    expect(message).toBe(
+      'upstream model listing failed with status 403\nOpenAI model list permission hint'
+    )
   })
 
   it('maps unsupported probing errors to localized copy', () => {
@@ -53,19 +74,20 @@ describe('resolveAccountModelImportProbeNoticeMessage', () => {
     })).toBe('admin.accounts.modelImportKiroBuiltinCatalog')
   })
 
+  it('maps Copilot static catalog source to localized copy', () => {
+    expect(resolveAccountModelImportProbeNoticeMessage(t, {
+      imported_count: 3,
+      probe_source: 'copilot_static_catalog',
+      probe_notice: 'using Copilot static model catalog'
+    })).toBe('admin.accounts.modelImportCopilotStaticCatalog')
+  })
+
   it('prefers explicit probe notice from backend', () => {
     expect(resolveAccountModelImportProbeNoticeMessage(t, {
       imported_count: 6,
-      probe_source: 'gemini_cli_default_fallback',
-      probe_notice: 'AI Studio model listing lacks required scopes; imported Gemini CLI default models instead'
-    })).toBe('AI Studio model listing lacks required scopes; imported Gemini CLI default models instead')
-  })
-
-  it('maps Gemini CLI fallback source to localized copy', () => {
-    expect(resolveAccountModelImportProbeNoticeMessage(t, {
-      imported_count: 3,
-      probe_source: 'gemini_cli_default_fallback'
-    })).toBe('admin.accounts.modelImportGeminiFallback:{"count":3}')
+      probe_source: 'upstream',
+      probe_notice: 'official publisher models + verified extras'
+    })).toBe('official publisher models + verified extras')
   })
 
   it('returns empty string for upstream probe results', () => {
@@ -159,7 +181,7 @@ describe('mergeAccountModelImportResults', () => {
             reason_code: 'merged_canonical'
           }
         ],
-        probe_source: 'gemini_cli_default_fallback',
+        probe_source: 'copilot_static_catalog',
         probe_notice: 'fallback notice',
         trigger: 'create'
       }
@@ -167,7 +189,7 @@ describe('mergeAccountModelImportResults', () => {
 
     expect(merged?.imported_count).toBe(1)
     expect(merged?.skipped_count).toBe(1)
-    expect(merged?.probe_source).toBe('gemini_cli_default_fallback')
+    expect(merged?.probe_source).toBe('copilot_static_catalog')
     expect(merged?.probe_notice).toBe('fallback notice')
     expect(merged?.model_results).toHaveLength(2)
   })

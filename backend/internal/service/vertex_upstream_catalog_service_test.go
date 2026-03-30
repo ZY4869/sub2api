@@ -134,7 +134,9 @@ func TestVertexUpstreamCatalogService_GetCatalog_VertexExpressUsesAPIKeyAndPropa
 	require.Error(t, err)
 
 	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindPermissionDenied, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyPermissionDenied, appErr.Metadata["hint_key"])
 	require.Equal(t, "vertex-express-key", listKey)
 	require.Contains(t, appErr.Message, "status 403")
 }

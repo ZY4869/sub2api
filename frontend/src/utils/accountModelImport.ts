@@ -12,12 +12,22 @@ export type AccountModelImportTranslate = (
 
 interface AccountModelImportErrorLike {
   message?: unknown
+  reason?: unknown
+  metadata?: Record<string, string> | unknown
   response?: {
     data?: {
       detail?: unknown
       message?: unknown
+      reason?: unknown
+      metadata?: Record<string, string> | unknown
     }
   }
+}
+
+interface AccountModelImportErrorDetails {
+  message: string
+  reason: string
+  metadata: Record<string, string>
 }
 
 interface AccountModelImportSummary {
@@ -41,26 +51,57 @@ export const MODEL_IMPORT_SYNC_EXPOSURES = ['whitelist', 'use_key', 'test', 'run
 function isNonUpstreamProbeSource(
   probeSource: AccountModelImportResult['probe_source']
 ): boolean {
-  return probeSource === 'gemini_cli_default_fallback' || probeSource === 'kiro_builtin_catalog'
+  return probeSource === 'kiro_builtin_catalog' || probeSource === 'copilot_static_catalog'
 }
 
-function extractAccountModelImportErrorMessage(error: unknown): string {
+function normalizeErrorMetadata(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  const metadata: Record<string, string> = {}
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw === 'string' && raw.trim()) {
+      metadata[key] = raw.trim()
+    }
+  }
+  return metadata
+}
+
+function extractAccountModelImportErrorDetails(error: unknown): AccountModelImportErrorDetails {
   const err = (error || {}) as AccountModelImportErrorLike
   const detail = typeof err.response?.data?.detail === 'string'
     ? err.response.data.detail.trim()
     : ''
-  if (detail) {
-    return detail
-  }
-
   const responseMessage = typeof err.response?.data?.message === 'string'
     ? err.response.data.message.trim()
     : ''
-  if (responseMessage) {
-    return responseMessage
+  const message = detail || responseMessage || (typeof err.message === 'string' ? err.message.trim() : '')
+  const reason = typeof err.response?.data?.reason === 'string'
+    ? err.response.data.reason.trim()
+    : typeof err.reason === 'string'
+      ? err.reason.trim()
+      : ''
+  return {
+    message,
+    reason,
+    metadata: {
+      ...normalizeErrorMetadata(err.metadata),
+      ...normalizeErrorMetadata(err.response?.data?.metadata)
+    }
   }
+}
 
-  return typeof err.message === 'string' ? err.message.trim() : ''
+function resolveAccountModelImportErrorHint(
+  t: AccountModelImportTranslate,
+  details: AccountModelImportErrorDetails
+): string {
+  const hintKey = details.metadata.hint_key || details.metadata.reason_kind || details.reason
+  if (!hintKey) {
+    return ''
+  }
+  const key = `admin.accounts.modelImportErrorHints.${hintKey}`
+  const translated = t(key)
+  return translated === key ? '' : translated
 }
 
 function normalizeLegacyFailedModels(failedModels?: AccountModelImportFailure[]): AccountModelImportModelResult[] {
@@ -200,18 +241,15 @@ export function resolveAccountModelImportProbeNoticeMessage(
   if (result?.probe_source === 'kiro_builtin_catalog') {
     return t('admin.accounts.modelImportKiroBuiltinCatalog')
   }
+  if (result?.probe_source === 'copilot_static_catalog') {
+    return t('admin.accounts.modelImportCopilotStaticCatalog')
+  }
 
   const probeNotice = typeof result?.probe_notice === 'string'
     ? result.probe_notice.trim()
     : ''
   if (probeNotice) {
     return probeNotice
-  }
-
-  if (result?.probe_source === 'gemini_cli_default_fallback') {
-    return t('admin.accounts.modelImportGeminiFallback', {
-      count: Math.max(0, Number(result.imported_count) || 0)
-    })
   }
 
   return ''
@@ -221,11 +259,14 @@ export function resolveAccountModelImportErrorMessage(
   t: AccountModelImportTranslate,
   error: unknown
 ): string {
-  const message = extractAccountModelImportErrorMessage(error)
+  const details = extractAccountModelImportErrorDetails(error)
+  const message = details.message
   if (message.includes('does not support real model probing') || message.includes('does not support model import')) {
     return t('admin.accounts.modelImportUnsupported')
   }
-  return message || t('admin.accounts.modelImportFailed')
+  const fallbackMessage = message || t('admin.accounts.modelImportFailed')
+  const hint = resolveAccountModelImportErrorHint(t, details)
+  return hint ? `${fallbackMessage}\n${hint}` : fallbackMessage
 }
 
 export function extractSyncableRegistryModels(

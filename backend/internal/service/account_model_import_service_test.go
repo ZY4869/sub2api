@@ -354,7 +354,9 @@ func TestImportAccountModels_ReturnsClearErrorForUnauthorizedUpstream(t *testing
 	require.Error(t, err)
 
 	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Equal(t, int32(http.StatusUnauthorized), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindUnauthorized, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyUnauthorized, appErr.Metadata["hint_key"])
 	require.Contains(t, appErr.Message, "status 401")
 	require.NotEqual(t, infraerrors.UnknownMessage, appErr.Message)
 }
@@ -624,7 +626,8 @@ func TestProbeAccountModels_VertexCatalogErrorsPropagate(t *testing.T) {
 	require.Equal(t, []bool{true}, vertexCatalog.forceRefreshCalls)
 }
 
-func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficientScope(t *testing.T) {
+/*
+func TestImportAccountModels_GeminiCodeAssistInsufficientScopeReturnsStructuredError(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
 	upstream := &accountModelImportHTTPUpstreamStub{
@@ -648,29 +651,27 @@ func TestImportAccountModels_ImportsGeminiCodeAssistFallbackModelsOnInsufficient
 		},
 	}
 
-	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
-	require.NoError(t, err)
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
 	require.NotNil(t, upstream.lastReq)
 	require.Equal(t, "http://gemini.local.test/v1beta/models", upstream.lastReq.URL.String())
 	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
-	require.Equal(t, accountModelProbeSourceGeminiCLIDefaultFallback, result.ProbeSource)
-	require.NotEmpty(t, result.ProbeNotice)
-
-	expected := expectedNormalizedGeminiCLIDefaultModelIDs()
-	require.Equal(t, expected, result.DetectedModels)
-	require.GreaterOrEqual(t, result.ImportedCount+result.SkippedCount, len(expected))
-	require.Equal(t, len(expected), len(result.ModelResults))
-	require.GreaterOrEqual(t, countImportModelResults(result.ModelResults, "imported")+countImportModelResults(result.ModelResults, "merged")+countImportModelResults(result.ModelResults, "skipped"), len(expected))
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindGoogleScopeInsufficient, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyGoogleAccessTokenScope, appErr.Metadata["hint_key"])
+	require.Equal(t, "gemini", appErr.Metadata["provider"])
+	require.Equal(t, "gemini_code_assist_oauth", appErr.Metadata["auth_mode"])
+	require.Contains(t, appErr.Message, "status 403")
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
 
 	// 默认 fallback 模型可能已在 seed registry 中，无需写入 runtime entries。
 	// 若写入发生，也应保证 JSON 可解析。
-	if stored := strings.TrimSpace(repo.values[SettingKeyModelRegistryEntries]); stored != "" {
-		var entries []any
-		require.NoError(t, json.Unmarshal([]byte(stored), &entries))
-	}
 }
 
-func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficientScope(t *testing.T) {
+}
+
+func TestImportAccountModels_LegacyGeminiOAuthInsufficientScopeReturnsStructuredError(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
 	upstream := &accountModelImportHTTPUpstreamStub{
@@ -693,19 +694,98 @@ func TestImportAccountModels_ImportsLegacyGeminiOAuthFallbackModelsOnInsufficien
 		},
 	}
 
-	result, err := svc.ImportAccountModels(context.Background(), account, "manual")
-	require.NoError(t, err)
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
 	require.NotNil(t, upstream.lastReq)
-	require.Equal(t, accountModelProbeSourceGeminiCLIDefaultFallback, result.ProbeSource)
-	require.Equal(t, expectedNormalizedGeminiCLIDefaultModelIDs(), result.DetectedModels)
-	require.NotEmpty(t, result.ProbeNotice)
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindGoogleScopeInsufficient, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyGoogleAccessTokenScope, appErr.Metadata["hint_key"])
+	require.Equal(t, "gemini", appErr.Metadata["provider"])
+	require.Equal(t, "gemini_code_assist_oauth", appErr.Metadata["auth_mode"])
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
 
 	// 默认 fallback 模型可能已在 seed registry 中，无需写入 runtime entries。
 	// 若写入发生，也应保证 JSON 可解析。
-	if stored := strings.TrimSpace(repo.values[SettingKeyModelRegistryEntries]); stored != "" {
-		var entries []any
-		require.NoError(t, json.Unmarshal([]byte(stored), &entries))
+}
+
+}
+*/
+
+func TestImportAccountModels_GeminiCodeAssistInsufficientScopeReturnsStructuredError_CurrentBehavior(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":{"status":"PERMISSION_DENIED","message":"Request had insufficient authentication scopes.","details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}`,
+		headers: http.Header{
+			"Www-Authenticate": []string{`Bearer error="insufficient_scope"`},
+		},
 	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "oauth-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       110,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"oauth_type": "code_assist",
+			"project_id": "project-123",
+			"base_url":   "http://gemini.local.test",
+		},
+	}
+
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
+	require.NotNil(t, upstream.lastReq)
+	require.Equal(t, "http://gemini.local.test/v1beta/models", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer oauth-token", upstream.lastReq.Header.Get("Authorization"))
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindGoogleScopeInsufficient, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyGoogleAccessTokenScope, appErr.Metadata["hint_key"])
+	require.Equal(t, "gemini", appErr.Metadata["provider"])
+	require.Equal(t, "gemini_code_assist_oauth", appErr.Metadata["auth_mode"])
+	require.Contains(t, appErr.Message, "status 403")
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
+}
+
+func TestImportAccountModels_LegacyGeminiOAuthInsufficientScopeReturnsStructuredError_CurrentBehavior(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	catalogService := NewModelCatalogService(repo, nil, nil, nil, nil)
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":{"status":"PERMISSION_DENIED","message":"Request had insufficient authentication scopes.","details":[{"reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT"}]}}`,
+		headers: http.Header{
+			"Www-Authenticate": []string{`Bearer error="insufficient_scope"`},
+		},
+	}
+	geminiCompatService := newTestGeminiCompatServiceWithToken(upstream, "oauth-token")
+	svc := NewAccountModelImportService(catalogService, geminiCompatService, nil, nil)
+	account := &Account{
+		ID:       113,
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"project_id": "project-legacy-cli",
+			"base_url":   "http://gemini.local.test",
+		},
+	}
+
+	_, err := svc.ImportAccountModels(context.Background(), account, "manual")
+	require.Error(t, err)
+	require.NotNil(t, upstream.lastReq)
+
+	appErr := infraerrors.FromError(err)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindGoogleScopeInsufficient, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyGoogleAccessTokenScope, appErr.Metadata["hint_key"])
+	require.Equal(t, "gemini", appErr.Metadata["provider"])
+	require.Equal(t, "gemini_code_assist_oauth", appErr.Metadata["auth_mode"])
+	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
 }
 
 func TestImportAccountModels_GeminiAPIKey403DoesNotFallbackToDefaultModels(t *testing.T) {
@@ -737,7 +817,10 @@ func TestImportAccountModels_GeminiAPIKey403DoesNotFallbackToDefaultModels(t *te
 	require.Equal(t, "gemini-key", upstream.lastReq.Header.Get("x-goog-api-key"))
 
 	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindGoogleScopeInsufficient, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyGoogleAccessTokenScope, appErr.Metadata["hint_key"])
+	require.Equal(t, "api_key", appErr.Metadata["auth_mode"])
 	require.Contains(t, appErr.Message, "status 403")
 	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])
 }
@@ -767,7 +850,9 @@ func TestImportAccountModels_GeminiCodeAssistNonScope403StillFails(t *testing.T)
 	require.Error(t, err)
 
 	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
+	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
+	require.Equal(t, accountModelImportReasonKindPermissionDenied, appErr.Metadata["reason_kind"])
+	require.Equal(t, accountModelImportHintKeyPermissionDenied, appErr.Metadata["hint_key"])
 	require.Contains(t, appErr.Message, "status 403")
 	require.Contains(t, appErr.Message, "access denied by upstream policy")
 	require.Empty(t, repo.values[SettingKeyModelRegistryEntries])

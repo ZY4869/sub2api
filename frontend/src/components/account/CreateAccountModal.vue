@@ -2,7 +2,7 @@
   <BaseDialog
     :show="show"
     :title="t('admin.accounts.createAccount')"
-    width="extra-wide"
+    width="account-wide"
     @close="handleClose"
   >
     <div class="min-w-0 overflow-x-hidden">

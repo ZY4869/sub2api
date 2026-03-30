@@ -2,23 +2,27 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	gocache "github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
 	accountModelProbeSourceUpstream                    = "upstream"
-	accountModelProbeSourceGeminiCLIDefaultFallback    = "gemini_cli_default_fallback"
 	accountModelProbeSourceVertexExpressCatalog        = "vertex_express_catalog"
 	accountModelProbeSourceVertexServiceAccountCatalog = "vertex_service_account_catalog"
 	accountModelProbeSourceKiroBuiltinCatalog          = "kiro_builtin_catalog"
-	accountModelProbeSourceCopilotStaticFallback       = "copilot_static_fallback"
+	accountModelProbeSourceCopilotStaticCatalog        = "copilot_static_catalog"
+	accountModelProbeCacheTTL                          = 5 * time.Minute
 )
 
 type AccountModelImportFailure struct {
@@ -56,11 +60,11 @@ type AccountModelProbeSummary struct {
 }
 
 type AccountModelProbeModel struct {
-	ID             string `json:"id"`
-	DisplayName    string `json:"display_name"`
-	SourceProtocol string `json:"source_protocol,omitempty"`
-	UpstreamSource string `json:"upstream_source,omitempty"`
-	Availability   string `json:"availability,omitempty"`
+	ID                 string `json:"id"`
+	DisplayName        string `json:"display_name"`
+	SourceProtocol     string `json:"source_protocol,omitempty"`
+	UpstreamSource     string `json:"upstream_source,omitempty"`
+	Availability       string `json:"availability,omitempty"`
 	AvailabilityReason string `json:"availability_reason,omitempty"`
 }
 
@@ -95,6 +99,8 @@ type AccountModelImportService struct {
 	httpUpstream                 HTTPUpstream
 	proxyRepo                    ProxyRepository
 	tlsFingerprintProfileService *TLSFingerprintProfileService
+	probeCache                   *gocache.Cache
+	probeSF                      singleflight.Group
 }
 
 func NewAccountModelImportService(
@@ -108,6 +114,7 @@ func NewAccountModelImportService(
 		geminiCompatService: geminiCompatService,
 		httpUpstream:        httpUpstream,
 		proxyRepo:           proxyRepo,
+		probeCache:          gocache.New(accountModelProbeCacheTTL, time.Minute),
 	}
 }
 
@@ -128,11 +135,19 @@ func (s *AccountModelImportService) SetTLSFingerprintProfileService(tlsFingerpri
 }
 
 func (s *AccountModelImportService) ProbeAccountModels(ctx context.Context, account *Account) (*AccountModelProbeSummary, error) {
+	return s.ListAccountModels(ctx, account, true)
+}
+
+func (s *AccountModelImportService) ListAccountModels(
+	ctx context.Context,
+	account *Account,
+	forceRefresh bool,
+) (*AccountModelProbeSummary, error) {
 	if account == nil {
 		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
 	}
 
-	probeResult, err := s.detectModels(ctx, account)
+	probeResult, err := s.loadProbeResult(ctx, account, forceRefresh)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +184,7 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		zap.String("type", account.Type),
 		zap.String("trigger", normalizeImportTrigger(trigger)),
 	)
-	probeResult, err := s.detectModels(ctx, account)
+	probeResult, err := s.loadProbeResult(ctx, account, true)
 	if err != nil {
 		log.Warn("account model import: detect models failed",
 			zap.Int64("account_id", account.ID),
@@ -315,6 +330,151 @@ func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, acc
 		zap.Int("failed_count", len(result.FailedModels)),
 	)
 	return result, nil
+}
+
+func (s *AccountModelImportService) loadProbeResult(
+	ctx context.Context,
+	account *Account,
+	forceRefresh bool,
+) (*accountModelProbeResult, error) {
+	if account == nil {
+		return nil, infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+	}
+	if s == nil {
+		return nil, infraerrors.InternalServer("MODEL_IMPORT_SERVICE_UNAVAILABLE", "account model import service is unavailable")
+	}
+	cacheKey := s.probeCacheKey(account)
+	if forceRefresh || s.probeCache == nil {
+		result, err := s.detectModels(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+		if s.probeCache != nil {
+			s.probeCache.Set(cacheKey, cloneAccountModelProbeResult(result), accountModelProbeCacheTTL)
+		}
+		return cloneAccountModelProbeResult(result), nil
+	}
+	if cached, ok := s.probeCache.Get(cacheKey); ok {
+		if result, castOK := cached.(*accountModelProbeResult); castOK && result != nil {
+			return cloneAccountModelProbeResult(result), nil
+		}
+	}
+	value, err, _ := s.probeSF.Do(cacheKey, func() (any, error) {
+		if cached, ok := s.probeCache.Get(cacheKey); ok {
+			if result, castOK := cached.(*accountModelProbeResult); castOK && result != nil {
+				return cloneAccountModelProbeResult(result), nil
+			}
+		}
+		result, detectErr := s.detectModels(ctx, account)
+		if detectErr != nil {
+			return nil, detectErr
+		}
+		cloned := cloneAccountModelProbeResult(result)
+		s.probeCache.Set(cacheKey, cloned, accountModelProbeCacheTTL)
+		return cloneAccountModelProbeResult(cloned), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	result, _ := value.(*accountModelProbeResult)
+	return cloneAccountModelProbeResult(result), nil
+}
+
+func (s *AccountModelImportService) probeCacheKey(account *Account) string {
+	if account == nil {
+		return ""
+	}
+	groupIDs := append([]int64(nil), account.GroupIDs...)
+	sort.Slice(groupIDs, func(i, j int) bool { return groupIDs[i] < groupIDs[j] })
+	groupParts := make([]string, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		groupParts = append(groupParts, fmt.Sprintf("%d", groupID))
+	}
+
+	baseURL := strings.TrimSpace(account.GetBaseURL())
+	projectID := ""
+	location := ""
+	if RoutingPlatformForAccount(account) == PlatformGemini {
+		baseURL = strings.TrimSpace(geminiBaseURLForLogging(account))
+		projectID = strings.TrimSpace(account.GetCredential("project_id"))
+		if account.IsGeminiVertexSource() {
+			projectID = strings.TrimSpace(account.GetGeminiVertexProjectID())
+			location = strings.TrimSpace(account.GetGeminiVertexLocation())
+		}
+	}
+	if RoutingPlatformForAccount(account) == PlatformAntigravity && account.Type == AccountTypeOAuth {
+		projectID = strings.TrimSpace(account.GetCredential("project_id"))
+	}
+	acceptedProtocols := append([]string(nil), GetAccountGatewayAcceptedProtocols(account)...)
+	sort.Strings(acceptedProtocols)
+
+	return strings.Join([]string{
+		"groups=" + strings.Join(groupParts, ","),
+		fmt.Sprintf("account=%d", account.ID),
+		"platform=" + strings.TrimSpace(strings.ToLower(RoutingPlatformForAccount(account))),
+		"type=" + strings.TrimSpace(strings.ToLower(account.Type)),
+		"auth=" + accountModelImportAuthMode(account),
+		"base=" + baseURL,
+		"project=" + projectID,
+		"location=" + location,
+		"gateway=" + strings.TrimSpace(GetAccountGatewayProtocol(account)),
+		"accepted=" + strings.Join(acceptedProtocols, ","),
+		"mapping=" + accountModelImportMappingSignature(account.GetModelMapping()),
+	}, "|")
+}
+
+func accountModelImportAuthMode(account *Account) string {
+	if account == nil {
+		return ""
+	}
+	switch {
+	case account.IsGeminiVertexExpress():
+		return "vertex_express_key"
+	case account.IsGeminiVertexAI():
+		return "vertex_service_account"
+	case account.Type == AccountTypeOAuth && account.IsGeminiCodeAssist():
+		return "gemini_code_assist_oauth"
+	case account.Type == AccountTypeOAuth:
+		return "oauth"
+	case account.Type == AccountTypeAPIKey:
+		return "api_key"
+	case account.Type == AccountTypeUpstream:
+		return "upstream"
+	default:
+		return strings.TrimSpace(strings.ToLower(account.Type))
+	}
+}
+
+func accountModelImportMappingSignature(mapping map[string]string) string {
+	if len(mapping) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(mapping))
+	for key := range mapping {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	ordered := make(map[string]string, len(keys))
+	for _, key := range keys {
+		ordered[key] = mapping[key]
+	}
+	payload, err := json.Marshal(ordered)
+	if err != nil {
+		return ""
+	}
+	return string(payload)
+}
+
+func cloneAccountModelProbeResult(result *accountModelProbeResult) *accountModelProbeResult {
+	if result == nil {
+		return nil
+	}
+	return &accountModelProbeResult{
+		Models:  append([]string(nil), result.Models...),
+		Details: append([]AccountModelProbeModel(nil), result.Details...),
+		Source:  result.Source,
+		Notice:  result.Notice,
+	}
 }
 
 func filterSelectedImportedModels(models []string, selectedModels ...[]string) []string {

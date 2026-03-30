@@ -14,18 +14,31 @@ type APIKeyPublicModelEntry struct {
 	Platform    string
 }
 
-func (s *GatewayService) GetAPIKeyPublicModels(ctx context.Context, apiKey *APIKey, platform string) []APIKeyPublicModelEntry {
+type apiKeyPublicProjectionCandidate struct {
+	MatchID     string
+	AliasID     string
+	SourceID    string
+	DisplayName string
+	Platform    string
+}
+
+func (s *GatewayService) GetAPIKeyPublicModels(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform string,
+) ([]APIKeyPublicModelEntry, error) {
 	if s == nil || s.accountRepo == nil || apiKey == nil {
-		return nil
+		return nil, nil
 	}
 	bindings := apiKeyBindingsForSelection(apiKey)
 	if len(bindings) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	normalizedPlatform := strings.TrimSpace(strings.ToLower(platform))
 	mode := apiKey.EffectiveModelDisplayMode()
 	entriesByID := make(map[string]APIKeyPublicModelEntry)
+	var firstErr error
 
 	for _, binding := range bindings {
 		if binding.Group == nil || !binding.Group.IsActive() {
@@ -38,6 +51,9 @@ func (s *GatewayService) GetAPIKeyPublicModels(ctx context.Context, apiKey *APIK
 
 		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, binding.GroupID, bindingPlatform)
 		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		for i := range accounts {
@@ -45,27 +61,21 @@ func (s *GatewayService) GetAPIKeyPublicModels(ctx context.Context, apiKey *APIK
 			if account == nil || !account.IsSchedulable() {
 				continue
 			}
-			mapping := account.GetModelMapping()
-			if account.IsGeminiVertexSource() && strings.EqualFold(bindingPlatform, PlatformGemini) {
-				for _, entry := range s.vertexPublicModelEntries(ctx, account, mode, bindingPlatform, binding.ModelPatterns, mapping) {
-					if _, exists := entriesByID[entry.PublicID]; exists {
-						continue
-					}
-					entriesByID[entry.PublicID] = entry
+			entries, err := s.publicModelEntriesForAccount(
+				ctx,
+				account,
+				mode,
+				bindingPlatform,
+				binding.ModelPatterns,
+				account.GetModelMapping(),
+			)
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
 				}
 				continue
 			}
-			if len(mapping) == 0 {
-				continue
-			}
-			for alias, source := range mapping {
-				entry, ok := buildAPIKeyPublicModelEntry(mode, alias, source, bindingPlatform)
-				if !ok {
-					continue
-				}
-				if _, matched := bindingMatchesModel(binding.ModelPatterns, entry.PublicID); !matched {
-					continue
-				}
+			for _, entry := range entries {
 				if _, exists := entriesByID[entry.PublicID]; exists {
 					continue
 				}
@@ -75,7 +85,10 @@ func (s *GatewayService) GetAPIKeyPublicModels(ctx context.Context, apiKey *APIK
 	}
 
 	if len(entriesByID) == 0 {
-		return nil
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, nil
 	}
 	entries := make([]APIKeyPublicModelEntry, 0, len(entriesByID))
 	for _, entry := range entriesByID {
@@ -84,7 +97,128 @@ func (s *GatewayService) GetAPIKeyPublicModels(ctx context.Context, apiKey *APIK
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].PublicID < entries[j].PublicID
 	})
-	return entries
+	return entries, nil
+}
+
+func (s *GatewayService) publicModelEntriesForAccount(
+	ctx context.Context,
+	account *Account,
+	mode string,
+	platform string,
+	modelPatterns []string,
+	mapping map[string]string,
+) ([]APIKeyPublicModelEntry, error) {
+	if account == nil {
+		return nil, nil
+	}
+	if account.IsGeminiVertexSource() && strings.EqualFold(platform, PlatformGemini) {
+		return s.vertexPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
+	}
+	if s.accountModelImportService == nil {
+		return nil, nil
+	}
+
+	probeSummary, err := s.accountModelImportService.ListAccountModels(ctx, account, false)
+	if err != nil {
+		return nil, err
+	}
+	return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary), nil
+}
+
+func projectProbeSummaryToPublicEntries(
+	mode string,
+	platform string,
+	modelPatterns []string,
+	mapping map[string]string,
+	probeSummary *AccountModelProbeSummary,
+) []APIKeyPublicModelEntry {
+	if probeSummary == nil {
+		return nil
+	}
+
+	detectedSet := make(map[string]AccountModelProbeModel, len(probeSummary.Models))
+	for _, detail := range probeSummary.Models {
+		sourceID := normalizeRegistryID(detail.ID)
+		if sourceID == "" {
+			continue
+		}
+		detail.ID = sourceID
+		if strings.TrimSpace(detail.DisplayName) == "" {
+			detail.DisplayName = FormatModelCatalogDisplayName(sourceID)
+		}
+		detectedSet[sourceID] = detail
+	}
+	for _, modelID := range probeSummary.DetectedModels {
+		sourceID := normalizeRegistryID(modelID)
+		if sourceID == "" {
+			continue
+		}
+		if _, exists := detectedSet[sourceID]; exists {
+			continue
+		}
+		detectedSet[sourceID] = AccountModelProbeModel{
+			ID:          sourceID,
+			DisplayName: FormatModelCatalogDisplayName(sourceID),
+		}
+	}
+
+	candidates := make([]apiKeyPublicProjectionCandidate, 0, len(detectedSet))
+	if len(mapping) == 0 {
+		for sourceID, detail := range detectedSet {
+			candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, sourceID, sourceID, platform)
+			if !ok {
+				continue
+			}
+			candidate.DisplayName = strings.TrimSpace(detail.DisplayName)
+			candidates = append(candidates, candidate)
+		}
+	} else {
+		for alias, source := range mapping {
+			candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform)
+			if !ok {
+				continue
+			}
+			candidates = append(candidates, candidate)
+		}
+	}
+
+	projected := make(map[string]APIKeyPublicModelEntry)
+	for _, candidate := range candidates {
+		if _, matched := bindingMatchesModel(modelPatterns, candidate.MatchID); !matched {
+			continue
+		}
+		sourceID := normalizeRegistryID(candidate.SourceID)
+		detail, ok := detectedSet[sourceID]
+		if !ok {
+			continue
+		}
+		if _, exists := projected[sourceID]; exists {
+			continue
+		}
+		displayName := strings.TrimSpace(detail.DisplayName)
+		if displayName == "" {
+			displayName = strings.TrimSpace(candidate.DisplayName)
+		}
+		if displayName == "" {
+			displayName = FormatModelCatalogDisplayName(sourceID)
+		}
+		projected[sourceID] = APIKeyPublicModelEntry{
+			PublicID:    sourceID,
+			AliasID:     candidate.AliasID,
+			SourceID:    sourceID,
+			DisplayName: displayName,
+			Platform:    platform,
+		}
+	}
+
+	result := make([]APIKeyPublicModelEntry, 0, len(projected))
+	for _, entry := range projected {
+		result = append(result, entry)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].PublicID < result[j].PublicID
+	})
+	return result
 }
 
 func (s *GatewayService) vertexPublicModelEntries(
@@ -94,13 +228,13 @@ func (s *GatewayService) vertexPublicModelEntries(
 	platform string,
 	modelPatterns []string,
 	mapping map[string]string,
-) []APIKeyPublicModelEntry {
+) ([]APIKeyPublicModelEntry, error) {
 	if s == nil || s.vertexCatalogService == nil || account == nil {
-		return nil
+		return nil, nil
 	}
 	catalog, err := s.vertexCatalogService.GetCatalog(ctx, account, false)
 	if err != nil || catalog == nil {
-		return nil
+		return nil, err
 	}
 
 	callableSet := make(map[string]VertexCatalogModel, len(catalog.CallableUnion))
@@ -108,17 +242,18 @@ func (s *GatewayService) vertexPublicModelEntries(
 		callableSet[strings.TrimSpace(model.ID)] = model
 	}
 
-	candidates := make([]APIKeyPublicModelEntry, 0)
+	candidates := make([]apiKeyPublicProjectionCandidate, 0)
 	if len(mapping) == 0 {
 		for _, model := range catalog.CallableUnion {
-			entry, ok := buildAPIKeyPublicModelEntry(mode, DefaultVertexPublicModelAlias(model.ID), model.ID, platform)
+			entry, ok := buildAPIKeyPublicProjectionCandidate(mode, DefaultVertexPublicModelAlias(model.ID), model.ID, platform)
 			if ok {
+				entry.DisplayName = strings.TrimSpace(model.DisplayName)
 				candidates = append(candidates, entry)
 			}
 		}
 	} else {
 		for alias, source := range mapping {
-			entry, ok := buildAPIKeyPublicModelEntry(mode, alias, source, platform)
+			entry, ok := buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform)
 			if ok {
 				candidates = append(candidates, entry)
 			}
@@ -127,7 +262,7 @@ func (s *GatewayService) vertexPublicModelEntries(
 
 	projected := make(map[string]APIKeyPublicModelEntry)
 	for _, candidate := range candidates {
-		if _, matched := bindingMatchesModel(modelPatterns, candidate.PublicID); !matched {
+		if _, matched := bindingMatchesModel(modelPatterns, candidate.MatchID); !matched {
 			continue
 		}
 		sourceID := normalizeVertexUpstreamModelID(candidate.SourceID)
@@ -158,22 +293,29 @@ func (s *GatewayService) vertexPublicModelEntries(
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].PublicID < result[j].PublicID
 	})
-	return result
+	return result, nil
 }
 
-func (s *GatewayService) FindAPIKeyPublicModel(ctx context.Context, apiKey *APIKey, platform, modelID string) (*APIKeyPublicModelEntry, bool) {
+func (s *GatewayService) FindAPIKeyPublicModel(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform, modelID string,
+) (*APIKeyPublicModelEntry, bool, error) {
 	modelID = strings.TrimSpace(modelID)
 	if modelID == "" {
-		return nil, false
+		return nil, false, nil
 	}
-	entries := s.GetAPIKeyPublicModels(ctx, apiKey, platform)
+	entries, err := s.GetAPIKeyPublicModels(ctx, apiKey, platform)
+	if err != nil {
+		return nil, false, err
+	}
 	for i := range entries {
 		if entries[i].PublicID == modelID {
 			entry := entries[i]
-			return &entry, true
+			return &entry, true, nil
 		}
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 func (s *GatewayService) ResolveAPIKeySelectionModel(ctx context.Context, apiKey *APIKey, platform, modelID string) string {
@@ -181,33 +323,78 @@ func (s *GatewayService) ResolveAPIKeySelectionModel(ctx context.Context, apiKey
 	if modelID == "" {
 		return ""
 	}
-	entry, ok := s.findAPIKeyPublicModelByAnyID(ctx, apiKey, platform, modelID)
+	entry, ok := s.findConfiguredAPIKeyModelByAnyID(ctx, apiKey, platform, modelID)
 	if !ok || strings.TrimSpace(entry.AliasID) == "" {
 		return modelID
 	}
 	return entry.AliasID
 }
 
-func (s *GatewayService) findAPIKeyPublicModelByAnyID(ctx context.Context, apiKey *APIKey, platform, modelID string) (*APIKeyPublicModelEntry, bool) {
+func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
+	ctx context.Context,
+	apiKey *APIKey,
+	platform, modelID string,
+) (*APIKeyPublicModelEntry, bool) {
+	if s == nil || s.accountRepo == nil || apiKey == nil {
+		return nil, false
+	}
 	modelID = strings.TrimSpace(modelID)
 	if modelID == "" {
 		return nil, false
 	}
-	entries := s.GetAPIKeyPublicModels(ctx, apiKey, platform)
-	for i := range entries {
-		if entries[i].PublicID == modelID || entries[i].SourceID == modelID || entries[i].AliasID == modelID {
-			entry := entries[i]
-			return &entry, true
+	bindings := apiKeyBindingsForSelection(apiKey)
+	if len(bindings) == 0 {
+		return nil, false
+	}
+	normalizedPlatform := strings.TrimSpace(strings.ToLower(platform))
+	mode := apiKey.EffectiveModelDisplayMode()
+
+	for _, binding := range bindings {
+		if binding.Group == nil || !binding.Group.IsActive() {
+			continue
+		}
+		bindingPlatform := strings.TrimSpace(binding.Group.Platform)
+		if normalizedPlatform != "" && !strings.EqualFold(bindingPlatform, normalizedPlatform) {
+			continue
+		}
+		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, binding.GroupID, bindingPlatform)
+		if err != nil {
+			continue
+		}
+		for i := range accounts {
+			account := &accounts[i]
+			if account == nil || !account.IsSchedulable() {
+				continue
+			}
+			mapping := account.GetModelMapping()
+			for alias, source := range mapping {
+				candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, alias, source, bindingPlatform)
+				if !ok {
+					continue
+				}
+				if _, matched := bindingMatchesModel(binding.ModelPatterns, candidate.MatchID); !matched {
+					continue
+				}
+				if candidate.MatchID == modelID || candidate.AliasID == modelID || candidate.SourceID == modelID {
+					return &APIKeyPublicModelEntry{
+						PublicID:    normalizeRegistryID(candidate.SourceID),
+						AliasID:     candidate.AliasID,
+						SourceID:    normalizeRegistryID(candidate.SourceID),
+						DisplayName: candidate.DisplayName,
+						Platform:    bindingPlatform,
+					}, true
+				}
+			}
 		}
 	}
 	return nil, false
 }
 
-func buildAPIKeyPublicModelEntry(mode, alias, source, platform string) (APIKeyPublicModelEntry, bool) {
+func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) (apiKeyPublicProjectionCandidate, bool) {
 	alias = strings.TrimSpace(alias)
 	source = strings.TrimSpace(source)
 	if alias == "" && source == "" {
-		return APIKeyPublicModelEntry{}, false
+		return apiKeyPublicProjectionCandidate{}, false
 	}
 	if alias == "" {
 		alias = source
@@ -218,24 +405,24 @@ func buildAPIKeyPublicModelEntry(mode, alias, source, platform string) (APIKeyPu
 
 	switch NormalizeAPIKeyModelDisplayMode(mode) {
 	case APIKeyModelDisplayModeSourceOnly:
-		return APIKeyPublicModelEntry{
-			PublicID:    source,
+		return apiKeyPublicProjectionCandidate{
+			MatchID:     source,
 			AliasID:     alias,
 			SourceID:    source,
 			DisplayName: source,
 			Platform:    platform,
 		}, true
 	case APIKeyModelDisplayModeAliasAndSource:
-		return APIKeyPublicModelEntry{
-			PublicID:    alias,
+		return apiKeyPublicProjectionCandidate{
+			MatchID:     alias,
 			AliasID:     alias,
 			SourceID:    source,
 			DisplayName: alias + " | " + source,
 			Platform:    platform,
 		}, true
 	default:
-		return APIKeyPublicModelEntry{
-			PublicID:    alias,
+		return apiKeyPublicProjectionCandidate{
+			MatchID:     alias,
 			AliasID:     alias,
 			SourceID:    source,
 			DisplayName: alias,

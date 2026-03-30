@@ -39,14 +39,10 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		}
 		return newAccountModelProbeResult(models), nil
 	case PlatformCopilot:
-		models, err := s.detectCopilotModels(ctx, account)
-		if err == nil {
-			return newAccountModelProbeResult(models), nil
-		}
 		return &accountModelProbeResult{
 			Models: copilotDefaultModelIDs(),
-			Source: accountModelProbeSourceCopilotStaticFallback,
-			Notice: "upstream /models detection failed; imported Copilot default models instead",
+			Source: accountModelProbeSourceCopilotStaticCatalog,
+			Notice: "using Copilot static model catalog; this probe source is not a real upstream /models listing",
 		}, nil
 	case PlatformGemini:
 		return s.detectGeminiModels(ctx, account)
@@ -181,7 +177,7 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 	if err != nil {
 		return nil, err
 	}
-	return parseOpenAIModelList(body)
+	return parseOpenAIModelListForAccount(account, body)
 }
 
 func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, account *Account) ([]string, error) {
@@ -206,7 +202,7 @@ func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, acc
 	if err != nil {
 		return nil, err
 	}
-	return parseOpenAIModelList(body)
+	return parseOpenAIModelListForAccount(account, body)
 }
 
 func (s *AccountModelImportService) detectAnthropicModels(ctx context.Context, account *Account) ([]string, error) {
@@ -244,7 +240,7 @@ func (s *AccountModelImportService) detectAnthropicModels(ctx context.Context, a
 	if err != nil {
 		return nil, err
 	}
-	return parseAnthropicModelList(body)
+	return parseAnthropicModelListForAccount(account, body)
 }
 
 func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
@@ -294,23 +290,19 @@ func (s *AccountModelImportService) detectGeminiModels(ctx context.Context, acco
 		return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_EMPTY_RESPONSE", "upstream returned an empty response while listing models")
 	}
 	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {
-		if shouldFallbackGeminiCLIDefaultModels(account, result) {
-			log.Info("account model import: gemini AI Studio listing scope insufficient, falling back to Gemini CLI default models",
-				geminiImportProbeFields(account, result.StatusCode, accountModelProbeSourceGeminiCLIDefaultFallback)...,
-			)
-			return &accountModelProbeResult{
-				Models: geminiCLIDefaultModelIDs(),
-				Source: accountModelProbeSourceGeminiCLIDefaultFallback,
-				Notice: "AI Studio model listing lacks required scopes; imported Gemini CLI default models instead",
-			}, nil
-		}
-		statusErr := newAccountModelImportUpstreamStatusError(result.StatusCode, result.Body)
+		statusErr := newAccountModelImportUpstreamStatusErrorForAccount(
+			account,
+			"upstream model listing failed",
+			result.StatusCode,
+			result.Headers,
+			result.Body,
+		)
 		log.Warn("account model import: gemini upstream model listing failed",
 			append(geminiImportProbeFields(account, result.StatusCode, accountModelProbeSourceUpstream), zap.Error(statusErr))...,
 		)
 		return nil, statusErr
 	}
-	models, err := parseGeminiModelList(result.Body)
+	models, err := parseGeminiModelListForAccount(account, result.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +483,7 @@ func (s *AccountModelImportService) validateGeminiVertexCandidateModels(
 			lastBody = append(lastBody[:0], body...)
 			continue
 		}
-		return "", newAccountModelImportUpstreamStatusErrorForOperation(operation, resp.StatusCode, body)
+		return "", newAccountModelImportUpstreamStatusErrorForAccount(account, operation, resp.StatusCode, resp.Header, body)
 	}
 
 	return "", newGeminiVertexValidationExhaustedError(operation, attemptedModels, lastStatusCode, lastBody)
@@ -538,7 +530,7 @@ func (s *AccountModelImportService) detectSoraModels(ctx context.Context, accoun
 		if err != nil {
 			return nil, err
 		}
-		return parseOpenAIModelList(body)
+		return parseOpenAIModelListForAccount(account, body)
 	case AccountTypeOAuth:
 		return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Sora OAuth account type does not support real model probing")
 	default:
@@ -566,8 +558,11 @@ func (s *AccountModelImportService) detectAntigravityModels(ctx context.Context,
 		if err != nil {
 			return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", "failed to request upstream model list").WithCause(err)
 		}
-		if resp == nil || len(resp.Models) == 0 {
-			return nil, infraerrors.BadRequest("MODEL_IMPORT_EMPTY_UPSTREAM", "upstream returned an empty model list")
+		if resp == nil {
+			return nil, newAccountModelImportInvalidResponseError(account, "Antigravity model listing returned invalid response", nil)
+		}
+		if len(resp.Models) == 0 {
+			return []string{}, nil
 		}
 		models := make([]string, 0, len(resp.Models))
 		for modelID := range resp.Models {
@@ -631,7 +626,7 @@ func (s *AccountModelImportService) doImportGET(ctx context.Context, account *Ac
 		return nil, infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_READ_FAILED", "failed to read upstream model list response").WithCause(readErr)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, newAccountModelImportUpstreamStatusError(resp.StatusCode, body)
+		return nil, newAccountModelImportUpstreamStatusErrorForAccount(account, "upstream model listing failed", resp.StatusCode, resp.Header, body)
 	}
 	return body, nil
 }
@@ -651,14 +646,26 @@ func parseOpenAIModelList(body []byte) ([]string, error) {
 			ids = append(ids, v)
 		}
 	}
-	if len(ids) == 0 {
-		return nil, infraerrors.BadRequest("MODEL_IMPORT_EMPTY_UPSTREAM", "upstream returned an empty model list")
-	}
 	return ids, nil
+}
+
+func parseOpenAIModelListForAccount(account *Account, body []byte) ([]string, error) {
+	ids, err := parseOpenAIModelList(body)
+	if err == nil {
+		return ids, nil
+	}
+	if infraerrors.Reason(err) == "MODEL_IMPORT_INVALID_RESPONSE" {
+		return nil, newAccountModelImportInvalidResponseError(account, "upstream model listing returned invalid JSON", err)
+	}
+	return nil, err
 }
 
 func parseAnthropicModelList(body []byte) ([]string, error) {
 	return parseOpenAIModelList(body)
+}
+
+func parseAnthropicModelListForAccount(account *Account, body []byte) ([]string, error) {
+	return parseOpenAIModelListForAccount(account, body)
 }
 
 func parseGeminiModelList(body []byte) ([]string, error) {
@@ -682,55 +689,18 @@ func parseGeminiModelList(body []byte) ([]string, error) {
 		}
 		ids = append(ids, strings.TrimPrefix(name, "models/"))
 	}
-	if len(ids) == 0 {
-		return nil, infraerrors.BadRequest("MODEL_IMPORT_EMPTY_UPSTREAM", "upstream returned an empty model list")
-	}
 	return ids, nil
 }
 
-func newAccountModelImportUpstreamStatusError(statusCode int, body []byte) error {
-	return newAccountModelImportUpstreamStatusErrorForOperation("upstream model listing failed", statusCode, body)
-}
-
-func newAccountModelImportUpstreamStatusErrorForOperation(operation string, statusCode int, body []byte) error {
-	message := fmt.Sprintf("%s with status %d", strings.TrimSpace(operation), statusCode)
-	if truncated := truncateImportBody(body); truncated != "" {
-		message = fmt.Sprintf("%s: %s", message, truncated)
+func parseGeminiModelListForAccount(account *Account, body []byte) ([]string, error) {
+	ids, err := parseGeminiModelList(body)
+	if err == nil {
+		return ids, nil
 	}
-	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
-		return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_UNAUTHORIZED", message)
+	if infraerrors.Reason(err) == "MODEL_IMPORT_INVALID_RESPONSE" {
+		return nil, newAccountModelImportInvalidResponseError(account, "upstream model listing returned invalid JSON", err)
 	}
-	if statusCode >= http.StatusInternalServerError {
-		return infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_SERVER_ERROR", message)
-	}
-	if statusCode == http.StatusTooManyRequests {
-		return infraerrors.TooManyRequests("MODEL_IMPORT_UPSTREAM_RATE_LIMITED", message)
-	}
-	return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", message)
-}
-
-func shouldFallbackGeminiCLIDefaultModels(account *Account, result *UpstreamHTTPResult) bool {
-	if account == nil || result == nil {
-		return false
-	}
-	if result.StatusCode != http.StatusForbidden {
-		return false
-	}
-	if !account.IsGeminiCodeAssist() {
-		return false
-	}
-	return isGeminiInsufficientScope(result.Headers, result.Body)
-}
-
-func geminiCLIDefaultModelIDs() []string {
-	ids := make([]string, 0, len(geminicli.DefaultModels))
-	for _, model := range geminicli.DefaultModels {
-		if id := strings.TrimSpace(model.ID); id != "" {
-			ids = append(ids, id)
-		}
-	}
-	normalized, _ := normalizeImportedModelIDs(ids)
-	return normalized
+	return nil, err
 }
 
 func geminiImportProbeFields(account *Account, statusCode int, probeSource string) []zap.Field {

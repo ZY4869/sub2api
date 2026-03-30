@@ -473,6 +473,9 @@ func ProvideAccountTestService(
 	svc := NewAccountTestService(accountRepo, accountModelImportService, geminiTokenProvider, antigravityGatewayService, httpUpstream, cfg)
 	svc.SetClaudeTokenProvider(claudeTokenProvider)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
+	if gatewayService != nil {
+		gatewayService.SetAccountModelImportService(accountModelImportService)
+	}
 	svc.SetGatewayService(gatewayService)
 	svc.SetGrokGatewayService(grokGatewayService)
 	svc.SetOpenAIGatewayService(openAIGatewayService)

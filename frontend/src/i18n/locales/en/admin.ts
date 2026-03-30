@@ -1770,9 +1770,17 @@ export default {
       modelImportPartial: 'Model import partially completed: {imported} imported, {failed} failed',
       modelImportFailed: 'Failed to import models',
       modelImportUnsupported: 'Current account type does not support real model probing',
-      modelImportGeminiFallback: 'Real upstream probing is limited; imported {count} Gemini CLI default model(s) instead',
       modelImportKiroBuiltinCatalog: 'Imported from the built-in Kiro model catalog',
+      modelImportCopilotStaticCatalog: 'Imported from the Copilot static model catalog (not real upstream)',
       kiroTestModelSourceHint: 'Kiro test-model choices come from the model registry or built-in catalog. The real test request still goes directly to the Kiro/AWS generateAssistantResponse runtime endpoint.',
+      modelImportErrorHints: {
+        openai_api_model_read: 'Suggested fix: grant the OpenAI account `api.model.read`, make sure the key is not restricted/scoped, and verify the organization RBAC role can read model listings.',
+        google_access_token_scope: 'Suggested fix: add the required Google scopes; for Vertex Service Accounts, also verify project permissions and enabled APIs; for OAuth or bearer tokens, make sure the token includes the correct Google API scopes.',
+        permission_denied: 'Suggested fix: confirm this account can read model listings in the target organization, project, or workspace, and review resource-level access controls.',
+        unauthorized: 'Suggested fix: check whether the API key, bearer token, or OAuth credential is valid and unexpired, then probe again.',
+        rate_limited: 'Suggested fix: wait for the upstream rate-limit window to reset, or switch to an account/region that is not rate limited.',
+        upstream_invalid_response: 'Suggested fix: the upstream response shape was not recognized. Verify the Base URL is correct, or retry later.'
+      },
       modelImportResultTitle: 'Model import results',
       modelImportSummary: 'Added {imported} / Merged {merged} / Skipped {skipped} / Failed {failed}',
       modelImportCopyDetails: 'Copy details',
@@ -2197,7 +2205,7 @@ export default {
         },
         vertex: {
           formTitle: 'Vertex AI Official Credentials',
-          formDescription: 'Supports both Service Account and Vertex AI Studio Key official flows. Service Account probing automatically tries the official Vertex validation models over countTokens before returning the built-in Vertex model catalog, without browser OAuth redirects.',
+          formDescription: 'Supports both Service Account and Vertex AI Studio Key official flows. Vertex probing now reads official publisher models first and uses countTokens validation to recover callable omissions; if the official chain fails, it returns a strict error instead of falling back to a built-in catalog.',
           formInlineHint: 'Vertex AI credentials are saved directly on this page and can switch between Service Account and Vertex AI Studio Key modes.',
           authModeLabel: 'Auth Mode',
           authModes: {

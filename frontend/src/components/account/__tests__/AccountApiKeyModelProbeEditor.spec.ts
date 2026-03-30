@@ -2,8 +2,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountApiKeyModelProbeEditor from '../AccountApiKeyModelProbeEditor.vue'
 
-const { probeModels } = vi.hoisted(() => ({
-  probeModels: vi.fn()
+const { probeModels, showError } = vi.hoisted(() => ({
+  probeModels: vi.fn(),
+  showError: vi.fn()
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -11,7 +12,12 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: (key: string) => {
+        if (key === 'admin.accounts.modelImportErrorHints.openai_api_model_read') {
+          return 'OpenAI model list permission hint'
+        }
+        return key
+      }
     })
   }
 })
@@ -26,7 +32,7 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showError: vi.fn()
+    showError
   })
 }))
 
@@ -62,6 +68,7 @@ const findProbeButton = (wrapper: ReturnType<typeof createWrapper>) =>
 describe('AccountApiKeyModelProbeEditor', () => {
   beforeEach(() => {
     probeModels.mockReset()
+    showError.mockReset()
   })
 
   it('uses Vertex-prefixed aliases and only auto-selects callable models', async () => {
@@ -213,6 +220,32 @@ describe('AccountApiKeyModelProbeEditor', () => {
     expect(wrapper.text()).toContain(longModelId)
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.sourceVerifiedExtra')
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.availabilityCallable')
+    expect(wrapper.html()).toContain('lg:grid-cols-2')
     expect(wrapper.html()).toContain('flex-wrap')
+  })
+
+  it('shows structured 403 repair guidance from backend metadata', async () => {
+    probeModels.mockRejectedValue({
+      message: 'upstream model listing failed with status 403',
+      metadata: {
+        hint_key: 'openai_api_model_read'
+      }
+    })
+
+    const wrapper = createWrapper({
+      platform: 'openai',
+      credentials: {
+        api_key: 'sk-test',
+        base_url: 'https://api.openai.com'
+      }
+    })
+    const probeButton = findProbeButton(wrapper)
+
+    await probeButton?.trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith(
+      'upstream model listing failed with status 403\nOpenAI model list permission hint'
+    )
   })
 })

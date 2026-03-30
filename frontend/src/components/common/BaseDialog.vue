@@ -53,7 +53,7 @@ let previousActiveElement: HTMLElement | null = null
 
 const OVERLAY_CLOSE_MAX_DISTANCE = 6
 
-type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full'
+type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'account-wide' | 'full'
 
 interface Props {
   show: boolean
@@ -85,6 +85,7 @@ const widthClasses = computed(() => {
     normal: 'max-w-lg',
     wide: 'w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl',
     'extra-wide': 'w-full sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl',
+    'account-wide': 'w-full sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-[88rem]',
     full: 'w-full sm:max-w-4xl md:max-w-5xl lg:max-w-6xl xl:max-w-7xl'
   }
   return widths[props.width]

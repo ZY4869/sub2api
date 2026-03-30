@@ -42,7 +42,7 @@
       <span>{{ t('admin.accounts.apiKeyProbe.selectedCount', { count: allowedModels.length }) }}</span>
     </div>
 
-    <div v-if="probedModels.length > 0" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div v-if="probedModels.length > 0" class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
       <button
         v-for="model in probedModels"
         :key="model.id"
@@ -52,7 +52,7 @@
         @click="toggleModel(model)"
       >
         <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
+          <div class="min-w-0 space-y-1">
             <div class="break-words text-sm font-semibold" :title="model.display_name || model.id">
               {{ model.display_name || model.id }}
             </div>
@@ -91,8 +91,8 @@
           </span>
         </div>
 
-        <div class="mt-3 flex items-center justify-between gap-3 text-xs">
-          <span>
+        <div class="mt-3 flex flex-wrap items-start justify-between gap-3 text-xs">
+          <span class="break-words">
             {{
               model.registry_state === 'existing'
                 ? t('admin.accounts.apiKeyProbe.registryExisting')
@@ -163,6 +163,10 @@ import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import {
+  resolveAccountModelImportErrorMessage,
+  resolveAccountModelImportProbeNoticeMessage
+} from '@/utils/accountModelImport'
 import { buildDefaultVertexAlias, isGeminiVertexSourceCredentials } from '@/utils/vertexAi'
 
 const props = defineProps<{
@@ -339,10 +343,14 @@ const handleProbe = async () => {
       .filter((model) => model.availability === 'uncallable' && selectedUncallable.has(model.id))
       .map((model) => model.id)
     probeSource.value = result.probe_source || ''
-    probeNotice.value = result.probe_notice || ''
+    probeNotice.value = resolveAccountModelImportProbeNoticeMessage(t, {
+      imported_count: result.models.length,
+      probe_source: result.probe_source,
+      probe_notice: result.probe_notice
+    })
   } catch (error: any) {
     console.error('Failed to probe account models:', error)
-    appStore.showError(error?.message || t('admin.accounts.apiKeyProbe.failed'))
+    appStore.showError(resolveAccountModelImportErrorMessage(t, error) || t('admin.accounts.apiKeyProbe.failed'))
   } finally {
     probing.value = false
   }

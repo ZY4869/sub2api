@@ -1912,9 +1912,17 @@
       modelImportPartial: '模型导入部分成功：成功 {imported} 个，失败 {failed} 个',
       modelImportFailed: '导入模型失败',
       modelImportUnsupported: '当前账号类型不支持真实探测',
-      modelImportGeminiFallback: '真实探测受限，已按 Gemini CLI 默认模型导入 {count} 个模型',
       modelImportKiroBuiltinCatalog: '使用内置 Kiro 模型目录导入',
+      modelImportCopilotStaticCatalog: '使用 Copilot 静态模型目录导入（非真实上游）',
       kiroTestModelSourceHint: 'Kiro 的测试模型列表来自模型注册表或内置目录；真实测试请求仍会直接发往 Kiro/AWS generateAssistantResponse 运行时端点。',
+      modelImportErrorHints: {
+        openai_api_model_read: '修复建议：为 OpenAI 账号补齐 `api.model.read` 权限，确认不是 restricted/scoped key，并检查组织 RBAC 角色是否至少具备读取模型列表的权限。',
+        google_access_token_scope: '修复建议：为 Google 凭据补齐所需 scope；如果是 Vertex Service Account，请检查项目权限和 API 是否已启用；如果是 OAuth/Access Token，请确认令牌包含正确的 Google API scope。',
+        permission_denied: '修复建议：确认当前账号在目标组织、项目或工作区内具有读取模型列表的权限，并检查资源级访问控制。',
+        unauthorized: '修复建议：检查 API Key、Bearer Token 或 OAuth 凭据是否有效且未过期，再重新探测。',
+        rate_limited: '修复建议：等待上游限流窗口恢复后重试，或切换到未限流的账号/区域。',
+        upstream_invalid_response: '修复建议：上游返回的数据结构不符合预期，请检查 Base URL 是否正确，或稍后重试。'
+      },
 
       modelImportResultTitle: '模型导入结果',
       modelImportSummary: '新增 {imported} / 归并 {merged} / 跳过 {skipped} / 失败 {failed}',
@@ -2328,7 +2336,7 @@
         },
         vertex: {
           formTitle: 'Vertex AI 官方凭据',
-          formDescription: '支持 Service Account 和 Vertex AI Studio Key 两种官方接入方式；Service Account 取模会自动尝试官方 Vertex 校验模型的 countTokens 路径，再返回内置 Vertex 模型目录；不会进入浏览器 OAuth 跳转。',
+          formDescription: '支持 Service Account 和 Vertex AI Studio Key 两种官方接入方式；Vertex 取模会优先读取官方 publisher models，并结合 countTokens 校验补齐可调用漏项；如果官方链路失败会直接报错，不再回退内置目录。',
           formInlineHint: 'Vertex AI 会在当前页面直接保存凭据，可在 Service Account 与 Vertex AI Studio Key 之间切换。',
           authModeLabel: '认证方式',
           authModes: {

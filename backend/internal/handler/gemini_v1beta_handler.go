@@ -13,6 +13,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
@@ -50,113 +51,16 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 	} else if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
 		effectivePlatform = apiKey.Group.Platform
 	}
-	if publicEntries := h.gatewayService.GetAPIKeyPublicModels(c.Request.Context(), apiKey, effectivePlatform); len(publicEntries) > 0 {
-		c.JSON(http.StatusOK, apiKeyPublicEntriesToGeminiModels(publicEntries))
-		return
-	}
-	{
-		subscription, _ := middleware.GetSubscriptionFromContext(c)
-		allowedPlatforms := geminiCompatiblePlatforms
-		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
-			allowedPlatforms = []string{forcePlatform}
-		}
-		excludedGroupIDs := make(map[int64]struct{})
-
-		for {
-			currentAPIKey, _, err := resolveSelectedGatewayAPIKey(
-				c,
-				h.settingService,
-				h.gatewayService,
-				h.billingCacheService,
-				apiKey,
-				subscription,
-				"",
-				allowedPlatforms,
-				excludedGroupIDs,
-			)
-			if err != nil {
-				status, _, message := groupSelectionErrorDetails(err)
-				googleError(c, status, message)
-				return
-			}
-
-			currentPlatform := ""
-			if currentAPIKey.Group != nil {
-				currentPlatform = currentAPIKey.Group.Platform
-			}
-
-			switch currentPlatform {
-			case service.PlatformAntigravity:
-				c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
-				return
-			case service.PlatformGemini:
-				account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), currentAPIKey.GroupID)
-				if err != nil {
-					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-						continue
-					}
-					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
-					return
-				}
-
-				res, err := h.geminiCompatService.ForwardAIStudioGET(c.Request.Context(), account, "/v1beta/models")
-				if err != nil {
-					googleError(c, http.StatusBadGateway, err.Error())
-					return
-				}
-				if shouldFallbackGeminiModelsForAccount(account, res) {
-					c.JSON(http.StatusOK, gemini.FallbackModelsList())
-					return
-				}
-				writeUpstreamResponse(c, res)
-				return
-			default:
-				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-					continue
-				}
-				googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
-				return
-			}
-		}
-	}
-	if !hasForcePlatform && apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
-		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
-		return
-	}
-	if !hasForcePlatform && (apiKey.Group == nil || apiKey.Group.Platform != service.PlatformGemini) {
-		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
-		return
-	}
-
-	// 强制 antigravity 模式：返回 antigravity 支持的模型列表
-	if forcePlatform == service.PlatformAntigravity {
-		c.JSON(http.StatusOK, antigravity.FallbackGeminiModelsList())
-		return
-	}
-
-	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
+	publicEntries, err := h.gatewayService.GetAPIKeyPublicModels(c.Request.Context(), apiKey, effectivePlatform)
 	if err != nil {
-		// 没有 gemini 账户，检查是否有 antigravity 账户可用
-		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)
-		if hasAntigravity {
-			// antigravity 账户使用静态模型列表
-			c.JSON(http.StatusOK, gemini.FallbackModelsList())
-			return
-		}
-		googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
+		googleErrorFromServiceError(c, err)
 		return
 	}
-
-	res, err := h.geminiCompatService.ForwardAIStudioGET(c.Request.Context(), account, "/v1beta/models")
-	if err != nil {
-		googleError(c, http.StatusBadGateway, err.Error())
+	if len(publicEntries) == 0 {
+		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: []gemini.Model{}})
 		return
 	}
-	if shouldFallbackGeminiModelsForAccount(account, res) {
-		c.JSON(http.StatusOK, gemini.FallbackModelsList())
-		return
-	}
-	writeUpstreamResponse(c, res)
+	c.JSON(http.StatusOK, apiKeyPublicEntriesToGeminiModels(publicEntries))
 }
 
 // GeminiV1BetaGetModel proxies:
@@ -174,125 +78,26 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 	modelName := strings.TrimSpace(c.Param("model"))
+	if modelName == "" {
+		googleError(c, http.StatusBadRequest, "Missing model in URL")
+		return
+	}
 	effectivePlatform := service.PlatformGemini
 	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
 		effectivePlatform = forcePlatform
 	} else if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
 		effectivePlatform = apiKey.Group.Platform
 	}
-	if publicEntry, ok := h.gatewayService.FindAPIKeyPublicModel(c.Request.Context(), apiKey, effectivePlatform, modelName); ok {
+	publicEntry, ok, err := h.gatewayService.FindAPIKeyPublicModel(c.Request.Context(), apiKey, effectivePlatform, modelName)
+	if err != nil {
+		googleErrorFromServiceError(c, err)
+		return
+	}
+	if ok {
 		c.JSON(http.StatusOK, apiKeyPublicEntryToGeminiModel(*publicEntry))
 		return
 	}
-	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, effectivePlatform, modelName)
-	{
-		subscription, _ := middleware.GetSubscriptionFromContext(c)
-		allowedPlatforms := geminiCompatiblePlatforms
-		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
-			allowedPlatforms = []string{forcePlatform}
-		}
-		excludedGroupIDs := make(map[int64]struct{})
-
-		for {
-			currentAPIKey, _, err := resolveSelectedGatewayAPIKey(
-				c,
-				h.settingService,
-				h.gatewayService,
-				h.billingCacheService,
-				apiKey,
-				subscription,
-				selectionModel,
-				allowedPlatforms,
-				excludedGroupIDs,
-			)
-			if err != nil {
-				status, _, message := groupSelectionErrorDetails(err)
-				googleError(c, status, message)
-				return
-			}
-
-			currentPlatform := ""
-			if currentAPIKey.Group != nil {
-				currentPlatform = currentAPIKey.Group.Platform
-			}
-
-			switch currentPlatform {
-			case service.PlatformAntigravity:
-				c.JSON(http.StatusOK, antigravity.FallbackGeminiModel(modelName))
-				return
-			case service.PlatformGemini:
-				account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), currentAPIKey.GroupID)
-				if err != nil {
-					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-						continue
-					}
-					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
-					return
-				}
-
-				res, err := h.geminiCompatService.ForwardAIStudioGET(c.Request.Context(), account, "/v1beta/models/"+modelName)
-				if err != nil {
-					googleError(c, http.StatusBadGateway, err.Error())
-					return
-				}
-				if shouldFallbackGeminiModelsForAccount(account, res) {
-					c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
-					return
-				}
-				writeUpstreamResponse(c, res)
-				return
-			default:
-				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-					continue
-				}
-				googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
-				return
-			}
-		}
-	}
-	if !hasForcePlatform && apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
-		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
-		return
-	}
-	if !hasForcePlatform && (apiKey.Group == nil || apiKey.Group.Platform != service.PlatformGemini) {
-		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
-		return
-	}
-
-	if modelName == "" {
-		googleError(c, http.StatusBadRequest, "Missing model in URL")
-		return
-	}
-
-	// 强制 antigravity 模式：返回 antigravity 模型信息
-	if forcePlatform == service.PlatformAntigravity {
-		c.JSON(http.StatusOK, antigravity.FallbackGeminiModel(modelName))
-		return
-	}
-
-	account, err := h.geminiCompatService.SelectAccountForAIStudioEndpoints(c.Request.Context(), apiKey.GroupID)
-	if err != nil {
-		// 没有 gemini 账户，检查是否有 antigravity 账户可用
-		hasAntigravity, _ := h.geminiCompatService.HasAntigravityAccounts(c.Request.Context(), apiKey.GroupID)
-		if hasAntigravity {
-			// antigravity 账户使用静态模型信息
-			c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
-			return
-		}
-		googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
-		return
-	}
-
-	res, err := h.geminiCompatService.ForwardAIStudioGET(c.Request.Context(), account, "/v1beta/models/"+modelName)
-	if err != nil {
-		googleError(c, http.StatusBadGateway, err.Error())
-		return
-	}
-	if shouldFallbackGeminiModelsForAccount(account, res) {
-		c.JSON(http.StatusOK, gemini.FallbackModel(modelName))
-		return
-	}
-	writeUpstreamResponse(c, res)
+	googleError(c, http.StatusNotFound, "Model not found")
 }
 
 // GeminiV1BetaModels proxies Gemini native REST endpoints like:
@@ -1201,6 +1006,22 @@ func googleError(c *gin.Context, status int, message string) {
 	})
 }
 
+func googleErrorFromServiceError(c *gin.Context, err error) {
+	if err == nil {
+		googleError(c, http.StatusBadGateway, "Upstream request failed")
+		return
+	}
+	appErr := infraerrors.FromError(err)
+	status := http.StatusBadGateway
+	message := err.Error()
+	if appErr != nil {
+		status = int(appErr.Code)
+		if strings.TrimSpace(appErr.Message) != "" && appErr.Message != infraerrors.UnknownMessage {
+			message = appErr.Message
+		}
+	}
+	googleError(c, status, message)
+}
 func writeUpstreamResponse(c *gin.Context, res *service.UpstreamHTTPResult) {
 	if res == nil {
 		googleError(c, http.StatusBadGateway, "Empty upstream response")

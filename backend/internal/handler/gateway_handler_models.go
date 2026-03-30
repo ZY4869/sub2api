@@ -5,8 +5,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -16,60 +16,27 @@ import (
 
 func (h *GatewayHandler) Models(c *gin.Context) {
 	apiKey, _ := middleware2.GetAPIKeyFromContext(c)
-	var groupID *int64
 	var platform string
 	if apiKey != nil && apiKey.Group != nil {
-		groupID = &apiKey.Group.ID
 		platform = apiKey.Group.Platform
 	}
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
 		platform = forcedPlatform
 	}
-	if platform == service.PlatformSora {
-		c.JSON(http.StatusOK, gin.H{"object": "list", "data": service.DefaultSoraModels(h.cfg)})
-		return
-	}
-	if platform == service.PlatformGrok {
-		if entries := h.registryEntriesForPlatform(c.Request.Context(), platform); len(entries) > 0 {
-			c.JSON(http.StatusOK, gin.H{"object": "list", "data": registryEntriesToClaudeModels(entries)})
-			return
+	publicEntries, err := h.gatewayService.GetAPIKeyPublicModels(c.Request.Context(), apiKey, platform)
+	if err != nil {
+		status := http.StatusBadGateway
+		if appErr := infraerrors.FromError(err); appErr != nil {
+			status = int(appErr.Code)
 		}
-		c.JSON(http.StatusOK, gin.H{"object": "list", "data": []claude.Model{
-			{ID: "grok-4", Type: "model", DisplayName: "grok-4", CreatedAt: ""},
-			{ID: "grok-3-beta", Type: "model", DisplayName: "grok-3-beta", CreatedAt: ""},
-			{ID: "grok-imagine-image", Type: "model", DisplayName: "grok-imagine-image", CreatedAt: ""},
-			{ID: "grok-imagine-video", Type: "model", DisplayName: "grok-imagine-video", CreatedAt: ""},
-			{ID: "grok-2-image", Type: "model", DisplayName: "grok-2-image", CreatedAt: ""},
-		}})
+		h.errorResponse(c, status, "upstream_error", err.Error())
 		return
 	}
-	if publicEntries := h.gatewayService.GetAPIKeyPublicModels(c.Request.Context(), apiKey, platform); len(publicEntries) > 0 {
+	if len(publicEntries) > 0 {
 		c.JSON(http.StatusOK, gin.H{"object": "list", "data": apiKeyPublicEntriesToClaudeModels(publicEntries)})
 		return
 	}
-	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, "")
-	defaultEntries := h.registryEntriesForPlatform(c.Request.Context(), platform)
-	if len(availableModels) > 0 {
-		if len(defaultEntries) > 0 {
-			c.JSON(http.StatusOK, gin.H{"object": "list", "data": filterGatewayModels(defaultEntries, availableModels)})
-			return
-		}
-		models := make([]claude.Model, 0, len(availableModels))
-		for _, modelID := range availableModels {
-			models = append(models, claude.Model{ID: modelID, Type: "model", DisplayName: modelID, CreatedAt: ""})
-		}
-		c.JSON(http.StatusOK, gin.H{"object": "list", "data": models})
-		return
-	}
-	if len(defaultEntries) > 0 {
-		c.JSON(http.StatusOK, gin.H{"object": "list", "data": registryEntriesToClaudeModels(defaultEntries)})
-		return
-	}
-	if platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
-		c.JSON(http.StatusOK, gin.H{"object": "list", "data": openai.DefaultModels})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"object": "list", "data": claude.DefaultModels})
+	c.JSON(http.StatusOK, gin.H{"object": "list", "data": []claude.Model{}})
 }
 func (h *GatewayHandler) AntigravityModels(c *gin.Context) {
 	entries := h.registryEntriesForPlatform(c.Request.Context(), service.PlatformAntigravity)
@@ -159,28 +126,4 @@ func (h *GatewayHandler) resolveParsedRequestModel(ctx context.Context, parsed *
 	if resolution.CanonicalID != "" {
 		parsed.Model = resolution.CanonicalID
 	}
-}
-
-func filterGatewayModels(entries []modelregistry.ModelEntry, allowed []string) []claude.Model {
-	if len(allowed) == 0 {
-		return registryEntriesToClaudeModels(entries)
-	}
-	indexed := make(map[string]modelregistry.ModelEntry, len(entries))
-	for _, entry := range entries {
-		indexed[entry.ID] = entry
-	}
-	models := make([]claude.Model, 0, len(allowed))
-	for _, item := range allowed {
-		entry, ok := indexed[strings.TrimSpace(item)]
-		if !ok {
-			models = append(models, claude.Model{ID: item, Type: "model", DisplayName: item, CreatedAt: ""})
-			continue
-		}
-		displayName := entry.DisplayName
-		if displayName == "" {
-			displayName = entry.ID
-		}
-		models = append(models, claude.Model{ID: entry.ID, Type: "model", DisplayName: displayName, CreatedAt: ""})
-	}
-	return models
 }

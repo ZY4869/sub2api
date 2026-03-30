@@ -322,12 +322,18 @@ func (s *VertexUpstreamCatalogService) listOfficialModels(
 			return nil, readErr
 		}
 		if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-			return nil, newAccountModelImportUpstreamStatusErrorForOperation("vertex official model listing failed", resp.StatusCode, body)
+			return nil, newAccountModelImportUpstreamStatusErrorForAccount(
+				account,
+				"vertex official model listing failed",
+				resp.StatusCode,
+				resp.Header,
+				body,
+			)
 		}
 
 		var payload vertexPublisherModelsResponse
 		if err := json.Unmarshal(body, &payload); err != nil {
-			return nil, fmt.Errorf("failed to parse Vertex publisher models response: %w", err)
+			return nil, newAccountModelImportInvalidResponseError(account, "vertex official model listing returned invalid JSON", err)
 		}
 		for _, item := range payload.PublisherModels {
 			modelID := normalizeRegistryID(item.Name)

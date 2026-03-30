@@ -29,7 +29,7 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 		if err != nil {
 			return nil, err
 		}
-		models, err := parseOpenAIModelList(body)
+		models, err := parseOpenAIModelListForAccount(account, body)
 		if err != nil {
 			return nil, err
 		}

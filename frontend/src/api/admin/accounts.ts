@@ -962,7 +962,7 @@ export interface AccountModelImportResult {
   skipped_count: number
   failed_models?: AccountModelImportFailure[]
   model_results?: AccountModelImportModelResult[]
-  probe_source?: 'upstream' | 'gemini_cli_default_fallback' | 'kiro_builtin_catalog'
+  probe_source?: string
   probe_notice?: string
   trigger: string
 }

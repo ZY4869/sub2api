@@ -52,9 +52,13 @@ const BaseDialogStub = defineComponent({
     show: {
       type: Boolean,
       default: false
+    },
+    width: {
+      type: String,
+      default: 'normal'
     }
   },
-  template: '<div v-if="show"><slot /><slot name="footer" /></div>'
+  template: '<div v-if="show" :data-width="width"><slot /><slot name="footer" /></div>'
 })
 
 const AccountApiKeyBasicSettingsEditorStub = defineComponent({
@@ -158,6 +162,11 @@ function mountModal(account = buildAccount()) {
 }
 
 describe('EditAccountModal', () => {
+  it('uses the dedicated account-wide dialog width', () => {
+    const wrapper = mountModal()
+    expect(wrapper.find('[data-width="account-wide"]').exists()).toBe(true)
+  })
+
   it('reopening the same account rehydrates the OpenAI whitelist from props', async () => {
     const account = buildAccount()
     updateAccountMock.mockReset()

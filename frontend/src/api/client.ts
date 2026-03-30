@@ -92,10 +92,15 @@ apiClient.interceptors.response.use(
         response.data = apiResponse.data
       } else {
         // API error
+        const metadata = (typeof (apiResponse as any).metadata === 'object' && (apiResponse as any).metadata !== null
+          ? (apiResponse as any).metadata
+          : undefined) as Record<string, string> | undefined
         return Promise.reject({
           status: response.status,
           code: apiResponse.code,
-          message: apiResponse.message || 'Unknown error'
+          message: apiResponse.message || 'Unknown error',
+          reason: typeof (apiResponse as any).reason === 'string' ? (apiResponse as any).reason : undefined,
+          metadata
         })
       }
     }
@@ -169,7 +174,11 @@ apiClient.interceptors.response.use(
                   reject({
                     status,
                     code: apiData.code,
-                    message: apiData.message || apiData.detail || error.message
+                    message: apiData.message || apiData.detail || error.message,
+                    reason: typeof apiData.reason === 'string' ? apiData.reason : undefined,
+                    metadata: typeof apiData.metadata === 'object' && apiData.metadata !== null
+                      ? apiData.metadata as Record<string, string>
+                      : undefined
                   })
                 }
               })
@@ -268,7 +277,11 @@ apiClient.interceptors.response.use(
         status,
         code: apiData.code,
         error: apiData.error,
-        message: apiData.message || apiData.detail || error.message
+        message: apiData.message || apiData.detail || error.message,
+        reason: typeof apiData.reason === 'string' ? apiData.reason : undefined,
+        metadata: typeof apiData.metadata === 'object' && apiData.metadata !== null
+          ? apiData.metadata as Record<string, string>
+          : undefined
       })
     }
 
