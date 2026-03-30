@@ -52,6 +52,16 @@ func (s *groupRepoStubForAdmin) GetByIDLite(_ context.Context, _ int64) (*Group,
 	return s.getByID, nil
 }
 
+func (s *groupRepoStubForAdmin) GetByName(_ context.Context, name string) (*Group, error) {
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	if s.getByID != nil && s.getByID.Name == name {
+		return s.getByID, nil
+	}
+	return nil, ErrGroupNotFound
+}
+
 func (s *groupRepoStubForAdmin) Delete(_ context.Context, _ int64) error {
 	panic("unexpected Delete call")
 }
@@ -355,6 +365,15 @@ func (s *groupRepoStubForFallbackCycle) GetByIDLite(_ context.Context, id int64)
 	return nil, ErrGroupNotFound
 }
 
+func (s *groupRepoStubForFallbackCycle) GetByName(_ context.Context, name string) (*Group, error) {
+	for _, g := range s.groups {
+		if g != nil && g.Name == name {
+			return g, nil
+		}
+	}
+	return nil, ErrGroupNotFound
+}
+
 func (s *groupRepoStubForFallbackCycle) Delete(_ context.Context, _ int64) error {
 	panic("unexpected Delete call")
 }
@@ -426,6 +445,15 @@ func (s *groupRepoStubForInvalidRequestFallback) GetByID(ctx context.Context, id
 func (s *groupRepoStubForInvalidRequestFallback) GetByIDLite(_ context.Context, id int64) (*Group, error) {
 	if g, ok := s.groups[id]; ok {
 		return g, nil
+	}
+	return nil, ErrGroupNotFound
+}
+
+func (s *groupRepoStubForInvalidRequestFallback) GetByName(_ context.Context, name string) (*Group, error) {
+	for _, g := range s.groups {
+		if g != nil && g.Name == name {
+			return g, nil
+		}
 	}
 	return nil, ErrGroupNotFound
 }

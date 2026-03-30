@@ -16,7 +16,6 @@ function createProps() {
   return {
     showCreate: true,
     showArchiveSelected: false,
-    showArchiveGroup: false,
     showEdit: false,
     showSync: false,
     showImportData: false,
@@ -36,7 +35,6 @@ function createProps() {
     selectedIds: [1, 2],
     selectedPlatforms: ['openai'],
     selectedTypes: ['apikey'],
-    archiveSourceGroup: null,
     editingAccount: null,
     tempUnschedAccount: null,
     deletingAccount: null,
@@ -58,7 +56,6 @@ function createStubs(overrides: Record<string, unknown> = {}) {
   return {
     CreateAccountModal: true,
     ArchiveAccountsModal: true,
-    ArchiveGroupAccountsModal: true,
     ModelImportExposureSyncDialog: true,
     EditAccountModal: true,
     ReAuthAccountModal: true,
@@ -171,22 +168,18 @@ describe('AccountsViewDialogsHost', () => {
     ])
   })
 
-  it('forwards archive current group modal events', async () => {
+  it('does not render an archive current group modal', async () => {
     const wrapper = mount(AccountsViewDialogsHost, {
       props: {
         ...createProps(),
-        showCreate: false,
-        showArchiveGroup: true,
-        archiveSourceGroup: { id: 9, name: 'Prod Group', platform: 'openai' }
+        showCreate: false
       },
       global: {
         stubs: createStubs({
           ArchiveGroupAccountsModal: {
-            emits: ['close', 'archived'],
             template: `
-              <div>
-                <button class="group-archive-close" @click="$emit('close')" />
-                <button class="group-archive-done" @click="$emit('archived', { source_group_id: 9, source_group_name: 'Prod Group', archived_count: 3, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' })" />
+              <div class="archive-current-group-modal">
+                should not render
               </div>
             `
           }
@@ -194,13 +187,7 @@ describe('AccountsViewDialogsHost', () => {
       }
     })
 
-    await wrapper.get('.group-archive-close').trigger('click')
-    await wrapper.get('.group-archive-done').trigger('click')
-
-    expect(wrapper.emitted('close-archive-group')).toEqual([[]])
-    expect(wrapper.emitted('group-archived')).toEqual([
-      [{ source_group_id: 9, source_group_name: 'Prod Group', archived_count: 3, failed_count: 0, archive_group_id: 5, archive_group_name: 'Archive' }]
-    ])
+    expect(wrapper.find('.archive-current-group-modal').exists()).toBe(false)
   })
 
   it('forwards blacklist events from the action menu', async () => {

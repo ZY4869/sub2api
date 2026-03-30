@@ -1019,22 +1019,6 @@ export interface BatchArchiveAccountsResult {
   failed_ids?: number[];
 }
 
-export interface ArchiveGroupAccountsRequest {
-  source_group_id: number;
-  group_name: string;
-}
-
-export interface ArchiveGroupAccountsResult {
-  source_group_id: number;
-  source_group_name: string;
-  archived_count: number;
-  failed_count: number;
-  archive_group_id: number;
-  archive_group_name: string;
-  archived_account_ids?: number[];
-  failed_account_ids?: number[];
-}
-
 export interface ArchivedAccountGroupSummary {
   group_id: number;
   group_name: string;

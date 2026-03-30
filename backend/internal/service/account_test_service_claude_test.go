@@ -38,7 +38,7 @@ func TestAccountTestService_TestClaudeAccountConnection_UsesClaudeTokenProviderF
 		claudeTokenProvider: provider,
 	}
 
-	err := svc.testClaudeAccountConnection(ctx, account, "claude-sonnet-4.5")
+	err := svc.testClaudeAccountConnection(ctx, account, "claude-sonnet-4.5", "", "")
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "https://q.us-east-1.amazonaws.com/generateAssistantResponse", upstream.requests[0].URL.String())
@@ -73,7 +73,7 @@ func TestAccountTestService_TestClaudeAccountConnection_KiroUnauthorizedDoesNotL
 		httpUpstream: upstream,
 	}
 
-	err := svc.testClaudeAccountConnection(ctx, account, "claude-sonnet-4.5")
+	err := svc.testClaudeAccountConnection(ctx, account, "claude-sonnet-4.5", "", "")
 	require.Error(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "https://q.us-west-2.amazonaws.com/generateAssistantResponse", upstream.requests[0].URL.String())

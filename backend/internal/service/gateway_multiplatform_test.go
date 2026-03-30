@@ -102,14 +102,27 @@ func (m *mockAccountRepoForPlatform) ListWithFilters(ctx context.Context, params
 	_ = privacyMode
 	return nil, nil, nil
 }
+func (m *mockAccountRepoForPlatform) GetStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
+	return &AccountStatusSummary{}, nil
+}
 func (m *mockAccountRepoForPlatform) ListByGroup(ctx context.Context, groupID int64) ([]Account, error) {
-	return nil, nil
+	result := make([]Account, 0, len(m.accounts))
+	for _, acc := range m.accounts {
+		result = append(result, acc)
+	}
+	return result, nil
 }
 func (m *mockAccountRepoForPlatform) ListActive(ctx context.Context) ([]Account, error) {
 	return nil, nil
 }
 func (m *mockAccountRepoForPlatform) ListByPlatform(ctx context.Context, platform string) ([]Account, error) {
-	return nil, nil
+	var result []Account
+	for _, acc := range m.accounts {
+		if acc.Platform == platform {
+			result = append(result, acc)
+		}
+	}
+	return result, nil
 }
 func (m *mockAccountRepoForPlatform) UpdateLastUsed(ctx context.Context, id int64) error {
 	return nil
@@ -201,6 +214,18 @@ func (m *mockAccountRepoForPlatform) IncrementQuotaUsed(ctx context.Context, id 
 func (m *mockAccountRepoForPlatform) ResetQuotaUsed(ctx context.Context, id int64) error {
 	return nil
 }
+func (m *mockAccountRepoForPlatform) MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error {
+	return nil
+}
+func (m *mockAccountRepoForPlatform) RestoreBlacklisted(ctx context.Context, id int64) error {
+	return nil
+}
+func (m *mockAccountRepoForPlatform) ListBlacklistedIDs(ctx context.Context) ([]int64, error) {
+	return nil, nil
+}
+func (m *mockAccountRepoForPlatform) ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]Account, error) {
+	return nil, nil
+}
 
 // Verify interface implementation
 var _ AccountRepository = (*mockAccountRepoForPlatform)(nil)
@@ -260,6 +285,15 @@ func (m *mockGroupRepoForGateway) GetByIDLite(ctx context.Context, id int64) (*G
 	m.getByIDLiteCalls++
 	if g, ok := m.groups[id]; ok {
 		return g, nil
+	}
+	return nil, ErrGroupNotFound
+}
+
+func (m *mockGroupRepoForGateway) GetByName(ctx context.Context, name string) (*Group, error) {
+	for _, g := range m.groups {
+		if g != nil && g.Name == name {
+			return g, nil
+		}
 	}
 	return nil, ErrGroupNotFound
 }

@@ -195,15 +195,6 @@
         </template>
 
         <template #beforeCreate>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            :title="canArchiveCurrentGroup ? t('admin.accounts.bulkActions.archiveCurrentGroup') : t('admin.accounts.bulkActions.archiveCurrentGroupDisabled')"
-            :disabled="loading || !canArchiveCurrentGroup"
-            @click="emit('archive-group')"
-          >
-            {{ t('admin.accounts.bulkActions.archiveCurrentGroup') }}
-          </button>
           <button type="button" class="btn btn-secondary" @click="emit('import-data')">
             {{ t('admin.accounts.dataImport') }}
           </button>
@@ -274,7 +265,6 @@ const emit = defineEmits<{
   'refresh-usage': []
   sync: []
   create: []
-  'archive-group': []
   'import-data': []
   'export-data': []
   'show-error-passthrough': []
@@ -297,19 +287,6 @@ const showColumnDropdown = ref(false)
 const autoRefreshDropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
 
-const currentGroup = computed<AdminGroup | null>(() => {
-  const rawGroup = String(props.filters.group ?? '').trim()
-  if (rawGroup === '' || rawGroup === 'ungrouped') {
-    return null
-  }
-  const groupId = Number.parseInt(rawGroup, 10)
-  if (!Number.isFinite(groupId) || groupId <= 0) {
-    return null
-  }
-  return props.groups.find((group) => group.id === groupId) ?? null
-})
-
-const canArchiveCurrentGroup = computed(() => currentGroup.value !== null)
 const nextPlatformCountSortOrder = computed<AccountPlatformCountSortOrder>(() => (
   props.platformCountSortOrder === 'count_desc' ? 'count_asc' : 'count_desc'
 ))

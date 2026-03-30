@@ -30,7 +30,6 @@
           @refresh-usage="handleRefreshActualUsage"
           @sync="showSync = true"
           @create="showCreate = true"
-          @archive-group="openArchiveGroupModal"
           @import-data="showImportData = true"
           @export-data="openExportDataDialog"
           @show-error-passthrough="showErrorPassthrough = true"
@@ -170,7 +169,6 @@
       v-model:include-proxy-on-export="includeProxyOnExport"
       :show-create="showCreate"
       :show-archive-selected="showArchiveSelected"
-      :show-archive-group="showArchiveGroup"
       :show-edit="showEdit"
       :show-sync="showSync"
       :show-import-data="showImportData"
@@ -189,7 +187,6 @@
       :selected-ids="selIds"
       :selected-platforms="selPlatforms"
       :selected-types="selTypes"
-      :archive-source-group="currentArchiveSourceGroup"
       :editing-account="edAcc"
       :temp-unsched-account="tempUnschedAcc"
       :deleting-account="deletingAcc"
@@ -208,8 +205,6 @@
       @created="handleCreated"
       @close-archive-selected="showArchiveSelected = false"
       @archived="handleArchivedAccounts"
-      @close-archive-group="showArchiveGroup = false"
-      @group-archived="handleArchivedGroupAccounts"
       @models-imported="handleImportedModels"
       @close-sync-dialog="closeSyncDialog"
       @submit-sync-dialog="submitSyncDialog"
@@ -350,7 +345,6 @@ const selTypes = computed<AccountType[]>(() => {
 })
 const showCreate = ref(false)
 const showArchiveSelected = ref(false)
-const showArchiveGroup = ref(false)
 const showEdit = ref(false)
 const showSync = ref(false)
 const showImportData = ref(false)
@@ -547,18 +541,6 @@ const activeLimitedReason = computed<AccountRateLimitReason | ''>(() => {
   return value === 'rate_429' || value === 'usage_5h' || value === 'usage_7d' ? value : ''
 })
 
-const currentArchiveSourceGroup = computed<AdminGroup | null>(() => {
-  const rawGroup = String(params.group || '').trim()
-  if (rawGroup === '' || rawGroup === 'ungrouped') {
-    return null
-  }
-  const groupId = Number.parseInt(rawGroup, 10)
-  if (!Number.isFinite(groupId) || groupId <= 0) {
-    return null
-  }
-  return groups.value.find((group) => group.id === groupId) ?? null
-})
-
 const {
   selectedIds: selIds,
   allVisibleSelected,
@@ -591,7 +573,6 @@ const isAnyModalOpen = computed(() => {
   return (
     showCreate.value ||
     showArchiveSelected.value ||
-    showArchiveGroup.value ||
     showEdit.value ||
     showSync.value ||
     showImportData.value ||
@@ -708,7 +689,7 @@ const displayAccounts = computed<Account[]>(() => {
     .map((account, index) => ({
       account,
       index,
-      count: toolbarSummary.value.by_platform[account.platform] ?? pagePlatformCounts[account.platform] ?? 0,
+      count: pagePlatformCounts[account.platform] ?? 0,
       platformRank: ACCOUNT_PLATFORM_ORDER_INDEX.get(account.platform) ?? Number.MAX_SAFE_INTEGER
     }))
     .sort((left, right) => {
@@ -921,13 +902,6 @@ const openArchiveSelectedModal = () => {
     return
   }
   showArchiveSelected.value = true
-}
-const openArchiveGroupModal = () => {
-  if (!currentArchiveSourceGroup.value) {
-    appStore.showWarning(t('admin.accounts.bulkActions.archiveCurrentGroupDisabled'))
-    return
-  }
-  showArchiveGroup.value = true
 }
 const handleRefreshActualUsage = async () => {
   if (usageRefreshing.value) return
@@ -1144,12 +1118,6 @@ const handleCreated = async () => {
 }
 const handleArchivedAccounts = async () => {
   showArchiveSelected.value = false
-  clearSelection()
-  await refreshGroups()
-  await refreshListAndArchivedPanel()
-}
-const handleArchivedGroupAccounts = async () => {
-  showArchiveGroup.value = false
   clearSelection()
   await refreshGroups()
   await refreshListAndArchivedPanel()

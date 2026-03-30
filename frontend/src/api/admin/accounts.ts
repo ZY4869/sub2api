@@ -9,8 +9,6 @@ import type {
   AccountRuntimeSummary,
   AccountStatusSummary,
   ArchivedAccountGroupSummary,
-  ArchiveGroupAccountsRequest,
-  ArchiveGroupAccountsResult,
   BatchArchiveAccountsRequest,
   BatchArchiveAccountsResult,
   CreateAccountRequest,
@@ -834,13 +832,6 @@ export async function blacklist(id: number, payload?: BlacklistAccountPayload): 
   return data
 }
 
-export async function archiveGroupAccounts(
-  payload: ArchiveGroupAccountsRequest
-): Promise<ArchiveGroupAccountsResult> {
-  const { data } = await apiClient.post<ArchiveGroupAccountsResult>('/admin/accounts/archive-group', payload)
-  return data
-}
-
 /**
  * Batch update credentials fields for multiple accounts
  * @param request - Batch update request containing account IDs, field name, and value
@@ -1270,7 +1261,6 @@ export const accountsAPI = {
   retestBlacklistedAccounts,
   batchDeleteBlacklistedAccounts,
   blacklist,
-  archiveGroupAccounts,
   batchUpdateCredentials,
   bulkUpdate,
   previewFromCrs,

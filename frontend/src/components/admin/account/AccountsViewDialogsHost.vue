@@ -74,13 +74,6 @@
     @close="emit('close-archive-selected')"
     @archived="emit('archived', $event)"
   />
-  <ArchiveGroupAccountsModal
-    v-if="showArchiveGroup"
-    :show="showArchiveGroup"
-    :source-group="archiveSourceGroup"
-    @close="emit('close-archive-group')"
-    @archived="emit('group-archived', $event)"
-  />
   <ImportDataModal
     :show="showImportData"
     @close="emit('close-import-data')"
@@ -153,7 +146,6 @@ import type {
   AccountPlatform,
   AccountType,
   AdminGroup,
-  ArchiveGroupAccountsResult,
   BatchArchiveAccountsResult,
   Proxy
 } from '@/types'
@@ -170,7 +162,6 @@ import TLSFingerprintProfilesModal from '@/components/admin/TLSFingerprintProfil
 import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImportExposureSyncDialog.vue'
 import AccountActionMenu from './AccountActionMenu.vue'
 import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
-import ArchiveGroupAccountsModal from './ArchiveGroupAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
@@ -180,7 +171,6 @@ import ScheduledTestsPanel from './ScheduledTestsPanel.vue'
 defineProps<{
   showCreate: boolean
   showArchiveSelected: boolean
-  showArchiveGroup: boolean
   showEdit: boolean
   showSync: boolean
   showImportData: boolean
@@ -199,7 +189,6 @@ defineProps<{
   selectedIds: number[]
   selectedPlatforms: AccountPlatform[]
   selectedTypes: AccountType[]
-  archiveSourceGroup: AdminGroup | null
   editingAccount: Account | null
   tempUnschedAccount: Account | null
   deletingAccount: Account | null
@@ -224,8 +213,6 @@ const emit = defineEmits<{
   'models-imported': [result: AccountModelImportResult]
   'close-archive-selected': []
   archived: [result: BatchArchiveAccountsResult]
-  'close-archive-group': []
-  'group-archived': [result: ArchiveGroupAccountsResult]
   'close-sync-dialog': []
   'submit-sync-dialog': [exposures: ModelRegistryExposureTarget[]]
   'close-edit': []

@@ -29,4 +29,10 @@ describe('CreateAccountModal', () => {
     expect(source).toContain('AccountGrokImportPanel')
     expect(source).toContain("@imported=\"handleGrokImportCompleted\"")
   })
+
+  it('shows upstream quota controls for bedrock and vertex express account creation', () => {
+    expect(source).toContain('const showQuotaLimitSection = computed(() =>')
+    expect(source).toContain("if (form.type === 'bedrock')")
+    expect(source).toContain("geminiVertexAuthMode.value === 'express_api_key'")
+  })
 })

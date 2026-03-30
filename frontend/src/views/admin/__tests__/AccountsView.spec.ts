@@ -126,9 +126,9 @@ vi.mock('@/composables/useAccountStatusSummary', async () => {
           in_use: 0,
           remaining_available: 11,
           by_platform: {
-            openai: 50,
-            protocol_gateway: 2,
-            gemini: 1
+            openai: 1,
+            protocol_gateway: 100,
+            gemini: 99
           },
           limited_breakdown: {
             total: 5,
@@ -507,12 +507,12 @@ describe('AccountsView', () => {
     wrapper.unmount()
   })
 
-  it('defaults platform sort order to count_asc and applies it to the account list instead of tabs', async () => {
+  it('defaults platform sort order to count_asc and sorts by the visible account list counts instead of summary totals', async () => {
     const wrapper = mountView()
     await flushPromises()
 
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_asc')
-    expect(wrapper.get('.table-account-order').text()).toBe('Gemini-1,Gateway-1,OpenAI-1,OpenAI-2')
+    expect(wrapper.get('.table-account-order').text()).toBe('Gateway-1,Gemini-1,OpenAI-1,OpenAI-2')
     expect(wrapper.get('.table-preserve-input-order').text()).toBe('true')
     expect(wrapper.get('.platform-tabs-order').text()).toBe('all,anthropic,kiro,openai,copilot,grok,protocol_gateway,gemini,antigravity,sora')
     expect(wrapper.get('.platform-tabs-sort-attr').text()).toBe('')
@@ -520,7 +520,7 @@ describe('AccountsView', () => {
     wrapper.unmount()
   })
 
-  it('restores the saved platform sort order from localStorage and reorders the account list', async () => {
+  it('restores the saved platform sort order from localStorage and still uses visible account list counts', async () => {
     localStorage.setItem('account-platform-count-sort-order', 'count_desc')
     const wrapper = mountView()
     await flushPromises()

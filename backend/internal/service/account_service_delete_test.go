@@ -83,6 +83,10 @@ func (s *accountRepoStub) ListWithFilters(ctx context.Context, params pagination
 	panic("unexpected ListWithFilters call")
 }
 
+func (s *accountRepoStub) GetStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
+	panic("unexpected GetStatusSummary call")
+}
+
 func (s *accountRepoStub) ListByGroup(ctx context.Context, groupID int64) ([]Account, error) {
 	panic("unexpected ListByGroup call")
 }
@@ -205,6 +209,22 @@ func (s *accountRepoStub) IncrementQuotaUsed(ctx context.Context, id int64, amou
 
 func (s *accountRepoStub) ResetQuotaUsed(ctx context.Context, id int64) error {
 	return nil
+}
+
+func (s *accountRepoStub) MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error {
+	panic("unexpected MarkBlacklisted call")
+}
+
+func (s *accountRepoStub) RestoreBlacklisted(ctx context.Context, id int64) error {
+	panic("unexpected RestoreBlacklisted call")
+}
+
+func (s *accountRepoStub) ListBlacklistedIDs(ctx context.Context) ([]int64, error) {
+	panic("unexpected ListBlacklistedIDs call")
+}
+
+func (s *accountRepoStub) ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]Account, error) {
+	panic("unexpected ListBlacklistedForPurge call")
 }
 
 // TestAccountService_Delete_NotFound 测试删除不存在的账号时返回正确的错误。

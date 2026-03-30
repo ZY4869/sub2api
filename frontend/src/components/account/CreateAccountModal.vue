@@ -240,7 +240,7 @@
 
       </div>
 
-      <div v-if="form.type === 'apikey'" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
+      <div v-if="showQuotaLimitSection" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3">
           <h3 class="input-label mb-0 text-base font-semibold">{{ t('admin.accounts.quotaLimit') }}</h3>
           <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -754,6 +754,15 @@ const showCommonApiKeySection = computed(() =>
   form.platform !== 'antigravity' &&
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
+const showQuotaLimitSection = computed(() => {
+  if (form.type === 'bedrock') {
+    return true
+  }
+  if (form.platform === 'gemini' && accountCategory.value === 'vertex_ai') {
+    return geminiVertexAuthMode.value === 'express_api_key'
+  }
+  return form.type === 'apikey'
+})
 const antigravityModelMappings = ref<ModelMapping[]>([])
 const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-model-mapping')

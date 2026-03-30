@@ -89,14 +89,27 @@ func (m *mockAccountRepoForGemini) ListWithFilters(ctx context.Context, params p
 	_ = privacyMode
 	return nil, nil, nil
 }
+func (m *mockAccountRepoForGemini) GetStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
+	return &AccountStatusSummary{}, nil
+}
 func (m *mockAccountRepoForGemini) ListByGroup(ctx context.Context, groupID int64) ([]Account, error) {
-	return nil, nil
+	result := make([]Account, 0, len(m.accounts))
+	for _, acc := range m.accounts {
+		result = append(result, acc)
+	}
+	return result, nil
 }
 func (m *mockAccountRepoForGemini) ListActive(ctx context.Context) ([]Account, error) {
 	return nil, nil
 }
 func (m *mockAccountRepoForGemini) ListByPlatform(ctx context.Context, platform string) ([]Account, error) {
-	return nil, nil
+	var result []Account
+	for _, acc := range m.accounts {
+		if acc.Platform == platform {
+			result = append(result, acc)
+		}
+	}
+	return result, nil
 }
 func (m *mockAccountRepoForGemini) UpdateLastUsed(ctx context.Context, id int64) error { return nil }
 func (m *mockAccountRepoForGemini) BatchUpdateLastUsed(ctx context.Context, updates map[int64]time.Time) error {
@@ -190,6 +203,18 @@ func (m *mockAccountRepoForGemini) IncrementQuotaUsed(ctx context.Context, id in
 func (m *mockAccountRepoForGemini) ResetQuotaUsed(ctx context.Context, id int64) error {
 	return nil
 }
+func (m *mockAccountRepoForGemini) MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error {
+	return nil
+}
+func (m *mockAccountRepoForGemini) RestoreBlacklisted(ctx context.Context, id int64) error {
+	return nil
+}
+func (m *mockAccountRepoForGemini) ListBlacklistedIDs(ctx context.Context) ([]int64, error) {
+	return nil, nil
+}
+func (m *mockAccountRepoForGemini) ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]Account, error) {
+	return nil, nil
+}
 
 // Verify interface implementation
 var _ AccountRepository = (*mockAccountRepoForGemini)(nil)
@@ -213,6 +238,15 @@ func (m *mockGroupRepoForGemini) GetByIDLite(ctx context.Context, id int64) (*Gr
 	m.getByIDLiteCalls++
 	if g, ok := m.groups[id]; ok {
 		return g, nil
+	}
+	return nil, errors.New("group not found")
+}
+
+func (m *mockGroupRepoForGemini) GetByName(ctx context.Context, name string) (*Group, error) {
+	for _, g := range m.groups {
+		if g != nil && g.Name == name {
+			return g, nil
+		}
 	}
 	return nil, errors.New("group not found")
 }

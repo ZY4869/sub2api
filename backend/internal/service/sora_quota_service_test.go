@@ -34,6 +34,14 @@ func (r *stubGroupRepoForQuota) Create(context.Context, *Group) error { return n
 func (r *stubGroupRepoForQuota) GetByIDLite(_ context.Context, id int64) (*Group, error) {
 	return r.GetByID(context.Background(), id)
 }
+func (r *stubGroupRepoForQuota) GetByName(_ context.Context, name string) (*Group, error) {
+	for _, g := range r.groups {
+		if g != nil && g.Name == name {
+			return g, nil
+		}
+	}
+	return nil, fmt.Errorf("group not found")
+}
 func (r *stubGroupRepoForQuota) Update(context.Context, *Group) error { return nil }
 func (r *stubGroupRepoForQuota) Delete(context.Context, int64) error  { return nil }
 func (r *stubGroupRepoForQuota) DeleteCascade(context.Context, int64) ([]int64, error) {

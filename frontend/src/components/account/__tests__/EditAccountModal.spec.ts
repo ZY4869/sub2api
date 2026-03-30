@@ -139,6 +139,36 @@ function buildGrokSsoAccount() {
   } as any
 }
 
+function buildVertexExpressAccount() {
+  return {
+    id: 3,
+    name: 'Vertex Express',
+    notes: '',
+    platform: 'gemini',
+    type: 'apikey',
+    credentials: {
+      api_key: 'vertex-key',
+      base_url: 'https://aiplatform.googleapis.com',
+      gemini_api_variant: 'vertex_express'
+    },
+    extra: {
+      quota_limit: 120,
+      quota_daily_limit: 12,
+      quota_weekly_limit: 50,
+      quota_daily_reset_mode: 'rolling',
+      quota_weekly_reset_mode: 'rolling'
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
@@ -151,7 +181,14 @@ function mountModal(account = buildAccount()) {
       stubs: {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
+        AccountApiKeyModelProbeEditor: true,
+        AccountGeminiVertexCredentialsEditor: true,
         AccountModelScopeEditor: true,
+        AccountRuntimeSettingsEditor: true,
+        AccountGatewaySettingsEditor: true,
+        AccountGroupSettingsEditor: true,
+        AccountAutoPauseToggle: true,
+        QuotaLimitCard: true,
         Select: true,
         Icon: true,
         ProxySelector: true,
@@ -219,5 +256,27 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
       'grok-3-beta': 'grok-3-beta'
     })
+  })
+
+  it('keeps upstream quota fields when editing a vertex express account', async () => {
+    const account = buildVertexExpressAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra).toMatchObject({
+      quota_limit: 120,
+      quota_daily_limit: 12,
+      quota_weekly_limit: 50,
+      quota_daily_reset_mode: 'rolling',
+      quota_weekly_reset_mode: 'rolling'
+    })
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.gemini_api_variant).toBe('vertex_express')
   })
 })

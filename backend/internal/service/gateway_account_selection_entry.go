@@ -113,6 +113,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	if len(accounts) == 0 {
 		return nil, errors.New("no available accounts")
 	}
+	observeVertexSelection := func(selected *Account, phase string) {
+		s.observeGeminiVertexRouting(ctx, accounts, groupID, requestedModel, platform, useMixed, excludedIDs, selected, phase)
+	}
 	ctx = s.withWindowCostPrefetch(ctx, accounts)
 	ctx = s.withRPMPrefetch(ctx, accounts)
 	isExcluded := func(accountID int64) bool {
@@ -207,6 +210,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 									if s.debugModelRoutingEnabled() {
 										logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routed sticky hit: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), stickyAccountID)
 									}
+									observeVertexSelection(stickyAccount, "routed_sticky_acquired")
 									return &AccountSelectionResult{Account: stickyAccount, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 								}
 							}
@@ -214,6 +218,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 							if waitingCount < cfg.StickySessionMaxWaiting {
 								if !s.checkAndRegisterSession(ctx, stickyAccount, sessionHash) {
 								} else {
+									observeVertexSelection(stickyAccount, "routed_sticky_wait")
 									return &AccountSelectionResult{Account: stickyAccount, WaitPlan: &AccountWaitPlan{AccountID: stickyAccountID, MaxConcurrency: stickyAccount.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 								}
 							}
@@ -244,6 +249,9 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if a.account.Priority != b.account.Priority {
 						return a.account.Priority < b.account.Priority
 					}
+					if aPenalty, bPenalty := geminiRegionalPenalty(a.account, preferOAuth), geminiRegionalPenalty(b.account, preferOAuth); aPenalty != bPenalty {
+						return aPenalty < bPenalty
+					}
 					if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 						return a.loadInfo.LoadRate < b.loadInfo.LoadRate
 					}
@@ -272,6 +280,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 						if s.debugModelRoutingEnabled() {
 							logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routed select: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), item.account.ID)
 						}
+						observeVertexSelection(item.account, "routed_acquired")
 						return &AccountSelectionResult{Account: item.account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 					}
 				}
@@ -282,6 +291,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if s.debugModelRoutingEnabled() {
 						logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routed wait: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), item.account.ID)
 					}
+					observeVertexSelection(item.account, "routed_wait")
 					return &AccountSelectionResult{Account: item.account, WaitPlan: &AccountWaitPlan{AccountID: item.account.ID, MaxConcurrency: item.account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 				}
 			}
@@ -303,6 +313,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 						if !s.checkAndRegisterSession(ctx, account, sessionHash) {
 							result.ReleaseFunc()
 						} else {
+							observeVertexSelection(account, "sticky_acquired")
 							return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 						}
 					}
@@ -310,6 +321,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if waitingCount < cfg.StickySessionMaxWaiting {
 						if !s.checkAndRegisterSession(ctx, account, sessionHash) {
 						} else {
+							observeVertexSelection(account, "sticky_wait")
 							return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 						}
 					}
@@ -347,6 +359,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		candidates = append(candidates, acc)
 	}
 	if len(candidates) == 0 {
+		observeVertexSelection(nil, "load_exhausted")
 		return nil, errors.New("no available accounts")
 	}
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
@@ -356,6 +369,11 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
 		if result, ok := s.tryAcquireByLegacyOrder(ctx, candidates, groupID, sessionHash, preferOAuth); ok {
+			phase := "legacy_wait"
+			if result.Acquired {
+				phase = "legacy_acquired"
+			}
+			observeVertexSelection(result.Account, phase)
 			return result, nil
 		}
 	} else {
@@ -371,6 +389,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		}
 		for len(available) > 0 {
 			candidates := filterByMinPriority(available)
+			candidates = filterByMinGeminiRegionalPenalty(candidates, preferOAuth)
 			candidates = filterByMinLoadRate(candidates)
 			selected := selectByLRU(candidates, preferOAuth)
 			if selected == nil {
@@ -384,6 +403,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if sessionHash != "" && s.cache != nil {
 						_ = s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), sessionHash, selected.account.ID, stickySessionTTL)
 					}
+					observeVertexSelection(selected.account, "load_acquired")
 					return &AccountSelectionResult{Account: selected.account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 				}
 			}
@@ -402,8 +422,10 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		if !s.checkAndRegisterSession(ctx, acc, sessionHash) {
 			continue
 		}
+		observeVertexSelection(acc, "load_wait")
 		return &AccountSelectionResult{Account: acc, WaitPlan: &AccountWaitPlan{AccountID: acc.ID, MaxConcurrency: acc.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
+	observeVertexSelection(nil, "load_exhausted")
 	return nil, errors.New("no available accounts")
 }
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool) {

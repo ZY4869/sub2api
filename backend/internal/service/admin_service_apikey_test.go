@@ -210,6 +210,17 @@ func (s *groupRepoStubForGroupUpdate) GetByID(_ context.Context, id int64) (*Gro
 	return &clone, nil
 }
 
+func (s *groupRepoStubForGroupUpdate) GetByName(_ context.Context, name string) (*Group, error) {
+	if s.getErr != nil {
+		return nil, s.getErr
+	}
+	if s.group != nil && s.group.Name == name {
+		clone := *s.group
+		return &clone, nil
+	}
+	return nil, ErrGroupNotFound
+}
+
 // Unused methods – panic on unexpected call.
 func (s *groupRepoStubForGroupUpdate) Create(context.Context, *Group) error { panic("unexpected") }
 func (s *groupRepoStubForGroupUpdate) GetByIDLite(context.Context, int64) (*Group, error) {

@@ -66,8 +66,8 @@ func TestBuildGeminiOAuthRequest_VertexAIUsesPublisherModelsURL(t *testing.T) {
 
 	svc := &AccountTestService{
 		cfg: &config.Config{
-			Security: config.Security{
-				URLAllowlist: config.URLAllowlist{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
 					AllowInsecureHTTP: true,
 				},
 			},
@@ -110,8 +110,8 @@ func TestBuildGeminiOAuthRequest_VertexAIRequiresProjectAndLocation(t *testing.T
 
 	svc := &AccountTestService{
 		cfg: &config.Config{
-			Security: config.Security{
-				URLAllowlist: config.URLAllowlist{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
 					AllowInsecureHTTP: true,
 				},
 			},
@@ -163,8 +163,8 @@ func TestBuildGeminiOAuthRequest_VertexAIRequiresAccessToken(t *testing.T) {
 
 	svc := &AccountTestService{
 		cfg: &config.Config{
-			Security: config.Security{
-				URLAllowlist: config.URLAllowlist{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
 					AllowInsecureHTTP: true,
 				},
 			},
@@ -200,8 +200,8 @@ func TestBuildGeminiAPIKeyRequest_VertexExpressUsesPublisherModelsURL(t *testing
 
 	svc := &AccountTestService{
 		cfg: &config.Config{
-			Security: config.Security{
-				URLAllowlist: config.URLAllowlist{
+			Security: config.SecurityConfig{
+				URLAllowlist: config.URLAllowlistConfig{
 					AllowInsecureHTTP: true,
 				},
 			},

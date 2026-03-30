@@ -153,6 +153,10 @@ func (s *scheduledTestAccountRepoStub) ListWithFilters(ctx context.Context, para
 	panic("unexpected ListWithFilters call")
 }
 
+func (s *scheduledTestAccountRepoStub) GetStatusSummary(ctx context.Context, filters AccountStatusSummaryFilters) (*AccountStatusSummary, error) {
+	panic("unexpected GetStatusSummary call")
+}
+
 func (s *scheduledTestAccountRepoStub) ListByGroup(ctx context.Context, groupID int64) ([]Account, error) {
 	panic("unexpected ListByGroup call")
 }
@@ -275,6 +279,22 @@ func (s *scheduledTestAccountRepoStub) IncrementQuotaUsed(ctx context.Context, i
 
 func (s *scheduledTestAccountRepoStub) ResetQuotaUsed(ctx context.Context, id int64) error {
 	panic("unexpected ResetQuotaUsed call")
+}
+
+func (s *scheduledTestAccountRepoStub) MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error {
+	panic("unexpected MarkBlacklisted call")
+}
+
+func (s *scheduledTestAccountRepoStub) RestoreBlacklisted(ctx context.Context, id int64) error {
+	panic("unexpected RestoreBlacklisted call")
+}
+
+func (s *scheduledTestAccountRepoStub) ListBlacklistedIDs(ctx context.Context) ([]int64, error) {
+	panic("unexpected ListBlacklistedIDs call")
+}
+
+func (s *scheduledTestAccountRepoStub) ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]Account, error) {
+	panic("unexpected ListBlacklistedForPurge call")
 }
 
 func TestScheduledTestRunnerService_RetriesIntermediateFailureWithoutNotification(t *testing.T) {

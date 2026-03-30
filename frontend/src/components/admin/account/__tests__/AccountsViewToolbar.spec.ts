@@ -101,34 +101,13 @@ describe('AccountsViewToolbar', () => {
     expect(wrapper.emitted('create')).toEqual([[]])
   })
 
-  it('emits archive-group when a concrete group filter is selected', async () => {
+  it('does not render the archive current group action', () => {
     const wrapper = mountToolbar({
       filters: { platform: '', type: '', status: '', group: '1', search: '' },
       groups: [{ id: 1, name: 'Default', platform: 'openai' }]
     })
 
-    const archiveGroupButton = wrapper.findAll('button').find((button) =>
-      button.text().includes('admin.accounts.bulkActions.archiveCurrentGroup')
-    )
-
-    expect(archiveGroupButton).toBeTruthy()
-    expect(archiveGroupButton?.attributes('disabled')).toBeUndefined()
-
-    await archiveGroupButton?.trigger('click')
-
-    expect(wrapper.emitted('archive-group')).toEqual([[]])
-  })
-
-  it('keeps archive current group disabled for the ungrouped filter', () => {
-    const wrapper = mountToolbar({
-      filters: { platform: '', type: '', status: '', group: 'ungrouped', search: '' }
-    })
-
-    const archiveGroupButton = wrapper.findAll('button').find((button) =>
-      button.text().includes('admin.accounts.bulkActions.archiveCurrentGroup')
-    )
-
-    expect(archiveGroupButton?.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).not.toContain('admin.accounts.bulkActions.archiveCurrentGroup')
   })
 
   it('emits dropdown and pending sync actions', async () => {
