@@ -31,6 +31,9 @@ func NewScheduledTestService(
 // CreatePlan validates the cron expression, computes next_run_at, and persists the plan.
 func (s *ScheduledTestService) CreatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
 	normalizeScheduledTestPlan(plan)
+	if plan == nil || strings.TrimSpace(plan.EffectiveModelID()) == "" {
+		return nil, fmt.Errorf("model is required")
+	}
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
@@ -53,6 +56,9 @@ func (s *ScheduledTestService) ListPlansByAccount(ctx context.Context, accountID
 // UpdatePlan validates cron and updates the plan.
 func (s *ScheduledTestService) UpdatePlan(ctx context.Context, plan *ScheduledTestPlan) (*ScheduledTestPlan, error) {
 	normalizeScheduledTestPlan(plan)
+	if plan == nil || strings.TrimSpace(plan.EffectiveModelID()) == "" {
+		return nil, fmt.Errorf("model is required")
+	}
 	nextRun, err := computeNextRun(plan.CronExpression, time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid cron expression: %w", err)
@@ -101,6 +107,23 @@ func normalizeScheduledTestPlan(plan *ScheduledTestPlan) {
 		return
 	}
 	plan.ModelID = strings.TrimSpace(plan.ModelID)
+	switch strings.TrimSpace(strings.ToLower(plan.ModelInputMode)) {
+	case ScheduledTestModelInputModeManual:
+		plan.ModelInputMode = ScheduledTestModelInputModeManual
+	default:
+		plan.ModelInputMode = ScheduledTestModelInputModeCatalog
+	}
+	plan.ManualModelID = strings.TrimSpace(plan.ManualModelID)
+	plan.RequestAlias = strings.TrimSpace(plan.RequestAlias)
+	plan.SourceProtocol = normalizeTestSourceProtocol(plan.SourceProtocol)
+	if plan.ModelInputMode == ScheduledTestModelInputModeManual {
+		if plan.ManualModelID == "" {
+			plan.ManualModelID = plan.ModelID
+		}
+		plan.ModelID = strings.TrimSpace(plan.ModelID)
+	} else {
+		plan.ManualModelID = strings.TrimSpace(plan.ManualModelID)
+	}
 	plan.CronExpression = strings.TrimSpace(plan.CronExpression)
 	if plan.MaxResults <= 0 {
 		plan.MaxResults = 50

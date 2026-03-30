@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import type { AccountManualModel } from '@/api/admin/accounts'
 import type { AddMethod } from '@/composables/useAccountOAuth'
 import type {
   AccountPlatform,
@@ -23,6 +24,7 @@ import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSe
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { GeminiOAuthType } from '@/utils/geminiAccount'
 import type { VertexAuthMode } from '@/utils/vertexAi'
+import type { AccountResolvedUpstreamDraft } from '@/utils/accountProbeDraft'
 
 interface CreateAccountFormShape {
   name: string
@@ -62,6 +64,10 @@ interface UseCreateAccountResetOptions {
   modelMappings: Ref<ModelMapping[]>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
+  manualModels: Ref<AccountManualModel[]>
+  resolvedUpstream: Ref<AccountResolvedUpstreamDraft | null>
+  oauthDraftCredentials: Ref<Record<string, unknown>>
+  oauthDraftExtra: Ref<Record<string, unknown>>
   protocolGatewayProbedModels?: Ref<Array<Record<string, unknown>>>
   gatewayAcceptedProtocols?: Ref<GatewayAcceptedProtocol[]>
   gatewayClientProfiles?: Ref<GatewayClientProfile[]>
@@ -142,6 +148,10 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.modelMappings.value = []
     options.modelRestrictionMode.value = 'whitelist'
     options.allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')]
+    options.manualModels.value = []
+    options.resolvedUpstream.value = null
+    options.oauthDraftCredentials.value = {}
+    options.oauthDraftExtra.value = {}
     options.protocolGatewayProbedModels && (options.protocolGatewayProbedModels.value = [])
     options.gatewayAcceptedProtocols && (options.gatewayAcceptedProtocols.value = ['openai'])
     options.gatewayClientProfiles && (options.gatewayClientProfiles.value = [])

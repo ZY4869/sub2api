@@ -39,11 +39,7 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		}
 		return newAccountModelProbeResult(models), nil
 	case PlatformCopilot:
-		return &accountModelProbeResult{
-			Models: copilotDefaultModelIDs(),
-			Source: accountModelProbeSourceCopilotStaticCatalog,
-			Notice: "using Copilot static model catalog; this probe source is not a real upstream /models listing",
-		}, nil
+		return s.detectCopilotModels(ctx, account)
 	case PlatformGemini:
 		return s.detectGeminiModels(ctx, account)
 	case PlatformSora:
@@ -67,11 +63,7 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		}
 		return newAccountModelProbeResult(models), nil
 	case PlatformKiro:
-		return &accountModelProbeResult{
-			Models: KiroBuiltinModelIDs(),
-			Source: KiroBuiltinCatalogSource,
-			Notice: KiroBuiltinCatalogNotice,
-		}, nil
+		return s.detectKiroModels(ctx, account)
 	default:
 		return nil, infraerrors.BadRequest("ACCOUNT_PLATFORM_UNSUPPORTED", "current account platform does not support model import")
 	}
@@ -180,7 +172,7 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 	return parseOpenAIModelListForAccount(account, body)
 }
 
-func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, account *Account) ([]string, error) {
+func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
 	if account == nil || !isCopilotOAuthAccount(account) {
 		return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Copilot account type does not support model import")
 	}
@@ -200,9 +192,65 @@ func (s *AccountModelImportService) detectCopilotModels(ctx context.Context, acc
 
 	body, err := s.doImportGET(ctx, account, modelsURL, headers, false)
 	if err != nil {
+		logger.FromContext(ctx).Warn("account model import: copilot upstream /models failed, falling back to static catalog",
+			zap.Int64("account_id", account.ID),
+			zap.String("platform", account.Platform),
+			zap.String("probe_source", accountModelProbeSourceCopilotStaticCatalog),
+			zap.Error(err),
+		)
+		return &accountModelProbeResult{
+			Models:           copilotDefaultModelIDs(),
+			Source:           accountModelProbeSourceCopilotStaticCatalog,
+			Notice:           "Copilot real upstream /models probe failed; showing fallback static catalog",
+			ResolvedUpstream: ResolveUpstreamInfo(modelsURL, PlatformCopilot, accountModelProbeSourceCopilotStaticCatalog),
+		}, nil
+	}
+	models, parseErr := parseOpenAIModelListForAccount(account, body)
+	if parseErr != nil {
+		logger.FromContext(ctx).Warn("account model import: copilot upstream /models parse failed, falling back to static catalog",
+			zap.Int64("account_id", account.ID),
+			zap.String("platform", account.Platform),
+			zap.String("probe_source", accountModelProbeSourceCopilotStaticCatalog),
+			zap.Error(parseErr),
+		)
+		return &accountModelProbeResult{
+			Models:           copilotDefaultModelIDs(),
+			Source:           accountModelProbeSourceCopilotStaticCatalog,
+			Notice:           "Copilot upstream /models returned an unreadable payload; showing fallback static catalog",
+			ResolvedUpstream: ResolveUpstreamInfo(modelsURL, PlatformCopilot, accountModelProbeSourceCopilotStaticCatalog),
+		}, nil
+	}
+	result := newAccountModelProbeResult(models)
+	result.ResolvedUpstream = ResolveUpstreamInfo(modelsURL, PlatformCopilot, accountModelProbeSourceUpstream)
+	result.Notice = "Copilot model list was read from the runtime APIBaseURL /models endpoint"
+	return result, nil
+}
+
+func (s *AccountModelImportService) detectKiroModels(ctx context.Context, account *Account) (*accountModelProbeResult, error) {
+	result := &accountModelProbeResult{
+		Models:  KiroBuiltinModelIDs(),
+		Source:  KiroBuiltinCatalogSource,
+		Notice:  "Kiro runtime verified; model list uses built-in candidate catalog because Kiro does not expose a stable real-time model enumeration API",
+		Details: nil,
+	}
+	if s.kiroRuntimeService == nil {
+		result.Notice = "Kiro runtime verification is unavailable in this deployment; model list uses built-in candidate catalog"
+		return result, nil
+	}
+	probe, err := s.kiroRuntimeService.Probe(ctx, account)
+	if err != nil {
 		return nil, err
 	}
-	return parseOpenAIModelListForAccount(account, body)
+	if probe != nil {
+		result.ResolvedUpstream = probe.ResolvedUpstream
+		if strings.TrimSpace(probe.ResolvedUpstream.Region) != "" {
+			result.Notice = fmt.Sprintf(
+				"Kiro runtime verified in region %s; model list uses built-in candidate catalog because Kiro does not expose a stable real-time model enumeration API",
+				probe.ResolvedUpstream.Region,
+			)
+		}
+	}
+	return result, nil
 }
 
 func (s *AccountModelImportService) detectAnthropicModels(ctx context.Context, account *Account) ([]string, error) {

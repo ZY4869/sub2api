@@ -35,6 +35,8 @@ type OpenAIRecordUsageInput struct {
 	Subscription       *UserSubscription
 	InboundEndpoint    string
 	UpstreamEndpoint   string
+	UpstreamURL        string
+	UpstreamService    string
 	UserAgent          string
 	IPAddress          string
 	RequestPayloadHash string
@@ -110,6 +112,8 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ThinkingEnabled:       openAIThinkingEnabledFromReasoningEffort(result.ReasoningEffort),
 		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
 		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		UpstreamURL:           optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
+		UpstreamService:       optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)),
 		InputTokens:           actualInputTokens,
 		OutputTokens:          result.Usage.OutputTokens,
 		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,

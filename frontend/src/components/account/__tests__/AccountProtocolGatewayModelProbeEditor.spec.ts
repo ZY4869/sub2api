@@ -68,6 +68,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         allowedModels: [],
         modelMappings: [],
         probedModels: [],
+        manualModels: [],
+        resolvedUpstream: null,
         acceptedProtocols: ['openai'],
         clientProfiles: [],
         clientRoutes: []
@@ -91,6 +93,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
       accepted_protocols: ['openai'],
       base_url: 'https://gateway.example.com',
       api_key: 'sk-test',
+      manual_models: [],
       proxy_id: 12
     })
     expect(wrapper.emitted('update:allowedModels')?.[0]?.[0]).toEqual(['gpt-4.1', 'custom-upstream-model'])
@@ -112,6 +115,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         allowedModels: [],
         modelMappings: [],
         probedModels: [],
+        manualModels: [],
+        resolvedUpstream: null,
         acceptedProtocols: ['anthropic'],
         clientProfiles: [],
         clientRoutes: []
@@ -142,6 +147,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
           { from: 'gpt-4.1', to: 'gpt-4.1' },
           { from: 'gemini-2.5-pro', to: 'gemini-2.5-pro' }
         ],
+        manualModels: [],
+        resolvedUpstream: null,
         probedModels: [
           {
             id: 'gpt-4.1',
@@ -206,6 +213,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         apiKey: 'sk-test',
         allowedModels: ['gpt-4.1'],
         modelMappings: [{ from: 'gpt-4.1', to: 'gpt-4.1' }],
+        manualModels: [],
+        resolvedUpstream: null,
         probedModels: [
           {
             id: 'gpt-4.1',
@@ -255,6 +264,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         apiKey: 'sk-test',
         allowedModels: [longModelId],
         modelMappings: [{ from: longModelId, to: longModelId }],
+        manualModels: [],
+        resolvedUpstream: null,
         probedModels: [
           {
             id: longModelId,

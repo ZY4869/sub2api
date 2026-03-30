@@ -1183,13 +1183,34 @@ const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
 const handleViewStats = (a: Account) => { statsAcc.value = a; showStats.value = true }
+const scheduleSourceProtocolLabel = (sourceProtocol?: string) => {
+  switch (String(sourceProtocol || '').trim()) {
+    case 'openai':
+      return t('admin.accounts.protocolGateway.protocolOptions.openai')
+    case 'anthropic':
+      return t('admin.accounts.protocolGateway.protocolOptions.anthropic')
+    case 'gemini':
+      return t('admin.accounts.protocolGateway.protocolOptions.gemini')
+    default:
+      return ''
+  }
+}
 const handleSchedule = async (a: Account) => {
   scheduleAcc.value = a
   scheduleModelOptions.value = []
   showSchedulePanel.value = true
   try {
     const models = await adminAPI.accounts.getAvailableModels(a.id)
-    scheduleModelOptions.value = models.map((m: ClaudeModel) => ({ value: m.id, label: m.display_name || m.id }))
+    scheduleModelOptions.value = models.map((m: ClaudeModel) => {
+      const sourceProtocol = String(m.source_protocol || '').trim()
+      const protocolLabel = scheduleSourceProtocolLabel(sourceProtocol)
+      return {
+        value: `${sourceProtocol || 'default'}::${m.id}`,
+        label: protocolLabel ? `${m.display_name || m.id} · ${protocolLabel}` : (m.display_name || m.id),
+        model_id: m.id,
+        source_protocol: sourceProtocol || undefined
+      }
+    })
   } catch {
     scheduleModelOptions.value = []
   }

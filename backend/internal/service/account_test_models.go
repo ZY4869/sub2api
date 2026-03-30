@@ -64,6 +64,7 @@ func buildAvailableTestModelsForSource(ctx context.Context, account *Account, re
 	if len(candidates) == 0 {
 		candidates, resolutionEntries = buildFallbackTestModelCandidates(ctx, account, registry, sourceProtocol)
 	}
+	candidates = append(candidates, buildManualTestModelCandidates(account, sourceProtocol)...)
 	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
 }
 
@@ -193,6 +194,40 @@ func buildFallbackTestModelCandidates(ctx context.Context, account *Account, reg
 		})
 	}
 	return candidates, resolutionEntries
+}
+
+func buildManualTestModelCandidates(account *Account, sourceProtocol string) []testModelCandidate {
+	manualModels := AccountManualModelsFromExtra(account.Extra, IsProtocolGatewayAccount(account))
+	if len(manualModels) == 0 {
+		return nil
+	}
+	normalizedSourceProtocol := normalizeTestSourceProtocol(sourceProtocol)
+	candidates := make([]testModelCandidate, 0, len(manualModels))
+	for _, manualModel := range manualModels {
+		modelID := strings.TrimSpace(manualModel.ModelID)
+		if modelID == "" {
+			continue
+		}
+		manualProtocol := normalizeTestSourceProtocol(manualModel.SourceProtocol)
+		if normalizedSourceProtocol != "" && manualProtocol != "" && manualProtocol != normalizedSourceProtocol {
+			continue
+		}
+		if manualProtocol == "" {
+			manualProtocol = normalizedSourceProtocol
+		}
+		candidates = append(candidates, testModelCandidate{
+			model: AvailableTestModel{
+				ID:             modelID,
+				Type:           "model",
+				DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
+				SourceProtocol: manualProtocol,
+				Status:         "manual",
+			},
+			source:     "manual",
+			uiPriority: -10,
+		})
+	}
+	return candidates
 }
 
 func dedupeAndSortAvailableTestModels(candidates []testModelCandidate, resolutionEntries []modelregistry.ModelEntry) []AvailableTestModel {

@@ -23,6 +23,10 @@ func (r *scheduledTestPlanRepository) Create(ctx context.Context, plan *service.
 		INSERT INTO scheduled_test_plans (
 			account_id,
 			model_id,
+			model_input_mode,
+			manual_model_id,
+			request_alias,
+			source_protocol,
 			cron_expression,
 			enabled,
 			max_results,
@@ -37,19 +41,21 @@ func (r *scheduledTestPlanRepository) Create(ctx context.Context, plan *service.
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
-		RETURNING id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, notify_policy,
-			notify_failure_threshold, retry_interval_minutes, max_retries, consecutive_failures, current_retry_count,
-			last_run_at, next_run_at, created_at, updated_at
-	`, plan.AccountID, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NotifyPolicy, plan.NotifyFailureThreshold, plan.RetryIntervalMinutes, plan.MaxRetries, plan.ConsecutiveFailures, plan.CurrentRetryCount, plan.NextRunAt)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW())
+		RETURNING id, account_id, model_id, model_input_mode, manual_model_id, request_alias, source_protocol,
+			cron_expression, enabled, max_results, auto_recover, notify_policy, notify_failure_threshold,
+			retry_interval_minutes, max_retries, consecutive_failures, current_retry_count, last_run_at, next_run_at,
+			created_at, updated_at
+	`, plan.AccountID, plan.ModelID, plan.ModelInputMode, plan.ManualModelID, plan.RequestAlias, plan.SourceProtocol, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NotifyPolicy, plan.NotifyFailureThreshold, plan.RetryIntervalMinutes, plan.MaxRetries, plan.ConsecutiveFailures, plan.CurrentRetryCount, plan.NextRunAt)
 	return scanPlan(row)
 }
 
 func (r *scheduledTestPlanRepository) GetByID(ctx context.Context, id int64) (*service.ScheduledTestPlan, error) {
 	row := r.db.QueryRowContext(ctx, `
-		SELECT id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, notify_policy,
-			notify_failure_threshold, retry_interval_minutes, max_retries, consecutive_failures, current_retry_count,
-			last_run_at, next_run_at, created_at, updated_at
+		SELECT id, account_id, model_id, model_input_mode, manual_model_id, request_alias, source_protocol,
+			cron_expression, enabled, max_results, auto_recover, notify_policy, notify_failure_threshold,
+			retry_interval_minutes, max_retries, consecutive_failures, current_retry_count, last_run_at, next_run_at,
+			created_at, updated_at
 		FROM scheduled_test_plans WHERE id = $1
 	`, id)
 	return scanPlan(row)
@@ -57,9 +63,10 @@ func (r *scheduledTestPlanRepository) GetByID(ctx context.Context, id int64) (*s
 
 func (r *scheduledTestPlanRepository) ListByAccountID(ctx context.Context, accountID int64) ([]*service.ScheduledTestPlan, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, notify_policy,
-			notify_failure_threshold, retry_interval_minutes, max_retries, consecutive_failures, current_retry_count,
-			last_run_at, next_run_at, created_at, updated_at
+		SELECT id, account_id, model_id, model_input_mode, manual_model_id, request_alias, source_protocol,
+			cron_expression, enabled, max_results, auto_recover, notify_policy, notify_failure_threshold,
+			retry_interval_minutes, max_retries, consecutive_failures, current_retry_count, last_run_at, next_run_at,
+			created_at, updated_at
 		FROM scheduled_test_plans WHERE account_id = $1
 		ORDER BY created_at DESC
 	`, accountID)
@@ -72,9 +79,10 @@ func (r *scheduledTestPlanRepository) ListByAccountID(ctx context.Context, accou
 
 func (r *scheduledTestPlanRepository) ListDue(ctx context.Context, now time.Time) ([]*service.ScheduledTestPlan, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, notify_policy,
-			notify_failure_threshold, retry_interval_minutes, max_retries, consecutive_failures, current_retry_count,
-			last_run_at, next_run_at, created_at, updated_at
+		SELECT id, account_id, model_id, model_input_mode, manual_model_id, request_alias, source_protocol,
+			cron_expression, enabled, max_results, auto_recover, notify_policy, notify_failure_threshold,
+			retry_interval_minutes, max_retries, consecutive_failures, current_retry_count, last_run_at, next_run_at,
+			created_at, updated_at
 		FROM scheduled_test_plans
 		WHERE enabled = true AND next_run_at <= $1
 		ORDER BY next_run_at ASC
@@ -89,14 +97,16 @@ func (r *scheduledTestPlanRepository) ListDue(ctx context.Context, now time.Time
 func (r *scheduledTestPlanRepository) Update(ctx context.Context, plan *service.ScheduledTestPlan) (*service.ScheduledTestPlan, error) {
 	row := r.db.QueryRowContext(ctx, `
 		UPDATE scheduled_test_plans
-		SET model_id = $2, cron_expression = $3, enabled = $4, max_results = $5, auto_recover = $6,
-			notify_policy = $7, notify_failure_threshold = $8, retry_interval_minutes = $9, max_retries = $10,
-			next_run_at = $11, updated_at = NOW()
+		SET model_id = $2, model_input_mode = $3, manual_model_id = $4, request_alias = $5, source_protocol = $6,
+			cron_expression = $7, enabled = $8, max_results = $9, auto_recover = $10, notify_policy = $11,
+			notify_failure_threshold = $12, retry_interval_minutes = $13, max_retries = $14, next_run_at = $15,
+			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, account_id, model_id, cron_expression, enabled, max_results, auto_recover, notify_policy,
-			notify_failure_threshold, retry_interval_minutes, max_retries, consecutive_failures, current_retry_count,
-			last_run_at, next_run_at, created_at, updated_at
-	`, plan.ID, plan.ModelID, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NotifyPolicy, plan.NotifyFailureThreshold, plan.RetryIntervalMinutes, plan.MaxRetries, plan.NextRunAt)
+		RETURNING id, account_id, model_id, model_input_mode, manual_model_id, request_alias, source_protocol,
+			cron_expression, enabled, max_results, auto_recover, notify_policy, notify_failure_threshold,
+			retry_interval_minutes, max_retries, consecutive_failures, current_retry_count, last_run_at, next_run_at,
+			created_at, updated_at
+	`, plan.ID, plan.ModelID, plan.ModelInputMode, plan.ManualModelID, plan.RequestAlias, plan.SourceProtocol, plan.CronExpression, plan.Enabled, plan.MaxResults, plan.AutoRecover, plan.NotifyPolicy, plan.NotifyFailureThreshold, plan.RetryIntervalMinutes, plan.MaxRetries, plan.NextRunAt)
 	return scanPlan(row)
 }
 
@@ -192,9 +202,10 @@ type scannable interface {
 func scanPlan(row scannable) (*service.ScheduledTestPlan, error) {
 	p := &service.ScheduledTestPlan{}
 	if err := row.Scan(
-		&p.ID, &p.AccountID, &p.ModelID, &p.CronExpression, &p.Enabled, &p.MaxResults, &p.AutoRecover,
-		&p.NotifyPolicy, &p.NotifyFailureThreshold, &p.RetryIntervalMinutes, &p.MaxRetries, &p.ConsecutiveFailures, &p.CurrentRetryCount,
-		&p.LastRunAt, &p.NextRunAt, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.AccountID, &p.ModelID, &p.ModelInputMode, &p.ManualModelID, &p.RequestAlias, &p.SourceProtocol,
+		&p.CronExpression, &p.Enabled, &p.MaxResults, &p.AutoRecover, &p.NotifyPolicy, &p.NotifyFailureThreshold,
+		&p.RetryIntervalMinutes, &p.MaxRetries, &p.ConsecutiveFailures, &p.CurrentRetryCount, &p.LastRunAt,
+		&p.NextRunAt, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}

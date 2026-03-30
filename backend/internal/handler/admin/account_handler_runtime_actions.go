@@ -31,6 +31,9 @@ type setSchedulableRequest struct {
 type accountTestRequest struct {
 	ModelID        string `json:"model_id"`
 	Model          string `json:"model"`
+	ModelInputMode string `json:"model_input_mode"`
+	ManualModelID  string `json:"manual_model_id"`
+	RequestAlias   string `json:"request_alias"`
 	Prompt         string `json:"prompt"`
 	SourceProtocol string `json:"source_protocol"`
 	TestMode       string `json:"test_mode"`
@@ -111,6 +114,9 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	modelID := strings.TrimSpace(req.ModelID)
 	if modelID == "" {
 		modelID = strings.TrimSpace(req.Model)
+	}
+	if strings.EqualFold(strings.TrimSpace(req.ModelInputMode), "manual") {
+		modelID = strings.TrimSpace(req.ManualModelID)
 	}
 	if modelID == "" {
 		modelID = strings.TrimSpace(c.Query("model"))

@@ -61,6 +61,13 @@ type CopilotAPITokenInfo struct {
 	APIBaseURL string `json:"api_base_url,omitempty"`
 }
 
+type CopilotAccountRefreshResult struct {
+	Credentials map[string]any
+	Extra       map[string]any
+	TokenInfo   *CopilotAPITokenInfo
+	UserInfo    *CopilotGitHubUserInfo
+}
+
 type copilotDeviceSession struct {
 	ProxyID                 *int64
 	ProxyURL                string
@@ -247,6 +254,19 @@ func (s *CopilotOAuthService) BuildAccountCredentials(githubToken string) map[st
 	}
 }
 
+func (s *CopilotOAuthService) BuildAccountCredentialsWithTokenInfo(githubToken string, tokenInfo *CopilotAPITokenInfo) map[string]any {
+	credentials := s.BuildAccountCredentials(githubToken)
+	if credentials == nil {
+		return nil
+	}
+	if tokenInfo != nil {
+		if baseURL := trustedCopilotAPIBaseURL(strings.TrimSpace(tokenInfo.APIBaseURL)); baseURL != "" {
+			credentials["base_url"] = baseURL
+		}
+	}
+	return credentials
+}
+
 func (s *CopilotOAuthService) BuildAccountExtra(userInfo *CopilotGitHubUserInfo) map[string]any {
 	if userInfo == nil {
 		return nil
@@ -267,18 +287,46 @@ func (s *CopilotOAuthService) BuildAccountExtra(userInfo *CopilotGitHubUserInfo)
 	return extra
 }
 
+func (s *CopilotOAuthService) BuildAccountUpstreamExtra(tokenInfo *CopilotAPITokenInfo, probeSource string) map[string]any {
+	info := s.buildResolvedUpstreamInfo(tokenInfo, probeSource)
+	if info.URL == "" && info.Host == "" && info.Service == "" {
+		return nil
+	}
+	return MergeUpstreamExtra(nil, info)
+}
+
 func (s *CopilotOAuthService) RefreshAccount(ctx context.Context, account *Account) (map[string]any, error) {
+	result, err := s.RefreshAccountState(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	return result.Extra, nil
+}
+
+func (s *CopilotOAuthService) RefreshAccountState(ctx context.Context, account *Account) (*CopilotAccountRefreshResult, error) {
 	if !isCopilotOAuthAccount(account) {
 		return nil, infraerrors.BadRequest("COPILOT_INVALID_ACCOUNT", "account is not a Copilot OAuth account")
 	}
-	if _, err := s.ExchangeGitHubTokenForCopilotToken(ctx, account); err != nil {
+	tokenInfo, err := s.ExchangeGitHubTokenForCopilotToken(ctx, account)
+	if err != nil {
 		return nil, err
 	}
 	userInfo, err := s.FetchGitHubUserInfo(ctx, account.GetCredential("access_token"), s.resolveAccountProxyURL(ctx, account))
 	if err != nil {
-		return nil, nil
+		userInfo = nil
 	}
-	return mergeStringAnyMap(account.Extra, s.BuildAccountExtra(userInfo)), nil
+	credentials := MergeCredentials(account.Credentials, s.BuildAccountCredentialsWithTokenInfo(account.GetCredential("access_token"), tokenInfo))
+	extra := mergeStringAnyMap(account.Extra, s.BuildAccountExtra(userInfo))
+	extra = mergeStringAnyMap(extra, s.BuildAccountUpstreamExtra(tokenInfo, "copilot_refresh"))
+	return &CopilotAccountRefreshResult{
+		Credentials: credentials,
+		Extra:       extra,
+		TokenInfo:   tokenInfo,
+		UserInfo:    userInfo,
+	}, nil
 }
 
 func (s *CopilotOAuthService) ExchangeGitHubTokenForCopilotToken(ctx context.Context, account *Account) (*CopilotAPITokenInfo, error) {
@@ -325,6 +373,15 @@ func (s *CopilotOAuthService) ExchangeGitHubTokenForCopilotToken(ctx context.Con
 		ExpiresAt:  tokenResp.ExpiresAt,
 		APIBaseURL: trustedCopilotAPIBaseURL(strings.TrimSpace(tokenResp.Endpoints.API)),
 	}, nil
+}
+
+func (s *CopilotOAuthService) buildResolvedUpstreamInfo(tokenInfo *CopilotAPITokenInfo, probeSource string) ResolvedUpstreamInfo {
+	if tokenInfo == nil {
+		return ResolvedUpstreamInfo{}
+	}
+	info := ResolveUpstreamInfo(tokenInfo.APIBaseURL, PlatformCopilot, probeSource)
+	info.ProbedAt = time.Now().UTC()
+	return info
 }
 
 func (s *CopilotOAuthService) FetchGitHubUserInfo(ctx context.Context, githubToken string, proxyURL string) (*CopilotGitHubUserInfo, error) {

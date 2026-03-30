@@ -159,6 +159,10 @@ type UsageLog struct {
 	InboundEndpoint *string
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.
 	UpstreamEndpoint *string
+	// UpstreamURL is the best-effort actual upstream base/request URL resolved at runtime.
+	UpstreamURL *string
+	// UpstreamService records the resolved upstream service family, e.g. copilot / kiro.
+	UpstreamService *string
 
 	GroupID        *int64
 	SubscriptionID *int64
@@ -243,4 +247,29 @@ func stringPtrValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func ResolveUsageLogUpstreamURL(account *Account, explicit string) string {
+	if trimmed := strings.TrimSpace(explicit); trimmed != "" {
+		return trimmed
+	}
+	if account == nil {
+		return ""
+	}
+	return strings.TrimSpace(account.GetExtraString("upstream_url"))
+}
+
+func ResolveUsageLogUpstreamService(account *Account, explicit string) string {
+	if trimmed := strings.TrimSpace(explicit); trimmed != "" {
+		return trimmed
+	}
+	if account != nil {
+		if service := strings.TrimSpace(account.GetExtraString("upstream_service")); service != "" {
+			return service
+		}
+		if runtimePlatform := strings.TrimSpace(RoutingPlatformForAccount(account)); runtimePlatform != "" {
+			return runtimePlatform
+		}
+	}
+	return ""
 }

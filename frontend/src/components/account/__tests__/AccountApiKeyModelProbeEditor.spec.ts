@@ -49,6 +49,8 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
       allowedModels: [],
       modelMappings: [],
       probedModels: [],
+      manualModels: [],
+      resolvedUpstream: null,
       ...overrides
     },
     global: {

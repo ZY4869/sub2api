@@ -440,6 +440,7 @@ func ProvideAccountModelImportService(
 	geminiCompatService *GeminiMessagesCompatService,
 	vertexCatalogService *VertexUpstreamCatalogService,
 	openAITokenProvider *OpenAITokenProvider,
+	kiroRuntimeService *KiroRuntimeService,
 	httpUpstream HTTPUpstream,
 	proxyRepo ProxyRepository,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
@@ -447,6 +448,7 @@ func ProvideAccountModelImportService(
 	svc := NewAccountModelImportService(modelCatalogService, geminiCompatService, httpUpstream, proxyRepo)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetOpenAITokenProvider(openAITokenProvider)
+	svc.SetKiroRuntimeService(kiroRuntimeService)
 	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	if geminiCompatService != nil {
@@ -645,6 +647,7 @@ var ProviderSet = wire.NewSet(
 	NewAntigravityQuotaFetcher,
 	NewUserAttributeService,
 	NewUsageCache,
+	NewKiroRuntimeService,
 	NewTotpService,
 	NewErrorPassthroughService,
 	NewDigestSessionStore,

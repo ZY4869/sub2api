@@ -15,7 +15,7 @@ import (
 const scheduledTestDefaultMaxWorkers = 10
 
 type scheduledTestExecutor interface {
-	RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error)
+	RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error)
 }
 
 type scheduledTestNotificationSender interface {
@@ -136,7 +136,12 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 }
 
 func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *ScheduledTestPlan) {
-	result, err := s.accountTestSvc.RunTestBackground(ctx, plan.AccountID, plan.ModelID)
+	result, err := s.accountTestSvc.RunTestBackground(ctx, ScheduledTestExecutionInput{
+		AccountID:      plan.AccountID,
+		ModelID:        plan.EffectiveModelID(),
+		SourceProtocol: plan.SourceProtocol,
+		RequestAlias:   plan.RequestAlias,
+	})
 	if err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d RunTestBackground error: %v", plan.ID, err)
 		result = &ScheduledTestResult{

@@ -77,14 +77,14 @@ type OpenAITokenCache = GeminiTokenCache
 
 // OpenAITokenProvider manages access_token for OpenAI/Sora OAuth accounts.
 type OpenAITokenProvider struct {
-	accountRepo        AccountRepository
-	tokenCache         OpenAITokenCache
-	openAIOAuthService *OpenAIOAuthService
+	accountRepo         AccountRepository
+	tokenCache          OpenAITokenCache
+	openAIOAuthService  *OpenAIOAuthService
 	copilotOAuthService *CopilotOAuthService
-	metrics            *openAITokenRuntimeMetricsStore
-	refreshAPI         *OAuthRefreshAPI
-	executor           OAuthRefreshExecutor
-	refreshPolicy      ProviderRefreshPolicy
+	metrics             *openAITokenRuntimeMetricsStore
+	refreshAPI          *OAuthRefreshAPI
+	executor            OAuthRefreshExecutor
+	refreshPolicy       ProviderRefreshPolicy
 }
 
 func NewOpenAITokenProvider(
@@ -239,6 +239,7 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		if err != nil {
 			return "", err
 		}
+		p.persistCopilotRuntimeMetadata(ctx, account, copilotTokenInfo)
 		accessToken = strings.TrimSpace(copilotTokenInfo.Token)
 		copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
 	} else if strings.TrimSpace(accessToken) == "" {
@@ -258,6 +259,7 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 				if err != nil {
 					return "", err
 				}
+				p.persistCopilotRuntimeMetadata(ctx, latestAccount, copilotTokenInfo)
 				accessToken = strings.TrimSpace(copilotTokenInfo.Token)
 				copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
 			} else {
@@ -295,6 +297,37 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	}
 
 	return accessToken, nil
+}
+
+func (p *OpenAITokenProvider) persistCopilotRuntimeMetadata(ctx context.Context, account *Account, tokenInfo *CopilotAPITokenInfo) {
+	if p == nil || p.copilotOAuthService == nil || account == nil || account.Platform != PlatformCopilot || tokenInfo == nil {
+		return
+	}
+
+	baseURL := strings.TrimSpace(tokenInfo.APIBaseURL)
+	info := p.copilotOAuthService.buildResolvedUpstreamInfo(tokenInfo, "copilot_runtime_token_exchange")
+	needsPersist := strings.TrimSpace(account.GetCredential("base_url")) != strings.TrimSpace(baseURL) ||
+		strings.TrimSpace(account.GetExtraString("upstream_url")) != strings.TrimSpace(info.URL) ||
+		strings.TrimSpace(account.GetExtraString("upstream_host")) != strings.TrimSpace(info.Host) ||
+		strings.TrimSpace(account.GetExtraString("upstream_service")) != strings.TrimSpace(info.Service) ||
+		strings.TrimSpace(account.GetExtraString("upstream_probe_source")) != strings.TrimSpace(info.ProbeSource)
+
+	if !needsPersist {
+		if baseURL != "" {
+			account.Credentials = MergeCredentials(account.Credentials, map[string]any{"base_url": baseURL})
+		}
+		account.Extra = MergeStringAnyMap(account.Extra, MergeUpstreamExtra(nil, info))
+		return
+	}
+
+	account.Credentials = MergeCredentials(account.Credentials, p.copilotOAuthService.BuildAccountCredentialsWithTokenInfo(account.GetCredential("access_token"), tokenInfo))
+	account.Extra = MergeStringAnyMap(account.Extra, p.copilotOAuthService.BuildAccountUpstreamExtra(tokenInfo, "copilot_runtime_token_exchange"))
+	if p.accountRepo == nil || account.ID <= 0 {
+		return
+	}
+	if err := p.accountRepo.Update(ctx, account); err != nil {
+		slog.Warn("copilot_runtime_metadata_persist_failed", "account_id", account.ID, "error", err)
+	}
 }
 
 func (p *OpenAITokenProvider) waitForTokenAfterLockRace(ctx context.Context, cacheKey string) (string, error) {

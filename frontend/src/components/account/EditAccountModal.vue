@@ -155,6 +155,8 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           v-model:accepted-protocols="gatewayAcceptedProtocols"
           v-model:client-profiles="gatewayClientProfiles"
           v-model:client-routes="gatewayClientRoutes"
@@ -169,9 +171,12 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           :platform="account.platform"
           account-type="apikey"
           :credentials="apiKeyProbeCredentials"
+          :extra="buildProbeExtra()"
           :probe-ready="isApiKeyProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -210,9 +215,12 @@
         v-model:allowed-models="allowedModels"
         v-model:model-mappings="modelMappings"
         v-model:probed-models="protocolGatewayProbeModels"
+        v-model:manual-models="manualModels"
+        v-model:resolved-upstream="resolvedUpstream"
         platform="gemini"
         :account-type="geminiVertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'"
         :credentials="vertexProbeCredentials"
+        :extra="buildProbeExtra()"
         :probe-ready="isVertexProbeReady"
         :proxy-id="form.proxy_id"
       />
@@ -245,13 +253,31 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="antigravityModelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           :platform="account.platform"
           account-type="upstream"
           :credentials="upstreamProbeCredentials"
+          :extra="buildProbeExtra()"
           :probe-ready="isUpstreamProbeReady"
           :proxy-id="form.proxy_id"
         />
       </div>
+
+      <AccountApiKeyModelProbeEditor
+        v-if="showOAuthProbeEditor"
+        v-model:allowed-models="allowedModels"
+        v-model:model-mappings="modelMappings"
+        v-model:probed-models="protocolGatewayProbeModels"
+        v-model:manual-models="manualModels"
+        v-model:resolved-upstream="resolvedUpstream"
+        :platform="account.platform"
+        account-type="oauth"
+        :credentials="oauthProbeCredentials"
+        :extra="buildProbeExtra()"
+        :probe-ready="oauthProbeReady"
+        :proxy-id="form.proxy_id"
+      />
 
       <!-- Antigravity model restriction (applies to all antigravity types) -->
       <AccountAntigravityModelMappingEditor
@@ -446,6 +472,7 @@ import { adminAPI } from '@/api/admin'
 import { useAnthropicQuotaControl } from '@/composables/useAnthropicQuotaControl'
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
+import type { AccountManualModel } from '@/api/admin/accounts'
 import type { Account, Proxy, AdminGroup, GatewayProtocol, GroupPlatform } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -537,6 +564,13 @@ import type {
   GatewayClientProfile,
   GatewayClientRoute
 } from '@/types'
+import {
+  mergeAccountManualModelsIntoExtra,
+  mergeResolvedUpstreamDraftIntoExtra,
+  readAccountManualModelsFromExtra,
+  readAccountResolvedUpstreamDraft,
+  type AccountResolvedUpstreamDraft
+} from '@/utils/accountProbeDraft'
 
 interface Props {
   show: boolean
@@ -569,6 +603,8 @@ const editGrokTier = ref<GrokTier>('basic')
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const manualModels = ref<AccountManualModel[]>([])
+const resolvedUpstream = ref<AccountResolvedUpstreamDraft | null>(null)
 const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
@@ -616,6 +652,9 @@ const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
 const currentAccountCredentials = computed<Record<string, unknown>>(
   () => ((props.account?.credentials as Record<string, unknown> | undefined) || {})
+)
+const currentAccountExtra = computed<Record<string, unknown>>(
+  () => ((props.account?.extra as Record<string, unknown> | undefined) || {})
 )
 const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
   const credentials: Record<string, unknown> = {
@@ -677,6 +716,10 @@ const isVertexProbeReady = computed(() => {
         (vertexProbeCredentials.value.access_token as string | undefined))
   )
 })
+const oauthProbeCredentials = computed<Record<string, unknown>>(() => ({
+  ...currentAccountCredentials.value
+}))
+const oauthProbeReady = computed(() => Object.keys(oauthProbeCredentials.value).length > 0)
 const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(props.account?.platform || 'anthropic', gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
@@ -693,6 +736,9 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 })
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
+)
+const showOAuthProbeEditor = computed(() =>
+  props.account?.type === 'oauth' && (props.account?.platform === 'copilot' || props.account?.platform === 'kiro')
 )
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
@@ -1050,6 +1096,8 @@ watch(
 
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
+      manualModels.value = readAccountManualModelsFromExtra(extra, isProtocolGatewayAccount.value)
+      resolvedUpstream.value = readAccountResolvedUpstreamDraft(extra)
       mixedScheduling.value = extra?.mixed_scheduling === true
       editGrokSSOToken.value = ''
       editGrokTier.value = normalizeGrokTier(extra?.grok_tier)
@@ -1254,6 +1302,8 @@ watch(
       gatewayClientRoutes.value = []
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
+      manualModels.value = []
+      resolvedUpstream.value = null
       modelMappings.value = []
       geminiOAuthType.value = 'code_assist'
       geminiVertexAuthMode.value = 'service_account'
@@ -1774,21 +1824,23 @@ const handleSubmit = async () => {
       updatePayload.extra = newExtra
     }
 
-    updatePayload.extra = buildAccountModelScopeExtra(
-      ((updatePayload.extra as Record<string, unknown>) ||
-        (props.account.extra as Record<string, unknown>) ||
-        undefined),
-      {
-        platform: runtimePlatform,
-        enabled: runtimePlatform === 'antigravity'
-          ? true
-          : !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
-        mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
-        allowedModels: allowedModels.value,
-        modelMappings: runtimePlatform === 'antigravity'
-          ? antigravityModelMappings.value
-          : modelMappings.value
-      }
+    updatePayload.extra = buildProbeExtra(
+      buildAccountModelScopeExtra(
+        ((updatePayload.extra as Record<string, unknown>) ||
+          (props.account.extra as Record<string, unknown>) ||
+          undefined),
+        {
+          platform: runtimePlatform,
+          enabled: runtimePlatform === 'antigravity'
+            ? true
+            : !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
+          mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
+          allowedModels: allowedModels.value,
+          modelMappings: runtimePlatform === 'antigravity'
+            ? antigravityModelMappings.value
+            : modelMappings.value
+        }
+      )
     )
 
     const canContinue = await ensureMixedChannelConfirmed(async () => {
@@ -1802,5 +1854,16 @@ const handleSubmit = async () => {
   } catch (error: any) {
     appStore.showError(error.message || t('admin.accounts.failedToUpdate'))
   }
+}
+
+function buildProbeExtra(base?: Record<string, unknown>) {
+  return mergeResolvedUpstreamDraftIntoExtra(
+    mergeAccountManualModelsIntoExtra(
+      base || currentAccountExtra.value,
+      manualModels.value,
+      isProtocolGatewayAccount.value
+    ),
+    resolvedUpstream.value
+  )
 }
 </script>

@@ -59,11 +59,12 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 }
 
 type probeProtocolGatewayModelsRequest struct {
-	GatewayProtocol   string   `json:"gateway_protocol" binding:"required,oneof=openai anthropic gemini mixed"`
-	AcceptedProtocols []string `json:"accepted_protocols"`
-	BaseURL           string   `json:"base_url"`
-	APIKey            string   `json:"api_key" binding:"required"`
-	ProxyID           *int64   `json:"proxy_id"`
+	GatewayProtocol   string                       `json:"gateway_protocol" binding:"required,oneof=openai anthropic gemini mixed"`
+	AcceptedProtocols []string                     `json:"accepted_protocols"`
+	BaseURL           string                       `json:"base_url"`
+	APIKey            string                       `json:"api_key" binding:"required"`
+	ProxyID           *int64                       `json:"proxy_id"`
+	ManualModels      []service.AccountManualModel `json:"manual_models"`
 }
 
 type probeProtocolGatewayModelItem struct {
@@ -78,17 +79,21 @@ type probeProtocolGatewayModelItem struct {
 }
 
 type probeProtocolGatewayModelsResponse struct {
-	ProbeSource string                          `json:"probe_source"`
-	ProbeNotice string                          `json:"probe_notice,omitempty"`
-	Models      []probeProtocolGatewayModelItem `json:"models"`
+	ProbeSource             string                          `json:"probe_source"`
+	ProbeNotice             string                          `json:"probe_notice,omitempty"`
+	ResolvedUpstreamURL     string                          `json:"resolved_upstream_url,omitempty"`
+	ResolvedUpstreamHost    string                          `json:"resolved_upstream_host,omitempty"`
+	ResolvedUpstreamService string                          `json:"resolved_upstream_service,omitempty"`
+	Models                  []probeProtocolGatewayModelItem `json:"models"`
 }
 
 type probeAccountModelsRequest struct {
-	Platform    string         `json:"platform" binding:"required"`
-	Type        string         `json:"type" binding:"required"`
-	Credentials map[string]any `json:"credentials"`
-	Extra       map[string]any `json:"extra"`
-	ProxyID     *int64         `json:"proxy_id"`
+	Platform     string                       `json:"platform" binding:"required"`
+	Type         string                       `json:"type" binding:"required"`
+	Credentials  map[string]any               `json:"credentials"`
+	Extra        map[string]any               `json:"extra"`
+	ManualModels []service.AccountManualModel `json:"manual_models"`
+	ProxyID      *int64                       `json:"proxy_id"`
 }
 
 func (h *AccountHandler) ProbeModels(c *gin.Context) {
@@ -112,6 +117,12 @@ func (h *AccountHandler) ProbeModels(c *gin.Context) {
 	}
 	if strings.EqualFold(draftAccount.Platform, service.PlatformGemini) {
 		draftAccount.Credentials = service.NormalizeGeminiCredentialsForStorage(draftAccount.Type, draftAccount.Credentials)
+	}
+	if manualModels := service.AccountManualModelsToExtraValue(req.ManualModels, service.IsProtocolGatewayAccount(draftAccount)); len(manualModels) > 0 {
+		if draftAccount.Extra == nil {
+			draftAccount.Extra = map[string]any{}
+		}
+		draftAccount.Extra["manual_models"] = manualModels
 	}
 	if req.ProxyID != nil {
 		draftAccount.ProxyID = req.ProxyID
@@ -154,6 +165,9 @@ func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 				"gateway_accepted_protocols": req.AcceptedProtocols,
 			}),
 		},
+	}
+	if manualModels := service.AccountManualModelsToExtraValue(req.ManualModels, true); len(manualModels) > 0 {
+		draftAccount.Extra["manual_models"] = manualModels
 	}
 	if strings.TrimSpace(req.BaseURL) == "" {
 		draftAccount.Credentials["base_url"] = descriptor.DefaultBaseURL
@@ -200,9 +214,12 @@ func (h *AccountHandler) writeProbeModelsResponse(c *gin.Context, draftAccount *
 	}
 
 	response.Success(c, probeProtocolGatewayModelsResponse{
-		ProbeSource: result.ProbeSource,
-		ProbeNotice: result.ProbeNotice,
-		Models:      items,
+		ProbeSource:             result.ProbeSource,
+		ProbeNotice:             result.ProbeNotice,
+		ResolvedUpstreamURL:     result.ResolvedUpstreamURL,
+		ResolvedUpstreamHost:    result.ResolvedUpstreamHost,
+		ResolvedUpstreamService: result.ResolvedUpstreamService,
+		Models:                  items,
 	})
 }
 

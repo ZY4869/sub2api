@@ -83,9 +83,11 @@ func (s *scheduledTestResultRepoStub) PruneOldResults(ctx context.Context, planI
 type scheduledTestExecutorStub struct {
 	result *ScheduledTestResult
 	err    error
+	input  ScheduledTestExecutionInput
 }
 
-func (s *scheduledTestExecutorStub) RunTestBackground(ctx context.Context, accountID int64, modelID string) (*ScheduledTestResult, error) {
+func (s *scheduledTestExecutorStub) RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error) {
+	s.input = input
 	if s.result == nil {
 		return nil, s.err
 	}
@@ -303,10 +305,11 @@ func TestScheduledTestRunnerService_RetriesIntermediateFailureWithoutNotificatio
 	scheduledSvc := NewScheduledTestService(planRepo, resultRepo)
 	notifier := &scheduledTestNotifierStub{}
 	accountRepo := &scheduledTestAccountRepoStub{}
+	executor := &scheduledTestExecutorStub{result: &ScheduledTestResult{Status: "failed", ErrorMessage: "upstream failed", FinishedAt: time.Now()}}
 	runner := NewScheduledTestRunnerService(
 		planRepo,
 		scheduledSvc,
-		&scheduledTestExecutorStub{result: &ScheduledTestResult{Status: "failed", ErrorMessage: "upstream failed", FinishedAt: time.Now()}},
+		executor,
 		nil,
 		accountRepo,
 		notifier,
@@ -316,7 +319,11 @@ func TestScheduledTestRunnerService_RetriesIntermediateFailureWithoutNotificatio
 	plan := &ScheduledTestPlan{
 		ID:                   1,
 		AccountID:            11,
-		ModelID:              "gpt-4o",
+		ModelID:              "gpt-4o-mini",
+		ModelInputMode:       ScheduledTestModelInputModeManual,
+		ManualModelID:        "gpt-4o",
+		SourceProtocol:       "openai",
+		RequestAlias:         "gpt-4o",
 		CronExpression:       "* * * * *",
 		MaxResults:           20,
 		NotifyPolicy:         ScheduledTestNotifyPolicyNone,
@@ -329,6 +336,10 @@ func TestScheduledTestRunnerService_RetriesIntermediateFailureWithoutNotificatio
 	runner.runOnePlan(context.Background(), plan)
 
 	require.Len(t, planRepo.updateCalls, 1)
+	require.Equal(t, int64(11), executor.input.AccountID)
+	require.Equal(t, "gpt-4o", executor.input.ModelID)
+	require.Equal(t, "openai", executor.input.SourceProtocol)
+	require.Equal(t, "gpt-4o", executor.input.RequestAlias)
 	update := planRepo.updateCalls[0]
 	require.Equal(t, 1, update.consecutiveFailures)
 	require.Equal(t, 1, update.currentRetryCount)

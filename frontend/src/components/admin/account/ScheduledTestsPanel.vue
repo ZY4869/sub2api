@@ -31,14 +31,55 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('admin.scheduledTests.modelInputMode') }}
+            </label>
+            <Select
+              v-model="newPlan.model_input_mode"
+              :options="modelInputModeOptions"
+            />
+          </div>
+          <div v-if="newPlan.model_input_mode === 'catalog'">
+            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
               {{ t('admin.scheduledTests.model') }}
             </label>
             <Select
-              v-model="newPlan.model_id"
+              v-model="newPlan.selected_model_key"
               :options="modelOptions"
               :placeholder="t('admin.scheduledTests.model')"
               :searchable="modelOptions.length > 5"
             />
+          </div>
+          <div v-else class="space-y-3 sm:col-span-2">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.manualModelId') }}
+                </label>
+                <Input
+                  v-model="newPlan.manual_model_id"
+                  :placeholder="t('admin.scheduledTests.manualModelIdPlaceholder')"
+                />
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.requestAlias') }}
+                </label>
+                <Input
+                  v-model="newPlan.request_alias"
+                  :placeholder="newPlan.manual_model_id || t('admin.scheduledTests.requestAliasPlaceholder')"
+                />
+              </div>
+            </div>
+            <div v-if="showManualSourceProtocolField">
+              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                {{ t('admin.scheduledTests.sourceProtocol') }}
+              </label>
+              <Select
+                v-model="newPlan.source_protocol"
+                :options="sourceProtocolOptions"
+                :placeholder="t('admin.scheduledTests.sourceProtocol')"
+              />
+            </div>
           </div>
           <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -152,7 +193,7 @@
           </button>
           <button
             @click="handleCreate"
-            :disabled="!newPlan.model_id || !newPlan.cron_expression || creating"
+            :disabled="!canSubmitPlan(newPlan) || !newPlan.cron_expression || creating"
             class="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon v-if="creating" name="refresh" size="sm" class="animate-spin" :stroke-width="2" />
@@ -194,7 +235,13 @@
               <!-- Model -->
               <div class="min-w-0">
                 <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {{ plan.model_id }}
+                  {{ getPlanModelDisplay(plan) }}
+                </div>
+                <div
+                  v-if="plan.source_protocol"
+                  class="mt-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-300"
+                >
+                  {{ protocolSourceLabel(plan.source_protocol) }}
                 </div>
                 <div class="mt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400">
                   {{ plan.cron_expression }}
@@ -279,14 +326,55 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                  {{ t('admin.scheduledTests.modelInputMode') }}
+                </label>
+                <Select
+                  v-model="editForm.model_input_mode"
+                  :options="modelInputModeOptions"
+                />
+              </div>
+              <div v-if="editForm.model_input_mode === 'catalog'">
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
                   {{ t('admin.scheduledTests.model') }}
                 </label>
                 <Select
-                  v-model="editForm.model_id"
+                  v-model="editForm.selected_model_key"
                   :options="modelOptions"
                   :placeholder="t('admin.scheduledTests.model')"
                   :searchable="modelOptions.length > 5"
                 />
+              </div>
+              <div v-else class="space-y-3 sm:col-span-2">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {{ t('admin.scheduledTests.manualModelId') }}
+                    </label>
+                    <Input
+                      v-model="editForm.manual_model_id"
+                      :placeholder="t('admin.scheduledTests.manualModelIdPlaceholder')"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {{ t('admin.scheduledTests.requestAlias') }}
+                    </label>
+                    <Input
+                      v-model="editForm.request_alias"
+                      :placeholder="editForm.manual_model_id || t('admin.scheduledTests.requestAliasPlaceholder')"
+                    />
+                  </div>
+                </div>
+                <div v-if="showManualSourceProtocolField">
+                  <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                    {{ t('admin.scheduledTests.sourceProtocol') }}
+                  </label>
+                  <Select
+                    v-model="editForm.source_protocol"
+                    :options="sourceProtocolOptions"
+                    :placeholder="t('admin.scheduledTests.sourceProtocol')"
+                  />
+                </div>
               </div>
               <div>
                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -400,7 +488,7 @@
               </button>
               <button
                 @click="handleEdit"
-                :disabled="!editForm.model_id || !editForm.cron_expression || updating"
+                :disabled="!canSubmitPlan(editForm) || !editForm.cron_expression || updating"
                 class="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon v-if="updating" name="refresh" size="sm" class="animate-spin" :stroke-width="2" />
@@ -553,13 +641,14 @@ import {
   getFrequencyPresetFromCron,
   type ScheduledTestFrequencyPreset
 } from '@/utils/scheduledTests'
-import type { ScheduledTestPlan, ScheduledTestResult } from '@/types'
+import type { Account, ScheduledTestPlan, ScheduledTestResult } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 
 const props = defineProps<{
   show: boolean
+  account: Account | null
   accountId: number | null
   modelOptions: SelectOption[]
 }>()
@@ -606,8 +695,25 @@ const maxRetryOptions: SelectOption[] = [1, 2, 3, 4, 5].map((value) => ({
   value,
   label: String(value)
 }))
+const modelInputModeOptions = computed<SelectOption[]>(() => [
+  { value: 'catalog', label: t('admin.scheduledTests.modelInputModeOptions.catalog') },
+  { value: 'manual', label: t('admin.scheduledTests.modelInputModeOptions.manual') }
+])
+const sourceProtocolOptions = computed<SelectOption[]>(() => [
+  { value: 'openai', label: t('admin.scheduledTests.sourceProtocolOptions.openai') },
+  { value: 'anthropic', label: t('admin.scheduledTests.sourceProtocolOptions.anthropic') },
+  { value: 'gemini', label: t('admin.scheduledTests.sourceProtocolOptions.gemini') }
+])
+const showManualSourceProtocolField = computed(() =>
+  props.account?.platform === 'protocol_gateway' && props.account?.gateway_protocol === 'mixed'
+)
 const editForm = reactive({
+  selected_model_key: '' as string,
   model_id: '' as string,
+  model_input_mode: 'catalog' as 'catalog' | 'manual',
+  manual_model_id: '' as string,
+  request_alias: '' as string,
+  source_protocol: '' as string,
   frequency_preset: 'custom' as ScheduledTestFrequencyPreset,
   cron_expression: '' as string,
   max_results: '100' as string,
@@ -620,7 +726,12 @@ const editForm = reactive({
 })
 
 const newPlan = reactive({
+  selected_model_key: '' as string,
   model_id: '' as string,
+  model_input_mode: 'catalog' as 'catalog' | 'manual',
+  manual_model_id: '' as string,
+  request_alias: '' as string,
+  source_protocol: '' as string,
   frequency_preset: 'custom' as ScheduledTestFrequencyPreset,
   cron_expression: '' as string,
   max_results: '100' as string,
@@ -633,7 +744,12 @@ const newPlan = reactive({
 })
 
 const resetNewPlan = () => {
+  newPlan.selected_model_key = ''
   newPlan.model_id = ''
+  newPlan.model_input_mode = 'catalog'
+  newPlan.manual_model_id = ''
+  newPlan.request_alias = ''
+  newPlan.source_protocol = ''
   newPlan.frequency_preset = 'custom'
   newPlan.cron_expression = ''
   newPlan.max_results = '100'
@@ -645,6 +761,78 @@ const resetNewPlan = () => {
   newPlan.max_retries = 3
 }
 
+type ScheduledPlanFormState = typeof newPlan | typeof editForm
+type ScheduledSourceProtocol = 'openai' | 'anthropic' | 'gemini'
+
+const normalizeGatewayAcceptedProtocol = (value?: unknown): ScheduledSourceProtocol | '' => {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'openai' || normalized === 'anthropic' || normalized === 'gemini') {
+    return normalized
+  }
+  return ''
+}
+
+const protocolSourceLabel = (value?: unknown) => {
+  const normalized = normalizeGatewayAcceptedProtocol(value)
+  if (!normalized) {
+    return ''
+  }
+  return t(`admin.scheduledTests.sourceProtocolOptions.${normalized}`)
+}
+
+const buildModelOptionKey = (modelId?: string, sourceProtocol?: unknown) =>
+  `${normalizeGatewayAcceptedProtocol(sourceProtocol) || 'default'}::${String(modelId || '').trim()}`
+
+const findModelOptionByKey = (key: string) =>
+  props.modelOptions.find((option) => String(option.value || '') === key) || null
+
+const findModelOptionKey = (modelId?: string, sourceProtocol?: unknown) => {
+  const targetKey = buildModelOptionKey(modelId, sourceProtocol)
+  if (findModelOptionByKey(targetKey)) {
+    return targetKey
+  }
+  const fallback = props.modelOptions.find((option) => String(option.model_id || option.value || '') === String(modelId || '').trim())
+  return fallback ? String(fallback.value || '') : ''
+}
+
+const resolvePlanPayload = (form: ScheduledPlanFormState): {
+  model_input_mode: 'catalog' | 'manual'
+  model_id: string
+  manual_model_id: string
+  request_alias?: string
+  source_protocol?: ScheduledSourceProtocol
+} => {
+  const mode: 'catalog' | 'manual' = form.model_input_mode === 'manual' ? 'manual' : 'catalog'
+  const selectedOption = mode === 'catalog' ? findModelOptionByKey(form.selected_model_key) : null
+  const rawSelectedModelID = String(selectedOption?.model_id || selectedOption?.value || '').trim()
+  const selectedModelID = rawSelectedModelID.includes('::')
+    ? rawSelectedModelID.split('::').slice(1).join('::')
+    : rawSelectedModelID
+  const selectedSourceProtocol = normalizeGatewayAcceptedProtocol(selectedOption?.source_protocol)
+  const manualSourceProtocol = normalizeGatewayAcceptedProtocol(form.source_protocol)
+  return {
+    model_input_mode: mode,
+    model_id: mode === 'catalog' ? selectedModelID : '',
+    manual_model_id: mode === 'manual' ? form.manual_model_id.trim() : '',
+    request_alias: mode === 'manual' ? form.request_alias.trim() || undefined : undefined,
+    source_protocol: (mode === 'manual' ? manualSourceProtocol : selectedSourceProtocol) || undefined
+  }
+}
+
+const canSubmitPlan = (form: ScheduledPlanFormState) => {
+  const payload = resolvePlanPayload(form)
+  return payload.model_input_mode === 'manual'
+    ? !!payload.manual_model_id
+    : !!payload.model_id
+}
+
+const getPlanModelDisplay = (plan: ScheduledTestPlan) => {
+  const mode = plan.model_input_mode === 'manual' ? 'manual' : 'catalog'
+  return mode === 'manual'
+    ? String(plan.manual_model_id || plan.model_id || '').trim()
+    : String(plan.model_id || '').trim()
+}
+
 // Load plans when dialog opens
 watch(
   () => props.show,
@@ -652,12 +840,14 @@ watch(
     if (visible && props.accountId) {
       await loadPlans()
     } else {
+      resetNewPlan()
       plans.value = []
       results.value = []
       expandedPlanId.value = null
       expandedResultIds.clear()
       showAddForm.value = false
       showDeleteConfirm.value = false
+      editingPlanId.value = null
     }
   }
 )
@@ -675,13 +865,18 @@ const loadPlans = async () => {
 }
 
 const handleCreate = async () => {
-  if (!props.accountId || !newPlan.model_id || !newPlan.cron_expression) return
+  if (!props.accountId || !canSubmitPlan(newPlan) || !newPlan.cron_expression) return
   creating.value = true
   try {
     const maxResults = Number(newPlan.max_results) || 100
+    const payload = resolvePlanPayload(newPlan)
     await adminAPI.scheduledTests.create({
       account_id: props.accountId,
-      model_id: newPlan.model_id,
+      model_id: payload.model_id,
+      model_input_mode: payload.model_input_mode,
+      manual_model_id: payload.manual_model_id,
+      request_alias: payload.model_input_mode === 'manual' ? (payload.request_alias || '') : '',
+      source_protocol: payload.source_protocol || '',
       cron_expression: getCronExpressionForPreset(newPlan.frequency_preset, newPlan.cron_expression),
       enabled: newPlan.enabled,
       max_results: maxResults,
@@ -717,7 +912,12 @@ const handleToggleEnabled = async (plan: ScheduledTestPlan, enabled: boolean) =>
 
 const startEdit = (plan: ScheduledTestPlan) => {
   editingPlanId.value = plan.id
+  editForm.selected_model_key = findModelOptionKey(plan.model_id, plan.source_protocol)
   editForm.model_id = plan.model_id
+  editForm.model_input_mode = plan.model_input_mode === 'manual' ? 'manual' : 'catalog'
+  editForm.manual_model_id = plan.manual_model_id || ''
+  editForm.request_alias = plan.request_alias || ''
+  editForm.source_protocol = normalizeGatewayAcceptedProtocol(plan.source_protocol)
   editForm.frequency_preset = getFrequencyPresetFromCron(plan.cron_expression)
   editForm.cron_expression = plan.cron_expression
   editForm.max_results = String(plan.max_results)
@@ -734,11 +934,16 @@ const cancelEdit = () => {
 }
 
 const handleEdit = async () => {
-  if (!editingPlanId.value || !editForm.model_id || !editForm.cron_expression) return
+  if (!editingPlanId.value || !canSubmitPlan(editForm) || !editForm.cron_expression) return
   updating.value = true
   try {
+    const payload = resolvePlanPayload(editForm)
     const updated = await adminAPI.scheduledTests.update(editingPlanId.value, {
-      model_id: editForm.model_id,
+      model_id: payload.model_id,
+      model_input_mode: payload.model_input_mode,
+      manual_model_id: payload.manual_model_id,
+      request_alias: payload.model_input_mode === 'manual' ? (payload.request_alias || '') : '',
+      source_protocol: payload.source_protocol || '',
       cron_expression: getCronExpressionForPreset(editForm.frequency_preset, editForm.cron_expression),
       max_results: Number(editForm.max_results) || 100,
       enabled: editForm.enabled,

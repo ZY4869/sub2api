@@ -34,6 +34,15 @@
       </div>
     </div>
 
+    <AccountResolvedUpstreamPanel
+      :upstream-url="resolvedUpstream?.upstream_url"
+      :upstream-host="resolvedUpstream?.upstream_host"
+      :upstream-service="resolvedUpstream?.upstream_service"
+      :upstream-region="resolvedUpstream?.upstream_region"
+      :probe-source="resolvedUpstream?.upstream_probe_source"
+      :probed-at="resolvedUpstream?.upstream_probed_at"
+    />
+
     <div
       v-if="probedModels.length > 0"
       class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400"
@@ -152,6 +161,11 @@
     >
       {{ t('admin.accounts.apiKeyProbe.empty') }}
     </div>
+
+    <AccountManualModelsEditor
+      v-model:rows="manualModels"
+      :allow-source-protocol="false"
+    />
   </section>
 </template>
 
@@ -159,7 +173,9 @@
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
-import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
+import type { AccountManualModel, ProtocolGatewayProbeModel } from '@/api/admin/accounts'
+import AccountManualModelsEditor from '@/components/account/AccountManualModelsEditor.vue'
+import AccountResolvedUpstreamPanel from '@/components/account/AccountResolvedUpstreamPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import type { ModelMapping } from '@/utils/accountFormShared'
@@ -167,6 +183,11 @@ import {
   resolveAccountModelImportErrorMessage,
   resolveAccountModelImportProbeNoticeMessage
 } from '@/utils/accountModelImport'
+import {
+  createResolvedUpstreamDraft,
+  readAccountResolvedUpstreamDraft,
+  type AccountResolvedUpstreamDraft
+} from '@/utils/accountProbeDraft'
 import { buildDefaultVertexAlias, isGeminiVertexSourceCredentials } from '@/utils/vertexAi'
 
 const props = defineProps<{
@@ -181,6 +202,8 @@ const props = defineProps<{
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
 const modelMappings = defineModel<ModelMapping[]>('modelMappings', { required: true })
 const probedModels = defineModel<ProtocolGatewayProbeModel[]>('probedModels', { required: true })
+const manualModels = defineModel<AccountManualModel[]>('manualModels', { required: true })
+const resolvedUpstream = defineModel<AccountResolvedUpstreamDraft | null>('resolvedUpstream', { required: true })
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -220,6 +243,17 @@ watch(
       }))
   },
   { immediate: true }
+)
+
+watch(
+  () => props.extra,
+  (extra) => {
+    const draft = readAccountResolvedUpstreamDraft(extra)
+    if (draft) {
+      resolvedUpstream.value = draft
+    }
+  },
+  { immediate: true, deep: true }
 )
 
 watch(
@@ -322,6 +356,7 @@ const handleProbe = async () => {
       type: props.accountType,
       credentials: props.credentials,
       extra: props.extra,
+      manual_models: manualModels.value,
       proxy_id: props.proxyId ?? undefined
     })
     const aliasByTarget = new Map(
@@ -348,6 +383,13 @@ const handleProbe = async () => {
       probe_source: result.probe_source,
       probe_notice: result.probe_notice
     })
+    resolvedUpstream.value =
+      createResolvedUpstreamDraft({
+        upstream_url: result.resolved_upstream_url,
+        upstream_host: result.resolved_upstream_host,
+        upstream_service: result.resolved_upstream_service,
+        upstream_probe_source: result.probe_source
+      }) || resolvedUpstream.value
   } catch (error: any) {
     console.error('Failed to probe account models:', error)
     appStore.showError(resolveAccountModelImportErrorMessage(t, error) || t('admin.accounts.apiKeyProbe.failed'))

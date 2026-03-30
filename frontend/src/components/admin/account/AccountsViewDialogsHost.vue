@@ -41,6 +41,7 @@
   />
   <ScheduledTestsPanel
     :show="showSchedulePanel"
+    :account="scheduleAccount"
     :account-id="scheduleAccount?.id ?? null"
     :model-options="scheduleModelOptions"
     @close="emit('close-schedule')"

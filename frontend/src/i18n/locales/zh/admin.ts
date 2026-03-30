@@ -2399,6 +2399,37 @@
         registryExisting: '模型注册表已存在',
         registryMissing: '模型注册表待补充'
       },
+      probeFinalize: {
+        stepTitle: '收口确认',
+        readyHint: '授权已完成。现在可以确认真实上游、继续取模、补充手动模型 ID，然后再创建账号。',
+        upstreamTitle: '真实上游',
+        upstreamHint: '这里展示当前凭据解析到的真实上游信息；创建后也会按同样口径持久化与记录。',
+        upstreamUrl: '上游 URL',
+        upstreamHost: '上游 Host',
+        upstreamService: '上游服务',
+        upstreamRegion: '上游 Region',
+        upstreamProbeSource: '探测来源',
+        upstreamProbedAt: '探测时间',
+        manualModelsTitle: '手动模型 ID',
+        manualModelsHint: '适用于暂时无法在线枚举、但你仍希望保存/测试/导入的模型。留空 alias 时默认使用模型 ID。',
+        manualModelsHintGateway: 'Mixed / Protocol Gateway 手动模型可额外指定 source protocol；未指定时按实际请求链路判断。',
+        addManualModel: '添加手动模型',
+        removeManualModel: '移除',
+        manualModelsEmpty: '还没有手动模型条目。你可以先取模，也可以直接手动补充模型 ID。',
+        manualModelId: '模型 ID',
+        manualModelIdPlaceholder: '例如：gpt-4.1 或 claude-sonnet-4-5',
+        manualRequestAlias: '请求别名',
+        manualRequestAliasPlaceholder: '留空时默认等于模型 ID',
+        manualSourceProtocol: '来源协议',
+        manualSourceProtocolAuto: '自动判断'
+      },
+      testModelInputModeLabel: '测试模型输入方式',
+      testModelInputModes: {
+        catalog: '选择已有模型',
+        catalogHint: '从账号当前可见模型中选择，适合常规验证与回归。',
+        manual: '手动输入模型 ID',
+        manualHint: '模型不在已导入列表时也可以直接测试真实调用链路。'
+      },
       // Re-Auth Modal
       reAuthorizeAccount: '重新授权账号',
       claudeCodeAccount: 'Claude Code 账号',
@@ -2611,6 +2642,21 @@
       editPlan: '编辑计划',
       deletePlan: '删除计划',
       model: '模型',
+      modelInputMode: '模型来源',
+      modelInputModeOptions: {
+        catalog: '已有模型',
+        manual: '手动输入'
+      },
+      manualModelId: '手动模型 ID',
+      manualModelIdPlaceholder: '输入真实请求要使用的模型 ID',
+      requestAlias: '请求别名',
+      requestAliasPlaceholder: '留空则默认与模型 ID 一致',
+      sourceProtocol: '来源协议',
+      sourceProtocolOptions: {
+        openai: 'OpenAI',
+        anthropic: 'Anthropic',
+        gemini: 'Gemini'
+      },
       cronExpression: 'Cron 表达式',
       enabled: '启用',
       lastRun: '上次运行',

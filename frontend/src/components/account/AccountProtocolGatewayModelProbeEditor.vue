@@ -117,6 +117,15 @@
       </div>
     </div>
 
+    <AccountResolvedUpstreamPanel
+      :upstream-url="resolvedUpstream?.upstream_url"
+      :upstream-host="resolvedUpstream?.upstream_host"
+      :upstream-service="resolvedUpstream?.upstream_service"
+      :upstream-region="resolvedUpstream?.upstream_region"
+      :probe-source="resolvedUpstream?.upstream_probe_source"
+      :probed-at="resolvedUpstream?.upstream_probed_at"
+    />
+
     <div
       v-if="probedModels.length > 0"
       class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400"
@@ -267,6 +276,11 @@
     >
       {{ t('admin.accounts.protocolGateway.probeEmpty') }}
     </div>
+
+    <AccountManualModelsEditor
+      v-model:rows="manualModels"
+      :allow-source-protocol="true"
+    />
   </section>
 </template>
 
@@ -275,9 +289,12 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type {
+  AccountManualModel,
   ProtocolGatewayProbeModel,
   ProtocolGatewayProbeResponse
 } from '@/api/admin/accounts'
+import AccountManualModelsEditor from '@/components/account/AccountManualModelsEditor.vue'
+import AccountResolvedUpstreamPanel from '@/components/account/AccountResolvedUpstreamPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import type {
@@ -295,6 +312,10 @@ import {
   resolveGatewayProtocolDescriptor,
   supportedGatewayClientProfilesForProtocol
 } from '@/utils/accountProtocolGateway'
+import {
+  createResolvedUpstreamDraft,
+  type AccountResolvedUpstreamDraft
+} from '@/utils/accountProbeDraft'
 
 const props = defineProps<{
   gatewayProtocol: GatewayProtocol
@@ -313,6 +334,8 @@ const probedModels = defineModel<ProtocolGatewayProbeModel[]>('probedModels', { 
 const acceptedProtocols = defineModel<GatewayAcceptedProtocol[]>('acceptedProtocols', { required: true })
 const clientProfiles = defineModel<GatewayClientProfile[]>('clientProfiles', { required: true })
 const clientRoutes = defineModel<GatewayClientRoute[]>('clientRoutes', { required: true })
+const manualModels = defineModel<AccountManualModel[]>('manualModels', { required: true })
+const resolvedUpstream = defineModel<AccountResolvedUpstreamDraft | null>('resolvedUpstream', { required: true })
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -707,6 +730,7 @@ const handleProbe = async () => {
       accepted_protocols: normalizedAcceptedProtocols.value,
       base_url: props.baseUrl.trim() || undefined,
       api_key: trimmedApiKey.value,
+      manual_models: manualModels.value,
       proxy_id: props.proxyId ?? undefined
     })
     const aliasByTarget = new Map(
@@ -722,6 +746,13 @@ const handleProbe = async () => {
     }))
     probeSource.value = result.probe_source || ''
     probeNotice.value = result.probe_notice || ''
+    resolvedUpstream.value =
+      createResolvedUpstreamDraft({
+        upstream_url: result.resolved_upstream_url,
+        upstream_host: result.resolved_upstream_host,
+        upstream_service: result.resolved_upstream_service,
+        upstream_probe_source: result.probe_source
+      }) || resolvedUpstream.value
     emit('probed', result)
   } catch (error: any) {
     console.error('Failed to probe protocol gateway models:', error)

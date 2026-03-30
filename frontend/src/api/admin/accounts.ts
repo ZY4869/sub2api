@@ -196,10 +196,20 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
  * @returns Test result
  */
 export type AccountTestMode = 'real_forward' | 'health_check'
+export type AccountTestModelInputMode = 'catalog' | 'manual'
+
+export interface AccountManualModel {
+  model_id: string
+  request_alias?: string
+  source_protocol?: 'openai' | 'anthropic' | 'gemini'
+}
 
 export interface AccountTestRequestPayload {
   model_id?: string
   model?: string
+  model_input_mode?: AccountTestModelInputMode
+  manual_model_id?: string
+  request_alias?: string
   prompt?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
   test_mode?: AccountTestMode
@@ -338,6 +348,15 @@ export interface CopilotDeviceFlowPollResult {
   user?: CopilotDeviceFlowUser
 }
 
+export interface CopilotDeviceDraftResolveResult {
+  credentials: Record<string, unknown>
+  extra: Record<string, unknown>
+  user?: CopilotDeviceFlowUser
+  resolved_upstream_url?: string
+  resolved_upstream_host?: string
+  resolved_upstream_service?: string
+}
+
 export async function startCopilotDeviceFlow(payload: {
   proxy_id?: number | null
 } = {}): Promise<CopilotDeviceFlowStartResult> {
@@ -349,6 +368,17 @@ export async function pollCopilotDeviceFlow(sessionId: string): Promise<CopilotD
   const { data } = await apiClient.post<CopilotDeviceFlowPollResult>('/admin/copilot/device/poll', {
     session_id: sessionId
   })
+  return data
+}
+
+export async function resolveCopilotDeviceDraft(payload: {
+  session_id: string
+  proxy_id?: number | null
+}): Promise<CopilotDeviceDraftResolveResult> {
+  const { data } = await apiClient.post<CopilotDeviceDraftResolveResult>(
+    '/admin/copilot/device/resolve-draft',
+    payload
+  )
   return data
 }
 
@@ -980,6 +1010,9 @@ export interface ProtocolGatewayProbeModel {
 export interface ProtocolGatewayProbeResponse {
   probe_source: string
   probe_notice?: string
+  resolved_upstream_url?: string
+  resolved_upstream_host?: string
+  resolved_upstream_service?: string
   models: ProtocolGatewayProbeModel[]
 }
 
@@ -988,6 +1021,7 @@ export interface AccountProbeModelsPayload {
   type: string
   credentials?: Record<string, unknown>
   extra?: Record<string, unknown>
+  manual_models?: AccountManualModel[]
   proxy_id?: number | null
 }
 
@@ -1003,6 +1037,7 @@ export async function probeProtocolGatewayModels(payload: {
   accepted_protocols?: string[]
   base_url?: string
   api_key: string
+  manual_models?: AccountManualModel[]
   proxy_id?: number | null
 }): Promise<ProtocolGatewayProbeResponse> {
   const { data } = await apiClient.post<ProtocolGatewayProbeResponse>(
@@ -1225,6 +1260,7 @@ export const accountsAPI = {
   setPrivacy,
   startCopilotDeviceFlow,
   pollCopilotDeviceFlow,
+  resolveCopilotDeviceDraft,
   createCopilotAccountFromDevice,
   reauthorizeCopilotAccountFromDevice,
   refreshCopilotAccount,

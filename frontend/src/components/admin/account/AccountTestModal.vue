@@ -71,11 +71,50 @@
         </div>
       </div>
 
-      <div v-if="!isSoraAccount" class="space-y-1.5">
+      <div v-if="!isSoraAccount" class="space-y-3">
+        <div class="space-y-1.5">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.accounts.testModelInputModeLabel') }}
+          </label>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              :disabled="loadingModels || status === 'connecting'"
+              :class="modelInputModeButtonClass('catalog')"
+              @click="modelInputMode = 'catalog'"
+            >
+              <div class="text-sm font-semibold">
+                {{ t('admin.accounts.testModelInputModes.catalog') }}
+              </div>
+              <p class="mt-1 text-xs leading-5 opacity-80">
+                {{ t('admin.accounts.testModelInputModes.catalogHint') }}
+              </p>
+            </button>
+            <button
+              type="button"
+              :disabled="status === 'connecting'"
+              :class="modelInputModeButtonClass('manual')"
+              @click="modelInputMode = 'manual'"
+            >
+              <div class="text-sm font-semibold">
+                {{ t('admin.accounts.testModelInputModes.manual') }}
+              </div>
+              <p class="mt-1 text-xs leading-5 opacity-80">
+                {{ t('admin.accounts.testModelInputModes.manualHint') }}
+              </p>
+            </button>
+          </div>
+        </div>
+
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ t('admin.accounts.selectTestModel') }}
+          {{
+            modelInputMode === 'manual'
+              ? t('admin.accounts.probeFinalize.manualModelId')
+              : t('admin.accounts.selectTestModel')
+          }}
         </label>
         <Select
+          v-if="modelInputMode === 'catalog'"
           v-model="selectedModelKey"
           :options="availableModelOptions"
           :disabled="loadingModels || status === 'connecting'"
@@ -148,6 +187,45 @@
             </div>
           </template>
         </Select>
+
+        <div v-else class="grid gap-3 md:grid-cols-2">
+          <label class="space-y-1.5 md:col-span-2">
+            <input
+              v-model="manualModelId"
+              type="text"
+              class="input"
+              :disabled="status === 'connecting'"
+              :placeholder="t('admin.accounts.probeFinalize.manualModelIdPlaceholder')"
+            />
+          </label>
+          <label v-if="isProtocolGatewayAccount" class="space-y-1.5">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.accounts.probeFinalize.manualSourceProtocol') }}
+            </span>
+            <select
+              v-model="manualSourceProtocol"
+              class="input"
+              :disabled="status === 'connecting'"
+            >
+              <option value="">{{ t('admin.accounts.probeFinalize.manualSourceProtocolAuto') }}</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="gemini">Gemini</option>
+            </select>
+          </label>
+          <label class="space-y-1.5">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t('admin.accounts.probeFinalize.manualRequestAlias') }}
+            </span>
+            <input
+              v-model="manualRequestAlias"
+              type="text"
+              class="input"
+              :disabled="status === 'connecting'"
+              :placeholder="manualModelId || t('admin.accounts.probeFinalize.manualRequestAliasPlaceholder')"
+            />
+          </label>
+        </div>
       </div>
       <div
         v-if="isKiroAccount"
@@ -342,10 +420,10 @@
         </button>
         <button
           @click="startTest"
-          :disabled="status === 'connecting' || (!isSoraAccount && !selectedModelKey)"
+          :disabled="status === 'connecting' || (!isSoraAccount && !effectiveSelectedModelId)"
           :class="[
             'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-            status === 'connecting' || (!isSoraAccount && !selectedModelKey)
+            status === 'connecting' || (!isSoraAccount && !effectiveSelectedModelId)
               ? 'cursor-not-allowed bg-primary-400 text-white'
               : status === 'success'
                 ? 'bg-green-500 text-white hover:bg-green-600'
@@ -451,6 +529,10 @@ const availableModelOptions = computed<AccountTestModelOption[]>(() =>
   }))
 )
 const selectedModelKey = ref('')
+const modelInputMode = ref<'catalog' | 'manual'>('catalog')
+const manualModelId = ref('')
+const manualRequestAlias = ref('')
+const manualSourceProtocol = ref<'openai' | 'anthropic' | 'gemini' | ''>('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
 let eventSource: EventSource | null = null
@@ -467,9 +549,18 @@ const selectedModelId = computed(() => selectedModelOption.value?.id || '')
 const selectedSourceProtocol = computed(() =>
   normalizeGatewayAcceptedProtocol(selectedModelOption.value?.source_protocol)
 )
+const effectiveSelectedModelId = computed(() =>
+  modelInputMode.value === 'manual' ? manualModelId.value.trim() : selectedModelId.value
+)
+const effectiveSelectedSourceProtocol = computed(() =>
+  modelInputMode.value === 'manual'
+    ? normalizeGatewayAcceptedProtocol(manualSourceProtocol.value)
+    : selectedSourceProtocol.value
+)
 const isSoraAccount = computed(() => props.account?.platform === 'sora')
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
+const isProtocolGatewayAccount = computed(() => props.account?.platform === 'protocol_gateway')
 const generatedImages = ref<PreviewImage[]>([])
 const runtimeContext = ref<{
   testMode: '' | AccountTestMode
@@ -495,11 +586,11 @@ const testModeOptions = computed(() => [
   }
 ])
 const effectiveTestPlatform = computed(() =>
-  selectedSourceProtocol.value || runtimePlatform.value
+  effectiveSelectedSourceProtocol.value || runtimePlatform.value
 )
 const supportsGeminiImageTest = computed(() => {
   if (isSoraAccount.value) return false
-  const modelID = selectedModelId.value.toLowerCase()
+  const modelID = effectiveSelectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
 
   return effectiveTestPlatform.value === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
@@ -665,6 +756,10 @@ watch(
   async (newVal) => {
     if (newVal && props.account) {
       testPrompt.value = ''
+      modelInputMode.value = 'catalog'
+      manualModelId.value = ''
+      manualRequestAlias.value = ''
+      manualSourceProtocol.value = ''
       selectedTestMode.value = supportsTestModes.value
         ? loadAccountTestModePreference()
         : DEFAULT_ACCOUNT_TEST_MODE
@@ -676,13 +771,13 @@ watch(
   }
 )
 
-watch([selectedModelId, effectiveTestPlatform], () => {
+watch([effectiveSelectedModelId, effectiveTestPlatform], () => {
   if (supportsGeminiImageTest.value && !testPrompt.value.trim()) {
     testPrompt.value = t('admin.accounts.geminiImagePromptDefault')
   }
 })
 
-watch(selectedModelKey, () => {
+watch([selectedModelKey, modelInputMode, manualModelId, manualSourceProtocol], () => {
   runtimeContext.value = {
     testMode: '',
     platform: '',
@@ -771,9 +866,27 @@ const selectTestMode = (mode: AccountTestMode) => {
   saveAccountTestModePreference(normalized)
 }
 
+const modelInputModeButtonClass = (mode: 'catalog' | 'manual') => [
+  'rounded-xl border px-4 py-3 text-left transition-all',
+  modelInputMode.value === mode
+    ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-500/10 dark:text-primary-200'
+    : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200 dark:hover:border-primary-500/60',
+  status.value === 'connecting' ? 'cursor-not-allowed opacity-70' : ''
+]
+
 const resolveTestRequestBody = () => {
   if (isSoraAccount.value) {
     return {}
+  }
+  if (modelInputMode.value === 'manual') {
+    return {
+      model_input_mode: 'manual' as const,
+      manual_model_id: manualModelId.value.trim(),
+      request_alias: manualRequestAlias.value.trim() || undefined,
+      test_mode: selectedTestMode.value,
+      source_protocol: effectiveSelectedSourceProtocol.value || undefined,
+      prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
+    }
   }
   if (isGrokAccount.value) {
     return {
@@ -785,7 +898,7 @@ const resolveTestRequestBody = () => {
     model_id: selectedModelId.value,
     model: selectedModelId.value,
     test_mode: selectedTestMode.value,
-    source_protocol: selectedSourceProtocol.value || undefined,
+    source_protocol: effectiveSelectedSourceProtocol.value || undefined,
     prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
   }
 }
@@ -818,7 +931,7 @@ const resolveResponseErrorMessage = async (response: Response) => {
 }
 
 const startTest = async () => {
-  if (!props.account || (!isSoraAccount.value && !selectedModelId.value)) return
+  if (!props.account || (!isSoraAccount.value && !effectiveSelectedModelId.value)) return
 
   resetState()
   status.value = 'connecting'

@@ -36,16 +36,39 @@
               oauthStepTitle
             }}</span>
           </div>
+          <template v-if="showOAuthFinalizeStep">
+            <div class="hidden h-0.5 w-8 bg-gray-300 dark:bg-dark-600 sm:block" />
+            <div class="flex min-w-0 items-center justify-center">
+              <div
+                :class="[
+                  'flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold',
+                  step >= 3 ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-500 dark:bg-dark-600'
+                ]"
+              >
+                3
+              </div>
+              <span class="ml-2 min-w-0 break-words text-sm font-medium text-gray-700 dark:text-gray-300">{{
+                t('admin.accounts.probeFinalize.stepTitle')
+              }}</span>
+            </div>
+          </template>
         </div>
       </div>
 
       <!-- Step 1: Basic Info -->
       <form
-        v-if="step === 1"
+        v-if="step === 1 || step === 3"
         id="create-account-form"
         @submit.prevent="handleSubmit"
         class="min-w-0 space-y-5"
       >
+        <div
+          v-if="step === 3 && showOAuthFinalizeStep"
+          class="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"
+        >
+          {{ t('admin.accounts.probeFinalize.readyHint') }}
+        </div>
+
         <div>
           <label class="input-label">{{ t('admin.accounts.accountName') }}</label>
           <input
@@ -108,9 +131,12 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           platform="gemini"
           :account-type="geminiVertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'"
           :credentials="vertexProbeCredentials"
+          :extra="buildProbeExtra()"
           :probe-ready="isVertexProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -120,9 +146,12 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="antigravityModelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           :platform="form.platform"
           account-type="upstream"
           :credentials="upstreamProbeCredentials"
+          :extra="buildProbeExtra()"
           :probe-ready="isUpstreamProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -204,6 +233,8 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           v-model:accepted-protocols="gatewayAcceptedProtocols"
           v-model:client-profiles="gatewayClientProfiles"
           v-model:client-routes="gatewayClientRoutes"
@@ -218,9 +249,12 @@
           v-model:allowed-models="allowedModels"
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
+          v-model:manual-models="manualModels"
+          v-model:resolved-upstream="resolvedUpstream"
           :platform="form.platform"
           account-type="apikey"
           :credentials="apiKeyProbeCredentials"
+          :extra="buildProbeExtra()"
           :probe-ready="isApiKeyProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -239,6 +273,21 @@
         />
 
       </div>
+
+      <AccountApiKeyModelProbeEditor
+        v-if="showOAuthFinalizeProbeEditor"
+        v-model:allowed-models="allowedModels"
+        v-model:model-mappings="modelMappings"
+        v-model:probed-models="protocolGatewayProbeModels"
+        v-model:manual-models="manualModels"
+        v-model:resolved-upstream="resolvedUpstream"
+        :platform="form.platform"
+        account-type="oauth"
+        :credentials="oauthDraftCredentials"
+        :extra="buildProbeExtra(oauthDraftExtra)"
+        :probe-ready="oauthDraftProbeReady"
+        :proxy-id="form.proxy_id"
+      />
 
       <div v-if="showQuotaLimitSection" class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3">
@@ -460,6 +509,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
 import type {
+  AccountManualModel,
   AccountModelImportResult,
   ProtocolGatewayProbeModel
 } from '@/api/admin/accounts'
@@ -538,6 +588,12 @@ import {
   createDefaultAccountPoolModeState,
   type ModelMapping
 } from '@/utils/accountFormShared'
+import {
+  createResolvedUpstreamDraft,
+  mergeAccountManualModelsIntoExtra,
+  mergeResolvedUpstreamDraftIntoExtra,
+  type AccountResolvedUpstreamDraft
+} from '@/utils/accountProbeDraft'
 import {
   applyAccountCustomErrorCodesStateToCredentials,
   applyAccountPoolModeStateToCredentials
@@ -668,6 +724,8 @@ const editQuotaResetTimezone = ref<string | null>(null)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
+const manualModels = ref<AccountManualModel[]>([])
+const resolvedUpstream = ref<AccountResolvedUpstreamDraft | null>(null)
 const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
@@ -697,6 +755,8 @@ const geminiVertexApiKey = ref('')
 const geminiVertexAccessToken = ref('')
 const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
+const oauthDraftCredentials = ref<Record<string, unknown>>({})
+const oauthDraftExtra = ref<Record<string, unknown>>({})
 const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
   const credentials: Record<string, unknown> = {
     api_key: apiKeyValue.value.trim(),
@@ -739,6 +799,7 @@ const vertexProbeCredentials = computed<Record<string, unknown>>(() => {
 })
 const isApiKeyProbeReady = computed(() => Boolean(apiKeyValue.value.trim()))
 const isUpstreamProbeReady = computed(() => Boolean(upstreamApiKey.value.trim()))
+const oauthDraftProbeReady = computed(() => Object.keys(oauthDraftCredentials.value).length > 0)
 const isVertexProbeReady = computed(() => {
   if (geminiVertexAuthMode.value === 'express_api_key') {
     return Boolean(geminiVertexApiKey.value.trim())
@@ -763,6 +824,12 @@ const showQuotaLimitSection = computed(() => {
   }
   return form.type === 'apikey'
 })
+const showOAuthFinalizeStep = computed(() =>
+  isOAuthFlow.value && (form.platform === 'copilot' || form.platform === 'kiro')
+)
+const showOAuthFinalizeProbeEditor = computed(() =>
+  showOAuthFinalizeStep.value && step.value === 3 && oauthDraftProbeReady.value
+)
 const antigravityModelMappings = ref<ModelMapping[]>([])
 const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('antigravity'))
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-model-mapping')
@@ -989,6 +1056,10 @@ watch(
             ? [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
             : []
       protocolGatewayProbeModels.value = []
+      manualModels.value = []
+      resolvedUpstream.value = null
+      oauthDraftCredentials.value = {}
+      oauthDraftExtra.value = {}
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
@@ -1043,6 +1114,10 @@ watch(
   (newPlatform) => {
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     allowedModels.value = []
+    manualModels.value = []
+    resolvedUpstream.value = null
+    oauthDraftCredentials.value = {}
+    oauthDraftExtra.value = {}
     protocolGatewayProbeModels.value = []
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
@@ -1377,6 +1452,10 @@ const { resetForm } = useCreateAccountReset({
   modelMappings,
   modelRestrictionMode,
   allowedModels,
+  manualModels,
+  resolvedUpstream,
+  oauthDraftCredentials,
+  oauthDraftExtra,
   protocolGatewayProbedModels: protocolGatewayProbeModels as unknown as Ref<Array<Record<string, unknown>>>,
   gatewayAcceptedProtocols,
   gatewayClientProfiles,
@@ -1440,11 +1519,9 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     anthropicPassthroughEnabled: anthropicPassthroughEnabled.value
   })
 
-  if (!isProtocolGatewayPlatform(form.platform)) {
-    return anthropicExtra
-  }
-
-  return applyProtocolGatewayClaudeClientMimicExtra({
+  const extraWithProtocolGateway = !isProtocolGatewayPlatform(form.platform)
+    ? anthropicExtra
+    : applyProtocolGatewayClaudeClientMimicExtra({
     ...(anthropicExtra || {}),
     gateway_protocol: gatewayProtocol.value,
     gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
@@ -1459,6 +1536,15 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
     sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
   })
+
+  return mergeResolvedUpstreamDraftIntoExtra(
+    mergeAccountManualModelsIntoExtra(
+      extraWithProtocolGateway,
+      manualModels.value,
+      isProtocolGatewayPlatform(form.platform)
+    ),
+    resolvedUpstream.value
+  )
 }
 
 const buildSoraAccountExtra = (
@@ -1600,24 +1686,20 @@ const handleCreateCopilotAccount = async (payload: { sessionId: string }) => {
 
   copilotSubmitting.value = true
   try {
-    const createdAccount = await adminAPI.accounts.createCopilotAccountFromDevice({
+    const draft = await adminAPI.accounts.resolveCopilotDeviceDraft({
       session_id: payload.sessionId,
-      proxy_id: form.proxy_id,
-      name: form.name,
-      notes: form.notes || undefined,
-      concurrency: form.concurrency,
-      load_factor: form.load_factor ?? undefined,
-      priority: form.priority,
-      rate_multiplier: form.rate_multiplier,
-      group_ids: form.group_ids,
-      expires_at: form.expires_at,
-      auto_pause_on_expired: autoPauseOnExpired.value
+      proxy_id: form.proxy_id
     })
-
-    appStore.showSuccess(t('admin.accounts.accountCreated'))
-    await maybeImportCreatedAccounts([createdAccount])
-    emit('created')
-    handleClose()
+    oauthDraftCredentials.value = { ...(draft.credentials || {}) }
+    oauthDraftExtra.value = { ...(draft.extra || {}) }
+    resolvedUpstream.value =
+      createResolvedUpstreamDraft({
+        upstream_url: draft.resolved_upstream_url,
+        upstream_host: draft.resolved_upstream_host,
+        upstream_service: draft.resolved_upstream_service,
+        upstream_probe_source: 'copilot_device_draft'
+      }) || resolvedUpstream.value
+    step.value = 3
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.failedToCreate'))
   } finally {
@@ -1626,7 +1708,9 @@ const handleCreateCopilotAccount = async (payload: { sessionId: string }) => {
 }
 
 const handleCreateKiroAccount = async (payload: ParsedKiroTokenImport) => {
-  await createAccountAndFinish('kiro', 'oauth', payload.credentials, payload.extra)
+  oauthDraftCredentials.value = { ...(payload.credentials || {}) }
+  oauthDraftExtra.value = { ...(payload.extra || {}) }
+  step.value = 3
 }
 
 const handleSubmit = async () => {
@@ -1634,6 +1718,15 @@ const handleSubmit = async () => {
   if (isOAuthFlow.value) {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+      return
+    }
+    if (showOAuthFinalizeStep.value && step.value === 3 && oauthDraftProbeReady.value) {
+      await createAccountAndFinish(
+        form.platform,
+        'oauth',
+        { ...oauthDraftCredentials.value },
+        buildAccountExtra(oauthDraftExtra.value)
+      )
       return
     }
     const canContinue = await ensureMixedChannelConfirmed(async () => {
@@ -1827,6 +1920,10 @@ const handleGrokImportCompleted = (result: GrokImportResult) => {
 }
 
 const goBackToBasicInfo = () => {
+  if (showOAuthFinalizeStep.value && step.value === 3) {
+    step.value = 2
+    return
+  }
   step.value = 1
   copilotSubmitting.value = false
   oauth.resetState()
@@ -1924,4 +2021,14 @@ const handleExchangeCode = async () => {
       return handleAnthropicExchange(authCode)
   }
 }
+
+const buildProbeExtra = (base?: Record<string, unknown>) =>
+  mergeResolvedUpstreamDraftIntoExtra(
+    mergeAccountManualModelsIntoExtra(
+      base,
+      manualModels.value,
+      isProtocolGatewayPlatform(form.platform)
+    ),
+    resolvedUpstream.value
+  )
 </script>

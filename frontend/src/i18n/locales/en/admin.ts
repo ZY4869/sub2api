@@ -2268,6 +2268,37 @@ export default {
         registryExisting: 'Already in registry',
         registryMissing: 'Missing from registry'
       },
+      probeFinalize: {
+        stepTitle: 'Finalize',
+        readyHint: 'Authorization is complete. Review the resolved upstream, probe again if needed, add manual model IDs, and then create the account.',
+        upstreamTitle: 'Resolved Upstream',
+        upstreamHint: 'This shows the real upstream derived from the current credentials. The same metadata is persisted and reused after creation.',
+        upstreamUrl: 'Upstream URL',
+        upstreamHost: 'Upstream Host',
+        upstreamService: 'Upstream Service',
+        upstreamRegion: 'Upstream Region',
+        upstreamProbeSource: 'Probe Source',
+        upstreamProbedAt: 'Probed At',
+        manualModelsTitle: 'Manual Model IDs',
+        manualModelsHint: 'Use this when runtime calls should support a model even if online enumeration is unavailable. Leaving alias blank falls back to the model ID.',
+        manualModelsHintGateway: 'Mixed / protocol-gateway manual models can also set a source protocol. Leaving it empty defers to runtime routing.',
+        addManualModel: 'Add Manual Model',
+        removeManualModel: 'Remove',
+        manualModelsEmpty: 'No manual model entries yet. You can probe first or add model IDs directly.',
+        manualModelId: 'Model ID',
+        manualModelIdPlaceholder: 'For example: gpt-4.1 or claude-sonnet-4-5',
+        manualRequestAlias: 'Request Alias',
+        manualRequestAliasPlaceholder: 'Defaults to the model ID when left blank',
+        manualSourceProtocol: 'Source Protocol',
+        manualSourceProtocolAuto: 'Auto'
+      },
+      testModelInputModeLabel: 'Test Model Input Mode',
+      testModelInputModes: {
+        catalog: 'Select Existing Model',
+        catalogHint: 'Choose from models already visible to this account for routine validation.',
+        manual: 'Enter Model ID Manually',
+        manualHint: 'Useful when the model is not imported yet but you still want to test the real runtime path.'
+      },
       // Re-Auth Modal
       reAuthorizeAccount: 'Re-Authorize Account',
       claudeCodeAccount: 'Claude Code Account',
@@ -2513,6 +2544,21 @@ export default {
       editPlan: 'Edit Plan',
       deletePlan: 'Delete Plan',
       model: 'Model',
+      modelInputMode: 'Model Source',
+      modelInputModeOptions: {
+        catalog: 'Existing Model',
+        manual: 'Manual Input'
+      },
+      manualModelId: 'Manual Model ID',
+      manualModelIdPlaceholder: 'Enter the real model ID to request',
+      requestAlias: 'Request Alias',
+      requestAliasPlaceholder: 'Defaults to the model ID when empty',
+      sourceProtocol: 'Source Protocol',
+      sourceProtocolOptions: {
+        openai: 'OpenAI',
+        anthropic: 'Anthropic',
+        gemini: 'Gemini'
+      },
       cronExpression: 'Cron Expression',
       enabled: 'Enabled',
       lastRun: 'Last Run',

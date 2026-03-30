@@ -177,6 +177,20 @@ type CopilotDeviceFlowPollRequest struct {
 	SessionID string `json:"session_id" binding:"required"`
 }
 
+type ResolveCopilotDeviceDraftRequest struct {
+	SessionID string `json:"session_id" binding:"required"`
+	ProxyID   *int64 `json:"proxy_id"`
+}
+
+type ResolveCopilotDeviceDraftResponse struct {
+	Credentials             map[string]any                 `json:"credentials"`
+	Extra                   map[string]any                 `json:"extra"`
+	User                    *service.CopilotGitHubUserInfo `json:"user,omitempty"`
+	ResolvedUpstreamURL     string                         `json:"resolved_upstream_url,omitempty"`
+	ResolvedUpstreamHost    string                         `json:"resolved_upstream_host,omitempty"`
+	ResolvedUpstreamService string                         `json:"resolved_upstream_service,omitempty"`
+}
+
 func (h *OpenAIOAuthHandler) PollCopilotDeviceFlow(c *gin.Context) {
 	if h.copilotOAuthService == nil {
 		response.InternalError(c, "Copilot OAuth service unavailable")
@@ -195,6 +209,63 @@ func (h *OpenAIOAuthHandler) PollCopilotDeviceFlow(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+func (h *OpenAIOAuthHandler) ResolveCopilotDeviceDraft(c *gin.Context) {
+	if h.copilotOAuthService == nil {
+		response.InternalError(c, "Copilot OAuth service unavailable")
+		return
+	}
+
+	var req ResolveCopilotDeviceDraftRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	githubToken, userInfo, err := h.copilotOAuthService.GetAuthorizedDeviceSession(req.SessionID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	probeAccount := &service.Account{
+		Platform:    service.PlatformCopilot,
+		Type:        service.AccountTypeOAuth,
+		Credentials: h.copilotOAuthService.BuildAccountCredentials(githubToken),
+		ProxyID:     req.ProxyID,
+	}
+	if req.ProxyID != nil {
+		if proxy, proxyErr := h.adminService.GetProxy(c.Request.Context(), *req.ProxyID); proxyErr == nil && proxy != nil {
+			probeAccount.Proxy = proxy
+		}
+	}
+
+	tokenInfo, err := h.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(c.Request.Context(), probeAccount)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	credentials := h.copilotOAuthService.BuildAccountCredentialsWithTokenInfo(githubToken, tokenInfo)
+	extra := service.MergeStringAnyMap(
+		h.copilotOAuthService.BuildAccountExtra(userInfo),
+		map[string]any{
+			"provider": "github",
+			"source":   "copilot_device_flow",
+		},
+	)
+	extra = service.MergeStringAnyMap(extra, h.copilotOAuthService.BuildAccountUpstreamExtra(tokenInfo, "copilot_device_draft"))
+	resolved := service.ResolveUpstreamInfo(tokenInfo.APIBaseURL, service.PlatformCopilot, "copilot_device_draft")
+
+	response.Success(c, ResolveCopilotDeviceDraftResponse{
+		Credentials:             credentials,
+		Extra:                   extra,
+		User:                    userInfo,
+		ResolvedUpstreamURL:     resolved.URL,
+		ResolvedUpstreamHost:    resolved.Host,
+		ResolvedUpstreamService: resolved.Service,
+	})
 }
 
 // ExchangeSoraSessionToken exchanges Sora session token to access token
@@ -428,10 +499,12 @@ func (h *OpenAIOAuthHandler) CreateCopilotAccountFromDevice(c *gin.Context) {
 		Credentials: credentials,
 		ProxyID:     req.ProxyID,
 	}
-	if _, err := h.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(c.Request.Context(), probeAccount); err != nil {
+	tokenInfo, err := h.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(c.Request.Context(), probeAccount)
+	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	credentials = h.copilotOAuthService.BuildAccountCredentialsWithTokenInfo(githubToken, tokenInfo)
 
 	extra := service.MergeStringAnyMap(
 		h.copilotOAuthService.BuildAccountExtra(userInfo),
@@ -440,6 +513,7 @@ func (h *OpenAIOAuthHandler) CreateCopilotAccountFromDevice(c *gin.Context) {
 			"source":   "copilot_device_flow",
 		},
 	)
+	extra = service.MergeStringAnyMap(extra, h.copilotOAuthService.BuildAccountUpstreamExtra(tokenInfo, "copilot_device_create"))
 
 	name := strings.TrimSpace(req.Name)
 	if name == "" && userInfo != nil {
@@ -530,16 +604,19 @@ func (h *OpenAIOAuthHandler) ReauthorizeCopilotAccountFromDevice(c *gin.Context)
 		ProxyID:     account.ProxyID,
 		Proxy:       account.Proxy,
 	}
-	if _, err := h.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(c.Request.Context(), probeAccount); err != nil {
+	tokenInfo, err := h.copilotOAuthService.ExchangeGitHubTokenForCopilotToken(c.Request.Context(), probeAccount)
+	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	credentials = h.copilotOAuthService.BuildAccountCredentialsWithTokenInfo(githubToken, tokenInfo)
 
 	extra := service.MergeStringAnyMap(account.Extra, h.copilotOAuthService.BuildAccountExtra(userInfo))
 	extra = service.MergeStringAnyMap(extra, map[string]any{
 		"provider": "github",
 		"source":   "copilot_device_flow",
 	})
+	extra = service.MergeStringAnyMap(extra, h.copilotOAuthService.BuildAccountUpstreamExtra(tokenInfo, "copilot_device_reauthorize"))
 
 	updatedAccount, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Type:        service.AccountTypeOAuth,

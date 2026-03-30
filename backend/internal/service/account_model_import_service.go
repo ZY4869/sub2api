@@ -53,10 +53,13 @@ type AccountModelImportResult struct {
 }
 
 type AccountModelProbeSummary struct {
-	DetectedModels []string                 `json:"detected_models"`
-	Models         []AccountModelProbeModel `json:"models,omitempty"`
-	ProbeSource    string                   `json:"probe_source"`
-	ProbeNotice    string                   `json:"probe_notice,omitempty"`
+	DetectedModels          []string                 `json:"detected_models"`
+	Models                  []AccountModelProbeModel `json:"models,omitempty"`
+	ProbeSource             string                   `json:"probe_source"`
+	ProbeNotice             string                   `json:"probe_notice,omitempty"`
+	ResolvedUpstreamURL     string                   `json:"resolved_upstream_url,omitempty"`
+	ResolvedUpstreamHost    string                   `json:"resolved_upstream_host,omitempty"`
+	ResolvedUpstreamService string                   `json:"resolved_upstream_service,omitempty"`
 }
 
 type AccountModelProbeModel struct {
@@ -69,10 +72,11 @@ type AccountModelProbeModel struct {
 }
 
 type accountModelProbeResult struct {
-	Models  []string
-	Details []AccountModelProbeModel
-	Source  string
-	Notice  string
+	Models           []string
+	Details          []AccountModelProbeModel
+	Source           string
+	Notice           string
+	ResolvedUpstream ResolvedUpstreamInfo
 }
 
 func newAccountModelProbeResult(models []string) *accountModelProbeResult {
@@ -94,6 +98,7 @@ type AccountModelImportService struct {
 	modelCatalogService          *ModelCatalogService
 	modelRegistryService         *ModelRegistryService
 	geminiCompatService          *GeminiMessagesCompatService
+	kiroRuntimeService           *KiroRuntimeService
 	vertexCatalogService         VertexCatalogProvider
 	openAITokenProvider          *OpenAITokenProvider
 	httpUpstream                 HTTPUpstream
@@ -124,6 +129,10 @@ func (s *AccountModelImportService) SetModelRegistryService(modelRegistryService
 
 func (s *AccountModelImportService) SetOpenAITokenProvider(openAITokenProvider *OpenAITokenProvider) {
 	s.openAITokenProvider = openAITokenProvider
+}
+
+func (s *AccountModelImportService) SetKiroRuntimeService(kiroRuntimeService *KiroRuntimeService) {
+	s.kiroRuntimeService = kiroRuntimeService
 }
 
 func (s *AccountModelImportService) SetVertexCatalogService(vertexCatalogService VertexCatalogProvider) {
@@ -160,12 +169,16 @@ func (s *AccountModelImportService) ListAccountModels(
 	if probeSource == "" {
 		probeSource = accountModelProbeSourceUpstream
 	}
+	resolvedUpstream := probeResult.ResolvedUpstream
 
 	return &AccountModelProbeSummary{
-		DetectedModels: detectedModels,
-		Models:         normalizeAccountModelProbeDetails(probeResult.Details, detectedModels),
-		ProbeSource:    probeSource,
-		ProbeNotice:    strings.TrimSpace(probeResult.Notice),
+		DetectedModels:          detectedModels,
+		Models:                  normalizeAccountModelProbeDetails(probeResult.Details, detectedModels),
+		ProbeSource:             probeSource,
+		ProbeNotice:             strings.TrimSpace(probeResult.Notice),
+		ResolvedUpstreamURL:     strings.TrimSpace(resolvedUpstream.URL),
+		ResolvedUpstreamHost:    strings.TrimSpace(resolvedUpstream.Host),
+		ResolvedUpstreamService: strings.TrimSpace(resolvedUpstream.Service),
 	}, nil
 }
 
@@ -349,6 +362,7 @@ func (s *AccountModelImportService) loadProbeResult(
 		if err != nil {
 			return nil, err
 		}
+		result = s.mergeManualModelsIntoProbeResult(account, result)
 		if s.probeCache != nil {
 			s.probeCache.Set(cacheKey, cloneAccountModelProbeResult(result), accountModelProbeCacheTTL)
 		}
@@ -369,6 +383,7 @@ func (s *AccountModelImportService) loadProbeResult(
 		if detectErr != nil {
 			return nil, detectErr
 		}
+		result = s.mergeManualModelsIntoProbeResult(account, result)
 		cloned := cloneAccountModelProbeResult(result)
 		s.probeCache.Set(cacheKey, cloned, accountModelProbeCacheTTL)
 		return cloneAccountModelProbeResult(cloned), nil
@@ -407,6 +422,7 @@ func (s *AccountModelImportService) probeCacheKey(account *Account) string {
 	}
 	acceptedProtocols := append([]string(nil), GetAccountGatewayAcceptedProtocols(account)...)
 	sort.Strings(acceptedProtocols)
+	manualModels := AccountManualModelsFromExtra(account.Extra, IsProtocolGatewayAccount(account))
 
 	return strings.Join([]string{
 		"groups=" + strings.Join(groupParts, ","),
@@ -420,6 +436,7 @@ func (s *AccountModelImportService) probeCacheKey(account *Account) string {
 		"gateway=" + strings.TrimSpace(GetAccountGatewayProtocol(account)),
 		"accepted=" + strings.Join(acceptedProtocols, ","),
 		"mapping=" + accountModelImportMappingSignature(account.GetModelMapping()),
+		"manual=" + accountManualModelsSignature(manualModels),
 	}, "|")
 }
 
@@ -470,10 +487,11 @@ func cloneAccountModelProbeResult(result *accountModelProbeResult) *accountModel
 		return nil
 	}
 	return &accountModelProbeResult{
-		Models:  append([]string(nil), result.Models...),
-		Details: append([]AccountModelProbeModel(nil), result.Details...),
-		Source:  result.Source,
-		Notice:  result.Notice,
+		Models:           append([]string(nil), result.Models...),
+		Details:          append([]AccountModelProbeModel(nil), result.Details...),
+		Source:           result.Source,
+		Notice:           result.Notice,
+		ResolvedUpstream: result.ResolvedUpstream,
 	}
 }
 
@@ -548,6 +566,56 @@ func normalizeAccountModelProbeDetails(details []AccountModelProbeModel, detecte
 		})
 	}
 	return result
+}
+
+func (s *AccountModelImportService) mergeManualModelsIntoProbeResult(account *Account, result *accountModelProbeResult) *accountModelProbeResult {
+	if result == nil {
+		return nil
+	}
+	manualModels := AccountManualModelsFromExtra(account.Extra, IsProtocolGatewayAccount(account))
+	if len(manualModels) == 0 {
+		return result
+	}
+	mergedModels := append([]string(nil), result.Models...)
+	mergedDetails := append([]AccountModelProbeModel(nil), result.Details...)
+	seen := make(map[string]struct{}, len(mergedDetails))
+	for _, detail := range mergedDetails {
+		if modelID := NormalizeModelCatalogModelID(detail.ID); modelID != "" {
+			seen[modelID] = struct{}{}
+		}
+	}
+	for _, manualModel := range manualModels {
+		modelID := NormalizeModelCatalogModelID(manualModel.ModelID)
+		if modelID == "" {
+			continue
+		}
+		mergedModels = append(mergedModels, modelID)
+		if _, exists := seen[modelID]; exists {
+			continue
+		}
+		seen[modelID] = struct{}{}
+		mergedDetails = append(mergedDetails, AccountModelProbeModel{
+			ID:             modelID,
+			DisplayName:    FormatModelCatalogDisplayName(modelID),
+			SourceProtocol: manualModel.SourceProtocol,
+			UpstreamSource: "manual",
+			Availability:   "manual",
+		})
+	}
+	result.Models = mergedModels
+	result.Details = mergedDetails
+	return result
+}
+
+func accountManualModelsSignature(models []AccountManualModel) string {
+	if len(models) == 0 {
+		return ""
+	}
+	payload, err := json.Marshal(models)
+	if err != nil {
+		return ""
+	}
+	return string(payload)
 }
 
 func summarizeAccountModelImportError(err error) string {

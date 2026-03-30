@@ -423,7 +423,7 @@ func TestImportAccountModels_ImportsKiroModelsFromBuiltinCatalog(t *testing.T) {
 	expectedDetected, _ := normalizeImportedModelIDs(KiroBuiltinModelIDs())
 	require.Equal(t, expectedDetected, result.DetectedModels)
 	require.Equal(t, KiroBuiltinCatalogSource, result.ProbeSource)
-	require.Equal(t, KiroBuiltinCatalogNotice, result.ProbeNotice)
+	require.Equal(t, "Kiro runtime verification is unavailable in this deployment; model list uses built-in candidate catalog", result.ProbeNotice)
 	require.GreaterOrEqual(t, len(result.ModelResults), len(result.DetectedModels))
 	require.Equal(t, len(result.DetectedModels), countImportModelResults(result.ModelResults, "imported"))
 }

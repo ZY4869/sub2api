@@ -97,7 +97,9 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 			case service.NormalizeAccountLifecycleInput(account.LifecycleState) != service.AccountLifecycleBlacklisted:
 				result.ErrorMessage = "account is not blacklisted"
 			default:
-				testResult, err := h.accountTestService.RunTestBackground(gctx, accountID, "")
+				testResult, err := h.accountTestService.RunTestBackground(gctx, service.ScheduledTestExecutionInput{
+					AccountID: accountID,
+				})
 				if testResult != nil {
 					result.ResponseText = testResult.ResponseText
 					result.LatencyMs = testResult.LatencyMs

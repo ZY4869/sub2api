@@ -23,6 +23,8 @@ type OpenAIRecordFailedUsageInput struct {
 	UpstreamModel    string
 	InboundEndpoint  string
 	UpstreamEndpoint string
+	UpstreamURL      string
+	UpstreamService  string
 	UserAgent        string
 	IPAddress        string
 	HTTPStatus       int
@@ -46,6 +48,8 @@ type RecordFailedUsageInput struct {
 	UpstreamModel    string
 	InboundEndpoint  string
 	UpstreamEndpoint string
+	UpstreamURL      string
+	UpstreamService  string
 	UserAgent        string
 	IPAddress        string
 	HTTPStatus       int
@@ -156,6 +160,8 @@ func buildFailedUsageLogBase(
 		ThinkingEnabled:       input.ThinkingEnabled,
 		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
 		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		UpstreamURL:           optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)),
+		UpstreamService:       optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)),
 		RateMultiplier:        multiplier,
 		AccountRateMultiplier: &accountRateMultiplier,
 		BillingType:           billingType,
@@ -212,6 +218,8 @@ func (s *OpenAIGatewayService) RecordFailedUsage(ctx context.Context, input *Ope
 		UpstreamModel:    input.UpstreamModel,
 		InboundEndpoint:  input.InboundEndpoint,
 		UpstreamEndpoint: input.UpstreamEndpoint,
+		UpstreamURL:      input.UpstreamURL,
+		UpstreamService:  input.UpstreamService,
 		UserAgent:        input.UserAgent,
 		IPAddress:        input.IPAddress,
 		HTTPStatus:       input.HTTPStatus,

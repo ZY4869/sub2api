@@ -30,6 +30,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const submitLabel = computed(() => {
+  if (props.step === 3) {
+    return props.submitting ? t('admin.accounts.creating') : t('common.create')
+  }
   if (props.isOAuthFlow) return t('common.next')
   if (props.submitting) return t('admin.accounts.creating')
   return t('common.create')
@@ -41,7 +44,7 @@ const exchangeLabel = computed(() =>
 </script>
 
 <template>
-  <div v-if="step === 1" class="flex flex-wrap items-center justify-between gap-3">
+  <div v-if="step === 1 || step === 3" class="flex flex-wrap items-center justify-between gap-3">
     <label v-if="showAutoImport" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
       <input
         v-model="autoImportModels"
@@ -51,6 +54,9 @@ const exchangeLabel = computed(() =>
       <span>{{ t('admin.accounts.autoImportModels') }}</span>
     </label>
     <div class="flex justify-end gap-3">
+      <button v-if="step === 3" type="button" class="btn btn-secondary" @click="emit('back')">
+        {{ t('common.back') }}
+      </button>
       <button type="button" class="btn btn-secondary" @click="emit('close')">
         {{ t('common.cancel') }}
       </button>

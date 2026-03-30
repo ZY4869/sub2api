@@ -20,12 +20,15 @@ func refreshCopilotOAuthAccount(
 		return nil, errors.BadRequest("COPILOT_INVALID_ACCOUNT", "account is not a Copilot OAuth account")
 	}
 
-	extra, err := copilotOAuthService.RefreshAccount(ctx, account)
+	result, err := copilotOAuthService.RefreshAccountState(ctx, account)
 	if err != nil {
 		return nil, err
 	}
-	if extra == nil {
+	if result == nil {
 		return account, nil
 	}
-	return adminService.UpdateAccount(ctx, account.ID, &service.UpdateAccountInput{Extra: extra})
+	return adminService.UpdateAccount(ctx, account.ID, &service.UpdateAccountInput{
+		Credentials: result.Credentials,
+		Extra:       result.Extra,
+	})
 }

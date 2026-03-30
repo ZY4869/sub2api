@@ -24,6 +24,10 @@ type createScheduledTestPlanRequest struct {
 	AccountID              int64  `json:"account_id" binding:"required"`
 	ModelID                string `json:"model_id"`
 	Model                  string `json:"model"`
+	ModelInputMode         string `json:"model_input_mode"`
+	ManualModelID          string `json:"manual_model_id"`
+	RequestAlias           string `json:"request_alias"`
+	SourceProtocol         string `json:"source_protocol"`
 	CronExpression         string `json:"cron_expression" binding:"required"`
 	Enabled                *bool  `json:"enabled"`
 	MaxResults             int    `json:"max_results"`
@@ -35,16 +39,20 @@ type createScheduledTestPlanRequest struct {
 }
 
 type updateScheduledTestPlanRequest struct {
-	ModelID                string `json:"model_id"`
-	Model                  string `json:"model"`
-	CronExpression         string `json:"cron_expression"`
-	Enabled                *bool  `json:"enabled"`
-	MaxResults             int    `json:"max_results"`
-	AutoRecover            *bool  `json:"auto_recover"`
-	NotifyPolicy           string `json:"notify_policy"`
-	NotifyFailureThreshold int    `json:"notify_failure_threshold"`
-	RetryIntervalMinutes   int    `json:"retry_interval_minutes"`
-	MaxRetries             int    `json:"max_retries"`
+	ModelID                string  `json:"model_id"`
+	Model                  string  `json:"model"`
+	ModelInputMode         *string `json:"model_input_mode"`
+	ManualModelID          *string `json:"manual_model_id"`
+	RequestAlias           *string `json:"request_alias"`
+	SourceProtocol         *string `json:"source_protocol"`
+	CronExpression         string  `json:"cron_expression"`
+	Enabled                *bool   `json:"enabled"`
+	MaxResults             int     `json:"max_results"`
+	AutoRecover            *bool   `json:"auto_recover"`
+	NotifyPolicy           string  `json:"notify_policy"`
+	NotifyFailureThreshold int     `json:"notify_failure_threshold"`
+	RetryIntervalMinutes   int     `json:"retry_interval_minutes"`
+	MaxRetries             int     `json:"max_retries"`
 }
 
 // ListByAccount GET /admin/accounts/:id/scheduled-test-plans
@@ -74,6 +82,10 @@ func (h *ScheduledTestHandler) Create(c *gin.Context) {
 	plan := &service.ScheduledTestPlan{
 		AccountID:              req.AccountID,
 		ModelID:                strings.TrimSpace(req.ModelID),
+		ModelInputMode:         strings.TrimSpace(req.ModelInputMode),
+		ManualModelID:          strings.TrimSpace(req.ManualModelID),
+		RequestAlias:           strings.TrimSpace(req.RequestAlias),
+		SourceProtocol:         strings.TrimSpace(req.SourceProtocol),
 		CronExpression:         req.CronExpression,
 		Enabled:                true,
 		MaxResults:             req.MaxResults,
@@ -125,6 +137,18 @@ func (h *ScheduledTestHandler) Update(c *gin.Context) {
 		if existing.ModelID == "" {
 			existing.ModelID = strings.TrimSpace(req.Model)
 		}
+	}
+	if req.ModelInputMode != nil {
+		existing.ModelInputMode = strings.TrimSpace(*req.ModelInputMode)
+	}
+	if req.ManualModelID != nil {
+		existing.ManualModelID = strings.TrimSpace(*req.ManualModelID)
+	}
+	if req.RequestAlias != nil {
+		existing.RequestAlias = strings.TrimSpace(*req.RequestAlias)
+	}
+	if req.SourceProtocol != nil {
+		existing.SourceProtocol = strings.TrimSpace(*req.SourceProtocol)
 	}
 	if req.CronExpression != "" {
 		existing.CronExpression = req.CronExpression

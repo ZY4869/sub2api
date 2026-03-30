@@ -9,9 +9,24 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/google/uuid"
 )
+
+const (
+	kiroRuntimeProbeSource   = "kiro_runtime_probe"
+	kiroRuntimeRequestSource = "kiro_runtime_request"
+)
+
+type KiroRuntimeProbeResult struct {
+	Region           string
+	Endpoint         KiroEndpointConfig
+	ProfileARN       string
+	FallbackUsed     bool
+	ResolvedUpstream ResolvedUpstreamInfo
+}
 
 type KiroRuntimeService struct {
 	accountRepo                  AccountRepository
@@ -30,6 +45,106 @@ func NewKiroRuntimeService(accountRepo AccountRepository, httpUpstream HTTPUpstr
 
 func (s *KiroRuntimeService) SetTLSFingerprintProfileService(tlsFingerprintProfileService *TLSFingerprintProfileService) {
 	s.tlsFingerprintProfileService = tlsFingerprintProfileService
+}
+
+func (s *KiroRuntimeService) Probe(ctx context.Context, account *Account) (*KiroRuntimeProbeResult, error) {
+	if account == nil || account.Platform != PlatformKiro {
+		return nil, infraerrors.BadRequest("KIRO_RUNTIME_INVALID_ACCOUNT", "kiro runtime probe requires a kiro account")
+	}
+	if NormalizeKiroAccountCredentials(account) {
+		s.persistKiroAccount(ctx, account)
+	}
+
+	token, err := s.resolveKiroAccessToken(ctx, account)
+	if err != nil {
+		return nil, err
+	}
+
+	profileARN := s.ensureKiroProfileARN(ctx, account, token)
+	region := ResolveKiroAPIRegion(account)
+	payload, err := buildKiroClaudePayload(
+		[]byte(`{"messages":[{"role":"user","content":"ping"}],"max_tokens":1}`),
+		"claude-haiku-4.5",
+		effectiveKiroProfileARN(account, profileARN),
+		kiroPrimaryOrigin,
+		nil,
+	)
+	if err != nil {
+		return nil, infraerrors.InternalServer("KIRO_RUNTIME_PROBE_PAYLOAD_FAILED", "failed to build kiro runtime probe payload").WithCause(err)
+	}
+
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
+
+	var lastErr error
+	for idx, endpoint := range buildKiroEndpointConfigs(region) {
+		fallbackUsed := idx > 0
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.URL, bytes.NewReader(payload))
+		if err != nil {
+			return nil, infraerrors.InternalServer("KIRO_RUNTIME_PROBE_REQUEST_BUILD_FAILED", "failed to build kiro runtime probe request").WithCause(err)
+		}
+		s.applyKiroRequestHeaders(req, account, token, endpoint)
+
+		resp, err := s.httpUpstream.DoWithTLS(req, proxyURL, account.ID, account.Concurrency, tlsProfile)
+		if err != nil {
+			lastErr = err
+			s.logKiroRuntimeAttempt("kiro_runtime_probe_request_failed", account, region, endpoint, fallbackUsed, profileARN, err, 0)
+			if shouldKiroFallbackEndpoint(idx, 0, err) {
+				s.logKiroRuntimeAttempt("kiro_runtime_probe_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, err, 0)
+				continue
+			}
+			return nil, infraerrors.ServiceUnavailable("KIRO_RUNTIME_PROBE_FAILED", "failed to verify kiro runtime endpoint").WithCause(err)
+		}
+
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		_ = resp.Body.Close()
+		if readErr != nil {
+			lastErr = readErr
+			s.logKiroRuntimeAttempt("kiro_runtime_probe_read_failed", account, region, endpoint, fallbackUsed, profileARN, readErr, resp.StatusCode)
+			if shouldKiroFallbackEndpoint(idx, http.StatusBadGateway, readErr) {
+				s.logKiroRuntimeAttempt("kiro_runtime_probe_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, readErr, http.StatusBadGateway)
+				continue
+			}
+			return nil, infraerrors.ServiceUnavailable("KIRO_RUNTIME_PROBE_FAILED", "failed to read kiro runtime probe response").WithCause(readErr)
+		}
+
+		if resp.StatusCode == http.StatusUnauthorized {
+			authErr := fmt.Errorf("kiro runtime authentication failed: %s", extractKiroErrorMessage(body))
+			s.logKiroRuntimeAttempt("kiro_runtime_probe_auth_failed", account, region, endpoint, fallbackUsed, profileARN, authErr, resp.StatusCode)
+			return nil, infraerrors.BadRequest("KIRO_RUNTIME_AUTH_FAILED", "kiro runtime authentication failed").WithCause(authErr)
+		}
+		if shouldKiroFallbackEndpoint(idx, resp.StatusCode, nil) {
+			lastErr = fmt.Errorf("kiro runtime probe endpoint %s returned %d", endpoint.Name, resp.StatusCode)
+			s.logKiroRuntimeAttempt("kiro_runtime_probe_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, lastErr, resp.StatusCode)
+			continue
+		}
+		if resp.StatusCode >= http.StatusInternalServerError {
+			lastErr = fmt.Errorf("kiro runtime probe endpoint %s returned %d", endpoint.Name, resp.StatusCode)
+			s.logKiroRuntimeAttempt("kiro_runtime_probe_upstream_error", account, region, endpoint, fallbackUsed, profileARN, lastErr, resp.StatusCode)
+			return nil, infraerrors.ServiceUnavailable("KIRO_RUNTIME_PROBE_FAILED", "kiro runtime endpoint verification failed").WithCause(lastErr)
+		}
+
+		resolved := ResolveUpstreamInfo(endpoint.URL, PlatformKiro, kiroRuntimeProbeSource)
+		resolved.Region = strings.TrimSpace(region)
+		resolved.ProbedAt = time.Now().UTC()
+		s.persistResolvedKiroUpstream(ctx, account, resolved)
+		s.logKiroRuntimeAttempt("kiro_runtime_probe_succeeded", account, region, endpoint, fallbackUsed, profileARN, nil, resp.StatusCode)
+		return &KiroRuntimeProbeResult{
+			Region:           region,
+			Endpoint:         endpoint,
+			ProfileARN:       profileARN,
+			FallbackUsed:     fallbackUsed,
+			ResolvedUpstream: resolved,
+		}, nil
+	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("kiro runtime probe failed")
+	}
+	return nil, infraerrors.ServiceUnavailable("KIRO_RUNTIME_PROBE_FAILED", "failed to verify kiro runtime endpoint").WithCause(lastErr)
 }
 
 func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account, input KiroRuntimeExecuteInput) (*KiroRuntimeExecuteResult, error) {
@@ -84,12 +199,17 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 				s.logKiroRuntimeAttempt("kiro_runtime_endpoint_fallback", account, region, endpoint, fallbackUsed, profileARN, lastErr, resp.StatusCode)
 				continue
 			}
+			resolved := ResolveUpstreamInfo(endpoint.URL, PlatformKiro, kiroRuntimeRequestSource)
+			resolved.Region = strings.TrimSpace(region)
+			resolved.ProbedAt = time.Now().UTC()
+			s.persistResolvedKiroUpstream(ctx, account, resolved)
 			return &KiroRuntimeExecuteResult{
-				Response:     errorResp,
-				Region:       region,
-				Endpoint:     endpoint,
-				ProfileARN:   profileARN,
-				FallbackUsed: fallbackUsed,
+				Response:         errorResp,
+				Region:           region,
+				Endpoint:         endpoint,
+				ProfileARN:       profileARN,
+				FallbackUsed:     fallbackUsed,
+				ResolvedUpstream: resolved,
 			}, nil
 		}
 
@@ -103,13 +223,18 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 			}
 			return nil, err
 		}
+		resolved := ResolveUpstreamInfo(endpoint.URL, PlatformKiro, kiroRuntimeRequestSource)
+		resolved.Region = strings.TrimSpace(region)
+		resolved.ProbedAt = time.Now().UTC()
+		s.persistResolvedKiroUpstream(ctx, account, resolved)
 		s.logKiroRuntimeAttempt("kiro_runtime_request_succeeded", account, region, endpoint, fallbackUsed, profileARN, nil, translated.StatusCode)
 		return &KiroRuntimeExecuteResult{
-			Response:     translated,
-			Region:       region,
-			Endpoint:     endpoint,
-			ProfileARN:   profileARN,
-			FallbackUsed: fallbackUsed,
+			Response:         translated,
+			Region:           region,
+			Endpoint:         endpoint,
+			ProfileARN:       profileARN,
+			FallbackUsed:     fallbackUsed,
+			ResolvedUpstream: resolved,
 		}, nil
 	}
 
@@ -265,6 +390,33 @@ func (s *KiroRuntimeService) persistKiroAccount(ctx context.Context, account *Ac
 	}
 	if err := s.accountRepo.Update(ctx, account); err != nil {
 		slog.Warn("kiro_runtime_account_persist_failed",
+			"account_id", account.ID,
+			"error", err,
+		)
+	}
+}
+
+func (s *KiroRuntimeService) persistResolvedKiroUpstream(ctx context.Context, account *Account, info ResolvedUpstreamInfo) {
+	if account == nil {
+		return
+	}
+	merged := MergeUpstreamExtra(account.Extra, info)
+	if len(merged) == 0 {
+		return
+	}
+	account.Extra = merged
+	if s == nil || s.accountRepo == nil || account.ID <= 0 {
+		return
+	}
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{
+		"upstream_url":          merged["upstream_url"],
+		"upstream_host":         merged["upstream_host"],
+		"upstream_service":      merged["upstream_service"],
+		"upstream_probe_source": merged["upstream_probe_source"],
+		"upstream_probed_at":    merged["upstream_probed_at"],
+		"upstream_region":       merged["upstream_region"],
+	}); err != nil {
+		slog.Warn("kiro_runtime_upstream_metadata_persist_failed",
 			"account_id", account.ID,
 			"error", err,
 		)

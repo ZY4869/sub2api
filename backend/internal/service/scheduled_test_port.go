@@ -9,6 +9,8 @@ const (
 	ScheduledTestNotifyPolicyNone        = "none"
 	ScheduledTestNotifyPolicyAlways      = "always"
 	ScheduledTestNotifyPolicyFailureOnly = "failure_only"
+	ScheduledTestModelInputModeCatalog   = "catalog"
+	ScheduledTestModelInputModeManual    = "manual"
 )
 
 // ScheduledTestPlan represents a scheduled test plan domain model.
@@ -16,6 +18,10 @@ type ScheduledTestPlan struct {
 	ID                     int64      `json:"id"`
 	AccountID              int64      `json:"account_id"`
 	ModelID                string     `json:"model_id"`
+	ModelInputMode         string     `json:"model_input_mode,omitempty"`
+	ManualModelID          string     `json:"manual_model_id,omitempty"`
+	RequestAlias           string     `json:"request_alias,omitempty"`
+	SourceProtocol         string     `json:"source_protocol,omitempty"`
 	CronExpression         string     `json:"cron_expression"`
 	Enabled                bool       `json:"enabled"`
 	MaxResults             int        `json:"max_results"`
@@ -32,6 +38,16 @@ type ScheduledTestPlan struct {
 	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
+func (p *ScheduledTestPlan) EffectiveModelID() string {
+	if p == nil {
+		return ""
+	}
+	if p.ModelInputMode == ScheduledTestModelInputModeManual {
+		return p.ManualModelID
+	}
+	return p.ModelID
+}
+
 // ScheduledTestResult represents a single test execution result.
 type ScheduledTestResult struct {
 	ID           int64     `json:"id"`
@@ -43,6 +59,13 @@ type ScheduledTestResult struct {
 	StartedAt    time.Time `json:"started_at"`
 	FinishedAt   time.Time `json:"finished_at"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type ScheduledTestExecutionInput struct {
+	AccountID      int64
+	ModelID        string
+	SourceProtocol string
+	RequestAlias   string
 }
 
 // ScheduledTestPlanRepository defines the data access interface for test plans.
