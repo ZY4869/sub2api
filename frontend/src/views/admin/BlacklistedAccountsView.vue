@@ -103,6 +103,13 @@
         />
       </template>
     </TablePageLayout>
+    <BlacklistRetestModal
+      :show="showRetestModal"
+      :accounts="retestTargets"
+      :submitting="submitting"
+      @close="handleRetestModalClose"
+      @confirm="handleRetestConfirm"
+    />
   </AppLayout>
 </template>
 
@@ -110,6 +117,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
+import type { BlacklistRetestRequestPayload } from '@/api/admin/accounts'
 import { useTableLoader } from '@/composables/useTableLoader'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { useAppStore } from '@/stores/app'
@@ -124,12 +132,15 @@ import Pagination from '@/components/common/Pagination.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import SearchInput from '@/components/common/SearchInput.vue'
 import Select from '@/components/common/Select.vue'
+import BlacklistRetestModal from '@/components/admin/account/BlacklistRetestModal.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const groups = ref<AdminGroup[]>([])
 const submitting = ref(false)
 const totalBlacklistedCount = ref(0)
+const showRetestModal = ref(false)
+const retestTargets = ref<Account[]>([])
 
 const {
   items: accounts,
@@ -214,12 +225,18 @@ const summarizeRetest = (results: Awaited<ReturnType<typeof adminAPI.accounts.re
   appStore.showError(t('admin.accounts.blacklist.retestFailed'))
 }
 
-const runRetest = async (accountIds: number[]) => {
-  if (accountIds.length === 0 || submitting.value) return
+const closeRetestModal = () => {
+  showRetestModal.value = false
+  retestTargets.value = []
+}
+
+const runRetest = async (payload: BlacklistRetestRequestPayload) => {
+  if (payload.account_ids.length === 0 || submitting.value) return
   submitting.value = true
   try {
-    const response = await adminAPI.accounts.retestBlacklistedAccounts(accountIds)
+    const response = await adminAPI.accounts.retestBlacklistedAccounts(payload)
     summarizeRetest(response.results)
+    closeRetestModal()
     await refreshBlacklistView()
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.accounts.blacklist.retestFailed'))
@@ -228,12 +245,36 @@ const runRetest = async (accountIds: number[]) => {
   }
 }
 
-const handleSingleRetest = async (accountId: number) => {
-  await runRetest([accountId])
+const openRetestModal = (accountIds: number[]) => {
+  if (accountIds.length === 0 || submitting.value) {
+    return
+  }
+  const accountSet = new Set(accountIds)
+  const targets = accounts.value.filter((account) => accountSet.has(account.id))
+  if (targets.length === 0) {
+    return
+  }
+  retestTargets.value = targets
+  showRetestModal.value = true
 }
 
-const handleBatchRetest = async () => {
-  await runRetest([...selectedIds.value])
+const handleSingleRetest = (accountId: number) => {
+  openRetestModal([accountId])
+}
+
+const handleBatchRetest = () => {
+  openRetestModal([...selectedIds.value])
+}
+
+const handleRetestModalClose = () => {
+  if (submitting.value) {
+    return
+  }
+  closeRetestModal()
+}
+
+const handleRetestConfirm = async (payload: BlacklistRetestRequestPayload) => {
+  await runRetest(payload)
 }
 
 const handleDelete = async (accountId: number, accountName: string) => {

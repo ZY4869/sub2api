@@ -794,11 +794,28 @@ export interface BlacklistRetestResponse {
   results: BlacklistRetestResult[]
 }
 
-export async function retestBlacklistedAccounts(accountIds: number[]): Promise<BlacklistRetestResponse> {
+export interface BlacklistRetestRequestPayload {
+  account_ids: number[]
+  model_id?: string
+  model_input_mode?: AccountTestModelInputMode
+  manual_model_id?: string
+  source_protocol?: 'openai' | 'anthropic' | 'gemini'
+}
+
+export async function retestBlacklistedAccounts(
+  payload: BlacklistRetestRequestPayload
+): Promise<BlacklistRetestResponse> {
   const { data } = await apiClient.post<BlacklistRetestResponse>('/admin/accounts/blacklist/retest', {
-    account_ids: accountIds
+    ...payload
   })
   return data
+}
+
+export async function getBlacklistRetestModels(accountIds: number[]): Promise<ClaudeModel[]> {
+  const { data } = await apiClient.post<ClaudeModel[]>('/admin/accounts/blacklist/retest-models', {
+    account_ids: accountIds
+  })
+  return Array.isArray(data) ? data : []
 }
 
 export interface BlacklistedBatchDeleteFailure {
@@ -1295,6 +1312,7 @@ export const accountsAPI = {
   listArchivedGroups,
   unarchiveAccounts,
   retestBlacklistedAccounts,
+  getBlacklistRetestModels,
   batchDeleteBlacklistedAccounts,
   blacklist,
   batchUpdateCredentials,

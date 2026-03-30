@@ -72,6 +72,38 @@ const DataTableStub = {
   `
 }
 
+const BlacklistRetestModalStub = {
+  props: ['show', 'accounts'],
+  emits: ['close', 'confirm'],
+  methods: {
+    emitConfirm() {
+      this.$emit('confirm', {
+        account_ids: this.accounts.map((account: { id: number }) => account.id),
+        model_input_mode: 'catalog',
+        model_id: 'gpt-5.4'
+      })
+    }
+  },
+  template: `
+    <div v-if="show" data-test="blacklist-retest-modal">
+      <button type="button" data-test="confirm-blacklist-retest" @click="emitConfirm">confirm</button>
+      <button type="button" data-test="close-blacklist-retest" @click="$emit('close')">close</button>
+    </div>
+  `
+}
+
+const globalStubs = {
+  AppLayout: { template: '<div><slot /></div>' },
+  TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
+  SearchInput: true,
+  Select: true,
+  DataTable: DataTableStub,
+  Pagination: true,
+  PlatformTypeBadge: true,
+  AccountGroupsCell: true,
+  BlacklistRetestModal: BlacklistRetestModalStub
+}
+
 describe('BlacklistedAccountsView', () => {
   beforeEach(() => {
     listAccounts.mockReset()
@@ -133,16 +165,7 @@ describe('BlacklistedAccountsView', () => {
   it('supports batch retest restore from blacklist', async () => {
     const wrapper = mount(BlacklistedAccountsView, {
       global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
-          SearchInput: true,
-          Select: true,
-          DataTable: DataTableStub,
-          Pagination: true,
-          PlatformTypeBadge: true,
-          AccountGroupsCell: true
-        }
+        stubs: globalStubs
       }
     })
 
@@ -158,7 +181,17 @@ describe('BlacklistedAccountsView', () => {
     await wrapper.get('button.btn-primary').trigger('click')
     await flushPromises()
 
-    expect(retestBlacklistedAccounts).toHaveBeenCalledWith([1])
+    expect(wrapper.find('[data-test="blacklist-retest-modal"]').exists()).toBe(true)
+    expect(retestBlacklistedAccounts).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-test="confirm-blacklist-retest"]').trigger('click')
+    await flushPromises()
+
+    expect(retestBlacklistedAccounts).toHaveBeenCalledWith({
+      account_ids: [1],
+      model_input_mode: 'catalog',
+      model_id: 'gpt-5.4'
+    })
     expect(showSuccess).toHaveBeenCalledWith('admin.accounts.blacklist.retestSuccess')
     expect(listAccounts.mock.calls.length).toBeGreaterThan(2)
   })
@@ -166,16 +199,7 @@ describe('BlacklistedAccountsView', () => {
   it('supports batch delete for selected blacklisted accounts', async () => {
     const wrapper = mount(BlacklistedAccountsView, {
       global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
-          SearchInput: true,
-          Select: true,
-          DataTable: DataTableStub,
-          Pagination: true,
-          PlatformTypeBadge: true,
-          AccountGroupsCell: true
-        }
+        stubs: globalStubs
       }
     })
 
@@ -237,16 +261,7 @@ describe('BlacklistedAccountsView', () => {
 
     const wrapper = mount(BlacklistedAccountsView, {
       global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
-          SearchInput: true,
-          Select: true,
-          DataTable: DataTableStub,
-          Pagination: true,
-          PlatformTypeBadge: true,
-          AccountGroupsCell: true
-        }
+        stubs: globalStubs
       }
     })
 
@@ -305,16 +320,7 @@ describe('BlacklistedAccountsView', () => {
 
     const wrapper = mount(BlacklistedAccountsView, {
       global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /></div>' },
-          SearchInput: true,
-          Select: true,
-          DataTable: DataTableStub,
-          Pagination: true,
-          PlatformTypeBadge: true,
-          AccountGroupsCell: true
-        }
+        stubs: globalStubs
       }
     })
 

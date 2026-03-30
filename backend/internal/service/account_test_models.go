@@ -59,6 +59,42 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
 }
 
+func MergeAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTestModel {
+	if len(groups) == 0 {
+		return []AvailableTestModel{}
+	}
+
+	merged := make([]AvailableTestModel, 0)
+	for _, group := range groups {
+		merged = append(merged, group...)
+	}
+	if len(merged) == 0 {
+		return []AvailableTestModel{}
+	}
+
+	deduped := make(map[string]AvailableTestModel, len(merged))
+	for _, model := range merged {
+		canonicalID := normalizeRegistryID(model.CanonicalID)
+		if canonicalID == "" {
+			canonicalID = normalizeRegistryID(model.ID)
+		}
+		key := testModelDedupeKey(canonicalID, model.SourceProtocol)
+		existing, ok := deduped[key]
+		if !ok || compareAvailableTestModels(model, existing) < 0 {
+			deduped[key] = model
+		}
+	}
+
+	result := make([]AvailableTestModel, 0, len(deduped))
+	for _, model := range deduped {
+		result = append(result, model)
+	}
+	sort.SliceStable(result, func(i, j int) bool {
+		return compareAvailableTestModels(result[i], result[j]) < 0
+	})
+	return result
+}
+
 func buildAvailableTestModelsForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) []AvailableTestModel {
 	candidates, resolutionEntries := buildRegistryTestModelCandidates(ctx, account, registry, sourceProtocol)
 	if len(candidates) == 0 {

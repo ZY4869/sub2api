@@ -3,7 +3,9 @@ package admin
 import (
 	"errors"
 	"io"
+	"log/slog"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -13,6 +15,14 @@ import (
 )
 
 type BlacklistRetestRequest struct {
+	AccountIDs     []int64 `json:"account_ids" binding:"required,min=1"`
+	ModelID        string  `json:"model_id"`
+	ModelInputMode string  `json:"model_input_mode"`
+	ManualModelID  string  `json:"manual_model_id"`
+	SourceProtocol string  `json:"source_protocol"`
+}
+
+type BlacklistRetestModelsRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
 }
 
@@ -28,6 +38,28 @@ type BlacklistRetestAccountResult struct {
 	ErrorMessage string `json:"error_message,omitempty"`
 	ResponseText string `json:"response_text,omitempty"`
 	LatencyMs    int64  `json:"latency_ms,omitempty"`
+}
+
+func normalizeBlacklistRetestSourceProtocol(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case service.PlatformOpenAI, service.PlatformAnthropic, service.PlatformGemini:
+		return strings.TrimSpace(strings.ToLower(value))
+	default:
+		return ""
+	}
+}
+
+func resolveBlacklistRetestModelInput(req BlacklistRetestRequest) (string, string, string) {
+	mode := strings.TrimSpace(strings.ToLower(req.ModelInputMode))
+	if mode != service.ScheduledTestModelInputModeManual {
+		mode = service.ScheduledTestModelInputModeCatalog
+	}
+
+	modelID := strings.TrimSpace(req.ModelID)
+	if mode == service.ScheduledTestModelInputModeManual {
+		modelID = strings.TrimSpace(req.ManualModelID)
+	}
+	return modelID, mode, normalizeBlacklistRetestSourceProtocol(req.SourceProtocol)
 }
 
 func (h *AccountHandler) Blacklist(c *gin.Context) {
@@ -55,6 +87,11 @@ func (h *AccountHandler) Blacklist(c *gin.Context) {
 }
 
 func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
+	if h.accountTestService == nil {
+		response.Error(c, 500, "Account test service is not configured")
+		return
+	}
+
 	var req BlacklistRetestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -66,6 +103,14 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 		response.BadRequest(c, "account_ids is required")
 		return
 	}
+	requestedModelID, modelInputMode, requestedSourceProtocol := resolveBlacklistRetestModelInput(req)
+	slog.Info(
+		"account_blacklist_retest_start",
+		"account_ids", accountIDs,
+		"requested_model_id", requestedModelID,
+		"model_input_mode", modelInputMode,
+		"source_protocol", requestedSourceProtocol,
+	)
 
 	accounts, err := h.adminService.GetAccountsByIDs(c.Request.Context(), accountIDs)
 	if err != nil {
@@ -98,7 +143,9 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 				result.ErrorMessage = "account is not blacklisted"
 			default:
 				testResult, err := h.accountTestService.RunTestBackground(gctx, service.ScheduledTestExecutionInput{
-					AccountID: accountID,
+					AccountID:      accountID,
+					ModelID:        requestedModelID,
+					SourceProtocol: requestedSourceProtocol,
 				})
 				if testResult != nil {
 					result.ResponseText = testResult.ResponseText
@@ -123,6 +170,16 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 					result.ErrorMessage = err.Error()
 				}
 			}
+			slog.Info(
+				"account_blacklist_retest_result",
+				"account_id", accountID,
+				"requested_model_id", requestedModelID,
+				"model_input_mode", modelInputMode,
+				"source_protocol", requestedSourceProtocol,
+				"success", result.Success,
+				"restored", result.Restored,
+				"error_message", result.ErrorMessage,
+			)
 
 			mu.Lock()
 			results[index] = result
@@ -133,6 +190,36 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 
 	_ = g.Wait()
 	response.Success(c, gin.H{"results": results})
+}
+
+func (h *AccountHandler) RetestBlacklistedModels(c *gin.Context) {
+	var req BlacklistRetestModelsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	accountIDs := normalizeInt64IDList(req.AccountIDs)
+	if len(accountIDs) == 0 {
+		response.BadRequest(c, "account_ids is required")
+		return
+	}
+
+	accounts, err := h.adminService.GetAccountsByIDs(c.Request.Context(), accountIDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	modelGroups := make([][]service.AvailableTestModel, 0, len(accounts))
+	for _, account := range accounts {
+		if account == nil {
+			continue
+		}
+		modelGroups = append(modelGroups, service.BuildAvailableTestModels(c.Request.Context(), account, h.modelRegistryService))
+	}
+
+	response.Success(c, service.MergeAvailableTestModels(modelGroups...))
 }
 
 func (h *AccountHandler) BatchDeleteBlacklisted(c *gin.Context) {

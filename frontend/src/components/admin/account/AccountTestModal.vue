@@ -72,160 +72,29 @@
       </div>
 
       <div v-if="!isSoraAccount" class="space-y-3">
-        <div class="space-y-1.5">
-          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {{ t('admin.accounts.testModelInputModeLabel') }}
-          </label>
-          <div class="grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              :disabled="loadingModels || status === 'connecting'"
-              :class="modelInputModeButtonClass('catalog')"
-              @click="modelInputMode = 'catalog'"
-            >
-              <div class="text-sm font-semibold">
-                {{ t('admin.accounts.testModelInputModes.catalog') }}
-              </div>
-              <p class="mt-1 text-xs leading-5 opacity-80">
-                {{ t('admin.accounts.testModelInputModes.catalogHint') }}
-              </p>
-            </button>
-            <button
-              type="button"
-              :disabled="status === 'connecting'"
-              :class="modelInputModeButtonClass('manual')"
-              @click="modelInputMode = 'manual'"
-            >
-              <div class="text-sm font-semibold">
-                {{ t('admin.accounts.testModelInputModes.manual') }}
-              </div>
-              <p class="mt-1 text-xs leading-5 opacity-80">
-                {{ t('admin.accounts.testModelInputModes.manualHint') }}
-              </p>
-            </button>
-          </div>
-        </div>
+        <AccountTestModelSelectionFields
+          v-model:model-input-mode="modelInputMode"
+          v-model:selected-model-key="selectedModelKey"
+          v-model:manual-model-id="manualModelId"
+          v-model:manual-source-protocol="manualSourceProtocol"
+          :available-models="availableModels"
+          :loading-models="loadingModels"
+          :disabled="status === 'connecting'"
+          :show-manual-source-protocol-field="isProtocolGatewayAccount"
+        />
 
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{
-            modelInputMode === 'manual'
-              ? t('admin.accounts.probeFinalize.manualModelId')
-              : t('admin.accounts.selectTestModel')
-          }}
+        <label v-if="modelInputMode === 'manual'" class="space-y-1.5">
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.accounts.probeFinalize.manualRequestAlias') }}
+          </span>
+          <input
+            v-model="manualRequestAlias"
+            type="text"
+            class="input"
+            :disabled="status === 'connecting'"
+            :placeholder="manualModelId || t('admin.accounts.probeFinalize.manualRequestAliasPlaceholder')"
+          />
         </label>
-        <Select
-          v-if="modelInputMode === 'catalog'"
-          v-model="selectedModelKey"
-          :options="availableModelOptions"
-          :disabled="loadingModels || status === 'connecting'"
-          searchable
-          value-key="key"
-          label-key="display_name"
-          :placeholder="loadingModels ? t('common.loading') + '...' : t('admin.accounts.selectTestModel')"
-        >
-          <template #selected="{ option }">
-            <div v-if="option" class="min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="truncate font-medium text-gray-900 dark:text-white">
-                  {{ option.display_name || option.id }}
-                </span>
-                <span
-                  v-if="option.source_protocol"
-                  class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
-                >
-                  {{ protocolSourceLabel(option.source_protocol) }}
-                </span>
-                <span
-                  v-if="isDeprecatedModel(option)"
-                  class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                >
-                  {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
-                </span>
-              </div>
-              <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.id }}</div>
-            </div>
-            <span v-else>
-              {{ loadingModels ? `${t('common.loading')}...` : t('admin.accounts.selectTestModel') }}
-            </span>
-          </template>
-
-          <template #option="{ option, selected }">
-            <div class="flex min-w-0 flex-1 items-start justify-between gap-3">
-              <div class="min-w-0">
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="truncate font-medium text-gray-900 dark:text-white">
-                    {{ option.display_name || option.id }}
-                  </span>
-                  <span
-                    v-if="option.source_protocol"
-                    class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
-                  >
-                    {{ protocolSourceLabel(option.source_protocol) }}
-                  </span>
-                  <span
-                    v-if="isDeprecatedModel(option)"
-                    class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                  >
-                    {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
-                  </span>
-                </div>
-                <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.id }}</div>
-                <div
-                  v-if="option.replaced_by"
-                  class="truncate text-[11px] text-amber-600 dark:text-amber-300"
-                >
-                  {{ t('admin.models.registry.replacedByHint', { model: option.replaced_by }) }}
-                </div>
-              </div>
-              <Icon
-                v-if="selected"
-                name="check"
-                size="sm"
-                class="mt-0.5 shrink-0 text-primary-500"
-                :stroke-width="2"
-              />
-            </div>
-          </template>
-        </Select>
-
-        <div v-else class="grid gap-3 md:grid-cols-2">
-          <label class="space-y-1.5 md:col-span-2">
-            <input
-              v-model="manualModelId"
-              type="text"
-              class="input"
-              :disabled="status === 'connecting'"
-              :placeholder="t('admin.accounts.probeFinalize.manualModelIdPlaceholder')"
-            />
-          </label>
-          <label v-if="isProtocolGatewayAccount" class="space-y-1.5">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ t('admin.accounts.probeFinalize.manualSourceProtocol') }}
-            </span>
-            <select
-              v-model="manualSourceProtocol"
-              class="input"
-              :disabled="status === 'connecting'"
-            >
-              <option value="">{{ t('admin.accounts.probeFinalize.manualSourceProtocolAuto') }}</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="gemini">Gemini</option>
-            </select>
-          </label>
-          <label class="space-y-1.5">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {{ t('admin.accounts.probeFinalize.manualRequestAlias') }}
-            </span>
-            <input
-              v-model="manualRequestAlias"
-              type="text"
-              class="input"
-              :disabled="status === 'connecting'"
-              :placeholder="manualModelId || t('admin.accounts.probeFinalize.manualRequestAliasPlaceholder')"
-            />
-          </label>
-        </div>
       </div>
       <div
         v-if="isKiroAccount"
@@ -460,8 +329,8 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import Select from '@/components/common/Select.vue'
 import TextArea from '@/components/common/TextArea.vue'
+import AccountTestModelSelectionFields from './AccountTestModelSelectionFields.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
@@ -482,6 +351,10 @@ import {
   resolveEffectiveAccountPlatformFromAccount,
   resolveGatewayProtocolLabel
 } from '@/utils/accountProtocolGateway'
+import {
+  buildAccountTestModelOptionKeyFromModel,
+  findAccountTestModelByKey
+} from '@/utils/accountTestModelOptions'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -494,12 +367,6 @@ interface OutputLine {
 interface PreviewImage {
   url: string
   mimeType?: string
-}
-
-type AccountTestModelOption = ClaudeModel & {
-  key: string
-  description: string
-  [key: string]: unknown
 }
 
 const props = defineProps<{
@@ -521,13 +388,6 @@ const outputLines = ref<OutputLine[]>([])
 const streamingContent = ref('')
 const errorMessage = ref('')
 const availableModels = ref<ClaudeModel[]>([])
-const availableModelOptions = computed<AccountTestModelOption[]>(() =>
-  availableModels.value.map((model) => ({
-    ...model,
-    key: buildModelOptionKey(model),
-    description: model.id
-  }))
-)
 const selectedModelKey = ref('')
 const modelInputMode = ref<'catalog' | 'manual'>('catalog')
 const manualModelId = ref('')
@@ -543,7 +403,7 @@ const runtimePlatform = computed(() =>
 )
 const supportsTestModes = computed(() => !isSoraAccount.value && !isGrokAccount.value)
 const selectedModelOption = computed(() =>
-  availableModelOptions.value.find((model) => model.key === selectedModelKey.value) || null
+  findAccountTestModelByKey(availableModels.value, selectedModelKey.value)
 )
 const selectedModelId = computed(() => selectedModelOption.value?.id || '')
 const selectedSourceProtocol = computed(() =>
@@ -711,10 +571,6 @@ const blacklistButtonLabel = computed(() =>
     : t('admin.accounts.testBlacklist.button')
 )
 
-function buildModelOptionKey(model: ClaudeModel) {
-  return `${normalizeGatewayAcceptedProtocol(model.source_protocol) || 'default'}::${model.id}`
-}
-
 function protocolSourceLabel(sourceProtocol?: unknown) {
   return resolveGatewayProtocolLabel(sourceProtocol) || String(sourceProtocol || '').trim()
 }
@@ -800,7 +656,7 @@ const loadAvailableModels = async () => {
   try {
     const models = await adminAPI.accounts.getAvailableModels(props.account.id)
     availableModels.value = models
-    selectedModelKey.value = models[0] ? buildModelOptionKey(models[0]) : ''
+    selectedModelKey.value = buildAccountTestModelOptionKeyFromModel(models[0])
   } catch (error) {
     console.error('Failed to load available models:', error)
     availableModels.value = []
@@ -865,14 +721,6 @@ const selectTestMode = (mode: AccountTestMode) => {
   selectedTestMode.value = normalized
   saveAccountTestModePreference(normalized)
 }
-
-const modelInputModeButtonClass = (mode: 'catalog' | 'manual') => [
-  'rounded-xl border px-4 py-3 text-left transition-all',
-  modelInputMode.value === mode
-    ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-400 dark:bg-primary-500/10 dark:text-primary-200'
-    : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200 dark:hover:border-primary-500/60',
-  status.value === 'connecting' ? 'cursor-not-allowed opacity-70' : ''
-]
 
 const resolveTestRequestBody = () => {
   if (isSoraAccount.value) {
@@ -1177,6 +1025,4 @@ const copyOutput = () => {
   const text = outputLines.value.map((l) => l.text).join('\n')
   copyToClipboard(text, t('admin.accounts.outputCopied'))
 }
-
-const isDeprecatedModel = (model: Record<string, unknown> | null | undefined) => model?.status === 'deprecated'
 </script>

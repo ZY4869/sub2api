@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -16,6 +17,12 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 	return &OAuthHandler{oauthService: oauthService}
 }
 
+type accountTestServicePort interface {
+	SetModelRegistryService(modelRegistryService *service.ModelRegistryService)
+	TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, testMode string) error
+	RunTestBackground(ctx context.Context, input service.ScheduledTestExecutionInput) (*service.ScheduledTestResult, error)
+}
+
 type AccountHandler struct {
 	adminService              service.AdminService
 	oauthService              *service.OAuthService
@@ -26,7 +33,7 @@ type AccountHandler struct {
 	antigravityOAuthService   *service.AntigravityOAuthService
 	rateLimitService          *service.RateLimitService
 	accountUsageService       *service.AccountUsageService
-	accountTestService        *service.AccountTestService
+	accountTestService        accountTestServicePort
 	concurrencyService        *service.ConcurrencyService
 	crsSyncService            *service.CRSSyncService
 	sessionLimitCache         service.SessionLimitCache
@@ -36,7 +43,7 @@ type AccountHandler struct {
 	modelRegistryService      *service.ModelRegistryService
 }
 
-func NewAccountHandler(adminService service.AdminService, oauthService *service.OAuthService, openaiOAuthService *service.OpenAIOAuthService, geminiOAuthService *service.GeminiOAuthService, antigravityOAuthService *service.AntigravityOAuthService, rateLimitService *service.RateLimitService, accountUsageService *service.AccountUsageService, accountTestService *service.AccountTestService, concurrencyService *service.ConcurrencyService, crsSyncService *service.CRSSyncService, sessionLimitCache service.SessionLimitCache, rpmCache service.RPMCache, tokenCacheInvalidator service.TokenCacheInvalidator) *AccountHandler {
+func NewAccountHandler(adminService service.AdminService, oauthService *service.OAuthService, openaiOAuthService *service.OpenAIOAuthService, geminiOAuthService *service.GeminiOAuthService, antigravityOAuthService *service.AntigravityOAuthService, rateLimitService *service.RateLimitService, accountUsageService *service.AccountUsageService, accountTestService accountTestServicePort, concurrencyService *service.ConcurrencyService, crsSyncService *service.CRSSyncService, sessionLimitCache service.SessionLimitCache, rpmCache service.RPMCache, tokenCacheInvalidator service.TokenCacheInvalidator) *AccountHandler {
 	return &AccountHandler{adminService: adminService, oauthService: oauthService, openaiOAuthService: openaiOAuthService, geminiOAuthService: geminiOAuthService, antigravityOAuthService: antigravityOAuthService, rateLimitService: rateLimitService, accountUsageService: accountUsageService, accountTestService: accountTestService, concurrencyService: concurrencyService, crsSyncService: crsSyncService, sessionLimitCache: sessionLimitCache, rpmCache: rpmCache, tokenCacheInvalidator: tokenCacheInvalidator}
 }
 func (h *AccountHandler) SetAccountModelImportService(svc *service.AccountModelImportService) {

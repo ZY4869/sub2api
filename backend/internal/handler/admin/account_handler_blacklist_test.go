@@ -2,6 +2,8 @@ package admin
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +12,36 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type stubAccountTestService struct {
+	lastInput service.ScheduledTestExecutionInput
+	result    *service.ScheduledTestResult
+	err       error
+}
+
+func (s *stubAccountTestService) SetModelRegistryService(_ *service.ModelRegistryService) {}
+
+func (s *stubAccountTestService) TestAccountConnection(_ *gin.Context, _ int64, _ string, _ string, _ string, _ string) error {
+	panic("unexpected TestAccountConnection call")
+}
+
+func (s *stubAccountTestService) RunTestBackground(_ context.Context, input service.ScheduledTestExecutionInput) (*service.ScheduledTestResult, error) {
+	s.lastInput = input
+	if s.result == nil {
+		return nil, s.err
+	}
+	clone := *s.result
+	return &clone, s.err
+}
+
+func decodeBlacklistRetestModelsResponse(t *testing.T, rec *httptest.ResponseRecorder) []service.AvailableTestModel {
+	t.Helper()
+	var payload struct {
+		Data []service.AvailableTestModel `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+	return payload.Data
+}
 
 func TestAccountHandlerBlacklistHTTP(t *testing.T) {
 	adminSvc := newStubAdminService()
@@ -138,6 +170,139 @@ func TestAccountHandlerBatchDeleteBlacklistedRequiresMode(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestAccountHandlerRetestBlacklistedPassesCatalogModel(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{
+		{ID: 81, Name: "blacklisted-81", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, LifecycleState: service.AccountLifecycleBlacklisted},
+	}
+	accountTestSvc := &stubAccountTestService{
+		result: &service.ScheduledTestResult{Status: "success", ResponseText: "ok", LatencyMs: 123},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, accountTestSvc, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/retest", handler.RetestBlacklisted)
+
+	body := []byte(`{"account_ids":[81],"model_id":"gpt-5.4","model_input_mode":"catalog","source_protocol":"openai"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/retest", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(81), accountTestSvc.lastInput.AccountID)
+	require.Equal(t, "gpt-5.4", accountTestSvc.lastInput.ModelID)
+	require.Equal(t, "openai", accountTestSvc.lastInput.SourceProtocol)
+	require.Contains(t, rec.Body.String(), `"restored":true`)
+}
+
+func TestAccountHandlerRetestBlacklistedPrefersManualModelID(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{
+		{ID: 82, Name: "blacklisted-82", Platform: service.PlatformAnthropic, Type: service.AccountTypeAPIKey, LifecycleState: service.AccountLifecycleBlacklisted},
+	}
+	accountTestSvc := &stubAccountTestService{
+		result: &service.ScheduledTestResult{Status: "success", ResponseText: "ok"},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, accountTestSvc, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/retest", handler.RetestBlacklisted)
+
+	body := []byte(`{"account_ids":[82],"model_id":"ignored-model","model_input_mode":"manual","manual_model_id":"claude-sonnet-4-5","source_protocol":"anthropic"}`)
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/retest", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "claude-sonnet-4-5", accountTestSvc.lastInput.ModelID)
+	require.Equal(t, "anthropic", accountTestSvc.lastInput.SourceProtocol)
+}
+
+func TestAccountHandlerRetestBlacklistedFallsBackWhenModelOmitted(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{
+		{ID: 83, Name: "blacklisted-83", Platform: service.PlatformGemini, Type: service.AccountTypeAPIKey, LifecycleState: service.AccountLifecycleBlacklisted},
+	}
+	accountTestSvc := &stubAccountTestService{
+		result: &service.ScheduledTestResult{Status: "success"},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, accountTestSvc, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/retest", handler.RetestBlacklisted)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/retest", bytes.NewReader([]byte(`{"account_ids":[83]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "", accountTestSvc.lastInput.ModelID)
+	require.Equal(t, "", accountTestSvc.lastInput.SourceProtocol)
+}
+
+func TestAccountHandlerRetestBlacklistedModelsDedupesSamePlatform(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{
+		{ID: 91, Name: "openai-91", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey},
+		{ID: 92, Name: "openai-92", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/retest-models", handler.RetestBlacklistedModels)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/retest-models", bytes.NewReader([]byte(`{"account_ids":[91,92]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	expected := service.MergeAvailableTestModels(
+		service.BuildAvailableTestModels(context.Background(), &adminSvc.accounts[0], nil),
+		service.BuildAvailableTestModels(context.Background(), &adminSvc.accounts[1], nil),
+	)
+	require.Equal(t, expected, decodeBlacklistRetestModelsResponse(t, rec))
+}
+
+func TestAccountHandlerRetestBlacklistedModelsSupportsMixedPlatforms(t *testing.T) {
+	adminSvc := newStubAdminService()
+	adminSvc.strictAccountLookup = true
+	adminSvc.accounts = []service.Account{
+		{ID: 93, Name: "openai-93", Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey},
+		{ID: 94, Name: "gemini-94", Platform: service.PlatformGemini, Type: service.AccountTypeAPIKey},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewAccountHandler(adminSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router.POST("/api/v1/admin/accounts/blacklist/retest-models", handler.RetestBlacklistedModels)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/accounts/blacklist/retest-models", bytes.NewReader([]byte(`{"account_ids":[93,94]}`)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	expected := service.MergeAvailableTestModels(
+		service.BuildAvailableTestModels(context.Background(), &adminSvc.accounts[0], nil),
+		service.BuildAvailableTestModels(context.Background(), &adminSvc.accounts[1], nil),
+	)
+	require.Equal(t, expected, decodeBlacklistRetestModelsResponse(t, rec))
 }
 
 func TestAccountHandlerBatchDeleteBlacklistedRejectsMixedMode(t *testing.T) {
