@@ -75,13 +75,18 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅的
 
 ## Nginx 反向代理注意事项
 
-通过 Nginx 反向代理 Sub2API（或 CRS 服务）并搭配 Codex CLI 使用时，需要在 Nginx 配置的 `http` 块中添加：
+通过 Nginx 反向代理 Sub2API（或 CRS 服务）并搭配 Codex CLI 使用时，建议在 Nginx 配置的 `http` 块，或 Nginx Proxy Manager 的 Advanced / Custom Nginx Configuration 中至少添加：
 
 ```nginx
 underscores_in_headers on;
+client_max_body_size 20000m;
+proxy_buffering off;
+proxy_request_buffering off;
+proxy_read_timeout 15m;
+proxy_send_timeout 15m;
 ```
 
-Nginx 默认会丢弃名称中含下划线的请求头（如 `session_id`），这会导致多账号环境下的粘性会话功能失效。
+其中 `underscores_in_headers on;` 用于保留下划线请求头（如 `session_id`），否则多账号环境下的粘性会话可能失效；`client_max_body_size 20000m;` 则用于与程序默认请求体上限保持一致，避免大请求在反代层先被拦截。
 
 ---
 

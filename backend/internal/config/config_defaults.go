@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const defaultMaxBodySizeBytes = int64(20000 * 1024 * 1024)
+
 func setDefaults() {
 	viper.SetDefault("run_mode", RunModeStandard)
 	viper.SetDefault("server.host", "0.0.0.0")
@@ -14,7 +16,7 @@ func setDefaults() {
 	viper.SetDefault("server.read_header_timeout", 30)
 	viper.SetDefault("server.idle_timeout", 120)
 	viper.SetDefault("server.trusted_proxies", []string{})
-	viper.SetDefault("server.max_request_body_size", int64(256*1024*1024))
+	viper.SetDefault("server.max_request_body_size", defaultMaxBodySizeBytes)
 	viper.SetDefault("server.h2c.enabled", false)
 	viper.SetDefault("server.h2c.max_concurrent_streams", uint32(50))
 	viper.SetDefault("server.h2c.idle_timeout", 75)
@@ -216,11 +218,11 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_ws.scheduler_score_weights.ttft", 0.5)
 	viper.SetDefault("gateway.antigravity_fallback_cooldown_minutes", 1)
 	viper.SetDefault("gateway.antigravity_extra_retries", 10)
-	viper.SetDefault("gateway.max_body_size", int64(256*1024*1024))
+	viper.SetDefault("gateway.max_body_size", defaultMaxBodySizeBytes)
 	viper.SetDefault("gateway.upstream_response_read_max_bytes", int64(8*1024*1024))
 	viper.SetDefault("gateway.proxy_probe_response_read_max_bytes", int64(1024*1024))
 	viper.SetDefault("gateway.gemini_debug_response_headers", false)
-	viper.SetDefault("gateway.sora_max_body_size", int64(256*1024*1024))
+	viper.SetDefault("gateway.sora_max_body_size", defaultMaxBodySizeBytes)
 	viper.SetDefault("gateway.sora_stream_timeout_seconds", 900)
 	viper.SetDefault("gateway.sora_request_timeout_seconds", 180)
 	viper.SetDefault("gateway.sora_stream_mode", "force")
