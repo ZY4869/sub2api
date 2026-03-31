@@ -146,25 +146,25 @@ func (s *GeminiMessagesCompatService) forwardAndBindGoogleBatch(ctx context.Cont
 			accountID := account.ID
 			apiKeyID := input.APIKeyID
 			userID := input.UserID
-			binding := &UpstreamResourceBinding{
-				ResourceKind:   resourceKind,
-				ResourceName:   resourceName,
-				ProviderFamily: providerFamilyForTarget(target),
-				AccountID:      accountID,
-				APIKeyID:       &apiKeyID,
-				GroupID:        input.GroupID,
-				UserID:         &userID,
-				MetadataJSON: map[string]any{
-					"public_protocol":           publicGoogleBatchProtocol(input.Path),
-					"upstream_protocol":         providerFamilyForTarget(target),
-					"mirror_resource_name":      "",
-					"staging_profile_id":        "",
-					"staging_object_uri_masked": "",
-					"source_resource_names":     uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")),
-					"estimated_batch_tokens":    estimateGoogleBatchTokensFromPayload(input.Body),
-					"model_family":              normalizeGoogleBatchModelFamily(extractGoogleBatchModelID(input.Path, input.Body)),
-				},
-			}
+				binding := &UpstreamResourceBinding{
+					ResourceKind:   resourceKind,
+					ResourceName:   resourceName,
+					ProviderFamily: providerFamilyForTarget(target),
+					AccountID:      accountID,
+					APIKeyID:       &apiKeyID,
+					GroupID:        input.GroupID,
+					UserID:         &userID,
+					MetadataJSON: buildGoogleBatchBindingMetadata(map[string]any{
+						googleBatchBindingMetadataPublicProtocol:    publicGoogleBatchProtocol(input.Path),
+						googleBatchBindingMetadataExecutionProtocol: providerFamilyForTarget(target),
+						"mirror_resource_name":                      "",
+						"staging_profile_id":                        "",
+						"staging_object_uri_masked":                 "",
+						"source_resource_names":                     uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")),
+						"estimated_batch_tokens":                    estimateGoogleBatchTokensFromPayload(input.Body),
+						"model_family":                              normalizeGoogleBatchModelFamily(extractGoogleBatchModelID(input.Path, input.Body)),
+					}),
+				}
 			if err := s.resourceBindingRepo.Upsert(ctx, binding); err != nil {
 				return nil, nil, err
 			}

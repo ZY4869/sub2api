@@ -87,9 +87,11 @@ func (s *GeminiMessagesCompatService) storeGoogleBatchArchiveObjectBytes(ctx con
 	}
 	if object.IsResultPayload && job.ArchiveState != GoogleBatchArchiveLifecycleArchived {
 		job.ArchiveState = GoogleBatchArchiveLifecycleArchived
-		return s.upsertGoogleBatchArchiveJob(ctx, job)
+		if err := s.upsertGoogleBatchArchiveJob(ctx, job); err != nil {
+			return err
+		}
 	}
-	return nil
+	return s.persistGoogleBatchArchiveManifest(ctx, settings, job)
 }
 
 func (s *GeminiMessagesCompatService) storeGoogleBatchSnapshot(ctx context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, payload []byte) error {
@@ -110,7 +112,10 @@ func (s *GeminiMessagesCompatService) storeGoogleBatchSnapshot(ctx context.Conte
 		job.MetadataJSON = map[string]any{}
 	}
 	job.MetadataJSON["batch_snapshot_relative_path"] = object.RelativePath
-	return s.upsertGoogleBatchArchiveJob(ctx, job)
+	if err := s.upsertGoogleBatchArchiveJob(ctx, job); err != nil {
+		return err
+	}
+	return s.persistGoogleBatchArchiveManifest(ctx, settings, job)
 }
 
 func (s *GeminiMessagesCompatService) buildGoogleBatchJSONResult(status int, body []byte) *UpstreamHTTPResult {
@@ -443,5 +448,6 @@ func (s *GeminiMessagesCompatService) enrichBindingMetadata(ctx context.Context,
 	for key, value := range merge {
 		binding.MetadataJSON[key] = value
 	}
+	binding.MetadataJSON = normalizeGoogleBatchBindingMetadata(binding.MetadataJSON)
 	return s.resourceBindingRepo.Upsert(ctx, binding)
 }

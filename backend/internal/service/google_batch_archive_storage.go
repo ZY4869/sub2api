@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -87,6 +88,18 @@ func (s *GoogleBatchArchiveStorage) ReadAll(settings *GoogleBatchArchiveSettings
 	}
 	defer func() { _ = file.Close() }()
 	return io.ReadAll(file)
+}
+
+func (s *GoogleBatchArchiveStorage) StoreManifest(ctx context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, manifest *googleBatchArchiveManifest) error {
+	if manifest == nil {
+		return fmt.Errorf("archive manifest is nil")
+	}
+	payload, err := json.Marshal(manifest)
+	if err != nil {
+		return err
+	}
+	_, _, _, err = s.StoreBytes(ctx, settings, job, googleBatchArchiveManifestFilename, payload)
+	return err
 }
 
 func (s *GoogleBatchArchiveStorage) DeleteRelativePath(settings *GoogleBatchArchiveSettings, relativePath string) error {
