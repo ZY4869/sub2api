@@ -9,13 +9,7 @@ import (
 )
 
 func (s *GatewayService) withGroupContext(ctx context.Context, group *Group) context.Context {
-	if !IsGroupContextValid(group) {
-		return ctx
-	}
-	if existing, ok := ctx.Value(ctxkey.Group).(*Group); ok && existing != nil && existing.ID == group.ID && IsGroupContextValid(existing) {
-		return ctx
-	}
-	return context.WithValue(ctx, ctxkey.Group, group)
+	return withGeminiGroupContext(ctx, group)
 }
 func (s *GatewayService) groupFromContext(ctx context.Context, groupID int64) *Group {
 	if group, ok := ctx.Value(ctxkey.Group).(*Group); ok && IsGroupContextValid(group) && group.ID == groupID {

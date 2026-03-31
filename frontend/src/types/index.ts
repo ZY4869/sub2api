@@ -409,6 +409,7 @@ export interface Group {
   fallback_group_id_on_invalid_request: number | null;
   // OpenAI Messages 闁荤姴顑呴崯顐も偓鐟板暱椤曪綁鍩€椤掑嫬绀傜紒娑樻贡缁€鍕煟椤剙濡介柛鈺傜⊕缁楃喕顦规繛鎾冲閹茬増鎷呯拠鈥冲Π闁诲孩绋掗〃鍡涱敊瀹€鍕闁靛牆妫欓悞浠嬫煛閸曢潧鐏犻柟顖欒兌娴狅箓寮撮悩顔荤驳 Claude Code 闂佽桨鐒﹂悷褔鍩㈡總鍛婃櫖?
   allow_messages_dispatch?: boolean;
+  gemini_mixed_protocol_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -523,6 +524,7 @@ export interface CreateGroupRequest {
   priority?: number;
   rate_multiplier?: number;
   is_exclusive?: boolean;
+  gemini_mixed_protocol_enabled?: boolean;
   subscription_type?: SubscriptionType;
   daily_limit_usd?: number | null;
   weekly_limit_usd?: number | null;
@@ -551,6 +553,7 @@ export interface UpdateGroupRequest {
   priority?: number;
   rate_multiplier?: number;
   is_exclusive?: boolean;
+  gemini_mixed_protocol_enabled?: boolean;
   status?: "active" | "inactive";
   subscription_type?: SubscriptionType;
   daily_limit_usd?: number | null;
@@ -701,6 +704,9 @@ export interface GeminiCredentials {
     | "gcp_standard"
     | "gcp_enterprise"
     | "aistudio_free"
+    | "aistudio_tier_1"
+    | "aistudio_tier_2"
+    | "aistudio_tier_3"
     | "aistudio_paid"
     | "LEGACY"
     | "PRO"
@@ -744,6 +750,7 @@ export interface Account {
   notes?: string | null;
   platform: AccountPlatform;
   gateway_protocol?: GatewayProtocol;
+  gateway_batch_enabled?: boolean | null;
   type: AccountType;
   lifecycle_state?: AccountLifecycleState;
   lifecycle_reason_code?: string | null;

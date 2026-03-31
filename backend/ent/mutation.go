@@ -9394,6 +9394,7 @@ type GroupMutation struct {
 	addfallback_group_id_on_invalid_request *int64
 	model_routing                           *map[string][]int64
 	model_routing_enabled                   *bool
+	gemini_mixed_protocol_enabled           *bool
 	mcp_xml_inject                          *bool
 	supported_model_scopes                  *[]string
 	appendsupported_model_scopes            []string
@@ -11007,6 +11008,42 @@ func (m *GroupMutation) ResetModelRoutingEnabled() {
 	m.model_routing_enabled = nil
 }
 
+// SetGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field.
+func (m *GroupMutation) SetGeminiMixedProtocolEnabled(b bool) {
+	m.gemini_mixed_protocol_enabled = &b
+}
+
+// GeminiMixedProtocolEnabled returns the value of the "gemini_mixed_protocol_enabled" field in the mutation.
+func (m *GroupMutation) GeminiMixedProtocolEnabled() (r bool, exists bool) {
+	v := m.gemini_mixed_protocol_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGeminiMixedProtocolEnabled returns the old "gemini_mixed_protocol_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldGeminiMixedProtocolEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGeminiMixedProtocolEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGeminiMixedProtocolEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGeminiMixedProtocolEnabled: %w", err)
+	}
+	return oldValue.GeminiMixedProtocolEnabled, nil
+}
+
+// ResetGeminiMixedProtocolEnabled resets all changes to the "gemini_mixed_protocol_enabled" field.
+func (m *GroupMutation) ResetGeminiMixedProtocolEnabled() {
+	m.gemini_mixed_protocol_enabled = nil
+}
+
 // SetMcpXMLInject sets the "mcp_xml_inject" field.
 func (m *GroupMutation) SetMcpXMLInject(b bool) {
 	m.mcp_xml_inject = &b
@@ -11690,7 +11727,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 34)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -11772,6 +11809,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.model_routing_enabled != nil {
 		fields = append(fields, group.FieldModelRoutingEnabled)
 	}
+	if m.gemini_mixed_protocol_enabled != nil {
+		fields = append(fields, group.FieldGeminiMixedProtocolEnabled)
+	}
 	if m.mcp_xml_inject != nil {
 		fields = append(fields, group.FieldMcpXMLInject)
 	}
@@ -11852,6 +11892,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelRouting()
 	case group.FieldModelRoutingEnabled:
 		return m.ModelRoutingEnabled()
+	case group.FieldGeminiMixedProtocolEnabled:
+		return m.GeminiMixedProtocolEnabled()
 	case group.FieldMcpXMLInject:
 		return m.McpXMLInject()
 	case group.FieldSupportedModelScopes:
@@ -11927,6 +11969,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldModelRouting(ctx)
 	case group.FieldModelRoutingEnabled:
 		return m.OldModelRoutingEnabled(ctx)
+	case group.FieldGeminiMixedProtocolEnabled:
+		return m.OldGeminiMixedProtocolEnabled(ctx)
 	case group.FieldMcpXMLInject:
 		return m.OldMcpXMLInject(ctx)
 	case group.FieldSupportedModelScopes:
@@ -12136,6 +12180,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModelRoutingEnabled(v)
+		return nil
+	case group.FieldGeminiMixedProtocolEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGeminiMixedProtocolEnabled(v)
 		return nil
 	case group.FieldMcpXMLInject:
 		v, ok := value.(bool)
@@ -12608,6 +12659,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldModelRoutingEnabled:
 		m.ResetModelRoutingEnabled()
+		return nil
+	case group.FieldGeminiMixedProtocolEnabled:
+		m.ResetGeminiMixedProtocolEnabled()
 		return nil
 	case group.FieldMcpXMLInject:
 		m.ResetMcpXMLInject()

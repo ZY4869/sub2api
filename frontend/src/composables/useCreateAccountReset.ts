@@ -22,7 +22,7 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
-import type { GeminiOAuthType } from '@/utils/geminiAccount'
+import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 import type { VertexAuthMode } from '@/utils/vertexAi'
 import type { AccountResolvedUpstreamDraft } from '@/utils/accountProbeDraft'
 
@@ -72,6 +72,7 @@ interface UseCreateAccountResetOptions {
   gatewayAcceptedProtocols?: Ref<GatewayAcceptedProtocol[]>
   gatewayClientProfiles?: Ref<GatewayClientProfile[]>
   gatewayClientRoutes?: Ref<GatewayClientRoute[]>
+  gatewayBatchEnabled?: Ref<boolean>
   claudeCodeMimicEnabled?: Ref<boolean>
   claudeTLSFingerprintEnabled?: Ref<boolean>
   claudeSessionIDMaskingEnabled?: Ref<boolean>
@@ -101,7 +102,7 @@ interface UseCreateAccountResetOptions {
   geminiOAuthType: Ref<GeminiOAuthType>
   geminiTierGoogleOne: Ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>
   geminiTierGcp: Ref<'gcp_standard' | 'gcp_enterprise'>
-  geminiTierAIStudio: Ref<'aistudio_free' | 'aistudio_paid'>
+  geminiTierAIStudio: Ref<GeminiAIStudioTier>
   oauthReset: () => void
   openaiOAuthReset: () => void
   soraOAuthReset: () => void
@@ -156,6 +157,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.gatewayAcceptedProtocols && (options.gatewayAcceptedProtocols.value = ['openai'])
     options.gatewayClientProfiles && (options.gatewayClientProfiles.value = [])
     options.gatewayClientRoutes && (options.gatewayClientRoutes.value = [])
+    options.gatewayBatchEnabled && (options.gatewayBatchEnabled.value = false)
     options.claudeCodeMimicEnabled && (options.claudeCodeMimicEnabled.value = false)
     options.claudeTLSFingerprintEnabled && (options.claudeTLSFingerprintEnabled.value = false)
     options.claudeSessionIDMaskingEnabled && (options.claudeSessionIDMaskingEnabled.value = false)

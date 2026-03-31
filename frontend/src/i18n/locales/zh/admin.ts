@@ -1015,6 +1015,10 @@
         hint: '可选多个分组，账号会自动去重',
         hintEdit: '⚠️ 注意：这会替换当前分组的所有账号绑定'
       },
+      geminiMixedProtocol: {
+        title: '启用 AI Studio / Vertex 混合协议兜底',
+        hint: '关闭时仅在当前协议族内选路；开启后会优先同协议，额度或限流不满足时再尝试跨 AI Studio / Vertex 兜底。'
+      },
       modelRouting: {
         title: '模型路由配置',
         tooltip:
@@ -1364,11 +1368,11 @@
       },
       clearRateLimit: '清除速率限制',
       resetQuota: '重置配额',
-      quotaLimit: '上游账号额度',
+      quotaLimit: '账号额度限制',
       quotaLimitPlaceholder: '0 表示不限制',
-      quotaLimitHint: '设置当前上游账号的日/周/总使用额度（美元）。任一维度达到限额后，仅暂停当前上游账号的调度，不影响分组额度。修改限额不会重置已用额度。',
-      quotaLimitToggle: '启用上游账号额度',
-      quotaLimitToggleHint: '开启后，仅当前上游账号在达到限额时自动暂停调度，不影响分组额度',
+      quotaLimitHint: '为当前账号设置日/周/总使用额度（美元）。任一维度达到限额后，该账号会在调度时被自动跳过并继续尝试其它可用账号；分组额度不受影响，修改限额也不会重置已用额度。',
+      quotaLimitToggle: '启用账号额度限制',
+      quotaLimitToggleHint: '开启后，该账号在达到限额时会被自动跳过并切到其它可用账号，不影响分组额度',
       quotaDailyLimit: '日额度',
       quotaDailyLimitHint: '仅作用于当前上游账号；从首次使用起每 24 小时自动重置。',
       quotaWeeklyLimit: '周额度',
@@ -1748,6 +1752,12 @@
           tlsFingerprintHint: '模拟 Node.js / Claude Code 客户端的 TLS 指纹。',
           sessionMasking: '会话 ID 伪装',
           sessionMaskingHint: '启用后会在短时间内固定 metadata.user_id 中的 session ID，让上游认为请求来自同一会话。'
+        },
+        batch: {
+          title: '开启后会额外开放 Gemini Files / Batch 与 Vertex Batch 原生路径',
+          hint: '保持 Google 官方原生协议，不引入自定义 Batch DTO。AI Studio 走 Files API + Batch API；Vertex AI 走 batchPredictionJobs。',
+          toggle: '启用 Gemini Batch',
+          toggleHint: '仅对 Gemini 子协议生效。关闭时继续保持现有同步 Gemini 行为，不暴露 Files / Batch 路径。'
         },
         probeRequiredApiKey: '请先填写 API Key 再进行取模',
         probeFailed: '探测上游模型失败',
@@ -2217,7 +2227,7 @@
           label: '账号等级',
           hint: '提示：系统会优先尝试自动识别账号等级；若自动识别不可用或失败，则使用你选择的等级作为回退（本地模拟配额）。',
           aiStudioHint:
-            'AI Studio 的配额是按模型分别限流（Pro/Flash 独立）。若已绑卡（按量付费），请选 Pay-as-you-go。',
+            'AI Studio 账号按官方 Free / Tier 1 / Tier 2 / Tier 3 管理。旧的按量付费账号会自动兼容映射到 Tier 1。',
           googleOne: {
             free: 'Google One Free',
             pro: 'Google One Pro',
@@ -2229,7 +2239,10 @@
           },
           aiStudio: {
             free: 'Google AI Free',
-            paid: 'Google AI Pay-as-you-go'
+            paid: 'Google AI Pay-as-you-go',
+            tier1: 'Google AI Tier 1',
+            tier2: 'Google AI Tier 2',
+            tier3: 'Google AI Tier 3'
           }
         },
         accountType: {
@@ -2241,6 +2254,12 @@
           vertexHint: '如果你要接入 Vertex AI，请直接切换到「Vertex AI」。',
           apiKeyLink: '获取 API Key',
           quotaLink: '配额说明'
+        },
+        batchCapability: {
+          title: 'Batch 能力说明',
+          aiStudio: 'AI Studio API Key：默认支持 Gemini 原生 Files API + Batch API。',
+          vertex: 'Vertex AI：默认支持标准 Vertex batchPredictionJobs。',
+          vertexExpress: 'Vertex Express API Key：仅保留在线推理，不伪装成真 Batch。'
         },
         oauthType: {
           builtInTitle: '内置授权（Gemini CLI / Code Assist）',
@@ -2287,11 +2306,20 @@
         quotaPolicy: {
           title: 'Gemini 配额与限流政策（参考）',
           note: '注意：Gemini 官方未提供用量查询接口。此处显示的“每日配额”是由系统根据账号等级模拟计算的估算值，仅供调度参考，请以 Google 官方实际报错为准。',
+          effectiveDate: '官方目录生效日期：{date}',
+          remainingApiUnavailable: '当前只展示官方公开的 Tier、速率限制和 Batch 限制；官方资料中未提供可直接集成的“剩余额度 / 剩余 Tier 金额”查询 API。',
+          remainingApiAvailable: '当前环境支持展示官方剩余额度查询接口。',
+          batchSection: 'Batch API 独立限制',
+          batchSummary: '并发 Batch 请求上限 {concurrent}；单个输入文件上限 {inputSize}；Files 存储上限 {storage}。',
           columns: {
             channel: '授权通道',
             account: '账号状态',
             limits: '限流政策',
-            docs: '官方文档'
+            docs: '官方文档',
+            tier: 'Tier',
+            model: '模型族',
+            qualification: '资格要求',
+            batchTokens: 'Batch 排队 Token 上限'
           },
           docs: {
             codeAssist: 'Code Assist 配额',
@@ -2328,14 +2356,23 @@
               free: '未绑卡（免费层）',
               paid: '已绑卡（按量付费）',
               limitsFree: 'RPD 50；RPM 2（Pro）/ 15（Flash）',
-              limitsPaid: 'RPD 不限；RPM 1000（Pro）/ 2000（Flash）（按模型配额）'
+              limitsPaid: 'RPD 不限；RPM 1000（Pro）/ 2000（Flash）（按模型配额）',
+              limitsTier1: 'Tier 1：按官方 AI Studio Rate Limits 执行，常见为 Pro 1000 RPM / Flash 2000 RPM。',
+              limitsTier2: 'Tier 2：沿用官方付费层高配额，并提供更高的 Batch 排队额度。',
+              limitsTier3: 'Tier 3：沿用官方最高级付费层配额与最大 Batch 排队额度。'
+            },
+            vertex: {
+              channel: 'Vertex AI / Vertex Express',
+              limits: '按项目、地区与模型分别计量；Batch 走标准 Vertex batchPredictionJobs，具体配额以 Vertex AI 官方项目配额为准'
             },
             customOAuth: {
               channel: 'Custom OAuth Client（GCP）',
               free: '项目未绑卡',
               paid: '项目已绑卡',
               limitsFree: 'RPD 50；RPM 2（项目配额）',
-              limitsPaid: 'RPD 不限；RPM 1000+（项目配额）'
+              limitsPaid: 'RPD 不限；RPM 1000+（项目配额）',
+              limitsTier2: 'Tier 2：沿用 AI Studio 官方付费层高配额与 Batch 上限。',
+              limitsTier3: 'Tier 3：沿用 AI Studio 官方最高级付费层高配额与 Batch 上限。'
             }
           }
         },
@@ -4318,6 +4355,54 @@
         testFailed: 'S3 连接测试失败',
         saved: 'Sora S3 设置保存成功',
         saveFailed: '保存 Sora S3 设置失败'
+      },
+      googleBatchGcs: {
+        title: 'Google Batch GCS 中转配置',
+        description: '管理 Gemini 混合池使用的全局 GCS Profile，用于 AI Studio / Vertex Batch 文件中转与镜像资源落地。',
+        newProfile: '新建 GCS Profile',
+        reloadProfiles: '刷新列表',
+        empty: '暂无 GCS Profile，请先创建',
+        createTitle: '新建 GCS Profile',
+        editTitle: '编辑 GCS Profile',
+        profileID: '配置 ID',
+        profileName: '配置名称',
+        setActive: '创建后设为生效',
+        saveProfile: '保存配置',
+        activateProfile: '设为生效',
+        profileCreated: 'GCS Profile 创建成功',
+        profileSaved: 'GCS Profile 保存成功',
+        profileDeleted: 'GCS Profile 删除成功',
+        profileActivated: 'GCS 生效配置已切换',
+        profileIDRequired: '请填写配置 ID',
+        profileNameRequired: '请填写配置名称',
+        profileSelectRequired: '请先选择配置',
+        bucketRequired: '启用时必须填写存储桶',
+        projectIDRequired: '启用时必须填写 Google Cloud Project ID',
+        serviceAccountRequired: '启用时必须填写 Service Account JSON',
+        deleteConfirm: '确定删除 GCS Profile {profileID} 吗？',
+        columns: {
+          profile: '配置',
+          active: '生效状态',
+          bucket: '存储桶',
+          project: '项目',
+          updatedAt: '更新时间',
+          actions: '操作'
+        },
+        enabled: '启用 GCS 中转',
+        enabledHint: '启用后，Gemini 混合 Batch 会使用此 GCS Profile 做中转和镜像资源落地。',
+        bucket: '存储桶',
+        prefix: '对象前缀',
+        prefixHint: '可选，留空时按根目录使用；建议为每套环境设置独立前缀。',
+        projectId: 'Google Cloud Project ID',
+        serviceAccountJson: 'Service Account JSON',
+        serviceAccountHint: '请输入拥有 GCS 读写权限的服务账号 JSON。编辑已有配置时留空可保持不变。',
+        configuredBadge: 'JSON 已配置',
+        configuredPlaceholder: '（已配置，留空保持不变）',
+        testConnection: '测试连接',
+        testing: '测试中...',
+        testSuccess: 'GCS 连接测试成功',
+        testFailed: 'GCS 连接测试失败',
+        saveFailed: '保存 GCS Profile 失败'
       },
       streamTimeout: {
         title: '流超时处理',

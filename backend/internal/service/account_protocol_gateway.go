@@ -15,6 +15,7 @@ const (
 	gatewayExtraAcceptedProtocolsKey = "gateway_accepted_protocols"
 	gatewayExtraClientProfilesKey    = "gateway_client_profiles"
 	gatewayExtraClientRoutesKey      = "gateway_client_routes"
+	gatewayExtraBatchEnabledKey      = "gateway_batch_enabled"
 	claudeCodeMimicEnabledKey        = "claude_code_mimic_enabled"
 	enableTLSFingerprintKey          = "enable_tls_fingerprint"
 	sessionIDMaskingEnabledKey       = "session_id_masking_enabled"
@@ -75,7 +76,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	PlatformGemini: {
 		ID:                  PlatformGemini,
 		DisplayName:         "Gemini",
-		RequestFormats:      []string{"/v1beta/models/{model}:generateContent"},
+		RequestFormats:      []string{"/v1beta/models/{model}:generateContent", "/upload/v1beta/files", "/v1beta/files", "/v1beta/models/{model}:batchGenerateContent", "/v1beta/batches/{batch}"},
 		DefaultBaseURL:      "https://generativelanguage.googleapis.com",
 		APIKeyPlaceholder:   "AIza...",
 		ModelImportStrategy: "gemini",
@@ -86,7 +87,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	GatewayProtocolMixed: {
 		ID:                  GatewayProtocolMixed,
 		DisplayName:         "Mixed",
-		RequestFormats:      []string{"/v1/chat/completions", "/v1/responses", "/v1/messages", "/v1beta/models/{model}:generateContent"},
+		RequestFormats:      []string{"/v1/chat/completions", "/v1/responses", "/v1/messages", "/v1beta/models/{model}:generateContent", "/upload/v1beta/files", "/v1beta/files", "/v1beta/models/{model}:batchGenerateContent", "/v1beta/batches/{batch}", "/v1/projects/{project}/locations/{location}/batchPredictionJobs"},
 		DefaultBaseURL:      "",
 		APIKeyPlaceholder:   "gateway-key-...",
 		ModelImportStrategy: GatewayProtocolMixed,
@@ -247,6 +248,28 @@ func GetAccountGatewayAcceptedProtocols(account *Account) []string {
 
 func ResolveAccountGatewayAcceptedProtocols(platform string, extra map[string]any) []string {
 	return NormalizeGatewayAcceptedProtocols(ResolveAccountGatewayProtocol(platform, extra), extra)
+}
+
+func SupportsProtocolGatewayBatchValues(platform string, accountType string, extra map[string]any) bool {
+	if !IsProtocolGatewayPlatform(platform) || strings.TrimSpace(strings.ToLower(accountType)) != AccountTypeAPIKey {
+		return false
+	}
+	if !parseExtraBool(extra[gatewayExtraBatchEnabledKey]) {
+		return false
+	}
+	for _, protocol := range ResolveAccountGatewayAcceptedProtocols(platform, extra) {
+		if protocol == PlatformGemini {
+			return true
+		}
+	}
+	return false
+}
+
+func SupportsProtocolGatewayBatch(account *Account) bool {
+	if account == nil {
+		return false
+	}
+	return SupportsProtocolGatewayBatchValues(account.Platform, account.Type, account.Extra)
 }
 
 func NormalizeGatewayClientProfiles(protocol string, extra map[string]any) []string {
@@ -627,6 +650,7 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		delete(nextExtra, gatewayExtraAcceptedProtocolsKey)
 		delete(nextExtra, gatewayExtraClientProfilesKey)
 		delete(nextExtra, gatewayExtraClientRoutesKey)
+		delete(nextExtra, gatewayExtraBatchEnabledKey)
 		return nextExtra
 	}
 	nextExtra[gatewayExtraProtocolKey] = protocol
@@ -652,6 +676,11 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		nextExtra[gatewayExtraClientRoutesKey] = items
 	} else {
 		delete(nextExtra, gatewayExtraClientRoutesKey)
+	}
+	if SupportsProtocolGatewayBatchValues(platform, AccountTypeAPIKey, nextExtra) {
+		nextExtra[gatewayExtraBatchEnabledKey] = true
+	} else {
+		delete(nextExtra, gatewayExtraBatchEnabledKey)
 	}
 	return nextExtra
 }

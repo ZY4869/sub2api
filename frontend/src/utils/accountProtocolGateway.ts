@@ -26,6 +26,13 @@ export const PROTOCOL_GATEWAY_PLATFORM = 'protocol_gateway' as const
 export const PROTOCOL_GATEWAY_PROTOCOLS = ['openai', 'anthropic', 'gemini', 'mixed'] as const
 export const PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const
 export const PROTOCOL_GATEWAY_CLIENT_PROFILES = ['codex', 'gemini_cli'] as const
+export const PROTOCOL_GATEWAY_GEMINI_BATCH_REQUEST_FORMATS = [
+  '/upload/v1beta/files',
+  '/v1beta/files',
+  '/v1beta/models/{model}:batchGenerateContent',
+  '/v1beta/batches/{batch}',
+  '/v1/projects/{project}/locations/{location}/batchPredictionJobs'
+] as const
 
 export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatewayDescriptor> = {
   openai: {
@@ -143,6 +150,20 @@ export function normalizeGatewayClientProfile(value: unknown): GatewayClientProf
   }
   const normalized = value.trim().toLowerCase()
   return isGatewayClientProfile(normalized) ? normalized : ''
+}
+
+export function normalizeGatewayBatchEnabled(value: unknown): boolean {
+  if (typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return value !== 0
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
+  }
+  return false
 }
 
 export function supportedGatewayClientProfilesForProtocol(protocol: GatewayAcceptedProtocol): GatewayClientProfile[] {
@@ -270,6 +291,78 @@ export function supportsProtocolGatewayClaudeClientMimic(options: {
   )
 
   return acceptedProtocols.includes('anthropic')
+}
+
+export function supportsProtocolGatewayGeminiBatch(options: {
+  platform?: AccountPlatform | string | null
+  type?: AccountType | string | null
+  gatewayProtocol?: unknown
+  acceptedProtocols?: unknown
+}): boolean {
+  if (!isProtocolGatewayPlatform(options.platform)) {
+    return false
+  }
+  if (String(options.type || '').trim().toLowerCase() !== 'apikey') {
+    return false
+  }
+
+  const acceptedProtocols = normalizeGatewayAcceptedProtocols(
+    normalizeGatewayProtocol(options.gatewayProtocol) || 'mixed',
+    options.acceptedProtocols
+  )
+
+  return acceptedProtocols.includes('gemini')
+}
+
+export function supportsProtocolGatewayGeminiBatchAccount(
+  account?: Pick<Account, 'platform' | 'type' | 'gateway_protocol' | 'extra'> | null
+): boolean {
+  if (!account) {
+    return false
+  }
+
+  return supportsProtocolGatewayGeminiBatch({
+    platform: account.platform,
+    type: account.type,
+    gatewayProtocol: account.gateway_protocol ?? account.extra?.gateway_protocol,
+    acceptedProtocols: account.extra?.gateway_accepted_protocols
+  })
+}
+
+export function resolveProtocolGatewayBatchRequestFormats(options: {
+  gatewayProtocol?: unknown
+  acceptedProtocols?: unknown
+}): string[] {
+  const acceptedProtocols = normalizeGatewayAcceptedProtocols(
+    normalizeGatewayProtocol(options.gatewayProtocol) || 'mixed',
+    options.acceptedProtocols
+  )
+
+  return acceptedProtocols.includes('gemini')
+    ? [...PROTOCOL_GATEWAY_GEMINI_BATCH_REQUEST_FORMATS]
+    : []
+}
+
+export function applyProtocolGatewayGeminiBatchExtra(
+  base: Record<string, unknown> | undefined,
+  options: {
+    platform?: AccountPlatform | string | null
+    type?: AccountType | string | null
+    gatewayProtocol?: unknown
+    acceptedProtocols?: unknown
+    gatewayBatchEnabled?: boolean
+  }
+): Record<string, unknown> | undefined {
+  const nextExtra: Record<string, unknown> = { ...(base || {}) }
+  const supported = supportsProtocolGatewayGeminiBatch(options)
+
+  if (!supported || !options.gatewayBatchEnabled) {
+    delete nextExtra.gateway_batch_enabled
+    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+  }
+
+  nextExtra.gateway_batch_enabled = true
+  return nextExtra
 }
 
 export function supportsProtocolGatewayClaudeClientMimicAccount(

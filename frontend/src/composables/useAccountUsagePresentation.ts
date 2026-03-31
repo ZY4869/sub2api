@@ -17,6 +17,7 @@ import type {
 import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { resolveCodexUsageWindow } from '@/utils/codexUsage'
+import { resolveGeminiChannel, resolveGeminiChannelDisplayName } from '@/utils/geminiAccount'
 import { formatLocalAbsoluteTime, formatLocalTimestamp, parseEffectiveResetAt } from '@/utils/usageResetTime'
 
 interface UsageCacheEntry {
@@ -620,19 +621,21 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     return (credentials?.oauth_type || '').trim() || null
   })
 
-  const isGeminiCodeAssist = computed(() => {
-    if (getRuntimePlatform(account.value) !== 'gemini') return false
-    const credentials = account.value.credentials as GeminiCredentials | undefined
-    return credentials?.oauth_type === 'code_assist' || (!credentials?.oauth_type && !!credentials?.project_id)
+  const geminiChannel = computed(() => {
+    if (getRuntimePlatform(account.value) !== 'gemini') return null
+    return resolveGeminiChannel({
+      type: account.value.type,
+      credentials: account.value.credentials as GeminiCredentials | undefined
+    })
   })
 
-  const geminiChannelShort = computed((): 'ai studio' | 'gcp' | 'google one' | 'client' | null => {
+  const isGeminiCodeAssist = computed(() => {
+    return geminiChannel.value === 'gcp'
+  })
+
+  const geminiChannelShort = computed((): string | null => {
     if (getRuntimePlatform(account.value) !== 'gemini') return null
-    if (account.value.type === 'apikey') return 'ai studio'
-    if (geminiOAuthType.value === 'google_one') return 'google one'
-    if (isGeminiCodeAssist.value) return 'gcp'
-    if (geminiOAuthType.value === 'ai_studio') return 'client'
-    return 'ai studio'
+    return resolveGeminiChannelDisplayName(geminiChannel.value)
   })
 
   const geminiUserLevel = computed((): string | null => {
@@ -642,7 +645,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     const tierLower = tier.toLowerCase()
     const tierUpper = tier.toUpperCase()
 
-    if (geminiOAuthType.value === 'google_one') {
+    if (geminiChannel.value === 'google_one') {
       if (tierLower === 'google_one_free') return 'free'
       if (tierLower === 'google_ai_pro') return 'pro'
       if (tierLower === 'google_ai_ultra') return 'ultra'
@@ -654,19 +657,23 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
       return null
     }
 
-    if (isGeminiCodeAssist.value) {
+    if (geminiChannel.value === 'gcp') {
       if (tierLower === 'gcp_enterprise') return 'enterprise'
       if (tierLower === 'gcp_standard') return 'standard'
       if (tierUpper.includes('ULTRA') || tierUpper.includes('ENTERPRISE')) return 'enterprise'
       return 'standard'
     }
 
-    if (account.value.type === 'apikey' || geminiOAuthType.value === 'ai_studio') {
-      if (tierLower === 'aistudio_paid') return 'paid'
+    if (geminiChannel.value === 'ai_studio' || geminiChannel.value === 'ai_studio_client') {
+      if (tierLower === 'aistudio_tier_3') return 'tier_3'
+      if (tierLower === 'aistudio_tier_2') return 'tier_2'
+      if (tierLower === 'aistudio_tier_1' || tierLower === 'aistudio_paid') return 'tier_1'
       if (tierLower === 'aistudio_free') return 'free'
-      if (tierUpper.includes('PAID') || tierUpper.includes('PAYG') || tierUpper.includes('PAY')) return 'paid'
+      if (tierUpper.includes('TIER_3')) return 'tier_3'
+      if (tierUpper.includes('TIER_2')) return 'tier_2'
+      if (tierUpper.includes('PAID') || tierUpper.includes('PAYG') || tierUpper.includes('PAY') || tierUpper.includes('TIER_1')) return 'tier_1'
       if (tierUpper.includes('FREE')) return 'free'
-      if (account.value.type === 'apikey') return 'free'
+      if (geminiChannel.value === 'ai_studio') return 'free'
       return null
     }
 
@@ -675,22 +682,45 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
 
   const geminiAuthTypeLabel = computed(() => {
     if (getRuntimePlatform(account.value) !== 'gemini' || !geminiChannelShort.value) return null
-    return geminiUserLevel.value ? `${geminiChannelShort.value} ${geminiUserLevel.value}` : geminiChannelShort.value
+    let levelLabel = geminiUserLevel.value
+    if (geminiChannel.value === 'ai_studio' || geminiChannel.value === 'ai_studio_client') {
+      switch (geminiUserLevel.value) {
+        case 'tier_3':
+          levelLabel = 'Tier 3'
+          break
+        case 'tier_2':
+          levelLabel = 'Tier 2'
+          break
+        case 'tier_1':
+          levelLabel = 'Tier 1'
+          break
+        case 'free':
+          levelLabel = 'Free'
+          break
+      }
+    }
+    return levelLabel ? `${geminiChannelShort.value} ${levelLabel}` : geminiChannelShort.value
   })
 
   const geminiTierClass = computed(() => {
     const channel = geminiChannelShort.value
     const level = geminiUserLevel.value
 
-    if (channel === 'client' || channel === 'ai studio') {
-      return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
+    if (channel === 'AI Studio Client' || channel === 'AI Studio') {
+      if (level === 'tier_3') return 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
+      if (level === 'tier_2') return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+      if (level === 'tier_1') return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
     }
-    if (channel === 'google one') {
+    if (channel === 'Vertex AI') {
+      return 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+    }
+    if (channel === 'Google One') {
       if (level === 'ultra') return 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
       if (level === 'pro') return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
       return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
     }
-    if (channel === 'gcp') {
+    if (channel === 'GCP') {
       if (level === 'enterprise') return 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
       return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
     }
@@ -698,11 +728,17 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   })
 
   const geminiQuotaPolicyChannel = computed(() => {
-    if (geminiOAuthType.value === 'google_one') {
+    if (geminiChannel.value === 'google_one') {
       return t('admin.accounts.gemini.quotaPolicy.rows.googleOne.channel')
     }
-    if (isGeminiCodeAssist.value) {
+    if (geminiChannel.value === 'gcp') {
       return t('admin.accounts.gemini.quotaPolicy.rows.gcp.channel')
+    }
+    if (geminiChannel.value === 'vertex_ai') {
+      return t('admin.accounts.gemini.quotaPolicy.rows.vertex.channel')
+    }
+    if (geminiChannel.value === 'ai_studio_client') {
+      return t('admin.accounts.gemini.quotaPolicy.rows.customOAuth.channel')
     }
     return t('admin.accounts.gemini.quotaPolicy.rows.aiStudio.channel')
   })
@@ -710,7 +746,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   const geminiQuotaPolicyLimits = computed(() => {
     const tierLower = (geminiTier.value || '').toString().trim().toLowerCase()
 
-    if (geminiOAuthType.value === 'google_one') {
+    if (geminiChannel.value === 'google_one') {
       if (tierLower === 'google_ai_ultra' || geminiUserLevel.value === 'ultra') {
         return t('admin.accounts.gemini.quotaPolicy.rows.googleOne.limitsUltra')
       }
@@ -720,22 +756,48 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
       return t('admin.accounts.gemini.quotaPolicy.rows.googleOne.limitsFree')
     }
 
-    if (isGeminiCodeAssist.value) {
+    if (geminiChannel.value === 'gcp') {
       if (tierLower === 'gcp_enterprise' || geminiUserLevel.value === 'enterprise') {
         return t('admin.accounts.gemini.quotaPolicy.rows.gcp.limitsEnterprise')
       }
       return t('admin.accounts.gemini.quotaPolicy.rows.gcp.limitsStandard')
     }
 
-    if (tierLower === 'aistudio_paid' || geminiUserLevel.value === 'paid') {
-      return t('admin.accounts.gemini.quotaPolicy.rows.aiStudio.limitsPaid')
+    if (geminiChannel.value === 'vertex_ai') {
+      return t('admin.accounts.gemini.quotaPolicy.rows.vertex.limits')
+    }
+
+    if (geminiChannel.value === 'ai_studio_client') {
+      if (tierLower === 'aistudio_tier_3' || geminiUserLevel.value === 'tier_3') {
+        return t('admin.accounts.gemini.quotaPolicy.rows.customOAuth.limitsTier3')
+      }
+      if (tierLower === 'aistudio_tier_2' || geminiUserLevel.value === 'tier_2') {
+        return t('admin.accounts.gemini.quotaPolicy.rows.customOAuth.limitsTier2')
+      }
+      if (tierLower === 'aistudio_tier_1' || tierLower === 'aistudio_paid' || geminiUserLevel.value === 'tier_1') {
+        return t('admin.accounts.gemini.quotaPolicy.rows.customOAuth.limitsPaid')
+      }
+      return t('admin.accounts.gemini.quotaPolicy.rows.customOAuth.limitsFree')
+    }
+
+    if (tierLower === 'aistudio_tier_3' || geminiUserLevel.value === 'tier_3') {
+      return t('admin.accounts.gemini.quotaPolicy.rows.aiStudio.limitsTier3')
+    }
+    if (tierLower === 'aistudio_tier_2' || geminiUserLevel.value === 'tier_2') {
+      return t('admin.accounts.gemini.quotaPolicy.rows.aiStudio.limitsTier2')
+    }
+    if (tierLower === 'aistudio_tier_1' || tierLower === 'aistudio_paid' || geminiUserLevel.value === 'tier_1') {
+      return t('admin.accounts.gemini.quotaPolicy.rows.aiStudio.limitsTier1')
     }
     return t('admin.accounts.gemini.quotaPolicy.rows.aiStudio.limitsFree')
   })
 
   const geminiQuotaPolicyDocsUrl = computed(() => {
-    if (geminiOAuthType.value === 'google_one' || isGeminiCodeAssist.value) {
+    if (geminiChannel.value === 'google_one' || geminiChannel.value === 'gcp') {
       return 'https://developers.google.com/gemini-code-assist/resources/quotas'
+    }
+    if (geminiChannel.value === 'vertex_ai') {
+      return 'https://cloud.google.com/vertex-ai/generative-ai/docs/quotas'
     }
     return 'https://ai.google.dev/pricing'
   })
@@ -763,8 +825,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     )
   })
 
-  const hasApiKeyQuota = computed(() => {
-    if (account.value.type !== 'apikey') return false
+  const hasAccountQuota = computed(() => {
     return (
       (account.value.quota_daily_limit ?? 0) > 0 ||
       (account.value.quota_weekly_limit ?? 0) > 0 ||
@@ -975,7 +1036,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
       } else {
         state = 'unlimited'
       }
-    } else if (hasApiKeyQuota.value) {
+    } else if (hasAccountQuota.value) {
       if (apiKeyQuotaRows.value.length > 0) {
         state = 'bars'
         windowRows = apiKeyQuotaRows.value

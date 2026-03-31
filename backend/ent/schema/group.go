@@ -133,6 +133,10 @@ func (Group) Fields() []ent.Field {
 			Default(false).
 			Comment("是否启用模型路由配置"),
 
+		field.Bool("gemini_mixed_protocol_enabled").
+			Default(false).
+			Comment("是否启用 Gemini AI Studio / Vertex AI 混合协议兜底"),
+
 		// MCP XML 协议注入开关 (added by migration 042)
 		field.Bool("mcp_xml_inject").
 			Default(true).

@@ -192,9 +192,10 @@ func newGeminiQuotaPolicy() *GeminiQuotaPolicy {
 			// aistudio_free:
 			//   - gemini_pro:   50 RPD / 2 RPM
 			//   - gemini_flash: 1500 RPD / 15 RPM
-			GeminiTierAIStudioFree: {Quota: GeminiQuota{ProRPD: 50, ProRPM: 2, FlashRPD: 1500, FlashRPM: 15}, Cooldown: 30 * time.Minute},
-			// aistudio_paid: -1 means "unlimited/pay-as-you-go" for RPD.
-			GeminiTierAIStudioPaid: {Quota: GeminiQuota{ProRPD: -1, ProRPM: 1000, FlashRPD: -1, FlashRPM: 2000}, Cooldown: 5 * time.Minute},
+			GeminiTierAIStudioFree:  {Quota: GeminiQuota{ProRPD: 50, ProRPM: 2, FlashRPD: 1500, FlashRPM: 15}, Cooldown: 30 * time.Minute},
+			GeminiTierAIStudioTier1: {Quota: GeminiQuota{ProRPD: -1, ProRPM: 1000, FlashRPD: -1, FlashRPM: 2000}, Cooldown: 5 * time.Minute},
+			GeminiTierAIStudioTier2: {Quota: GeminiQuota{ProRPD: -1, ProRPM: 1000, FlashRPD: -1, FlashRPM: 2000}, Cooldown: 5 * time.Minute},
+			GeminiTierAIStudioTier3: {Quota: GeminiQuota{ProRPD: -1, ProRPM: 1000, FlashRPD: -1, FlashRPM: 2000}, Cooldown: 5 * time.Minute},
 
 			// --- Google One (shared pool) ---
 			GeminiTierGoogleOneFree: {Quota: GeminiQuota{SharedRPD: 1000, SharedRPM: 60}, Cooldown: 30 * time.Minute},
@@ -328,7 +329,13 @@ func normalizeGeminiTierID(tierID string) string {
 	case "AISTUDIO_FREE":
 		return GeminiTierAIStudioFree
 	case "AISTUDIO_PAID":
-		return GeminiTierAIStudioPaid
+		return GeminiTierAIStudioTier1
+	case "AISTUDIO_TIER_1":
+		return GeminiTierAIStudioTier1
+	case "AISTUDIO_TIER_2":
+		return GeminiTierAIStudioTier2
+	case "AISTUDIO_TIER_3":
+		return GeminiTierAIStudioTier3
 	case "GOOGLE_ONE_FREE":
 		return GeminiTierGoogleOneFree
 	case "GOOGLE_AI_PRO":

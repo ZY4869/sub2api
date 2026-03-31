@@ -169,6 +169,35 @@ function buildVertexExpressAccount() {
   } as any
 }
 
+function buildProtocolGatewayGeminiAccount() {
+  return {
+    id: 4,
+    name: 'Gemini Gateway',
+    notes: '',
+    platform: 'protocol_gateway',
+    gateway_protocol: 'mixed',
+    gateway_batch_enabled: true,
+    type: 'apikey',
+    credentials: {
+      api_key: 'gateway-key',
+      base_url: 'https://gateway.example.com'
+    },
+    extra: {
+      gateway_protocol: 'mixed',
+      gateway_accepted_protocols: ['gemini'],
+      gateway_batch_enabled: true
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
@@ -182,6 +211,7 @@ function mountModal(account = buildAccount()) {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
         AccountApiKeyModelProbeEditor: true,
+        AccountProtocolGatewayBatchEditor: true,
         AccountGeminiVertexCredentialsEditor: true,
         AccountModelScopeEditor: true,
         AccountRuntimeSettingsEditor: true,
@@ -278,5 +308,21 @@ describe('EditAccountModal', () => {
       quota_weekly_reset_mode: 'rolling'
     })
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.gemini_api_variant).toBe('vertex_express')
+  })
+
+  it('keeps gateway_batch_enabled when editing a gemini protocol gateway account', async () => {
+    const account = buildProtocolGatewayGeminiAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_batch_enabled).toBe(true)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.gateway_protocol).toBe('mixed')
   })
 })

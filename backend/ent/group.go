@@ -72,6 +72,8 @@ type Group struct {
 	ModelRouting map[string][]int64 `json:"model_routing,omitempty"`
 	// 是否启用模型路由配置
 	ModelRoutingEnabled bool `json:"model_routing_enabled,omitempty"`
+	// 是否启用 Gemini AI Studio / Vertex AI 混合协议兜底
+	GeminiMixedProtocolEnabled bool `json:"gemini_mixed_protocol_enabled,omitempty"`
 	// 是否注入 MCP XML 调用协议提示词（仅 antigravity 平台）
 	McpXMLInject bool `json:"mcp_xml_inject,omitempty"`
 	// 支持的模型系列：claude, gemini_text, gemini_image
@@ -214,7 +216,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case group.FieldModelRouting, group.FieldSupportedModelScopes:
 			values[i] = new([]byte)
-		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch:
+		case group.FieldIsExclusive, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldGeminiMixedProtocolEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch:
 			values[i] = new(sql.NullBool)
 		case group.FieldRateMultiplier, group.FieldDailyLimitUsd, group.FieldWeeklyLimitUsd, group.FieldMonthlyLimitUsd, group.FieldImagePrice1k, group.FieldImagePrice2k, group.FieldImagePrice4k, group.FieldSoraImagePrice360, group.FieldSoraImagePrice540, group.FieldSoraVideoPricePerRequest, group.FieldSoraVideoPricePerRequestHd:
 			values[i] = new(sql.NullFloat64)
@@ -422,6 +424,12 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field model_routing_enabled", values[i])
 			} else if value.Valid {
 				_m.ModelRoutingEnabled = value.Bool
+			}
+		case group.FieldGeminiMixedProtocolEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field gemini_mixed_protocol_enabled", values[i])
+			} else if value.Valid {
+				_m.GeminiMixedProtocolEnabled = value.Bool
 			}
 		case group.FieldMcpXMLInject:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -655,6 +663,9 @@ func (_m *Group) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model_routing_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModelRoutingEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("gemini_mixed_protocol_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GeminiMixedProtocolEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("mcp_xml_inject=")
 	builder.WriteString(fmt.Sprintf("%v", _m.McpXMLInject))

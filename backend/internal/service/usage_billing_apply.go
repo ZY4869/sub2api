@@ -145,7 +145,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	if !p.SkipUserBilling && p.Cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
 		cmd.APIKeyRateLimitCost = p.Cost.ActualCost
 	}
-	if p.Cost.TotalCost > 0 && p.Account.IsAPIKeyOrBedrock() && p.Account.HasAnyQuotaLimit() {
+	if p.Cost.TotalCost > 0 && CanParticipateInAccountQuota(p.Account) && p.Account.HasAnyQuotaLimit() {
 		cmd.AccountQuotaCost = p.Cost.TotalCost * p.AccountRateMultiplier
 	}
 

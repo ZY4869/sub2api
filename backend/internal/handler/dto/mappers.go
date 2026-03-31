@@ -204,6 +204,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		FallbackGroupIDOnInvalidRequest: g.FallbackGroupIDOnInvalidRequest,
 		SoraStorageQuotaBytes:           g.SoraStorageQuotaBytes,
 		AllowMessagesDispatch:           g.AllowMessagesDispatch,
+		GeminiMixedProtocolEnabled:      g.GeminiMixedProtocolEnabled,
 		CreatedAt:                       g.CreatedAt,
 		UpdatedAt:                       g.UpdatedAt,
 	}
@@ -254,6 +255,10 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		SessionWindowEnd:        a.SessionWindowEnd,
 		SessionWindowStatus:     a.SessionWindowStatus,
 		GroupIDs:                a.GroupIDs,
+	}
+	if service.IsProtocolGatewayAccount(a) {
+		gatewayBatchEnabled := a.IsGatewayBatchEnabled()
+		out.GatewayBatchEnabled = &gatewayBatchEnabled
 	}
 
 	// 提取 5h 窗口费用控制和会话数量控制配置（仅 Anthropic OAuth/SetupToken 账号有效）
@@ -322,7 +327,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	}
 
 	// 提取账号配额限制（apikey / bedrock 类型有效）
-	if a.IsAPIKeyOrBedrock() {
+	if service.ShouldExposeAccountQuota(a) {
 		if limit := a.GetQuotaLimit(); limit > 0 {
 			out.QuotaLimit = &limit
 			used := a.GetQuotaUsed()

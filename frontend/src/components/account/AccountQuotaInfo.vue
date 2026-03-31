@@ -32,6 +32,7 @@ import { computed, ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account, GeminiCredentials } from '@/types'
 import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
+import { normalizeGeminiAIStudioTier, resolveGeminiChannel } from '@/utils/geminiAccount'
 
 const props = defineProps<{
   account: Account
@@ -46,20 +47,29 @@ let timer: ReturnType<typeof setInterval> | null = null
 // 是否为 Code Assist OAuth
 // 判断逻辑与后端保持一致：project_id 存在即为 Code Assist
 const isCodeAssist = computed(() => {
-  const creds = props.account.credentials as GeminiCredentials | undefined
-  // 显式为 code_assist，或 legacy 情况（oauth_type 为空但 project_id 存在）
-  return creds?.oauth_type === 'code_assist' || (!creds?.oauth_type && !!creds?.project_id)
+  return geminiChannel.value === 'gcp'
 })
 
 // 是否为 Google One OAuth
 const isGoogleOne = computed(() => {
-  const creds = props.account.credentials as GeminiCredentials | undefined
-  return creds?.oauth_type === 'google_one'
+  return geminiChannel.value === 'google_one'
 })
+
+const geminiChannel = computed(() =>
+  resolveGeminiChannel({
+    type: props.account.type,
+    credentials: props.account.credentials as GeminiCredentials | undefined
+  })
+)
 
 // 是否应该显示配额信息
 const shouldShowQuota = computed(() => {
   return runtimePlatform.value === 'gemini'
+})
+
+const normalizedAIStudioTier = computed(() => {
+  const creds = props.account.credentials as GeminiCredentials | undefined
+  return normalizeGeminiAIStudioTier(creds?.tier_id)
 })
 
 // Tier 标签文本
@@ -90,11 +100,33 @@ const tierLabel = computed(() => {
     return 'Google One'
   }
 
-  // API Key: 显示 AI Studio
-  const tier = (creds?.tier_id || '').toString().trim().toLowerCase()
-  if (tier === 'aistudio_paid') return 'AI Studio Pay-as-you-go'
-  if (tier === 'aistudio_free') return 'AI Studio Free Tier'
-  return 'AI Studio'
+  if (geminiChannel.value === 'vertex_ai') {
+    return 'Vertex AI'
+  }
+
+  if (geminiChannel.value === 'ai_studio_client') {
+    switch (normalizedAIStudioTier.value) {
+      case 'aistudio_tier_3':
+        return 'AI Studio Client Tier 3'
+      case 'aistudio_tier_2':
+        return 'AI Studio Client Tier 2'
+      case 'aistudio_tier_1':
+        return 'AI Studio Client Tier 1'
+      default:
+        return 'AI Studio Client Free Tier'
+    }
+  }
+
+  switch (normalizedAIStudioTier.value) {
+    case 'aistudio_tier_3':
+      return 'AI Studio Tier 3'
+    case 'aistudio_tier_2':
+      return 'AI Studio Tier 2'
+    case 'aistudio_tier_1':
+      return 'AI Studio Tier 1'
+    default:
+      return 'AI Studio Free Tier'
+  }
 })
 
 // Tier Badge 样式（统一样式）
@@ -123,11 +155,20 @@ const tierBadgeClass = computed(() => {
     return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
   }
 
-  // AI Studio 默认样式：蓝色
-  const tier = (creds?.tier_id || '').toString().trim().toLowerCase()
-  if (tier === 'aistudio_paid') return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
-  if (tier === 'aistudio_free') return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-  return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
+  if (geminiChannel.value === 'vertex_ai') {
+    return 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+  }
+
+  switch (normalizedAIStudioTier.value) {
+    case 'aistudio_tier_3':
+      return 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
+    case 'aistudio_tier_2':
+      return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+    case 'aistudio_tier_1':
+      return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
+    default:
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+  }
 })
 
 // 是否限流

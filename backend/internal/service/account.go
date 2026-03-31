@@ -168,6 +168,9 @@ func (a *Account) GeminiOAuthType() string {
 
 func (a *Account) GeminiTierID() string {
 	tierID := strings.TrimSpace(a.GetCredential("tier_id"))
+	if canonical := canonicalGeminiTierID(tierID); canonical != "" {
+		return canonical
+	}
 	return tierID
 }
 

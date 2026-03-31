@@ -120,6 +120,7 @@ type CreateGroupInput struct {
 	FallbackGroupIDOnInvalidRequest *int64
 	ModelRouting                    map[string][]int64
 	ModelRoutingEnabled             bool
+	GeminiMixedProtocolEnabled      bool
 	MCPXMLInject                    *bool
 	SupportedModelScopes            []string
 	SoraStorageQuotaBytes           int64
@@ -151,6 +152,7 @@ type UpdateGroupInput struct {
 	FallbackGroupIDOnInvalidRequest *int64
 	ModelRouting                    map[string][]int64
 	ModelRoutingEnabled             *bool
+	GeminiMixedProtocolEnabled      *bool
 	MCPXMLInject                    *bool
 	SupportedModelScopes            *[]string
 	SoraStorageQuotaBytes           *int64

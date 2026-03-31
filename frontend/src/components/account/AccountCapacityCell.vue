@@ -294,8 +294,8 @@ const rpmTooltip = computed(() => {
   }
 })
 
-// 是否显示各维度配额（apikey / bedrock 类型）
-const isQuotaEligible = computed(() => props.account.type === 'apikey' || props.account.type === 'bedrock')
+// 只要账号配置了额度，就展示额度徽章
+const isQuotaEligible = computed(() => true)
 
 const showDailyQuota = computed(() => {
   return isQuotaEligible.value && (props.account.quota_daily_limit ?? 0) > 0

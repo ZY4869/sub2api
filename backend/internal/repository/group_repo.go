@@ -59,6 +59,7 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetNillableFallbackGroupID(groupIn.FallbackGroupID).
 		SetNillableFallbackGroupIDOnInvalidRequest(groupIn.FallbackGroupIDOnInvalidRequest).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
+		SetGeminiMixedProtocolEnabled(groupIn.GeminiMixedProtocolEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
 		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
@@ -139,6 +140,7 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
+		SetGeminiMixedProtocolEnabled(groupIn.GeminiMixedProtocolEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
 		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).

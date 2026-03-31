@@ -181,10 +181,7 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
       return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
     })()
 
-    const finalExtra =
-      type === 'apikey' || type === 'bedrock'
-        ? applyQuotaLimits(extraWithGateway)
-        : extraWithGateway
+    const finalExtra = applyQuotaLimits(extraWithGateway)
 
     return doCreateAccount({
       name: options.form.name,

@@ -116,7 +116,8 @@ type Group struct {
 	SoraStorageQuotaBytes int64 `json:"sora_storage_quota_bytes"`
 
 	// OpenAI Messages 调度开关（用户侧需要此字段判断是否展示 Claude Code 教程）
-	AllowMessagesDispatch bool `json:"allow_messages_dispatch"`
+	AllowMessagesDispatch      bool `json:"allow_messages_dispatch"`
+	GeminiMixedProtocolEnabled bool `json:"gemini_mixed_protocol_enabled"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -154,6 +155,7 @@ type Account struct {
 	Notes                  *string        `json:"notes"`
 	Platform               string         `json:"platform"`
 	GatewayProtocol        string         `json:"gateway_protocol,omitempty"`
+	GatewayBatchEnabled    *bool          `json:"gateway_batch_enabled,omitempty"`
 	Type                   string         `json:"type"`
 	Credentials            map[string]any `json:"credentials"`
 	Extra                  map[string]any `json:"extra"`

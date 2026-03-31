@@ -228,6 +228,12 @@
           v-model:session-id-masking-enabled="claudeSessionIDMaskingEnabled"
         />
 
+        <AccountProtocolGatewayBatchEditor
+          v-if="showProtocolGatewayBatchEditor"
+          v-model:enabled="gatewayBatchEnabled"
+          :request-formats="protocolGatewayBatchRequestFormats"
+        />
+
         <AccountProtocolGatewayModelProbeEditor
           v-if="form.platform === 'protocol_gateway'"
           v-model:allowed-models="allowedModels"
@@ -566,6 +572,7 @@ import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedC
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
 import AccountProtocolGatewayClaudeMimicEditor from '@/components/account/AccountProtocolGatewayClaudeMimicEditor.vue'
+import AccountProtocolGatewayBatchEditor from '@/components/account/AccountProtocolGatewayBatchEditor.vue'
 import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
@@ -601,15 +608,20 @@ import {
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
 import {
+  applyProtocolGatewayGeminiBatchExtra,
   applyProtocolGatewayClaudeClientMimicExtra,
   isProtocolGatewayPlatform,
+  resolveProtocolGatewayBatchRequestFormats,
   resolveEffectiveAccountPlatforms,
   resolveEffectiveAccountPlatform,
-  supportsProtocolGatewayClaudeClientMimic
+  supportsProtocolGatewayClaudeClientMimic,
+  supportsProtocolGatewayGeminiBatch
 } from '@/utils/accountProtocolGateway'
 import {
+  normalizeGeminiAIStudioTier,
   isGeminiVertexAI,
   type GeminiBrowserOAuthType,
+  type GeminiAIStudioTier,
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
 import {
@@ -730,6 +742,7 @@ const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
+const gatewayBatchEnabled = ref(false)
 const claudeCodeMimicEnabled = ref(false)
 const claudeTLSFingerprintEnabled = ref(false)
 const claudeSessionIDMaskingEnabled = ref(false)
@@ -763,7 +776,7 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
     base_url: apiKeyBaseUrl.value.trim() || resolveAccountApiKeyDefaultBaseUrl(form.platform, gatewayProtocol.value)
   }
   if (effectivePlatform.value === 'gemini') {
-    credentials.tier_id = geminiTierAIStudio.value
+    credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
   }
   return credentials
 })
@@ -815,15 +828,7 @@ const showCommonApiKeySection = computed(() =>
   form.platform !== 'antigravity' &&
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
-const showQuotaLimitSection = computed(() => {
-  if (form.type === 'bedrock') {
-    return true
-  }
-  if (form.platform === 'gemini' && accountCategory.value === 'vertex_ai') {
-    return geminiVertexAuthMode.value === 'express_api_key'
-  }
-  return form.type === 'apikey'
-})
+const showQuotaLimitSection = computed(() => true)
 const showOAuthFinalizeStep = computed(() =>
   isOAuthFlow.value && (form.platform === 'copilot' || form.platform === 'kiro')
 )
@@ -846,7 +851,7 @@ const umqModeOptions = quotaControl.umqModeOptions
 // Gemini tier selection (used as fallback when auto-detection is unavailable/fails)
 const geminiTierGoogleOne = ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>('google_one_free')
 const geminiTierGcp = ref<'gcp_standard' | 'gcp_enterprise'>('gcp_standard')
-const geminiTierAIStudio = ref<'aistudio_free' | 'aistudio_paid'>('aistudio_free')
+const geminiTierAIStudio = ref<GeminiAIStudioTier>('aistudio_free')
 const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(form.platform, gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
@@ -865,6 +870,20 @@ const showProtocolGatewayClaudeMimicEditor = computed(() =>
   supportsProtocolGatewayClaudeClientMimic({
     platform: form.platform,
     type: form.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
+)
+const showProtocolGatewayBatchEditor = computed(() =>
+  supportsProtocolGatewayGeminiBatch({
+    platform: form.platform,
+    type: form.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
+)
+const protocolGatewayBatchRequestFormats = computed(() =>
+  resolveProtocolGatewayBatchRequestFormats({
     gatewayProtocol: gatewayProtocol.value,
     acceptedProtocols: gatewayAcceptedProtocols.value
   })
@@ -1063,6 +1082,7 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
+      gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       if (form.platform === 'antigravity') {
         loadAntigravityDefaultMappings()
@@ -1121,6 +1141,7 @@ watch(
     protocolGatewayProbeModels.value = []
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    gatewayBatchEnabled.value = false
     resetProtocolGatewayClaudeMimicState()
     modelMappings.value = []
     if (newPlatform !== 'anthropic') {
@@ -1213,6 +1234,7 @@ watch(
       : [newProtocol as GatewayAcceptedProtocol]
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    gatewayBatchEnabled.value = false
     if (oldProtocol === 'openai' && newProtocol !== 'openai') {
       openaiPassthroughEnabled.value = false
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
@@ -1225,6 +1247,15 @@ watch(
     }
     if (modelRestrictionMode.value === 'whitelist') {
       allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
+    }
+  }
+)
+
+watch(
+  showProtocolGatewayBatchEditor,
+  (supported) => {
+    if (!supported) {
+      gatewayBatchEnabled.value = false
     }
   }
 )
@@ -1460,6 +1491,7 @@ const { resetForm } = useCreateAccountReset({
   gatewayAcceptedProtocols,
   gatewayClientProfiles,
   gatewayClientRoutes,
+  gatewayBatchEnabled,
   claudeCodeMimicEnabled,
   claudeTLSFingerprintEnabled,
   claudeSessionIDMaskingEnabled,
@@ -1521,21 +1553,30 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
 
   const extraWithProtocolGateway = !isProtocolGatewayPlatform(form.platform)
     ? anthropicExtra
-    : applyProtocolGatewayClaudeClientMimicExtra({
-    ...(anthropicExtra || {}),
-    gateway_protocol: gatewayProtocol.value,
-    gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
-    gateway_client_profiles: [...gatewayClientProfiles.value],
-    gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
-  }, {
-    platform: form.platform,
-    type: form.type,
-    gatewayProtocol: gatewayProtocol.value,
-    acceptedProtocols: gatewayAcceptedProtocols.value,
-    claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
-    enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
-    sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
-  })
+    : applyProtocolGatewayGeminiBatchExtra(
+      applyProtocolGatewayClaudeClientMimicExtra({
+        ...(anthropicExtra || {}),
+        gateway_protocol: gatewayProtocol.value,
+        gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+        gateway_client_profiles: [...gatewayClientProfiles.value],
+        gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
+      }, {
+        platform: form.platform,
+        type: form.type,
+        gatewayProtocol: gatewayProtocol.value,
+        acceptedProtocols: gatewayAcceptedProtocols.value,
+        claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+        enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+        sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+      }),
+      {
+        platform: form.platform,
+        type: form.type,
+        gatewayProtocol: gatewayProtocol.value,
+        acceptedProtocols: gatewayAcceptedProtocols.value,
+        gatewayBatchEnabled: gatewayBatchEnabled.value
+      }
+    )
 
   return mergeResolvedUpstreamDraftIntoExtra(
     mergeAccountManualModelsIntoExtra(
@@ -1889,7 +1930,7 @@ const handleSubmit = async () => {
     api_key: apiKeyValue.value.trim()
   }
   if (effectivePlatform.value === 'gemini') {
-    credentials.tier_id = geminiTierAIStudio.value
+    credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
   }
 
   if (!isOpenAIModelRestrictionDisabled.value) {

@@ -161,6 +161,72 @@ type ListSoraS3ProfilesResponse struct {
 	Items           []SoraS3Profile `json:"items"`
 }
 
+type GoogleBatchGCSProfile struct {
+	ProfileID                    string `json:"profile_id"`
+	Name                         string `json:"name"`
+	IsActive                     bool   `json:"is_active"`
+	Enabled                      bool   `json:"enabled"`
+	Bucket                       string `json:"bucket"`
+	Prefix                       string `json:"prefix"`
+	ProjectID                    string `json:"project_id"`
+	ServiceAccountJSONConfigured bool   `json:"service_account_json_configured"`
+	UpdatedAt                    string `json:"updated_at"`
+}
+
+type ListGoogleBatchGCSProfilesResponse struct {
+	ActiveProfileID string                  `json:"active_profile_id"`
+	Items           []GoogleBatchGCSProfile `json:"items"`
+}
+
+type GeminiRateCatalog struct {
+	EffectiveDate              string                       `json:"effective_date"`
+	RemainingQuotaAPISupported bool                         `json:"remaining_quota_api_supported"`
+	AIStudioTiers              []GeminiRateCatalogTier      `json:"ai_studio_tiers"`
+	BatchLimits                GeminiRateCatalogBatchLimits `json:"batch_limits"`
+	Links                      []GeminiRateCatalogLink      `json:"links"`
+	Notes                      []string                     `json:"notes"`
+}
+
+type GeminiRateCatalogTier struct {
+	TierID         string                      `json:"tier_id"`
+	DisplayName    string                      `json:"display_name"`
+	Qualification  string                      `json:"qualification"`
+	BillingTierCap string                      `json:"billing_tier_cap"`
+	ModelFamilies  []GeminiRateCatalogModelRow `json:"model_families"`
+}
+
+type GeminiRateCatalogModelRow struct {
+	ModelFamily string `json:"model_family"`
+	DisplayName string `json:"display_name"`
+	RPM         int64  `json:"rpm"`
+	TPM         int64  `json:"tpm"`
+	RPD         int64  `json:"rpd"`
+	Notes       string `json:"notes,omitempty"`
+}
+
+type GeminiRateCatalogBatchLimits struct {
+	ConcurrentBatchRequests int64                        `json:"concurrent_batch_requests"`
+	InputFileSizeLimitBytes int64                        `json:"input_file_size_limit_bytes"`
+	FileStorageLimitBytes   int64                        `json:"file_storage_limit_bytes"`
+	ByTier                  []GeminiRateCatalogBatchTier `json:"by_tier"`
+}
+
+type GeminiRateCatalogBatchTier struct {
+	TierID  string                      `json:"tier_id"`
+	Entries []GeminiRateCatalogBatchRow `json:"entries"`
+}
+
+type GeminiRateCatalogBatchRow struct {
+	ModelFamily    string `json:"model_family"`
+	DisplayName    string `json:"display_name"`
+	EnqueuedTokens int64  `json:"enqueued_tokens"`
+}
+
+type GeminiRateCatalogLink struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
 // OverloadCooldownSettings 529过载冷却配置 DTO
 type OverloadCooldownSettings struct {
 	Enabled         bool `json:"enabled"`

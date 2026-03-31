@@ -150,6 +150,12 @@
           v-model:session-id-masking-enabled="claudeSessionIDMaskingEnabled"
         />
 
+        <AccountProtocolGatewayBatchEditor
+          v-if="showProtocolGatewayBatchEditor"
+          v-model:enabled="gatewayBatchEnabled"
+          :request-formats="protocolGatewayBatchRequestFormats"
+        />
+
         <AccountProtocolGatewayModelProbeEditor
           v-if="isProtocolGatewayAccount"
           v-model:allowed-models="allowedModels"
@@ -488,6 +494,7 @@ import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedC
 import AccountModelScopeEditor from '@/components/account/AccountModelScopeEditor.vue'
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
 import AccountProtocolGatewayClaudeMimicEditor from '@/components/account/AccountProtocolGatewayClaudeMimicEditor.vue'
+import AccountProtocolGatewayBatchEditor from '@/components/account/AccountProtocolGatewayBatchEditor.vue'
 import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
@@ -542,21 +549,27 @@ import {
   type GrokTier
 } from '@/utils/grokAccount'
 import {
+  applyProtocolGatewayGeminiBatchExtra,
   applyProtocolGatewayClaudeClientMimicExtra,
   PROTOCOL_GATEWAY_PROTOCOLS,
   isProtocolGatewayPlatform,
+  normalizeGatewayBatchEnabled,
   normalizeGatewayAcceptedProtocols,
   normalizeGatewayClientProfile,
   normalizeGatewayClientRoutes,
+  resolveProtocolGatewayBatchRequestFormats,
   resolveAccountGatewayProtocol,
   resolveEffectiveAccountPlatform,
   resolveEffectiveAccountPlatforms,
   resolveGatewayProtocolDescriptor,
-  supportsProtocolGatewayClaudeClientMimic
+  supportsProtocolGatewayClaudeClientMimic,
+  supportsProtocolGatewayGeminiBatch
 } from '@/utils/accountProtocolGateway'
 import {
+  normalizeGeminiAIStudioTier,
   normalizeGeminiOAuthType,
   isGeminiVertexAI,
+  type GeminiAIStudioTier,
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
 import type {
@@ -609,6 +622,7 @@ const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
+const gatewayBatchEnabled = ref(false)
 const claudeCodeMimicEnabled = ref(false)
 const claudeTLSFingerprintEnabled = ref(false)
 const claudeSessionIDMaskingEnabled = ref(false)
@@ -641,7 +655,7 @@ const editQuotaWeeklyResetDay = ref<number | null>(null)
 const editQuotaWeeklyResetHour = ref<number | null>(null)
 const editQuotaResetTimezone = ref<string | null>(null)
 const geminiOAuthType = ref<GeminiOAuthType>('code_assist')
-const geminiTierAIStudio = ref<'aistudio_free' | 'aistudio_paid'>('aistudio_free')
+const geminiTierAIStudio = ref<GeminiAIStudioTier>('aistudio_free')
 const geminiVertexAuthMode = ref<VertexAuthMode>('service_account')
 const geminiVertexProjectId = ref('')
 const geminiVertexLocation = ref('')
@@ -663,8 +677,7 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
   }
   if (effectivePlatform.value === 'gemini') {
     credentials.tier_id =
-      geminiTierAIStudio.value ||
-      String(currentAccountCredentials.value.tier_id || '').trim().toLowerCase() ||
+      normalizeGeminiAIStudioTier(geminiTierAIStudio.value || currentAccountCredentials.value.tier_id) ||
       'aistudio_free'
   }
   return credentials
@@ -761,20 +774,26 @@ const isGeminiVertexLegacyMode = computed(() => {
 const showCommonApiKeySection = computed(() =>
   props.account?.type === 'apikey' && !isProtocolGatewayAccount.value && !isGeminiVertexAccount.value
 )
-const showQuotaLimitSection = computed(() => {
-  if (props.account?.type === 'bedrock') {
-    return true
-  }
-  if (isGeminiVertexAccount.value) {
-    return geminiVertexAuthMode.value === 'express_api_key'
-  }
-  return props.account?.type === 'apikey'
-})
+const showQuotaLimitSection = computed(() => Boolean(props.account))
 const grokCapabilityModels = computed(() => grokDefaultModelIdsForTier(editGrokTier.value))
 const showProtocolGatewayClaudeMimicEditor = computed(() =>
   supportsProtocolGatewayClaudeClientMimic({
     platform: props.account?.platform,
     type: props.account?.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
+)
+const showProtocolGatewayBatchEditor = computed(() =>
+  supportsProtocolGatewayGeminiBatch({
+    platform: props.account?.platform,
+    type: props.account?.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
+)
+const protocolGatewayBatchRequestFormats = computed(() =>
+  resolveProtocolGatewayBatchRequestFormats({
     gatewayProtocol: gatewayProtocol.value,
     acceptedProtocols: gatewayAcceptedProtocols.value
   })
@@ -1067,6 +1086,9 @@ watch(
         .map((value) => normalizeGatewayClientProfile(value))
         .filter((value): value is GatewayClientProfile => Boolean(value))
       gatewayClientRoutes.value = normalizeGatewayClientRoutes(newAccount.extra?.gateway_client_routes)
+      gatewayBatchEnabled.value = normalizeGatewayBatchEnabled(
+        newAccount.gateway_batch_enabled ?? newAccount.extra?.gateway_batch_enabled
+      )
       claudeCodeMimicEnabled.value =
         newAccount.claude_code_mimic_enabled === true || newAccount.extra?.claude_code_mimic_enabled === true
       claudeTLSFingerprintEnabled.value = newAccount.enable_tls_fingerprint === true
@@ -1130,43 +1152,29 @@ watch(
         anthropicPassthroughEnabled.value = extra?.anthropic_passthrough === true
       }
 
-      // Load quota limit for apikey/bedrock accounts
-      if (newAccount.type === 'apikey' || newAccount.type === 'bedrock') {
-        const quotaVal = Number(extra?.quota_limit)
-        editQuotaLimit.value = Number.isFinite(quotaVal) && quotaVal > 0 ? quotaVal : null
-        const dailyVal = Number(extra?.quota_daily_limit)
-        editQuotaDailyLimit.value = Number.isFinite(dailyVal) && dailyVal > 0 ? dailyVal : null
-        const weeklyVal = Number(extra?.quota_weekly_limit)
-        editQuotaWeeklyLimit.value = Number.isFinite(weeklyVal) && weeklyVal > 0 ? weeklyVal : null
+      const quotaVal = Number(extra?.quota_limit)
+      editQuotaLimit.value = Number.isFinite(quotaVal) && quotaVal > 0 ? quotaVal : null
+      const dailyVal = Number(extra?.quota_daily_limit)
+      editQuotaDailyLimit.value = Number.isFinite(dailyVal) && dailyVal > 0 ? dailyVal : null
+      const weeklyVal = Number(extra?.quota_weekly_limit)
+      editQuotaWeeklyLimit.value = Number.isFinite(weeklyVal) && weeklyVal > 0 ? weeklyVal : null
 
-        const dailyMode = extra?.quota_daily_reset_mode
-        editQuotaDailyResetMode.value = dailyMode === 'fixed' || dailyMode === 'rolling' ? dailyMode : null
-        const dailyHour = Number(extra?.quota_daily_reset_hour)
-        editQuotaDailyResetHour.value = Number.isFinite(dailyHour) ? dailyHour : null
+      const dailyMode = extra?.quota_daily_reset_mode
+      editQuotaDailyResetMode.value = dailyMode === 'fixed' || dailyMode === 'rolling' ? dailyMode : null
+      const dailyHour = Number(extra?.quota_daily_reset_hour)
+      editQuotaDailyResetHour.value = Number.isFinite(dailyHour) ? dailyHour : null
 
-        const weeklyMode = extra?.quota_weekly_reset_mode
-        editQuotaWeeklyResetMode.value = weeklyMode === 'fixed' || weeklyMode === 'rolling' ? weeklyMode : null
-        const weeklyDay = Number(extra?.quota_weekly_reset_day)
-        editQuotaWeeklyResetDay.value = Number.isFinite(weeklyDay) ? weeklyDay : null
-        const weeklyHour = Number(extra?.quota_weekly_reset_hour)
-        editQuotaWeeklyResetHour.value = Number.isFinite(weeklyHour) ? weeklyHour : null
+      const weeklyMode = extra?.quota_weekly_reset_mode
+      editQuotaWeeklyResetMode.value = weeklyMode === 'fixed' || weeklyMode === 'rolling' ? weeklyMode : null
+      const weeklyDay = Number(extra?.quota_weekly_reset_day)
+      editQuotaWeeklyResetDay.value = Number.isFinite(weeklyDay) ? weeklyDay : null
+      const weeklyHour = Number(extra?.quota_weekly_reset_hour)
+      editQuotaWeeklyResetHour.value = Number.isFinite(weeklyHour) ? weeklyHour : null
 
-        const resetTz = extra?.quota_reset_timezone
-        editQuotaResetTimezone.value = typeof resetTz === 'string' && resetTz.trim() ? resetTz : null
-      } else {
-        editQuotaLimit.value = null
-        editQuotaDailyLimit.value = null
-        editQuotaWeeklyLimit.value = null
-        editQuotaDailyResetMode.value = null
-        editQuotaDailyResetHour.value = null
-        editQuotaWeeklyResetMode.value = null
-        editQuotaWeeklyResetDay.value = null
-        editQuotaWeeklyResetHour.value = null
-        editQuotaResetTimezone.value = null
-      }
+      const resetTz = extra?.quota_reset_timezone
+      editQuotaResetTimezone.value = typeof resetTz === 'string' && resetTz.trim() ? resetTz : null
       if (runtimePlatform === 'gemini' && newAccount.type === 'apikey') {
-        const tier = String(credentials?.tier_id || '').trim().toLowerCase()
-        geminiTierAIStudio.value = tier === 'aistudio_paid' ? 'aistudio_paid' : 'aistudio_free'
+        geminiTierAIStudio.value = normalizeGeminiAIStudioTier(credentials?.tier_id)
       } else {
         geminiTierAIStudio.value = 'aistudio_free'
       }
@@ -1300,6 +1308,7 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
+      gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
       manualModels.value = []
@@ -1331,6 +1340,7 @@ watch(
     )
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    gatewayBatchEnabled.value = false
     protocolGatewayProbeModels.value = []
     allowedModels.value = []
     modelMappings.value = []
@@ -1338,6 +1348,15 @@ watch(
       props.account?.platform || 'protocol_gateway',
       newProtocol
     )
+  }
+)
+
+watch(
+  showProtocolGatewayBatchEditor,
+  (supported) => {
+    if (!supported) {
+      gatewayBatchEnabled.value = false
+    }
   }
 )
 
@@ -1539,7 +1558,7 @@ const handleSubmit = async () => {
         base_url: newBaseUrl
       }
       if (runtimePlatform === 'gemini') {
-        newCredentials.tier_id = geminiTierAIStudio.value
+        newCredentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
       } else {
         delete newCredentials.tier_id
       }
@@ -1730,21 +1749,30 @@ const handleSubmit = async () => {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
         (props.account.extra as Record<string, unknown>) || {}
       updatePayload.gateway_protocol = gatewayProtocol.value
-      updatePayload.extra = applyProtocolGatewayClaudeClientMimicExtra({
-        ...currentExtra,
-        gateway_protocol: gatewayProtocol.value,
-        gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
-        gateway_client_profiles: [...gatewayClientProfiles.value],
-        gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
-      }, {
-        platform: props.account.platform,
-        type: props.account.type,
-        gatewayProtocol: gatewayProtocol.value,
-        acceptedProtocols: gatewayAcceptedProtocols.value,
-        claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
-        enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
-        sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
-      })
+      updatePayload.extra = applyProtocolGatewayGeminiBatchExtra(
+        applyProtocolGatewayClaudeClientMimicExtra({
+          ...currentExtra,
+          gateway_protocol: gatewayProtocol.value,
+          gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+          gateway_client_profiles: [...gatewayClientProfiles.value],
+          gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
+        }, {
+          platform: props.account.platform,
+          type: props.account.type,
+          gatewayProtocol: gatewayProtocol.value,
+          acceptedProtocols: gatewayAcceptedProtocols.value,
+          claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+          enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+          sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+        }),
+        {
+          platform: props.account.platform,
+          type: props.account.type,
+          gatewayProtocol: gatewayProtocol.value,
+          acceptedProtocols: gatewayAcceptedProtocols.value,
+          gatewayBatchEnabled: gatewayBatchEnabled.value
+        }
+      )
     }
 
     if (props.account.type !== 'bedrock') {
@@ -1771,7 +1799,7 @@ const handleSubmit = async () => {
         Object.keys(normalizedExtra).length > 0 ? normalizedExtra : undefined
     }
 
-    if (props.account.type === 'apikey' || props.account.type === 'bedrock') {
+    {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
         (props.account.extra as Record<string, unknown>) || {}
       const newExtra: Record<string, unknown> = { ...currentExtra }

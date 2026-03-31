@@ -390,6 +390,20 @@ func (_c *GroupCreate) SetNillableModelRoutingEnabled(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field.
+func (_c *GroupCreate) SetGeminiMixedProtocolEnabled(v bool) *GroupCreate {
+	_c.mutation.SetGeminiMixedProtocolEnabled(v)
+	return _c
+}
+
+// SetNillableGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableGeminiMixedProtocolEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetGeminiMixedProtocolEnabled(*v)
+	}
+	return _c
+}
+
 // SetMcpXMLInject sets the "mcp_xml_inject" field.
 func (_c *GroupCreate) SetMcpXMLInject(v bool) *GroupCreate {
 	_c.mutation.SetMcpXMLInject(v)
@@ -658,6 +672,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultModelRoutingEnabled
 		_c.mutation.SetModelRoutingEnabled(v)
 	}
+	if _, ok := _c.mutation.GeminiMixedProtocolEnabled(); !ok {
+		v := group.DefaultGeminiMixedProtocolEnabled
+		_c.mutation.SetGeminiMixedProtocolEnabled(v)
+	}
 	if _, ok := _c.mutation.McpXMLInject(); !ok {
 		v := group.DefaultMcpXMLInject
 		_c.mutation.SetMcpXMLInject(v)
@@ -742,6 +760,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModelRoutingEnabled(); !ok {
 		return &ValidationError{Name: "model_routing_enabled", err: errors.New(`ent: missing required field "Group.model_routing_enabled"`)}
+	}
+	if _, ok := _c.mutation.GeminiMixedProtocolEnabled(); !ok {
+		return &ValidationError{Name: "gemini_mixed_protocol_enabled", err: errors.New(`ent: missing required field "Group.gemini_mixed_protocol_enabled"`)}
 	}
 	if _, ok := _c.mutation.McpXMLInject(); !ok {
 		return &ValidationError{Name: "mcp_xml_inject", err: errors.New(`ent: missing required field "Group.mcp_xml_inject"`)}
@@ -900,6 +921,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ModelRoutingEnabled(); ok {
 		_spec.SetField(group.FieldModelRoutingEnabled, field.TypeBool, value)
 		_node.ModelRoutingEnabled = value
+	}
+	if value, ok := _c.mutation.GeminiMixedProtocolEnabled(); ok {
+		_spec.SetField(group.FieldGeminiMixedProtocolEnabled, field.TypeBool, value)
+		_node.GeminiMixedProtocolEnabled = value
 	}
 	if value, ok := _c.mutation.McpXMLInject(); ok {
 		_spec.SetField(group.FieldMcpXMLInject, field.TypeBool, value)
@@ -1590,6 +1615,18 @@ func (u *GroupUpsert) SetModelRoutingEnabled(v bool) *GroupUpsert {
 // UpdateModelRoutingEnabled sets the "model_routing_enabled" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateModelRoutingEnabled() *GroupUpsert {
 	u.SetExcluded(group.FieldModelRoutingEnabled)
+	return u
+}
+
+// SetGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field.
+func (u *GroupUpsert) SetGeminiMixedProtocolEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldGeminiMixedProtocolEnabled, v)
+	return u
+}
+
+// UpdateGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateGeminiMixedProtocolEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldGeminiMixedProtocolEnabled)
 	return u
 }
 
@@ -2293,6 +2330,20 @@ func (u *GroupUpsertOne) SetModelRoutingEnabled(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateModelRoutingEnabled() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateModelRoutingEnabled()
+	})
+}
+
+// SetGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field.
+func (u *GroupUpsertOne) SetGeminiMixedProtocolEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetGeminiMixedProtocolEnabled(v)
+	})
+}
+
+// UpdateGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateGeminiMixedProtocolEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateGeminiMixedProtocolEnabled()
 	})
 }
 
@@ -3176,6 +3227,20 @@ func (u *GroupUpsertBulk) SetModelRoutingEnabled(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateModelRoutingEnabled() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateModelRoutingEnabled()
+	})
+}
+
+// SetGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field.
+func (u *GroupUpsertBulk) SetGeminiMixedProtocolEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetGeminiMixedProtocolEnabled(v)
+	})
+}
+
+// UpdateGeminiMixedProtocolEnabled sets the "gemini_mixed_protocol_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateGeminiMixedProtocolEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateGeminiMixedProtocolEnabled()
 	})
 }
 

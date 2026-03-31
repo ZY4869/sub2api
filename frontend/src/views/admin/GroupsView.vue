@@ -400,6 +400,32 @@
           />
           <p class="input-hint">{{ t('admin.groups.rateMultiplierHint') }}</p>
         </div>
+        <div
+          v-if="createForm.platform === 'gemini'"
+          class="rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/40 dark:bg-sky-950/20"
+        >
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <label class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('admin.groups.geminiMixedProtocol.title') }}
+              </label>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.groups.geminiMixedProtocol.hint') }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              :class="createForm.gemini_mixed_protocol_enabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'"
+              @click="createForm.gemini_mixed_protocol_enabled = !createForm.gemini_mixed_protocol_enabled"
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="createForm.gemini_mixed_protocol_enabled ? 'translate-x-6' : 'translate-x-1'"
+              />
+            </button>
+          </div>
+        </div>
         <div v-if="createForm.subscription_type !== 'subscription'" data-tour="group-form-exclusive">
           <div class="mb-1.5 flex items-center gap-1">
             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1137,6 +1163,32 @@
             class="input"
             data-tour="group-form-multiplier"
           />
+        </div>
+        <div
+          v-if="editForm.platform === 'gemini'"
+          class="rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/40 dark:bg-sky-950/20"
+        >
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <label class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('admin.groups.geminiMixedProtocol.title') }}
+              </label>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.groups.geminiMixedProtocol.hint') }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+              :class="editForm.gemini_mixed_protocol_enabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'"
+              @click="editForm.gemini_mixed_protocol_enabled = !editForm.gemini_mixed_protocol_enabled"
+            >
+              <span
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                :class="editForm.gemini_mixed_protocol_enabled ? 'translate-x-6' : 'translate-x-1'"
+              />
+            </button>
+          </div>
         </div>
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
@@ -2093,6 +2145,7 @@ const createForm = reactive({
   priority: 1,
   rate_multiplier: 1.0,
   is_exclusive: false,
+  gemini_mixed_protocol_enabled: false,
   subscription_type: 'standard' as SubscriptionType,
   daily_limit_usd: null as number | null,
   weekly_limit_usd: null as number | null,
@@ -2337,6 +2390,7 @@ const editForm = reactive({
   priority: 1,
   rate_multiplier: 1.0,
   is_exclusive: false,
+  gemini_mixed_protocol_enabled: false,
   status: 'active' as 'active' | 'inactive',
   subscription_type: 'standard' as SubscriptionType,
   daily_limit_usd: null as number | null,
@@ -2506,6 +2560,7 @@ const closeCreateModal = () => {
   createForm.priority = 1
   createForm.rate_multiplier = 1.0
   createForm.is_exclusive = false
+  createForm.gemini_mixed_protocol_enabled = false
   createForm.subscription_type = 'standard'
   createForm.daily_limit_usd = null
   createForm.weekly_limit_usd = null
@@ -2594,6 +2649,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.priority = group.priority ?? 1
   editForm.rate_multiplier = group.rate_multiplier
   editForm.is_exclusive = group.is_exclusive
+  editForm.gemini_mixed_protocol_enabled = group.gemini_mixed_protocol_enabled || false
   editForm.status = group.status
   editForm.subscription_type = group.subscription_type || 'standard'
   editForm.daily_limit_usd = group.daily_limit_usd
@@ -2630,6 +2686,7 @@ const closeEditModal = () => {
   editingGroup.value = null
   editModelRoutingRules.value = []
   editForm.copy_accounts_from_group_ids = []
+  editForm.gemini_mixed_protocol_enabled = false
 }
 
 const handleUpdateGroup = async () => {
@@ -2713,12 +2770,24 @@ watch(
 watch(
   () => createForm.platform,
   (newVal) => {
+    if (newVal !== 'gemini') {
+      createForm.gemini_mixed_protocol_enabled = false
+    }
     if (!['anthropic', 'antigravity'].includes(newVal)) {
       createForm.fallback_group_id_on_invalid_request = null
     }
     if (newVal !== 'openai') {
       createForm.allow_messages_dispatch = false
       createForm.default_mapped_model = ''
+    }
+  }
+)
+
+watch(
+  () => editForm.platform,
+  (newVal) => {
+    if (newVal !== 'gemini') {
+      editForm.gemini_mixed_protocol_enabled = false
     }
   }
 )

@@ -119,7 +119,7 @@ func (s *GatewayService) withWindowCostPrefetch(ctx context.Context, accounts []
 	return context.WithValue(ctx, windowCostPrefetchContextKey, costs)
 }
 func (s *GatewayService) isAccountSchedulableForQuota(account *Account) bool {
-	if account.Type != AccountTypeAPIKey {
+	if account == nil || !CanParticipateInAccountQuota(account) {
 		return true
 	}
 	return !account.IsQuotaExceeded()

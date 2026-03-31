@@ -176,6 +176,31 @@ func RegisterGatewayRoutes(
 		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
 		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
 		gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+		gemini.GET("/files", h.Gateway.GeminiV1BetaFiles)
+		gemini.POST("/files", h.Gateway.GeminiV1BetaFiles)
+		gemini.POST("/files:action", h.Gateway.GeminiV1BetaFiles)
+		gemini.GET("/files/*subpath", h.Gateway.GeminiV1BetaFiles)
+		gemini.DELETE("/files/*subpath", h.Gateway.GeminiV1BetaFiles)
+		gemini.GET("/batches", h.Gateway.GeminiV1BetaBatches)
+		gemini.GET("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
+		gemini.POST("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
+		gemini.DELETE("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
+	}
+	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileUpload)
+	vertexBatch := r.Group("/v1/projects/:project/locations/:location")
+	vertexBatch.Use(bodyLimit)
+	vertexBatch.Use(clientRequestID)
+	vertexBatch.Use(opsErrorLogger)
+	vertexBatch.Use(endpointNorm)
+	vertexBatch.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	vertexBatch.Use(requireGroupGoogle)
+	{
+		vertexBatch.POST("/publishers/google/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+		vertexBatch.GET("/batchPredictionJobs", h.Gateway.VertexBatchPredictionJobs)
+		vertexBatch.POST("/batchPredictionJobs", h.Gateway.VertexBatchPredictionJobs)
+		vertexBatch.GET("/batchPredictionJobs/*subpath", h.Gateway.VertexBatchPredictionJobs)
+		vertexBatch.POST("/batchPredictionJobs/*subpath", h.Gateway.VertexBatchPredictionJobs)
+		vertexBatch.DELETE("/batchPredictionJobs/*subpath", h.Gateway.VertexBatchPredictionJobs)
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）

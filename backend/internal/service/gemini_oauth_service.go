@@ -26,6 +26,9 @@ const (
 	GeminiTierGCPStandard      = "gcp_standard"
 	GeminiTierGCPEnterprise    = "gcp_enterprise"
 	GeminiTierAIStudioFree     = "aistudio_free"
+	GeminiTierAIStudioTier1    = "aistudio_tier_1"
+	GeminiTierAIStudioTier2    = "aistudio_tier_2"
+	GeminiTierAIStudioTier3    = "aistudio_tier_3"
 	GeminiTierAIStudioPaid     = "aistudio_paid"
 	GeminiTierGoogleOneUnknown = "google_one_unknown"
 
@@ -236,8 +239,14 @@ func canonicalGeminiTierID(raw string) string {
 		GeminiTierGCPStandard,
 		GeminiTierGCPEnterprise,
 		GeminiTierAIStudioFree,
+		GeminiTierAIStudioTier1,
+		GeminiTierAIStudioTier2,
+		GeminiTierAIStudioTier3,
 		GeminiTierAIStudioPaid,
 		GeminiTierGoogleOneUnknown:
+		if lower == GeminiTierAIStudioPaid {
+			return GeminiTierAIStudioTier1
+		}
 		return lower
 	}
 
@@ -295,7 +304,7 @@ func canonicalGeminiTierIDForOAuthType(oauthType, tierID string) string {
 		}
 	case "ai_studio":
 		switch canonical {
-		case GeminiTierAIStudioFree, GeminiTierAIStudioPaid:
+		case GeminiTierAIStudioFree, GeminiTierAIStudioTier1, GeminiTierAIStudioTier2, GeminiTierAIStudioTier3:
 			return canonical
 		default:
 			return ""

@@ -166,7 +166,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				}
 				continue
 			}
-			if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+			if !s.isAccountAllowedForPlatformWithContext(ctx, account, platform, useMixed) {
 				filteredPlatform++
 				continue
 			}
@@ -201,7 +201,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			if sessionHash != "" && stickyAccountID > 0 {
 				if containsInt64(routingAccountIDs, stickyAccountID) && !isExcluded(stickyAccountID) {
 					if stickyAccount, ok := accountByID[stickyAccountID]; ok {
-						if s.isAccountSchedulableForSelection(stickyAccount) && s.isAccountAllowedForPlatform(stickyAccount, platform, useMixed) && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, stickyAccount, requestedModel)) && s.isAccountSchedulableForModelSelection(ctx, stickyAccount, requestedModel) && s.isAccountSchedulableForQuota(stickyAccount) && s.isAccountSchedulableForWindowCost(ctx, stickyAccount, true) && s.isAccountSchedulableForRPM(ctx, stickyAccount, true) {
+						if s.isAccountSchedulableForSelection(stickyAccount) && s.isAccountAllowedForPlatformWithContext(ctx, stickyAccount, platform, useMixed) && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, stickyAccount, requestedModel)) && s.isAccountSchedulableForModelSelection(ctx, stickyAccount, requestedModel) && s.isAccountSchedulableForQuota(stickyAccount) && s.isAccountSchedulableForWindowCost(ctx, stickyAccount, true) && s.isAccountSchedulableForRPM(ctx, stickyAccount, true) {
 							result, err := s.tryAcquireAccountSlot(ctx, stickyAccountID, stickyAccount.Concurrency)
 							if err == nil && result.Acquired {
 								if !s.checkAndRegisterSession(ctx, stickyAccount, sessionHash) {
@@ -244,8 +244,12 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				}
 			}
 			if len(routingAvailable) > 0 {
+				routingAvailable = filterByMinGeminiPublicProtocolRank(ctx, routingAvailable)
 				sort.SliceStable(routingAvailable, func(i, j int) bool {
 					a, b := routingAvailable[i], routingAvailable[j]
+					if aRank, bRank := geminiPublicProtocolRank(ctx, a.account), geminiPublicProtocolRank(ctx, b.account); aRank != bRank {
+						return aRank < bRank
+					}
 					if a.account.Priority != b.account.Priority {
 						return a.account.Priority < b.account.Priority
 					}
@@ -307,7 +311,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 				if clearSticky {
 					_ = s.cache.DeleteSessionAccountID(ctx, derefGroupID(groupID), sessionHash)
 				}
-				if !clearSticky && s.isAccountInGroup(account, groupID) && s.isAccountAllowedForPlatform(account, platform, useMixed) && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) && s.isAccountSchedulableForModelSelection(ctx, account, requestedModel) && s.isAccountSchedulableForQuota(account) && s.isAccountSchedulableForWindowCost(ctx, account, true) && s.isAccountSchedulableForRPM(ctx, account, true) {
+				if !clearSticky && s.isAccountInGroup(account, groupID) && s.isAccountAllowedForPlatformWithContext(ctx, account, platform, useMixed) && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) && s.isAccountSchedulableForModelSelection(ctx, account, requestedModel) && s.isAccountSchedulableForQuota(account) && s.isAccountSchedulableForWindowCost(ctx, account, true) && s.isAccountSchedulableForRPM(ctx, account, true) {
 					result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
 					if err == nil && result.Acquired {
 						if !s.checkAndRegisterSession(ctx, account, sessionHash) {
@@ -338,7 +342,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		if !s.isAccountSchedulableForSelection(acc) {
 			continue
 		}
-		if !s.isAccountAllowedForPlatform(acc, platform, useMixed) {
+		if !s.isAccountAllowedForPlatformWithContext(ctx, acc, platform, useMixed) {
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, acc, requestedModel) {
@@ -388,7 +392,8 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 		for len(available) > 0 {
-			candidates := filterByMinPriority(available)
+			candidates := filterByMinGeminiPublicProtocolRank(ctx, available)
+			candidates = filterByMinPriority(candidates)
 			candidates = filterByMinGeminiRegionalPenalty(candidates, preferOAuth)
 			candidates = filterByMinLoadRate(candidates)
 			selected := selectByLRU(candidates, preferOAuth)
@@ -418,6 +423,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		}
 	}
 	s.sortCandidatesForFallback(candidates, preferOAuth, cfg.FallbackSelectionMode)
+	stableSortAccountsByGeminiPublicProtocolRank(ctx, candidates)
 	for _, acc := range candidates {
 		if !s.checkAndRegisterSession(ctx, acc, sessionHash) {
 			continue
@@ -431,6 +437,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 func (s *GatewayService) tryAcquireByLegacyOrder(ctx context.Context, candidates []*Account, groupID *int64, sessionHash string, preferOAuth bool) (*AccountSelectionResult, bool) {
 	ordered := append([]*Account(nil), candidates...)
 	sortAccountsByPriorityAndLastUsed(ordered, preferOAuth)
+	stableSortAccountsByGeminiPublicProtocolRank(ctx, ordered)
 	for _, acc := range ordered {
 		result, err := s.tryAcquireAccountSlot(ctx, acc.ID, acc.Concurrency)
 		if err == nil && result.Acquired {

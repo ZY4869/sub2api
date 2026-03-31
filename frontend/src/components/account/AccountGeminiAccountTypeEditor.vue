@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import type { GeminiOAuthType } from '@/utils/geminiAccount'
+import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 
 type GeminiAccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'
 type GeminiGcpTier = 'gcp_standard' | 'gcp_enterprise'
-type GeminiAiStudioTier = 'aistudio_free' | 'aistudio_paid'
 
 const props = defineProps<{
   aiStudioOAuthEnabled: boolean
@@ -23,7 +22,7 @@ const oauthType = defineModel<GeminiOAuthType>('oauthType', { required: true })
 const showAdvanced = defineModel<boolean>('showAdvanced', { required: true })
 const tierGoogleOne = defineModel<GeminiGoogleOneTier>('tierGoogleOne', { required: true })
 const tierGcp = defineModel<GeminiGcpTier>('tierGcp', { required: true })
-const tierAiStudio = defineModel<GeminiAiStudioTier>('tierAiStudio', { required: true })
+const tierAiStudio = defineModel<GeminiAIStudioTier>('tierAiStudio', { required: true })
 
 const { t } = useI18n()
 
@@ -183,6 +182,17 @@ const selectOAuthType = (next: GeminiOAuthType) => {
         >
           {{ t('admin.accounts.gemini.accountType.apiKeyLink') }}
         </a>
+      </div>
+    </div>
+
+    <div
+      class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-200"
+    >
+      <p class="font-medium">{{ t('admin.accounts.gemini.batchCapability.title') }}</p>
+      <div class="mt-2 space-y-1">
+        <p>{{ t('admin.accounts.gemini.batchCapability.aiStudio') }}</p>
+        <p>{{ t('admin.accounts.gemini.batchCapability.vertex') }}</p>
+        <p>{{ t('admin.accounts.gemini.batchCapability.vertexExpress') }}</p>
       </div>
     </div>
 
@@ -397,7 +407,9 @@ const selectOAuthType = (next: GeminiOAuthType) => {
 
         <select v-else v-model="tierAiStudio" class="input">
           <option value="aistudio_free">{{ t('admin.accounts.gemini.tier.aiStudio.free') }}</option>
-          <option value="aistudio_paid">{{ t('admin.accounts.gemini.tier.aiStudio.paid') }}</option>
+          <option value="aistudio_tier_1">{{ t('admin.accounts.gemini.tier.aiStudio.tier1') }}</option>
+          <option value="aistudio_tier_2">{{ t('admin.accounts.gemini.tier.aiStudio.tier2') }}</option>
+          <option value="aistudio_tier_3">{{ t('admin.accounts.gemini.tier.aiStudio.tier3') }}</option>
         </select>
       </div>
       <p class="input-hint">{{ t('admin.accounts.gemini.tier.hint') }}</p>

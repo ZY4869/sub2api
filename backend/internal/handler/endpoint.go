@@ -15,14 +15,19 @@ import (
 // ──────────────────────────────────────────────────────────
 
 const (
-	EndpointMessages        = "/v1/messages"
-	EndpointChatCompletions = "/v1/chat/completions"
-	EndpointResponses       = "/v1/responses"
-	EndpointImagesGen       = "/v1/images/generations"
-	EndpointImagesEdits     = "/v1/images/edits"
-	EndpointVideosGen       = "/v1/videos/generations"
-	EndpointVideosStatus    = "/v1/videos/:request_id"
-	EndpointGeminiModels    = "/v1beta/models"
+	EndpointMessages         = "/v1/messages"
+	EndpointChatCompletions  = "/v1/chat/completions"
+	EndpointResponses        = "/v1/responses"
+	EndpointImagesGen        = "/v1/images/generations"
+	EndpointImagesEdits      = "/v1/images/edits"
+	EndpointVideosGen        = "/v1/videos/generations"
+	EndpointVideosStatus     = "/v1/videos/:request_id"
+	EndpointGeminiModels     = "/v1beta/models"
+	EndpointGeminiFiles      = "/v1beta/files"
+	EndpointGeminiFilesUp    = "/upload/v1beta/files"
+	EndpointGeminiBatches    = "/v1beta/batches"
+	EndpointVertexSyncModels = "/v1/projects/:project/locations/:location/publishers/google/models"
+	EndpointVertexBatchJobs  = "/v1/projects/:project/locations/:location/batchPredictionJobs"
 )
 
 // gin.Context keys used by the middleware and helpers below.
@@ -58,6 +63,16 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointMessages
 	case strings.Contains(path, EndpointResponses):
 		return EndpointResponses
+	case strings.Contains(path, EndpointGeminiFilesUp):
+		return EndpointGeminiFilesUp
+	case strings.Contains(path, "/publishers/google/models/"):
+		return EndpointVertexSyncModels
+	case strings.Contains(path, "/batchPredictionJobs"):
+		return EndpointVertexBatchJobs
+	case strings.Contains(path, ":batchGenerateContent") || strings.Contains(path, EndpointGeminiBatches):
+		return EndpointGeminiBatches
+	case strings.Contains(path, EndpointGeminiFiles):
+		return EndpointGeminiFiles
 	case strings.Contains(path, EndpointGeminiModels):
 		return EndpointGeminiModels
 	default:
@@ -92,7 +107,12 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 		return EndpointMessages
 
 	case service.PlatformGemini:
-		return EndpointGeminiModels
+		switch inbound {
+		case EndpointGeminiFiles, EndpointGeminiFilesUp, EndpointGeminiBatches, EndpointVertexSyncModels, EndpointVertexBatchJobs:
+			return inbound
+		default:
+			return EndpointGeminiModels
+		}
 
 	case service.PlatformSora:
 		return EndpointChatCompletions
@@ -114,7 +134,7 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	case service.PlatformAntigravity:
 		// Antigravity accounts serve both Claude and Gemini.
-		if inbound == EndpointGeminiModels {
+		if inbound == EndpointGeminiModels || inbound == EndpointVertexSyncModels {
 			return EndpointGeminiModels
 		}
 		return EndpointMessages

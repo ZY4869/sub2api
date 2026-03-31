@@ -16,6 +16,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 	if s.schedulerSnapshot != nil {
 		accounts, useMixed, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
 		if err == nil {
+			accounts = filterGeminiAccountsByPublicProtocol(ctx, accounts, platform)
 			slog.Debug("account_scheduling_list_snapshot", "group_id", derefGroupID(groupID), "platform", platform, "use_mixed", useMixed, "count", len(accounts))
 			for _, acc := range accounts {
 				slog.Debug("account_scheduling_account_detail", "account_id", acc.ID, "name", acc.Name, "platform", acc.Platform, "type", acc.Type, "status", acc.Status, "tls_fingerprint", acc.IsTLSFingerprintEnabled())
@@ -49,6 +50,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 			}
 			filtered = append(filtered, acc)
 		}
+		filtered = filterGeminiAccountsByPublicProtocol(ctx, filtered, platform)
 		slog.Debug("account_scheduling_list_mixed", "group_id", derefGroupID(groupID), "platform", platform, "raw_count", len(accounts), "filtered_count", len(filtered))
 		for _, acc := range filtered {
 			slog.Debug("account_scheduling_account_detail", "account_id", acc.ID, "name", acc.Name, "platform", acc.Platform, "type", acc.Type, "status", acc.Status, "tls_fingerprint", acc.IsTLSFingerprintEnabled())
@@ -75,6 +77,7 @@ func (s *GatewayService) listSchedulableAccounts(ctx context.Context, groupID *i
 			filtered = append(filtered, acc)
 		}
 	}
+	filtered = filterGeminiAccountsByPublicProtocol(ctx, filtered, platform)
 	slog.Debug("account_scheduling_list_single", "group_id", derefGroupID(groupID), "platform", platform, "count", len(filtered))
 	for _, acc := range filtered {
 		slog.Debug("account_scheduling_account_detail", "account_id", acc.ID, "name", acc.Name, "platform", acc.Platform, "type", acc.Type, "status", acc.Status, "tls_fingerprint", acc.IsTLSFingerprintEnabled())
@@ -130,6 +133,16 @@ func (s *GatewayService) isAccountAllowedForPlatform(account *Account, platform 
 		return account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled()
 	}
 	return MatchesGroupPlatform(account, platform)
+}
+
+func (s *GatewayService) isAccountAllowedForPlatformWithContext(ctx context.Context, account *Account, platform string, useMixed bool) bool {
+	if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+		return false
+	}
+	if platform == PlatformGemini {
+		return geminiPublicProtocolAllowsAccount(ctx, account)
+	}
+	return true
 }
 func (s *GatewayService) isSoraAccountSchedulable(account *Account) bool {
 	return s.soraUnschedulableReason(account) == ""

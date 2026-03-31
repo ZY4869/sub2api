@@ -185,6 +185,11 @@ func ModelRoutingEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldModelRoutingEnabled, v))
 }
 
+// GeminiMixedProtocolEnabled applies equality check predicate on the "gemini_mixed_protocol_enabled" field. It's identical to GeminiMixedProtocolEnabledEQ.
+func GeminiMixedProtocolEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldGeminiMixedProtocolEnabled, v))
+}
+
 // McpXMLInject applies equality check predicate on the "mcp_xml_inject" field. It's identical to McpXMLInjectEQ.
 func McpXMLInject(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldMcpXMLInject, v))
@@ -1433,6 +1438,16 @@ func ModelRoutingEnabledEQ(v bool) predicate.Group {
 // ModelRoutingEnabledNEQ applies the NEQ predicate on the "model_routing_enabled" field.
 func ModelRoutingEnabledNEQ(v bool) predicate.Group {
 	return predicate.Group(sql.FieldNEQ(FieldModelRoutingEnabled, v))
+}
+
+// GeminiMixedProtocolEnabledEQ applies the EQ predicate on the "gemini_mixed_protocol_enabled" field.
+func GeminiMixedProtocolEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldGeminiMixedProtocolEnabled, v))
+}
+
+// GeminiMixedProtocolEnabledNEQ applies the NEQ predicate on the "gemini_mixed_protocol_enabled" field.
+func GeminiMixedProtocolEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldGeminiMixedProtocolEnabled, v))
 }
 
 // McpXMLInjectEQ applies the EQ predicate on the "mcp_xml_inject" field.

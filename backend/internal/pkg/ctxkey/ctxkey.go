@@ -23,4 +23,6 @@ const (
 	PrefetchedStickyAccountID Key = "ctx_prefetched_sticky_account_id"
 	PrefetchedStickyGroupID   Key = "ctx_prefetched_sticky_group_id"
 	ClaudeCodeVersion       Key = "ctx_claude_code_version"
+	GeminiPublicProtocol    Key = "ctx_gemini_public_protocol"
+	GeminiMixedProtocolEnabled Key = "ctx_gemini_mixed_protocol_enabled"
 )

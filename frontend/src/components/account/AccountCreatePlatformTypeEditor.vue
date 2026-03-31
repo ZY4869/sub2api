@@ -12,14 +12,13 @@ import AccountCreateTypeCardGroup from './AccountCreateTypeCardGroup.vue'
 import AccountGeminiAccountTypeEditor from './AccountGeminiAccountTypeEditor.vue'
 import AccountUpstreamSettingsEditor from './AccountUpstreamSettingsEditor.vue'
 import Select from '@/components/common/Select.vue'
-import type { GeminiOAuthType } from '@/utils/geminiAccount'
+import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 
 type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
 type SoraAccountType = 'oauth' | 'apikey'
 type AntigravityAccountType = 'oauth' | 'upstream'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'
 type GeminiGcpTier = 'gcp_standard' | 'gcp_enterprise'
-type GeminiAiStudioTier = 'aistudio_free' | 'aistudio_paid'
 type Accent = 'orange' | 'purple' | 'green' | 'rose'
 
 interface TypeOption {
@@ -50,7 +49,7 @@ const geminiOAuthType = defineModel<GeminiOAuthType>('geminiOAuthType', { requir
 const showAdvanced = defineModel<boolean>('showAdvanced', { required: true })
 const geminiTierGoogleOne = defineModel<GeminiGoogleOneTier>('geminiTierGoogleOne', { required: true })
 const geminiTierGcp = defineModel<GeminiGcpTier>('geminiTierGcp', { required: true })
-const geminiTierAiStudio = defineModel<GeminiAiStudioTier>('geminiTierAiStudio', { required: true })
+const geminiTierAiStudio = defineModel<GeminiAIStudioTier>('geminiTierAiStudio', { required: true })
 const upstreamBaseUrl = defineModel<string>('upstreamBaseUrl', { required: true })
 const upstreamApiKey = defineModel<string>('upstreamApiKey', { required: true })
 const gatewayProtocol = defineModel<GatewayProtocol>('gatewayProtocol', { required: true })

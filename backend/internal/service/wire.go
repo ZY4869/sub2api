@@ -133,6 +133,25 @@ func ProvideAntigravityTokenProvider(
 	return p
 }
 
+func ProvideGeminiMessagesCompatService(
+	accountRepo AccountRepository,
+	groupRepo GroupRepository,
+	resourceBindingRepo UpstreamResourceBindingRepository,
+	googleBatchQuotaReservationRepo GoogleBatchQuotaReservationRepository,
+	cache GatewayCache,
+	schedulerSnapshot *SchedulerSnapshotService,
+	tokenProvider *GeminiTokenProvider,
+	rateLimitService *RateLimitService,
+	httpUpstream HTTPUpstream,
+	antigravityGatewayService *AntigravityGatewayService,
+	cfg *config.Config,
+) *GeminiMessagesCompatService {
+	svc := NewGeminiMessagesCompatService(accountRepo, groupRepo, cache, schedulerSnapshot, tokenProvider, rateLimitService, httpUpstream, antigravityGatewayService, cfg)
+	svc.SetUpstreamResourceBindingRepository(resourceBindingRepo)
+	svc.SetGoogleBatchQuotaReservationRepository(googleBatchQuotaReservationRepo)
+	return svc
+}
+
 // ProvideDashboardAggregationService 创建并启动仪表盘聚合服务
 func ProvideDashboardAggregationService(repo DashboardAggregationRepository, timingWheel *TimingWheelService, cfg *config.Config) *DashboardAggregationService {
 	svc := NewDashboardAggregationService(repo, timingWheel, cfg)
@@ -606,7 +625,7 @@ var ProviderSet = wire.NewSet(
 	NewAntigravityOAuthService,
 	NewOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,
-	NewGeminiMessagesCompatService,
+	ProvideGeminiMessagesCompatService,
 	ProvideAntigravityTokenProvider,
 	ProvideOpenAITokenProvider,
 	ProvideClaudeTokenProvider,

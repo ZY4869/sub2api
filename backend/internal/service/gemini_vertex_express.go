@@ -69,6 +69,9 @@ func NormalizeGeminiCredentialsForStorage(accountType string, credentials map[st
 			normalized["base_url"] = strings.TrimRight(baseURL, "/")
 		}
 	}
+	if canonicalTierID := canonicalGeminiTierID(stringCredentialValue(normalized["tier_id"])); canonicalTierID != "" {
+		normalized["tier_id"] = canonicalTierID
+	}
 	return normalized
 }
 

@@ -162,7 +162,7 @@ func (s *GatewayService) summarizeGeminiVertexRouting(ctx context.Context, accou
 	hasPostQuotaEligibleVertex := false
 	for i := range accounts {
 		account := &accounts[i]
-		if !account.IsGeminiVertexSource() || !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+		if !account.IsGeminiVertexSource() || !s.isAccountAllowedForPlatformWithContext(ctx, account, platform, useMixed) {
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
@@ -218,7 +218,7 @@ func (s *GatewayService) findGeminiVertexFallbackReason(ctx context.Context, acc
 		if groupID == nil && !s.isAccountInGroup(account, nil) {
 			continue
 		}
-		if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+		if !s.isAccountAllowedForPlatformWithContext(ctx, account, platform, useMixed) {
 			continue
 		}
 		foundGlobal = true
@@ -254,7 +254,7 @@ func (s *GatewayService) geminiVertexSkipReason(ctx context.Context, account *Ac
 			return "unschedulable"
 		}
 	}
-	if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+	if !s.isAccountAllowedForPlatformWithContext(ctx, account, platform, useMixed) {
 		return "platform_mismatch"
 	}
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {

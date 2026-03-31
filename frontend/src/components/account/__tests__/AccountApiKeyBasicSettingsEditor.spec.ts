@@ -59,13 +59,13 @@ describe('AccountApiKeyBasicSettingsEditor', () => {
 
     await wrapper.get('input[type="text"]').setValue('https://example.com')
     await wrapper.get('input[type="password"]').setValue('AIza-test')
-    await wrapper.get('[data-testid="gemini-api-key-tier"]').setValue('aistudio_paid')
+    await wrapper.get('[data-testid="gemini-api-key-tier"]').setValue('aistudio_tier_1')
     await wrapper.get('[data-testid="emit-mode"]').trigger('click')
     await wrapper.get('[data-testid="emit-models"]').trigger('click')
 
     expect(wrapper.emitted('update:baseUrl')?.[0]).toEqual(['https://example.com'])
     expect(wrapper.emitted('update:apiKey')?.[0]).toEqual(['AIza-test'])
-    expect(wrapper.emitted('update:geminiTierAiStudio')?.[0]).toEqual(['aistudio_paid'])
+    expect(wrapper.emitted('update:geminiTierAiStudio')?.[0]).toEqual(['aistudio_tier_1'])
     expect(wrapper.emitted('update:modelScopeMode')?.[0]).toEqual(['mapping'])
     expect(wrapper.emitted('update:allowedModels')?.[0]).toEqual([['gpt-5.4']])
   })

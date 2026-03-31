@@ -20,17 +20,19 @@ const (
 const geminiDummyThoughtSignature = "skip_thought_signature_validator"
 
 type GeminiMessagesCompatService struct {
-	accountRepo               AccountRepository
-	groupRepo                 GroupRepository
-	cache                     GatewayCache
-	schedulerSnapshot         *SchedulerSnapshotService
-	tokenProvider             *GeminiTokenProvider
-	vertexCatalogService      VertexCatalogProvider
-	rateLimitService          *RateLimitService
-	httpUpstream              HTTPUpstream
-	antigravityGatewayService *AntigravityGatewayService
-	cfg                       *config.Config
-	responseHeaderFilter      *responseheaders.CompiledHeaderFilter
+	accountRepo                     AccountRepository
+	groupRepo                       GroupRepository
+	resourceBindingRepo             UpstreamResourceBindingRepository
+	googleBatchQuotaReservationRepo GoogleBatchQuotaReservationRepository
+	cache                           GatewayCache
+	schedulerSnapshot               *SchedulerSnapshotService
+	tokenProvider                   *GeminiTokenProvider
+	vertexCatalogService            VertexCatalogProvider
+	rateLimitService                *RateLimitService
+	httpUpstream                    HTTPUpstream
+	antigravityGatewayService       *AntigravityGatewayService
+	cfg                             *config.Config
+	responseHeaderFilter            *responseheaders.CompiledHeaderFilter
 }
 
 func NewGeminiMessagesCompatService(accountRepo AccountRepository, groupRepo GroupRepository, cache GatewayCache, schedulerSnapshot *SchedulerSnapshotService, tokenProvider *GeminiTokenProvider, rateLimitService *RateLimitService, httpUpstream HTTPUpstream, antigravityGatewayService *AntigravityGatewayService, cfg *config.Config) *GeminiMessagesCompatService {
@@ -40,6 +42,11 @@ func NewGeminiMessagesCompatService(accountRepo AccountRepository, groupRepo Gro
 func (s *GeminiMessagesCompatService) SetVertexCatalogService(vertexCatalogService VertexCatalogProvider) {
 	s.vertexCatalogService = vertexCatalogService
 }
+
+func (s *GeminiMessagesCompatService) SetUpstreamResourceBindingRepository(repo UpstreamResourceBindingRepository) {
+	s.resourceBindingRepo = repo
+}
+
 func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx context.Context, groupID *int64) (*Account, error) {
 	accounts, err := s.listSchedulableAccountsOnce(ctx, groupID, PlatformGemini, true)
 	if err != nil {

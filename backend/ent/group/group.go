@@ -69,6 +69,8 @@ const (
 	FieldModelRouting = "model_routing"
 	// FieldModelRoutingEnabled holds the string denoting the model_routing_enabled field in the database.
 	FieldModelRoutingEnabled = "model_routing_enabled"
+	// FieldGeminiMixedProtocolEnabled holds the string denoting the gemini_mixed_protocol_enabled field in the database.
+	FieldGeminiMixedProtocolEnabled = "gemini_mixed_protocol_enabled"
 	// FieldMcpXMLInject holds the string denoting the mcp_xml_inject field in the database.
 	FieldMcpXMLInject = "mcp_xml_inject"
 	// FieldSupportedModelScopes holds the string denoting the supported_model_scopes field in the database.
@@ -199,6 +201,7 @@ var Columns = []string{
 	FieldFallbackGroupIDOnInvalidRequest,
 	FieldModelRouting,
 	FieldModelRoutingEnabled,
+	FieldGeminiMixedProtocolEnabled,
 	FieldMcpXMLInject,
 	FieldSupportedModelScopes,
 	FieldPriority,
@@ -269,6 +272,8 @@ var (
 	DefaultClaudeCodeOnly bool
 	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
 	DefaultModelRoutingEnabled bool
+	// DefaultGeminiMixedProtocolEnabled holds the default value on creation for the "gemini_mixed_protocol_enabled" field.
+	DefaultGeminiMixedProtocolEnabled bool
 	// DefaultMcpXMLInject holds the default value on creation for the "mcp_xml_inject" field.
 	DefaultMcpXMLInject bool
 	// DefaultSupportedModelScopes holds the default value on creation for the "supported_model_scopes" field.
@@ -421,6 +426,11 @@ func ByFallbackGroupIDOnInvalidRequest(opts ...sql.OrderTermOption) OrderOption 
 // ByModelRoutingEnabled orders the results by the model_routing_enabled field.
 func ByModelRoutingEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModelRoutingEnabled, opts...).ToFunc()
+}
+
+// ByGeminiMixedProtocolEnabled orders the results by the gemini_mixed_protocol_enabled field.
+func ByGeminiMixedProtocolEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGeminiMixedProtocolEnabled, opts...).ToFunc()
 }
 
 // ByMcpXMLInject orders the results by the mcp_xml_inject field.

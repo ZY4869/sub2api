@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { ModelRegistryPreset } from '@/generated/modelRegistry'
 import type { AccountPlatform, GatewayProtocol } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import { type GeminiAIStudioTier } from '@/utils/geminiAccount'
 import {
   resolveAccountApiKeyBaseUrlHintKey,
   resolveAccountApiKeyDefaultBaseUrl,
@@ -13,8 +14,6 @@ import {
   type AccountApiKeySettingsMode
 } from '@/utils/accountApiKeyBasicSettings'
 import AccountModelScopeEditor from './AccountModelScopeEditor.vue'
-
-type GeminiAiStudioTier = 'aistudio_free' | 'aistudio_paid'
 
 const props = withDefaults(defineProps<{
   platform: AccountPlatform
@@ -45,7 +44,7 @@ const baseUrl = defineModel<string>('baseUrl', { required: true })
 const apiKey = defineModel<string>('apiKey', { required: true })
 const modelScopeMode = defineModel<'whitelist' | 'mapping'>('modelScopeMode', { required: true })
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
-const geminiTierAiStudio = defineModel<GeminiAiStudioTier>('geminiTierAiStudio')
+const geminiTierAiStudio = defineModel<GeminiAIStudioTier>('geminiTierAiStudio')
 
 const { t } = useI18n()
 
@@ -109,7 +108,9 @@ const showProtocolGatewaySuggestion = computed(() =>
       <label class="input-label">{{ t('admin.accounts.gemini.tier.label') }}</label>
       <select v-model="geminiTierAiStudio" class="input" data-testid="gemini-api-key-tier">
         <option value="aistudio_free">{{ t('admin.accounts.gemini.tier.aiStudio.free') }}</option>
-        <option value="aistudio_paid">{{ t('admin.accounts.gemini.tier.aiStudio.paid') }}</option>
+        <option value="aistudio_tier_1">{{ t('admin.accounts.gemini.tier.aiStudio.tier1') }}</option>
+        <option value="aistudio_tier_2">{{ t('admin.accounts.gemini.tier.aiStudio.tier2') }}</option>
+        <option value="aistudio_tier_3">{{ t('admin.accounts.gemini.tier.aiStudio.tier3') }}</option>
       </select>
       <p class="input-hint">{{ t('admin.accounts.gemini.tier.aiStudioHint') }}</p>
     </div>

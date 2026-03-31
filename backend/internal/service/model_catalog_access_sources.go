@@ -140,7 +140,7 @@ func modelCatalogAccountCanServePlatform(ctx context.Context, gateway *GatewaySe
 	if platform == "" {
 		return false
 	}
-	if !gateway.isAccountAllowedForPlatform(account, platform, modelCatalogUsesMixedScheduling(platform)) {
+	if !gateway.isAccountAllowedForPlatformWithContext(ctx, account, platform, modelCatalogUsesMixedScheduling(platform)) {
 		return false
 	}
 	for _, candidate := range modelCatalogSupportCandidates(record) {

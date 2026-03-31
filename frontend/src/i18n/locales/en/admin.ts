@@ -936,6 +936,10 @@ export default {
         hint: 'Multiple groups can be selected, accounts will be deduplicated',
         hintEdit: '⚠️ Warning: This will replace all existing account bindings'
       },
+      geminiMixedProtocol: {
+        title: 'Enable AI Studio / Vertex mixed-protocol fallback',
+        hint: 'When disabled, routing stays within the current protocol family. When enabled, same-protocol accounts are preferred first, then AI Studio / Vertex fallback is attempted after quota or rate-limit rejection.'
+      },
       modelRouting: {
         title: 'Model Routing',
         tooltip: 'Configure specific model requests to be routed to designated accounts. Supports wildcard matching, e.g., claude-opus-* matches all opus models.',
@@ -1379,11 +1383,11 @@ export default {
       },
       clearRateLimit: 'Clear Rate Limit',
       resetQuota: 'Reset Quota',
-      quotaLimit: 'Upstream Account Quota',
+      quotaLimit: 'Account Spending Limit',
       quotaLimitPlaceholder: '0 means unlimited',
-      quotaLimitHint: 'Set daily/weekly/total spending limits (USD) for the current upstream account only. When any limit is reached, only this upstream account is paused and group quotas are unaffected. Changing limits will not reset usage.',
-      quotaLimitToggle: 'Enable Upstream Account Quota',
-      quotaLimitToggleHint: 'When enabled, only the current upstream account is paused after reaching the configured limit; group quotas are unaffected',
+      quotaLimitHint: 'Set daily/weekly/total spending limits (USD) for this account. When any limit is reached, this account is skipped during routing and the system keeps trying other available accounts. Group quotas stay unchanged and changing limits does not reset usage.',
+      quotaLimitToggle: 'Enable Account Spending Limit',
+      quotaLimitToggleHint: 'When enabled, this account is skipped after reaching the configured limit and routing continues with other available accounts',
       quotaDailyLimit: 'Daily Quota',
       quotaDailyLimitHint: 'Applies only to the current upstream account and resets every 24 hours from first usage.',
       quotaWeeklyLimit: 'Weekly Quota',
@@ -1602,6 +1606,12 @@ export default {
           tlsFingerprintHint: 'Mimic the TLS fingerprint of Node.js / Claude Code clients.',
           sessionMasking: 'Session ID Masking',
           sessionMaskingHint: 'Keep the session ID in metadata.user_id stable for a short window so upstream treats requests as the same session.'
+        },
+        batch: {
+          title: 'Enable native Gemini Files / Batch and Vertex Batch paths',
+          hint: 'Keeps the official Google protocol shapes. AI Studio uses Files API + Batch API, while Vertex AI uses standard batchPredictionJobs.',
+          toggle: 'Enable Gemini Batch',
+          toggleHint: 'Only applies to the Gemini subprotocol. When disabled, existing synchronous Gemini behavior remains unchanged and Files / Batch paths stay hidden.'
         },
         probeRequiredApiKey: 'Enter the API key before probing models',
         probeFailed: 'Failed to probe upstream models',
@@ -2084,7 +2094,7 @@ export default {
           label: 'Account Tier',
           hint: 'Tip: The system will try to auto-detect the tier first; if auto-detection is unavailable or fails, your selected tier is used as a fallback (simulated quota).',
           aiStudioHint:
-            'AI Studio quotas are per-model (Pro/Flash are limited independently). If billing is enabled, choose Pay-as-you-go.',
+            'AI Studio now follows the official Free / Tier 1 / Tier 2 / Tier 3 model. Legacy pay-as-you-go accounts are normalized to Tier 1.',
           googleOne: {
             free: 'Google One Free',
             pro: 'Google One Pro',
@@ -2096,7 +2106,10 @@ export default {
           },
           aiStudio: {
             free: 'Google AI Free',
-            paid: 'Google AI Pay-as-you-go'
+            paid: 'Google AI Pay-as-you-go',
+            tier1: 'Google AI Tier 1',
+            tier2: 'Google AI Tier 2',
+            tier3: 'Google AI Tier 3'
           }
         },
         accountType: {
@@ -2110,6 +2123,12 @@ export default {
             'To use Vertex AI, switch directly to "Vertex AI".',
           apiKeyLink: 'Get API Key',
           quotaLink: 'Quota guide'
+        },
+        batchCapability: {
+          title: 'Batch capability',
+          aiStudio: 'AI Studio API key: native Gemini Files API + Batch API enabled by default.',
+          vertex: 'Vertex AI: standard Vertex batchPredictionJobs enabled by default.',
+          vertexExpress: 'Vertex Express API key: online inference only, not treated as true Batch.'
         },
         oauthType: {
           builtInTitle: 'Built-in OAuth (Gemini CLI / Code Assist)',
@@ -2156,11 +2175,20 @@ export default {
         quotaPolicy: {
           title: 'Gemini Quota & Limit Policy (Reference)',
           note: 'Note: Gemini does not provide an official quota inquiry API. The "Daily Quota" shown here is an estimate simulated by the system based on account tiers for scheduling reference only. Please refer to official Google errors for actual limits.',
+          effectiveDate: 'Official catalog effective date: {date}',
+          remainingApiUnavailable: 'This view only shows official public tier, rate-limit, and Batch limits. No official API for remaining tier balance or remaining quota was found for integration.',
+          remainingApiAvailable: 'This environment can display an official remaining quota API.',
+          batchSection: 'Batch API dedicated limits',
+          batchSummary: 'Concurrent Batch requests: {concurrent}; input file size limit: {inputSize}; file storage limit: {storage}.',
           columns: {
             channel: 'Auth Channel',
             account: 'Account Status',
             limits: 'Limit Policy',
-            docs: 'Official Docs'
+            docs: 'Official Docs',
+            tier: 'Tier',
+            model: 'Model Family',
+            qualification: 'Qualification',
+            batchTokens: 'Batch Enqueued Token Limit'
           },
           docs: {
             codeAssist: 'Code Assist Quotas',
@@ -2197,14 +2225,23 @@ export default {
               free: 'No billing (free tier)',
               paid: 'Billing enabled (pay-as-you-go)',
               limitsFree: 'RPD 50; RPM 2 (Pro) / 15 (Flash)',
-              limitsPaid: 'RPD unlimited; RPM 1000 (Pro) / 2000 (Flash) (per model)'
+              limitsPaid: 'RPD unlimited; RPM 1000 (Pro) / 2000 (Flash) (per model)',
+              limitsTier1: 'Tier 1: follows the official AI Studio rate limits, commonly Pro 1000 RPM / Flash 2000 RPM.',
+              limitsTier2: 'Tier 2: keeps the official paid limits with higher Batch enqueued-token capacity.',
+              limitsTier3: 'Tier 3: keeps the highest official paid limits and the largest Batch queue capacity.'
+            },
+            vertex: {
+              channel: 'Vertex AI / Vertex Express',
+              limits: 'Metered per project, region, and model. Batch uses standard Vertex batchPredictionJobs and the effective quota follows official Vertex AI project quotas.'
             },
             customOAuth: {
               channel: 'Custom OAuth Client (GCP)',
               free: 'Project not billed',
               paid: 'Project billed',
               limitsFree: 'RPD 50; RPM 2 (project quota)',
-              limitsPaid: 'RPD unlimited; RPM 1000+ (project quota)'
+              limitsPaid: 'RPD unlimited; RPM 1000+ (project quota)',
+              limitsTier2: 'Tier 2: follows the higher official AI Studio paid limits and Batch ceilings.',
+              limitsTier3: 'Tier 3: follows the highest official AI Studio paid limits and Batch ceilings.'
             }
           }
         },
@@ -4154,6 +4191,54 @@ export default {
         testFailed: 'S3 connection test failed',
         saved: 'Sora S3 settings saved successfully',
         saveFailed: 'Failed to save Sora S3 settings'
+      },
+      googleBatchGcs: {
+        title: 'Google Batch GCS Staging',
+        description: 'Manage the global GCS profiles used by the Gemini mixed pool for AI Studio / Vertex Batch staging and mirrored resources.',
+        newProfile: 'New GCS Profile',
+        reloadProfiles: 'Reload Profiles',
+        empty: 'No GCS profile yet. Create one first.',
+        createTitle: 'Create GCS Profile',
+        editTitle: 'Edit GCS Profile',
+        profileID: 'Profile ID',
+        profileName: 'Profile Name',
+        setActive: 'Set active after create',
+        saveProfile: 'Save Profile',
+        activateProfile: 'Set Active',
+        profileCreated: 'GCS profile created successfully',
+        profileSaved: 'GCS profile saved successfully',
+        profileDeleted: 'GCS profile deleted successfully',
+        profileActivated: 'Active GCS profile switched successfully',
+        profileIDRequired: 'Please enter the profile ID',
+        profileNameRequired: 'Please enter the profile name',
+        profileSelectRequired: 'Please select a profile first',
+        bucketRequired: 'Bucket is required when enabled',
+        projectIDRequired: 'Google Cloud project ID is required when enabled',
+        serviceAccountRequired: 'Service account JSON is required when enabled',
+        deleteConfirm: 'Are you sure you want to delete GCS profile {profileID}?',
+        columns: {
+          profile: 'Profile',
+          active: 'Active',
+          bucket: 'Bucket',
+          project: 'Project',
+          updatedAt: 'Updated',
+          actions: 'Actions'
+        },
+        enabled: 'Enable GCS staging',
+        enabledHint: 'When enabled, Gemini mixed Batch uses this GCS profile for staging and mirrored resources.',
+        bucket: 'Bucket',
+        prefix: 'Object Prefix',
+        prefixHint: 'Optional. Leave blank to use the bucket root. A per-environment prefix is recommended.',
+        projectId: 'Google Cloud Project ID',
+        serviceAccountJson: 'Service Account JSON',
+        serviceAccountHint: 'Provide a service account JSON with GCS read/write access. Leave blank while editing to keep the existing secret.',
+        configuredBadge: 'JSON configured',
+        configuredPlaceholder: '(configured, leave blank to keep unchanged)',
+        testConnection: 'Test Connection',
+        testing: 'Testing...',
+        testSuccess: 'GCS connection test passed',
+        testFailed: 'GCS connection test failed',
+        saveFailed: 'Failed to save GCS profile'
       },
       streamTimeout: {
         title: 'Stream Timeout Handling',

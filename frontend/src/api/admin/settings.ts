@@ -441,6 +441,101 @@ export interface ListSoraS3ProfilesResponse {
   items: SoraS3Profile[]
 }
 
+export interface GoogleBatchGCSProfile {
+  profile_id: string
+  name: string
+  is_active: boolean
+  enabled: boolean
+  bucket: string
+  prefix: string
+  project_id: string
+  service_account_json_configured: boolean
+  updated_at: string
+}
+
+export interface ListGoogleBatchGCSProfilesResponse {
+  active_profile_id: string
+  items: GoogleBatchGCSProfile[]
+}
+
+export interface CreateGoogleBatchGCSProfileRequest {
+  profile_id: string
+  name: string
+  set_active?: boolean
+  enabled: boolean
+  bucket: string
+  prefix: string
+  project_id: string
+  service_account_json?: string
+}
+
+export interface UpdateGoogleBatchGCSProfileRequest {
+  name: string
+  enabled: boolean
+  bucket: string
+  prefix: string
+  project_id: string
+  service_account_json?: string
+}
+
+export interface TestGoogleBatchGCSConnectionRequest {
+  profile_id?: string
+  enabled: boolean
+  bucket: string
+  prefix: string
+  project_id: string
+  service_account_json?: string
+}
+
+export interface GeminiRateCatalogModelRow {
+  model_family: string
+  display_name: string
+  rpm: number
+  tpm: number
+  rpd: number
+  notes?: string
+}
+
+export interface GeminiRateCatalogTier {
+  tier_id: string
+  display_name: string
+  qualification: string
+  billing_tier_cap: string
+  model_families: GeminiRateCatalogModelRow[]
+}
+
+export interface GeminiRateCatalogBatchRow {
+  model_family: string
+  display_name: string
+  enqueued_tokens: number
+}
+
+export interface GeminiRateCatalogBatchTier {
+  tier_id: string
+  entries: GeminiRateCatalogBatchRow[]
+}
+
+export interface GeminiRateCatalogBatchLimits {
+  concurrent_batch_requests: number
+  input_file_size_limit_bytes: number
+  file_storage_limit_bytes: number
+  by_tier: GeminiRateCatalogBatchTier[]
+}
+
+export interface GeminiRateCatalogLink {
+  label: string
+  url: string
+}
+
+export interface GeminiRateCatalog {
+  effective_date: string
+  remaining_quota_api_supported: boolean
+  ai_studio_tiers: GeminiRateCatalogTier[]
+  batch_limits: GeminiRateCatalogBatchLimits
+  links: GeminiRateCatalogLink[]
+  notes: string[]
+}
+
 export interface UpdateSoraS3SettingsRequest {
   profile_id?: string
   enabled: boolean
@@ -540,6 +635,40 @@ export async function setActiveSoraS3Profile(profileID: string): Promise<SoraS3P
   return data
 }
 
+export async function getGeminiRateCatalog(): Promise<GeminiRateCatalog> {
+  const { data } = await apiClient.get<GeminiRateCatalog>('/admin/settings/gemini-rate-catalog')
+  return data
+}
+
+export async function listGoogleBatchGCSProfiles(): Promise<ListGoogleBatchGCSProfilesResponse> {
+  const { data } = await apiClient.get<ListGoogleBatchGCSProfilesResponse>('/admin/settings/google-batch-gcs/profiles')
+  return data
+}
+
+export async function createGoogleBatchGCSProfile(request: CreateGoogleBatchGCSProfileRequest): Promise<GoogleBatchGCSProfile> {
+  const { data } = await apiClient.post<GoogleBatchGCSProfile>('/admin/settings/google-batch-gcs/profiles', request)
+  return data
+}
+
+export async function updateGoogleBatchGCSProfile(profileID: string, request: UpdateGoogleBatchGCSProfileRequest): Promise<GoogleBatchGCSProfile> {
+  const { data } = await apiClient.put<GoogleBatchGCSProfile>(`/admin/settings/google-batch-gcs/profiles/${profileID}`, request)
+  return data
+}
+
+export async function deleteGoogleBatchGCSProfile(profileID: string): Promise<void> {
+  await apiClient.delete(`/admin/settings/google-batch-gcs/profiles/${profileID}`)
+}
+
+export async function setActiveGoogleBatchGCSProfile(profileID: string): Promise<GoogleBatchGCSProfile> {
+  const { data } = await apiClient.post<GoogleBatchGCSProfile>(`/admin/settings/google-batch-gcs/profiles/${profileID}/activate`)
+  return data
+}
+
+export async function testGoogleBatchGCSConnection(request: TestGoogleBatchGCSConnectionRequest): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>('/admin/settings/google-batch-gcs/test', request)
+  return data
+}
+
 export const settingsAPI = {
   getSettings,
   updateSettings,
@@ -564,7 +693,14 @@ export const settingsAPI = {
   createSoraS3Profile,
   updateSoraS3Profile,
   deleteSoraS3Profile,
-  setActiveSoraS3Profile
+  setActiveSoraS3Profile,
+  getGeminiRateCatalog,
+  listGoogleBatchGCSProfiles,
+  createGoogleBatchGCSProfile,
+  updateGoogleBatchGCSProfile,
+  deleteGoogleBatchGCSProfile,
+  setActiveGoogleBatchGCSProfile,
+  testGoogleBatchGCSConnection
 }
 
 export default settingsAPI

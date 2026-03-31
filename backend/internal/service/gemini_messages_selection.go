@@ -18,7 +18,7 @@ func (s *GeminiMessagesCompatService) SelectAccountForModel(ctx context.Context,
 	return s.SelectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, nil)
 }
 func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
-	platform, useMixedScheduling, hasForcePlatform, err := s.resolvePlatformAndSchedulingMode(ctx, groupID)
+	ctx, platform, useMixedScheduling, hasForcePlatform, err := s.resolvePlatformAndSchedulingMode(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -48,24 +48,26 @@ func (s *GeminiMessagesCompatService) SelectAccountForModelWithExclusions(ctx co
 	}
 	return selected, nil
 }
-func (s *GeminiMessagesCompatService) resolvePlatformAndSchedulingMode(ctx context.Context, groupID *int64) (platform string, useMixedScheduling bool, hasForcePlatform bool, err error) {
+func (s *GeminiMessagesCompatService) resolvePlatformAndSchedulingMode(ctx context.Context, groupID *int64) (context.Context, string, bool, bool, error) {
 	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
 	if hasForcePlatform && forcePlatform != "" {
-		return forcePlatform, false, true, nil
+		return ctx, forcePlatform, false, true, nil
 	}
 	if groupID != nil {
 		var group *Group
+		var err error
 		if ctxGroup, ok := ctx.Value(ctxkey.Group).(*Group); ok && IsGroupContextValid(ctxGroup) && ctxGroup.ID == *groupID {
 			group = ctxGroup
 		} else {
 			group, err = s.groupRepo.GetByIDLite(ctx, *groupID)
 			if err != nil {
-				return "", false, false, fmt.Errorf("get group failed: %w", err)
+				return ctx, "", false, false, fmt.Errorf("get group failed: %w", err)
 			}
 		}
-		return group.Platform, group.Platform == PlatformGemini, false, nil
+		ctx = withGeminiGroupContext(ctx, group)
+		return ctx, group.Platform, group.Platform == PlatformGemini, false, nil
 	}
-	return PlatformGemini, true, false, nil
+	return ctx, PlatformGemini, true, false, nil
 }
 func (s *GeminiMessagesCompatService) tryStickySessionHit(ctx context.Context, groupID *int64, sessionHash, cacheKey, requestedModel string, excludedIDs map[int64]struct{}, platform string, useMixedScheduling bool) *Account {
 	if sessionHash == "" {
@@ -102,7 +104,7 @@ func (s *GeminiMessagesCompatService) isAccountUsableForRequestWithPrecheck(ctx 
 	if requestedModel != "" && !s.isModelSupportedByAccount(account, requestedModel) {
 		return false
 	}
-	if !s.isAccountValidForPlatform(account, platform, useMixedScheduling) {
+	if !s.isAccountValidForPlatform(ctx, account, platform, useMixedScheduling) {
 		return false
 	}
 	if !s.passesRateLimitPreCheckWithCache(ctx, account, requestedModel, precheckResult) {
@@ -110,9 +112,9 @@ func (s *GeminiMessagesCompatService) isAccountUsableForRequestWithPrecheck(ctx 
 	}
 	return true
 }
-func (s *GeminiMessagesCompatService) isAccountValidForPlatform(account *Account, platform string, useMixedScheduling bool) bool {
+func (s *GeminiMessagesCompatService) isAccountValidForPlatform(ctx context.Context, account *Account, platform string, useMixedScheduling bool) bool {
 	if MatchesGroupPlatform(account, platform) {
-		return true
+		return geminiPublicProtocolAllowsAccount(ctx, account)
 	}
 	if useMixedScheduling && account.Platform == PlatformAntigravity && account.IsMixedSchedulingEnabled() {
 		return true
@@ -149,7 +151,7 @@ func (s *GeminiMessagesCompatService) selectBestGeminiAccount(ctx context.Contex
 			selected = acc
 			continue
 		}
-		if s.isBetterGeminiAccount(acc, selected) {
+		if s.isBetterGeminiAccount(ctx, acc, selected) {
 			selected = acc
 		}
 	}
@@ -169,7 +171,10 @@ func (s *GeminiMessagesCompatService) buildPreCheckUsageResultMap(ctx context.Co
 	}
 	return result
 }
-func (s *GeminiMessagesCompatService) isBetterGeminiAccount(candidate, current *Account) bool {
+func (s *GeminiMessagesCompatService) isBetterGeminiAccount(ctx context.Context, candidate, current *Account) bool {
+	if candidateRank, currentRank := geminiPublicProtocolRank(ctx, candidate), geminiPublicProtocolRank(ctx, current); candidateRank != currentRank {
+		return candidateRank < currentRank
+	}
 	if candidate.Priority < current.Priority {
 		return true
 	}
@@ -206,19 +211,30 @@ func (s *GeminiMessagesCompatService) getSchedulableAccount(ctx context.Context,
 	return s.accountRepo.GetByID(ctx, accountID)
 }
 func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, error) {
+	selectionCtx := ctx
+	if groupID != nil && platform == PlatformGemini && GeminiPublicProtocolFromContext(ctx) != "" {
+		if ctxGroup, ok := ctx.Value(ctxkey.Group).(*Group); !ok || !IsGroupContextValid(ctxGroup) || ctxGroup.ID != *groupID {
+			if group, err := s.groupRepo.GetByIDLite(ctx, *groupID); err == nil {
+				selectionCtx = withGeminiGroupContext(ctx, group)
+			}
+		}
+	}
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
-		return accounts, err
+		return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
 	}
 	useMixedScheduling := platform == PlatformGemini && !hasForcePlatform
 	queryPlatforms := QueryPlatformsForGroupPlatform(platform, useMixedScheduling)
 	if groupID != nil {
-		return s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, queryPlatforms)
+		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, *groupID, queryPlatforms)
+		return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
 	}
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
-		return s.accountRepo.ListSchedulableByPlatforms(ctx, queryPlatforms)
+		accounts, err := s.accountRepo.ListSchedulableByPlatforms(ctx, queryPlatforms)
+		return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
 	}
-	return s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, queryPlatforms)
+	accounts, err := s.accountRepo.ListSchedulableUngroupedByPlatforms(ctx, queryPlatforms)
+	return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
 }
 func (s *GeminiMessagesCompatService) validateUpstreamBaseURL(raw string) (string, error) {
 	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {

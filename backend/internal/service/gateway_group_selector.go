@@ -256,6 +256,7 @@ func (s *GatewayService) groupBindingHasSchedulableAccounts(ctx context.Context,
 	if s == nil || binding == nil || binding.Group == nil {
 		return false, nil
 	}
+	ctx = s.withGroupContext(ctx, binding.Group)
 	platform := binding.Group.Platform
 	forcePlatform, hasForcePlatform := ctx.Value(ctxkey.ForcePlatform).(string)
 	if hasForcePlatform && forcePlatform != "" {
@@ -271,7 +272,7 @@ func (s *GatewayService) groupBindingHasSchedulableAccounts(ctx context.Context,
 		if !s.isAccountSchedulableForSelection(account) {
 			continue
 		}
-		if !s.isAccountAllowedForPlatform(account, platform, useMixed) {
+		if !s.isAccountAllowedForPlatformWithContext(ctx, account, platform, useMixed) {
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
