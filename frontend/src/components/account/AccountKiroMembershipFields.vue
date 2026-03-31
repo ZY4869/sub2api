@@ -69,7 +69,7 @@ import {
 } from '@/utils/kiroMembership'
 
 const memberLevel = defineModel<KiroMemberLevel>('memberLevel', { required: true })
-const memberCredits = defineModel<string>('memberCredits', { required: true })
+const memberCredits = defineModel<string | number>('memberCredits', { required: true })
 
 const { t } = useI18n()
 
@@ -80,8 +80,14 @@ const levelOptions = computed(() => [
   { value: 'kiro_power' as const, label: t('admin.accounts.kiroMembership.levels.kiro_power') }
 ])
 
+const memberCreditsText = computed(() => {
+  if (typeof memberCredits.value === 'string') return memberCredits.value
+  if (typeof memberCredits.value === 'number') return String(memberCredits.value)
+  return ''
+})
+
 const parsedCredits = computed(() => parseKiroMemberCredits(memberCredits.value))
-const showInvalidCredits = computed(() => memberCredits.value.trim() !== '' && parsedCredits.value === null)
+const showInvalidCredits = computed(() => memberCreditsText.value.trim() !== '' && parsedCredits.value === null)
 const defaultCredits = computed(() => defaultKiroMemberCredits(memberLevel.value))
 const currentLevelLabel = computed(() =>
   levelOptions.value.find((option) => option.value === memberLevel.value)?.label || memberLevel.value
