@@ -76,6 +76,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	requestedRoutingModel := service.NormalizeOpenAICompatRequestedModel(reqModel)
 	reqStream := gjson.GetBytes(body, "stream").Bool()
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
 	setOpsRequestContext(c, reqModel, reqStream, body)
@@ -125,7 +126,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			h.billingCacheService,
 			apiKey,
 			subscription,
-			reqModel,
+			requestedRoutingModel,
 			openAICompatiblePlatforms,
 			excludedGroupIDs,
 		)
@@ -162,7 +163,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				currentAPIKey.GroupID,
 				"",
 				sessionHash,
-				reqModel,
+				requestedRoutingModel,
 				failedAccountIDs,
 				service.OpenAIUpstreamTransportAny,
 			)
@@ -179,7 +180,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					if currentAPIKey.Group != nil {
 						defaultModel = currentAPIKey.Group.DefaultMappedModel
 					}
-					if defaultModel != "" && defaultModel != reqModel {
+					if defaultModel != "" && defaultModel != requestedRoutingModel {
 						reqLog.Info("openai_messages.fallback_to_default_model",
 							zap.String("default_mapped_model", defaultModel),
 						)
@@ -231,11 +232,11 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			reqLog.Debug("openai_messages.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			_ = scheduleDecision
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			routingModel := reqModel
+			accountRoutingModel := requestedRoutingModel
 			if fallback := strings.TrimSpace(c.GetString("openai_messages_fallback_model")); fallback != "" {
-				routingModel = fallback
+				accountRoutingModel = fallback
 			}
-			setOpsEndpointContext(c, account.GetMappedModel(routingModel), service.RequestTypeFromLegacy(reqStream, false))
+			setOpsEndpointContext(c, account.GetMappedModel(accountRoutingModel), service.RequestTypeFromLegacy(reqStream, false))
 
 			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 			if !acquired {

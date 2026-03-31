@@ -301,6 +301,13 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 			target := a.GetCacheTTLOverrideTarget()
 			out.CacheTTLOverrideTarget = &target
 		}
+		if a.IsCustomBaseURLEnabled() {
+			enabled := true
+			out.CustomBaseURLEnabled = &enabled
+			if customURL := a.GetCustomBaseURL(); customURL != "" {
+				out.CustomBaseURL = &customURL
+			}
+		}
 	}
 	if service.SupportsProtocolGatewayClaudeClientMimic(a) {
 		mimicEnabled := service.IsClaudeClientMimicEnabled(a, service.PlatformAnthropic)

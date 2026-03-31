@@ -563,16 +563,9 @@ func removeCacheControlFromThinkingBlocks(data map[string]any) {
 	}
 }
 func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, reqStream bool, mimicClaudeCode bool) (*http.Request, error) {
-	targetURL := claudeAPIURL
-	if account.Type == AccountTypeAPIKey {
-		baseURL := account.GetBaseURL()
-		if baseURL != "" {
-			validatedURL, err := s.validateUpstreamBaseURL(baseURL)
-			if err != nil {
-				return nil, err
-			}
-			targetURL = validatedURL + "/v1/messages?beta=true"
-		}
+	targetURL, err := s.resolveAnthropicTargetURL(account, anthropicMessagesPath, claudeAPIURL)
+	if err != nil {
+		return nil, err
 	}
 	clientHeaders := http.Header{}
 	if c != nil && c.Request != nil {
@@ -654,6 +647,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
+	syncClaudeCodeSessionHeader(req, body)
 	if s.debugClaudeMimicEnabled() {
 		logClaudeMimicDebug(req, body, account, tokenType, mimicClaudeCode)
 	}

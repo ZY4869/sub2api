@@ -1748,6 +1748,11 @@ export default {
           hint: 'Force all cache creation tokens to be billed as the selected TTL tier (5m or 1h)',
           target: 'Target TTL',
           targetHint: 'Select the TTL tier for billing'
+        },
+        customBaseUrl: {
+          label: 'Custom Relay URL',
+          hint: 'Forward requests to a custom relay service. Proxy URL will be passed as a query parameter.',
+          urlHint: 'Relay service URL (e.g. https://relay.example.com)'
         }
       },
       expired: 'Expired',

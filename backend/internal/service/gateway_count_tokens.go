@@ -75,10 +75,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		s.countTokensError(c, http.StatusInternalServerError, "api_error", "Failed to build request")
 		return err
 	}
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
+	proxyURL := resolveGatewayProxyURL(account)
 	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 	resp, err := s.httpUpstream.DoWithTLS(upstreamReq, proxyURL, account.ID, account.Concurrency, tlsProfile)
 	if err != nil {
@@ -273,16 +270,9 @@ func (s *GatewayService) buildCountTokensRequestAnthropicAPIKeyPassthrough(ctx c
 	return req, nil
 }
 func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Context, account *Account, body []byte, token, tokenType, modelID string, mimicClaudeCode bool) (*http.Request, error) {
-	targetURL := claudeAPICountTokensURL
-	if account.Type == AccountTypeAPIKey {
-		baseURL := account.GetBaseURL()
-		if baseURL != "" {
-			validatedURL, err := s.validateUpstreamBaseURL(baseURL)
-			if err != nil {
-				return nil, err
-			}
-			targetURL = validatedURL + "/v1/messages/count_tokens?beta=true"
-		}
+	targetURL, err := s.resolveAnthropicTargetURL(account, anthropicCountTokensPath, claudeAPICountTokensURL)
+	if err != nil {
+		return nil, err
 	}
 	clientHeaders := http.Header{}
 	if c != nil && c.Request != nil {
@@ -369,6 +359,7 @@ func (s *GatewayService) buildCountTokensRequest(ctx context.Context, c *gin.Con
 	if c != nil && (tokenType == "oauth" || mimicClaudeCode) {
 		c.Set(claudeMimicDebugInfoKey, buildClaudeMimicDebugLine(req, body, account, tokenType, mimicClaudeCode))
 	}
+	syncClaudeCodeSessionHeader(req, body)
 	if s.debugClaudeMimicEnabled() {
 		logClaudeMimicDebug(req, body, account, tokenType, mimicClaudeCode)
 	}

@@ -1300,6 +1300,25 @@ func (a *Account) IsSessionIDMaskingEnabled() bool {
 	return false
 }
 
+// IsCustomBaseURLEnabled checks whether a custom relay base URL is enabled.
+// It only applies to Anthropic OAuth/SetupToken accounts.
+func (a *Account) IsCustomBaseURLEnabled() bool {
+	if !a.IsAnthropicOAuthOrSetupToken() || a.Extra == nil {
+		return false
+	}
+	if v, ok := a.Extra["custom_base_url_enabled"]; ok {
+		if enabled, ok := v.(bool); ok {
+			return enabled
+		}
+	}
+	return false
+}
+
+// GetCustomBaseURL returns the custom relay base URL for Anthropic OAuth/SetupToken accounts.
+func (a *Account) GetCustomBaseURL() string {
+	return strings.TrimSpace(a.GetExtraString("custom_base_url"))
+}
+
 // IsCacheTTLOverrideEnabled 检查是否启用缓存 TTL 强制替换
 // 仅适用于 Anthropic OAuth/SetupToken 类型账号
 // 启用后将所有 cache creation tokens 归入指定的 TTL 类型（5m 或 1h）

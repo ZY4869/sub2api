@@ -1890,6 +1890,11 @@
           hint: '将所有缓存创建 token 强制按指定的 TTL 类型（5分钟或1小时）计费',
           target: '目标 TTL',
           targetHint: '选择计费使用的 TTL 类型'
+        },
+        customBaseUrl: {
+          label: '自定义转发地址',
+          hint: '启用后将请求转发到自定义中继服务，代理地址会作为 URL 参数传给中继服务',
+          urlHint: '中继服务地址（如 https://relay.example.com）'
         }
       },
       expired: '已过期',

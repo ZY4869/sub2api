@@ -89,6 +89,8 @@ var allowedHeaders = map[string]bool{
 	"sec-fetch-mode":                            true,
 	"user-agent":                                true,
 	"content-type":                              true,
+	"x-claude-code-session-id":                  true,
+	"x-client-request-id":                       true,
 }
 
 type GatewayCache interface {
