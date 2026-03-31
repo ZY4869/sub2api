@@ -109,10 +109,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 			return nil, err
 		}
 	}
-	proxyURL := ""
-	if account.ProxyID != nil && account.Proxy != nil {
-		proxyURL = account.Proxy.URL()
-	}
+	proxyURL := resolveGatewayProxyURL(account)
 	tlsProfile := resolveAccountTLSFingerprintProfile(account, s.tlsFingerprintProfileService)
 	logger.LegacyPrintf("service.gateway", "[Forward] Using account: ID=%d Name=%s Platform=%s Type=%s TLSFingerprint=%v Proxy=%s", account.ID, account.Name, RoutingPlatformForAccount(account), account.Type, account.IsTLSFingerprintEnabled(), proxyURL)
 	setOpsUpstreamRequestBody(c, body)
