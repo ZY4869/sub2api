@@ -150,20 +150,23 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	accountUsageService := service.ProvideAccountUsageService(accountRepository, usageLogRepository, claudeUsageFetcher, geminiQuotaService, antigravityQuotaFetcher, usageCache, identityCache, tlsFingerprintProfileService)
 	upstreamResourceBindingRepository := repository.NewUpstreamResourceBindingRepository(db)
 	googleBatchQuotaReservationRepository := repository.NewGoogleBatchQuotaReservationRepository(db)
+	googleBatchArchiveJobRepository := repository.NewGoogleBatchArchiveJobRepository(db)
+	googleBatchArchiveObjectRepository := repository.NewGoogleBatchArchiveObjectRepository(db)
 	gatewayCache := repository.NewGatewayCache(redisClient)
 	schedulerOutboxRepository := repository.NewSchedulerOutboxRepository(db)
 	schedulerSnapshotService := service.ProvideSchedulerSnapshotService(schedulerCache, schedulerOutboxRepository, accountRepository, groupRepository, configConfig)
 	oAuthRefreshAPI := service.NewOAuthRefreshAPI(accountRepository, geminiTokenCache)
 	geminiTokenProvider := service.ProvideGeminiTokenProvider(accountRepository, geminiTokenCache, geminiOAuthService, oAuthRefreshAPI)
+	usageBillingRepository := repository.NewUsageBillingRepository(client, db)
+	googleBatchArchiveStorage := service.ProvideGoogleBatchArchiveStorage()
 	antigravityTokenProvider := service.ProvideAntigravityTokenProvider(accountRepository, geminiTokenCache, antigravityOAuthService, oAuthRefreshAPI, tempUnschedCache)
 	antigravityGatewayService := service.NewAntigravityGatewayService(accountRepository, gatewayCache, schedulerSnapshotService, antigravityTokenProvider, rateLimitService, httpUpstream, settingService)
-	geminiMessagesCompatService := service.ProvideGeminiMessagesCompatService(accountRepository, groupRepository, upstreamResourceBindingRepository, googleBatchQuotaReservationRepository, gatewayCache, schedulerSnapshotService, geminiTokenProvider, rateLimitService, httpUpstream, antigravityGatewayService, configConfig)
+	geminiMessagesCompatService := service.ProvideGeminiMessagesCompatService(accountRepository, groupRepository, upstreamResourceBindingRepository, googleBatchQuotaReservationRepository, googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, gatewayCache, schedulerSnapshotService, geminiTokenProvider, rateLimitService, billingService, usageLogRepository, usageBillingRepository, settingService, googleBatchArchiveStorage, httpUpstream, antigravityGatewayService, configConfig)
 	vertexUpstreamCatalogService := service.ProvideVertexUpstreamCatalogService(httpUpstream, geminiTokenProvider, proxyRepository, configConfig)
 	openAITokenProvider := service.ProvideOpenAITokenProvider(accountRepository, geminiTokenCache, openAIOAuthService, copilotOAuthService, oAuthRefreshAPI)
 	claudeTokenProvider := service.ProvideClaudeTokenProvider(accountRepository, geminiTokenCache, oAuthService, kiroOAuthService, oAuthRefreshAPI)
 	kiroRuntimeService := service.NewKiroRuntimeService(accountRepository, httpUpstream, claudeTokenProvider)
 	accountModelImportService := service.ProvideAccountModelImportService(modelCatalogService, modelRegistryService, geminiMessagesCompatService, vertexUpstreamCatalogService, openAITokenProvider, kiroRuntimeService, httpUpstream, proxyRepository, tlsFingerprintProfileService)
-	usageBillingRepository := repository.NewUsageBillingRepository(client, db)
 	identityService := service.NewIdentityService(identityCache)
 	deferredService := service.ProvideDeferredService(accountRepository, timingWheelService)
 	digestSessionStore := service.NewDigestSessionStore()
@@ -254,12 +257,15 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	opsCleanupService := service.ProvideOpsCleanupService(opsRepository, db, redisClient, configConfig)
 	opsScheduledReportService := service.ProvideOpsScheduledReportService(opsService, userService, emailService, redisClient, configConfig)
 	soraMediaCleanupService := service.ProvideSoraMediaCleanupService(soraMediaStorage, configConfig)
+	googleBatchArchivePollerService := service.ProvideGoogleBatchArchivePollerService(googleBatchArchiveJobRepository, geminiMessagesCompatService, settingService)
+	googleBatchArchivePrefetchService := service.ProvideGoogleBatchArchivePrefetchService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
+	googleBatchArchiveCleanupService := service.ProvideGoogleBatchArchiveCleanupService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
 	tokenRefreshService := service.ProvideTokenRefreshService(accountRepository, soraAccountRepository, oAuthService, kiroOAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, compositeTokenCacheInvalidator, schedulerCache, configConfig, tempUnschedCache, privacyClientFactory, proxyRepository, oAuthRefreshAPI)
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository)
 	accountBlacklistCleanupService := service.ProvideAccountBlacklistCleanupService(accountRepository)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, accountRepository, telegramNotifierService, configConfig)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, soraMediaCleanupService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, accountBlacklistCleanupService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, soraMediaCleanupService, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, accountBlacklistCleanupService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -291,6 +297,9 @@ func provideCleanup(
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
 	soraMediaCleanup *service.SoraMediaCleanupService,
+	googleBatchArchivePoller *service.GoogleBatchArchivePollerService,
+	googleBatchArchivePrefetch *service.GoogleBatchArchivePrefetchService,
+	googleBatchArchiveCleanup *service.GoogleBatchArchiveCleanupService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
@@ -342,6 +351,24 @@ func provideCleanup(
 			{"SoraMediaCleanupService", func() error {
 				if soraMediaCleanup != nil {
 					soraMediaCleanup.Stop()
+				}
+				return nil
+			}},
+			{"GoogleBatchArchivePollerService", func() error {
+				if googleBatchArchivePoller != nil {
+					googleBatchArchivePoller.Stop()
+				}
+				return nil
+			}},
+			{"GoogleBatchArchivePrefetchService", func() error {
+				if googleBatchArchivePrefetch != nil {
+					googleBatchArchivePrefetch.Stop()
+				}
+				return nil
+			}},
+			{"GoogleBatchArchiveCleanupService", func() error {
+				if googleBatchArchiveCleanup != nil {
+					googleBatchArchiveCleanup.Stop()
 				}
 				return nil
 			}},

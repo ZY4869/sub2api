@@ -15,6 +15,11 @@ import {
   resolveEffectiveAccountPlatform
 } from '@/utils/accountProtocolGateway'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import {
+  applyGoogleBatchArchiveExtra,
+  resolveGoogleBatchArchiveTargetKind,
+  type GoogleBatchArchiveBillingMode
+} from '@/utils/accountGoogleBatchArchive'
 
 interface UseCreateAccountSubmitOptions {
   withConfirmFlag: <TPayload extends object>(payload: TPayload) => TPayload
@@ -51,6 +56,13 @@ interface UseCreateAccountSubmitOptions {
   editQuotaWeeklyResetDay: Ref<number | null>
   editQuotaWeeklyResetHour: Ref<number | null>
   editQuotaResetTimezone: Ref<string | null>
+  batchArchiveEnabled: Ref<boolean>
+  batchArchiveAutoPrefetchEnabled: Ref<boolean>
+  batchArchiveRetentionDays: Ref<number>
+  batchArchiveBillingMode: Ref<GoogleBatchArchiveBillingMode>
+  batchArchiveDownloadPriceUSD: Ref<number>
+  allowVertexBatchOverflow: Ref<boolean>
+  acceptAIStudioBatchOverflow: Ref<boolean>
   afterCreateImportModels: (accounts: Account[]) => Promise<void>
   emitCreated: () => void
   onClose: () => void
@@ -181,7 +193,19 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
       return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
     })()
 
-    const finalExtra = applyQuotaLimits(extraWithGateway)
+    const finalExtra = applyGoogleBatchArchiveExtra(
+      applyQuotaLimits(extraWithGateway),
+      resolveGoogleBatchArchiveTargetKind(platform, type, credentials),
+      {
+        enabled: options.batchArchiveEnabled.value,
+        autoPrefetchEnabled: options.batchArchiveAutoPrefetchEnabled.value,
+        retentionDays: options.batchArchiveRetentionDays.value,
+        billingMode: options.batchArchiveBillingMode.value,
+        downloadPriceUSD: options.batchArchiveDownloadPriceUSD.value,
+        allowVertexBatchOverflow: options.allowVertexBatchOverflow.value,
+        acceptAIStudioBatchOverflow: options.acceptAIStudioBatchOverflow.value
+      }
+    )
 
     return doCreateAccount({
       name: options.form.name,

@@ -77,6 +77,8 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // error_code
 			sqlmock.AnyArg(), // error_message
 			sqlmock.AnyArg(), // simulated_client
+			sqlmock.AnyArg(), // operation_type
+			sqlmock.AnyArg(), // charge_source
 			log.ImageCount,
 			sqlmock.AnyArg(), // image_size
 			sqlmock.AnyArg(), // media_type
@@ -159,6 +161,8 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.ImageCount,
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -228,6 +232,8 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			service.UsageLogStatusSucceeded,
 			false,
 			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -494,6 +500,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
 			0,
 			sql.NullString{},
 			sql.NullString{},
@@ -548,6 +556,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
 			0,
 			sql.NullString{},
 			sql.NullString{},
@@ -597,6 +607,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},
 			sql.NullString{},

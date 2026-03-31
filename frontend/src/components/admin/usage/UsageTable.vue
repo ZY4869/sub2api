@@ -334,6 +334,14 @@
             >
               A ${{ (row.total_cost * row.account_rate_multiplier).toFixed(6) }}
             </div>
+            <div v-if="getChargeLabel(row)" class="mt-1">
+              <span
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                :class="getChargeBadgeClass(row)"
+              >
+                {{ getChargeLabel(row) }}
+              </span>
+            </div>
           </div>
         </template>
 
@@ -707,11 +715,16 @@ import {
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
 import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
-import { resolveUsageRequestType } from "@/utils/usageRequestType";
 import {
   formatUsageEndpointDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
+import {
+  getUsageChargeBadgeClass,
+  getUsageChargeLabel,
+  getUsageOperationBadgeClass,
+  getUsageOperationLabel,
+} from "@/utils/usageOperation";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ModelIcon from "@/components/common/ModelIcon.vue";
@@ -734,22 +747,11 @@ const tokenTooltipPosition = ref({ x: 0, y: 0 });
 const tokenTooltipData = ref<AdminUsageLog | null>(null);
 
 const getRequestTypeLabel = (row: AdminUsageLog): string => {
-  const requestType = resolveUsageRequestType(row);
-  if (requestType === "ws_v2") return t("usage.ws");
-  if (requestType === "stream") return t("usage.stream");
-  if (requestType === "sync") return t("usage.sync");
-  return t("usage.unknown");
+  return getUsageOperationLabel(row, t);
 };
 
 const getRequestTypeBadgeClass = (row: AdminUsageLog): string => {
-  const requestType = resolveUsageRequestType(row);
-  if (requestType === "ws_v2")
-    return "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200";
-  if (requestType === "stream")
-    return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-  if (requestType === "sync")
-    return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
-  return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+  return getUsageOperationBadgeClass(row);
 };
 
 const getStatusLabel = (status: AdminUsageLog["status"]): string =>
@@ -788,6 +790,12 @@ const formatUserAgent = (ua: string): string => {
 const formatUsageEndpoints = (
   row: Pick<AdminUsageLog, "inbound_endpoint" | "upstream_endpoint">,
 ) => formatUsageEndpointDisplay(row);
+
+const getChargeLabel = (row: AdminUsageLog): string | null =>
+  getUsageChargeLabel(row, t);
+
+const getChargeBadgeClass = (row: AdminUsageLog): string =>
+  getUsageChargeBadgeClass(row);
 
 const formatTokens = (tokens: number | null | undefined): string =>
   formatTokenDisplay(tokens);

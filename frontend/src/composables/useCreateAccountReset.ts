@@ -25,6 +25,7 @@ import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 import type { VertexAuthMode } from '@/utils/vertexAi'
 import type { AccountResolvedUpstreamDraft } from '@/utils/accountProbeDraft'
+import type { GoogleBatchArchiveBillingMode } from '@/utils/accountGoogleBatchArchive'
 
 interface CreateAccountFormShape {
   name: string
@@ -61,6 +62,13 @@ interface UseCreateAccountResetOptions {
   editQuotaWeeklyResetDay: Ref<number | null>
   editQuotaWeeklyResetHour: Ref<number | null>
   editQuotaResetTimezone: Ref<string | null>
+  batchArchiveEnabled: Ref<boolean>
+  batchArchiveAutoPrefetchEnabled: Ref<boolean>
+  batchArchiveRetentionDays: Ref<number>
+  batchArchiveBillingMode: Ref<GoogleBatchArchiveBillingMode>
+  batchArchiveDownloadPriceUSD: Ref<number>
+  allowVertexBatchOverflow: Ref<boolean>
+  acceptAIStudioBatchOverflow: Ref<boolean>
   modelMappings: Ref<ModelMapping[]>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
@@ -146,6 +154,13 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.editQuotaWeeklyResetDay.value = null
     options.editQuotaWeeklyResetHour.value = null
     options.editQuotaResetTimezone.value = null
+    options.batchArchiveEnabled.value = false
+    options.batchArchiveAutoPrefetchEnabled.value = false
+    options.batchArchiveRetentionDays.value = 7
+    options.batchArchiveBillingMode.value = 'log_only'
+    options.batchArchiveDownloadPriceUSD.value = 0
+    options.allowVertexBatchOverflow.value = false
+    options.acceptAIStudioBatchOverflow.value = false
     options.modelMappings.value = []
     options.modelRestrictionMode.value = 'whitelist'
     options.allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')]

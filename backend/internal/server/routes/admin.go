@@ -519,6 +519,8 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		adminSettings.DELETE("/sora-s3/profiles/:profile_id", h.Admin.Setting.DeleteSoraS3Profile)
 		adminSettings.POST("/sora-s3/profiles/:profile_id/activate", h.Admin.Setting.SetActiveSoraS3Profile)
 		adminSettings.GET("/gemini-rate-catalog", h.Admin.Setting.GetGeminiRateCatalog)
+		adminSettings.GET("/google-batch-archive", h.Admin.Setting.GetGoogleBatchArchiveSettings)
+		adminSettings.PUT("/google-batch-archive", h.Admin.Setting.UpdateGoogleBatchArchiveSettings)
 		adminSettings.GET("/google-batch-gcs/profiles", h.Admin.Setting.ListGoogleBatchGCSProfiles)
 		adminSettings.POST("/google-batch-gcs/profiles", h.Admin.Setting.CreateGoogleBatchGCSProfile)
 		adminSettings.PUT("/google-batch-gcs/profiles/:profile_id", h.Admin.Setting.UpdateGoogleBatchGCSProfile)

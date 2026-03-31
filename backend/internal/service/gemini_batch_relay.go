@@ -17,15 +17,18 @@ import (
 const googleBatchResponseReadLimit = 32 << 20
 
 type GoogleBatchForwardInput struct {
-	GroupID   *int64
-	APIKeyID  int64
-	UserID    int64
-	Method    string
-	Path      string
-	RawQuery  string
-	Headers   http.Header
-	Body      []byte
-	AccountID *int64
+	GroupID        *int64
+	APIKeyID       int64
+	APIKey         *APIKey
+	UserID         int64
+	BillingType    int8
+	SubscriptionID *int64
+	Method         string
+	Path           string
+	RawQuery       string
+	Headers        http.Header
+	Body           []byte
+	AccountID      *int64
 }
 
 type googleBatchTarget string
@@ -38,12 +41,14 @@ const (
 func (s *GeminiMessagesCompatService) ForwardGoogleFiles(ctx context.Context, input GoogleBatchForwardInput) (*UpstreamHTTPResult, *Account, error) {
 	path := strings.TrimSpace(input.Path)
 	switch {
+	case strings.HasPrefix(path, "/download/v1beta/files/"):
+		return s.ForwardGoogleFileDownload(ctx, input)
 	case path == "/v1beta/files" && strings.EqualFold(input.Method, http.MethodGet):
 		return s.forwardAggregatedAIStudioList(ctx, input, path, "files")
 	case path == "/v1beta/files" || path == "/upload/v1beta/files" || path == "/v1beta/files:register":
 		return s.forwardGoogleCreate(ctx, input, googleBatchTargetAIStudio, UpstreamResourceKindGeminiFile)
 	case strings.HasPrefix(path, "/v1beta/files/"):
-		return s.forwardGoogleBoundResource(ctx, input, googleBatchTargetAIStudio, UpstreamResourceKindGeminiFile)
+		return s.forwardAIStudioFileBoundResourceWithArchive(ctx, input)
 	default:
 		return nil, nil, infraerrors.NotFound("GOOGLE_FILES_PATH_UNSUPPORTED", "unsupported Gemini Files path")
 	}
@@ -58,11 +63,11 @@ func (s *GeminiMessagesCompatService) ForwardGoogleBatches(ctx context.Context, 
 			return nil, nil, err
 		}
 		input.AccountID = accountID
-		return s.forwardGoogleCreate(ctx, input, googleBatchTargetAIStudio, UpstreamResourceKindGeminiBatch)
+		return s.forwardGoogleBatchCreateWithArchive(ctx, input)
 	case path == "/v1beta/batches" && strings.EqualFold(input.Method, http.MethodGet):
 		return s.forwardAggregatedAIStudioList(ctx, input, path, "batches")
 	case strings.HasPrefix(path, "/v1beta/batches/"):
-		return s.forwardGoogleBoundResource(ctx, input, googleBatchTargetAIStudio, UpstreamResourceKindGeminiBatch)
+		return s.forwardAIStudioBatchBoundResourceWithArchive(ctx, input)
 	default:
 		return nil, nil, infraerrors.NotFound("GOOGLE_BATCH_PATH_UNSUPPORTED", "unsupported Gemini Batch path")
 	}

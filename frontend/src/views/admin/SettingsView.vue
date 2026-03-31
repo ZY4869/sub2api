@@ -491,6 +491,8 @@
           </div>
         </div>
 
+        <GoogleBatchArchiveSettingsCard />
+
         <GoogleBatchGCSProfilesManager />
 
         <!-- Beta Policy Settings -->
@@ -1864,6 +1866,7 @@ import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import ImageUpload from '@/components/common/ImageUpload.vue'
+import GoogleBatchArchiveSettingsCard from '@/components/settings/GoogleBatchArchiveSettingsCard.vue'
 import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSProfilesManager.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'

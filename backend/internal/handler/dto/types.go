@@ -248,6 +248,14 @@ type Account struct {
 	QuotaDailyResetAt    *string `json:"quota_daily_reset_at,omitempty"`
 	QuotaWeeklyResetAt   *string `json:"quota_weekly_reset_at,omitempty"`
 
+	BatchArchiveEnabled             *bool    `json:"batch_archive_enabled,omitempty"`
+	BatchArchiveAutoPrefetchEnabled *bool    `json:"batch_archive_auto_prefetch_enabled,omitempty"`
+	BatchArchiveRetentionDays       *int     `json:"batch_archive_retention_days,omitempty"`
+	BatchArchiveBillingMode         *string  `json:"batch_archive_billing_mode,omitempty"`
+	BatchArchiveDownloadPriceUSD    *float64 `json:"batch_archive_download_price_usd,omitempty"`
+	AllowVertexBatchOverflow        *bool    `json:"allow_vertex_batch_overflow,omitempty"`
+	AcceptAIStudioBatchOverflow     *bool    `json:"accept_aistudio_batch_overflow,omitempty"`
+
 	Proxy         *Proxy         `json:"proxy,omitempty"`
 	AccountGroups []AccountGroup `json:"account_groups,omitempty"`
 
@@ -414,6 +422,8 @@ type UsageLog struct {
 	ErrorCode       *string `json:"error_code,omitempty"`
 	ErrorMessage    *string `json:"error_message,omitempty"`
 	SimulatedClient *string `json:"simulated_client,omitempty"`
+	OperationType   *string `json:"operation_type,omitempty"`
+	ChargeSource    *string `json:"charge_source,omitempty"`
 
 	// 图片生成字段
 	ImageCount int     `json:"image_count"`

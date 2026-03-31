@@ -395,6 +395,38 @@
         />
       </div>
 
+      <AccountGoogleBatchArchiveEditor
+        v-if="showGeminiAIStudioBatchArchiveEditor"
+        mode="ai_studio"
+        :archive-enabled="batchArchiveEnabled"
+        :auto-prefetch-enabled="batchArchiveAutoPrefetchEnabled"
+        :retention-days="batchArchiveRetentionDays"
+        :billing-mode="batchArchiveBillingMode"
+        :download-price-usd="batchArchiveDownloadPriceUSD"
+        :allow-vertex-batch-overflow="allowVertexBatchOverflow"
+        @update:archive-enabled="batchArchiveEnabled = $event"
+        @update:auto-prefetch-enabled="batchArchiveAutoPrefetchEnabled = $event"
+        @update:retention-days="batchArchiveRetentionDays = $event"
+        @update:billing-mode="batchArchiveBillingMode = $event"
+        @update:download-price-usd="batchArchiveDownloadPriceUSD = $event"
+        @update:allow-vertex-batch-overflow="allowVertexBatchOverflow = $event"
+      />
+
+      <AccountGoogleBatchArchiveEditor
+        v-if="showGeminiVertexBatchArchiveEditor"
+        mode="vertex"
+        :archive-enabled="batchArchiveEnabled"
+        :retention-days="batchArchiveRetentionDays"
+        :billing-mode="batchArchiveBillingMode"
+        :download-price-usd="batchArchiveDownloadPriceUSD"
+        :accept-ai-studio-batch-overflow="acceptAIStudioBatchOverflow"
+        @update:archive-enabled="batchArchiveEnabled = $event"
+        @update:retention-days="batchArchiveRetentionDays = $event"
+        @update:billing-mode="batchArchiveBillingMode = $event"
+        @update:download-price-usd="batchArchiveDownloadPriceUSD = $event"
+        @update:accept-ai-studio-batch-overflow="acceptAIStudioBatchOverflow = $event"
+      />
+
       <AccountAutoPauseToggle v-model:enabled="autoPauseOnExpired" />
 
       <AccountQuotaControlEditor
@@ -488,6 +520,7 @@ import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyMod
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
+import AccountGoogleBatchArchiveEditor from '@/components/account/AccountGoogleBatchArchiveEditor.vue'
 import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGeminiVertexCredentialsEditor.vue'
 import AccountGroupSettingsEditor from '@/components/account/AccountGroupSettingsEditor.vue'
 import AccountMixedChannelWarningDialog from '@/components/account/AccountMixedChannelWarningDialog.vue'
@@ -572,6 +605,13 @@ import {
   type GeminiAIStudioTier,
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
+import {
+  applyGoogleBatchArchiveExtra,
+  createDefaultGoogleBatchArchiveFormState,
+  readGoogleBatchArchiveFormState,
+  resolveGoogleBatchArchiveTargetKind,
+  type GoogleBatchArchiveBillingMode
+} from '@/utils/accountGoogleBatchArchive'
 import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
@@ -654,6 +694,14 @@ const editQuotaWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
 const editQuotaWeeklyResetDay = ref<number | null>(null)
 const editQuotaWeeklyResetHour = ref<number | null>(null)
 const editQuotaResetTimezone = ref<string | null>(null)
+const defaultGoogleBatchArchiveState = createDefaultGoogleBatchArchiveFormState()
+const batchArchiveEnabled = ref(defaultGoogleBatchArchiveState.enabled)
+const batchArchiveAutoPrefetchEnabled = ref(defaultGoogleBatchArchiveState.autoPrefetchEnabled)
+const batchArchiveRetentionDays = ref(defaultGoogleBatchArchiveState.retentionDays)
+const batchArchiveBillingMode = ref<GoogleBatchArchiveBillingMode>(defaultGoogleBatchArchiveState.billingMode)
+const batchArchiveDownloadPriceUSD = ref(defaultGoogleBatchArchiveState.downloadPriceUSD)
+const allowVertexBatchOverflow = ref(defaultGoogleBatchArchiveState.allowVertexBatchOverflow)
+const acceptAIStudioBatchOverflow = ref(defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow)
 const geminiOAuthType = ref<GeminiOAuthType>('code_assist')
 const geminiTierAIStudio = ref<GeminiAIStudioTier>('aistudio_free')
 const geminiVertexAuthMode = ref<VertexAuthMode>('service_account')
@@ -775,6 +823,20 @@ const showCommonApiKeySection = computed(() =>
   props.account?.type === 'apikey' && !isProtocolGatewayAccount.value && !isGeminiVertexAccount.value
 )
 const showQuotaLimitSection = computed(() => Boolean(props.account))
+const showGeminiAIStudioBatchArchiveEditor = computed(() =>
+  resolveGoogleBatchArchiveTargetKind(
+    props.account?.platform,
+    props.account?.type,
+    currentAccountCredentials.value,
+  ) === 'ai_studio'
+)
+const showGeminiVertexBatchArchiveEditor = computed(() =>
+  resolveGoogleBatchArchiveTargetKind(
+    props.account?.platform,
+    props.account?.type,
+    currentAccountCredentials.value,
+  ) === 'vertex'
+)
 const grokCapabilityModels = computed(() => grokDefaultModelIdsForTier(editGrokTier.value))
 const showProtocolGatewayClaudeMimicEditor = computed(() =>
   supportsProtocolGatewayClaudeClientMimic({
@@ -1173,6 +1235,35 @@ watch(
 
       const resetTz = extra?.quota_reset_timezone
       editQuotaResetTimezone.value = typeof resetTz === 'string' && resetTz.trim() ? resetTz : null
+      const batchArchiveState = readGoogleBatchArchiveFormState({
+        batch_archive_enabled:
+          newAccount.batch_archive_enabled ?? extra?.batch_archive_enabled,
+        batch_archive_auto_prefetch_enabled:
+          newAccount.batch_archive_auto_prefetch_enabled ??
+          extra?.batch_archive_auto_prefetch_enabled,
+        batch_archive_retention_days:
+          newAccount.batch_archive_retention_days ??
+          extra?.batch_archive_retention_days,
+        batch_archive_billing_mode:
+          newAccount.batch_archive_billing_mode ??
+          extra?.batch_archive_billing_mode,
+        batch_archive_download_price_usd:
+          newAccount.batch_archive_download_price_usd ??
+          extra?.batch_archive_download_price_usd,
+        allow_vertex_batch_overflow:
+          newAccount.allow_vertex_batch_overflow ??
+          extra?.allow_vertex_batch_overflow,
+        accept_aistudio_batch_overflow:
+          newAccount.accept_aistudio_batch_overflow ??
+          extra?.accept_aistudio_batch_overflow
+      })
+      batchArchiveEnabled.value = batchArchiveState.enabled
+      batchArchiveAutoPrefetchEnabled.value = batchArchiveState.autoPrefetchEnabled
+      batchArchiveRetentionDays.value = batchArchiveState.retentionDays
+      batchArchiveBillingMode.value = batchArchiveState.billingMode
+      batchArchiveDownloadPriceUSD.value = batchArchiveState.downloadPriceUSD
+      allowVertexBatchOverflow.value = batchArchiveState.allowVertexBatchOverflow
+      acceptAIStudioBatchOverflow.value = batchArchiveState.acceptAIStudioBatchOverflow
       if (runtimePlatform === 'gemini' && newAccount.type === 'apikey') {
         geminiTierAIStudio.value = normalizeGeminiAIStudioTier(credentials?.tier_id)
       } else {
@@ -1313,6 +1404,13 @@ watch(
       protocolGatewayProbeModels.value = []
       manualModels.value = []
       resolvedUpstream.value = null
+      batchArchiveEnabled.value = defaultGoogleBatchArchiveState.enabled
+      batchArchiveAutoPrefetchEnabled.value = defaultGoogleBatchArchiveState.autoPrefetchEnabled
+      batchArchiveRetentionDays.value = defaultGoogleBatchArchiveState.retentionDays
+      batchArchiveBillingMode.value = defaultGoogleBatchArchiveState.billingMode
+      batchArchiveDownloadPriceUSD.value = defaultGoogleBatchArchiveState.downloadPriceUSD
+      allowVertexBatchOverflow.value = defaultGoogleBatchArchiveState.allowVertexBatchOverflow
+      acceptAIStudioBatchOverflow.value = defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow
       modelMappings.value = []
       geminiOAuthType.value = 'code_assist'
       geminiVertexAuthMode.value = 'service_account'
@@ -1851,6 +1949,25 @@ const handleSubmit = async () => {
       }
       updatePayload.extra = newExtra
     }
+
+    updatePayload.extra = applyGoogleBatchArchiveExtra(
+      updatePayload.extra as Record<string, unknown> | undefined,
+      resolveGoogleBatchArchiveTargetKind(
+        props.account?.platform,
+        String(updatePayload.type || props.account?.type || ''),
+        ((updatePayload.credentials as Record<string, unknown> | undefined) ||
+          currentAccountCredentials.value)
+      ),
+      {
+        enabled: batchArchiveEnabled.value,
+        autoPrefetchEnabled: batchArchiveAutoPrefetchEnabled.value,
+        retentionDays: batchArchiveRetentionDays.value,
+        billingMode: batchArchiveBillingMode.value,
+        downloadPriceUSD: batchArchiveDownloadPriceUSD.value,
+        allowVertexBatchOverflow: allowVertexBatchOverflow.value,
+        acceptAIStudioBatchOverflow: acceptAIStudioBatchOverflow.value
+      }
+    )
 
     updatePayload.extra = buildProbeExtra(
       buildAccountModelScopeExtra(

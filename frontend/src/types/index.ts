@@ -751,6 +751,13 @@ export interface Account {
   platform: AccountPlatform;
   gateway_protocol?: GatewayProtocol;
   gateway_batch_enabled?: boolean | null;
+  batch_archive_enabled?: boolean | null;
+  batch_archive_auto_prefetch_enabled?: boolean | null;
+  batch_archive_retention_days?: number | null;
+  batch_archive_billing_mode?: "log_only" | "archive_charge" | null;
+  batch_archive_download_price_usd?: number | null;
+  allow_vertex_batch_overflow?: boolean | null;
+  accept_aistudio_batch_overflow?: boolean | null;
   type: AccountType;
   lifecycle_state?: AccountLifecycleState;
   lifecycle_reason_code?: string | null;
@@ -1222,6 +1229,8 @@ export interface UsageLog {
   error_code?: string | null;
   error_message?: string | null;
   simulated_client?: UsageLogSimulatedClient | null;
+  operation_type?: string | null;
+  charge_source?: string | null;
 
   // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厽鍋ㄩ柣鏃傤焾閻忓洭鎮楀☉娆樻畷妞?
   image_count: number;

@@ -487,6 +487,19 @@ export interface TestGoogleBatchGCSConnectionRequest {
   service_account_json?: string
 }
 
+export interface GoogleBatchArchiveSettings {
+  enabled: boolean
+  poll_min_interval_seconds: number
+  poll_max_interval_seconds: number
+  poll_backoff_factor: number
+  poll_jitter_seconds: number
+  poll_max_concurrency: number
+  prefetch_after_hours: number
+  download_timeout_seconds: number
+  cleanup_interval_minutes: number
+  local_storage_root: string
+}
+
 export interface GeminiRateCatalogModelRow {
   model_family: string
   display_name: string
@@ -640,6 +653,21 @@ export async function getGeminiRateCatalog(): Promise<GeminiRateCatalog> {
   return data
 }
 
+export async function getGoogleBatchArchiveSettings(): Promise<GoogleBatchArchiveSettings> {
+  const { data } = await apiClient.get<GoogleBatchArchiveSettings>('/admin/settings/google-batch-archive')
+  return data
+}
+
+export async function updateGoogleBatchArchiveSettings(
+  request: GoogleBatchArchiveSettings,
+): Promise<GoogleBatchArchiveSettings> {
+  const { data } = await apiClient.put<GoogleBatchArchiveSettings>(
+    '/admin/settings/google-batch-archive',
+    request,
+  )
+  return data
+}
+
 export async function listGoogleBatchGCSProfiles(): Promise<ListGoogleBatchGCSProfilesResponse> {
   const { data } = await apiClient.get<ListGoogleBatchGCSProfilesResponse>('/admin/settings/google-batch-gcs/profiles')
   return data
@@ -695,6 +723,8 @@ export const settingsAPI = {
   deleteSoraS3Profile,
   setActiveSoraS3Profile,
   getGeminiRateCatalog,
+  getGoogleBatchArchiveSettings,
+  updateGoogleBatchArchiveSettings,
   listGoogleBatchGCSProfiles,
   createGoogleBatchGCSProfile,
   updateGoogleBatchGCSProfile,

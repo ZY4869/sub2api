@@ -59,6 +59,9 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		&service.OpsScheduledReportService{},
 		opsSystemLogSinkSvc,
 		&service.SoraMediaCleanupService{},
+		nil, // googleBatchArchivePoller
+		nil, // googleBatchArchivePrefetch
+		nil, // googleBatchArchiveCleanup
 		schedulerSnapshotSvc,
 		tokenRefreshSvc,
 		accountExpirySvc,

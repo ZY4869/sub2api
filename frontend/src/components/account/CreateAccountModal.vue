@@ -323,6 +323,39 @@
           @update:resetTimezone="editQuotaResetTimezone = $event"
         />
       </div>
+
+      <AccountGoogleBatchArchiveEditor
+        v-if="showGeminiAIStudioBatchArchiveEditor"
+        mode="ai_studio"
+        :archive-enabled="batchArchiveEnabled"
+        :auto-prefetch-enabled="batchArchiveAutoPrefetchEnabled"
+        :retention-days="batchArchiveRetentionDays"
+        :billing-mode="batchArchiveBillingMode"
+        :download-price-usd="batchArchiveDownloadPriceUSD"
+        :allow-vertex-batch-overflow="allowVertexBatchOverflow"
+        @update:archive-enabled="batchArchiveEnabled = $event"
+        @update:auto-prefetch-enabled="batchArchiveAutoPrefetchEnabled = $event"
+        @update:retention-days="batchArchiveRetentionDays = $event"
+        @update:billing-mode="batchArchiveBillingMode = $event"
+        @update:download-price-usd="batchArchiveDownloadPriceUSD = $event"
+        @update:allow-vertex-batch-overflow="allowVertexBatchOverflow = $event"
+      />
+
+      <AccountGoogleBatchArchiveEditor
+        v-if="showGeminiVertexBatchArchiveEditor"
+        mode="vertex"
+        :archive-enabled="batchArchiveEnabled"
+        :retention-days="batchArchiveRetentionDays"
+        :billing-mode="batchArchiveBillingMode"
+        :download-price-usd="batchArchiveDownloadPriceUSD"
+        :accept-ai-studio-batch-overflow="acceptAIStudioBatchOverflow"
+        @update:archive-enabled="batchArchiveEnabled = $event"
+        @update:retention-days="batchArchiveRetentionDays = $event"
+        @update:billing-mode="batchArchiveBillingMode = $event"
+        @update:download-price-usd="batchArchiveDownloadPriceUSD = $event"
+        @update:accept-ai-studio-batch-overflow="acceptAIStudioBatchOverflow = $event"
+      />
+
       <AccountModelScopeEditor
         v-if="(accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity'"
         :disabled="isOpenAIModelRestrictionDisabled"
@@ -563,6 +596,7 @@ import AccountCreatePlatformSelector from '@/components/account/AccountCreatePla
 import AccountCreatePlatformTypeEditor from '@/components/account/AccountCreatePlatformTypeEditor.vue'
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
+import AccountGoogleBatchArchiveEditor from '@/components/account/AccountGoogleBatchArchiveEditor.vue'
 import AccountGeminiHelpDialog from '@/components/account/AccountGeminiHelpDialog.vue'
 import AccountGeminiVertexCredentialsEditor from '@/components/account/AccountGeminiVertexCredentialsEditor.vue'
 import AccountGrokImportPanel from '@/components/account/AccountGrokImportPanel.vue'
@@ -630,6 +664,10 @@ import {
   resolveVertexBaseUrl,
   type VertexAuthMode
 } from '@/utils/vertexAi'
+import {
+  createDefaultGoogleBatchArchiveFormState,
+  type GoogleBatchArchiveBillingMode
+} from '@/utils/accountGoogleBatchArchive'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
   OPENAI_WS_MODE_OFF,
@@ -733,6 +771,14 @@ const editQuotaWeeklyResetMode = ref<'rolling' | 'fixed' | null>(null)
 const editQuotaWeeklyResetDay = ref<number | null>(null)
 const editQuotaWeeklyResetHour = ref<number | null>(null)
 const editQuotaResetTimezone = ref<string | null>(null)
+const defaultGoogleBatchArchiveState = createDefaultGoogleBatchArchiveFormState()
+const batchArchiveEnabled = ref(defaultGoogleBatchArchiveState.enabled)
+const batchArchiveAutoPrefetchEnabled = ref(defaultGoogleBatchArchiveState.autoPrefetchEnabled)
+const batchArchiveRetentionDays = ref(defaultGoogleBatchArchiveState.retentionDays)
+const batchArchiveBillingMode = ref<GoogleBatchArchiveBillingMode>(defaultGoogleBatchArchiveState.billingMode)
+const batchArchiveDownloadPriceUSD = ref(defaultGoogleBatchArchiveState.downloadPriceUSD)
+const allowVertexBatchOverflow = ref(defaultGoogleBatchArchiveState.allowVertexBatchOverflow)
+const acceptAIStudioBatchOverflow = ref(defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -829,6 +875,14 @@ const showCommonApiKeySection = computed(() =>
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
 const showQuotaLimitSection = computed(() => true)
+const showGeminiAIStudioBatchArchiveEditor = computed(() =>
+  form.platform === 'gemini' && accountCategory.value === 'apikey'
+)
+const showGeminiVertexBatchArchiveEditor = computed(() =>
+  form.platform === 'gemini' &&
+  accountCategory.value === 'vertex_ai' &&
+  geminiVertexAuthMode.value !== 'express_api_key'
+)
 const showOAuthFinalizeStep = computed(() =>
   isOAuthFlow.value && (form.platform === 'copilot' || form.platform === 'kiro')
 )
@@ -1480,6 +1534,13 @@ const { resetForm } = useCreateAccountReset({
   editQuotaWeeklyResetDay,
   editQuotaWeeklyResetHour,
   editQuotaResetTimezone,
+  batchArchiveEnabled,
+  batchArchiveAutoPrefetchEnabled,
+  batchArchiveRetentionDays,
+  batchArchiveBillingMode,
+  batchArchiveDownloadPriceUSD,
+  allowVertexBatchOverflow,
+  acceptAIStudioBatchOverflow,
   modelMappings,
   modelRestrictionMode,
   allowedModels,
@@ -1615,6 +1676,13 @@ const { submitting, createAccountAndFinish } = useCreateAccountSubmit({
   editQuotaWeeklyResetDay,
   editQuotaWeeklyResetHour,
   editQuotaResetTimezone,
+  batchArchiveEnabled,
+  batchArchiveAutoPrefetchEnabled,
+  batchArchiveRetentionDays,
+  batchArchiveBillingMode,
+  batchArchiveDownloadPriceUSD,
+  allowVertexBatchOverflow,
+  acceptAIStudioBatchOverflow,
   afterCreateImportModels: maybeImportCreatedAccounts,
   emitCreated: () => emit('created'),
   onClose: handleClose

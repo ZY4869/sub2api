@@ -24,11 +24,18 @@ type GeminiMessagesCompatService struct {
 	groupRepo                       GroupRepository
 	resourceBindingRepo             UpstreamResourceBindingRepository
 	googleBatchQuotaReservationRepo GoogleBatchQuotaReservationRepository
+	googleBatchArchiveJobRepo       GoogleBatchArchiveJobRepository
+	googleBatchArchiveObjectRepo    GoogleBatchArchiveObjectRepository
 	cache                           GatewayCache
 	schedulerSnapshot               *SchedulerSnapshotService
 	tokenProvider                   *GeminiTokenProvider
 	vertexCatalogService            VertexCatalogProvider
 	rateLimitService                *RateLimitService
+	billingService                  *BillingService
+	usageLogRepo                    UsageLogRepository
+	usageBillingRepo                UsageBillingRepository
+	settingService                  *SettingService
+	googleBatchArchiveStorage       *GoogleBatchArchiveStorage
 	httpUpstream                    HTTPUpstream
 	antigravityGatewayService       *AntigravityGatewayService
 	cfg                             *config.Config
@@ -45,6 +52,31 @@ func (s *GeminiMessagesCompatService) SetVertexCatalogService(vertexCatalogServi
 
 func (s *GeminiMessagesCompatService) SetUpstreamResourceBindingRepository(repo UpstreamResourceBindingRepository) {
 	s.resourceBindingRepo = repo
+}
+
+func (s *GeminiMessagesCompatService) SetGoogleBatchArchiveRepositories(jobRepo GoogleBatchArchiveJobRepository, objectRepo GoogleBatchArchiveObjectRepository) {
+	s.googleBatchArchiveJobRepo = jobRepo
+	s.googleBatchArchiveObjectRepo = objectRepo
+}
+
+func (s *GeminiMessagesCompatService) SetGoogleBatchArchiveStorage(storage *GoogleBatchArchiveStorage) {
+	s.googleBatchArchiveStorage = storage
+}
+
+func (s *GeminiMessagesCompatService) SetSettingService(settingService *SettingService) {
+	s.settingService = settingService
+}
+
+func (s *GeminiMessagesCompatService) SetUsageLogRepository(repo UsageLogRepository) {
+	s.usageLogRepo = repo
+}
+
+func (s *GeminiMessagesCompatService) SetUsageBillingRepository(repo UsageBillingRepository) {
+	s.usageBillingRepo = repo
+}
+
+func (s *GeminiMessagesCompatService) SetBillingService(billingService *BillingService) {
+	s.billingService = billingService
 }
 
 func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx context.Context, groupID *int64) (*Account, error) {

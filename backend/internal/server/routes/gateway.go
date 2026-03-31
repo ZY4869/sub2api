@@ -187,6 +187,18 @@ func RegisterGatewayRoutes(
 		gemini.DELETE("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
 	}
 	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileUpload)
+	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileDownload)
+	googleBatchArchive := r.Group("/google/batch/archive/v1beta")
+	googleBatchArchive.Use(bodyLimit)
+	googleBatchArchive.Use(clientRequestID)
+	googleBatchArchive.Use(opsErrorLogger)
+	googleBatchArchive.Use(endpointNorm)
+	googleBatchArchive.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	googleBatchArchive.Use(requireGroupGoogle)
+	{
+		googleBatchArchive.GET("/batches/*subpath", h.Gateway.GoogleBatchArchiveBatch)
+		googleBatchArchive.GET("/files/*subpath", h.Gateway.GoogleBatchArchiveFileDownload)
+	}
 	vertexBatch := r.Group("/v1/projects/:project/locations/:location")
 	vertexBatch.Use(bodyLimit)
 	vertexBatch.Use(clientRequestID)

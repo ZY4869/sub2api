@@ -138,10 +138,17 @@ func ProvideGeminiMessagesCompatService(
 	groupRepo GroupRepository,
 	resourceBindingRepo UpstreamResourceBindingRepository,
 	googleBatchQuotaReservationRepo GoogleBatchQuotaReservationRepository,
+	googleBatchArchiveJobRepo GoogleBatchArchiveJobRepository,
+	googleBatchArchiveObjectRepo GoogleBatchArchiveObjectRepository,
 	cache GatewayCache,
 	schedulerSnapshot *SchedulerSnapshotService,
 	tokenProvider *GeminiTokenProvider,
 	rateLimitService *RateLimitService,
+	billingService *BillingService,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	settingService *SettingService,
+	googleBatchArchiveStorage *GoogleBatchArchiveStorage,
 	httpUpstream HTTPUpstream,
 	antigravityGatewayService *AntigravityGatewayService,
 	cfg *config.Config,
@@ -149,6 +156,12 @@ func ProvideGeminiMessagesCompatService(
 	svc := NewGeminiMessagesCompatService(accountRepo, groupRepo, cache, schedulerSnapshot, tokenProvider, rateLimitService, httpUpstream, antigravityGatewayService, cfg)
 	svc.SetUpstreamResourceBindingRepository(resourceBindingRepo)
 	svc.SetGoogleBatchQuotaReservationRepository(googleBatchQuotaReservationRepo)
+	svc.SetGoogleBatchArchiveRepositories(googleBatchArchiveJobRepo, googleBatchArchiveObjectRepo)
+	svc.SetBillingService(billingService)
+	svc.SetUsageLogRepository(usageLogRepo)
+	svc.SetUsageBillingRepository(usageBillingRepo)
+	svc.SetSettingService(settingService)
+	svc.SetGoogleBatchArchiveStorage(googleBatchArchiveStorage)
 	return svc
 }
 
@@ -318,6 +331,42 @@ func ProvideOpsSystemLogSink(opsRepo OpsRepository) *OpsSystemLogSink {
 // ProvideSoraMediaStorage 初始化 Sora 媒体存储
 func ProvideSoraMediaStorage(cfg *config.Config) *SoraMediaStorage {
 	return NewSoraMediaStorage(cfg)
+}
+
+func ProvideGoogleBatchArchiveStorage() *GoogleBatchArchiveStorage {
+	return NewGoogleBatchArchiveStorage()
+}
+
+func ProvideGoogleBatchArchivePollerService(
+	jobRepo GoogleBatchArchiveJobRepository,
+	compatService *GeminiMessagesCompatService,
+	settingService *SettingService,
+) *GoogleBatchArchivePollerService {
+	svc := NewGoogleBatchArchivePollerService(jobRepo, compatService, settingService)
+	svc.Start()
+	return svc
+}
+
+func ProvideGoogleBatchArchivePrefetchService(
+	jobRepo GoogleBatchArchiveJobRepository,
+	objectRepo GoogleBatchArchiveObjectRepository,
+	compatService *GeminiMessagesCompatService,
+	settingService *SettingService,
+) *GoogleBatchArchivePrefetchService {
+	svc := NewGoogleBatchArchivePrefetchService(jobRepo, objectRepo, compatService, settingService)
+	svc.Start()
+	return svc
+}
+
+func ProvideGoogleBatchArchiveCleanupService(
+	jobRepo GoogleBatchArchiveJobRepository,
+	objectRepo GoogleBatchArchiveObjectRepository,
+	compatService *GeminiMessagesCompatService,
+	settingService *SettingService,
+) *GoogleBatchArchiveCleanupService {
+	svc := NewGoogleBatchArchiveCleanupService(jobRepo, objectRepo, compatService, settingService)
+	svc.Start()
+	return svc
 }
 
 func ProvideSoraSDKClient(
@@ -604,6 +653,10 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountModelImportService,
 	ProvideGatewayService,
 	ProvideSoraMediaStorage,
+	ProvideGoogleBatchArchiveStorage,
+	ProvideGoogleBatchArchivePollerService,
+	ProvideGoogleBatchArchivePrefetchService,
+	ProvideGoogleBatchArchiveCleanupService,
 	ProvideSoraMediaCleanupService,
 	ProvideSoraSDKClient,
 	wire.Bind(new(SoraClient), new(*SoraSDKClient)),

@@ -24,6 +24,13 @@ func (h *GatewayHandler) GeminiV1BetaFileUpload(c *gin.Context) {
 	})
 }
 
+func (h *GatewayHandler) GeminiV1BetaFileDownload(c *gin.Context) {
+	attachGeminiPublicProtocolContext(c)
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+		return h.geminiCompatService.ForwardGoogleFileDownload(c.Request.Context(), input)
+	})
+}
+
 func (h *GatewayHandler) GeminiV1BetaBatches(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
@@ -35,6 +42,20 @@ func (h *GatewayHandler) VertexBatchPredictionJobs(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardVertexBatchPredictionJobs(c.Request.Context(), input)
+	})
+}
+
+func (h *GatewayHandler) GoogleBatchArchiveBatch(c *gin.Context) {
+	attachGeminiPublicProtocolContext(c)
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+		return h.geminiCompatService.ForwardGoogleArchiveBatch(c.Request.Context(), input)
+	})
+}
+
+func (h *GatewayHandler) GoogleBatchArchiveFileDownload(c *gin.Context) {
+	attachGeminiPublicProtocolContext(c)
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+		return h.geminiCompatService.ForwardGoogleArchiveFileDownload(c.Request.Context(), input)
 	})
 }
 
@@ -78,20 +99,38 @@ func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(servi
 		return
 	}
 	result, _, err := forwarder(service.GoogleBatchForwardInput{
-		GroupID:  currentAPIKey.GroupID,
-		APIKeyID: currentAPIKey.ID,
-		UserID:   authSubject.UserID,
-		Method:   c.Request.Method,
-		Path:     c.Request.URL.Path,
-		RawQuery: c.Request.URL.RawQuery,
-		Headers:  c.Request.Header.Clone(),
-		Body:     body,
+		GroupID:        currentAPIKey.GroupID,
+		APIKeyID:       currentAPIKey.ID,
+		APIKey:         currentAPIKey,
+		UserID:         authSubject.UserID,
+		BillingType:    resolveGoogleBatchBillingType(subscription),
+		SubscriptionID: resolveGoogleBatchSubscriptionID(subscription),
+		Method:         c.Request.Method,
+		Path:           c.Request.URL.Path,
+		RawQuery:       c.Request.URL.RawQuery,
+		Headers:        c.Request.Header.Clone(),
+		Body:           body,
 	})
 	if err != nil {
 		googleErrorFromServiceError(c, err)
 		return
 	}
 	writeUpstreamResponse(c, result)
+}
+
+func resolveGoogleBatchBillingType(subscription *service.UserSubscription) int8 {
+	if subscription != nil && subscription.ID > 0 {
+		return service.BillingTypeSubscription
+	}
+	return service.BillingTypeBalance
+}
+
+func resolveGoogleBatchSubscriptionID(subscription *service.UserSubscription) *int64 {
+	if subscription == nil || subscription.ID <= 0 {
+		return nil
+	}
+	value := subscription.ID
+	return &value
 }
 
 func readOptionalGoogleBatchBody(c *gin.Context) ([]byte, error) {

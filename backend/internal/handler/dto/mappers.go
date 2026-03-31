@@ -369,6 +369,22 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 			}
 		}
 	}
+	if a.IsGemini() {
+		batchArchiveEnabled := a.IsBatchArchiveEnabled()
+		out.BatchArchiveEnabled = &batchArchiveEnabled
+		autoPrefetchEnabled := a.IsBatchArchiveAutoPrefetchEnabled()
+		out.BatchArchiveAutoPrefetchEnabled = &autoPrefetchEnabled
+		retentionDays := a.GetBatchArchiveRetentionDays()
+		out.BatchArchiveRetentionDays = &retentionDays
+		billingMode := a.GetBatchArchiveBillingMode()
+		out.BatchArchiveBillingMode = &billingMode
+		downloadPrice := a.GetBatchArchiveDownloadPriceUSD()
+		out.BatchArchiveDownloadPriceUSD = &downloadPrice
+		allowOverflow := a.AllowVertexBatchOverflow()
+		out.AllowVertexBatchOverflow = &allowOverflow
+		acceptOverflow := a.AcceptAIStudioBatchOverflow()
+		out.AcceptAIStudioBatchOverflow = &acceptOverflow
+	}
 
 	return out
 }
@@ -620,6 +636,8 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		ErrorCode:             l.ErrorCode,
 		ErrorMessage:          l.ErrorMessage,
 		SimulatedClient:       l.SimulatedClient,
+		OperationType:         l.OperationType,
+		ChargeSource:          l.ChargeSource,
 		ImageCount:            l.ImageCount,
 		ImageSize:             l.ImageSize,
 		MediaType:             l.MediaType,

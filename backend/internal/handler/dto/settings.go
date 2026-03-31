@@ -178,6 +178,19 @@ type ListGoogleBatchGCSProfilesResponse struct {
 	Items           []GoogleBatchGCSProfile `json:"items"`
 }
 
+type GoogleBatchArchiveSettings struct {
+	Enabled                bool   `json:"enabled"`
+	PollMinIntervalSeconds int    `json:"poll_min_interval_seconds"`
+	PollMaxIntervalSeconds int    `json:"poll_max_interval_seconds"`
+	PollBackoffFactor      int    `json:"poll_backoff_factor"`
+	PollJitterSeconds      int    `json:"poll_jitter_seconds"`
+	PollMaxConcurrency     int    `json:"poll_max_concurrency"`
+	PrefetchAfterHours     int    `json:"prefetch_after_hours"`
+	DownloadTimeoutSeconds int    `json:"download_timeout_seconds"`
+	CleanupIntervalMinutes int    `json:"cleanup_interval_minutes"`
+	LocalStorageRoot       string `json:"local_storage_root"`
+}
+
 type GeminiRateCatalog struct {
 	EffectiveDate              string                       `json:"effective_date"`
 	RemainingQuotaAPISupported bool                         `json:"remaining_quota_api_supported"`

@@ -410,6 +410,13 @@
                 ${{ row.actual_cost.toFixed(6) }}
               </span>
               <span
+                v-if="getChargeLabel(row)"
+                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                :class="getChargeBadgeClass(row)"
+              >
+                {{ getChargeLabel(row) }}
+              </span>
+              <span
                 v-if="row.billing_exempt_reason === 'admin_free'"
                 class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
               >
@@ -816,11 +823,16 @@ import {
 } from "@/utils/format";
 import { formatTokenPricePerMillion } from "@/utils/usagePricing";
 import { getUsageServiceTierLabel } from "@/utils/usageServiceTier";
-import { resolveUsageRequestType } from "@/utils/usageRequestType";
 import {
   formatUsageEndpointDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
+import {
+  getUsageChargeBadgeClass,
+  getUsageChargeLabel,
+  getUsageOperationBadgeClass,
+  getUsageOperationLabel,
+} from "@/utils/usageOperation";
 
 const { t } = useI18n();
 const appStore = useAppStore();
@@ -927,23 +939,18 @@ const formatUserAgent = (ua: string): string => {
   return formatUsageUserAgentDisplay(ua);
 };
 
+const getChargeLabel = (row: UsageLog): string | null =>
+  getUsageChargeLabel(row, t);
+
+const getChargeBadgeClass = (row: UsageLog): string =>
+  getUsageChargeBadgeClass(row);
+
 const getRequestTypeLabel = (log: UsageLog): string => {
-  const requestType = resolveUsageRequestType(log);
-  if (requestType === "ws_v2") return t("usage.ws");
-  if (requestType === "stream") return t("usage.stream");
-  if (requestType === "sync") return t("usage.sync");
-  return t("usage.unknown");
+  return getUsageOperationLabel(log, t);
 };
 
 const getRequestTypeBadgeClass = (log: UsageLog): string => {
-  const requestType = resolveUsageRequestType(log);
-  if (requestType === "ws_v2")
-    return "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200";
-  if (requestType === "stream")
-    return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
-  if (requestType === "sync")
-    return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
-  return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+  return getUsageOperationBadgeClass(log);
 };
 
 const getStatusLabel = (status: UsageLog["status"]): string =>
@@ -972,11 +979,27 @@ const truncateUsageErrorMessage = (message: string): string => {
 };
 
 const getRequestTypeExportText = (log: UsageLog): string => {
-  const requestType = resolveUsageRequestType(log);
-  if (requestType === "ws_v2") return "WS";
-  if (requestType === "stream") return "Stream";
-  if (requestType === "sync") return "Sync";
-  return "Unknown";
+  switch (log.operation_type) {
+    case "batch_create":
+      return "Batch Create";
+    case "batch_settlement":
+      return "Batch Settlement";
+    case "batch_status":
+      return "Batch Status";
+    case "get_file_metadata":
+      return "File Metadata";
+    case "official_result_download":
+      return "Official Download";
+    case "local_archive_download":
+      return "Local Archive Download";
+    default: {
+      const label = getUsageOperationLabel(log, t);
+      if (label === t("usage.ws")) return "WS";
+      if (label === t("usage.stream")) return "Stream";
+      if (label === t("usage.sync")) return "Sync";
+      return "Unknown";
+    }
+  }
 };
 
 const formatUsageEndpoints = (

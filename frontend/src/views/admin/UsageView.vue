@@ -154,10 +154,8 @@ import { useAppStore } from "@/stores/app";
 import { adminAPI } from "@/api/admin";
 import { adminUsageAPI } from "@/api/admin/usage";
 import { formatReasoningEffort, formatThinkingEnabled } from "@/utils/format";
-import {
-  resolveUsageRequestType,
-  requestTypeToLegacyStream,
-} from "@/utils/usageRequestType";
+import { requestTypeToLegacyStream } from "@/utils/usageRequestType";
+import { getUsageOperationLabel } from "@/utils/usageOperation";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Pagination from "@/components/common/Pagination.vue";
 import Select from "@/components/common/Select.vue";
@@ -474,11 +472,7 @@ const openCleanupDialog = () => {
   cleanupDialogVisible.value = true;
 };
 const getRequestTypeLabel = (log: AdminUsageLog): string => {
-  const requestType = resolveUsageRequestType(log);
-  if (requestType === "ws_v2") return t("usage.ws");
-  if (requestType === "stream") return t("usage.stream");
-  if (requestType === "sync") return t("usage.sync");
-  return t("usage.unknown");
+  return getUsageOperationLabel(log, t);
 };
 
 const getStatusLabel = (status: AdminUsageLog["status"]): string =>
