@@ -62,8 +62,14 @@ describe('AccountQuotaControlEditor', () => {
 
     state.cacheTTLOverrideEnabled = true
     await nextTick()
-    await wrapper.find('select').setValue('1h')
+    const selects = wrapper.findAll('select')
+    await selects.at(-1)?.setValue('1h')
     expect(state.cacheTTLOverrideTarget).toBe('1h')
+
+    state.customBaseUrlEnabled = true
+    await nextTick()
+    await wrapper.find('input[placeholder="admin.accounts.quotaControl.customBaseUrl.urlHint"]').setValue('https://relay.example.com')
+    expect(state.customBaseUrl).toBe('https://relay.example.com')
   })
 
   it('loads TLS fingerprint profiles and writes selected profile id', async () => {

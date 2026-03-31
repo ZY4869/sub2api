@@ -443,5 +443,39 @@ const missingTLSFingerprintProfileId = computed(() => {
         </p>
       </div>
     </div>
+
+    <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+      <div class="flex items-center justify-between">
+        <div>
+          <label class="input-label mb-0">{{ t('admin.accounts.quotaControl.customBaseUrl.label') }}</label>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.quotaControl.customBaseUrl.hint') }}
+          </p>
+        </div>
+        <button
+          type="button"
+          @click="state.customBaseUrlEnabled = !state.customBaseUrlEnabled"
+          :class="[
+            'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+            state.customBaseUrlEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+          ]"
+        >
+          <span
+            :class="[
+              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+              state.customBaseUrlEnabled ? 'translate-x-5' : 'translate-x-0'
+            ]"
+          />
+        </button>
+      </div>
+      <div v-if="state.customBaseUrlEnabled" class="mt-3">
+        <input
+          v-model="state.customBaseUrl"
+          type="text"
+          class="input"
+          :placeholder="t('admin.accounts.quotaControl.customBaseUrl.urlHint')"
+        />
+      </div>
+    </div>
   </div>
 </template>

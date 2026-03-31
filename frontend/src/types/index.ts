@@ -815,6 +815,8 @@ export interface Account {
   // 缂傚倸鍊归幐鎼佹偤?TTL 閻庢鍠栭幖顐﹀春濡ゅ懎鍗抽柟绋块鎼村﹪鏌ㄥ☉妯煎缂?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
   cache_ttl_override_enabled?: boolean | null;
   cache_ttl_override_target?: string | null;
+  custom_base_url_enabled?: boolean | null;
+  custom_base_url?: string | null;
 
   // API Key 闁荤姵鍔х粻鎴ｃ亹閸ф鐓€鐎广儱顦介弶娲⒒閸曨剙濮囬柛?
   quota_limit?: number | null;

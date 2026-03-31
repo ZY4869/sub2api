@@ -19,6 +19,8 @@ export interface AnthropicQuotaControlState {
   sessionIdMaskingEnabled: boolean
   cacheTTLOverrideEnabled: boolean
   cacheTTLOverrideTarget: string
+  customBaseUrlEnabled: boolean
+  customBaseUrl: string
 }
 
 export const DEFAULT_WINDOW_COST_STICKY_RESERVE = 10
@@ -61,7 +63,9 @@ export const createDefaultAnthropicQuotaControlState = (): AnthropicQuotaControl
   tlsFingerprintProfileId: null,
   sessionIdMaskingEnabled: false,
   cacheTTLOverrideEnabled: false,
-  cacheTTLOverrideTarget: DEFAULT_CACHE_TTL_OVERRIDE_TARGET
+  cacheTTLOverrideTarget: DEFAULT_CACHE_TTL_OVERRIDE_TARGET,
+  customBaseUrlEnabled: false,
+  customBaseUrl: ''
 })
 
 export const readAnthropicQuotaControlState = (
@@ -108,6 +112,11 @@ export const readAnthropicQuotaControlState = (
     state.cacheTTLOverrideEnabled = true
     state.cacheTTLOverrideTarget =
       account.cache_ttl_override_target || DEFAULT_CACHE_TTL_OVERRIDE_TARGET
+  }
+
+  if (account.custom_base_url_enabled === true) {
+    state.customBaseUrlEnabled = true
+    state.customBaseUrl = String(account.custom_base_url ?? account.extra?.custom_base_url ?? '').trim()
   }
 
   return state
@@ -185,6 +194,14 @@ export const buildAnthropicQuotaControlExtra = (
   } else {
     delete extra.cache_ttl_override_enabled
     delete extra.cache_ttl_override_target
+  }
+
+  if (state.customBaseUrlEnabled && state.customBaseUrl.trim()) {
+    extra.custom_base_url_enabled = true
+    extra.custom_base_url = state.customBaseUrl.trim()
+  } else {
+    delete extra.custom_base_url_enabled
+    delete extra.custom_base_url
   }
 
   return Object.keys(extra).length > 0 ? extra : undefined

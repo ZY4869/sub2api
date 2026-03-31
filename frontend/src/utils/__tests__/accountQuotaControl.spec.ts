@@ -27,7 +27,9 @@ describe('accountQuotaControl', () => {
       tls_fingerprint_profile_id: -1,
       session_id_masking_enabled: true,
       cache_ttl_override_enabled: true,
-      cache_ttl_override_target: '1h'
+      cache_ttl_override_target: '1h',
+      custom_base_url_enabled: true,
+      custom_base_url: 'https://relay.example.com'
     } as Account)
 
     expect(state).toMatchObject({
@@ -46,7 +48,9 @@ describe('accountQuotaControl', () => {
       tlsFingerprintProfileId: -1,
       sessionIdMaskingEnabled: true,
       cacheTTLOverrideEnabled: true,
-      cacheTTLOverrideTarget: '1h'
+      cacheTTLOverrideTarget: '1h',
+      customBaseUrlEnabled: true,
+      customBaseUrl: 'https://relay.example.com'
     })
   })
 
@@ -62,6 +66,8 @@ describe('accountQuotaControl', () => {
     state.tlsFingerprintProfileId = -1
     state.sessionIdMaskingEnabled = true
     state.cacheTTLOverrideEnabled = true
+    state.customBaseUrlEnabled = true
+    state.customBaseUrl = 'https://relay.example.com'
 
     expect(
       buildAnthropicQuotaControlExtra(state, {
@@ -82,7 +88,9 @@ describe('accountQuotaControl', () => {
       tls_fingerprint_profile_id: -1,
       session_id_masking_enabled: true,
       cache_ttl_override_enabled: true,
-      cache_ttl_override_target: DEFAULT_CACHE_TTL_OVERRIDE_TARGET
+      cache_ttl_override_target: DEFAULT_CACHE_TTL_OVERRIDE_TARGET,
+      custom_base_url_enabled: true,
+      custom_base_url: 'https://relay.example.com'
     })
   })
 

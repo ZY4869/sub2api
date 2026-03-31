@@ -30,6 +30,12 @@ const PaginationStub = defineComponent({
   template: '<div class="pagination-stub" />'
 })
 
+const SelectStub = defineComponent({
+  name: 'SelectStub',
+  props: ['modelValue', 'options'],
+  template: '<div class="select-stub" />'
+})
+
 describe('OpsSystemLogTable', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -64,7 +70,8 @@ describe('OpsSystemLogTable', () => {
       },
       global: {
         stubs: {
-          Pagination: PaginationStub
+          Pagination: PaginationStub,
+          Select: SelectStub
         }
       }
     })
@@ -97,7 +104,8 @@ describe('OpsSystemLogTable', () => {
       },
       global: {
         stubs: {
-          Pagination: PaginationStub
+          Pagination: PaginationStub,
+          Select: SelectStub
         }
       }
     })
