@@ -139,6 +139,35 @@ function buildGrokSsoAccount() {
   } as any
 }
 
+function buildGrokAPIKeyAccount() {
+  return {
+    id: 6,
+    name: 'Grok API Key',
+    notes: '',
+    platform: 'grok',
+    type: 'apikey',
+    credentials: {
+      api_key: 'xai-test',
+      base_url: 'https://api.x.ai',
+      model_mapping: {
+        'grok-4': 'grok-4'
+      }
+    },
+    extra: {
+      grok_tier: 'heavy',
+      grok_capabilities: ['grok-4']
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function buildOpenAIOAuthAccount() {
   return {
     id: 5,
@@ -325,6 +354,29 @@ describe('EditAccountModal', () => {
     const wrapper = mountModal(buildGrokSsoAccount())
 
     expect(wrapper.findComponent({ name: 'AccountApiKeyModelProbeEditor' }).exists()).toBe(true)
+  })
+
+  it('keeps Grok API key accounts on the unified editor and removes legacy tier fields on submit', async () => {
+    const account = buildGrokAPIKeyAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.text()).not.toContain('admin.accounts.grokTier')
+    expect(wrapper.find('textarea[placeholder="admin.accounts.leaveEmptyToKeep"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'AccountApiKeyModelProbeEditor' }).exists()).toBe(true)
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.grok_tier).toBeUndefined()
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.grok_capabilities).toBeUndefined()
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
+      'grok-4': 'grok-4'
+    })
   })
 
   it('renders the unified model probe editor for OpenAI OAuth accounts and keeps snapshot extra on submit', async () => {

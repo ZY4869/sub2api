@@ -39,6 +39,14 @@
     :account="statsAccount"
     @close="emit('close-stats')"
   />
+  <AccountModelDiagnosticsModal
+    :show="showModelDiagnostics"
+    :account="diagnosticsAccount"
+    :result="diagnosticsResult"
+    :loading="diagnosticsLoading"
+    @close="emit('close-model-diagnostics')"
+    @refresh="emit('refresh-model-diagnostics')"
+  />
   <ScheduledTestsPanel
     :show="showSchedulePanel"
     :account="scheduleAccount"
@@ -54,6 +62,7 @@
     @test="emit('test', $event)"
     @stats="emit('stats', $event)"
     @schedule="emit('schedule', $event)"
+    @diagnose-models="emit('diagnose-models', $event)"
     @reauth="emit('reauth', $event)"
     @refresh-token="emit('refresh-token', $event)"
     @set-privacy="emit('set-privacy', $event)"
@@ -138,6 +147,7 @@
 import { useI18n } from 'vue-i18n'
 import type { SelectOption } from '@/components/common/Select.vue'
 import type {
+  AccountModelDiagnosticsResponse,
   AccountModelImportResult,
   BlacklistFeedbackPayload
 } from '@/api/admin/accounts'
@@ -167,6 +177,7 @@ import ImportDataModal from './ImportDataModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
 import AccountStatsModal from './AccountStatsModal.vue'
+import AccountModelDiagnosticsModal from './AccountModelDiagnosticsModal.vue'
 import ScheduledTestsPanel from './ScheduledTestsPanel.vue'
 
 defineProps<{
@@ -182,6 +193,7 @@ defineProps<{
   showReAuth: boolean
   showTest: boolean
   showStats: boolean
+  showModelDiagnostics: boolean
   showErrorPassthrough: boolean
   showTlsFingerprintProfiles: boolean
   showSchedulePanel: boolean
@@ -196,6 +208,9 @@ defineProps<{
   reAuthAccount: Account | null
   testingAccount: Account | null
   statsAccount: Account | null
+  diagnosticsAccount: Account | null
+  diagnosticsResult: AccountModelDiagnosticsResponse | null
+  diagnosticsLoading: boolean
   scheduleAccount: Account | null
   scheduleModelOptions: SelectOption[]
   syncDialogOpen: boolean
@@ -221,10 +236,13 @@ const emit = defineEmits<{
   'close-reauth': []
   'close-test': []
   'close-stats': []
+  'close-model-diagnostics': []
   'close-schedule': []
   'close-menu': []
   test: [account: Account]
   stats: [account: Account]
+  'diagnose-models': [account: Account]
+  'refresh-model-diagnostics': []
   schedule: [account: Account]
   reauth: [account: Account]
   'refresh-token': [account: Account]

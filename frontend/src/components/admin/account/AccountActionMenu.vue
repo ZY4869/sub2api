@@ -22,6 +22,10 @@
               <Icon name="clock" size="sm" class="text-orange-500" />
               {{ t('admin.scheduledTests.schedule') }}
             </button>
+            <button @click="$emit('diagnose-models', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-sky-600 hover:bg-gray-100 dark:hover:bg-dark-700">
+              <Icon name="search" size="sm" />
+              {{ t('admin.accounts.modelDiagnostics.action') }}
+            </button>
             <button @click="$emit('import-models', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-cyan-600 hover:bg-gray-100 dark:hover:bg-dark-700">
               <Icon name="refresh" size="sm" />
               {{ t('admin.accounts.importModels') }}
@@ -74,6 +78,7 @@ const emit = defineEmits<{
   test: [account: Account]
   stats: [account: Account]
   schedule: [account: Account]
+  'diagnose-models': [account: Account]
   'import-models': [account: Account]
   reauth: [account: Account]
   'refresh-token': [account: Account]
@@ -159,4 +164,3 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
 })
 </script>
-

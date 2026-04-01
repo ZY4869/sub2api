@@ -173,7 +173,7 @@
             <p class="input-hint">{{ t('admin.accounts.grokTokenHint') }}</p>
           </div>
 
-          <div>
+          <div v-if="form.type === 'sso'">
             <label class="input-label">{{ t('admin.accounts.grokTier') }}</label>
             <select v-model="grokTier" class="input">
               <option value="basic">{{ t('admin.accounts.grokTierBasic') }}</option>
@@ -1234,8 +1234,9 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
     }
     if (newPlatform === 'grok') {
-      accountCategory.value = 'oauth-based'
-      form.type = 'sso'
+      accountCategory.value = 'apikey'
+      form.type = 'apikey'
+      grokSSOToken.value = ''
       grokTier.value = 'basic'
     } else {
       grokSSOToken.value = ''
@@ -2031,7 +2032,11 @@ const handleSubmit = async () => {
   applyAccountCustomErrorCodesStateToCredentials(credentials, customErrorCodesState)
 
   applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
-  const extra = buildAccountExtra(form.platform === 'grok' ? { grok_tier: grokTier.value } : undefined)
+  const extra = buildAccountExtra(
+    form.platform === 'grok' && form.type === 'sso'
+      ? { grok_tier: grokTier.value }
+      : undefined
+  )
   await createAccountAndFinish(
     form.platform,
     'apikey',

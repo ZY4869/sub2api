@@ -71,4 +71,31 @@ describe('AccountActionMenu', () => {
 
     expect(wrapper.text()).not.toContain('admin.accounts.blacklist.addNow')
   })
+
+  it('shows the downstream model diagnostics action and emits the event', async () => {
+    const wrapper = mount(AccountActionMenu, {
+      props: {
+        show: true,
+        account: makeAccount({ platform: 'grok', type: 'apikey' }),
+        position: { top: 12, left: 34 }
+      },
+      global: {
+        stubs: {
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    const diagnosticsButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.modelDiagnostics.action')
+    )
+
+    expect(diagnosticsButton).toBeTruthy()
+
+    await diagnosticsButton!.trigger('click')
+
+    expect(wrapper.emitted('diagnose-models')?.[0]?.[0]).toMatchObject({ id: 1, name: 'openai-1' })
+    expect(wrapper.emitted('close')).toEqual([[]])
+  })
 })

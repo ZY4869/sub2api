@@ -1005,11 +1005,63 @@ export interface AccountModelImportResult {
   trigger: string
 }
 
+export interface AccountModelDiagnosticsPreview {
+  public_id: string
+  alias_id?: string
+  source_id: string
+  display_name: string
+  platform: string
+}
+
+export interface AccountModelDiagnosticsAPIKeyExposure {
+  api_key_id: number
+  api_key_name: string
+  model_display_mode: string
+  model_patterns?: string[]
+  public_models: AccountModelDiagnosticsPreview[]
+}
+
+export interface AccountModelDiagnosticsGroupExposure {
+  group_id: number
+  group_name: string
+  group_platform: string
+  public_models: AccountModelDiagnosticsPreview[]
+  api_keys: AccountModelDiagnosticsAPIKeyExposure[]
+  warnings?: string[]
+}
+
+export interface AccountModelDiagnosticsResponse {
+  account_id: number
+  routing_platform: string
+  status: string
+  probe_source?: string
+  probe_notice?: string
+  resolved_upstream_url?: string
+  resolved_upstream_host?: string
+  resolved_upstream_service?: string
+  saved_models: string[]
+  detected_models: string[]
+  public_models_preview: AccountModelDiagnosticsPreview[]
+  group_exposures: AccountModelDiagnosticsGroupExposure[]
+  warnings: string[]
+}
+
 export async function importModels(
   id: number,
   payload: { trigger?: string; models?: string[] } = {}
 ): Promise<AccountModelImportResult> {
   const { data } = await apiClient.post<AccountModelImportResult>(`/admin/accounts/${id}/import-models`, payload)
+  return data
+}
+
+export async function diagnoseAccountModels(
+  id: number,
+  payload: { refresh?: boolean } = {}
+): Promise<AccountModelDiagnosticsResponse> {
+  const { data } = await apiClient.post<AccountModelDiagnosticsResponse>(
+    `/admin/accounts/${id}/model-diagnostics`,
+    payload
+  )
   return data
 }
 
@@ -1299,6 +1351,7 @@ export const accountsAPI = {
   setSchedulable,
   getAvailableModels,
   importModels,
+  diagnoseAccountModels,
   probeModels,
   probeProtocolGatewayModels,
   generateAuthUrl,

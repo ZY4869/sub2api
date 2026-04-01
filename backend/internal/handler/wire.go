@@ -39,32 +39,32 @@ func ProvideAdminHandlers(
 	tlsFingerprintProfileHandler *admin.TLSFingerprintProfileHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
-		Dashboard:        dashboardHandler,
-		User:             userHandler,
-		Group:            groupHandler,
-		Account:          accountHandler,
-		Announcement:     announcementHandler,
-		DataManagement:   dataManagementHandler,
-		Backup:           backupHandler,
-		OAuth:            oauthHandler,
-		OpenAIOAuth:      openaiOAuthHandler,
-		KiroOAuth:        kiroOAuthHandler,
-		GeminiOAuth:      geminiOAuthHandler,
-		AntigravityOAuth: antigravityOAuthHandler,
-		Proxy:            proxyHandler,
-		Redeem:           redeemHandler,
-		Promo:            promoHandler,
-		Setting:          settingHandler,
-		Ops:              opsHandler,
-		System:           systemHandler,
-		Subscription:     subscriptionHandler,
-		Usage:            usageHandler,
-		UserAttribute:    userAttributeHandler,
-		ErrorPassthrough: errorPassthroughHandler,
-		APIKey:           apiKeyHandler,
-		ModelCatalog:     modelCatalogHandler,
-		ModelRegistry:    modelRegistryHandler,
-		ScheduledTest:    scheduledTestHandler,
+		Dashboard:             dashboardHandler,
+		User:                  userHandler,
+		Group:                 groupHandler,
+		Account:               accountHandler,
+		Announcement:          announcementHandler,
+		DataManagement:        dataManagementHandler,
+		Backup:                backupHandler,
+		OAuth:                 oauthHandler,
+		OpenAIOAuth:           openaiOAuthHandler,
+		KiroOAuth:             kiroOAuthHandler,
+		GeminiOAuth:           geminiOAuthHandler,
+		AntigravityOAuth:      antigravityOAuthHandler,
+		Proxy:                 proxyHandler,
+		Redeem:                redeemHandler,
+		Promo:                 promoHandler,
+		Setting:               settingHandler,
+		Ops:                   opsHandler,
+		System:                systemHandler,
+		Subscription:          subscriptionHandler,
+		Usage:                 usageHandler,
+		UserAttribute:         userAttributeHandler,
+		ErrorPassthrough:      errorPassthroughHandler,
+		APIKey:                apiKeyHandler,
+		ModelCatalog:          modelCatalogHandler,
+		ModelRegistry:         modelRegistryHandler,
+		ScheduledTest:         scheduledTestHandler,
 		TLSFingerprintProfile: tlsFingerprintProfileHandler,
 	}
 }
@@ -87,6 +87,7 @@ func ProvideAdminAccountHandler(
 	rpmCache service.RPMCache,
 	tokenCacheInvalidator service.TokenCacheInvalidator,
 	accountModelImportService *service.AccountModelImportService,
+	accountModelDiagnosticsService *service.AccountModelDiagnosticsService,
 	modelRegistryService *service.ModelRegistryService,
 ) *admin.AccountHandler {
 	handler := admin.NewAccountHandler(
@@ -105,6 +106,7 @@ func ProvideAdminAccountHandler(
 		tokenCacheInvalidator,
 	)
 	handler.SetAccountModelImportService(accountModelImportService)
+	handler.SetAccountModelDiagnosticsService(accountModelDiagnosticsService)
 	handler.SetModelRegistryService(modelRegistryService)
 	handler.SetCopilotOAuthService(copilotOAuthService)
 	handler.SetKiroOAuthService(kiroOAuthService)

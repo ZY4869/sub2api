@@ -27,7 +27,7 @@
       </div>
 
       <div
-        v-if="isGrokAccount"
+        v-if="isGrokSSOAccount"
         class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
       >
         <div v-if="isGrokSSOAccount">
@@ -775,7 +775,6 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
 )
-const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
 const isGeminiVertexAccount = computed(() =>
   effectivePlatform.value === 'gemini' &&
@@ -1858,10 +1857,14 @@ const handleSubmit = async () => {
     if (props.account.platform === 'grok') {
       const currentExtra = (updatePayload.extra as Record<string, unknown>) ||
         (props.account.extra as Record<string, unknown>) || {}
-      updatePayload.extra = {
-        ...currentExtra,
-        grok_tier: editGrokTier.value
+      const newExtra: Record<string, unknown> = { ...currentExtra }
+      if (props.account.type === 'sso') {
+        newExtra.grok_tier = editGrokTier.value
+      } else {
+        delete newExtra.grok_tier
+        delete newExtra.grok_capabilities
       }
+      updatePayload.extra = newExtra
     }
 
     if (runtimePlatform === 'anthropic' && (props.account.type === 'oauth' || props.account.type === 'setup-token')) {
@@ -2057,6 +2060,15 @@ const handleSubmit = async () => {
         }
       )
     )
+
+    if (props.account.platform === 'grok' && props.account.type !== 'sso') {
+      const currentExtra = (updatePayload.extra as Record<string, unknown>) || {}
+      const sanitizedExtra: Record<string, unknown> = { ...currentExtra }
+      delete sanitizedExtra.grok_tier
+      delete sanitizedExtra.grok_capabilities
+      updatePayload.extra =
+        Object.keys(sanitizedExtra).length > 0 ? sanitizedExtra : undefined
+    }
 
     const canContinue = await ensureMixedChannelConfirmed(async () => {
       await submitUpdateAccount(accountID, updatePayload)

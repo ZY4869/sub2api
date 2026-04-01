@@ -26,6 +26,7 @@ function createProps() {
     showReAuth: false,
     showTest: false,
     showStats: false,
+    showModelDiagnostics: false,
     showErrorPassthrough: false,
     showTlsFingerprintProfiles: false,
     showSchedulePanel: false,
@@ -41,6 +42,9 @@ function createProps() {
     reAuthAccount: null,
     testingAccount: null,
     statsAccount: null,
+    diagnosticsAccount: null,
+    diagnosticsResult: null,
+    diagnosticsLoading: false,
     scheduleAccount: null,
     scheduleModelOptions: [],
     syncDialogOpen: false,
@@ -61,6 +65,7 @@ function createStubs(overrides: Record<string, unknown> = {}) {
     ReAuthAccountModal: true,
     AccountTestModal: true,
     AccountStatsModal: true,
+    AccountModelDiagnosticsModal: true,
     ScheduledTestsPanel: true,
     AccountActionMenu: true,
     SyncFromCrsModal: true,
@@ -228,6 +233,58 @@ describe('AccountsViewDialogsHost', () => {
 
     expect(wrapper.emitted('blacklist')).toEqual([[{ id: 7, name: 'openai-7' }]])
     expect(wrapper.emitted('close-menu')).toEqual([[]])
+  })
+
+  it('forwards downstream diagnostics events from the action menu and diagnostics modal', async () => {
+    const account = {
+      id: 11,
+      name: 'grok-11',
+      platform: 'grok',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true
+    }
+
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        menuShow: true,
+        menuAccount: account,
+        menuPosition: { top: 10, left: 20 },
+        showModelDiagnostics: true,
+        diagnosticsAccount: account
+      },
+      global: {
+        stubs: createStubs({
+          AccountActionMenu: {
+            emits: ['diagnose-models', 'close'],
+            template: `
+              <div>
+                <button class="menu-diagnose" @click="$emit('diagnose-models', { id: 11, name: 'grok-11' })" />
+              </div>
+            `
+          },
+          AccountModelDiagnosticsModal: {
+            emits: ['close', 'refresh'],
+            template: `
+              <div>
+                <button class="diag-refresh" @click="$emit('refresh')" />
+                <button class="diag-close" @click="$emit('close')" />
+              </div>
+            `
+          }
+        })
+      }
+    })
+
+    await wrapper.get('.menu-diagnose').trigger('click')
+    await wrapper.get('.diag-refresh').trigger('click')
+    await wrapper.get('.diag-close').trigger('click')
+
+    expect(wrapper.emitted('diagnose-models')).toEqual([[{ id: 11, name: 'grok-11' }]])
+    expect(wrapper.emitted('refresh-model-diagnostics')).toEqual([[]])
+    expect(wrapper.emitted('close-model-diagnostics')).toEqual([[]])
   })
 
   it('forwards test modal blacklist events', async () => {

@@ -30,6 +30,13 @@ describe('CreateAccountModal', () => {
     expect(source).toContain("@imported=\"handleGrokImportCompleted\"")
   })
 
+  it('defaults Grok to API Key mode and only persists grok_tier for SSO submissions', () => {
+    expect(source).toContain("if (newPlatform === 'grok')")
+    expect(source).toContain("accountCategory.value = 'apikey'")
+    expect(source).toContain("form.type = 'apikey'")
+    expect(source).toContain("form.platform === 'grok' && form.type === 'sso'")
+  })
+
   it('shows generic quota controls and protocol gateway batch controls in account creation', () => {
     expect(source).toContain('const showQuotaLimitSection = computed(() =>')
     expect(source).toContain('const showQuotaLimitSection = computed(() => true)')

@@ -179,6 +179,7 @@
       :show-re-auth="showReAuth"
       :show-test="showTest"
       :show-stats="showStats"
+      :show-model-diagnostics="showModelDiagnostics"
       :show-error-passthrough="showErrorPassthrough"
       :show-tls-fingerprint-profiles="showTLSFingerprintProfiles"
       :show-schedule-panel="showSchedulePanel"
@@ -193,6 +194,9 @@
       :re-auth-account="reAuthAcc"
       :testing-account="testingAcc"
       :stats-account="statsAcc"
+      :diagnostics-account="diagnosticsAccount"
+      :diagnostics-result="diagnosticsResult"
+      :diagnostics-loading="diagnosticsLoading"
       :schedule-account="scheduleAcc"
       :schedule-model-options="scheduleModelOptions"
       :sync-dialog-open="syncDialogOpen"
@@ -213,10 +217,13 @@
       @close-reauth="closeReAuthModal"
       @close-test="closeTestModal"
       @close-stats="closeStatsModal"
+      @close-model-diagnostics="closeModelDiagnostics"
       @close-schedule="closeSchedulePanel"
       @close-menu="closeMenu"
       @test="handleTest"
       @stats="handleViewStats"
+      @diagnose-models="handleDiagnoseModels"
+      @refresh-model-diagnostics="refreshModelDiagnostics"
       @schedule="handleSchedule"
       @reauth="handleReAuth"
       @refresh-token="handleRefresh"
@@ -275,7 +282,10 @@ import AccountsViewDialogsHost from '@/components/admin/account/AccountsViewDial
 import AccountsViewTable from '@/components/admin/account/AccountsViewTable.vue'
 import AccountsViewToolbar from '@/components/admin/account/AccountsViewToolbar.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
-import type { BlacklistFeedbackPayload } from '@/api/admin/accounts'
+import type {
+  AccountModelDiagnosticsResponse,
+  BlacklistFeedbackPayload
+} from '@/api/admin/accounts'
 import {
   canAccountFetchUsage,
   invalidateAccountUsagePresentationCache,
@@ -356,6 +366,7 @@ const showDeleteDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
 const showStats = ref(false)
+const showModelDiagnostics = ref(false)
 const showErrorPassthrough = ref(false)
 const showTLSFingerprintProfiles = ref(false)
 const edAcc = ref<Account | null>(null)
@@ -364,6 +375,9 @@ const deletingAcc = ref<Account | null>(null)
 const reAuthAcc = ref<Account | null>(null)
 const testingAcc = ref<Account | null>(null)
 const statsAcc = ref<Account | null>(null)
+const diagnosticsAccount = ref<Account | null>(null)
+const diagnosticsResult = ref<AccountModelDiagnosticsResponse | null>(null)
+const diagnosticsLoading = ref(false)
 const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
@@ -583,6 +597,7 @@ const isAnyModalOpen = computed(() => {
     showReAuth.value ||
     showTest.value ||
     showStats.value ||
+    showModelDiagnostics.value ||
     showSchedulePanel.value ||
     showErrorPassthrough.value
   )
@@ -593,6 +608,7 @@ const syncAccountRefs = (nextAccount: Account) => {
   if (reAuthAcc.value?.id === nextAccount.id) reAuthAcc.value = nextAccount
   if (tempUnschedAcc.value?.id === nextAccount.id) tempUnschedAcc.value = nextAccount
   if (deletingAcc.value?.id === nextAccount.id) deletingAcc.value = nextAccount
+  if (diagnosticsAccount.value?.id === nextAccount.id) diagnosticsAccount.value = nextAccount
   syncMenuAccount(nextAccount)
 }
 
@@ -1180,9 +1196,49 @@ const closeTestModal = async () => {
   await refreshListAndArchivedPanel()
 }
 const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
+const closeModelDiagnostics = () => {
+  showModelDiagnostics.value = false
+  diagnosticsAccount.value = null
+  diagnosticsResult.value = null
+  diagnosticsLoading.value = false
+}
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
 const handleViewStats = (a: Account) => { statsAcc.value = a; showStats.value = true }
+const handleDiagnoseModels = async (a: Account) => {
+  const sameAccount = diagnosticsAccount.value?.id === a.id
+  diagnosticsAccount.value = a
+  showModelDiagnostics.value = true
+  if (!sameAccount) {
+    diagnosticsResult.value = null
+  }
+  diagnosticsLoading.value = true
+  try {
+    diagnosticsResult.value = await adminAPI.accounts.diagnoseAccountModels(a.id)
+  } catch (error: any) {
+    console.error('Failed to diagnose account model exposure:', error)
+    appStore.showError(error?.message || t('admin.accounts.modelDiagnostics.failed'))
+  } finally {
+    diagnosticsLoading.value = false
+  }
+}
+const refreshModelDiagnostics = async () => {
+  if (!diagnosticsAccount.value) {
+    return
+  }
+  diagnosticsLoading.value = true
+  try {
+    diagnosticsResult.value = await adminAPI.accounts.diagnoseAccountModels(
+      diagnosticsAccount.value.id,
+      { refresh: true }
+    )
+  } catch (error: any) {
+    console.error('Failed to refresh account model exposure diagnostics:', error)
+    appStore.showError(error?.message || t('admin.accounts.modelDiagnostics.failed'))
+  } finally {
+    diagnosticsLoading.value = false
+  }
+}
 const scheduleSourceProtocolLabel = (sourceProtocol?: string) => {
   switch (String(sourceProtocol || '').trim()) {
     case 'openai':

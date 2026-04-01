@@ -113,7 +113,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		credentials = NormalizeGeminiCredentialsForStorage(input.Type, credentials)
 	}
 	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformGrok) {
-		input.Extra = normalizeGrokExtraForStorage(input.Extra)
+		input.Extra = normalizeGrokExtraForStorageByType(input.Type, input.Extra)
 		credentials = normalizeGrokCredentialsForStorage(input.Type, credentials, ResolveGrokTier(input.Extra))
 	}
 	account := &Account{
@@ -272,7 +272,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		}
 	}
 	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGrok) {
-		account.Extra = normalizeGrokExtraForStorage(account.Extra)
+		account.Extra = normalizeGrokExtraForStorageByType(account.Type, account.Extra)
 		account.Credentials = normalizeGrokCredentialsForStorage(account.Type, account.Credentials, ResolveGrokTier(account.Extra))
 	}
 	if input.GroupIDs != nil {
@@ -504,7 +504,7 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 			return errors.New("grok sso accounts require credentials.sso_token")
 		}
 	}
-	if len(extra) > 0 {
+	if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeSSO && len(extra) > 0 {
 		if rawTier, ok := extra["grok_tier"].(string); ok && strings.TrimSpace(rawTier) != "" && normalizeGrokTier(extra) == "" {
 			return errors.New("grok accounts require extra.grok_tier: basic|super|heavy")
 		}
@@ -550,13 +550,25 @@ func normalizeGrokCredentialsForStorage(accountType string, credentials map[stri
 	return normalized
 }
 
-func normalizeGrokExtraForStorage(extra map[string]any) map[string]any {
+func normalizeGrokExtraForStorageByType(accountType string, extra map[string]any) map[string]any {
 	if len(extra) == 0 {
-		extra = map[string]any{}
+		if strings.TrimSpace(strings.ToLower(accountType)) == AccountTypeSSO {
+			extra = map[string]any{}
+		} else {
+			return nil
+		}
 	}
 	normalized := make(map[string]any, len(extra)+1)
 	for key, value := range extra {
 		normalized[key] = value
+	}
+	if strings.TrimSpace(strings.ToLower(accountType)) != AccountTypeSSO {
+		delete(normalized, "grok_tier")
+		delete(normalized, "grok_capabilities")
+		if len(normalized) == 0 {
+			return nil
+		}
+		return normalized
 	}
 	tier := normalizeGrokTier(extra)
 	if tier == "" {

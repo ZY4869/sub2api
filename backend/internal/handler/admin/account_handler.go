@@ -40,6 +40,7 @@ type AccountHandler struct {
 	rpmCache                  service.RPMCache
 	tokenCacheInvalidator     service.TokenCacheInvalidator
 	accountModelImportService *service.AccountModelImportService
+	accountModelDiagnostics   *service.AccountModelDiagnosticsService
 	modelRegistryService      *service.ModelRegistryService
 }
 
@@ -54,6 +55,9 @@ func (h *AccountHandler) SetModelRegistryService(modelRegistryService *service.M
 	if h.accountTestService != nil {
 		h.accountTestService.SetModelRegistryService(modelRegistryService)
 	}
+}
+func (h *AccountHandler) SetAccountModelDiagnosticsService(svc *service.AccountModelDiagnosticsService) {
+	h.accountModelDiagnostics = svc
 }
 func (h *AccountHandler) SetCopilotOAuthService(copilotOAuthService *service.CopilotOAuthService) {
 	h.copilotOAuthService = copilotOAuthService

@@ -527,6 +527,15 @@ func ProvideAccountModelImportService(
 	return svc
 }
 
+func ProvideAccountModelDiagnosticsService(
+	accountRepo AccountRepository,
+	apiKeyRepo APIKeyRepository,
+	groupRepo GroupRepository,
+	accountModelImportService *AccountModelImportService,
+) *AccountModelDiagnosticsService {
+	return NewAccountModelDiagnosticsService(accountRepo, apiKeyRepo, groupRepo, accountModelImportService)
+}
+
 func ProvideAccountTestService(
 	accountRepo AccountRepository,
 	accountModelImportService *AccountModelImportService,
@@ -653,6 +662,7 @@ var ProviderSet = wire.NewSet(
 	ProvideTLSFingerprintProfileService,
 	ProvideVertexUpstreamCatalogService,
 	ProvideAccountModelImportService,
+	ProvideAccountModelDiagnosticsService,
 	ProvideGatewayService,
 	ProvideSoraMediaStorage,
 	ProvideGoogleBatchArchiveStorage,
