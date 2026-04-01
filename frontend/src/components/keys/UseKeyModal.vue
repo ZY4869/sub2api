@@ -637,7 +637,7 @@ curl -X POST "${baseUrl}/responses" \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "grok-3-beta",
+    "model": "grok-auto",
     "input": "Give me a 3-line runtime status summary."
   }'
 
@@ -646,16 +646,16 @@ curl -X POST "${baseUrl}/images/generations" \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "grok-imagine-image",
+    "model": "grok-imagine-1.0",
     "prompt": "An orange synthwave city at sunrise"
   }'
 
 # Videos
-curl -X POST "${baseUrl}/videos/generations" \\
+curl -X POST "${baseUrl}/videos" \\
   -H "Authorization: Bearer ${apiKey}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "grok-imagine-video",
+    "model": "grok-imagine-1.0-video",
     "prompt": "A slow aerial shot over neon rain streets"
   }'
 

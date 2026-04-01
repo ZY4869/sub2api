@@ -540,12 +540,18 @@ func normalizeGrokCredentialsForStorage(accountType string, credentials map[stri
 		} else {
 			normalized["base_url"] = strings.TrimRight(baseURL, "/")
 		}
+		if rawMapping, ok := normalized["model_mapping"].(map[string]any); ok {
+			if nextMapping := normalizeGrokModelMappingForStorage(AccountTypeAPIKey, rawMapping, tier); len(nextMapping) > 0 {
+				normalized["model_mapping"] = nextMapping
+			} else {
+				delete(normalized, "model_mapping")
+			}
+		}
 	case AccountTypeSSO:
 		ssoToken, _ := normalized["sso_token"].(string)
 		normalized["sso_token"] = NormalizeGrokCredentialValue(AccountTypeSSO, ssoToken)
-		if _, ok := normalized["model_mapping"].(map[string]any); !ok {
-			normalized["model_mapping"] = DefaultGrokModelMappingForTier(tier)
-		}
+		rawMapping, _ := normalized["model_mapping"].(map[string]any)
+		normalized["model_mapping"] = normalizeGrokModelMappingForStorage(AccountTypeSSO, rawMapping, tier)
 	}
 	return normalized
 }

@@ -20,6 +20,7 @@ const (
 	EndpointResponses        = "/v1/responses"
 	EndpointImagesGen        = "/v1/images/generations"
 	EndpointImagesEdits      = "/v1/images/edits"
+	EndpointVideosCreate     = "/v1/videos"
 	EndpointVideosGen        = "/v1/videos/generations"
 	EndpointVideosStatus     = "/v1/videos/:request_id"
 	EndpointGeminiModels     = "/v1beta/models"
@@ -55,10 +56,12 @@ func NormalizeInboundEndpoint(path string) string {
 		return EndpointImagesGen
 	case strings.Contains(path, EndpointImagesEdits):
 		return EndpointImagesEdits
+	case path == EndpointVideosCreate || path == "/videos" || path == "/grok/v1/videos":
+		return EndpointVideosCreate
 	case strings.Contains(path, "/v1/videos/") && !strings.Contains(path, EndpointVideosGen):
 		return EndpointVideosStatus
 	case strings.Contains(path, EndpointVideosGen):
-		return EndpointVideosGen
+		return EndpointVideosCreate
 	case strings.Contains(path, EndpointMessages):
 		return EndpointMessages
 	case strings.Contains(path, EndpointResponses):
@@ -125,8 +128,10 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 			return normalizeVideoStatusPath(rawRequestPath)
 		}
 		switch inbound {
-		case EndpointChatCompletions, EndpointResponses, EndpointImagesGen, EndpointImagesEdits, EndpointVideosGen:
+		case EndpointChatCompletions, EndpointResponses, EndpointImagesGen, EndpointImagesEdits:
 			return inbound
+		case EndpointVideosCreate, EndpointVideosGen:
+			return EndpointVideosGen
 		case EndpointVideosStatus:
 			return normalizeVideoStatusPath(rawRequestPath)
 		}

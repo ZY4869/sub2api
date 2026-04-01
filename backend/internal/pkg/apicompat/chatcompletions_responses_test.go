@@ -469,6 +469,47 @@ func TestResponsesToChatCompletions_WebSearch(t *testing.T) {
 	assert.Equal(t, "search results", content)
 }
 
+func TestResponsesToChatCompletions_OutputVideo(t *testing.T) {
+	resp := &ResponsesResponse{
+		ID:     "resp_video",
+		Status: "completed",
+		Output: []ResponsesOutput{
+			{
+				Type: "message",
+				Content: []ResponsesContentPart{
+					{Type: "output_text", Text: "https://cdn.example.com/video.mp4"},
+					{
+						Type: "output_video",
+						Video: &MediaVideo{
+							RequestID:   "vid_req_1",
+							Status:      "completed",
+							URL:         "https://cdn.example.com/video.mp4",
+							ThumbnailURL: "https://cdn.example.com/video.jpg",
+							Model:       "grok-imagine-1.0-video",
+							Seconds:     6,
+							Resolution:  "480p",
+							AspectRatio: "16:9",
+							MimeType:    "video/mp4",
+							Provider:    "grok",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	chat := ResponsesToChatCompletions(resp, "grok-imagine-1.0-video")
+	require.Len(t, chat.Choices, 1)
+	require.NotNil(t, chat.Choices[0].Message.Video)
+	require.Len(t, chat.Choices[0].Message.Media, 1)
+	assert.Equal(t, "https://cdn.example.com/video.mp4", chat.Choices[0].Message.Video.URL)
+	assert.Equal(t, "video", chat.Choices[0].Message.Media[0].Type)
+
+	var content string
+	require.NoError(t, json.Unmarshal(chat.Choices[0].Message.Content, &content))
+	assert.Equal(t, "https://cdn.example.com/video.mp4", content)
+}
+
 // ---------------------------------------------------------------------------
 // Streaming: ResponsesEventToChatChunks tests
 // ---------------------------------------------------------------------------
@@ -661,6 +702,38 @@ func TestResponsesEventToChatChunks_ReasoningThenTextAutoCloseTag(t *testing.T) 
 	require.Len(t, chunks, 1)
 	require.NotNil(t, chunks[0].Choices[0].Delta.Content)
 	assert.Equal(t, "answer", *chunks[0].Choices[0].Delta.Content)
+}
+
+func TestResponsesEventToChatChunks_OutputVideo(t *testing.T) {
+	state := NewResponsesEventToChatState()
+	state.Model = "grok-imagine-1.0-video"
+	state.SentRole = true
+
+	chunks := ResponsesEventToChatChunks(&ResponsesStreamEvent{
+		Type: "response.output_video.added",
+		Video: &MediaVideo{
+			RequestID: "vid_req_2",
+			Status:    "completed",
+			URL:       "https://cdn.example.com/final.mp4",
+			Model:     "grok-imagine-1.0-video",
+		},
+	}, state)
+	require.Len(t, chunks, 1)
+	require.NotNil(t, chunks[0].Choices[0].Delta.Video)
+	require.Len(t, chunks[0].Choices[0].Delta.Media, 1)
+	assert.Equal(t, "https://cdn.example.com/final.mp4", chunks[0].Choices[0].Delta.Video.URL)
+	assert.Equal(t, "video", chunks[0].Choices[0].Delta.Media[0].Type)
+
+	chunks = ResponsesEventToChatChunks(&ResponsesStreamEvent{
+		Type: "response.output_video.done",
+		Video: &MediaVideo{
+			RequestID: "vid_req_2",
+			Status:    "completed",
+			URL:       "https://cdn.example.com/final.mp4",
+			Model:     "grok-imagine-1.0-video",
+		},
+	}, state)
+	require.Len(t, chunks, 0)
 }
 
 func TestFinalizeResponsesChatStream(t *testing.T) {

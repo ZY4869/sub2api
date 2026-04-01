@@ -53,7 +53,7 @@ func TestGoogleBatchModelRegistryFamilyRecognizesAliases(t *testing.T) {
 	require.Equal(t, "gemini_pro", normalizeGoogleBatchModelFamily("models/gemini-2.5-pro-preview-tts"))
 }
 
-func TestResolveGoogleBatchInputMetadataPrefersExplicitModelAndBindingTokenEstimate(t *testing.T) {
+func TestResolveGoogleBatchInputMetadataPrefersBindingMetadataForBatchDecisions(t *testing.T) {
 	svc := &GeminiMessagesCompatService{
 		resourceBindingRepo: &googleBatchBindingRepoStub{
 			items: map[string]*UpstreamResourceBinding{
@@ -94,10 +94,45 @@ func TestResolveGoogleBatchInputMetadataPrefersExplicitModelAndBindingTokenEstim
 	metadata, err := svc.resolveGoogleBatchInputMetadata(context.Background(), input)
 	require.NoError(t, err)
 	require.Equal(t, "gemini-2.5-pro", metadata.requestedModel)
-	require.Equal(t, "gemini_pro", metadata.modelFamily)
+	require.Equal(t, "gemini_flash_lite", metadata.modelFamily)
 	require.Equal(t, int64(200), metadata.estimatedTokens)
 	require.Equal(t, UpstreamProviderAIStudio, metadata.sourceProtocol)
 	require.Equal(t, []string{"files/input-a", "files/input-b"}, metadata.sourceResourceNames)
+}
+
+func TestResolveGoogleBatchInputMetadataDoesNotFallbackToPayloadTokensWhenBindingsExist(t *testing.T) {
+	svc := &GeminiMessagesCompatService{
+		resourceBindingRepo: &googleBatchBindingRepoStub{
+			items: map[string]*UpstreamResourceBinding{
+				"files/input-a": {
+					ResourceName: "files/input-a",
+					AccountID:    10,
+					MetadataJSON: map[string]any{
+						googleBatchBindingMetadataSourceProtocol: UpstreamProviderAIStudio,
+					},
+				},
+			},
+		},
+	}
+
+	input := GoogleBatchForwardInput{
+		Method: http.MethodPost,
+		Path:   "/v1beta/models/gemini-2.5-pro:batchGenerateContent",
+		Body: []byte(`{
+			"batch": {
+				"input_config": {
+					"requests": [{"fileName": "files/input-a"}]
+				}
+			},
+			"estimated_batch_tokens": 77
+		}`),
+	}
+
+	metadata, err := svc.resolveGoogleBatchInputMetadata(context.Background(), input)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), metadata.estimatedTokens)
+	require.Equal(t, "gemini_pro", metadata.modelFamily)
+	require.Equal(t, UpstreamProviderAIStudio, metadata.sourceProtocol)
 }
 
 func TestBuildGoogleBatchFileBindingMetadataIncludesDigestAndUploadFields(t *testing.T) {

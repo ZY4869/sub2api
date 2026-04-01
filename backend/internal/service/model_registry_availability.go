@@ -37,16 +37,14 @@ var modelRegistryAvailableBootstrapInputsV20260317 = []string{
 }
 
 var modelRegistryAvailableBootstrapInputsV20260328 = []string{
-	"grok-4",
-	"grok-4-0709",
-	"grok-3-beta",
-	"grok-3-mini-beta",
-	"grok-3-fast-beta",
-	"grok-2",
-	"grok-2-vision",
-	"grok-imagine-image",
-	"grok-imagine-video",
-	"grok-2-image",
+	GrokModelAuto,
+	GrokModel3Fast,
+	GrokModel4Expert,
+	GrokModel4Heavy,
+	GrokModelImagineFast,
+	GrokModelImagine,
+	GrokModelImagineEdit,
+	GrokModelImagineVideo,
 }
 
 var modelRegistryAvailableBootstrapRuntimeEntriesV20260313 = []modelregistry.ModelEntry{

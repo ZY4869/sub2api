@@ -9,6 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// GetGoogleBatchRuntimeMetrics returns Gemini Batch runtime metrics snapshot.
+// GET /api/v1/admin/ops/runtime/google-batch
+func (h *OpsHandler) GetGoogleBatchRuntimeMetrics(c *gin.Context) {
+	if h.opsService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Ops service not available")
+		return
+	}
+	if err := h.opsService.RequireMonitoringEnabled(c.Request.Context()); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, service.SnapshotGoogleBatchRuntimeMetrics())
+}
+
 // GetEmailNotificationConfig returns Ops email notification config (DB-backed).
 // GET /api/v1/admin/ops/email-notification/config
 func (h *OpsHandler) GetEmailNotificationConfig(c *gin.Context) {

@@ -31,6 +31,8 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 	var contentText string
 	var reasoningText string
 	var toolCalls []ChatToolCall
+	var media []ChatMedia
+	var primaryVideo *MediaVideo
 
 	for _, item := range resp.Output {
 		switch item.Type {
@@ -38,6 +40,16 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 			for _, part := range item.Content {
 				if part.Type == "output_text" && part.Text != "" {
 					contentText += part.Text
+				}
+				if part.Type == "output_video" && part.Video != nil {
+					if primaryVideo == nil {
+						videoCopy := *part.Video
+						primaryVideo = &videoCopy
+					}
+					media = append(media, ChatMedia{
+						Type:  "video",
+						Video: part.Video,
+					})
 				}
 			}
 		case "function_call":
@@ -64,12 +76,21 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 	if len(toolCalls) > 0 {
 		msg.ToolCalls = toolCalls
 	}
+	if contentText == "" && primaryVideo != nil && primaryVideo.URL != "" {
+		contentText = primaryVideo.URL
+	}
 	if contentText != "" {
 		raw, _ := json.Marshal(contentText)
 		msg.Content = raw
 	}
 	if reasoningText != "" {
 		msg.ReasoningContent = reasoningText
+	}
+	if len(media) > 0 {
+		msg.Media = media
+	}
+	if primaryVideo != nil {
+		msg.Video = primaryVideo
 	}
 
 	finishReason := responsesStatusToChatFinishReason(resp.Status, resp.IncompleteDetails, toolCalls)
@@ -127,6 +148,7 @@ type ResponsesEventToChatState struct {
 	SentRole               bool
 	SawToolCall            bool
 	SawText                bool
+	SawVideo               bool
 	Finalized              bool        // true after finish chunk has been emitted
 	NextToolCallIndex      int         // next sequential tool_call index to assign
 	OutputIndexToToolIndex map[int]int // Responses output_index → Chat tool_calls index
@@ -151,6 +173,8 @@ func ResponsesEventToChatChunks(evt *ResponsesStreamEvent, state *ResponsesEvent
 		return resToChatHandleCreated(evt, state)
 	case "response.output_text.delta":
 		return resToChatHandleTextDelta(evt, state)
+	case "response.output_video.added", "response.output_video.done":
+		return resToChatHandleVideo(evt, state)
 	case "response.output_item.added":
 		return resToChatHandleOutputItemAdded(evt, state)
 	case "response.function_call_arguments.delta":
@@ -234,6 +258,20 @@ func resToChatHandleTextDelta(evt *ResponsesStreamEvent, state *ResponsesEventTo
 	state.SawText = true
 	content := evt.Delta
 	return []ChatCompletionsChunk{makeChatDeltaChunk(state, ChatDelta{Content: &content})}
+}
+
+func resToChatHandleVideo(evt *ResponsesStreamEvent, state *ResponsesEventToChatState) []ChatCompletionsChunk {
+	if evt.Video == nil || state.SawVideo {
+		return nil
+	}
+	state.SawVideo = true
+	return []ChatCompletionsChunk{makeChatDeltaChunk(state, ChatDelta{
+		Video: evt.Video,
+		Media: []ChatMedia{{
+			Type:  "video",
+			Video: evt.Video,
+		}},
+	})}
 }
 
 func resToChatHandleOutputItemAdded(evt *ResponsesStreamEvent, state *ResponsesEventToChatState) []ChatCompletionsChunk {

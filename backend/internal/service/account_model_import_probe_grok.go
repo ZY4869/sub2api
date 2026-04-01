@@ -33,7 +33,7 @@ func (s *AccountModelImportService) detectGrokModels(ctx context.Context, accoun
 		if err != nil {
 			return nil, err
 		}
-		return newAccountModelProbeResult(models), nil
+		return newAccountModelProbeResult(canonicalizeGrokDetectedModels(models)), nil
 	}
 	if account.IsGrokSSO() {
 		visibleModels := GrokVisibleModelIDsForAccount(account)

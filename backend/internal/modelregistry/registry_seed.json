@@ -5803,6 +5803,246 @@
     ]
   },
   {
+    "id": "grok-auto",
+    "display_name": "Grok Auto",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-auto"
+    ],
+    "aliases": [
+      "grok-beta"
+    ],
+    "pricing_lookup_ids": [
+      "grok-auto"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 0,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-3-fast",
+    "display_name": "Grok 3 Fast",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-3-fast",
+      "grok-3-fast-beta"
+    ],
+    "aliases": [
+      "grok-3-fast-beta"
+    ],
+    "pricing_lookup_ids": [
+      "grok-3-fast"
+    ],
+    "preferred_protocol_ids": {
+      "grok": "grok-3-fast-beta"
+    },
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 1,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-4-expert",
+    "display_name": "Grok 4 Expert",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-4-expert",
+      "grok-4",
+      "grok-4-0709"
+    ],
+    "aliases": [
+      "grok-4",
+      "grok-4-0709"
+    ],
+    "pricing_lookup_ids": [
+      "grok-4-expert"
+    ],
+    "preferred_protocol_ids": {
+      "grok": "grok-4"
+    },
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 2,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-4-heavy",
+    "display_name": "Grok 4 Heavy",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-4-heavy"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-4-heavy"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 3,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-imagine-1.0-fast",
+    "display_name": "Grok Imagine 1.0 Fast",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-imagine-1.0-fast"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-imagine-1.0-fast"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 4,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-imagine-1.0",
+    "display_name": "Grok Imagine 1.0",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-imagine-1.0",
+      "grok-imagine-image"
+    ],
+    "aliases": [
+      "grok-imagine-image"
+    ],
+    "pricing_lookup_ids": [
+      "grok-imagine-1.0"
+    ],
+    "preferred_protocol_ids": {
+      "grok": "grok-imagine-image"
+    },
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 5,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-imagine-1.0-edit",
+    "display_name": "Grok Imagine 1.0 Edit",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-imagine-1.0-edit"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "grok-imagine-1.0-edit"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 6,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "grok-imagine-1.0-video",
+    "display_name": "Grok Imagine 1.0 Video",
+    "provider": "grok",
+    "platforms": [
+      "grok"
+    ],
+    "protocol_ids": [
+      "grok-imagine-1.0-video",
+      "grok-imagine-video"
+    ],
+    "aliases": [
+      "grok-imagine-video"
+    ],
+    "pricing_lookup_ids": [
+      "grok-imagine-1.0-video"
+    ],
+    "preferred_protocol_ids": {
+      "grok": "grok-imagine-video"
+    },
+    "modalities": [
+      "text",
+      "video"
+    ],
+    "capabilities": [
+      "video_generation"
+    ],
+    "ui_priority": 7,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "grok-4",
     "display_name": "Grok-4",
     "provider": "grok",
@@ -5820,12 +6060,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 0,
+    "ui_priority": 30,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-4-expert"
   },
   {
     "id": "grok-4-0709",
@@ -5845,12 +6087,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 1,
+    "ui_priority": 31,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-4-expert"
   },
   {
     "id": "grok-3-beta",
@@ -5870,12 +6114,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 2,
+    "ui_priority": 32,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-auto"
   },
   {
     "id": "grok-3-mini-beta",
@@ -5895,12 +6141,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 3,
+    "ui_priority": 33,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-auto"
   },
   {
     "id": "grok-3-fast-beta",
@@ -5920,12 +6168,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 4,
+    "ui_priority": 34,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-3-fast"
   },
   {
     "id": "grok-2",
@@ -5945,12 +6195,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 5,
+    "ui_priority": 35,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-auto"
   },
   {
     "id": "grok-2-vision",
@@ -5973,12 +6225,14 @@
     "capabilities": [
       "image"
     ],
-    "ui_priority": 6,
+    "ui_priority": 36,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-auto"
   },
   {
     "id": "grok-imagine-image",
@@ -6001,12 +6255,14 @@
     "capabilities": [
       "image_generation"
     ],
-    "ui_priority": 7,
+    "ui_priority": 37,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-imagine-1.0"
   },
   {
     "id": "grok-imagine-video",
@@ -6029,12 +6285,14 @@
     "capabilities": [
       "video_generation"
     ],
-    "ui_priority": 8,
+    "ui_priority": 38,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-imagine-1.0-video"
   },
   {
     "id": "grok-2-image",
@@ -6057,12 +6315,14 @@
     "capabilities": [
       "image"
     ],
-    "ui_priority": 9,
+    "ui_priority": 39,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-imagine-1.0"
   },
   {
     "id": "grok-beta",
@@ -6082,12 +6342,14 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 10,
+    "ui_priority": 40,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-auto"
   },
   {
     "id": "grok-vision-beta",
@@ -6110,12 +6372,14 @@
     "capabilities": [
       "image"
     ],
-    "ui_priority": 11,
+    "ui_priority": 41,
     "exposed_in": [
       "runtime",
       "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "replaced_by": "grok-auto"
   },
   {
     "id": "yi-large",

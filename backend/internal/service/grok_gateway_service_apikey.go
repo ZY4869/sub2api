@@ -19,6 +19,9 @@ import (
 func (s *GrokGatewayService) forwardAPIKeyChatCompletions(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
 	reqModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 	mappedModel, mappedBody := grokApplyMappedModel(account, reqModel, body)
+	if grokIsVideoRequestModel(reqModel, mappedModel) {
+		return s.forwardGrokVideoChatCompletions(ctx, c, account, body)
+	}
 	stream := gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
 
@@ -55,6 +58,9 @@ func (s *GrokGatewayService) forwardAPIKeyResponses(ctx context.Context, c *gin.
 	endpoint := grokEndpointResponses + normalizeResponsesSubpath(subpath)
 	reqModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 	mappedModel, mappedBody := grokApplyMappedModel(account, reqModel, body)
+	if method == http.MethodPost && grokIsVideoRequestModel(reqModel, mappedModel) {
+		return s.forwardGrokVideoResponses(ctx, c, account, body)
+	}
 	stream := method == http.MethodPost && gjson.GetBytes(mappedBody, "stream").Bool()
 	startTime := time.Now()
 
@@ -159,67 +165,7 @@ func (s *GrokGatewayService) forwardAPIKeyImageRequest(ctx context.Context, c *g
 }
 
 func (s *GrokGatewayService) forwardAPIKeyVideosGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	reqModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	mappedModel, mappedBody := grokApplyMappedModel(account, reqModel, body)
-	startTime := time.Now()
-	endpoint := grokAPIKeyVideoGenerationEndpoint(mappedBody)
-
-	resp, err := s.doAPIKeyRequest(ctx, c, account, http.MethodPost, endpoint, mappedBody)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode >= 400 {
-		return nil, s.handleHTTPError(ctx, resp, c, account, GrokRouteModeAPIKey)
-	}
-
-	bodyBytes, err := readUpstreamResponseBodyLimited(resp.Body, resolveUpstreamResponseReadLimit(s.cfg))
-	if err != nil {
-		return nil, err
-	}
-	s.writeJSONResponse(c, resp, bodyBytes)
-	requestID := strings.TrimSpace(gjson.GetBytes(bodyBytes, "request_id").String())
-	if requestID == "" {
-		requestID = strings.TrimSpace(gjson.GetBytes(bodyBytes, "id").String())
-	}
-	return &GrokGatewayForwardResult{
-		Result: &ForwardResult{
-			RequestID:     requestID,
-			Model:         reqModel,
-			UpstreamModel: mappedModel,
-			Stream:        false,
-			Duration:      time.Since(startTime),
-			MediaType:     "video",
-		},
-		RouteMode:         GrokRouteModeAPIKey,
-		Endpoint:          endpoint,
-		MediaType:         "video",
-		UpstreamRequestID: requestID,
-		SkipUsageRecord:   true,
-	}, nil
-}
-
-func grokAPIKeyVideoGenerationEndpoint(body []byte) string {
-	if grokVideoEditRequested(body) {
-		return "/v1/videos/edits"
-	}
-	return grokEndpointVideosGen
-}
-
-func grokVideoEditRequested(body []byte) bool {
-	if len(body) == 0 {
-		return false
-	}
-	return strings.TrimSpace(firstNonEmptyString(
-		gjson.GetBytes(body, "video").String(),
-		gjson.GetBytes(body, "video.url").String(),
-		gjson.GetBytes(body, "video_url").String(),
-		gjson.GetBytes(body, "source_video").String(),
-		gjson.GetBytes(body, "source_video.url").String(),
-		gjson.GetBytes(body, "source_video_url").String(),
-		gjson.GetBytes(body, "input_video").String(),
-		gjson.GetBytes(body, "input_video.url").String(),
-	)) != ""
+	return s.forwardGrokVideoCreate(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) forwardAPIKeyVideoStatus(ctx context.Context, c *gin.Context, account *Account, requestID string) (*GrokGatewayForwardResult, error) {
@@ -240,25 +186,29 @@ func (s *GrokGatewayService) forwardAPIKeyVideoStatus(ctx context.Context, c *gi
 	if err != nil {
 		return nil, err
 	}
-	s.writeJSONResponse(c, resp, bodyBytes)
+	videoResult := grokParseVideoResultBody(bodyBytes, "", "")
+	if videoResult == nil {
+		videoResult = &grokVideoResult{
+			RequestID: requestID,
+			Status:    "processing",
+			Provider:  "grok",
+		}
+	}
+	videoResult.RequestID = firstNonEmptyString(strings.TrimSpace(videoResult.RequestID), requestID)
+	c.JSON(http.StatusOK, grokBuildVideoStatusResponse(videoResult))
 
-	model := strings.TrimSpace(firstNonEmptyString(
-		gjson.GetBytes(bodyBytes, "model").String(),
-		gjson.GetBytes(bodyBytes, "data.model").String(),
-	))
-	status := strings.ToLower(strings.TrimSpace(firstNonEmptyString(
-		gjson.GetBytes(bodyBytes, "status").String(),
-		gjson.GetBytes(bodyBytes, "data.status").String(),
-	)))
+	model := strings.TrimSpace(videoResult.Model)
+	status := strings.ToLower(strings.TrimSpace(videoResult.Status))
 	stableRequestID := "grok-video:" + requestID
 	result := &GrokGatewayForwardResult{
 		Result: &ForwardResult{
 			RequestID:     stableRequestID,
 			Model:         model,
-			UpstreamModel: model,
+			UpstreamModel: firstNonEmptyString(strings.TrimSpace(videoResult.UpstreamModel), model),
 			Stream:        false,
 			Duration:      time.Since(startTime),
 			MediaType:     "video",
+			MediaURL:      strings.TrimSpace(videoResult.URL),
 		},
 		RouteMode:         GrokRouteModeAPIKey,
 		Endpoint:          grokEndpointVideosStatus,
@@ -448,6 +398,11 @@ func grokApplyMappedModel(account *Account, requestedModel string, body []byte) 
 	mappedModel := strings.TrimSpace(requestedModel)
 	if account != nil && requestedModel != "" {
 		mappedModel = account.GetMappedModel(requestedModel)
+		if mappedModel == requestedModel && account.IsGrokAPIKey() {
+			if resolved := GrokAPIKeyResolvedUpstreamModel(requestedModel); resolved != "" {
+				mappedModel = resolved
+			}
+		}
 	}
 	if requestedModel == "" || mappedModel == "" || mappedModel == requestedModel || len(body) == 0 {
 		return mappedModel, body
@@ -500,7 +455,7 @@ func grokExtractImageResponse(body []byte) (int, string) {
 
 func grokIsTerminalVideoStatus(status string) bool {
 	switch strings.TrimSpace(strings.ToLower(status)) {
-	case "completed", "succeeded", "failed", "error", "cancelled":
+	case "completed", "done", "succeeded", "failed", "error", "cancelled", "canceled", "expired":
 		return true
 	default:
 		return false

@@ -136,19 +136,19 @@ func (s *GeminiMessagesCompatService) buildGoogleBatchSelectorBestEffort(ctx con
 
 func (s *GeminiMessagesCompatService) resolveGoogleBatchInputMetadata(ctx context.Context, input GoogleBatchForwardInput) (googleBatchResolvedInputMetadata, error) {
 	metadata := googleBatchResolvedInputMetadata{
-		requestedModel:      strings.TrimSpace(extractGoogleBatchModelID(input.Path, input.Body)),
-		estimatedTokens:     estimateGoogleBatchTokensFromPayload(input.Body),
 		sourceProtocol:      publicGoogleBatchProtocol(input.Path),
 		sourceResourceNames: uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")),
 	}
-	if metadata.requestedModel != "" {
-		metadata.modelFamily = normalizeGoogleBatchModelFamily(metadata.requestedModel)
-	}
+	metadata.requestedModel = strings.TrimSpace(extractGoogleBatchModelID(input.Path, input.Body))
 	bindings, err := s.resolveGoogleBatchReferencedFileBindings(ctx, metadata.sourceResourceNames)
 	if err != nil {
 		return metadata, err
 	}
-	mergeGoogleBatchResolvedInputMetadataFromBindings(&metadata, bindings)
+	if len(bindings) > 0 {
+		mergeGoogleBatchResolvedInputMetadataFromBindings(&metadata, bindings)
+	} else {
+		metadata.estimatedTokens = estimateGoogleBatchTokensFromPayload(input.Body)
+	}
 	if metadata.modelFamily == "" {
 		metadata.modelFamily = normalizeGoogleBatchModelFamily(metadata.requestedModel)
 	}
@@ -188,13 +188,13 @@ func mergeGoogleBatchResolvedInputMetadataFromBindings(metadata *googleBatchReso
 	if requestedModel := stableGoogleBatchBindingMetadataString(bindings, googleBatchBindingMetadataRequestedModel); metadata.requestedModel == "" && requestedModel != "" {
 		metadata.requestedModel = requestedModel
 	}
-	if modelFamily := stableGoogleBatchBindingMetadataString(bindings, googleBatchBindingMetadataModelFamily); metadata.modelFamily == "" && modelFamily != "" {
+	if modelFamily := stableGoogleBatchBindingMetadataString(bindings, googleBatchBindingMetadataModelFamily); modelFamily != "" {
 		metadata.modelFamily = modelFamily
 	}
 	if estimatedTokens := sumGoogleBatchBindingEstimatedTokens(bindings); estimatedTokens > 0 {
 		metadata.estimatedTokens = estimatedTokens
 	}
-	if sourceProtocol := stableGoogleBatchBindingMetadataString(bindings, googleBatchBindingMetadataSourceProtocol); metadata.sourceProtocol == "" && sourceProtocol != "" {
+	if sourceProtocol := stableGoogleBatchBindingMetadataString(bindings, googleBatchBindingMetadataSourceProtocol); sourceProtocol != "" {
 		metadata.sourceProtocol = sourceProtocol
 	}
 }

@@ -1,21 +1,17 @@
 export type GrokTier = 'basic' | 'super' | 'heavy'
 
 export const GROK_SHARED_MODEL_IDS = [
-  'grok-3-beta',
-  'grok-3-mini-beta',
-  'grok-3-fast-beta',
-  'grok-2',
-  'grok-2-vision',
-  'grok-imagine-image',
-  'grok-imagine-video',
-  'grok-2-image',
-  'grok-beta',
-  'grok-vision-beta'
+  'grok-auto',
+  'grok-3-fast',
+  'grok-4-expert',
+  'grok-imagine-1.0-fast',
+  'grok-imagine-1.0',
+  'grok-imagine-1.0-edit',
+  'grok-imagine-1.0-video'
 ] as const
 
 export const GROK_HEAVY_ONLY_MODEL_IDS = [
-  'grok-4',
-  'grok-4-0709'
+  'grok-4-heavy'
 ] as const
 
 export function normalizeGrokTier(value: unknown): GrokTier {

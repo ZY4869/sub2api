@@ -19,21 +19,17 @@ type GrokCapabilities struct {
 }
 
 var grokSharedModelIDs = []string{
-	"grok-3-beta",
-	"grok-3-mini-beta",
-	"grok-3-fast-beta",
-	"grok-2",
-	"grok-2-vision",
-	"grok-imagine-image",
-	"grok-imagine-video",
-	"grok-2-image",
-	"grok-beta",
-	"grok-vision-beta",
+	GrokModelAuto,
+	GrokModel3Fast,
+	GrokModel4Expert,
+	GrokModelImagineFast,
+	GrokModelImagine,
+	GrokModelImagineEdit,
+	GrokModelImagineVideo,
 }
 
 var grokHeavyOnlyModelIDs = []string{
-	"grok-4",
-	"grok-4-0709",
+	GrokModel4Heavy,
 }
 
 func NormalizeGrokTierValue(value string) string {
@@ -124,12 +120,7 @@ func ResolveGrokCapabilities(extra map[string]any) GrokCapabilities {
 }
 
 func DefaultGrokModelIDsForTier(tier string) []string {
-	models := make([]string, 0, len(grokSharedModelIDs)+len(grokHeavyOnlyModelIDs))
-	models = append(models, grokSharedModelIDs...)
-	if NormalizeGrokTierValue(tier) == GrokTierHeavy {
-		models = append(models, grokHeavyOnlyModelIDs...)
-	}
-	return models
+	return GrokDefaultPublicModelIDsForTier(tier)
 }
 
 func DefaultGrokModelMappingForTier(tier string) map[string]any {
@@ -142,12 +133,7 @@ func DefaultGrokModelMappingForTier(tier string) map[string]any {
 }
 
 func IsGrokHeavyModel(modelID string) bool {
-	switch strings.TrimSpace(strings.ToLower(modelID)) {
-	case "grok-4", "grok-4-0709":
-		return true
-	default:
-		return false
-	}
+	return NormalizeGrokPublicModelID(modelID) == GrokModel4Heavy
 }
 
 func NormalizeGrokCredentialValue(kind string, value string) string {

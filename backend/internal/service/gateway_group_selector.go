@@ -222,17 +222,20 @@ func bindingMatchesModel(patterns []string, model string) (explicit bool, matche
 		return false, true
 	}
 
-	trimmedModel := strings.TrimSpace(model)
+	candidates := []string{strings.TrimSpace(model)}
+	candidates = append(candidates, grokModelMatchCandidates(model)...)
 	for _, pattern := range patterns {
 		trimmed := strings.TrimSpace(pattern)
 		if trimmed == "" {
 			continue
 		}
-		if ok, err := path.Match(trimmed, trimmedModel); err == nil && ok {
-			return true, true
-		}
-		if matchModelPattern(trimmed, trimmedModel) {
-			return true, true
+		for _, candidate := range dedupeStrings(candidates) {
+			if ok, err := path.Match(trimmed, candidate); err == nil && ok {
+				return true, true
+			}
+			if matchModelPattern(trimmed, candidate) {
+				return true, true
+			}
 		}
 	}
 	return true, false

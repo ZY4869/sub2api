@@ -46,6 +46,9 @@ func (s *GrokGatewayService) forwardSSOChatCompletions(ctx context.Context, c *g
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Failed to parse request body"}})
 		return nil, fmt.Errorf("parse grok chat request: %w", err)
 	}
+	if grokIsVideoRequestModel(req.Model) {
+		return s.forwardGrokVideoChatCompletions(ctx, c, account, body)
+	}
 	prompt := grokChatPrompt(req.Messages)
 	modeID := strings.TrimSpace(gjson.GetBytes(body, "mode_id").String())
 	validation, err := s.validateSSORequest(account, req.Model, "chat", body)
@@ -118,6 +121,9 @@ func (s *GrokGatewayService) forwardSSOResponses(ctx context.Context, c *gin.Con
 	if err := json.Unmarshal(body, &req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": "Failed to parse request body"}})
 		return nil, fmt.Errorf("parse grok responses request: %w", err)
+	}
+	if grokIsVideoRequestModel(req.Model) {
+		return s.forwardGrokVideoResponses(ctx, c, account, body)
 	}
 	prompt := grokResponsesPrompt(req.Input)
 	modeID := strings.TrimSpace(gjson.GetBytes(body, "mode_id").String())
@@ -192,7 +198,7 @@ func (s *GrokGatewayService) forwardSSOImagesEdits(ctx context.Context, c *gin.C
 func (s *GrokGatewayService) forwardSSOImageWorkflow(ctx context.Context, c *gin.Context, account *Account, body []byte, endpoint string) (*GrokGatewayForwardResult, error) {
 	reqModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
 	if reqModel == "" {
-		reqModel = "grok-imagine-image"
+		reqModel = GrokModelImagine
 	}
 	prompt := strings.TrimSpace(gjson.GetBytes(body, "prompt").String())
 	modeID := strings.TrimSpace(gjson.GetBytes(body, "mode_id").String())
@@ -239,40 +245,7 @@ func (s *GrokGatewayService) forwardSSOImageWorkflow(ctx context.Context, c *gin
 }
 
 func (s *GrokGatewayService) forwardSSOVideosGeneration(ctx context.Context, c *gin.Context, account *Account, body []byte) (*GrokGatewayForwardResult, error) {
-	reqModel := strings.TrimSpace(gjson.GetBytes(body, "model").String())
-	if reqModel == "" {
-		reqModel = "grok-imagine-video"
-	}
-	prompt := strings.TrimSpace(gjson.GetBytes(body, "prompt").String())
-	modeID := strings.TrimSpace(gjson.GetBytes(body, "mode_id").String())
-	validation, err := s.validateSSORequest(account, reqModel, "video", body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"type": "invalid_request_error", "message": err.Error()}})
-		return nil, err
-	}
-	exec, err := s.executeSSOReverseRequest(ctx, account, validation.MappedModel, modeID, prompt, map[string]any{"media_type": "video"})
-	if err != nil {
-		return nil, err
-	}
-	requestID := grokEncodeReverseVideoRequestID(exec.ConversationID, exec.ResponseID)
-	c.JSON(http.StatusOK, gin.H{
-		"request_id": requestID,
-		"status":     "processing",
-	})
-	return &GrokGatewayForwardResult{
-		Result: &ForwardResult{
-			RequestID:     requestID,
-			Model:         reqModel,
-			UpstreamModel: validation.MappedModel,
-			Stream:        false,
-			MediaType:     "video",
-		},
-		RouteMode:         GrokRouteModeSSO,
-		Endpoint:          grokEndpointVideosGen,
-		MediaType:         "video",
-		UpstreamRequestID: exec.ResponseID,
-		SkipUsageRecord:   true,
-	}, nil
+	return s.forwardGrokVideoCreate(ctx, c, account, body)
 }
 
 func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.Context, account *Account, requestID string) (*GrokGatewayForwardResult, error) {
@@ -303,38 +276,27 @@ func (s *GrokGatewayService) forwardSSOVideoStatus(ctx context.Context, c *gin.C
 	if err != nil {
 		return nil, err
 	}
-
-	videoURLs := grokCollectURLsFromJSON(bodyBytes, true)
-	status := strings.ToLower(strings.TrimSpace(firstNonEmptyString(
-		gjson.GetBytes(bodyBytes, "status").String(),
-		gjson.GetBytes(bodyBytes, "task.status").String(),
-		gjson.GetBytes(bodyBytes, "taskResult.status").String(),
-	)))
-	if status == "" {
-		if len(videoURLs) > 0 {
-			status = "completed"
-		} else {
-			status = "processing"
+	videoResult := grokParseVideoResultBody(bodyBytes, "", "")
+	if videoResult == nil {
+		videoResult = &grokVideoResult{
+			Status:   "processing",
+			Provider: "grok",
 		}
 	}
-	model := strings.TrimSpace(firstNonEmptyString(
-		gjson.GetBytes(bodyBytes, "model").String(),
-		gjson.GetBytes(bodyBytes, "task.model").String(),
-	))
-	c.JSON(http.StatusOK, gin.H{
-		"request_id": requestID,
-		"status":     status,
-		"data":       grokVideoData(videoURLs),
-	})
+	videoResult.RequestID = requestID
+	c.JSON(http.StatusOK, grokBuildVideoStatusResponse(videoResult))
+
+	status := strings.ToLower(strings.TrimSpace(videoResult.Status))
+	model := strings.TrimSpace(videoResult.Model)
 
 	result := &GrokGatewayForwardResult{
 		Result: &ForwardResult{
 			RequestID:     "grok-video:" + requestID,
 			Model:         model,
-			UpstreamModel: model,
+			UpstreamModel: firstNonEmptyString(strings.TrimSpace(videoResult.UpstreamModel), model),
 			Stream:        false,
 			MediaType:     "video",
-			MediaURL:      firstMediaURL(videoURLs),
+			MediaURL:      strings.TrimSpace(videoResult.URL),
 		},
 		RouteMode:         GrokRouteModeSSO,
 		Endpoint:          grokEndpointVideosStatus,
@@ -364,6 +326,7 @@ func (s *GrokGatewayService) validateSSORequest(account *Account, requestedModel
 	if requestedModel == "" {
 		return nil, fmt.Errorf("model is required")
 	}
+	requestedModel = NormalizeGrokPublicModelID(requestedModel)
 	mappedModel, matched := account.ResolveMappedModel(requestedModel)
 	if len(account.GetModelMapping()) > 0 && !matched {
 		return nil, fmt.Errorf("model %s is not enabled for this Grok account", requestedModel)
@@ -880,14 +843,6 @@ func grokMediaTypeForExec(exec *grokReverseExecution) string {
 }
 
 func grokImageData(urls []string) []gin.H {
-	items := make([]gin.H, 0, len(urls))
-	for _, url := range urls {
-		items = append(items, gin.H{"url": url})
-	}
-	return items
-}
-
-func grokVideoData(urls []string) []gin.H {
 	items := make([]gin.H, 0, len(urls))
 	for _, url := range urls {
 		items = append(items, gin.H{"url": url})

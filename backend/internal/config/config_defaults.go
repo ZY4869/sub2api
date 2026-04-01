@@ -223,6 +223,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.proxy_probe_response_read_max_bytes", int64(1024*1024))
 	viper.SetDefault("gateway.gemini_debug_response_headers", false)
 	viper.SetDefault("gateway.sora_max_body_size", defaultMaxBodySizeBytes)
+	viper.SetDefault("gateway.grok_video_poll_interval_seconds", 2)
+	viper.SetDefault("gateway.grok_video_wait_timeout_seconds", 180)
 	viper.SetDefault("gateway.sora_stream_timeout_seconds", 900)
 	viper.SetDefault("gateway.sora_request_timeout_seconds", 180)
 	viper.SetDefault("gateway.sora_stream_mode", "force")

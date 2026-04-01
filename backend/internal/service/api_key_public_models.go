@@ -119,7 +119,7 @@ func (s *GatewayService) publicModelEntriesForAccount(
 	}
 
 	if savedSummary := AccountSavedModelProbeSummary(account); savedSummary != nil {
-		return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, savedSummary), nil
+		return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, savedSummary, account), nil
 	}
 	if s.accountModelImportService == nil {
 		return nil, nil
@@ -144,7 +144,7 @@ func (s *GatewayService) publicModelEntriesForAccount(
 			AccountModelProbeSnapshotSourcePublicModelsLive,
 		)
 	}
-	return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary), nil
+	return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary, account), nil
 }
 
 func (s *GatewayService) bestEffortPersistAccountModelProbeSnapshot(
@@ -197,6 +197,7 @@ func projectProbeSummaryToPublicEntries(
 	modelPatterns []string,
 	mapping map[string]string,
 	probeSummary *AccountModelProbeSummary,
+	account *Account,
 ) []APIKeyPublicModelEntry {
 	if probeSummary == nil {
 		return nil
@@ -230,6 +231,17 @@ func projectProbeSummaryToPublicEntries(
 
 	candidates := make([]apiKeyPublicProjectionCandidate, 0, len(detectedSet))
 	if len(mapping) == 0 {
+		if account != nil && account.IsGrokAPIKey() && strings.EqualFold(platform, PlatformGrok) {
+			for sourceID, detail := range detectedSet {
+				publicID := grokPublicModelForDetectedSource(sourceID)
+				candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, publicID, sourceID, platform)
+				if !ok {
+					continue
+				}
+				candidate.DisplayName = strings.TrimSpace(detail.DisplayName)
+				candidates = append(candidates, candidate)
+			}
+		} else {
 		for sourceID, detail := range detectedSet {
 			candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, sourceID, sourceID, platform)
 			if !ok {
@@ -237,6 +249,7 @@ func projectProbeSummaryToPublicEntries(
 			}
 			candidate.DisplayName = strings.TrimSpace(detail.DisplayName)
 			candidates = append(candidates, candidate)
+		}
 		}
 	} else {
 		for alias, source := range mapping {
@@ -258,7 +271,11 @@ func projectProbeSummaryToPublicEntries(
 		if !ok {
 			continue
 		}
-		if _, exists := projected[sourceID]; exists {
+		publicID := apiKeyPublicProjectionPublicID(platform, candidate, sourceID)
+		if publicID == "" {
+			publicID = sourceID
+		}
+		if _, exists := projected[publicID]; exists {
 			continue
 		}
 		displayName := strings.TrimSpace(detail.DisplayName)
@@ -268,8 +285,8 @@ func projectProbeSummaryToPublicEntries(
 		if displayName == "" {
 			displayName = FormatModelCatalogDisplayName(sourceID)
 		}
-		projected[sourceID] = APIKeyPublicModelEntry{
-			PublicID:    sourceID,
+		projected[publicID] = APIKeyPublicModelEntry{
+			PublicID:    publicID,
 			AliasID:     candidate.AliasID,
 			SourceID:    sourceID,
 			DisplayName: displayName,
@@ -496,4 +513,20 @@ func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) 
 			Platform:    platform,
 		}, true
 	}
+}
+
+func apiKeyPublicProjectionPublicID(platform string, candidate apiKeyPublicProjectionCandidate, sourceID string) string {
+	if !strings.EqualFold(platform, PlatformGrok) {
+		return sourceID
+	}
+	if aliasID := normalizeRegistryID(candidate.AliasID); aliasID != "" && aliasID != sourceID {
+		return aliasID
+	}
+	if matchID := normalizeRegistryID(candidate.MatchID); matchID != "" && matchID != sourceID {
+		return matchID
+	}
+	if publicID := grokPublicModelForDetectedSource(sourceID); publicID != "" {
+		return publicID
+	}
+	return sourceID
 }

@@ -127,6 +127,13 @@ func RegisterGatewayRoutes(
 			}
 			writeGrokAliasUnavailable(c, "/v1/images/edits")
 		})
+		gateway.POST("/videos", func(c *gin.Context) {
+			if isGrokGroup(c) {
+				h.GrokGateway.VideosGeneration(c)
+				return
+			}
+			writeGrokAliasUnavailable(c, "/v1/videos")
+		})
 		gateway.POST("/videos/generations", func(c *gin.Context) {
 			if isGrokGroup(c) {
 				h.GrokGateway.VideosGeneration(c)
@@ -162,6 +169,7 @@ func RegisterGatewayRoutes(
 		grokV1.DELETE("/responses/*subpath", h.GrokGateway.Responses)
 		grokV1.POST("/images/generations", h.GrokGateway.ImagesGeneration)
 		grokV1.POST("/images/edits", h.GrokGateway.ImagesEdits)
+		grokV1.POST("/videos", h.GrokGateway.VideosGeneration)
 		grokV1.POST("/videos/generations", h.GrokGateway.VideosGeneration)
 		grokV1.GET("/videos/:request_id", h.GrokGateway.VideoStatus)
 	}
@@ -268,6 +276,13 @@ func RegisterGatewayRoutes(
 			return
 		}
 		writeGrokAliasUnavailable(c, "/images/edits")
+	})
+	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+		if isGrokGroup(c) {
+			h.GrokGateway.VideosGeneration(c)
+			return
+		}
+		writeGrokAliasUnavailable(c, "/videos")
 	})
 	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {

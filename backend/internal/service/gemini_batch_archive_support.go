@@ -92,6 +92,11 @@ func (s *GeminiMessagesCompatService) storeGoogleBatchArchiveObjectBytes(ctx con
 			return err
 		}
 	}
+	if object.IsResultPayload && strings.EqualFold(strings.TrimSpace(object.PublicResourceKind), GoogleBatchArchiveResourceKindFile) {
+		if err := s.enrichBindingMetadata(ctx, UpstreamResourceKindGeminiFile, object.PublicResourceName, buildGoogleBatchArchiveFileBindingMetadata(job, object)); err != nil {
+			return err
+		}
+	}
 	return s.persistGoogleBatchArchiveManifest(ctx, settings, job)
 }
 
@@ -116,6 +121,11 @@ func (s *GeminiMessagesCompatService) storeGoogleBatchArchiveObjectReader(ctx co
 	if object.IsResultPayload && job.ArchiveState != GoogleBatchArchiveLifecycleArchived {
 		job.ArchiveState = GoogleBatchArchiveLifecycleArchived
 		if err := s.upsertGoogleBatchArchiveJob(ctx, job); err != nil {
+			return err
+		}
+	}
+	if object.IsResultPayload && strings.EqualFold(strings.TrimSpace(object.PublicResourceKind), GoogleBatchArchiveResourceKindFile) {
+		if err := s.enrichBindingMetadata(ctx, UpstreamResourceKindGeminiFile, object.PublicResourceName, buildGoogleBatchArchiveFileBindingMetadata(job, object)); err != nil {
 			return err
 		}
 	}
@@ -181,6 +191,37 @@ func (s *GeminiMessagesCompatService) buildGoogleBatchBinaryStreamResult(content
 		Body:          body,
 		ContentLength: contentLength,
 	}
+}
+
+func buildGoogleBatchArchiveFileBindingMetadata(job *GoogleBatchArchiveJob, object *GoogleBatchArchiveObject) map[string]any {
+	if job == nil {
+		return nil
+	}
+	metadata := map[string]any{
+		googleBatchBindingMetadataArchiveJobID:         job.ID,
+		googleBatchBindingMetadataPublicProtocol:       archivePublicProtocol(job),
+		googleBatchBindingMetadataExecutionProtocol:    archiveExecutionProtocol(job),
+		googleBatchBindingMetadataVirtualResource:      archiveVirtualResource(job),
+		"public_batch_name":                            strings.TrimSpace(job.PublicBatchName),
+		googleBatchBindingMetadataPublicResultFileName: archiveResultFileName(job, object),
+		googleBatchBindingMetadataOfficialResultName:   metadataMapForArchiveJob(job)[googleBatchBindingMetadataOfficialResultName],
+		googleBatchBindingMetadataConversionDirection:  job.ConversionDirection,
+		googleBatchBindingMetadataRequestedModel:       archiveRequestedModel(job, nil),
+		googleBatchBindingMetadataModelFamily:          metadataMapForArchiveJob(job)[googleBatchBindingMetadataModelFamily],
+		googleBatchBindingMetadataEstimatedTokens:      metadataMapForArchiveJob(job)[googleBatchBindingMetadataEstimatedTokens],
+		googleBatchBindingMetadataSourceProtocol:       metadataMapForArchiveJob(job)[googleBatchBindingMetadataSourceProtocol],
+		googleBatchBindingMetadataSourceResourceNames:  metadataMapForArchiveJob(job)[googleBatchBindingMetadataSourceResourceNames],
+		googleBatchBindingMetadataUploadedAt:           time.Now().UTC().Format(time.RFC3339),
+	}
+	for _, key := range []string{"staging_profile_id", "vertex_input_object", "vertex_output_prefix_object"} {
+		if value, ok := metadataString(metadataMapForArchiveJob(job), key); ok && value != "" {
+			metadata[key] = value
+		}
+	}
+	if object != nil && strings.TrimSpace(object.SHA256) != "" {
+		metadata[googleBatchBindingMetadataContentDigest] = strings.TrimSpace(object.SHA256)
+	}
+	return buildGoogleBatchBindingMetadata(metadata)
 }
 
 func (s *GeminiMessagesCompatService) openGoogleBatchArchiveObjectStreamResult(settings *GoogleBatchArchiveSettings, object *GoogleBatchArchiveObject, filename string) (*UpstreamHTTPStreamResult, error) {

@@ -33,11 +33,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-03-28T05:48:35Z"
+export const generatedModelRegistryBuiltAt = "2026-04-01T10:45:15Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"2f2be371da1f30fea1a92fc12e609bc63bfb1902f3e2527fb21670deb8887453\"",
-  "updated_at": "2026-03-28T05:48:35Z",
+  "etag": "W/\"bb002c4ad8a2723d905fd54014fb2a205cf11ebf789b18d89dcf6b885af2c277\"",
+  "updated_at": "2026-04-01T10:45:15Z",
   "models": [
     {
       "id": "abab6.5-chat",
@@ -292,18 +292,20 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-4",
-      "display_name": "Grok-4",
+      "id": "grok-auto",
+      "display_name": "Grok Auto",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4"
+        "grok-auto"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-beta"
+      ],
       "pricing_lookup_ids": [
-        "grok-4"
+        "grok-auto"
       ],
       "modalities": [
         "text"
@@ -750,19 +752,25 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-4-0709",
-      "display_name": "Grok-4-0709",
+      "id": "grok-3-fast",
+      "display_name": "Grok 3 Fast",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-4-0709"
+        "grok-3-fast",
+        "grok-3-fast-beta"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-3-fast-beta"
+      ],
       "pricing_lookup_ids": [
-        "grok-4-0709"
+        "grok-3-fast"
       ],
+      "preferred_protocol_ids": {
+        "grok": "grok-3-fast-beta"
+      },
       "modalities": [
         "text"
       ],
@@ -1205,19 +1213,27 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-3-beta",
-      "display_name": "Grok-3-beta",
+      "id": "grok-4-expert",
+      "display_name": "Grok 4 Expert",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-3-beta"
+        "grok-4-expert",
+        "grok-4",
+        "grok-4-0709"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-4",
+        "grok-4-0709"
+      ],
       "pricing_lookup_ids": [
-        "grok-3-beta"
+        "grok-4-expert"
       ],
+      "preferred_protocol_ids": {
+        "grok": "grok-4"
+      },
       "modalities": [
         "text"
       ],
@@ -1607,18 +1623,18 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-3-mini-beta",
-      "display_name": "Grok-3-mini-beta",
+      "id": "grok-4-heavy",
+      "display_name": "Grok 4 Heavy",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-3-mini-beta"
+        "grok-4-heavy"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-3-mini-beta"
+        "grok-4-heavy"
       ],
       "modalities": [
         "text"
@@ -2029,23 +2045,26 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-3-fast-beta",
-      "display_name": "Grok-3-fast-beta",
+      "id": "grok-imagine-1.0-fast",
+      "display_name": "Grok Imagine 1.0 Fast",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-3-fast-beta"
+        "grok-imagine-1.0-fast"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-3-fast-beta"
+        "grok-imagine-1.0-fast"
       ],
       "modalities": [
-        "text"
+        "text",
+        "image"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation"
+      ],
       "ui_priority": 4,
       "exposed_in": [
         "runtime",
@@ -2427,23 +2446,32 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-2",
-      "display_name": "Grok-2",
+      "id": "grok-imagine-1.0",
+      "display_name": "Grok Imagine 1.0",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-2"
+        "grok-imagine-1.0",
+        "grok-imagine-image"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-imagine-image"
+      ],
       "pricing_lookup_ids": [
-        "grok-2"
+        "grok-imagine-1.0"
       ],
+      "preferred_protocol_ids": {
+        "grok": "grok-imagine-image"
+      },
       "modalities": [
-        "text"
+        "text",
+        "image"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation"
+      ],
       "ui_priority": 5,
       "exposed_in": [
         "runtime",
@@ -2851,25 +2879,25 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-2-vision",
-      "display_name": "Grok-2-vision",
+      "id": "grok-imagine-1.0-edit",
+      "display_name": "Grok Imagine 1.0 Edit",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-2-vision"
+        "grok-imagine-1.0-edit"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "grok-2-vision"
+        "grok-imagine-1.0-edit"
       ],
       "modalities": [
         "text",
         "image"
       ],
       "capabilities": [
-        "image"
+        "image_generation"
       ],
       "ui_priority": 6,
       "exposed_in": [
@@ -3240,25 +3268,31 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-imagine-image",
-      "display_name": "Grok Imagine Image",
+      "id": "grok-imagine-1.0-video",
+      "display_name": "Grok Imagine 1.0 Video",
       "provider": "grok",
       "platforms": [
         "grok"
       ],
       "protocol_ids": [
-        "grok-imagine-image"
+        "grok-imagine-1.0-video",
+        "grok-imagine-video"
       ],
-      "aliases": [],
+      "aliases": [
+        "grok-imagine-video"
+      ],
       "pricing_lookup_ids": [
-        "grok-imagine-image"
+        "grok-imagine-1.0-video"
       ],
+      "preferred_protocol_ids": {
+        "grok": "grok-imagine-video"
+      },
       "modalities": [
         "text",
-        "image"
+        "video"
       ],
       "capabilities": [
-        "image_generation"
+        "video_generation"
       ],
       "ui_priority": 7,
       "exposed_in": [
@@ -3550,34 +3584,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-imagine-video",
-      "display_name": "Grok Imagine Video",
-      "provider": "grok",
-      "platforms": [
-        "grok"
-      ],
-      "protocol_ids": [
-        "grok-imagine-video"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-imagine-video"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video_generation"
-      ],
-      "ui_priority": 8,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
       "id": "llama-3-70b-instruct",
       "display_name": "Llama-3-70b-instruct",
       "provider": "meta",
@@ -3858,34 +3864,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 9,
       "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-2-image",
-      "display_name": "Grok-2-image",
-      "provider": "grok",
-      "platforms": [
-        "grok"
-      ],
-      "protocol_ids": [
-        "grok-2-image"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-2-image"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 9,
-      "exposed_in": [
-        "runtime",
-        "test",
         "whitelist"
       ]
     },
@@ -4194,31 +4172,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "grok-beta",
-      "display_name": "Grok-beta",
-      "provider": "grok",
-      "platforms": [
-        "grok"
-      ],
-      "protocol_ids": [
-        "grok-beta"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-beta"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
       "id": "qwen2.5-14b-instruct",
       "display_name": "Qwen2.5-14b-instruct",
       "provider": "qwen",
@@ -4404,34 +4357,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 11,
       "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "grok-vision-beta",
-      "display_name": "Grok-vision-beta",
-      "provider": "grok",
-      "platforms": [
-        "grok"
-      ],
-      "protocol_ids": [
-        "grok-vision-beta"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "grok-vision-beta"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 11,
-      "exposed_in": [
-        "runtime",
-        "test",
         "whitelist"
       ]
     },
@@ -5880,6 +5805,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-4",
+      "display_name": "Grok-4",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 30,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-4-expert"
+    },
+    {
       "id": "gpt-5-pro-2025-10-06",
       "display_name": "GPT-5-pro-2025-10-06",
       "provider": "openai",
@@ -5901,6 +5853,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "whitelist"
       ]
+    },
+    {
+      "id": "grok-4-0709",
+      "display_name": "Grok-4-0709",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-4-0709"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-4-0709"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 31,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-4-expert"
     },
     {
       "id": "gpt-5-mini",
@@ -5926,6 +5905,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-3-beta",
+      "display_name": "Grok-3-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-3-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-3-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 32,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-auto"
+    },
+    {
       "id": "gpt-5-mini-2025-08-07",
       "display_name": "GPT-5-mini-2025-08-07",
       "provider": "openai",
@@ -5947,6 +5953,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "whitelist"
       ]
+    },
+    {
+      "id": "grok-3-mini-beta",
+      "display_name": "Grok-3-mini-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-3-mini-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-3-mini-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 33,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-auto"
     },
     {
       "id": "gpt-5-nano",
@@ -5972,6 +6005,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-3-fast-beta",
+      "display_name": "Grok-3-fast-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-3-fast-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-3-fast-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 34,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-3-fast"
+    },
+    {
       "id": "gpt-5-nano-2025-08-07",
       "display_name": "GPT-5-nano-2025-08-07",
       "provider": "openai",
@@ -5993,6 +6053,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "whitelist"
       ]
+    },
+    {
+      "id": "grok-2",
+      "display_name": "Grok-2",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-2"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-2"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 35,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-auto"
     },
     {
       "id": "gpt-5.1",
@@ -6020,6 +6107,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-2-vision",
+      "display_name": "Grok-2-vision",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-2-vision"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-2-vision"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 36,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-auto"
+    },
+    {
       "id": "gpt-5.1-2025-11-13",
       "display_name": "GPT-5.1-2025-11-13",
       "provider": "openai",
@@ -6043,6 +6160,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-imagine-image",
+      "display_name": "Grok Imagine Image",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-imagine-image"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-imagine-image"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 37,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-imagine-1.0"
+    },
+    {
       "id": "gpt-5.1-chat-latest",
       "display_name": "GPT-5.1-chat-latest",
       "provider": "openai",
@@ -6064,6 +6211,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "whitelist"
       ]
+    },
+    {
+      "id": "grok-imagine-video",
+      "display_name": "Grok Imagine Video",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-imagine-video"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-imagine-video"
+      ],
+      "modalities": [
+        "text",
+        "video"
+      ],
+      "capabilities": [
+        "video_generation"
+      ],
+      "ui_priority": 38,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-imagine-1.0-video"
     },
     {
       "id": "gpt-5.1-codex",
@@ -6093,6 +6270,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "replaced_by": "gpt-5-codex"
     },
     {
+      "id": "grok-2-image",
+      "display_name": "Grok-2-image",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-2-image"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-2-image"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 39,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-imagine-1.0"
+    },
+    {
       "id": "gpt-5.1-codex-max",
       "display_name": "GPT-5.1 Codex Max",
       "provider": "openai",
@@ -6118,6 +6325,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "grok-beta",
+      "display_name": "Grok-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-beta"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 40,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-auto"
+    },
+    {
       "id": "gpt-5.1-codex-mini",
       "display_name": "GPT-5.1 Codex Mini",
       "provider": "openai",
@@ -6141,6 +6375,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "test",
         "whitelist"
       ]
+    },
+    {
+      "id": "grok-vision-beta",
+      "display_name": "Grok-vision-beta",
+      "provider": "grok",
+      "platforms": [
+        "grok"
+      ],
+      "protocol_ids": [
+        "grok-vision-beta"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "grok-vision-beta"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image"
+      ],
+      "ui_priority": 41,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "replaced_by": "grok-auto"
     },
     {
       "id": "gpt-5.2",

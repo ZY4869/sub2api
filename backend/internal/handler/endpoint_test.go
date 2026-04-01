@@ -25,12 +25,15 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1/messages", EndpointMessages},
 		{"/v1/chat/completions", EndpointChatCompletions},
 		{"/v1/responses", EndpointResponses},
+		{"/v1/videos", EndpointVideosCreate},
+		{"/v1/videos/generations", EndpointVideosCreate},
 		{"/v1beta/models", EndpointGeminiModels},
 
 		// Prefixed paths (antigravity, openai, sora).
 		{"/antigravity/v1/messages", EndpointMessages},
 		{"/openai/v1/responses", EndpointResponses},
 		{"/openai/v1/responses/compact", EndpointResponses},
+		{"/grok/v1/videos", EndpointVideosCreate},
 		{"/sora/v1/chat/completions", EndpointChatCompletions},
 		{"/antigravity/v1beta/models/gemini:generateContent", EndpointGeminiModels},
 
@@ -70,6 +73,10 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 
 		// Sora.
 		{"sora completions", EndpointChatCompletions, "/sora/v1/chat/completions", service.PlatformSora, EndpointChatCompletions},
+
+		// Grok videos.
+		{"grok videos create canonical", EndpointVideosCreate, "/v1/videos", service.PlatformGrok, EndpointVideosGen},
+		{"grok videos create alias", EndpointVideosCreate, "/v1/videos/generations", service.PlatformGrok, EndpointVideosGen},
 
 		// OpenAI — always /v1/responses.
 		{"openai responses root", EndpointResponses, "/v1/responses", service.PlatformOpenAI, EndpointResponses},

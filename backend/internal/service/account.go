@@ -437,6 +437,10 @@ func (a *Account) resolveModelMapping(rawMapping map[string]any) map[string]stri
 		return nil
 	}
 
+	if a.Platform == domain.PlatformGrok {
+		rawMapping = normalizeGrokModelMappingForStorage(a.Type, rawMapping, ResolveGrokTier(a.Extra))
+	}
+
 	result := make(map[string]string)
 	for k, v := range rawMapping {
 		if s, ok := v.(string); ok {
@@ -521,6 +525,22 @@ func (a *Account) IsModelSupported(requestedModel string) bool {
 		return true // 无映射 = 允许所有
 	}
 	// 精确匹配
+	if a.Platform == domain.PlatformGrok {
+		candidates := grokModelMatchCandidates(requestedModel)
+		for _, candidate := range candidates {
+			if _, exists := mapping[candidate]; exists {
+				return true
+			}
+		}
+		for pattern := range mapping {
+			for _, candidate := range candidates {
+				if matchWildcard(pattern, candidate) {
+					return true
+				}
+			}
+		}
+		return false
+	}
 	if _, exists := mapping[requestedModel]; exists {
 		return true
 	}
@@ -548,6 +568,15 @@ func (a *Account) ResolveMappedModel(requestedModel string) (mappedModel string,
 		return requestedModel, false
 	}
 	// 精确匹配优先
+	if a.Platform == domain.PlatformGrok {
+		candidates := grokModelMatchCandidates(requestedModel)
+		for _, candidate := range candidates {
+			if mappedModel, exists := mapping[candidate]; exists {
+				return mappedModel, true
+			}
+		}
+		return matchWildcardMappingResultCandidates(mapping, candidates...)
+	}
 	if mappedModel, exists := mapping[requestedModel]; exists {
 		return mappedModel, true
 	}
@@ -664,6 +693,21 @@ func matchWildcardMappingResult(mapping map[string]string, requestedModel string
 	})
 
 	return matches[0].target, true
+}
+
+func matchWildcardMappingResultCandidates(mapping map[string]string, requestedModels ...string) (string, bool) {
+	for _, requestedModel := range requestedModels {
+		if requestedModel == "" {
+			continue
+		}
+		if mapped, ok := matchWildcardMappingResult(mapping, requestedModel); ok {
+			return mapped, true
+		}
+	}
+	if len(requestedModels) == 0 {
+		return "", false
+	}
+	return requestedModels[0], false
 }
 
 func (a *Account) IsCustomErrorCodesEnabled() bool {

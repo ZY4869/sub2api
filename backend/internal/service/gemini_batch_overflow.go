@@ -582,22 +582,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 		APIKeyID:       int64Ptr(input.APIKeyID),
 		GroupID:        input.GroupID,
 		UserID:         int64Ptr(input.UserID),
-		MetadataJSON: buildGoogleBatchBindingMetadata(map[string]any{
-			googleBatchBindingMetadataArchiveJobID:         job.ID,
-			googleBatchBindingMetadataPublicProtocol:       UpstreamProviderAIStudio,
-			googleBatchBindingMetadataExecutionProtocol:    UpstreamProviderVertexAI,
-			googleBatchBindingMetadataVirtualResource:      true,
-			googleBatchBindingMetadataPublicResultFileName: publicResultFileName,
-			googleBatchBindingMetadataOfficialResultName:   "",
-			googleBatchBindingMetadataConversionDirection:  GoogleBatchArchiveConversionAIStudioToVertex,
-			googleBatchBindingMetadataRequestedModel:       requestedModel,
-			googleBatchBindingMetadataModelFamily:          overflowMetadata[googleBatchBindingMetadataModelFamily],
-			googleBatchBindingMetadataEstimatedTokens:      overflowMetadata[googleBatchBindingMetadataEstimatedTokens],
-			googleBatchBindingMetadataSourceProtocol:       overflowMetadata[googleBatchBindingMetadataSourceProtocol],
-			"public_batch_name":                            publicBatchName,
-			"staging_profile_id":                           overflowMetadata["staging_profile_id"],
-			"vertex_output_prefix_object":                  overflowMetadata["vertex_output_prefix_object"],
-		}),
+		MetadataJSON:   buildGoogleBatchArchiveFileBindingMetadata(job, resultObject),
 	}
 	if s.resourceBindingRepo != nil {
 		if err := s.resourceBindingRepo.Upsert(ctx, batchBinding); err != nil {
@@ -749,19 +734,6 @@ func (s *GeminiMessagesCompatService) listGoogleBatchGCSObjects(ctx context.Cont
 	return payload.Items, nil
 }
 
-func (s *GeminiMessagesCompatService) downloadGoogleBatchGCSObject(ctx context.Context, profile *GoogleBatchGCSProfile, objectPath string) ([]byte, string, error) {
-	stream, err := s.downloadGoogleBatchGCSObjectStream(ctx, profile, objectPath)
-	if err != nil {
-		return nil, "", err
-	}
-	defer func() { _ = stream.Body.Close() }()
-	body, err := io.ReadAll(io.LimitReader(stream.Body, googleBatchResponseReadLimit))
-	if err != nil {
-		return nil, "", err
-	}
-	return body, headerValue(stream.Headers, "Content-Type"), nil
-}
-
 func (s *GeminiMessagesCompatService) downloadGoogleBatchGCSObjectStream(ctx context.Context, profile *GoogleBatchGCSProfile, objectPath string) (*UpstreamHTTPStreamResult, error) {
 	token, err := s.googleBatchGCSAccessToken(ctx, profile)
 	if err != nil {
@@ -816,35 +788,6 @@ func selectGoogleBatchResultObject(items []googleBatchGCSObject, inputObjectPath
 		return &item
 	}
 	return nil
-}
-
-func (s *GeminiMessagesCompatService) fetchVertexBatchArchiveResult(ctx context.Context, job *GoogleBatchArchiveJob) ([]byte, string, string, error) {
-	if job == nil {
-		return nil, "", "", fmt.Errorf("archive job is nil")
-	}
-	profileID, _ := metadataString(job.MetadataJSON, "staging_profile_id")
-	outputPrefixObject, _ := metadataString(job.MetadataJSON, "vertex_output_prefix_object")
-	inputObjectPath, _ := metadataString(job.MetadataJSON, "vertex_input_object")
-	profile, err := s.getGoogleBatchGCSProfileByID(ctx, profileID)
-	if err != nil || profile == nil {
-		return nil, "", "", fmt.Errorf("google batch gcs profile unavailable")
-	}
-	items, err := s.listGoogleBatchGCSObjects(ctx, profile, outputPrefixObject)
-	if err != nil {
-		return nil, "", "", err
-	}
-	resultObject := selectGoogleBatchResultObject(items, inputObjectPath)
-	if resultObject == nil {
-		return nil, "", "", infraerrors.NotFound("GOOGLE_BATCH_VERTEX_RESULT_NOT_FOUND", "vertex batch result not found")
-	}
-	body, contentType, err := s.downloadGoogleBatchGCSObject(ctx, profile, resultObject.Name)
-	if err != nil {
-		return nil, "", "", err
-	}
-	if strings.TrimSpace(contentType) == "" {
-		contentType = strings.TrimSpace(resultObject.ContentType)
-	}
-	return body, contentType, resultObject.Name, nil
 }
 
 func (s *GeminiMessagesCompatService) fetchVertexBatchArchiveResultStream(ctx context.Context, job *GoogleBatchArchiveJob) (io.ReadCloser, string, int64, string, error) {

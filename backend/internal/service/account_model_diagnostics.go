@@ -125,6 +125,7 @@ func (s *AccountModelDiagnosticsService) Diagnose(
 		nil,
 		account.GetModelMapping(),
 		selectedSummary,
+		account,
 	)
 	groupExposures, groupWarnings := s.buildGroupExposures(ctx, account, selectedSummary)
 	resolved := diagnosticsResolvedUpstream(account, selectedSummary)
@@ -246,6 +247,7 @@ func (s *AccountModelDiagnosticsService) buildGroupExposures(
 				modelPatterns,
 				account.GetModelMapping(),
 				summary,
+				account,
 			)
 			exposure.APIKeys = append(exposure.APIKeys, AccountModelDiagnosticsAPIKeyExposure{
 				APIKeyID:         apiKey.ID,
@@ -310,8 +312,9 @@ func diagnosticsPreviewEntries(
 	modelPatterns []string,
 	mapping map[string]string,
 	summary *AccountModelProbeSummary,
+	account *Account,
 ) []AccountModelDiagnosticsPreview {
-	entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, summary)
+	entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, summary, account)
 	if len(entries) == 0 {
 		return []AccountModelDiagnosticsPreview{}
 	}

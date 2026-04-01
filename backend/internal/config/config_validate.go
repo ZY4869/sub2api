@@ -364,6 +364,12 @@ func (c *Config) Validate() error {
 	if c.Gateway.SoraStreamTimeoutSeconds < 0 {
 		return fmt.Errorf("gateway.sora_stream_timeout_seconds must be non-negative")
 	}
+	if c.Gateway.GrokVideoPollIntervalSeconds < 0 {
+		return fmt.Errorf("gateway.grok_video_poll_interval_seconds must be non-negative")
+	}
+	if c.Gateway.GrokVideoWaitTimeoutSeconds < 0 {
+		return fmt.Errorf("gateway.grok_video_wait_timeout_seconds must be non-negative")
+	}
 	if c.Gateway.SoraRequestTimeoutSeconds < 0 {
 		return fmt.Errorf("gateway.sora_request_timeout_seconds must be non-negative")
 	}

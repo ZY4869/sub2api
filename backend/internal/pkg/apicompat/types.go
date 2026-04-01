@@ -196,6 +196,25 @@ type ResponsesContentPart struct {
 	Type     string `json:"type"` // "input_text" | "output_text" | "input_image"
 	Text     string `json:"text,omitempty"`
 	ImageURL string `json:"image_url,omitempty"` // data URI for input_image
+	Video    *MediaVideo `json:"video,omitempty"`
+}
+
+type MediaVideo struct {
+	RequestID   string `json:"request_id,omitempty"`
+	Status      string `json:"status,omitempty"`
+	URL         string `json:"url,omitempty"`
+	ThumbnailURL string `json:"thumbnail_url,omitempty"`
+	Model       string `json:"model,omitempty"`
+	Seconds     int    `json:"seconds,omitempty"`
+	Resolution  string `json:"resolution,omitempty"`
+	AspectRatio string `json:"aspect_ratio,omitempty"`
+	MimeType    string `json:"mime_type,omitempty"`
+	Provider    string `json:"provider,omitempty"`
+}
+
+type ChatMedia struct {
+	Type  string      `json:"type"`
+	Video *MediaVideo `json:"video,omitempty"`
 }
 
 // ResponsesTool describes a tool in the Responses API.
@@ -311,6 +330,7 @@ type ResponsesStreamEvent struct {
 	Delta        string `json:"delta,omitempty"`
 	Text         string `json:"text,omitempty"`
 	ItemID       string `json:"item_id,omitempty"`
+	Video        *MediaVideo `json:"video,omitempty"`
 
 	// response.function_call_arguments.delta / done
 	CallID    string `json:"call_id,omitempty"`
@@ -367,6 +387,8 @@ type ChatMessage struct {
 	Name             string          `json:"name,omitempty"`
 	ToolCalls        []ChatToolCall  `json:"tool_calls,omitempty"`
 	ToolCallID       string          `json:"tool_call_id,omitempty"`
+	Media            []ChatMedia     `json:"media,omitempty"`
+	Video            *MediaVideo     `json:"video,omitempty"`
 
 	// Legacy function calling
 	FunctionCall *ChatFunctionCall `json:"function_call,omitempty"`
@@ -471,6 +493,8 @@ type ChatDelta struct {
 	Content          *string        `json:"content,omitempty"` // pointer: omit when not present, null vs "" matters
 	ReasoningContent *string        `json:"reasoning_content,omitempty"`
 	ToolCalls        []ChatToolCall `json:"tool_calls,omitempty"`
+	Media            []ChatMedia    `json:"media,omitempty"`
+	Video            *MediaVideo    `json:"video,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

@@ -463,6 +463,7 @@ func (s *GeminiMessagesCompatService) syncArchiveJobFromBatchPayload(ctx context
 			accountID := account.ID
 			apiKeyID := input.APIKeyID
 			userID := input.UserID
+			fileBindingMetadata := buildGoogleBatchArchiveFileBindingMetadata(job, object)
 			_ = s.resourceBindingRepo.Upsert(ctx, &UpstreamResourceBinding{
 				ResourceKind:   UpstreamResourceKindGeminiFile,
 				ResourceName:   fileName,
@@ -471,20 +472,7 @@ func (s *GeminiMessagesCompatService) syncArchiveJobFromBatchPayload(ctx context
 				APIKeyID:       &apiKeyID,
 				GroupID:        input.GroupID,
 				UserID:         &userID,
-				MetadataJSON: buildGoogleBatchBindingMetadata(map[string]any{
-					googleBatchBindingMetadataArchiveJobID:         job.ID,
-					googleBatchBindingMetadataPublicProtocol:       archivePublicProtocol(job),
-					googleBatchBindingMetadataExecutionProtocol:    archiveExecutionProtocol(job),
-					googleBatchBindingMetadataVirtualResource:      archiveVirtualResource(job),
-					"public_batch_name":                            publicBatchName,
-					googleBatchBindingMetadataPublicResultFileName: fileName,
-					googleBatchBindingMetadataOfficialResultName:   officialResultName,
-					googleBatchBindingMetadataConversionDirection:  job.ConversionDirection,
-					googleBatchBindingMetadataRequestedModel:       archiveRequestedModel(job, nil),
-					googleBatchBindingMetadataModelFamily:          job.MetadataJSON[googleBatchBindingMetadataModelFamily],
-					googleBatchBindingMetadataEstimatedTokens:      job.MetadataJSON[googleBatchBindingMetadataEstimatedTokens],
-					googleBatchBindingMetadataSourceProtocol:       job.MetadataJSON[googleBatchBindingMetadataSourceProtocol],
-				}),
+				MetadataJSON:   fileBindingMetadata,
 			})
 		}
 	}
