@@ -7,14 +7,19 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
+	"golang.org/x/sync/errgroup"
 )
 
 const googleBatchResponseReadLimit = 32 << 20
+const googleBatchListFanoutLimit = 4
+const googleBatchListRequestTimeout = 15 * time.Second
 
 type GoogleBatchForwardInput struct {
 	GroupID        *int64
@@ -28,6 +33,8 @@ type GoogleBatchForwardInput struct {
 	RawQuery       string
 	Headers        http.Header
 	Body           []byte
+	OpenBody       func() (io.ReadCloser, error)
+	ContentLength  int64
 	AccountID      *int64
 }
 
@@ -38,7 +45,7 @@ const (
 	googleBatchTargetVertex   googleBatchTarget = "vertex"
 )
 
-func (s *GeminiMessagesCompatService) ForwardGoogleFiles(ctx context.Context, input GoogleBatchForwardInput) (*UpstreamHTTPResult, *Account, error) {
+func (s *GeminiMessagesCompatService) ForwardGoogleFiles(ctx context.Context, input GoogleBatchForwardInput) (GoogleBatchUpstreamResult, *Account, error) {
 	path := strings.TrimSpace(input.Path)
 	switch {
 	case strings.HasPrefix(path, "/download/v1beta/files/"):
@@ -54,7 +61,7 @@ func (s *GeminiMessagesCompatService) ForwardGoogleFiles(ctx context.Context, in
 	}
 }
 
-func (s *GeminiMessagesCompatService) ForwardGoogleBatches(ctx context.Context, input GoogleBatchForwardInput) (*UpstreamHTTPResult, *Account, error) {
+func (s *GeminiMessagesCompatService) ForwardGoogleBatches(ctx context.Context, input GoogleBatchForwardInput) (GoogleBatchUpstreamResult, *Account, error) {
 	path := strings.TrimSpace(input.Path)
 	switch {
 	case strings.HasPrefix(path, "/v1beta/models/") && strings.Contains(path, ":batchGenerateContent"):
@@ -73,7 +80,7 @@ func (s *GeminiMessagesCompatService) ForwardGoogleBatches(ctx context.Context, 
 	}
 }
 
-func (s *GeminiMessagesCompatService) ForwardVertexBatchPredictionJobs(ctx context.Context, input GoogleBatchForwardInput) (*UpstreamHTTPResult, *Account, error) {
+func (s *GeminiMessagesCompatService) ForwardVertexBatchPredictionJobs(ctx context.Context, input GoogleBatchForwardInput) (GoogleBatchUpstreamResult, *Account, error) {
 	projectID, location, jobName, err := parseVertexBatchPredictionJobPath(input.Path)
 	if err != nil {
 		return nil, nil, infraerrors.BadRequest("VERTEX_BATCH_PATH_INVALID", err.Error())
@@ -82,7 +89,10 @@ func (s *GeminiMessagesCompatService) ForwardVertexBatchPredictionJobs(ctx conte
 		return s.forwardAggregatedVertexList(ctx, input, projectID, location)
 	}
 	if strings.EqualFold(input.Method, http.MethodPost) && jobName == "" {
-		selector := buildGoogleBatchSelectorFromInput(input)
+		selector, err := s.buildGoogleBatchSelector(ctx, input)
+		if err != nil {
+			return nil, nil, err
+		}
 		selector.projectID = projectID
 		selector.location = location
 		selector.accountID = input.AccountID
@@ -90,13 +100,18 @@ func (s *GeminiMessagesCompatService) ForwardVertexBatchPredictionJobs(ctx conte
 		if err != nil {
 			return nil, nil, err
 		}
-		return s.forwardAndBindGoogleBatch(ctx, input, account, googleBatchTargetVertex, UpstreamResourceKindVertexBatchJob)
+		result, boundAccount, err := s.forwardAndBindGoogleBatch(ctx, input, account, googleBatchTargetVertex, UpstreamResourceKindVertexBatchJob)
+		recordGoogleBatchCreateOutcome(err == nil && result != nil && result.StatusCode >= 200 && result.StatusCode < 300)
+		return result, boundAccount, err
 	}
 	return s.forwardGoogleBoundResource(ctx, input, googleBatchTargetVertex, UpstreamResourceKindVertexBatchJob)
 }
 
 func (s *GeminiMessagesCompatService) forwardGoogleCreate(ctx context.Context, input GoogleBatchForwardInput, target googleBatchTarget, resourceKind string) (*UpstreamHTTPResult, *Account, error) {
-	selector := buildGoogleBatchSelectorFromInput(input)
+	selector, err := s.buildGoogleBatchSelector(ctx, input)
+	if err != nil {
+		return nil, nil, err
+	}
 	selector.accountID = input.AccountID
 	account, err := s.selectGoogleBatchAccount(ctx, input.GroupID, target, selector)
 	if err != nil {
@@ -117,7 +132,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBoundResource(ctx context.Con
 		if err != nil {
 			return nil, nil, infraerrors.BadRequest("VERTEX_BATCH_PATH_INVALID", err.Error())
 		}
-		selector = buildGoogleBatchSelectorFromInput(input)
+		selector = s.buildGoogleBatchSelectorBestEffort(ctx, input)
 		selector.projectID = projectID
 		selector.location = location
 	}
@@ -141,30 +156,22 @@ func (s *GeminiMessagesCompatService) forwardAndBindGoogleBatch(ctx context.Cont
 	if err != nil {
 		return nil, nil, err
 	}
+	createdMetadata := s.buildGoogleBatchCreatedBindingMetadata(ctx, input, target, resourceKind)
 	if result.StatusCode >= 200 && result.StatusCode < 300 && s.resourceBindingRepo != nil {
 		for _, resourceName := range extractCreatedResourceNames(resourceKind, result.Body) {
 			accountID := account.ID
 			apiKeyID := input.APIKeyID
 			userID := input.UserID
-				binding := &UpstreamResourceBinding{
-					ResourceKind:   resourceKind,
-					ResourceName:   resourceName,
-					ProviderFamily: providerFamilyForTarget(target),
-					AccountID:      accountID,
-					APIKeyID:       &apiKeyID,
-					GroupID:        input.GroupID,
-					UserID:         &userID,
-					MetadataJSON: buildGoogleBatchBindingMetadata(map[string]any{
-						googleBatchBindingMetadataPublicProtocol:    publicGoogleBatchProtocol(input.Path),
-						googleBatchBindingMetadataExecutionProtocol: providerFamilyForTarget(target),
-						"mirror_resource_name":                      "",
-						"staging_profile_id":                        "",
-						"staging_object_uri_masked":                 "",
-						"source_resource_names":                     uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")),
-						"estimated_batch_tokens":                    estimateGoogleBatchTokensFromPayload(input.Body),
-						"model_family":                              normalizeGoogleBatchModelFamily(extractGoogleBatchModelID(input.Path, input.Body)),
-					}),
-				}
+			binding := &UpstreamResourceBinding{
+				ResourceKind:   resourceKind,
+				ResourceName:   resourceName,
+				ProviderFamily: providerFamilyForTarget(target),
+				AccountID:      accountID,
+				APIKeyID:       &apiKeyID,
+				GroupID:        input.GroupID,
+				UserID:         &userID,
+				MetadataJSON:   buildGoogleBatchBindingMetadata(createdMetadata),
+			}
 			if err := s.resourceBindingRepo.Upsert(ctx, binding); err != nil {
 				return nil, nil, err
 			}
@@ -206,38 +213,52 @@ func (s *GeminiMessagesCompatService) forwardAggregatedGoogleList(ctx context.Co
 		result, err := s.forwardGoogleBatchToAccount(ctx, input, accounts[0], target)
 		return result, accounts[0], err
 	}
+	type googleBatchListResult struct {
+		response *UpstreamHTTPResult
+		err      error
+	}
+	startedAt := time.Now()
+	defer recordGoogleBatchListFanoutLatency(time.Since(startedAt))
+	results := make([]googleBatchListResult, len(accounts))
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(googleBatchListFanoutLimit)
+	for idx, account := range accounts {
+		idx := idx
+		account := account
+		g.Go(func() error {
+			requestCtx, cancel := context.WithTimeout(gctx, googleBatchListRequestTimeout)
+			defer cancel()
+			result, err := s.forwardGoogleBatchToAccount(requestCtx, input, account, target)
+			results[idx] = googleBatchListResult{response: result, err: err}
+			return nil
+		})
+	}
+	_ = g.Wait()
 	var (
-		headers     http.Header
-		mergedItems []any
-		seen        = make(map[string]struct{})
-		lastErr     error
+		headers      http.Header
+		lastErr      error
+		orderedItems [][]map[string]any
 	)
-	for _, account := range accounts {
-		result, err := s.forwardGoogleBatchToAccount(ctx, input, account, target)
-		if err != nil {
-			lastErr = err
+	orderedItems = make([][]map[string]any, len(accounts))
+	for idx := range results {
+		result := results[idx]
+		if result.err != nil {
+			lastErr = result.err
 			continue
 		}
-		if result.StatusCode >= 400 {
+		if result.response == nil {
+			continue
+		}
+		if result.response.StatusCode >= 400 {
 			lastErr = infraerrors.ServiceUnavailable("GOOGLE_BATCH_LIST_UPSTREAM_ERROR", "upstream list failed")
 			continue
 		}
 		if headers == nil {
-			headers = result.Headers.Clone()
+			headers = result.response.Headers.Clone()
 		}
-		items := extractNamedListItems(result.Body, listKey)
-		for _, item := range items {
-			name := strings.TrimSpace(stringMapValue(item, "name"))
-			if name == "" {
-				continue
-			}
-			if _, ok := seen[name]; ok {
-				continue
-			}
-			seen[name] = struct{}{}
-			mergedItems = append(mergedItems, item)
-		}
+		orderedItems[idx] = extractNamedListItems(result.response.Body, listKey)
 	}
+	mergedItems := mergeGoogleBatchNamedListItems(orderedItems)
 	if len(mergedItems) == 0 {
 		if lastErr == nil {
 			lastErr = infraerrors.ServiceUnavailable("GOOGLE_BATCH_LIST_EMPTY", "no upstream resources available")
@@ -261,12 +282,9 @@ func (s *GeminiMessagesCompatService) resolveAIStudioBatchCreateAccountID(ctx co
 	if len(fileNames) == 0 || s.resourceBindingRepo == nil {
 		return nil, nil
 	}
-	bindings, err := s.resourceBindingRepo.GetByNames(ctx, UpstreamResourceKindGeminiFile, fileNames)
+	bindings, err := s.resolveGoogleBatchReferencedFileBindings(ctx, fileNames)
 	if err != nil {
 		return nil, err
-	}
-	if len(bindings) != len(fileNames) {
-		return nil, infraerrors.Conflict("GEMINI_BATCH_FILE_BINDING_MISSING", "Gemini batch file binding not found")
 	}
 	var accountID int64
 	for _, binding := range bindings {
@@ -285,6 +303,37 @@ func (s *GeminiMessagesCompatService) resolveAIStudioBatchCreateAccountID(ctx co
 		return nil, nil
 	}
 	return &accountID, nil
+}
+
+func (s *GeminiMessagesCompatService) buildGoogleBatchCreatedBindingMetadata(ctx context.Context, input GoogleBatchForwardInput, target googleBatchTarget, resourceKind string) map[string]any {
+	resolvedMetadata, err := s.resolveGoogleBatchInputMetadata(ctx, input)
+	if err != nil {
+		resolvedMetadata = googleBatchResolvedInputMetadata{
+			requestedModel:      strings.TrimSpace(extractGoogleBatchModelID(input.Path, input.Body)),
+			modelFamily:         normalizeGoogleBatchModelFamily(extractGoogleBatchModelID(input.Path, input.Body)),
+			estimatedTokens:     estimateGoogleBatchTokensFromPayload(input.Body),
+			sourceProtocol:      publicGoogleBatchProtocol(input.Path),
+			sourceResourceNames: uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")),
+		}
+	}
+	metadata := map[string]any{
+		googleBatchBindingMetadataPublicProtocol:      publicGoogleBatchProtocol(input.Path),
+		googleBatchBindingMetadataExecutionProtocol:   providerFamilyForTarget(target),
+		"mirror_resource_name":                        "",
+		"staging_profile_id":                          "",
+		"staging_object_uri_masked":                   "",
+		googleBatchBindingMetadataSourceResourceNames: resolvedMetadata.sourceResourceNames,
+		googleBatchBindingMetadataEstimatedTokens:     resolvedMetadata.estimatedTokens,
+		googleBatchBindingMetadataModelFamily:         resolvedMetadata.modelFamily,
+		googleBatchBindingMetadataRequestedModel:      resolvedMetadata.requestedModel,
+		googleBatchBindingMetadataSourceProtocol:      resolvedMetadata.sourceProtocol,
+	}
+	if resourceKind == UpstreamResourceKindGeminiFile {
+		for key, value := range s.buildGoogleBatchFileBindingMetadata(input) {
+			metadata[key] = value
+		}
+	}
+	return metadata
 }
 
 func (s *GeminiMessagesCompatService) resolveGoogleBatchAccount(ctx context.Context, groupID *int64, target googleBatchTarget, binding *UpstreamResourceBinding, selector *vertexBatchSelector) (*Account, error) {
@@ -438,6 +487,26 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchToAccount(ctx context.Co
 	return &UpstreamHTTPResult{StatusCode: resp.StatusCode, Headers: filteredHeaders, Body: body}, nil
 }
 
+func (s *GeminiMessagesCompatService) forwardGoogleBatchToAccountStream(ctx context.Context, input GoogleBatchForwardInput, account *Account, target googleBatchTarget) (*UpstreamHTTPStreamResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformGemini)
+	req, proxyURL, err := s.buildGoogleBatchRequest(ctx, account, target, input)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+	if err != nil {
+		return nil, err
+	}
+	filteredHeaders := responseheaders.FilterHeaders(resp.Header, s.responseHeaderFilter)
+	_ = s.accountRepo.UpdateLastUsed(ctx, account.ID)
+	return &UpstreamHTTPStreamResult{
+		StatusCode:    resp.StatusCode,
+		Headers:       filteredHeaders,
+		Body:          resp.Body,
+		ContentLength: resp.ContentLength,
+	}, nil
+}
+
 func (s *GeminiMessagesCompatService) buildGoogleBatchRequest(ctx context.Context, account *Account, target googleBatchTarget, input GoogleBatchForwardInput) (*http.Request, string, error) {
 	if account == nil {
 		return nil, "", infraerrors.BadRequest("GOOGLE_BATCH_ACCOUNT_NIL", "account is nil")
@@ -450,12 +519,25 @@ func (s *GeminiMessagesCompatService) buildGoogleBatchRequest(ctx context.Contex
 	if strings.TrimSpace(input.RawQuery) != "" {
 		fullURL += "?" + strings.TrimPrefix(strings.TrimSpace(input.RawQuery), "?")
 	}
-	req, err := http.NewRequestWithContext(ctx, strings.ToUpper(strings.TrimSpace(input.Method)), fullURL, bytes.NewReader(input.Body))
+	body, err := input.OpenRequestBody()
 	if err != nil {
 		return nil, "", err
 	}
+	req, err := http.NewRequestWithContext(ctx, strings.ToUpper(strings.TrimSpace(input.Method)), fullURL, body)
+	if err != nil {
+		if body != nil {
+			_ = body.Close()
+		}
+		return nil, "", err
+	}
+	if input.ContentLength > 0 || (input.ContentLength == 0 && len(input.Body) == 0) {
+		req.ContentLength = input.ContentLength
+	}
 	copyGoogleForwardHeaders(req.Header, input.Headers)
 	if err := s.applyGoogleBatchAuth(ctx, req, account); err != nil {
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
 		return nil, "", err
 	}
 	var proxyURL string
@@ -463,6 +545,42 @@ func (s *GeminiMessagesCompatService) buildGoogleBatchRequest(ctx context.Contex
 		proxyURL = account.Proxy.URL()
 	}
 	return req, proxyURL, nil
+}
+
+func (input GoogleBatchForwardInput) OpenRequestBody() (io.ReadCloser, error) {
+	if input.OpenBody != nil {
+		return input.OpenBody()
+	}
+	if len(input.Body) == 0 {
+		return http.NoBody, nil
+	}
+	return io.NopCloser(bytes.NewReader(input.Body)), nil
+}
+
+func mergeGoogleBatchNamedListItems(orderedItems [][]map[string]any) []map[string]any {
+	seen := make(map[string]map[string]any)
+	for _, items := range orderedItems {
+		for _, item := range items {
+			name := strings.TrimSpace(stringMapValue(item, "name"))
+			if name == "" {
+				continue
+			}
+			if _, exists := seen[name]; exists {
+				continue
+			}
+			seen[name] = item
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for name := range seen {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	merged := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		merged = append(merged, seen[name])
+	}
+	return merged
 }
 
 func (s *GeminiMessagesCompatService) googleBatchBaseURL(account *Account, target googleBatchTarget) (string, error) {

@@ -184,6 +184,8 @@ type GoogleBatchArchiveJobRepository interface {
 	ListDueForPoll(ctx context.Context, before time.Time, limit int) ([]*GoogleBatchArchiveJob, error)
 	ListDueForPrefetch(ctx context.Context, before time.Time, limit int) ([]*GoogleBatchArchiveJob, error)
 	ListExpiredForCleanup(ctx context.Context, before time.Time, limit int) ([]*GoogleBatchArchiveJob, error)
+	TryMarkBillingSettled(ctx context.Context, id int64) (bool, error)
+	TryRestoreBillingPending(ctx context.Context, id int64) (bool, error)
 	TouchLastPublicResultAccess(ctx context.Context, id int64, accessedAt time.Time) error
 	SoftDelete(ctx context.Context, id int64) error
 }

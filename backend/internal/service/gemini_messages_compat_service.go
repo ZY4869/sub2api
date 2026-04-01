@@ -21,6 +21,7 @@ const geminiDummyThoughtSignature = "skip_thought_signature_validator"
 
 type GeminiMessagesCompatService struct {
 	accountRepo                     AccountRepository
+	apiKeyRepo                      APIKeyRepository
 	groupRepo                       GroupRepository
 	resourceBindingRepo             UpstreamResourceBindingRepository
 	googleBatchQuotaReservationRepo GoogleBatchQuotaReservationRepository
@@ -52,6 +53,10 @@ func (s *GeminiMessagesCompatService) SetVertexCatalogService(vertexCatalogServi
 
 func (s *GeminiMessagesCompatService) SetUpstreamResourceBindingRepository(repo UpstreamResourceBindingRepository) {
 	s.resourceBindingRepo = repo
+}
+
+func (s *GeminiMessagesCompatService) SetAPIKeyRepository(repo APIKeyRepository) {
+	s.apiKeyRepo = repo
 }
 
 func (s *GeminiMessagesCompatService) SetGoogleBatchArchiveRepositories(jobRepo GoogleBatchArchiveJobRepository, objectRepo GoogleBatchArchiveObjectRepository) {

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -212,16 +213,17 @@ func googleBatchGCSURI(profile *GoogleBatchGCSProfile, objectPath string) string
 }
 
 func (s *GeminiMessagesCompatService) buildVertexBatchOverflowRequest(ctx context.Context, input GoogleBatchForwardInput, sourceAccount *Account, targetAccount *Account, profile *GoogleBatchGCSProfile, publicBatchName string) ([]byte, map[string]any, error) {
-	requestLines, sourceNames, err := s.buildVertexBatchJSONL(ctx, input, sourceAccount)
+	resolvedMetadata, err := s.resolveGoogleBatchInputMetadata(ctx, input)
 	if err != nil {
 		return nil, nil, err
 	}
 	inputObject := googleBatchGCSObjectPath(profile, publicBatchName, "input.jsonl")
 	outputPrefixObject := googleBatchGCSObjectPath(profile, publicBatchName, "output")
-	if err := s.uploadGoogleBatchGCSObject(ctx, profile, inputObject, "application/x-ndjson", requestLines); err != nil {
+	sourceNames, err := s.stageVertexBatchOverflowInput(ctx, input, sourceAccount, profile, inputObject)
+	if err != nil {
 		return nil, nil, err
 	}
-	requestedModel := strings.TrimSpace(extractGoogleBatchModelID(input.Path, input.Body))
+	requestedModel := strings.TrimSpace(resolvedMetadata.requestedModel)
 	displayName := strings.TrimSpace(gjson.GetBytes(input.Body, "batch.display_name").String())
 	if displayName == "" {
 		displayName = strings.TrimSpace(strings.TrimPrefix(publicBatchName, "batches/"))
@@ -247,43 +249,65 @@ func (s *GeminiMessagesCompatService) buildVertexBatchOverflowRequest(ctx contex
 		return nil, nil, err
 	}
 	return body, map[string]any{
-		"requested_model":           requestedModel,
-		"source_resource_names":     sourceNames,
-		"staging_profile_id":        strings.TrimSpace(profile.ProfileID),
-		"vertex_input_object":       inputObject,
-		"vertex_output_prefix_object": outputPrefixObject,
+		googleBatchBindingMetadataRequestedModel:      requestedModel,
+		googleBatchBindingMetadataModelFamily:         resolvedMetadata.modelFamily,
+		googleBatchBindingMetadataEstimatedTokens:     resolvedMetadata.estimatedTokens,
+		googleBatchBindingMetadataSourceProtocol:      resolvedMetadata.sourceProtocol,
+		googleBatchBindingMetadataSourceResourceNames: sourceNames,
+		"staging_profile_id":                          strings.TrimSpace(profile.ProfileID),
+		"vertex_input_object":                         inputObject,
+		"vertex_output_prefix_object":                 outputPrefixObject,
 	}, nil
 }
 
-func (s *GeminiMessagesCompatService) buildVertexBatchJSONL(ctx context.Context, input GoogleBatchForwardInput, sourceAccount *Account) ([]byte, []string, error) {
+func (s *GeminiMessagesCompatService) stageVertexBatchOverflowInput(ctx context.Context, input GoogleBatchForwardInput, sourceAccount *Account, profile *GoogleBatchGCSProfile, inputObject string) ([]string, error) {
 	requestsRaw := strings.TrimSpace(gjson.GetBytes(input.Body, "batch.input_config.requests.requests").Raw)
 	if requestsRaw != "" && requestsRaw != "null" {
 		var items []any
 		if err := json.Unmarshal([]byte(requestsRaw), &items); err != nil {
-			return nil, nil, infraerrors.BadRequest("GOOGLE_BATCH_INLINE_REQUESTS_INVALID", "invalid AI Studio batch requests")
+			return nil, infraerrors.BadRequest("GOOGLE_BATCH_INLINE_REQUESTS_INVALID", "invalid AI Studio batch requests")
 		}
 		lines, err := marshalVertexBatchJSONLLines(convertInlineBatchItems(items))
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		return lines, uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")), nil
+		if err := s.uploadGoogleBatchGCSObject(ctx, profile, inputObject, "application/x-ndjson", lines); err != nil {
+			return nil, err
+		}
+		return uniqueStrings(collectStringFieldsByKey(input.Body, "fileName")), nil
 	}
 	fileName := strings.TrimSpace(gjson.GetBytes(input.Body, "batch.input_config.file_name").String())
 	if fileName == "" {
 		fileName = strings.TrimSpace(gjson.GetBytes(input.Body, "batch.input_config.fileName").String())
 	}
 	if fileName == "" {
-		return nil, nil, infraerrors.BadRequest("GOOGLE_BATCH_INPUT_CONFIG_UNSUPPORTED", "unsupported AI Studio batch input configuration")
+		return nil, infraerrors.BadRequest("GOOGLE_BATCH_INPUT_CONFIG_UNSUPPORTED", "unsupported AI Studio batch input configuration")
 	}
-	fileBytes, err := s.downloadAIStudioBatchSourceFile(ctx, input, sourceAccount, fileName)
+	source, err := s.downloadAIStudioBatchSourceFileStream(ctx, input, sourceAccount, fileName)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	lines, err := normalizeAIStudioJSONLToVertex(fileBytes)
-	if err != nil {
-		return nil, nil, err
+	defer func() { _ = source.Close() }()
+	pipeReader, pipeWriter := io.Pipe()
+	transformErrCh := make(chan error, 1)
+	go func() {
+		defer close(transformErrCh)
+		err := normalizeAIStudioJSONLToVertexStream(source, pipeWriter)
+		_ = pipeWriter.CloseWithError(err)
+		transformErrCh <- err
+	}()
+	uploadErr := s.uploadGoogleBatchGCSObjectStream(ctx, profile, inputObject, "application/x-ndjson", pipeReader, -1)
+	if uploadErr != nil {
+		_ = pipeReader.CloseWithError(uploadErr)
 	}
-	return lines, []string{fileName}, nil
+	transformErr := <-transformErrCh
+	if uploadErr != nil {
+		return nil, uploadErr
+	}
+	if transformErr != nil {
+		return nil, transformErr
+	}
+	return []string{fileName}, nil
 }
 
 func convertInlineBatchItems(items []any) []map[string]any {
@@ -316,16 +340,18 @@ func convertInlineBatchItems(items []any) []map[string]any {
 }
 
 func normalizeAIStudioJSONLToVertex(payload []byte) ([]byte, error) {
-	rawLines := strings.Split(string(payload), "\n")
-	lines := make([]map[string]any, 0, len(rawLines))
-	for idx, line := range rawLines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
+	var buf bytes.Buffer
+	if err := normalizeAIStudioJSONLToVertexStream(bytes.NewReader(payload), &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func normalizeAIStudioJSONLToVertexStream(reader io.Reader, writer io.Writer) error {
+	return walkJSONLLines(reader, func(idx int, line []byte) error {
 		var item map[string]any
-		if err := json.Unmarshal([]byte(trimmed), &item); err != nil {
-			return nil, infraerrors.BadRequest("GOOGLE_BATCH_SOURCE_FILE_INVALID", "batch source file must be JSONL")
+		if err := json.Unmarshal(line, &item); err != nil {
+			return infraerrors.BadRequest("GOOGLE_BATCH_SOURCE_FILE_INVALID", "batch source file must be JSONL")
 		}
 		wrapped := map[string]any{}
 		if request, ok := item["request"].(map[string]any); ok {
@@ -343,9 +369,16 @@ func normalizeAIStudioJSONLToVertex(payload []byte) ([]byte, error) {
 		if _, ok := wrapped["key"]; !ok {
 			wrapped["key"] = fmt.Sprintf("request-%d", idx+1)
 		}
-		lines = append(lines, wrapped)
-	}
-	return marshalVertexBatchJSONLLines(lines)
+		encoded, err := json.Marshal(wrapped)
+		if err != nil {
+			return err
+		}
+		if _, err := writer.Write(encoded); err != nil {
+			return err
+		}
+		_, err = writer.Write([]byte{'\n'})
+		return err
+	})
 }
 
 func marshalVertexBatchJSONLLines(lines []map[string]any) ([]byte, error) {
@@ -361,7 +394,28 @@ func marshalVertexBatchJSONLLines(lines []map[string]any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (s *GeminiMessagesCompatService) downloadAIStudioBatchSourceFile(ctx context.Context, input GoogleBatchForwardInput, sourceAccount *Account, fileName string) ([]byte, error) {
+func walkJSONLLines(reader io.Reader, fn func(idx int, line []byte) error) error {
+	buffered := bufio.NewReader(reader)
+	lineIndex := 0
+	for {
+		line, err := buffered.ReadBytes('\n')
+		if err != nil && err != io.EOF {
+			return err
+		}
+		trimmed := bytes.TrimSpace(line)
+		if len(trimmed) > 0 {
+			if callErr := fn(lineIndex, trimmed); callErr != nil {
+				return callErr
+			}
+		}
+		lineIndex++
+		if err == io.EOF {
+			return nil
+		}
+	}
+}
+
+func (s *GeminiMessagesCompatService) downloadAIStudioBatchSourceFileStream(ctx context.Context, input GoogleBatchForwardInput, sourceAccount *Account, fileName string) (io.ReadCloser, error) {
 	fileName = strings.TrimSpace(fileName)
 	if fileName == "" {
 		return nil, infraerrors.BadRequest("GOOGLE_BATCH_SOURCE_FILE_REQUIRED", "batch source file is required")
@@ -380,11 +434,16 @@ func (s *GeminiMessagesCompatService) downloadAIStudioBatchSourceFile(ctx contex
 	downloadInput.Path = googleBatchArchivePublicFileDownloadPath(fileName)
 	downloadInput.RawQuery = "alt=media"
 	downloadInput.Body = nil
-	result, err := s.forwardGoogleBatchToAccount(ctx, downloadInput, account, googleBatchTargetAIStudio)
+	downloadInput.OpenBody = nil
+	downloadInput.ContentLength = 0
+	result, err := s.forwardGoogleBatchToAccountStream(ctx, downloadInput, account, googleBatchTargetAIStudio)
 	if err != nil {
 		return nil, err
 	}
 	if result == nil || result.StatusCode < 200 || result.StatusCode >= 300 {
+		if result != nil && result.Body != nil {
+			_ = result.Body.Close()
+		}
 		return nil, infraerrors.ServiceUnavailable("GOOGLE_BATCH_SOURCE_FILE_FETCH_FAILED", "failed to fetch batch source file")
 	}
 	return result.Body, nil
@@ -394,6 +453,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 	if selection == nil || selection.sourceAccount == nil || selection.targetAccount == nil || selection.gcsProfile == nil {
 		return nil, nil, infraerrors.ServiceUnavailable("GOOGLE_BATCH_OVERFLOW_UNAVAILABLE", "AI Studio to Vertex overflow unavailable")
 	}
+	recordGoogleBatchOverflowHit()
 	publicBatchName := normalizePublicBatchName(generateRequestID())
 	publicResultFileName := publicResultFileNameForBatch(publicBatchName)
 	requestBody, overflowMetadata, err := s.buildVertexBatchOverflowRequest(ctx, input, selection.sourceAccount, selection.targetAccount, selection.gcsProfile, publicBatchName)
@@ -420,7 +480,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 	if len(executionNames) == 0 {
 		return nil, nil, infraerrors.ServiceUnavailable("GOOGLE_BATCH_VERTEX_CREATE_INVALID", "vertex batch create response missing name")
 	}
-	requestedModel := strings.TrimSpace(fmt.Sprintf("%v", overflowMetadata["requested_model"]))
+	requestedModel := strings.TrimSpace(fmt.Sprintf("%v", overflowMetadata[googleBatchBindingMetadataRequestedModel]))
 	now := time.Now().UTC()
 	settings := s.getGoogleBatchArchiveSettings(ctx)
 	nextPollAt := now.Add(time.Duration(settings.PollMinIntervalSeconds) * time.Second)
@@ -449,11 +509,16 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 			googleBatchBindingMetadataConversionDirection:  GoogleBatchArchiveConversionAIStudioToVertex,
 			googleBatchBindingMetadataPublicResultFileName: publicResultFileName,
 			googleBatchBindingMetadataOfficialResultName:   "",
-			"requested_model":                              requestedModel,
-			"source_resource_names":                        overflowMetadata["source_resource_names"],
+			googleBatchBindingMetadataRequestedModel:       requestedModel,
+			googleBatchBindingMetadataModelFamily:          overflowMetadata[googleBatchBindingMetadataModelFamily],
+			googleBatchBindingMetadataEstimatedTokens:      overflowMetadata[googleBatchBindingMetadataEstimatedTokens],
+			googleBatchBindingMetadataSourceProtocol:       overflowMetadata[googleBatchBindingMetadataSourceProtocol],
+			googleBatchBindingMetadataSourceResourceNames:  overflowMetadata[googleBatchBindingMetadataSourceResourceNames],
 			"staging_profile_id":                           overflowMetadata["staging_profile_id"],
 			"vertex_input_object":                          overflowMetadata["vertex_input_object"],
 			"vertex_output_prefix_object":                  overflowMetadata["vertex_output_prefix_object"],
+			"billing_type":                                 int(input.BillingType),
+			"subscription_id":                              derefInt64(input.SubscriptionID),
 		},
 	}
 	if job.State == "" {
@@ -501,8 +566,11 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 			googleBatchBindingMetadataPublicResultFileName: publicResultFileName,
 			googleBatchBindingMetadataOfficialResultName:   "",
 			googleBatchBindingMetadataConversionDirection:  GoogleBatchArchiveConversionAIStudioToVertex,
-			"requested_model":                              requestedModel,
-			"source_resource_names":                        overflowMetadata["source_resource_names"],
+			googleBatchBindingMetadataRequestedModel:       requestedModel,
+			googleBatchBindingMetadataModelFamily:          overflowMetadata[googleBatchBindingMetadataModelFamily],
+			googleBatchBindingMetadataEstimatedTokens:      overflowMetadata[googleBatchBindingMetadataEstimatedTokens],
+			googleBatchBindingMetadataSourceProtocol:       overflowMetadata[googleBatchBindingMetadataSourceProtocol],
+			googleBatchBindingMetadataSourceResourceNames:  overflowMetadata[googleBatchBindingMetadataSourceResourceNames],
 			"staging_profile_id":                           overflowMetadata["staging_profile_id"],
 		}),
 	}
@@ -522,6 +590,10 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 			googleBatchBindingMetadataPublicResultFileName: publicResultFileName,
 			googleBatchBindingMetadataOfficialResultName:   "",
 			googleBatchBindingMetadataConversionDirection:  GoogleBatchArchiveConversionAIStudioToVertex,
+			googleBatchBindingMetadataRequestedModel:       requestedModel,
+			googleBatchBindingMetadataModelFamily:          overflowMetadata[googleBatchBindingMetadataModelFamily],
+			googleBatchBindingMetadataEstimatedTokens:      overflowMetadata[googleBatchBindingMetadataEstimatedTokens],
+			googleBatchBindingMetadataSourceProtocol:       overflowMetadata[googleBatchBindingMetadataSourceProtocol],
 			"public_batch_name":                            publicBatchName,
 			"staging_profile_id":                           overflowMetadata["staging_profile_id"],
 			"vertex_output_prefix_object":                  overflowMetadata["vertex_output_prefix_object"],
@@ -541,7 +613,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 	if err := s.reserveGoogleBatchQuota(ctx, vertexInput, selection.targetAccount, googleBatchTargetVertex, executionNames[0]); err != nil {
 		return nil, nil, err
 	}
-	s.recordGoogleBatchUsageEvent(ctx, input, selection.targetAccount, requestedModel, UsageOperationBatchCreate, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-create:"+generateRequestID())
+	_ = s.recordGoogleBatchUsageEvent(ctx, input, selection.targetAccount, requestedModel, UsageOperationBatchCreate, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-create:"+generateRequestID())
 	return s.buildGoogleBatchJSONResult(http.StatusOK, virtualBatch), selection.targetAccount, nil
 }
 
@@ -598,6 +670,10 @@ func (s *GeminiMessagesCompatService) googleBatchGCSAccessToken(ctx context.Cont
 }
 
 func (s *GeminiMessagesCompatService) uploadGoogleBatchGCSObject(ctx context.Context, profile *GoogleBatchGCSProfile, objectPath string, contentType string, payload []byte) error {
+	return s.uploadGoogleBatchGCSObjectStream(ctx, profile, objectPath, contentType, bytes.NewReader(payload), int64(len(payload)))
+}
+
+func (s *GeminiMessagesCompatService) uploadGoogleBatchGCSObjectStream(ctx context.Context, profile *GoogleBatchGCSProfile, objectPath string, contentType string, body io.Reader, contentLength int64) error {
 	if profile == nil {
 		return fmt.Errorf("google batch gcs profile is nil")
 	}
@@ -606,9 +682,12 @@ func (s *GeminiMessagesCompatService) uploadGoogleBatchGCSObject(ctx context.Con
 		return err
 	}
 	uploadURL := "https://storage.googleapis.com/upload/storage/v1/b/" + url.PathEscape(strings.TrimSpace(profile.Bucket)) + "/o?uploadType=media&name=" + url.QueryEscape(strings.TrimLeft(strings.TrimSpace(objectPath), "/"))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, body)
 	if err != nil {
 		return err
+	}
+	if contentLength >= 0 {
+		req.ContentLength = contentLength
 	}
 	if strings.TrimSpace(contentType) == "" {
 		contentType = "application/octet-stream"
@@ -671,14 +750,27 @@ func (s *GeminiMessagesCompatService) listGoogleBatchGCSObjects(ctx context.Cont
 }
 
 func (s *GeminiMessagesCompatService) downloadGoogleBatchGCSObject(ctx context.Context, profile *GoogleBatchGCSProfile, objectPath string) ([]byte, string, error) {
-	token, err := s.googleBatchGCSAccessToken(ctx, profile)
+	stream, err := s.downloadGoogleBatchGCSObjectStream(ctx, profile, objectPath)
 	if err != nil {
 		return nil, "", err
+	}
+	defer func() { _ = stream.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(stream.Body, googleBatchResponseReadLimit))
+	if err != nil {
+		return nil, "", err
+	}
+	return body, headerValue(stream.Headers, "Content-Type"), nil
+}
+
+func (s *GeminiMessagesCompatService) downloadGoogleBatchGCSObjectStream(ctx context.Context, profile *GoogleBatchGCSProfile, objectPath string) (*UpstreamHTTPStreamResult, error) {
+	token, err := s.googleBatchGCSAccessToken(ctx, profile)
+	if err != nil {
+		return nil, err
 	}
 	downloadURL := "https://storage.googleapis.com/storage/v1/b/" + url.PathEscape(strings.TrimSpace(profile.Bucket)) + "/o/" + url.PathEscape(strings.TrimLeft(strings.TrimSpace(objectPath), "/")) + "?alt=media"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	client, err := httpclient.GetClient(httpclient.Options{
@@ -687,18 +779,23 @@ func (s *GeminiMessagesCompatService) downloadGoogleBatchGCSObject(ctx context.C
 		ValidateResolvedIP:    true,
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, googleBatchResponseReadLimit))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, "", fmt.Errorf("download google batch gcs object failed with status %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("download google batch gcs object failed with status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
-	return body, strings.TrimSpace(resp.Header.Get("Content-Type")), nil
+	return &UpstreamHTTPStreamResult{
+		StatusCode:    resp.StatusCode,
+		Headers:       resp.Header.Clone(),
+		Body:          resp.Body,
+		ContentLength: resp.ContentLength,
+	}, nil
 }
 
 func selectGoogleBatchResultObject(items []googleBatchGCSObject, inputObjectPath string) *googleBatchGCSObject {
@@ -748,4 +845,34 @@ func (s *GeminiMessagesCompatService) fetchVertexBatchArchiveResult(ctx context.
 		contentType = strings.TrimSpace(resultObject.ContentType)
 	}
 	return body, contentType, resultObject.Name, nil
+}
+
+func (s *GeminiMessagesCompatService) fetchVertexBatchArchiveResultStream(ctx context.Context, job *GoogleBatchArchiveJob) (io.ReadCloser, string, int64, string, error) {
+	if job == nil {
+		return nil, "", 0, "", fmt.Errorf("archive job is nil")
+	}
+	profileID, _ := metadataString(job.MetadataJSON, "staging_profile_id")
+	outputPrefixObject, _ := metadataString(job.MetadataJSON, "vertex_output_prefix_object")
+	inputObjectPath, _ := metadataString(job.MetadataJSON, "vertex_input_object")
+	profile, err := s.getGoogleBatchGCSProfileByID(ctx, profileID)
+	if err != nil || profile == nil {
+		return nil, "", 0, "", fmt.Errorf("google batch gcs profile unavailable")
+	}
+	items, err := s.listGoogleBatchGCSObjects(ctx, profile, outputPrefixObject)
+	if err != nil {
+		return nil, "", 0, "", err
+	}
+	resultObject := selectGoogleBatchResultObject(items, inputObjectPath)
+	if resultObject == nil {
+		return nil, "", 0, "", infraerrors.NotFound("GOOGLE_BATCH_VERTEX_RESULT_NOT_FOUND", "vertex batch result not found")
+	}
+	stream, err := s.downloadGoogleBatchGCSObjectStream(ctx, profile, resultObject.Name)
+	if err != nil {
+		return nil, "", 0, "", err
+	}
+	contentType := headerValue(stream.Headers, "Content-Type")
+	if strings.TrimSpace(contentType) == "" {
+		contentType = strings.TrimSpace(resultObject.ContentType)
+	}
+	return stream.Body, contentType, stream.ContentLength, resultObject.Name, nil
 }

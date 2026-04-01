@@ -313,7 +313,9 @@ import {
   supportedGatewayClientProfilesForProtocol
 } from '@/utils/accountProtocolGateway'
 import {
+  createAccountModelProbeSnapshotDraft,
   createResolvedUpstreamDraft,
+  type AccountModelProbeSnapshotDraft,
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 
@@ -336,6 +338,7 @@ const clientProfiles = defineModel<GatewayClientProfile[]>('clientProfiles', { r
 const clientRoutes = defineModel<GatewayClientRoute[]>('clientRoutes', { required: true })
 const manualModels = defineModel<AccountManualModel[]>('manualModels', { required: true })
 const resolvedUpstream = defineModel<AccountResolvedUpstreamDraft | null>('resolvedUpstream', { required: true })
+const probeSnapshot = defineModel<AccountModelProbeSnapshotDraft | null>('probeSnapshot', { default: null })
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -411,6 +414,33 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  probeSnapshot,
+  (snapshot) => {
+    if (!snapshot) {
+      return
+    }
+    if (probedModels.value.length === 0) {
+      probedModels.value = snapshot.models.map((modelId) => ({
+        id: modelId,
+        display_name: modelId,
+        registry_state: 'existing' as const,
+        registry_model_id: modelId
+      }))
+    }
+    if (!probeSource.value) {
+      probeSource.value = snapshot.probe_source || snapshot.source || ''
+    }
+    if (!resolvedUpstream.value?.upstream_probed_at && snapshot.updated_at) {
+      resolvedUpstream.value = {
+        ...(resolvedUpstream.value || {}),
+        upstream_probed_at: snapshot.updated_at
+      }
+    }
+  },
+  { immediate: true, deep: true }
 )
 
 watch(
@@ -738,6 +768,7 @@ const handleProbe = async () => {
         .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
         .filter(([target]) => Boolean(target))
     )
+    const probedAt = new Date().toISOString()
     probedModels.value = result.models
     allowedModels.value = result.models.map((model) => model.id)
     modelMappings.value = result.models.map((model) => ({
@@ -746,12 +777,19 @@ const handleProbe = async () => {
     }))
     probeSource.value = result.probe_source || ''
     probeNotice.value = result.probe_notice || ''
+    probeSnapshot.value = createAccountModelProbeSnapshotDraft({
+      models: result.models.map((model) => model.id),
+      updated_at: probedAt,
+      source: 'manual_probe',
+      probe_source: result.probe_source
+    })
     resolvedUpstream.value =
       createResolvedUpstreamDraft({
         upstream_url: result.resolved_upstream_url,
         upstream_host: result.resolved_upstream_host,
         upstream_service: result.resolved_upstream_service,
-        upstream_probe_source: result.probe_source
+        upstream_probe_source: result.probe_source,
+        upstream_probed_at: probedAt
       }) || resolvedUpstream.value
     emit('probed', result)
   } catch (error: any) {

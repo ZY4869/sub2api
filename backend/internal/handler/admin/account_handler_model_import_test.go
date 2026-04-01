@@ -152,6 +152,11 @@ func TestImportModels_OpenAIOAuthUpdatesKnownModelsSnapshot(t *testing.T) {
 	require.Equal(t, service.OpenAIKnownModelsSourceImportModels, adminSvc.updatedAccounts[0].Extra["openai_known_models_source"])
 	require.Equal(t, []string{"gpt-5.4", "gpt-4.1-mini"}, adminSvc.updatedAccounts[0].Extra["openai_known_models"])
 	require.NotEmpty(t, adminSvc.updatedAccounts[0].Extra["openai_known_models_updated_at"])
+	snapshot, ok := adminSvc.updatedAccounts[0].Extra["model_probe_snapshot"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, []string{"gpt-5.4", "gpt-4.1-mini"}, snapshot["models"])
+	require.Equal(t, service.AccountModelProbeSnapshotSourceImportModels, snapshot["source"])
+	require.Equal(t, "upstream", snapshot["probe_source"])
 }
 
 type handlerMixedProbeHTTPUpstream struct{}

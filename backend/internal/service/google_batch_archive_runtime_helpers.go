@@ -279,6 +279,7 @@ func (s *GeminiMessagesCompatService) ensureGoogleBatchArchiveResult(ctx context
 	if object != nil && strings.TrimSpace(object.RelativePath) != "" && s.googleBatchArchiveStorage != nil {
 		body, err := s.googleBatchArchiveStorage.ReadAll(settings, object.RelativePath)
 		if err == nil {
+			recordGoogleBatchArchiveFetchSource("local")
 			return body, object, s.lookupArchiveExecutionAccountByJob(ctx, job), nil
 		}
 	}
@@ -294,6 +295,7 @@ func (s *GeminiMessagesCompatService) ensureGoogleBatchArchiveResult(ctx context
 			if err := s.maybeSettleGoogleBatchArchiveJob(ctx, input, account, job, body); err != nil {
 				return nil, object, account, err
 			}
+			recordGoogleBatchArchiveFetchSource("vertex")
 			return body, object, account, nil
 		}
 	}
@@ -309,9 +311,74 @@ func (s *GeminiMessagesCompatService) ensureGoogleBatchArchiveResult(ctx context
 			if err := s.maybeSettleGoogleBatchArchiveJob(ctx, input, account, job, result.Body); err != nil {
 				return nil, object, account, err
 			}
+			recordGoogleBatchArchiveFetchSource("official")
 			return result.Body, object, account, nil
 		}
 	}
+	recordGoogleBatchArchiveFetchSource("unavailable")
+	return nil, object, account, infraerrors.NotFound("GOOGLE_ARCHIVE_FILE_NOT_FOUND", "archive file not found")
+}
+
+func (s *GeminiMessagesCompatService) ensureGoogleBatchArchiveResultStream(ctx context.Context, input GoogleBatchForwardInput, job *GoogleBatchArchiveJob, object *GoogleBatchArchiveObject, allowOfficialFetch bool, allowExecutionFetch bool) (*UpstreamHTTPStreamResult, *GoogleBatchArchiveObject, *Account, error) {
+	if job == nil {
+		return nil, object, nil, fmt.Errorf("archive job is required")
+	}
+	settings := s.getGoogleBatchArchiveSettings(ctx)
+	if object == nil {
+		object, _ = s.findGoogleBatchArchiveResultObject(ctx, job)
+	}
+	if object != nil && strings.TrimSpace(object.RelativePath) != "" {
+		result, err := s.openGoogleBatchArchiveObjectStreamResult(settings, object, archiveFilenameForPublicResource(archiveResultFileName(job, object), googleBatchArchiveResultFilename))
+		if err == nil && result != nil {
+			recordGoogleBatchArchiveFetchSource("local")
+			return result, object, s.lookupArchiveExecutionAccountByJob(ctx, job), nil
+		}
+	}
+	account := s.lookupArchiveExecutionAccountByJob(ctx, job)
+	if allowExecutionFetch && s.canFetchGoogleBatchResultFromExecution(ctx, job, object) {
+		body, contentType, _, executionResourceName, fetchErr := s.fetchVertexBatchArchiveResultStream(ctx, job)
+		if fetchErr == nil && body != nil {
+			defer func() { _ = body.Close() }()
+			object = ensureArchiveResultObject(job, object, archiveResultFileName(job, object))
+			object.ExecutionResourceName = strings.TrimSpace(executionResourceName)
+			if err := s.storeGoogleBatchArchiveObjectReader(ctx, settings, job, object, googleBatchArchiveResultFilename, contentType, body); err != nil {
+				return nil, object, account, err
+			}
+			if err := s.maybeSettleGoogleBatchArchiveJobFromObject(ctx, input, account, job, settings, object); err != nil {
+				return nil, object, account, err
+			}
+			result, err := s.openGoogleBatchArchiveObjectStreamResult(settings, object, archiveFilenameForPublicResource(object.PublicResourceName, googleBatchArchiveResultFilename))
+			if err == nil && result != nil {
+				recordGoogleBatchArchiveFetchSource("vertex")
+			}
+			return result, object, account, err
+		}
+	}
+	if allowOfficialFetch && s.canFetchGoogleBatchResultFromOfficial(job) && account != nil {
+		resultFileName := archiveResultFileName(job, object)
+		downloadInput := googleBatchArchiveInputFromJob(job, http.MethodGet, googleBatchArchivePublicFileDownloadPath(resultFileName), "alt=media")
+		upstream, err := s.forwardGoogleBatchToAccountStream(ctx, downloadInput, account, googleBatchTargetAIStudio)
+		if err == nil && upstream != nil && upstream.StatusCode >= 200 && upstream.StatusCode < 300 {
+			defer func() { _ = upstream.Body.Close() }()
+			object = ensureArchiveResultObject(job, object, resultFileName)
+			if err := s.storeGoogleBatchArchiveObjectReader(ctx, settings, job, object, archiveFilenameForPublicResource(resultFileName, googleBatchArchiveResultFilename), headerValue(upstream.Headers, "Content-Type"), upstream.Body); err != nil {
+				return nil, object, account, err
+			}
+			if err := s.maybeSettleGoogleBatchArchiveJobFromObject(ctx, input, account, job, settings, object); err != nil {
+				return nil, object, account, err
+			}
+			result, err := s.openGoogleBatchArchiveObjectStreamResult(settings, object, archiveFilenameForPublicResource(resultFileName, googleBatchArchiveResultFilename))
+			if err == nil && result != nil {
+				recordGoogleBatchArchiveFetchSource("official")
+			}
+			return result, object, account, err
+		}
+		if err == nil && upstream != nil {
+			recordGoogleBatchArchiveFetchSource("official")
+			return upstream, object, account, nil
+		}
+	}
+	recordGoogleBatchArchiveFetchSource("unavailable")
 	return nil, object, account, infraerrors.NotFound("GOOGLE_ARCHIVE_FILE_NOT_FOUND", "archive file not found")
 }
 

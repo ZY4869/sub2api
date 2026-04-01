@@ -64,6 +64,17 @@ func (r *tokenRefreshAccountRepo) SetTempUnschedulable(ctx context.Context, id i
 	return nil
 }
 
+func cloneCredentials(src map[string]any) map[string]any {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(src))
+	for key, value := range src {
+		out[key] = value
+	}
+	return out
+}
+
 type tokenCacheInvalidatorStub struct {
 	calls int
 	err   error
@@ -417,7 +428,7 @@ func TestTokenRefreshService_RefreshWithRetry_ClearsTempUnschedulable(t *testing
 	err := service.refreshWithRetry(context.Background(), account, refresher, refresher, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, 1, repo.updateCalls)
-	require.Equal(t, 1, repo.clearTempCalls)  // DB 清除
+	require.Equal(t, 1, repo.clearTempCalls)   // DB 清除
 	require.Equal(t, 1, tempCache.deleteCalls) // Redis 缓存也应清除
 }
 

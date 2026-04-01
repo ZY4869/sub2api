@@ -312,6 +312,48 @@ func (r *googleBatchArchiveJobRepository) TouchLastPublicResultAccess(ctx contex
 	return err
 }
 
+func (r *googleBatchArchiveJobRepository) TryMarkBillingSettled(ctx context.Context, id int64) (bool, error) {
+	if r == nil || r.sql == nil {
+		return false, nil
+	}
+	result, err := r.sql.ExecContext(ctx, `
+		UPDATE google_batch_archive_jobs
+		SET billing_settlement_state = $2, updated_at = NOW()
+		WHERE id = $1
+			AND billing_settlement_state = $3
+			AND deleted_at IS NULL
+	`, id, service.GoogleBatchArchiveBillingSettled, service.GoogleBatchArchiveBillingPending)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected == 1, nil
+}
+
+func (r *googleBatchArchiveJobRepository) TryRestoreBillingPending(ctx context.Context, id int64) (bool, error) {
+	if r == nil || r.sql == nil {
+		return false, nil
+	}
+	result, err := r.sql.ExecContext(ctx, `
+		UPDATE google_batch_archive_jobs
+		SET billing_settlement_state = $2, updated_at = NOW()
+		WHERE id = $1
+			AND billing_settlement_state = $3
+			AND deleted_at IS NULL
+	`, id, service.GoogleBatchArchiveBillingPending, service.GoogleBatchArchiveBillingSettled)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rowsAffected == 1, nil
+}
+
 func (r *googleBatchArchiveJobRepository) SoftDelete(ctx context.Context, id int64) error {
 	if r == nil || r.sql == nil {
 		return nil

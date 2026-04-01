@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"testing"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -245,7 +244,7 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIUsesUpstreamProjection(t *te
 	require.Equal(t, "https://openai.example.test/v1/models", upstream.lastReq.URL.String())
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_PropagatesUpstreamError(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureDegradesToEmpty(t *testing.T) {
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -287,11 +286,116 @@ func TestGatewayService_GetAPIKeyPublicModels_PropagatesUpstreamError(t *testing
 	}
 
 	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
 	require.Nil(t, entries)
-	require.Error(t, err)
+}
 
-	appErr := infraerrors.FromError(err)
-	require.Equal(t, int32(http.StatusForbidden), appErr.Code)
-	require.Equal(t, accountModelImportReasonKindOpenAIScopeInsufficient, appErr.Metadata["reason_kind"])
-	require.Equal(t, accountModelImportHintKeyOpenAIModelRead, appErr.Metadata["hint_key"])
+func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          6,
+				Name:        "openai-apikey",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "sk-test",
+					"base_url": "https://openai.example.test",
+				},
+				Extra: map[string]any{
+					"model_probe_snapshot": map[string]any{
+						"models":       []string{"gpt-4.1-mini"},
+						"updated_at":   "2026-04-01T10:00:00Z",
+						"source":       "manual_probe",
+						"probe_source": "upstream",
+					},
+				},
+			},
+		},
+	}
+	upstream := &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":"should not be called"}`,
+	}
+	svc := &GatewayService{
+		accountRepo:               repo,
+		accountModelImportService: NewAccountModelImportService(nil, nil, upstream, nil),
+	}
+	apiKey := &APIKey{
+		ID:               15,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 25,
+				Group: &Group{
+					ID:       25,
+					Name:     "openai-group",
+					Platform: PlatformOpenAI,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "gpt-4.1-mini", entries[0].PublicID)
+	require.Nil(t, upstream.lastReq)
+	require.Len(t, repo.updateExtraCalls, 0)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          7,
+				Name:        "openai-apikey",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "sk-test",
+					"base_url": "https://openai.example.test",
+				},
+			},
+		},
+	}
+	upstream := &accountModelImportHTTPUpstreamStub{
+		body: `{"data":[{"id":"gpt-4.1-mini"},{"id":"gpt-4o"}]}`,
+	}
+	svc := &GatewayService{
+		accountRepo:               repo,
+		accountModelImportService: NewAccountModelImportService(nil, nil, upstream, nil),
+	}
+	apiKey := &APIKey{
+		ID:               16,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 26,
+				Group: &Group{
+					ID:       26,
+					Name:     "openai-group",
+					Platform: PlatformOpenAI,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, int64(7), repo.updateExtraCalls[0].id)
+	require.NotNil(t, repo.updateExtraCalls[0].updates["model_probe_snapshot"])
+	require.Equal(
+		t,
+		AccountModelProbeSnapshotSourcePublicModelsLive,
+		repo.updateExtraCalls[0].updates["openai_known_models_source"],
+	)
 }

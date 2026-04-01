@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -41,6 +42,10 @@ func normalizeFileStorageRoot(root string) string {
 }
 
 func (s *GoogleBatchArchiveStorage) StoreBytes(_ context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, filename string, payload []byte) (string, int64, string, error) {
+	return s.StoreReader(nil, settings, job, filename, bytes.NewReader(payload))
+}
+
+func (s *GoogleBatchArchiveStorage) StoreReader(_ context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, filename string, reader io.Reader) (string, int64, string, error) {
 	if job == nil {
 		return "", 0, "", fmt.Errorf("archive job is nil")
 	}
@@ -53,15 +58,22 @@ func (s *GoogleBatchArchiveStorage) StoreBytes(_ context.Context, settings *Goog
 		return "", 0, "", fmt.Errorf("archive filename is required")
 	}
 	localPath := filepath.Join(dir, name)
-	if err := os.WriteFile(localPath, payload, 0o644); err != nil {
+	file, err := os.Create(localPath)
+	if err != nil {
 		return "", 0, "", err
 	}
-	sum := sha256.Sum256(payload)
+	defer func() { _ = file.Close() }()
+	hash := sha256.New()
+	size, err := io.Copy(io.MultiWriter(file, hash), reader)
+	if err != nil {
+		_ = os.Remove(localPath)
+		return "", 0, "", err
+	}
 	relativePath, err := s.relativePath(settings, localPath)
 	if err != nil {
 		return "", 0, "", err
 	}
-	return relativePath, int64(len(payload)), hex.EncodeToString(sum[:]), nil
+	return relativePath, size, hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func (s *GoogleBatchArchiveStorage) OpenReader(settings *GoogleBatchArchiveSettings, relativePath string) (*os.File, os.FileInfo, error) {

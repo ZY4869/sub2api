@@ -156,37 +156,6 @@
           :request-formats="protocolGatewayBatchRequestFormats"
         />
 
-        <AccountProtocolGatewayModelProbeEditor
-          v-if="isProtocolGatewayAccount"
-          v-model:allowed-models="allowedModels"
-          v-model:model-mappings="modelMappings"
-          v-model:probed-models="protocolGatewayProbeModels"
-          v-model:manual-models="manualModels"
-          v-model:resolved-upstream="resolvedUpstream"
-          v-model:accepted-protocols="gatewayAcceptedProtocols"
-          v-model:client-profiles="gatewayClientProfiles"
-          v-model:client-routes="gatewayClientRoutes"
-          :gateway-protocol="gatewayProtocol"
-          :base-url="editBaseUrl"
-          :api-key="resolvedProtocolGatewayApiKey"
-          :proxy-id="form.proxy_id"
-        />
-
-        <AccountApiKeyModelProbeEditor
-          v-if="!isProtocolGatewayAccount"
-          v-model:allowed-models="allowedModels"
-          v-model:model-mappings="modelMappings"
-          v-model:probed-models="protocolGatewayProbeModels"
-          v-model:manual-models="manualModels"
-          v-model:resolved-upstream="resolvedUpstream"
-          :platform="account.platform"
-          account-type="apikey"
-          :credentials="apiKeyProbeCredentials"
-          :extra="buildProbeExtra()"
-          :probe-ready="isApiKeyProbeReady"
-          :proxy-id="form.proxy_id"
-        />
-
         <AccountPoolModeEditor
           v-model:state="poolModeState"
           :default-retry-count="DEFAULT_POOL_MODE_RETRY_COUNT"
@@ -216,23 +185,8 @@
         :legacy-mode="isGeminiVertexLegacyMode"
       />
 
-      <AccountApiKeyModelProbeEditor
-        v-if="isGeminiVertexAccount"
-        v-model:allowed-models="allowedModels"
-        v-model:model-mappings="modelMappings"
-        v-model:probed-models="protocolGatewayProbeModels"
-        v-model:manual-models="manualModels"
-        v-model:resolved-upstream="resolvedUpstream"
-        platform="gemini"
-        :account-type="geminiVertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'"
-        :credentials="vertexProbeCredentials"
-        :extra="buildProbeExtra()"
-        :probe-ready="isVertexProbeReady"
-        :proxy-id="form.proxy_id"
-      />
-
       <AccountModelScopeEditor
-        v-if="effectivePlatform !== 'antigravity' && (account.type === 'oauth' || account.type === 'setup-token' || account.type === 'sso')"
+        v-if="showStandaloneModelScopeEditor"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
         :mode="modelRestrictionMode"
@@ -254,34 +208,38 @@
           v-model:api-key="editApiKey"
           mode="edit"
         />
-
-        <AccountApiKeyModelProbeEditor
-          v-model:allowed-models="allowedModels"
-          v-model:model-mappings="antigravityModelMappings"
-          v-model:probed-models="protocolGatewayProbeModels"
-          v-model:manual-models="manualModels"
-          v-model:resolved-upstream="resolvedUpstream"
-          :platform="account.platform"
-          account-type="upstream"
-          :credentials="upstreamProbeCredentials"
-          :extra="buildProbeExtra()"
-          :probe-ready="isUpstreamProbeReady"
-          :proxy-id="form.proxy_id"
-        />
       </div>
 
-      <AccountApiKeyModelProbeEditor
-        v-if="showOAuthProbeEditor"
+      <AccountProtocolGatewayModelProbeEditor
+        v-if="showUnifiedProtocolGatewayProbeEditor"
         v-model:allowed-models="allowedModels"
         v-model:model-mappings="modelMappings"
         v-model:probed-models="protocolGatewayProbeModels"
         v-model:manual-models="manualModels"
+        v-model:probe-snapshot="modelProbeSnapshot"
+        v-model:resolved-upstream="resolvedUpstream"
+        v-model:accepted-protocols="gatewayAcceptedProtocols"
+        v-model:client-profiles="gatewayClientProfiles"
+        v-model:client-routes="gatewayClientRoutes"
+        :gateway-protocol="gatewayProtocol"
+        :base-url="editBaseUrl"
+        :api-key="resolvedProtocolGatewayApiKey"
+        :proxy-id="form.proxy_id"
+      />
+
+      <AccountApiKeyModelProbeEditor
+        v-else-if="showUnifiedAPIModelProbeEditor"
+        v-model:allowed-models="allowedModels"
+        v-model:model-mappings="modelMappings"
+        v-model:probed-models="protocolGatewayProbeModels"
+        v-model:manual-models="manualModels"
+        v-model:probe-snapshot="modelProbeSnapshot"
         v-model:resolved-upstream="resolvedUpstream"
         :platform="account.platform"
-        account-type="oauth"
-        :credentials="oauthProbeCredentials"
+        :account-type="unifiedProbeAccountType"
+        :credentials="unifiedProbeCredentials"
         :extra="buildProbeExtra()"
-        :probe-ready="oauthProbeReady"
+        :probe-ready="unifiedProbeReady"
         :proxy-id="form.proxy_id"
       />
 
@@ -618,10 +576,14 @@ import type {
   GatewayClientRoute
 } from '@/types'
 import {
+  deriveConfiguredAccountModelIds,
+  mergeAccountModelProbeSnapshotIntoExtra,
   mergeAccountManualModelsIntoExtra,
   mergeResolvedUpstreamDraftIntoExtra,
+  readAccountModelProbeSnapshot,
   readAccountManualModelsFromExtra,
   readAccountResolvedUpstreamDraft,
+  type AccountModelProbeSnapshotDraft,
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 
@@ -657,6 +619,7 @@ const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const manualModels = ref<AccountManualModel[]>([])
+const modelProbeSnapshot = ref<AccountModelProbeSnapshotDraft | null>(null)
 const resolvedUpstream = ref<AccountResolvedUpstreamDraft | null>(null)
 const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
@@ -777,10 +740,24 @@ const isVertexProbeReady = computed(() => {
         (vertexProbeCredentials.value.access_token as string | undefined))
   )
 })
-const oauthProbeCredentials = computed<Record<string, unknown>>(() => ({
-  ...currentAccountCredentials.value
-}))
-const oauthProbeReady = computed(() => Object.keys(oauthProbeCredentials.value).length > 0)
+const oauthProbeCredentials = computed<Record<string, unknown>>(() => {
+  const credentials: Record<string, unknown> = {
+    ...currentAccountCredentials.value
+  }
+  if (isGrokSSOAccount.value) {
+    const ssoToken = editGrokSSOToken.value.trim() || String(currentAccountCredentials.value.sso_token || '').trim()
+    if (ssoToken) {
+      credentials.sso_token = ssoToken
+    }
+  }
+  return credentials
+})
+const oauthProbeReady = computed(() => {
+  if (isGrokSSOAccount.value) {
+    return Boolean(String(oauthProbeCredentials.value.sso_token || '').trim())
+  }
+  return Object.keys(oauthProbeCredentials.value).length > 0
+})
 const effectivePlatform = computed<GroupPlatform>(() => {
   const platform = resolveEffectiveAccountPlatform(props.account?.platform || 'anthropic', gatewayProtocol.value)
   return platform === 'protocol_gateway' ? 'openai' : platform
@@ -797,9 +774,6 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 })
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
-)
-const showOAuthProbeEditor = computed(() =>
-  props.account?.type === 'oauth' && (props.account?.platform === 'copilot' || props.account?.platform === 'kiro')
 )
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
@@ -820,8 +794,74 @@ const isGeminiVertexLegacyMode = computed(() => {
   )
 })
 const showCommonApiKeySection = computed(() =>
-  props.account?.type === 'apikey' && !isProtocolGatewayAccount.value && !isGeminiVertexAccount.value
+  props.account?.type === 'apikey' && !isGeminiVertexAccount.value
 )
+const supportsUnifiedModelEditor = computed(() => {
+  if (!props.account) {
+    return false
+  }
+  if (props.account.platform === 'antigravity' || props.account.platform === 'sora') {
+    return false
+  }
+  if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account.type === 'upstream') {
+    return true
+  }
+  if (props.account.type === 'apikey') {
+    return true
+  }
+  if (props.account.platform === 'grok' && props.account.type === 'sso') {
+    return true
+  }
+  if (props.account.type === 'oauth') {
+    return ['openai', 'anthropic', 'gemini', 'copilot', 'kiro'].includes(props.account.platform)
+  }
+  return props.account.type === 'setup-token' && props.account.platform === 'anthropic'
+})
+const showUnifiedProtocolGatewayProbeEditor = computed(() =>
+  supportsUnifiedModelEditor.value && isProtocolGatewayAccount.value
+)
+const showUnifiedAPIModelProbeEditor = computed(() =>
+  supportsUnifiedModelEditor.value && !isProtocolGatewayAccount.value
+)
+const showStandaloneModelScopeEditor = computed(() => {
+  if (!supportsUnifiedModelEditor.value || effectivePlatform.value === 'antigravity') {
+    return false
+  }
+  if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account?.type === 'upstream') {
+    return true
+  }
+  return props.account?.type === 'oauth' || props.account?.type === 'setup-token' || props.account?.type === 'sso'
+})
+const unifiedProbeAccountType = computed(() => {
+  if (isGeminiVertexAccount.value) {
+    return geminiVertexAuthMode.value === 'express_api_key' ? 'apikey' : 'oauth'
+  }
+  return String(props.account?.type || 'apikey')
+})
+const unifiedProbeCredentials = computed<Record<string, unknown>>(() => {
+  if (isGeminiVertexAccount.value) {
+    return vertexProbeCredentials.value
+  }
+  if (props.account?.type === 'upstream') {
+    return upstreamProbeCredentials.value
+  }
+  if (props.account?.type === 'apikey') {
+    return apiKeyProbeCredentials.value
+  }
+  return oauthProbeCredentials.value
+})
+const unifiedProbeReady = computed(() => {
+  if (isGeminiVertexAccount.value) {
+    return isVertexProbeReady.value
+  }
+  if (props.account?.type === 'upstream') {
+    return isUpstreamProbeReady.value
+  }
+  if (props.account?.type === 'apikey') {
+    return isApiKeyProbeReady.value
+  }
+  return oauthProbeReady.value
+})
 const showQuotaLimitSection = computed(() => Boolean(props.account))
 const showGeminiAIStudioBatchArchiveEditor = computed(() =>
   resolveGoogleBatchArchiveTargetKind(
@@ -1046,6 +1086,15 @@ function applyDefaultGrokCapabilityMapping() {
   allowedModels.value = []
 }
 
+function createStaticProbeModels(modelIds: string[]): ProtocolGatewayProbeModel[] {
+  return modelIds.map((modelId) => ({
+    id: modelId,
+    display_name: modelId,
+    registry_state: 'existing',
+    registry_model_id: modelId
+  }))
+}
+
 
 const form = reactive({
   name: '',
@@ -1181,7 +1230,14 @@ watch(
       // Load mixed scheduling setting (only for antigravity accounts)
       const extra = newAccount.extra as Record<string, unknown> | undefined
       manualModels.value = readAccountManualModelsFromExtra(extra, isProtocolGatewayAccount.value)
+      modelProbeSnapshot.value = readAccountModelProbeSnapshot(extra)
       resolvedUpstream.value = readAccountResolvedUpstreamDraft(extra)
+      if (!resolvedUpstream.value?.upstream_probed_at && modelProbeSnapshot.value?.updated_at) {
+        resolvedUpstream.value = {
+          ...(resolvedUpstream.value || {}),
+          upstream_probed_at: modelProbeSnapshot.value.updated_at
+        }
+      }
       mixedScheduling.value = extra?.mixed_scheduling === true
       editGrokSSOToken.value = ''
       editGrokTier.value = normalizeGrokTier(extra?.grok_tier)
@@ -1373,6 +1429,12 @@ watch(
       } else if (newAccount.type === 'upstream' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
         editBaseUrl.value = (credentials.base_url as string) || ''
+        const loadedFromScope = loadModelScopeFromExtra(extra)
+        if (!loadedFromScope) {
+          applyModelRestrictionFromRecord(credentials.model_mapping)
+        }
+        resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
+        resetAccountCustomErrorCodesState(customErrorCodesState)
       } else {
         const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
         editBaseUrl.value = platformDefaultUrl
@@ -1391,6 +1453,13 @@ watch(
         resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
         resetAccountCustomErrorCodesState(customErrorCodesState)
       }
+      const initialProbeModelIDs =
+        modelProbeSnapshot.value?.models && modelProbeSnapshot.value.models.length > 0
+          ? [...modelProbeSnapshot.value.models]
+          : deriveConfiguredAccountModelIds(extra, credentials)
+      if (initialProbeModelIDs.length > 0) {
+        protocolGatewayProbeModels.value = createStaticProbeModels(initialProbeModelIDs)
+      }
       editApiKey.value = ''
     } else {
       resetMixedChannelRisk()
@@ -1403,6 +1472,7 @@ watch(
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
       manualModels.value = []
+      modelProbeSnapshot.value = null
       resolvedUpstream.value = null
       batchArchiveEnabled.value = defaultGoogleBatchArchiveState.enabled
       batchArchiveAutoPrefetchEnabled.value = defaultGoogleBatchArchiveState.autoPrefetchEnabled
@@ -2003,10 +2073,13 @@ const handleSubmit = async () => {
 
 function buildProbeExtra(base?: Record<string, unknown>) {
   return mergeResolvedUpstreamDraftIntoExtra(
-    mergeAccountManualModelsIntoExtra(
-      base || currentAccountExtra.value,
-      manualModels.value,
-      isProtocolGatewayAccount.value
+    mergeAccountModelProbeSnapshotIntoExtra(
+      mergeAccountManualModelsIntoExtra(
+        base || currentAccountExtra.value,
+        manualModels.value,
+        isProtocolGatewayAccount.value
+      ),
+      modelProbeSnapshot.value
     ),
     resolvedUpstream.value
   )

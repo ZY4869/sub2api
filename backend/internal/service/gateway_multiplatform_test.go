@@ -25,6 +25,10 @@ type mockAccountRepoForPlatform struct {
 	accountsByID     map[int64]*Account
 	listPlatformFunc func(ctx context.Context, platform string) ([]Account, error)
 	getByIDCalls     int
+	updateExtraCalls []struct {
+		id      int64
+		updates map[string]any
+	}
 }
 
 func (m *mockAccountRepoForPlatform) GetByID(ctx context.Context, id int64) (*Account, error) {
@@ -201,6 +205,14 @@ func (m *mockAccountRepoForPlatform) UpdateSessionWindow(ctx context.Context, id
 	return nil
 }
 func (m *mockAccountRepoForPlatform) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+	cloned := cloneStringAnyMap(updates)
+	m.updateExtraCalls = append(m.updateExtraCalls, struct {
+		id      int64
+		updates map[string]any
+	}{
+		id:      id,
+		updates: cloned,
+	})
 	return nil
 }
 func (m *mockAccountRepoForPlatform) BulkUpdate(ctx context.Context, ids []int64, updates AccountBulkUpdate) (int64, error) {

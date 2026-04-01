@@ -997,6 +997,12 @@ export interface CodexUsageSnapshot {
     | "test_probe"
     | "model_mapping"
     | string;
+  model_probe_snapshot?: {
+    models: string[];
+    updated_at?: string;
+    source?: string;
+    probe_source?: string;
+  };
 }
 
 export interface CreateAccountRequest {

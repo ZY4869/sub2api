@@ -10,13 +10,13 @@ import (
 )
 
 type GoogleBatchArchivePrefetchService struct {
-	jobRepo         GoogleBatchArchiveJobRepository
-	objectRepo      GoogleBatchArchiveObjectRepository
-	compatService   *GeminiMessagesCompatService
-	settingService  *SettingService
-	startOnce       sync.Once
-	stopOnce        sync.Once
-	stopCh          chan struct{}
+	jobRepo        GoogleBatchArchiveJobRepository
+	objectRepo     GoogleBatchArchiveObjectRepository
+	compatService  *GeminiMessagesCompatService
+	settingService *SettingService
+	startOnce      sync.Once
+	stopOnce       sync.Once
+	stopCh         chan struct{}
 }
 
 func NewGoogleBatchArchivePrefetchService(
@@ -125,8 +125,11 @@ func (s *GoogleBatchArchivePrefetchService) prefetchJob(job *GoogleBatchArchiveJ
 		return
 	}
 	input := googleBatchArchiveInputFromJob(job, httpMethodGet, googleBatchArchivePublicFileDownloadPath(resultFileName), "alt=media")
-	result, err := s.compatService.forwardGoogleBatchToAccount(ctx, input, account, googleBatchTargetAIStudio)
+	result, err := s.compatService.forwardGoogleBatchToAccountStream(ctx, input, account, googleBatchTargetAIStudio)
 	if err != nil || result == nil || result.StatusCode < 200 || result.StatusCode >= 300 {
+		if result != nil && result.Body != nil {
+			_ = result.Body.Close()
+		}
 		next := time.Now().UTC().Add(googleBatchArchivePollInterval(settings))
 		job.PrefetchDueAt = &next
 		_ = s.compatService.upsertGoogleBatchArchiveJob(ctx, job)
@@ -144,13 +147,20 @@ func (s *GoogleBatchArchivePrefetchService) prefetchJob(job *GoogleBatchArchiveJ
 		}
 	}
 	filename := archiveFilenameForPublicResource(resultFileName, googleBatchArchiveResultFilename)
-	if err := s.compatService.storeGoogleBatchArchiveObjectBytes(ctx, settings, job, object, filename, headerValue(result.Headers, "Content-Type"), result.Body); err != nil {
+	if err := s.compatService.storeGoogleBatchArchiveObjectReader(ctx, settings, job, object, filename, headerValue(result.Headers, "Content-Type"), result.Body); err != nil {
+		_ = result.Body.Close()
 		next := time.Now().UTC().Add(googleBatchArchivePollInterval(settings))
 		job.PrefetchDueAt = &next
 		_ = s.compatService.upsertGoogleBatchArchiveJob(ctx, job)
 		return
 	}
-	_ = s.compatService.maybeSettleGoogleBatchArchiveJob(ctx, input, account, job, result.Body)
+	_ = result.Body.Close()
+	if err := s.compatService.maybeSettleGoogleBatchArchiveJobFromObject(ctx, input, account, job, settings, object); err != nil {
+		next := time.Now().UTC().Add(googleBatchArchivePollInterval(settings))
+		job.PrefetchDueAt = &next
+		_ = s.compatService.upsertGoogleBatchArchiveJob(ctx, job)
+		return
+	}
 	job.ArchiveState = GoogleBatchArchiveLifecycleArchived
 	job.PrefetchDueAt = nil
 	_ = s.compatService.upsertGoogleBatchArchiveJob(ctx, job)

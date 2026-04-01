@@ -223,10 +223,19 @@ func (s *AccountTestService) refreshOpenAIKnownModelsSnapshot(account *Account) 
 		return
 	}
 
-	updates := BuildOpenAIKnownModelsExtra(
-		probeResult.DetectedModels,
-		time.Now().UTC(),
-		OpenAIKnownModelsSourceTestProbe,
+	updatedAt := time.Now().UTC()
+	updates := MergeStringAnyMap(
+		BuildOpenAIKnownModelsExtra(
+			probeResult.DetectedModels,
+			updatedAt,
+			OpenAIKnownModelsSourceTestProbe,
+		),
+		BuildAccountModelProbeSnapshotExtra(
+			probeResult.DetectedModels,
+			updatedAt,
+			AccountModelProbeSnapshotSourceTestProbe,
+			probeResult.ProbeSource,
+		),
 	)
 	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
 		slog.Warn(

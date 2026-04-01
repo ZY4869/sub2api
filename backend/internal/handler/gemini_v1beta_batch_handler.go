@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"io"
 	"net/http"
 	"strings"
 
@@ -12,54 +13,54 @@ import (
 
 func (h *GatewayHandler) GeminiV1BetaFiles(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardGoogleFiles(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GeminiV1BetaFileUpload(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardGoogleFiles(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GeminiV1BetaFileDownload(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardGoogleFileDownload(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GeminiV1BetaBatches(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardGoogleBatches(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) VertexBatchPredictionJobs(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardVertexBatchPredictionJobs(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GoogleBatchArchiveBatch(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardGoogleArchiveBatch(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GoogleBatchArchiveFileDownload(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error) {
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiCompatService.ForwardGoogleArchiveFileDownload(c.Request.Context(), input)
 	})
 }
 
-func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(service.GoogleBatchForwardInput) (*service.UpstreamHTTPResult, *service.Account, error)) {
+func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error)) {
 	if h == nil || h.geminiCompatService == nil {
 		googleError(c, http.StatusServiceUnavailable, "Gemini batch service not configured")
 		return
@@ -94,9 +95,12 @@ func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(servi
 		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
 		return
 	}
-	body, err := readOptionalGoogleBatchBody(c)
+	body, openBody, cleanupBody, contentLength, err := readGoogleBatchForwardBody(c)
 	if err != nil {
 		return
+	}
+	if cleanupBody != nil {
+		defer cleanupBody()
 	}
 	result, _, err := forwarder(service.GoogleBatchForwardInput{
 		GroupID:        currentAPIKey.GroupID,
@@ -110,12 +114,14 @@ func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(servi
 		RawQuery:       c.Request.URL.RawQuery,
 		Headers:        c.Request.Header.Clone(),
 		Body:           body,
+		OpenBody:       openBody,
+		ContentLength:  contentLength,
 	})
 	if err != nil {
 		googleErrorFromServiceError(c, err)
 		return
 	}
-	writeUpstreamResponse(c, result)
+	writeGoogleBatchUpstreamResponse(c, result)
 }
 
 func resolveGoogleBatchBillingType(subscription *service.UserSubscription) int8 {
@@ -133,24 +139,42 @@ func resolveGoogleBatchSubscriptionID(subscription *service.UserSubscription) *i
 	return &value
 }
 
-func readOptionalGoogleBatchBody(c *gin.Context) ([]byte, error) {
+func readGoogleBatchForwardBody(c *gin.Context) ([]byte, func() (io.ReadCloser, error), func(), int64, error) {
 	if c == nil || c.Request == nil {
-		return nil, nil
+		return nil, nil, nil, 0, nil
 	}
 	switch strings.ToUpper(strings.TrimSpace(c.Request.Method)) {
 	case http.MethodGet, http.MethodHead:
-		return nil, nil
+		return nil, nil, nil, 0, nil
+	}
+	if shouldStreamGoogleBatchRequestBody(c.Request.Method, c.Request.URL.Path) {
+		if c.Request.Body == nil {
+			return nil, nil, nil, c.Request.ContentLength, nil
+		}
+		replayableBody, err := newReplayableGoogleBatchBody(c.Request.Body)
+		if err != nil {
+			googleError(c, http.StatusInternalServerError, "Failed to prepare request body")
+			return nil, nil, nil, 0, err
+		}
+		return nil, replayableBody.Open, replayableBody.Cleanup, c.Request.ContentLength, nil
 	}
 	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 	if err != nil {
 		if maxErr, ok := extractMaxBytesError(err); ok {
 			googleError(c, http.StatusRequestEntityTooLarge, buildBodyTooLargeMessage(maxErr.Limit))
-			return nil, err
+			return nil, nil, nil, 0, err
 		}
 		googleError(c, http.StatusBadRequest, "Failed to read request body")
-		return nil, err
+		return nil, nil, nil, 0, err
 	}
-	return body, nil
+	return body, nil, nil, int64(len(body)), nil
+}
+
+func shouldStreamGoogleBatchRequestBody(method string, path string) bool {
+	if !strings.EqualFold(strings.TrimSpace(method), http.MethodPost) {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(path), "/upload/v1beta/files")
 }
 
 func attachGeminiPublicProtocolContext(c *gin.Context) {

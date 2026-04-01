@@ -132,6 +132,7 @@
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           v-model:manual-models="manualModels"
+          v-model:probe-snapshot="modelProbeSnapshot"
           v-model:resolved-upstream="resolvedUpstream"
           platform="gemini"
           :account-type="geminiVertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'"
@@ -144,9 +145,10 @@
         <AccountApiKeyModelProbeEditor
           v-if="form.type === 'upstream'"
           v-model:allowed-models="allowedModels"
-          v-model:model-mappings="antigravityModelMappings"
+          v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           v-model:manual-models="manualModels"
+          v-model:probe-snapshot="modelProbeSnapshot"
           v-model:resolved-upstream="resolvedUpstream"
           :platform="form.platform"
           account-type="upstream"
@@ -240,6 +242,7 @@
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           v-model:manual-models="manualModels"
+          v-model:probe-snapshot="modelProbeSnapshot"
           v-model:resolved-upstream="resolvedUpstream"
           v-model:accepted-protocols="gatewayAcceptedProtocols"
           v-model:client-profiles="gatewayClientProfiles"
@@ -256,6 +259,7 @@
           v-model:model-mappings="modelMappings"
           v-model:probed-models="protocolGatewayProbeModels"
           v-model:manual-models="manualModels"
+          v-model:probe-snapshot="modelProbeSnapshot"
           v-model:resolved-upstream="resolvedUpstream"
           :platform="form.platform"
           account-type="apikey"
@@ -286,6 +290,7 @@
         v-model:model-mappings="modelMappings"
         v-model:probed-models="protocolGatewayProbeModels"
         v-model:manual-models="manualModels"
+        v-model:probe-snapshot="modelProbeSnapshot"
         v-model:resolved-upstream="resolvedUpstream"
         :platform="form.platform"
         account-type="oauth"
@@ -630,9 +635,12 @@ import {
   type ModelMapping
 } from '@/utils/accountFormShared'
 import {
+  createAccountModelProbeSnapshotDraft,
   createResolvedUpstreamDraft,
+  mergeAccountModelProbeSnapshotIntoExtra,
   mergeAccountManualModelsIntoExtra,
   mergeResolvedUpstreamDraftIntoExtra,
+  type AccountModelProbeSnapshotDraft,
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 import {
@@ -783,6 +791,7 @@ const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const manualModels = ref<AccountManualModel[]>([])
+const modelProbeSnapshot = ref<AccountModelProbeSnapshotDraft | null>(null)
 const resolvedUpstream = ref<AccountResolvedUpstreamDraft | null>(null)
 const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
@@ -1545,6 +1554,7 @@ const { resetForm } = useCreateAccountReset({
   modelRestrictionMode,
   allowedModels,
   manualModels,
+  modelProbeSnapshot,
   resolvedUpstream,
   oauthDraftCredentials,
   oauthDraftExtra,
@@ -1640,10 +1650,13 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     )
 
   return mergeResolvedUpstreamDraftIntoExtra(
-    mergeAccountManualModelsIntoExtra(
-      extraWithProtocolGateway,
-      manualModels.value,
-      isProtocolGatewayPlatform(form.platform)
+    mergeAccountModelProbeSnapshotIntoExtra(
+      mergeAccountManualModelsIntoExtra(
+        extraWithProtocolGateway,
+        manualModels.value,
+        isProtocolGatewayPlatform(form.platform)
+      ),
+      modelProbeSnapshot.value
     ),
     resolvedUpstream.value
   )
@@ -1801,6 +1814,9 @@ const handleCreateCopilotAccount = async (payload: { sessionId: string }) => {
     })
     oauthDraftCredentials.value = { ...(draft.credentials || {}) }
     oauthDraftExtra.value = { ...(draft.extra || {}) }
+    modelProbeSnapshot.value = createAccountModelProbeSnapshotDraft(
+      draft.extra?.model_probe_snapshot as AccountModelProbeSnapshotDraft | null | undefined
+    )
     resolvedUpstream.value =
       createResolvedUpstreamDraft({
         upstream_url: draft.resolved_upstream_url,
@@ -1819,6 +1835,9 @@ const handleCreateCopilotAccount = async (payload: { sessionId: string }) => {
 const handleCreateKiroAccount = async (payload: ParsedKiroTokenImport) => {
   oauthDraftCredentials.value = { ...(payload.credentials || {}) }
   oauthDraftExtra.value = { ...(payload.extra || {}) }
+  modelProbeSnapshot.value = createAccountModelProbeSnapshotDraft(
+    payload.extra?.model_probe_snapshot as AccountModelProbeSnapshotDraft | null | undefined
+  )
   step.value = 3
 }
 
@@ -2133,10 +2152,13 @@ const handleExchangeCode = async () => {
 
 const buildProbeExtra = (base?: Record<string, unknown>) =>
   mergeResolvedUpstreamDraftIntoExtra(
-    mergeAccountManualModelsIntoExtra(
-      base,
-      manualModels.value,
-      isProtocolGatewayPlatform(form.platform)
+    mergeAccountModelProbeSnapshotIntoExtra(
+      mergeAccountManualModelsIntoExtra(
+        base,
+        manualModels.value,
+        isProtocolGatewayPlatform(form.platform)
+      ),
+      modelProbeSnapshot.value
     ),
     resolvedUpstream.value
   )

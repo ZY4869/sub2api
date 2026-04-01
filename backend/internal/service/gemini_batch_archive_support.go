@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -94,6 +95,33 @@ func (s *GeminiMessagesCompatService) storeGoogleBatchArchiveObjectBytes(ctx con
 	return s.persistGoogleBatchArchiveManifest(ctx, settings, job)
 }
 
+func (s *GeminiMessagesCompatService) storeGoogleBatchArchiveObjectReader(ctx context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, object *GoogleBatchArchiveObject, filename string, contentType string, reader io.Reader) error {
+	if s == nil || s.googleBatchArchiveStorage == nil || job == nil || object == nil {
+		return nil
+	}
+	relativePath, size, sha256, err := s.googleBatchArchiveStorage.StoreReader(ctx, settings, job, filename, reader)
+	if err != nil {
+		return err
+	}
+	object.RelativePath = relativePath
+	object.SizeBytes = size
+	object.SHA256 = sha256
+	object.ContentType = strings.TrimSpace(contentType)
+	if object.ContentType == "" {
+		object.ContentType = "application/octet-stream"
+	}
+	if err := s.upsertGoogleBatchArchiveObject(ctx, object); err != nil {
+		return err
+	}
+	if object.IsResultPayload && job.ArchiveState != GoogleBatchArchiveLifecycleArchived {
+		job.ArchiveState = GoogleBatchArchiveLifecycleArchived
+		if err := s.upsertGoogleBatchArchiveJob(ctx, job); err != nil {
+			return err
+		}
+	}
+	return s.persistGoogleBatchArchiveManifest(ctx, settings, job)
+}
+
 func (s *GeminiMessagesCompatService) storeGoogleBatchSnapshot(ctx context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, payload []byte) error {
 	if job == nil || len(payload) == 0 {
 		return nil
@@ -137,9 +165,42 @@ func (s *GeminiMessagesCompatService) buildGoogleBatchBinaryResult(contentType s
 	return &UpstreamHTTPResult{StatusCode: http.StatusOK, Headers: headers, Body: body}
 }
 
-func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Context, input GoogleBatchForwardInput, account *Account, requestedModel string, operationType string, chargeSource string, tokens UsageTokens, cost *CostBreakdown, requestID string) {
+func (s *GeminiMessagesCompatService) buildGoogleBatchBinaryStreamResult(contentType string, filename string, body io.ReadCloser, contentLength int64) *UpstreamHTTPStreamResult {
+	headers := make(http.Header)
+	if strings.TrimSpace(contentType) != "" {
+		headers.Set("Content-Type", contentType)
+	} else {
+		headers.Set("Content-Type", "application/octet-stream")
+	}
+	if strings.TrimSpace(filename) != "" {
+		headers.Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	}
+	return &UpstreamHTTPStreamResult{
+		StatusCode:    http.StatusOK,
+		Headers:       headers,
+		Body:          body,
+		ContentLength: contentLength,
+	}
+}
+
+func (s *GeminiMessagesCompatService) openGoogleBatchArchiveObjectStreamResult(settings *GoogleBatchArchiveSettings, object *GoogleBatchArchiveObject, filename string) (*UpstreamHTTPStreamResult, error) {
+	if s == nil || s.googleBatchArchiveStorage == nil || object == nil || strings.TrimSpace(object.RelativePath) == "" {
+		return nil, nil
+	}
+	file, info, err := s.googleBatchArchiveStorage.OpenReader(settings, object.RelativePath)
+	if err != nil {
+		return nil, err
+	}
+	contentLength := int64(-1)
+	if info != nil {
+		contentLength = info.Size()
+	}
+	return s.buildGoogleBatchBinaryStreamResult(object.ContentType, filename, file, contentLength), nil
+}
+
+func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Context, input GoogleBatchForwardInput, account *Account, requestedModel string, operationType string, chargeSource string, tokens UsageTokens, cost *CostBreakdown, requestID string) error {
 	if s == nil || s.usageLogRepo == nil || account == nil {
-		return
+		return nil
 	}
 	if strings.TrimSpace(requestID) == "" {
 		requestID = "google-batch:" + operationType + ":" + generateRequestID()
@@ -192,9 +253,11 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		UpstreamService:       optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, "")),
 		CreatedAt:             time.Now(),
 	}
-	_, _ = s.usageLogRepo.Create(ctx, usageLog)
+	if _, err := s.usageLogRepo.Create(ctx, usageLog); err != nil {
+		return err
+	}
 	if s.usageBillingRepo == nil || input.APIKey == nil || actualCost <= 0 {
-		return
+		return nil
 	}
 	cmd := &UsageBillingCommand{
 		RequestID:           requestID,
@@ -233,7 +296,8 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		cmd.APIKeyRateLimitCost = actualCost
 	}
 	cmd.Normalize()
-	_, _ = s.usageBillingRepo.Apply(ctx, cmd)
+	_, err := s.usageBillingRepo.Apply(ctx, cmd)
+	return err
 }
 
 func usageLogFloat64Ptr(value float64) *float64 {
@@ -259,24 +323,23 @@ func googleBatchUsageFromJSONLine(line []byte) UsageTokens {
 }
 
 func googleBatchAggregateUsageFromJSONL(payload []byte) UsageTokens {
-	if len(payload) == 0 {
-		return UsageTokens{}
-	}
+	tokens, _ := googleBatchAggregateUsageFromReader(strings.NewReader(string(payload)))
+	return tokens
+}
+
+func googleBatchAggregateUsageFromReader(reader io.Reader) (UsageTokens, error) {
 	var tokens UsageTokens
-	for _, line := range strings.Split(string(payload), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		current := googleBatchUsageFromJSONLine([]byte(trimmed))
+	err := walkJSONLLines(reader, func(_ int, line []byte) error {
+		current := googleBatchUsageFromJSONLine(line)
 		tokens.InputTokens += current.InputTokens
 		tokens.OutputTokens += current.OutputTokens
 		tokens.CacheCreationTokens += current.CacheCreationTokens
 		tokens.CacheReadTokens += current.CacheReadTokens
 		tokens.CacheCreation5mTokens += current.CacheCreation5mTokens
 		tokens.CacheCreation1hTokens += current.CacheCreation1hTokens
-	}
-	return tokens
+		return nil
+	})
+	return tokens, err
 }
 
 func googleBatchCostWithDiscount(base *CostBreakdown, factor float64) *CostBreakdown {

@@ -139,6 +139,38 @@ function buildGrokSsoAccount() {
   } as any
 }
 
+function buildOpenAIOAuthAccount() {
+  return {
+    id: 5,
+    name: 'OpenAI OAuth',
+    notes: '',
+    platform: 'openai',
+    type: 'oauth',
+    credentials: {
+      access_token: 'access-token',
+      model_mapping: {
+        'friendly-gpt': 'gpt-5.4'
+      }
+    },
+    extra: {
+      model_probe_snapshot: {
+        models: ['gpt-5.4', 'gpt-4.1-mini'],
+        updated_at: '2026-04-01T10:00:00Z',
+        source: 'manual_probe',
+        probe_source: 'upstream'
+      }
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function buildVertexExpressAccount() {
   return {
     id: 3,
@@ -211,6 +243,7 @@ function mountModal(account = buildAccount()) {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
         AccountApiKeyModelProbeEditor: true,
+        AccountProtocolGatewayModelProbeEditor: true,
         AccountProtocolGatewayBatchEditor: true,
         AccountGeminiVertexCredentialsEditor: true,
         AccountModelScopeEditor: true,
@@ -288,6 +321,34 @@ describe('EditAccountModal', () => {
     })
   })
 
+  it('renders the unified model probe editor for Grok SSO accounts', () => {
+    const wrapper = mountModal(buildGrokSsoAccount())
+
+    expect(wrapper.findComponent({ name: 'AccountApiKeyModelProbeEditor' }).exists()).toBe(true)
+  })
+
+  it('renders the unified model probe editor for OpenAI OAuth accounts and keeps snapshot extra on submit', async () => {
+    const account = buildOpenAIOAuthAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.findComponent({ name: 'AccountApiKeyModelProbeEditor' }).exists()).toBe(true)
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_probe_snapshot).toEqual({
+      models: ['gpt-5.4', 'gpt-4.1-mini'],
+      updated_at: '2026-04-01T10:00:00Z',
+      source: 'manual_probe',
+      probe_source: 'upstream'
+    })
+  })
+
   it('keeps upstream quota fields when editing a vertex express account', async () => {
     const account = buildVertexExpressAccount()
     updateAccountMock.mockReset()
@@ -318,6 +379,8 @@ describe('EditAccountModal', () => {
     updateAccountMock.mockResolvedValue(account)
 
     const wrapper = mountModal(account)
+
+    expect(wrapper.findComponent({ name: 'AccountProtocolGatewayModelProbeEditor' }).exists()).toBe(true)
 
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
 

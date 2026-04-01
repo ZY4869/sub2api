@@ -1,4 +1,5 @@
 import type { Account } from '@/types'
+import { readAccountModelProbeSnapshot } from '@/utils/accountProbeDraft'
 
 interface OpenAIModelLabels {
   notProbed: string
@@ -52,6 +53,11 @@ export function getOpenAIModelSummary(
   account: Pick<Account, 'credentials' | 'extra'>,
   labels: OpenAIModelLabels
 ): string {
+  const probeSnapshot = readAccountModelProbeSnapshot(account.extra)
+  if (probeSnapshot?.models.length) {
+    return summarizeItems(probeSnapshot.models)
+  }
+
   const knownModels = Array.isArray(account.extra?.openai_known_models)
     ? account.extra?.openai_known_models.filter((model): model is string => typeof model === 'string' && model.trim() !== '')
     : []

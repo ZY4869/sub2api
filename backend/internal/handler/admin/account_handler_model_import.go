@@ -39,18 +39,30 @@ func (h *AccountHandler) ImportModels(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if account.IsOpenAIOAuth() {
-		updates := service.BuildOpenAIKnownModelsExtra(
+	if len(result.DetectedModels) > 0 {
+		updatedAt := time.Now().UTC()
+		updates := service.BuildAccountModelProbeSnapshotExtra(
 			result.DetectedModels,
-			time.Now().UTC(),
-			service.OpenAIKnownModelsSourceImportModels,
+			updatedAt,
+			service.AccountModelProbeSnapshotSourceImportModels,
+			result.ProbeSource,
 		)
+		if account.IsOpenAIOAuth() {
+			updates = service.MergeStringAnyMap(
+				service.BuildOpenAIKnownModelsExtra(
+					result.DetectedModels,
+					updatedAt,
+					service.OpenAIKnownModelsSourceImportModels,
+				),
+				updates,
+			)
+		}
 		mergedExtra := service.MergeStringAnyMap(account.Extra, updates)
 		if _, updateErr := h.adminService.UpdateAccount(ctx, account.ID, &service.UpdateAccountInput{Extra: mergedExtra}); updateErr != nil {
 			slog.Warn(
-				"openai_known_models_snapshot_update_failed",
+				"account_model_probe_snapshot_update_failed",
 				"account_id", account.ID,
-				"source", service.OpenAIKnownModelsSourceImportModels,
+				"source", service.AccountModelProbeSnapshotSourceImportModels,
 				"error", updateErr,
 			)
 		}

@@ -184,8 +184,11 @@ import {
   resolveAccountModelImportProbeNoticeMessage
 } from '@/utils/accountModelImport'
 import {
+  createAccountModelProbeSnapshotDraft,
   createResolvedUpstreamDraft,
+  readAccountModelProbeSnapshot,
   readAccountResolvedUpstreamDraft,
+  type AccountModelProbeSnapshotDraft,
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 import { buildDefaultVertexAlias, isGeminiVertexSourceCredentials } from '@/utils/vertexAi'
@@ -204,6 +207,7 @@ const modelMappings = defineModel<ModelMapping[]>('modelMappings', { required: t
 const probedModels = defineModel<ProtocolGatewayProbeModel[]>('probedModels', { required: true })
 const manualModels = defineModel<AccountManualModel[]>('manualModels', { required: true })
 const resolvedUpstream = defineModel<AccountResolvedUpstreamDraft | null>('resolvedUpstream', { required: true })
+const probeSnapshot = defineModel<AccountModelProbeSnapshotDraft | null>('probeSnapshot', { default: null })
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -248,6 +252,27 @@ watch(
 watch(
   () => props.extra,
   (extra) => {
+    const snapshot = readAccountModelProbeSnapshot(extra)
+    if (snapshot) {
+      probeSnapshot.value = snapshot
+      if (probedModels.value.length === 0) {
+        probedModels.value = snapshot.models.map((modelId) => ({
+          id: modelId,
+          display_name: modelId,
+          registry_state: 'existing' as const,
+          registry_model_id: modelId
+        }))
+      }
+      if (!probeSource.value) {
+        probeSource.value = snapshot.probe_source || snapshot.source || ''
+      }
+      if (!resolvedUpstream.value?.upstream_probed_at && snapshot.updated_at) {
+        resolvedUpstream.value = {
+          ...(resolvedUpstream.value || {}),
+          upstream_probed_at: snapshot.updated_at
+        }
+      }
+    }
     const draft = readAccountResolvedUpstreamDraft(extra)
     if (draft) {
       resolvedUpstream.value = draft
@@ -364,6 +389,7 @@ const handleProbe = async () => {
         .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
         .filter(([target]) => Boolean(target))
     )
+    const probedAt = new Date().toISOString()
     const selectedUncallable = new Set(manualUncallableSelections.value)
     const nextAllowedModels = result.models
       .filter((model) => isCallableModel(model) || selectedUncallable.has(model.id))
@@ -383,12 +409,19 @@ const handleProbe = async () => {
       probe_source: result.probe_source,
       probe_notice: result.probe_notice
     })
+    probeSnapshot.value = createAccountModelProbeSnapshotDraft({
+      models: result.models.map((model) => model.id),
+      updated_at: probedAt,
+      source: 'manual_probe',
+      probe_source: result.probe_source
+    })
     resolvedUpstream.value =
       createResolvedUpstreamDraft({
         upstream_url: result.resolved_upstream_url,
         upstream_host: result.resolved_upstream_host,
         upstream_service: result.resolved_upstream_service,
-        upstream_probe_source: result.probe_source
+        upstream_probe_source: result.probe_source,
+        upstream_probed_at: probedAt
       }) || resolvedUpstream.value
   } catch (error: any) {
     console.error('Failed to probe account models:', error)

@@ -135,6 +135,7 @@ func ProvideAntigravityTokenProvider(
 
 func ProvideGeminiMessagesCompatService(
 	accountRepo AccountRepository,
+	apiKeyRepo APIKeyRepository,
 	groupRepo GroupRepository,
 	resourceBindingRepo UpstreamResourceBindingRepository,
 	googleBatchQuotaReservationRepo GoogleBatchQuotaReservationRepository,
@@ -154,6 +155,7 @@ func ProvideGeminiMessagesCompatService(
 	cfg *config.Config,
 ) *GeminiMessagesCompatService {
 	svc := NewGeminiMessagesCompatService(accountRepo, groupRepo, cache, schedulerSnapshot, tokenProvider, rateLimitService, httpUpstream, antigravityGatewayService, cfg)
+	svc.SetAPIKeyRepository(apiKeyRepo)
 	svc.SetUpstreamResourceBindingRepository(resourceBindingRepo)
 	svc.SetGoogleBatchQuotaReservationRepository(googleBatchQuotaReservationRepo)
 	svc.SetGoogleBatchArchiveRepositories(googleBatchArchiveJobRepo, googleBatchArchiveObjectRepo)

@@ -24,7 +24,10 @@ import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSe
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 import type { VertexAuthMode } from '@/utils/vertexAi'
-import type { AccountResolvedUpstreamDraft } from '@/utils/accountProbeDraft'
+import type {
+  AccountModelProbeSnapshotDraft,
+  AccountResolvedUpstreamDraft
+} from '@/utils/accountProbeDraft'
 import type { GoogleBatchArchiveBillingMode } from '@/utils/accountGoogleBatchArchive'
 
 interface CreateAccountFormShape {
@@ -73,6 +76,7 @@ interface UseCreateAccountResetOptions {
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
   manualModels: Ref<AccountManualModel[]>
+  modelProbeSnapshot: Ref<AccountModelProbeSnapshotDraft | null>
   resolvedUpstream: Ref<AccountResolvedUpstreamDraft | null>
   oauthDraftCredentials: Ref<Record<string, unknown>>
   oauthDraftExtra: Ref<Record<string, unknown>>
@@ -165,6 +169,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.modelRestrictionMode.value = 'whitelist'
     options.allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')]
     options.manualModels.value = []
+    options.modelProbeSnapshot.value = null
     options.resolvedUpstream.value = null
     options.oauthDraftCredentials.value = {}
     options.oauthDraftExtra.value = {}

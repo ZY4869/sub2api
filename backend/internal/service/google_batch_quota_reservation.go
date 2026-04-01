@@ -52,14 +52,17 @@ func (s *GeminiMessagesCompatService) googleBatchAccountHasQuotaCapacity(ctx con
 	if err != nil {
 		return true
 	}
-	return reserved+selector.estimatedTokens <= limit
+	nextReserved := reserved + selector.estimatedTokens
+	allowed := nextReserved <= limit
+	recordGoogleBatchReservationSaturation(float64(nextReserved)/float64(limit), allowed)
+	return allowed
 }
 
 func (s *GeminiMessagesCompatService) reserveGoogleBatchQuota(ctx context.Context, input GoogleBatchForwardInput, account *Account, target googleBatchTarget, resourceName string) error {
 	if s.googleBatchQuotaReservationRepo == nil || account == nil || strings.TrimSpace(resourceName) == "" {
 		return nil
 	}
-	selector := buildGoogleBatchSelectorFromInput(input)
+	selector := s.buildGoogleBatchSelectorBestEffort(ctx, input)
 	if selector.estimatedTokens <= 0 {
 		selector.estimatedTokens = estimateGoogleBatchTokensFromPayload(input.Body)
 	}
@@ -71,11 +74,11 @@ func (s *GeminiMessagesCompatService) reserveGoogleBatchQuota(ctx context.Contex
 		ReservedTokens: selector.estimatedTokens,
 		Status:         GoogleBatchQuotaReservationStatusActive,
 		MetadataJSON: map[string]any{
-			"public_protocol":        publicGoogleBatchProtocol(input.Path),
-			"upstream_protocol":      providerFamilyForTarget(target),
-			"estimated_batch_tokens": selector.estimatedTokens,
-			"model_family":           selector.modelFamily,
-			"request_path":           strings.TrimSpace(input.Path),
+			"public_protocol":                         publicGoogleBatchProtocol(input.Path),
+			"upstream_protocol":                       providerFamilyForTarget(target),
+			googleBatchBindingMetadataEstimatedTokens: selector.estimatedTokens,
+			googleBatchBindingMetadataModelFamily:     selector.modelFamily,
+			"request_path":                            strings.TrimSpace(input.Path),
 		},
 	}
 	return s.googleBatchQuotaReservationRepo.Upsert(ctx, reservation)
@@ -135,15 +138,26 @@ func extractGoogleBatchModelID(path string, body []byte) string {
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
+		models := collectStringFieldsByKey(body, "model")
+		if len(models) > 0 {
+			return strings.TrimSpace(strings.TrimPrefix(models[0], "publishers/google/models/"))
+		}
 		return ""
 	}
 	if model, ok := payload["model"].(string); ok {
 		return strings.TrimSpace(strings.TrimPrefix(model, "publishers/google/models/"))
 	}
+	models := collectStringFieldsByKey(body, "model")
+	if len(models) > 0 {
+		return strings.TrimSpace(strings.TrimPrefix(models[0], "publishers/google/models/"))
+	}
 	return ""
 }
 
 func normalizeGoogleBatchModelFamily(model string) string {
+	if family, ok := googleBatchModelRegistryFamily(model); ok {
+		return family
+	}
 	value := strings.ToLower(strings.TrimSpace(model))
 	switch {
 	case strings.Contains(value, "2.5-pro"), strings.Contains(value, "pro"):

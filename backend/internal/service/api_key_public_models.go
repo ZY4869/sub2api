@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 	"strings"
+	"time"
 )
 
 type APIKeyPublicModelEntry struct {
@@ -114,15 +116,78 @@ func (s *GatewayService) publicModelEntriesForAccount(
 	if account.IsGeminiVertexSource() && strings.EqualFold(platform, PlatformGemini) {
 		return s.vertexPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
 	}
+
+	if savedSummary := AccountSavedModelProbeSummary(account); savedSummary != nil {
+		return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, savedSummary), nil
+	}
 	if s.accountModelImportService == nil {
 		return nil, nil
 	}
 
 	probeSummary, err := s.accountModelImportService.ListAccountModels(ctx, account, false)
 	if err != nil {
-		return nil, err
+		slog.Info(
+			"api_key_public_models_live_probe_degraded",
+			"account_id", account.ID,
+			"platform", platform,
+			"error", err,
+		)
+		return nil, nil
+	}
+	if probeSummary != nil {
+		s.bestEffortPersistAccountModelProbeSnapshot(
+			ctx,
+			account,
+			probeSummary,
+			platform,
+			AccountModelProbeSnapshotSourcePublicModelsLive,
+		)
 	}
 	return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary), nil
+}
+
+func (s *GatewayService) bestEffortPersistAccountModelProbeSnapshot(
+	ctx context.Context,
+	account *Account,
+	probeSummary *AccountModelProbeSummary,
+	platform string,
+	source string,
+) {
+	if s == nil || s.accountRepo == nil || account == nil || probeSummary == nil {
+		return
+	}
+	models := normalizeAccountModelProbeSnapshotModels(probeSummary.DetectedModels)
+	if len(models) == 0 {
+		return
+	}
+
+	updatedAt := time.Now().UTC()
+	updates := BuildAccountModelProbeSnapshotExtra(
+		models,
+		updatedAt,
+		source,
+		probeSummary.ProbeSource,
+	)
+	if account.IsOpenAI() {
+		updates = MergeStringAnyMap(
+			BuildOpenAIKnownModelsExtra(models, updatedAt, source),
+			updates,
+		)
+	}
+	if len(updates) == 0 {
+		return
+	}
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
+		slog.Warn(
+			"api_key_public_models_snapshot_backfill_failed",
+			"account_id", account.ID,
+			"platform", platform,
+			"source", source,
+			"error", err,
+		)
+		return
+	}
+	mergeAccountExtra(account, updates)
 }
 
 func projectProbeSummaryToPublicEntries(
