@@ -215,6 +215,7 @@ func TestKiroRuntimeService_ExecuteClaude_FallsBackToCodeWhisperer(t *testing.T)
 		Credentials: map[string]any{
 			"access_token": "live-token",
 			"api_region":   "us-west-2",
+			"profile_arn":  "arn:aws:codewhisperer:us-west-2:123456789012:profile/test",
 		},
 	}
 

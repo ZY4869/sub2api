@@ -15,6 +15,11 @@ func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
 		return ""
 	}
 	if parsed.MetadataUserID != "" {
+		if metadata := ParseMetadataUserID(parsed.MetadataUserID); metadata != nil {
+			if sessionID := strings.TrimSpace(metadata.SessionID); sessionID != "" {
+				return sessionID
+			}
+		}
 		if match := sessionIDRegex.FindStringSubmatch(parsed.MetadataUserID); len(match) > 1 {
 			return match[1]
 		}

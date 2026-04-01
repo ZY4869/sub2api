@@ -266,14 +266,19 @@ func projectProbeSummaryToPublicEntries(
 		if _, matched := bindingMatchesModel(modelPatterns, candidate.MatchID); !matched {
 			continue
 		}
-		sourceID := normalizeRegistryID(candidate.SourceID)
-		detail, ok := detectedSet[sourceID]
+		sourceID, detail, ok := resolveAPIKeyProjectionDetectedDetail(detectedSet, candidate.SourceID)
 		if !ok {
 			continue
 		}
-		publicID := apiKeyPublicProjectionPublicID(platform, candidate, sourceID)
+		projectedSourceID := sourceID
+		if !strings.EqualFold(platform, PlatformGrok) {
+			if rawSourceID := normalizeRegistryID(candidate.SourceID); rawSourceID != "" {
+				projectedSourceID = rawSourceID
+			}
+		}
+		publicID := apiKeyPublicProjectionPublicID(platform, candidate, projectedSourceID)
 		if publicID == "" {
-			publicID = sourceID
+			publicID = projectedSourceID
 		}
 		if _, exists := projected[publicID]; exists {
 			continue
@@ -283,12 +288,12 @@ func projectProbeSummaryToPublicEntries(
 			displayName = strings.TrimSpace(candidate.DisplayName)
 		}
 		if displayName == "" {
-			displayName = FormatModelCatalogDisplayName(sourceID)
+			displayName = FormatModelCatalogDisplayName(projectedSourceID)
 		}
 		projected[publicID] = APIKeyPublicModelEntry{
 			PublicID:    publicID,
 			AliasID:     candidate.AliasID,
-			SourceID:    sourceID,
+			SourceID:    projectedSourceID,
 			DisplayName: displayName,
 			Platform:    platform,
 		}
@@ -302,6 +307,32 @@ func projectProbeSummaryToPublicEntries(
 		return result[i].PublicID < result[j].PublicID
 	})
 	return result
+}
+
+func resolveAPIKeyProjectionDetectedDetail(
+	detectedSet map[string]AccountModelProbeModel,
+	source string,
+) (string, AccountModelProbeModel, bool) {
+	candidates := []string{
+		normalizeRegistryID(source),
+		NormalizeModelCatalogModelID(source),
+		modelCatalogDateVersionSuffixPattern.ReplaceAllString(normalizeRegistryID(source), ""),
+	}
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		candidate = normalizeRegistryID(candidate)
+		if candidate == "" {
+			continue
+		}
+		if _, exists := seen[candidate]; exists {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		if detail, ok := detectedSet[candidate]; ok {
+			return candidate, detail, true
+		}
+	}
+	return "", AccountModelProbeModel{}, false
 }
 
 func (s *GatewayService) vertexPublicModelEntries(

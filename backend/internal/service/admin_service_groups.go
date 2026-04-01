@@ -403,10 +403,16 @@ func (s *adminServiceImpl) AdminUpdateAPIKeyGroups(ctx context.Context, keyID in
 		apiKey.ModelDisplayMode = NormalizeAPIKeyModelDisplayMode(*modelDisplayMode)
 	}
 	if len(inputs) == 0 {
-		if modelDisplayMode != nil {
-			if err := s.apiKeyRepo.Update(ctx, apiKey); err != nil {
-				return nil, err
-			}
+		if err := s.apiKeyRepo.SetAPIKeyGroups(ctx, keyID, nil); err != nil {
+			return nil, fmt.Errorf("clear api key groups: %w", err)
+		}
+		apiKey.GroupBindings = nil
+		apiKey.SelectedGroupBinding = nil
+		apiKey.GroupID = nil
+		apiKey.Group = nil
+		apiKey.SyncLegacyGroupShadow()
+		if err := s.apiKeyRepo.Update(ctx, apiKey); err != nil {
+			return nil, fmt.Errorf("update api key metadata: %w", err)
 		}
 		updatedAPIKey, err := s.apiKeyRepo.GetByID(ctx, keyID)
 		if err != nil {

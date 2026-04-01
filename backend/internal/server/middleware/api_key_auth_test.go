@@ -580,6 +580,15 @@ func (r *stubApiKeyRepo) ListKeysByUserID(ctx context.Context, userID int64) ([]
 func (r *stubApiKeyRepo) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
 	return nil, errors.New("not implemented")
 }
+func (r *stubApiKeyRepo) GetAPIKeyGroups(ctx context.Context, keyID int64) ([]service.APIKeyGroupBinding, error) {
+	return nil, errors.New("not implemented")
+}
+func (r *stubApiKeyRepo) SetAPIKeyGroups(ctx context.Context, keyID int64, bindings []service.APIKeyGroupBinding) error {
+	return errors.New("not implemented")
+}
+func (r *stubApiKeyRepo) IncrementAPIKeyGroupQuotaUsed(ctx context.Context, keyID, groupID int64, amount float64) error {
+	return errors.New("not implemented")
+}
 
 func (r *stubApiKeyRepo) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error) {
 	return 0, errors.New("not implemented")

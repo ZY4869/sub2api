@@ -24,3 +24,23 @@ func TestDefaultAntigravityModelMapping_ImageCompatibilityAliases(t *testing.T) 
 		}
 	}
 }
+
+func TestDefaultAntigravityModelMapping_ClaudePublicAliases(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		"claude-sonnet-4.5":         "claude-sonnet-4-5",
+		"claude-haiku-4.5":          "claude-sonnet-4-5",
+		"claude-haiku-4-5-20251001": "claude-sonnet-4-5",
+	}
+
+	for from, want := range cases {
+		got, ok := DefaultAntigravityModelMapping[from]
+		if !ok {
+			t.Fatalf("expected mapping for %q to exist", from)
+		}
+		if got != want {
+			t.Fatalf("unexpected mapping for %q: got %q want %q", from, got, want)
+		}
+	}
+}

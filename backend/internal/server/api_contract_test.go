@@ -82,6 +82,7 @@ func TestAPIContracts(t *testing.T) {
 					"name": "Key One",
 					"group_id": null,
 					"status": "active",
+					"model_display_mode": "alias_only",
 					"ip_whitelist": null,
 					"ip_blacklist": null,
 					"last_used_at": null,
@@ -131,6 +132,7 @@ func TestAPIContracts(t *testing.T) {
 							"name": "Key One",
 							"group_id": null,
 							"status": "active",
+							"model_display_mode": "alias_only",
 							"ip_whitelist": null,
 							"ip_blacklist": null,
 							"last_used_at": null,
@@ -195,10 +197,12 @@ func TestAPIContracts(t *testing.T) {
 						"name": "Group One",
 						"description": "desc",
 						"platform": "anthropic",
+						"priority": 0,
 						"rate_multiplier": 1.5,
 						"is_exclusive": false,
 						"status": "active",
 						"subscription_type": "standard",
+						"gemini_mixed_protocol_enabled": false,
 						"daily_limit_usd": null,
 						"weekly_limit_usd": null,
 						"monthly_limit_usd": null,
@@ -409,6 +413,7 @@ func TestAPIContracts(t *testing.T) {
 								"request_id": "req_123",
 								"model": "claude-3",
 								"request_type": "stream",
+								"status": "succeeded",
 								"openai_ws_mode": false,
 								"group_id": null,
 								"subscription_id": null,
@@ -652,7 +657,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
 
-	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, nil, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, nil, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, settingService, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
@@ -893,6 +898,15 @@ func (stubGroupRepo) GetByID(ctx context.Context, id int64) (*service.Group, err
 func (stubGroupRepo) GetByIDLite(ctx context.Context, id int64) (*service.Group, error) {
 	return nil, service.ErrGroupNotFound
 }
+func (r *stubGroupRepo) GetByName(ctx context.Context, name string) (*service.Group, error) {
+	for i := range r.active {
+		if r.active[i].Name == name {
+			clone := r.active[i]
+			return &clone, nil
+		}
+	}
+	return nil, service.ErrGroupNotFound
+}
 
 func (stubGroupRepo) Update(ctx context.Context, group *service.Group) error {
 	return errors.New("not implemented")
@@ -962,11 +976,16 @@ func (s *stubAccountRepo) Create(ctx context.Context, account *service.Account) 
 }
 
 func (s *stubAccountRepo) GetByID(ctx context.Context, id int64) (*service.Account, error) {
-	return nil, service.ErrAccountNotFound
+	return &service.Account{ID: id, Status: service.StatusActive, Schedulable: true}, nil
 }
 
 func (s *stubAccountRepo) GetByIDs(ctx context.Context, ids []int64) ([]*service.Account, error) {
-	return nil, errors.New("not implemented")
+	out := make([]*service.Account, 0, len(ids))
+	for _, id := range ids {
+		account := &service.Account{ID: id, Status: service.StatusActive, Schedulable: true}
+		out = append(out, account)
+	}
+	return out, nil
 }
 
 func (s *stubAccountRepo) ExistsByID(ctx context.Context, id int64) (bool, error) {
@@ -1002,6 +1021,9 @@ func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination
 	_ = lifecycle
 	_ = privacyMode
 	return nil, nil, errors.New("not implemented")
+}
+func (s *stubAccountRepo) GetStatusSummary(ctx context.Context, filters service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (s *stubAccountRepo) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {
@@ -1122,6 +1144,18 @@ func (s *stubAccountRepo) IncrementQuotaUsed(ctx context.Context, id int64, amou
 
 func (s *stubAccountRepo) ResetQuotaUsed(ctx context.Context, id int64) error {
 	return errors.New("not implemented")
+}
+func (s *stubAccountRepo) MarkBlacklisted(ctx context.Context, id int64, reasonCode, reasonMessage string, blacklistedAt, purgeAt time.Time) error {
+	return errors.New("not implemented")
+}
+func (s *stubAccountRepo) RestoreBlacklisted(ctx context.Context, id int64) error {
+	return errors.New("not implemented")
+}
+func (s *stubAccountRepo) ListBlacklistedIDs(ctx context.Context) ([]int64, error) {
+	return nil, errors.New("not implemented")
+}
+func (s *stubAccountRepo) ListBlacklistedForPurge(ctx context.Context, now time.Time, limit int) ([]service.Account, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (s *stubAccountRepo) BulkUpdate(ctx context.Context, ids []int64, updates service.AccountBulkUpdate) (int64, error) {
@@ -1551,6 +1585,15 @@ func (r *stubApiKeyRepo) ListKeysByUserID(ctx context.Context, userID int64) ([]
 
 func (r *stubApiKeyRepo) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
 	return nil, errors.New("not implemented")
+}
+func (r *stubApiKeyRepo) GetAPIKeyGroups(ctx context.Context, keyID int64) ([]service.APIKeyGroupBinding, error) {
+	return nil, errors.New("not implemented")
+}
+func (r *stubApiKeyRepo) SetAPIKeyGroups(ctx context.Context, keyID int64, bindings []service.APIKeyGroupBinding) error {
+	return errors.New("not implemented")
+}
+func (r *stubApiKeyRepo) IncrementAPIKeyGroupQuotaUsed(ctx context.Context, keyID, groupID int64, amount float64) error {
+	return errors.New("not implemented")
 }
 
 func (r *stubApiKeyRepo) IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error) {

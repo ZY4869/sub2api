@@ -71,6 +71,15 @@ func (s *AntigravityGatewayService) handleSmartRetry(p antigravityRetryLoopParam
 		logger.LegacyPrintf("service.antigravity_gateway", "%s URL fallback (429): %s -> %s", p.prefix, baseURL, availableURLs[urlIdx+1])
 		return &smartRetryResult{action: smartRetryActionContinueURL}
 	}
+	if resp.StatusCode == http.StatusTooManyRequests &&
+		p.account != nil &&
+		p.account.IsOveragesEnabled() &&
+		!p.account.isCreditsExhausted() &&
+		classifyAntigravity429(respBody) == antigravity429QuotaExhausted {
+		if creditsRetry := s.attemptCreditsOveragesRetry(p, baseURL, ""); creditsRetry != nil && creditsRetry.handled && creditsRetry.resp != nil {
+			return &smartRetryResult{action: smartRetryActionBreakWithResp, resp: creditsRetry.resp}
+		}
+	}
 	shouldSmartRetry, shouldRateLimitModel, waitDuration, modelName, isModelCapacityExhausted := shouldTriggerAntigravitySmartRetry(p.account, respBody)
 	if shouldRateLimitModel {
 		if resp.StatusCode == http.StatusServiceUnavailable && isSingleAccountRetry(p.ctx) {
@@ -262,8 +271,17 @@ func (s *AntigravityGatewayService) handleSingleAccountRetryInPlace(p antigravit
 	return &smartRetryResult{action: smartRetryActionBreakWithResp, resp: &http.Response{StatusCode: resp.StatusCode, Header: resp.Header.Clone(), Body: io.NopCloser(bytes.NewReader(retryBody))}}
 }
 func (s *AntigravityGatewayService) antigravityRetryLoop(p antigravityRetryLoopParams) (*antigravityRetryLoopResult, error) {
+	baseURL := resolveAntigravityForwardBaseURL()
+	if baseURL == "" {
+		return nil, errors.New("no antigravity forward base url configured")
+	}
 	if p.requestedModel != "" {
 		if remaining := p.account.GetRateLimitRemainingTimeWithContext(p.ctx, p.requestedModel); remaining > 0 {
+			if p.account != nil && p.account.IsOveragesEnabled() && !p.account.isCreditsExhausted() {
+				if creditsRetry := s.attemptCreditsOveragesRetry(p, baseURL, ""); creditsRetry != nil && creditsRetry.handled && creditsRetry.resp != nil {
+					return &antigravityRetryLoopResult{resp: creditsRetry.resp}, nil
+				}
+			}
 			if isSingleAccountRetry(p.ctx) {
 				logger.LegacyPrintf("service.antigravity_gateway", "%s pre_check: single_account_retry skipping rate_limit remaining=%v model=%s account=%d (will retry in-place if 503)", p.prefix, remaining.Truncate(time.Millisecond), p.requestedModel, p.account.ID)
 			} else {
@@ -271,10 +289,6 @@ func (s *AntigravityGatewayService) antigravityRetryLoop(p antigravityRetryLoopP
 				return nil, &AntigravityAccountSwitchError{OriginalAccountID: p.account.ID, RateLimitedModel: p.requestedModel, IsStickySession: p.isStickySession}
 			}
 		}
-	}
-	baseURL := resolveAntigravityForwardBaseURL()
-	if baseURL == "" {
-		return nil, errors.New("no antigravity forward base url configured")
 	}
 	availableURLs := []string{baseURL}
 	var resp *http.Response

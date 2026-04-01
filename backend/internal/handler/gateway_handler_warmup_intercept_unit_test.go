@@ -62,6 +62,9 @@ func (f *fakeGroupRepo) GetByID(context.Context, int64) (*service.Group, error) 
 func (f *fakeGroupRepo) GetByIDLite(context.Context, int64) (*service.Group, error) {
 	return f.group, nil
 }
+func (f *fakeGroupRepo) GetByName(context.Context, string) (*service.Group, error) {
+	return f.group, nil
+}
 func (f *fakeGroupRepo) Update(context.Context, *service.Group) error          { return nil }
 func (f *fakeGroupRepo) Delete(context.Context, int64) error                   { return nil }
 func (f *fakeGroupRepo) DeleteCascade(context.Context, int64) ([]int64, error) { return nil, nil }

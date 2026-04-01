@@ -205,8 +205,10 @@ func (s *AntigravityGatewayService) attemptCreditsOveragesRetry(
 		return &creditsOveragesRetryResult{handled: true, resp: creditsResp}
 	}
 
-	s.handleCreditsRetryFailure(p.ctx, p.prefix, modelKey, p.account, creditsResp, err)
-	return &creditsOveragesRetryResult{handled: true}
+	return &creditsOveragesRetryResult{
+		handled: true,
+		resp:    s.handleCreditsRetryFailure(p.ctx, p.prefix, modelKey, p.account, creditsResp, err),
+	}
 }
 
 func (s *AntigravityGatewayService) handleCreditsRetryFailure(
@@ -216,11 +218,13 @@ func (s *AntigravityGatewayService) handleCreditsRetryFailure(
 	account *Account,
 	creditsResp *http.Response,
 	reqErr error,
-) {
+) *http.Response {
 	var creditsRespBody []byte
 	creditsStatusCode := 0
+	var creditsHeaders http.Header
 	if creditsResp != nil {
 		creditsStatusCode = creditsResp.StatusCode
+		creditsHeaders = creditsResp.Header.Clone()
 		if creditsResp.Body != nil {
 			creditsRespBody, _ = io.ReadAll(io.LimitReader(creditsResp.Body, 64<<10))
 			_ = creditsResp.Body.Close()
@@ -231,10 +235,25 @@ func (s *AntigravityGatewayService) handleCreditsRetryFailure(
 		s.setCreditsExhausted(ctx, account)
 		logger.LegacyPrintf("service.antigravity_gateway", "%s credit_overages_failed model=%s account=%d marked_exhausted=true status=%d body=%s",
 			prefix, modelKey, account.ID, creditsStatusCode, truncateForLog(creditsRespBody, 200))
-		return
+		return rebuildCreditsRetryResponse(creditsStatusCode, creditsHeaders, creditsRespBody)
 	}
 	if account != nil {
 		logger.LegacyPrintf("service.antigravity_gateway", "%s credit_overages_failed model=%s account=%d marked_exhausted=false status=%d err=%v body=%s",
 			prefix, modelKey, account.ID, creditsStatusCode, reqErr, truncateForLog(creditsRespBody, 200))
+	}
+	return rebuildCreditsRetryResponse(creditsStatusCode, creditsHeaders, creditsRespBody)
+}
+
+func rebuildCreditsRetryResponse(statusCode int, headers http.Header, body []byte) *http.Response {
+	if statusCode <= 0 {
+		return nil
+	}
+	if headers == nil {
+		headers = http.Header{}
+	}
+	return &http.Response{
+		StatusCode: statusCode,
+		Header:     headers,
+		Body:       io.NopCloser(strings.NewReader(string(body))),
 	}
 }

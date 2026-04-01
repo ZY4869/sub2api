@@ -97,7 +97,7 @@ func TestBuildGeminiOAuthRequest_VertexAIUsesPublisherModelsURL(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(
 		t,
-		geminicli.VertexAIBaseURL+"/v1/projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:streamGenerateContent?alt=sse",
+		"https://us-central1-aiplatform.googleapis.com/v1/projects/vertex-project/locations/us-central1/publishers/google/models/gemini-2.5-pro:streamGenerateContent?alt=sse",
 		req.URL.String(),
 	)
 	require.Equal(t, "Bearer vertex-access-token", req.Header.Get("Authorization"))
@@ -192,7 +192,7 @@ func TestBuildGeminiOAuthRequest_VertexAIRequiresAccessToken(t *testing.T) {
 		false,
 	)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "access_token not found in credentials")
+	require.Contains(t, err.Error(), "vertex ai credentials missing service account JSON and legacy access_token")
 }
 
 func TestBuildGeminiAPIKeyRequest_VertexExpressUsesPublisherModelsURL(t *testing.T) {

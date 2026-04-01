@@ -204,7 +204,7 @@ func TestCanonicalGeminiTierID(t *testing.T) {
 		{name: "gcp_standard", raw: "gcp_standard", want: GeminiTierGCPStandard},
 		{name: "gcp_enterprise", raw: "gcp_enterprise", want: GeminiTierGCPEnterprise},
 		{name: "aistudio_free", raw: "aistudio_free", want: GeminiTierAIStudioFree},
-		{name: "aistudio_paid", raw: "aistudio_paid", want: GeminiTierAIStudioPaid},
+		{name: "aistudio_paid alias -> aistudio_tier_1", raw: "aistudio_paid", want: GeminiTierAIStudioTier1},
 		{name: "google_one_unknown", raw: "google_one_unknown", want: GeminiTierGoogleOneUnknown},
 
 		// 大小写不敏感
@@ -282,7 +282,7 @@ func TestCanonicalGeminiTierIDForOAuthType(t *testing.T) {
 
 		// ai_studio 类型过滤
 		{name: "ai_studio + aistudio_free", oauthType: "ai_studio", tierID: "aistudio_free", want: GeminiTierAIStudioFree},
-		{name: "ai_studio + aistudio_paid", oauthType: "ai_studio", tierID: "aistudio_paid", want: GeminiTierAIStudioPaid},
+		{name: "ai_studio + aistudio_paid alias -> aistudio_tier_1", oauthType: "ai_studio", tierID: "aistudio_paid", want: GeminiTierAIStudioTier1},
 		{name: "ai_studio + gcp_standard 被过滤", oauthType: "ai_studio", tierID: "gcp_standard", want: ""},
 		{name: "ai_studio + google_one_free 被过滤", oauthType: "ai_studio", tierID: "google_one_free", want: ""},
 

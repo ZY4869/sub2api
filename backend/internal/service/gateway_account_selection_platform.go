@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -169,9 +168,9 @@ func (s *GatewayService) selectAccountForModelWithPlatform(ctx context.Context, 
 	if selected == nil {
 		stats := s.logDetailedSelectionFailure(ctx, groupID, sessionHash, requestedModel, platform, accounts, excludedIDs, false)
 		if requestedModel != "" {
-			return nil, fmt.Errorf("no available accounts supporting model: %s (%s)", requestedModel, summarizeSelectionFailureStats(stats))
+			return nil, fmt.Errorf("%w supporting model: %s (%s)", ErrNoAvailableAccounts, requestedModel, summarizeSelectionFailureStats(stats))
 		}
-		return nil, errors.New("no available accounts")
+		return nil, ErrNoAvailableAccounts
 	}
 	if sessionHash != "" && s.cache != nil {
 		if err := s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), sessionHash, selected.ID, stickySessionTTL); err != nil {
@@ -342,9 +341,9 @@ func (s *GatewayService) selectAccountWithMixedScheduling(ctx context.Context, g
 	if selected == nil {
 		stats := s.logDetailedSelectionFailure(ctx, groupID, sessionHash, requestedModel, nativePlatform, accounts, excludedIDs, true)
 		if requestedModel != "" {
-			return nil, fmt.Errorf("no available accounts supporting model: %s (%s)", requestedModel, summarizeSelectionFailureStats(stats))
+			return nil, fmt.Errorf("%w supporting model: %s (%s)", ErrNoAvailableAccounts, requestedModel, summarizeSelectionFailureStats(stats))
 		}
-		return nil, errors.New("no available accounts")
+		return nil, ErrNoAvailableAccounts
 	}
 	if sessionHash != "" && s.cache != nil {
 		if err := s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), sessionHash, selected.ID, stickySessionTTL); err != nil {

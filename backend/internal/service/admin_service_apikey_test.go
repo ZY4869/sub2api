@@ -108,6 +108,7 @@ func (s *apiKeyRepoStubForGroupUpdate) Update(_ context.Context, key *APIKey) er
 		return s.updateErr
 	}
 	clone := *key
+	s.key = &clone
 	s.updated = &clone
 	return nil
 }
@@ -329,7 +330,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_BindActiveGroup(t *testing.T) {
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
 	groupRepo := &groupRepoStubForGroupUpdate{group: &Group{ID: 10, Name: "Pro", Status: StatusActive}}
 	cache := &authCacheInvalidatorStub{}
-	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, authCacheInvalidator: cache}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, userRepo: &userRepoStubForGroupUpdate{}, authCacheInvalidator: cache}
 
 	got, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(10), nil)
 	require.NoError(t, err)
@@ -349,7 +350,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_SameGroup_Idempotent(t *testing.T
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
 	groupRepo := &groupRepoStubForGroupUpdate{group: &Group{ID: 10, Name: "Pro", Status: StatusActive}}
 	cache := &authCacheInvalidatorStub{}
-	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, authCacheInvalidator: cache}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, userRepo: &userRepoStubForGroupUpdate{}, authCacheInvalidator: cache}
 
 	got, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(10), nil)
 	require.NoError(t, err)
@@ -364,7 +365,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_GroupNotFound(t *testing.T) {
 	existing := &APIKey{ID: 1, Key: "sk-test"}
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
 	groupRepo := &groupRepoStubForGroupUpdate{getErr: ErrGroupNotFound}
-	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, userRepo: &userRepoStubForGroupUpdate{}}
 
 	_, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(99), nil)
 	require.ErrorIs(t, err, ErrGroupNotFound)
@@ -374,7 +375,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_GroupNotActive(t *testing.T) {
 	existing := &APIKey{ID: 1, Key: "sk-test"}
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
 	groupRepo := &groupRepoStubForGroupUpdate{group: &Group{ID: 5, Status: StatusDisabled}}
-	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, userRepo: &userRepoStubForGroupUpdate{}}
 
 	_, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(5), nil)
 	require.Error(t, err)
@@ -388,7 +389,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_UpdateFails(t *testing.T) {
 
 	_, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(0), nil)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "update api key")
+	require.Contains(t, err.Error(), "clear api key groups")
 }
 
 func TestAdminService_AdminUpdateAPIKeyGroupID_NegativeGroupID(t *testing.T) {
@@ -406,7 +407,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_PointerIsolation(t *testing.T) {
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
 	groupRepo := &groupRepoStubForGroupUpdate{group: &Group{ID: 10, Name: "Pro", Status: StatusActive}}
 	cache := &authCacheInvalidatorStub{}
-	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, authCacheInvalidator: cache}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, userRepo: &userRepoStubForGroupUpdate{}, authCacheInvalidator: cache}
 
 	inputGID := int64(10)
 	got, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, &inputGID, nil)
@@ -423,7 +424,7 @@ func TestAdminService_AdminUpdateAPIKeyGroupID_NilCacheInvalidator(t *testing.T)
 	apiKeyRepo := &apiKeyRepoStubForGroupUpdate{key: existing}
 	groupRepo := &groupRepoStubForGroupUpdate{group: &Group{ID: 7, Status: StatusActive}}
 	// authCacheInvalidator is nil – should not panic
-	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo}
+	svc := &adminServiceImpl{apiKeyRepo: apiKeyRepo, groupRepo: groupRepo, userRepo: &userRepoStubForGroupUpdate{}}
 
 	got, err := svc.AdminUpdateAPIKeyGroupID(context.Background(), 1, int64Ptr(7), nil)
 	require.NoError(t, err)

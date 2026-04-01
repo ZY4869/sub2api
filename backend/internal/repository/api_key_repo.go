@@ -506,12 +506,12 @@ func (r *apiKeyRepository) UpdateGroupIDByUserAndGroup(ctx context.Context, user
 // CountByGroupID 获取分组的 API Key 数量
 func (r *apiKeyRepository) CountByGroupID(ctx context.Context, groupID int64) (int64, error) {
 	var count int64
-	err := r.sql.QueryRowContext(ctx, `
+	err := scanSingleRow(ctx, r.sql, `
 		SELECT COUNT(DISTINCT ag.api_key_id)
 		FROM api_key_groups ag
 		JOIN api_keys ak ON ak.id = ag.api_key_id
 		WHERE ag.group_id = $1 AND ak.deleted_at IS NULL
-	`, groupID).Scan(&count)
+	`, []any{groupID}, &count)
 	return count, err
 }
 

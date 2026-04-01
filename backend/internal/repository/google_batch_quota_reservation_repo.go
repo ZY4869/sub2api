@@ -112,7 +112,7 @@ func (r *googleBatchQuotaReservationRepository) SumActiveReservedTokens(ctx cont
 		return 0, nil
 	}
 	var sum sql.NullInt64
-	err := r.sql.QueryRowContext(ctx, `
+	err := scanSingleRow(ctx, r.sql, `
 		SELECT COALESCE(SUM(reserved_tokens), 0)
 		FROM google_batch_quota_reservations
 		WHERE provider_family = $1
@@ -120,7 +120,7 @@ func (r *googleBatchQuotaReservationRepository) SumActiveReservedTokens(ctx cont
 			AND ($3 = '' OR model_family = $3)
 			AND status = $4
 			AND deleted_at IS NULL
-	`, providerFamily, accountID, modelFamily, service.GoogleBatchQuotaReservationStatusActive).Scan(&sum)
+	`, []any{providerFamily, accountID, modelFamily, service.GoogleBatchQuotaReservationStatusActive}, &sum)
 	if err != nil {
 		return 0, err
 	}

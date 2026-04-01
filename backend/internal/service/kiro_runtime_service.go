@@ -51,6 +51,7 @@ func (s *KiroRuntimeService) Probe(ctx context.Context, account *Account) (*Kiro
 	if account == nil || account.Platform != PlatformKiro {
 		return nil, infraerrors.BadRequest("KIRO_RUNTIME_INVALID_ACCOUNT", "kiro runtime probe requires a kiro account")
 	}
+	hadExplicitAPIRegion := strings.TrimSpace(account.GetCredential("api_region")) != ""
 	if NormalizeKiroAccountCredentials(account) {
 		s.persistKiroAccount(ctx, account)
 	}
@@ -61,7 +62,7 @@ func (s *KiroRuntimeService) Probe(ctx context.Context, account *Account) (*Kiro
 	}
 
 	profileARN := s.ensureKiroProfileARN(ctx, account, token)
-	region := ResolveKiroAPIRegion(account)
+	region := resolveKiroRuntimeRegion(account, profileARN, hadExplicitAPIRegion)
 	payload, err := buildKiroClaudePayload(
 		[]byte(`{"messages":[{"role":"user","content":"ping"}],"max_tokens":1}`),
 		"claude-haiku-4.5",
@@ -151,6 +152,7 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 	if account == nil || account.Platform != PlatformKiro {
 		return nil, fmt.Errorf("kiro runtime requires a kiro account")
 	}
+	hadExplicitAPIRegion := strings.TrimSpace(account.GetCredential("api_region")) != ""
 	if NormalizeKiroAccountCredentials(account) {
 		s.persistKiroAccount(ctx, account)
 	}
@@ -160,7 +162,7 @@ func (s *KiroRuntimeService) ExecuteClaude(ctx context.Context, account *Account
 	}
 
 	profileARN := s.ensureKiroProfileARN(ctx, account, token)
-	region := ResolveKiroAPIRegion(account)
+	region := resolveKiroRuntimeRegion(account, profileARN, hadExplicitAPIRegion)
 	payload, err := buildKiroClaudePayload(input.Body, input.ModelID, effectiveKiroProfileARN(account, profileARN), kiroPrimaryOrigin, input.RequestHeaders)
 	if err != nil {
 		return nil, err
@@ -274,6 +276,16 @@ func (s *KiroRuntimeService) ensureKiroProfileARN(ctx context.Context, account *
 	account.Credentials["profile_arn"] = profileARN
 	s.persistKiroAccount(ctx, account)
 	return profileARN
+}
+
+func resolveKiroRuntimeRegion(account *Account, profileARN string, hadExplicitAPIRegion bool) string {
+	if hadExplicitAPIRegion {
+		return ResolveKiroAPIRegion(account)
+	}
+	if profileRegion := extractKiroRegionFromProfileARN(profileARN); profileRegion != "" {
+		return profileRegion
+	}
+	return ResolveKiroAPIRegion(account)
 }
 
 func (s *KiroRuntimeService) tryListAvailableProfiles(ctx context.Context, account *Account, accessToken string) string {

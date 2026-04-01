@@ -156,7 +156,12 @@ func (r *openAI429SnapshotRepo) SetRateLimited(_ context.Context, id int64, _ ti
 }
 
 func (r *openAI429SnapshotRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
-	r.updatedExtra = updates
+	if r.updatedExtra == nil {
+		r.updatedExtra = map[string]any{}
+	}
+	for key, value := range updates {
+		r.updatedExtra[key] = value
+	}
 	return nil
 }
 

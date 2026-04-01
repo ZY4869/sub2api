@@ -204,7 +204,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	} else if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformKiro) {
 		NormalizeKiroAccountCredentials(account)
 	}
-	if len(input.Extra) > 0 {
+	if input.Extra != nil {
 		for _, key := range []string{"quota_used", "quota_daily_used", "quota_daily_start", "quota_weekly_used", "quota_weekly_start"} {
 			if v, ok := account.Extra[key]; ok {
 				input.Extra[key] = v
@@ -212,6 +212,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		}
 		account.Extra = input.Extra
 	}
+	sanitizeAntigravityOveragesExtra(account.Platform, account.Extra)
 	if err := validateProtocolGatewayAccountInput(account.Platform, account.Type, account.Extra); err != nil {
 		return nil, err
 	}

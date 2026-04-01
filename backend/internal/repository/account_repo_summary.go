@@ -98,7 +98,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 	var activeCount int64
 	var inactiveCount int64
 	var errorCount int64
-	if err := r.sql.QueryRowContext(ctx, aggregateQuery, aggregateArgs...).Scan(
+	if err := scanSingleRow(ctx, r.sql, aggregateQuery, aggregateArgs,
 		&summary.Total,
 		&activeCount,
 		&inactiveCount,

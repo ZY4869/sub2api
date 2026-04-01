@@ -21,19 +21,25 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 				Status:      StatusActive,
 				Schedulable: true,
 				Credentials: map[string]any{
+					"api_key":  "anthropic-key",
+					"base_url": "https://anthropic.example.test",
 					"model_mapping": map[string]any{
 						"friendly-sonnet": "claude-sonnet-4-20250514",
+					},
+				},
+				Extra: map[string]any{
+					"model_probe_snapshot": map[string]any{
+						"models":       []string{"claude-sonnet-4-20250514"},
+						"updated_at":   "2026-04-01T10:00:00Z",
+						"source":       "manual_probe",
+						"probe_source": "upstream",
 					},
 				},
 			},
 		},
 	}
-	upstream := &accountModelImportHTTPUpstreamStub{
-		body: `{"data":[{"id":"claude-sonnet-4-20250514"}]}`,
-	}
 	svc := &GatewayService{
-		accountRepo:               repo,
-		accountModelImportService: NewAccountModelImportService(nil, nil, upstream, nil),
+		accountRepo: repo,
 	}
 	apiKey := &APIKey{
 		ID:               10,
@@ -240,8 +246,8 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIUsesUpstreamProjection(t *te
 	require.Equal(t, "gpt-4.1-mini", entries[0].PublicID)
 	require.Equal(t, "friendly-gpt", entries[0].AliasID)
 	require.Equal(t, "gpt-4.1-mini", entries[0].SourceID)
-	require.Equal(t, "Gpt 4.1 Mini", entries[0].DisplayName)
-	require.Equal(t, "https://openai.example.test/v1/models", upstream.lastReq.URL.String())
+	require.Equal(t, "GPT-4.1-mini", entries[0].DisplayName)
+	require.Nil(t, upstream.lastReq)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_OpenAIGroupIncludesProtocolGatewayAccounts(t *testing.T) {

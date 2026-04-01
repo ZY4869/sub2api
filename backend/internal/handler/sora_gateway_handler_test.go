@@ -140,6 +140,9 @@ func (r *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination
 	_ = privacyMode
 	return nil, nil, nil
 }
+func (r *stubAccountRepo) GetStatusSummary(context.Context, service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
+	return nil, nil
+}
 func (r *stubAccountRepo) ListByGroup(ctx context.Context, groupID int64) ([]service.Account, error) {
 	return nil, nil
 }
@@ -230,6 +233,16 @@ func (r *stubAccountRepo) IncrementQuotaUsed(ctx context.Context, id int64, amou
 func (r *stubAccountRepo) ResetQuotaUsed(ctx context.Context, id int64) error {
 	return nil
 }
+func (r *stubAccountRepo) MarkBlacklisted(context.Context, int64, string, string, time.Time, time.Time) error {
+	return nil
+}
+func (r *stubAccountRepo) RestoreBlacklisted(context.Context, int64) error { return nil }
+func (r *stubAccountRepo) ListBlacklistedIDs(context.Context) ([]int64, error) {
+	return nil, nil
+}
+func (r *stubAccountRepo) ListBlacklistedForPurge(context.Context, time.Time, int) ([]service.Account, error) {
+	return nil, nil
+}
 
 func (r *stubAccountRepo) listSchedulable() []service.Account {
 	var result []service.Account
@@ -260,6 +273,9 @@ func (r *stubGroupRepo) GetByID(ctx context.Context, id int64) (*service.Group, 
 	return r.group, nil
 }
 func (r *stubGroupRepo) GetByIDLite(ctx context.Context, id int64) (*service.Group, error) {
+	return r.group, nil
+}
+func (r *stubGroupRepo) GetByName(context.Context, string) (*service.Group, error) {
 	return r.group, nil
 }
 func (r *stubGroupRepo) Update(ctx context.Context, group *service.Group) error { return nil }

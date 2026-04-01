@@ -1043,6 +1043,15 @@ func (r *stubAPIKeyRepoForHandler) ListKeysByUserID(context.Context, int64) ([]s
 func (r *stubAPIKeyRepoForHandler) ListKeysByGroupID(context.Context, int64) ([]string, error) {
 	return nil, nil
 }
+func (r *stubAPIKeyRepoForHandler) GetAPIKeyGroups(context.Context, int64) ([]service.APIKeyGroupBinding, error) {
+	return nil, nil
+}
+func (r *stubAPIKeyRepoForHandler) SetAPIKeyGroups(context.Context, int64, []service.APIKeyGroupBinding) error {
+	return nil
+}
+func (r *stubAPIKeyRepoForHandler) IncrementAPIKeyGroupQuotaUsed(context.Context, int64, int64, float64) error {
+	return nil
+}
 func (r *stubAPIKeyRepoForHandler) IncrementQuotaUsed(_ context.Context, _ int64, _ float64) (float64, error) {
 	return 0, nil
 }
@@ -2072,8 +2081,11 @@ func (r *stubAccountRepoForHandler) Delete(context.Context, int64) error        
 func (r *stubAccountRepoForHandler) List(context.Context, pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *stubAccountRepoForHandler) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64) ([]service.Account, *pagination.PaginationResult, error) {
+func (r *stubAccountRepoForHandler) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string, string, int64, string, string) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
+}
+func (r *stubAccountRepoForHandler) GetStatusSummary(context.Context, service.AccountStatusSummaryFilters) (*service.AccountStatusSummary, error) {
+	return nil, nil
 }
 func (r *stubAccountRepoForHandler) ListByGroup(context.Context, int64) ([]service.Account, error) {
 	return nil, nil
@@ -2155,6 +2167,16 @@ func (r *stubAccountRepoForHandler) IncrementQuotaUsed(context.Context, int64, f
 
 func (r *stubAccountRepoForHandler) ResetQuotaUsed(context.Context, int64) error {
 	return nil
+}
+func (r *stubAccountRepoForHandler) MarkBlacklisted(context.Context, int64, string, string, time.Time, time.Time) error {
+	return nil
+}
+func (r *stubAccountRepoForHandler) RestoreBlacklisted(context.Context, int64) error { return nil }
+func (r *stubAccountRepoForHandler) ListBlacklistedIDs(context.Context) ([]int64, error) {
+	return nil, nil
+}
+func (r *stubAccountRepoForHandler) ListBlacklistedForPurge(context.Context, time.Time, int) ([]service.Account, error) {
+	return nil, nil
 }
 
 // ==================== Stub: SoraClient (用于 SoraGatewayService) ====================
