@@ -244,6 +244,65 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIUsesUpstreamProjection(t *te
 	require.Equal(t, "https://openai.example.test/v1/models", upstream.lastReq.URL.String())
 }
 
+func TestGatewayService_GetAPIKeyPublicModels_OpenAIGroupIncludesProtocolGatewayAccounts(t *testing.T) {
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          41,
+				Name:        "openai-gateway",
+				Platform:    PlatformProtocolGateway,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "gateway-key",
+					"base_url": "https://gateway.example.test",
+					"model_mapping": map[string]any{
+						"grok-auto": "grok-auto",
+					},
+				},
+				Extra: map[string]any{
+					"gateway_protocol": "openai",
+					"model_probe_snapshot": map[string]any{
+						"models":       []string{"grok-auto"},
+						"updated_at":   "2026-04-01T10:00:00Z",
+						"source":       "manual_probe",
+						"probe_source": "protocol_gateway",
+					},
+				},
+			},
+		},
+	}
+	svc := &GatewayService{
+		accountRepo: repo,
+	}
+	apiKey := &APIKey{
+		ID:               141,
+		ModelDisplayMode: APIKeyModelDisplayModeAliasOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 241,
+				Group: &Group{
+					ID:       241,
+					Name:     "openai-group",
+					Platform: PlatformOpenAI,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "grok-auto", entries[0].PublicID)
+
+	entry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "grok-auto")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "grok-auto", entry.PublicID)
+}
+
 func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureDegradesToEmpty(t *testing.T) {
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{

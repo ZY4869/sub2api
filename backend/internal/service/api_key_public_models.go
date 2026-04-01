@@ -51,7 +51,8 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 			continue
 		}
 
-		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, binding.GroupID, bindingPlatform)
+		queryPlatforms := QueryPlatformsForGroupPlatform(bindingPlatform, false)
+		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, binding.GroupID, queryPlatforms)
 		if err != nil {
 			if firstErr == nil {
 				firstErr = err
@@ -422,7 +423,8 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 		if normalizedPlatform != "" && !strings.EqualFold(bindingPlatform, normalizedPlatform) {
 			continue
 		}
-		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, binding.GroupID, bindingPlatform)
+		queryPlatforms := QueryPlatformsForGroupPlatform(bindingPlatform, false)
+		accounts, err := s.accountRepo.ListSchedulableByGroupIDAndPlatforms(ctx, binding.GroupID, queryPlatforms)
 		if err != nil {
 			continue
 		}
