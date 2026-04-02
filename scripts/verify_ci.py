@@ -151,8 +151,10 @@ def summarize_go_test_failure(log_text: str) -> dict[str, list[str]]:
     failed_tests: list[str] = []
     failed_packages: list[str] = []
     diagnostic_lines: list[str] = []
+    failure_blocks: list[dict[str, list[str] | str]] = []
+    lines = log_text.splitlines()
 
-    for line in log_text.splitlines():
+    for line in lines:
         if match := re.match(r"^--- FAIL: (\S+)", line):
             failed_tests.append(match.group(1))
         if match := re.match(r"^FAIL\s+(\S+)", line):
@@ -162,10 +164,41 @@ def summarize_go_test_failure(log_text: str) -> dict[str, list[str]]:
         if line.startswith("panic:") or line.startswith("# ") or "[build failed]" in line:
             diagnostic_lines.append(line)
 
+    index = 0
+    while index < len(lines):
+        match = re.match(r"^--- FAIL: (\S+)", lines[index])
+        if not match:
+            index += 1
+            continue
+
+        test_name = match.group(1)
+        details: list[str] = []
+        block_index = index + 1
+        while block_index < len(lines):
+            current = lines[block_index]
+            if re.match(r"^(--- (PASS|FAIL|SKIP):|=== RUN|FAIL\s+\S+|ok\s+\S+|\?\s+\S+)", current):
+                break
+
+            stripped = current.strip()
+            if stripped:
+                details.append(stripped)
+            block_index += 1
+
+        normalized_details = list(dict.fromkeys(details))
+        if normalized_details:
+            failure_blocks.append(
+                {
+                    "test": test_name,
+                    "details": normalized_details[:6],
+                }
+            )
+        index = block_index
+
     return {
         "tests": list(dict.fromkeys(failed_tests)),
         "packages": list(dict.fromkeys(failed_packages)),
         "diagnostics": list(dict.fromkeys(diagnostic_lines[-20:])),
+        "failure_blocks": failure_blocks[:10],
         "tail": log_text.splitlines()[-40:],
     }
 
@@ -175,6 +208,7 @@ def emit_backend_integration_failure_summary(log_text: str, log_path: Path) -> N
     failed_tests = summary["tests"]
     failed_packages = summary["packages"]
     diagnostics = summary["diagnostics"]
+    failure_blocks = summary["failure_blocks"]
     tail_lines = summary["tail"]
 
     summary_lines = ["backend-integration failed"]
@@ -199,6 +233,14 @@ def emit_backend_integration_failure_summary(log_text: str, log_path: Path) -> N
         emit_github_annotation("error", "backend-integration test", test_name)
     for diagnostic in diagnostics[:10]:
         emit_github_annotation("error", "backend-integration diagnostic", diagnostic)
+    for failure_block in failure_blocks[:10]:
+        test_name = str(failure_block["test"])
+        details = [str(line) for line in failure_block["details"]]
+        emit_github_annotation(
+            "error",
+            f"backend-integration detail {test_name}",
+            " | ".join(details[:4]),
+        )
 
     step_summary = [
         "### backend-integration failed",
@@ -211,6 +253,13 @@ def emit_backend_integration_failure_summary(log_text: str, log_path: Path) -> N
         step_summary.append(f"- Tests: `{', '.join(failed_tests[:10])}`")
     if diagnostics:
         step_summary.append(f"- Diagnostics: `{ ' | '.join(diagnostics[:5]) }`")
+    if failure_blocks:
+        step_summary.append("")
+        step_summary.append("#### Failure Details")
+        for failure_block in failure_blocks[:5]:
+            test_name = str(failure_block["test"])
+            details = [str(line) for line in failure_block["details"]]
+            step_summary.append(f"- `{test_name}`: {' | '.join(details[:4])}")
     if tail_lines:
         step_summary.append("")
         step_summary.append("```text")

@@ -342,6 +342,8 @@ func (h prefixHook) prefixCmd(cmd redisclient.Cmder) {
 		"hgetall", "hget", "hset", "hdel", "hincrbyfloat", "exists",
 		"zadd", "zcard", "zrange", "zrangebyscore", "zrem", "zremrangebyscore", "zrevrange", "zrevrangebyscore", "zscore":
 		prefixOne(1)
+	case "sadd", "scard", "sismember", "smembers", "smismember", "srem":
+		prefixOne(1)
 	case "del", "unlink":
 		for i := 1; i < len(args); i++ {
 			prefixOne(i)
@@ -358,6 +360,16 @@ func (h prefixHook) prefixCmd(cmd redisclient.Cmder) {
 			prefixOne(3 + i)
 		}
 	case "scan":
+		for i := 2; i+1 < len(args); i++ {
+			if strings.EqualFold(fmt.Sprint(args[i]), "match") {
+				prefixOne(i + 1)
+				break
+			}
+		}
+	case "sscan":
+		if len(args) >= 2 {
+			prefixOne(1)
+		}
 		for i := 2; i+1 < len(args); i++ {
 			if strings.EqualFold(fmt.Sprint(args[i]), "match") {
 				prefixOne(i + 1)

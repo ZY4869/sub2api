@@ -311,6 +311,17 @@ func mustCreateApiKey(t *testing.T, client *dbent.Client, k *service.APIKey) *se
 	created, err := create.Save(ctx)
 	require.NoError(t, err, "create api key")
 
+	if k.GroupID != nil {
+		_, err = client.APIKeyGroup.Create().
+			SetAPIKeyID(created.ID).
+			SetGroupID(*k.GroupID).
+			SetQuota(0).
+			SetQuotaUsed(0).
+			SetModelPatterns([]string{}).
+			Save(ctx)
+		require.NoError(t, err, "create api_key_groups row")
+	}
+
 	k.ID = created.ID
 	k.CreatedAt = created.CreatedAt
 	k.UpdatedAt = created.UpdatedAt
