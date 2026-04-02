@@ -49,6 +49,13 @@ jobs:
         run: go version | grep -q 'go1.26.1'
       - name: Run backend integration checks
         run: bash scripts/verify-ci.sh backend-integration
+      - name: Upload backend integration log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-integration-log
+          path: .cache/verify-ci/logs/backend-integration.log
+          if-no-files-found: ignore
 
   backend-lint:
     runs-on: ubuntu-latest

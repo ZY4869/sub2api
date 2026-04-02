@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -21,12 +22,26 @@ FRONTEND_CACHE_DIR = REPO_ROOT / ".cache" / "verify-ci"
 FRONTEND_DEPS_STATE_FILE = FRONTEND_CACHE_DIR / "frontend-deps.json"
 DEFAULT_GOLANGCI_LINT_VERSION = "v2.9"
 DEFAULT_GOVULNCHECK_VERSION = "v1.1.4"
+DEFAULT_NPM_AUDIT_REGISTRY = "https://registry.npmjs.org"
 
 frontend_deps_installed = False
 
 
 def info(message: str) -> None:
     print(f"[verify-ci] {message}", flush=True)
+
+
+def emit_console_line(line: str) -> None:
+    try:
+        print(line, end="")
+    except UnicodeEncodeError:
+        encoding = sys.stdout.encoding or "utf-8"
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout.buffer.write(line.encode(encoding, errors="replace"))
+            sys.stdout.buffer.flush()
+        else:
+            sys.stdout.write(line.encode(encoding, errors="replace").decode(encoding))
+            sys.stdout.flush()
 
 
 def run(
@@ -44,8 +59,51 @@ def run(
         env=env,
         check=check,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=capture_output,
     )
+
+
+def run_streaming(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    log_path: Path | None = None,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    info(f"$ {' '.join(command)}")
+    if log_path is not None:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        info(f"streaming command output to {log_path}")
+
+    process = subprocess.Popen(
+        command,
+        cwd=str(cwd) if cwd else None,
+        env=env,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    output_parts: list[str] = []
+    with (log_path.open("w", encoding="utf-8") if log_path else contextlib.nullcontext()) as log_file:
+        assert process.stdout is not None
+        for line in process.stdout:
+            emit_console_line(line)
+            output_parts.append(line)
+            if log_file is not None:
+                log_file.write(line)
+
+    return_code = process.wait()
+    stdout = "".join(output_parts)
+    completed = subprocess.CompletedProcess(command, return_code, stdout=stdout, stderr="")
+    if check and return_code != 0:
+        raise subprocess.CalledProcessError(return_code, command, output=stdout)
+    return completed
 
 
 def current_platform_exe(name: str) -> str:
@@ -64,16 +122,22 @@ def tool_output(command: list[str]) -> str:
     return f"{result.stdout}\n{result.stderr}"
 
 
+def version_probe_command(binary_name: str, binary_path: str) -> list[str]:
+    if binary_name == "govulncheck":
+        return [binary_path, "-version"]
+    return [binary_path, "version"]
+
+
 def ensure_go_tool(binary_name: str, module_path: str, requested_version: str) -> Path:
     CACHE_BIN_DIR.mkdir(parents=True, exist_ok=True)
     expected_version = normalize_go_tool_version(requested_version).lstrip("v")
 
     path_binary = shutil.which(binary_name)
-    if path_binary and expected_version in tool_output([path_binary, "version"]):
+    if path_binary and expected_version in tool_output(version_probe_command(binary_name, path_binary)):
         return Path(path_binary)
 
     cached_binary = CACHE_BIN_DIR / current_platform_exe(binary_name)
-    if cached_binary.exists() and expected_version in tool_output([str(cached_binary), "version"]):
+    if cached_binary.exists() and expected_version in tool_output(version_probe_command(binary_name, str(cached_binary))):
         return cached_binary
 
     env = os.environ.copy()
@@ -102,6 +166,34 @@ def run_pnpm(args: list[str]) -> None:
     run(pnpm_base_command() + args, cwd=FRONTEND_DIR)
 
 
+def extract_json_document(*streams: str) -> dict | list | None:
+    decoder = json.JSONDecoder()
+    for stream in streams:
+        text = (stream or "").strip()
+        if not text:
+            continue
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+        for line in reversed([candidate.strip() for candidate in text.splitlines() if candidate.strip()]):
+            try:
+                return json.loads(line)
+            except json.JSONDecodeError:
+                continue
+        for index, char in enumerate(text):
+            if char not in "{[":
+                continue
+            try:
+                document, end = decoder.raw_decode(text[index:])
+            except json.JSONDecodeError:
+                continue
+            if text[index + end :].strip():
+                continue
+            return document
+    return None
+
+
 def hash_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as file:
@@ -112,6 +204,11 @@ def hash_file(path: Path) -> str:
 
 def frontend_lockfile_hash() -> str:
     return hash_file(FRONTEND_DIR / "pnpm-lock.yaml")
+
+
+def frontend_bin_path(name: str) -> Path:
+    suffix = ".cmd" if os.name == "nt" else ""
+    return FRONTEND_DIR / "node_modules" / ".bin" / f"{name}{suffix}"
 
 
 def read_frontend_deps_state() -> dict[str, str]:
@@ -131,6 +228,11 @@ def write_frontend_deps_state(lockfile_hash: str) -> None:
 def frontend_deps_ready() -> bool:
     required_paths = [
         FRONTEND_DIR / "node_modules",
+        frontend_bin_path("vite"),
+        frontend_bin_path("vitest"),
+        frontend_bin_path("eslint"),
+        frontend_bin_path("vue-tsc"),
+        frontend_bin_path("tsc"),
         FRONTEND_DIR / "node_modules" / "vite" / "bin" / "vite.js",
         FRONTEND_DIR / "node_modules" / "vitest" / "vitest.mjs",
         FRONTEND_DIR / "node_modules" / "eslint" / "bin" / "eslint.js",
@@ -157,7 +259,7 @@ def ensure_frontend_deps() -> None:
             frontend_deps_installed = True
             return
 
-    run_pnpm(["install", "--frozen-lockfile"])
+    run_pnpm(["install", "--frozen-lockfile", "--config.confirmModulesPurge=false", "--reporter=append-only"])
     write_frontend_deps_state(lockfile_hash)
     frontend_deps_installed = True
 
@@ -167,7 +269,11 @@ def backend_unit() -> None:
 
 
 def backend_integration() -> None:
-    run(["go", "test", "-tags=integration", "./..."], cwd=BACKEND_DIR)
+    run_streaming(
+        ["go", "test", "-count=1", "-v", "-tags=integration", "./..."],
+        cwd=BACKEND_DIR,
+        log_path=REPO_ROOT / ".cache" / "verify-ci" / "logs" / "backend-integration.log",
+    )
 
 
 def backend_lint() -> None:
@@ -203,12 +309,26 @@ def security() -> None:
     ensure_frontend_deps()
     audit_path = FRONTEND_DIR / "audit.json"
     audit_result = run(
-        pnpm_base_command() + ["audit", "--prod", "--audit-level=high", "--json"],
+        pnpm_base_command()
+        + [
+            "audit",
+            f"--registry={DEFAULT_NPM_AUDIT_REGISTRY}",
+            "--prod",
+            "--audit-level=high",
+            "--json",
+        ],
         cwd=FRONTEND_DIR,
         capture_output=True,
         check=False,
     )
-    audit_path.write_text(audit_result.stdout, encoding="utf-8")
+    audit_document = extract_json_document(audit_result.stdout, audit_result.stderr)
+    if audit_document is None:
+        raise RuntimeError(
+            "pnpm audit did not return valid JSON output.\n"
+            f"stdout:\n{audit_result.stdout}\n"
+            f"stderr:\n{audit_result.stderr}"
+        )
+    audit_path.write_text(json.dumps(audit_document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     run(
         [
             sys.executable,

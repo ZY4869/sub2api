@@ -1,15 +1,15 @@
 {
   "name": "sub2api-frontend",
   "private": true,
-  "version": "0.1.181",
+  "version": "0.1.182",
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
-    "build": "vue-tsc -b && node ./node_modules/vite/bin/vite.js build",
+    "build": "node ./node_modules/vue-tsc/bin/vue-tsc.js -b && node ./node_modules/vite/bin/vite.js build",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
     "lint": "node ./node_modules/eslint/bin/eslint.js . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "lint:check": "node ./node_modules/eslint/bin/eslint.js . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "node ./node_modules/vue-tsc/bin/vue-tsc.js --noEmit",
     "test": "node ./node_modules/vitest/vitest.mjs",
     "test:run": "node ./node_modules/vitest/vitest.mjs run",
     "test:coverage": "node ./node_modules/vitest/vitest.mjs run --coverage"
@@ -55,6 +55,12 @@
     "vite-plugin-checker": "^0.9.1",
     "vitest": "^2.1.9",
     "vue-tsc": "^2.2.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "lodash": "4.18.1",
+      "lodash-es": "4.18.1"
+    }
   }
 }
 
