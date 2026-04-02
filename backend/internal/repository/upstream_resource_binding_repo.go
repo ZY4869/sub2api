@@ -83,7 +83,7 @@ func (r *upstreamResourceBindingRepository) Get(ctx context.Context, resourceKin
 	return scanUpstreamResourceBinding(ctx, r.sql, query, []any{resourceKind, resourceName})
 }
 
-func (r *upstreamResourceBindingRepository) GetByNames(ctx context.Context, resourceKind string, resourceNames []string) ([]*service.UpstreamResourceBinding, error) {
+func (r *upstreamResourceBindingRepository) GetByNames(ctx context.Context, resourceKind string, resourceNames []string) (result []*service.UpstreamResourceBinding, err error) {
 	if r == nil || r.sql == nil || len(resourceNames) == 0 {
 		return nil, nil
 	}
@@ -109,9 +109,13 @@ func (r *upstreamResourceBindingRepository) GetByNames(ctx context.Context, reso
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 
-	var result []*service.UpstreamResourceBinding
+	result = make([]*service.UpstreamResourceBinding, 0)
 	for rows.Next() {
 		binding, scanErr := scanUpstreamResourceBindingRow(rows)
 		if scanErr != nil {
@@ -140,19 +144,24 @@ func (r *upstreamResourceBindingRepository) SoftDelete(ctx context.Context, reso
 	return err
 }
 
-func scanUpstreamResourceBinding(ctx context.Context, q sqlQueryer, query string, args []any) (*service.UpstreamResourceBinding, error) {
+func scanUpstreamResourceBinding(ctx context.Context, q sqlQueryer, query string, args []any) (binding *service.UpstreamResourceBinding, err error) {
 	rows, err := q.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
 		return nil, sql.ErrNoRows
 	}
-	return scanUpstreamResourceBindingRow(rows)
+	binding, err = scanUpstreamResourceBindingRow(rows)
+	return binding, err
 }
 
 type upstreamResourceBindingScanner interface {

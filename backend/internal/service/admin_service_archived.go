@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 )
 
 type archivedAccountGroupLister interface {
@@ -141,8 +140,4 @@ func uniqueAccountIDs(ids []int64) []int64 {
 		out = append(out, id)
 	}
 	return out
-}
-
-func normalizeArchivedGroupSearch(search string) string {
-	return strings.TrimSpace(search)
 }

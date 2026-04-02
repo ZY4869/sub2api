@@ -9,12 +9,12 @@ import (
 )
 
 type GoogleBatchArchivePollerService struct {
-	jobRepo         GoogleBatchArchiveJobRepository
-	compatService   *GeminiMessagesCompatService
-	settingService  *SettingService
-	startOnce       sync.Once
-	stopOnce        sync.Once
-	stopCh          chan struct{}
+	jobRepo        GoogleBatchArchiveJobRepository
+	compatService  *GeminiMessagesCompatService
+	settingService *SettingService
+	startOnce      sync.Once
+	stopOnce       sync.Once
+	stopCh         chan struct{}
 }
 
 func NewGoogleBatchArchivePollerService(

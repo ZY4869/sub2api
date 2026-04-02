@@ -6,20 +6,20 @@ import (
 )
 
 const (
-	GrokModelAuto            = "grok-auto"
-	GrokModel3Fast           = "grok-3-fast"
-	GrokModel4Expert         = "grok-4-expert"
-	GrokModel4Heavy          = "grok-4-heavy"
-	GrokModelImagineFast     = "grok-imagine-1.0-fast"
-	GrokModelImagine         = "grok-imagine-1.0"
-	GrokModelImagineEdit     = "grok-imagine-1.0-edit"
-	GrokModelImagineVideo    = "grok-imagine-1.0-video"
-	grokMediaTypeImage       = "image"
-	grokMediaTypeImageEdit   = "image_edit"
-	grokMediaTypeVideo       = "video"
-	grokAPIKeyRegistryRoute  = "grok"
-	grokDefaultPollInterval  = 2
-	grokDefaultPollTimeout   = 180
+	GrokModelAuto           = "grok-auto"
+	GrokModel3Fast          = "grok-3-fast"
+	GrokModel4Expert        = "grok-4-expert"
+	GrokModel4Heavy         = "grok-4-heavy"
+	GrokModelImagineFast    = "grok-imagine-1.0-fast"
+	GrokModelImagine        = "grok-imagine-1.0"
+	GrokModelImagineEdit    = "grok-imagine-1.0-edit"
+	GrokModelImagineVideo   = "grok-imagine-1.0-video"
+	grokMediaTypeImage      = "image"
+	grokMediaTypeImageEdit  = "image_edit"
+	grokMediaTypeVideo      = "video"
+	grokAPIKeyRegistryRoute = "grok"
+	grokDefaultPollInterval = 2
+	grokDefaultPollTimeout  = 180
 )
 
 type grokModelDescriptor struct {

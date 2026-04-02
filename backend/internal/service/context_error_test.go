@@ -9,7 +9,7 @@ import (
 
 func TestIsContextDoneError(t *testing.T) {
 	t.Run("nil_context_and_nil_error", func(t *testing.T) {
-		if isContextDoneError(nil, nil) {
+		if isContextDoneError(context.TODO(), nil) {
 			t.Fatal("expected false")
 		}
 	})
@@ -36,9 +36,9 @@ func TestIsContextDoneError(t *testing.T) {
 	})
 
 	t.Run("deadline_context_without_error", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 		defer cancel()
-		time.Sleep(5 * time.Millisecond)
+		<-ctx.Done()
 		if !isContextDoneError(ctx, nil) {
 			t.Fatal("expected true")
 		}

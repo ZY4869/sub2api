@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
@@ -399,166 +397,169 @@ func formatGeminiVertexProbeNotice(subject string, catalog *VertexCatalogResult)
 	return fmt.Sprintf("%s; official=%d callable=%d verified_extra=%d", subject, len(catalog.OfficialModels), len(catalog.CallableUnion), len(catalog.VerifiedExtras))
 }
 
-func (s *AccountModelImportService) validateGeminiVertexServiceAccount(ctx context.Context, account *Account) (string, error) {
-	if account == nil {
-		return "", infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+/*
+	func (s *AccountModelImportService) validateGeminiVertexServiceAccount(ctx context.Context, account *Account) (string, error) {
+		if account == nil {
+			return "", infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+		}
+		if s.geminiCompatService == nil || s.geminiCompatService.tokenProvider == nil {
+			return "", infraerrors.InternalServer("MODEL_IMPORT_GEMINI_TOKEN_PROVIDER_UNAVAILABLE", "gemini token provider is not configured")
+		}
+		if s.httpUpstream == nil {
+			return "", infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
+		}
+		accessToken, err := s.geminiCompatService.tokenProvider.GetAccessToken(ctx, account)
+		if err != nil {
+			return "", err
+		}
+		baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
+		normalizedBaseURL, err := s.geminiCompatService.validateUpstreamBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		return s.validateGeminiVertexCandidateModels(
+			ctx,
+			account,
+			"vertex service account validation failed",
+			"failed to validate Vertex service account access",
+			"failed to read Vertex service account validation response",
+			func(modelID string) (*http.Request, error) {
+				actionPath, err := account.GeminiVertexModelActionPath(modelID, "countTokens")
+				if err != nil {
+					return nil, err
+				}
+				reqBody := []byte(`{"contents":[{"role":"user","parts":[{"text":"ping"}]}]}`)
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(normalizedBaseURL, "/")+actionPath, bytes.NewReader(reqBody))
+				if err != nil {
+					return nil, infraerrors.InternalServer("MODEL_IMPORT_REQUEST_BUILD_FAILED", "failed to build Vertex service account probe request").WithCause(err)
+				}
+				req.Header.Set("Authorization", "Bearer "+accessToken)
+				req.Header.Set("Content-Type", "application/json")
+				return req, nil
+			},
+		)
 	}
-	if s.geminiCompatService == nil || s.geminiCompatService.tokenProvider == nil {
-		return "", infraerrors.InternalServer("MODEL_IMPORT_GEMINI_TOKEN_PROVIDER_UNAVAILABLE", "gemini token provider is not configured")
-	}
-	if s.httpUpstream == nil {
-		return "", infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
-	}
-	accessToken, err := s.geminiCompatService.tokenProvider.GetAccessToken(ctx, account)
-	if err != nil {
-		return "", err
-	}
-	baseURL := account.GetGeminiVertexBaseURL(geminicli.VertexAIBaseURL)
-	normalizedBaseURL, err := s.geminiCompatService.validateUpstreamBaseURL(baseURL)
-	if err != nil {
-		return "", err
-	}
-	return s.validateGeminiVertexCandidateModels(
-		ctx,
-		account,
-		"vertex service account validation failed",
-		"failed to validate Vertex service account access",
-		"failed to read Vertex service account validation response",
-		func(modelID string) (*http.Request, error) {
-			actionPath, err := account.GeminiVertexModelActionPath(modelID, "countTokens")
-			if err != nil {
-				return nil, err
-			}
-			reqBody := []byte(`{"contents":[{"role":"user","parts":[{"text":"ping"}]}]}`)
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(normalizedBaseURL, "/")+actionPath, bytes.NewReader(reqBody))
-			if err != nil {
-				return nil, infraerrors.InternalServer("MODEL_IMPORT_REQUEST_BUILD_FAILED", "failed to build Vertex service account probe request").WithCause(err)
-			}
-			req.Header.Set("Authorization", "Bearer "+accessToken)
-			req.Header.Set("Content-Type", "application/json")
-			return req, nil
-		},
-	)
-}
 
-func (s *AccountModelImportService) validateGeminiVertexExpressKey(ctx context.Context, account *Account) (string, error) {
-	if account == nil {
-		return "", infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+	func (s *AccountModelImportService) validateGeminiVertexExpressKey(ctx context.Context, account *Account) (string, error) {
+		if account == nil {
+			return "", infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+		}
+		apiKey := strings.TrimSpace(account.GetCredential("api_key"))
+		if apiKey == "" {
+			return "", infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Gemini API key for model import")
+		}
+		if s.httpUpstream == nil {
+			return "", infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
+		}
+		baseURL := account.GetGeminiVertexExpressBaseURL(geminicli.VertexAIBaseURL)
+		normalizedBaseURL, err := s.geminiCompatService.validateUpstreamBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		return s.validateGeminiVertexCandidateModels(
+			ctx,
+			account,
+			"vertex express validation failed",
+			"failed to validate Vertex Express API key",
+			"failed to read Vertex Express validation response",
+			func(modelID string) (*http.Request, error) {
+				actionPath, err := account.GeminiVertexExpressModelActionPath(modelID, "countTokens")
+				if err != nil {
+					return nil, err
+				}
+				reqBody := []byte(`{"contents":[{"role":"user","parts":[{"text":"ping"}]}]}`)
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(normalizedBaseURL, "/")+actionPath, bytes.NewReader(reqBody))
+				if err != nil {
+					return nil, infraerrors.InternalServer("MODEL_IMPORT_REQUEST_BUILD_FAILED", "failed to build Vertex Express probe request").WithCause(err)
+				}
+				query := req.URL.Query()
+				query.Set("key", apiKey)
+				req.URL.RawQuery = query.Encode()
+				req.Header.Set("Content-Type", "application/json")
+				return req, nil
+			},
+		)
 	}
-	apiKey := strings.TrimSpace(account.GetCredential("api_key"))
-	if apiKey == "" {
-		return "", infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Gemini API key for model import")
-	}
-	if s.httpUpstream == nil {
-		return "", infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
-	}
-	baseURL := account.GetGeminiVertexExpressBaseURL(geminicli.VertexAIBaseURL)
-	normalizedBaseURL, err := s.geminiCompatService.validateUpstreamBaseURL(baseURL)
-	if err != nil {
-		return "", err
-	}
-	return s.validateGeminiVertexCandidateModels(
-		ctx,
-		account,
-		"vertex express validation failed",
-		"failed to validate Vertex Express API key",
-		"failed to read Vertex Express validation response",
-		func(modelID string) (*http.Request, error) {
-			actionPath, err := account.GeminiVertexExpressModelActionPath(modelID, "countTokens")
-			if err != nil {
-				return nil, err
-			}
-			reqBody := []byte(`{"contents":[{"role":"user","parts":[{"text":"ping"}]}]}`)
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(normalizedBaseURL, "/")+actionPath, bytes.NewReader(reqBody))
-			if err != nil {
-				return nil, infraerrors.InternalServer("MODEL_IMPORT_REQUEST_BUILD_FAILED", "failed to build Vertex Express probe request").WithCause(err)
-			}
-			query := req.URL.Query()
-			query.Set("key", apiKey)
-			req.URL.RawQuery = query.Encode()
-			req.Header.Set("Content-Type", "application/json")
-			return req, nil
-		},
-	)
-}
 
 func (s *AccountModelImportService) validateGeminiVertexCandidateModels(
+
 	ctx context.Context,
 	account *Account,
 	operation string,
 	requestFailureMessage string,
 	readFailureMessage string,
 	buildRequest func(modelID string) (*http.Request, error),
-) (string, error) {
-	if account == nil {
-		return "", infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
-	}
-	if s.httpUpstream == nil {
-		return "", infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
-	}
-	proxyURL, err := s.resolveImportProxyURL(ctx, account)
-	if err != nil {
-		return "", infraerrors.BadRequest("MODEL_IMPORT_PROXY_RESOLVE_FAILED", "failed to resolve account proxy for model import").WithCause(err)
-	}
 
-	attemptedModels := make([]string, 0, len(geminiVertexValidationCandidateModels))
-	lastStatusCode := 0
-	var lastBody []byte
-
-	for _, modelID := range geminiVertexValidationModels() {
-		attemptedModels = append(attemptedModels, modelID)
-
-		req, err := buildRequest(modelID)
+	) (string, error) {
+		if account == nil {
+			return "", infraerrors.BadRequest("ACCOUNT_REQUIRED", "account is required")
+		}
+		if s.httpUpstream == nil {
+			return "", infraerrors.InternalServer("MODEL_IMPORT_HTTP_UPSTREAM_UNAVAILABLE", "model import http upstream is not configured")
+		}
+		proxyURL, err := s.resolveImportProxyURL(ctx, account)
 		if err != nil {
-			return "", err
+			return "", infraerrors.BadRequest("MODEL_IMPORT_PROXY_RESOLVE_FAILED", "failed to resolve account proxy for model import").WithCause(err)
 		}
 
-		resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
-		if err != nil {
-			return "", infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", requestFailureMessage).WithCause(err)
+		attemptedModels := make([]string, 0, len(geminiVertexValidationCandidateModels))
+		lastStatusCode := 0
+		var lastBody []byte
+
+		for _, modelID := range geminiVertexValidationModels() {
+			attemptedModels = append(attemptedModels, modelID)
+
+			req, err := buildRequest(modelID)
+			if err != nil {
+				return "", err
+			}
+
+			resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, account.Concurrency)
+			if err != nil {
+				return "", infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_REQUEST_FAILED", requestFailureMessage).WithCause(err)
+			}
+
+			body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxImportBodyBytes))
+			_ = resp.Body.Close()
+			if readErr != nil {
+				return "", infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_READ_FAILED", readFailureMessage).WithCause(readErr)
+			}
+			if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+				return modelID, nil
+			}
+			if shouldRetryGeminiVertexValidation(resp.StatusCode, body) {
+				lastStatusCode = resp.StatusCode
+				lastBody = append(lastBody[:0], body...)
+				continue
+			}
+			return "", newAccountModelImportUpstreamStatusErrorForAccount(account, operation, resp.StatusCode, resp.Header, body)
 		}
 
-		body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxImportBodyBytes))
-		_ = resp.Body.Close()
-		if readErr != nil {
-			return "", infraerrors.ServiceUnavailable("MODEL_IMPORT_UPSTREAM_READ_FAILED", readFailureMessage).WithCause(readErr)
-		}
-		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
-			return modelID, nil
-		}
-		if shouldRetryGeminiVertexValidation(resp.StatusCode, body) {
-			lastStatusCode = resp.StatusCode
-			lastBody = append(lastBody[:0], body...)
-			continue
-		}
-		return "", newAccountModelImportUpstreamStatusErrorForAccount(account, operation, resp.StatusCode, resp.Header, body)
+		return "", newGeminiVertexValidationExhaustedError(operation, attemptedModels, lastStatusCode, lastBody)
 	}
 
-	return "", newGeminiVertexValidationExhaustedError(operation, attemptedModels, lastStatusCode, lastBody)
-}
-
-func shouldRetryGeminiVertexValidation(statusCode int, body []byte) bool {
-	if statusCode != http.StatusNotFound {
-		return false
+	func shouldRetryGeminiVertexValidation(statusCode int, body []byte) bool {
+		if statusCode != http.StatusNotFound {
+			return false
+		}
+		lowerBody := strings.ToLower(string(body))
+		return strings.Contains(lowerBody, "publisher model") ||
+			strings.Contains(lowerBody, "requested entity was not found") ||
+			strings.Contains(lowerBody, "does not have access to it") ||
+			strings.Contains(lowerBody, "valid model version")
 	}
-	lowerBody := strings.ToLower(string(body))
-	return strings.Contains(lowerBody, "publisher model") ||
-		strings.Contains(lowerBody, "requested entity was not found") ||
-		strings.Contains(lowerBody, "does not have access to it") ||
-		strings.Contains(lowerBody, "valid model version")
-}
 
-func newGeminiVertexValidationExhaustedError(operation string, attemptedModels []string, statusCode int, body []byte) error {
-	message := fmt.Sprintf("%s after trying Vertex validation models [%s]", strings.TrimSpace(operation), strings.Join(attemptedModels, ", "))
-	if statusCode > 0 {
-		message = fmt.Sprintf("%s; last status %d", message, statusCode)
+	func newGeminiVertexValidationExhaustedError(operation string, attemptedModels []string, statusCode int, body []byte) error {
+		message := fmt.Sprintf("%s after trying Vertex validation models [%s]", strings.TrimSpace(operation), strings.Join(attemptedModels, ", "))
+		if statusCode > 0 {
+			message = fmt.Sprintf("%s; last status %d", message, statusCode)
+		}
+		if truncated := truncateImportBody(body); truncated != "" {
+			message = fmt.Sprintf("%s: %s", message, truncated)
+		}
+		return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", message)
 	}
-	if truncated := truncateImportBody(body); truncated != "" {
-		message = fmt.Sprintf("%s: %s", message, truncated)
-	}
-	return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", message)
-}
-
+*/
 func (s *AccountModelImportService) detectSoraModels(ctx context.Context, account *Account) ([]string, error) {
 	switch account.Type {
 	case AccountTypeAPIKey, AccountTypeUpstream:
@@ -706,10 +707,6 @@ func parseOpenAIModelListForAccount(account *Account, body []byte) ([]string, er
 		return nil, newAccountModelImportInvalidResponseError(account, "upstream model listing returned invalid JSON", err)
 	}
 	return nil, err
-}
-
-func parseAnthropicModelList(body []byte) ([]string, error) {
-	return parseOpenAIModelList(body)
 }
 
 func parseAnthropicModelListForAccount(account *Account, body []byte) ([]string, error) {

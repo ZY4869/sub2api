@@ -244,9 +244,9 @@ func (s *GrokGatewayService) runSSOGrokVideoWorkflow(ctx context.Context, c *gin
 	}
 
 	extraPayload := map[string]any{
-		"media_type":     "video",
-		"aspect_ratio":   req.AspectRatio,
-		"resolution":     req.Resolution,
+		"media_type":       "video",
+		"aspect_ratio":     req.AspectRatio,
+		"resolution":       req.Resolution,
 		"duration_seconds": req.Seconds,
 	}
 	if strings.TrimSpace(req.ImageURL) != "" {

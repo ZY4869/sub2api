@@ -420,7 +420,7 @@ func grokParseReverseStream(reader io.Reader, mappedModel string) (*grokReverseE
 		}
 		if token := strings.TrimSpace(gjson.GetBytes(raw, "result.response.token").String()); token != "" {
 			exec.Tokens = append(exec.Tokens, token)
-			messageBuilder.WriteString(token)
+			_, _ = messageBuilder.WriteString(token)
 		}
 		exec.ResponseID = firstNonEmptyString(exec.ResponseID, gjson.GetBytes(raw, "result.response.responseId").String(), gjson.GetBytes(raw, "result.response.id").String())
 		exec.ConversationID = firstNonEmptyString(exec.ConversationID, gjson.GetBytes(raw, "result.response.conversationId").String())
@@ -610,7 +610,7 @@ func (s *GrokGatewayService) writeSSOResponsesStream(c *gin.Context, model strin
 	}
 
 	if err := writeEvent(apicompat.ResponsesStreamEvent{
-		Type: "response.created",
+		Type:     "response.created",
 		Response: &apicompat.ResponsesResponse{ID: exec.ResponseID, Object: "response", Model: model, Status: "in_progress"},
 	}); err != nil {
 		return nil, nil

@@ -205,13 +205,6 @@ func parseSingleGrokImportItem(item any, sourcePool string, index int) (GrokImpo
 		if explicitKind == "" {
 			explicitKind = InferGrokCredentialKind(rawCredential)
 		}
-		tier := NormalizeGrokTierValue(firstStringField(value, "grok_tier", "tier"))
-		if tier == "" {
-			tier = NormalizeGrokTierValue(firstStringField(credentials, "grok_tier", "tier"))
-		}
-		if tier == "" && sourcePool != "" {
-			tier = LegacyGrokPoolTier(sourcePool)
-		}
 		name := firstStringField(value, "name", "display_name", "title")
 		notes := firstStringField(value, "notes")
 		baseURL := firstStringField(value, "base_url")

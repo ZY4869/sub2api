@@ -40,6 +40,6 @@ func writeGoogleBatchStreamResponse(c *gin.Context, res *service.UpstreamHTTPStr
 	}
 	c.Status(res.StatusCode)
 	if _, err := io.Copy(c.Writer, res.Body); err != nil {
-		c.Error(err)
+		_ = c.Error(err)
 	}
 }

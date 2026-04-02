@@ -13,7 +13,7 @@ type HardBanMatch struct {
 type hardBanErrorEnvelope struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
-	Error struct {
+	Error   struct {
 		Message string `json:"message"`
 		Code    string `json:"code"`
 	} `json:"error"`

@@ -42,14 +42,14 @@ func collectKiroResponse(body io.Reader) (*kiroCollectedResponse, error) {
 		switch msg.EventType {
 		case "assistantResponseEvent":
 			if delta := extractKiroAssistantContent(event); delta != "" {
-				content.WriteString(delta)
+				_, _ = content.WriteString(delta)
 			}
 			collected.ToolUses = append(collected.ToolUses, extractKiroAssistantToolUses(event, processedIDs)...)
 		case "reasoningContentEvent":
 			if thinking := extractKiroReasoningContent(event); thinking != "" {
-				content.WriteString(kiroThinkingStartTag)
-				content.WriteString(thinking)
-				content.WriteString(kiroThinkingEndTag)
+				_, _ = content.WriteString(kiroThinkingStartTag)
+				_, _ = content.WriteString(thinking)
+				_, _ = content.WriteString(kiroThinkingEndTag)
 			}
 		case "toolUseEvent":
 			toolUses, next := processKiroToolUseEvent(event, currentTool, processedIDs)
@@ -487,11 +487,11 @@ func processKiroToolUseEvent(event map[string]any, current *kiroToolUseState, pr
 
 	switch input := payload["input"].(type) {
 	case string:
-		current.Parts.WriteString(input)
+		_, _ = current.Parts.WriteString(input)
 	case map[string]any:
 		bytes, _ := json.Marshal(input)
 		current.Parts.Reset()
-		current.Parts.Write(bytes)
+		_, _ = current.Parts.Write(bytes)
 		stop = true
 	}
 

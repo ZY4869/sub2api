@@ -28,8 +28,8 @@ type GatewayConfig struct {
 	InjectBetaForAPIKey                  bool                     `mapstructure:"inject_beta_for_apikey"`
 	FailoverOn400                        bool                     `mapstructure:"failover_on_400"`
 	SoraMaxBodySize                      int64                    `mapstructure:"sora_max_body_size"`
-	GrokVideoPollIntervalSeconds        int                      `mapstructure:"grok_video_poll_interval_seconds"`
-	GrokVideoWaitTimeoutSeconds         int                      `mapstructure:"grok_video_wait_timeout_seconds"`
+	GrokVideoPollIntervalSeconds         int                      `mapstructure:"grok_video_poll_interval_seconds"`
+	GrokVideoWaitTimeoutSeconds          int                      `mapstructure:"grok_video_wait_timeout_seconds"`
 	SoraStreamTimeoutSeconds             int                      `mapstructure:"sora_stream_timeout_seconds"`
 	SoraRequestTimeoutSeconds            int                      `mapstructure:"sora_request_timeout_seconds"`
 	SoraStreamMode                       string                   `mapstructure:"sora_stream_mode"`

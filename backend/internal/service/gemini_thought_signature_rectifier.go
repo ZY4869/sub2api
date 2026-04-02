@@ -46,4 +46,3 @@ func replaceAllGeminiThoughtSignatures(value any, replacement string) bool {
 	}
 	return changed
 }
-

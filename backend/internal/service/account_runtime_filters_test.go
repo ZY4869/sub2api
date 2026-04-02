@@ -1,9 +1,12 @@
 package service
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 func TestAccountRuntimeFiltersFromContext(t *testing.T) {
-	ctx := WithAccountRuntimeFilters(nil, "in_use_only", []int64{9, 3, 9})
+	ctx := WithAccountRuntimeFilters(context.TODO(), "in_use_only", []int64{9, 3, 9})
 	filters := AccountRuntimeFiltersFromContext(ctx)
 	if filters.RuntimeView != AccountRuntimeViewInUseOnly {
 		t.Fatalf("RuntimeView = %q, want %q", filters.RuntimeView, AccountRuntimeViewInUseOnly)

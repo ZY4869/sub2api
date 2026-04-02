@@ -7,31 +7,19 @@ on:
 permissions:
   contents: read
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: backend/go.mod
-          check-latest: false
-          cache: true
-          cache-dependency-path: backend/go.sum
-      - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.1'
-      - name: Unit tests
-        working-directory: backend
-        run: make test-unit
-      - name: Integration tests
-        working-directory: backend
-        run: make test-integration
+env:
+  GOLANGCI_LINT_VERSION: v2.9
+  GOVULNCHECK_VERSION: v1.1.4
 
-  golangci-lint:
+jobs:
+  backend-unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
       - uses: actions/setup-go@v6
         with:
           go-version-file: backend/go.mod
@@ -39,11 +27,86 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: |
-          go version | grep -q 'go1.26.1'
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        run: go version | grep -q 'go1.26.1'
+      - name: Run backend unit checks
+        run: bash scripts/verify-ci.sh backend-unit
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
-          version: v2.9
-          args: --timeout=30m
-          working-directory: backend
+          python-version: "3.11"
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify Go version
+        run: go version | grep -q 'go1.26.1'
+      - name: Run backend integration checks
+        run: bash scripts/verify-ci.sh backend-integration
+
+  backend-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify Go version
+        run: go version | grep -q 'go1.26.1'
+      - name: Run backend lint checks
+        run: bash scripts/verify-ci.sh backend-lint
+
+  backend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          check-latest: false
+          cache: true
+          cache-dependency-path: backend/go.sum
+      - name: Verify Go version
+        run: go version | grep -q 'go1.26.1'
+      - name: Run backend build checks
+        run: bash scripts/verify-ci.sh backend-build
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Run frontend build checks
+        run: bash scripts/verify-ci.sh frontend-build
+      - name: Run frontend test checks
+        run: bash scripts/verify-ci.sh frontend-test
+      - name: Run frontend lint checks
+        run: bash scripts/verify-ci.sh frontend-lint

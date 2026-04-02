@@ -215,7 +215,9 @@ func normalizeKiroErrorResponse(statusCode int, body []byte) []byte {
 		},
 	}
 	if code := extractKiroErrorCode(body); code != "" {
-		payload["error"].(map[string]any)["code"] = code
+		if errorPayload, ok := payload["error"].(map[string]any); ok {
+			errorPayload["code"] = code
+		}
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {

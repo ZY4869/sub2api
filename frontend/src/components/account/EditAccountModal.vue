@@ -1189,8 +1189,9 @@ watch(
         gatewayProtocol.value,
         newAccount.extra?.gateway_accepted_protocols
       )
-      gatewayClientProfiles.value = (Array.isArray(newAccount.extra?.gateway_client_profiles)
-        ? newAccount.extra?.gateway_client_profiles
+      const rawGatewayClientProfiles = newAccount.extra?.gateway_client_profiles
+      gatewayClientProfiles.value = (Array.isArray(rawGatewayClientProfiles)
+        ? rawGatewayClientProfiles
         : []
       )
         .map((value) => normalizeGatewayClientProfile(value))

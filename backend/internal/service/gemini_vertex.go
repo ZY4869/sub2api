@@ -10,13 +10,6 @@ import (
 
 const defaultGeminiVertexValidationModel = "gemini-2.5-flash"
 
-var geminiVertexValidationCandidateModels = []string{
-	defaultGeminiVertexValidationModel,
-	"gemini-2.5-flash-lite",
-	"gemini-2.5-pro",
-	"gemini-2.0-flash",
-}
-
 func (a *Account) IsGeminiVertexAI() bool {
 	if a == nil || EffectiveProtocol(a) != PlatformGemini || a.Type != AccountTypeOAuth {
 		return false
@@ -60,10 +53,6 @@ func DefaultGeminiVertexBaseURL(location string) string {
 	return fmt.Sprintf("https://%s-aiplatform.googleapis.com", location)
 }
 
-func geminiVertexValidationModels() []string {
-	return append([]string(nil), geminiVertexValidationCandidateModels...)
-}
-
 func (a *Account) GeminiVertexModelsPath() (string, error) {
 	projectID := a.GetGeminiVertexProjectID()
 	if projectID == "" {
@@ -102,21 +91,6 @@ func (a *Account) GeminiVertexModelActionPath(model, action string) (string, err
 		return "", err
 	}
 	return fmt.Sprintf("%s:%s", modelPath, action), nil
-}
-
-func buildGeminiVertexGETPath(account *Account, path string) (string, error) {
-	if account == nil {
-		return "", fmt.Errorf("account is nil")
-	}
-	path = strings.TrimSpace(path)
-	switch {
-	case path == "/v1beta/models":
-		return account.GeminiVertexModelsPath()
-	case strings.HasPrefix(path, "/v1beta/models/"):
-		return account.GeminiVertexModelPath(strings.TrimPrefix(path, "/v1beta/models/"))
-	default:
-		return "", fmt.Errorf("unsupported vertex ai GET path: %s", path)
-	}
 }
 
 func isGeminiCredentialConfigError(err error) bool {

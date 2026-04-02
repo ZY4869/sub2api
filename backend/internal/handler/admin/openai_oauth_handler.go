@@ -618,16 +618,15 @@ func (h *OpenAIOAuthHandler) ReauthorizeCopilotAccountFromDevice(c *gin.Context)
 	})
 	extra = service.MergeStringAnyMap(extra, h.copilotOAuthService.BuildAccountUpstreamExtra(tokenInfo, "copilot_device_reauthorize"))
 
-	updatedAccount, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
+	if _, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Type:        service.AccountTypeOAuth,
 		Credentials: credentials,
 		Extra:       extra,
-	})
-	if err != nil {
+	}); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	updatedAccount, err = h.adminService.ClearAccountError(c.Request.Context(), accountID)
+	updatedAccount, err := h.adminService.ClearAccountError(c.Request.Context(), accountID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

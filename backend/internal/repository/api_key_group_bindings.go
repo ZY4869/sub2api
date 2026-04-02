@@ -22,13 +22,6 @@ var errAPIKeyGroupSchemaOutdated = infraerrors.ServiceUnavailable(
 	"api key group bindings require the latest database migration; restart the service or apply the latest migrations",
 )
 
-type apiKeyGroupBindingWriter interface {
-	GetAPIKeyGroups(ctx context.Context, keyID int64) ([]service.APIKeyGroupBinding, error)
-	SetAPIKeyGroups(ctx context.Context, keyID int64, bindings []service.APIKeyGroupBinding) error
-	IncrementAPIKeyGroupQuotaUsed(ctx context.Context, keyID, groupID int64, amount float64) error
-	RecomputeShadowGroupIDs(ctx context.Context, keyIDs []int64) error
-}
-
 type apiKeyGroupExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
@@ -198,7 +191,7 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 		}
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	groupIDs := make([]int64, 0)
 	seenGroupIDs := make(map[int64]struct{})
@@ -375,7 +368,7 @@ func listAPIKeyIDsByGroupID(ctx context.Context, exec apiKeyGroupExecutor, group
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	ids := make([]int64, 0)
 	for rows.Next() {
@@ -403,7 +396,7 @@ func listAPIKeyIDsByUserAndGroup(ctx context.Context, exec apiKeyGroupExecutor, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	ids := make([]int64, 0)
 	for rows.Next() {
 		var id int64

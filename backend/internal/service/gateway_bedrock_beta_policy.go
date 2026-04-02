@@ -110,4 +110,3 @@ func (s *GatewayService) resolveBedrockBetaTokensForRequest(ctx context.Context,
 	betaTokens = filterBetaTokens(betaTokens, filterSet)
 	return betaTokens, nil
 }
-

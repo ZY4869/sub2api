@@ -594,10 +594,6 @@ func normalizeGrokTier(extra map[string]any) string {
 	return NormalizeGrokTierValue(value)
 }
 
-func defaultGrokCapabilitiesForTier(tier string) map[string]any {
-	return DefaultGrokCapabilitiesForTier(tier).ToMap()
-}
-
 func (s *adminServiceImpl) DeleteAccount(ctx context.Context, id int64) error {
 	if err := s.accountRepo.Delete(ctx, id); err != nil {
 		return err

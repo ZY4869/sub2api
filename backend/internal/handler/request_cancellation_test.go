@@ -9,7 +9,7 @@ import (
 
 func TestIsRequestCanceled(t *testing.T) {
 	t.Run("nil_context_and_nil_error", func(t *testing.T) {
-		if isRequestCanceled(nil, nil) {
+		if isRequestCanceled(context.TODO(), nil) {
 			t.Fatal("expected false")
 		}
 	})

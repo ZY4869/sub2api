@@ -63,7 +63,7 @@ func (r *googleBatchArchiveObjectRepository) Upsert(ctx context.Context, object 
 	return err
 }
 
-func (r *googleBatchArchiveObjectRepository) GetByPublicResource(ctx context.Context, publicResourceKind string, publicResourceName string) (*service.GoogleBatchArchiveObject, error) {
+func (r *googleBatchArchiveObjectRepository) GetByPublicResource(ctx context.Context, publicResourceKind string, publicResourceName string) (object *service.GoogleBatchArchiveObject, err error) {
 	if r == nil || r.sql == nil {
 		return nil, sql.ErrNoRows
 	}
@@ -92,17 +92,22 @@ func (r *googleBatchArchiveObjectRepository) GetByPublicResource(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
 		return nil, sql.ErrNoRows
 	}
-	return scanGoogleBatchArchiveObjectRow(rows)
+	object, err = scanGoogleBatchArchiveObjectRow(rows)
+	return object, err
 }
 
-func (r *googleBatchArchiveObjectRepository) ListByJobID(ctx context.Context, jobID int64) ([]*service.GoogleBatchArchiveObject, error) {
+func (r *googleBatchArchiveObjectRepository) ListByJobID(ctx context.Context, jobID int64) (items []*service.GoogleBatchArchiveObject, err error) {
 	if r == nil || r.sql == nil {
 		return nil, nil
 	}
@@ -131,8 +136,12 @@ func (r *googleBatchArchiveObjectRepository) ListByJobID(ctx context.Context, jo
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var items []*service.GoogleBatchArchiveObject
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	items = make([]*service.GoogleBatchArchiveObject, 0)
 	for rows.Next() {
 		item, err := scanGoogleBatchArchiveObjectRow(rows)
 		if err != nil {

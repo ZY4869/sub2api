@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-const (
-	googleBatchArchiveRuntimePollWorkerName     = "google_batch_archive_poller"
-	googleBatchArchiveRuntimePrefetchWorkerName = "google_batch_archive_prefetch"
-	googleBatchArchiveRuntimeCleanupWorkerName  = "google_batch_archive_cleanup"
-)
-
 func googleBatchArchivePollInterval(settings *GoogleBatchArchiveSettings) time.Duration {
 	normalized := NormalizeGoogleBatchArchiveSettings(settings)
 	return time.Duration(normalized.PollMinIntervalSeconds) * time.Second
@@ -48,14 +42,6 @@ func googleBatchArchiveNextRetryAt(settings *GoogleBatchArchiveSettings, attempt
 
 func googleBatchArchivePublicBatchPath(publicBatchName string) string {
 	name := strings.Trim(strings.TrimSpace(publicBatchName), "/")
-	if name == "" {
-		return ""
-	}
-	return "/v1beta/" + name
-}
-
-func googleBatchArchivePublicFileMetadataPath(publicFileName string) string {
-	name := strings.Trim(strings.TrimSpace(publicFileName), "/")
 	if name == "" {
 		return ""
 	}

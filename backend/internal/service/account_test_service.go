@@ -364,38 +364,6 @@ func gatewayTestSimulatedClientLabel(simulatedClient string) string {
 	}
 }
 
-func (s *AccountTestService) sendProtocolGatewayRuntimeMetaEvents(c *gin.Context, sourceProtocol string, simulatedClient string) {
-	if c == nil {
-		return
-	}
-	if normalizedProtocol := normalizeTestSourceProtocol(sourceProtocol); normalizedProtocol != "" {
-		s.sendEvent(c, TestEvent{
-			Type: "content",
-			Text: fmt.Sprintf("Gateway source protocol: %s", gatewayTestSourceProtocolLabel(normalizedProtocol)),
-			Data: map[string]any{
-				"kind":   "runtime_meta",
-				"key":    "resolved_protocol",
-				"value":  normalizedProtocol,
-				"label":  gatewayTestSourceProtocolLabel(normalizedProtocol),
-				"source": "protocol_gateway_test",
-			},
-		})
-	}
-	if label := gatewayTestSimulatedClientLabel(simulatedClient); strings.TrimSpace(label) != "" {
-		s.sendEvent(c, TestEvent{
-			Type: "content",
-			Text: fmt.Sprintf("Gateway simulated client: %s", label),
-			Data: map[string]any{
-				"kind":   "runtime_meta",
-				"key":    "simulated_client",
-				"value":  simulatedClient,
-				"label":  label,
-				"source": "protocol_gateway_test",
-			},
-		})
-	}
-}
-
 func (s *AccountTestService) resolveRequestedSourceProtocol(ctx context.Context, account *Account, modelID string, requested string) (string, error) {
 	if !IsProtocolGatewayAccount(account) {
 		return "", nil

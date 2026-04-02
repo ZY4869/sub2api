@@ -404,15 +404,6 @@ func writeGrokMessagesUnsupported(c *gin.Context) {
 	})
 }
 
-func writeGrokUnsupported(c *gin.Context, path string) {
-	c.AbortWithStatusJSON(http.StatusNotImplemented, gin.H{
-		"error": gin.H{
-			"type":    "invalid_request_error",
-			"message": "Grok routing for " + path + " is not enabled in this build",
-		},
-	})
-}
-
 func writeGrokAliasUnavailable(c *gin.Context, path string) {
 	c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
 		"error": gin.H{

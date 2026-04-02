@@ -575,8 +575,9 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			return
 		}
 	}
-	return
+}
 
+/*
 	// 2) billing eligibility check (after wait)
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
 		reqLog.Info("gemini.billing_eligibility_check_failed", zap.Error(err))
@@ -914,6 +915,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		return
 	}
 }
+*/
 
 func parseGeminiModelAction(rest string) (model string, action string, err error) {
 	rest = strings.TrimSpace(rest)
@@ -1044,31 +1046,32 @@ func writeUpstreamResponse(c *gin.Context, res *service.UpstreamHTTPResult) {
 	c.Data(res.StatusCode, contentType, res.Body)
 }
 
-func shouldFallbackGeminiModels(res *service.UpstreamHTTPResult) bool {
-	if res == nil {
-		return true
-	}
-	if res.StatusCode != http.StatusUnauthorized && res.StatusCode != http.StatusForbidden {
+/*
+	func shouldFallbackGeminiModels(res *service.UpstreamHTTPResult) bool {
+		if res == nil {
+			return true
+		}
+		if res.StatusCode != http.StatusUnauthorized && res.StatusCode != http.StatusForbidden {
+			return false
+		}
+		if strings.Contains(strings.ToLower(res.Headers.Get("Www-Authenticate")), "insufficient_scope") {
+			return true
+		}
+		if strings.Contains(strings.ToLower(string(res.Body)), "insufficient authentication scopes") {
+			return true
+		}
+		if strings.Contains(strings.ToLower(string(res.Body)), "access_token_scope_insufficient") {
+			return true
+		}
 		return false
 	}
-	if strings.Contains(strings.ToLower(res.Headers.Get("Www-Authenticate")), "insufficient_scope") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(string(res.Body)), "insufficient authentication scopes") {
-		return true
-	}
-	if strings.Contains(strings.ToLower(string(res.Body)), "access_token_scope_insufficient") {
-		return true
-	}
-	return false
-}
 
-func shouldFallbackGeminiModelsForAccount(account *service.Account, res *service.UpstreamHTTPResult) bool {
-	if account != nil && account.IsGeminiVertexSource() {
-		return false
+	func shouldFallbackGeminiModelsForAccount(account *service.Account, res *service.UpstreamHTTPResult) bool {
+		if account != nil && account.IsGeminiVertexSource() {
+			return false
+		}
+		return shouldFallbackGeminiModels(res)
 	}
-	return shouldFallbackGeminiModels(res)
-}
 
 // extractGeminiCLISessionHash 从 Gemini CLI 请求中提取会话标识。
 // 组合 x-gemini-api-privileged-user-id header 和请求体中的 tmp 目录哈希。
@@ -1082,6 +1085,7 @@ func shouldFallbackGeminiModelsForAccount(account *service.Account, res *service
 //
 // extractGeminiCLISessionHash extracts session identifier from Gemini CLI requests.
 // Combines x-gemini-api-privileged-user-id header with tmp directory hash from request body.
+*/
 func extractGeminiCLISessionHash(c *gin.Context, body []byte) string {
 	// 1. 从请求体中提取 tmp 目录哈希
 	match := geminiCLITmpDirRegex.FindSubmatch(body)

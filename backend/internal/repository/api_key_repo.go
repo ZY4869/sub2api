@@ -526,7 +526,7 @@ func (r *apiKeyRepository) ListKeysByUserID(ctx context.Context, userID int64) (
 	return keys, nil
 }
 
-func (r *apiKeyRepository) ListKeysByGroupID(ctx context.Context, groupID int64) ([]string, error) {
+func (r *apiKeyRepository) ListKeysByGroupID(ctx context.Context, groupID int64) (keys []string, err error) {
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT DISTINCT ak.key
 		FROM api_key_groups ag
@@ -536,8 +536,12 @@ func (r *apiKeyRepository) ListKeysByGroupID(ctx context.Context, groupID int64)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	keys := make([]string, 0)
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	keys = make([]string, 0)
 	for rows.Next() {
 		var key string
 		if err := rows.Scan(&key); err != nil {
@@ -545,7 +549,8 @@ func (r *apiKeyRepository) ListKeysByGroupID(ctx context.Context, groupID int64)
 		}
 		keys = append(keys, key)
 	}
-	return keys, rows.Err()
+	err = rows.Err()
+	return keys, err
 }
 
 // IncrementQuotaUsed 使用 Ent 原子递增 quota_used 字段并返回新值

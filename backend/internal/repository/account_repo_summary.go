@@ -132,7 +132,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var platform string

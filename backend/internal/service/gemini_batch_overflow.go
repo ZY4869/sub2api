@@ -388,8 +388,12 @@ func marshalVertexBatchJSONLLines(lines []map[string]any) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		buf.Write(encoded)
-		buf.WriteByte('\n')
+		if _, err := buf.Write(encoded); err != nil {
+			return nil, err
+		}
+		if err := buf.WriteByte('\n'); err != nil {
+			return nil, err
+		}
 	}
 	return buf.Bytes(), nil
 }

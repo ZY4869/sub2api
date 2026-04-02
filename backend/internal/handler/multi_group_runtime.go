@@ -12,14 +12,13 @@ import (
 )
 
 var (
-	openAICompatiblePlatforms = []string{service.PlatformOpenAI, service.PlatformCopilot}
+	openAICompatiblePlatforms  = []string{service.PlatformOpenAI, service.PlatformCopilot}
 	gatewayCompatiblePlatforms = []string{
 		service.PlatformAnthropic,
 		service.PlatformGemini,
 		service.PlatformAntigravity,
 		service.PlatformKiro,
 	}
-	claudeCompatiblePlatforms = []string{service.PlatformAnthropic, service.PlatformAntigravity, service.PlatformKiro}
 	geminiCompatiblePlatforms = []string{service.PlatformGemini, service.PlatformAntigravity}
 	grokCompatiblePlatforms   = []string{service.PlatformGrok}
 	soraCompatiblePlatforms   = []string{service.PlatformSora}

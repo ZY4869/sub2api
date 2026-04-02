@@ -77,13 +77,6 @@ func bindingExecutionProtocol(binding *UpstreamResourceBinding) string {
 	return ""
 }
 
-func bindingPublicProtocol(binding *UpstreamResourceBinding) string {
-	if value, ok := metadataString(bindingMetadata(binding), googleBatchBindingMetadataPublicProtocol); ok {
-		return value
-	}
-	return ""
-}
-
 func bindingVirtualResource(binding *UpstreamResourceBinding) bool {
 	return metadataBool(bindingMetadata(binding), googleBatchBindingMetadataVirtualResource)
 }

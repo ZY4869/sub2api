@@ -62,7 +62,7 @@ func TestAPIContracts(t *testing.T) {
 					"admin_free_billing": false
  				}
  			}`,
- 		},
+		},
 		{
 			name:   "POST /api/v1/keys",
 			method: http.MethodPost,

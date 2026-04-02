@@ -42,7 +42,7 @@ func normalizeFileStorageRoot(root string) string {
 }
 
 func (s *GoogleBatchArchiveStorage) StoreBytes(_ context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, filename string, payload []byte) (string, int64, string, error) {
-	return s.StoreReader(nil, settings, job, filename, bytes.NewReader(payload))
+	return s.StoreReader(context.Background(), settings, job, filename, bytes.NewReader(payload))
 }
 
 func (s *GoogleBatchArchiveStorage) StoreReader(_ context.Context, settings *GoogleBatchArchiveSettings, job *GoogleBatchArchiveJob, filename string, reader io.Reader) (string, int64, string, error) {

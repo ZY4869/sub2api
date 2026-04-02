@@ -13,10 +13,18 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
+
+func requireExternalIntegration(t *testing.T) {
+	t.Helper()
+	if os.Getenv("RUN_EXTERNAL_INTEGRATION") != "1" {
+		t.Skip("skipping external integration test; set RUN_EXTERNAL_INTEGRATION=1 to enable")
+	}
+}
 
 // skipIfExternalServiceUnavailable checks if the external service is available.
 // If not, it skips the test instead of failing.
@@ -47,6 +55,7 @@ func TestJA3Fingerprint(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
+	requireExternalIntegration(t)
 
 	profile := &Profile{
 		Name:         "Claude CLI Test",
@@ -159,6 +168,7 @@ func TestAllProfiles(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
+	requireExternalIntegration(t)
 
 	// Define all profiles to test with their expected fingerprints
 	// These profiles are from config.yaml gateway.tls_fingerprint.profiles
@@ -172,7 +182,7 @@ func TestAllProfiles(t *testing.T) {
 				EnableGREASE: false,
 				CipherSuites: []uint16{4866, 4867, 4865, 49199, 49195, 49200, 49196, 158, 49191, 103, 49192, 107, 163, 159, 52393, 52392, 52394, 49327, 49325, 49315, 49311, 49245, 49249, 49239, 49235, 162, 49326, 49324, 49314, 49310, 49244, 49248, 49238, 49234, 49188, 106, 49187, 64, 49162, 49172, 57, 56, 49161, 49171, 51, 50, 157, 49313, 49309, 49233, 156, 49312, 49308, 49232, 61, 60, 53, 47, 255},
 				Curves:       []uint16{29, 23, 30, 25, 24, 256, 257, 258, 259, 260},
-				PointFormats: []uint8{0, 1, 2},
+				PointFormats: []uint16{0, 1, 2},
 			},
 			JA4CipherHash: "a33745022dd6", // stable part
 		},
@@ -185,7 +195,7 @@ func TestAllProfiles(t *testing.T) {
 				EnableGREASE: false,
 				CipherSuites: []uint16{4866, 4867, 4865, 49199, 49195, 49200, 49196, 158, 49191, 103, 49192, 107, 163, 159, 52393, 52392, 52394, 49327, 49325, 49315, 49311, 49245, 49249, 49239, 49235, 162, 49326, 49324, 49314, 49310, 49244, 49248, 49238, 49234, 49188, 106, 49187, 64, 49162, 49172, 57, 56, 49161, 49171, 51, 50, 157, 49313, 49309, 49233, 156, 49312, 49308, 49232, 61, 60, 53, 47, 255},
 				Curves:       []uint16{29, 23, 30, 25, 24, 256, 257, 258, 259, 260},
-				PointFormats: []uint8{0, 1, 2},
+				PointFormats: []uint16{0, 1, 2},
 			},
 			JA4CipherHash: "a33745022dd6", // stable part (same cipher suites)
 		},

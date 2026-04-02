@@ -18,20 +18,6 @@ type GrokCapabilities struct {
 	VideoMaxDurationSeconds int    `json:"video_max_duration_seconds"`
 }
 
-var grokSharedModelIDs = []string{
-	GrokModelAuto,
-	GrokModel3Fast,
-	GrokModel4Expert,
-	GrokModelImagineFast,
-	GrokModelImagine,
-	GrokModelImagineEdit,
-	GrokModelImagineVideo,
-}
-
-var grokHeavyOnlyModelIDs = []string{
-	GrokModel4Heavy,
-}
-
 func NormalizeGrokTierValue(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
 	case GrokTierBasic:

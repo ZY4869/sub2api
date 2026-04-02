@@ -121,6 +121,7 @@ func (h *AccountHandler) BatchRefresh(c *gin.Context) {
 	}
 	response.Success(c, gin.H{"total": len(req.AccountIDs), "success": successCount, "failed": failedCount, "errors": errors, "warnings": warnings})
 }
+
 type BatchUpdateCredentialsRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
 	Field      string  `json:"field" binding:"required,oneof=account_uuid org_uuid intercept_warmup_requests"`

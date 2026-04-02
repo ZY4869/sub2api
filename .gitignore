@@ -33,6 +33,7 @@ backend/.gocache/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/audit.json
 *.local
 *.tsbuildinfo
 vite.config.d.ts
@@ -121,7 +122,6 @@ tests
 计划/
 CLAUDE.md
 .claude
-scripts
 .code-review-state
 #openspec/
 code-reviews/

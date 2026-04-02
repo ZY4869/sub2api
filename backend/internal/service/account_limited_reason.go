@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	AccountLimitedViewAll        = "all"
-	AccountLimitedViewNormalOnly = "normal_only"
+	AccountLimitedViewAll         = "all"
+	AccountLimitedViewNormalOnly  = "normal_only"
 	AccountLimitedViewLimitedOnly = "limited_only"
 
 	AccountRateLimitReason429     = "rate_429"

@@ -33,33 +33,33 @@ var grokVideoQualityToResolution = map[string]string{
 }
 
 type grokVideoWorkflowRequest struct {
-	EntryPoint   string
+	EntryPoint     string
 	RequestedModel string
-	Prompt       string
-	ImageURL     string
-	VideoURL     string
-	ModeID       string
-	AspectRatio  string
-	Resolution   string
-	Seconds      int
-	Quality      string
-	Size         string
-	Stream       bool
+	Prompt         string
+	ImageURL       string
+	VideoURL       string
+	ModeID         string
+	AspectRatio    string
+	Resolution     string
+	Seconds        int
+	Quality        string
+	Size           string
+	Stream         bool
 }
 
 type grokVideoResult struct {
-	RequestID    string
-	Status       string
-	Model        string
+	RequestID     string
+	Status        string
+	Model         string
 	UpstreamModel string
-	URL          string
-	ThumbnailURL string
-	Resolution   string
-	AspectRatio  string
-	Seconds      int
-	MimeType     string
-	Provider     string
-	CompletedAt  time.Time
+	URL           string
+	ThumbnailURL  string
+	Resolution    string
+	AspectRatio   string
+	Seconds       int
+	MimeType      string
+	Provider      string
+	CompletedAt   time.Time
 }
 
 func grokIsVideoRequestModel(models ...string) bool {
@@ -253,10 +253,10 @@ func grokBuildVideoResponsesResponse(result *grokVideoResult, model string) *api
 		Model:  strings.TrimSpace(model),
 		Status: "completed",
 		Output: []apicompat.ResponsesOutput{{
-			Type:   "message",
-			ID:     "msg_" + responseID,
-			Role:   "assistant",
-			Status: "completed",
+			Type:    "message",
+			ID:      "msg_" + responseID,
+			Role:    "assistant",
+			Status:  "completed",
 			Content: content,
 		}},
 		Usage: &apicompat.ResponsesUsage{InputTokens: 0, OutputTokens: 0, TotalTokens: 0},

@@ -293,7 +293,7 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 
 			tt.setup(client)
 
-			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID)
+			accounts, _, err := repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, tt.platform, tt.accType, tt.status, tt.search, tt.groupID, "", "")
 			s.Require().NoError(err)
 			s.Require().Len(accounts, tt.wantCount)
 			if tt.validate != nil {
@@ -360,7 +360,7 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 	s.Require().Len(got.Groups, 1, "expected Groups to be populated")
 	s.Require().Equal(group.ID, got.Groups[0].ID)
 
-	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0)
+	accounts, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, "", "", "", "acc", 0, "", "")
 	s.Require().NoError(err, "ListWithFilters")
 	s.Require().Equal(int64(1), page.Total)
 	s.Require().Len(accounts, 1)
@@ -368,6 +368,49 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 	s.Require().Equal(proxy.ID, accounts[0].Proxy.ID)
 	s.Require().Len(accounts[0].GroupIDs, 1, "expected GroupIDs in list")
 	s.Require().Equal(group.ID, accounts[0].GroupIDs[0])
+}
+
+func (s *AccountRepoSuite) TestListWithFilters_LifecycleAndPrivacyMode() {
+	archivedTraining := &service.Account{
+		Name:           "archived-training",
+		LifecycleState: service.AccountLifecycleArchived,
+		Extra: map[string]any{
+			"privacy_mode": service.PrivacyModeTrainingOff,
+		},
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, archivedTraining))
+
+	s.Require().NoError(s.repo.Create(s.ctx, &service.Account{
+		Name:           "archived-failed",
+		LifecycleState: service.AccountLifecycleArchived,
+		Extra: map[string]any{
+			"privacy_mode": service.PrivacyModeFailed,
+		},
+	}))
+
+	s.Require().NoError(s.repo.Create(s.ctx, &service.Account{
+		Name:           "normal-training",
+		LifecycleState: service.AccountLifecycleNormal,
+		Extra: map[string]any{
+			"privacy_mode": service.PrivacyModeTrainingOff,
+		},
+	}))
+
+	accounts, page, err := s.repo.ListWithFilters(
+		s.ctx,
+		pagination.PaginationParams{Page: 1, PageSize: 10},
+		"",
+		"",
+		"",
+		"",
+		0,
+		service.AccountLifecycleArchived,
+		service.PrivacyModeTrainingOff,
+	)
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), page.Total)
+	s.Require().Len(accounts, 1)
+	s.Require().Equal(archivedTraining.ID, accounts[0].ID)
 }
 
 // --- GroupBinding / AddToGroup / RemoveFromGroup / BindGroups / GetGroups ---

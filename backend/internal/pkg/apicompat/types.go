@@ -193,23 +193,23 @@ type ResponsesInputItem struct {
 
 // ResponsesContentPart is a typed content part in a Responses message.
 type ResponsesContentPart struct {
-	Type     string `json:"type"` // "input_text" | "output_text" | "input_image"
-	Text     string `json:"text,omitempty"`
-	ImageURL string `json:"image_url,omitempty"` // data URI for input_image
+	Type     string      `json:"type"` // "input_text" | "output_text" | "input_image"
+	Text     string      `json:"text,omitempty"`
+	ImageURL string      `json:"image_url,omitempty"` // data URI for input_image
 	Video    *MediaVideo `json:"video,omitempty"`
 }
 
 type MediaVideo struct {
-	RequestID   string `json:"request_id,omitempty"`
-	Status      string `json:"status,omitempty"`
-	URL         string `json:"url,omitempty"`
+	RequestID    string `json:"request_id,omitempty"`
+	Status       string `json:"status,omitempty"`
+	URL          string `json:"url,omitempty"`
 	ThumbnailURL string `json:"thumbnail_url,omitempty"`
-	Model       string `json:"model,omitempty"`
-	Seconds     int    `json:"seconds,omitempty"`
-	Resolution  string `json:"resolution,omitempty"`
-	AspectRatio string `json:"aspect_ratio,omitempty"`
-	MimeType    string `json:"mime_type,omitempty"`
-	Provider    string `json:"provider,omitempty"`
+	Model        string `json:"model,omitempty"`
+	Seconds      int    `json:"seconds,omitempty"`
+	Resolution   string `json:"resolution,omitempty"`
+	AspectRatio  string `json:"aspect_ratio,omitempty"`
+	MimeType     string `json:"mime_type,omitempty"`
+	Provider     string `json:"provider,omitempty"`
 }
 
 type ChatMedia struct {
@@ -325,11 +325,11 @@ type ResponsesStreamEvent struct {
 	Item *ResponsesOutput `json:"item,omitempty"`
 
 	// response.output_text.delta / response.output_text.done
-	OutputIndex  int    `json:"output_index,omitempty"`
-	ContentIndex int    `json:"content_index,omitempty"`
-	Delta        string `json:"delta,omitempty"`
-	Text         string `json:"text,omitempty"`
-	ItemID       string `json:"item_id,omitempty"`
+	OutputIndex  int         `json:"output_index,omitempty"`
+	ContentIndex int         `json:"content_index,omitempty"`
+	Delta        string      `json:"delta,omitempty"`
+	Text         string      `json:"text,omitempty"`
+	ItemID       string      `json:"item_id,omitempty"`
 	Video        *MediaVideo `json:"video,omitempty"`
 
 	// response.function_call_arguments.delta / done

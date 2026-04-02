@@ -83,10 +83,10 @@ type DashboardAggregationConfig struct {
 	RecomputeDays   int                                 `mapstructure:"recompute_days"`
 }
 type DashboardAggregationRetentionConfig struct {
-	UsageLogsDays int `mapstructure:"usage_logs_days"`
+	UsageLogsDays         int `mapstructure:"usage_logs_days"`
 	UsageBillingDedupDays int `mapstructure:"usage_billing_dedup_days"`
-	HourlyDays    int `mapstructure:"hourly_days"`
-	DailyDays     int `mapstructure:"daily_days"`
+	HourlyDays            int `mapstructure:"hourly_days"`
+	DailyDays             int `mapstructure:"daily_days"`
 }
 type UsageCleanupConfig struct {
 	Enabled               bool `mapstructure:"enabled"`

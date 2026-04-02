@@ -1,9 +1,7 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -114,18 +112,6 @@ func (s *GrokGatewayService) writeJSONResponse(c *gin.Context, resp *http.Respon
 	c.Data(resp.StatusCode, contentType, body)
 }
 
-func (s *GrokGatewayService) newJSONRequest(ctx context.Context, method string, url string, body []byte) (*http.Request, error) {
-	var reader io.Reader
-	if len(body) > 0 {
-		reader = bytes.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, url, reader)
-	if err != nil {
-		return nil, err
-	}
-	return req, nil
-}
-
 func (s *GrokGatewayService) handleHTTPError(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, routeMode string) error {
 	if resp == nil {
 		return fmt.Errorf("upstream response is nil")
@@ -176,15 +162,4 @@ func (s *GrokGatewayService) shouldFailoverStatus(statusCode int) bool {
 	default:
 		return statusCode >= 500
 	}
-}
-
-func readJSONMap(body []byte) (map[string]any, error) {
-	if len(body) == 0 {
-		return map[string]any{}, nil
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, err
-	}
-	return payload, nil
 }

@@ -10,13 +10,13 @@ import (
 )
 
 type GoogleBatchArchiveCleanupService struct {
-	jobRepo         GoogleBatchArchiveJobRepository
-	objectRepo      GoogleBatchArchiveObjectRepository
-	compatService   *GeminiMessagesCompatService
-	settingService  *SettingService
-	startOnce       sync.Once
-	stopOnce        sync.Once
-	stopCh          chan struct{}
+	jobRepo        GoogleBatchArchiveJobRepository
+	objectRepo     GoogleBatchArchiveObjectRepository
+	compatService  *GeminiMessagesCompatService
+	settingService *SettingService
+	startOnce      sync.Once
+	stopOnce       sync.Once
+	stopCh         chan struct{}
 }
 
 func NewGoogleBatchArchiveCleanupService(

@@ -242,14 +242,14 @@ func projectProbeSummaryToPublicEntries(
 				candidates = append(candidates, candidate)
 			}
 		} else {
-		for sourceID, detail := range detectedSet {
-			candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, sourceID, sourceID, platform)
-			if !ok {
-				continue
+			for sourceID, detail := range detectedSet {
+				candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, sourceID, sourceID, platform)
+				if !ok {
+					continue
+				}
+				candidate.DisplayName = strings.TrimSpace(detail.DisplayName)
+				candidates = append(candidates, candidate)
 			}
-			candidate.DisplayName = strings.TrimSpace(detail.DisplayName)
-			candidates = append(candidates, candidate)
-		}
 		}
 	} else {
 		for alias, source := range mapping {

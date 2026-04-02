@@ -55,7 +55,7 @@ func (r *googleBatchQuotaReservationRepository) Upsert(ctx context.Context, rese
 	return err
 }
 
-func (r *googleBatchQuotaReservationRepository) GetByResourceName(ctx context.Context, resourceName string) (*service.GoogleBatchQuotaReservation, error) {
+func (r *googleBatchQuotaReservationRepository) GetByResourceName(ctx context.Context, resourceName string) (reservation *service.GoogleBatchQuotaReservation, err error) {
 	if r == nil || r.sql == nil {
 		return nil, sql.ErrNoRows
 	}
@@ -79,14 +79,19 @@ func (r *googleBatchQuotaReservationRepository) GetByResourceName(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
 		return nil, sql.ErrNoRows
 	}
-	return scanGoogleBatchQuotaReservationRow(rows)
+	reservation, err = scanGoogleBatchQuotaReservationRow(rows)
+	return reservation, err
 }
 
 func (r *googleBatchQuotaReservationRepository) ReleaseByResourceName(ctx context.Context, resourceName string, status string) error {

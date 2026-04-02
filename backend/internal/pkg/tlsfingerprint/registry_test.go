@@ -116,8 +116,8 @@ func TestGetProfileByAccountID(t *testing.T) {
 		{3, defaultProfile.Name},
 		{4, "Profile A"},
 		{5, "Profile B"},
-		{100, "Profile A"}, // 100 % 3 = 1
-		{-1, "Profile A"},  // |-1| % 3 = 1
+		{100, "Profile A"},        // 100 % 3 = 1
+		{-1, "Profile A"},         // |-1| % 3 = 1
 		{-3, defaultProfile.Name}, // |-3| % 3 = 0
 	}
 

@@ -162,19 +162,6 @@ func (s *GeminiMessagesCompatService) buildGoogleBatchJSONResult(status int, bod
 	return &UpstreamHTTPResult{StatusCode: status, Headers: headers, Body: body}
 }
 
-func (s *GeminiMessagesCompatService) buildGoogleBatchBinaryResult(contentType string, filename string, body []byte) *UpstreamHTTPResult {
-	headers := make(http.Header)
-	if strings.TrimSpace(contentType) != "" {
-		headers.Set("Content-Type", contentType)
-	} else {
-		headers.Set("Content-Type", "application/octet-stream")
-	}
-	if strings.TrimSpace(filename) != "" {
-		headers.Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-	}
-	return &UpstreamHTTPResult{StatusCode: http.StatusOK, Headers: headers, Body: body}
-}
-
 func (s *GeminiMessagesCompatService) buildGoogleBatchBinaryStreamResult(contentType string, filename string, body io.ReadCloser, contentLength int64) *UpstreamHTTPStreamResult {
 	headers := make(http.Header)
 	if strings.TrimSpace(contentType) != "" {
@@ -363,11 +350,6 @@ func googleBatchUsageFromJSONLine(line []byte) UsageTokens {
 	}
 }
 
-func googleBatchAggregateUsageFromJSONL(payload []byte) UsageTokens {
-	tokens, _ := googleBatchAggregateUsageFromReader(strings.NewReader(string(payload)))
-	return tokens
-}
-
 func googleBatchAggregateUsageFromReader(reader io.Reader) (UsageTokens, error) {
 	var tokens UsageTokens
 	err := walkJSONLLines(reader, func(_ int, line []byte) error {
@@ -409,16 +391,6 @@ func (s *GeminiMessagesCompatService) calculateGoogleBatchSettlementCost(request
 		return nil
 	}
 	return googleBatchCostWithDiscount(base, 0.5)
-}
-
-func archivedBatchSnapshotMetadata(job *GoogleBatchArchiveJob, object *GoogleBatchArchiveObject) map[string]any {
-	if object != nil && len(object.MetadataJSON) > 0 {
-		return object.MetadataJSON
-	}
-	if job != nil && len(job.MetadataJSON) > 0 {
-		return job.MetadataJSON
-	}
-	return map[string]any{}
 }
 
 func buildArchivedAIStudioBatchPayload(job *GoogleBatchArchiveJob, snapshotBody []byte) []byte {

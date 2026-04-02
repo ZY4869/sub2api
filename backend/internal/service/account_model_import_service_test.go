@@ -15,7 +15,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,15 +55,6 @@ func (s *accountModelImportSettingRepoStub) GetMultiple(ctx context.Context, key
 		}
 	}
 	return result, nil
-}
-
-func expectedNormalizedGeminiCLIDefaultModelIDs() []string {
-	ids := make([]string, 0, len(geminicli.DefaultModels))
-	for _, model := range geminicli.DefaultModels {
-		ids = append(ids, model.ID)
-	}
-	normalized, _ := normalizeImportedModelIDs(ids)
-	return normalized
 }
 
 func (s *accountModelImportSettingRepoStub) SetMultiple(ctx context.Context, settings map[string]string) error {

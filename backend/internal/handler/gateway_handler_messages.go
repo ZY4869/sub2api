@@ -607,7 +607,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			}
 		}
 	}
-	return
+}
+
+/*
 	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription); err != nil {
 		reqLog.Info("gateway.billing_eligibility_check_failed", zap.Error(err))
 		status, code, message := billingErrorDetails(err)
@@ -1027,3 +1029,4 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 	}
 }
+*/

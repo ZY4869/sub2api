@@ -139,7 +139,7 @@ func (s *GeminiMessagesCompatService) ForwardGoogleArchiveFileDownload(ctx conte
 	if resourceName == "" {
 		return nil, nil, infraerrors.NotFound("GOOGLE_ARCHIVE_FILE_NOT_FOUND", "archive file not found")
 	}
-	object, err := s.getGoogleBatchArchiveObject(ctx, GoogleBatchArchiveResourceKindFile, resourceName)
+	object, _ := s.getGoogleBatchArchiveObject(ctx, GoogleBatchArchiveResourceKindFile, resourceName)
 	var binding *UpstreamResourceBinding
 	if s.resourceBindingRepo != nil {
 		binding, _ = s.resourceBindingRepo.Get(ctx, UpstreamResourceKindGeminiFile, resourceName)
@@ -493,31 +493,6 @@ func (s *GeminiMessagesCompatService) syncArchiveJobFromBatchPayload(ctx context
 		}
 	}
 	return nil
-}
-
-func (s *GeminiMessagesCompatService) maybeSettleGoogleBatchArchiveJob(ctx context.Context, input GoogleBatchForwardInput, account *Account, job *GoogleBatchArchiveJob, payload []byte) error {
-	if job == nil || account == nil || job.BillingSettlementState == GoogleBatchArchiveBillingSettled {
-		return nil
-	}
-	input, ready, err := s.resolveGoogleBatchSettlementInput(ctx, input, job)
-	if err != nil {
-		return err
-	}
-	if !ready {
-		return nil
-	}
-	if s.googleBatchArchiveJobRepo != nil {
-		claimed, err := s.googleBatchArchiveJobRepo.TryMarkBillingSettled(ctx, job.ID)
-		if err != nil {
-			return err
-		}
-		if !claimed {
-			job.BillingSettlementState = GoogleBatchArchiveBillingSettled
-			return nil
-		}
-	}
-	tokens := googleBatchAggregateUsageFromJSONL(payload)
-	return s.applyGoogleBatchArchiveSettlement(ctx, input, account, job, tokens)
 }
 
 func (s *GeminiMessagesCompatService) maybeSettleGoogleBatchArchiveJobFromObject(ctx context.Context, input GoogleBatchForwardInput, account *Account, job *GoogleBatchArchiveJob, settings *GoogleBatchArchiveSettings, object *GoogleBatchArchiveObject) error {

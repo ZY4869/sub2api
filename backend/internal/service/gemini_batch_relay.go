@@ -218,7 +218,9 @@ func (s *GeminiMessagesCompatService) forwardAggregatedGoogleList(ctx context.Co
 		err      error
 	}
 	startedAt := time.Now()
-	defer recordGoogleBatchListFanoutLatency(time.Since(startedAt))
+	defer func() {
+		recordGoogleBatchListFanoutLatency(time.Since(startedAt))
+	}()
 	results := make([]googleBatchListResult, len(accounts))
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(googleBatchListFanoutLimit)
@@ -477,7 +479,9 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchToAccount(ctx context.Co
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, googleBatchResponseReadLimit))
 	if err != nil {
 		return nil, err

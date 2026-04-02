@@ -366,7 +366,7 @@ func (r *googleBatchArchiveJobRepository) SoftDelete(ctx context.Context, id int
 	return err
 }
 
-func (r *googleBatchArchiveJobRepository) getOne(ctx context.Context, query string, args ...any) (*service.GoogleBatchArchiveJob, error) {
+func (r *googleBatchArchiveJobRepository) getOne(ctx context.Context, query string, args ...any) (job *service.GoogleBatchArchiveJob, err error) {
 	if r == nil || r.sql == nil {
 		return nil, sql.ErrNoRows
 	}
@@ -374,17 +374,22 @@ func (r *googleBatchArchiveJobRepository) getOne(ctx context.Context, query stri
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
 		return nil, sql.ErrNoRows
 	}
-	return scanGoogleBatchArchiveJobRow(rows)
+	job, err = scanGoogleBatchArchiveJobRow(rows)
+	return job, err
 }
 
-func (r *googleBatchArchiveJobRepository) list(ctx context.Context, query string, args ...any) ([]*service.GoogleBatchArchiveJob, error) {
+func (r *googleBatchArchiveJobRepository) list(ctx context.Context, query string, args ...any) (items []*service.GoogleBatchArchiveJob, err error) {
 	if r == nil || r.sql == nil {
 		return nil, nil
 	}
@@ -392,8 +397,12 @@ func (r *googleBatchArchiveJobRepository) list(ctx context.Context, query string
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var items []*service.GoogleBatchArchiveJob
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	items = make([]*service.GoogleBatchArchiveJob, 0)
 	for rows.Next() {
 		item, err := scanGoogleBatchArchiveJobRow(rows)
 		if err != nil {

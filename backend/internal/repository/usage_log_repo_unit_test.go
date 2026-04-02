@@ -3,10 +3,10 @@
 package repository
 
 import (
+	"github.com/stretchr/testify/require"
 	"os"
 	"strings"
 	"testing"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSafeDateFormat(t *testing.T) {

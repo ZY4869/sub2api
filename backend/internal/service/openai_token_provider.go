@@ -261,7 +261,6 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 				}
 				p.persistCopilotRuntimeMetadata(ctx, latestAccount, copilotTokenInfo)
 				accessToken = strings.TrimSpace(copilotTokenInfo.Token)
-				copilotTokenExpiresAt = copilotTokenInfo.ExpiresAt
 			} else {
 				accessToken = latestAccount.GetOpenAIAccessToken()
 				if strings.TrimSpace(accessToken) == "" {

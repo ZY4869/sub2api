@@ -58,7 +58,6 @@ func (r *accountRepository) ListArchivedGroups(ctx context.Context, filters serv
 	if filters.GroupID > 0 {
 		whereClauses = append(whereClauses, fmt.Sprintf("ag.group_id = $%d", argIndex))
 		args = append(args, filters.GroupID)
-		argIndex++
 	}
 
 	query := `
@@ -82,7 +81,7 @@ func (r *accountRepository) ListArchivedGroups(ctx context.Context, filters serv
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	summaries := make([]service.ArchivedAccountGroupSummary, 0)
 	for rows.Next() {

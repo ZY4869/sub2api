@@ -6,32 +6,32 @@ import (
 
 // AdminHandlers contains all admin-related HTTP handlers
 type AdminHandlers struct {
-	Dashboard        *admin.DashboardHandler
-	User             *admin.UserHandler
-	Group            *admin.GroupHandler
-	Account          *admin.AccountHandler
-	Announcement     *admin.AnnouncementHandler
-	DataManagement   *admin.DataManagementHandler
-	Backup           *admin.BackupHandler
-	OAuth            *admin.OAuthHandler
-	OpenAIOAuth      *admin.OpenAIOAuthHandler
-	KiroOAuth        *admin.KiroOAuthHandler
-	GeminiOAuth      *admin.GeminiOAuthHandler
-	AntigravityOAuth *admin.AntigravityOAuthHandler
-	Proxy            *admin.ProxyHandler
-	Redeem           *admin.RedeemHandler
-	Promo            *admin.PromoHandler
-	Setting          *admin.SettingHandler
-	Ops              *admin.OpsHandler
-	System           *admin.SystemHandler
-	Subscription     *admin.SubscriptionHandler
-	Usage            *admin.UsageHandler
-	UserAttribute    *admin.UserAttributeHandler
-	ErrorPassthrough *admin.ErrorPassthroughHandler
-	APIKey           *admin.AdminAPIKeyHandler
-	ModelCatalog     *admin.ModelCatalogHandler
-	ModelRegistry    *admin.ModelRegistryHandler
-	ScheduledTest    *admin.ScheduledTestHandler
+	Dashboard             *admin.DashboardHandler
+	User                  *admin.UserHandler
+	Group                 *admin.GroupHandler
+	Account               *admin.AccountHandler
+	Announcement          *admin.AnnouncementHandler
+	DataManagement        *admin.DataManagementHandler
+	Backup                *admin.BackupHandler
+	OAuth                 *admin.OAuthHandler
+	OpenAIOAuth           *admin.OpenAIOAuthHandler
+	KiroOAuth             *admin.KiroOAuthHandler
+	GeminiOAuth           *admin.GeminiOAuthHandler
+	AntigravityOAuth      *admin.AntigravityOAuthHandler
+	Proxy                 *admin.ProxyHandler
+	Redeem                *admin.RedeemHandler
+	Promo                 *admin.PromoHandler
+	Setting               *admin.SettingHandler
+	Ops                   *admin.OpsHandler
+	System                *admin.SystemHandler
+	Subscription          *admin.SubscriptionHandler
+	Usage                 *admin.UsageHandler
+	UserAttribute         *admin.UserAttributeHandler
+	ErrorPassthrough      *admin.ErrorPassthroughHandler
+	APIKey                *admin.AdminAPIKeyHandler
+	ModelCatalog          *admin.ModelCatalogHandler
+	ModelRegistry         *admin.ModelRegistryHandler
+	ScheduledTest         *admin.ScheduledTestHandler
 	TLSFingerprintProfile *admin.TLSFingerprintProfileHandler
 }
 

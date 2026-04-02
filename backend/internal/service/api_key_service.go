@@ -319,19 +319,6 @@ func (s *APIKeyService) incrementAPIKeyErrorCount(ctx context.Context, userID in
 	_ = s.cache.IncrementCreateAttemptCount(ctx, userID)
 }
 
-// canUserBindGroup 检查用户是否可以绑定指定分组
-// 对于订阅类型分组：检查用户是否有有效订阅
-// 对于标准类型分组：使用原有的 AllowedGroups 和 IsExclusive 逻辑
-func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group *Group) bool {
-	// 订阅类型分组：需要有效订阅
-	if group.IsSubscriptionType() {
-		_, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, group.ID)
-		return err == nil // 有有效订阅则允许
-	}
-	// 标准类型分组：使用原有逻辑
-	return user.CanBindGroup(group.ID, group.IsExclusive)
-}
-
 // Create 创建API Key
 func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIKeyRequest) (*APIKey, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
@@ -384,7 +371,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		}
 	}
 
-	opCtx := ctx
+	var opCtx context.Context
 	var txStarter apiKeyGroupMutationTxStarter
 	if starter, ok := s.apiKeyRepo.(apiKeyGroupMutationTxStarter); ok {
 		txStarter = starter
@@ -579,7 +566,7 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		}
 	}
 
-	opCtx := ctx
+	var opCtx context.Context
 	var txStarter apiKeyGroupMutationTxStarter
 	if starter, ok := s.apiKeyRepo.(apiKeyGroupMutationTxStarter); ok {
 		txStarter = starter

@@ -254,9 +254,11 @@ func TestInjectClaudeCodePrompt_JSONRawMessage(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, system, 2)
 
-	first := system[0].(map[string]any)
+	first, ok := system[0].(map[string]any)
+	require.True(t, ok)
 	require.Equal(t, claudeCodeSystemPrompt, first["text"])
 
-	second := system[1].(map[string]any)
+	second, ok := system[1].(map[string]any)
+	require.True(t, ok)
 	require.Equal(t, claudePrefix+"\n\nCustom prompt", second["text"])
 }

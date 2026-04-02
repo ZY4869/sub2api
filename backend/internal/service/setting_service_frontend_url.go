@@ -27,4 +27,3 @@ func (s *SettingService) GetFrontendURL(ctx context.Context) string {
 	}
 	return ""
 }
-

@@ -85,11 +85,11 @@ type ModelRegistryProviderMoveFailure struct {
 }
 
 type MoveModelRegistryProviderResult struct {
-	UpdatedCount  int                              `json:"updated_count"`
-	SkippedCount  int                              `json:"skipped_count"`
-	FailedCount   int                              `json:"failed_count"`
-	UpdatedModels []string                         `json:"updated_models"`
-	SkippedModels []string                         `json:"skipped_models,omitempty"`
+	UpdatedCount  int                                `json:"updated_count"`
+	SkippedCount  int                                `json:"skipped_count"`
+	FailedCount   int                                `json:"failed_count"`
+	UpdatedModels []string                           `json:"updated_models"`
+	SkippedModels []string                           `json:"skipped_models,omitempty"`
 	FailedModels  []ModelRegistryProviderMoveFailure `json:"failed_models,omitempty"`
 }
 
