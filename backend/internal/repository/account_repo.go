@@ -335,7 +335,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			return 0, err
 		}
 		setClauses = append(setClauses, "credentials = COALESCE(credentials, '{}'::jsonb) || $"+itoa(idx)+"::jsonb")
-		args = append(args, payload)
+		args = append(args, string(payload))
 		idx++
 	}
 	if len(updates.Extra) > 0 {
@@ -344,7 +344,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 			return 0, err
 		}
 		setClauses = append(setClauses, "extra = COALESCE(extra, '{}'::jsonb) || $"+itoa(idx)+"::jsonb")
-		args = append(args, payload)
+		args = append(args, string(payload))
 		idx++
 	}
 	if len(setClauses) == 0 {

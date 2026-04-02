@@ -185,11 +185,30 @@ def summarize_go_test_failure(log_text: str) -> dict[str, list[str]]:
             block_index += 1
 
         normalized_details = list(dict.fromkeys(details))
-        if normalized_details:
+        interesting_details = [
+            line
+            for line in normalized_details
+            if any(
+                marker in line
+                for marker in (
+                    "--- FAIL:",
+                    "panic:",
+                    "Error:",
+                    "Messages:",
+                    "Received unexpected error:",
+                    "Not equal:",
+                    "Should be",
+                    "Trace:",
+                    "[build failed]",
+                )
+            )
+        ]
+        detail_lines = interesting_details or normalized_details
+        if detail_lines:
             failure_blocks.append(
                 {
                     "test": test_name,
-                    "details": normalized_details[:6],
+                    "details": detail_lines[:8],
                 }
             )
         index = block_index
@@ -239,7 +258,7 @@ def emit_backend_integration_failure_summary(log_text: str, log_path: Path) -> N
         emit_github_annotation(
             "error",
             f"backend-integration detail {test_name}",
-            " | ".join(details[:4]),
+            " | ".join(details[:6]),
         )
 
     step_summary = [
@@ -259,7 +278,7 @@ def emit_backend_integration_failure_summary(log_text: str, log_path: Path) -> N
         for failure_block in failure_blocks[:5]:
             test_name = str(failure_block["test"])
             details = [str(line) for line in failure_block["details"]]
-            step_summary.append(f"- `{test_name}`: {' | '.join(details[:4])}")
+            step_summary.append(f"- `{test_name}`: {' | '.join(details[:6])}")
     if tail_lines:
         step_summary.append("")
         step_summary.append("```text")

@@ -162,6 +162,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 				output_tokens,
 				cache_creation_tokens,
 				cache_read_tokens,
+				billing_exempt_reason,
 				total_cost,
 				actual_cost,
 				COALESCE(duration_ms, 0) AS duration_ms

@@ -65,8 +65,34 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		key.LastUsedAt = created.LastUsedAt
 		key.CreatedAt = created.CreatedAt
 		key.UpdatedAt = created.UpdatedAt
+		if syncErr := r.syncAPIKeyGroupShadow(ctx, key); syncErr != nil {
+			return syncErr
+		}
 	}
 	return translatePersistenceError(err, nil, service.ErrAPIKeyExists)
+}
+
+func (r *apiKeyRepository) syncAPIKeyGroupShadow(ctx context.Context, key *service.APIKey) error {
+	if key == nil || key.ID == 0 {
+		return nil
+	}
+	if len(key.GroupBindings) > 0 {
+		return r.SetAPIKeyGroups(ctx, key.ID, key.GroupBindings)
+	}
+	if key.GroupID != nil {
+		return r.SetAPIKeyGroups(ctx, key.ID, []service.APIKeyGroupBinding{{
+			APIKeyID: key.ID,
+			GroupID:  *key.GroupID,
+		}})
+	}
+	existingBindings, err := r.GetAPIKeyGroups(ctx, key.ID)
+	if err != nil {
+		return err
+	}
+	if len(existingBindings) == 0 {
+		return nil
+	}
+	return r.SetAPIKeyGroups(ctx, key.ID, nil)
 }
 
 func (r *apiKeyRepository) BeginTx(ctx context.Context) (*dbent.Tx, error) {
@@ -273,6 +299,9 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 	if affected == 0 {
 		// 更新影响行数为 0，说明记录不存在或已被软删除。
 		return service.ErrAPIKeyNotFound
+	}
+	if err := r.syncAPIKeyGroupShadow(ctx, key); err != nil {
+		return err
 	}
 
 	// 使用同一时间戳回填，避免并发删除导致二次查询失败。
