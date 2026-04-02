@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 import AccountsViewTable from '../AccountsViewTable.vue'
 
 vi.mock('vue-i18n', async () => {
@@ -8,6 +9,7 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
+      locale: ref('zh'),
       t: (key: string) => key
     })
   }

@@ -8,8 +8,9 @@ import Icon from '@/components/icons/Icon.vue'
 import { opsAPI, type AlertEventsQuery } from '@/api/admin/ops'
 import type { AlertEvent } from '../types'
 import { formatDateTime } from '../utils/opsFormatters'
+import { formatGenericRegionLabel } from '@/utils/displayLabels'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 
 const PAGE_SIZE = 10
@@ -180,12 +181,12 @@ function formatDurationLabel(event: AlertEvent): string {
 function formatDimensionsSummary(event: AlertEvent): string {
   const parts: string[] = []
   const platform = getDimensionString(event, 'platform')
-  if (platform) parts.push(`platform=${platform}`)
+  if (platform) parts.push(`${t('ui.opsDimensions.platform')}：${platform}`)
   const groupId = event.dimensions?.group_id
-  if (groupId != null && groupId !== '') parts.push(`group_id=${String(groupId)}`)
+  if (groupId != null && groupId !== '') parts.push(`${t('ui.opsDimensions.groupId')}：${String(groupId)}`)
   const region = getDimensionString(event, 'region')
-  if (region) parts.push(`region=${region}`)
-  return parts.length ? parts.join(' ') : '-'
+  if (region) parts.push(`${t('ui.opsDimensions.region')}：${formatGenericRegionLabel(region, locale.value)}`)
+  return parts.length ? parts.join(' · ') : '-'
 }
 
 function closeDetail() {
@@ -590,9 +591,9 @@ const empty = computed(() => events.value.length === 0 && !loading.value)
             <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-900">
               <div class="text-xs font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.alertEvents.detail.dimensions') }}</div>
               <div class="mt-1 text-sm text-gray-900 dark:text-white">
-                <div v-if="getDimensionString(selected, 'platform')">platform={{ getDimensionString(selected, 'platform') }}</div>
-                <div v-if="selected.dimensions?.group_id">group_id={{ selected.dimensions.group_id }}</div>
-                <div v-if="getDimensionString(selected, 'region')">region={{ getDimensionString(selected, 'region') }}</div>
+                <div v-if="getDimensionString(selected, 'platform')">{{ t('ui.opsDimensions.platform') }}：{{ getDimensionString(selected, 'platform') }}</div>
+                <div v-if="selected.dimensions?.group_id">{{ t('ui.opsDimensions.groupId') }}：{{ selected.dimensions.group_id }}</div>
+                <div v-if="getDimensionString(selected, 'region')">{{ t('ui.opsDimensions.region') }}：{{ formatGenericRegionLabel(getDimensionString(selected, 'region'), locale) }}</div>
               </div>
             </div>
           </div>

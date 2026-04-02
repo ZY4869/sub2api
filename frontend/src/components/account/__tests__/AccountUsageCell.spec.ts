@@ -40,6 +40,12 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.gemini.quotaPolicy.title': 'Quota policy',
           'admin.accounts.gemini.quotaPolicy.note': 'Quota note',
           'admin.accounts.gemini.quotaPolicy.columns.docs': 'Docs',
+          'ui.usageWindow.daily': '日',
+          'ui.usageWindow.weekly': '周',
+          'ui.usageWindow.total': '总',
+          'ui.usageWindow.fiveHour': '5H',
+          'ui.usageWindow.pro': 'Pro',
+          'ui.usageWindow.flash': 'Flash',
           'dates.today': 'Today',
           'dates.tomorrow': 'Tomorrow',
           'common.error': 'Error',
@@ -114,6 +120,31 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Gemini Image|70|2026-03-01T09:00:00Z')
+  })
+
+  it('renders total account quota with a localized label instead of the raw total value', async () => {
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1002,
+          platform: 'openai',
+          type: 'apikey',
+          quota_limit: 100,
+          quota_used: 25,
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('总|25')
+    expect(wrapper.text()).not.toContain('total|25')
   })
 
   it('falls back to active anthropic usage when passive claudecloud data misses 7d', async () => {

@@ -284,8 +284,9 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api'
 import { useAppStore } from '@/stores'
 import type { BackupS3Config, BackupScheduleConfig, BackupRecord } from '@/api/admin/backup'
+import { formatAwsRegionLabel } from '@/utils/displayLabels'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 
 // S3 config
@@ -427,11 +428,11 @@ function handleVisibilityChange() {
 const showR2Guide = ref(false)
 const r2ConfigRows = computed(() => [
   { field: t('admin.backup.s3.endpoint'), value: 'https://<account_id>.r2.cloudflarestorage.com' },
-  { field: t('admin.backup.s3.region'), value: 'auto' },
+  { field: t('admin.backup.s3.region'), value: formatAwsRegionLabel('auto', locale.value) },
   { field: t('admin.backup.s3.bucket'), value: t('admin.backup.r2Guide.step4.bucketValue') },
   { field: t('admin.backup.s3.prefix'), value: 'backups/' },
-  { field: 'Access Key ID', value: t('admin.backup.r2Guide.step4.fromStep2') },
-  { field: 'Secret Access Key', value: t('admin.backup.r2Guide.step4.fromStep2') },
+  { field: t('admin.backup.s3.accessKeyId'), value: t('admin.backup.r2Guide.step4.fromStep2') },
+  { field: t('admin.backup.s3.secretAccessKey'), value: t('admin.backup.r2Guide.step4.fromStep2') },
   { field: t('admin.backup.s3.forcePathStyle'), value: t('admin.backup.r2Guide.step4.unchecked') },
 ])
 

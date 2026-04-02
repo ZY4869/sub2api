@@ -122,7 +122,7 @@
       <div v-if="row.proxy" class="flex items-center gap-2">
         <span class="text-sm text-gray-700 dark:text-gray-300">{{ row.proxy.name }}</span>
         <span v-if="row.proxy.country_code" class="text-xs text-gray-500 dark:text-gray-400">
-          ({{ row.proxy.country_code }})
+          ({{ formatCountryLabel(row.proxy.country_code, row.proxy.country, locale) }})
         </span>
       </div>
       <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
@@ -200,6 +200,7 @@ import AccountTodayStatsCell from '@/components/account/AccountTodayStatsCell.vu
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountUsageResetCell from '@/components/account/AccountUsageResetCell.vue'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
+import { formatCountryLabel } from '@/utils/displayLabels'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 
 withDefaults(defineProps<{
@@ -238,7 +239,7 @@ const emit = defineEmits<{
   'page-size-change': [size: number]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const handleToggleSelectAllVisible = (event: Event) => {
   emit('toggle-select-all-visible', (event.target as HTMLInputElement).checked)

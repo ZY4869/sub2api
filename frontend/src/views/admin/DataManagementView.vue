@@ -49,7 +49,7 @@
                 </td>
                 <td class="py-3 pr-4 text-xs">
                   <div>{{ profile.endpoint || '-' }}</div>
-                  <div class="mt-1 text-gray-500 dark:text-gray-400">{{ profile.region || '-' }}</div>
+                  <div class="mt-1 text-gray-500 dark:text-gray-400">{{ profile.region ? formatAwsRegionLabel(profile.region, locale) : '-' }}</div>
                 </td>
                 <td class="py-3 pr-4 text-xs">{{ profile.bucket || '-' }}</td>
                 <td class="py-3 pr-4 text-xs">{{ formatStorageQuotaGB(profile.default_storage_quota_bytes) }}</td>
@@ -190,8 +190,9 @@ import { useI18n } from 'vue-i18n'
 import type { SoraS3Profile } from '@/api/admin/settings'
 import { adminAPI } from '@/api'
 import { useAppStore } from '@/stores'
+import { formatAwsRegionLabel } from '@/utils/displayLabels'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 
 const loadingSoraProfiles = ref(false)

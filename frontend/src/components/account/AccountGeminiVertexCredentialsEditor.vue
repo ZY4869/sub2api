@@ -191,6 +191,7 @@ import {
   type VertexAuthMode,
   type VertexServiceAccountSummary
 } from '@/utils/vertexAi'
+import { formatVertexLocationLabel } from '@/utils/displayLabels'
 
 interface Props {
   mode?: 'create' | 'edit'
@@ -211,12 +212,17 @@ const legacyAccessToken = defineModel<string>('legacyAccessToken', { required: t
 const legacyExpiresAtInput = defineModel<string>('legacyExpiresAtInput', { required: true })
 const baseUrl = defineModel<string>('baseUrl', { required: true })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const summary = ref<VertexServiceAccountSummary | null>(null)
 const uploadError = ref('')
 const lastAutoBaseUrl = ref('')
-const locationOptions = VERTEX_LOCATION_OPTIONS as unknown as Array<Record<string, unknown>>
+const locationOptions = computed(() =>
+  VERTEX_LOCATION_OPTIONS.map((option) => ({
+    ...option,
+    label: formatVertexLocationLabel(option.value, locale.value)
+  })) as Array<Record<string, unknown>>
+)
 
 const resolvedBaseUrl = computed(() => resolveVertexAuthBaseUrl(authMode.value, location.value))
 

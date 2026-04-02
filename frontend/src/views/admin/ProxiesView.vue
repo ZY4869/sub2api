@@ -183,8 +183,8 @@
                 :alt="row.country || row.country_code"
                 class="h-4 w-6 rounded-sm"
               />
-              <span v-if="formatLocation(row)" class="text-sm text-gray-700 dark:text-gray-200">
-                {{ formatLocation(row) }}
+              <span v-if="formatProxyLocationLabel(row, locale)" class="text-sm text-gray-700 dark:text-gray-200">
+                {{ formatProxyLocationLabel(row, locale) }}
               </span>
               <span v-else class="text-sm text-gray-400">-</span>
             </div>
@@ -768,7 +768,7 @@
           </div>
           <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
             <div>{{ t('admin.proxies.qualityExitIP') }}: {{ qualityReport.exit_ip || '-' }}</div>
-            <div>{{ t('admin.proxies.qualityCountry') }}: {{ qualityReport.country || '-' }}</div>
+            <div>{{ t('admin.proxies.qualityCountry') }}: {{ formatCountryLabel(qualityReport.country_code, qualityReport.country, locale) || '-' }}</div>
             <div>
               {{ t('admin.proxies.qualityBaseLatency') }}:
               {{ typeof qualityReport.base_latency_ms === 'number' ? `${qualityReport.base_latency_ms}ms` : '-' }}
@@ -889,8 +889,9 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { formatCountryLabel, formatProxyLocationLabel } from '@/utils/displayLabels'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
 
@@ -1367,11 +1368,6 @@ const applyQualityResult = (proxyId: number, result: ProxyQualityCheckResult) =>
   target.quality_grade = result.grade
   target.quality_summary = result.summary
   target.quality_checked = result.checked_at
-}
-
-const formatLocation = (proxy: Proxy) => {
-  const parts = [proxy.country, proxy.city].filter(Boolean) as string[]
-  return parts.join(' · ')
 }
 
 const flagUrl = (code: string) =>

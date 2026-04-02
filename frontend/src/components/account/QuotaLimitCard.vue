@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { buildTimezoneOptions } from '@/utils/displayLabels'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps<{
   totalLimit: number | null
@@ -61,27 +62,7 @@ const hasFixedMode = computed(() =>
   props.dailyResetMode === 'fixed' || props.weeklyResetMode === 'fixed'
 )
 
-// Common timezone options
-const timezoneOptions = [
-  'UTC',
-  'Asia/Shanghai',
-  'Asia/Tokyo',
-  'Asia/Seoul',
-  'Asia/Singapore',
-  'Asia/Kolkata',
-  'Asia/Dubai',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Berlin',
-  'Europe/Moscow',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'America/Sao_Paulo',
-  'Australia/Sydney',
-  'Pacific/Auckland',
-]
+const timezoneOptions = computed(() => buildTimezoneOptions(locale.value))
 
 // Hours for dropdown (0-23)
 const hourOptions = Array.from({ length: 24 }, (_, i) => i)
@@ -269,7 +250,7 @@ const onWeeklyModeChange = (e: Event) => {
             @change="emit('update:resetTimezone', ($event.target as HTMLSelectElement).value)"
             class="input text-sm"
           >
-            <option v-for="tz in timezoneOptions" :key="tz" :value="tz">{{ tz }}</option>
+            <option v-for="option in timezoneOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
         </div>
 

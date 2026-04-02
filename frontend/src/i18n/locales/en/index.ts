@@ -24,6 +24,7 @@ import announcements from './announcements'
 import userSubscriptions from './userSubscriptions'
 import onboarding from './onboarding'
 import sora from './sora'
+import ui from './ui'
 
 export default {
   ...home,
@@ -52,4 +53,5 @@ export default {
   ...userSubscriptions,
   ...onboarding,
   ...sora,
+  ...ui,
 }

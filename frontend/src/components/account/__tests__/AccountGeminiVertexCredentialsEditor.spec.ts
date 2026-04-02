@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, ref } from 'vue'
 import AccountGeminiVertexCredentialsEditor from '../AccountGeminiVertexCredentialsEditor.vue'
 
 vi.mock('vue-i18n', async () => {
@@ -7,9 +8,21 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
+      locale: ref('zh'),
       t: (key: string) => key
     })
   }
+})
+
+const SelectStub = defineComponent({
+  name: 'SelectStub',
+  props: {
+    options: {
+      type: Array,
+      default: () => []
+    }
+  },
+  template: '<div data-test="select-stub">{{ JSON.stringify(options) }}</div>'
 })
 
 const createWrapper = (overrides: Record<string, unknown> = {}) =>
@@ -27,9 +40,7 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
     },
     global: {
       stubs: {
-        Select: {
-          template: '<div data-test="select-stub"></div>'
-        }
+        Select: SelectStub
       }
     }
   })
@@ -57,5 +68,12 @@ describe('AccountGeminiVertexCredentialsEditor', () => {
     expect(wrapper.text()).toContain('admin.accounts.gemini.vertex.expressApiKey')
     expect(wrapper.text()).not.toContain('admin.accounts.gemini.vertex.projectId')
     expect(wrapper.text()).not.toContain('admin.accounts.gemini.vertex.location')
+  })
+
+  it('formats vertex location options as zh label plus code', () => {
+    const wrapper = createWrapper()
+
+    expect(wrapper.get('[data-test="select-stub"]').text()).toContain('\u5168\u7403\uff08global\uff09')
+    expect(wrapper.get('[data-test="select-stub"]').text()).toContain('\u7f8e\u56fd\u4e1c\u90e8 1\uff08us-east1\uff09')
   })
 })

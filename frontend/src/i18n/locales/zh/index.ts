@@ -25,6 +25,7 @@ import announcements from './announcements'
 import userSubscriptions from './userSubscriptions'
 import onboarding from './onboarding'
 import sora from './sora'
+import ui from './ui'
 
 const zhAdmin = admin as any
 const zhAdminOverrides = adminModelOverrides as any
@@ -117,4 +118,5 @@ export default {
   ...userSubscriptions,
   ...onboarding,
   ...sora,
+  ...ui,
 }

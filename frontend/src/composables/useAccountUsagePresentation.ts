@@ -19,6 +19,7 @@ import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { resolveCodexUsageWindow } from '@/utils/codexUsage'
 import { resolveGeminiChannel, resolveGeminiChannelDisplayName } from '@/utils/geminiAccount'
 import { formatLocalAbsoluteTime, formatLocalTimestamp, parseEffectiveResetAt } from '@/utils/usageResetTime'
+import { resolveUsageWindowLabel } from '@/utils/displayLabels'
 
 interface UsageCacheEntry {
   loading: boolean
@@ -859,9 +860,29 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
 
   const apiKeyQuotaRows = computed(() =>
     buildRows(
-      makeQuotaRow('apikey-daily', '1d', account.value.quota_daily_used ?? 0, account.value.quota_daily_limit ?? 0, 'indigo', 'quota_daily_start'),
-      makeQuotaRow('apikey-weekly', '7d', account.value.quota_weekly_used ?? 0, account.value.quota_weekly_limit ?? 0, 'emerald', 'quota_weekly_start'),
-      makeQuotaRow('apikey-total', 'total', account.value.quota_used ?? 0, account.value.quota_limit ?? 0, 'purple'),
+      makeQuotaRow(
+        'apikey-daily',
+        resolveUsageWindowLabel('1d', t),
+        account.value.quota_daily_used ?? 0,
+        account.value.quota_daily_limit ?? 0,
+        'indigo',
+        'quota_daily_start'
+      ),
+      makeQuotaRow(
+        'apikey-weekly',
+        resolveUsageWindowLabel('7d', t),
+        account.value.quota_weekly_used ?? 0,
+        account.value.quota_weekly_limit ?? 0,
+        'emerald',
+        'quota_weekly_start'
+      ),
+      makeQuotaRow(
+        'apikey-total',
+        resolveUsageWindowLabel('total', t),
+        account.value.quota_used ?? 0,
+        account.value.quota_limit ?? 0,
+        'purple'
+      ),
     ),
   )
 
