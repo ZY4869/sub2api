@@ -36,9 +36,13 @@ func TestIsRequestCanceled(t *testing.T) {
 	})
 
 	t.Run("deadline_context_without_error", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		defer cancel()
-		time.Sleep(5 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+		case <-time.After(500 * time.Millisecond):
+			t.Fatal("expected context deadline to fire")
+		}
 		if !isRequestCanceled(ctx, nil) {
 			t.Fatal("expected true")
 		}
