@@ -128,10 +128,26 @@
 
     <div
       v-if="probedModels.length > 0"
-      class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400"
+      class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400"
     >
       <span>{{ t('admin.accounts.protocolGateway.probeSelectionHint') }}</span>
-      <span>{{ t('admin.accounts.protocolGateway.probeSelectedCount', { count: allowedModels.length }) }}</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span>{{ t('admin.accounts.protocolGateway.probeSelectedCount', { count: allowedModels.length }) }}</span>
+        <button
+          type="button"
+          class="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-300"
+          @click="selectAllCurrentResults"
+        >
+          {{ t('admin.accounts.protocolGateway.selectAllCurrentResults') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 transition hover:border-rose-300 hover:text-rose-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-rose-500 dark:hover:text-rose-300"
+          @click="clearSelectedModels"
+        >
+          {{ t('admin.accounts.protocolGateway.clearSelection') }}
+        </button>
+      </div>
     </div>
 
     <div v-if="probedModels.length > 0" class="space-y-4">
@@ -318,6 +334,7 @@ import {
   type AccountModelProbeSnapshotDraft,
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
+import { checkProtocolGatewayBaseUrl } from '@/utils/protocolGatewayBaseUrl'
 
 const props = defineProps<{
   gatewayProtocol: GatewayProtocol
@@ -532,14 +549,15 @@ const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
 }
 
 const toggleModel = (model: ProtocolGatewayProbeModel) => {
-  if (isSelected(model.id)) {
-    allowedModels.value = allowedModels.value.filter((item) => item !== model.id)
-    clientRoutes.value = clientRoutes.value.filter((route) => route.match_value !== model.id)
-    modelMappings.value = modelMappings.value.filter((row) => row.to.trim() !== model.id)
-    return
+  const nextSelected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
+  if (nextSelected.has(model.id)) {
+    nextSelected.delete(model.id)
+  } else {
+    nextSelected.add(model.id)
   }
-  allowedModels.value = [...allowedModels.value, model.id]
-  ensureMappingForModel(model)
+  syncSelectedModels(
+    probedModels.value.filter((item) => nextSelected.has(item.id)).map((item) => item.id)
+  )
 }
 
 const toggleAcceptedProtocol = (protocol: GatewayAcceptedProtocol) => {
@@ -626,6 +644,25 @@ const currentAlias = (modelId: string) => {
   return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? modelId
 }
 
+const collectAliasByTarget = () =>
+  new Map(
+    modelMappings.value
+      .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
+      .filter(([target]) => Boolean(target))
+  )
+
+const buildMappingsForModelIds = (modelIds: string[], aliasByTarget = collectAliasByTarget()) =>
+  modelIds.map((modelId) => ({
+    from: aliasByTarget.get(modelId) || currentAlias(modelId),
+    to: modelId
+  }))
+
+const syncSelectedModels = (modelIds: string[], aliasByTarget = collectAliasByTarget()) => {
+  const nextAllowedModels = [...new Set(modelIds.map((item) => item.trim()).filter(Boolean))]
+  allowedModels.value = nextAllowedModels
+  modelMappings.value = buildMappingsForModelIds(nextAllowedModels, aliasByTarget)
+}
+
 const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
   aliasDrafts.value = {
     ...aliasDrafts.value,
@@ -704,6 +741,15 @@ const clearAllProfiles = () => {
   clientRoutes.value = clientRoutes.value.filter((route) => route.match_type !== 'exact')
 }
 
+const selectAllCurrentResults = () => {
+  syncSelectedModels(probedModels.value.map((model) => model.id))
+}
+
+const clearSelectedModels = () => {
+  allowedModels.value = []
+  modelMappings.value = []
+}
+
 const cardClasses = (model: ProtocolGatewayProbeModel) => {
   const selected = isSelected(model.id)
   const palette =
@@ -753,6 +799,20 @@ const handleProbe = async () => {
     return
   }
 
+  const baseUrlCheck = checkProtocolGatewayBaseUrl(props.baseUrl)
+  if (baseUrlCheck.status === 'invalid') {
+    appStore.showWarning(t('admin.accounts.protocolGateway.baseUrlInvalidWarning'))
+    return
+  }
+  if (baseUrlCheck.status === 'loopback') {
+    appStore.showWarning(
+      t('admin.accounts.protocolGateway.baseUrlLoopbackWarning', {
+        host: baseUrlCheck.displayHost || baseUrlCheck.input
+      })
+    )
+    return
+  }
+
   probing.value = true
   try {
     const result = await adminAPI.accounts.probeProtocolGatewayModels({
@@ -763,18 +823,14 @@ const handleProbe = async () => {
       manual_models: manualModels.value,
       proxy_id: props.proxyId ?? undefined
     })
-    const aliasByTarget = new Map(
-      modelMappings.value
-        .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
-        .filter(([target]) => Boolean(target))
-    )
+    const aliasByTarget = collectAliasByTarget()
     const probedAt = new Date().toISOString()
+    const selectedTargets = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
+    const nextAllowedModels = result.models
+      .map((model) => model.id)
+      .filter((modelId) => selectedTargets.has(modelId))
     probedModels.value = result.models
-    allowedModels.value = result.models.map((model) => model.id)
-    modelMappings.value = result.models.map((model) => ({
-      from: aliasByTarget.get(model.id) || model.id,
-      to: model.id
-    }))
+    syncSelectedModels(nextAllowedModels, aliasByTarget)
     probeSource.value = result.probe_source || ''
     probeNotice.value = result.probe_notice || ''
     probeSnapshot.value = createAccountModelProbeSnapshotDraft({

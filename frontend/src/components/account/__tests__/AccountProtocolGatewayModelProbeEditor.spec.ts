@@ -34,6 +34,9 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+const findButtonByText = (wrapper: ReturnType<typeof mount>, text: string) =>
+  wrapper.findAll('button').find((button) => button.text() === text)
+
 describe('AccountProtocolGatewayModelProbeEditor', () => {
   beforeEach(() => {
     probeProtocolGatewayModels.mockReset()
@@ -58,7 +61,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     showWarning.mockReset()
   })
 
-  it('probes upstream models and selects all returned models by default', async () => {
+  it('probes upstream models without auto-selecting them, then selects all on demand', async () => {
     const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
       props: {
         gatewayProtocol: 'openai',
@@ -81,9 +84,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
       }
     })
 
-    const probeButton = wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'admin.accounts.protocolGateway.probeAction')
+    const probeButton = findButtonByText(wrapper, 'admin.accounts.protocolGateway.probeAction')
     expect(probeButton).toBeTruthy()
     await probeButton!.trigger('click')
     await flushPromises()
@@ -96,14 +97,25 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
       manual_models: [],
       proxy_id: 12
     })
-    expect(wrapper.emitted('update:allowedModels')?.[0]?.[0]).toEqual(['gpt-4.1', 'custom-upstream-model'])
-    expect(wrapper.emitted('update:modelMappings')?.[0]?.[0]).toEqual([
-      { from: 'gpt-4.1', to: 'gpt-4.1' },
-      { from: 'custom-upstream-model', to: 'custom-upstream-model' }
-    ])
+    expect(wrapper.emitted('update:allowedModels')?.at(-1)?.[0]).toEqual([])
+    expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toEqual([])
     expect(wrapper.emitted('update:probedModels')?.[0]?.[0]).toHaveLength(2)
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.registryExisting')
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.registryMissing')
+
+    const selectAllButton = findButtonByText(
+      wrapper,
+      'admin.accounts.protocolGateway.selectAllCurrentResults'
+    )
+    expect(selectAllButton).toBeTruthy()
+    await selectAllButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('update:allowedModels')?.at(-1)?.[0]).toEqual(['gpt-4.1', 'custom-upstream-model'])
+    expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toEqual([
+      { from: 'gpt-4.1', to: 'gpt-4.1' },
+      { from: 'custom-upstream-model', to: 'custom-upstream-model' }
+    ])
   })
 
   it('disables probing when api key is missing', async () => {
@@ -188,9 +200,10 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.text()).toContain('/v1beta/models/{model}:generateContent')
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.clientProfileCodex')
 
-    const applyAllGeminiCliButton = wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'admin.accounts.protocolGateway.applyAllGeminiCli')
+    const applyAllGeminiCliButton = findButtonByText(
+      wrapper,
+      'admin.accounts.protocolGateway.applyAllGeminiCli'
+    )
     expect(applyAllGeminiCliButton).toBeTruthy()
 
     await applyAllGeminiCliButton!.trigger('click')
@@ -289,5 +302,127 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.text()).toContain(longModelId)
     expect(wrapper.text()).toContain(longRegistryId)
     expect(wrapper.find(`button[title="${longModelId}"]`).exists()).toBe(true)
+  })
+
+  it('clears selected models and exact-match routes via the batch clear action', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'openai',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        allowedModels: ['gpt-4.1', 'custom-upstream-model'],
+        modelMappings: [
+          { from: 'gpt-4.1', to: 'gpt-4.1' },
+          { from: 'custom-upstream-model', to: 'custom-upstream-model' }
+        ],
+        manualModels: [],
+        resolvedUpstream: null,
+        probedModels: [
+          {
+            id: 'gpt-4.1',
+            display_name: 'GPT-4.1',
+            registry_state: 'existing',
+            registry_model_id: 'gpt-4.1'
+          },
+          {
+            id: 'custom-upstream-model',
+            display_name: 'Custom Upstream Model',
+            registry_state: 'missing'
+          }
+        ],
+        acceptedProtocols: ['openai'],
+        clientProfiles: ['codex'],
+        clientRoutes: [
+          {
+            protocol: 'openai',
+            match_type: 'exact',
+            match_value: 'gpt-4.1',
+            client_profile: 'codex'
+          }
+        ]
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const clearSelectionButton = findButtonByText(
+      wrapper,
+      'admin.accounts.protocolGateway.clearSelection'
+    )
+    expect(clearSelectionButton).toBeTruthy()
+
+    await clearSelectionButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('update:allowedModels')?.at(-1)?.[0]).toEqual([])
+    expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toEqual([])
+    expect(wrapper.emitted('update:clientRoutes')?.at(-1)?.[0]).toEqual([])
+  })
+
+  it('blocks probing on loopback base urls and shows docker guidance', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'openai',
+        baseUrl: 'http://127.0.0.1:8082',
+        apiKey: 'sk-test',
+        allowedModels: [],
+        modelMappings: [],
+        probedModels: [],
+        manualModels: [],
+        resolvedUpstream: null,
+        acceptedProtocols: ['openai'],
+        clientProfiles: [],
+        clientRoutes: []
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const probeButton = findButtonByText(wrapper, 'admin.accounts.protocolGateway.probeAction')
+    expect(probeButton).toBeTruthy()
+    await probeButton!.trigger('click')
+
+    expect(probeProtocolGatewayModels).not.toHaveBeenCalled()
+    expect(showWarning).toHaveBeenCalledWith(
+      'admin.accounts.protocolGateway.baseUrlLoopbackWarning'
+    )
+  })
+
+  it('blocks probing on invalid base urls before sending any request', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'openai',
+        baseUrl: 'http://127.0.0.1.8082',
+        apiKey: 'sk-test',
+        allowedModels: [],
+        modelMappings: [],
+        probedModels: [],
+        manualModels: [],
+        resolvedUpstream: null,
+        acceptedProtocols: ['openai'],
+        clientProfiles: [],
+        clientRoutes: []
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const probeButton = findButtonByText(wrapper, 'admin.accounts.protocolGateway.probeAction')
+    expect(probeButton).toBeTruthy()
+    await probeButton!.trigger('click')
+
+    expect(probeProtocolGatewayModels).not.toHaveBeenCalled()
+    expect(showWarning).toHaveBeenCalledWith(
+      'admin.accounts.protocolGateway.baseUrlInvalidWarning'
+    )
   })
 })

@@ -13,6 +13,7 @@ import {
   shouldSuggestProtocolGateway,
   type AccountApiKeySettingsMode
 } from '@/utils/accountApiKeyBasicSettings'
+import { checkProtocolGatewayBaseUrl } from '@/utils/protocolGatewayBaseUrl'
 import AccountModelScopeEditor from './AccountModelScopeEditor.vue'
 
 const props = withDefaults(defineProps<{
@@ -70,6 +71,21 @@ const showModelScopeEditor = computed(() =>
 const showProtocolGatewaySuggestion = computed(() =>
   shouldSuggestProtocolGateway(props.platform, baseUrl.value)
 )
+const protocolGatewayBaseUrlWarning = computed(() => {
+  if (props.platform !== 'protocol_gateway') {
+    return ''
+  }
+  const result = checkProtocolGatewayBaseUrl(baseUrl.value)
+  if (result.status === 'invalid') {
+    return t('admin.accounts.protocolGateway.baseUrlInvalidWarning')
+  }
+  if (result.status === 'loopback') {
+    return t('admin.accounts.protocolGateway.baseUrlLoopbackWarning', {
+      host: result.displayHost || result.input
+    })
+  }
+  return ''
+})
 </script>
 
 <template>
@@ -89,6 +105,12 @@ const showProtocolGatewaySuggestion = computed(() =>
         class="input"
         :placeholder="baseUrlPlaceholder"
       />
+      <p
+        v-if="protocolGatewayBaseUrlWarning"
+        class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300"
+      >
+        {{ protocolGatewayBaseUrlWarning }}
+      </p>
       <p class="input-hint">{{ baseUrlHint }}</p>
     </div>
 

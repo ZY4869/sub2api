@@ -67,13 +67,16 @@ const findProbeButton = (wrapper: ReturnType<typeof createWrapper>) =>
     button.text().includes('admin.accounts.apiKeyProbe.action')
   )
 
+const findButtonByText = (wrapper: ReturnType<typeof createWrapper>, text: string) =>
+  wrapper.findAll('button').find((button) => button.text().includes(text))
+
 describe('AccountApiKeyModelProbeEditor', () => {
   beforeEach(() => {
     probeModels.mockReset()
     showError.mockReset()
   })
 
-  it('uses Vertex-prefixed aliases and only auto-selects callable models', async () => {
+  it('keeps probe results unselected until callable models are explicitly selected', async () => {
     probeModels.mockResolvedValue({
       probe_source: 'vertex_express_catalog',
       probe_notice: '',
@@ -109,15 +112,28 @@ describe('AccountApiKeyModelProbeEditor', () => {
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.availabilityUncallable')
 
     const allowedModelsUpdates = wrapper.emitted('update:allowedModels') || []
-    expect(allowedModelsUpdates.at(-1)).toEqual([['gemini-2.0-flash']])
+    expect(allowedModelsUpdates.at(-1)).toEqual([[]])
 
     const modelMappingsUpdates = wrapper.emitted('update:modelMappings') || []
+    expect(modelMappingsUpdates.at(-1)).toEqual([[]])
+    expect(wrapper.find('input[placeholder="gemini-2.0-flash"]').exists()).toBe(false)
+
+    const selectCallableButton = findButtonByText(
+      wrapper,
+      'admin.accounts.apiKeyProbe.selectCallableModels'
+    )
+    expect(selectCallableButton).toBeTruthy()
+
+    await selectCallableButton?.trigger('click')
+    await flushPromises()
+
+    expect(allowedModelsUpdates.at(-1)).toEqual([['gemini-2.0-flash']])
     expect(modelMappingsUpdates.at(-1)).toEqual([
       [{ from: 'Vertex-gemini-2.0-flash', to: 'gemini-2.0-flash' }]
     ])
   })
 
-  it('keeps manually selected uncallable models selected after re-probing and shows a warning', async () => {
+  it('keeps only previously selected models after re-probing and preserves custom aliases', async () => {
     probeModels
       .mockResolvedValueOnce({
         probe_source: 'vertex_express_catalog',
@@ -145,6 +161,13 @@ describe('AccountApiKeyModelProbeEditor', () => {
         probe_notice: '',
         models: [
           {
+            id: 'gemini-2.5-pro',
+            display_name: 'Gemini 2.5 Pro',
+            registry_state: 'existing',
+            upstream_source: 'official',
+            availability: 'callable'
+          },
+          {
             id: 'gemini-2.0-flash',
             display_name: 'Gemini 2.0 Flash',
             registry_state: 'existing',
@@ -168,6 +191,14 @@ describe('AccountApiKeyModelProbeEditor', () => {
     await probeButton?.trigger('click')
     await flushPromises()
 
+    const selectCallableButton = findButtonByText(
+      wrapper,
+      'admin.accounts.apiKeyProbe.selectCallableModels'
+    )
+    expect(selectCallableButton).toBeTruthy()
+    await selectCallableButton?.trigger('click')
+    await flushPromises()
+
     const uncallableCard = wrapper.find('button[title="gemini-3.1-pro-preview"]')
     expect(uncallableCard.exists()).toBe(true)
 
@@ -176,12 +207,24 @@ describe('AccountApiKeyModelProbeEditor', () => {
 
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.selectedUncallableWarning')
 
+    const aliasInput = wrapper.find('input[placeholder="gemini-2.0-flash"]')
+    expect(aliasInput.exists()).toBe(true)
+    await aliasInput.setValue('Flash Alias')
+
     await probeButton?.trigger('click')
     await flushPromises()
 
     const allowedModelsUpdates = wrapper.emitted('update:allowedModels') || []
     expect(allowedModelsUpdates.at(-1)).toEqual([
       ['gemini-2.0-flash', 'gemini-3.1-pro-preview']
+    ])
+
+    const modelMappingsUpdates = wrapper.emitted('update:modelMappings') || []
+    expect(modelMappingsUpdates.at(-1)).toEqual([
+      [
+        { from: 'Flash Alias', to: 'gemini-2.0-flash' },
+        { from: 'Vertex-gemini-3.1-pro-preview', to: 'gemini-3.1-pro-preview' }
+      ]
     ])
   })
 

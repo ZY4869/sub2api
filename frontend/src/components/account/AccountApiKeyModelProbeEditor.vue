@@ -45,10 +45,26 @@
 
     <div
       v-if="probedModels.length > 0"
-      class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400"
+      class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400"
     >
       <span>{{ t('admin.accounts.apiKeyProbe.selectionHint') }}</span>
-      <span>{{ t('admin.accounts.apiKeyProbe.selectedCount', { count: allowedModels.length }) }}</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span>{{ t('admin.accounts.apiKeyProbe.selectedCount', { count: allowedModels.length }) }}</span>
+        <button
+          type="button"
+          class="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-primary-500 dark:hover:text-primary-300"
+          @click="selectAllCallableModels"
+        >
+          {{ t('admin.accounts.apiKeyProbe.selectCallableModels') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg border border-gray-200 px-3 py-1.5 font-medium text-gray-700 transition hover:border-rose-300 hover:text-rose-600 dark:border-dark-500 dark:text-gray-200 dark:hover:border-rose-500 dark:hover:text-rose-300"
+          @click="clearSelectedModels"
+        >
+          {{ t('admin.accounts.apiKeyProbe.clearSelection') }}
+        </button>
+      </div>
     </div>
 
     <div v-if="probedModels.length > 0" class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
@@ -215,7 +231,6 @@ const probing = ref(false)
 const probeSource = ref('')
 const probeNotice = ref('')
 const aliasDrafts = ref<Record<string, string>>({})
-const manualUncallableSelections = ref<string[]>([])
 const hasInitializedFromMappings = ref(false)
 const isVertexSource = () =>
   props.platform === 'gemini' && isGeminiVertexSourceCredentials(props.credentials)
@@ -323,6 +338,25 @@ const currentAlias = (modelId: string) => {
   return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? defaultAlias(modelId)
 }
 
+const collectAliasByTarget = () =>
+  new Map(
+    modelMappings.value
+      .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
+      .filter(([target]) => Boolean(target))
+  )
+
+const buildMappingsForModelIds = (modelIds: string[], aliasByTarget = collectAliasByTarget()) =>
+  modelIds.map((modelId) => ({
+    from: aliasByTarget.get(modelId) || currentAlias(modelId),
+    to: modelId
+  }))
+
+const syncSelectedModels = (modelIds: string[], aliasByTarget = collectAliasByTarget()) => {
+  const nextAllowedModels = [...new Set(modelIds.map((item) => item.trim()).filter(Boolean))]
+  allowedModels.value = nextAllowedModels
+  modelMappings.value = buildMappingsForModelIds(nextAllowedModels, aliasByTarget)
+}
+
 const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
   const index = modelMappings.value.findIndex((row) => row.to.trim() === model.id)
   const alias = currentAlias(model.id)
@@ -336,20 +370,15 @@ const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
 }
 
 const toggleModel = (model: ProtocolGatewayProbeModel) => {
-  const nextManualSelections = new Set(manualUncallableSelections.value)
-  if (isSelected(model.id)) {
-    nextManualSelections.delete(model.id)
-    manualUncallableSelections.value = [...nextManualSelections]
-    allowedModels.value = allowedModels.value.filter((item) => item !== model.id)
-    modelMappings.value = modelMappings.value.filter((row) => row.to.trim() !== model.id)
-    return
+  const nextSelected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
+  if (nextSelected.has(model.id)) {
+    nextSelected.delete(model.id)
+  } else {
+    nextSelected.add(model.id)
   }
-  if (!isCallableModel(model)) {
-    nextManualSelections.add(model.id)
-    manualUncallableSelections.value = [...nextManualSelections]
-  }
-  allowedModels.value = [...allowedModels.value, model.id]
-  ensureMappingForModel(model)
+  syncSelectedModels(
+    probedModels.value.filter((item) => nextSelected.has(item.id)).map((item) => item.id)
+  )
 }
 
 const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
@@ -372,6 +401,20 @@ const cardClasses = (model: ProtocolGatewayProbeModel) => [
     : 'hover:border-primary-200 hover:shadow-sm dark:hover:border-primary-700/60'
 ]
 
+const selectAllCallableModels = () => {
+  const selected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
+  syncSelectedModels(
+    probedModels.value
+      .filter((model) => selected.has(model.id) || isCallableModel(model))
+      .map((model) => model.id)
+  )
+}
+
+const clearSelectedModels = () => {
+  allowedModels.value = []
+  modelMappings.value = []
+}
+
 const handleProbe = async () => {
   if (probing.value || !props.probeReady) return
   probing.value = true
@@ -384,25 +427,14 @@ const handleProbe = async () => {
       manual_models: manualModels.value,
       proxy_id: props.proxyId ?? undefined
     })
-    const aliasByTarget = new Map(
-      modelMappings.value
-        .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
-        .filter(([target]) => Boolean(target))
-    )
+    const aliasByTarget = collectAliasByTarget()
     const probedAt = new Date().toISOString()
-    const selectedUncallable = new Set(manualUncallableSelections.value)
+    const selectedTargets = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
     const nextAllowedModels = result.models
-      .filter((model) => isCallableModel(model) || selectedUncallable.has(model.id))
       .map((model) => model.id)
+      .filter((modelId) => selectedTargets.has(modelId))
     probedModels.value = result.models
-    allowedModels.value = nextAllowedModels
-    modelMappings.value = nextAllowedModels.map((modelId) => ({
-      from: aliasByTarget.get(modelId) || defaultAlias(modelId),
-      to: modelId
-    }))
-    manualUncallableSelections.value = result.models
-      .filter((model) => model.availability === 'uncallable' && selectedUncallable.has(model.id))
-      .map((model) => model.id)
+    syncSelectedModels(nextAllowedModels, aliasByTarget)
     probeSource.value = result.probe_source || ''
     probeNotice.value = resolveAccountModelImportProbeNoticeMessage(t, {
       imported_count: result.models.length,

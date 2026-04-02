@@ -128,4 +128,57 @@ describe('AccountApiKeyBasicSettingsEditor', () => {
 
     expect(wrapper.find('[data-testid="model-scope"]').exists()).toBe(false)
   })
+
+  it('shows a loopback warning for protocol gateway base urls', () => {
+    const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
+      props: {
+        platform: 'protocol_gateway',
+        gatewayProtocol: 'openai',
+        effectivePlatform: 'openai',
+        mode: 'create',
+        baseUrl: 'http://127.0.0.1:8082',
+        apiKey: 'sk-test',
+        modelScopeMode: 'whitelist',
+        allowedModels: [],
+        modelMappings: [],
+        presetMappings: [],
+        getMappingKey: () => 'mapping-1',
+        skipModelScopeEditor: true
+      },
+      global: {
+        stubs: {
+          AccountModelScopeEditor: modelScopeStub
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.protocolGateway.baseUrlLoopbackWarning')
+  })
+
+  it('does not show protocol gateway loopback guidance for valid upstream urls', () => {
+    const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
+      props: {
+        platform: 'protocol_gateway',
+        gatewayProtocol: 'openai',
+        effectivePlatform: 'openai',
+        mode: 'create',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        modelScopeMode: 'whitelist',
+        allowedModels: [],
+        modelMappings: [],
+        presetMappings: [],
+        getMappingKey: () => 'mapping-1',
+        skipModelScopeEditor: true
+      },
+      global: {
+        stubs: {
+          AccountModelScopeEditor: modelScopeStub
+        }
+      }
+    })
+
+    expect(wrapper.text()).not.toContain('admin.accounts.protocolGateway.baseUrlLoopbackWarning')
+    expect(wrapper.text()).not.toContain('admin.accounts.protocolGateway.baseUrlInvalidWarning')
+  })
 })
