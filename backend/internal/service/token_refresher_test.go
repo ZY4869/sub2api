@@ -260,3 +260,27 @@ func TestOpenAITokenRefresher_CanRefresh(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenAITokenRefresher_NeedsRefresh_MissingExpiresAt(t *testing.T) {
+	refresher := &OpenAITokenRefresher{}
+	refreshWindow := 30 * time.Minute
+	rateLimitedUntil := time.Now().Add(10 * time.Minute)
+
+	t.Run("rate-limited account refreshes without expires_at", func(t *testing.T) {
+		account := &Account{
+			RateLimitResetAt: &rateLimitedUntil,
+		}
+
+		require.True(t, refresher.NeedsRefresh(account, refreshWindow))
+	})
+
+	t.Run("non-rate-limited account stays fresh without expires_at", func(t *testing.T) {
+		account := &Account{}
+
+		require.False(t, refresher.NeedsRefresh(account, refreshWindow))
+	})
+
+	t.Run("nil account stays fresh without expires_at", func(t *testing.T) {
+		require.False(t, refresher.NeedsRefresh(nil, refreshWindow))
+	})
+}
