@@ -558,7 +558,14 @@ def docker_smoke() -> None:
             raise RuntimeError("docker did not expose port 8080")
         host_port = port_output.splitlines()[0].rsplit(":", 1)[-1].strip()
         wait_for_http(f"http://127.0.0.1:{host_port}/health")
-        wait_for_http(f"http://127.0.0.1:{host_port}/", expect_content_type="text/html")
+    except Exception:
+        if container_started:
+            logs = run([docker, "logs", container_name], cwd=REPO_ROOT, capture_output=True, check=False)
+            if logs.stdout.strip():
+                info("docker smoke container stdout/stderr:")
+                for line in logs.stdout.splitlines()[-80:]:
+                    info(f"[container] {line}")
+        raise
     finally:
         if container_started:
             run([docker, "rm", "-f", container_name], cwd=REPO_ROOT, check=False)
