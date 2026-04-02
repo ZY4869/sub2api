@@ -371,30 +371,30 @@ func (s *AccountRepoSuite) TestPreload_And_VirtualFields() {
 }
 
 func (s *AccountRepoSuite) TestListWithFilters_LifecycleAndPrivacyMode() {
-	archivedTraining := &service.Account{
-		Name:           "archived-training",
-		LifecycleState: service.AccountLifecycleArchived,
-		Extra: map[string]any{
-			"privacy_mode": service.PrivacyModeTrainingOff,
-		},
+	createAccount := func(name, lifecycle, privacyMode string) *service.Account {
+		account := &service.Account{
+			Name:           name,
+			Platform:       service.PlatformAnthropic,
+			Type:           service.AccountTypeOAuth,
+			Status:         service.StatusActive,
+			Credentials:    map[string]any{},
+			Concurrency:    3,
+			Priority:       50,
+			Schedulable:    true,
+			LifecycleState: lifecycle,
+		}
+		if privacyMode != "" {
+			account.Extra = map[string]any{
+				"privacy_mode": privacyMode,
+			}
+		}
+		s.Require().NoError(s.repo.Create(s.ctx, account))
+		return account
 	}
-	s.Require().NoError(s.repo.Create(s.ctx, archivedTraining))
 
-	s.Require().NoError(s.repo.Create(s.ctx, &service.Account{
-		Name:           "archived-failed",
-		LifecycleState: service.AccountLifecycleArchived,
-		Extra: map[string]any{
-			"privacy_mode": service.PrivacyModeFailed,
-		},
-	}))
-
-	s.Require().NoError(s.repo.Create(s.ctx, &service.Account{
-		Name:           "normal-training",
-		LifecycleState: service.AccountLifecycleNormal,
-		Extra: map[string]any{
-			"privacy_mode": service.PrivacyModeTrainingOff,
-		},
-	}))
+	archivedTraining := createAccount("archived-training", service.AccountLifecycleArchived, service.PrivacyModeTrainingOff)
+	createAccount("archived-failed", service.AccountLifecycleArchived, service.PrivacyModeFailed)
+	createAccount("normal-training", service.AccountLifecycleNormal, service.PrivacyModeTrainingOff)
 
 	accounts, page, err := s.repo.ListWithFilters(
 		s.ctx,
