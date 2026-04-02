@@ -1,9 +1,13 @@
 package setup
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestDecideAdminBootstrap(t *testing.T) {
@@ -85,5 +89,23 @@ func TestWriteConfigFileKeepsDefaultUserConcurrency(t *testing.T) {
 
 	if !strings.Contains(string(data), "user_concurrency: 5") {
 		t.Fatalf("config missing default user concurrency, got:\n%s", string(data))
+	}
+}
+
+func TestRegisterRoutes_ExposesHealthEndpointDuringSetup(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	RegisterRoutes(router)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /health status=%d, want %d", w.Code, http.StatusOK)
+	}
+	if !strings.Contains(w.Body.String(), `"status":"ok"`) {
+		t.Fatalf("GET /health body=%q, want status ok payload", w.Body.String())
 	}
 }

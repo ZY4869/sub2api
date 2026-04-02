@@ -20,6 +20,10 @@ var installMutex sync.Mutex
 
 // RegisterRoutes registers setup wizard routes
 func RegisterRoutes(r *gin.Engine) {
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	setup := r.Group("/setup")
 	{
 		// Status endpoint is always accessible (read-only)
