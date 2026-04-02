@@ -6,6 +6,7 @@ import (
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
 	dbaccountgroup "github.com/Wei-Shaw/sub2api/ent/accountgroup"
@@ -92,7 +93,7 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 			}))
 		default:
 			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
-				s.Where(entsql.ExprP("COALESCE(extra, '{}'::jsonb) ->> 'privacy_mode' = ?", filters.PrivacyMode))
+				s.Where(sqljson.ValueEQ(dbaccount.FieldExtra, filters.PrivacyMode, sqljson.Path("privacy_mode")))
 			}))
 		}
 	}

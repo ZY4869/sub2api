@@ -27,6 +27,10 @@ type apiKeyGroupExecutor interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
+type preopenedAPIKeyGroupExecutor struct {
+	apiKeyGroupExecutor
+}
+
 type sqlTxStarter interface {
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
@@ -279,6 +283,9 @@ func apiKeyGroupSQLExecutor(ctx context.Context, repo *apiKeyRepository) apiKeyG
 			return exec
 		}
 	}
+	if tx, ok := repo.sql.(*dbent.Tx); ok {
+		return preopenedAPIKeyGroupExecutor{apiKeyGroupExecutor: tx.Client()}
+	}
 	return repo.sql
 }
 
@@ -304,6 +311,9 @@ func beginAPIKeyGroupSQLTx(ctx context.Context, exec apiKeyGroupExecutor) (apiKe
 		if txExec, ok := any(tx.Client()).(apiKeyGroupExecutor); ok {
 			return txExec, func() error { return nil }, func() {}, nil
 		}
+	}
+	if wrapped, ok := exec.(preopenedAPIKeyGroupExecutor); ok {
+		return wrapped.apiKeyGroupExecutor, func() error { return nil }, func() {}, nil
 	}
 	if tx, ok := exec.(*sql.Tx); ok {
 		return tx, func() error { return nil }, func() {}, nil

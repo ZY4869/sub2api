@@ -51,6 +51,14 @@ func shouldEnqueueSchedulerOutboxForExtraUpdates(updates map[string]any) bool {
 	return false
 }
 func shouldSyncSchedulerSnapshotForExtraUpdates(updates map[string]any) bool {
+	if len(updates) == 0 {
+		return false
+	}
+	for key := range updates {
+		if isSchedulerNeutralAccountExtraKey(key) {
+			return true
+		}
+	}
 	return codexExtraIndicatesRateLimit(updates, "7d") || codexExtraIndicatesRateLimit(updates, "5h")
 }
 func isSchedulerNeutralAccountExtraKey(key string) bool {
