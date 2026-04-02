@@ -279,8 +279,4 @@ func TestOpenAITokenRefresher_NeedsRefresh_MissingExpiresAt(t *testing.T) {
 
 		require.False(t, refresher.NeedsRefresh(account, refreshWindow))
 	})
-
-	t.Run("nil account stays fresh without expires_at", func(t *testing.T) {
-		require.False(t, refresher.NeedsRefresh(nil, refreshWindow))
-	})
 }

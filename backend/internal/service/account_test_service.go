@@ -1335,7 +1335,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 				account.RateLimitResetAt = resetAt
 			}
 		}
-		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil {
+		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil && isOpenAIPermanentUnauthorizedDetail(body) {
 			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
 			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
 		}
