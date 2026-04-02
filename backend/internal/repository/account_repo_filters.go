@@ -93,7 +93,7 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 			}))
 		default:
 			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
-				s.Where(sqljson.ValueEQ(dbaccount.FieldExtra, filters.PrivacyMode, sqljson.Path("privacy_mode")))
+				s.Where(sqljson.ValueEQ(dbaccount.FieldExtra, filters.PrivacyMode, sqljson.Path("privacy_mode"), sqljson.Unquote(true)))
 			}))
 		}
 	}
