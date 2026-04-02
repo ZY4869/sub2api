@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -126,6 +127,96 @@ def version_probe_command(binary_name: str, binary_path: str) -> list[str]:
     if binary_name == "govulncheck":
         return [binary_path, "-version"]
     return [binary_path, "version"]
+
+
+def github_actions_escape(value: str) -> str:
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def emit_github_annotation(level: str, title: str, message: str) -> None:
+    escaped_title = github_actions_escape(title)
+    escaped_message = github_actions_escape(message)
+    print(f"::{level} title={escaped_title}::{escaped_message}", flush=True)
+
+
+def append_step_summary(lines: list[str]) -> None:
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+    with Path(summary_path).open("a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+
+
+def summarize_go_test_failure(log_text: str) -> dict[str, list[str]]:
+    failed_tests: list[str] = []
+    failed_packages: list[str] = []
+    diagnostic_lines: list[str] = []
+
+    for line in log_text.splitlines():
+        if match := re.match(r"^--- FAIL: (\S+)", line):
+            failed_tests.append(match.group(1))
+        if match := re.match(r"^FAIL\s+(\S+)", line):
+            package_name = match.group(1)
+            if package_name != "FAIL":
+                failed_packages.append(package_name)
+        if line.startswith("panic:") or line.startswith("# ") or "[build failed]" in line:
+            diagnostic_lines.append(line)
+
+    return {
+        "tests": list(dict.fromkeys(failed_tests)),
+        "packages": list(dict.fromkeys(failed_packages)),
+        "diagnostics": list(dict.fromkeys(diagnostic_lines[-20:])),
+        "tail": log_text.splitlines()[-40:],
+    }
+
+
+def emit_backend_integration_failure_summary(log_text: str, log_path: Path) -> None:
+    summary = summarize_go_test_failure(log_text)
+    failed_tests = summary["tests"]
+    failed_packages = summary["packages"]
+    diagnostics = summary["diagnostics"]
+    tail_lines = summary["tail"]
+
+    summary_lines = ["backend-integration failed"]
+    if failed_packages:
+        summary_lines.append(f"packages: {', '.join(failed_packages[:10])}")
+    if failed_tests:
+        summary_lines.append(f"tests: {', '.join(failed_tests[:10])}")
+    if diagnostics:
+        summary_lines.append(f"diagnostics: {' | '.join(diagnostics[:5])}")
+    if len(summary_lines) == 1 and tail_lines:
+        summary_lines.append(f"tail: {' | '.join(tail_lines[-5:])}")
+    summary_lines.append(f"log path: {log_path}")
+
+    for line in summary_lines:
+        info(line)
+
+    emit_github_annotation("error", "backend-integration", " | ".join(summary_lines[:4]))
+
+    for package_name in failed_packages[:10]:
+        emit_github_annotation("error", "backend-integration package", package_name)
+    for test_name in failed_tests[:10]:
+        emit_github_annotation("error", "backend-integration test", test_name)
+    for diagnostic in diagnostics[:10]:
+        emit_github_annotation("error", "backend-integration diagnostic", diagnostic)
+
+    step_summary = [
+        "### backend-integration failed",
+        "",
+        f"- Log: `{log_path}`",
+    ]
+    if failed_packages:
+        step_summary.append(f"- Packages: `{', '.join(failed_packages[:10])}`")
+    if failed_tests:
+        step_summary.append(f"- Tests: `{', '.join(failed_tests[:10])}`")
+    if diagnostics:
+        step_summary.append(f"- Diagnostics: `{ ' | '.join(diagnostics[:5]) }`")
+    if tail_lines:
+        step_summary.append("")
+        step_summary.append("```text")
+        step_summary.extend(tail_lines[-20:])
+        step_summary.append("```")
+    append_step_summary(step_summary)
 
 
 def ensure_go_tool(binary_name: str, module_path: str, requested_version: str) -> Path:
@@ -269,11 +360,16 @@ def backend_unit() -> None:
 
 
 def backend_integration() -> None:
-    run_streaming(
-        ["go", "test", "-count=1", "-v", "-tags=integration", "./..."],
-        cwd=BACKEND_DIR,
-        log_path=REPO_ROOT / ".cache" / "verify-ci" / "logs" / "backend-integration.log",
-    )
+    log_path = REPO_ROOT / ".cache" / "verify-ci" / "logs" / "backend-integration.log"
+    try:
+        run_streaming(
+            ["go", "test", "-count=1", "-v", "-tags=integration", "./..."],
+            cwd=BACKEND_DIR,
+            log_path=log_path,
+        )
+    except subprocess.CalledProcessError as exc:
+        emit_backend_integration_failure_summary(exc.output or "", log_path)
+        raise
 
 
 def backend_lint() -> None:
