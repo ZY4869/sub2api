@@ -186,7 +186,12 @@ func (a *Account) IsGeminiCodeAssist() bool {
 }
 
 func (a *Account) CanGetUsage() bool {
-	return a.Type == AccountTypeOAuth
+	if a == nil || a.Type != AccountTypeOAuth {
+		return false
+	}
+
+	runtimePlatform := EffectiveProtocol(a)
+	return IsAnthropicFamily(runtimePlatform) && runtimePlatform != PlatformKiro
 }
 
 func (a *Account) GetCredential(key string) string {

@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	httppool "github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -303,8 +304,9 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 	if err != nil {
 		return nil, fmt.Errorf("get account failed: %w", err)
 	}
+	runtimePlatform := EffectiveProtocol(account)
 
-	if EffectiveProtocol(account) == PlatformOpenAI && account.Type == AccountTypeOAuth {
+	if runtimePlatform == PlatformOpenAI && account.Type == AccountTypeOAuth {
 		usage, err := s.getOpenAIUsage(ctx, account, force)
 		if err == nil {
 			s.tryClearRecoverableAccountError(ctx, account)
@@ -312,7 +314,7 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 		return usage, err
 	}
 
-	if EffectiveProtocol(account) == PlatformGemini {
+	if runtimePlatform == PlatformGemini {
 		usage, err := s.getGeminiUsage(ctx, account)
 		if err == nil {
 			s.tryClearRecoverableAccountError(ctx, account)
@@ -425,8 +427,15 @@ func (s *AccountUsageService) GetUsage(ctx context.Context, accountID int64, for
 		return usage, nil
 	}
 
+	if runtimePlatform == PlatformKiro && account.Type == AccountTypeOAuth {
+		return nil, infraerrors.BadRequest("ACCOUNT_USAGE_UNSUPPORTED", "kiro oauth accounts do not support active usage query")
+	}
+
 	// API Key账号不支持usage查询
-	return nil, fmt.Errorf("account type %s does not support usage query", account.Type)
+	return nil, infraerrors.BadRequest(
+		"ACCOUNT_USAGE_UNSUPPORTED",
+		fmt.Sprintf("account type %s does not support active usage query", account.Type),
+	)
 }
 
 // GetPassiveUsage 从 Account.Extra 中的被动采样数据构建 UsageInfo，不调用外部 API。

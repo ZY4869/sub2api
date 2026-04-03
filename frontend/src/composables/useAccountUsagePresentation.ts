@@ -90,17 +90,24 @@ function getRuntimePlatform(account: Account): string {
   return resolveEffectiveAccountPlatformFromAccount(account)
 }
 
+function prefersPassiveUsageSnapshot(account: Account): boolean {
+  const runtimePlatform = getRuntimePlatform(account)
+  return (
+    (runtimePlatform === 'anthropic' || runtimePlatform === 'kiro') &&
+    (account.type === 'oauth' || account.type === 'setup-token')
+  )
+}
+
+function supportsActiveAnthropicUsage(account: Account): boolean {
+  return getRuntimePlatform(account) === 'anthropic' && account.type === 'oauth'
+}
+
 function shouldFallbackToActiveAnthropicUsage(
   account: Account,
   source: LoadUsageOptions['source'] | undefined,
   usageInfo: AccountUsageInfo,
 ): boolean {
-  return (
-    (getRuntimePlatform(account) === 'anthropic' || getRuntimePlatform(account) === 'kiro') &&
-    account.type === 'oauth' &&
-    source === 'passive' &&
-    !usageInfo.seven_day
-  )
+  return supportsActiveAnthropicUsage(account) && source === 'passive' && !usageInfo.seven_day
 }
 
 export function canAccountFetchUsage(account: Account): boolean {
@@ -135,10 +142,7 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
 
   const source =
     options.source ??
-    ((getRuntimePlatform(account) === 'anthropic' || getRuntimePlatform(account) === 'kiro') &&
-    (account.type === 'oauth' || account.type === 'setup-token')
-      ? 'passive'
-      : undefined)
+    (prefersPassiveUsageSnapshot(account) ? 'passive' : undefined)
 
   const request = adminAPI.accounts
     .getUsage(account.id, {
@@ -263,7 +267,7 @@ export function invalidateAccountUsagePresentationCache(accountIDs: number[]): v
 }
 
 export function resolveActualUsageRefreshLoadOptions(account: Account): LoadUsageOptions {
-  if ((getRuntimePlatform(account) === 'anthropic' || getRuntimePlatform(account) === 'kiro') && account.type === 'oauth') {
+  if (supportsActiveAnthropicUsage(account)) {
     return { source: 'active' }
   }
 
