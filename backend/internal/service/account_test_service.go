@@ -2293,23 +2293,39 @@ func (s *AccountTestService) formatFailedTestResponse(ctx context.Context, accou
 		return message, advice
 	}
 	if match := DetectHardBannedAccount(statusCode, body); match != nil {
-		now := time.Now()
-		purgeAt := now.Add(AccountBlacklistRetention)
-		if err := s.accountRepo.MarkBlacklisted(ctx, account.ID, match.ReasonCode, match.ReasonMessage, now, purgeAt); err != nil {
-			slog.Warn("account_test_mark_blacklisted_failed", "account_id", account.ID, "reason_code", match.ReasonCode, "error", err)
-		} else if advice != nil {
-			advice.Decision = BlacklistAdviceAutoBlacklisted
-			advice.ReasonCode = firstNonEmptyHardBanString(match.ReasonCode, advice.ReasonCode)
-			advice.ReasonMessage = firstNonEmptyHardBanString(match.ReasonMessage, advice.ReasonMessage, string(body))
-			advice.AlreadyBlacklisted = true
-			advice.CollectFeedback = false
-		}
+		s.tryAutoBlacklistFailedTest(ctx, account, advice, match.ReasonCode, match.ReasonMessage, body)
+		return message, advice
+	}
+	if advice != nil &&
+		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) &&
+		advice.Decision == BlacklistAdviceRecommendBlacklist {
+		s.tryAutoBlacklistFailedTest(ctx, account, advice, advice.ReasonCode, advice.ReasonMessage, body)
 		return message, advice
 	}
 	if statusCode == http.StatusForbidden {
 		_ = s.accountRepo.SetError(ctx, account.ID, message)
 	}
 	return message, advice
+}
+
+func (s *AccountTestService) tryAutoBlacklistFailedTest(ctx context.Context, account *Account, advice *BlacklistAdvice, reasonCode string, reasonMessage string, body []byte) {
+	if s == nil || s.accountRepo == nil || account == nil {
+		return
+	}
+	now := time.Now()
+	purgeAt := now.Add(AccountBlacklistRetention)
+	if err := s.accountRepo.MarkBlacklisted(ctx, account.ID, reasonCode, reasonMessage, now, purgeAt); err != nil {
+		slog.Warn("account_test_mark_blacklisted_failed", "account_id", account.ID, "reason_code", reasonCode, "error", err)
+		return
+	}
+	if advice == nil {
+		return
+	}
+	advice.Decision = BlacklistAdviceAutoBlacklisted
+	advice.ReasonCode = firstNonEmptyHardBanString(reasonCode, advice.ReasonCode)
+	advice.ReasonMessage = firstNonEmptyHardBanString(reasonMessage, advice.ReasonMessage, string(body))
+	advice.AlreadyBlacklisted = true
+	advice.CollectFeedback = false
 }
 
 // RunTestBackground executes an account test in-memory (no real HTTP client),

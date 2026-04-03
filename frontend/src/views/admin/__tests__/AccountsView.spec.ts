@@ -596,7 +596,10 @@ describe('AccountsView', () => {
 
     await wrapper.get('.edit-first-account').trigger('click')
 
-    expect(mockState.getById).toHaveBeenCalledWith(4)
+    expect(mockState.getById).toHaveBeenCalledWith(
+      4,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
     expect(wrapper.get('.dialog-show-edit').text()).toBe('true')
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('true')
     expect(wrapper.get('.dialog-edit-account').text()).toBe('')
@@ -636,6 +639,112 @@ describe('AccountsView', () => {
 
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
     expect(wrapper.get('.dialog-edit-account').text()).toBe('Gateway-1 detail')
+
+    wrapper.unmount()
+  })
+
+  it('aborts the edit detail request when the dialog closes and does not show an error', async () => {
+    const deferred = createDeferred<any>()
+    let capturedSignal: AbortSignal | undefined
+    mockState.getById.mockImplementation((_id: number, options?: { signal?: AbortSignal }) => {
+      capturedSignal = options?.signal
+      capturedSignal?.addEventListener('abort', () => {
+        deferred.reject({ name: 'CanceledError', code: 'ERR_CANCELED' })
+      })
+      return deferred.promise
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.edit-first-account').trigger('click')
+    expect(wrapper.get('.dialog-show-edit').text()).toBe('true')
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('true')
+
+    await wrapper.get('.dialog-close-edit').trigger('click')
+    await flushPromises()
+
+    expect(capturedSignal?.aborted).toBe(true)
+    expect(wrapper.get('.dialog-show-edit').text()).toBe('false')
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
+    expect(mockState.showError).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('cancels the previous edit detail request when edit is triggered again', async () => {
+    const first = createDeferred<any>()
+    const second = createDeferred<any>()
+    const signals: AbortSignal[] = []
+
+    mockState.getById
+      .mockImplementationOnce((_id: number, options?: { signal?: AbortSignal }) => {
+        if (options?.signal) {
+          signals.push(options.signal)
+          options.signal.addEventListener('abort', () => {
+            first.reject({ name: 'CanceledError', code: 'ERR_CANCELED' })
+          })
+        }
+        return first.promise
+      })
+      .mockImplementationOnce((_id: number, options?: { signal?: AbortSignal }) => {
+        if (options?.signal) {
+          signals.push(options.signal)
+        }
+        return second.promise
+      })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.edit-first-account').trigger('click')
+    await wrapper.get('.edit-first-account').trigger('click')
+
+    expect(mockState.getById).toHaveBeenNthCalledWith(
+      1,
+      4,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(mockState.getById).toHaveBeenNthCalledWith(
+      2,
+      4,
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(signals[0]?.aborted).toBe(true)
+    expect(signals[1]?.aborted).toBe(false)
+
+    second.resolve({
+      id: 4,
+      name: 'Gateway-1 newest detail',
+      platform: 'protocol_gateway',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true,
+      proxy_id: null,
+      concurrency: 1,
+      priority: 0,
+      auto_pause_on_expired: false,
+      error_message: null,
+      last_used_at: null,
+      expires_at: null,
+      created_at: '2026-04-03T00:00:00Z',
+      updated_at: '2026-04-03T00:00:00Z',
+      rate_limited_at: null,
+      rate_limit_reset_at: null,
+      overload_until: null,
+      temp_unschedulable_until: null,
+      temp_unschedulable_reason: null,
+      session_window_start: null,
+      session_window_end: null,
+      session_window_status: null,
+      credentials: {},
+      extra: {}
+    })
+    await flushPromises()
+
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('Gateway-1 newest detail')
+    expect(mockState.showError).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })

@@ -1495,6 +1495,22 @@ func opsNullString(v any) any {
 	}
 }
 
+func opsStringOrEmpty(v any) string {
+	switch s := v.(type) {
+	case nil:
+		return ""
+	case *string:
+		if s == nil {
+			return ""
+		}
+		return strings.TrimSpace(*s)
+	case string:
+		return strings.TrimSpace(s)
+	default:
+		return ""
+	}
+}
+
 func opsNullInt64(v *int64) any {
 	if v == nil || *v == 0 {
 		return sql.NullInt64{}

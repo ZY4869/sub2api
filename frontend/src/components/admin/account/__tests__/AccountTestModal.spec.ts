@@ -404,12 +404,12 @@ describe('AccountTestModal', () => {
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextClient')
   })
 
-  it('disables the blacklist button when the test result was auto blacklisted', async () => {
+  it('disables the blacklist button when generic unauthorized responses are auto blacklisted', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       createStreamResponse([
         'data: {"type":"test_start","model":"gemini-3.1-flash-image"}\n',
-        'data: {"type":"blacklist_advice","data":{"decision":"auto_blacklisted","reason_code":"workspace_deactivated","reason_message":"workspace deactivated","already_blacklisted":true}}\n',
-        'data: {"type":"error","error":"API returned 402: workspace deactivated"}\n'
+        'data: {"type":"blacklist_advice","data":{"decision":"auto_blacklisted","reason_code":"credentials_likely_invalid","reason_message":"Unauthorized","already_blacklisted":true,"collect_feedback":false,"status_code":401}}\n',
+        'data: {"type":"error","error":"API returned 401: {\\"detail\\":\\"Unauthorized\\"}"}\n'
       ])
     ) as any
 
@@ -429,6 +429,7 @@ describe('AccountTestModal', () => {
     )
     expect(blacklistButton).toBeTruthy()
     expect(blacklistButton!.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Unauthorized')
   })
 
   it('uses the Grok-specific test endpoint and renders probe lines as terminal output', async () => {

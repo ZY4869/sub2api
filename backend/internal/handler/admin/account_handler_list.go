@@ -53,6 +53,16 @@ func (h *AccountHandler) buildAccountResponseWithRuntime(ctx context.Context, ac
 	}
 	return item
 }
+
+func (h *AccountHandler) buildAccountDetailResponse(ctx context.Context, account *service.Account) *dto.Account {
+	item := dto.AccountFromService(account)
+	if item == nil || account == nil {
+		return item
+	}
+	item.Extra = h.enrichAccountExtraWithModelScope(ctx, account, item.Extra)
+	return item
+}
+
 func (h *AccountHandler) List(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	platform := c.Query("platform")
@@ -250,5 +260,5 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+	response.Success(c, h.buildAccountDetailResponse(c.Request.Context(), account))
 }

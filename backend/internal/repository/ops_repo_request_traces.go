@@ -4,12 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
 )
+
+var opsSQLPlaceholderPattern = regexp.MustCompile(`\$(\d+)`)
 
 const insertOpsRequestTraceSQL = `
 INSERT INTO ops_request_traces (
@@ -95,16 +98,16 @@ func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any 
 		opsNullInt64(input.APIKeyID),
 		opsNullInt64(input.AccountID),
 		opsNullInt64(input.GroupID),
-		opsNullString(input.Platform),
-		opsNullString(input.ProtocolIn),
-		opsNullString(input.ProtocolOut),
-		opsNullString(input.Channel),
-		opsNullString(input.RoutePath),
-		opsNullString(input.RequestType),
-		opsNullString(input.RequestedModel),
-		opsNullString(input.UpstreamModel),
-		opsNullString(input.ActualUpstreamModel),
-		opsNullString(input.Status),
+		opsStringOrEmpty(input.Platform),
+		opsStringOrEmpty(input.ProtocolIn),
+		opsStringOrEmpty(input.ProtocolOut),
+		opsStringOrEmpty(input.Channel),
+		opsStringOrEmpty(input.RoutePath),
+		opsStringOrEmpty(input.RequestType),
+		opsStringOrEmpty(input.RequestedModel),
+		opsStringOrEmpty(input.UpstreamModel),
+		opsStringOrEmpty(input.ActualUpstreamModel),
+		opsStringOrEmpty(input.Status),
 		input.StatusCode,
 		opsNullInt(input.UpstreamStatusCode),
 		input.DurationMs,
@@ -112,18 +115,18 @@ func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any 
 		input.InputTokens,
 		input.OutputTokens,
 		input.TotalTokens,
-		opsNullString(input.FinishReason),
-		opsNullString(input.PromptBlockReason),
+		opsStringOrEmpty(input.FinishReason),
+		opsStringOrEmpty(input.PromptBlockReason),
 		input.Stream,
 		input.HasTools,
 		pq.Array(input.ToolKinds),
 		input.HasThinking,
-		opsNullString(input.ThinkingSource),
-		opsNullString(input.ThinkingLevel),
+		opsStringOrEmpty(input.ThinkingSource),
+		opsStringOrEmpty(input.ThinkingLevel),
 		opsNullInt(input.ThinkingBudget),
-		opsNullString(input.MediaResolution),
-		opsNullString(input.CountTokensSource),
-		opsNullString(input.CaptureReason),
+		opsStringOrEmpty(input.MediaResolution),
+		opsStringOrEmpty(input.CountTokensSource),
+		opsStringOrEmpty(input.CaptureReason),
 		input.Sampled,
 		input.RawAvailable,
 		opsNullString(input.InboundRequestJSON),
@@ -502,7 +505,7 @@ SELECT
   COALESCE(PERCENTILE_DISC(0.95) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0),
   COALESCE(PERCENTILE_DISC(0.99) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0)
 FROM ops_request_traces t
-` + where + `
+` + shiftSQLPlaceholders(where, 1) + `
 GROUP BY 1
 ORDER BY 1 ASC`
 	trendArgs := append([]any{bucketSeconds}, args...)
@@ -871,4 +874,18 @@ func nullBytes(v []byte) any {
 		return nil
 	}
 	return v
+}
+
+func shiftSQLPlaceholders(query string, offset int) string {
+	if offset == 0 || query == "" {
+		return query
+	}
+	return opsSQLPlaceholderPattern.ReplaceAllStringFunc(query, func(placeholder string) string {
+		value := strings.TrimPrefix(placeholder, "$")
+		number := 0
+		for _, ch := range value {
+			number = number*10 + int(ch-'0')
+		}
+		return "$" + itoa(number+offset)
+	})
 }

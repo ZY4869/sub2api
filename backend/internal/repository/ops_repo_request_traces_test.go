@@ -1,0 +1,215 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"regexp"
+	"testing"
+	"time"
+
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/stretchr/testify/require"
+)
+
+func newOpsSQLMock(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
+	t.Helper()
+
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+	return db, mock
+}
+
+func TestOpsInsertRequestTraceArgsUsesEmptyStringsForRequiredTextColumns(t *testing.T) {
+	t.Parallel()
+
+	args := opsInsertRequestTraceArgs(&service.OpsInsertRequestTraceInput{})
+	require.Equal(t, "", args[7])
+	require.Equal(t, "", args[8])
+	require.Equal(t, "", args[9])
+	require.Equal(t, "", args[10])
+	require.Equal(t, "", args[11])
+	require.Equal(t, "", args[12])
+	require.Equal(t, "", args[13])
+	require.Equal(t, "", args[14])
+	require.Equal(t, "", args[15])
+	require.Equal(t, "", args[16])
+	require.Equal(t, "", args[24])
+	require.Equal(t, "", args[25])
+	require.Equal(t, "", args[30])
+	require.Equal(t, "", args[31])
+	require.Equal(t, "", args[33])
+	require.Equal(t, "", args[34])
+	require.Equal(t, "", args[35])
+}
+
+func TestOpsRepositoryGetRequestTraceSummaryOffsetsTrendPlaceholders(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+
+	startTime := time.Date(2026, 4, 3, 20, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(2 * time.Hour)
+	filter := &service.OpsRequestTraceFilter{
+		StartTime: &startTime,
+		EndTime:   &endTime,
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta(`
+SELECT
+  COUNT(*)::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.status_code, 0) < 400)::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.status_code, 0) >= 400)::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.stream, false))::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.has_tools, false))::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.has_thinking, false))::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.raw_available, false))::bigint,
+  COALESCE(AVG(COALESCE(t.duration_ms, 0)), 0),
+  COALESCE(PERCENTILE_DISC(0.50) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0),
+  COALESCE(PERCENTILE_DISC(0.95) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0),
+  COALESCE(PERCENTILE_DISC(0.99) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0)
+FROM ops_request_traces t
+WHERE 1=1 AND t.created_at >= $1 AND t.created_at < $2`)).
+		WithArgs(startTime.UTC(), endTime.UTC()).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"request_count",
+			"success_count",
+			"error_count",
+			"stream_count",
+			"tool_count",
+			"thinking_count",
+			"raw_available_count",
+			"avg_duration_ms",
+			"p50_duration_ms",
+			"p95_duration_ms",
+			"p99_duration_ms",
+		}).AddRow(int64(1), int64(1), int64(0), int64(0), int64(0), int64(0), int64(0), float64(12), int64(12), int64(12), int64(12)))
+
+	mock.ExpectQuery(`to_timestamp\(floor\(extract\(epoch from t\.created_at\) / \$1\) \* \$1\).*WHERE 1=1 AND t\.created_at >= \$2 AND t\.created_at < \$3`).
+		WithArgs(int64(300), startTime.UTC(), endTime.UTC()).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"bucket_start",
+			"request_count",
+			"error_count",
+			"p50_duration_ms",
+			"p95_duration_ms",
+			"p99_duration_ms",
+		}))
+
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), 8).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), 10).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), 10).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), 10).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`COUNT\(\*\) FILTER \(WHERE COALESCE\(t\.stream, false\)\)::bigint`).
+		WithArgs(startTime.UTC(), endTime.UTC()).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"stream_count",
+			"tool_count",
+			"thinking_count",
+			"raw_count",
+			"estimated_count",
+		}).AddRow(int64(0), int64(0), int64(0), int64(0), int64(0)))
+
+	summary, err := repo.GetRequestTraceSummary(context.Background(), filter)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestOpsRepositoryGetRequestTraceSummaryOffsetsTrendPlaceholdersWithAdditionalFilters(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+
+	startTime := time.Date(2026, 4, 3, 20, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(2 * time.Hour)
+	accountID := int64(654)
+	platform := "openai"
+	filter := &service.OpsRequestTraceFilter{
+		StartTime: &startTime,
+		EndTime:   &endTime,
+		AccountID: &accountID,
+		Platform:  platform,
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta(`
+SELECT
+  COUNT(*)::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.status_code, 0) < 400)::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.status_code, 0) >= 400)::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.stream, false))::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.has_tools, false))::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.has_thinking, false))::bigint,
+  COUNT(*) FILTER (WHERE COALESCE(t.raw_available, false))::bigint,
+  COALESCE(AVG(COALESCE(t.duration_ms, 0)), 0),
+  COALESCE(PERCENTILE_DISC(0.50) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0),
+  COALESCE(PERCENTILE_DISC(0.95) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0),
+  COALESCE(PERCENTILE_DISC(0.99) WITHIN GROUP (ORDER BY COALESCE(t.duration_ms, 0)), 0)
+FROM ops_request_traces t
+WHERE 1=1 AND t.created_at >= $1 AND t.created_at < $2 AND COALESCE(t.platform,'') = $3 AND t.account_id = $4`)).
+		WithArgs(startTime.UTC(), endTime.UTC(), platform, accountID).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"request_count",
+			"success_count",
+			"error_count",
+			"stream_count",
+			"tool_count",
+			"thinking_count",
+			"raw_available_count",
+			"avg_duration_ms",
+			"p50_duration_ms",
+			"p95_duration_ms",
+			"p99_duration_ms",
+		}).AddRow(int64(1), int64(1), int64(0), int64(0), int64(0), int64(0), int64(0), float64(12), int64(12), int64(12), int64(12)))
+
+	mock.ExpectQuery(`to_timestamp\(floor\(extract\(epoch from t\.created_at\) / \$1\) \* \$1\).*WHERE 1=1 AND t\.created_at >= \$2 AND t\.created_at < \$3 AND COALESCE\(t\.platform,''\) = \$4 AND t\.account_id = \$5`).
+		WithArgs(int64(300), startTime.UTC(), endTime.UTC(), platform, accountID).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"bucket_start",
+			"request_count",
+			"error_count",
+			"p50_duration_ms",
+			"p95_duration_ms",
+			"p99_duration_ms",
+		}))
+
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), platform, accountID, 8).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), platform, accountID, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), platform, accountID, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`SELECT key, label, count`).
+		WithArgs(startTime.UTC(), endTime.UTC(), platform, accountID, 10).
+		WillReturnRows(sqlmock.NewRows([]string{"key", "label", "count"}))
+	mock.ExpectQuery(`COUNT\(\*\) FILTER \(WHERE COALESCE\(t\.stream, false\)\)::bigint`).
+		WithArgs(startTime.UTC(), endTime.UTC(), platform, accountID).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"stream_count",
+			"tool_count",
+			"thinking_count",
+			"raw_count",
+			"estimated_count",
+		}).AddRow(int64(0), int64(0), int64(0), int64(0), int64(0)))
+
+	summary, err := repo.GetRequestTraceSummary(context.Background(), filter)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	require.NoError(t, mock.ExpectationsWereMet())
+}

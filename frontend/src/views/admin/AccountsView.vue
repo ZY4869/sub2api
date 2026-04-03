@@ -384,6 +384,7 @@ const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
 const activeEditRequestToken = ref(0)
+let activeEditAbortController: AbortController | null = null
 const togglingSchedulable = ref<number | null>(null)
 const exportingData = ref(false)
 const usageManualRefreshToken = ref(0)
@@ -833,13 +834,27 @@ const refreshAccountSummarySafe = () => {
   })
 }
 
+const isEditDetailAbortError = (error: unknown) => {
+  const maybeError = error as { name?: string; code?: string } | null
+  return (
+    maybeError?.name === 'AbortError' ||
+    maybeError?.name === 'CanceledError' ||
+    maybeError?.code === 'ERR_CANCELED'
+  )
+}
+
 const handleCloseEdit = () => {
   activeEditRequestToken.value += 1
+  activeEditAbortController?.abort()
+  activeEditAbortController = null
   editLoading.value = false
   showEdit.value = false
   edAcc.value = null
 }
 const handleEdit = async (a: Account) => {
+  activeEditAbortController?.abort()
+  const currentAbortController = new AbortController()
+  activeEditAbortController = currentAbortController
   const requestToken = activeEditRequestToken.value + 1
   activeEditRequestToken.value = requestToken
   editLoading.value = true
@@ -847,13 +862,21 @@ const handleEdit = async (a: Account) => {
   showEdit.value = true
 
   try {
-    const detail = await adminAPI.accounts.getById(a.id)
-    if (activeEditRequestToken.value !== requestToken || !showEdit.value) {
+    const detail = await adminAPI.accounts.getById(a.id, { signal: currentAbortController.signal })
+    if (
+      currentAbortController.signal.aborted ||
+      activeEditRequestToken.value !== requestToken ||
+      !showEdit.value
+    ) {
       return
     }
     edAcc.value = detail
   } catch (error: any) {
-    if (activeEditRequestToken.value !== requestToken) {
+    if (
+      currentAbortController.signal.aborted ||
+      activeEditRequestToken.value !== requestToken ||
+      isEditDetailAbortError(error)
+    ) {
       return
     }
     console.error('Failed to load account detail for edit:', error)
@@ -861,6 +884,9 @@ const handleEdit = async (a: Account) => {
     appStore.showError(error?.message || t('common.error'))
     return
   } finally {
+    if (activeEditAbortController === currentAbortController) {
+      activeEditAbortController = null
+    }
     if (activeEditRequestToken.value === requestToken) {
       editLoading.value = false
     }
