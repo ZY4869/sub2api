@@ -112,6 +112,13 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Run release preflight
         run: bash scripts/verify-ci.sh release-preflight
+      - name: Upload release preflight diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-preflight-diagnostics
+          path: .cache/verify-ci
+          if-no-files-found: ignore
 
   release:
     needs:

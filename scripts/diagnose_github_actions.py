@@ -69,7 +69,7 @@ def recommended_command(job_name: str, failed_steps: list[str]) -> str:
     if "validate-release-source" in text:
         return "go mod tidy -C backend && git diff --exit-code -- backend/cmd/server/VERSION frontend/package.json backend/go.mod backend/go.sum"
     if "release-preflight" in text or "release" in text:
-        return "scripts/verify-ci.sh release-preflight"
+        return "scripts/verify-ci.sh docker-smoke"
     if "integration" in text:
         return "scripts/verify-ci.sh backend-integration"
     if "unit" in text:

@@ -533,9 +533,17 @@ def docker_smoke() -> None:
 
     smoke_root = REPO_ROOT / ".cache" / "verify-ci" / "docker-smoke"
     context_dir = smoke_root / "context"
+    logs_dir = REPO_ROOT / ".cache" / "verify-ci" / "logs"
     if smoke_root.exists():
         shutil.rmtree(smoke_root)
     (context_dir / "deploy").mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    docker_build_log = logs_dir / "docker-smoke-build.log"
+    docker_container_log = logs_dir / "docker-smoke-container.log"
+    for path in (docker_build_log, docker_container_log):
+        if path.exists():
+            path.unlink()
 
     linux_binary = context_dir / "sub2api"
     build_env = os.environ.copy()
@@ -547,7 +555,11 @@ def docker_smoke() -> None:
 
     tag = f"sub2api-ci-smoke:{int(time.time())}"
     container_name = f"sub2api-ci-smoke-{int(time.time())}"
-    run([docker, "build", "-f", str(context_dir / "Dockerfile.goreleaser"), "-t", tag, str(context_dir)], cwd=REPO_ROOT)
+    run_streaming(
+        [docker, "build", "-f", str(context_dir / "Dockerfile.goreleaser"), "-t", tag, str(context_dir)],
+        cwd=REPO_ROOT,
+        log_path=docker_build_log,
+    )
 
     container_started = False
     try:
@@ -562,6 +574,7 @@ def docker_smoke() -> None:
         if container_started:
             logs = run([docker, "logs", container_name], cwd=REPO_ROOT, capture_output=True, check=False)
             if logs.stdout.strip():
+                docker_container_log.write_text(logs.stdout, encoding="utf-8")
                 info("docker smoke container stdout/stderr:")
                 for line in logs.stdout.splitlines()[-80:]:
                     info(f"[container] {line}")
@@ -584,7 +597,7 @@ def full() -> None:
 
 
 def release_preflight() -> None:
-    full()
+    info("release preflight runs release-specific smoke checks; standard CI covers backend/frontend/security")
     docker_smoke()
 
 
