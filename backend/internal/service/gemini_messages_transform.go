@@ -132,14 +132,15 @@ func convertClaudeMessagesToGeminiContents(messages any, toolUseIDToName map[str
 					if signature == "" && allowDummyThought {
 						signature = geminiDummyThoughtSignature
 					}
-					part := map[string]any{
-						"functionCall": map[string]any{
-							"name": name,
-							"args": bm["input"],
-						},
+					functionCall := map[string]any{
+						"name": name,
+						"args": bm["input"],
 					}
 					if strings.TrimSpace(id) != "" {
-						part["functionCall"].(map[string]any)["id"] = id
+						functionCall["id"] = id
+					}
+					part := map[string]any{
+						"functionCall": functionCall,
 					}
 					if signature != "" {
 						part["thoughtSignature"] = signature

@@ -52,13 +52,13 @@ type OpsRecordRequestTraceInput struct {
 }
 
 type opsRequestTraceRuntimeConfig struct {
-	Enabled           bool
-	EncryptionKey     string
-	RawAccessUserIDs  map[int64]struct{}
-	RetentionDays     int
-	SuccessSampleRate float64
+	Enabled            bool
+	EncryptionKey      string
+	RawAccessUserIDs   map[int64]struct{}
+	RetentionDays      int
+	SuccessSampleRate  float64
 	ForceCaptureSlowMs int64
-	RawExportMaxRows  int
+	RawExportMaxRows   int
 }
 
 func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordRequestTraceInput) error {

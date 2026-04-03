@@ -251,11 +251,11 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 		OutputTokens:       usage.outputTokens,
 		TotalTokens:        usage.totalTokens,
 		Trace: service.GatewayTraceContext{
-			Normalize:          normalize,
-			RequestHeadersJSON: requestHeadersJSON,
+			Normalize:           normalize,
+			RequestHeadersJSON:  requestHeadersJSON,
 			ResponseHeadersJSON: responseHeadersJSON,
-			RawRequest:         requestBody,
-			RawResponse:        responseBody,
+			RawRequest:          requestBody,
+			RawResponse:         responseBody,
 		},
 		CreatedAt: time.Now().UTC(),
 	}
@@ -715,13 +715,13 @@ func inferOpsTraceToolKinds(tool any) []string {
 		kinds = append(kinds, typeValue)
 	}
 	for key, mapped := range map[string]string{
-		"googleSearch":       "googleSearch",
+		"googleSearch":          "googleSearch",
 		"googleSearchRetrieval": "googleSearch",
-		"codeExecution":      "codeExecution",
-		"googleMaps":         "googleMaps",
-		"fileSearch":         "fileSearch",
-		"urlContext":         "urlContext",
-		"functionDeclarations": "function",
+		"codeExecution":         "codeExecution",
+		"googleMaps":            "googleMaps",
+		"fileSearch":            "fileSearch",
+		"urlContext":            "urlContext",
+		"functionDeclarations":  "function",
 	} {
 		if _, exists := payload[key]; exists {
 			kinds = append(kinds, mapped)

@@ -200,60 +200,6 @@ func pickGeminiCollectResult(last map[string]any, lastWithParts map[string]any) 
 	}
 	return map[string]any{}
 }
-func mergeCollectedTextParts(response map[string]any, textParts []string) map[string]any {
-	if len(textParts) == 0 {
-		return response
-	}
-	mergedText := strings.Join(textParts, "")
-	result := make(map[string]any)
-	for k, v := range response {
-		result[k] = v
-	}
-	candidates, ok := result["candidates"].([]any)
-	if !ok || len(candidates) == 0 {
-		candidates = []any{map[string]any{}}
-	}
-	candidate, ok := candidates[0].(map[string]any)
-	if !ok {
-		candidate = make(map[string]any)
-		candidates[0] = candidate
-	}
-	content, ok := candidate["content"].(map[string]any)
-	if !ok {
-		content = map[string]any{"role": "model"}
-		candidate["content"] = content
-	}
-	existingParts, ok := content["parts"].([]any)
-	if !ok {
-		existingParts = []any{}
-	}
-	newParts := make([]any, 0, len(existingParts)+1)
-	textUpdated := false
-	for _, p := range existingParts {
-		pm, ok := p.(map[string]any)
-		if !ok {
-			newParts = append(newParts, p)
-			continue
-		}
-		if _, hasText := pm["text"]; hasText && !textUpdated {
-			newPart := make(map[string]any)
-			for k, v := range pm {
-				newPart[k] = v
-			}
-			newPart["text"] = mergedText
-			newParts = append(newParts, newPart)
-			textUpdated = true
-		} else {
-			newParts = append(newParts, pm)
-		}
-	}
-	if !textUpdated {
-		newParts = append([]any{map[string]any{"text": mergedText}}, newParts...)
-	}
-	content["parts"] = newParts
-	result["candidates"] = candidates
-	return result
-}
 
 type geminiNativeStreamResult struct {
 	usage        *ClaudeUsage
@@ -548,16 +494,7 @@ func ensureGeminiFunctionCallThoughtSignatures(body []byte) []byte {
 	}
 	return b
 }
-func extractGeminiFinishReason(geminiResp map[string]any) string {
-	if candidates, ok := geminiResp["candidates"].([]any); ok && len(candidates) > 0 {
-		if cand, ok := candidates[0].(map[string]any); ok {
-			if fr, ok := cand["finishReason"].(string); ok {
-				return fr
-			}
-		}
-	}
-	return ""
-}
+
 func extractGeminiParts(geminiResp map[string]any) []map[string]any {
 	if candidates, ok := geminiResp["candidates"].([]any); ok && len(candidates) > 0 {
 		if cand, ok := candidates[0].(map[string]any); ok {

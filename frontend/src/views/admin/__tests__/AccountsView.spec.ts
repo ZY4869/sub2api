@@ -596,15 +596,15 @@ describe('AccountsView', () => {
 
     await wrapper.get('.edit-first-account').trigger('click')
 
-    expect(mockState.getById).toHaveBeenCalledWith(1)
+    expect(mockState.getById).toHaveBeenCalledWith(4)
     expect(wrapper.get('.dialog-show-edit').text()).toBe('true')
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('true')
     expect(wrapper.get('.dialog-edit-account').text()).toBe('')
 
     deferred.resolve({
-      id: 1,
-      name: 'OpenAI-1 detail',
-      platform: 'openai',
+      id: 4,
+      name: 'Gateway-1 detail',
+      platform: 'protocol_gateway',
       type: 'apikey',
       status: 'active',
       schedulable: true,
@@ -635,7 +635,7 @@ describe('AccountsView', () => {
     await flushPromises()
 
     expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
-    expect(wrapper.get('.dialog-edit-account').text()).toBe('OpenAI-1 detail')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('Gateway-1 detail')
 
     wrapper.unmount()
   })

@@ -194,10 +194,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 			_ = resp.Body.Close()
 			if isGeminiSignatureRelatedError(respBody) {
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := ""
@@ -251,10 +248,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
 			}
 			if attempt < geminiMaxRetries {
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := ""
@@ -283,17 +277,11 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		if s.rateLimitService != nil {
 			switch s.rateLimitService.CheckErrorPolicy(ctx, account, resp.StatusCode, respBody) {
 			case ErrorPolicySkipped:
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				return nil, s.writeGeminiMappedError(c, account, http.StatusInternalServerError, upstreamReqID, respBody)
 			case ErrorPolicyMatched, ErrorPolicyTempUnscheduled:
 				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := ""
@@ -312,10 +300,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		if resp.StatusCode == http.StatusBadRequest {
 			msg400 := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 			if isGoogleProjectConfigError(msg400) {
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
 				upstreamDetail := ""
 				if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
@@ -331,10 +316,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			}
 		}
 		if s.shouldFailoverGeminiUpstreamError(resp.StatusCode) {
-			upstreamReqID := resp.Header.Get(requestIDHeader)
-			if upstreamReqID == "" {
-				upstreamReqID = resp.Header.Get("x-goog-request-id")
-			}
+			upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 			upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 			upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 			upstreamDetail := ""
@@ -348,16 +330,10 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: upstreamReqID, Kind: "failover", Message: upstreamMsg, Detail: upstreamDetail})
 			return nil, &UpstreamFailoverError{StatusCode: resp.StatusCode, ResponseBody: respBody}
 		}
-		upstreamReqID := resp.Header.Get(requestIDHeader)
-		if upstreamReqID == "" {
-			upstreamReqID = resp.Header.Get("x-goog-request-id")
-		}
+		upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 		return nil, s.writeGeminiMappedError(c, account, resp.StatusCode, upstreamReqID, respBody)
 	}
-	requestID := resp.Header.Get(requestIDHeader)
-	if requestID == "" {
-		requestID = resp.Header.Get("x-goog-request-id")
-	}
+	requestID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 	if requestID != "" {
 		c.Header("x-request-id", requestID)
 	}
@@ -612,10 +588,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
 			}
 			if attempt < geminiMaxRetries {
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := ""
@@ -632,10 +605,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 				continue
 			}
 			if action == "countTokens" {
-				upstreamReqID := resp.Header.Get(requestIDHeader)
-				if upstreamReqID == "" {
-					upstreamReqID = resp.Header.Get("x-goog-request-id")
-				}
+				upstreamReqID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 				upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(respBody))
 				upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 				upstreamDetail := ""
@@ -656,10 +626,7 @@ func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	requestID := resp.Header.Get(requestIDHeader)
-	if requestID == "" {
-		requestID = resp.Header.Get("x-goog-request-id")
-	}
+	requestID := getGeminiUpstreamRequestID(resp.Header, requestIDHeader)
 	if requestID != "" {
 		c.Header("x-request-id", requestID)
 	}
@@ -1060,6 +1027,34 @@ func setGeminiCountTokensSourceHeader(c *gin.Context, source geminiCountTokensSo
 	if value := strings.TrimSpace(string(source)); value != "" {
 		c.Header(geminiCountTokensSourceHeader, value)
 	}
+}
+
+func getGeminiUpstreamRequestID(header http.Header, primaryKey string) string {
+	return firstNonEmptyString(
+		getGeminiHeaderValue(header, primaryKey),
+		getGeminiHeaderValue(header, "x-goog-request-id"),
+	)
+}
+
+func getGeminiHeaderValue(header http.Header, key string) string {
+	key = strings.TrimSpace(key)
+	if header == nil || key == "" {
+		return ""
+	}
+	if value := strings.TrimSpace(header.Get(key)); value != "" {
+		return value
+	}
+	for headerKey, values := range header {
+		if !strings.EqualFold(headerKey, key) {
+			continue
+		}
+		for _, value := range values {
+			if trimmed := strings.TrimSpace(value); trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+	return ""
 }
 
 func (s *GeminiMessagesCompatService) finishGeminiEstimatedCountTokensResponse(

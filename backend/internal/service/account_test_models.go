@@ -124,10 +124,27 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		return nil, modelregistry.SeedModels()
 	}
 
+	availableCanonicals := make(map[string]struct{}, len(details))
+	for _, detail := range details {
+		if !detail.Available {
+			continue
+		}
+		canonicalID := NormalizeModelCatalogModelID(detail.ID)
+		if canonicalID == "" {
+			canonicalID = normalizeRegistryID(detail.ID)
+		}
+		if canonicalID != "" {
+			availableCanonicals[canonicalID] = struct{}{}
+		}
+	}
+
 	resolutionEntries := make([]modelregistry.ModelEntry, 0, len(details))
 	candidates := make([]testModelCandidate, 0, len(details))
 	for _, detail := range details {
-		if detail.Hidden || detail.Tombstoned || !detail.Available {
+		if detail.Hidden || detail.Tombstoned {
+			continue
+		}
+		if !isRegistryDetailAvailableForTestSelection(detail, availableCanonicals) {
 			continue
 		}
 		resolutionEntries = append(resolutionEntries, detail.ModelEntry)
@@ -176,6 +193,21 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		}
 	}
 	return candidates, resolutionEntries
+}
+
+func isRegistryDetailAvailableForTestSelection(detail modelregistry.AdminModelDetail, availableCanonicals map[string]struct{}) bool {
+	if detail.Available {
+		return true
+	}
+	if !strings.EqualFold(strings.TrimSpace(detail.Status), "deprecated") {
+		return false
+	}
+	canonicalID := NormalizeModelCatalogModelID(detail.ReplacedBy)
+	if canonicalID == "" {
+		return false
+	}
+	_, ok := availableCanonicals[canonicalID]
+	return ok
 }
 
 func buildFallbackTestModelCandidates(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) ([]testModelCandidate, []modelregistry.ModelEntry) {

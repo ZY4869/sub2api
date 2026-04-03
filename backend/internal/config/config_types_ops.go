@@ -25,13 +25,13 @@ type OpsMetricsCollectorCacheConfig struct {
 	TTL     time.Duration `mapstructure:"ttl"`
 }
 type OpsRequestDetailsConfig struct {
-	Enabled          bool    `mapstructure:"enabled"`
-	EncryptionKey    string  `mapstructure:"encryption_key"`
-	RawAccessUserIDs []int64 `mapstructure:"raw_access_user_ids"`
-	RetentionDays    int     `mapstructure:"retention_days"`
-	SuccessSampleRate float64 `mapstructure:"success_sample_rate"`
-	ForceCaptureSlowMs int   `mapstructure:"force_capture_slow_ms"`
-	RawExportMaxRows int     `mapstructure:"raw_export_max_rows"`
+	Enabled            bool    `mapstructure:"enabled"`
+	EncryptionKey      string  `mapstructure:"encryption_key"`
+	RawAccessUserIDs   []int64 `mapstructure:"raw_access_user_ids"`
+	RetentionDays      int     `mapstructure:"retention_days"`
+	SuccessSampleRate  float64 `mapstructure:"success_sample_rate"`
+	ForceCaptureSlowMs int     `mapstructure:"force_capture_slow_ms"`
+	RawExportMaxRows   int     `mapstructure:"raw_export_max_rows"`
 }
 type JWTConfig struct {
 	Secret                   string `mapstructure:"secret"`

@@ -757,14 +757,14 @@ func scanOpsRequestTraceListItem(scanner interface {
 }) (*service.OpsRequestTraceListItem, error) {
 	item := &service.OpsRequestTraceListItem{}
 	var (
-		userID sql.NullInt64
-		apiKeyID sql.NullInt64
-		accountID sql.NullInt64
-		groupID sql.NullInt64
+		userID             sql.NullInt64
+		apiKeyID           sql.NullInt64
+		accountID          sql.NullInt64
+		groupID            sql.NullInt64
 		upstreamStatusCode sql.NullInt64
-		ttft sql.NullInt64
-		thinkingBudget sql.NullInt64
-		toolKinds []string
+		ttft               sql.NullInt64
+		thinkingBudget     sql.NullInt64
+		toolKinds          []string
 	)
 	err := scanner.Scan(
 		&item.ID,

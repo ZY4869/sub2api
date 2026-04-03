@@ -209,12 +209,21 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const displayModelIdentifier = (model: Pick<ClaudeModel, 'id' | 'canonical_id'> | null | undefined) => {
-  const canonicalID = String(model?.canonical_id || '').trim()
+type ModelDescriptor = {
+  id?: unknown
+  canonical_id?: unknown
+  status?: unknown
+}
+
+const getModelStringField = (model: ModelDescriptor | null | undefined, key: keyof ModelDescriptor) =>
+  typeof model?.[key] === 'string' ? model[key].trim() : ''
+
+const displayModelIdentifier = (model: ModelDescriptor | null | undefined) => {
+  const canonicalID = getModelStringField(model, 'canonical_id')
   if (canonicalID) {
     return canonicalID
   }
-  return String(model?.id || '').trim()
+  return getModelStringField(model, 'id')
 }
 
 const availableModelOptions = computed<AccountTestModelOption[]>(() =>
@@ -228,7 +237,7 @@ const availableModelOptions = computed<AccountTestModelOption[]>(() =>
 const protocolSourceLabel = (sourceProtocol?: unknown) =>
   resolveGatewayProtocolLabel(sourceProtocol) || String(sourceProtocol || '').trim()
 
-const isDeprecatedModel = (model: Record<string, unknown> | null | undefined) => model?.status === 'deprecated'
+const isDeprecatedModel = (model: ModelDescriptor | null | undefined) => getModelStringField(model, 'status') === 'deprecated'
 
 const buttonClass = (mode: 'catalog' | 'manual') => [
   'rounded-xl border px-4 py-3 text-left transition-all',

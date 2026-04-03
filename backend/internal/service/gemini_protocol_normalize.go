@@ -475,9 +475,7 @@ func detectGeminiModelCapabilities(model string) geminiModelCapabilities {
 
 func normalizeGeminiModelID(model string) string {
 	normalized := normalizeRegistryID(model)
-	if strings.HasPrefix(normalized, "publishers/google/models/") {
-		normalized = strings.TrimPrefix(normalized, "publishers/google/models/")
-	}
+	normalized = strings.TrimPrefix(normalized, "publishers/google/models/")
 	if replacement, ok := vertexLegacyUpstreamModelAliases[normalized]; ok {
 		return replacement
 	}

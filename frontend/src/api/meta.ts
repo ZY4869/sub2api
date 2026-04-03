@@ -30,7 +30,7 @@ export async function getModelRegistry(etag?: string | null): Promise<ModelRegis
 
   const response = await apiClient.get<ModelRegistrySnapshot>('/meta/model-registry', {
     headers,
-    validateStatus: (status) => (status >= 200 && status < 300) || status === 304
+    validateStatus: (status: number) => (status >= 200 && status < 300) || status === 304
   })
 
   const nextEtag = typeof response.headers?.etag === 'string' ? response.headers.etag : null

@@ -237,7 +237,14 @@ func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Co
 	return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
 }
 func (s *GeminiMessagesCompatService) validateUpstreamBaseURL(raw string) (string, error) {
-	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
+	if s.cfg == nil {
+		normalized, err := urlvalidator.ValidateHTTPSURL(raw, urlvalidator.ValidationOptions{})
+		if err != nil {
+			return "", fmt.Errorf("invalid base_url: %w", err)
+		}
+		return normalized, nil
+	}
+	if !s.cfg.Security.URLAllowlist.Enabled {
 		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
 		if err != nil {
 			return "", fmt.Errorf("invalid base_url: %w", err)

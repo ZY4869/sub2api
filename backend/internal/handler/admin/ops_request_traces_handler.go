@@ -150,7 +150,7 @@ func (h *OpsHandler) ExportRequestTracesCSV(c *gin.Context) {
 			response.ErrorFrom(c, err)
 			return
 		}
-		c.Error(err)
+		_ = c.Error(err)
 	}
 }
 
@@ -166,26 +166,26 @@ func buildOpsRequestTraceFilterFromQuery(c *gin.Context) (*service.OpsRequestTra
 	}
 
 	filter := &service.OpsRequestTraceFilter{
-		Page:      page,
-		PageSize:  pageSize,
-		StartTime: &startTime,
-		EndTime:   &endTime,
-		Status:    strings.TrimSpace(c.Query("status")),
-		Platform:  strings.TrimSpace(c.Query("platform")),
-		ProtocolIn: strings.TrimSpace(c.Query("protocol_in")),
-		ProtocolOut: strings.TrimSpace(c.Query("protocol_out")),
-		Channel: strings.TrimSpace(c.Query("channel")),
-		RoutePath: strings.TrimSpace(c.Query("route_path")),
-		RequestType: strings.TrimSpace(c.Query("request_type")),
-		FinishReason: strings.TrimSpace(c.Query("finish_reason")),
-		CaptureReason: strings.TrimSpace(c.Query("capture_reason")),
-		RequestedModel: strings.TrimSpace(c.Query("requested_model")),
-		UpstreamModel: strings.TrimSpace(c.Query("upstream_model")),
-		RequestID: strings.TrimSpace(c.Query("request_id")),
-		ClientRequestID: strings.TrimSpace(c.Query("client_request_id")),
+		Page:              page,
+		PageSize:          pageSize,
+		StartTime:         &startTime,
+		EndTime:           &endTime,
+		Status:            strings.TrimSpace(c.Query("status")),
+		Platform:          strings.TrimSpace(c.Query("platform")),
+		ProtocolIn:        strings.TrimSpace(c.Query("protocol_in")),
+		ProtocolOut:       strings.TrimSpace(c.Query("protocol_out")),
+		Channel:           strings.TrimSpace(c.Query("channel")),
+		RoutePath:         strings.TrimSpace(c.Query("route_path")),
+		RequestType:       strings.TrimSpace(c.Query("request_type")),
+		FinishReason:      strings.TrimSpace(c.Query("finish_reason")),
+		CaptureReason:     strings.TrimSpace(c.Query("capture_reason")),
+		RequestedModel:    strings.TrimSpace(c.Query("requested_model")),
+		UpstreamModel:     strings.TrimSpace(c.Query("upstream_model")),
+		RequestID:         strings.TrimSpace(c.Query("request_id")),
+		ClientRequestID:   strings.TrimSpace(c.Query("client_request_id")),
 		UpstreamRequestID: strings.TrimSpace(c.Query("upstream_request_id")),
-		Query: strings.TrimSpace(c.Query("q")),
-		Sort: strings.TrimSpace(c.Query("sort")),
+		Query:             strings.TrimSpace(c.Query("q")),
+		Sort:              strings.TrimSpace(c.Query("sort")),
 	}
 
 	if filter.Sort == "" {
