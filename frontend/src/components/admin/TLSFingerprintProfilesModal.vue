@@ -245,20 +245,6 @@ const loadProfiles = async () => {
   }
 }
 
-watch(
-  () => props.show,
-  (show) => {
-    if (show) {
-      loadProfiles().catch((error) => console.error('Failed to refresh TLS fingerprint profiles:', error))
-      return
-    }
-    closeFormDialog()
-    showDeleteDialog.value = false
-    deletingProfile.value = null
-  },
-  { immediate: true }
-)
-
 const resetForm = () => {
   form.name = ''
   form.description = ''
@@ -297,6 +283,20 @@ const closeFormDialog = () => {
   editingProfile.value = null
   resetForm()
 }
+
+watch(
+  () => props.show,
+  (show) => {
+    if (show) {
+      loadProfiles().catch((error) => console.error('Failed to refresh TLS fingerprint profiles:', error))
+      return
+    }
+    closeFormDialog()
+    showDeleteDialog.value = false
+    deletingProfile.value = null
+  },
+  { immediate: true }
+)
 
 const openDeleteDialog = (profile: TLSFingerprintProfile) => {
   deletingProfile.value = profile
