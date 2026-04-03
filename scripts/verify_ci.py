@@ -524,6 +524,21 @@ def wait_for_http(url: str, *, expect_content_type: str | None = None, timeout_s
     raise RuntimeError(f"timeout waiting for {url}: {last_error}")
 
 
+def wait_for_docker_port(docker: str, container_name: str, container_port: str, *, timeout_seconds: int = 15) -> str:
+    deadline = time.time() + timeout_seconds
+    last_output = "docker port returned no output"
+    while time.time() < deadline:
+        result = run([docker, "port", container_name, container_port], cwd=REPO_ROOT, capture_output=True, check=False)
+        port_output = result.stdout.strip()
+        if port_output:
+            return port_output.splitlines()[0].rsplit(":", 1)[-1].strip()
+        combined = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part).strip()
+        if combined:
+            last_output = combined
+        time.sleep(1)
+    raise RuntimeError(f"docker did not expose port {container_port} within {timeout_seconds}s: {last_output}")
+
+
 def docker_smoke() -> None:
     docker = shutil.which("docker")
     if not docker:
@@ -565,10 +580,7 @@ def docker_smoke() -> None:
     try:
         run([docker, "run", "-d", "-P", "--name", container_name, tag], cwd=REPO_ROOT)
         container_started = True
-        port_output = run([docker, "port", container_name, "8080/tcp"], cwd=REPO_ROOT, capture_output=True).stdout.strip()
-        if not port_output:
-            raise RuntimeError("docker did not expose port 8080")
-        host_port = port_output.splitlines()[0].rsplit(":", 1)[-1].strip()
+        host_port = wait_for_docker_port(docker, container_name, "8080/tcp")
         wait_for_http(f"http://127.0.0.1:{host_port}/health")
     except Exception:
         if container_started:
