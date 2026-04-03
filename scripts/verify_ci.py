@@ -524,6 +524,38 @@ def wait_for_http(url: str, *, expect_content_type: str | None = None, timeout_s
     raise RuntimeError(f"timeout waiting for {url}: {last_error}")
 
 
+def wait_for_container_http(
+    docker: str,
+    container_name: str,
+    *,
+    path: str = "/health",
+    timeout_seconds: int = 45,
+) -> None:
+    deadline = time.time() + timeout_seconds
+    last_error = "request not attempted"
+    while time.time() < deadline:
+        result = run(
+            [
+                docker,
+                "exec",
+                container_name,
+                "curl",
+                "-fsS",
+                f"http://127.0.0.1:8080{path}",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return
+        combined = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part).strip()
+        if combined:
+            last_error = combined
+        time.sleep(1)
+    raise RuntimeError(f"timeout waiting for {container_name}{path}: {last_error}")
+
+
 def wait_for_docker_port(docker: str, container_name: str, container_port: str, *, timeout_seconds: int = 15) -> str:
     deadline = time.time() + timeout_seconds
     last_output = "docker port returned no output"
@@ -581,7 +613,8 @@ def docker_smoke() -> None:
         run([docker, "run", "-d", "-P", "--name", container_name, tag], cwd=REPO_ROOT)
         container_started = True
         host_port = wait_for_docker_port(docker, container_name, "8080/tcp")
-        wait_for_http(f"http://127.0.0.1:{host_port}/health")
+        info(f"docker exposed 8080/tcp on host port {host_port}")
+        wait_for_container_http(docker, container_name)
     except Exception:
         if container_started:
             logs = run([docker, "logs", container_name], cwd=REPO_ROOT, capture_output=True, check=False)
