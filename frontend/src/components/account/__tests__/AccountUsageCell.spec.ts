@@ -68,6 +68,34 @@ const usageBarStub = {
     '<div class="usage-bar">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ inlineReset }}|{{ windowStats?.tokens }}</div>',
 }
 
+const passiveUsageResponse = {
+  source: 'passive',
+  five_hour: {
+    utilization: 21,
+    resets_at: '2026-03-08T12:00:00Z',
+    remaining_seconds: 3600,
+    window_stats: {
+      requests: 2,
+      tokens: 200,
+      cost: 0.02,
+      standard_cost: 0.02,
+      user_cost: 0.02,
+    },
+  },
+  seven_day: {
+    utilization: 61,
+    resets_at: '2026-03-13T12:00:00Z',
+    remaining_seconds: 7200,
+    window_stats: {
+      requests: 6,
+      tokens: 610,
+      cost: 0.06,
+      standard_cost: 0.06,
+      user_cost: 0.06,
+    },
+  },
+}
+
 enableAutoUnmount(afterEach)
 
 describe('AccountUsageCell', () => {
@@ -221,32 +249,8 @@ describe('AccountUsageCell', () => {
 
   it('renders a sampled badge instead of the passive snapshot sentence for passive claudecloud data', async () => {
     getUsage.mockResolvedValue({
-      source: 'passive',
+      ...passiveUsageResponse,
       updated_at: '2026-03-07T10:00:00Z',
-      five_hour: {
-        utilization: 21,
-        resets_at: '2026-03-08T12:00:00Z',
-        remaining_seconds: 3600,
-        window_stats: {
-          requests: 2,
-          tokens: 200,
-          cost: 0.02,
-          standard_cost: 0.02,
-          user_cost: 0.02,
-        },
-      },
-      seven_day: {
-        utilization: 61,
-        resets_at: '2026-03-13T12:00:00Z',
-        remaining_seconds: 7200,
-        window_stats: {
-          requests: 6,
-          tokens: 610,
-          cost: 0.06,
-          standard_cost: 0.06,
-          user_cost: 0.06,
-        },
-      },
     })
 
     const wrapper = mount(AccountUsageCell, {
@@ -274,6 +278,65 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(document.body.textContent).toContain('Passive snapshot note')
+  })
+
+  it('limits concurrent auto usage loads across mounted cells', async () => {
+    let inFlight = 0
+    let maxInFlight = 0
+    const deferreds: Array<{ resolve: (value: unknown) => void }> = []
+
+    getUsage.mockImplementation(() => {
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+
+      return new Promise((resolve) => {
+        deferreds.push({
+          resolve: (value) => {
+            inFlight -= 1
+            resolve(value)
+          },
+        })
+      })
+    })
+
+    const wrappers = Array.from({ length: 5 }, (_, index) =>
+      mount(AccountUsageCell, {
+        props: {
+          account: {
+            id: 1200 + index,
+            platform: 'anthropic',
+            type: 'oauth',
+            extra: {},
+          } as any,
+        },
+        global: {
+          stubs: {
+            UsageProgressBar: usageBarStub,
+          },
+        },
+      }),
+    )
+
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledTimes(3)
+    expect(maxInFlight).toBeLessThanOrEqual(3)
+
+    deferreds.shift()?.resolve(passiveUsageResponse)
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledTimes(4)
+    expect(maxInFlight).toBeLessThanOrEqual(3)
+
+    while (deferreds.length > 0) {
+      deferreds.shift()?.resolve(passiveUsageResponse)
+      await flushPromises()
+    }
+
+    expect(getUsage).toHaveBeenCalledTimes(5)
+    expect(maxInFlight).toBeLessThanOrEqual(3)
+
+    wrappers.forEach((wrapper) => wrapper.unmount())
   })
 
   it('refreshes stale openai codex snapshots from the usage endpoint', async () => {

@@ -18,6 +18,7 @@ import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProto
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { resolveCodexUsageWindow } from '@/utils/codexUsage'
 import { resolveGeminiChannel, resolveGeminiChannelDisplayName } from '@/utils/geminiAccount'
+import { createAsyncTaskLimiter } from '@/utils/asyncTaskLimiter'
 import { formatLocalAbsoluteTime, formatLocalTimestamp, parseEffectiveResetAt } from '@/utils/usageResetTime'
 import { resolveUsageWindowLabel } from '@/utils/displayLabels'
 
@@ -38,6 +39,7 @@ interface UsageRowOptions {
 interface LoadUsageOptions {
   force?: boolean
   source?: 'passive' | 'active'
+  queue?: boolean
 }
 
 interface RefreshUsageOptions extends LoadUsageOptions {
@@ -53,6 +55,8 @@ interface RefreshUsageResult {
 
 const usageCache = new Map<number, UsageCacheEntry>()
 const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000
+const AUTO_USAGE_LOAD_CONCURRENCY = 3
+const autoUsageLoadLimiter = createAsyncTaskLimiter(AUTO_USAGE_LOAD_CONCURRENCY)
 
 function createUsageCacheEntry(): UsageCacheEntry {
   return reactive({
@@ -144,32 +148,38 @@ async function performUsageLoad(account: Account, options: LoadUsageOptions = {}
     options.source ??
     (prefersPassiveUsageSnapshot(account) ? 'passive' : undefined)
 
-  const request = adminAPI.accounts
-    .getUsage(account.id, {
+  const executeRequest = async () => {
+    const data = await adminAPI.accounts.getUsage(account.id, {
       force: options.force,
       source,
     })
-    .then(async (data) => {
-      let resolvedUsageInfo = data
 
-      if (shouldFallbackToActiveAnthropicUsage(account, source, data)) {
-        try {
-          resolvedUsageInfo = await adminAPI.accounts.getUsage(account.id, {
-            force: options.force,
-            source: 'active',
-          })
-        } catch (fallbackError) {
-          console.error('Failed to supplement anthropic passive usage with active usage:', fallbackError)
-        }
+    let resolvedUsageInfo = data
+
+    if (shouldFallbackToActiveAnthropicUsage(account, source, data)) {
+      try {
+        resolvedUsageInfo = await adminAPI.accounts.getUsage(account.id, {
+          force: options.force,
+          source: 'active',
+        })
+      } catch (fallbackError) {
+        console.error('Failed to supplement anthropic passive usage with active usage:', fallbackError)
       }
+    }
 
-      entry.usageInfo = resolvedUsageInfo
-      entry.preferOpenAIFetchedUsage = Boolean(
-        options.force &&
-          (getRuntimePlatform(account) === 'openai' || getRuntimePlatform(account) === 'copilot') &&
-          account.type === 'oauth',
-      )
-    })
+    entry.usageInfo = resolvedUsageInfo
+    entry.preferOpenAIFetchedUsage = Boolean(
+      options.force &&
+        (getRuntimePlatform(account) === 'openai' || getRuntimePlatform(account) === 'copilot') &&
+        account.type === 'oauth',
+    )
+  }
+
+  const requestRunner = options.queue
+    ? autoUsageLoadLimiter.run(executeRequest)
+    : executeRequest()
+
+  const request = requestRunner
     .catch((error) => {
       entry.error = getUsageLoadErrorMessage()
       entry.preferOpenAIFetchedUsage = false
@@ -939,7 +949,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     ([, shouldLoad]) => {
       if (!shouldLoad) return
       if (cacheEntry.value.usageInfo || cacheEntry.value.loading) return
-      loadUsage().catch((error) => {
+      loadUsage({ queue: true }).catch((error) => {
         console.error('Failed to initialize account usage:', error)
       })
     },
