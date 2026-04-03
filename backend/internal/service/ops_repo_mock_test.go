@@ -9,6 +9,13 @@ import (
 type opsRepoMock struct {
 	InsertErrorLogFn              func(ctx context.Context, input *OpsInsertErrorLogInput) (int64, error)
 	BatchInsertErrorLogsFn        func(ctx context.Context, inputs []*OpsInsertErrorLogInput) (int64, error)
+	InsertRequestTraceFn          func(ctx context.Context, input *OpsInsertRequestTraceInput) (int64, error)
+	ListRequestTracesFn           func(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceList, error)
+	GetRequestTraceByIDFn         func(ctx context.Context, id int64) (*OpsRequestTraceDetail, error)
+	GetRequestTraceRawByIDFn      func(ctx context.Context, id int64) (*OpsRequestTraceRawDetail, error)
+	GetRequestTraceSummaryFn      func(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceSummary, error)
+	InsertRequestTraceAuditFn     func(ctx context.Context, input *OpsInsertRequestTraceAuditInput) error
+	ListRequestTraceAuditsFn      func(ctx context.Context, traceID int64) ([]*OpsRequestTraceAuditLog, error)
 	BatchInsertSystemLogsFn       func(ctx context.Context, inputs []*OpsInsertSystemLogInput) (int64, error)
 	ListSystemLogsFn              func(ctx context.Context, filter *OpsSystemLogFilter) (*OpsSystemLogList, error)
 	DeleteSystemLogsFn            func(ctx context.Context, filter *OpsSystemLogCleanupFilter) (int64, error)
@@ -39,6 +46,55 @@ func (m *opsRepoMock) GetErrorLogByID(ctx context.Context, id int64) (*OpsErrorL
 
 func (m *opsRepoMock) ListRequestDetails(ctx context.Context, filter *OpsRequestDetailFilter) ([]*OpsRequestDetail, int64, error) {
 	return []*OpsRequestDetail{}, 0, nil
+}
+
+func (m *opsRepoMock) InsertRequestTrace(ctx context.Context, input *OpsInsertRequestTraceInput) (int64, error) {
+	if m.InsertRequestTraceFn != nil {
+		return m.InsertRequestTraceFn(ctx, input)
+	}
+	return 0, nil
+}
+
+func (m *opsRepoMock) ListRequestTraces(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceList, error) {
+	if m.ListRequestTracesFn != nil {
+		return m.ListRequestTracesFn(ctx, filter)
+	}
+	return &OpsRequestTraceList{Items: []*OpsRequestTraceListItem{}, Total: 0, Page: 1, PageSize: 50}, nil
+}
+
+func (m *opsRepoMock) GetRequestTraceByID(ctx context.Context, id int64) (*OpsRequestTraceDetail, error) {
+	if m.GetRequestTraceByIDFn != nil {
+		return m.GetRequestTraceByIDFn(ctx, id)
+	}
+	return &OpsRequestTraceDetail{}, nil
+}
+
+func (m *opsRepoMock) GetRequestTraceRawByID(ctx context.Context, id int64) (*OpsRequestTraceRawDetail, error) {
+	if m.GetRequestTraceRawByIDFn != nil {
+		return m.GetRequestTraceRawByIDFn(ctx, id)
+	}
+	return &OpsRequestTraceRawDetail{}, nil
+}
+
+func (m *opsRepoMock) GetRequestTraceSummary(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceSummary, error) {
+	if m.GetRequestTraceSummaryFn != nil {
+		return m.GetRequestTraceSummaryFn(ctx, filter)
+	}
+	return &OpsRequestTraceSummary{}, nil
+}
+
+func (m *opsRepoMock) InsertRequestTraceAudit(ctx context.Context, input *OpsInsertRequestTraceAuditInput) error {
+	if m.InsertRequestTraceAuditFn != nil {
+		return m.InsertRequestTraceAuditFn(ctx, input)
+	}
+	return nil
+}
+
+func (m *opsRepoMock) ListRequestTraceAudits(ctx context.Context, traceID int64) ([]*OpsRequestTraceAuditLog, error) {
+	if m.ListRequestTraceAuditsFn != nil {
+		return m.ListRequestTraceAuditsFn(ctx, traceID)
+	}
+	return []*OpsRequestTraceAuditLog{}, nil
 }
 
 func (m *opsRepoMock) BatchInsertSystemLogs(ctx context.Context, inputs []*OpsInsertSystemLogInput) (int64, error) {

@@ -3,10 +3,25 @@ package dto
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
+
+var accountListLiteCredentialAllowlist = map[string]struct{}{
+	"plan_type":          {},
+	"tier_id":            {},
+	"oauth_type":         {},
+	"gemini_api_variant": {},
+}
+
+var accountListLiteExtraAllowlist = map[string]struct{}{
+	"email_address":     {},
+	"privacy_mode":      {},
+	"model_rate_limits": {},
+	"allow_overages":    {},
+}
 
 func UserFromServiceShallow(u *service.User) *User {
 	if u == nil {
@@ -409,6 +424,36 @@ func AccountFromService(a *service.Account) *Account {
 		}
 	}
 	return out
+}
+
+func AccountFromServiceListLite(a *service.Account) *Account {
+	if a == nil {
+		return nil
+	}
+	out := AccountFromService(a)
+	out.Credentials = filterAccountListLiteMap(out.Credentials, accountListLiteCredentialAllowlist, false)
+	out.Extra = filterAccountListLiteMap(out.Extra, accountListLiteExtraAllowlist, true)
+	return out
+}
+
+func filterAccountListLiteMap(source map[string]any, allowlist map[string]struct{}, includeCodexPrefix bool) map[string]any {
+	if source == nil {
+		return nil
+	}
+	filtered := make(map[string]any)
+	for key, value := range source {
+		if _, ok := allowlist[key]; ok {
+			filtered[key] = value
+			continue
+		}
+		if includeCodexPrefix && strings.HasPrefix(key, "codex_") {
+			filtered[key] = value
+		}
+	}
+	if len(filtered) == 0 {
+		return map[string]any{}
+	}
+	return filtered
 }
 
 func timeToUnixSeconds(value *time.Time) *int64 {

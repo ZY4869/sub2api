@@ -226,6 +226,25 @@ describe('AccountTestModal', () => {
     expect(text).toContain('replaced-by-claude-sonnet-4.5')
   })
 
+  it('prefers canonical_id when rendering the model identifier in the selector', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      {
+        id: 'claude-sonnet-4-5-20250929',
+        canonical_id: 'claude-sonnet-4.5',
+        display_name: 'Claude Sonnet 4.5'
+      }
+    ])
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('Claude Sonnet 4.5')
+    expect(text).toContain('claude-sonnet-4.5')
+    expect(text).not.toContain('claude-sonnet-4-5-20250929')
+  })
+
   it('shows blacklist advice and emits direct blacklist feedback from the test modal', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       createStreamResponse([

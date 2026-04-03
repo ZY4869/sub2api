@@ -16,6 +16,7 @@ export default {
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
+    requestDetails: 'Request Details',
     promoCodes: 'Promo Codes',
     dataManagement: 'Data Management',
     settings: 'Settings',

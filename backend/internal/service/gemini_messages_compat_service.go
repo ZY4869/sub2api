@@ -162,6 +162,7 @@ func (s *GeminiMessagesCompatService) SelectAccountForAIStudioEndpoints(ctx cont
 type geminiStreamResult struct {
 	usage        *ClaudeUsage
 	firstTokenMs *int
+	responseID   string
 }
 
 func (s *GeminiMessagesCompatService) extractImageSize(body []byte) string {

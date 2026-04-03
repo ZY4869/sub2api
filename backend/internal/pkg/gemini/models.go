@@ -13,18 +13,31 @@ type ModelsListResponse struct {
 	Models []Model `json:"models"`
 }
 
+var defaultFallbackModels = []Model{
+	{Name: "models/gemini-2.0-flash", DisplayName: "Gemini 2.0 Flash"},
+	{Name: "models/gemini-2.5-flash", DisplayName: "Gemini 2.5 Flash"},
+	{Name: "models/gemini-2.5-flash-image", DisplayName: "Gemini 2.5 Flash Image"},
+	{Name: "models/gemini-2.5-pro", DisplayName: "Gemini 2.5 Pro"},
+	{Name: "models/gemini-3-flash-preview", DisplayName: "Gemini 3 Flash Preview"},
+	{Name: "models/gemini-3.1-pro-preview", DisplayName: "Gemini 3.1 Pro Preview"},
+	{Name: "models/gemini-3.1-flash-lite-preview", DisplayName: "Gemini 3.1 Flash Lite Preview"},
+	{Name: "models/gemini-3.1-flash-image-preview", DisplayName: "Gemini 3.1 Flash Image Preview"},
+	{Name: "models/gemini-3-pro-image-preview", DisplayName: "Gemini 3 Pro Image Preview"},
+}
+
+func defaultSupportedGenerationMethods() []string {
+	return []string{"generateContent", "streamGenerateContent", "countTokens"}
+}
+
 func DefaultModels() []Model {
-	methods := []string{"generateContent", "streamGenerateContent"}
-	return []Model{
-		{Name: "models/gemini-2.0-flash", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-2.5-flash", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-2.5-flash-image", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-2.5-pro", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3-flash-preview", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3-pro-preview", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3.1-pro-preview", SupportedGenerationMethods: methods},
-		{Name: "models/gemini-3.1-flash-image", SupportedGenerationMethods: methods},
+	methods := defaultSupportedGenerationMethods()
+	models := make([]Model, 0, len(defaultFallbackModels))
+	for _, model := range defaultFallbackModels {
+		clone := model
+		clone.SupportedGenerationMethods = append([]string(nil), methods...)
+		models = append(models, clone)
 	}
+	return models
 }
 
 func FallbackModelsList() ModelsListResponse {
@@ -32,7 +45,7 @@ func FallbackModelsList() ModelsListResponse {
 }
 
 func FallbackModel(model string) Model {
-	methods := []string{"generateContent", "streamGenerateContent"}
+	methods := defaultSupportedGenerationMethods()
 	if model == "" {
 		return Model{Name: "models/unknown", SupportedGenerationMethods: methods}
 	}

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,9 +13,25 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type geminiCompatHTTPUpstreamStub struct {
+	do func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error)
+}
+
+func (s *geminiCompatHTTPUpstreamStub) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+	if s != nil && s.do != nil {
+		return s.do(req, proxyURL, accountID, accountConcurrency)
+	}
+	return nil, errors.New("unexpected Do call")
+}
+
+func (s *geminiCompatHTTPUpstreamStub) DoWithTLS(req *http.Request, proxyURL string, accountID int64, accountConcurrency int, tlsProfile *tlsfingerprint.Profile) (*http.Response, error) {
+	return s.Do(req, proxyURL, accountID, accountConcurrency)
+}
 
 // TestConvertClaudeToolsToGeminiTools_CustomType 测试custom类型工具转换
 func TestConvertClaudeToolsToGeminiTools_CustomType(t *testing.T) {
@@ -86,7 +104,8 @@ func TestConvertClaudeToolsToGeminiTools_CustomType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertClaudeToolsToGeminiTools(tt.tools)
+			result, _, err := convertClaudeToolsToGeminiTools(tt.tools, geminiTransformOptions{AllowURLContext: true})
+			require.NoError(t, err)
 
 			if tt.expectedLen == 0 {
 				if result != nil {
@@ -168,6 +187,107 @@ func TestGeminiHandleNativeNonStreamingResponse_DebugDisabledDoesNotEmitHeaderLo
 	require.NoError(t, err)
 	require.NotNil(t, usage)
 	require.False(t, logSink.ContainsMessage("[GeminiAPI]"), "debug 关闭时不应输出 Gemini 响应头日志")
+}
+
+func TestGeminiHandleNativeNonStreamingResponse_SetsRequestIDFromBodyResponseID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &GeminiMessagesCompatService{}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:generateContent", nil)
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+		},
+		Body: io.NopCloser(strings.NewReader(`{"responseId":"resp-native-1","usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":2}}`)),
+	}
+
+	usage, err := svc.handleNativeNonStreamingResponse(c, resp, false)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Equal(t, "resp-native-1", w.Header().Get("x-request-id"))
+}
+
+func TestForwardNativeCountTokens_UpstreamSourceHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				require.Equal(t, http.MethodPost, req.Method)
+				require.Contains(t, req.URL.String(), ":countTokens")
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"totalTokens":7}`)),
+				}, nil
+			},
+		},
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	body := []byte(`{"contents":[{"role":"user","parts":[{"text":"hello world"}]}]}`)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:countTokens", strings.NewReader(string(body)))
+
+	result, err := svc.ForwardNative(context.Background(), c, &Account{
+		ID:       501,
+		Name:     "Gemini API Key",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+		},
+	}, "gemini-2.5-flash", "countTokens", false, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, string(geminiCountTokensSourceUpstream), w.Header().Get(geminiCountTokensSourceHeader))
+	require.JSONEq(t, `{"totalTokens":7}`, w.Body.String())
+}
+
+func TestForwardNativeCountTokens_EstimatedFallbackHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: http.StatusBadRequest,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+						"x-request-id": []string{"upstream-count-1"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"error":{"message":"request payload rejected"}}`)),
+				}, nil
+			},
+		},
+	}
+
+	body := []byte(`{"contents":[{"role":"user","parts":[{"text":"hello world"}]}]}`)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:countTokens", strings.NewReader(string(body)))
+
+	result, err := svc.ForwardNative(context.Background(), c, &Account{
+		ID:       502,
+		Name:     "Gemini API Key",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+		},
+	}, "gemini-2.5-flash", "countTokens", false, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "upstream-count-1", result.RequestID)
+	require.Equal(t, "upstream-count-1", w.Header().Get("x-request-id"))
+	require.Equal(t, string(geminiCountTokensSourceEstimated), w.Header().Get(geminiCountTokensSourceHeader))
+	require.Contains(t, w.Body.String(), `"totalTokens":`)
 }
 
 func TestConvertClaudeMessagesToGeminiGenerateContent_AddsThoughtSignatureForToolUse(t *testing.T) {

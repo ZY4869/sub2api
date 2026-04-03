@@ -35,6 +35,13 @@ const apiKeyLinks = [
   { href: 'https://ai.google.dev/gemini-api/docs/rate-limits', labelKey: 'admin.accounts.gemini.accountType.quotaLink' }
 ]
 
+const gemini3Links = [
+  { href: 'https://ai.google.dev/gemini-api/docs/gemini-3?hl=zh-cn', labelKey: 'admin.accounts.gemini.gemini3Guide.links.gemini3' },
+  { href: 'https://ai.google.dev/gemini-api/docs/media-resolution', labelKey: 'admin.accounts.gemini.gemini3Guide.links.mediaResolution' },
+  { href: 'https://ai.google.dev/gemini-api/docs/tool-combination', labelKey: 'admin.accounts.gemini.gemini3Guide.links.toolCombination' },
+  { href: 'https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference', labelKey: 'admin.accounts.gemini.gemini3Guide.links.vertexInference' }
+]
+
 const aiStudioRows = computed(() =>
   (catalog.value?.ai_studio_tiers || []).flatMap((tier) =>
     tier.model_families.map((model) => ({
@@ -157,6 +164,32 @@ watch(
               </a>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 pt-6 dark:border-dark-600">
+        <h3 class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
+          {{ t('admin.accounts.gemini.gemini3Guide.title') }}
+        </h3>
+        <ul class="list-inside list-disc space-y-1 text-sm text-gray-600 dark:text-gray-400">
+          <li>{{ t('admin.accounts.gemini.gemini3Guide.items.stableDefault') }}</li>
+          <li>{{ t('admin.accounts.gemini.gemini3Guide.items.thinkingLevel') }}</li>
+          <li>{{ t('admin.accounts.gemini.gemini3Guide.items.thinkingBudget') }}</li>
+          <li>{{ t('admin.accounts.gemini.gemini3Guide.items.mediaResolution') }}</li>
+          <li>{{ t('admin.accounts.gemini.gemini3Guide.items.urlContext') }}</li>
+          <li>{{ t('admin.accounts.gemini.gemini3Guide.items.toolCombination') }}</li>
+        </ul>
+        <div class="mt-3 flex flex-wrap gap-3">
+          <a
+            v-for="link in gemini3Links"
+            :key="link.href"
+            :href="link.href"
+            target="_blank"
+            rel="noreferrer"
+            class="text-sm text-blue-600 hover:underline dark:text-blue-400"
+          >
+            {{ t(link.labelKey) }}
+          </a>
         </div>
       </div>
 

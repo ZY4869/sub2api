@@ -1,6 +1,10 @@
 package service
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
+)
 
 const (
 	GatewayProtocolOpenAI    = PlatformOpenAI
@@ -113,7 +117,7 @@ var gatewayClientProfileDescriptors = map[string]GatewayClientProfileDescriptor{
 		ID:                   GatewayClientProfileGeminiCLI,
 		DisplayName:          "Gemini CLI",
 		DebugTag:             "gemini_cli",
-		DefaultTestModel:     "gemini-2.5-pro",
+		DefaultTestModel:     geminicli.DefaultTestModel,
 		RequestHeaderProfile: "gemini_cli",
 		RequestBodyProfile:   "gemini_cli",
 		CompatibleProtocols:  []string{PlatformGemini},

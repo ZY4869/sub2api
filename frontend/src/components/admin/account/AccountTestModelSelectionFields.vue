@@ -74,7 +74,9 @@
               {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
             </span>
           </div>
-          <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.id }}</div>
+          <div class="truncate text-xs text-gray-500 dark:text-gray-400">
+            {{ displayModelIdentifier(option) }}
+          </div>
         </div>
         <span v-else>
           {{ loadingModels ? `${t('common.loading')}...` : t('admin.accounts.selectTestModel') }}
@@ -101,7 +103,9 @@
                 {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
               </span>
             </div>
-            <div class="truncate text-xs text-gray-500 dark:text-gray-400">{{ option.id }}</div>
+            <div class="truncate text-xs text-gray-500 dark:text-gray-400">
+              {{ displayModelIdentifier(option) }}
+            </div>
             <div
               v-if="option.replaced_by"
               class="truncate text-[11px] text-amber-600 dark:text-amber-300"
@@ -205,11 +209,19 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+const displayModelIdentifier = (model: Pick<ClaudeModel, 'id' | 'canonical_id'> | null | undefined) => {
+  const canonicalID = String(model?.canonical_id || '').trim()
+  if (canonicalID) {
+    return canonicalID
+  }
+  return String(model?.id || '').trim()
+}
+
 const availableModelOptions = computed<AccountTestModelOption[]>(() =>
   props.availableModels.map((model) => ({
     ...model,
     key: buildAccountTestModelOptionKeyFromModel(model),
-    description: model.id
+    description: displayModelIdentifier(model)
   }))
 )
 

@@ -30,6 +30,7 @@ func RegisterGatewayRoutes(
 	soraBodyLimit := middleware.RequestBodyLimit(soraMaxBodySize)
 	clientRequestID := middleware.ClientRequestID()
 	opsErrorLogger := handler.OpsErrorLoggerMiddleware(opsService)
+	opsRequestTraceLogger := handler.OpsRequestTraceMiddleware(opsService)
 	endpointNorm := handler.InboundEndpointMiddleware()
 
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
@@ -41,6 +42,7 @@ func RegisterGatewayRoutes(
 	gateway.Use(bodyLimit)
 	gateway.Use(clientRequestID)
 	gateway.Use(opsErrorLogger)
+	gateway.Use(opsRequestTraceLogger)
 	gateway.Use(endpointNorm)
 	gateway.Use(gin.HandlerFunc(apiKeyAuth))
 	gateway.Use(requireGroupAnthropic)
@@ -156,6 +158,7 @@ func RegisterGatewayRoutes(
 	grokV1.Use(bodyLimit)
 	grokV1.Use(clientRequestID)
 	grokV1.Use(opsErrorLogger)
+	grokV1.Use(opsRequestTraceLogger)
 	grokV1.Use(endpointNorm)
 	grokV1.Use(middleware.ForcePlatform(service.PlatformGrok))
 	grokV1.Use(gin.HandlerFunc(apiKeyAuth))
@@ -176,6 +179,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)
+	gemini.Use(opsRequestTraceLogger)
 	gemini.Use(endpointNorm)
 	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	gemini.Use(requireGroupGoogle)
@@ -194,12 +198,13 @@ func RegisterGatewayRoutes(
 		gemini.POST("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
 		gemini.DELETE("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
 	}
-	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileUpload)
-	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileDownload)
+	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileUpload)
+	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileDownload)
 	googleBatchArchive := r.Group("/google/batch/archive/v1beta")
 	googleBatchArchive.Use(bodyLimit)
 	googleBatchArchive.Use(clientRequestID)
 	googleBatchArchive.Use(opsErrorLogger)
+	googleBatchArchive.Use(opsRequestTraceLogger)
 	googleBatchArchive.Use(endpointNorm)
 	googleBatchArchive.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	googleBatchArchive.Use(requireGroupGoogle)
@@ -211,6 +216,7 @@ func RegisterGatewayRoutes(
 	vertexBatch.Use(bodyLimit)
 	vertexBatch.Use(clientRequestID)
 	vertexBatch.Use(opsErrorLogger)
+	vertexBatch.Use(opsRequestTraceLogger)
 	vertexBatch.Use(endpointNorm)
 	vertexBatch.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	vertexBatch.Use(requireGroupGoogle)
@@ -224,74 +230,74 @@ func RegisterGatewayRoutes(
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）
-	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.Responses(c)
 			return
 		}
 		h.OpenAIGateway.Responses(c)
 	})
-	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.Responses(c)
 			return
 		}
 		h.OpenAIGateway.Responses(c)
 	})
-	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.Responses(c)
 			return
 		}
 		h.OpenAIGateway.Responses(c)
 	})
-	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.Responses(c)
 			return
 		}
 		h.OpenAIGateway.Responses(c)
 	})
-	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		h.OpenAIGateway.ResponsesWebSocket(c)
 	})
 	// OpenAI Chat Completions API（不带v1前缀的别名）
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.ChatCompletions(c)
 			return
 		}
 		h.OpenAIGateway.ChatCompletions(c)
 	})
-	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.ImagesGeneration(c)
 			return
 		}
 		writeGrokAliasUnavailable(c, "/images/generations")
 	})
-	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.ImagesEdits(c)
 			return
 		}
 		writeGrokAliasUnavailable(c, "/images/edits")
 	})
-	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.VideosGeneration(c)
 			return
 		}
 		writeGrokAliasUnavailable(c, "/videos")
 	})
-	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.VideosGeneration(c)
 			return
 		}
 		writeGrokAliasUnavailable(c, "/videos/generations")
 	})
-	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
+	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
 		if isGrokGroup(c) {
 			h.GrokGateway.VideoStatus(c)
 			return
@@ -307,6 +313,7 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(bodyLimit)
 	antigravityV1.Use(clientRequestID)
 	antigravityV1.Use(opsErrorLogger)
+	antigravityV1.Use(opsRequestTraceLogger)
 	antigravityV1.Use(endpointNorm)
 	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
@@ -322,6 +329,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta.Use(bodyLimit)
 	antigravityV1Beta.Use(clientRequestID)
 	antigravityV1Beta.Use(opsErrorLogger)
+	antigravityV1Beta.Use(opsRequestTraceLogger)
 	antigravityV1Beta.Use(endpointNorm)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
@@ -337,6 +345,7 @@ func RegisterGatewayRoutes(
 	soraV1.Use(soraBodyLimit)
 	soraV1.Use(clientRequestID)
 	soraV1.Use(opsErrorLogger)
+	soraV1.Use(opsRequestTraceLogger)
 	soraV1.Use(endpointNorm)
 	soraV1.Use(middleware.ForcePlatform(service.PlatformSora))
 	soraV1.Use(gin.HandlerFunc(apiKeyAuth))

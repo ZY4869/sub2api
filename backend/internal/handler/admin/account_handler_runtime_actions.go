@@ -232,7 +232,18 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 	}
 
 	force := parseBoolQueryWithDefault(c.Query("force"), false)
-	usage, err := h.accountUsageService.GetUsage(c.Request.Context(), accountID, force)
+	source := strings.TrimSpace(strings.ToLower(c.Query("source")))
+
+	var usage *service.UsageInfo
+	switch source {
+	case "", "active":
+		usage, err = h.accountUsageService.GetUsage(c.Request.Context(), accountID, force)
+	case "passive":
+		usage, err = h.accountUsageService.GetPassiveUsage(c.Request.Context(), accountID)
+	default:
+		response.BadRequest(c, "Invalid source")
+		return
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

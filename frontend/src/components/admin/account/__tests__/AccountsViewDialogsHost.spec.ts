@@ -17,6 +17,7 @@ function createProps() {
     showCreate: true,
     showArchiveSelected: false,
     showEdit: false,
+    editLoading: false,
     showSync: false,
     showImportData: false,
     showExportDataDialog: false,

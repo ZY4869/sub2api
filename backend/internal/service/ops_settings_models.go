@@ -94,6 +94,11 @@ type OpsAlertRuntimeSettings struct {
 type OpsAdvancedSettings struct {
 	DataRetention                   OpsDataRetentionSettings `json:"data_retention"`
 	Aggregation                     OpsAggregationSettings   `json:"aggregation"`
+	RequestDetailsEnabled           bool                     `json:"request_details_enabled"`
+	RequestDetailRetentionDays      int                      `json:"request_detail_retention_days"`
+	SuccessSampleRate               float64                  `json:"success_sample_rate"`
+	ForceCaptureSlowMs              int                      `json:"force_capture_slow_ms"`
+	RawExportMaxRows                int                      `json:"raw_export_max_rows"`
 	IgnoreCountTokensErrors         bool                     `json:"ignore_count_tokens_errors"`
 	IgnoreContextCanceled           bool                     `json:"ignore_context_canceled"`
 	IgnoreNoAvailableAccounts       bool                     `json:"ignore_no_available_accounts"`

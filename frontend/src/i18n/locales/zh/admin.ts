@@ -2281,6 +2281,23 @@
           title: 'Gemini 使用指南',
           apiKeySection: 'API Key 相关链接'
         },
+        gemini3Guide: {
+          title: 'Gemini 3 参数对齐',
+          items: {
+            stableDefault: '默认测试模型仍使用 gemini-2.5-flash；Gemini 3 参数请优先选择 Gemini 3 预览模型。',
+            thinkingLevel: 'Gemini 3 推荐使用 thinkingLevel；兼容层会把 reasoning_effort 映射为 MINIMAL / LOW / MEDIUM / HIGH。',
+            thinkingBudget: 'thinkingBudget 在 Gemini 3 中仅作为兼容模式保留；同时传 thinkingLevel 与 thinkingBudget 会直接报错。',
+            mediaResolution: 'Claude 兼容请求现已支持 media_resolution / mediaResolution，并统一映射到 generationConfig.mediaResolution。',
+            urlContext: 'URL Context 仅支持 Gemini API 通道，不支持 Vertex Gemini 通道。',
+            toolCombination: '启用 includeServerSideToolInvocations 后，内建工具与函数调用会自动切到 VALIDATED 模式，避免 Gemini 3 组合工具 400。'
+          },
+          links: {
+            gemini3: 'Gemini 3 文档',
+            mediaResolution: '媒体分辨率文档',
+            toolCombination: '工具组合文档',
+            vertexInference: 'Vertex Inference 文档'
+          }
+        },
         modelPassthrough: 'Gemini 直接转发模型',
         modelPassthroughDesc: '所有模型请求将直接转发至 Gemini API，不进行模型限制或映射。',
         baseUrlHint: '留空使用官方 Gemini API',
@@ -3996,6 +4013,17 @@
         aggregation: '预聚合任务',
         enableAggregation: '启用预聚合任务',
         aggregationHint: '预聚合可提升长时间窗口查询性能',
+        requestDetails: '请求详细采集',
+        requestDetailsEnabled: '启用请求详细采集',
+        requestDetailsEnabledHint: '控制是否为请求详细页面持久化网关 trace 数据。',
+        requestDetailRetentionDays: '请求详细保留天数',
+        requestDetailRetentionDaysHint: '达到保留上限后会清理脱敏与原文 trace 数据。',
+        successSampleRate: '成功请求采样率',
+        successSampleRateHint: '仅作用于未被强制保留的成功请求，填写 0 到 1 之间的小数。',
+        forceCaptureSlowMs: '慢请求强制保留阈值',
+        forceCaptureSlowMsHint: '超过该耗时的成功请求会被强制保留。',
+        rawExportMaxRows: '原文导出最大行数',
+        rawExportMaxRowsHint: '限制同步原文 CSV 导出规模，避免数据库和内存压力过高。',
         errorFiltering: '错误过滤',
         ignoreCountTokensErrors: '忽略 count_tokens 错误',
         ignoreCountTokensErrorsHint: '启用后，count_tokens 请求的错误将不会写入错误日志。',
@@ -4022,6 +4050,9 @@
         validation: {
           title: '请先修正以下问题',
           retentionDaysRange: '保留天数必须在1-365天之间',
+          successSampleRateRange: '成功采样率必须在 0 到 1 之间',
+          forceCaptureSlowMsRange: '慢请求阈值必须在 100 到 300000 毫秒之间',
+          rawExportMaxRowsRange: '原文导出最大行数必须在 100 到 100000 之间',
           slaMinPercentRange: 'SLA最低百分比必须在0-100之间',
           ttftP99MaxRange: 'TTFT P99最大值必须大于等于0',
           requestErrorRateMaxRange: '请求错误率最大值必须在0-100之间',
@@ -4623,6 +4654,133 @@
       failedToSave: '保存规则失败',
       failedToDelete: '删除规则失败',
       failedToToggle: '切换状态失败'
+    },
+
+    requestDetails: {
+      title: '请求详细',
+      description: '按请求链路查看网关的入站、标准化、上游与最终响应详情，并支持筛选排障。',
+      actions: {
+        exportMasked: '导出脱敏 CSV',
+        exportRaw: '导出原文 CSV'
+      },
+      summary: {
+        requests: '请求量',
+        successErrorHint: '成功 {success} / 失败 {error}',
+        latency: '延迟',
+        capability: '能力覆盖率',
+        capabilityHint: '流式 {stream} / 工具 {tools} / Thinking {thinking}',
+        rawCoverage: '原文覆盖率',
+        rawCoverageHint: '{raw} / {total} 条 trace 含原文快照'
+      },
+      filters: {
+        title: '筛选条件',
+        description: '先用元数据缩小范围，再进入单条 trace 查看大 payload，可兼顾性能与排障效率。',
+        advanced: '高级筛选',
+        any: '全部',
+        q: '全文检索',
+        qPlaceholder: '请求 ID、模型、finish reason、路由、tool kind...',
+        timeRange: '时间范围',
+        startTime: '开始时间',
+        endTime: '结束时间',
+        platform: '平台',
+        protocolIn: '入口协议',
+        protocolOut: '出口协议',
+        channel: '通道',
+        routePath: '路由',
+        status: '状态',
+        finishReason: 'Finish Reason',
+        requestType: '请求类型',
+        userId: '用户 ID',
+        apiKeyId: 'API Key ID',
+        accountId: '账号 ID',
+        groupId: '分组 ID',
+        requestedModel: '请求模型',
+        upstreamModel: '上游模型',
+        requestId: '请求 ID',
+        clientRequestId: '客户端请求 ID',
+        upstreamRequestId: '上游请求 ID',
+        captureReason: '采样原因',
+        stream: '是否流式',
+        hasTools: '是否工具调用',
+        hasThinking: '是否 Thinking',
+        rawAvailable: '是否有原文',
+        timeRangeOptions: {
+          '5m': '最近 5 分钟',
+          '30m': '最近 30 分钟',
+          '1h': '最近 1 小时',
+          '6h': '最近 6 小时',
+          '24h': '最近 24 小时',
+          '7d': '最近 7 天',
+          '30d': '最近 30 天'
+        }
+      },
+      charts: {
+        requests: '请求量',
+        errors: '错误量',
+        p95Latency: 'P95 延迟',
+        trendTitle: '请求量与延迟趋势',
+        trendDescription: '观察请求量、错误量与延迟的时间变化。',
+        statusTitle: '状态分布',
+        statusDescription: '当前窗口内 trace 的最终状态分布。',
+        protocolTitle: '协议对分布',
+        protocolDescription: '当前窗口内入口协议与出口协议的组合。',
+        finishReasonTitle: 'Finish Reason 分布',
+        finishReasonDescription: '上游 finish reason 与阻断结果的主要分布。',
+        modelTitle: '模型分布',
+        modelDescription: '请求模型与上游模型的集中度。',
+        capabilityTitle: '能力分布',
+        capabilityDescription: '展示流式、工具、Thinking 与原文保留等能力标记的占比。'
+      },
+      table: {
+        title: '请求表格',
+        description: '列表只读取可检索元数据，大 payload 按需查看，保证大时间窗也能稳定分页。',
+        view: '查看',
+        empty: '当前筛选条件下没有请求 trace。',
+        columns: {
+          time: '时间',
+          requestId: '请求 / 上游 ID',
+          protocolPair: '协议对',
+          route: '路由',
+          subject: '用户 / Key / 账号 / 分组',
+          models: '请求 / 上游模型',
+          status: '状态',
+          latency: '耗时 / TTFT',
+          tokens: 'Tokens',
+          flags: '标记',
+          actions: '操作'
+        }
+      },
+      drawer: {
+        title: '请求详情',
+        noSelection: '选择一条请求 trace 后可查看详细内容。',
+        loadRaw: '加载原文',
+        rawNotAllowed: '原文查看仅对配置的审计用户开放。',
+        auditOperator: '操作人 #{id}',
+        sections: {
+          identity: '基础身份',
+          execution: '执行结果',
+          flags: '能力标记',
+          headers: '请求头 / 响应头'
+        },
+        tabs: {
+          overview: '概览',
+          inbound: '原始请求',
+          normalized: '标准化请求',
+          upstreamRequest: '上游请求',
+          upstreamResponse: '上游响应',
+          gatewayResponse: '网关响应',
+          tools: '工具 / Thinking',
+          audits: '审计记录',
+          raw: '原文'
+        }
+      },
+      messages: {
+        listFailed: '加载请求 trace 列表失败',
+        summaryFailed: '加载请求汇总失败',
+        detailFailed: '加载请求详情失败',
+        rawFailed: '加载原文失败',
+        exportFailed: '导出请求 trace 失败'
+      }
     },
 
     tlsFingerprintProfiles: {

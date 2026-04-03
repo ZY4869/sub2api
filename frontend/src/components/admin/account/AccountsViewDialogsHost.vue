@@ -16,6 +16,7 @@
   />
   <EditAccountModal
     :show="showEdit"
+    :loading="editLoading"
     :account="editingAccount"
     :proxies="proxies"
     :groups="groups"
@@ -184,6 +185,7 @@ defineProps<{
   showCreate: boolean
   showArchiveSelected: boolean
   showEdit: boolean
+  editLoading: boolean
   showSync: boolean
   showImportData: boolean
   showExportDataDialog: boolean

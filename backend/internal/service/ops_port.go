@@ -11,6 +11,13 @@ type OpsRepository interface {
 	ListErrorLogs(ctx context.Context, filter *OpsErrorLogFilter) (*OpsErrorLogList, error)
 	GetErrorLogByID(ctx context.Context, id int64) (*OpsErrorLogDetail, error)
 	ListRequestDetails(ctx context.Context, filter *OpsRequestDetailFilter) ([]*OpsRequestDetail, int64, error)
+	InsertRequestTrace(ctx context.Context, input *OpsInsertRequestTraceInput) (int64, error)
+	ListRequestTraces(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceList, error)
+	GetRequestTraceByID(ctx context.Context, id int64) (*OpsRequestTraceDetail, error)
+	GetRequestTraceRawByID(ctx context.Context, id int64) (*OpsRequestTraceRawDetail, error)
+	GetRequestTraceSummary(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceSummary, error)
+	InsertRequestTraceAudit(ctx context.Context, input *OpsInsertRequestTraceAuditInput) error
+	ListRequestTraceAudits(ctx context.Context, traceID int64) ([]*OpsRequestTraceAuditLog, error)
 	BatchInsertSystemLogs(ctx context.Context, inputs []*OpsInsertSystemLogInput) (int64, error)
 	ListSystemLogs(ctx context.Context, filter *OpsSystemLogFilter) (*OpsSystemLogList, error)
 	DeleteSystemLogs(ctx context.Context, filter *OpsSystemLogCleanupFilter) (int64, error)

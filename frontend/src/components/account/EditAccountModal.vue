@@ -5,8 +5,14 @@
     width="account-wide"
     @close="handleClose"
   >
+    <div
+      v-if="loading"
+      class="flex min-h-[12rem] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50/60 px-6 py-10 text-sm text-gray-500 dark:border-dark-600 dark:bg-dark-700/30 dark:text-gray-300"
+    >
+      {{ t('common.loading') }}
+    </div>
     <form
-      v-if="account"
+      v-else-if="account"
       id="edit-account-form"
       @submit.prevent="handleSubmit"
       class="space-y-5"
@@ -414,6 +420,11 @@
     </form>
 
     <template #footer>
+      <div v-if="loading" class="flex justify-end">
+        <button @click="handleClose" type="button" class="btn btn-secondary">
+          {{ t('common.cancel') }}
+        </button>
+      </div>
       <div v-if="account" class="flex justify-end gap-3">
         <button @click="handleClose" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
@@ -589,12 +600,15 @@ import {
 
 interface Props {
   show: boolean
+  loading: boolean
   account: Account | null
   proxies: Proxy[]
   groups: AdminGroup[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  loading: false
+})
 const emit = defineEmits<{
   close: []
   updated: [account: Account]

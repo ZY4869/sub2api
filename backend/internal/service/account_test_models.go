@@ -143,16 +143,7 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 			}
 		}
 		candidates = append(candidates, testModelCandidate{
-			model: AvailableTestModel{
-				ID:             detail.ID,
-				Type:           "model",
-				DisplayName:    firstNonEmptyTestModelLabel(detail.DisplayName, detail.ID),
-				CreatedAt:      "",
-				SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
-				Status:         strings.TrimSpace(detail.Status),
-				DeprecatedAt:   strings.TrimSpace(detail.DeprecatedAt),
-				ReplacedBy:     strings.TrimSpace(detail.ReplacedBy),
-			},
+			model:      buildAvailableTestModelFromRegistryDetail(detail, sourceProtocol),
 			source:     strings.TrimSpace(detail.Source),
 			uiPriority: detail.UIPriority,
 		})

@@ -8,6 +8,7 @@ type OpsConfig struct {
 	Cleanup                OpsCleanupConfig               `mapstructure:"cleanup"`
 	MetricsCollectorCache  OpsMetricsCollectorCacheConfig `mapstructure:"metrics_collector_cache"`
 	Aggregation            OpsAggregationConfig           `mapstructure:"aggregation"`
+	RequestDetails         OpsRequestDetailsConfig        `mapstructure:"request_details"`
 }
 type OpsCleanupConfig struct {
 	Enabled                    bool   `mapstructure:"enabled"`
@@ -22,6 +23,15 @@ type OpsAggregationConfig struct {
 type OpsMetricsCollectorCacheConfig struct {
 	Enabled bool          `mapstructure:"enabled"`
 	TTL     time.Duration `mapstructure:"ttl"`
+}
+type OpsRequestDetailsConfig struct {
+	Enabled          bool    `mapstructure:"enabled"`
+	EncryptionKey    string  `mapstructure:"encryption_key"`
+	RawAccessUserIDs []int64 `mapstructure:"raw_access_user_ids"`
+	RetentionDays    int     `mapstructure:"retention_days"`
+	SuccessSampleRate float64 `mapstructure:"success_sample_rate"`
+	ForceCaptureSlowMs int   `mapstructure:"force_capture_slow_ms"`
+	RawExportMaxRows int     `mapstructure:"raw_export_max_rows"`
 }
 type JWTConfig struct {
 	Secret                   string `mapstructure:"secret"`

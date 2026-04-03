@@ -164,7 +164,11 @@ func (h *AccountHandler) List(c *gin.Context) {
 	result := make([]AccountWithConcurrency, len(accounts))
 	for i := range accounts {
 		acc := &accounts[i]
-		item := AccountWithConcurrency{Account: dto.AccountFromService(acc), CurrentConcurrency: concurrencyCounts[acc.ID]}
+		accountDTO := dto.AccountFromService(acc)
+		if lite {
+			accountDTO = dto.AccountFromServiceListLite(acc)
+		}
+		item := AccountWithConcurrency{Account: accountDTO, CurrentConcurrency: concurrencyCounts[acc.ID]}
 		if windowCosts != nil {
 			if cost, ok := windowCosts[acc.ID]; ok {
 				item.CurrentWindowCost = &cost

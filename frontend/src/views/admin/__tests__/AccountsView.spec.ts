@@ -21,8 +21,13 @@ const mockState = vi.hoisted(() => ({
   enterAutoRefreshSilentWindow: vi.fn(),
   pauseAutoRefresh: vi.fn(),
   resumeAutoRefresh: vi.fn(),
+  showSuccess: vi.fn(),
+  showWarning: vi.fn(),
+  showError: vi.fn(),
+  showInfo: vi.fn(),
   getAllGroups: vi.fn(),
-  getAllProxies: vi.fn()
+  getAllProxies: vi.fn(),
+  getById: vi.fn()
 }))
 
 vi.mock('vue-router', () => ({
@@ -43,10 +48,10 @@ vi.mock('vue-i18n', async () => {
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
-    showSuccess: vi.fn(),
-    showWarning: vi.fn(),
-    showError: vi.fn(),
-    showInfo: vi.fn()
+    showSuccess: mockState.showSuccess,
+    showWarning: mockState.showWarning,
+    showError: mockState.showError,
+    showInfo: mockState.showInfo
   })
 }))
 
@@ -69,7 +74,8 @@ vi.mock('@/stores/modelRegistry', () => ({
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
-      list: vi.fn()
+      list: vi.fn(),
+      getById: mockState.getById
     },
     groups: {
       getAll: mockState.getAllGroups
@@ -319,6 +325,7 @@ const PlatformTabsStub = defineComponent({
 const AccountsViewTableStub = defineComponent({
   name: 'AccountsViewTable',
   props: ['accounts', 'preserveInputOrder'],
+  emits: ['edit'],
   setup(props: { accounts?: Array<{ name: string }>; preserveInputOrder?: boolean }) {
     const accountOrder = computed(() => (props.accounts ?? []).map((account) => account.name).join(','))
     return {
@@ -329,6 +336,25 @@ const AccountsViewTableStub = defineComponent({
     <div>
       <div class="table-account-order">{{ accountOrder }}</div>
       <div class="table-preserve-input-order">{{ preserveInputOrder }}</div>
+      <button
+        v-if="accounts && accounts.length > 0"
+        class="edit-first-account"
+        @click="$emit('edit', accounts[0])"
+      />
+    </div>
+  `
+})
+
+const DialogsHostStub = defineComponent({
+  name: 'AccountsViewDialogsHost',
+  props: ['showEdit', 'editLoading', 'editingAccount'],
+  emits: ['close-edit'],
+  template: `
+    <div>
+      <div class="dialog-show-edit">{{ String(showEdit) }}</div>
+      <div class="dialog-edit-loading">{{ String(editLoading) }}</div>
+      <div class="dialog-edit-account">{{ editingAccount?.name || '' }}</div>
+      <button class="dialog-close-edit" @click="$emit('close-edit')" />
     </div>
   `
 })
@@ -347,11 +373,21 @@ const mountView = () =>
         AccountGroupedView: true,
         AccountCardGrid: true,
         AccountsViewTable: AccountsViewTableStub,
-        AccountsViewDialogsHost: true,
+        AccountsViewDialogsHost: DialogsHostStub,
         Pagination: true
       }
     }
   })
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
 
 describe('AccountsView', () => {
   beforeEach(() => {
@@ -379,8 +415,13 @@ describe('AccountsView', () => {
     mockState.enterAutoRefreshSilentWindow.mockClear()
     mockState.pauseAutoRefresh.mockClear()
     mockState.resumeAutoRefresh.mockClear()
+    mockState.showSuccess.mockReset()
+    mockState.showWarning.mockReset()
+    mockState.showError.mockReset()
+    mockState.showInfo.mockReset()
     mockState.getAllGroups.mockReset().mockResolvedValue([])
     mockState.getAllProxies.mockReset().mockResolvedValue([])
+    mockState.getById.mockReset()
   })
 
   it('keeps global summary counts independent from runtime_view and merges in-use separately', async () => {
@@ -542,6 +583,81 @@ describe('AccountsView', () => {
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
     expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gateway-1,Gemini-1')
     expect(localStorage.getItem('account-platform-count-sort-order')).toBe('count_desc')
+
+    wrapper.unmount()
+  })
+
+  it('loads full account detail before populating the edit dialog', async () => {
+    const deferred = createDeferred<any>()
+    mockState.getById.mockReturnValue(deferred.promise)
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.edit-first-account').trigger('click')
+
+    expect(mockState.getById).toHaveBeenCalledWith(1)
+    expect(wrapper.get('.dialog-show-edit').text()).toBe('true')
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('true')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('')
+
+    deferred.resolve({
+      id: 1,
+      name: 'OpenAI-1 detail',
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true,
+      proxy_id: null,
+      concurrency: 1,
+      priority: 0,
+      auto_pause_on_expired: false,
+      error_message: null,
+      last_used_at: null,
+      expires_at: null,
+      created_at: '2026-04-03T00:00:00Z',
+      updated_at: '2026-04-03T00:00:00Z',
+      rate_limited_at: null,
+      rate_limit_reset_at: null,
+      overload_until: null,
+      temp_unschedulable_until: null,
+      temp_unschedulable_reason: null,
+      session_window_start: null,
+      session_window_end: null,
+      session_window_status: null,
+      credentials: {
+        api_key: 'sk-live-detail'
+      },
+      extra: {
+        privacy_mode: 'strict'
+      }
+    })
+    await flushPromises()
+
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('OpenAI-1 detail')
+
+    wrapper.unmount()
+  })
+
+  it('closes the edit dialog and reports an error when detail loading fails', async () => {
+    const deferred = createDeferred<any>()
+    mockState.getById.mockReturnValue(deferred.promise)
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.edit-first-account').trigger('click')
+    expect(wrapper.get('.dialog-show-edit').text()).toBe('true')
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('true')
+
+    deferred.reject(new Error('detail failed'))
+    await flushPromises()
+
+    expect(wrapper.get('.dialog-show-edit').text()).toBe('false')
+    expect(wrapper.get('.dialog-edit-loading').text()).toBe('false')
+    expect(wrapper.get('.dialog-edit-account').text()).toBe('')
+    expect(mockState.showError).toHaveBeenCalledWith('detail failed')
 
     wrapper.unmount()
   })

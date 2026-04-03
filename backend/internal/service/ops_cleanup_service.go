@@ -155,6 +155,8 @@ func (s *OpsCleanupService) runScheduled() {
 
 type opsCleanupDeletedCounts struct {
 	errorLogs     int64
+	requestTraces int64
+	traceAudits   int64
 	retryAttempts int64
 	alertEvents   int64
 	systemLogs    int64
@@ -166,8 +168,10 @@ type opsCleanupDeletedCounts struct {
 
 func (c opsCleanupDeletedCounts) String() string {
 	return fmt.Sprintf(
-		"error_logs=%d retry_attempts=%d alert_events=%d system_logs=%d log_audits=%d system_metrics=%d hourly_preagg=%d daily_preagg=%d",
+		"error_logs=%d request_traces=%d trace_audits=%d retry_attempts=%d alert_events=%d system_logs=%d log_audits=%d system_metrics=%d hourly_preagg=%d daily_preagg=%d",
 		c.errorLogs,
+		c.requestTraces,
+		c.traceAudits,
 		c.retryAttempts,
 		c.alertEvents,
 		c.systemLogs,
@@ -196,6 +200,18 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 			return out, err
 		}
 		out.errorLogs = n
+
+		n, err = deleteOldRowsByID(ctx, s.db, "ops_request_traces", "created_at", cutoff, batchSize, false)
+		if err != nil {
+			return out, err
+		}
+		out.requestTraces = n
+
+		n, err = deleteOldRowsByID(ctx, s.db, "ops_request_trace_audits", "created_at", cutoff, batchSize, false)
+		if err != nil {
+			return out, err
+		}
+		out.traceAudits = n
 
 		n, err = deleteOldRowsByID(ctx, s.db, "ops_retry_attempts", "created_at", cutoff, batchSize, false)
 		if err != nil {

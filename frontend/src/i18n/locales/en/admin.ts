@@ -2147,6 +2147,23 @@ export default {
           title: 'Gemini Usage Guide',
           apiKeySection: 'API Key Links'
         },
+        gemini3Guide: {
+          title: 'Gemini 3 Parameter Alignment',
+          items: {
+            stableDefault: 'The default test model remains gemini-2.5-flash. Use Gemini 3 preview models when you need Gemini 3 specific parameters.',
+            thinkingLevel: 'Gemini 3 prefers thinkingLevel. The compatibility layer now maps reasoning_effort into MINIMAL / LOW / MEDIUM / HIGH.',
+            thinkingBudget: 'thinkingBudget is kept only as a legacy compatibility mode on Gemini 3. Sending both thinkingLevel and thinkingBudget now returns a validation error.',
+            mediaResolution: 'Claude-compatible requests now accept media_resolution / mediaResolution and normalize them into generationConfig.mediaResolution.',
+            urlContext: 'URL Context is available only on Gemini API channels and is rejected on Vertex Gemini channels.',
+            toolCombination: 'When includeServerSideToolInvocations is enabled, built-in tools plus function calling are normalized to VALIDATED mode to avoid Gemini 3 tool-combination 400s.'
+          },
+          links: {
+            gemini3: 'Gemini 3 docs',
+            mediaResolution: 'Media resolution docs',
+            toolCombination: 'Tool combination docs',
+            vertexInference: 'Vertex inference docs'
+          }
+        },
         modelPassthrough: 'Gemini Model Passthrough',
         modelPassthroughDesc:
           'All model requests are forwarded directly to the Gemini API without model restrictions or mappings.',
@@ -3831,6 +3848,17 @@ export default {
         aggregation: 'Pre-aggregation Tasks',
         enableAggregation: 'Enable Pre-aggregation',
         aggregationHint: 'Pre-aggregation improves query performance for long time windows',
+        requestDetails: 'Request Details Capture',
+        requestDetailsEnabled: 'Enable request detail capture',
+        requestDetailsEnabledHint: 'Controls whether gateway request traces are persisted for the request details page.',
+        requestDetailRetentionDays: 'Request detail retention days',
+        requestDetailRetentionDaysHint: 'Raw and sanitized trace payloads will be cleaned up after this number of days.',
+        successSampleRate: 'Success sampling rate',
+        successSampleRateHint: 'Applies to successful requests that are not force-captured. Use a decimal between 0 and 1.',
+        forceCaptureSlowMs: 'Force capture slow request threshold',
+        forceCaptureSlowMsHint: 'Successful requests above this latency are always captured.',
+        rawExportMaxRows: 'Raw export max rows',
+        rawExportMaxRowsHint: 'Limits synchronous raw CSV exports to reduce database and memory pressure.',
         errorFiltering: 'Error Filtering',
         ignoreCountTokensErrors: 'Ignore count_tokens errors',
         ignoreCountTokensErrorsHint: 'When enabled, errors from count_tokens requests will not be written to the error log.',
@@ -3856,6 +3884,9 @@ export default {
         validation: {
           title: 'Please fix the following issues',
           retentionDaysRange: 'Retention days must be between 1-365 days',
+          successSampleRateRange: 'Success sample rate must be between 0 and 1',
+          forceCaptureSlowMsRange: 'Slow request threshold must be between 100 and 300000 milliseconds',
+          rawExportMaxRowsRange: 'Raw export max rows must be between 100 and 100000',
           slaMinPercentRange: 'SLA minimum percentage must be between 0 and 100',
           ttftP99MaxRange: 'TTFT P99 maximum must be a number ≥ 0',
           requestErrorRateMaxRange: 'Request error rate maximum must be between 0 and 100',
@@ -4459,6 +4490,133 @@ export default {
       failedToSave: 'Failed to save rule',
       failedToDelete: 'Failed to delete rule',
       failedToToggle: 'Failed to toggle status'
+    },
+
+    requestDetails: {
+      title: 'Request Details',
+      description: 'Inspect gateway traces across inbound, normalized, upstream, and response payloads with searchable diagnostics.',
+      actions: {
+        exportMasked: 'Export CSV',
+        exportRaw: 'Export Raw CSV'
+      },
+      summary: {
+        requests: 'Requests',
+        successErrorHint: 'Success {success} / Error {error}',
+        latency: 'Latency',
+        capability: 'Capability Coverage',
+        capabilityHint: 'Stream {stream} / Tools {tools} / Thinking {thinking}',
+        rawCoverage: 'Raw Coverage',
+        rawCoverageHint: '{raw} of {total} traces include raw payloads'
+      },
+      filters: {
+        title: 'Filters',
+        description: 'Use metadata search first, then drill into a single trace for large payload inspection.',
+        advanced: 'Advanced Filters',
+        any: 'Any',
+        q: 'Search',
+        qPlaceholder: 'request id, model, finish reason, route, tool kind...',
+        timeRange: 'Time Range',
+        startTime: 'Start Time',
+        endTime: 'End Time',
+        platform: 'Platform',
+        protocolIn: 'Protocol In',
+        protocolOut: 'Protocol Out',
+        channel: 'Channel',
+        routePath: 'Route',
+        status: 'Status',
+        finishReason: 'Finish Reason',
+        requestType: 'Request Type',
+        userId: 'User ID',
+        apiKeyId: 'API Key ID',
+        accountId: 'Account ID',
+        groupId: 'Group ID',
+        requestedModel: 'Requested Model',
+        upstreamModel: 'Upstream Model',
+        requestId: 'Request ID',
+        clientRequestId: 'Client Request ID',
+        upstreamRequestId: 'Upstream Request ID',
+        captureReason: 'Capture Reason',
+        stream: 'Stream',
+        hasTools: 'Has Tools',
+        hasThinking: 'Has Thinking',
+        rawAvailable: 'Raw Available',
+        timeRangeOptions: {
+          '5m': 'Last 5 minutes',
+          '30m': 'Last 30 minutes',
+          '1h': 'Last 1 hour',
+          '6h': 'Last 6 hours',
+          '24h': 'Last 24 hours',
+          '7d': 'Last 7 days',
+          '30d': 'Last 30 days'
+        }
+      },
+      charts: {
+        requests: 'Requests',
+        errors: 'Errors',
+        p95Latency: 'P95 Latency',
+        trendTitle: 'Request Volume and Latency',
+        trendDescription: 'Track request count, errors, and latency changes over time.',
+        statusTitle: 'Status Distribution',
+        statusDescription: 'How gateway traces are distributed by final status.',
+        protocolTitle: 'Protocol Pairs',
+        protocolDescription: 'Inbound and outbound protocol combinations seen in this window.',
+        finishReasonTitle: 'Finish Reasons',
+        finishReasonDescription: 'Most common upstream finish reasons and blocking outcomes.',
+        modelTitle: 'Model Distribution',
+        modelDescription: 'Requested and upstream model usage concentration.',
+        capabilityTitle: 'Capability Distribution',
+        capabilityDescription: 'Share of traces that include streaming, tools, thinking, and raw payload capture.'
+      },
+      table: {
+        title: 'Trace Table',
+        description: 'Metadata-only listing keeps large time windows responsive.',
+        view: 'View',
+        empty: 'No request traces found for the current filters.',
+        columns: {
+          time: 'Time',
+          requestId: 'Request / Upstream ID',
+          protocolPair: 'Protocol Pair',
+          route: 'Route',
+          subject: 'User / Key / Account / Group',
+          models: 'Requested / Upstream Model',
+          status: 'Status',
+          latency: 'Duration / TTFT',
+          tokens: 'Tokens',
+          flags: 'Flags',
+          actions: 'Actions'
+        }
+      },
+      drawer: {
+        title: 'Trace Detail',
+        noSelection: 'Select a request trace to inspect details.',
+        loadRaw: 'Load Raw Payload',
+        rawNotAllowed: 'Raw payload access is restricted to configured audit users.',
+        auditOperator: 'Operator #{id}',
+        sections: {
+          identity: 'Identity',
+          execution: 'Execution',
+          flags: 'Flags',
+          headers: 'Headers'
+        },
+        tabs: {
+          overview: 'Overview',
+          inbound: 'Inbound Request',
+          normalized: 'Normalized Request',
+          upstreamRequest: 'Upstream Request',
+          upstreamResponse: 'Upstream Response',
+          gatewayResponse: 'Gateway Response',
+          tools: 'Tools / Thinking',
+          audits: 'Audit Log',
+          raw: 'Raw Payload'
+        }
+      },
+      messages: {
+        listFailed: 'Failed to load request traces',
+        summaryFailed: 'Failed to load request summary',
+        detailFailed: 'Failed to load request trace detail',
+        rawFailed: 'Failed to load raw payload',
+        exportFailed: 'Failed to export request traces'
+      }
     },
 
     tlsFingerprintProfiles: {

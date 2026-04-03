@@ -90,6 +90,8 @@ type kiroImageSource struct {
 }
 
 func buildKiroClaudePayload(body []byte, modelID, profileARN, origin string, headers http.Header) ([]byte, error) {
+	modelID = normalizeKiroRuntimeModelID(modelID)
+
 	var req map[string]any
 	if err := json.Unmarshal(body, &req); err != nil {
 		return nil, fmt.Errorf("parse claude request: %w", err)

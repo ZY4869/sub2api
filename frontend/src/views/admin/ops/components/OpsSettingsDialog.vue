@@ -135,7 +135,11 @@ const validation = computed(() => {
 
   // 验证高级设置
   if (advancedSettings.value) {
-    const { error_log_retention_days, minute_metrics_retention_days, hourly_metrics_retention_days } = advancedSettings.value.data_retention
+    const {
+      error_log_retention_days,
+      minute_metrics_retention_days,
+      hourly_metrics_retention_days
+    } = advancedSettings.value.data_retention
     if (error_log_retention_days < 1 || error_log_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
     }
@@ -144,6 +148,18 @@ const validation = computed(() => {
     }
     if (hourly_metrics_retention_days < 1 || hourly_metrics_retention_days > 365) {
       errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
+    }
+    if (advancedSettings.value.request_detail_retention_days < 1 || advancedSettings.value.request_detail_retention_days > 365) {
+      errors.push(t('admin.ops.settings.validation.retentionDaysRange'))
+    }
+    if (advancedSettings.value.success_sample_rate < 0 || advancedSettings.value.success_sample_rate > 1) {
+      errors.push(t('admin.ops.settings.validation.successSampleRateRange'))
+    }
+    if (advancedSettings.value.force_capture_slow_ms < 100 || advancedSettings.value.force_capture_slow_ms > 300000) {
+      errors.push(t('admin.ops.settings.validation.forceCaptureSlowMsRange'))
+    }
+    if (advancedSettings.value.raw_export_max_rows < 100 || advancedSettings.value.raw_export_max_rows > 100000) {
+      errors.push(t('admin.ops.settings.validation.rawExportMaxRowsRange'))
     }
   }
 
@@ -470,6 +486,70 @@ async function saveAllSettings() {
                 <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.aggregationHint') }}</p>
               </div>
               <Toggle v-model="advancedSettings.aggregation.aggregation_enabled" />
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <h5 class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ t('admin.ops.settings.requestDetails') }}</h5>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('admin.ops.settings.requestDetailsEnabled') }}</label>
+                <p class="mt-1 text-xs text-gray-500">
+                  {{ t('admin.ops.settings.requestDetailsEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="advancedSettings.request_details_enabled" />
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.requestDetailRetentionDays') }}</label>
+                <input
+                  v-model.number="advancedSettings.request_detail_retention_days"
+                  type="number"
+                  min="1"
+                  max="365"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.requestDetailRetentionDaysHint') }}</p>
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.successSampleRate') }}</label>
+                <input
+                  v-model.number="advancedSettings.success_sample_rate"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.successSampleRateHint') }}</p>
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.forceCaptureSlowMs') }}</label>
+                <input
+                  v-model.number="advancedSettings.force_capture_slow_ms"
+                  type="number"
+                  min="100"
+                  max="300000"
+                  step="100"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.forceCaptureSlowMsHint') }}</p>
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.ops.settings.rawExportMaxRows') }}</label>
+                <input
+                  v-model.number="advancedSettings.raw_export_max_rows"
+                  type="number"
+                  min="100"
+                  max="100000"
+                  step="100"
+                  class="input"
+                />
+                <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.rawExportMaxRowsHint') }}</p>
+              </div>
             </div>
           </div>
 

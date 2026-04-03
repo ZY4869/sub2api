@@ -368,6 +368,11 @@ func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 		Aggregation: OpsAggregationSettings{
 			AggregationEnabled: false,
 		},
+		RequestDetailsEnabled:           true,
+		RequestDetailRetentionDays:      30,
+		SuccessSampleRate:               0.1,
+		ForceCaptureSlowMs:              3000,
+		RawExportMaxRows:                10000,
 		IgnoreCountTokensErrors:         true,  // count_tokens 404 是预期行为，默认忽略
 		IgnoreContextCanceled:           true,  // Default to true - client disconnects are not errors
 		IgnoreNoAvailableAccounts:       false, // Default to false - this is a real routing issue
@@ -396,6 +401,21 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 	if cfg.DataRetention.HourlyMetricsRetentionDays <= 0 {
 		cfg.DataRetention.HourlyMetricsRetentionDays = 30
 	}
+	if cfg.RequestDetailRetentionDays <= 0 {
+		cfg.RequestDetailRetentionDays = 30
+	}
+	if cfg.SuccessSampleRate < 0 {
+		cfg.SuccessSampleRate = 0
+	}
+	if cfg.SuccessSampleRate > 1 {
+		cfg.SuccessSampleRate = 1
+	}
+	if cfg.ForceCaptureSlowMs <= 0 {
+		cfg.ForceCaptureSlowMs = 3000
+	}
+	if cfg.RawExportMaxRows <= 0 {
+		cfg.RawExportMaxRows = 10000
+	}
 	// Normalize auto refresh interval (default 30 seconds)
 	if cfg.AutoRefreshIntervalSec <= 0 {
 		cfg.AutoRefreshIntervalSec = 30
@@ -414,6 +434,18 @@ func validateOpsAdvancedSettings(cfg *OpsAdvancedSettings) error {
 	}
 	if cfg.DataRetention.HourlyMetricsRetentionDays < 1 || cfg.DataRetention.HourlyMetricsRetentionDays > 365 {
 		return errors.New("hourly_metrics_retention_days must be between 1 and 365")
+	}
+	if cfg.RequestDetailRetentionDays < 1 || cfg.RequestDetailRetentionDays > 365 {
+		return errors.New("request_detail_retention_days must be between 1 and 365")
+	}
+	if cfg.SuccessSampleRate < 0 || cfg.SuccessSampleRate > 1 {
+		return errors.New("success_sample_rate must be between 0 and 1")
+	}
+	if cfg.ForceCaptureSlowMs < 100 || cfg.ForceCaptureSlowMs > 300000 {
+		return errors.New("force_capture_slow_ms must be between 100 and 300000")
+	}
+	if cfg.RawExportMaxRows < 100 || cfg.RawExportMaxRows > 100000 {
+		return errors.New("raw_export_max_rows must be between 100 and 100000")
 	}
 	if cfg.AutoRefreshIntervalSec < 15 || cfg.AutoRefreshIntervalSec > 300 {
 		return errors.New("auto_refresh_interval_seconds must be between 15 and 300")

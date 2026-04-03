@@ -13,9 +13,11 @@ type HardBanMatch struct {
 type hardBanErrorEnvelope struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+	Detail  string `json:"detail"`
 	Error   struct {
 		Message string `json:"message"`
 		Code    string `json:"code"`
+		Detail  string `json:"detail"`
 	} `json:"error"`
 	Status int `json:"status"`
 }
@@ -105,7 +107,13 @@ func extractHardBanCodeAndMessage(envelope hardBanErrorEnvelope) (string, string
 
 	message := strings.TrimSpace(envelope.Error.Message)
 	if message == "" {
+		message = strings.TrimSpace(envelope.Error.Detail)
+	}
+	if message == "" {
 		message = strings.TrimSpace(envelope.Message)
+	}
+	if message == "" {
+		message = strings.TrimSpace(envelope.Detail)
 	}
 
 	return code, message

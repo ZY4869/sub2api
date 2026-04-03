@@ -157,6 +157,12 @@ func isRecommendedBlacklistError(code string, message string, statusCode int) bo
 			strings.Contains(code, "forbidden") {
 			return true
 		}
+		if strings.Contains(message, "unauthorized") ||
+			strings.Contains(message, "forbidden") ||
+			strings.Contains(message, "invalid credentials") ||
+			strings.Contains(message, "expired credentials") {
+			return true
+		}
 	}
 
 	recommendedPhrases := []string{

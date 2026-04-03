@@ -170,6 +170,7 @@
       :show-create="showCreate"
       :show-archive-selected="showArchiveSelected"
       :show-edit="showEdit"
+      :edit-loading="editLoading"
       :show-sync="showSync"
       :show-import-data="showImportData"
       :show-export-data-dialog="showExportDataDialog"
@@ -212,7 +213,7 @@
       @models-imported="handleImportedModels"
       @close-sync-dialog="closeSyncDialog"
       @submit-sync-dialog="submitSyncDialog"
-      @close-edit="showEdit = false"
+      @close-edit="handleCloseEdit"
       @updated="handleAccountUpdated"
       @close-reauth="closeReAuthModal"
       @close-test="closeTestModal"
@@ -356,6 +357,7 @@ const selTypes = computed<AccountType[]>(() => {
 const showCreate = ref(false)
 const showArchiveSelected = ref(false)
 const showEdit = ref(false)
+const editLoading = ref(false)
 const showSync = ref(false)
 const showImportData = ref(false)
 const showExportDataDialog = ref(false)
@@ -381,6 +383,7 @@ const diagnosticsLoading = ref(false)
 const showSchedulePanel = ref(false)
 const scheduleAcc = ref<Account | null>(null)
 const scheduleModelOptions = ref<SelectOption[]>([])
+const activeEditRequestToken = ref(0)
 const togglingSchedulable = ref<number | null>(null)
 const exportingData = ref(false)
 const usageManualRefreshToken = ref(0)
@@ -830,7 +833,39 @@ const refreshAccountSummarySafe = () => {
   })
 }
 
-const handleEdit = (a: Account) => { edAcc.value = a; showEdit.value = true }
+const handleCloseEdit = () => {
+  activeEditRequestToken.value += 1
+  editLoading.value = false
+  showEdit.value = false
+  edAcc.value = null
+}
+const handleEdit = async (a: Account) => {
+  const requestToken = activeEditRequestToken.value + 1
+  activeEditRequestToken.value = requestToken
+  editLoading.value = true
+  edAcc.value = null
+  showEdit.value = true
+
+  try {
+    const detail = await adminAPI.accounts.getById(a.id)
+    if (activeEditRequestToken.value !== requestToken || !showEdit.value) {
+      return
+    }
+    edAcc.value = detail
+  } catch (error: any) {
+    if (activeEditRequestToken.value !== requestToken) {
+      return
+    }
+    console.error('Failed to load account detail for edit:', error)
+    handleCloseEdit()
+    appStore.showError(error?.message || t('common.error'))
+    return
+  } finally {
+    if (activeEditRequestToken.value === requestToken) {
+      editLoading.value = false
+    }
+  }
+}
 const handleOpenMenu = ({ account, event }: { account: Account; event: MouseEvent }) => {
   openMenu({ account, event })
 }

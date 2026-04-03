@@ -610,7 +610,10 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
     { path: '/admin/models', label: t('nav.models'), icon: DatabaseIcon },
     ...(adminSettingsStore.opsMonitoringEnabled
-      ? [{ path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon }]
+      ? [
+          { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon },
+          { path: '/admin/request-details', label: t('nav.requestDetails'), icon: ServerIcon }
+        ]
       : []),
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
