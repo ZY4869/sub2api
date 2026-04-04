@@ -809,6 +809,38 @@ export interface BlacklistRetestRequestPayload {
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
 }
 
+export type BatchAccountTestModelInputMode = 'auto' | AccountTestModelInputMode
+
+export interface BatchAccountTestRequestPayload {
+  account_ids: number[]
+  model_id?: string
+  model?: string
+  model_input_mode?: BatchAccountTestModelInputMode
+  manual_model_id?: string
+  source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  prompt?: string
+  test_mode?: AccountTestMode
+}
+
+export interface BatchAccountTestResult {
+  account_id: number
+  account_name?: string
+  platform?: string
+  status: 'success' | 'failed'
+  error_message?: string
+  response_text?: string
+  latency_ms?: number
+  resolved_model_id?: string
+  resolved_platform?: string
+  resolved_source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  blacklist_advice_decision?: BlacklistAdviceDecision
+  current_lifecycle_state?: string
+}
+
+export interface BatchAccountTestResponse {
+  results: BatchAccountTestResult[]
+}
+
 export async function retestBlacklistedAccounts(
   payload: BlacklistRetestRequestPayload
 ): Promise<BlacklistRetestResponse> {
@@ -823,6 +855,20 @@ export async function getBlacklistRetestModels(accountIds: number[]): Promise<Cl
     account_ids: accountIds
   })
   return Array.isArray(data) ? data : []
+}
+
+export async function getBatchTestModels(accountIds: number[]): Promise<ClaudeModel[]> {
+  const { data } = await apiClient.post<ClaudeModel[]>('/admin/accounts/batch-test-models', {
+    account_ids: accountIds
+  })
+  return Array.isArray(data) ? data : []
+}
+
+export async function batchTestAccounts(
+  payload: BatchAccountTestRequestPayload
+): Promise<BatchAccountTestResponse> {
+  const { data } = await apiClient.post<BatchAccountTestResponse>('/admin/accounts/batch-test', payload)
+  return data
 }
 
 export interface BlacklistedBatchDeleteFailure {
@@ -1373,6 +1419,8 @@ export const accountsAPI = {
   unarchiveAccounts,
   retestBlacklistedAccounts,
   getBlacklistRetestModels,
+  getBatchTestModels,
+  batchTestAccounts,
   batchDeleteBlacklistedAccounts,
   blacklist,
   batchUpdateCredentials,

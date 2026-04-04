@@ -75,6 +75,7 @@
             :selected-ids="selIds"
             :selected-platforms="selPlatforms"
             @archive="openArchiveSelectedModal"
+            @batch-test="handleOpenBatchTestForSelection"
             @delete="handleBulkDelete"
             @reset-status="handleBulkResetStatus"
             @refresh-token="handleBulkRefreshToken"
@@ -179,6 +180,7 @@
       :show-delete-dialog="showDeleteDialog"
       :show-re-auth="showReAuth"
       :show-test="showTest"
+      :show-batch-test="showBatchTest"
       :show-stats="showStats"
       :show-model-diagnostics="showModelDiagnostics"
       :show-error-passthrough="showErrorPassthrough"
@@ -194,6 +196,9 @@
       :deleting-account="deletingAcc"
       :re-auth-account="reAuthAcc"
       :testing-account="testingAcc"
+      :batch-test-accounts="batchTestAccounts"
+      :batch-test-default-test-mode="batchTestDefaultTestMode"
+      :batch-test-default-model-strategy="batchTestDefaultModelStrategy"
       :stats-account="statsAcc"
       :diagnostics-account="diagnosticsAccount"
       :diagnostics-result="diagnosticsResult"
@@ -217,11 +222,14 @@
       @updated="handleAccountUpdated"
       @close-reauth="closeReAuthModal"
       @close-test="closeTestModal"
+      @close-batch-test="closeBatchTestModal"
+      @batch-test-completed="handleBatchTestCompleted"
       @close-stats="closeStatsModal"
       @close-model-diagnostics="closeModelDiagnostics"
       @close-schedule="closeSchedulePanel"
       @close-menu="closeMenu"
       @test="handleTest"
+      @quick-test="handleQuickTest"
       @stats="handleViewStats"
       @diagnose-models="handleDiagnoseModels"
       @refresh-model-diagnostics="refreshModelDiagnostics"
@@ -367,6 +375,7 @@ const showTempUnsched = ref(false)
 const showDeleteDialog = ref(false)
 const showReAuth = ref(false)
 const showTest = ref(false)
+const showBatchTest = ref(false)
 const showStats = ref(false)
 const showModelDiagnostics = ref(false)
 const showErrorPassthrough = ref(false)
@@ -376,6 +385,9 @@ const tempUnschedAcc = ref<Account | null>(null)
 const deletingAcc = ref<Account | null>(null)
 const reAuthAcc = ref<Account | null>(null)
 const testingAcc = ref<Account | null>(null)
+const batchTestAccounts = ref<Account[]>([])
+const batchTestDefaultTestMode = ref<'real_forward' | 'health_check'>('health_check')
+const batchTestDefaultModelStrategy = ref<'auto' | 'specified'>('auto')
 const statsAcc = ref<Account | null>(null)
 const diagnosticsAccount = ref<Account | null>(null)
 const diagnosticsResult = ref<AccountModelDiagnosticsResponse | null>(null)
@@ -600,6 +612,7 @@ const isAnyModalOpen = computed(() => {
     showDeleteDialog.value ||
     showReAuth.value ||
     showTest.value ||
+    showBatchTest.value ||
     showStats.value ||
     showModelDiagnostics.value ||
     showSchedulePanel.value ||
@@ -612,7 +625,15 @@ const syncAccountRefs = (nextAccount: Account) => {
   if (reAuthAcc.value?.id === nextAccount.id) reAuthAcc.value = nextAccount
   if (tempUnschedAcc.value?.id === nextAccount.id) tempUnschedAcc.value = nextAccount
   if (deletingAcc.value?.id === nextAccount.id) deletingAcc.value = nextAccount
+  if (testingAcc.value?.id === nextAccount.id) testingAcc.value = nextAccount
+  if (statsAcc.value?.id === nextAccount.id) statsAcc.value = nextAccount
   if (diagnosticsAccount.value?.id === nextAccount.id) diagnosticsAccount.value = nextAccount
+  if (scheduleAcc.value?.id === nextAccount.id) scheduleAcc.value = nextAccount
+  if (batchTestAccounts.value.some((account) => account.id === nextAccount.id)) {
+    batchTestAccounts.value = batchTestAccounts.value.map((account) =>
+      account.id === nextAccount.id ? nextAccount : account
+    )
+  }
   syncMenuAccount(nextAccount)
 }
 
@@ -980,6 +1001,37 @@ const openArchiveSelectedModal = () => {
   }
   showArchiveSelected.value = true
 }
+const resolveAccountsByID = (accountIDs: number[]) => {
+  if (accountIDs.length === 0) {
+    return [] as Account[]
+  }
+  const accountByID = new Map(accounts.value.map((account) => [account.id, account]))
+  return accountIDs
+    .map((accountID) => accountByID.get(accountID))
+    .filter((account): account is Account => Boolean(account))
+}
+const openBatchTestModal = (
+  targetAccounts: Account[],
+  options: {
+    testMode?: 'real_forward' | 'health_check'
+    modelStrategy?: 'auto' | 'specified'
+  } = {}
+) => {
+  if (targetAccounts.length === 0) {
+    appStore.showWarning(t('admin.accounts.batchTest.noTargets'))
+    return
+  }
+  batchTestAccounts.value = targetAccounts
+  batchTestDefaultTestMode.value = options.testMode ?? 'health_check'
+  batchTestDefaultModelStrategy.value = options.modelStrategy ?? 'auto'
+  showBatchTest.value = true
+}
+const handleOpenBatchTestForSelection = () => {
+  openBatchTestModal(resolveAccountsByID(selIds.value), {
+    testMode: 'health_check',
+    modelStrategy: 'auto'
+  })
+}
 const handleRefreshActualUsage = async () => {
   if (usageRefreshing.value) return
 
@@ -1256,6 +1308,13 @@ const closeTestModal = async () => {
   testingAcc.value = null
   await refreshListAndArchivedPanel()
 }
+const closeBatchTestModal = async () => {
+  showBatchTest.value = false
+  batchTestAccounts.value = []
+  batchTestDefaultTestMode.value = 'health_check'
+  batchTestDefaultModelStrategy.value = 'auto'
+  await refreshListAndArchivedPanel()
+}
 const closeStatsModal = () => { showStats.value = false; statsAcc.value = null }
 const closeModelDiagnostics = () => {
   showModelDiagnostics.value = false
@@ -1265,6 +1324,15 @@ const closeModelDiagnostics = () => {
 }
 const closeReAuthModal = () => { showReAuth.value = false; reAuthAcc.value = null }
 const handleTest = (a: Account) => { testingAcc.value = a; showTest.value = true }
+const handleQuickTest = (a: Account) => {
+  openBatchTestModal([a], {
+    testMode: 'health_check',
+    modelStrategy: 'auto'
+  })
+}
+const handleBatchTestCompleted = async () => {
+  await refreshListAndArchivedPanel()
+}
 const handleViewStats = (a: Account) => { statsAcc.value = a; showStats.value = true }
 const handleDiagnoseModels = async (a: Account) => {
   const sameAccount = diagnosticsAccount.value?.id === a.id

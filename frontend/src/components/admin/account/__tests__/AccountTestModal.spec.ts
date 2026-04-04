@@ -429,6 +429,8 @@ describe('AccountTestModal', () => {
     )
     expect(blacklistButton).toBeTruthy()
     expect(blacklistButton!.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).not.toContain('admin.accounts.testBlacklist.autoTitle')
+    expect(wrapper.text()).not.toContain('admin.accounts.testBlacklist.autoBadge')
     expect(wrapper.text()).toContain('Unauthorized')
   })
 

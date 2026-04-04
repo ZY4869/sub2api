@@ -62,3 +62,45 @@ func TestBuildAvailableTestModels_PrefersReplacementIDForDeprecatedRegistryAlias
 		require.NotEqual(t, "family-stable-20250929", model.ID)
 	}
 }
+
+func TestBuildAvailableTestModels_FiltersCrossPlatformProviderForDirectOpenAIAccounts(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "grok-disguised-openai",
+		DisplayName: "Grok Disguised OpenAI",
+		Provider:    PlatformGrok,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "openai-native-test",
+		DisplayName: "OpenAI Native Test",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"grok-disguised-openai", "openai-native-test"})
+	require.NoError(t, err)
+
+	account := &Account{
+		ID:       992,
+		Name:     "openai-direct",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+
+	require.Contains(t, ids, "openai-native-test")
+	require.NotContains(t, ids, "grok-disguised-openai")
+}

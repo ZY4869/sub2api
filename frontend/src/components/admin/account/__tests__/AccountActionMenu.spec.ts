@@ -98,4 +98,31 @@ describe('AccountActionMenu', () => {
     expect(wrapper.emitted('diagnose-models')?.[0]?.[0]).toMatchObject({ id: 1, name: 'openai-1' })
     expect(wrapper.emitted('close')).toEqual([[]])
   })
+
+  it('shows the quick-test action and emits the event', async () => {
+    const wrapper = mount(AccountActionMenu, {
+      props: {
+        show: true,
+        account: makeAccount(),
+        position: { top: 12, left: 34 }
+      },
+      global: {
+        stubs: {
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    const quickTestButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.batchTest.quickCheck')
+    )
+
+    expect(quickTestButton).toBeTruthy()
+
+    await quickTestButton!.trigger('click')
+
+    expect(wrapper.emitted('quick-test')?.[0]?.[0]).toMatchObject({ id: 1, name: 'openai-1' })
+    expect(wrapper.emitted('close')).toEqual([[]])
+  })
 })

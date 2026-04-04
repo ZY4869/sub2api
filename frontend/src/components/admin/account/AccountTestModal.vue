@@ -220,7 +220,7 @@
       </div>
 
       <div
-        v-if="blacklistAdvice"
+        v-if="visibleBlacklistAdvice"
         class="rounded-xl border px-4 py-3"
         :class="blacklistAdviceClasses"
       >
@@ -498,6 +498,9 @@ const grokTestHintKey = computed(() =>
   props.account?.type === 'sso'
     ? 'admin.accounts.grokTestSsoHint'
     : 'admin.accounts.grokTestApiKeyHint'
+)
+const visibleBlacklistAdvice = computed(() =>
+  blacklistAdvice.value?.decision === 'auto_blacklisted' ? null : blacklistAdvice.value
 )
 
 const blacklistAdviceTitle = computed(() => {

@@ -47,4 +47,21 @@ describe('AccountBulkActionsBar', () => {
     expect(archiveButton?.attributes('disabled')).toBeDefined()
     expect(archiveButton?.attributes('title')).toBe('admin.accounts.bulkActions.archiveMixedPlatformDisabled')
   })
+
+  it('emits batch-test for selected accounts', async () => {
+    const wrapper = mount(AccountBulkActionsBar, {
+      props: {
+        selectedIds: [1],
+        selectedPlatforms: ['openai']
+      }
+    })
+
+    const batchTestButton = wrapper.findAll('button').find((button) =>
+      button.text().includes('admin.accounts.bulkActions.batchTest')
+    )
+
+    expect(batchTestButton).toBeTruthy()
+    await batchTestButton?.trigger('click')
+    expect(wrapper.emitted('batch-test')).toEqual([[]])
+  })
 })

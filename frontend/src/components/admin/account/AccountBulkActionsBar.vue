@@ -34,6 +34,9 @@
       >
         {{ t('admin.accounts.bulkActions.archive') }}
       </button>
+      <button type="button" class="btn btn-primary btn-sm" @click="emit('batch-test')">
+        {{ t('admin.accounts.bulkActions.batchTest') }}
+      </button>
       <button type="button" class="btn btn-danger btn-sm" @click="emit('delete')">
         {{ t('admin.accounts.bulkActions.delete') }}
       </button>
@@ -68,6 +71,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   archive: []
+  'batch-test': []
   delete: []
   edit: []
   clear: []

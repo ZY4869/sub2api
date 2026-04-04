@@ -16,6 +16,7 @@ import (
 type stubAccountTestService struct {
 	lastInput service.ScheduledTestExecutionInput
 	result    *service.ScheduledTestResult
+	detailed  *service.BackgroundAccountTestResult
 	err       error
 }
 
@@ -23,6 +24,25 @@ func (s *stubAccountTestService) SetModelRegistryService(_ *service.ModelRegistr
 
 func (s *stubAccountTestService) TestAccountConnection(_ *gin.Context, _ int64, _ string, _ string, _ string, _ string) error {
 	panic("unexpected TestAccountConnection call")
+}
+
+func (s *stubAccountTestService) RunTestBackgroundDetailed(_ context.Context, input service.ScheduledTestExecutionInput) (*service.BackgroundAccountTestResult, error) {
+	s.lastInput = input
+	if s.detailed == nil {
+		if s.result == nil {
+			return nil, s.err
+		}
+		return &service.BackgroundAccountTestResult{
+			Status:       s.result.Status,
+			ResponseText: s.result.ResponseText,
+			ErrorMessage: s.result.ErrorMessage,
+			LatencyMs:    s.result.LatencyMs,
+			StartedAt:    s.result.StartedAt,
+			FinishedAt:   s.result.FinishedAt,
+		}, s.err
+	}
+	clone := *s.detailed
+	return &clone, s.err
 }
 
 func (s *stubAccountTestService) RunTestBackground(_ context.Context, input service.ScheduledTestExecutionInput) (*service.ScheduledTestResult, error) {

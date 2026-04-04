@@ -14,6 +14,10 @@
               <Icon name="play" size="sm" class="text-green-500" :stroke-width="2" />
               {{ t('admin.accounts.testConnection') }}
             </button>
+            <button @click="$emit('quick-test', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-700">
+              <Icon name="bolt" size="sm" class="text-sky-500" :stroke-width="2" />
+              {{ t('admin.accounts.batchTest.quickCheck') }}
+            </button>
             <button @click="$emit('stats', account); $emit('close')" class="flex w-full items-center gap-2 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-dark-700">
               <Icon name="chart" size="sm" class="text-indigo-500" />
               {{ t('admin.accounts.viewStats') }}
@@ -76,6 +80,7 @@ const props = defineProps<{ show: boolean; account: Account | null; position: { 
 const emit = defineEmits<{
   close: []
   test: [account: Account]
+  'quick-test': [account: Account]
   stats: [account: Account]
   schedule: [account: Account]
   'diagnose-models': [account: Account]

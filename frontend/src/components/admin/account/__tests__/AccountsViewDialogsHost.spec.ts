@@ -26,6 +26,7 @@ function createProps() {
     showDeleteDialog: false,
     showReAuth: false,
     showTest: false,
+    showBatchTest: false,
     showStats: false,
     showModelDiagnostics: false,
     showErrorPassthrough: false,
@@ -42,6 +43,9 @@ function createProps() {
     deletingAccount: null,
     reAuthAccount: null,
     testingAccount: null,
+    batchTestAccounts: [],
+    batchTestDefaultTestMode: 'health_check',
+    batchTestDefaultModelStrategy: 'auto',
     statsAccount: null,
     diagnosticsAccount: null,
     diagnosticsResult: null,
@@ -65,6 +69,7 @@ function createStubs(overrides: Record<string, unknown> = {}) {
     EditAccountModal: true,
     ReAuthAccountModal: true,
     AccountTestModal: true,
+    AccountBatchTestModal: true,
     AccountStatsModal: true,
     AccountModelDiagnosticsModal: true,
     ScheduledTestsPanel: true,
@@ -236,6 +241,43 @@ describe('AccountsViewDialogsHost', () => {
     expect(wrapper.emitted('close-menu')).toEqual([[]])
   })
 
+  it('forwards quick-test events from the action menu', async () => {
+    const account = {
+      id: 8,
+      name: 'openai-8',
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active',
+      schedulable: true
+    }
+
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        menuShow: true,
+        menuAccount: account,
+        menuPosition: { top: 20, left: 40 }
+      },
+      global: {
+        stubs: createStubs({
+          AccountActionMenu: {
+            emits: ['quick-test'],
+            template: `
+              <div>
+                <button class="menu-quick-test" @click="$emit('quick-test', { id: 8, name: 'openai-8' })" />
+              </div>
+            `
+          }
+        })
+      }
+    })
+
+    await wrapper.get('.menu-quick-test').trigger('click')
+
+    expect(wrapper.emitted('quick-test')).toEqual([[{ id: 8, name: 'openai-8' }]])
+  })
+
   it('forwards downstream diagnostics events from the action menu and diagnostics modal', async () => {
     const account = {
       id: 11,
@@ -332,5 +374,43 @@ describe('AccountsViewDialogsHost', () => {
         feedback: { fingerprint: 'fp-9', action: 'blacklist' }
       }
     ]])
+  })
+
+  it('forwards batch test modal events', async () => {
+    const wrapper = mount(AccountsViewDialogsHost, {
+      props: {
+        ...createProps(),
+        showCreate: false,
+        showBatchTest: true,
+        batchTestAccounts: [
+          {
+            id: 10,
+            name: 'openai-10',
+            platform: 'openai',
+            type: 'apikey',
+            status: 'active'
+          }
+        ]
+      },
+      global: {
+        stubs: createStubs({
+          AccountBatchTestModal: {
+            emits: ['close', 'completed'],
+            template: `
+              <div>
+                <button class="batch-test-close" @click="$emit('close')" />
+                <button class="batch-test-completed" @click="$emit('completed')" />
+              </div>
+            `
+          }
+        })
+      }
+    })
+
+    await wrapper.get('.batch-test-close').trigger('click')
+    await wrapper.get('.batch-test-completed').trigger('click')
+
+    expect(wrapper.emitted('close-batch-test')).toEqual([[]])
+    expect(wrapper.emitted('batch-test-completed')).toEqual([[]])
   })
 })

@@ -2328,29 +2328,39 @@ func (s *AccountTestService) tryAutoBlacklistFailedTest(ctx context.Context, acc
 	advice.CollectFeedback = false
 }
 
-// RunTestBackground executes an account test in-memory (no real HTTP client),
-// capturing SSE output via httptest.NewRecorder, then parses the result.
-func (s *AccountTestService) RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error) {
+type parsedBackgroundTestOutput struct {
+	ResponseText            string
+	ErrorMessage            string
+	ResolvedModelID         string
+	ResolvedPlatform        string
+	ResolvedSourceProtocol  string
+	BlacklistAdviceDecision string
+}
+
+// RunTestBackgroundDetailed executes an account test in-memory (no real HTTP client),
+// captures the SSE output, and returns a structured result for admin actions.
+func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, input ScheduledTestExecutionInput) (*BackgroundAccountTestResult, error) {
 	startedAt := time.Now()
 
 	w := httptest.NewRecorder()
 	ginCtx, _ := gin.CreateTestContext(w)
 	ginCtx.Request = (&http.Request{}).WithContext(ctx)
 
+	testMode := string(normalizeAccountTestMode(input.TestMode))
 	testErr := s.TestAccountConnection(
 		ginCtx,
 		input.AccountID,
 		strings.TrimSpace(input.ModelID),
-		"",
+		strings.TrimSpace(input.Prompt),
 		normalizeTestSourceProtocol(input.SourceProtocol),
-		string(AccountTestModeHealthCheck),
+		testMode,
 	)
 
 	finishedAt := time.Now()
-	body := w.Body.String()
-	responseText, errMsg := parseTestSSEOutput(body)
+	parsed := parseTestSSEOutputDetailed(w.Body.String())
 
 	status := "success"
+	errMsg := parsed.ErrorMessage
 	if testErr != nil || errMsg != "" {
 		status = "failed"
 		if errMsg == "" && testErr != nil {
@@ -2358,38 +2368,96 @@ func (s *AccountTestService) RunTestBackground(ctx context.Context, input Schedu
 		}
 	}
 
-	return &ScheduledTestResult{
-		Status:       status,
-		ResponseText: responseText,
-		ErrorMessage: errMsg,
-		LatencyMs:    finishedAt.Sub(startedAt).Milliseconds(),
-		StartedAt:    startedAt,
-		FinishedAt:   finishedAt,
+	currentLifecycleState := ""
+	if s != nil && s.accountRepo != nil {
+		if account, err := s.accountRepo.GetByID(ctx, input.AccountID); err == nil && account != nil {
+			currentLifecycleState = account.LifecycleState
+		}
+	}
+
+	return &BackgroundAccountTestResult{
+		Status:                  status,
+		ResponseText:            parsed.ResponseText,
+		ErrorMessage:            errMsg,
+		LatencyMs:               finishedAt.Sub(startedAt).Milliseconds(),
+		StartedAt:               startedAt,
+		FinishedAt:              finishedAt,
+		ResolvedModelID:         parsed.ResolvedModelID,
+		ResolvedPlatform:        parsed.ResolvedPlatform,
+		ResolvedSourceProtocol:  parsed.ResolvedSourceProtocol,
+		BlacklistAdviceDecision: parsed.BlacklistAdviceDecision,
+		CurrentLifecycleState:   currentLifecycleState,
 	}, nil
 }
 
-// parseTestSSEOutput extracts response text and error message from captured SSE output.
-func parseTestSSEOutput(body string) (responseText, errMsg string) {
+// RunTestBackground preserves the legacy scheduled-test result shape.
+func (s *AccountTestService) RunTestBackground(ctx context.Context, input ScheduledTestExecutionInput) (*ScheduledTestResult, error) {
+	result, err := s.RunTestBackgroundDetailed(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	return &ScheduledTestResult{
+		Status:       result.Status,
+		ResponseText: result.ResponseText,
+		ErrorMessage: result.ErrorMessage,
+		LatencyMs:    result.LatencyMs,
+		StartedAt:    result.StartedAt,
+		FinishedAt:   result.FinishedAt,
+	}, nil
+}
+
+// parseTestSSEOutputDetailed extracts key execution details from captured SSE output.
+func parseTestSSEOutputDetailed(body string) parsedBackgroundTestOutput {
+	result := parsedBackgroundTestOutput{}
 	var texts []string
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "data: ") {
+		if !sseDataPrefix.MatchString(line) {
 			continue
 		}
-		jsonStr := strings.TrimPrefix(line, "data: ")
+		jsonStr := sseDataPrefix.ReplaceAllString(line, "")
 		var event TestEvent
 		if err := json.Unmarshal([]byte(jsonStr), &event); err != nil {
 			continue
 		}
 		switch event.Type {
+		case "test_start":
+			if event.Model != "" {
+				result.ResolvedModelID = strings.TrimSpace(event.Model)
+			}
 		case "content":
 			if event.Text != "" {
 				texts = append(texts, event.Text)
 			}
+			runtimeMeta, ok := event.Data.(map[string]any)
+			if !ok || strings.TrimSpace(fmt.Sprint(runtimeMeta["kind"])) != "runtime_meta" {
+				continue
+			}
+			key := strings.TrimSpace(fmt.Sprint(runtimeMeta["key"]))
+			value := strings.TrimSpace(fmt.Sprint(runtimeMeta["value"]))
+			switch key {
+			case "resolved_platform":
+				result.ResolvedPlatform = value
+			case "resolved_protocol":
+				result.ResolvedSourceProtocol = normalizeTestSourceProtocol(value)
+			}
+		case "blacklist_advice":
+			if advice, ok := event.Data.(map[string]any); ok {
+				result.BlacklistAdviceDecision = strings.TrimSpace(fmt.Sprint(advice["decision"]))
+			}
 		case "error":
-			errMsg = event.Error
+			result.ErrorMessage = event.Error
 		}
 	}
-	responseText = strings.Join(texts, "")
-	return
+	result.ResponseText = strings.Join(texts, "")
+	return result
+}
+
+// parseTestSSEOutput extracts response text and error message from captured SSE output.
+func parseTestSSEOutput(body string) (responseText, errMsg string) {
+	result := parseTestSSEOutputDetailed(body)
+	return result.ResponseText, result.ErrorMessage
 }

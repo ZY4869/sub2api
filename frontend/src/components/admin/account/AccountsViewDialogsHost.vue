@@ -35,6 +35,14 @@
     @close="emit('close-test')"
     @blacklist="emit('test-blacklist', $event)"
   />
+  <AccountBatchTestModal
+    :show="showBatchTest"
+    :accounts="batchTestAccounts"
+    :default-test-mode="batchTestDefaultTestMode"
+    :default-model-strategy="batchTestDefaultModelStrategy"
+    @close="emit('close-batch-test')"
+    @completed="emit('batch-test-completed')"
+  />
   <AccountStatsModal
     :show="showStats"
     :account="statsAccount"
@@ -61,6 +69,7 @@
     :position="menuPosition"
     @close="emit('close-menu')"
     @test="emit('test', $event)"
+    @quick-test="emit('quick-test', $event)"
     @stats="emit('stats', $event)"
     @schedule="emit('schedule', $event)"
     @diagnose-models="emit('diagnose-models', $event)"
@@ -175,6 +184,7 @@ import ModelImportExposureSyncDialog from '@/components/admin/models/ModelImport
 import AccountActionMenu from './AccountActionMenu.vue'
 import ArchiveAccountsModal from './ArchiveAccountsModal.vue'
 import ImportDataModal from './ImportDataModal.vue'
+import AccountBatchTestModal from './AccountBatchTestModal.vue'
 import ReAuthAccountModal from './ReAuthAccountModal.vue'
 import AccountTestModal from './AccountTestModal.vue'
 import AccountStatsModal from './AccountStatsModal.vue'
@@ -194,6 +204,7 @@ defineProps<{
   showDeleteDialog: boolean
   showReAuth: boolean
   showTest: boolean
+  showBatchTest: boolean
   showStats: boolean
   showModelDiagnostics: boolean
   showErrorPassthrough: boolean
@@ -209,6 +220,9 @@ defineProps<{
   deletingAccount: Account | null
   reAuthAccount: Account | null
   testingAccount: Account | null
+  batchTestAccounts: Account[]
+  batchTestDefaultTestMode: 'real_forward' | 'health_check'
+  batchTestDefaultModelStrategy: 'auto' | 'specified'
   statsAccount: Account | null
   diagnosticsAccount: Account | null
   diagnosticsResult: AccountModelDiagnosticsResponse | null
@@ -237,11 +251,14 @@ const emit = defineEmits<{
   updated: [account: Account]
   'close-reauth': []
   'close-test': []
+  'close-batch-test': []
+  'batch-test-completed': []
   'close-stats': []
   'close-model-diagnostics': []
   'close-schedule': []
   'close-menu': []
   test: [account: Account]
+  'quick-test': [account: Account]
   stats: [account: Account]
   'diagnose-models': [account: Account]
   'refresh-model-diagnostics': []

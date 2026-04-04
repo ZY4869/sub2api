@@ -324,6 +324,8 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/:id/import-models", h.Admin.Account.ImportModels)
 		accounts.POST("/batch-archive", h.Admin.Account.BatchArchiveAccounts)
 		accounts.POST("/unarchive", h.Admin.Account.UnarchiveAccounts)
+		accounts.POST("/batch-test-models", h.Admin.Account.GetBatchTestModels)
+		accounts.POST("/batch-test", h.Admin.Account.BatchTest)
 		accounts.POST("/blacklist/retest-models", h.Admin.Account.RetestBlacklistedModels)
 		accounts.POST("/blacklist/retest", h.Admin.Account.RetestBlacklisted)
 		accounts.POST("/blacklist/batch-delete", h.Admin.Account.BatchDeleteBlacklisted)

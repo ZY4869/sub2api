@@ -61,11 +61,27 @@ type ScheduledTestResult struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type BackgroundAccountTestResult struct {
+	Status                  string    `json:"status"`
+	ResponseText            string    `json:"response_text"`
+	ErrorMessage            string    `json:"error_message"`
+	LatencyMs               int64     `json:"latency_ms"`
+	StartedAt               time.Time `json:"started_at"`
+	FinishedAt              time.Time `json:"finished_at"`
+	ResolvedModelID         string    `json:"resolved_model_id,omitempty"`
+	ResolvedPlatform        string    `json:"resolved_platform,omitempty"`
+	ResolvedSourceProtocol  string    `json:"resolved_source_protocol,omitempty"`
+	BlacklistAdviceDecision string    `json:"blacklist_advice_decision,omitempty"`
+	CurrentLifecycleState   string    `json:"current_lifecycle_state,omitempty"`
+}
+
 type ScheduledTestExecutionInput struct {
 	AccountID      int64
 	ModelID        string
 	SourceProtocol string
 	RequestAlias   string
+	Prompt         string
+	TestMode       string
 }
 
 // ScheduledTestPlanRepository defines the data access interface for test plans.

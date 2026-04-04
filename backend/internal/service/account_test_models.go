@@ -95,6 +95,61 @@ func MergeAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTestMod
 	return result
 }
 
+func IntersectAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTestModel {
+	if len(groups) == 0 {
+		return []AvailableTestModel{}
+	}
+
+	keyCounts := make(map[string]int)
+	bestByKey := make(map[string]AvailableTestModel)
+
+	for idx, group := range groups {
+		if len(group) == 0 {
+			return []AvailableTestModel{}
+		}
+		perGroup := make(map[string]AvailableTestModel, len(group))
+		for _, model := range group {
+			canonicalID := normalizeRegistryID(model.CanonicalID)
+			if canonicalID == "" {
+				canonicalID = normalizeRegistryID(model.ID)
+			}
+			key := testModelDedupeKey(canonicalID, model.SourceProtocol)
+			existing, ok := perGroup[key]
+			if !ok || compareAvailableTestModels(model, existing) < 0 {
+				perGroup[key] = model
+			}
+		}
+		if idx == 0 {
+			for key, model := range perGroup {
+				keyCounts[key] = 1
+				bestByKey[key] = model
+			}
+			continue
+		}
+		for key, model := range perGroup {
+			if keyCounts[key] != idx {
+				continue
+			}
+			keyCounts[key]++
+			if existing, ok := bestByKey[key]; !ok || compareAvailableTestModels(model, existing) < 0 {
+				bestByKey[key] = model
+			}
+		}
+	}
+
+	result := make([]AvailableTestModel, 0, len(bestByKey))
+	for key, count := range keyCounts {
+		if count != len(groups) {
+			continue
+		}
+		result = append(result, bestByKey[key])
+	}
+	sort.SliceStable(result, func(i, j int) bool {
+		return compareAvailableTestModels(result[i], result[j]) < 0
+	})
+	return result
+}
+
 func buildAvailableTestModelsForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) []AvailableTestModel {
 	candidates, resolutionEntries := buildRegistryTestModelCandidates(ctx, account, registry, sourceProtocol)
 	if len(candidates) == 0 {
@@ -151,6 +206,9 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		if !modelregistry.SupportsPlatform(detail.ModelEntry, runtimePlatform) {
 			continue
 		}
+		if !isDirectPlatformTestModelAllowed(account, detail.ModelEntry) {
+			continue
+		}
 		if !modelregistry.HasExposure(detail.ModelEntry, "test") {
 			continue
 		}
@@ -193,6 +251,41 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 		}
 	}
 	return candidates, resolutionEntries
+}
+
+func isDirectPlatformTestModelAllowed(account *Account, entry modelregistry.ModelEntry) bool {
+	if account == nil || IsProtocolGatewayAccount(account) {
+		return true
+	}
+	provider := normalizedDirectTestModelProvider(entry.Provider)
+	if provider == "" {
+		return true
+	}
+
+	switch RoutingPlatformForAccount(account) {
+	case PlatformOpenAI, PlatformCopilot:
+		return provider == PlatformOpenAI
+	case PlatformAnthropic, PlatformKiro:
+		return provider == PlatformAnthropic
+	case PlatformGemini:
+		return provider == PlatformGemini
+	case PlatformGrok:
+		return provider == PlatformGrok
+	case PlatformAntigravity, PlatformSora:
+		return true
+	default:
+		return true
+	}
+}
+
+func normalizedDirectTestModelProvider(provider string) string {
+	normalized := modelregistry.NormalizePlatform(strings.TrimSpace(provider))
+	switch normalized {
+	case "claude":
+		return PlatformAnthropic
+	default:
+		return normalized
+	}
 }
 
 func isRegistryDetailAvailableForTestSelection(detail modelregistry.AdminModelDetail, availableCanonicals map[string]struct{}) bool {

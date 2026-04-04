@@ -1293,6 +1293,11 @@ export default {
         overloadedUntil: 'Overloaded until {time}',
         viewTempUnschedDetails: 'View temp unschedulable details'
       },
+      lifecycle: {
+        normal: 'Normal',
+        blacklisted: 'Blacklisted',
+        archived: 'Archived'
+      },
       columns: {
         name: 'Name',
         platformType: 'Platform/Type',
@@ -1444,6 +1449,7 @@ export default {
         selectCurrentPage: 'Select this page',
         clear: 'Clear selection',
         archive: 'Archive',
+        batchTest: 'Batch Test',
         archiveTitle: 'Archive Accounts',
         archiveDescription: 'This will archive the selected {count} account(s) into the archive group and hide them from the main accounts view while keeping them usable.',
         archivePlatform: 'Archive platform: {platform}',
@@ -1464,6 +1470,50 @@ export default {
         resetStatusSuccess: 'Successfully reset {count} account(s) status',
         refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
         partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
+      },
+      batchTest: {
+        title: 'Batch Test Accounts',
+        targetLabel: 'Targets',
+        targetSingle: 'Quick check single account: {name}',
+        targetBatch: 'Batch test: {count} accounts',
+        modelStrategyLabel: 'Model strategy',
+        noTargets: 'Select at least one account to test first',
+        modelStrategies: {
+          auto: 'Auto model',
+          autoHint: 'Each account uses its own default test model, which works well for mixed-platform health checks.',
+          specified: 'Specified model',
+          specifiedHint: 'Run the same model across the whole batch so results are easier to compare.'
+        },
+        run: 'Run Batch Test',
+        completed: 'Batch test finished: {success} succeeded, {failed} failed',
+        runFailed: 'Failed to run batch test',
+        loadModelsFailed: 'Failed to load shared test models',
+        noSharedModels: 'No shared catalog model is available for the selected accounts. Switch to manual input or use auto model selection instead.',
+        realForwardUnsupportedHint: 'The current selection includes Grok or Sora accounts, so only health check mode is available.',
+        quickCheck: 'Quick Check',
+        promptLabel: 'Shared test prompt',
+        promptPlaceholder: 'Only real forward tests will use this prompt.',
+        promptHint: 'Leave empty to use the platform default probe message. Health check mode ignores this field.',
+        summary: {
+          success: 'Healthy {count}',
+          failed: 'Abnormal {count}',
+          autoBlacklisted: 'Auto-blacklisted {count}'
+        },
+        columns: {
+          account: 'Account',
+          platform: 'Platform',
+          model: 'Resolved Model',
+          mode: 'Mode',
+          result: 'Result',
+          latency: 'Latency',
+          lifecycle: 'Lifecycle',
+          detail: 'Error / Result'
+        },
+        resultLabels: {
+          healthy: 'Healthy',
+          abnormal: 'Abnormal',
+          autoBlacklisted: 'Auto Blacklisted'
+        }
       },
       blacklist: {
         title: 'Blacklist',

@@ -1478,6 +1478,11 @@
         overloadedUntil: '负载过重，重置时间：{time}',
         viewTempUnschedDetails: '查看临时不可调度详情'
       },
+      lifecycle: {
+        normal: '正常',
+        blacklisted: '已拉黑',
+        archived: '已归档'
+      },
       tempUnschedulable: {
         title: '临时不可调度',
         statusTitle: '临时不可调度状态',
@@ -1592,6 +1597,7 @@
         selectCurrentPage: '本页全选',
         clear: '清除选择',
         archive: '批量归档',
+        batchTest: '批量测试',
         archiveTitle: '批量归档账号',
         archiveDescription: '会将选中的 {count} 个账号归档到归档组，并从主账号页折叠隐藏；账号本身仍可继续使用。',
         archivePlatform: '当前归档平台：{platform}',
@@ -1612,6 +1618,50 @@
         resetStatusSuccess: '已成功重置 {count} 个账号状态',
         refreshTokenSuccess: '已成功刷新 {count} 个账号令牌',
         partialSuccess: '操作部分完成：{success} 成功，{failed} 失败'
+      },
+      batchTest: {
+        title: '批量测试账号',
+        targetLabel: '检测目标',
+        targetSingle: '单账号快速检测：{name}',
+        targetBatch: '批量检测：共 {count} 个账号',
+        modelStrategyLabel: '模型策略',
+        noTargets: '请先选择需要检测的账号',
+        modelStrategies: {
+          auto: '自动选模型',
+          autoHint: '每个账号自动选择自己的默认测试模型，适合跨平台快速筛查。',
+          specified: '统一指定模型',
+          specifiedHint: '为整批账号指定同一个模型，方便对比同口径结果。'
+        },
+        run: '开始批量测试',
+        completed: '批量测试完成：成功 {success}，失败 {failed}',
+        runFailed: '批量测试失败',
+        loadModelsFailed: '加载共同可用模型失败',
+        noSharedModels: '当前选中账号没有共同可用的目录模型，可切换为手动输入或改用自动选模型。',
+        realForwardUnsupportedHint: '当前选中的账号包含 Grok 或 Sora，仅支持快速探活测试。',
+        quickCheck: '快速检测',
+        promptLabel: '统一测试提示词',
+        promptPlaceholder: '仅真实转发测试会使用这段提示词。',
+        promptHint: '留空则使用平台默认探测文案；快速探活测试会忽略该字段。',
+        summary: {
+          success: '正常 {count} 个',
+          failed: '异常 {count} 个',
+          autoBlacklisted: '已自动拉黑 {count} 个'
+        },
+        columns: {
+          account: '账号',
+          platform: '平台',
+          model: '实际模型',
+          mode: '检测模式',
+          result: '结果',
+          latency: '耗时',
+          lifecycle: '当前状态',
+          detail: '错误 / 结果'
+        },
+        resultLabels: {
+          healthy: '正常',
+          abnormal: '异常',
+          autoBlacklisted: '已自动拉黑'
+        }
       },
       blacklist: {
         title: '黑名单',
