@@ -4753,18 +4753,45 @@
           subject: '主体对象',
           models: '模型',
           status: '状态 / 原因',
+          performance: '性能',
           latency: '耗时 / TTFT',
           tokens: 'Tokens',
           flags: '能力标记',
           actions: '操作'
+        },
+        summary: {
+          user: '用户 {id}',
+          apiKey: 'API Key {id}',
+          account: '账号 {id}',
+          group: '分组 {id}',
+          ttft: 'TTFT {value}',
+          tokens: '{value} Tokens'
         }
       },
       drawer: {
         title: '请求详情',
         noSelection: '选择一条请求 trace 后可查看详细内容。',
         loadRaw: '加载原文',
+        copyContent: '复制内容',
+        viewFull: '查看完整详细内容',
+        previewOnlyNotice: '当前仅能查看采集预览，未提供可展开的原始全文。',
+        fullDialogTitle: '{tab} · {id}',
         rawNotAllowed: '原文查看仅对配置的审计用户开放。',
         auditOperator: '操作人 #{id}',
+        payload: {
+          previewReady: '预览内容已就绪',
+          empty: '当前暂无可展示内容'
+        },
+        emptyStates: {
+          inbound: '当前没有采集到原始请求预览内容。',
+          normalized: '当前没有标准化请求内容。',
+          upstreamRequest: '当前没有上游请求内容。',
+          upstreamResponse: '当前没有上游响应内容。',
+          gatewayResponse: '当前没有网关响应内容。',
+          tools: '当前没有工具调用或 Thinking 轨迹。',
+          rawRequest: '当前没有原文请求内容。',
+          rawResponse: '当前没有原文响应内容。'
+        },
         sections: {
           basicInfo: '基本信息',
           identifiers: '标识信息',

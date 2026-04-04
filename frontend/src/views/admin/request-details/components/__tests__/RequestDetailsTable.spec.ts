@@ -2,6 +2,14 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import RequestDetailsTable from '../RequestDetailsTable.vue'
 
+const copyToClipboard = vi.fn()
+
+vi.mock('@/composables/useClipboard', () => ({
+  useClipboard: () => ({
+    copyToClipboard
+  })
+}))
+
 vi.mock('@/stores/modelRegistry', () => ({
   getModelRegistrySnapshot: () => ({
     etag: 'test',
@@ -19,6 +27,19 @@ vi.mock('@/stores/modelRegistry', () => ({
         capabilities: ['reasoning'],
         ui_priority: 0,
         exposed_in: ['whitelist']
+      },
+      {
+        id: 'gpt-4o-mini',
+        display_name: 'GPT-4o mini',
+        provider: 'openai',
+        platforms: ['openai'],
+        protocol_ids: ['gpt-4o-mini-2025-04-01'],
+        aliases: [],
+        pricing_lookup_ids: [],
+        modalities: ['text'],
+        capabilities: ['chat'],
+        ui_priority: 0,
+        exposed_in: ['whitelist']
       }
     ],
     presets: []
@@ -26,47 +47,41 @@ vi.mock('@/stores/modelRegistry', () => ({
 }))
 
 const translations: Record<string, string> = {
-  'common.total': '总计',
-  'admin.requestDetails.table.title': '请求表格',
-  'admin.requestDetails.table.description': '请求表格描述',
-  'admin.requestDetails.table.columns.requestId': '请求标识',
-  'admin.requestDetails.table.columns.subject': '主体对象',
-  'admin.requestDetails.table.columns.route': '路由来源',
-  'admin.requestDetails.table.columns.models': '模型',
-  'admin.requestDetails.table.columns.status': '状态 / 原因',
-  'admin.requestDetails.table.columns.flags': '能力标记',
-  'admin.requestDetails.table.columns.actions': '操作',
-  'admin.requestDetails.table.view': '查看',
-  'admin.requestDetails.presentation.labels.requestId': '请求 ID',
-  'admin.requestDetails.presentation.labels.clientRequestId': '客户端请求 ID',
-  'admin.requestDetails.presentation.labels.upstreamRequestId': '上游请求 ID',
-  'admin.requestDetails.presentation.labels.requestType': '请求类型',
-  'admin.requestDetails.presentation.labels.userId': '用户 ID',
-  'admin.requestDetails.presentation.labels.apiKeyId': 'API Key ID',
-  'admin.requestDetails.presentation.labels.accountId': '账号 ID',
-  'admin.requestDetails.presentation.labels.groupId': '分组 ID',
-  'admin.requestDetails.presentation.labels.routePath': '路由',
-  'admin.requestDetails.presentation.labels.channel': '通道',
-  'admin.requestDetails.presentation.labels.platform': '平台',
-  'admin.requestDetails.presentation.labels.protocolPair': '协议对',
-  'admin.requestDetails.presentation.labels.requestedModel': '请求模型',
-  'admin.requestDetails.presentation.labels.upstreamModel': '上游模型',
-  'admin.requestDetails.presentation.labels.finishReason': '完成原因',
-  'admin.requestDetails.presentation.labels.captureReason': '采集原因',
-  'admin.requestDetails.presentation.labels.duration': '总耗时',
-  'admin.requestDetails.presentation.labels.ttft': '首字耗时',
-  'admin.requestDetails.presentation.labels.totalTokens': '总 Tokens',
-  'admin.requestDetails.presentation.labels.thinkingLevel': 'Thinking 强度',
-  'admin.requestDetails.presentation.labels.toolKinds': '工具类型',
-  'admin.requestDetails.presentation.flags.streamEnabled': '流式',
-  'admin.requestDetails.presentation.flags.toolsEnabled': '工具调用',
+  'common.total': 'Total',
+  'admin.requestDetails.table.title': 'Trace Table',
+  'admin.requestDetails.table.description': 'Trace table description',
+  'admin.requestDetails.table.columns.time': 'Time',
+  'admin.requestDetails.table.columns.requestId': 'Request ID',
+  'admin.requestDetails.table.columns.subject': 'Subject',
+  'admin.requestDetails.table.columns.route': 'Route',
+  'admin.requestDetails.table.columns.models': 'Models',
+  'admin.requestDetails.table.columns.status': 'Status / Reason',
+  'admin.requestDetails.table.columns.flags': 'Flags',
+  'admin.requestDetails.table.columns.performance': 'Performance',
+  'admin.requestDetails.table.columns.actions': 'Actions',
+  'admin.requestDetails.table.view': 'View',
+  'admin.requestDetails.table.summary.user': 'User {id}',
+  'admin.requestDetails.table.summary.apiKey': 'API Key {id}',
+  'admin.requestDetails.table.summary.account': 'Account {id}',
+  'admin.requestDetails.table.summary.group': 'Group {id}',
+  'admin.requestDetails.table.summary.ttft': 'TTFT {value}',
+  'admin.requestDetails.table.summary.tokens': '{value} Tokens',
+  'admin.requestDetails.presentation.labels.requestId': 'Request ID',
+  'admin.requestDetails.presentation.labels.clientRequestId': 'Client Request ID',
+  'admin.requestDetails.presentation.labels.upstreamRequestId': 'Upstream Request ID',
+  'admin.requestDetails.presentation.status.success': 'Success',
+  'admin.requestDetails.presentation.finishReasons.stop': 'Completed Normally',
+  'admin.requestDetails.presentation.captureReasons.sampled': 'Sampled',
+  'admin.requestDetails.presentation.flags.streamEnabled': 'Stream',
+  'admin.requestDetails.presentation.flags.streamDisabled': 'Sync',
+  'admin.requestDetails.presentation.flags.toolsEnabled': 'Tools',
+  'admin.requestDetails.presentation.flags.toolsDisabled': 'No Tools',
   'admin.requestDetails.presentation.flags.thinkingEnabled': 'Thinking',
-  'admin.requestDetails.presentation.flags.rawAvailable': '有原文',
-  'admin.requestDetails.presentation.flags.sampled': '已采样',
-  'admin.requestDetails.presentation.status.success': '成功',
-  'admin.requestDetails.presentation.requestTypes.chat_completions': '聊天补全',
-  'admin.requestDetails.presentation.finishReasons.stop': '正常结束',
-  'admin.requestDetails.presentation.captureReasons.sampled': '采样命中',
+  'admin.requestDetails.presentation.flags.thinkingDisabled': 'No Thinking',
+  'admin.requestDetails.presentation.flags.rawAvailable': 'Raw Saved',
+  'admin.requestDetails.presentation.flags.rawUnavailable': 'No Raw',
+  'admin.requestDetails.presentation.flags.sampled': 'Sampled',
+  'admin.requestDetails.presentation.flags.notSampled': 'Not Sampled',
   'admin.requestDetails.presentation.protocols.openai': 'OpenAI'
 }
 
@@ -75,30 +90,36 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => translations[key] ?? key
+      t: (key: string, params?: Record<string, string | number>) => {
+        const template = translations[key] ?? key
+        return Object.entries(params || {}).reduce(
+          (result, [paramKey, value]) => result.replace(`{${paramKey}}`, String(value)),
+          template
+        )
+      }
     })
   }
 })
 
-const item = {
+const baseItem = {
   id: 1,
   created_at: '2026-04-04T00:00:00Z',
   request_id: 'req-1',
   client_request_id: 'client-1',
   upstream_request_id: 'upstream-1',
-  platform: 'openai',
+  platform: 'protocol_gateway',
   protocol_in: 'openai',
   protocol_out: 'openai',
-  channel: 'main',
-  route_path: '/v1/chat/completions',
+  channel: 'openai_compat',
+  route_path: '/responses',
   request_type: 'chat_completions',
   user_id: 10,
   api_key_id: 20,
   account_id: 30,
   group_id: 40,
   requested_model: 'claude-opus-4-1-20250805',
-  upstream_model: 'claude-opus-4-1-20250805',
-  actual_upstream_model: 'claude-opus-4-1-20250805',
+  upstream_model: 'gpt-4o-mini-2025-04-01',
+  actual_upstream_model: 'gpt-4o-mini-2025-04-01',
   status: 'success',
   status_code: 200,
   upstream_status_code: 200,
@@ -125,11 +146,22 @@ const item = {
 }
 
 describe('RequestDetailsTable', () => {
-  it('renders translated stacked labels and model icons', () => {
+  it('renders single-line aggregated columns and different upstream models', () => {
     const wrapper = mount(RequestDetailsTable, {
       props: {
-        items: [item],
-        total: 1,
+        items: [
+          baseItem,
+          {
+            ...baseItem,
+            id: 2,
+            request_id: 'req-2',
+            client_request_id: 'client-2',
+            upstream_request_id: 'upstream-2',
+            actual_upstream_model: 'claude-opus-4-1-20250805',
+            upstream_model: 'claude-opus-4-1-20250805'
+          }
+        ],
+        total: 2,
         page: 1,
         pageSize: 20,
         loading: false,
@@ -143,14 +175,46 @@ describe('RequestDetailsTable', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('用户 ID')
-    expect(wrapper.text()).toContain('路由')
-    expect(wrapper.text()).toContain('请求模型')
-    expect(wrapper.text()).toContain('上游模型')
+    expect(wrapper.text()).toContain('User 10 · API Key 20 · Account 30 · Group 40')
+    expect(wrapper.text()).toContain('/responses · openai_compat · protocol_gateway · OpenAI -> OpenAI')
     expect(wrapper.text()).toContain('Claude Opus 4.1')
-    expect(wrapper.text()).toContain('成功')
-    expect(wrapper.text()).toContain('流式')
-    expect(wrapper.text()).toContain('有原文')
-    expect(wrapper.findAll('[data-test="model-icon"]')).toHaveLength(2)
+    expect(wrapper.text()).toContain('GPT-4o mini')
+    expect(wrapper.text()).toContain('Success')
+    expect(wrapper.text()).toContain('TTFT 180 ms')
+    expect(wrapper.text()).toContain('140 Tokens')
+    expect(wrapper.findAll('[data-test="model-icon"]')).toHaveLength(3)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+  })
+
+  it('copies text without opening the row and keeps request id tooltip details', async () => {
+    const wrapper = mount(RequestDetailsTable, {
+      props: {
+        items: [baseItem],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        loading: false,
+        selectedId: null
+      },
+      global: {
+        stubs: {
+          Pagination: true,
+          ModelIcon: true
+        }
+      }
+    })
+
+    const requestIdButton = wrapper.find('tbody tr td:nth-child(2) button')
+    expect(requestIdButton.attributes('title')).toContain('Client Request ID: client-1')
+    expect(requestIdButton.attributes('title')).toContain('Upstream Request ID: upstream-1')
+
+    await requestIdButton.trigger('click')
+
+    expect(copyToClipboard).toHaveBeenCalledWith('req-1', undefined)
+    expect(wrapper.emitted('select')).toBeUndefined()
+
+    await wrapper.find('tbody tr').trigger('click')
+
+    expect(wrapper.emitted('select')).toHaveLength(1)
   })
 })

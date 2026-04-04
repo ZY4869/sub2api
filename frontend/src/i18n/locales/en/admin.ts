@@ -4589,18 +4589,45 @@ export default {
           subject: 'Subjects',
           models: 'Models',
           status: 'Status / Reason',
+          performance: 'Performance',
           latency: 'Duration / TTFT',
           tokens: 'Tokens',
           flags: 'Capability Flags',
           actions: 'Actions'
+        },
+        summary: {
+          user: 'User {id}',
+          apiKey: 'API Key {id}',
+          account: 'Account {id}',
+          group: 'Group {id}',
+          ttft: 'TTFT {value}',
+          tokens: '{value} Tokens'
         }
       },
       drawer: {
         title: 'Trace Detail',
         noSelection: 'Select a request trace to inspect details.',
         loadRaw: 'Load Raw Payload',
+        copyContent: 'Copy Content',
+        viewFull: 'View Full Details',
+        previewOnlyNotice: 'Only the captured preview is available here. Raw full text is not accessible for this tab.',
+        fullDialogTitle: '{tab} · {id}',
         rawNotAllowed: 'Raw payload access is restricted to configured audit users.',
         auditOperator: 'Operator #{id}',
+        payload: {
+          previewReady: 'Preview is ready',
+          empty: 'No content available'
+        },
+        emptyStates: {
+          inbound: 'No inbound request preview was captured for this trace.',
+          normalized: 'No normalized request content is available for this trace.',
+          upstreamRequest: 'No upstream request content is available for this trace.',
+          upstreamResponse: 'No upstream response content is available for this trace.',
+          gatewayResponse: 'No gateway response content is available for this trace.',
+          tools: 'No tool or thinking trace was captured for this trace.',
+          rawRequest: 'No raw request content is available.',
+          rawResponse: 'No raw response content is available.'
+        },
         sections: {
           basicInfo: 'Basic Info',
           identifiers: 'Identifiers',

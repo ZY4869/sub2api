@@ -4,6 +4,8 @@ import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import type { OpsRequestTraceDetail, OpsRequestTraceRawDetail } from '@/api/admin/ops'
 import { formatDateTime, formatNumber } from '@/utils/format'
+import RequestDetailsContentDialog from './RequestDetailsContentDialog.vue'
+import RequestDetailsPayloadPanel from './RequestDetailsPayloadPanel.vue'
 import {
   formatDurationMs,
   formatPrettyJSON,
@@ -20,6 +22,35 @@ import {
   resolveRequestTraceModelPresentation
 } from '../helpers'
 
+type PayloadTabKey = 'inbound' | 'normalized' | 'upstreamRequest' | 'upstreamResponse' | 'gatewayResponse' | 'tools'
+type DialogPayloadKey = PayloadTabKey | 'rawRequest' | 'rawResponse'
+
+interface FullDialogState {
+  show: boolean
+  title: string
+  content: string
+  notice: string
+  emptyMessage: string
+  loading: boolean
+}
+
+interface PayloadPanelState {
+  title: string
+  content: string
+  emptyMessage: string
+  notice: string
+  canOpenFull: boolean
+}
+
+const payloadTabKeys: PayloadTabKey[] = [
+  'inbound',
+  'normalized',
+  'upstreamRequest',
+  'upstreamResponse',
+  'gatewayResponse',
+  'tools'
+]
+
 const props = defineProps<{
   open: boolean
   detail: OpsRequestTraceDetail | null
@@ -35,6 +66,19 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const activeTab = ref('overview')
+const pendingRawDialogKey = ref<'inbound' | 'rawRequest' | 'rawResponse' | null>(null)
+const fullDialog = ref<FullDialogState>(createEmptyDialogState())
+
+function createEmptyDialogState(): FullDialogState {
+  return {
+    show: false,
+    title: '',
+    content: '',
+    notice: '',
+    emptyMessage: '',
+    loading: false
+  }
+}
 
 const tabs = computed(() => {
   const base = [
@@ -99,17 +143,9 @@ const flagBadges = computed(() => {
 
 const requestHeaders = computed(() => formatPrettyJSON(props.detail?.request_headers_json))
 const responseHeaders = computed(() => formatPrettyJSON(props.detail?.response_headers_json))
+const rawBackedInboundAvailable = computed(() => Boolean(props.detail?.raw_access_allowed && props.detail?.raw_available))
 
-watch(
-  () => props.open,
-  (open) => {
-    if (open) {
-      activeTab.value = 'overview'
-    }
-  }
-)
-
-const jsonPanels = computed(() => ({
+const jsonPanels = computed<Record<DialogPayloadKey, string>>(() => ({
   inbound: formatPrettyJSON(props.detail?.inbound_request_json),
   normalized: formatPrettyJSON(props.detail?.normalized_request_json),
   upstreamRequest: formatPrettyJSON(props.detail?.upstream_request_json),
@@ -120,9 +156,174 @@ const jsonPanels = computed(() => ({
   rawResponse: formatPrettyJSON(props.rawDetail?.raw_response)
 }))
 
+const payloadPanels = computed<Record<DialogPayloadKey, PayloadPanelState>>(() => ({
+  inbound: {
+    title: tabLabel('inbound'),
+    content: jsonPanels.value.inbound,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.inbound'),
+    notice: rawBackedInboundAvailable.value ? '' : t('admin.requestDetails.drawer.previewOnlyNotice'),
+    canOpenFull: rawBackedInboundAvailable.value || Boolean(jsonPanels.value.inbound)
+  },
+  normalized: {
+    title: tabLabel('normalized'),
+    content: jsonPanels.value.normalized,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.normalized'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.normalized)
+  },
+  upstreamRequest: {
+    title: tabLabel('upstreamRequest'),
+    content: jsonPanels.value.upstreamRequest,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.upstreamRequest'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.upstreamRequest)
+  },
+  upstreamResponse: {
+    title: tabLabel('upstreamResponse'),
+    content: jsonPanels.value.upstreamResponse,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.upstreamResponse'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.upstreamResponse)
+  },
+  gatewayResponse: {
+    title: tabLabel('gatewayResponse'),
+    content: jsonPanels.value.gatewayResponse,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.gatewayResponse'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.gatewayResponse)
+  },
+  tools: {
+    title: tabLabel('tools'),
+    content: jsonPanels.value.tools,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.tools'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.tools)
+  },
+  rawRequest: {
+    title: t('admin.requestDetails.presentation.labels.rawRequest'),
+    content: jsonPanels.value.rawRequest,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.rawRequest'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.rawRequest)
+  },
+  rawResponse: {
+    title: t('admin.requestDetails.presentation.labels.rawResponse'),
+    content: jsonPanels.value.rawResponse,
+    emptyMessage: t('admin.requestDetails.drawer.emptyStates.rawResponse'),
+    notice: '',
+    canOpenFull: Boolean(jsonPanels.value.rawResponse)
+  }
+}))
+
+const currentPayloadPanel = computed(() => {
+  if (!isPayloadTab(activeTab.value)) return null
+  return payloadPanels.value[activeTab.value]
+})
+
+function isPayloadTab(tab: string): tab is PayloadTabKey {
+  return payloadTabKeys.includes(tab as PayloadTabKey)
+}
+
 function tabLabel(tab: string): string {
   return t(`admin.requestDetails.drawer.tabs.${tab}`)
 }
+
+function buildFullDialogTitle(tabTitle: string): string {
+  return t('admin.requestDetails.drawer.fullDialogTitle', {
+    tab: tabTitle,
+    id: props.detail?.request_id || '-'
+  })
+}
+
+function openFullDialog(next: Omit<FullDialogState, 'show'>) {
+  fullDialog.value = {
+    show: true,
+    ...next
+  }
+}
+
+function closeFullDialog() {
+  fullDialog.value = createEmptyDialogState()
+}
+
+function handleOpenPayloadFull(tab: PayloadTabKey) {
+  if (tab === 'inbound' && rawBackedInboundAvailable.value) {
+    if (payloadPanels.value.rawRequest.content) {
+      openFullDialog({
+        title: buildFullDialogTitle(payloadPanels.value.inbound.title),
+        content: payloadPanels.value.rawRequest.content,
+        notice: '',
+        emptyMessage: payloadPanels.value.rawRequest.emptyMessage,
+        loading: false
+      })
+      return
+    }
+
+    pendingRawDialogKey.value = 'inbound'
+    openFullDialog({
+      title: buildFullDialogTitle(payloadPanels.value.inbound.title),
+      content: '',
+      notice: '',
+      emptyMessage: payloadPanels.value.rawRequest.emptyMessage,
+      loading: true
+    })
+    emit('loadRaw')
+    return
+  }
+
+  const panel = payloadPanels.value[tab]
+  openFullDialog({
+    title: buildFullDialogTitle(panel.title),
+    content: panel.content,
+    notice: panel.notice,
+    emptyMessage: panel.emptyMessage,
+    loading: false
+  })
+}
+
+function handleOpenRawFull(tab: 'rawRequest' | 'rawResponse') {
+  const panel = payloadPanels.value[tab]
+  openFullDialog({
+    title: buildFullDialogTitle(panel.title),
+    content: panel.content,
+    notice: '',
+    emptyMessage: panel.emptyMessage,
+    loading: false
+  })
+}
+
+watch(
+  () => props.open,
+  (open) => {
+    activeTab.value = 'overview'
+    pendingRawDialogKey.value = null
+    if (!open) {
+      closeFullDialog()
+    }
+  }
+)
+
+watch(
+  () => [props.rawLoading, props.rawDetail?.raw_request, props.rawDetail?.raw_response, props.open] as const,
+  ([rawLoading, , , open]) => {
+    if (!open || !pendingRawDialogKey.value || rawLoading) return
+    const pendingKey = pendingRawDialogKey.value
+    pendingRawDialogKey.value = null
+
+    const sourcePanel = pendingKey === 'inbound' ? payloadPanels.value.rawRequest : payloadPanels.value[pendingKey]
+    const title = pendingKey === 'inbound'
+      ? buildFullDialogTitle(payloadPanels.value.inbound.title)
+      : buildFullDialogTitle(sourcePanel.title)
+
+    openFullDialog({
+      title,
+      content: sourcePanel.content,
+      notice: '',
+      emptyMessage: sourcePanel.emptyMessage,
+      loading: false
+    })
+  }
+)
 </script>
 
 <template>
@@ -409,42 +610,50 @@ function tabLabel(tab: string): string {
                 {{ rawDetail ? t('common.refresh') : t('admin.requestDetails.drawer.loadRaw') }}
               </button>
             </div>
-            <div v-if="rawLoading" class="text-sm text-gray-400">{{ t('common.loading') }}</div>
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-                <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-                  {{ t('admin.requestDetails.presentation.labels.rawRequest') }}
-                </div>
-                <pre class="max-h-[520px] overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-800 dark:bg-dark-800 dark:text-gray-200"><code>{{ jsonPanels.rawRequest || '-' }}</code></pre>
-              </div>
-              <div class="rounded-2xl border border-gray-200 p-4 dark:border-dark-700">
-                <div class="mb-3 text-sm font-semibold text-gray-900 dark:text-white">
-                  {{ t('admin.requestDetails.presentation.labels.rawResponse') }}
-                </div>
-                <pre class="max-h-[520px] overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-800 dark:bg-dark-800 dark:text-gray-200"><code>{{ jsonPanels.rawResponse || '-' }}</code></pre>
-              </div>
+              <RequestDetailsPayloadPanel
+                data-test="raw-request-panel"
+                :title="payloadPanels.rawRequest.title"
+                :content="payloadPanels.rawRequest.content"
+                :loading="rawLoading"
+                :empty-message="payloadPanels.rawRequest.emptyMessage"
+                @open-full="handleOpenRawFull('rawRequest')"
+              />
+              <RequestDetailsPayloadPanel
+                data-test="raw-response-panel"
+                :title="payloadPanels.rawResponse.title"
+                :content="payloadPanels.rawResponse.content"
+                :loading="rawLoading"
+                :empty-message="payloadPanels.rawResponse.emptyMessage"
+                @open-full="handleOpenRawFull('rawResponse')"
+              />
             </div>
           </template>
         </div>
 
-        <div v-else class="space-y-4">
-          <pre class="max-h-[720px] overflow-auto rounded-2xl border border-gray-200 bg-gray-50 p-4 text-xs text-gray-800 dark:border-dark-700 dark:bg-dark-800 dark:text-gray-200"><code>{{
-            activeTab === 'inbound'
-              ? jsonPanels.inbound
-              : activeTab === 'normalized'
-                ? jsonPanels.normalized
-                : activeTab === 'upstreamRequest'
-                  ? jsonPanels.upstreamRequest
-                  : activeTab === 'upstreamResponse'
-                    ? jsonPanels.upstreamResponse
-                    : activeTab === 'gatewayResponse'
-                      ? jsonPanels.gatewayResponse
-                      : jsonPanels.tools
-          }}</code></pre>
-        </div>
+        <RequestDetailsPayloadPanel
+          v-else-if="currentPayloadPanel"
+          :data-test="`${activeTab}-panel`"
+          :title="currentPayloadPanel.title"
+          :content="currentPayloadPanel.content"
+          :empty-message="currentPayloadPanel.emptyMessage"
+          :notice="currentPayloadPanel.notice && !currentPayloadPanel.content ? currentPayloadPanel.notice : ''"
+          :can-open-full="currentPayloadPanel.canOpenFull"
+          @open-full="handleOpenPayloadFull(activeTab as PayloadTabKey)"
+        />
       </div>
     </aside>
   </transition>
+
+  <RequestDetailsContentDialog
+    :show="fullDialog.show"
+    :title="fullDialog.title"
+    :content="fullDialog.content"
+    :notice="fullDialog.notice"
+    :loading="fullDialog.loading"
+    :empty-message="fullDialog.emptyMessage"
+    @close="closeFullDialog"
+  />
 </template>
 
 <style scoped>
