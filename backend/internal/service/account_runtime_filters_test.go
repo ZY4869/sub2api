@@ -23,6 +23,9 @@ func TestNormalizeAccountRuntimeViewInput(t *testing.T) {
 	if got := NormalizeAccountRuntimeViewInput("in_use_only"); got != AccountRuntimeViewInUseOnly {
 		t.Fatalf("NormalizeAccountRuntimeViewInput() = %q, want %q", got, AccountRuntimeViewInUseOnly)
 	}
+	if got := NormalizeAccountRuntimeViewInput("available_only"); got != AccountRuntimeViewAvailableOnly {
+		t.Fatalf("NormalizeAccountRuntimeViewInput() = %q, want %q", got, AccountRuntimeViewAvailableOnly)
+	}
 	if got := NormalizeAccountRuntimeViewInput("bad-value"); got != AccountRuntimeViewAll {
 		t.Fatalf("NormalizeAccountRuntimeViewInput() = %q, want %q", got, AccountRuntimeViewAll)
 	}

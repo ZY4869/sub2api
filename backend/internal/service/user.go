@@ -7,20 +7,21 @@ import (
 )
 
 type User struct {
-	ID               int64
-	Email            string
-	Username         string
-	Notes            string
-	PasswordHash     string
-	Role             string
-	Balance          float64
-	Concurrency      int
-	Status           string
-	AdminFreeBilling bool
-	AllowedGroups    []int64
-	TokenVersion     int64 // Incremented on password change to invalidate existing tokens
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                   int64
+	Email                string
+	Username             string
+	Notes                string
+	PasswordHash         string
+	Role                 string
+	Balance              float64
+	Concurrency          int
+	Status               string
+	AdminFreeBilling     bool
+	RequestDetailsReview bool
+	AllowedGroups        []int64
+	TokenVersion         int64 // Incremented on password change to invalidate existing tokens
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
 
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier
@@ -40,7 +41,7 @@ type User struct {
 }
 
 func (u *User) IsAdmin() bool {
-	return u.Role == RoleAdmin
+	return u != nil && u.Role == RoleAdmin
 }
 
 func (u *User) IsActive() bool {
@@ -49,6 +50,10 @@ func (u *User) IsActive() bool {
 
 func (u *User) IsAdminFreeBillingEnabled() bool {
 	return u != nil && u.Role == RoleAdmin && u.AdminFreeBilling
+}
+
+func (u *User) CanReviewRequestDetails() bool {
+	return u != nil && (u.IsAdmin() || u.RequestDetailsReview)
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

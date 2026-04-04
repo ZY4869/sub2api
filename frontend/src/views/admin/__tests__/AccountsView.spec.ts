@@ -290,6 +290,7 @@ const SummaryBarStub = defineComponent({
       <button class="summary-total-button" @click="$emit('select-status', '')" />
       <button class="summary-active-button" @click="$emit('select-status', 'active')" />
       <button class="summary-rate-limited-button" @click="$emit('select-status', 'rate_limited')" />
+      <button class="summary-remaining-available-button" @click="$emit('select-runtime-view', 'available_only')" />
       <button class="summary-in-use-button" @click="$emit('select-runtime-view', 'in_use_only')" />
     </div>
   `
@@ -481,6 +482,42 @@ describe('AccountsView', () => {
     expect(wrapper.get('.summary-active').text()).toBe('67')
     expect(wrapper.get('.summary-in-use').text()).toBe('3')
     expect(wrapper.get('.summary-active-runtime').text()).toBe('in_use_only')
+    expect(mockState.debouncedReload).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('switches to available-only runtime view when remaining available is selected', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.summary-remaining-available-button').trigger('click')
+    await flushPromises()
+
+    expect(mockState.tableParams.runtime_view).toBe('available_only')
+    expect(mockState.tableParams.status).toBe('')
+    expect(toValue(mockState.summaryParamsSource)).toEqual({
+      platform: '',
+      type: '',
+      group: '',
+      privacy_mode: '',
+      search: '',
+      lifecycle: 'normal',
+      limited_view: 'all',
+      limited_reason: ''
+    })
+    expect(toValue(mockState.runtimeParamsSource)).toEqual({
+      platform: '',
+      type: '',
+      group: '',
+      privacy_mode: '',
+      search: '',
+      lifecycle: 'normal',
+      limited_view: 'all',
+      limited_reason: '',
+      runtime_view: 'available_only'
+    })
+    expect(wrapper.get('.summary-active-runtime').text()).toBe('available_only')
     expect(mockState.debouncedReload).toHaveBeenCalledTimes(1)
 
     wrapper.unmount()

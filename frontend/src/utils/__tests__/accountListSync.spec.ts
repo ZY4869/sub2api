@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   accountMatchesFilters,
   buildDefaultTodayStats,
+  isAccountDispatchable,
   mergeRuntimeFields,
   shouldReplaceAutoRefreshRow
 } from '@/utils/accountListSync'
@@ -116,6 +117,50 @@ describe('accountListSync', () => {
         { runtime_view: 'in_use_only' }
       )
     ).toBe(false)
+  })
+
+  it('matches runtime view filter for remaining available accounts', () => {
+    const now = new Date('2026-03-14T10:00:00Z').getTime()
+
+    expect(
+      accountMatchesFilters(
+        createAccount({ status: 'active', schedulable: true }),
+        { runtime_view: 'available_only' },
+        now
+      )
+    ).toBe(true)
+
+    expect(
+      accountMatchesFilters(
+        createAccount({ current_concurrency: 1 }),
+        { runtime_view: 'available_only' },
+        now
+      )
+    ).toBe(false)
+
+    expect(
+      accountMatchesFilters(
+        createAccount({ schedulable: false }),
+        { runtime_view: 'available_only' },
+        now
+      )
+    ).toBe(false)
+
+    expect(
+      accountMatchesFilters(
+        createAccount({ rate_limit_reset_at: '2026-03-14T10:05:00Z' }),
+        { runtime_view: 'available_only' },
+        now
+      )
+    ).toBe(false)
+  })
+
+  it('marks dispatchable accounts consistently with available-only filtering', () => {
+    const now = new Date('2026-03-14T10:00:00Z').getTime()
+
+    expect(isAccountDispatchable(createAccount({ status: 'active', schedulable: true }), now)).toBe(true)
+    expect(isAccountDispatchable(createAccount({ overload_until: '2026-03-14T10:05:00Z' }), now)).toBe(false)
+    expect(isAccountDispatchable(createAccount({ temp_unschedulable_until: '2026-03-14T10:05:00Z' }), now)).toBe(false)
   })
 
   it('preserves runtime fields when patch payload omits them', () => {

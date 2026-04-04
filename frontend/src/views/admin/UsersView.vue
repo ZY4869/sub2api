@@ -248,13 +248,16 @@
               </div>
               <div class="min-w-0">
                 <div class="font-medium text-gray-900 dark:text-white">{{ value }}</div>
-                <div v-if="row.role === 'admin' || row.admin_free_billing" class="mt-0.5 flex flex-wrap items-center gap-1">
+                <div v-if="row.role === 'admin' || row.admin_free_billing || hasRequestDetailsReview(row)" class="mt-0.5 flex flex-wrap items-center gap-1">
                   <span v-if="row.role === 'admin'" class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                     <Icon name="crown" size="xs" class="h-3 w-3" />
                     管理员
                   </span>
                   <span v-if="row.admin_free_billing" class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                     免扣
+                  </span>
+                  <span v-if="hasRequestDetailsReview(row)" class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300">
+                    {{ t('admin.users.requestDetailsReviewBadge') }}
                   </span>
                 </div>
               </div>
@@ -546,6 +549,25 @@
               >
                 <Icon name="users" size="sm" class="text-gray-400" :stroke-width="2" />
                 {{ t('admin.users.groups') }}
+              </button>
+
+              <button
+                v-if="user.role !== 'admin'"
+                @click="handleToggleRequestDetailsReview(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="shield" size="sm" class="text-sky-500" :stroke-width="2" />
+                {{ hasRequestDetailsReview(user) ? t('admin.users.revokeRequestDetailsReview') : t('admin.users.grantRequestDetailsReview') }}
+              </button>
+
+              <button
+                v-else
+                type="button"
+                disabled
+                class="flex w-full cursor-not-allowed items-center gap-2 px-4 py-2 text-left text-sm text-gray-400 dark:text-gray-500"
+              >
+                <Icon name="shield" size="sm" class="text-gray-300 dark:text-gray-600" :stroke-width="2" />
+                {{ t('admin.users.adminImplicitRequestDetailsReview') }}
               </button>
 
               <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
@@ -1264,6 +1286,32 @@ const handleToggleStatus = async (user: AdminUser) => {
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.users.failedToToggle'))
     console.error('Error toggling user status:', error)
+  }
+}
+
+const hasRequestDetailsReview = (user: AdminUser) => {
+  return user.role === 'admin' || !!user.request_details_review
+}
+
+const handleToggleRequestDetailsReview = async (user: AdminUser) => {
+  if (user.role === 'admin') {
+    return
+  }
+
+  const nextValue = !hasRequestDetailsReview(user)
+  try {
+    await adminAPI.users.update(user.id, { request_details_review: nextValue })
+    appStore.showSuccess(
+      nextValue
+        ? t('admin.users.requestDetailsReviewGranted')
+        : t('admin.users.requestDetailsReviewRevoked')
+    )
+    loadUsers()
+  } catch (error: any) {
+    appStore.showError(
+      error.response?.data?.detail || t('admin.users.failedToUpdateRequestDetailsReview')
+    )
+    console.error('Error toggling request details review access:', error)
   }
 }
 

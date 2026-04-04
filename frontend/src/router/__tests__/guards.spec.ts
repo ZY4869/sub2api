@@ -52,6 +52,7 @@ interface MockAuthState {
   isAdmin: boolean
   isSimpleMode: boolean
   backendModeEnabled: boolean
+  canReviewRequestDetails?: boolean
 }
 
 /**
@@ -64,6 +65,8 @@ function simulateGuard(
 ): string | null {
   const requiresAuth = toMeta.requiresAuth !== false
   const requiresAdmin = toMeta.requiresAdmin === true
+  const requiresRequestDetailsReview = toMeta.requiresRequestDetailsReview === true
+  const canReviewRequestDetails = authState.isAdmin || authState.canReviewRequestDetails === true
 
   // 不需要认证的路由
   if (!requiresAuth) {
@@ -71,7 +74,13 @@ function simulateGuard(
       authState.isAuthenticated &&
       (toPath === '/login' || toPath === '/register')
     ) {
-      if (authState.backendModeEnabled && !authState.isAdmin) {
+      if (authState.backendModeEnabled) {
+        if (authState.isAdmin) {
+          return '/admin/dashboard'
+        }
+        if (canReviewRequestDetails) {
+          return '/admin/request-details'
+        }
         return null
       }
       return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
@@ -95,6 +104,10 @@ function simulateGuard(
     return '/dashboard'
   }
 
+  if (requiresRequestDetailsReview && !canReviewRequestDetails) {
+    return '/dashboard'
+  }
+
   // 简易模式限制
   if (authState.isSimpleMode) {
     const restrictedPaths = [
@@ -112,6 +125,9 @@ function simulateGuard(
   // Backend mode: admin gets full access, non-admin blocked
   if (authState.backendModeEnabled) {
     if (authState.isAuthenticated && authState.isAdmin) {
+      return null
+    }
+    if (canReviewRequestDetails && (toPath === '/admin/request-details' || toPath.startsWith('/admin/request-details/'))) {
       return null
     }
     const allowed = ['/login', '/key-usage', '/setup']
@@ -411,6 +427,34 @@ describe('路由守卫逻辑', () => {
         backendModeEnabled: true,
       }
       const redirect = simulateGuard('/key-usage', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('reviewer authenticated: /login redirects to /admin/request-details', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        canReviewRequestDetails: true,
+      }
+      const redirect = simulateGuard('/login', { requiresAuth: false }, authState)
+      expect(redirect).toBe('/admin/request-details')
+    })
+
+    it('reviewer authenticated: /admin/request-details is allowed', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        canReviewRequestDetails: true,
+      }
+      const redirect = simulateGuard(
+        '/admin/request-details',
+        { requiresAuth: true, requiresRequestDetailsReview: true },
+        authState
+      )
       expect(redirect).toBeNull()
     })
   })

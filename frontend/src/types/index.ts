@@ -29,6 +29,7 @@ export interface User {
   username: string;
   email: string;
   role: "admin" | "user"; // User role for authorization
+  request_details_review?: boolean;
   admin_free_billing?: boolean;
   balance: number; // User balance for API usage
   concurrency: number; // Allowed concurrent requests
@@ -606,7 +607,7 @@ export type AccountType =
   | "upstream";
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
 export type AccountLimitedView = "all" | "normal_only" | "limited_only";
-export type AccountRuntimeView = "all" | "in_use_only";
+export type AccountRuntimeView = "all" | "in_use_only" | "available_only";
 export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d";
 export type AccountViewMode = "table" | "card";
 export type OAuthAddMethod = "oauth" | "setup-token";
@@ -1491,6 +1492,7 @@ export interface UpdateUserRequest {
   username?: string;
   notes?: string;
   role?: "admin" | "user";
+  request_details_review?: boolean;
   admin_free_billing?: boolean;
   balance?: number;
   concurrency?: number;

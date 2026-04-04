@@ -345,7 +345,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/admin/request-details/RequestDetailsView.vue'),
     meta: {
       requiresAuth: true,
-      requiresAdmin: true,
+      requiresAdmin: false,
+      requiresRequestDetailsReview: true,
       title: 'Request Details',
       titleKey: 'admin.requestDetails.title',
       descriptionKey: 'admin.requestDetails.description'
@@ -534,6 +535,11 @@ const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup']
+const BACKEND_MODE_REVIEWER_ALLOWED_PATHS = ['/admin/request-details']
+
+function isAllowedPath(path: string, allowedPaths: string[]) {
+  return allowedPaths.some((allowedPath) => path === allowedPath || path.startsWith(`${allowedPath}/`))
+}
 
 router.beforeEach((to, _from, next) => {
   // 开始导航加载状态
@@ -569,14 +575,21 @@ router.beforeEach((to, _from, next) => {
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
   const requiresAdmin = to.meta.requiresAdmin === true
+  const requiresRequestDetailsReview = to.meta.requiresRequestDetailsReview === true
 
   // If route doesn't require auth, allow access
   if (!requiresAuth) {
     // If already authenticated and trying to access login/register, redirect to appropriate dashboard
     if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
-      // In backend mode, non-admin users should NOT be redirected away from login
-      // (they are blocked from all protected routes, so redirecting would cause a loop)
-      if (appStore.backendModeEnabled && !authStore.isAdmin) {
+      if (appStore.backendModeEnabled) {
+        if (authStore.isAdmin) {
+          next('/admin/dashboard')
+          return
+        }
+        if (authStore.canReviewRequestDetails) {
+          next('/admin/request-details')
+          return
+        }
         next()
         return
       }
@@ -586,7 +599,7 @@ router.beforeEach((to, _from, next) => {
     }
     // Backend mode: block public pages for unauthenticated users (except login, key-usage, setup)
     if (appStore.backendModeEnabled && !authStore.isAuthenticated) {
-      const isAllowed = BACKEND_MODE_ALLOWED_PATHS.some((p) => to.path === p || to.path.startsWith(p))
+      const isAllowed = isAllowedPath(to.path, BACKEND_MODE_ALLOWED_PATHS)
       if (!isAllowed) {
         next('/login')
         return
@@ -609,6 +622,11 @@ router.beforeEach((to, _from, next) => {
   // Check admin requirement
   if (requiresAdmin && !authStore.isAdmin) {
     // User is authenticated but not admin, redirect to user dashboard
+    next('/dashboard')
+    return
+  }
+
+  if (requiresRequestDetailsReview && !authStore.canReviewRequestDetails) {
     next('/dashboard')
     return
   }
@@ -636,7 +654,11 @@ router.beforeEach((to, _from, next) => {
       next()
       return
     }
-    const isAllowed = BACKEND_MODE_ALLOWED_PATHS.some((p) => to.path === p || to.path.startsWith(p))
+    if (authStore.canReviewRequestDetails && isAllowedPath(to.path, BACKEND_MODE_REVIEWER_ALLOWED_PATHS)) {
+      next()
+      return
+    }
+    const isAllowed = isAllowedPath(to.path, BACKEND_MODE_ALLOWED_PATHS)
     if (!isAllowed) {
       next('/login')
       return

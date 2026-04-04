@@ -61,6 +61,9 @@ func (h *AccountHandler) GetRuntimeSummary(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if filters.RuntimeView == service.AccountRuntimeViewAvailableOnly {
+		inUseCount = 0
+	}
 
 	payload := accountRuntimeSummaryResponse{InUse: inUseCount}
 	etag := buildAccountRuntimeSummaryETag(payload, filters)
@@ -78,7 +81,7 @@ func (h *AccountHandler) GetRuntimeSummary(c *gin.Context) {
 
 func (h *AccountHandler) buildRuntimeQueryContext(ctx context.Context, runtimeView string) (context.Context, []int64, error) {
 	normalizedView := service.NormalizeAccountRuntimeViewInput(runtimeView)
-	if normalizedView != service.AccountRuntimeViewInUseOnly {
+	if normalizedView != service.AccountRuntimeViewInUseOnly && normalizedView != service.AccountRuntimeViewAvailableOnly {
 		return service.WithAccountRuntimeFilters(ctx, normalizedView, nil), nil, nil
 	}
 

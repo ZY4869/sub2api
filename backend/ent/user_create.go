@@ -154,6 +154,20 @@ func (_c *UserCreate) SetNillableAdminFreeBilling(v *bool) *UserCreate {
 	return _c
 }
 
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (_c *UserCreate) SetRequestDetailsReview(v bool) *UserCreate {
+	_c.mutation.SetRequestDetailsReview(v)
+	return _c
+}
+
+// SetNillableRequestDetailsReview sets the "request_details_review" field if the given value is not nil.
+func (_c *UserCreate) SetNillableRequestDetailsReview(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetRequestDetailsReview(*v)
+	}
+	return _c
+}
+
 // SetUsername sets the "username" field.
 func (_c *UserCreate) SetUsername(v string) *UserCreate {
 	_c.mutation.SetUsername(v)
@@ -458,6 +472,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultAdminFreeBilling
 		_c.mutation.SetAdminFreeBilling(v)
 	}
+	if _, ok := _c.mutation.RequestDetailsReview(); !ok {
+		v := user.DefaultRequestDetailsReview
+		_c.mutation.SetRequestDetailsReview(v)
+	}
 	if _, ok := _c.mutation.Username(); !ok {
 		v := user.DefaultUsername
 		_c.mutation.SetUsername(v)
@@ -529,6 +547,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.AdminFreeBilling(); !ok {
 		return &ValidationError{Name: "admin_free_billing", err: errors.New(`ent: missing required field "User.admin_free_billing"`)}
+	}
+	if _, ok := _c.mutation.RequestDetailsReview(); !ok {
+		return &ValidationError{Name: "request_details_review", err: errors.New(`ent: missing required field "User.request_details_review"`)}
 	}
 	if _, ok := _c.mutation.Username(); !ok {
 		return &ValidationError{Name: "username", err: errors.New(`ent: missing required field "User.username"`)}
@@ -616,6 +637,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AdminFreeBilling(); ok {
 		_spec.SetField(user.FieldAdminFreeBilling, field.TypeBool, value)
 		_node.AdminFreeBilling = value
+	}
+	if value, ok := _c.mutation.RequestDetailsReview(); ok {
+		_spec.SetField(user.FieldRequestDetailsReview, field.TypeBool, value)
+		_node.RequestDetailsReview = value
 	}
 	if value, ok := _c.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
@@ -971,6 +996,18 @@ func (u *UserUpsert) UpdateAdminFreeBilling() *UserUpsert {
 	return u
 }
 
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (u *UserUpsert) SetRequestDetailsReview(v bool) *UserUpsert {
+	u.Set(user.FieldRequestDetailsReview, v)
+	return u
+}
+
+// UpdateRequestDetailsReview sets the "request_details_review" field to the value that was provided on create.
+func (u *UserUpsert) UpdateRequestDetailsReview() *UserUpsert {
+	u.SetExcluded(user.FieldRequestDetailsReview)
+	return u
+}
+
 // SetUsername sets the "username" field.
 func (u *UserUpsert) SetUsername(v string) *UserUpsert {
 	u.Set(user.FieldUsername, v)
@@ -1268,6 +1305,20 @@ func (u *UserUpsertOne) SetAdminFreeBilling(v bool) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateAdminFreeBilling() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAdminFreeBilling()
+	})
+}
+
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (u *UserUpsertOne) SetRequestDetailsReview(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetRequestDetailsReview(v)
+	})
+}
+
+// UpdateRequestDetailsReview sets the "request_details_review" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateRequestDetailsReview() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateRequestDetailsReview()
 	})
 }
 
@@ -1752,6 +1803,20 @@ func (u *UserUpsertBulk) SetAdminFreeBilling(v bool) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateAdminFreeBilling() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateAdminFreeBilling()
+	})
+}
+
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (u *UserUpsertBulk) SetRequestDetailsReview(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetRequestDetailsReview(v)
+	})
+}
+
+// UpdateRequestDetailsReview sets the "request_details_review" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateRequestDetailsReview() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateRequestDetailsReview()
 	})
 }
 

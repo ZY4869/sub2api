@@ -1,8 +1,31 @@
 import type { LocationQuery } from 'vue-router'
-import type { OpsRequestTraceFilter } from '@/api/admin/ops'
+import type { OpsRequestTraceDetail, OpsRequestTraceFilter, OpsRequestTraceListItem } from '@/api/admin/ops'
+import { getModelRegistrySnapshot } from '@/stores/modelRegistry'
 
 const TIME_RANGES = new Set(['5m', '30m', '1h', '6h', '24h', '7d', '30d'])
 const SORTS = new Set(['created_at_desc', 'duration_desc'])
+const EMPTY_VALUE = '-'
+
+type TraceRow = OpsRequestTraceListItem | OpsRequestTraceDetail
+type TranslateFn = (key: string, params?: Record<string, unknown>) => string
+
+export interface RequestTraceField {
+  label: string
+  value: string
+  mono?: boolean
+}
+
+export interface RequestTraceBadge {
+  key: string
+  label: string
+  className: string
+}
+
+export interface RequestTraceModelPresentation {
+  modelId: string
+  displayName: string
+  provider: string
+}
 
 function firstQueryValue(value: LocationQuery[string]): string {
   if (Array.isArray(value)) {
@@ -34,6 +57,51 @@ function parseOptionalBool(value: string): boolean | undefined {
   }
 }
 
+function toDisplayValue(value?: string | number | boolean | null): string {
+  if (value === null || typeof value === 'undefined') return EMPTY_VALUE
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed || EMPTY_VALUE
+  }
+  return String(value)
+}
+
+function normalizeTranslationKey(value?: string | null): string {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
+function translateMappedValue(t: TranslateFn, baseKey: string, value?: string | null): string {
+  const raw = toDisplayValue(value)
+  if (raw === EMPTY_VALUE) return raw
+  const normalizedKey = normalizeTranslationKey(raw)
+  if (!normalizedKey) return raw
+  const translationKey = `${baseKey}.${normalizedKey}`
+  const translated = t(translationKey)
+  return translated === translationKey ? raw : translated
+}
+
+function createField(label: string, value?: string | number | boolean | null, mono = false): RequestTraceField {
+  return {
+    label,
+    value: toDisplayValue(value),
+    mono
+  }
+}
+
+function findModelEntry(modelId: string) {
+  const normalizedId = modelId.trim().toLowerCase()
+  if (!normalizedId) return null
+  const snapshot = getModelRegistrySnapshot()
+  return snapshot.models.find((entry) => {
+    const candidates = [entry.id, ...entry.protocol_ids, ...entry.aliases]
+    return candidates.some((candidate) => candidate.trim().toLowerCase() === normalizedId)
+  }) || null
+}
+
 export function createDefaultRequestTraceFilter(): OpsRequestTraceFilter {
   return {
     time_range: '1h',
@@ -63,7 +131,7 @@ export function parseRequestTraceFilterFromQuery(query: LocationQuery): OpsReque
   const timeRange = firstQueryValue(query.time_range)
   const sort = firstQueryValue(query.sort)
 
-  const result: OpsRequestTraceFilter = {
+  return {
     ...defaults,
     time_range: TIME_RANGES.has(timeRange) ? (timeRange as OpsRequestTraceFilter['time_range']) : defaults.time_range,
     sort: SORTS.has(sort) ? sort as OpsRequestTraceFilter['sort'] : defaults.sort,
@@ -97,8 +165,6 @@ export function parseRequestTraceFilterFromQuery(query: LocationQuery): OpsReque
     raw_available: parseOptionalBool(firstQueryValue(query.raw_available)),
     sampled: parseOptionalBool(firstQueryValue(query.sampled))
   }
-
-  return result
 }
 
 export function buildRequestTraceQuery(filter: OpsRequestTraceFilter): Record<string, string> {
@@ -158,7 +224,7 @@ export function buildRequestTraceQuery(filter: OpsRequestTraceFilter): Record<st
 }
 
 export function formatDurationMs(value?: number | null): string {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '-'
+  if (typeof value !== 'number' || !Number.isFinite(value)) return EMPTY_VALUE
   if (value < 1000) return `${Math.round(value)} ms`
   return `${(value / 1000).toFixed(value >= 10000 ? 0 : 2)} s`
 }
@@ -177,10 +243,153 @@ export function formatPrettyJSON(raw?: string): string {
   }
 }
 
-export function getProtocolPairLabel(protocolIn?: string, protocolOut?: string): string {
-  const inbound = (protocolIn || 'unknown').trim() || 'unknown'
-  const outbound = (protocolOut || 'unknown').trim() || 'unknown'
+export function getRequestTraceStatusLabel(t: TranslateFn, status?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.status', status)
+}
+
+export function getRequestTraceProtocolLabel(t: TranslateFn, protocol?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.protocols', protocol)
+}
+
+export function getRequestTraceRequestTypeLabel(t: TranslateFn, requestType?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.requestTypes', requestType)
+}
+
+export function getRequestTraceFinishReasonLabel(t: TranslateFn, finishReason?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.finishReasons', finishReason)
+}
+
+export function getRequestTraceCaptureReasonLabel(t: TranslateFn, captureReason?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.captureReasons', captureReason)
+}
+
+export function getRequestTraceThinkingSourceLabel(t: TranslateFn, thinkingSource?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.thinkingSources', thinkingSource)
+}
+
+export function getRequestTraceThinkingLevelLabel(t: TranslateFn, thinkingLevel?: string): string {
+  return translateMappedValue(t, 'admin.requestDetails.presentation.thinkingLevels', thinkingLevel)
+}
+
+export function resolveRequestTraceModelPresentation(model?: string | null): RequestTraceModelPresentation | null {
+  const modelId = String(model || '').trim()
+  if (!modelId) return null
+  const entry = findModelEntry(modelId)
+  if (!entry) {
+    return {
+      modelId,
+      displayName: modelId,
+      provider: ''
+    }
+  }
+
+  return {
+    modelId,
+    displayName: entry.display_name || entry.id || modelId,
+    provider: entry.provider || ''
+  }
+}
+
+export function getProtocolPairLabel(t: TranslateFn, protocolIn?: string, protocolOut?: string): string {
+  const inbound = getRequestTraceProtocolLabel(t, protocolIn || 'unknown')
+  const outbound = getRequestTraceProtocolLabel(t, protocolOut || 'unknown')
   return `${inbound} -> ${outbound}`
+}
+
+export function getRequestTraceSubjectFields(t: TranslateFn, item: TraceRow): RequestTraceField[] {
+  return [
+    createField(t('admin.requestDetails.presentation.labels.userId'), item.user_id),
+    createField(t('admin.requestDetails.presentation.labels.apiKeyId'), item.api_key_id),
+    createField(t('admin.requestDetails.presentation.labels.accountId'), item.account_id),
+    createField(t('admin.requestDetails.presentation.labels.groupId'), item.group_id)
+  ]
+}
+
+export function getRequestTraceRouteFields(t: TranslateFn, item: TraceRow): RequestTraceField[] {
+  return [
+    createField(t('admin.requestDetails.presentation.labels.routePath'), item.route_path),
+    createField(t('admin.requestDetails.presentation.labels.channel'), item.channel),
+    createField(t('admin.requestDetails.presentation.labels.platform'), item.platform),
+    createField(
+      t('admin.requestDetails.presentation.labels.protocolPair'),
+      getProtocolPairLabel(t, item.protocol_in, item.protocol_out)
+    )
+  ]
+}
+
+export function getRequestTraceExecutionFields(t: TranslateFn, item: TraceRow): RequestTraceField[] {
+  return [
+    createField(t('admin.requestDetails.presentation.labels.status'), getRequestTraceStatusLabel(t, item.status)),
+    createField(t('admin.requestDetails.presentation.labels.requestType'), getRequestTraceRequestTypeLabel(t, item.request_type)),
+    createField(t('admin.requestDetails.presentation.labels.finishReason'), getRequestTraceFinishReasonLabel(t, item.finish_reason)),
+    createField(t('admin.requestDetails.presentation.labels.captureReason'), getRequestTraceCaptureReasonLabel(t, item.capture_reason)),
+    createField(t('admin.requestDetails.presentation.labels.statusCode'), item.status_code),
+    createField(t('admin.requestDetails.presentation.labels.upstreamStatusCode'), item.upstream_status_code),
+    createField(t('admin.requestDetails.presentation.labels.duration'), formatDurationMs(item.duration_ms)),
+    createField(t('admin.requestDetails.presentation.labels.ttft'), formatDurationMs(item.ttft_ms)),
+    createField(t('admin.requestDetails.presentation.labels.totalTokens'), item.total_tokens),
+    createField(
+      t('admin.requestDetails.presentation.labels.tokenBreakdown'),
+      `${toDisplayValue(item.input_tokens)} / ${toDisplayValue(item.output_tokens)}`
+    )
+  ]
+}
+
+export function getRequestTraceIdentityFields(t: TranslateFn, item: TraceRow): RequestTraceField[] {
+  return [
+    createField(t('admin.requestDetails.presentation.labels.requestId'), item.request_id, true),
+    createField(t('admin.requestDetails.presentation.labels.clientRequestId'), item.client_request_id, true),
+    createField(t('admin.requestDetails.presentation.labels.upstreamRequestId'), item.upstream_request_id, true)
+  ]
+}
+
+export function getRequestTraceCapabilityFields(t: TranslateFn, item: TraceRow): RequestTraceField[] {
+  return [
+    createField(t('admin.requestDetails.presentation.labels.thinkingSource'), getRequestTraceThinkingSourceLabel(t, item.thinking_source)),
+    createField(t('admin.requestDetails.presentation.labels.thinkingLevel'), getRequestTraceThinkingLevelLabel(t, item.thinking_level)),
+    createField(t('admin.requestDetails.presentation.labels.tokenSource'), item.count_tokens_source),
+    createField(t('admin.requestDetails.presentation.labels.mediaResolution'), item.media_resolution)
+  ]
+}
+
+export function getRequestTraceFlagBadges(t: TranslateFn, item: TraceRow): RequestTraceBadge[] {
+  return [
+    {
+      key: 'stream',
+      label: item.stream
+        ? t('admin.requestDetails.presentation.flags.streamEnabled')
+        : t('admin.requestDetails.presentation.flags.streamDisabled'),
+      className: item.stream ? 'badge-primary' : 'badge-gray'
+    },
+    {
+      key: 'tools',
+      label: item.has_tools
+        ? t('admin.requestDetails.presentation.flags.toolsEnabled')
+        : t('admin.requestDetails.presentation.flags.toolsDisabled'),
+      className: item.has_tools ? 'badge-success' : 'badge-gray'
+    },
+    {
+      key: 'thinking',
+      label: item.has_thinking
+        ? t('admin.requestDetails.presentation.flags.thinkingEnabled')
+        : t('admin.requestDetails.presentation.flags.thinkingDisabled'),
+      className: item.has_thinking ? 'badge-warning' : 'badge-gray'
+    },
+    {
+      key: 'raw',
+      label: item.raw_available
+        ? t('admin.requestDetails.presentation.flags.rawAvailable')
+        : t('admin.requestDetails.presentation.flags.rawUnavailable'),
+      className: item.raw_available ? 'badge-success' : 'badge-gray'
+    },
+    {
+      key: 'sampled',
+      label: item.sampled
+        ? t('admin.requestDetails.presentation.flags.sampled')
+        : t('admin.requestDetails.presentation.flags.notSampled'),
+      className: item.sampled ? 'badge-primary' : 'badge-gray'
+    }
+  ]
 }
 
 export function getStatusBadgeClass(status?: string): string {

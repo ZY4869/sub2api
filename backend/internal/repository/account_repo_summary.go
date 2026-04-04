@@ -13,7 +13,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 	normalized.LimitedReason = service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason)
 	normalized.RuntimeView = service.NormalizeAccountRuntimeViewInput(filters.RuntimeView)
 	runtimeFilters := service.AccountRuntimeFiltersFromContext(ctx)
-	if runtimeFilters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+	if runtimeFilters.RuntimeView == service.AccountRuntimeViewInUseOnly || runtimeFilters.RuntimeView == service.AccountRuntimeViewAvailableOnly {
 		normalized.RuntimeView = runtimeFilters.RuntimeView
 		normalized.CandidateAccountIDs = runtimeFilters.CandidateAccountIDs
 	}

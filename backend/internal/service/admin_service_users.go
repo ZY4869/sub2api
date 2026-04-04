@@ -102,6 +102,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldStatus := user.Status
 	oldRole := user.Role
 	oldAdminFreeBilling := user.AdminFreeBilling
+	oldRequestDetailsReview := user.RequestDetailsReview
 	if input.Email != "" {
 		user.Email = input.Email
 	}
@@ -131,6 +132,13 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.AdminFreeBilling != nil {
 		user.AdminFreeBilling = user.Role == RoleAdmin && *input.AdminFreeBilling
 	}
+	if input.RequestDetailsReview != nil {
+		if user.Role == RoleAdmin {
+			user.RequestDetailsReview = false
+		} else {
+			user.RequestDetailsReview = *input.RequestDetailsReview
+		}
+	}
 	if user.Role != RoleAdmin {
 		user.AdminFreeBilling = false
 	}
@@ -143,7 +151,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 	}
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.AdminFreeBilling != oldAdminFreeBilling || user.RequestDetailsReview != oldRequestDetailsReview {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -155,6 +163,15 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 			zap.Bool("before", oldAdminFreeBilling),
 			zap.Bool("after", user.AdminFreeBilling),
 		).Info("admin free billing updated")
+	}
+	if user.RequestDetailsReview != oldRequestDetailsReview {
+		logger.With(
+			zap.String("component", "audit.request_details_review"),
+			zap.Int64("user_id", user.ID),
+			zap.String("role", user.Role),
+			zap.Bool("before", oldRequestDetailsReview),
+			zap.Bool("after", user.RequestDetailsReview),
+		).Info("request details review updated")
 	}
 	concurrencyDiff := user.Concurrency - oldConcurrency
 	if concurrencyDiff != 0 {

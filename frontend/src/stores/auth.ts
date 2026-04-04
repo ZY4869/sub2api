@@ -36,6 +36,10 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value?.role === 'admin'
   })
 
+  const canReviewRequestDetails = computed(() => {
+    return user.value?.role === 'admin' || !!user.value?.request_details_review
+  })
+
   const isSimpleMode = computed(() => runMode.value === 'simple')
 
   // ==================== Actions ====================
@@ -394,6 +398,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Computed
     isAuthenticated,
     isAdmin,
+    canReviewRequestDetails,
     isSimpleMode,
 
     // Actions

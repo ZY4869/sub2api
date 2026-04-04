@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	AccountRuntimeViewAll       = "all"
-	AccountRuntimeViewInUseOnly = "in_use_only"
+	AccountRuntimeViewAll           = "all"
+	AccountRuntimeViewInUseOnly     = "in_use_only"
+	AccountRuntimeViewAvailableOnly = "available_only"
 )
 
 type accountRuntimeFiltersContextKey struct{}
@@ -24,6 +25,8 @@ func NormalizeAccountRuntimeViewInput(raw string) string {
 		return AccountRuntimeViewAll
 	case AccountRuntimeViewInUseOnly:
 		return AccountRuntimeViewInUseOnly
+	case AccountRuntimeViewAvailableOnly:
+		return AccountRuntimeViewAvailableOnly
 	default:
 		return AccountRuntimeViewAll
 	}

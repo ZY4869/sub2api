@@ -27,6 +27,7 @@ const fakeUser = {
   username: 'testuser',
   email: 'test@example.com',
   role: 'user' as const,
+  request_details_review: false,
   balance: 100,
   concurrency: 5,
   status: 'active' as const,
@@ -41,6 +42,14 @@ const fakeAdminUser = {
   username: 'admin',
   email: 'admin@example.com',
   role: 'admin' as const,
+}
+
+const fakeReviewerUser = {
+  ...fakeUser,
+  id: 3,
+  username: 'reviewer',
+  email: 'reviewer@example.com',
+  request_details_review: true
 }
 
 const fakeAuthResponse = {
@@ -238,6 +247,38 @@ describe('useAuthStore', () => {
     it('未登录时返回 false', () => {
       const store = useAuthStore()
       expect(store.isAdmin).toBe(false)
+    })
+  })
+
+  describe('canReviewRequestDetails', () => {
+    it('admin 用户默认拥有请求详情审查权限', async () => {
+      const adminResponse = { ...fakeAuthResponse, user: { ...fakeAdminUser } }
+      mockLogin.mockResolvedValue(adminResponse)
+      const store = useAuthStore()
+
+      await store.login({ email: 'admin@example.com', password: '123456' })
+
+      expect(store.canReviewRequestDetails).toBe(true)
+    })
+
+    it('被授予权限的普通用户可查看请求详情', async () => {
+      const reviewerResponse = { ...fakeAuthResponse, user: { ...fakeReviewerUser } }
+      mockLogin.mockResolvedValue(reviewerResponse)
+      const store = useAuthStore()
+
+      await store.login({ email: 'reviewer@example.com', password: '123456' })
+
+      expect(store.isAdmin).toBe(false)
+      expect(store.canReviewRequestDetails).toBe(true)
+    })
+
+    it('普通用户默认没有请求详情审查权限', async () => {
+      mockLogin.mockResolvedValue(fakeAuthResponse)
+      const store = useAuthStore()
+
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      expect(store.canReviewRequestDetails).toBe(false)
     })
   })
 

@@ -98,7 +98,7 @@ describe('AccountStatusSummaryBar', () => {
     expect(wrapper.emitted('select-runtime-view')).toEqual([['in_use_only']])
   })
 
-  it('does not emit filter events when clicking the remaining available card', async () => {
+  it('emits runtime view selection when clicking the remaining available card', async () => {
     const wrapper = mount(AccountStatusSummaryBar, {
       props: {
         summary
@@ -112,8 +112,7 @@ describe('AccountStatusSummaryBar', () => {
 
     await wrapper.get('[data-card-key="remaining_available"]').trigger('click')
 
-    expect(wrapper.emitted('select-status')).toBeUndefined()
-    expect(wrapper.emitted('select-runtime-view')).toBeUndefined()
+    expect(wrapper.emitted('select-runtime-view')).toEqual([['available_only']])
   })
 
   it('only highlights the in-use card when runtime view is active', () => {
@@ -131,6 +130,24 @@ describe('AccountStatusSummaryBar', () => {
     })
 
     expect(wrapper.get('[data-card-key="in_use"]').classes()).toContain('ring-2')
+    expect(wrapper.get('[data-card-key="total"]').classes()).not.toContain('ring-2')
+  })
+
+  it('highlights the remaining available card when available-only runtime view is active', () => {
+    const wrapper = mount(AccountStatusSummaryBar, {
+      props: {
+        summary,
+        activeStatus: '',
+        activeRuntimeView: 'available_only'
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.get('[data-card-key="remaining_available"]').classes()).toContain('ring-2')
     expect(wrapper.get('[data-card-key="total"]').classes()).not.toContain('ring-2')
   })
 

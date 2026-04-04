@@ -37,6 +37,8 @@ type User struct {
 	Status string `json:"status,omitempty"`
 	// AdminFreeBilling holds the value of the "admin_free_billing" field.
 	AdminFreeBilling bool `json:"admin_free_billing,omitempty"`
+	// RequestDetailsReview holds the value of the "request_details_review" field.
+	RequestDetailsReview bool `json:"request_details_review,omitempty"`
 	// Username holds the value of the "username" field.
 	Username string `json:"username,omitempty"`
 	// Notes holds the value of the "notes" field.
@@ -179,7 +181,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldAdminFreeBilling, user.FieldTotpEnabled:
+		case user.FieldAdminFreeBilling, user.FieldRequestDetailsReview, user.FieldTotpEnabled:
 			values[i] = new(sql.NullBool)
 		case user.FieldBalance:
 			values[i] = new(sql.NullFloat64)
@@ -270,6 +272,12 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field admin_free_billing", values[i])
 			} else if value.Valid {
 				_m.AdminFreeBilling = value.Bool
+			}
+		case user.FieldRequestDetailsReview:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field request_details_review", values[i])
+			} else if value.Valid {
+				_m.RequestDetailsReview = value.Bool
 			}
 		case user.FieldUsername:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -432,6 +440,9 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("admin_free_billing=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AdminFreeBilling))
+	builder.WriteString(", ")
+	builder.WriteString("request_details_review=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequestDetailsReview))
 	builder.WriteString(", ")
 	builder.WriteString("username=")
 	builder.WriteString(_m.Username)

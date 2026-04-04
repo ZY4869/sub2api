@@ -114,7 +114,8 @@ const cards = computed<SummaryCard[]>(() => [
     label: t('admin.accounts.summary.remainingAvailable'),
     count: props.summary.remaining_available,
     statusValue: '',
-    clickMode: 'none',
+    runtimeValue: 'available_only',
+    clickMode: 'runtime',
     iconName: 'checkCircle',
     iconClass: 'text-teal-600 dark:text-teal-300',
     labelClass: 'text-teal-700 dark:text-teal-200',
@@ -172,14 +173,14 @@ const cards = computed<SummaryCard[]>(() => [
   }
 ])
 
-const cardClasses = (card: { key: string; statusValue: string; clickMode?: 'status' | 'runtime' | 'none' }) => {
+const cardClasses = (card: { key: string; statusValue: string; runtimeValue?: string; clickMode?: 'status' | 'runtime' | 'none' }) => {
   if (card.clickMode === 'none') {
     return 'border-transparent hover:border-transparent cursor-default'
   }
-  const isActive = card.key === 'in_use'
-    ? props.activeRuntimeView === 'in_use_only'
+  const isActive = card.runtimeValue
+    ? props.activeRuntimeView === card.runtimeValue
     : card.key === 'total'
-      ? !props.activeStatus && props.activeRuntimeView !== 'in_use_only'
+      ? !props.activeStatus && props.activeRuntimeView === 'all'
       : props.activeStatus === card.statusValue
   return isActive
     ? 'border-primary-300 ring-2 ring-primary-400/50 dark:border-primary-500'

@@ -61,6 +61,12 @@ func (h *AccountHandler) GetStatusSummary(c *gin.Context) {
 		response.Success(c, summary)
 		return
 	}
+	if filters.RuntimeView == service.AccountRuntimeViewAvailableOnly {
+		summary.InUse = 0
+		summary.RemainingAvailable = summary.Total
+		response.Success(c, summary)
+		return
+	}
 	if h.concurrencyService == nil && h.sessionLimitCache == nil {
 		summary.RemainingAvailable = clampRemainingAvailable(summary.DispatchableCount, summary.InUse)
 		response.Success(c, summary)

@@ -35,6 +35,8 @@ const (
 	FieldStatus = "status"
 	// FieldAdminFreeBilling holds the string denoting the admin_free_billing field in the database.
 	FieldAdminFreeBilling = "admin_free_billing"
+	// FieldRequestDetailsReview holds the string denoting the request_details_review field in the database.
+	FieldRequestDetailsReview = "request_details_review"
 	// FieldUsername holds the string denoting the username field in the database.
 	FieldUsername = "username"
 	// FieldNotes holds the string denoting the notes field in the database.
@@ -154,6 +156,7 @@ var Columns = []string{
 	FieldConcurrency,
 	FieldStatus,
 	FieldAdminFreeBilling,
+	FieldRequestDetailsReview,
 	FieldUsername,
 	FieldNotes,
 	FieldTotpSecretEncrypted,
@@ -211,6 +214,8 @@ var (
 	StatusValidator func(string) error
 	// DefaultAdminFreeBilling holds the default value on creation for the "admin_free_billing" field.
 	DefaultAdminFreeBilling bool
+	// DefaultRequestDetailsReview holds the default value on creation for the "request_details_review" field.
+	DefaultRequestDetailsReview bool
 	// DefaultUsername holds the default value on creation for the "username" field.
 	DefaultUsername string
 	// UsernameValidator is a validator for the "username" field. It is called by the builders before save.
@@ -281,6 +286,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByAdminFreeBilling orders the results by the admin_free_billing field.
 func ByAdminFreeBilling(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAdminFreeBilling, opts...).ToFunc()
+}
+
+// ByRequestDetailsReview orders the results by the request_details_review field.
+func ByRequestDetailsReview(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestDetailsReview, opts...).ToFunc()
 }
 
 // ByUsername orders the results by the username field.

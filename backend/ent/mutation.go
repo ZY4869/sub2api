@@ -24300,6 +24300,7 @@ type UserMutation struct {
 	addconcurrency                *int
 	status                        *string
 	admin_free_billing            *bool
+	request_details_review        *bool
 	username                      *string
 	notes                         *string
 	totp_secret_encrypted         *string
@@ -24851,6 +24852,42 @@ func (m *UserMutation) OldAdminFreeBilling(ctx context.Context) (v bool, err err
 // ResetAdminFreeBilling resets all changes to the "admin_free_billing" field.
 func (m *UserMutation) ResetAdminFreeBilling() {
 	m.admin_free_billing = nil
+}
+
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (m *UserMutation) SetRequestDetailsReview(b bool) {
+	m.request_details_review = &b
+}
+
+// RequestDetailsReview returns the value of the "request_details_review" field in the mutation.
+func (m *UserMutation) RequestDetailsReview() (r bool, exists bool) {
+	v := m.request_details_review
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestDetailsReview returns the old "request_details_review" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldRequestDetailsReview(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestDetailsReview is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestDetailsReview requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestDetailsReview: %w", err)
+	}
+	return oldValue.RequestDetailsReview, nil
+}
+
+// ResetRequestDetailsReview resets all changes to the "request_details_review" field.
+func (m *UserMutation) ResetRequestDetailsReview() {
+	m.request_details_review = nil
 }
 
 // SetUsername sets the "username" field.
@@ -25691,7 +25728,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -25721,6 +25758,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.admin_free_billing != nil {
 		fields = append(fields, user.FieldAdminFreeBilling)
+	}
+	if m.request_details_review != nil {
+		fields = append(fields, user.FieldRequestDetailsReview)
 	}
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
@@ -25771,6 +25811,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case user.FieldAdminFreeBilling:
 		return m.AdminFreeBilling()
+	case user.FieldRequestDetailsReview:
+		return m.RequestDetailsReview()
 	case user.FieldUsername:
 		return m.Username()
 	case user.FieldNotes:
@@ -25814,6 +25856,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldStatus(ctx)
 	case user.FieldAdminFreeBilling:
 		return m.OldAdminFreeBilling(ctx)
+	case user.FieldRequestDetailsReview:
+		return m.OldRequestDetailsReview(ctx)
 	case user.FieldUsername:
 		return m.OldUsername(ctx)
 	case user.FieldNotes:
@@ -25906,6 +25950,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAdminFreeBilling(v)
+		return nil
+	case user.FieldRequestDetailsReview:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestDetailsReview(v)
 		return nil
 	case user.FieldUsername:
 		v, ok := value.(string)
@@ -26106,6 +26157,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldAdminFreeBilling:
 		m.ResetAdminFreeBilling()
+		return nil
+	case user.FieldRequestDetailsReview:
+		m.ResetRequestDetailsReview()
 		return nil
 	case user.FieldUsername:
 		m.ResetUsername()

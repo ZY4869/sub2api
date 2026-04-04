@@ -102,6 +102,26 @@
           </router-link>
         </div>
       </template>
+
+      <template v-else-if="canReviewRequestDetails">
+        <div class="sidebar-section">
+          <router-link
+            v-for="item in reviewerBackendNavItems"
+            :key="item.path"
+            :to="item.path"
+            class="sidebar-link mb-1"
+            :class="{ 'sidebar-link-active': isActive(item.path) }"
+            :title="sidebarCollapsed ? item.label : undefined"
+            @click="handleMenuItemClick(item.path)"
+          >
+            <span v-if="item.iconSvg" class="h-5 w-5 flex-shrink-0 sidebar-svg-icon" v-html="sanitizeSvg(item.iconSvg)"></span>
+            <component v-else :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+            <transition name="fade">
+              <span v-if="!sidebarCollapsed">{{ item.label }}</span>
+            </transition>
+          </router-link>
+        </div>
+      </template>
     </nav>
 
     <!-- Bottom Section -->
@@ -173,6 +193,7 @@ const adminSettingsStore = useAdminSettingsStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
+const canReviewRequestDetails = computed(() => authStore.canReviewRequestDetails)
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
 // Site settings from appStore (cached, no flicker)
@@ -549,6 +570,9 @@ const userNavItems = computed((): NavItem[] => {
       : []),
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
+    ...(canReviewRequestDetails.value
+      ? [{ path: '/admin/request-details', label: t('nav.requestDetails'), icon: ServerIcon }]
+      : []),
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
       label: item.label,
@@ -557,6 +581,13 @@ const userNavItems = computed((): NavItem[] => {
     })),
   ]
   return authStore.isSimpleMode ? items.filter(item => !item.hideInSimpleMode) : items
+})
+
+const reviewerBackendNavItems = computed((): NavItem[] => {
+  if (!canReviewRequestDetails.value) {
+    return []
+  }
+  return [{ path: '/admin/request-details', label: t('nav.requestDetails'), icon: ServerIcon }]
 })
 
 // Personal navigation items (for admin's "My Account" section, without Dashboard)

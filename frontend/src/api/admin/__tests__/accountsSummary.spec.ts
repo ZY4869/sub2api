@@ -118,14 +118,14 @@ describe('admin accounts summary api', () => {
     const { getRuntimeSummary } = await import('../accounts')
     await getRuntimeSummary({
       privacy_mode: 'unset',
-      runtime_view: 'in_use_only',
+      runtime_view: 'available_only',
       limited_view: 'limited_only'
     })
 
     expect(getMock).toHaveBeenCalledWith('/admin/accounts/runtime-summary', {
       params: {
         privacy_mode: 'unset',
-        runtime_view: 'in_use_only',
+        runtime_view: 'available_only',
         limited_view: 'limited_only'
       }
     })

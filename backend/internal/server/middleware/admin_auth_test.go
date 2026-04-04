@@ -122,6 +122,90 @@ func TestAdminAuthJWTValidatesTokenVersion(t *testing.T) {
 	})
 }
 
+func TestAdminAuthAllowsRequestDetailsReviewer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	cfg := &config.Config{JWT: config.JWTConfig{Secret: "test-secret", ExpireHour: 1}}
+	authService := service.NewAuthService(nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil)
+
+	reviewer := &service.User{
+		ID:                   2,
+		Email:                "reviewer@example.com",
+		Role:                 service.RoleUser,
+		Status:               service.StatusActive,
+		TokenVersion:         1,
+		Concurrency:          1,
+		RequestDetailsReview: true,
+	}
+	plainUser := &service.User{
+		ID:           3,
+		Email:        "user@example.com",
+		Role:         service.RoleUser,
+		Status:       service.StatusActive,
+		TokenVersion: 1,
+		Concurrency:  1,
+	}
+
+	userRepo := &stubUserRepo{
+		getByID: func(ctx context.Context, id int64) (*service.User, error) {
+			switch id {
+			case reviewer.ID:
+				clone := *reviewer
+				return &clone, nil
+			case plainUser.ID:
+				clone := *plainUser
+				return &clone, nil
+			default:
+				return nil, service.ErrUserNotFound
+			}
+		},
+	}
+	userService := service.NewUserService(userRepo, nil, nil)
+
+	router := gin.New()
+	router.Use(gin.HandlerFunc(NewAdminAuthMiddleware(authService, userService, nil)))
+	router.GET("/api/v1/admin/ops/request-details", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	router.GET("/api/v1/admin/users", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	reviewerToken, err := authService.GenerateToken(reviewer)
+	require.NoError(t, err)
+	userToken, err := authService.GenerateToken(plainUser)
+	require.NoError(t, err)
+
+	t.Run("reviewer_can_access_request_details", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/ops/request-details", nil)
+		req.Header.Set("Authorization", "Bearer "+reviewerToken)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("reviewer_cannot_access_other_admin_routes", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+		req.Header.Set("Authorization", "Bearer "+reviewerToken)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "FORBIDDEN")
+	})
+
+	t.Run("plain_user_cannot_access_request_details", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/ops/request-details", nil)
+		req.Header.Set("Authorization", "Bearer "+userToken)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "FORBIDDEN")
+	})
+}
+
 type stubUserRepo struct {
 	getByID func(ctx context.Context, id int64) (*service.User, error)
 }

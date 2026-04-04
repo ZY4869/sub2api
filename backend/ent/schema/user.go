@@ -54,6 +54,8 @@ func (User) Fields() []ent.Field {
 			Default(domain.StatusActive),
 		field.Bool("admin_free_billing").
 			Default(false),
+		field.Bool("request_details_review").
+			Default(false),
 
 		// Optional profile fields (added later; default '' in DB migration)
 		field.String("username").

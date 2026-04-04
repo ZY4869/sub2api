@@ -55,6 +55,16 @@ const isAccountInUse = (account: Account) => {
   return Number(account.current_concurrency || 0) > 0 || Number(account.active_sessions ?? 0) > 0
 }
 
+export const isAccountDispatchable = (account: Account, now: number = Date.now()) => {
+  return (
+    account.status === 'active' &&
+    account.schedulable &&
+    !isAccountActivelyLimited(account, now) &&
+    !hasFutureTimestamp(account.temp_unschedulable_until, now) &&
+    !hasFutureTimestamp(account.overload_until, now)
+  )
+}
+
 const resolveAccountLifecycle = (account: Account) => account.lifecycle_state || 'normal'
 const resolveAccountPrivacyMode = (account: Account) => String(account.extra?.privacy_mode || '').trim()
 
@@ -86,6 +96,7 @@ export const accountMatchesFilters = (
     if ((account.rate_limit_reason || '') !== filters.limited_reason) return false
   }
   if (filters.runtime_view === 'in_use_only' && !isAccountInUse(account)) return false
+  if (filters.runtime_view === 'available_only' && (!isAccountDispatchable(account, now) || isAccountInUse(account))) return false
 
   if (filters.status) {
     if (filters.status === 'rate_limited') {

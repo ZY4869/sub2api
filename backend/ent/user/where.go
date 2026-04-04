@@ -105,6 +105,11 @@ func AdminFreeBilling(v bool) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAdminFreeBilling, v))
 }
 
+// RequestDetailsReview applies equality check predicate on the "request_details_review" field. It's identical to RequestDetailsReviewEQ.
+func RequestDetailsReview(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRequestDetailsReview, v))
+}
+
 // Username applies equality check predicate on the "username" field. It's identical to UsernameEQ.
 func Username(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldUsername, v))
@@ -618,6 +623,16 @@ func AdminFreeBillingEQ(v bool) predicate.User {
 // AdminFreeBillingNEQ applies the NEQ predicate on the "admin_free_billing" field.
 func AdminFreeBillingNEQ(v bool) predicate.User {
 	return predicate.User(sql.FieldNEQ(FieldAdminFreeBilling, v))
+}
+
+// RequestDetailsReviewEQ applies the EQ predicate on the "request_details_review" field.
+func RequestDetailsReviewEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldRequestDetailsReview, v))
+}
+
+// RequestDetailsReviewNEQ applies the NEQ predicate on the "request_details_review" field.
+func RequestDetailsReviewNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldRequestDetailsReview, v))
 }
 
 // UsernameEQ applies the EQ predicate on the "username" field.

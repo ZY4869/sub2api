@@ -221,9 +221,11 @@ func (s *stubAdminService) BatchSetGroupRateMultipliers(_ context.Context, _ int
 }
 
 func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, lifecycle string, privacyMode string) ([]service.Account, int64, error) {
+	runtimeFilters := service.AccountRuntimeFiltersFromContext(ctx)
 	filtered := make([]service.Account, 0, len(s.accounts))
 	search = strings.TrimSpace(strings.ToLower(search))
 	lifecycle = service.NormalizeAccountLifecycleInput(lifecycle)
+	now := time.Now()
 	for _, account := range s.accounts {
 		if platform != "" && !strings.EqualFold(strings.TrimSpace(account.Platform), strings.TrimSpace(platform)) {
 			continue
@@ -272,6 +274,9 @@ func (s *stubAdminService) ListAccounts(ctx context.Context, page, pageSize int,
 		if !matchesPrivacyMode(account, privacyMode) {
 			continue
 		}
+		if !matchesRuntimeView(account, runtimeFilters, now) {
+			continue
+		}
 		filtered = append(filtered, account)
 	}
 
@@ -306,6 +311,8 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 
 	normalizedLifecycle := service.NormalizeAccountLifecycleInput(filters.Lifecycle)
 	search := strings.TrimSpace(strings.ToLower(filters.Search))
+	runtimeFilters := service.AccountRuntimeFiltersFromContext(ctx)
+	now := time.Now()
 	summary := &service.AccountStatusSummary{
 		ByStatus: map[string]int64{
 			"active":   0,
@@ -327,6 +334,9 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 			continue
 		}
 		if !matchesPrivacyMode(account, filters.PrivacyMode) {
+			continue
+		}
+		if !matchesRuntimeView(account, runtimeFilters, now) {
 			continue
 		}
 
@@ -356,13 +366,13 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 			case "error":
 				summary.ByStatus["error"]++
 			}
-			if account.RateLimitResetAt != nil && account.RateLimitResetAt.After(time.Now()) {
+			if account.RateLimitResetAt != nil && account.RateLimitResetAt.After(now) {
 				summary.RateLimited++
 			}
-			if account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(time.Now()) {
+			if account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now) {
 				summary.TempUnschedulable++
 			}
-			if account.OverloadUntil != nil && account.OverloadUntil.After(time.Now()) {
+			if account.OverloadUntil != nil && account.OverloadUntil.After(now) {
 				summary.Overloaded++
 			}
 			if !account.Schedulable {
@@ -370,9 +380,9 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 			}
 			if account.Status == service.StatusActive &&
 				account.Schedulable &&
-				(account.RateLimitResetAt == nil || !account.RateLimitResetAt.After(time.Now())) &&
-				(account.TempUnschedulableUntil == nil || !account.TempUnschedulableUntil.After(time.Now())) &&
-				(account.OverloadUntil == nil || !account.OverloadUntil.After(time.Now())) {
+				(account.RateLimitResetAt == nil || !account.RateLimitResetAt.After(now)) &&
+				(account.TempUnschedulableUntil == nil || !account.TempUnschedulableUntil.After(now)) &&
+				(account.OverloadUntil == nil || !account.OverloadUntil.After(now)) {
 				summary.DispatchableCount++
 			}
 		}
@@ -393,6 +403,40 @@ func matchesPrivacyMode(account service.Account, privacyMode string) bool {
 		return accountPrivacyMode == ""
 	}
 	return accountPrivacyMode == normalized
+}
+
+func matchesRuntimeView(account service.Account, runtimeFilters service.AccountRuntimeFilters, now time.Time) bool {
+	switch runtimeFilters.RuntimeView {
+	case service.AccountRuntimeViewInUseOnly:
+		if len(runtimeFilters.CandidateAccountIDs) == 0 {
+			return false
+		}
+		for _, id := range runtimeFilters.CandidateAccountIDs {
+			if id == account.ID {
+				return true
+			}
+		}
+		return false
+	case service.AccountRuntimeViewAvailableOnly:
+		if account.Status != service.StatusActive || !account.Schedulable {
+			return false
+		}
+		if account.RateLimitResetAt != nil && account.RateLimitResetAt.After(now) {
+			return false
+		}
+		if account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now) {
+			return false
+		}
+		if account.OverloadUntil != nil && account.OverloadUntil.After(now) {
+			return false
+		}
+		for _, id := range runtimeFilters.CandidateAccountIDs {
+			if id == account.ID {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (s *stubAdminService) ListArchivedGroups(ctx context.Context, filters service.ArchivedAccountGroupFilters) ([]service.ArchivedAccountGroupSummary, error) {

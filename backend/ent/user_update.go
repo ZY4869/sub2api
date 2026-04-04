@@ -174,6 +174,20 @@ func (_u *UserUpdate) SetNillableAdminFreeBilling(v *bool) *UserUpdate {
 	return _u
 }
 
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (_u *UserUpdate) SetRequestDetailsReview(v bool) *UserUpdate {
+	_u.mutation.SetRequestDetailsReview(v)
+	return _u
+}
+
+// SetNillableRequestDetailsReview sets the "request_details_review" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableRequestDetailsReview(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetRequestDetailsReview(*v)
+	}
+	return _u
+}
+
 // SetUsername sets the "username" field.
 func (_u *UserUpdate) SetUsername(v string) *UserUpdate {
 	_u.mutation.SetUsername(v)
@@ -746,6 +760,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AdminFreeBilling(); ok {
 		_spec.SetField(user.FieldAdminFreeBilling, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequestDetailsReview(); ok {
+		_spec.SetField(user.FieldRequestDetailsReview, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
@@ -1355,6 +1372,20 @@ func (_u *UserUpdateOne) SetNillableAdminFreeBilling(v *bool) *UserUpdateOne {
 	return _u
 }
 
+// SetRequestDetailsReview sets the "request_details_review" field.
+func (_u *UserUpdateOne) SetRequestDetailsReview(v bool) *UserUpdateOne {
+	_u.mutation.SetRequestDetailsReview(v)
+	return _u
+}
+
+// SetNillableRequestDetailsReview sets the "request_details_review" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableRequestDetailsReview(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetRequestDetailsReview(*v)
+	}
+	return _u
+}
+
 // SetUsername sets the "username" field.
 func (_u *UserUpdateOne) SetUsername(v string) *UserUpdateOne {
 	_u.mutation.SetUsername(v)
@@ -1957,6 +1988,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.AdminFreeBilling(); ok {
 		_spec.SetField(user.FieldAdminFreeBilling, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequestDetailsReview(); ok {
+		_spec.SetField(user.FieldRequestDetailsReview, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
