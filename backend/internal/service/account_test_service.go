@@ -2455,9 +2455,3 @@ func parseTestSSEOutputDetailed(body string) parsedBackgroundTestOutput {
 	result.ResponseText = strings.Join(texts, "")
 	return result
 }
-
-// parseTestSSEOutput extracts response text and error message from captured SSE output.
-func parseTestSSEOutput(body string) (responseText, errMsg string) {
-	result := parseTestSSEOutputDetailed(body)
-	return result.ResponseText, result.ErrorMessage
-}
