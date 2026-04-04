@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -12,6 +13,12 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
+
+func requestTraceAdminContext(c *gin.Context) context.Context {
+	ctx := c.Request.Context()
+	role, ok := middleware.GetUserRoleFromContext(c)
+	return service.WithOpsRequestTraceAdminRawAccess(ctx, ok && role == service.RoleAdmin)
+}
 
 // GET /api/v1/admin/ops/request-details
 func (h *OpsHandler) ListRequestTraces(c *gin.Context) {
@@ -27,7 +34,7 @@ func (h *OpsHandler) ListRequestTraces(c *gin.Context) {
 	}
 
 	subject, _ := middleware.GetAuthSubjectFromContext(c)
-	result, err := h.opsService.ListRequestTraces(c.Request.Context(), subject.UserID, filter)
+	result, err := h.opsService.ListRequestTraces(requestTraceAdminContext(c), subject.UserID, filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -49,7 +56,7 @@ func (h *OpsHandler) GetRequestTraceSummary(c *gin.Context) {
 	}
 
 	subject, _ := middleware.GetAuthSubjectFromContext(c)
-	summary, err := h.opsService.GetRequestTraceSummary(c.Request.Context(), subject.UserID, filter)
+	summary, err := h.opsService.GetRequestTraceSummary(requestTraceAdminContext(c), subject.UserID, filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -71,7 +78,7 @@ func (h *OpsHandler) GetRequestTraceByID(c *gin.Context) {
 	}
 
 	subject, _ := middleware.GetAuthSubjectFromContext(c)
-	detail, err := h.opsService.GetRequestTraceByID(c.Request.Context(), subject.UserID, id)
+	detail, err := h.opsService.GetRequestTraceByID(requestTraceAdminContext(c), subject.UserID, id)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -98,7 +105,7 @@ func (h *OpsHandler) GetRequestTraceRawByID(c *gin.Context) {
 		return
 	}
 
-	detail, err := h.opsService.GetRequestTraceRawByID(c.Request.Context(), subject.UserID, id)
+	detail, err := h.opsService.GetRequestTraceRawByID(requestTraceAdminContext(c), subject.UserID, id)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -145,7 +152,7 @@ func (h *OpsHandler) ExportRequestTracesCSV(c *gin.Context) {
 		return
 	}
 
-	if _, err := h.opsService.ExportRequestTracesCSV(c.Request.Context(), c.Writer, subject.UserID, filter, includeRaw); err != nil {
+	if _, err := h.opsService.ExportRequestTracesCSV(requestTraceAdminContext(c), c.Writer, subject.UserID, filter, includeRaw); err != nil {
 		if !c.Writer.Written() {
 			response.ErrorFrom(c, err)
 			return

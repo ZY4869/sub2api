@@ -18,15 +18,16 @@ import (
 )
 
 const (
-	opsRequestTraceDisabledMessage    = "ops request details is disabled"
-	opsRequestTraceListPageSize       = 200
-	opsRequestTraceExportMaxRows      = 50000
-	opsRequestTraceRawExportMaxWindow = 7 * 24 * time.Hour
-	opsRequestTraceExportMaxWindow    = 30 * 24 * time.Hour
-	opsRequestTraceRawRequestLimit    = 512 * 1024
-	opsRequestTraceRawResponseLimit   = 1024 * 1024
-	opsRequestTraceSearchTextLimit    = 4096
-	opsRequestTracePayloadJSONLimit   = 64 * 1024
+	opsRequestTraceDisabledMessage     = "ops request details is disabled"
+	opsRequestTraceListPageSize        = 200
+	opsRequestTraceExportMaxRows       = 50000
+	opsRequestTraceRawExportMaxWindow  = 7 * 24 * time.Hour
+	opsRequestTraceExportMaxWindow     = 30 * 24 * time.Hour
+	opsRequestTraceInboundPreviewLimit = 512 * 1024
+	opsRequestTraceRawRequestLimit     = 512 * 1024
+	opsRequestTraceRawResponseLimit    = 1024 * 1024
+	opsRequestTraceSearchTextLimit     = 4096
+	opsRequestTracePayloadJSONLimit    = 64 * 1024
 )
 
 var ErrOpsRequestTracesDisabled = infraerrors.NotFound("OPS_REQUEST_TRACES_DISABLED", opsRequestTraceDisabledMessage)
@@ -124,7 +125,7 @@ func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordReq
 
 	insert.InboundRequestJSON = normalizeJSONStringPtr(input.Trace.InboundRequestJSON)
 	if insert.InboundRequestJSON == nil {
-		insert.InboundRequestJSON = sanitizeTracePayloadForStorage(input.Trace.RawRequest, opsRequestTracePayloadJSONLimit, "application/json")
+		insert.InboundRequestJSON = sanitizeTracePayloadForStorage(input.Trace.RawRequest, opsRequestTraceInboundPreviewLimit, "application/json")
 	}
 	insert.NormalizedRequestJSON = normalizeJSONStringPtr(input.Trace.NormalizedRequestJSON)
 	insert.UpstreamRequestJSON = normalizeJSONStringPtr(input.Trace.UpstreamRequestJSON)
@@ -466,6 +467,9 @@ func (s *OpsService) canAccessRequestTraceRaw(ctx context.Context, operatorID in
 	runtimeCfg := s.getOpsRequestTraceRuntimeConfig(ctx)
 	if strings.TrimSpace(runtimeCfg.EncryptionKey) == "" {
 		return false
+	}
+	if hasOpsRequestTraceAdminRawAccess(ctx) {
+		return true
 	}
 	_, ok := runtimeCfg.RawAccessUserIDs[operatorID]
 	return ok
