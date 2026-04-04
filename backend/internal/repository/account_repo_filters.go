@@ -42,14 +42,15 @@ func normalizeAdminAccountListFilters(platform, accountType, status, search stri
 }
 
 func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountListFilters) *dbent.AccountQuery {
-	if filters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+	switch filters.RuntimeView {
+	case service.AccountRuntimeViewInUseOnly:
 		if len(filters.CandidateAccountIDs) == 0 {
 			return q.Where(dbpredicate.Account(func(s *entsql.Selector) {
 				s.Where(entsql.ExprP("1 = 0"))
 			}))
 		}
 		q = q.Where(dbaccount.IDIn(filters.CandidateAccountIDs...))
-	} else if filters.RuntimeView == service.AccountRuntimeViewAvailableOnly {
+	case service.AccountRuntimeViewAvailableOnly:
 		q = q.Where(dispatchableAccountPredicate())
 		if len(filters.CandidateAccountIDs) > 0 {
 			q = q.Where(dbaccount.IDNotIn(filters.CandidateAccountIDs...))
@@ -109,7 +110,8 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 }
 
 func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, argIndex int, filters adminAccountListFilters, tableAlias string, includePlatform bool) ([]string, []any, int) {
-	if filters.RuntimeView == service.AccountRuntimeViewInUseOnly {
+	switch filters.RuntimeView {
+	case service.AccountRuntimeViewInUseOnly:
 		if len(filters.CandidateAccountIDs) == 0 {
 			whereClauses = append(whereClauses, "1 = 0")
 			return whereClauses, args, argIndex
@@ -117,7 +119,7 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 		whereClauses = append(whereClauses, fmt.Sprintf("%s.id = ANY($%d)", tableAlias, argIndex))
 		args = append(args, pq.Array(filters.CandidateAccountIDs))
 		argIndex++
-	} else if filters.RuntimeView == service.AccountRuntimeViewAvailableOnly {
+	case service.AccountRuntimeViewAvailableOnly:
 		whereClauses = appendDispatchableAccountWhereClauses(whereClauses, tableAlias)
 		if len(filters.CandidateAccountIDs) > 0 {
 			whereClauses = append(whereClauses, fmt.Sprintf("NOT (%s.id = ANY($%d))", tableAlias, argIndex))

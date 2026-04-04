@@ -59,7 +59,8 @@ func TestAPIContracts(t *testing.T) {
  					"created_at": "2025-01-02T03:04:05Z",
  					"updated_at": "2025-01-02T03:04:05Z",
 					"run_mode": "standard",
-					"admin_free_billing": false
+					"admin_free_billing": false,
+					"request_details_review": false
  				}
  			}`,
 		},
