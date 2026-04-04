@@ -333,3 +333,41 @@ function hasResolvedUpstreamDraft(draft: AccountResolvedUpstreamDraft | null | u
       draft?.upstream_region
   )
 }
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
+export function isProbeSnapshotEqual(
+  a: AccountModelProbeSnapshotDraft | null | undefined,
+  b: AccountModelProbeSnapshotDraft | null | undefined
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    arraysEqual(a.models, b.models) &&
+    a.updated_at === b.updated_at &&
+    a.source === b.source &&
+    a.probe_source === b.probe_source
+  )
+}
+
+export function isUpstreamDraftEqual(
+  a: AccountResolvedUpstreamDraft | null | undefined,
+  b: AccountResolvedUpstreamDraft | null | undefined
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return (
+    a.upstream_url === b.upstream_url &&
+    a.upstream_host === b.upstream_host &&
+    a.upstream_service === b.upstream_service &&
+    a.upstream_probe_source === b.upstream_probe_source &&
+    a.upstream_probed_at === b.upstream_probed_at &&
+    a.upstream_region === b.upstream_region
+  )
+}

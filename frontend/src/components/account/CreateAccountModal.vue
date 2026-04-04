@@ -137,7 +137,7 @@
           platform="gemini"
           :account-type="geminiVertexAuthMode === 'express_api_key' ? 'apikey' : 'oauth'"
           :credentials="vertexProbeCredentials"
-          :extra="buildProbeExtra()"
+          :extra="probeExtraForEditor"
           :probe-ready="isVertexProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -153,7 +153,7 @@
           :platform="form.platform"
           account-type="upstream"
           :credentials="upstreamProbeCredentials"
-          :extra="buildProbeExtra()"
+          :extra="probeExtraForEditor"
           :probe-ready="isUpstreamProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -264,7 +264,7 @@
           :platform="form.platform"
           account-type="apikey"
           :credentials="apiKeyProbeCredentials"
-          :extra="buildProbeExtra()"
+          :extra="probeExtraForEditor"
           :probe-ready="isApiKeyProbeReady"
           :proxy-id="form.proxy_id"
         />
@@ -2154,6 +2154,8 @@ const handleExchangeCode = async () => {
       return handleAnthropicExchange(authCode)
   }
 }
+
+const probeExtraForEditor = computed(() => buildProbeExtra())
 
 const buildProbeExtra = (base?: Record<string, unknown>) =>
   mergeResolvedUpstreamDraftIntoExtra(

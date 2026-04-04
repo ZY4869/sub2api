@@ -202,6 +202,8 @@ import {
 import {
   createAccountModelProbeSnapshotDraft,
   createResolvedUpstreamDraft,
+  isProbeSnapshotEqual,
+  isUpstreamDraftEqual,
   readAccountModelProbeSnapshot,
   readAccountResolvedUpstreamDraft,
   type AccountModelProbeSnapshotDraft,
@@ -269,7 +271,9 @@ watch(
   (extra) => {
     const snapshot = readAccountModelProbeSnapshot(extra)
     if (snapshot) {
-      probeSnapshot.value = snapshot
+      if (!isProbeSnapshotEqual(snapshot, probeSnapshot.value)) {
+        probeSnapshot.value = snapshot
+      }
       if (probedModels.value.length === 0) {
         probedModels.value = snapshot.models.map((modelId) => ({
           id: modelId,
@@ -282,14 +286,17 @@ watch(
         probeSource.value = snapshot.probe_source || snapshot.source || ''
       }
       if (!resolvedUpstream.value?.upstream_probed_at && snapshot.updated_at) {
-        resolvedUpstream.value = {
+        const nextUpstream = {
           ...(resolvedUpstream.value || {}),
           upstream_probed_at: snapshot.updated_at
+        }
+        if (!isUpstreamDraftEqual(nextUpstream, resolvedUpstream.value)) {
+          resolvedUpstream.value = nextUpstream
         }
       }
     }
     const draft = readAccountResolvedUpstreamDraft(extra)
-    if (draft) {
+    if (draft && !isUpstreamDraftEqual(draft, resolvedUpstream.value)) {
       resolvedUpstream.value = draft
     }
   },

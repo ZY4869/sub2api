@@ -244,7 +244,7 @@
         :platform="account.platform"
         :account-type="unifiedProbeAccountType"
         :credentials="unifiedProbeCredentials"
-        :extra="buildProbeExtra()"
+        :extra="probeExtraForEditor"
         :probe-ready="unifiedProbeReady"
         :proxy-id="form.proxy_id"
       />
@@ -2097,6 +2097,8 @@ const handleSubmit = async () => {
     appStore.showError(error.message || t('admin.accounts.failedToUpdate'))
   }
 }
+
+const probeExtraForEditor = computed(() => buildProbeExtra())
 
 function buildProbeExtra(base?: Record<string, unknown>) {
   return mergeResolvedUpstreamDraftIntoExtra(
