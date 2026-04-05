@@ -53,7 +53,6 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),
 		LinuxDoOAuthEnabled:              settings.LinuxDoOAuthEnabled,
-		SoraClientEnabled:                settings.SoraClientEnabled,
 		BackendModeEnabled:               settings.BackendModeEnabled,
 		Version:                          h.version,
 	})
