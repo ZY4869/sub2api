@@ -6,7 +6,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/util/soraerror"
 	"io"
 	"net/http"
 	"time"
@@ -221,12 +220,6 @@ func runProxyQualityTarget(ctx context.Context, client *http.Client, target prox
 	}
 	if int64(len(body)) > proxyQualityMaxBodyBytes {
 		body = body[:proxyQualityMaxBodyBytes]
-	}
-	if target.Target == "sora" && soraerror.IsCloudflareChallengeResponse(resp.StatusCode, resp.Header, body) {
-		item.Status = "challenge"
-		item.CFRay = soraerror.ExtractCloudflareRayID(resp.Header, body)
-		item.Message = "Sora 命中 Cloudflare challenge"
-		return item
 	}
 	if _, ok := target.AllowedStatuses[resp.StatusCode]; ok {
 		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {

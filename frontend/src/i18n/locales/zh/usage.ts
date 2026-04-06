@@ -79,6 +79,7 @@ export default {
     upstream: "\u4e0a\u6e38",
     inputTokenPrice: "\u8f93\u5165\u5355\u4ef7",
     outputTokenPrice: "\u8f93\u51fa\u5355\u4ef7",
+    imageOutput: "\u56fe\u50cf\u8f93\u51fa",
     perMillionTokens: "/ 1M Token",
     cacheRead: "\u8bfb\u53d6",
     cacheWrite: "\u5199\u5165",

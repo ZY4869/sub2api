@@ -18,6 +18,10 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		model                 string
 		requestedModel        sql.NullString
 		upstreamModel         sql.NullString
+		channelID             sql.NullInt64
+		modelMappingChain     sql.NullString
+		billingTier           sql.NullString
+		billingMode           sql.NullString
 		groupID               sql.NullInt64
 		subscriptionID        sql.NullInt64
 		inputTokens           int
@@ -52,7 +56,8 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		chargeSource          sql.NullString
 		imageCount            int
 		imageSize             sql.NullString
-		mediaType             sql.NullString
+		imageOutputTokens     sql.NullInt64
+		imageOutputCost       sql.NullFloat64
 		serviceTier           sql.NullString
 		reasoningEffort       sql.NullString
 		thinkingEnabled       sql.NullBool
@@ -63,7 +68,7 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 		cacheTTLOverridden    bool
 		createdAt             time.Time
 	)
-	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &requestedModel, &upstreamModel, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &mediaType, &serviceTier, &reasoningEffort, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
+	if err := scanner.Scan(&id, &userID, &apiKeyID, &accountID, &requestID, &model, &requestedModel, &upstreamModel, &channelID, &modelMappingChain, &billingTier, &billingMode, &groupID, &subscriptionID, &inputTokens, &outputTokens, &cacheCreationTokens, &cacheReadTokens, &cacheCreation5m, &cacheCreation1h, &inputCost, &outputCost, &cacheCreationCost, &cacheReadCost, &totalCost, &actualCost, &billingExemptReason, &rateMultiplier, &accountRateMultiplier, &billingType, &requestTypeRaw, &status, &stream, &openaiWSMode, &durationMs, &firstTokenMs, &userAgent, &ipAddress, &httpStatus, &errorCode, &errorMessage, &simulatedClient, &operationType, &chargeSource, &imageCount, &imageSize, &imageOutputTokens, &imageOutputCost, &serviceTier, &reasoningEffort, &thinkingEnabled, &inboundEndpoint, &upstreamEndpoint, &upstreamURL, &upstreamService, &cacheTTLOverridden, &createdAt); err != nil {
 		return nil, err
 	}
 	log := &service.UsageLog{ID: id, UserID: userID, APIKeyID: apiKeyID, AccountID: accountID, Model: model, RequestedModel: coalesceTrimmedString(requestedModel, model), InputTokens: inputTokens, OutputTokens: outputTokens, CacheCreationTokens: cacheCreationTokens, CacheReadTokens: cacheReadTokens, CacheCreation5mTokens: cacheCreation5m, CacheCreation1hTokens: cacheCreation1h, InputCost: inputCost, OutputCost: outputCost, CacheCreationCost: cacheCreationCost, CacheReadCost: cacheReadCost, TotalCost: totalCost, ActualCost: actualCost, RateMultiplier: rateMultiplier, AccountRateMultiplier: nullFloat64Ptr(accountRateMultiplier), BillingType: int8(billingType), RequestType: service.RequestTypeFromInt16(requestTypeRaw), Status: service.NormalizeUsageLogStatus(status), ImageCount: imageCount, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: createdAt}
@@ -76,6 +81,19 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	}
 	if upstreamModel.Valid {
 		log.UpstreamModel = &upstreamModel.String
+	}
+	if channelID.Valid {
+		value := channelID.Int64
+		log.ChannelID = &value
+	}
+	if modelMappingChain.Valid {
+		log.ModelMappingChain = &modelMappingChain.String
+	}
+	if billingTier.Valid {
+		log.BillingTier = &billingTier.String
+	}
+	if billingMode.Valid {
+		log.BillingMode = &billingMode.String
 	}
 	if groupID.Valid {
 		value := groupID.Int64
@@ -121,8 +139,12 @@ func scanUsageLog(scanner interface{ Scan(...any) error }) (*service.UsageLog, e
 	if imageSize.Valid {
 		log.ImageSize = &imageSize.String
 	}
-	if mediaType.Valid {
-		log.MediaType = &mediaType.String
+	if imageOutputTokens.Valid {
+		value := int(imageOutputTokens.Int64)
+		log.ImageOutputTokens = &value
+	}
+	if imageOutputCost.Valid {
+		log.ImageOutputCost = nullFloat64Ptr(imageOutputCost)
 	}
 	if serviceTier.Valid {
 		log.ServiceTier = &serviceTier.String
@@ -235,6 +257,12 @@ func nullInt(v *int) sql.NullInt64 {
 		return sql.NullInt64{}
 	}
 	return sql.NullInt64{Int64: int64(*v), Valid: true}
+}
+func nullFloat(v *float64) sql.NullFloat64 {
+	if v == nil {
+		return sql.NullFloat64{}
+	}
+	return sql.NullFloat64{Float64: *v, Valid: true}
 }
 func nullFloat64Ptr(v sql.NullFloat64) *float64 {
 	if !v.Valid {

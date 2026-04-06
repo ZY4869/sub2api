@@ -3,6 +3,7 @@ package handler
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
@@ -65,6 +66,15 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		h.errorResponse(c, status, code, message)
 		return
 	}
+	selectionModel, _, err = bindGatewayChannelState(c, h.gatewayService, apiKey.Group, selectionModel)
+	if err != nil {
+		if errors.Is(err, service.ErrChannelModelNotAllowed) {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel")
+			return
+		}
+		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing")
+		return
+	}
 	parsedReq.SessionContext = &service.SessionContext{ClientIP: ip.GetClientIP(c), UserAgent: c.GetHeader("User-Agent"), APIKeyID: apiKey.ID}
 	sessionHash := h.gatewayService.GenerateSessionHash(parsedReq)
 	account, err := h.gatewayService.SelectAccountForModel(c.Request.Context(), apiKey.GroupID, sessionHash, selectionModel)
@@ -74,7 +84,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		return
 	}
 	setOpsSelectedAccount(c, account.ID, account.Platform)
-	setOpsEndpointContext(c, account.GetMappedModel(parsedReq.Model), service.RequestTypeSync)
+	setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeSync)
 	if err := h.gatewayService.ForwardCountTokens(c.Request.Context(), c, account, parsedReq); err != nil {
 		reqLog.Error("gateway.count_tokens_forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))
 		return

@@ -45,7 +45,6 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
       platform: 'anthropic',
       accountCategory: 'oauth-based',
       addMethod: 'oauth',
-      soraAccountType: 'oauth',
       antigravityAccountType: 'oauth',
       geminiOAuthType: 'google_one',
       showAdvanced: false,
@@ -89,12 +88,11 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
   })
 
 describe('AccountCreatePlatformTypeEditor', () => {
-  it('updates sora type and syncs oauth defaults', async () => {
+  it('updates openai type selection through account category', async () => {
     const wrapper = createWrapper({
-      platform: 'sora',
+      platform: 'openai',
       accountCategory: 'apikey',
-      addMethod: 'setup-token',
-      soraAccountType: 'apikey'
+      addMethod: 'oauth'
     })
 
     const oauthButton = wrapper.findAll('button').find((button) => button.text().includes('OAuth'))
@@ -102,9 +100,7 @@ describe('AccountCreatePlatformTypeEditor', () => {
 
     await oauthButton?.trigger('click')
 
-    expect(wrapper.emitted('update:soraAccountType')).toContainEqual(['oauth'])
     expect(wrapper.emitted('update:accountCategory')).toContainEqual(['oauth-based'])
-    expect(wrapper.emitted('update:addMethod')).toContainEqual(['oauth'])
   })
 
   it('renders anthropic add method selector and emits category changes', async () => {

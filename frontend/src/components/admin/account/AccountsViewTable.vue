@@ -59,6 +59,9 @@
         :type="row.type"
         :plan-type="row.credentials?.plan_type"
         :privacy-mode="String(row.extra?.privacy_mode || '') || undefined"
+        :subscription-expires-at="
+          String(row.credentials?.subscription_expires_at || '') || undefined
+        "
       />
     </template>
 

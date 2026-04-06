@@ -145,7 +145,7 @@ func (i *Index) ResolveProtocolID(input string, route string) (string, bool) {
 		if value := firstNonEmpty(entry.PreferredProtocolIDs["openai"], entry.ID); value != "" {
 			return NormalizeID(value), true
 		}
-	case "anthropic_apikey", "openai", "gemini", "antigravity", "sora":
+	case "anthropic_apikey", "openai", "gemini", "antigravity":
 		if entry.ID != "" {
 			return entry.ID, true
 		}

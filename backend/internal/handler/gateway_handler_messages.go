@@ -174,6 +174,15 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "This endpoint does not support the selected platform", streamStarted)
 			return
 		}
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
+				return
+			}
+			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
+			return
+		}
 
 		sessionKey := selectedSessionHash
 		if currentPlatform == service.PlatformGemini && selectedSessionHash != "" {
@@ -200,7 +209,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				c.Request = c.Request.WithContext(ctx)
 			}
 			for {
-				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "")
+				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, runtimeSelectionModel, fs.FailedAccountIDs, "")
 				if err != nil {
 					if len(fs.FailedAccountIDs) == 0 {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -231,7 +240,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 				account := selection.Account
 				setOpsSelectedAccount(c, account.ID, account.Platform)
-				setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
+				setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 					if interceptType != InterceptTypeNone {
@@ -354,6 +363,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				userAgent := c.GetHeader("User-Agent")
 				clientIP := ip.GetClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = reattachGatewayChannelState(ctx, channelState)
 					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", currentAPIKey.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 					}
@@ -365,6 +375,15 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 		runtimeAPIKey := currentAPIKey
 		runtimeSubscription := currentSubscription
+		runtimeSelectionModel, channelState, err = bindGatewayChannelState(c, h.gatewayService, runtimeAPIKey.Group, selectionModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
+				return
+			}
+			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
+			return
+		}
 		var fallbackGroupID *int64
 		if runtimeAPIKey.Group != nil {
 			fallbackGroupID = runtimeAPIKey.Group.FallbackGroupIDOnInvalidRequest
@@ -378,7 +397,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
 			retryWithFallback := false
 			for {
-				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), runtimeAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
+				selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), runtimeAPIKey.GroupID, sessionKey, runtimeSelectionModel, fs.FailedAccountIDs, parsedReq.MetadataUserID)
 				if err != nil {
 					if len(fs.FailedAccountIDs) == 0 {
 						if excludeSelectedGroup(excludedGroupIDs, runtimeAPIKey) {
@@ -409,7 +428,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 				account := selection.Account
 				setOpsSelectedAccount(c, account.ID, account.Platform)
-				setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
+				setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
 					if interceptType != InterceptTypeNone {
@@ -596,6 +615,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				userAgent := c.GetHeader("User-Agent")
 				clientIP := ip.GetClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = reattachGatewayChannelState(ctx, channelState)
 					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: runtimeAPIKey, User: runtimeAPIKey.User, Account: account, Subscription: runtimeSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", runtimeAPIKey.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 					}

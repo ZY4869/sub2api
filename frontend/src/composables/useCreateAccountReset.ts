@@ -117,7 +117,6 @@ interface UseCreateAccountResetOptions {
   geminiTierAIStudio: Ref<GeminiAIStudioTier>
   oauthReset: () => void
   openaiOAuthReset: () => void
-  soraOAuthReset: () => void
   geminiOAuthReset: () => void
   antigravityOAuthReset: () => void
   oauthFlowReset: () => void
@@ -211,7 +210,6 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.geminiTierAIStudio.value = 'aistudio_free'
     options.oauthReset()
     options.openaiOAuthReset()
-    options.soraOAuthReset()
     options.geminiOAuthReset()
     options.antigravityOAuthReset()
     options.oauthFlowReset()

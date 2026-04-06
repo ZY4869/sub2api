@@ -98,7 +98,6 @@
           v-model:account-category="accountCategory"
           v-model:gateway-protocol="gatewayProtocol"
           v-model:add-method="addMethod"
-          v-model:sora-account-type="soraAccountType"
           v-model:antigravity-account-type="antigravityAccountType"
           v-model:gemini-o-auth-type="geminiOAuthType"
           v-model:show-advanced="showAdvancedOAuth"
@@ -494,19 +493,15 @@
         :loading="currentOAuthLoading"
         :error="currentOAuthError"
         :show-help="form.platform === 'anthropic'"
-        :show-proxy-warning="form.platform !== 'openai' && form.platform !== 'sora' && !!form.proxy_id"
+        :show-proxy-warning="form.platform !== 'openai' && !!form.proxy_id"
         :allow-multiple="form.platform === 'anthropic'"
         :show-cookie-option="form.platform === 'anthropic'"
-        :show-refresh-token-option="form.platform === 'openai' || form.platform === 'sora' || form.platform === 'antigravity'"
-        :show-session-token-option="form.platform === 'sora'"
-        :show-access-token-option="form.platform === 'sora'"
+        :show-refresh-token-option="form.platform === 'openai' || form.platform === 'antigravity'"
         :platform="form.platform"
         :show-project-id="geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
         @cookie-auth="handleCookieAuth"
         @validate-refresh-token="handleValidateRefreshToken"
-        @validate-session-token="handleValidateSessionToken"
-        @import-access-token="handleImportAccessToken"
       />
     </div>
 
@@ -573,8 +568,6 @@ import { useCreateAccountAntigravityHandlers } from '@/composables/useCreateAcco
 import { useCreateAccountOpenAIExchange } from '@/composables/useCreateAccountOpenAIExchange'
 import { useCreateAccountOpenAIRefreshTokenValidation } from '@/composables/useCreateAccountOpenAIRefreshTokenValidation'
 import { useCreateAccountReset } from '@/composables/useCreateAccountReset'
-import { useCreateAccountSoraAccessTokenImport } from '@/composables/useCreateAccountSoraAccessTokenImport'
-import { useCreateAccountSoraSessionTokenValidation } from '@/composables/useCreateAccountSoraSessionTokenValidation'
 import { useCreateAccountSubmit } from '@/composables/useCreateAccountSubmit'
 import type { GrokImportResult } from '@/api/admin/accounts'
 import type {
@@ -648,7 +641,7 @@ import {
   applyAccountPoolModeStateToCredentials
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
-import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
+import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
 import {
   applyProtocolGatewayGeminiBatchExtra,
   applyProtocolGatewayClaudeClientMimicExtra,
@@ -690,7 +683,7 @@ const authStore = useAuthStore()
 const modelInventoryStore = useModelInventoryStore()
 
 const oauthStepTitle = computed(() => {
-  if (form.platform === 'openai' || form.platform === 'sora') return t('admin.accounts.oauth.openai.title')
+  if (form.platform === 'openai') return t('admin.accounts.oauth.openai.title')
   if (form.platform === 'gemini') return t('admin.accounts.oauth.gemini.title')
   if (form.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.title')
   if (form.platform === 'copilot') return t('admin.accounts.copilotDeviceFlow.title')
@@ -719,28 +712,26 @@ const showFormInfo = (message: string) => appStore.showInfo(message)
 // OAuth composables
 const oauth = useAccountOAuth() // For Anthropic OAuth
 const openaiOAuth = useOpenAIOAuth({ platform: 'openai' }) // For OpenAI OAuth
-const soraOAuth = useOpenAIOAuth({ platform: 'sora' }) // For Sora OAuth
 const geminiOAuth = useGeminiOAuth() // For Gemini OAuth
 const antigravityOAuth = useAntigravityOAuth() // For Antigravity OAuth
-const activeOpenAIOAuth = computed(() => (form.platform === 'sora' ? soraOAuth : openaiOAuth))
 
 // Computed: current OAuth state for template binding
 const currentAuthUrl = computed(() => {
-  if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.authUrl.value
+  if (form.platform === 'openai') return openaiOAuth.authUrl.value
   if (form.platform === 'gemini') return geminiOAuth.authUrl.value
   if (form.platform === 'antigravity') return antigravityOAuth.authUrl.value
   return oauth.authUrl.value
 })
 
 const currentSessionId = computed(() => {
-  if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.sessionId.value
+  if (form.platform === 'openai') return openaiOAuth.sessionId.value
   if (form.platform === 'gemini') return geminiOAuth.sessionId.value
   if (form.platform === 'antigravity') return antigravityOAuth.sessionId.value
   return oauth.sessionId.value
 })
 
 const currentOAuthLoading = computed(() => {
-  if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.loading.value
+  if (form.platform === 'openai') return openaiOAuth.loading.value
   if (form.platform === 'gemini') return geminiOAuth.loading.value
   if (form.platform === 'antigravity') return antigravityOAuth.loading.value
   return oauth.loading.value
@@ -748,7 +739,7 @@ const currentOAuthLoading = computed(() => {
 
 const currentOAuthError = computed(() => {
   if (form.platform === 'copilot' || form.platform === 'kiro') return ''
-  if (form.platform === 'openai' || form.platform === 'sora') return activeOpenAIOAuth.value.error.value
+  if (form.platform === 'openai') return openaiOAuth.error.value
   if (form.platform === 'gemini') return geminiOAuth.error.value
   if (form.platform === 'antigravity') return antigravityOAuth.error.value
   return oauth.error.value
@@ -812,7 +803,6 @@ const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const antigravityAccountType = ref<'oauth' | 'upstream'>('oauth') // For antigravity: oauth or upstream
-const soraAccountType = ref<'oauth' | 'apikey'>('oauth') // For sora: oauth or apikey (upstream)
 const upstreamBaseUrl = ref('') // For upstream type: base URL
 const upstreamApiKey = ref('') // For upstream type: API key
 const geminiVertexAuthMode = ref<VertexAuthMode>('service_account')
@@ -1091,8 +1081,8 @@ const canExchangeCode = computed(() => {
   if (form.platform === 'copilot' || form.platform === 'kiro') {
     return false
   }
-  if (form.platform === 'openai' || form.platform === 'sora') {
-    return Boolean(authCode.trim() && activeOpenAIOAuth.value.sessionId.value && !activeOpenAIOAuth.value.loading.value)
+  if (form.platform === 'openai') {
+    return Boolean(authCode.trim() && openaiOAuth.sessionId.value && !openaiOAuth.loading.value)
   }
   if (form.platform === 'gemini') {
     return Boolean(authCode.trim() && geminiOAuth.sessionId.value && !geminiOAuth.loading.value)
@@ -1160,8 +1150,8 @@ watch(
 
 // Sync form.type based on accountCategory, addMethod, and platform-specific type
 watch(
-  [accountCategory, addMethod, antigravityAccountType, soraAccountType, gatewayProtocol, geminiVertexAuthMode],
-  ([category, method, agType, soraType, _gatewayProtocol, vertexAuthMode]) => {
+  [accountCategory, addMethod, antigravityAccountType, gatewayProtocol, geminiVertexAuthMode],
+  ([category, method, agType, _gatewayProtocol, vertexAuthMode]) => {
     if (form.platform === 'antigravity' && agType === 'upstream') {
       form.type = 'apikey'
       return
@@ -1171,10 +1161,6 @@ watch(
       return
     }
     if (form.platform === 'protocol_gateway') {
-      form.type = 'apikey'
-      return
-    }
-    if (form.platform === 'sora' && soraType === 'apikey') {
       form.type = 'apikey'
       return
     }
@@ -1253,12 +1239,6 @@ watch(
     if (effectivePlatform.value !== 'anthropic' && newPlatform !== 'antigravity') {
       interceptWarmupRequests.value = false
     }
-    if (newPlatform === 'sora') {
-      accountCategory.value = 'oauth-based'
-      addMethod.value = 'oauth'
-      form.type = 'oauth'
-      soraAccountType.value = 'oauth'
-    }
     if (newPlatform === 'copilot' || newPlatform === 'kiro') {
       accountCategory.value = 'oauth-based'
       form.type = 'oauth'
@@ -1275,7 +1255,6 @@ watch(
     // Reset OAuth states
     oauth.resetState()
     openaiOAuth.resetState()
-    soraOAuth.resetState()
     geminiOAuth.resetState()
     antigravityOAuth.resetState()
     copilotDeviceFlowRef.value?.reset()
@@ -1596,7 +1575,6 @@ const { resetForm } = useCreateAccountReset({
   geminiTierAIStudio,
   oauthReset: () => oauth.resetState(),
   openaiOAuthReset: () => openaiOAuth.resetState(),
-  soraOAuthReset: () => soraOAuth.resetState(),
   geminiOAuthReset: () => geminiOAuth.resetState(),
   antigravityOAuthReset: () => antigravityOAuth.resetState(),
   oauthFlowReset: () => oauthFlowRef.value?.reset(),
@@ -1663,11 +1641,6 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
   )
 }
 
-const buildSoraAccountExtra = (
-  base?: Record<string, unknown>,
-  linkedOpenAIAccountId?: string | number
-) => buildSoraExtra({ base, linkedOpenAIAccountId })
-
 const { submitting, createAccountAndFinish } = useCreateAccountSubmit({
   withConfirmFlag,
   ensureMixedChannelConfirmed,
@@ -1729,10 +1702,10 @@ const { handleCookieAuth } = useCreateAccountAnthropicCookieAuth({
 })
 
 const getOpenAIOAuthState = () =>
-  (oauthFlowRef.value?.oauthState || activeOpenAIOAuth.value.oauthState.value || '').trim()
+  (oauthFlowRef.value?.oauthState || openaiOAuth.oauthState.value || '').trim()
 
 const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
-  oauthClient: activeOpenAIOAuth,
+  oauthClient: computed(() => openaiOAuth),
   getOAuthState: getOpenAIOAuthState,
   form,
   autoPauseOnExpired,
@@ -1742,24 +1715,13 @@ const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
   allowedModels,
   modelMappings,
   buildAccountExtra,
-  buildSoraAccountExtra,
-  afterCreateImportModels: maybeImportCreatedAccounts,
-  emitCreated: () => emit('created'),
-  onClose: handleClose
-})
-
-const { handleImportAccessToken } = useCreateAccountSoraAccessTokenImport({
-  oauthClient: activeOpenAIOAuth,
-  form,
-  autoPauseOnExpired,
-  buildSoraAccountExtra: () => buildSoraAccountExtra(),
   afterCreateImportModels: maybeImportCreatedAccounts,
   emitCreated: () => emit('created'),
   onClose: handleClose
 })
 
 const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation({
-  oauthClient: activeOpenAIOAuth,
+  oauthClient: computed(() => openaiOAuth),
   form,
   autoPauseOnExpired,
   isOpenAIModelRestrictionDisabled,
@@ -1767,17 +1729,6 @@ const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation(
   allowedModels,
   modelMappings,
   buildAccountExtra,
-  buildSoraAccountExtra,
-  afterCreateImportModels: maybeImportCreatedAccounts,
-  emitCreated: () => emit('created'),
-  onClose: handleClose
-})
-
-const { handleSoraValidateST } = useCreateAccountSoraSessionTokenValidation({
-  oauthClient: activeOpenAIOAuth,
-  form,
-  autoPauseOnExpired,
-  buildSoraAccountExtra,
   afterCreateImportModels: maybeImportCreatedAccounts,
   emitCreated: () => emit('created'),
   onClose: handleClose
@@ -1997,18 +1948,6 @@ const handleSubmit = async () => {
     return
   }
 
-  if (form.platform === 'sora') {
-    const soraBaseUrl = apiKeyBaseUrl.value.trim()
-    if (!soraBaseUrl) {
-      appStore.showError(t('admin.accounts.soraBaseUrlRequired'))
-      return
-    }
-    if (!soraBaseUrl.startsWith('http://') && !soraBaseUrl.startsWith('https://')) {
-      appStore.showError(t('admin.accounts.soraBaseUrlInvalidScheme'))
-      return
-    }
-  }
-
   // Determine default base URL based on platform
   const defaultBaseUrl = resolveAccountApiKeyDefaultBaseUrl(form.platform, gatewayProtocol.value)
 
@@ -2061,7 +2000,6 @@ const goBackToBasicInfo = () => {
   copilotSubmitting.value = false
   oauth.resetState()
   openaiOAuth.resetState()
-  soraOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
@@ -2070,8 +2008,8 @@ const goBackToBasicInfo = () => {
 }
 
 const handleGenerateUrl = async () => {
-  if (form.platform === 'openai' || form.platform === 'sora') {
-    await activeOpenAIOAuth.value.generateAuthUrl(form.proxy_id)
+  if (form.platform === 'openai') {
+    await openaiOAuth.generateAuthUrl(form.proxy_id)
   } else if (form.platform === 'gemini') {
     await geminiOAuth.generateAuthUrl(
       form.proxy_id,
@@ -2087,16 +2025,10 @@ const handleGenerateUrl = async () => {
 }
 
 const handleValidateRefreshToken = (rt: string) => {
-  if (form.platform === 'openai' || form.platform === 'sora') {
+  if (form.platform === 'openai') {
     handleOpenAIValidateRT(rt)
   } else if (form.platform === 'antigravity') {
     handleAntigravityValidateRT(rt)
-  }
-}
-
-const handleValidateSessionToken = (sessionToken: string) => {
-  if (form.platform === 'sora') {
-    handleSoraValidateST(sessionToken)
   }
 }
 
@@ -2144,7 +2076,6 @@ const handleExchangeCode = async () => {
 
   switch (form.platform) {
     case 'openai':
-    case 'sora':
       return handleOpenAIExchange(authCode)
     case 'gemini':
       return handleGeminiExchange(authCode)

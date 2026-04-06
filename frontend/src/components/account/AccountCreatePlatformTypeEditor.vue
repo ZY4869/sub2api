@@ -15,7 +15,6 @@ import Select from '@/components/common/Select.vue'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 
 type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
-type SoraAccountType = 'oauth' | 'apikey'
 type AntigravityAccountType = 'oauth' | 'upstream'
 type GeminiGoogleOneTier = 'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'
 type GeminiGcpTier = 'gcp_standard' | 'gcp_enterprise'
@@ -43,7 +42,6 @@ defineEmits<{
 const platform = defineModel<AccountPlatform>('platform', { required: true })
 const accountCategory = defineModel<AccountCategory>('accountCategory', { required: true })
 const addMethod = defineModel<AddMethod>('addMethod', { required: true })
-const soraAccountType = defineModel<SoraAccountType>('soraAccountType', { required: true })
 const antigravityAccountType = defineModel<AntigravityAccountType>('antigravityAccountType', { required: true })
 const geminiOAuthType = defineModel<GeminiOAuthType>('geminiOAuthType', { required: true })
 const showAdvanced = defineModel<boolean>('showAdvanced', { required: true })
@@ -59,38 +57,9 @@ function selectAccountCategory(next: AccountCategory) {
   accountCategory.value = next
 }
 
-function selectSoraAccountType(next: SoraAccountType) {
-  soraAccountType.value = next
-  if (next === 'oauth') {
-    accountCategory.value = 'oauth-based'
-    addMethod.value = 'oauth'
-    return
-  }
-  accountCategory.value = 'apikey'
-}
-
 function selectAntigravityAccountType(next: AntigravityAccountType) {
   antigravityAccountType.value = next
 }
-
-const soraOptions = computed<TypeOption[]>(() => [
-  {
-    key: 'oauth',
-    title: 'OAuth',
-    description: t('admin.accounts.types.chatgptOauth'),
-    icon: 'key',
-    accent: 'rose',
-    active: soraAccountType.value === 'oauth'
-  },
-  {
-    key: 'apikey',
-    title: t('admin.accounts.types.soraApiKey'),
-    description: t('admin.accounts.types.soraApiKeyHint'),
-    icon: 'link',
-    accent: 'rose',
-    active: soraAccountType.value === 'apikey'
-  }
-])
 
 const anthropicOptions = computed<TypeOption[]>(() => [
   {
@@ -203,10 +172,6 @@ function handleGrokSelect(key: string) {
   selectAccountCategory(key as AccountCategory)
 }
 
-function handleSoraSelect(key: string) {
-  selectSoraAccountType(key as SoraAccountType)
-}
-
 function handleAntigravitySelect(key: string) {
   selectAntigravityAccountType(key as AntigravityAccountType)
 }
@@ -215,15 +180,7 @@ function handleAntigravitySelect(key: string) {
 <template>
   <template v-if="showStepOneTypeCards">
     <AccountCreateTypeCardGroup
-      v-if="platform === 'sora'"
-      :label="t('admin.accounts.accountType')"
-      :options="soraOptions"
-      tour="account-form-type"
-      @select="handleSoraSelect"
-    />
-
-    <AccountCreateTypeCardGroup
-      v-else-if="platform === 'anthropic'"
+      v-if="platform === 'anthropic'"
       :label="t('admin.accounts.accountType')"
       :options="anthropicOptions"
       tour="account-form-type"

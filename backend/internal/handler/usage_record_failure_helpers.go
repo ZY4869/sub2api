@@ -187,57 +187,6 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 	})
 }
 
-func (h *SoraGatewayHandler) submitFailedUsageRecordTask(
-	component string,
-	c *gin.Context,
-	apiKey *service.APIKey,
-	subscription *service.UserSubscription,
-	account *service.Account,
-	model string,
-	stream bool,
-	duration time.Duration,
-	failoverErr *service.UpstreamFailoverError,
-	err error,
-) {
-	if h == nil || c == nil || apiKey == nil || account == nil {
-		return
-	}
-	resolution := resolveFailedUsageResolution(c, failoverErr, err)
-	userAgent := c.GetHeader("User-Agent")
-	clientIP := ip.GetClientIP(c)
-	inboundEndpoint := GetInboundEndpoint(c)
-	upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
-
-	h.submitUsageRecordTask(func(ctx context.Context) {
-		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{
-			APIKey:           apiKey,
-			User:             apiKey.User,
-			Account:          account,
-			Subscription:     subscription,
-			RequestID:        resolution.RequestID,
-			Model:            model,
-			UpstreamModel:    account.GetMappedModel(model),
-			InboundEndpoint:  inboundEndpoint,
-			UpstreamEndpoint: upstreamEndpoint,
-			UserAgent:        userAgent,
-			IPAddress:        clientIP,
-			HTTPStatus:       resolution.HTTPStatus,
-			ErrorCode:        resolution.ErrorCode,
-			ErrorMessage:     resolution.ErrorMessage,
-			Stream:           stream,
-			Duration:         duration,
-		}); recordErr != nil {
-			logger.L().With(
-				zap.String("component", component),
-				zap.Int64("api_key_id", apiKey.ID),
-				zap.Any("group_id", apiKey.GroupID),
-				zap.String("model", model),
-				zap.Int64("account_id", account.ID),
-			).Error("sora.record_failed_usage_failed", zap.Error(recordErr))
-		}
-	})
-}
-
 func (h *GrokGatewayHandler) submitFailedUsageRecordTask(
 	component string,
 	c *gin.Context,

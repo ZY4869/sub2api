@@ -380,6 +380,10 @@ type UsageLog struct {
 	InboundEndpoint *string `json:"inbound_endpoint,omitempty"`
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.
 	UpstreamEndpoint *string `json:"upstream_endpoint,omitempty"`
+	ChannelID        *int64  `json:"channel_id,omitempty"`
+	ModelMappingChain *string `json:"model_mapping_chain,omitempty"`
+	BillingTier      *string `json:"billing_tier,omitempty"`
+	BillingMode      *string `json:"billing_mode,omitempty"`
 
 	GroupID        *int64 `json:"group_id"`
 	SubscriptionID *int64 `json:"subscription_id"`
@@ -416,9 +420,10 @@ type UsageLog struct {
 	ChargeSource    *string `json:"charge_source,omitempty"`
 
 	// 图片生成字段
-	ImageCount int     `json:"image_count"`
-	ImageSize  *string `json:"image_size"`
-	MediaType  *string `json:"media_type"`
+	ImageCount        int      `json:"image_count"`
+	ImageSize         *string  `json:"image_size"`
+	ImageOutputTokens *int     `json:"image_output_tokens,omitempty"`
+	ImageOutputCost   *float64 `json:"image_output_cost,omitempty"`
 
 	// User-Agent
 	UserAgent *string `json:"user_agent"`

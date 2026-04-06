@@ -71,7 +71,7 @@
         </div>
       </div>
 
-      <div v-if="!isSoraAccount" class="space-y-3">
+      <div class="space-y-3">
         <AccountTestModelSelectionFields
           v-model:model-input-mode="modelInputMode"
           v-model:selected-model-key="selectedModelKey"
@@ -101,12 +101,6 @@
         class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300"
       >
         {{ t('admin.accounts.kiroTestModelSourceHint') }}
-      </div>
-      <div
-        v-else-if="isSoraAccount"
-        class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-      >
-        {{ t('admin.accounts.soraTestHint') }}
       </div>
       <div
         v-else-if="isGrokAccount"
@@ -247,17 +241,15 @@
         <div class="flex items-center gap-3">
           <span class="flex items-center gap-1">
             <Icon name="grid" size="sm" :stroke-width="2" />
-            {{ isSoraAccount ? t('admin.accounts.soraTestTarget') : t('admin.accounts.testModel') }}
+            {{ t('admin.accounts.testModel') }}
           </span>
         </div>
         <span class="flex items-center gap-1">
           <Icon name="chat" size="sm" :stroke-width="2" />
           {{
-            isSoraAccount
-              ? t('admin.accounts.soraTestMode')
-              : supportsGeminiImageTest
-                ? t('admin.accounts.geminiImageTestMode')
-                : t('admin.accounts.testPrompt')
+            supportsGeminiImageTest
+              ? t('admin.accounts.geminiImageTestMode')
+              : t('admin.accounts.testPrompt')
           }}
         </span>
       </div>
@@ -289,10 +281,10 @@
         </button>
         <button
           @click="startTest"
-          :disabled="status === 'connecting' || (!isSoraAccount && !effectiveSelectedModelId)"
+          :disabled="status === 'connecting' || !effectiveSelectedModelId"
           :class="[
             'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all',
-            status === 'connecting' || (!isSoraAccount && !effectiveSelectedModelId)
+            status === 'connecting' || !effectiveSelectedModelId
               ? 'cursor-not-allowed bg-primary-400 text-white'
               : status === 'success'
                 ? 'bg-green-500 text-white hover:bg-green-600'
@@ -401,7 +393,7 @@ const selectedTestMode = ref<AccountTestMode>(DEFAULT_ACCOUNT_TEST_MODE)
 const runtimePlatform = computed(() =>
   props.account ? resolveEffectiveAccountPlatformFromAccount(props.account) : null
 )
-const supportsTestModes = computed(() => !isSoraAccount.value && !isGrokAccount.value)
+const supportsTestModes = computed(() => !isGrokAccount.value)
 const selectedModelOption = computed(() =>
   findAccountTestModelByKey(availableModels.value, selectedModelKey.value)
 )
@@ -417,7 +409,6 @@ const effectiveSelectedSourceProtocol = computed(() =>
     ? normalizeGatewayAcceptedProtocol(manualSourceProtocol.value)
     : selectedSourceProtocol.value
 )
-const isSoraAccount = computed(() => props.account?.platform === 'sora')
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const isProtocolGatewayAccount = computed(() => props.account?.platform === 'protocol_gateway')
@@ -449,7 +440,6 @@ const effectiveTestPlatform = computed(() =>
   effectiveSelectedSourceProtocol.value || runtimePlatform.value
 )
 const supportsGeminiImageTest = computed(() => {
-  if (isSoraAccount.value) return false
   const modelID = effectiveSelectedModelId.value.toLowerCase()
   if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
 
@@ -647,12 +637,6 @@ watch([selectedModelKey, modelInputMode, manualModelId, manualSourceProtocol], (
 
 const loadAvailableModels = async () => {
   if (!props.account) return
-  if (props.account.platform === 'sora') {
-    availableModels.value = []
-    selectedModelKey.value = ''
-    loadingModels.value = false
-    return
-  }
 
   loadingModels.value = true
   selectedModelKey.value = ''
@@ -726,9 +710,6 @@ const selectTestMode = (mode: AccountTestMode) => {
 }
 
 const resolveTestRequestBody = () => {
-  if (isSoraAccount.value) {
-    return {}
-  }
   if (modelInputMode.value === 'manual') {
     return {
       model_input_mode: 'manual' as const,
@@ -782,7 +763,7 @@ const resolveResponseErrorMessage = async (response: Response) => {
 }
 
 const startTest = async () => {
-  if (!props.account || (!isSoraAccount.value && !effectiveSelectedModelId.value)) return
+  if (!props.account || !effectiveSelectedModelId.value) return
 
   resetState()
   status.value = 'connecting'
@@ -922,11 +903,9 @@ const handleEvent = (event: {
         addLine(t('admin.accounts.usingModel', { model: event.model }), 'text-cyan-400')
       }
       addLine(
-        isSoraAccount.value
-          ? t('admin.accounts.soraTestingFlow')
-          : supportsGeminiImageTest.value
-            ? t('admin.accounts.sendingGeminiImageRequest')
-            : t('admin.accounts.sendingTestMessage'),
+        supportsGeminiImageTest.value
+          ? t('admin.accounts.sendingGeminiImageRequest')
+          : t('admin.accounts.sendingTestMessage'),
         'text-gray-400'
       )
       addLine('', 'text-gray-300')

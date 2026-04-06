@@ -813,7 +813,7 @@ const supportsUnifiedModelEditor = computed(() => {
   if (!props.account) {
     return false
   }
-  if (props.account.platform === 'antigravity' || props.account.platform === 'sora') {
+  if (props.account.platform === 'antigravity') {
     return false
   }
   if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account.type === 'upstream') {

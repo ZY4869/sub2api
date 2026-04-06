@@ -49,28 +49,60 @@
         </template>
 
         <template #cell-model="{ row }">
-          <div
-            v-if="row.upstream_model && row.upstream_model !== row.model"
-            class="space-y-1 text-xs"
-          >
-            <div class="flex items-start gap-2">
+          <div class="space-y-1 text-xs">
+            <div
+              v-if="row.upstream_model && row.upstream_model !== row.model"
+              class="space-y-1"
+            >
+              <div class="flex items-start gap-2">
+                <ModelIcon :model="row.model" size="16px" />
+                <div class="break-all font-medium text-gray-900 dark:text-white">
+                  {{ row.model }}
+                </div>
+              </div>
+              <div class="flex items-start gap-2 text-gray-500 dark:text-gray-400">
+                <ModelIcon :model="row.upstream_model" size="16px" />
+                <div class="break-all">
+                  <span class="mr-1">-></span>{{ row.upstream_model }}
+                </div>
+              </div>
+            </div>
+            <div v-else class="flex items-start gap-2">
               <ModelIcon :model="row.model" size="16px" />
-              <div class="break-all font-medium text-gray-900 dark:text-white">
-                {{ row.model }}
-              </div>
+              <span class="break-all font-medium text-gray-900 dark:text-white">{{
+                row.model
+              }}</span>
             </div>
-            <div class="flex items-start gap-2 text-gray-500 dark:text-gray-400">
-              <ModelIcon :model="row.upstream_model" size="16px" />
-              <div class="break-all">
-                <span class="mr-1">-></span>{{ row.upstream_model }}
-              </div>
+            <div
+              v-if="row.model_mapping_chain && row.model_mapping_chain !== row.model"
+              class="break-all text-[11px] text-gray-500 dark:text-gray-400"
+              :title="row.model_mapping_chain"
+            >
+              {{ row.model_mapping_chain }}
             </div>
-          </div>
-          <div v-else class="flex items-start gap-2">
-            <ModelIcon :model="row.model" size="16px" />
-            <span class="break-all font-medium text-gray-900 dark:text-white">{{
-              row.model
-            }}</span>
+            <div
+              v-if="row.channel_id || row.billing_mode || row.billing_tier"
+              class="flex flex-wrap gap-1"
+            >
+              <span
+                v-if="row.channel_id"
+                class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+              >
+                CH#{{ row.channel_id }}
+              </span>
+              <span
+                v-if="row.billing_mode"
+                class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+              >
+                {{ row.billing_mode }}
+              </span>
+              <span
+                v-if="row.billing_tier"
+                class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+              >
+                {{ row.billing_tier }}
+              </span>
+            </div>
           </div>
         </template>
 
@@ -433,6 +465,15 @@
               }}</span>
             </div>
             <div
+              v-if="tokenTooltipData && tokenTooltipData.image_output_tokens"
+              class="flex items-center justify-between gap-4"
+            >
+              <span class="text-gray-400">{{ t("usage.imageOutput") }}</span>
+              <span class="font-medium text-white">{{
+                tokenTooltipData.image_output_tokens.toLocaleString()
+              }}</span>
+            </div>
+            <div
               v-if="
                 tokenTooltipData && tokenTooltipData.cache_creation_tokens > 0
               "
@@ -576,6 +617,15 @@
               }}</span>
               <span class="font-medium text-white"
                 >${{ tooltipData.output_cost.toFixed(6) }}</span
+              >
+            </div>
+            <div
+              v-if="tooltipData && tooltipData.image_output_cost"
+              class="flex items-center justify-between gap-4"
+            >
+              <span class="text-gray-400">{{ t("usage.imageOutput") }}</span>
+              <span class="font-medium text-white"
+                >${{ tooltipData.image_output_cost.toFixed(6) }}</span
               >
             </div>
             <div

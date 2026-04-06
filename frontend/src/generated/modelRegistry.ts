@@ -33,11 +33,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-01T10:45:15Z"
+export const generatedModelRegistryBuiltAt = "2026-04-06T10:48:31Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"bb002c4ad8a2723d905fd54014fb2a205cf11ebf789b18d89dcf6b885af2c277\"",
-  "updated_at": "2026-04-01T10:45:15Z",
+  "etag": "W/\"37ebf978942228a4cab94cf3416e3779daca4c368496530ae0f0051a483dbd58\"",
+  "updated_at": "2026-04-06T10:48:31Z",
   "models": [
     {
       "id": "abab6.5-chat",
@@ -260,32 +260,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 0,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-image",
-      "display_name": "GPT-image",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "gpt-image"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-image"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
       "ui_priority": 0,
       "exposed_in": [
         "whitelist"
@@ -726,32 +700,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "gpt-image-landscape",
-      "display_name": "GPT-image-landscape",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "gpt-image-landscape"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-image-landscape"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
-      "ui_priority": 1,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "grok-3-fast",
       "display_name": "Grok 3 Fast",
       "provider": "grok",
@@ -1181,32 +1129,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "gpt-image-portrait",
-      "display_name": "GPT-image-portrait",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "gpt-image-portrait"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-image-portrait"
-      ],
-      "modalities": [
-        "text",
-        "image"
-      ],
-      "capabilities": [
-        "image"
-      ],
       "ui_priority": 2,
       "exposed_in": [
         "whitelist"
@@ -1786,32 +1708,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2-landscape-10s",
-      "display_name": "Sora2-landscape-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-landscape-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-landscape-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "spark-desk-v3.1",
       "display_name": "Spark-desk-v3.1",
       "provider": "spark",
@@ -2182,32 +2078,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sora2-portrait-10s",
-      "display_name": "Sora2-portrait-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-portrait-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-portrait-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
       "ui_priority": 4,
       "exposed_in": [
         "whitelist"
@@ -2595,32 +2465,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2-landscape-15s",
-      "display_name": "Sora2-landscape-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-landscape-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-landscape-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "spark-desk-v4.0",
       "display_name": "Spark-desk-v4.0",
       "provider": "spark",
@@ -3002,32 +2846,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2-portrait-15s",
-      "display_name": "Sora2-portrait-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-portrait-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-portrait-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "spark-lite",
       "display_name": "Spark-lite",
       "provider": "spark",
@@ -3371,32 +3189,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2-landscape-25s",
-      "display_name": "Sora2-landscape-25s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-landscape-25s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-landscape-25s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "spark-pro",
       "display_name": "Spark-pro",
       "provider": "spark",
@@ -3647,32 +3439,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sora2-portrait-25s",
-      "display_name": "Sora2-portrait-25s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2-portrait-25s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2-portrait-25s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
       "ui_priority": 8,
       "exposed_in": [
         "whitelist"
@@ -3937,32 +3703,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-landscape-10s",
-      "display_name": "Sora2pro-landscape-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-landscape-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-landscape-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 9,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "spark-ultra",
       "display_name": "Spark-ultra",
       "provider": "spark",
@@ -4195,32 +3935,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-portrait-10s",
-      "display_name": "Sora2pro-portrait-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-portrait-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-portrait-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "codellama-34b-instruct",
       "display_name": "Codellama-34b-instruct",
       "provider": "meta",
@@ -4384,32 +4098,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-landscape-15s",
-      "display_name": "Sora2pro-landscape-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-landscape-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-landscape-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "codellama-13b-instruct",
       "display_name": "Codellama-13b-instruct",
       "provider": "meta",
@@ -4553,32 +4241,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-portrait-15s",
-      "display_name": "Sora2pro-portrait-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-portrait-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-portrait-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 12,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "chatglm_turbo",
       "display_name": "Chatglm_turbo",
       "provider": "zhipu",
@@ -4698,32 +4360,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-landscape-25s",
-      "display_name": "Sora2pro-landscape-25s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-landscape-25s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-landscape-25s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 13,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "chatglm_pro",
       "display_name": "Chatglm_pro",
       "provider": "zhipu",
@@ -4822,32 +4458,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-portrait-25s",
-      "display_name": "Sora2pro-portrait-25s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-portrait-25s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-portrait-25s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 14,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "chatglm_std",
       "display_name": "Chatglm_std",
       "provider": "zhipu",
@@ -4940,32 +4550,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-hd-landscape-10s",
-      "display_name": "Sora2pro-hd-landscape-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-hd-landscape-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-hd-landscape-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 15,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "chatglm_lite",
       "display_name": "Chatglm_lite",
       "provider": "zhipu",
@@ -5031,32 +4615,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 16,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "sora2pro-hd-portrait-10s",
-      "display_name": "Sora2pro-hd-portrait-10s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-hd-portrait-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-hd-portrait-10s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
       "ui_priority": 16,
       "exposed_in": [
         "whitelist"
@@ -5157,32 +4715,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-hd-landscape-15s",
-      "display_name": "Sora2pro-hd-landscape-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-hd-landscape-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-hd-landscape-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 17,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "cogvideo",
       "display_name": "Cogvideo",
       "provider": "zhipu",
@@ -5254,32 +4786,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "sora2pro-hd-portrait-15s",
-      "display_name": "Sora2pro-hd-portrait-15s",
-      "provider": "openai",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "sora2pro-hd-portrait-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "sora2pro-hd-portrait-15s"
-      ],
-      "modalities": [
-        "text",
-        "video"
-      ],
-      "capabilities": [
-        "video"
-      ],
-      "ui_priority": 18,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "o1-pro",
       "display_name": "O1-pro",
       "provider": "openai",
@@ -5299,29 +4805,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
-      "ui_priority": 19,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-short-10s",
-      "display_name": "Prompt-enhance-short-10s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-short-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-short-10s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
       "ui_priority": 19,
       "exposed_in": [
         "whitelist"
@@ -5376,29 +4859,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "prompt-enhance-short-15s",
-      "display_name": "Prompt-enhance-short-15s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-short-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-short-15s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 20,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "o3-mini",
       "display_name": "O3-mini",
       "provider": "openai",
@@ -5418,29 +4878,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
-      "ui_priority": 21,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-short-20s",
-      "display_name": "Prompt-enhance-short-20s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-short-20s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-short-20s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
       "ui_priority": 21,
       "exposed_in": [
         "whitelist"
@@ -5472,29 +4909,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "prompt-enhance-medium-10s",
-      "display_name": "Prompt-enhance-medium-10s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-medium-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-medium-10s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 22,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "o4-mini",
       "display_name": "O4-mini",
       "provider": "openai",
@@ -5514,29 +4928,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [
         "reasoning"
       ],
-      "ui_priority": 23,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-medium-15s",
-      "display_name": "Prompt-enhance-medium-15s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-medium-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-medium-15s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
       "ui_priority": 23,
       "exposed_in": [
         "whitelist"
@@ -5568,29 +4959,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "prompt-enhance-medium-20s",
-      "display_name": "Prompt-enhance-medium-20s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-medium-20s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-medium-20s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 24,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "gpt-5-2025-08-07",
       "display_name": "GPT-5-2025-08-07",
       "provider": "openai",
@@ -5603,29 +4971,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-5-2025-08-07"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 25,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-long-10s",
-      "display_name": "Prompt-enhance-long-10s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-long-10s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-long-10s"
       ],
       "modalities": [
         "text"
@@ -5660,29 +5005,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "prompt-enhance-long-15s",
-      "display_name": "Prompt-enhance-long-15s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-long-15s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-long-15s"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 26,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "gpt-5-chat-latest",
       "display_name": "GPT-5-chat-latest",
       "provider": "openai",
@@ -5695,29 +5017,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-5-chat-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 27,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "prompt-enhance-long-20s",
-      "display_name": "Prompt-enhance-long-20s",
-      "provider": "sora",
-      "platforms": [
-        "sora"
-      ],
-      "protocol_ids": [
-        "prompt-enhance-long-20s"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "prompt-enhance-long-20s"
       ],
       "modalities": [
         "text"
@@ -7284,46 +6583,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "to": "gemini-3.1-flash-image",
       "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
       "order": 24
-    },
-    {
-      "platform": "sora",
-      "label": "Flash 2.0",
-      "from": "gemini-2.0-flash",
-      "to": "gemini-2.0-flash",
-      "color": "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400",
-      "order": 25
-    },
-    {
-      "platform": "sora",
-      "label": "2.5 Flash",
-      "from": "gemini-2.5-flash",
-      "to": "gemini-2.5-flash",
-      "color": "bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400",
-      "order": 26
-    },
-    {
-      "platform": "sora",
-      "label": "2.5 Image",
-      "from": "gemini-2.5-flash-image",
-      "to": "gemini-2.5-flash-image",
-      "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
-      "order": 27
-    },
-    {
-      "platform": "sora",
-      "label": "2.5 Pro",
-      "from": "gemini-2.5-pro",
-      "to": "gemini-2.5-pro",
-      "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
-      "order": 28
-    },
-    {
-      "platform": "sora",
-      "label": "3.1 Image",
-      "from": "gemini-3.1-flash-image",
-      "to": "gemini-3.1-flash-image",
-      "color": "bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400",
-      "order": 29
     },
     {
       "platform": "antigravity",

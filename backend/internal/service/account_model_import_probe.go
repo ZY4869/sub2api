@@ -40,12 +40,6 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		return s.detectCopilotModels(ctx, account)
 	case PlatformGemini:
 		return s.detectGeminiModels(ctx, account)
-	case PlatformSora:
-		models, err := s.detectSoraModels(ctx, account)
-		if err != nil {
-			return nil, err
-		}
-		return newAccountModelProbeResult(models), nil
 	case PlatformGrok:
 		return s.detectGrokModels(ctx, account)
 	case PlatformAntigravity:
@@ -560,33 +554,6 @@ func (s *AccountModelImportService) validateGeminiVertexCandidateModels(
 		return infraerrors.BadRequest("MODEL_IMPORT_UPSTREAM_FAILED", message)
 	}
 */
-func (s *AccountModelImportService) detectSoraModels(ctx context.Context, account *Account) ([]string, error) {
-	switch account.Type {
-	case AccountTypeAPIKey, AccountTypeUpstream:
-		apiKey := strings.TrimSpace(account.GetCredential("api_key"))
-		if apiKey == "" {
-			return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Sora API key for model import")
-		}
-		baseURL := strings.TrimSpace(account.GetCredential("base_url"))
-		if baseURL == "" {
-			return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing Sora base_url for model import")
-		}
-		headers := map[string]string{
-			"Authorization": "Bearer " + apiKey,
-			"Accept":        "application/json",
-		}
-		body, err := s.doImportGET(ctx, account, strings.TrimRight(baseURL, "/")+"/sora/v1/models", headers, false)
-		if err != nil {
-			return nil, err
-		}
-		return parseOpenAIModelListForAccount(account, body)
-	case AccountTypeOAuth:
-		return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Sora OAuth account type does not support real model probing")
-	default:
-		return nil, infraerrors.BadRequest("ACCOUNT_TYPE_UNSUPPORTED", "current Sora account type does not support model import")
-	}
-}
-
 func (s *AccountModelImportService) detectAntigravityModels(ctx context.Context, account *Account) ([]string, error) {
 	switch account.Type {
 	case AccountTypeOAuth:

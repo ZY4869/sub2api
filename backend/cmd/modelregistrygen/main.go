@@ -161,17 +161,16 @@ func renderCompatibilityMarkdown(models []modelregistry.ModelEntry, builtAt stri
 	var buf bytes.Buffer
 	mustWriteString(&buf, "# Model Compatibility Matrix\n\n")
 	mustWriteString(&buf, "Generated at "+builtAt+".\n\n")
-	mustWriteString(&buf, "| Model | Anthropic | OpenAI | Gemini | Antigravity | Sora |\n")
-	mustWriteString(&buf, "| --- | --- | --- | --- | --- | --- |\n")
+	mustWriteString(&buf, "| Model | Anthropic | OpenAI | Gemini | Antigravity |\n")
+	mustWriteString(&buf, "| --- | --- | --- | --- | --- |\n")
 	for _, item := range items {
 		mustWriteString(&buf, fmt.Sprintf(
-			"| `%s` | %s | %s | %s | %s | %s |\n",
+			"| `%s` | %s | %s | %s | %s |\n",
 			item.ID,
 			platformCheck(item, "anthropic"),
 			platformCheck(item, "openai"),
 			platformCheck(item, "gemini"),
 			platformCheck(item, "antigravity"),
-			platformCheck(item, "sora"),
 		))
 	}
 	return buf.Bytes()

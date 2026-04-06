@@ -131,8 +131,8 @@ func (s *RedeemService) GenerateCodes(ctx context.Context, req GenerateCodesRequ
 	}
 
 	// 邀请码类型不需要数值，其他类型需要
-	if req.Type != RedeemTypeInvitation && req.Value <= 0 {
-		return nil, errors.New("value must be greater than 0")
+	if req.Type != RedeemTypeInvitation && req.Value == 0 {
+		return nil, errors.New("value must not be zero")
 	}
 
 	if req.Count > 1000 {
@@ -187,8 +187,16 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 	if code.Type == "" {
 		code.Type = RedeemTypeBalance
 	}
-	if code.Type != RedeemTypeInvitation && code.Value <= 0 {
-		return errors.New("value must be greater than 0")
+	if code.Type != RedeemTypeInvitation && code.Value == 0 {
+		return errors.New("value must not be zero")
+	}
+	if code.Type == RedeemTypeSubscription {
+		if code.GroupID == nil {
+			return errors.New("group_id is required for subscription type")
+		}
+		if code.ValidityDays == 0 {
+			return errors.New("validity_days must not be zero for subscription type")
+		}
 	}
 	if code.Status == "" {
 		code.Status = StatusUnused
@@ -316,30 +324,27 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
 		// 增加用户余额
-		if err := s.userRepo.UpdateBalance(txCtx, userID, redeemCode.Value); err != nil {
+		amount := redeemCode.Value
+		if amount < 0 && user.Balance+amount < 0 {
+			amount = -user.Balance
+		}
+		if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
 		}
 
 	case RedeemTypeConcurrency:
 		// 增加用户并发数
-		if err := s.userRepo.UpdateConcurrency(txCtx, userID, int(redeemCode.Value)); err != nil {
+		delta := int(redeemCode.Value)
+		if delta < 0 && user.Concurrency+delta < 0 {
+			delta = -user.Concurrency
+		}
+		if err := s.userRepo.UpdateConcurrency(txCtx, userID, delta); err != nil {
 			return nil, fmt.Errorf("update user concurrency: %w", err)
 		}
 
 	case RedeemTypeSubscription:
-		validityDays := redeemCode.ValidityDays
-		if validityDays <= 0 {
-			validityDays = 30
-		}
-		_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
-			UserID:       userID,
-			GroupID:      *redeemCode.GroupID,
-			ValidityDays: validityDays,
-			AssignedBy:   0, // 系统分配
-			Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("assign or extend subscription: %w", err)
+		if err := s.applySubscriptionRedeem(txCtx, userID, redeemCode); err != nil {
+			return nil, err
 		}
 
 	default:
@@ -473,4 +478,86 @@ func (s *RedeemService) GetUserHistory(ctx context.Context, userID int64, limit 
 		return nil, fmt.Errorf("get user redeem history: %w", err)
 	}
 	return codes, nil
+}
+
+func (s *RedeemService) applySubscriptionRedeem(ctx context.Context, userID int64, redeemCode *RedeemCode) error {
+	if s.subscriptionService == nil {
+		return errors.New("subscription service is not configured")
+	}
+	if redeemCode == nil || redeemCode.GroupID == nil {
+		return infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription redeem code: missing group_id")
+	}
+	if redeemCode.ValidityDays == 0 {
+		return infraerrors.BadRequest("REDEEM_CODE_INVALID", "invalid subscription redeem code: validity_days must not be zero")
+	}
+
+	note := fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code)
+	if redeemCode.ValidityDays > 0 {
+		_, _, err := s.subscriptionService.AssignOrExtendSubscription(ctx, &AssignSubscriptionInput{
+			UserID:       userID,
+			GroupID:      *redeemCode.GroupID,
+			ValidityDays: redeemCode.ValidityDays,
+			AssignedBy:   0,
+			Notes:        note,
+		})
+		if err != nil {
+			return fmt.Errorf("assign or extend subscription: %w", err)
+		}
+		return nil
+	}
+
+	sub, err := s.subscriptionService.userSubRepo.GetByUserIDAndGroupID(ctx, userID, *redeemCode.GroupID)
+	if err != nil {
+		return fmt.Errorf("get subscription: %w", err)
+	}
+
+	now := time.Now()
+	newExpiresAt, newStatus := resolveNegativeRedeemSubscriptionUpdate(sub, redeemCode.ValidityDays, now)
+	if err := s.subscriptionService.userSubRepo.ExtendExpiry(ctx, sub.ID, newExpiresAt); err != nil {
+		return fmt.Errorf("shorten subscription: %w", err)
+	}
+	if sub.Status != newStatus {
+		if err := s.subscriptionService.userSubRepo.UpdateStatus(ctx, sub.ID, newStatus); err != nil {
+			return fmt.Errorf("update subscription status: %w", err)
+		}
+	}
+
+	nextNotes := appendRedeemSubscriptionNote(sub.Notes, note)
+	if nextNotes != sub.Notes {
+		if err := s.subscriptionService.userSubRepo.UpdateNotes(ctx, sub.ID, nextNotes); err != nil {
+			return fmt.Errorf("update subscription notes: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func resolveNegativeRedeemSubscriptionUpdate(sub *UserSubscription, validityDays int, now time.Time) (time.Time, string) {
+	if sub == nil {
+		return now, SubscriptionStatusExpired
+	}
+	if !sub.ExpiresAt.After(now) {
+		return now, SubscriptionStatusExpired
+	}
+
+	newExpiresAt := sub.ExpiresAt.AddDate(0, 0, validityDays)
+	if newExpiresAt.After(MaxExpiresAt) {
+		newExpiresAt = MaxExpiresAt
+	}
+	if !newExpiresAt.After(now) {
+		return now, SubscriptionStatusExpired
+	}
+	return newExpiresAt, sub.Status
+}
+
+func appendRedeemSubscriptionNote(existing, addition string) string {
+	addition = strings.TrimSpace(addition)
+	if addition == "" {
+		return existing
+	}
+	existing = strings.TrimSpace(existing)
+	if existing == "" {
+		return addition
+	}
+	return existing + "\n" + addition
 }

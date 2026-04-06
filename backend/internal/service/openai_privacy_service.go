@@ -22,6 +22,19 @@ const (
 	PrivacyModeCFBlocked   = "training_set_cf_blocked"
 )
 
+func shouldSkipOpenAIPrivacyEnsure(extra map[string]any) bool {
+	if extra == nil {
+		return false
+	}
+	raw, ok := extra["privacy_mode"]
+	if !ok {
+		return false
+	}
+	mode, _ := raw.(string)
+	mode = strings.TrimSpace(mode)
+	return mode != PrivacyModeFailed && mode != PrivacyModeCFBlocked
+}
+
 // disableOpenAITraining calls ChatGPT settings API to turn off "Improve the model for everyone".
 // Returns privacy_mode value: "training_off" on success, "cf_blocked" / "failed" on failure.
 func disableOpenAITraining(ctx context.Context, clientFactory PrivacyClientFactory, accessToken, proxyURL string) string {
@@ -43,6 +56,10 @@ func disableOpenAITraining(ctx context.Context, clientFactory PrivacyClientFacto
 		SetHeader("Authorization", "Bearer "+accessToken).
 		SetHeader("Origin", "https://chatgpt.com").
 		SetHeader("Referer", "https://chatgpt.com/").
+		SetHeader("Accept", "application/json").
+		SetHeader("sec-fetch-mode", "cors").
+		SetHeader("sec-fetch-site", "same-origin").
+		SetHeader("sec-fetch-dest", "empty").
 		SetQueryParam("feature", "training_allowed").
 		SetQueryParam("value", "false").
 		Patch(openAISettingsURL)
@@ -67,6 +84,153 @@ func disableOpenAITraining(ctx context.Context, clientFactory PrivacyClientFacto
 
 	slog.Info("openai_privacy_training_disabled")
 	return PrivacyModeTrainingOff
+}
+
+// ChatGPTAccountInfo stores best-effort account metadata fetched from ChatGPT backend-api.
+type ChatGPTAccountInfo struct {
+	PlanType              string
+	Email                 string
+	SubscriptionExpiresAt string
+}
+
+const chatGPTAccountsCheckURL = "https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27"
+
+// fetchChatGPTAccountInfo calls ChatGPT backend-api to get plan_type and entitlement expiry.
+// Returns nil on any failure because the OAuth flow should remain non-blocking.
+func fetchChatGPTAccountInfo(ctx context.Context, clientFactory PrivacyClientFactory, accessToken, proxyURL, orgID string) *ChatGPTAccountInfo {
+	if accessToken == "" || clientFactory == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	client, err := clientFactory(proxyURL)
+	if err != nil {
+		slog.Debug("chatgpt_account_check_client_error", "error", err.Error())
+		return nil
+	}
+
+	var result map[string]any
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Authorization", "Bearer "+accessToken).
+		SetHeader("Origin", "https://chatgpt.com").
+		SetHeader("Referer", "https://chatgpt.com/").
+		SetHeader("Accept", "application/json").
+		SetSuccessResult(&result).
+		Get(chatGPTAccountsCheckURL)
+
+	if err != nil {
+		slog.Debug("chatgpt_account_check_request_error", "error", err.Error())
+		return nil
+	}
+
+	if !resp.IsSuccessState() {
+		slog.Debug("chatgpt_account_check_failed", "status", resp.StatusCode, "body", truncate(resp.String(), 200))
+		return nil
+	}
+
+	info := &ChatGPTAccountInfo{}
+
+	accounts, ok := result["accounts"].(map[string]any)
+	if !ok {
+		slog.Debug("chatgpt_account_check_no_accounts", "body", truncate(resp.String(), 300))
+		return nil
+	}
+
+	if orgID != "" {
+		if acctRaw, exists := accounts[orgID]; exists {
+			if acct, ok := acctRaw.(map[string]any); ok {
+				fillAccountInfo(info, acct)
+			}
+		}
+	}
+
+	if info.PlanType == "" {
+		type candidate struct {
+			planType  string
+			expiresAt string
+		}
+		var defaultC, paidC, anyC candidate
+		for _, acctRaw := range accounts {
+			acct, ok := acctRaw.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			planType := extractPlanType(acct)
+			if planType == "" {
+				continue
+			}
+			expiresAt := extractEntitlementExpiresAt(acct)
+
+			if anyC.planType == "" {
+				anyC = candidate{planType: planType, expiresAt: expiresAt}
+			}
+			if account, ok := acct["account"].(map[string]any); ok {
+				if isDefault, _ := account["is_default"].(bool); isDefault {
+					defaultC = candidate{planType: planType, expiresAt: expiresAt}
+				}
+			}
+			if !strings.EqualFold(planType, "free") && paidC.planType == "" {
+				paidC = candidate{planType: planType, expiresAt: expiresAt}
+			}
+		}
+
+		switch {
+		case defaultC.planType != "":
+			info.PlanType, info.SubscriptionExpiresAt = defaultC.planType, defaultC.expiresAt
+		case paidC.planType != "":
+			info.PlanType, info.SubscriptionExpiresAt = paidC.planType, paidC.expiresAt
+		default:
+			info.PlanType, info.SubscriptionExpiresAt = anyC.planType, anyC.expiresAt
+		}
+	}
+
+	if info.PlanType == "" {
+		slog.Debug("chatgpt_account_check_no_plan_type", "body", truncate(resp.String(), 300))
+		return nil
+	}
+
+	slog.Info(
+		"chatgpt_account_check_success",
+		"plan_type", info.PlanType,
+		"subscription_expires_at", info.SubscriptionExpiresAt,
+		"org_id", orgID,
+	)
+	return info
+}
+
+func fillAccountInfo(info *ChatGPTAccountInfo, acct map[string]any) {
+	if info == nil {
+		return
+	}
+	info.PlanType = extractPlanType(acct)
+	info.SubscriptionExpiresAt = extractEntitlementExpiresAt(acct)
+}
+
+func extractPlanType(acct map[string]any) string {
+	if account, ok := acct["account"].(map[string]any); ok {
+		if planType, ok := account["plan_type"].(string); ok && planType != "" {
+			return planType
+		}
+	}
+	if entitlement, ok := acct["entitlement"].(map[string]any); ok {
+		if subPlan, ok := entitlement["subscription_plan"].(string); ok && subPlan != "" {
+			return subPlan
+		}
+	}
+	return ""
+}
+
+func extractEntitlementExpiresAt(acct map[string]any) string {
+	entitlement, ok := acct["entitlement"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	expiresAt, _ := entitlement["expires_at"].(string)
+	return expiresAt
 }
 
 func truncate(s string, n int) string {

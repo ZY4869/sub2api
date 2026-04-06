@@ -269,7 +269,7 @@ const showManualSourceProtocolField = computed(() =>
   props.accounts.some((account) => account.platform === 'protocol_gateway')
 )
 const supportsRealForwardForAll = computed(() =>
-  props.accounts.every((account) => account.platform !== 'grok' && account.platform !== 'sora')
+  props.accounts.every((account) => account.platform !== 'grok')
 )
 const targetSummary = computed(() => {
   if (props.accounts.length === 1) {

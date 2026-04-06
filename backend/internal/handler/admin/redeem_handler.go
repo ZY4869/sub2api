@@ -35,7 +35,7 @@ func NewRedeemHandler(adminService service.AdminService, redeemService *service.
 type GenerateRedeemCodesRequest struct {
 	Count        int     `json:"count" binding:"required,min=1,max=100"`
 	Type         string  `json:"type" binding:"required,oneof=balance concurrency subscription invitation"`
-	Value        float64 `json:"value" binding:"min=0"`
+	Value        float64 `json:"value"`
 	GroupID      *int64  `json:"group_id"`                                    // 订阅类型必填
 	ValidityDays int     `json:"validity_days" binding:"omitempty,max=36500"` // 订阅类型使用，默认30天，最大100年
 }
@@ -45,7 +45,7 @@ type GenerateRedeemCodesRequest struct {
 type CreateAndRedeemCodeRequest struct {
 	Code         string  `json:"code" binding:"required,min=3,max=128"`
 	Type         string  `json:"type" binding:"omitempty,oneof=balance concurrency subscription invitation"` // 不传时默认 balance（向后兼容）
-	Value        float64 `json:"value" binding:"required,gt=0"`
+	Value        float64 `json:"value" binding:"required"`
 	UserID       int64   `json:"user_id" binding:"required,gt=0"`
 	GroupID      *int64  `json:"group_id"`                                    // subscription 类型必填
 	ValidityDays int     `json:"validity_days" binding:"omitempty,max=36500"` // subscription 类型必填，>0
@@ -150,8 +150,8 @@ func (h *RedeemHandler) CreateAndRedeem(c *gin.Context) {
 			response.BadRequest(c, "group_id is required for subscription type")
 			return
 		}
-		if req.ValidityDays <= 0 {
-			response.BadRequest(c, "validity_days must be greater than 0 for subscription type")
+		if req.ValidityDays == 0 {
+			response.BadRequest(c, "validity_days must not be zero for subscription type")
 			return
 		}
 	}

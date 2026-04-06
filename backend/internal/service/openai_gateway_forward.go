@@ -30,6 +30,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	originalBody := body
 	reqModel, reqStream, promptCacheKey := extractOpenAIRequestMetaFromBody(body)
 	originalModel := reqModel
+	routingModel := ResolveGatewaySelectionModelFromContext(ctx, reqModel)
+	if routingModel == "" {
+		routingModel = reqModel
+	}
 	isCodexCLI := openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator")) || (s.cfg != nil && s.cfg.Gateway.ForceCodexCLI)
 	simulatedClient := ""
 	resolveSimulatedClient := func(model string) string {
@@ -39,7 +43,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		}
 		return route.ClientProfile
 	}
-	if profile := resolveSimulatedClient(account.GetMappedModel(reqModel)); profile == GatewayClientProfileCodex {
+	if profile := resolveSimulatedClient(account.GetMappedModel(routingModel)); profile == GatewayClientProfileCodex {
 		simulatedClient = profile
 		isCodexCLI = true
 	}
@@ -61,8 +65,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 	passthroughEnabled := account.IsOpenAIPassthroughEnabled()
 	if passthroughEnabled {
+		if routingModel != "" && routingModel != reqModel {
+			if nextBody, setErr := sjson.SetBytes(originalBody, "model", routingModel); setErr == nil {
+				originalBody = nextBody
+			}
+			reqModel = routingModel
+		}
 		reasoningEffort := extractOpenAIReasoningEffortFromBody(body, reqModel)
-		result, forwardErr := s.forwardOpenAIPassthrough(ctx, c, account, originalBody, reqModel, reasoningEffort, reqStream, startTime)
+		result, forwardErr := s.forwardOpenAIPassthrough(ctx, c, account, originalBody, originalModel, reqModel, reasoningEffort, reqStream, startTime)
 		if result != nil {
 			result.SimulatedClient = simulatedClient
 		}
@@ -75,6 +85,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if v, ok := reqBody["model"].(string); ok {
 		reqModel = v
 		originalModel = reqModel
+		routingModel = ResolveGatewaySelectionModelFromContext(ctx, reqModel)
+		if routingModel == "" {
+			routingModel = reqModel
+		}
 	}
 	if v, ok := reqBody["stream"].(bool); ok {
 		reqStream = v
@@ -131,6 +145,12 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 	disablePatch := func() {
 		patchDisabled = true
+	}
+	if routingModel != "" && routingModel != reqModel {
+		reqBody["model"] = routingModel
+		bodyModified = true
+		markPatchSet("model", routingModel)
+		reqModel = routingModel
 	}
 	if isInstructionsEmpty(reqBody) {
 		reqBody["instructions"] = "You are a helpful coding assistant."

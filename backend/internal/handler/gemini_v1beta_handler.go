@@ -262,6 +262,15 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
 			return
 		}
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				googleError(c, http.StatusBadRequest, "Requested model is not allowed by the bound channel")
+				return
+			}
+			googleError(c, http.StatusInternalServerError, "Failed to resolve channel routing")
+			return
+		}
 
 		sessionHash := extractGeminiCLISessionHash(c, body)
 		if sessionHash == "" {
@@ -356,7 +365,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		}
 
 		for {
-			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "")
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, runtimeSelectionModel, fs.FailedAccountIDs, "")
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -383,7 +392,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			}
 			account := selection.Account
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(stream, false))
+			setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(stream, false))
 
 			if sessionBoundAccountID > 0 && sessionBoundAccountID != account.ID {
 				reqLog.Info("gemini.sticky_session_account_switched",
@@ -541,6 +550,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			inboundEndpoint := GetInboundEndpoint(c)
 			upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 					Result:                result,
 					APIKey:                currentAPIKey,

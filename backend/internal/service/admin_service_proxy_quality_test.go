@@ -46,9 +46,9 @@ func TestRunProxyQualityTarget_CloudflareChallenge(t *testing.T) {
 	}
 
 	item := runProxyQualityTarget(context.Background(), server.Client(), target)
-	require.Equal(t, "challenge", item.Status)
+	require.Equal(t, "fail", item.Status)
 	require.Equal(t, http.StatusForbidden, item.HTTPStatus)
-	require.Equal(t, "test-ray-123", item.CFRay)
+	require.Empty(t, item.CFRay)
 }
 
 func TestRunProxyQualityTarget_AllowedStatusPass(t *testing.T) {

@@ -46,6 +46,7 @@ type AdminService interface {
 	SetAccountError(ctx context.Context, id int64, errorMsg string) error
 	SetAccountSchedulable(ctx context.Context, id int64, schedulable bool) (*Account, error)
 	EnsureOpenAIPrivacy(ctx context.Context, account *Account) string
+	EnsureAntigravityPrivacy(ctx context.Context, account *Account) string
 	ForceOpenAIPrivacy(ctx context.Context, account *Account) string
 	BlacklistAccount(ctx context.Context, id int64, input *BlacklistAccountInput) (*Account, error)
 	RestoreBlacklistedAccount(ctx context.Context, id int64) (*Account, error)
@@ -75,28 +76,26 @@ type AdminService interface {
 	ResetAccountQuota(ctx context.Context, id int64) error
 }
 type CreateUserInput struct {
-	Email                 string
-	Password              string
-	Username              string
-	Notes                 string
-	Balance               float64
-	Concurrency           int
-	AllowedGroups         []int64
-	SoraStorageQuotaBytes int64
+	Email         string
+	Password      string
+	Username      string
+	Notes         string
+	Balance       float64
+	Concurrency   int
+	AllowedGroups []int64
 }
 type UpdateUserInput struct {
-	Email                 string
-	Password              string
-	Username              *string
-	Notes                 *string
-	Balance               *float64
-	Concurrency           *int
-	AdminFreeBilling      *bool
-	RequestDetailsReview  *bool
-	Status                string
-	AllowedGroups         *[]int64
-	GroupRates            map[int64]*float64
-	SoraStorageQuotaBytes *int64
+	Email                string
+	Password             string
+	Username             *string
+	Notes                *string
+	Balance              *float64
+	Concurrency          *int
+	AdminFreeBilling     *bool
+	RequestDetailsReview *bool
+	Status               string
+	AllowedGroups        *[]int64
+	GroupRates           map[int64]*float64
 }
 type CreateGroupInput struct {
 	Name                            string
@@ -112,10 +111,6 @@ type CreateGroupInput struct {
 	ImagePrice1K                    *float64
 	ImagePrice2K                    *float64
 	ImagePrice4K                    *float64
-	SoraImagePrice360               *float64
-	SoraImagePrice540               *float64
-	SoraVideoPricePerRequest        *float64
-	SoraVideoPricePerRequestHD      *float64
 	ClaudeCodeOnly                  bool
 	FallbackGroupID                 *int64
 	FallbackGroupIDOnInvalidRequest *int64
@@ -124,7 +119,6 @@ type CreateGroupInput struct {
 	GeminiMixedProtocolEnabled      bool
 	MCPXMLInject                    *bool
 	SupportedModelScopes            []string
-	SoraStorageQuotaBytes           int64
 	AllowMessagesDispatch           bool
 	DefaultMappedModel              string
 	CopyAccountsFromGroupIDs        []int64
@@ -144,10 +138,6 @@ type UpdateGroupInput struct {
 	ImagePrice1K                    *float64
 	ImagePrice2K                    *float64
 	ImagePrice4K                    *float64
-	SoraImagePrice360               *float64
-	SoraImagePrice540               *float64
-	SoraVideoPricePerRequest        *float64
-	SoraVideoPricePerRequestHD      *float64
 	ClaudeCodeOnly                  *bool
 	FallbackGroupID                 *int64
 	FallbackGroupIDOnInvalidRequest *int64
@@ -156,7 +146,6 @@ type UpdateGroupInput struct {
 	GeminiMixedProtocolEnabled      *bool
 	MCPXMLInject                    *bool
 	SupportedModelScopes            *[]string
-	SoraStorageQuotaBytes           *int64
 	AllowMessagesDispatch           *bool
 	DefaultMappedModel              *string
 	CopyAccountsFromGroupIDs        []int64
@@ -352,7 +341,7 @@ type proxyQualityTarget struct {
 	AllowedStatuses map[int]struct{}
 }
 
-var proxyQualityTargets = []proxyQualityTarget{{Target: "openai", URL: "https://api.openai.com/v1/models", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusUnauthorized: {}}}, {Target: "anthropic", URL: "https://api.anthropic.com/v1/messages", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusUnauthorized: {}, http.StatusMethodNotAllowed: {}, http.StatusNotFound: {}, http.StatusBadRequest: {}}}, {Target: "gemini", URL: "https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusOK: {}}}, {Target: "sora", URL: "https://sora.chatgpt.com/backend/me", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusUnauthorized: {}}}}
+var proxyQualityTargets = []proxyQualityTarget{{Target: "openai", URL: "https://api.openai.com/v1/models", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusUnauthorized: {}}}, {Target: "anthropic", URL: "https://api.anthropic.com/v1/messages", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusUnauthorized: {}, http.StatusMethodNotAllowed: {}, http.StatusNotFound: {}, http.StatusBadRequest: {}}}, {Target: "gemini", URL: "https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta", Method: http.MethodGet, AllowedStatuses: map[int]struct{}{http.StatusOK: {}}}}
 
 const (
 	proxyQualityRequestTimeout        = 15 * time.Second
@@ -365,7 +354,6 @@ type adminServiceImpl struct {
 	userRepo             UserRepository
 	groupRepo            GroupRepository
 	accountRepo          AccountRepository
-	soraAccountRepo      SoraAccountRepository
 	proxyRepo            ProxyRepository
 	apiKeyRepo           APIKeyRepository
 	redeemCodeRepo       RedeemCodeRepository
@@ -387,8 +375,8 @@ type groupExistenceBatchReader interface {
 	ExistsByIDs(ctx context.Context, ids []int64) (map[int64]bool, error)
 }
 
-func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, soraAccountRepo SoraAccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository) AdminService {
-	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, soraAccountRepo: soraAccountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo}
+func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository) AdminService {
+	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo}
 }
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return s.proxyRepo.ExistsByHostPortAuth(ctx, host, port, username, password)

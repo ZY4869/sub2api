@@ -13,7 +13,6 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// User holds the schema definition for the User entity.
 type User struct {
 	ent.Schema
 }
@@ -33,8 +32,6 @@ func (User) Mixin() []ent.Mixin {
 
 func (User) Fields() []ent.Field {
 	return []ent.Field{
-		// 唯一约束通过部分索引实现（WHERE deleted_at IS NULL），支持软删除后重用
-		// 见迁移文件 016_soft_delete_partial_unique_indexes.sql
 		field.String("email").
 			MaxLen(255).
 			NotEmpty(),
@@ -56,17 +53,12 @@ func (User) Fields() []ent.Field {
 			Default(false),
 		field.Bool("request_details_review").
 			Default(false),
-
-		// Optional profile fields (added later; default '' in DB migration)
 		field.String("username").
 			MaxLen(100).
 			Default(""),
-		// wechat field migrated to user_attribute_values (see migration 019)
 		field.String("notes").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),
-
-		// TOTP 双因素认证字段
 		field.String("totp_secret_encrypted").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Optional().
@@ -76,12 +68,6 @@ func (User) Fields() []ent.Field {
 		field.Time("totp_enabled_at").
 			Optional().
 			Nillable(),
-
-		// Sora 存储配额
-		field.Int64("sora_storage_quota_bytes").
-			Default(0),
-		field.Int64("sora_storage_used_bytes").
-			Default(0),
 	}
 }
 
@@ -102,7 +88,6 @@ func (User) Edges() []ent.Edge {
 
 func (User) Indexes() []ent.Index {
 	return []ent.Index{
-		// email 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
 		index.Fields("deleted_at"),
 	}

@@ -18,7 +18,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, reqModel string, reasoningEffort *string, reqStream bool, startTime time.Time) (*OpenAIForwardResult, error) {
+func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *gin.Context, account *Account, body []byte, requestedModel string, upstreamModel string, reasoningEffort *string, reqStream bool, startTime time.Time) (*OpenAIForwardResult, error) {
+	reqModel := strings.TrimSpace(upstreamModel)
+	if reqModel == "" {
+		reqModel = strings.TrimSpace(requestedModel)
+	}
 	if isChatGPTOpenAIOAuthAccount(account) {
 		if rejectReason := detectOpenAIPassthroughInstructionsRejectReason(reqModel, body); rejectReason != "" {
 			rejectMsg := "OpenAI codex passthrough requires a non-empty instructions field"
@@ -103,7 +107,11 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 	if usage == nil {
 		usage = &OpenAIUsage{}
 	}
-	return &OpenAIForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: reqModel, ServiceTier: extractOpenAIServiceTierFromBody(body), ReasoningEffort: reasoningEffort, Stream: reqStream, OpenAIWSMode: false, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs}, nil
+	result := &OpenAIForwardResult{RequestID: resp.Header.Get("x-request-id"), Usage: *usage, Model: requestedModel, BillingModel: reqModel, ServiceTier: extractOpenAIServiceTierFromBody(body), ReasoningEffort: reasoningEffort, Stream: reqStream, OpenAIWSMode: false, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs}
+	if upstreamModel = strings.TrimSpace(upstreamModel); upstreamModel != "" && upstreamModel != strings.TrimSpace(requestedModel) {
+		result.UpstreamModel = upstreamModel
+	}
+	return result, nil
 }
 
 func logOpenAIPassthroughInstructionsRejected(ctx context.Context, c *gin.Context, account *Account, reqModel string, rejectReason string, body []byte) {

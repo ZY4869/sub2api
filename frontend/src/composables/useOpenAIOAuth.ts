@@ -21,7 +21,7 @@ export interface OpenAITokenInfo {
   [key: string]: unknown
 }
 
-export type OpenAIOAuthPlatform = 'openai' | 'sora'
+export type OpenAIOAuthPlatform = 'openai'
 
 interface UseOpenAIOAuthOptions {
   platform?: OpenAIOAuthPlatform
@@ -29,8 +29,7 @@ interface UseOpenAIOAuthOptions {
 
 export function useOpenAIOAuth(options?: UseOpenAIOAuthOptions) {
   const appStore = useAppStore()
-  const oauthPlatform = options?.platform ?? 'openai'
-  const endpointPrefix = oauthPlatform === 'sora' ? '/admin/sora' : '/admin/openai'
+  const endpointPrefix = (options?.platform ?? 'openai') === 'openai' ? '/admin/openai' : '/admin/openai'
 
   // State
   const authUrl = ref('')
@@ -156,33 +155,6 @@ export function useOpenAIOAuth(options?: UseOpenAIOAuthOptions) {
     }
   }
 
-  // Validate Sora session token and get access token
-  const validateSessionToken = async (
-    sessionToken: string,
-    proxyId?: number | null
-  ): Promise<OpenAITokenInfo | null> => {
-    if (!sessionToken.trim()) {
-      error.value = 'Missing session token'
-      return null
-    }
-    loading.value = true
-    error.value = ''
-    try {
-      const tokenInfo = await adminAPI.accounts.validateSoraSessionToken(
-        sessionToken.trim(),
-        proxyId,
-        `${endpointPrefix}/st2at`
-      )
-      return tokenInfo as OpenAITokenInfo
-    } catch (err: any) {
-      error.value = err.response?.data?.detail || 'Failed to validate session token'
-      appStore.showError(error.value)
-      return null
-    } finally {
-      loading.value = false
-    }
-  }
-
   // Build credentials for OpenAI OAuth account
   const buildCredentials = (tokenInfo: OpenAITokenInfo): Record<string, unknown> => {
     const creds: Record<string, unknown> = {
@@ -242,7 +214,6 @@ export function useOpenAIOAuth(options?: UseOpenAIOAuthOptions) {
     generateAuthUrl,
     exchangeAuthCode,
     validateRefreshToken,
-    validateSessionToken,
     buildCredentials,
     buildExtraInfo
   }

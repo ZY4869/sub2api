@@ -154,6 +154,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	var sessionHash string
 	var selection *service.AccountSelectionResult
 	var scheduleDecision service.OpenAIAccountScheduleDecision
+	var runtimeSelectionModel string
+	var channelState *service.GatewayChannelState
 	for {
 		if isRequestCanceled(ctx, nil) {
 			return
@@ -180,6 +182,15 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
+		runtimeSelectionModel, channelState, err = bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "requested model is not allowed by the bound channel")
+				return
+			}
+			closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "failed to resolve channel routing")
+			return
+		}
 		sessionHash = h.gatewayService.GenerateSessionHashWithFallback(
 			c,
 			firstMessage,
@@ -190,7 +201,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			currentAPIKey.GroupID,
 			previousResponseID,
 			sessionHash,
-			reqModel,
+			runtimeSelectionModel,
 			nil,
 			service.OpenAIUpstreamTransportResponsesWebsocketV2,
 		)
@@ -253,7 +264,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.Int("candidate_count", scheduleDecision.CandidateCount),
 	)
 	setOpsSelectedAccount(c, account.ID, account.Platform)
-	setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeWSV2)
+	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeWSV2)
 
 	hooks := &service.OpenAIWSIngressHooks{
 		BeforeTurn: func(turn int) error {
@@ -297,6 +308,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			}
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
 			h.submitUsageRecordTask(func(taskCtx context.Context) {
+				taskCtx = reattachGatewayChannelState(taskCtx, channelState)
 				if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
 					Result:        result,
 					APIKey:        currentAPIKey,

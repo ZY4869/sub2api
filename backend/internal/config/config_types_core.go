@@ -27,7 +27,6 @@ type Config struct {
 	UsageCleanup            UsageCleanupConfig            `mapstructure:"usage_cleanup"`
 	Concurrency             ConcurrencyConfig             `mapstructure:"concurrency"`
 	TokenRefresh            TokenRefreshConfig            `mapstructure:"token_refresh"`
-	Sora                    SoraConfig                    `mapstructure:"sora"`
 	RunMode                 string                        `mapstructure:"run_mode" yaml:"run_mode"`
 	Timezone                string                        `mapstructure:"timezone"`
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
@@ -115,7 +114,6 @@ type TokenRefreshConfig struct {
 	RefreshBeforeExpiryHours float64 `mapstructure:"refresh_before_expiry_hours"`
 	MaxRetries               int     `mapstructure:"max_retries"`
 	RetryBackoffSeconds      int     `mapstructure:"retry_backoff_seconds"`
-	SyncLinkedSoraAccounts   bool    `mapstructure:"sync_linked_sora_accounts"`
 }
 type PricingConfig struct {
 	RemoteURL                string `mapstructure:"remote_url"`
@@ -190,45 +188,6 @@ type CircuitBreakerConfig struct {
 type ConcurrencyConfig struct {
 	PingInterval int `mapstructure:"ping_interval"`
 }
-type SoraConfig struct {
-	Client  SoraClientConfig  `mapstructure:"client"`
-	Storage SoraStorageConfig `mapstructure:"storage"`
-}
-type SoraClientConfig struct {
-	BaseURL                            string                    `mapstructure:"base_url"`
-	TimeoutSeconds                     int                       `mapstructure:"timeout_seconds"`
-	MaxRetries                         int                       `mapstructure:"max_retries"`
-	CloudflareChallengeCooldownSeconds int                       `mapstructure:"cloudflare_challenge_cooldown_seconds"`
-	PollIntervalSeconds                int                       `mapstructure:"poll_interval_seconds"`
-	MaxPollAttempts                    int                       `mapstructure:"max_poll_attempts"`
-	RecentTaskLimit                    int                       `mapstructure:"recent_task_limit"`
-	RecentTaskLimitMax                 int                       `mapstructure:"recent_task_limit_max"`
-	Debug                              bool                      `mapstructure:"debug"`
-	UseOpenAITokenProvider             bool                      `mapstructure:"use_openai_token_provider"`
-	Headers                            map[string]string         `mapstructure:"headers"`
-	UserAgent                          string                    `mapstructure:"user_agent"`
-	DisableTLSFingerprint              bool                      `mapstructure:"disable_tls_fingerprint"`
-	CurlCFFISidecar                    SoraCurlCFFISidecarConfig `mapstructure:"curl_cffi_sidecar"`
-}
-type SoraCurlCFFISidecarConfig struct {
-	Enabled             bool   `mapstructure:"enabled"`
-	BaseURL             string `mapstructure:"base_url"`
-	Impersonate         string `mapstructure:"impersonate"`
-	TimeoutSeconds      int    `mapstructure:"timeout_seconds"`
-	SessionReuseEnabled bool   `mapstructure:"session_reuse_enabled"`
-	SessionTTLSeconds   int    `mapstructure:"session_ttl_seconds"`
-}
-type SoraStorageConfig struct {
-	Type                   string                   `mapstructure:"type"`
-	LocalPath              string                   `mapstructure:"local_path"`
-	FallbackToUpstream     bool                     `mapstructure:"fallback_to_upstream"`
-	MaxConcurrentDownloads int                      `mapstructure:"max_concurrent_downloads"`
-	DownloadTimeoutSeconds int                      `mapstructure:"download_timeout_seconds"`
-	MaxDownloadBytes       int64                    `mapstructure:"max_download_bytes"`
-	Debug                  bool                     `mapstructure:"debug"`
-	Cleanup                SoraStorageCleanupConfig `mapstructure:"cleanup"`
-}
-
 func (s *ServerConfig) Address() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }

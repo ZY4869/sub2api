@@ -359,8 +359,8 @@ func TestModelRegistryService_UpsertEntry_NormalizesLegacyCapabilities(t *testin
 	svc := NewModelRegistryService(repo)
 
 	entry, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:           "sora-test-capability",
-		Platforms:    []string{PlatformSora},
+		ID:           "gpt-test-capability",
+		Platforms:    []string{PlatformOpenAI},
 		Capabilities: []string{"video", "reasoning", "image", "video"},
 		ExposedIn:    []string{"runtime"},
 	})

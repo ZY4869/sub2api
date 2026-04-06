@@ -9,6 +9,7 @@ type AdminHandlers struct {
 	Dashboard             *admin.DashboardHandler
 	User                  *admin.UserHandler
 	Group                 *admin.GroupHandler
+	Channel               *admin.ChannelHandler
 	Account               *admin.AccountHandler
 	Announcement          *admin.AnnouncementHandler
 	DataManagement        *admin.DataManagementHandler
@@ -49,8 +50,6 @@ type Handlers struct {
 	Gateway       *GatewayHandler
 	OpenAIGateway *OpenAIGatewayHandler
 	GrokGateway   *GrokGatewayHandler
-	SoraGateway   *SoraGatewayHandler
-	SoraClient    *SoraClientHandler
 	Setting       *SettingHandler
 	Totp          *TotpHandler
 }

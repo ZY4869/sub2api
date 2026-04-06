@@ -75,7 +75,17 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		multiplier = resolver.Resolve(ctx, user.ID, *apiKey.GroupID, apiKey.Group.RateMultiplier)
 	}
 
-	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
+		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens,
+		ImageOutputTokens: result.Usage.OutputTokens,
+	})
+	billingModel := result.BillingModel
+	if channelResolution != nil && channelResolution.BillingModel != "" {
+		billingModel = channelResolution.BillingModel
+	}
+	if billingModel == "" {
+		billingModel = forwardResultBillingModel(result.Model, result.UpstreamModel)
+	}
 	serviceTier := ""
 	if result.ServiceTier != nil {
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
@@ -84,6 +94,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if err != nil {
 		cost = &CostBreakdown{ActualCost: 0}
 	}
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelResolution.Pricing, tokens, multiplier, 0)
 
 	// Determine billing type.
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
@@ -147,6 +158,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
+	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")

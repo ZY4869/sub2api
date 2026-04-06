@@ -47,6 +47,10 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.Model,
 			log.RequestedModel,
 			sqlmock.AnyArg(), // upstream_model
+			sqlmock.AnyArg(), // channel_id
+			sqlmock.AnyArg(), // model_mapping_chain
+			sqlmock.AnyArg(), // billing_tier
+			sqlmock.AnyArg(), // billing_mode
 			sqlmock.AnyArg(), // group_id
 			sqlmock.AnyArg(), // subscription_id
 			log.InputTokens,
@@ -81,7 +85,8 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // charge_source
 			log.ImageCount,
 			sqlmock.AnyArg(), // image_size
-			sqlmock.AnyArg(), // media_type
+			sqlmock.AnyArg(), // image_output_tokens
+			sqlmock.AnyArg(), // image_output_cost
 			sqlmock.AnyArg(), // service_tier
 			sqlmock.AnyArg(), // reasoning_effort
 			sqlmock.AnyArg(), // thinking_enabled
@@ -133,6 +138,10 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.InputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
@@ -164,6 +173,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.ImageCount,
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			serviceTier,
@@ -212,6 +222,10 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
 			log.InputTokens,
 			log.OutputTokens,
 			log.CacheCreationTokens,
@@ -243,6 +257,7 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			log.ImageCount,
+			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
 			sqlmock.AnyArg(),
@@ -470,6 +485,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			"gpt-5", // model
 			sql.NullString{Valid: true, String: "gpt-5"}, // requested_model
 			sql.NullString{},  // upstream_model
+			sql.NullInt64{},   // channel_id
+			sql.NullString{},  // model_mapping_chain
+			sql.NullString{},  // billing_tier
+			sql.NullString{},  // billing_mode
 			sql.NullInt64{},   // group_id
 			sql.NullInt64{},   // subscription_id
 			1,                 // input_tokens
@@ -504,7 +523,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			0,
 			sql.NullString{},
-			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
 			sql.NullBool{Valid: true, Bool: true},
@@ -537,6 +557,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{Valid: true, String: "gpt-5"},
 			sql.NullString{},
 			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullInt64{},
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
@@ -560,7 +584,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			0,
 			sql.NullString{},
-			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "flex"},
 			sql.NullString{},
 			sql.NullBool{},
@@ -591,6 +616,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{Valid: true, String: "gpt-5.4"},
 			sql.NullString{},
 			sql.NullInt64{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullString{},
+			sql.NullInt64{},
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
@@ -614,7 +643,8 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{},
 			0,
 			sql.NullString{},
-			sql.NullString{},
+			sql.NullInt64{},
+			sql.NullFloat64{},
 			sql.NullString{Valid: true, String: "priority"},
 			sql.NullString{},
 			sql.NullBool{Valid: true, Bool: false},

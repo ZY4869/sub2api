@@ -277,11 +277,11 @@ func TestImportAccountModels_ContinuesOnCatalogUpsertFailure(t *testing.T) {
 	requireImportModelReason(t, result.ModelResults, "gpt-test-model-b", "failed", "persist_failed")
 }
 
-func TestImportAccountModels_ReturnsClearErrorForUnsupportedSoraOAuth(t *testing.T) {
+func TestImportAccountModels_ReturnsClearErrorForUnsupportedPlatform(t *testing.T) {
 	svc := NewAccountModelImportService(nil, nil, nil, nil)
 	account := &Account{
 		ID:       103,
-		Platform: PlatformSora,
+		Platform: "legacy_removed",
 		Type:     AccountTypeOAuth,
 		Status:   StatusActive,
 		Credentials: map[string]any{
@@ -294,7 +294,7 @@ func TestImportAccountModels_ReturnsClearErrorForUnsupportedSoraOAuth(t *testing
 
 	appErr := infraerrors.FromError(err)
 	require.Equal(t, int32(http.StatusBadRequest), appErr.Code)
-	require.Equal(t, "current Sora OAuth account type does not support real model probing", appErr.Message)
+	require.Equal(t, "current account platform does not support model import", appErr.Message)
 }
 
 func TestImportAccountModels_RequiresCatalogService(t *testing.T) {

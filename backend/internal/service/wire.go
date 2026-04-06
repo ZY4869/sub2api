@@ -40,7 +40,6 @@ func ProvideEmailQueueService(emailService *EmailService) *EmailQueueService {
 // ProvideTokenRefreshService creates and starts TokenRefreshService
 func ProvideTokenRefreshService(
 	accountRepo AccountRepository,
-	soraAccountRepo SoraAccountRepository, // Sora 扩展表仓储，用于双表同步
 	oauthService *OAuthService,
 	kiroOAuthService *KiroOAuthService,
 	openaiOAuthService *OpenAIOAuthService,
@@ -55,8 +54,6 @@ func ProvideTokenRefreshService(
 	refreshAPI *OAuthRefreshAPI,
 ) *TokenRefreshService {
 	svc := NewTokenRefreshService(accountRepo, oauthService, openaiOAuthService, geminiOAuthService, antigravityOAuthService, cacheInvalidator, schedulerCache, cfg, tempUnschedCache, kiroOAuthService)
-	// 注入 Sora 账号扩展表仓储，用于 OpenAI Token 刷新时同步 sora_accounts 表
-	svc.SetSoraAccountRepo(soraAccountRepo)
 	// 注入 OpenAI privacy opt-out 依赖
 	svc.SetPrivacyDeps(privacyClientFactory, proxyRepo)
 	// 注入统一 OAuth 刷新 API（消除 TokenRefreshService 与 TokenProvider 之间的竞争条件）
@@ -330,11 +327,6 @@ func ProvideOpsSystemLogSink(opsRepo OpsRepository) *OpsSystemLogSink {
 	return sink
 }
 
-// ProvideSoraMediaStorage 初始化 Sora 媒体存储
-func ProvideSoraMediaStorage(cfg *config.Config) *SoraMediaStorage {
-	return NewSoraMediaStorage(cfg)
-}
-
 func ProvideGoogleBatchArchiveStorage() *GoogleBatchArchiveStorage {
 	return NewGoogleBatchArchiveStorage()
 }
@@ -367,25 +359,6 @@ func ProvideGoogleBatchArchiveCleanupService(
 	settingService *SettingService,
 ) *GoogleBatchArchiveCleanupService {
 	svc := NewGoogleBatchArchiveCleanupService(jobRepo, objectRepo, compatService, settingService)
-	svc.Start()
-	return svc
-}
-
-func ProvideSoraSDKClient(
-	cfg *config.Config,
-	httpUpstream HTTPUpstream,
-	tokenProvider *OpenAITokenProvider,
-	accountRepo AccountRepository,
-	soraAccountRepo SoraAccountRepository,
-) *SoraSDKClient {
-	client := NewSoraSDKClient(cfg, httpUpstream, tokenProvider)
-	client.SetAccountRepositories(accountRepo, soraAccountRepo)
-	return client
-}
-
-// ProvideSoraMediaCleanupService 创建并启动 Sora 媒体清理服务
-func ProvideSoraMediaCleanupService(storage *SoraMediaStorage, cfg *config.Config) *SoraMediaCleanupService {
-	svc := NewSoraMediaCleanupService(storage, cfg)
 	svc.Start()
 	return svc
 }
@@ -588,12 +561,38 @@ func ProvideGatewayService(
 	rpmCache RPMCache,
 	digestStore *DigestSessionStore,
 	settingService *SettingService,
+	channelService *ChannelService,
 	vertexCatalogService *VertexUpstreamCatalogService,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
 ) *GatewayService {
 	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestStore, settingService)
+	svc.SetChannelService(channelService)
 	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	return svc
+}
+
+func ProvideOpenAIGatewayService(
+	accountRepo AccountRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	openAITokenProvider *OpenAITokenProvider,
+	channelService *ChannelService,
+) *OpenAIGatewayService {
+	svc := NewOpenAIGatewayService(accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider)
+	svc.SetChannelService(channelService)
 	return svc
 }
 
@@ -646,6 +645,7 @@ var ProviderSet = wire.NewSet(
 	NewAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
 	NewGroupService,
+	NewChannelService,
 	NewAccountService,
 	NewProxyService,
 	NewRedeemService,
@@ -664,19 +664,11 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountModelImportService,
 	ProvideAccountModelDiagnosticsService,
 	ProvideGatewayService,
-	ProvideSoraMediaStorage,
 	ProvideGoogleBatchArchiveStorage,
 	ProvideGoogleBatchArchivePollerService,
 	ProvideGoogleBatchArchivePrefetchService,
 	ProvideGoogleBatchArchiveCleanupService,
-	ProvideSoraMediaCleanupService,
-	ProvideSoraSDKClient,
-	wire.Bind(new(SoraClient), new(*SoraSDKClient)),
-	NewSoraS3Storage,
-	NewSoraQuotaService,
-	NewSoraGenerationService,
-	NewSoraGatewayService,
-	NewOpenAIGatewayService,
+	ProvideOpenAIGatewayService,
 	NewGrokGatewayService,
 	NewGrokReverseClient,
 	NewOAuthService,

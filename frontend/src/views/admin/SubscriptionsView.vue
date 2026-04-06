@@ -965,8 +965,7 @@ const platformFilterOptions = computed(() => [
   { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
   { value: 'openai', label: t('admin.accounts.platforms.openai') },
   { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
-  { value: 'sora', label: t('admin.accounts.platforms.sora') }
+  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') }
 ])
 
 // Group options for assign (only subscription type groups)

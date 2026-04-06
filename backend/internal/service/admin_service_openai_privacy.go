@@ -2,14 +2,6 @@ package service
 
 import "context"
 
-func shouldSkipOpenAIPrivacyEnsure(extra map[string]any) bool {
-	if len(extra) == 0 {
-		return false
-	}
-	_, exists := extra["privacy_mode"]
-	return exists
-}
-
 func applyOpenAIPrivacyMode(account *Account, mode string) {
 	if account == nil || mode == "" {
 		return

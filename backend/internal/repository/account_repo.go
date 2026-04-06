@@ -519,7 +519,7 @@ func (r *accountRepository) queryAccountsByGroup(ctx context.Context, groupID in
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) FindByExtraField(ctx context.Context, key string, value any) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ("sora"), dbaccount.DeletedAtIsNil(), func(s *entsql.Selector) {
+	accounts, err := r.client.Account.Query().Where(dbaccount.DeletedAtIsNil(), func(s *entsql.Selector) {
 		path := sqljson.Path(key)
 		switch v := value.(type) {
 		case string:

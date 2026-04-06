@@ -16,8 +16,6 @@ const props = defineProps<{
   allowMultiple: boolean
   showCookieOption: boolean
   showRefreshTokenOption: boolean
-  showSessionTokenOption: boolean
-  showAccessTokenOption: boolean
   platform: AccountPlatform
   showProjectId: boolean
 }>()
@@ -26,8 +24,6 @@ const emit = defineEmits<{
   generateUrl: []
   cookieAuth: [sessionKey: string]
   validateRefreshToken: [refreshToken: string]
-  validateSessionToken: [sessionToken: string]
-  importAccessToken: [accessTokenInput: string]
 }>()
 
 const flowRef = ref<OAuthFlowExposed | null>(null)
@@ -37,7 +33,6 @@ const oauthState = computed(() => flowRef.value?.oauthState || '')
 const projectId = computed(() => flowRef.value?.projectId || '')
 const sessionKey = computed(() => flowRef.value?.sessionKey || '')
 const refreshToken = computed(() => flowRef.value?.refreshToken || '')
-const sessionToken = computed(() => flowRef.value?.sessionToken || '')
 const inputMethod = computed(() => flowRef.value?.inputMethod || 'manual')
 
 defineExpose({
@@ -46,7 +41,6 @@ defineExpose({
   projectId,
   sessionKey,
   refreshToken,
-  sessionToken,
   inputMethod,
   reset: () => flowRef.value?.reset()
 })
@@ -66,15 +60,11 @@ defineExpose({
       :allow-multiple="props.allowMultiple"
       :show-cookie-option="props.showCookieOption"
       :show-refresh-token-option="props.showRefreshTokenOption"
-      :show-session-token-option="props.showSessionTokenOption"
-      :show-access-token-option="props.showAccessTokenOption"
       :platform="props.platform"
       :show-project-id="props.showProjectId"
       @generate-url="emit('generateUrl')"
       @cookie-auth="emit('cookieAuth', $event)"
       @validate-refresh-token="emit('validateRefreshToken', $event)"
-      @validate-session-token="emit('validateSessionToken', $event)"
-      @import-access-token="emit('importAccessToken', $event)"
     />
   </div>
 </template>

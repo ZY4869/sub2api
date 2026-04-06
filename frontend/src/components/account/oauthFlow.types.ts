@@ -6,7 +6,6 @@ export interface OAuthFlowExposed {
   projectId: string
   sessionKey: string
   refreshToken: string
-  sessionToken: string
   inputMethod: AuthInputMethod
   reset: () => void
 }

@@ -41,6 +41,10 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			model,
 			requested_model,
 			upstream_model,
+			channel_id,
+			model_mapping_chain,
+			billing_tier,
+			billing_mode,
 			group_id,
 			subscription_id,
 			input_tokens,
@@ -75,7 +79,8 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			charge_source,
 			image_count,
 			image_size,
-			media_type,
+			image_output_tokens,
+			image_output_cost,
 			service_tier,
 			reasoning_effort,
 			thinking_enabled,
@@ -87,11 +92,11 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			created_at
 		) VALUES (
 			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9,
-			$10, $11, $12, $13,
-			$14, $15,
-			$16, $17, $18, $19, $20, $21,
-			$22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51
+			$6, $7, $8, $9, $10, $11, $12,
+			$13, $14, $15, $16,
+			$17, $18,
+			$19, $20, $21, $22, $23, $24,
+			$25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -103,6 +108,10 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	log.RequestedModel = requestedModel
 	upstreamModel := nullString(log.UpstreamModel)
 	requestedModelPtr := &requestedModel
+	channelID := nullInt64(log.ChannelID)
+	modelMappingChain := nullString(log.ModelMappingChain)
+	billingTier := nullString(log.BillingTier)
+	billingMode := nullString(log.BillingMode)
 	groupID := nullInt64(log.GroupID)
 	subscriptionID := nullInt64(log.SubscriptionID)
 	duration := nullInt(log.DurationMs)
@@ -110,7 +119,6 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	userAgent := nullString(log.UserAgent)
 	ipAddress := nullString(log.IPAddress)
 	imageSize := nullString(log.ImageSize)
-	mediaType := nullString(log.MediaType)
 	serviceTier := nullString(log.ServiceTier)
 	reasoningEffort := nullString(log.ReasoningEffort)
 	thinkingEnabled := nullUsageLogBool(log.ThinkingEnabled)
@@ -126,11 +134,13 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	simulatedClient := nullString(service.NormalizeUsageLogSimulatedClient(nullStringValue(log.SimulatedClient)))
 	operationType := nullString(log.OperationType)
 	chargeSource := nullString(log.ChargeSource)
+	imageOutputTokens := nullInt(log.ImageOutputTokens)
+	imageOutputCost := nullFloat(log.ImageOutputCost)
 	var requestIDArg any
 	if requestID != "" {
 		requestIDArg = requestID
 	}
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, mediaType, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"

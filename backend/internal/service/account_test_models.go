@@ -34,10 +34,6 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 	if account == nil {
 		return []AvailableTestModel{}
 	}
-	if RoutingPlatformForAccount(account) == PlatformSora {
-		return []AvailableTestModel{}
-	}
-
 	sourceProtocols := protocolGatewayTestSourceProtocols(account)
 	if len(sourceProtocols) == 0 {
 		return buildAvailableTestModelsForSource(ctx, account, registry, "")
@@ -271,7 +267,7 @@ func isDirectPlatformTestModelAllowed(account *Account, entry modelregistry.Mode
 		return provider == PlatformGemini
 	case PlatformGrok:
 		return provider == PlatformGrok
-	case PlatformAntigravity, PlatformSora:
+	case PlatformAntigravity:
 		return true
 	default:
 		return true

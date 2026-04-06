@@ -14,7 +14,7 @@
           <div
             :class="[
               'flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br',
-              isOpenAILike
+              isOpenAI
                 ? 'from-green-500 to-green-600'
                 : isCopilot
                   ? 'from-cyan-500 to-cyan-600'
@@ -39,8 +39,6 @@
                   ? t('admin.accounts.openaiAccount')
                   : isCopilot
                     ? t('admin.accounts.copilotAccount')
-                  : isSora
-                    ? t('admin.accounts.soraAccount')
                   : isKiro
                     ? t('admin.accounts.kiroAccount')
                   : isGemini
@@ -181,7 +179,7 @@
         :show-cookie-option="isAnthropic"
         :allow-multiple="false"
         :method-label="t('admin.accounts.inputMethod')"
-        :platform="isOpenAI ? 'openai' : isSora ? 'sora' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : 'anthropic'"
+        :platform="isOpenAI ? 'openai' : isGemini ? 'gemini' : isAntigravity ? 'antigravity' : 'anthropic'"
         :show-project-id="isGemini && geminiOAuthType === 'code_assist'"
         @generate-url="handleGenerateUrl"
         @cookie-auth="handleCookieAuth"
@@ -276,7 +274,6 @@ const { t } = useI18n()
 // OAuth composables
 const claudeOAuth = useAccountOAuth()
 const openaiOAuth = useOpenAIOAuth({ platform: 'openai' })
-const soraOAuth = useOpenAIOAuth({ platform: 'sora' })
 const geminiOAuth = useGeminiOAuth()
 const antigravityOAuth = useAntigravityOAuth()
 
@@ -293,36 +290,32 @@ const platformSubmitLoading = ref(false)
 // Computed - check platform
 const isOpenAI = computed(() => props.account?.platform === 'openai')
 const isCopilot = computed(() => props.account?.platform === 'copilot')
-const isSora = computed(() => props.account?.platform === 'sora')
-const isOpenAILike = computed(() => isOpenAI.value || isSora.value)
 const isGemini = computed(() => props.account?.platform === 'gemini')
 const isAnthropic = computed(() => props.account?.platform === 'anthropic')
 const isKiro = computed(() => props.account?.platform === 'kiro')
 const isAntigravity = computed(() => props.account?.platform === 'antigravity')
 const isGeminiVertexAccount = computed(() => isGemini.value && isGeminiVertexAI(geminiOAuthType.value))
-const activeOpenAIOAuth = computed(() => (isSora.value ? soraOAuth : openaiOAuth))
-
 // Computed - current OAuth state based on platform
 const currentAuthUrl = computed(() => {
-  if (isOpenAILike.value) return activeOpenAIOAuth.value.authUrl.value
+  if (isOpenAI.value) return openaiOAuth.authUrl.value
   if (isGemini.value) return geminiOAuth.authUrl.value
   if (isAntigravity.value) return antigravityOAuth.authUrl.value
   return claudeOAuth.authUrl.value
 })
 const currentSessionId = computed(() => {
-  if (isOpenAILike.value) return activeOpenAIOAuth.value.sessionId.value
+  if (isOpenAI.value) return openaiOAuth.sessionId.value
   if (isGemini.value) return geminiOAuth.sessionId.value
   if (isAntigravity.value) return antigravityOAuth.sessionId.value
   return claudeOAuth.sessionId.value
 })
 const currentLoading = computed(() => {
-  if (isOpenAILike.value) return activeOpenAIOAuth.value.loading.value
+  if (isOpenAI.value) return openaiOAuth.loading.value
   if (isGemini.value) return geminiOAuth.loading.value
   if (isAntigravity.value) return antigravityOAuth.loading.value
   return claudeOAuth.loading.value
 })
 const currentError = computed(() => {
-  if (isOpenAILike.value) return activeOpenAIOAuth.value.error.value
+  if (isOpenAI.value) return openaiOAuth.error.value
   if (isGemini.value) return geminiOAuth.error.value
   if (isAntigravity.value) return antigravityOAuth.error.value
   return claudeOAuth.error.value
@@ -332,7 +325,7 @@ const currentError = computed(() => {
 const isManualInputMethod = computed(() => {
   // OpenAI/Sora/Gemini/Antigravity always use manual input (no cookie auth option)
   return (
-    isOpenAILike.value ||
+    isOpenAI.value ||
     (isGemini.value && !isGeminiVertexAccount.value) ||
     isAntigravity.value ||
     oauthFlowRef.value?.inputMethod === 'manual'
@@ -375,7 +368,6 @@ const resetState = () => {
   platformSubmitLoading.value = false
   claudeOAuth.resetState()
   openaiOAuth.resetState()
-  soraOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
   oauthFlowRef.value?.reset()
@@ -438,8 +430,8 @@ const handleKiroReauthorize = async (payload: ParsedKiroTokenImport) => {
 const handleGenerateUrl = async () => {
   if (!props.account) return
 
-  if (isOpenAILike.value) {
-    await activeOpenAIOAuth.value.generateAuthUrl(props.account.proxy_id)
+  if (isOpenAI.value) {
+    await openaiOAuth.generateAuthUrl(props.account.proxy_id)
   } else if (isGemini.value) {
     if (isGeminiVertexAccount.value) {
       return
@@ -466,9 +458,9 @@ const handleExchangeCode = async () => {
   const authCode = oauthFlowRef.value?.authCode || ''
   if (!authCode.trim()) return
 
-  if (isOpenAILike.value) {
+  if (isOpenAI.value) {
     // OpenAI OAuth flow
-    const oauthClient = activeOpenAIOAuth.value
+    const oauthClient = openaiOAuth
     const sessionId = oauthClient.sessionId.value
     if (!sessionId) return
     const stateToUse = (oauthFlowRef.value?.oauthState || oauthClient.oauthState.value || '').trim()
@@ -614,7 +606,7 @@ const handleExchangeCode = async () => {
 }
 
 const handleCookieAuth = async (sessionKey: string) => {
-  if (!props.account || isOpenAILike.value) return
+  if (!props.account || isOpenAI.value) return
 
   claudeOAuth.loading.value = true
   claudeOAuth.error.value = ''

@@ -25,7 +25,10 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body
 		requestedModel := parsed.Model
-		passthroughModel := parsed.Model
+		passthroughModel := ResolveGatewaySelectionModelFromContext(ctx, parsed.Model)
+		if passthroughModel == "" {
+			passthroughModel = parsed.Model
+		}
 		if passthroughModel != "" {
 			if mappedModel := account.GetMappedModel(passthroughModel); mappedModel != passthroughModel {
 				passthroughBody = s.replaceModelInBody(passthroughBody, mappedModel)
@@ -50,6 +53,9 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	reqModel := s.resolveCanonicalRequestModel(ctx, parsed.Model)
 	if reqModel == "" {
 		reqModel = parsed.Model
+	}
+	if selectionModel := ResolveGatewaySelectionModelFromContext(ctx, reqModel); selectionModel != "" {
+		reqModel = selectionModel
 	}
 	reqStream := parsed.Stream
 	originalModel := parsed.RawModel

@@ -36,6 +36,14 @@ type OpsRequestDetail struct {
 	APIKeyID  *int64 `json:"api_key_id,omitempty"`
 	AccountID *int64 `json:"account_id,omitempty"`
 	GroupID   *int64 `json:"group_id,omitempty"`
+	ChannelID *int64 `json:"channel_id,omitempty"`
+
+	ChannelName       string   `json:"channel_name,omitempty"`
+	ModelMappingChain string   `json:"model_mapping_chain,omitempty"`
+	BillingTier       string   `json:"billing_tier,omitempty"`
+	BillingMode       string   `json:"billing_mode,omitempty"`
+	ImageOutputTokens *int     `json:"image_output_tokens,omitempty"`
+	ImageOutputCost   *float64 `json:"image_output_cost,omitempty"`
 
 	Stream bool `json:"stream"`
 }
@@ -49,6 +57,7 @@ type OpsRequestDetailFilter struct {
 
 	Platform string
 	GroupID  *int64
+	ChannelID *int64
 
 	UserID    *int64
 	APIKeyID  *int64

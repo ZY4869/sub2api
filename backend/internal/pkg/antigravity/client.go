@@ -128,6 +128,44 @@ type LoadCodeAssistResponse struct {
 	IneligibleTiers         []*IneligibleTier `json:"ineligibleTiers,omitempty"`
 }
 
+const privacyBaseURL = antigravityDailyBaseURL
+
+type SetUserSettingsRequest struct {
+	UserSettings map[string]any `json:"user_settings"`
+}
+
+type FetchUserInfoRequest struct {
+	Project string `json:"project"`
+}
+
+type FetchUserInfoResponse struct {
+	UserSettings map[string]any `json:"userSettings,omitempty"`
+	RegionCode   string         `json:"regionCode,omitempty"`
+}
+
+func (r *FetchUserInfoResponse) IsPrivate() bool {
+	if r == nil || r.UserSettings == nil {
+		return true
+	}
+	_, hasTelemetry := r.UserSettings["telemetryEnabled"]
+	return !hasTelemetry
+}
+
+type SetUserSettingsResponse struct {
+	UserSettings map[string]any `json:"userSettings,omitempty"`
+}
+
+func (r *SetUserSettingsResponse) IsSuccess() bool {
+	if r == nil {
+		return false
+	}
+	if len(r.UserSettings) == 0 {
+		return true
+	}
+	_, hasTelemetry := r.UserSettings["telemetryEnabled"]
+	return !hasTelemetry
+}
+
 // PaidTierInfo 付费等级信息，包含 AI Credits 余额。
 type PaidTierInfo struct {
 	ID               string            `json:"id"`
@@ -262,6 +300,86 @@ func NewClient(proxyURL string) (*Client, error) {
 	return &Client{
 		httpClient: client,
 	}, nil
+}
+
+func (c *Client) SetUserSettings(ctx context.Context, accessToken string) (*SetUserSettingsResponse, error) {
+	payload := SetUserSettingsRequest{UserSettings: map[string]any{}}
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	apiURL := privacyBaseURL + "/v1internal:setUserSettings"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", GetUserAgent())
+	req.Header.Set("X-Goog-Api-Client", "gl-node/22.21.1")
+	req.Host = "daily-cloudcode-pa.googleapis.com"
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("setUserSettings 请求失败: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("setUserSettings 失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result SetUserSettingsResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("响应解析失败: %w", err)
+	}
+	return &result, nil
+}
+
+func (c *Client) FetchUserInfo(ctx context.Context, accessToken, projectID string) (*FetchUserInfoResponse, error) {
+	reqBody := FetchUserInfoRequest{Project: projectID}
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求失败: %w", err)
+	}
+
+	apiURL := privacyBaseURL + "/v1internal:fetchUserInfo"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", GetUserAgent())
+	req.Header.Set("X-Goog-Api-Client", "gl-node/22.21.1")
+	req.Host = "daily-cloudcode-pa.googleapis.com"
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetchUserInfo 请求失败: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应失败: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetchUserInfo 失败 (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result FetchUserInfoResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("响应解析失败: %w", err)
+	}
+	return &result, nil
 }
 
 // IsConnectionError 判断是否为连接错误（网络超时、DNS 失败、连接拒绝）

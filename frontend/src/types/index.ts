@@ -49,8 +49,6 @@ export interface AdminUser extends User {
   // 閻熸粎澧楅幐鍛婃櫠閻樿崵宓侀悹鍝勬惈缁叉椽鏌℃担绋跨盎缂佽鲸鐟︾粋鎺楀川椤栵絽鎮侀梺鑽ゅ仜濡骞夐幎钘夌婵°倕瀚ㄩ埀顒€鍟撮獮鎺楀Ψ閵夈儳绋夐柡澶嗘櫆閺屻劌煤閺嶎厽鏅?
   current_concurrency?: number;
   // Sora 闁诲孩绋掗敋闁稿绉归弻濠傤吋婢舵ɑ婢撻梺鎸庣☉閻楀棝鎮鸿閹崇偤宕掗敂鍓ь槴
-  sora_storage_quota_bytes: number;
-  sora_storage_used_bytes: number;
 }
 
 export interface LoginRequest {
@@ -108,7 +106,6 @@ export interface PublicSettings {
   purchase_subscription_url: string;
   custom_menu_items: CustomMenuItem[];
   linuxdo_oauth_enabled: boolean;
-  sora_client_enabled: boolean;
   backend_mode_enabled: boolean;
   version: string;
 }
@@ -375,8 +372,7 @@ export type GroupPlatform =
   | "copilot"
   | "grok"
   | "gemini"
-  | "antigravity"
-  | "sora";
+  | "antigravity";
 
 export type SubscriptionType = "standard" | "subscription";
 
@@ -398,12 +394,7 @@ export interface Group {
   image_price_2k: number | null;
   image_price_4k: number | null;
   // Sora 闂佸湱顭堥ˇ浼搭敃閼测晜濯奸梽鍥垂閸岀偞鐓€鐎广儱娲ㄩ弸?
-  sora_image_price_360: number | null;
-  sora_image_price_540: number | null;
-  sora_video_price_per_request: number | null;
-  sora_video_price_per_request_hd: number | null;
   // Sora 闁诲孩绋掗敋闁稿绉归弻濠傤吋婢舵ɑ婢撻梺鎸庣☉閻楀棝鎮鸿閹崇偤宕掗敂鍓ь槴
-  sora_storage_quota_bytes: number;
   // Claude Code 闁诲骸绠嶉崹娲春濞戞氨鍗氭い鏍仦椤庢瑩鏌?
   claude_code_only: boolean;
   fallback_group_id: number | null;
@@ -533,11 +524,6 @@ export interface CreateGroupRequest {
   image_price_1k?: number | null;
   image_price_2k?: number | null;
   image_price_4k?: number | null;
-  sora_image_price_360?: number | null;
-  sora_image_price_540?: number | null;
-  sora_video_price_per_request?: number | null;
-  sora_video_price_per_request_hd?: number | null;
-  sora_storage_quota_bytes?: number;
   claude_code_only?: boolean;
   fallback_group_id?: number | null;
   fallback_group_id_on_invalid_request?: number | null;
@@ -563,11 +549,6 @@ export interface UpdateGroupRequest {
   image_price_1k?: number | null;
   image_price_2k?: number | null;
   image_price_4k?: number | null;
-  sora_image_price_360?: number | null;
-  sora_image_price_540?: number | null;
-  sora_video_price_per_request?: number | null;
-  sora_video_price_per_request_hd?: number | null;
-  sora_storage_quota_bytes?: number;
   claude_code_only?: boolean;
   fallback_group_id?: number | null;
   fallback_group_id_on_invalid_request?: number | null;
@@ -586,7 +567,6 @@ export type AccountPlatform =
   | "grok"
   | "gemini"
   | "antigravity"
-  | "sora"
   | "protocol_gateway";
 export type AccountPlatformCountSortOrder = "count_asc" | "count_desc";
 export type GatewayProtocol = "openai" | "anthropic" | "gemini" | "mixed";
@@ -1205,6 +1185,10 @@ export interface UsageLog {
   thinking_enabled?: boolean | null;
   inbound_endpoint?: string | null;
   upstream_endpoint?: string | null;
+  channel_id?: number | null;
+  model_mapping_chain?: string | null;
+  billing_tier?: string | null;
+  billing_mode?: string | null;
 
   group_id: number | null;
   subscription_id: number | null;
@@ -1242,6 +1226,8 @@ export interface UsageLog {
   // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厽鍋ㄩ柣鏃傤焾閻忓洭鎮楀☉娆樻畷妞?
   image_count: number;
   image_size: string | null;
+  image_output_tokens?: number | null;
+  image_output_cost?: number | null;
 
   // User-Agent
   user_agent: string | null;

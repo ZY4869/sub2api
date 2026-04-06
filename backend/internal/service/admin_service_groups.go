@@ -45,10 +45,6 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	imagePrice1K := normalizePrice(input.ImagePrice1K)
 	imagePrice2K := normalizePrice(input.ImagePrice2K)
 	imagePrice4K := normalizePrice(input.ImagePrice4K)
-	soraImagePrice360 := normalizePrice(input.SoraImagePrice360)
-	soraImagePrice540 := normalizePrice(input.SoraImagePrice540)
-	soraVideoPrice := normalizePrice(input.SoraVideoPricePerRequest)
-	soraVideoPriceHD := normalizePrice(input.SoraVideoPricePerRequestHD)
 	if input.FallbackGroupID != nil {
 		if err := s.validateFallbackGroup(ctx, 0, *input.FallbackGroupID); err != nil {
 			return nil, err
@@ -96,7 +92,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 			return nil, fmt.Errorf("failed to get accounts from source groups: %w", err)
 		}
 	}
-	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, SoraImagePrice360: soraImagePrice360, SoraImagePrice540: soraImagePrice540, SoraVideoPricePerRequest: soraVideoPrice, SoraVideoPricePerRequestHD: soraVideoPriceHD, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, SoraStorageQuotaBytes: input.SoraStorageQuotaBytes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel}
+	group := &Group{Name: input.Name, Description: input.Description, Platform: platform, Priority: priority, RateMultiplier: input.RateMultiplier, IsExclusive: input.IsExclusive, Status: StatusActive, SubscriptionType: subscriptionType, DailyLimitUSD: dailyLimit, WeeklyLimitUSD: weeklyLimit, MonthlyLimitUSD: monthlyLimit, ImagePrice1K: imagePrice1K, ImagePrice2K: imagePrice2K, ImagePrice4K: imagePrice4K, ClaudeCodeOnly: input.ClaudeCodeOnly, FallbackGroupID: input.FallbackGroupID, FallbackGroupIDOnInvalidRequest: fallbackOnInvalidRequest, ModelRouting: input.ModelRouting, GeminiMixedProtocolEnabled: input.GeminiMixedProtocolEnabled, MCPXMLInject: mcpXMLInject, SupportedModelScopes: input.SupportedModelScopes, AllowMessagesDispatch: input.AllowMessagesDispatch, DefaultMappedModel: input.DefaultMappedModel}
 	if err := s.groupRepo.Create(ctx, group); err != nil {
 		return nil, err
 	}
@@ -218,21 +214,6 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.ImagePrice4K != nil {
 		group.ImagePrice4K = normalizePrice(input.ImagePrice4K)
-	}
-	if input.SoraImagePrice360 != nil {
-		group.SoraImagePrice360 = normalizePrice(input.SoraImagePrice360)
-	}
-	if input.SoraImagePrice540 != nil {
-		group.SoraImagePrice540 = normalizePrice(input.SoraImagePrice540)
-	}
-	if input.SoraVideoPricePerRequest != nil {
-		group.SoraVideoPricePerRequest = normalizePrice(input.SoraVideoPricePerRequest)
-	}
-	if input.SoraVideoPricePerRequestHD != nil {
-		group.SoraVideoPricePerRequestHD = normalizePrice(input.SoraVideoPricePerRequestHD)
-	}
-	if input.SoraStorageQuotaBytes != nil {
-		group.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes
 	}
 	if input.ClaudeCodeOnly != nil {
 		group.ClaudeCodeOnly = *input.ClaudeCodeOnly

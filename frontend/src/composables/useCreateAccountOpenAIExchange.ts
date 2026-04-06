@@ -43,10 +43,6 @@ interface UseCreateAccountOpenAIExchangeOptions {
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
   buildAccountExtra: (base?: Record<string, unknown>) => Record<string, unknown> | undefined
-  buildSoraAccountExtra: (
-    base?: Record<string, unknown>,
-    linkedOpenAIAccountId?: string | number
-  ) => Record<string, unknown> | undefined
   afterCreateImportModels: (accounts: Account[]) => Promise<void>
   emitCreated: () => void
   onClose: () => void
@@ -82,10 +78,8 @@ export function useCreateAccountOpenAIExchange(options: UseCreateAccountOpenAIEx
       const credentials = oauthClient.buildCredentials(tokenInfo)
       const oauthExtra = oauthClient.buildExtraInfo(tokenInfo)
       const extra = options.buildAccountExtra(oauthExtra)
-      const shouldCreateOpenAI = options.form.platform === 'openai'
-      const shouldCreateSora = options.form.platform === 'sora'
 
-      if (shouldCreateOpenAI && !options.isOpenAIModelRestrictionDisabled.value) {
+      if (!options.isOpenAIModelRestrictionDisabled.value) {
         const modelMapping = buildModelMappingObject(
           options.modelRestrictionMode.value,
           options.allowedModels.value,
@@ -100,63 +94,25 @@ export function useCreateAccountOpenAIExchange(options: UseCreateAccountOpenAIEx
         return
       }
 
-      let openaiAccountId: string | number | undefined
       const createdAccounts: Account[] = []
-
-      if (shouldCreateOpenAI) {
-        const openaiAccount = await adminAPI.accounts.create({
-          name: options.form.name,
-          notes: options.form.notes,
-          platform: 'openai',
-          type: 'oauth',
-          credentials,
-          extra,
-          proxy_id: options.form.proxy_id,
-          concurrency: options.form.concurrency,
-          load_factor: options.form.load_factor ?? undefined,
-          priority: options.form.priority,
-          rate_multiplier: options.form.rate_multiplier,
-          group_ids: options.form.group_ids,
-          expires_at: options.form.expires_at,
-          auto_pause_on_expired: options.autoPauseOnExpired.value
-        })
-        openaiAccountId = openaiAccount.id
-        createdAccounts.push(openaiAccount)
-        appStore.showSuccess(t('admin.accounts.accountCreated'))
-      }
-
-      if (shouldCreateSora) {
-        const soraCredentials = {
-          access_token: credentials.access_token,
-          refresh_token: credentials.refresh_token,
-          client_id: credentials.client_id,
-          expires_at: credentials.expires_at
-        }
-
-        const soraName = shouldCreateOpenAI ? `${options.form.name} (Sora)` : options.form.name
-        const soraExtra = options.buildSoraAccountExtra(
-          shouldCreateOpenAI ? extra : oauthExtra,
-          openaiAccountId
-        )
-        const soraAccount = await adminAPI.accounts.create({
-          name: soraName,
-          notes: options.form.notes,
-          platform: 'sora',
-          type: 'oauth',
-          credentials: soraCredentials,
-          extra: soraExtra,
-          proxy_id: options.form.proxy_id,
-          concurrency: options.form.concurrency,
-          load_factor: options.form.load_factor ?? undefined,
-          priority: options.form.priority,
-          rate_multiplier: options.form.rate_multiplier,
-          group_ids: options.form.group_ids,
-          expires_at: options.form.expires_at,
-          auto_pause_on_expired: options.autoPauseOnExpired.value
-        })
-        createdAccounts.push(soraAccount)
-        appStore.showSuccess(t('admin.accounts.accountCreated'))
-      }
+      const openaiAccount = await adminAPI.accounts.create({
+        name: options.form.name,
+        notes: options.form.notes,
+        platform: 'openai',
+        type: 'oauth',
+        credentials,
+        extra,
+        proxy_id: options.form.proxy_id,
+        concurrency: options.form.concurrency,
+        load_factor: options.form.load_factor ?? undefined,
+        priority: options.form.priority,
+        rate_multiplier: options.form.rate_multiplier,
+        group_ids: options.form.group_ids,
+        expires_at: options.form.expires_at,
+        auto_pause_on_expired: options.autoPauseOnExpired.value
+      })
+      createdAccounts.push(openaiAccount)
+      appStore.showSuccess(t('admin.accounts.accountCreated'))
 
       await options.afterCreateImportModels(createdAccounts)
       options.emitCreated()

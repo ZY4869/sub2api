@@ -78,6 +78,7 @@ export default {
     upstream: "Upstream",
     inputTokenPrice: "Input price",
     outputTokenPrice: "Output price",
+    imageOutput: "Image output",
     perMillionTokens: "/ 1M tokens",
     cacheRead: "Read",
     cacheWrite: "Write",

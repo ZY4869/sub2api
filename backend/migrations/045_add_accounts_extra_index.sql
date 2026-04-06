@@ -8,6 +8,6 @@ ON accounts USING GIN (extra);
 -- 查询示例（使用 @> 操作符）
 -- EXPLAIN ANALYZE
 -- SELECT * FROM accounts
--- WHERE platform = 'sora'
+-- Example platform filter removed during legacy cleanup
 --   AND extra @> '{"linked_openai_account_id": 123}'::jsonb
 --   AND deleted_at IS NULL;

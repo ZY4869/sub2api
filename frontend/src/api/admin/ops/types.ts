@@ -165,6 +165,13 @@ export interface OpsRequestDetail {
 
   platform?: string
   model?: string
+  channel_id?: number | null
+  channel_name?: string
+  model_mapping_chain?: string
+  billing_tier?: string
+  billing_mode?: string
+  image_output_tokens?: number | null
+  image_output_cost?: number | null
   duration_ms?: number | null
   status_code?: number | null
 
@@ -190,6 +197,7 @@ export interface OpsRequestDetailsParams {
 
   platform?: string
   group_id?: number | null
+  channel_id?: number | null
 
   user_id?: number
   api_key_id?: number

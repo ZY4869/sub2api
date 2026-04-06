@@ -10,10 +10,11 @@ import (
 )
 
 var accountListLiteCredentialAllowlist = map[string]struct{}{
-	"plan_type":          {},
-	"tier_id":            {},
-	"oauth_type":         {},
-	"gemini_api_variant": {},
+	"plan_type":               {},
+	"subscription_expires_at": {},
+	"tier_id":                 {},
+	"oauth_type":              {},
+	"gemini_api_variant":      {},
 }
 
 var accountListLiteExtraAllowlist = map[string]struct{}{
@@ -76,12 +77,10 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 		return nil
 	}
 	return &AdminUser{
-		User:                  *base,
-		Notes:                 u.Notes,
-		AdminFreeBilling:      u.AdminFreeBilling,
-		GroupRates:            u.GroupRates,
-		SoraStorageQuotaBytes: u.SoraStorageQuotaBytes,
-		SoraStorageUsedBytes:  u.SoraStorageUsedBytes,
+		User:             *base,
+		Notes:            u.Notes,
+		AdminFreeBilling: u.AdminFreeBilling,
+		GroupRates:       u.GroupRates,
 	}
 }
 
@@ -211,14 +210,9 @@ func groupFromServiceBase(g *service.Group) Group {
 		ImagePrice1K:                    g.ImagePrice1K,
 		ImagePrice2K:                    g.ImagePrice2K,
 		ImagePrice4K:                    g.ImagePrice4K,
-		SoraImagePrice360:               g.SoraImagePrice360,
-		SoraImagePrice540:               g.SoraImagePrice540,
-		SoraVideoPricePerRequest:        g.SoraVideoPricePerRequest,
-		SoraVideoPricePerRequestHD:      g.SoraVideoPricePerRequestHD,
 		ClaudeCodeOnly:                  g.ClaudeCodeOnly,
 		FallbackGroupID:                 g.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: g.FallbackGroupIDOnInvalidRequest,
-		SoraStorageQuotaBytes:           g.SoraStorageQuotaBytes,
 		AllowMessagesDispatch:           g.AllowMessagesDispatch,
 		GeminiMixedProtocolEnabled:      g.GeminiMixedProtocolEnabled,
 		CreatedAt:                       g.CreatedAt,
@@ -656,6 +650,10 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		ThinkingEnabled:       l.ThinkingEnabled,
 		InboundEndpoint:       l.InboundEndpoint,
 		UpstreamEndpoint:      l.UpstreamEndpoint,
+		ChannelID:             l.ChannelID,
+		ModelMappingChain:     l.ModelMappingChain,
+		BillingTier:           l.BillingTier,
+		BillingMode:           l.BillingMode,
 		GroupID:               l.GroupID,
 		SubscriptionID:        l.SubscriptionID,
 		InputTokens:           l.InputTokens,
@@ -686,7 +684,8 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		ChargeSource:          l.ChargeSource,
 		ImageCount:            l.ImageCount,
 		ImageSize:             l.ImageSize,
-		MediaType:             l.MediaType,
+		ImageOutputTokens:     l.ImageOutputTokens,
+		ImageOutputCost:       l.ImageOutputCost,
 		UserAgent:             l.UserAgent,
 		CacheTTLOverridden:    l.CacheTTLOverridden,
 		BillingExemptReason:   l.BillingExemptReason,

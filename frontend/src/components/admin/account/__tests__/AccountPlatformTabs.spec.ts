@@ -60,8 +60,7 @@ describe('AccountPlatformTabs', () => {
       'grok',
       'protocol_gateway',
       'gemini',
-      'antigravity',
-      'sora'
+      'antigravity'
     ])
   })
 
@@ -89,8 +88,7 @@ describe('AccountPlatformTabs', () => {
       'grok',
       'protocol_gateway',
       'gemini',
-      'antigravity',
-      'sora'
+      'antigravity'
     ])
   })
 

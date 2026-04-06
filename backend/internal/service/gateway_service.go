@@ -146,10 +146,11 @@ type AccountWaitPlan struct {
 }
 
 type AccountSelectionResult struct {
-	Account     *Account
-	Acquired    bool
-	ReleaseFunc func()
-	WaitPlan    *AccountWaitPlan
+	Account      *Account
+	ChannelState *GatewayChannelState
+	Acquired     bool
+	ReleaseFunc  func()
+	WaitPlan     *AccountWaitPlan
 }
 
 type ClaudeUsage struct {
@@ -231,6 +232,7 @@ type GatewayService struct {
 	modelsListCacheTTL           time.Duration
 	settingService               *SettingService
 	modelRegistryService         *ModelRegistryService
+	channelService               *ChannelService
 	vertexCatalogService         VertexCatalogProvider
 	accountModelImportService    *AccountModelImportService
 	tlsFingerprintProfileService *TLSFingerprintProfileService
@@ -278,6 +280,10 @@ func NewGatewayService(accountRepo AccountRepository, groupRepo GroupRepository,
 
 func (s *GatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *GatewayService) SetChannelService(channelService *ChannelService) {
+	s.channelService = channelService
 }
 
 func (s *GatewayService) SetVertexCatalogService(vertexCatalogService VertexCatalogProvider) {

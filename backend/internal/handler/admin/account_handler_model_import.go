@@ -270,14 +270,6 @@ func (h *AccountHandler) defaultAvailableModels(ctx context.Context, account *se
 		return []availableModelItem{}
 	}
 	runtimePlatform := service.RoutingPlatformForAccount(account)
-	if runtimePlatform == service.PlatformSora {
-		defaults := service.DefaultSoraModels(nil)
-		items := make([]availableModelItem, 0, len(defaults))
-		for _, model := range defaults {
-			items = append(items, availableModelItem{ID: model.ID, Type: model.Type, DisplayName: model.DisplayName, CreatedAt: ""})
-		}
-		return items
-	}
 	if runtimePlatform == service.PlatformKiro {
 		if h.modelRegistryService != nil {
 			for _, exposures := range [][]string{{"test"}, {"runtime", "whitelist"}} {

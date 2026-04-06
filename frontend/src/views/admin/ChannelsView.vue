@@ -416,7 +416,13 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Channel, ChannelModelPricing, CreateChannelRequest, UpdateChannelRequest } from '@/api/admin/channels'
+import type {
+  BillingModelSource,
+  Channel,
+  ChannelModelPricing,
+  CreateChannelRequest,
+  UpdateChannelRequest
+} from '@/api/admin/channels'
 import type { PricingFormEntry } from '@/components/admin/channel/types'
 import { mTokToPerToken, perTokenToMTok, apiIntervalsToForm, formIntervalsToAPI, findModelConflict, validateIntervals } from '@/components/admin/channel/types'
 import type { AdminGroup, GroupPlatform } from '@/types'
@@ -448,6 +454,8 @@ interface PlatformSection {
   model_pricing: PricingFormEntry[]
 }
 
+type ChannelStatus = Channel['status']
+
 // ── Table columns ──
 const columns = computed<Column[]>(() => [
   { key: 'name', label: t('admin.channels.columns.name', 'Name'), sortable: true },
@@ -459,18 +467,18 @@ const columns = computed<Column[]>(() => [
   { key: 'actions', label: t('admin.channels.columns.actions', 'Actions'), sortable: false }
 ])
 
-const statusFilterOptions = computed(() => [
+const statusFilterOptions = computed<Array<{ value: ChannelStatus | ''; label: string }>>(() => [
   { value: '', label: t('admin.channels.allStatus', 'All Status') },
   { value: 'active', label: t('admin.channels.statusActive', 'Active') },
   { value: 'disabled', label: t('admin.channels.statusDisabled', 'Disabled') }
 ])
 
-const statusEditOptions = computed(() => [
+const statusEditOptions = computed<Array<{ value: ChannelStatus; label: string }>>(() => [
   { value: 'active', label: t('admin.channels.statusActive', 'Active') },
   { value: 'disabled', label: t('admin.channels.statusDisabled', 'Disabled') }
 ])
 
-const billingModelSourceOptions = computed(() => [
+const billingModelSourceOptions = computed<Array<{ value: BillingModelSource; label: string }>>(() => [
   { value: 'channel_mapped', label: t('admin.channels.form.billingModelSourceChannelMapped', 'Bill by channel-mapped model') },
   { value: 'requested', label: t('admin.channels.form.billingModelSourceRequested', 'Bill by requested model') },
   { value: 'upstream', label: t('admin.channels.form.billingModelSourceUpstream', 'Bill by final upstream model') }
@@ -480,7 +488,7 @@ const billingModelSourceOptions = computed(() => [
 const channels = ref<Channel[]>([])
 const loading = ref(false)
 const searchQuery = ref('')
-const filters = reactive({ status: '' })
+const filters = reactive<{ status: ChannelStatus | '' }>({ status: '' })
 const pagination = reactive({
   page: 1,
   page_size: getPersistedPageSize(),
@@ -506,9 +514,9 @@ const allChannelsForConflict = ref<Channel[]>([])
 const form = reactive({
   name: '',
   description: '',
-  status: 'active',
+  status: 'active' as ChannelStatus,
   restrict_models: false,
-  billing_model_source: 'channel_mapped' as string,
+  billing_model_source: 'channel_mapped' as BillingModelSource,
   platforms: [] as PlatformSection[]
 })
 

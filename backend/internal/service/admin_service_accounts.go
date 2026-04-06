@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"strings"
 	"time"
@@ -82,16 +81,6 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 			return nil, err
 		}
 	}
-	if input.Platform == PlatformSora && input.Type == AccountTypeAPIKey {
-		baseURL, _ := input.Credentials["base_url"].(string)
-		baseURL = strings.TrimSpace(baseURL)
-		if baseURL == "" {
-			return nil, errors.New("sora apikey 账号必须设置 base_url")
-		}
-		if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-			return nil, errors.New("base_url 必须以 http:// 或 https:// 开头")
-		}
-	}
 	accountStatus := strings.TrimSpace(input.Status)
 	lifecycleState := NormalizeAccountLifecycleInput(input.LifecycleState)
 	if lifecycleState == AccountLifecycleAll {
@@ -161,12 +150,6 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	}
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, err
-	}
-	if account.Platform == PlatformSora && s.soraAccountRepo != nil {
-		soraUpdates := map[string]any{"access_token": account.GetCredential("access_token"), "refresh_token": account.GetCredential("refresh_token")}
-		if err := s.soraAccountRepo.Upsert(ctx, account.ID, soraUpdates); err != nil {
-			logger.LegacyPrintf("service.admin", "[AdminService] 创建 sora_accounts 记录失败: account_id=%d err=%v", account.ID, err)
-		}
 	}
 	if len(groupIDs) > 0 {
 		if err := s.accountRepo.BindGroups(ctx, account.ID, groupIDs); err != nil {
@@ -261,16 +244,6 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	}
 	if input.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *input.AutoPauseOnExpired
-	}
-	if account.Platform == PlatformSora && account.Type == AccountTypeAPIKey {
-		baseURL, _ := account.Credentials["base_url"].(string)
-		baseURL = strings.TrimSpace(baseURL)
-		if baseURL == "" {
-			return nil, errors.New("sora apikey 账号必须设置 base_url")
-		}
-		if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-			return nil, errors.New("base_url 必须以 http:// 或 https:// 开头")
-		}
 	}
 	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGrok) {
 		account.Extra = normalizeGrokExtraForStorageByType(account.Type, account.Extra)

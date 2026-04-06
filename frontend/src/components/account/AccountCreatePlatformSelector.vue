@@ -54,11 +54,6 @@ const platformOptions = computed<
     value: 'antigravity',
     label: t('admin.accounts.platforms.antigravity'),
     activeClass: 'text-purple-600 dark:text-purple-400'
-  },
-  {
-    value: 'sora',
-    label: t('admin.accounts.platforms.sora'),
-    activeClass: 'text-rose-600 dark:text-rose-400'
   }
 ])
 </script>

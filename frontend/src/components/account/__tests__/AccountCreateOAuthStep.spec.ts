@@ -18,17 +18,13 @@ const oauthFlowStub = defineComponent({
     'allowMultiple',
     'showCookieOption',
     'showRefreshTokenOption',
-    'showSessionTokenOption',
-    'showAccessTokenOption',
     'platform',
     'showProjectId'
   ],
   emits: [
     'generate-url',
     'cookie-auth',
-    'validate-refresh-token',
-    'validate-session-token',
-    'import-access-token'
+    'validate-refresh-token'
   ],
   setup(props, { emit, expose }) {
     expose({
@@ -37,7 +33,6 @@ const oauthFlowStub = defineComponent({
       projectId: 'project-id',
       sessionKey: 'session-key',
       refreshToken: 'refresh-token',
-      sessionToken: 'session-token',
       inputMethod: 'manual',
       reset: resetMock
     })
@@ -48,9 +43,7 @@ const oauthFlowStub = defineComponent({
         h('span', { 'data-testid': 'platform' }, String(props.platform)),
         h('button', { 'data-testid': 'emit-generate', onClick: () => emit('generate-url') }),
         h('button', { 'data-testid': 'emit-cookie', onClick: () => emit('cookie-auth', 'cookie-value') }),
-        h('button', { 'data-testid': 'emit-refresh', onClick: () => emit('validate-refresh-token', 'rt-value') }),
-        h('button', { 'data-testid': 'emit-session', onClick: () => emit('validate-session-token', 'st-value') }),
-        h('button', { 'data-testid': 'emit-access', onClick: () => emit('import-access-token', 'at-value') })
+        h('button', { 'data-testid': 'emit-refresh', onClick: () => emit('validate-refresh-token', 'rt-value') })
       ])
   }
 })
@@ -68,8 +61,6 @@ const createWrapper = () =>
       allowMultiple: true,
       showCookieOption: true,
       showRefreshTokenOption: true,
-      showSessionTokenOption: false,
-      showAccessTokenOption: false,
       platform: 'anthropic',
       showProjectId: false
     },
@@ -91,14 +82,10 @@ describe('AccountCreateOAuthStep', () => {
     await wrapper.get('[data-testid="emit-generate"]').trigger('click')
     await wrapper.get('[data-testid="emit-cookie"]').trigger('click')
     await wrapper.get('[data-testid="emit-refresh"]').trigger('click')
-    await wrapper.get('[data-testid="emit-session"]').trigger('click')
-    await wrapper.get('[data-testid="emit-access"]').trigger('click')
 
     expect(wrapper.emitted('generateUrl')).toEqual([[]])
     expect(wrapper.emitted('cookieAuth')).toEqual([['cookie-value']])
     expect(wrapper.emitted('validateRefreshToken')).toEqual([['rt-value']])
-    expect(wrapper.emitted('validateSessionToken')).toEqual([['st-value']])
-    expect(wrapper.emitted('importAccessToken')).toEqual([['at-value']])
 
     const vm = wrapper.vm as unknown as {
       authCode: string
@@ -106,7 +93,6 @@ describe('AccountCreateOAuthStep', () => {
       projectId: string
       sessionKey: string
       refreshToken: string
-      sessionToken: string
       inputMethod: string
       reset: () => void
     }
@@ -116,7 +102,6 @@ describe('AccountCreateOAuthStep', () => {
     expect(vm.projectId).toBe('project-id')
     expect(vm.sessionKey).toBe('session-key')
     expect(vm.refreshToken).toBe('refresh-token')
-    expect(vm.sessionToken).toBe('session-token')
     expect(vm.inputMethod).toBe('manual')
 
     vm.reset()

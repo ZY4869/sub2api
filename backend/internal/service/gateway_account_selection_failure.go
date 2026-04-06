@@ -29,9 +29,6 @@ type selectionFailureDiagnosis struct {
 func (s *GatewayService) logDetailedSelectionFailure(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, platform string, accounts []Account, excludedIDs map[int64]struct{}, allowMixedScheduling bool) selectionFailureStats {
 	stats := s.collectSelectionFailureStats(ctx, accounts, requestedModel, platform, excludedIDs, allowMixedScheduling)
 	logger.LegacyPrintf("service.gateway", "[SelectAccountDetailed] group_id=%v model=%s platform=%s session=%s total=%d eligible=%d excluded=%d unschedulable=%d platform_filtered=%d model_unsupported=%d model_rate_limited=%d sample_platform_filtered=%v sample_model_unsupported=%v sample_model_rate_limited=%v", derefGroupID(groupID), requestedModel, platform, shortSessionHash(sessionHash), stats.Total, stats.Eligible, stats.Excluded, stats.Unschedulable, stats.PlatformFiltered, stats.ModelUnsupported, stats.ModelRateLimited, stats.SamplePlatformIDs, stats.SampleMappingIDs, stats.SampleRateLimitIDs)
-	if platform == PlatformSora {
-		s.logSoraSelectionFailureDetails(ctx, groupID, sessionHash, requestedModel, accounts, excludedIDs, allowMixedScheduling)
-	}
 	return stats
 }
 func (s *GatewayService) collectSelectionFailureStats(ctx context.Context, accounts []Account, requestedModel string, platform string, excludedIDs map[int64]struct{}, allowMixedScheduling bool) selectionFailureStats {
@@ -68,11 +65,7 @@ func (s *GatewayService) diagnoseSelectionFailure(ctx context.Context, acc *Acco
 		return selectionFailureDiagnosis{Category: "excluded"}
 	}
 	if !s.isAccountSchedulableForSelection(acc) {
-		detail := "generic_unschedulable"
-		if acc.Platform == PlatformSora {
-			detail = s.soraUnschedulableReason(acc)
-		}
-		return selectionFailureDiagnosis{Category: "unschedulable", Detail: detail}
+		return selectionFailureDiagnosis{Category: "unschedulable", Detail: "generic_unschedulable"}
 	}
 	if isPlatformFilteredForSelection(acc, platform, allowMixedScheduling) {
 		return selectionFailureDiagnosis{Category: "platform_filtered", Detail: fmt.Sprintf("account_platform=%s requested_platform=%s", acc.Platform, strings.TrimSpace(platform))}
@@ -85,29 +78,6 @@ func (s *GatewayService) diagnoseSelectionFailure(ctx context.Context, acc *Acco
 		return selectionFailureDiagnosis{Category: "model_rate_limited", Detail: fmt.Sprintf("remaining=%s", remaining)}
 	}
 	return selectionFailureDiagnosis{Category: "eligible"}
-}
-func (s *GatewayService) logSoraSelectionFailureDetails(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, accounts []Account, excludedIDs map[int64]struct{}, allowMixedScheduling bool) {
-	const maxLines = 30
-	logged := 0
-	for i := range accounts {
-		if logged >= maxLines {
-			break
-		}
-		acc := &accounts[i]
-		diagnosis := s.diagnoseSelectionFailure(ctx, acc, requestedModel, PlatformSora, excludedIDs, allowMixedScheduling)
-		if diagnosis.Category == "eligible" {
-			continue
-		}
-		detail := diagnosis.Detail
-		if detail == "" {
-			detail = "-"
-		}
-		logger.LegacyPrintf("service.gateway", "[SelectAccountDetailed:Sora] group_id=%v model=%s session=%s account_id=%d account_platform=%s category=%s detail=%s", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), acc.ID, acc.Platform, diagnosis.Category, detail)
-		logged++
-	}
-	if len(accounts) > maxLines {
-		logger.LegacyPrintf("service.gateway", "[SelectAccountDetailed:Sora] group_id=%v model=%s session=%s truncated=true total=%d logged=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), len(accounts), logged)
-	}
 }
 func isPlatformFilteredForSelection(acc *Account, platform string, allowMixedScheduling bool) bool {
 	if acc == nil {

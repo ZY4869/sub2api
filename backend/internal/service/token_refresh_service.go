@@ -402,6 +402,7 @@ func (s *TokenRefreshService) postRefreshActions(ctx context.Context, account *A
 	}
 	// OpenAI OAuth: 刷新成功后，检查是否已设置 privacy_mode，未设置则尝试关闭训练数据共享
 	s.ensureOpenAIPrivacy(ctx, account)
+	s.ensureAntigravityPrivacy(ctx, account)
 }
 
 // errRefreshSkipped 表示刷新被跳过（锁竞争或已被其他路径刷新），不计入 failed 或 refreshed
@@ -442,11 +443,10 @@ func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *
 	}
 	// 已设置过则跳过
 	if account.Extra != nil {
-		if _, ok := account.Extra["privacy_mode"]; ok {
+		if _, ok := account.Extra["privacy_mode"]; ok && shouldSkipOpenAIPrivacyEnsure(account.Extra) {
 			return
 		}
 	}
-
 	token, _ := account.Credentials["access_token"].(string)
 	if token == "" {
 		return
@@ -475,4 +475,47 @@ func (s *TokenRefreshService) ensureOpenAIPrivacy(ctx context.Context, account *
 			"privacy_mode", mode,
 		)
 	}
+}
+
+func (s *TokenRefreshService) ensureAntigravityPrivacy(ctx context.Context, account *Account) {
+	if account.Platform != PlatformAntigravity || account.Type != AccountTypeOAuth {
+		return
+	}
+	if account.Extra != nil {
+		if mode, ok := account.Extra["privacy_mode"].(string); ok && mode == AntigravityPrivacySet {
+			return
+		}
+	}
+
+	accessToken := account.GetCredential("access_token")
+	projectID := account.GetCredential("project_id")
+	if accessToken == "" {
+		return
+	}
+
+	var proxyURL string
+	if account.ProxyID != nil && s.proxyRepo != nil {
+		if proxy, err := s.proxyRepo.GetByID(ctx, *account.ProxyID); err == nil && proxy != nil {
+			proxyURL = proxy.URL()
+		}
+	}
+
+	mode := setAntigravityPrivacy(ctx, accessToken, projectID, proxyURL)
+	if mode == "" {
+		return
+	}
+
+	if err := s.accountRepo.UpdateExtra(ctx, account.ID, map[string]any{"privacy_mode": mode}); err != nil {
+		slog.Warn("token_refresh.update_antigravity_privacy_mode_failed",
+			"account_id", account.ID,
+			"error", err,
+		)
+		return
+	}
+
+	applyAntigravityPrivacyMode(account, mode)
+	slog.Info("token_refresh.antigravity_privacy_mode_set",
+		"account_id", account.ID,
+		"privacy_mode", mode,
+	)
 }

@@ -919,6 +919,10 @@ func (s *stubAdminService) EnsureOpenAIPrivacy(ctx context.Context, account *ser
 	return ""
 }
 
+func (s *stubAdminService) EnsureAntigravityPrivacy(ctx context.Context, account *service.Account) string {
+	return ""
+}
+
 func (s *stubAdminService) ForceOpenAIPrivacy(ctx context.Context, account *service.Account) string {
 	return ""
 }
