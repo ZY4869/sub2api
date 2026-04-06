@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"regexp"
 	"testing"
 	"time"
@@ -44,6 +45,18 @@ func TestOpsInsertRequestTraceArgsUsesEmptyStringsForRequiredTextColumns(t *test
 	require.Equal(t, "", args[33])
 	require.Equal(t, "", args[34])
 	require.Equal(t, "", args[35])
+}
+
+func TestOpsInsertRequestTraceArgsUsesEmptyArrayForToolKinds(t *testing.T) {
+	t.Parallel()
+
+	args := opsInsertRequestTraceArgs(&service.OpsInsertRequestTraceInput{})
+	valuer, ok := args[28].(driver.Valuer)
+	require.True(t, ok)
+
+	value, err := valuer.Value()
+	require.NoError(t, err)
+	require.Equal(t, "{}", value)
 }
 
 func TestOpsRepositoryGetRequestTraceSummaryOffsetsTrendPlaceholders(t *testing.T) {

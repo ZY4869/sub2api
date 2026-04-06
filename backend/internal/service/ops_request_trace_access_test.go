@@ -138,3 +138,43 @@ func TestRecordRequestTraceKeepsExpandedInboundPreview(t *testing.T) {
 	require.Contains(t, *captured.InboundRequestJSON, "\"input\"")
 	require.NotContains(t, *captured.InboundRequestJSON, "\"request_body_truncated\":true")
 }
+
+func TestRecordRequestTraceNormalizesEmptyToolKinds(t *testing.T) {
+	var captured *OpsInsertRequestTraceInput
+	repo := &opsRepoMock{
+		InsertRequestTraceFn: func(ctx context.Context, input *OpsInsertRequestTraceInput) (int64, error) {
+			captured = input
+			return 1, nil
+		},
+	}
+	svc := &OpsService{
+		opsRepo: repo,
+		cfg: &config.Config{
+			Ops: config.OpsConfig{
+				Enabled: true,
+				RequestDetails: config.OpsRequestDetailsConfig{
+					Enabled: true,
+				},
+			},
+		},
+	}
+
+	err := svc.RecordRequestTrace(context.Background(), &OpsRecordRequestTraceInput{
+		RequestID:  "req-no-tools",
+		StatusCode: 200,
+		DurationMs: 3500,
+		Trace: GatewayTraceContext{
+			Normalize: ProtocolNormalizeResult{
+				Platform:       PlatformOpenAI,
+				ProtocolIn:     PlatformOpenAI,
+				ProtocolOut:    PlatformOpenAI,
+				RequestType:    "responses",
+				RequestedModel: "gpt-5.4",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, captured)
+	require.NotNil(t, captured.ToolKinds)
+	require.Empty(t, captured.ToolKinds)
+}
