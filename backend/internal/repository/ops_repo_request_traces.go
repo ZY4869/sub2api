@@ -119,7 +119,7 @@ func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any 
 		opsStringOrEmpty(input.PromptBlockReason),
 		input.Stream,
 		input.HasTools,
-		pq.Array(input.ToolKinds),
+		opsTextArrayOrEmpty(input.ToolKinds),
 		input.HasThinking,
 		opsStringOrEmpty(input.ThinkingSource),
 		opsStringOrEmpty(input.ThinkingLevel),
@@ -146,6 +146,13 @@ func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any 
 		input.SearchText,
 		input.CreatedAt,
 	}
+}
+
+func opsTextArrayOrEmpty(items []string) any {
+	if items == nil {
+		items = []string{}
+	}
+	return pq.Array(items)
 }
 
 func (r *opsRepository) ListRequestTraces(ctx context.Context, filter *service.OpsRequestTraceFilter) (*service.OpsRequestTraceList, error) {
