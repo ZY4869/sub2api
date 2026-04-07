@@ -1471,7 +1471,7 @@ export default {
         runFailed: 'Failed to run batch test',
         loadModelsFailed: 'Failed to load shared test models',
         noSharedModels: 'No shared catalog model is available for the selected accounts. Switch to manual input or use auto model selection instead.',
-        realForwardUnsupportedHint: 'The current selection includes Grok or Sora accounts, so only health check mode is available.',
+        realForwardUnsupportedHint: 'The current selection includes Grok accounts, so only health check mode is available.',
         quickCheck: 'Quick Check',
         promptLabel: 'Shared test prompt',
         promptPlaceholder: 'Only real forward tests will use this prompt.',
@@ -1623,9 +1623,7 @@ export default {
         codexCLIOnly: 'Codex official clients only',
         codexCLIOnlyDesc:
           'Only applies to OpenAI OAuth. When enabled, only Codex official client families are allowed; when disabled, the gateway bypasses this restriction and keeps existing behavior.',
-        modelRestrictionDisabledByPassthrough: 'Automatic passthrough is enabled: model whitelist/mapping will not take effect.',
-        enableSora: 'Enable Sora simultaneously',
-        enableSoraHint: 'Sora uses the same OpenAI account. Enable to create Sora account simultaneously.'
+        modelRestrictionDisabledByPassthrough: 'Automatic passthrough is enabled: model whitelist/mapping will not take effect.'
       },
       anthropic: {
         apiKeyPassthrough: 'Auto passthrough (auth only)',
@@ -2082,8 +2080,6 @@ export default {
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',
           sessionTokenAuth: 'Manual ST Input',
-          sessionTokenDesc: 'Enter your existing Sora Session Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
-          sessionTokenPlaceholder: 'Paste your Sora Session Token...\nSupports multiple, one per line',
           sessionTokenRawLabel: 'Raw Input',
           sessionTokenRawPlaceholder: 'Paste /api/auth/session raw payload or Session Token...',
           sessionTokenRawHint: 'You can paste full JSON. The system will auto-parse ST and AT.',
@@ -2964,6 +2960,7 @@ export default {
       codeType: 'Code Type',
       amount: 'Amount ($)',
       value: 'Value',
+      adjustmentHint: 'Positive adds, negative subtracts, 0 is invalid',
       count: 'Count',
       generating: 'Generating...',
       generate: 'Generate',
@@ -2993,6 +2990,7 @@ export default {
       selectGroupPlaceholder: 'Choose a subscription group',
       validityDays: 'Validity Days',
       groupRequired: 'Please select a subscription group',
+      nonZeroValueRequired: 'Please enter a non-zero value',
       days: ' days',
       status: {
         unused: 'Unused',
@@ -3152,7 +3150,9 @@ export default {
       allModels: 'All Models',
       allAccounts: 'All Accounts',
       allGroups: 'All Groups',
+      allChannels: 'All Channels',
       allTypes: 'All Types',
+      channel: 'Channel',
       inputCost: 'Input Cost',
       outputCost: 'Output Cost',
       cacheCreationCost: 'Cache Creation Cost',
@@ -3306,6 +3306,7 @@ export default {
         '7d': 'Last 7 days',
         '30d': 'Last 30 days'
       },
+      allChannels: 'All Channels',
       openaiTokenStats: {
         title: 'OpenAI Token Request Stats',
         viewModeTopN: 'TopN',
@@ -3448,6 +3449,7 @@ export default {
         },
         total: 'Total:',
         searchPlaceholder: 'Search request_id / client_request_id / message',
+        channelFilterNotice: 'This list is not filtered by channel. Only time, platform, and group filters are applied.',
       },
       // Error Detail Modal
       errorDetail: {

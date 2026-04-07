@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/model"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -117,6 +119,23 @@ func TestResolveOpsRequestType_FallsBackToWebsocket(t *testing.T) {
 	requestType := resolveOpsRequestType(c, false)
 	require.NotNil(t, requestType)
 	require.Equal(t, int16(service.RequestTypeWSV2), *requestType)
+}
+
+func TestResolveOpsChannelID_FromGatewayContext(t *testing.T) {
+	resetOpsErrorLoggerStateForTest(t)
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodGet, "/v1/messages", nil)
+	req = req.WithContext(service.WithGatewayChannelState(context.Background(), &service.GatewayChannelState{
+		Channel: &model.Channel{ID: 42},
+	}))
+	c.Request = req
+
+	channelID := resolveOpsChannelID(c)
+	require.NotNil(t, channelID)
+	require.Equal(t, int64(42), *channelID)
 }
 
 func TestEnqueueOpsErrorLog_QueueFullDrop(t *testing.T) {

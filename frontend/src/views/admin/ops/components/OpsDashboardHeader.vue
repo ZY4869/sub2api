@@ -10,6 +10,7 @@ import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsRe
 import type { OpsRequestDetailsPreset } from './OpsRequestDetailsModal.vue'
 import { useAdminSettingsStore } from '@/stores'
 import { formatNumber } from '@/utils/format'
+import { loadAllAdminChannelOptions } from '@/utils/adminChannelOptions'
 
 type RealtimeWindow = '1min' | '5min' | '30min' | '1h'
 
@@ -17,6 +18,7 @@ interface Props {
   overview?: OpsDashboardOverview | null
   platform: string
   groupId: number | null
+  channelId: number | null
   timeRange: string
   queryMode: string
   loading: boolean
@@ -32,6 +34,7 @@ interface Props {
 interface Emits {
   (e: 'update:platform', value: string): void
   (e: 'update:group', value: number | null): void
+  (e: 'update:channel', value: number | null): void
   (e: 'update:timeRange', value: string): void
   (e: 'update:queryMode', value: string): void
   (e: 'update:customTimeRange', startTime: string, endTime: string): void
@@ -105,6 +108,7 @@ function formatCustomTimeRangeLabel(startTime: string, endTime: string): string 
 }
 
 const groups = ref<Array<{ id: number; name: string; platform: string }>>([])
+const channelOptions = ref([{ value: null, label: t('admin.ops.allChannels') }])
 
 const platformOptions = computed(() => [
   { value: '', label: t('common.all') },
@@ -151,12 +155,23 @@ watch(
 )
 
 onMounted(async () => {
-  try {
-    const list = await adminAPI.groups.getAll()
-    groups.value = list.map((g) => ({ id: g.id, name: g.name, platform: g.platform }))
-  } catch (e) {
-    console.error('[OpsDashboardHeader] Failed to load groups', e)
+  const [groupsResult, channelsResult] = await Promise.allSettled([
+    adminAPI.groups.getAll(),
+    loadAllAdminChannelOptions()
+  ])
+
+  if (groupsResult.status === 'fulfilled') {
+    groups.value = groupsResult.value.map((g) => ({ id: g.id, name: g.name, platform: g.platform }))
+  } else {
+    console.error('[OpsDashboardHeader] Failed to load groups', groupsResult.reason)
     groups.value = []
+  }
+
+  if (channelsResult.status === 'fulfilled') {
+    channelOptions.value = [{ value: null, label: t('admin.ops.allChannels') }, ...channelsResult.value]
+  } else {
+    console.error('[OpsDashboardHeader] Failed to load channels', channelsResult.reason)
+    channelOptions.value = [{ value: null, label: t('admin.ops.allChannels') }]
   }
 })
 
@@ -171,6 +186,15 @@ function handleGroupChange(val: string | number | boolean | null) {
   }
   const id = typeof val === 'number' ? val : Number.parseInt(String(val), 10)
   emit('update:group', Number.isFinite(id) && id > 0 ? id : null)
+}
+
+function handleChannelChange(val: string | number | boolean | null) {
+  if (val === null || val === '' || typeof val === 'boolean') {
+    emit('update:channel', null)
+    return
+  }
+  const id = typeof val === 'number' ? val : Number.parseInt(String(val), 10)
+  emit('update:channel', Number.isFinite(id) && id > 0 ? id : null)
 }
 
 function handleTimeRangeChange(val: string | number | boolean | null) {
@@ -288,6 +312,7 @@ function makeZeroRealtimeTrafficSummary(): OpsRealtimeTrafficSummary {
     end_time: now,
     platform: props.platform,
     group_id: props.groupId,
+    channel_id: props.channelId,
     qps: { current: 0, peak: 0, avg: 0 },
     tps: { current: 0, peak: 0, avg: 0 }
   }
@@ -301,7 +326,12 @@ async function loadRealtimeTrafficSummary() {
   }
   realtimeTrafficLoading.value = true
   try {
-    const res = await opsAPI.getRealtimeTrafficSummary(realtimeWindow.value, props.platform, props.groupId)
+    const res = await opsAPI.getRealtimeTrafficSummary(
+      realtimeWindow.value,
+      props.platform,
+      props.groupId,
+      props.channelId
+    )
     if (res && res.enabled === false) {
       adminSettingsStore.setOpsRealtimeMonitoringEnabledLocal(false)
     }
@@ -315,7 +345,7 @@ async function loadRealtimeTrafficSummary() {
 }
 
 watch(
-  () => [realtimeWindow.value, props.platform, props.groupId] as const,
+  () => [realtimeWindow.value, props.platform, props.groupId, props.channelId] as const,
   () => {
     loadRealtimeTrafficSummary()
   },
@@ -907,6 +937,14 @@ function handleToolbarRefresh() {
             :options="groupOptions"
             class="w-full sm:w-[160px]"
             @update:model-value="handleGroupChange"
+          />
+
+          <Select
+            :model-value="channelId"
+            :options="channelOptions"
+            class="w-full sm:w-[220px]"
+            searchable
+            @update:model-value="handleChannelChange"
           />
 
           <div class="mx-1 hidden h-4 w-[1px] bg-gray-200 dark:bg-dark-700 sm:block"></div>

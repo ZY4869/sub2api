@@ -73,6 +73,7 @@ ORDER BY 3 ASC`
 		EndTime:       end,
 		Platform:      strings.TrimSpace(filter.Platform),
 		GroupID:       filter.GroupID,
+		ChannelID:     filter.ChannelID,
 		TotalRequests: total,
 		Buckets:       buckets,
 	}, nil

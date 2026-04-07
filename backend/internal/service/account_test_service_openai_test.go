@@ -117,7 +117,7 @@ func TestAccountTestService_OpenAI429PersistsSnapshotAndRateLimit(t *testing.T) 
 
 func TestAccountTestService_OpenAISuccessProbesKnownModelsInBackground(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	ctx, recorder := newSoraTestContext()
+	ctx, recorder := newGatewayTestContext()
 
 	resp := newJSONResponse(http.StatusOK, "")
 	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
@@ -162,7 +162,7 @@ func TestAccountTestService_OpenAISuccessProbesKnownModelsInBackground(t *testin
 
 func TestAccountTestService_OpenAISuccessProbeFailureKeepsExistingKnownModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	ctx, recorder := newSoraTestContext()
+	ctx, recorder := newGatewayTestContext()
 
 	resp := newJSONResponse(http.StatusOK, "")
 	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}

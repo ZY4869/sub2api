@@ -515,7 +515,6 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// Beta 策略配置
 		adminSettings.GET("/beta-policy", h.Admin.Setting.GetBetaPolicySettings)
 		adminSettings.PUT("/beta-policy", h.Admin.Setting.UpdateBetaPolicySettings)
-		// Sora S3 存储配置
 		adminSettings.GET("/gemini-rate-catalog", h.Admin.Setting.GetGeminiRateCatalog)
 		adminSettings.GET("/google-batch-archive", h.Admin.Setting.GetGoogleBatchArchiveSettings)
 		adminSettings.PUT("/google-batch-archive", h.Admin.Setting.UpdateGoogleBatchArchiveSettings)

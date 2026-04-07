@@ -9,6 +9,7 @@ import { formatNumber } from '@/utils/format'
 interface Props {
   platformFilter?: string
   groupIdFilter?: number | null
+  channelIdFilter?: number | null
   refreshToken: number
 }
 
@@ -16,7 +17,8 @@ type ViewMode = 'topn' | 'pagination'
 
 const props = withDefaults(defineProps<Props>(), {
   platformFilter: '',
-  groupIdFilter: null
+  groupIdFilter: null,
+  channelIdFilter: null
 })
 
 const { t } = useI18n()
@@ -80,7 +82,11 @@ function buildParams() {
   const params: Record<string, any> = {
     time_range: timeRange.value,
     platform: props.platformFilter || undefined,
-    group_id: typeof props.groupIdFilter === 'number' && props.groupIdFilter > 0 ? props.groupIdFilter : undefined
+    group_id: typeof props.groupIdFilter === 'number' && props.groupIdFilter > 0 ? props.groupIdFilter : undefined,
+    channel_id:
+      typeof props.channelIdFilter === 'number' && props.channelIdFilter > 0
+        ? props.channelIdFilter
+        : undefined
   }
 
   if (viewMode.value === 'topn') {
@@ -120,6 +126,7 @@ watch(
     pageSize: pageSize.value,
     platform: props.platformFilter,
     groupId: props.groupIdFilter,
+    channelId: props.channelIdFilter,
     refreshToken: props.refreshToken
   }),
   (next, prev) => {

@@ -127,8 +127,8 @@ WITH combined AS (
     COALESCE(NULLIF(o.request_id,''), NULLIF(o.client_request_id,''), '') AS request_id,
     COALESCE(NULLIF(o.platform, ''), NULLIF(g.platform, ''), NULLIF(a.platform, ''), '') AS platform,
     o.model AS model,
-    NULL::BIGINT AS channel_id,
-    NULL::TEXT AS channel_name,
+    o.channel_id AS channel_id,
+    COALESCE(NULLIF(ch.name, ''), '') AS channel_name,
     NULL::TEXT AS model_mapping_chain,
     NULL::TEXT AS billing_tier,
     NULL::TEXT AS billing_mode,
@@ -148,6 +148,7 @@ WITH combined AS (
   FROM ops_error_logs o
   LEFT JOIN groups g ON g.id = o.group_id
   LEFT JOIN accounts a ON a.id = o.account_id
+  LEFT JOIN channels ch ON ch.id = o.channel_id
   WHERE o.created_at >= $1 AND o.created_at < $2
     AND COALESCE(o.status_code, 0) >= 400
 )

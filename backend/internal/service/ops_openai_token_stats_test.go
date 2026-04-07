@@ -37,13 +37,13 @@ func TestOpsServiceGetOpenAITokenStats_Validation(t *testing.T) {
 		wantReason string
 	}{
 		{
-			name:       "filter 不能为空",
+			name:       "filter is required",
 			filter:     nil,
 			wantCode:   400,
 			wantReason: "OPS_FILTER_REQUIRED",
 		},
 		{
-			name: "start_time/end_time 必填",
+			name: "start_time and end_time are required",
 			filter: &OpsOpenAITokenStatsFilter{
 				StartTime: time.Time{},
 				EndTime:   now,
@@ -52,7 +52,7 @@ func TestOpsServiceGetOpenAITokenStats_Validation(t *testing.T) {
 			wantReason: "OPS_TIME_RANGE_REQUIRED",
 		},
 		{
-			name: "start_time 不能晚于 end_time",
+			name: "start_time cannot be after end_time",
 			filter: &OpsOpenAITokenStatsFilter{
 				StartTime: now,
 				EndTime:   now.Add(-1 * time.Minute),
@@ -61,7 +61,7 @@ func TestOpsServiceGetOpenAITokenStats_Validation(t *testing.T) {
 			wantReason: "OPS_TIME_RANGE_INVALID",
 		},
 		{
-			name: "group_id 必须大于 0",
+			name: "group_id must be greater than 0",
 			filter: &OpsOpenAITokenStatsFilter{
 				StartTime: now.Add(-time.Hour),
 				EndTime:   now,
@@ -71,7 +71,17 @@ func TestOpsServiceGetOpenAITokenStats_Validation(t *testing.T) {
 			wantReason: "OPS_GROUP_ID_INVALID",
 		},
 		{
-			name: "top_n 与分页参数互斥",
+			name: "channel_id must be greater than 0",
+			filter: &OpsOpenAITokenStatsFilter{
+				StartTime: now.Add(-time.Hour),
+				EndTime:   now,
+				ChannelID: opsInt64Ptr(0),
+			},
+			wantCode:   400,
+			wantReason: "OPS_CHANNEL_ID_INVALID",
+		},
+		{
+			name: "top_n conflicts with pagination",
 			filter: &OpsOpenAITokenStatsFilter{
 				StartTime: now.Add(-time.Hour),
 				EndTime:   now,
@@ -82,7 +92,7 @@ func TestOpsServiceGetOpenAITokenStats_Validation(t *testing.T) {
 			wantReason: "OPS_PAGINATION_CONFLICT",
 		},
 		{
-			name: "top_n 参数越界",
+			name: "top_n is out of range",
 			filter: &OpsOpenAITokenStatsFilter{
 				StartTime: now.Add(-time.Hour),
 				EndTime:   now,
@@ -92,7 +102,7 @@ func TestOpsServiceGetOpenAITokenStats_Validation(t *testing.T) {
 			wantReason: "OPS_TOPN_INVALID",
 		},
 		{
-			name: "page_size 参数越界",
+			name: "page_size is out of range",
 			filter: &OpsOpenAITokenStatsFilter{
 				StartTime: now.Add(-time.Hour),
 				EndTime:   now,

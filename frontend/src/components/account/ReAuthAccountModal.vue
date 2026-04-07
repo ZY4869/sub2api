@@ -323,7 +323,7 @@ const currentError = computed(() => {
 
 // Computed
 const isManualInputMethod = computed(() => {
-  // OpenAI/Sora/Gemini/Antigravity always use manual input (no cookie auth option)
+  // OpenAI/Gemini/Antigravity always use manual input (no cookie auth option)
   return (
     isOpenAI.value ||
     (isGemini.value && !isGeminiVertexAccount.value) ||

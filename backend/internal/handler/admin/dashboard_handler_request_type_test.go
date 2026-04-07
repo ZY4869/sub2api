@@ -17,8 +17,11 @@ type dashboardUsageRepoCapture struct {
 	service.UsageLogRepository
 	trendRequestType *int16
 	trendStream      *bool
+	trendChannelID   int64
 	modelRequestType *int16
 	modelStream      *bool
+	modelChannelID   int64
+	groupChannelID   int64
 	rankingLimit     int
 	ranking          []usagestats.UserSpendingRankingItem
 	rankingTotal     float64
@@ -28,7 +31,7 @@ func (s *dashboardUsageRepoCapture) GetUsageTrendWithFilters(
 	ctx context.Context,
 	startTime, endTime time.Time,
 	granularity string,
-	userID, apiKeyID, accountID, groupID int64,
+	userID, apiKeyID, accountID, groupID, channelID int64,
 	model string,
 	requestType *int16,
 	stream *bool,
@@ -36,20 +39,34 @@ func (s *dashboardUsageRepoCapture) GetUsageTrendWithFilters(
 ) ([]usagestats.TrendDataPoint, error) {
 	s.trendRequestType = requestType
 	s.trendStream = stream
+	s.trendChannelID = channelID
 	return []usagestats.TrendDataPoint{}, nil
 }
 
 func (s *dashboardUsageRepoCapture) GetModelStatsWithFilters(
 	ctx context.Context,
 	startTime, endTime time.Time,
-	userID, apiKeyID, accountID, groupID int64,
+	userID, apiKeyID, accountID, groupID, channelID int64,
 	requestType *int16,
 	stream *bool,
 	billingType *int8,
 ) ([]usagestats.ModelStat, error) {
 	s.modelRequestType = requestType
 	s.modelStream = stream
+	s.modelChannelID = channelID
 	return []usagestats.ModelStat{}, nil
+}
+
+func (s *dashboardUsageRepoCapture) GetGroupStatsWithFilters(
+	ctx context.Context,
+	startTime, endTime time.Time,
+	userID, apiKeyID, accountID, groupID, channelID int64,
+	requestType *int16,
+	stream *bool,
+	billingType *int8,
+) ([]usagestats.GroupStat, error) {
+	s.groupChannelID = channelID
+	return []usagestats.GroupStat{}, nil
 }
 
 func (s *dashboardUsageRepoCapture) GetUserSpendingRanking(
@@ -73,6 +90,7 @@ func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Eng
 	router := gin.New()
 	router.GET("/admin/dashboard/trend", handler.GetUsageTrend)
 	router.GET("/admin/dashboard/models", handler.GetModelStats)
+	router.GET("/admin/dashboard/groups", handler.GetGroupStats)
 	router.GET("/admin/dashboard/users-ranking", handler.GetUserSpendingRanking)
 	return router
 }
@@ -89,6 +107,18 @@ func TestDashboardTrendRequestTypePriority(t *testing.T) {
 	require.NotNil(t, repo.trendRequestType)
 	require.Equal(t, int16(service.RequestTypeWSV2), *repo.trendRequestType)
 	require.Nil(t, repo.trendStream)
+}
+
+func TestDashboardTrendPassesChannelID(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/trend?channel_id=17", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(17), repo.trendChannelID)
 }
 
 func TestDashboardTrendInvalidRequestType(t *testing.T) {
@@ -125,6 +155,18 @@ func TestDashboardModelStatsRequestTypePriority(t *testing.T) {
 	require.NotNil(t, repo.modelRequestType)
 	require.Equal(t, int16(service.RequestTypeSync), *repo.modelRequestType)
 	require.Nil(t, repo.modelStream)
+}
+
+func TestDashboardModelStatsPassesChannelID(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?channel_id=19", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(19), repo.modelChannelID)
 }
 
 func TestDashboardModelStatsInvalidRequestType(t *testing.T) {
@@ -198,4 +240,16 @@ func TestDashboardUsersRankingLimitAndCache(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec2.Code)
 	require.Equal(t, "hit", rec2.Header().Get("X-Snapshot-Cache"))
+}
+
+func TestDashboardGroupStatsPassesChannelID(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/groups?channel_id=23", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(23), repo.groupChannelID)
 }

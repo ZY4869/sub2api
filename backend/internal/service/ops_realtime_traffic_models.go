@@ -13,6 +13,7 @@ type OpsRealtimeTrafficSummary struct {
 
 	Platform string `json:"platform"`
 	GroupID  *int64 `json:"group_id"`
+	ChannelID *int64 `json:"channel_id"`
 
 	QPS OpsRateSummary `json:"qps"`
 	TPS OpsRateSummary `json:"tps"`

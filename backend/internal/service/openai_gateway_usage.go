@@ -94,7 +94,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if err != nil {
 		cost = &CostBreakdown{ActualCost: 0}
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelResolution.Pricing, tokens, multiplier, 0)
+	var channelPricing *GatewayChannelResolvedPricing
+	if channelResolution != nil {
+		channelPricing = channelResolution.Pricing
+	}
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, 0)
 
 	// Determine billing type.
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()

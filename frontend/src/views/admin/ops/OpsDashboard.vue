@@ -15,6 +15,7 @@
         :overview="overview"
         :platform="platform"
         :group-id="groupId"
+        :channel-id="channelId"
         :time-range="timeRange"
         :query-mode="queryMode"
         :loading="loading"
@@ -28,6 +29,7 @@
         @update:time-range="onTimeRangeChange"
         @update:platform="onPlatformChange"
         @update:group="onGroupChange"
+        @update:channel="onChannelChange"
         @update:query-mode="onQueryModeChange"
         @update:custom-time-range="onCustomTimeRangeChange"
         @refresh="fetchData"
@@ -89,6 +91,7 @@
         <OpsOpenAITokenStatsCard
           :platform-filter="platform"
           :group-id-filter="groupId"
+          :channel-id-filter="channelId"
           :refresh-token="dashboardRefreshToken"
         />
       </div>
@@ -116,6 +119,7 @@
           :time-range="timeRange"
           :platform="platform"
           :group-id="groupId"
+          :channel-id="channelId"
           :error-type="errorDetailsType"
           @update:show="showErrorDetails = $event"
           @openErrorDetail="openError"
@@ -129,6 +133,7 @@
           :preset="requestDetailsPreset"
           :platform="platform"
           :group-id="groupId"
+          :channel-id="channelId"
           @openErrorDetail="openError"
         />
       </template>
@@ -192,6 +197,7 @@ const lastUpdated = ref<Date | null>(new Date())
 const timeRange = ref<TimeRange>('1h')
 const platform = ref<string>('')
 const groupId = ref<number | null>(null)
+const channelId = ref<number | null>(null)
 const queryMode = ref<QueryMode>('auto')
 const customStartTime = ref<string | null>(null)
 const customEndTime = ref<string | null>(null)
@@ -203,6 +209,7 @@ const QUERY_KEYS = {
   timeRange: 'tr',
   platform: 'platform',
   groupId: 'group_id',
+  channelId: 'channel_id',
   queryMode: 'mode',
   fullscreen: 'fullscreen',
 
@@ -283,6 +290,9 @@ const applyRouteQueryToState = () => {
   const groupIdRaw = readQueryNumber(QUERY_KEYS.groupId)
   groupId.value = typeof groupIdRaw === 'number' && groupIdRaw > 0 ? groupIdRaw : null
 
+  const channelIdRaw = readQueryNumber(QUERY_KEYS.channelId)
+  channelId.value = typeof channelIdRaw === 'number' && channelIdRaw > 0 ? channelIdRaw : null
+
   const nextMode = readQueryString(QUERY_KEYS.queryMode)
   if (nextMode && allowedQueryModes.has(nextMode as QueryMode)) {
     queryMode.value = nextMode as QueryMode
@@ -322,6 +332,7 @@ const buildQueryFromState = () => {
   if (timeRange.value !== '1h') next[QUERY_KEYS.timeRange] = timeRange.value
   if (platform.value) next[QUERY_KEYS.platform] = platform.value
   if (typeof groupId.value === 'number' && groupId.value > 0) next[QUERY_KEYS.groupId] = String(groupId.value)
+  if (typeof channelId.value === 'number' && channelId.value > 0) next[QUERY_KEYS.channelId] = String(channelId.value)
   if (queryMode.value !== 'auto') next[QUERY_KEYS.queryMode] = queryMode.value
 
   return next
@@ -498,6 +509,21 @@ function onGroupChange(v: string | number | boolean | null) {
   }
 }
 
+function onChannelChange(v: string | number | boolean | null) {
+  if (v === null) {
+    channelId.value = null
+    return
+  }
+  if (typeof v === 'number') {
+    channelId.value = v > 0 ? v : null
+    return
+  }
+  if (typeof v === 'string') {
+    const n = Number.parseInt(v, 10)
+    channelId.value = Number.isFinite(n) && n > 0 ? n : null
+  }
+}
+
 function onQueryModeChange(v: string | number | boolean | null) {
   if (typeof v !== 'string') return
   if (!allowedQueryModes.has(v as QueryMode)) return
@@ -516,6 +542,7 @@ function buildApiParams() {
   const params: any = {
     platform: platform.value || undefined,
     group_id: groupId.value ?? undefined,
+    channel_id: channelId.value ?? undefined,
     mode: queryMode.value
   }
 
@@ -538,6 +565,7 @@ function buildSwitchTrendParams() {
   const params: any = {
     platform: platform.value || undefined,
     group_id: groupId.value ?? undefined,
+    channel_id: channelId.value ?? undefined,
     mode: queryMode.value
   }
   const endTime = new Date()
@@ -737,7 +765,7 @@ async function fetchData() {
 }
 
 watch(
-  () => [timeRange.value, platform.value, groupId.value, queryMode.value] as const,
+  () => [timeRange.value, platform.value, groupId.value, channelId.value, queryMode.value] as const,
   () => {
     if (isApplyingRouteQuery.value) return
     if (opsEnabled.value) {
@@ -755,13 +783,17 @@ watch(
     const prevTimeRange = timeRange.value
     const prevPlatform = platform.value
     const prevGroupId = groupId.value
+    const prevChannelId = channelId.value
 
     isApplyingRouteQuery.value = true
     applyRouteQueryToState()
     isApplyingRouteQuery.value = false
 
     const changed =
-      prevTimeRange !== timeRange.value || prevPlatform !== platform.value || prevGroupId !== groupId.value
+      prevTimeRange !== timeRange.value ||
+      prevPlatform !== platform.value ||
+      prevGroupId !== groupId.value ||
+      prevChannelId !== channelId.value
     if (changed) {
       if (opsEnabled.value) {
         fetchData()

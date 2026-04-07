@@ -9,6 +9,7 @@ type OpsOpenAITokenStatsFilter struct {
 
 	Platform string
 	GroupID  *int64
+	ChannelID *int64
 
 	// Pagination mode (default): page/page_size
 	Page     int
@@ -39,6 +40,7 @@ type OpsOpenAITokenStatsResponse struct {
 
 	Platform string `json:"platform,omitempty"`
 	GroupID  *int64 `json:"group_id,omitempty"`
+	ChannelID *int64 `json:"channel_id,omitempty"`
 
 	Items []*OpsOpenAITokenStatsItem `json:"items"`
 

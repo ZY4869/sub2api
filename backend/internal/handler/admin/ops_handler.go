@@ -130,14 +130,6 @@ func (h *OpsHandler) GetErrorLogs(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
-	if v := strings.TrimSpace(c.Query("channel_id")); v != "" {
-		id, err := strconv.ParseInt(v, 10, 64)
-		if err != nil || id <= 0 {
-			response.BadRequest(c, "Invalid channel_id")
-			return
-		}
-		filter.ChannelID = &id
-	}
 	if v := strings.TrimSpace(c.Query("account_id")); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || id <= 0 {

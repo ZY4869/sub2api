@@ -26,8 +26,7 @@ func TestRegisterRoutes_RegistersMetaRoutes(t *testing.T) {
 		Admin:         &handler.AdminHandlers{},
 		Gateway:       &handler.GatewayHandler{},
 		OpenAIGateway: &handler.OpenAIGatewayHandler{},
-		SoraGateway:   &handler.SoraGatewayHandler{},
-		SoraClient:    &handler.SoraClientHandler{},
+		GrokGateway:   &handler.GrokGatewayHandler{},
 		Setting:       &handler.SettingHandler{},
 		Totp:          &handler.TotpHandler{},
 	}

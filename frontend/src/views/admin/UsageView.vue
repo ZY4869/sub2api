@@ -254,6 +254,7 @@ const filters = ref<AdminUsageQueryParams>({
   user_id: undefined,
   model: undefined,
   group_id: undefined,
+  channel_id: undefined,
   request_type: undefined,
   billing_type: null,
   start_date: startDate.value,
@@ -363,6 +364,7 @@ const loadModelStats = async (
       api_key_id: filters.value.api_key_id,
       account_id: filters.value.account_id,
       group_id: filters.value.group_id,
+      channel_id: filters.value.channel_id,
       request_type: requestType,
       stream: legacyStream === null ? undefined : legacyStream,
       billing_type: filters.value.billing_type,
@@ -413,6 +415,7 @@ const loadChartData = async () => {
       api_key_id: filters.value.api_key_id,
       account_id: filters.value.account_id,
       group_id: filters.value.group_id,
+      channel_id: filters.value.channel_id,
       request_type: requestType,
       stream: legacyStream === null ? undefined : legacyStream,
       billing_type: filters.value.billing_type,
@@ -452,6 +455,7 @@ const resetFilters = () => {
   filters.value = {
     start_date: startDate.value,
     end_date: endDate.value,
+    channel_id: undefined,
     request_type: undefined,
     billing_type: null,
   };

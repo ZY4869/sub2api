@@ -155,7 +155,7 @@ func (r *OpenAITokenRefresher) NeedsRefresh(account *Account, refreshWindow time
 
 // Refresh 执行token刷新
 // 保留原有credentials中的所有字段，只更新token相关字段
-// 刷新成功后，异步同步关联的 Sora 账号
+// 刷新成功后，异步同步关联账号
 func (r *OpenAITokenRefresher) Refresh(ctx context.Context, account *Account) (map[string]any, error) {
 	tokenInfo, err := r.openaiOAuthService.RefreshAccountToken(ctx, account)
 	if err != nil {

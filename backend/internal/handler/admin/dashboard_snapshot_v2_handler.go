@@ -41,6 +41,7 @@ type dashboardSnapshotV2Filters struct {
 	APIKeyID    int64
 	AccountID   int64
 	GroupID     int64
+	ChannelID   int64
 	Model       string
 	RequestType *int16
 	Stream      *bool
@@ -55,6 +56,7 @@ type dashboardSnapshotV2CacheKey struct {
 	APIKeyID          int64  `json:"api_key_id"`
 	AccountID         int64  `json:"account_id"`
 	GroupID           int64  `json:"group_id"`
+	ChannelID         int64  `json:"channel_id"`
 	Model             string `json:"model"`
 	RequestType       *int16 `json:"request_type"`
 	Stream            *bool  `json:"stream"`
@@ -100,6 +102,7 @@ func (h *DashboardHandler) GetSnapshotV2(c *gin.Context) {
 		APIKeyID:          filters.APIKeyID,
 		AccountID:         filters.AccountID,
 		GroupID:           filters.GroupID,
+		ChannelID:         filters.ChannelID,
 		Model:             filters.Model,
 		RequestType:       filters.RequestType,
 		Stream:            filters.Stream,
@@ -180,6 +183,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.APIKeyID,
 			filters.AccountID,
 			filters.GroupID,
+			filters.ChannelID,
 			filters.Model,
 			filters.RequestType,
 			filters.Stream,
@@ -200,6 +204,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.APIKeyID,
 			filters.AccountID,
 			filters.GroupID,
+			filters.ChannelID,
 			usagestats.ModelSourceRequested,
 			filters.RequestType,
 			filters.Stream,
@@ -220,6 +225,7 @@ func (h *DashboardHandler) buildSnapshotV2Response(
 			filters.APIKeyID,
 			filters.AccountID,
 			filters.GroupID,
+			filters.ChannelID,
 			filters.RequestType,
 			filters.Stream,
 			filters.BillingType,
@@ -273,6 +279,13 @@ func parseDashboardSnapshotV2Filters(c *gin.Context) (*dashboardSnapshotV2Filter
 			return nil, err
 		}
 		filters.GroupID = id
+	}
+	if channelIDStr := strings.TrimSpace(c.Query("channel_id")); channelIDStr != "" {
+		id, err := strconv.ParseInt(channelIDStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		filters.ChannelID = id
 	}
 
 	if requestTypeStr := strings.TrimSpace(c.Query("request_type")); requestTypeStr != "" {

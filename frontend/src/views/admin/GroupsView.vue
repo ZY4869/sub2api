@@ -574,7 +574,6 @@
           </div>
         </div>
 
-        <!-- Sora 按次计费配置 -->
         <div v-if="false" class="hidden"></div>
 
         <!-- 支持的模型系列（仅 antigravity 平台） -->
@@ -1274,7 +1273,6 @@
           </div>
         </div>
 
-        <!-- Sora 按次计费配置 -->
         <div v-if="false" class="hidden"></div>
 
         <!-- 支持的模型系列（仅 antigravity 平台） -->
@@ -2008,7 +2006,6 @@ const createForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
-  // Sora 按次计费配置
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
   fallback_group_id: null as number | null,
@@ -2249,7 +2246,6 @@ const editForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
-  // Sora 按次计费配置
   // Claude Code 客户端限制（仅 anthropic 平台使用）
   claude_code_only: false,
   fallback_group_id: null as number | null,

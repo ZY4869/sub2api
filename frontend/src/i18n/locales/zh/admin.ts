@@ -1619,7 +1619,7 @@
         runFailed: '批量测试失败',
         loadModelsFailed: '加载共同可用模型失败',
         noSharedModels: '当前选中账号没有共同可用的目录模型，可切换为手动输入或改用自动选模型。',
-        realForwardUnsupportedHint: '当前选中的账号包含 Grok 或 Sora，仅支持快速探活测试。',
+        realForwardUnsupportedHint: '当前选中的账号包含 Grok，仅支持快速探活测试。',
         quickCheck: '快速检测',
         promptLabel: '统一测试提示词',
         promptPlaceholder: '仅真实转发测试会使用这段提示词。',
@@ -1769,9 +1769,7 @@
         responsesWebsocketsV2PassthroughHint: '当前已开启自动透传：仅影响 HTTP 透传链路，不影响 WS mode。',
         codexCLIOnly: '仅允许 Codex 官方客户端',
         codexCLIOnlyDesc: '仅对 OpenAI OAuth 生效。开启后仅允许 Codex 官方客户端家族访问；关闭后完全绕过并保持原逻辑。',
-        modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。',
-        enableSora: '同时启用 Sora',
-        enableSoraHint: 'Sora 使用相同的 OpenAI 账号，开启后将同时创建 Sora 平台账号'
+        modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。'
       },
       anthropic: {
         apiKeyPassthrough: '自动透传（仅替换认证）',
@@ -2219,8 +2217,6 @@
           refreshTokenDesc: '输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 OpenAI Refresh Token...\n支持多个，每行一个',
           sessionTokenAuth: '手动输入 ST',
-          sessionTokenDesc: '输入您已有的 Sora Session Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
-          sessionTokenPlaceholder: '粘贴您的 Sora Session Token...\n支持多个，每行一个',
           sessionTokenRawLabel: '原始字符串',
           sessionTokenRawPlaceholder: '粘贴 /api/auth/session 原始数据或 Session Token...',
           sessionTokenRawHint: '支持粘贴完整 JSON，系统会自动解析 ST 和 AT。',
@@ -3098,6 +3094,7 @@
       codeType: '类型',
       amount: '金额 ($)',
       value: '面值',
+      adjustmentHint: '正数增加、负数扣减、0 非法',
       count: '数量',
       generate: '生成',
       copyAll: '全部复制',
@@ -3114,6 +3111,7 @@
       selectGroupPlaceholder: '选择订阅分组',
       validityDays: '有效天数',
       groupRequired: '请选择订阅分组',
+      nonZeroValueRequired: '请输入非 0 数值',
       days: '天',
       status: {
         unused: '未使用',
@@ -3311,7 +3309,9 @@
       allModels: '全部模型',
       allAccounts: '全部账户',
       allGroups: '全部分组',
+      allChannels: '全部通道',
       allTypes: '全部类型',
+      channel: '通道',
       inputCost: '输入成本',
       outputCost: '输出成本',
       cacheCreationCost: '缓存创建成本',
@@ -3467,6 +3467,7 @@
         '30d': '近30天',
         custom: '自定义'
       },
+      allChannels: '全部通道',
       openaiTokenStats: {
         title: 'OpenAI Token 请求统计',
         viewModeTopN: 'TopN',
@@ -3612,7 +3613,8 @@
           internal: '内部'
         },
         total: '总计：',
-        searchPlaceholder: '搜索 request_id / client_request_id / message'
+        searchPlaceholder: '搜索 request_id / client_request_id / message',
+        channelFilterNotice: '当前列表未按 channel 过滤，仅沿用时间、平台和分组筛选。'
       },
       // Error Detail Modal
       errorDetail: {

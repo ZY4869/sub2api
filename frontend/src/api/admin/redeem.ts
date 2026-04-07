@@ -76,7 +76,7 @@ export async function generate(
   // 订阅类型专用字段
   if (type === 'subscription') {
     payload.group_id = groupId
-    if (validityDays && validityDays > 0) {
+    if (validityDays !== undefined && validityDays !== 0) {
       payload.validity_days = validityDays
     }
   }

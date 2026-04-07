@@ -24,6 +24,7 @@ type opsDashboardReadCacheKey struct {
 	TimeRange     string               `json:"time_range"`
 	Platform      string               `json:"platform"`
 	GroupID       *int64               `json:"group_id"`
+	ChannelID     *int64               `json:"channel_id"`
 	QueryMode     service.OpsQueryMode `json:"mode"`
 	BucketSeconds int                  `json:"bucket_seconds"`
 }
@@ -50,6 +51,13 @@ func buildOpsDashboardFilterFromRequest(
 			return nil, time.Time{}, time.Time{}, errInvalidGroupID
 		}
 		filter.GroupID = &id
+	}
+	if v := strings.TrimSpace(c.Query("channel_id")); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			return nil, time.Time{}, time.Time{}, responseError("Invalid channel_id")
+		}
+		filter.ChannelID = &id
 	}
 
 	return filter, startTime, endTime, nil
@@ -78,6 +86,7 @@ func buildOpsDashboardReadCacheKey(
 		TimeRange:     timeRange,
 		Platform:      filter.Platform,
 		GroupID:       filter.GroupID,
+		ChannelID:     filter.ChannelID,
 		QueryMode:     filter.QueryMode,
 		BucketSeconds: bucketSeconds,
 	})

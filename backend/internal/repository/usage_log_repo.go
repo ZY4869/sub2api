@@ -217,7 +217,7 @@ func (r *usageLogRepository) GetAccountUsageStats(ctx context.Context, accountID
 			UserCost float64 `json:"user_cost"`
 		}{Date: highestRequestDay.Date, Label: highestRequestDay.Label, Requests: highestRequestDay.Requests, Cost: highestRequestDay.ActualCost, UserCost: highestRequestDay.UserCost}
 	}
-	models, err := r.GetModelStatsWithFilters(ctx, startTime, endTime, 0, 0, accountID, 0, nil, nil, nil)
+	models, err := r.GetModelStatsWithFilters(ctx, startTime, endTime, 0, 0, accountID, 0, 0, nil, nil, nil)
 	if err != nil {
 		models = []ModelStat{}
 	}

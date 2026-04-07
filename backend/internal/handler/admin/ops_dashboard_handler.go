@@ -44,6 +44,14 @@ func (h *OpsHandler) GetDashboardOverview(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	if v := strings.TrimSpace(c.Query("channel_id")); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			response.BadRequest(c, "Invalid channel_id")
+			return
+		}
+		filter.ChannelID = &id
+	}
 
 	data, err := h.opsService.GetDashboardOverview(c.Request.Context(), filter)
 	if err != nil {
@@ -142,6 +150,14 @@ func (h *OpsHandler) GetDashboardErrorTrend(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	if v := strings.TrimSpace(c.Query("channel_id")); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			response.BadRequest(c, "Invalid channel_id")
+			return
+		}
+		filter.ChannelID = &id
+	}
 
 	bucketSeconds := pickThroughputBucketSeconds(endTime.Sub(startTime))
 	data, err := h.opsService.GetErrorTrend(c.Request.Context(), filter, bucketSeconds)
@@ -235,6 +251,13 @@ func parseOpsOpenAITokenStatsFilter(c *gin.Context) (*service.OpsOpenAITokenStat
 			return nil, fmt.Errorf("invalid group_id")
 		}
 		filter.GroupID = &id
+	}
+	if v := strings.TrimSpace(c.Query("channel_id")); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			return nil, fmt.Errorf("invalid channel_id")
+		}
+		filter.ChannelID = &id
 	}
 
 	topNRaw := strings.TrimSpace(c.Query("top_n"))

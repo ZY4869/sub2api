@@ -212,7 +212,11 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 			cost = &CostBreakdown{ActualCost: 0}
 		}
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelResolution.Pricing, tokens, multiplier, result.ImageCount)
+	var channelPricing *GatewayChannelResolvedPricing
+	if channelResolution != nil {
+		channelPricing = channelResolution.Pricing
+	}
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
@@ -342,7 +346,11 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 			cost = &CostBreakdown{ActualCost: 0}
 		}
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelResolution.Pricing, tokens, multiplier, result.ImageCount)
+	var channelPricing *GatewayChannelResolvedPricing
+	if channelResolution != nil {
+		channelPricing = channelResolution.Pricing
+	}
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {

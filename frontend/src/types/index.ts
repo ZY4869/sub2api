@@ -48,7 +48,6 @@ export interface AdminUser extends User {
   group_rates?: Record<number, number>;
   // 閻熸粎澧楅幐鍛婃櫠閻樿崵宓侀悹鍝勬惈缁叉椽鏌℃担绋跨盎缂佽鲸鐟︾粋鎺楀川椤栵絽鎮侀梺鑽ゅ仜濡骞夐幎钘夌婵°倕瀚ㄩ埀顒€鍟撮獮鎺楀Ψ閵夈儳绋夐柡澶嗘櫆閺屻劌煤閺嶎厽鏅?
   current_concurrency?: number;
-  // Sora 闁诲孩绋掗敋闁稿绉归弻濠傤吋婢舵ɑ婢撻梺鎸庣☉閻楀棝鎮鸿閹崇偤宕掗敂鍓ь槴
 }
 
 export interface LoginRequest {
@@ -393,8 +392,6 @@ export interface Group {
   image_price_1k: number | null;
   image_price_2k: number | null;
   image_price_4k: number | null;
-  // Sora 闂佸湱顭堥ˇ浼搭敃閼测晜濯奸梽鍥垂閸岀偞鐓€鐎广儱娲ㄩ弸?
-  // Sora 闁诲孩绋掗敋闁稿绉归弻濠傤吋婢舵ɑ婢撻梺鎸庣☉閻楀棝鎮鸿閹崇偤宕掗敂鍓ь槴
   // Claude Code 闁诲骸绠嶉崹娲春濞戞氨鍗氭い鏍仦椤庢瑩鏌?
   claude_code_only: boolean;
   fallback_group_id: number | null;
@@ -1563,6 +1560,7 @@ export interface UsageQueryParams {
   user_id?: number;
   account_id?: number;
   group_id?: number;
+  channel_id?: number;
   model?: string;
   request_type?: UsageRequestType;
   stream?: boolean;

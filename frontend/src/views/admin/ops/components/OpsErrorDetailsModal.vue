@@ -11,6 +11,7 @@ interface Props {
   timeRange: string
   platform?: string
   groupId?: number | null
+  channelId?: number | null
   errorType: 'request' | 'upstream'
 }
 
@@ -189,6 +190,13 @@ watch(
 <template>
   <BaseDialog :show="show" :title="modalTitle" width="full" @close="close">
     <div class="flex h-full min-h-0 flex-col">
+      <div
+        v-if="typeof channelId === 'number' && channelId > 0"
+        class="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
+      >
+        {{ t('admin.ops.errorDetails.channelFilterNotice') }}
+      </div>
+
       <!-- Filters -->
       <div class="mb-4 flex-shrink-0 border-b border-gray-200 pb-4 dark:border-dark-700">
         <div class="grid grid-cols-8 gap-2">

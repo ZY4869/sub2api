@@ -52,7 +52,7 @@ describe('resolveAccountModelImportErrorMessage', () => {
     const message = resolveAccountModelImportErrorMessage(t, {
       response: {
         data: {
-          message: 'current Sora account type does not support real model probing'
+          message: 'current account type does not support real model probing'
         }
       }
     })
