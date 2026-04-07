@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Select from '@/components/common/Select.vue'
+import Select, { type SelectOption } from '@/components/common/Select.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -108,7 +108,7 @@ function formatCustomTimeRangeLabel(startTime: string, endTime: string): string 
 }
 
 const groups = ref<Array<{ id: number; name: string; platform: string }>>([])
-const channelOptions = ref([{ value: null, label: t('admin.ops.allChannels') }])
+const channelOptions = ref<SelectOption[]>([{ value: null, label: t('admin.ops.allChannels') }])
 
 const platformOptions = computed(() => [
   { value: '', label: t('common.all') },
