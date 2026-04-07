@@ -149,13 +149,6 @@ func (s *SettingService) SetStreamTimeoutSettings(ctx context.Context, settings 
 	return s.settingRepo.Set(ctx, SettingKeyStreamTimeoutSettings, string(data))
 }
 
-func maxInt64(value int64, min int64) int64 {
-	if value < min {
-		return min
-	}
-	return value
-}
-
 func logClaudeCodeVersionBoundsFallback(err error) {
 	if err == nil {
 		return

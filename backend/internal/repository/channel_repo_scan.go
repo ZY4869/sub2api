@@ -73,7 +73,9 @@ ORDER BY channel_id, group_id
 	if err != nil {
 		return err
 	}
-	defer groupRows.Close()
+	defer func() {
+		_ = groupRows.Close()
+	}()
 
 	for groupRows.Next() {
 		var channelID, groupID int64
@@ -109,7 +111,9 @@ ORDER BY channel_id, sort_order, id
 	if err != nil {
 		return err
 	}
-	defer pricingRows.Close()
+	defer func() {
+		_ = pricingRows.Close()
+	}()
 
 	pricingByID := make(map[int64]*model.ChannelModelPricing)
 	pricingIDs := make([]int64, 0)
@@ -183,7 +187,9 @@ ORDER BY pricing_id, sort_order, id
 	if err != nil {
 		return err
 	}
-	defer intervalRows.Close()
+	defer func() {
+		_ = intervalRows.Close()
+	}()
 
 	for intervalRows.Next() {
 		var interval model.ChannelPricingInterval

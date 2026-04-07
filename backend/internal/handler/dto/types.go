@@ -379,11 +379,11 @@ type UsageLog struct {
 	// InboundEndpoint is the client-facing API endpoint path, e.g. /v1/chat/completions.
 	InboundEndpoint *string `json:"inbound_endpoint,omitempty"`
 	// UpstreamEndpoint is the normalized upstream endpoint path, e.g. /v1/responses.
-	UpstreamEndpoint *string `json:"upstream_endpoint,omitempty"`
-	ChannelID        *int64  `json:"channel_id,omitempty"`
+	UpstreamEndpoint  *string `json:"upstream_endpoint,omitempty"`
+	ChannelID         *int64  `json:"channel_id,omitempty"`
 	ModelMappingChain *string `json:"model_mapping_chain,omitempty"`
-	BillingTier      *string `json:"billing_tier,omitempty"`
-	BillingMode      *string `json:"billing_mode,omitempty"`
+	BillingTier       *string `json:"billing_tier,omitempty"`
+	BillingMode       *string `json:"billing_mode,omitempty"`
 
 	GroupID        *int64 `json:"group_id"`
 	SubscriptionID *int64 `json:"subscription_id"`

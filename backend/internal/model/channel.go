@@ -14,23 +14,23 @@ const (
 	ChannelBillingModePerRequest = "per_request"
 	ChannelBillingModeImage      = "image"
 
-	ChannelBillingModelSourceMapped   = "channel_mapped"
+	ChannelBillingModelSourceMapped    = "channel_mapped"
 	ChannelBillingModelSourceRequested = "requested"
 	ChannelBillingModelSourceUpstream  = "upstream"
 )
 
 type Channel struct {
-	ID                 int64                         `json:"id"`
-	Name               string                        `json:"name"`
-	Description        string                        `json:"description,omitempty"`
-	Status             string                        `json:"status"`
-	RestrictModels     bool                          `json:"restrict_models"`
-	BillingModelSource string                        `json:"billing_model_source"`
-	GroupIDs           []int64                       `json:"group_ids"`
-	ModelMapping       map[string]map[string]string  `json:"model_mapping"`
-	ModelPricing       []ChannelModelPricing         `json:"model_pricing"`
-	CreatedAt          time.Time                     `json:"created_at"`
-	UpdatedAt          time.Time                     `json:"updated_at"`
+	ID                 int64                        `json:"id"`
+	Name               string                       `json:"name"`
+	Description        string                       `json:"description,omitempty"`
+	Status             string                       `json:"status"`
+	RestrictModels     bool                         `json:"restrict_models"`
+	BillingModelSource string                       `json:"billing_model_source"`
+	GroupIDs           []int64                      `json:"group_ids"`
+	ModelMapping       map[string]map[string]string `json:"model_mapping"`
+	ModelPricing       []ChannelModelPricing        `json:"model_pricing"`
+	CreatedAt          time.Time                    `json:"created_at"`
+	UpdatedAt          time.Time                    `json:"updated_at"`
 }
 
 type ChannelModelPricing struct {

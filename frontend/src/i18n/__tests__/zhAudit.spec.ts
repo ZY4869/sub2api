@@ -6,7 +6,7 @@ describe('zh locale audit', () => {
     expect(zh.admin.dataManagement.form.s3.region).toBe('区域')
     expect(zh.admin.accounts.kiroAuth.startUrl).toBe('起始 URL')
     expect(zh.admin.accounts.kiroAuth.region).toBe('区域')
-    expect(zh.admin.dataManagement.form.s3.accessKeyId).toBe('访问密钥 ID')
+    expect(zh.admin.dataManagement.form.s3.accessKeyID).toBe('访问密钥 ID')
     expect(zh.admin.dataManagement.form.s3.secretAccessKey).toBe('秘密访问密钥')
   })
 

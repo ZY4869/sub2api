@@ -233,18 +233,18 @@ LIMIT $%d OFFSET $%d
 	out := make([]*service.OpsRequestDetail, 0, pageSize)
 	for rows.Next() {
 		var (
-			kind      string
-			createdAt time.Time
-			requestID sql.NullString
-			platform  sql.NullString
-			model     sql.NullString
-			channelID sql.NullInt64
-			channelName sql.NullString
+			kind              string
+			createdAt         time.Time
+			requestID         sql.NullString
+			platform          sql.NullString
+			model             sql.NullString
+			channelID         sql.NullInt64
+			channelName       sql.NullString
 			modelMappingChain sql.NullString
-			billingTier sql.NullString
-			billingMode sql.NullString
+			billingTier       sql.NullString
+			billingMode       sql.NullString
 			imageOutputTokens sql.NullInt64
-			imageOutputCost sql.NullFloat64
+			imageOutputCost   sql.NullFloat64
 
 			durationMs sql.NullInt64
 			statusCode sql.NullInt64
@@ -291,16 +291,16 @@ LIMIT $%d OFFSET $%d
 		}
 
 		item := &service.OpsRequestDetail{
-			Kind:      service.OpsRequestKind(kind),
-			CreatedAt: createdAt,
-			RequestID: strings.TrimSpace(requestID.String),
-			Platform:  strings.TrimSpace(platform.String),
-			Model:     strings.TrimSpace(model.String),
-			ChannelID: toInt64Ptr(channelID),
-			ChannelName: strings.TrimSpace(channelName.String),
+			Kind:              service.OpsRequestKind(kind),
+			CreatedAt:         createdAt,
+			RequestID:         strings.TrimSpace(requestID.String),
+			Platform:          strings.TrimSpace(platform.String),
+			Model:             strings.TrimSpace(model.String),
+			ChannelID:         toInt64Ptr(channelID),
+			ChannelName:       strings.TrimSpace(channelName.String),
 			ModelMappingChain: strings.TrimSpace(modelMappingChain.String),
-			BillingTier: strings.TrimSpace(billingTier.String),
-			BillingMode: strings.TrimSpace(billingMode.String),
+			BillingTier:       strings.TrimSpace(billingTier.String),
+			BillingMode:       strings.TrimSpace(billingMode.String),
 
 			DurationMs: toIntPtr(durationMs),
 			StatusCode: toIntPtr(statusCode),

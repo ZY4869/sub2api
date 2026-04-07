@@ -207,7 +207,8 @@ function readField(key: PricingFieldKey) {
 }
 
 function writeField(key: PricingFieldKey, value: string) {
-  ;(local[key] as number | string | null) = value === '' ? null : Number(value)
+  const fields = local as Record<PricingFieldKey, number | string | null>
+  fields[key] = value === '' ? null : Number(value)
   sync()
 }
 
@@ -242,7 +243,8 @@ function readIntervalField(interval: IntervalFormEntry, key: IntervalFieldKey) {
 }
 
 function writeIntervalField(index: number, key: IntervalFieldKey, value: string) {
-  ;(local.intervals[index][key] as number | string | null) = value === '' ? null : Number(value)
+  const interval = local.intervals[index] as Record<IntervalFieldKey, number | string | null>
+  interval[key] = value === '' ? null : Number(value)
   sync()
 }
 </script>

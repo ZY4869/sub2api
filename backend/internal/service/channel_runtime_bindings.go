@@ -15,11 +15,3 @@ func (s *OpenAIGatewayService) ResolveChannelState(ctx context.Context, group *G
 	}
 	return s.channelService.ResolveGatewayState(ctx, group.ID, group.Platform, requestedModel)
 }
-
-func attachChannelState(selection *AccountSelectionResult, state *GatewayChannelState) *AccountSelectionResult {
-	if selection == nil || state == nil {
-		return selection
-	}
-	selection.ChannelState = state
-	return selection
-}

@@ -405,7 +405,6 @@ func (r *opsRepository) listHourlyMetricsRows(ctx context.Context, filter *servi
 		if platform != "" {
 			where += fmt.Sprintf(" AND platform = $%d", idx)
 			args = append(args, platform)
-			idx++
 		}
 	case groupID != nil && *groupID > 0:
 		where += fmt.Sprintf(" AND group_id = $%d", idx)
@@ -415,7 +414,6 @@ func (r *opsRepository) listHourlyMetricsRows(ctx context.Context, filter *servi
 		if platform != "" {
 			where += fmt.Sprintf(" AND platform = $%d", idx)
 			args = append(args, platform)
-			idx++
 		}
 	case channelID != nil && *channelID > 0 && platform != "":
 		where += fmt.Sprintf(" AND platform = $%d", idx)
@@ -424,16 +422,13 @@ func (r *opsRepository) listHourlyMetricsRows(ctx context.Context, filter *servi
 		where += " AND group_id IS NULL"
 		where += fmt.Sprintf(" AND channel_id = $%d", idx)
 		args = append(args, *channelID)
-		idx++
 	case channelID != nil && *channelID > 0:
 		where += fmt.Sprintf(" AND channel_id = $%d", idx)
 		args = append(args, *channelID)
-		idx++
 		where += " AND platform IS NULL AND group_id IS NULL"
 	case platform != "":
 		where += fmt.Sprintf(" AND platform = $%d AND group_id IS NULL", idx)
 		args = append(args, platform)
-		idx++
 		where += " AND channel_id IS NULL"
 	default:
 		where += " AND platform IS NULL AND group_id IS NULL AND channel_id IS NULL"

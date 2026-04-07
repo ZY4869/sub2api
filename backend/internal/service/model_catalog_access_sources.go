@@ -157,18 +157,6 @@ func modelCatalogUsesMixedScheduling(platform string) bool {
 	}
 }
 
-func modelCatalogSupportsPlatform(record *modelCatalogRecord, platform string) bool {
-	if record == nil {
-		return false
-	}
-	for _, current := range record.defaultPlatforms {
-		if strings.EqualFold(strings.TrimSpace(current), platform) {
-			return true
-		}
-	}
-	return false
-}
-
 func modelCatalogSupportCandidates(record *modelCatalogRecord) []string {
 	if record == nil {
 		return nil

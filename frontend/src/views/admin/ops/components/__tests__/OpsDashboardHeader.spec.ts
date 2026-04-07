@@ -47,8 +47,8 @@ vi.mock('vue-i18n', async (importOriginal) => {
   }
 })
 
-const SelectStub = defineComponent({
-  name: 'Select',
+const SelectStubComponent = defineComponent({
+  name: 'SelectStubComponent',
   props: {
     modelValue: {
       type: [String, Number, Boolean],
@@ -93,7 +93,7 @@ describe('OpsDashboardHeader', () => {
       },
       global: {
         stubs: {
-          Select: SelectStub,
+          Select: SelectStubComponent,
           HelpTooltip: true,
           BaseDialog: true,
           Icon: true,

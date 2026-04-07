@@ -188,6 +188,7 @@ type CircuitBreakerConfig struct {
 type ConcurrencyConfig struct {
 	PingInterval int `mapstructure:"ping_interval"`
 }
+
 func (s *ServerConfig) Address() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }

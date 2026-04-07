@@ -55,8 +55,8 @@ type OpsRequestDetailFilter struct {
 	// kind: success|error|all
 	Kind string
 
-	Platform string
-	GroupID  *int64
+	Platform  string
+	GroupID   *int64
 	ChannelID *int64
 
 	UserID    *int64
