@@ -59,6 +59,14 @@ func applySelectedAPIKeyContext(c *gin.Context, apiKey *service.APIKey, subscrip
 	c.Request = c.Request.WithContext(ctx)
 }
 
+func isGroupExcluded(apiKey *service.APIKey, excludedGroupIDs map[int64]struct{}) bool {
+	if apiKey == nil || apiKey.GroupID == nil || len(excludedGroupIDs) == 0 {
+		return false
+	}
+	_, excluded := excludedGroupIDs[*apiKey.GroupID]
+	return excluded
+}
+
 func resolveSelectedGatewayAPIKey(
 	c *gin.Context,
 	settingService *service.SettingService,
@@ -71,6 +79,9 @@ func resolveSelectedGatewayAPIKey(
 	excludedGroupIDs map[int64]struct{},
 ) (*service.APIKey, *service.UserSubscription, error) {
 	if !multiGroupRoutingEnabled(c.Request.Context(), apiKey, settingService) {
+		if isGroupExcluded(apiKey, excludedGroupIDs) {
+			return nil, nil, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
 		return apiKey, subscription, nil
 	}
 	binding, err := gatewayService.SelectGroupForAllowedPlatforms(c.Request.Context(), apiKey, allowedPlatforms, model, excludedGroupIDs)
@@ -101,6 +112,9 @@ func resolveSelectedOpenAIAPIKey(
 	excludedGroupIDs map[int64]struct{},
 ) (*service.APIKey, *service.UserSubscription, error) {
 	if !multiGroupRoutingEnabled(c.Request.Context(), apiKey, settingService) {
+		if isGroupExcluded(apiKey, excludedGroupIDs) {
+			return nil, nil, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted")
+		}
 		return apiKey, subscription, nil
 	}
 	binding, err := gatewayService.SelectGroupForAllowedPlatforms(c.Request.Context(), apiKey, allowedPlatforms, model, excludedGroupIDs)
