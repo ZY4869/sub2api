@@ -358,90 +358,11 @@ func (c *Config) Validate() error {
 	if c.Gateway.ProxyProbeResponseReadMaxBytes <= 0 {
 		return fmt.Errorf("gateway.proxy_probe_response_read_max_bytes must be positive")
 	}
-	if c.Gateway.SoraMaxBodySize < 0 {
-		return fmt.Errorf("gateway.sora_max_body_size must be non-negative")
-	}
-	if c.Gateway.SoraStreamTimeoutSeconds < 0 {
-		return fmt.Errorf("gateway.sora_stream_timeout_seconds must be non-negative")
-	}
 	if c.Gateway.GrokVideoPollIntervalSeconds < 0 {
 		return fmt.Errorf("gateway.grok_video_poll_interval_seconds must be non-negative")
 	}
 	if c.Gateway.GrokVideoWaitTimeoutSeconds < 0 {
 		return fmt.Errorf("gateway.grok_video_wait_timeout_seconds must be non-negative")
-	}
-	if c.Gateway.SoraRequestTimeoutSeconds < 0 {
-		return fmt.Errorf("gateway.sora_request_timeout_seconds must be non-negative")
-	}
-	if c.Gateway.SoraMediaSignedURLTTLSeconds < 0 {
-		return fmt.Errorf("gateway.sora_media_signed_url_ttl_seconds must be non-negative")
-	}
-	if mode := strings.TrimSpace(strings.ToLower(c.Gateway.SoraStreamMode)); mode != "" {
-		switch mode {
-		case "force", "error":
-		default:
-			return fmt.Errorf("gateway.sora_stream_mode must be one of: force/error")
-		}
-	}
-	if c.Sora.Client.TimeoutSeconds < 0 {
-		return fmt.Errorf("sora.client.timeout_seconds must be non-negative")
-	}
-	if c.Sora.Client.MaxRetries < 0 {
-		return fmt.Errorf("sora.client.max_retries must be non-negative")
-	}
-	if c.Sora.Client.CloudflareChallengeCooldownSeconds < 0 {
-		return fmt.Errorf("sora.client.cloudflare_challenge_cooldown_seconds must be non-negative")
-	}
-	if c.Sora.Client.PollIntervalSeconds < 0 {
-		return fmt.Errorf("sora.client.poll_interval_seconds must be non-negative")
-	}
-	if c.Sora.Client.MaxPollAttempts < 0 {
-		return fmt.Errorf("sora.client.max_poll_attempts must be non-negative")
-	}
-	if c.Sora.Client.RecentTaskLimit < 0 {
-		return fmt.Errorf("sora.client.recent_task_limit must be non-negative")
-	}
-	if c.Sora.Client.RecentTaskLimitMax < 0 {
-		return fmt.Errorf("sora.client.recent_task_limit_max must be non-negative")
-	}
-	if c.Sora.Client.RecentTaskLimitMax > 0 && c.Sora.Client.RecentTaskLimit > 0 && c.Sora.Client.RecentTaskLimitMax < c.Sora.Client.RecentTaskLimit {
-		c.Sora.Client.RecentTaskLimitMax = c.Sora.Client.RecentTaskLimit
-	}
-	if c.Sora.Client.CurlCFFISidecar.TimeoutSeconds < 0 {
-		return fmt.Errorf("sora.client.curl_cffi_sidecar.timeout_seconds must be non-negative")
-	}
-	if c.Sora.Client.CurlCFFISidecar.SessionTTLSeconds < 0 {
-		return fmt.Errorf("sora.client.curl_cffi_sidecar.session_ttl_seconds must be non-negative")
-	}
-	if !c.Sora.Client.CurlCFFISidecar.Enabled {
-		return fmt.Errorf("sora.client.curl_cffi_sidecar.enabled must be true")
-	}
-	if strings.TrimSpace(c.Sora.Client.CurlCFFISidecar.BaseURL) == "" {
-		return fmt.Errorf("sora.client.curl_cffi_sidecar.base_url is required")
-	}
-	if c.Sora.Storage.MaxConcurrentDownloads < 0 {
-		return fmt.Errorf("sora.storage.max_concurrent_downloads must be non-negative")
-	}
-	if c.Sora.Storage.DownloadTimeoutSeconds < 0 {
-		return fmt.Errorf("sora.storage.download_timeout_seconds must be non-negative")
-	}
-	if c.Sora.Storage.MaxDownloadBytes < 0 {
-		return fmt.Errorf("sora.storage.max_download_bytes must be non-negative")
-	}
-	if c.Sora.Storage.Cleanup.Enabled {
-		if c.Sora.Storage.Cleanup.RetentionDays <= 0 {
-			return fmt.Errorf("sora.storage.cleanup.retention_days must be positive")
-		}
-		if strings.TrimSpace(c.Sora.Storage.Cleanup.Schedule) == "" {
-			return fmt.Errorf("sora.storage.cleanup.schedule is required when cleanup is enabled")
-		}
-	} else {
-		if c.Sora.Storage.Cleanup.RetentionDays < 0 {
-			return fmt.Errorf("sora.storage.cleanup.retention_days must be non-negative")
-		}
-	}
-	if storageType := strings.TrimSpace(strings.ToLower(c.Sora.Storage.Type)); storageType != "" && storageType != "local" {
-		return fmt.Errorf("sora.storage.type must be 'local'")
 	}
 	if strings.TrimSpace(c.Gateway.ConnectionPoolIsolation) != "" {
 		switch c.Gateway.ConnectionPoolIsolation {

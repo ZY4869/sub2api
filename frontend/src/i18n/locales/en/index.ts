@@ -23,7 +23,6 @@ import customPage from './customPage'
 import announcements from './announcements'
 import userSubscriptions from './userSubscriptions'
 import onboarding from './onboarding'
-import sora from './sora'
 import ui from './ui'
 
 export default {
@@ -52,6 +51,5 @@ export default {
   ...announcements,
   ...userSubscriptions,
   ...onboarding,
-  ...sora,
   ...ui,
 }

@@ -197,7 +197,7 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 	granularity := c.DefaultQuery("granularity", "day")
 
 	// Parse optional filter params
-	var userID, apiKeyID, accountID, groupID int64
+	var userID, apiKeyID, accountID, groupID, channelID int64
 	var model string
 	var requestType *int16
 	var stream *bool
@@ -221,6 +221,11 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
 		if id, err := strconv.ParseInt(groupIDStr, 10, 64); err == nil {
 			groupID = id
+		}
+	}
+	if channelIDStr := c.Query("channel_id"); channelIDStr != "" {
+		if id, err := strconv.ParseInt(channelIDStr, 10, 64); err == nil {
+			channelID = id
 		}
 	}
 	if modelStr := c.Query("model"); modelStr != "" {
@@ -252,7 +257,7 @@ func (h *DashboardHandler) GetUsageTrend(c *gin.Context) {
 		}
 	}
 
-	trend, hit, err := h.getUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, model, requestType, stream, billingType)
+	trend, hit, err := h.getUsageTrendCached(c.Request.Context(), startTime, endTime, granularity, userID, apiKeyID, accountID, groupID, channelID, model, requestType, stream, billingType)
 	if err != nil {
 		response.Error(c, 500, "Failed to get usage trend")
 		return
@@ -274,7 +279,7 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 
 	// Parse optional filter params
-	var userID, apiKeyID, accountID, groupID int64
+	var userID, apiKeyID, accountID, groupID, channelID int64
 	modelSource := usagestats.ModelSourceRequested
 	var requestType *int16
 	var stream *bool
@@ -298,6 +303,11 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
 		if id, err := strconv.ParseInt(groupIDStr, 10, 64); err == nil {
 			groupID = id
+		}
+	}
+	if channelIDStr := c.Query("channel_id"); channelIDStr != "" {
+		if id, err := strconv.ParseInt(channelIDStr, 10, 64); err == nil {
+			channelID = id
 		}
 	}
 	if rawModelSource := strings.TrimSpace(c.Query("model_source")); rawModelSource != "" {
@@ -333,7 +343,7 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 		}
 	}
 
-	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, modelSource, requestType, stream, billingType)
+	stats, hit, err := h.getModelStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, channelID, modelSource, requestType, stream, billingType)
 	if err != nil {
 		response.Error(c, 500, "Failed to get model statistics")
 		return
@@ -353,7 +363,7 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 	startTime, endTime := parseTimeRange(c)
 
-	var userID, apiKeyID, accountID, groupID int64
+	var userID, apiKeyID, accountID, groupID, channelID int64
 	var requestType *int16
 	var stream *bool
 	var billingType *int8
@@ -376,6 +386,11 @@ func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
 		if id, err := strconv.ParseInt(groupIDStr, 10, 64); err == nil {
 			groupID = id
+		}
+	}
+	if channelIDStr := c.Query("channel_id"); channelIDStr != "" {
+		if id, err := strconv.ParseInt(channelIDStr, 10, 64); err == nil {
+			channelID = id
 		}
 	}
 	if requestTypeStr := strings.TrimSpace(c.Query("request_type")); requestTypeStr != "" {
@@ -404,7 +419,7 @@ func (h *DashboardHandler) GetGroupStats(c *gin.Context) {
 		}
 	}
 
-	stats, hit, err := h.getGroupStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, requestType, stream, billingType)
+	stats, hit, err := h.getGroupStatsCached(c.Request.Context(), startTime, endTime, userID, apiKeyID, accountID, groupID, channelID, requestType, stream, billingType)
 	if err != nil {
 		response.Error(c, 500, "Failed to get group statistics")
 		return

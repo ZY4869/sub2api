@@ -59,8 +59,6 @@ func registryRouteForAccount(account *Account) string {
 		return "gemini"
 	case PlatformAntigravity:
 		return "antigravity"
-	case PlatformSora:
-		return "sora"
 	default:
 		return "default"
 	}

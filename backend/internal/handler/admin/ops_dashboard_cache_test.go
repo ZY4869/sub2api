@@ -182,3 +182,23 @@ func TestOpsHandler_GetDashboardThroughputTrend_UsesCacheAndETag(t *testing.T) {
 	require.Equal(t, http.StatusNotModified, rec3.Code)
 	require.Equal(t, int32(1), repo.throughputCalls.Load())
 }
+
+func TestBuildOpsDashboardReadCacheKey_ChannelIDDistinct(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec1 := httptest.NewRecorder()
+	c1, _ := gin.CreateTestContext(rec1)
+	c1.Request = httptest.NewRequest(http.MethodGet, "/admin/ops/dashboard/throughput-trend?time_range=1h&channel_id=7", nil)
+	filter1, _, _, err := buildOpsDashboardFilterFromRequest(c1, "1h")
+	require.NoError(t, err)
+	key1 := buildOpsDashboardReadCacheKey(c1, "1h", filter1, 60)
+
+	rec2 := httptest.NewRecorder()
+	c2, _ := gin.CreateTestContext(rec2)
+	c2.Request = httptest.NewRequest(http.MethodGet, "/admin/ops/dashboard/throughput-trend?time_range=1h&channel_id=8", nil)
+	filter2, _, _, err := buildOpsDashboardFilterFromRequest(c2, "1h")
+	require.NoError(t, err)
+	key2 := buildOpsDashboardReadCacheKey(c2, "1h", filter2, 60)
+
+	require.NotEqual(t, key1, key2)
+}

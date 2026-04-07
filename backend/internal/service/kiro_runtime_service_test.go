@@ -258,7 +258,7 @@ func TestGatewayService_Forward_KiroUsesRuntimeEndpoint(t *testing.T) {
 		httpUpstream: upstream,
 	}
 	body := []byte(`{"model":"claude-haiku-4.5","messages":[{"role":"user","content":"hi"}],"max_tokens":32}`)
-	c, recorder := newSoraTestContext()
+	c, recorder := newGatewayTestContext()
 
 	result, err := svc.Forward(c.Request.Context(), c, account, &ParsedRequest{
 		Body:     body,

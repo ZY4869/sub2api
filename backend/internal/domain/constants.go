@@ -23,7 +23,6 @@ const (
 	PlatformGemini          = "gemini"
 	PlatformProtocolGateway = "protocol_gateway"
 	PlatformAntigravity     = "antigravity"
-	PlatformSora            = "sora"
 	PlatformKiro            = "kiro"
 	PlatformCopilot         = "copilot"
 	PlatformGrok            = "grok"

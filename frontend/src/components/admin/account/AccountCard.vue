@@ -29,6 +29,9 @@
           :type="account.type"
           :plan-type="String(account.credentials?.plan_type || '') || undefined"
           :privacy-mode="String(account.extra?.privacy_mode || '') || undefined"
+          :subscription-expires-at="
+            String(account.credentials?.subscription_expires_at || '') || undefined
+          "
         />
       </div>
 

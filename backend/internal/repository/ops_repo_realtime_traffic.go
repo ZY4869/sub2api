@@ -115,6 +115,7 @@ FROM combined`
 		EndTime:   end,
 		Platform:  strings.TrimSpace(filter.Platform),
 		GroupID:   filter.GroupID,
+		ChannelID: filter.ChannelID,
 		QPS: service.OpsRateSummary{
 			Current: qpsCurrent,
 			Peak:    qpsPeak,

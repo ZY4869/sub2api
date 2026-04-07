@@ -29,8 +29,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
-    docs: 'Docs',
-    sora: 'Sora Studio'
+    docs: 'Docs'
   },
 
   // Auth,

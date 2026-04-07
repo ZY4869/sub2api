@@ -223,10 +223,12 @@
                 v-model.number="generateForm.value"
                 type="number"
                 :step="generateForm.type === 'balance' ? '0.01' : '1'"
-                :min="generateForm.type === 'balance' ? '0.01' : '1'"
                 required
                 class="input"
               />
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.redeem.adjustmentHint') }}
+              </p>
             </div>
             <!-- 邀请码类型：显示提示信息 -->
             <div v-if="generateForm.type === 'invitation'" class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
@@ -272,11 +274,13 @@
                 <input
                   v-model.number="generateForm.validity_days"
                   type="number"
-                  min="1"
                   max="365"
                   required
                   class="input"
                 />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.redeem.adjustmentHint') }}
+                </p>
               </div>
             </template>
             <div>
@@ -633,6 +637,20 @@ const handleGenerateCodes = async () => {
   // 订阅类型必须选择分组
   if (generateForm.type === 'subscription' && !generateForm.group_id) {
     appStore.showError(t('admin.redeem.groupRequired'))
+    return
+  }
+  if (
+    (generateForm.type === 'balance' || generateForm.type === 'concurrency') &&
+    (!Number.isFinite(generateForm.value) || generateForm.value === 0)
+  ) {
+    appStore.showError(t('admin.redeem.nonZeroValueRequired'))
+    return
+  }
+  if (
+    generateForm.type === 'subscription' &&
+    (!Number.isFinite(generateForm.validity_days) || generateForm.validity_days === 0)
+  ) {
+    appStore.showError(t('admin.redeem.nonZeroValueRequired'))
     return
   }
 

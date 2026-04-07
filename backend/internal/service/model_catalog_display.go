@@ -34,7 +34,7 @@ func InferModelCatalogIconKey(model string) string {
 		return "claude"
 	case strings.HasPrefix(canonical, "gemini"):
 		return "gemini"
-	case strings.HasPrefix(canonical, "gpt"), strings.HasPrefix(canonical, "sora"), strings.HasPrefix(canonical, "codex"), openAIReasoningModelPattern.MatchString(canonical):
+	case strings.HasPrefix(canonical, "gpt"), strings.HasPrefix(canonical, "codex"), openAIReasoningModelPattern.MatchString(canonical):
 		return "chatgpt"
 	default:
 		return ""
@@ -49,8 +49,6 @@ func formatModelCatalogBrand(value string) string {
 		return "GPT"
 	case "gemini":
 		return "Gemini"
-	case "sora":
-		return "Sora"
 	case "codex":
 		return "Codex"
 	default:

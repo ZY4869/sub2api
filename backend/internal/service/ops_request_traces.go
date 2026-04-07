@@ -732,7 +732,7 @@ func buildOpsRequestTraceSearchText(input *OpsInsertRequestTraceInput) string {
 
 func dedupeNonEmptyStrings(items []string) []string {
 	if len(items) == 0 {
-		return nil
+		return []string{}
 	}
 	out := make([]string, 0, len(items))
 	seen := make(map[string]struct{}, len(items))
@@ -746,6 +746,9 @@ func dedupeNonEmptyStrings(items []string) []string {
 		}
 		seen[value] = struct{}{}
 		out = append(out, value)
+	}
+	if len(out) == 0 {
+		return []string{}
 	}
 	return out
 }

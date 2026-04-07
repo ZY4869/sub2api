@@ -139,6 +139,11 @@
           <Select v-model="filters.group_id" :options="groupOptions" searchable @change="emitChange" />
         </div>
 
+        <div class="w-full sm:w-auto sm:min-w-[220px]">
+          <label class="input-label">{{ t('admin.usage.channel') }}</label>
+          <Select v-model="filters.channel_id" :options="channelOptions" searchable @change="emitChange" />
+        </div>
+
       </div>
 
       <!-- Right: actions -->
@@ -167,6 +172,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import type { SimpleApiKey, SimpleUser } from '@/api/admin/usage'
+import { loadAllAdminChannelOptions } from '@/utils/adminChannelOptions'
 
 type ModelValue = Record<string, any>
 
@@ -218,6 +224,7 @@ let accountSearchTimeout: ReturnType<typeof setTimeout> | null = null
 
 const modelOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allModels') }])
 const groupOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allGroups') }])
+const channelOptions = ref<SelectOption[]>([{ value: null, label: t('admin.usage.allChannels') }])
 
 const requestTypeOptions = ref<SelectOption[]>([
   { value: null, label: t('admin.usage.allTypes') },
@@ -409,12 +416,14 @@ onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
 
   try {
-    const [gs, ms] = await Promise.all([
+    const [gs, ms, channels] = await Promise.all([
       adminAPI.groups.list(1, 1000),
-      adminAPI.dashboard.getModelStats({ start_date: props.startDate, end_date: props.endDate })
+      adminAPI.dashboard.getModelStats({ start_date: props.startDate, end_date: props.endDate }),
+      loadAllAdminChannelOptions()
     ])
 
     groupOptions.value.push(...gs.items.map((g: any) => ({ value: g.id, label: g.name })))
+    channelOptions.value.push(...channels)
 
     const uniqueModels = new Set<string>()
     ms.models?.forEach((s: any) => {

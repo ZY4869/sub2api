@@ -60,7 +60,6 @@ const PROVIDER_ICON_ALIASES: Record<string, string> = {
   jina: 'jina',
   midjourney: 'midjourney',
   suno: 'suno',
-  sora: 'openai',
   baichuan: 'baichuan',
   stepfun: 'stepfun',
   ai360: 'ai360'
@@ -72,7 +71,6 @@ type ModelIconMatcher = {
 }
 
 const MODEL_ICON_MATCHERS: ModelIconMatcher[] = [
-  { slug: 'sora', test: (value) => value.includes('sora') },
   { slug: 'dalle', test: (value) => value.includes('dall-e') || value.includes('dalle') || value.includes('gpt-image') },
   { slug: 'codex', test: (value) => value.includes('codex') },
   { slug: 'claude', test: (value) => value.includes('claude') },

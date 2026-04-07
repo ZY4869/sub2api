@@ -79,9 +79,14 @@ vi.mock("@/utils/format", () => ({
 }));
 
 vi.mock("vue-i18n", async () => {
-  const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
   return {
-    ...actual,
+    createI18n: () => ({
+      global: {
+        locale: {
+          value: "zh-CN",
+        },
+      },
+    }),
     useI18n: () => ({
       t: (key: string) => messages[key] ?? key,
     }),
@@ -89,7 +94,20 @@ vi.mock("vue-i18n", async () => {
 });
 
 const AppLayoutStub = { template: "<div><slot /></div>" };
-const UsageFiltersStub = { template: '<div><slot name="after-reset" /></div>' };
+const UsageFiltersStub = {
+  props: ["modelValue"],
+  template: `
+    <div>
+      <button
+        data-test="apply-channel-filter"
+        @click="$emit('update:modelValue', { ...modelValue, channel_id: 11 }); $emit('change')"
+      >
+        apply channel
+      </button>
+      <slot name="after-reset" />
+    </div>
+  `,
+};
 const UsageTableStub = {
   props: ["columns"],
   template:
@@ -236,5 +254,53 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(renderedColumns).toContain("reasoning_effort");
     expect(renderedColumns).toContain("endpoint");
     expect(renderedColumns).not.toContain("user_agent");
+  });
+
+  it("passes channel_id to usage list, stats, and charts when filters change", async () => {
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          UsageStatsCards: true,
+          UsageFilters: UsageFiltersStub,
+          UsageTable: UsageTableStub,
+          UsageExportProgress: true,
+          UsageCleanupDialog: true,
+          UserBalanceHistoryModal: true,
+          Pagination: true,
+          Select: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          TokenUsageTrend: true,
+          ModelDistributionChart: ModelDistributionChartStub,
+          GroupDistributionChart: GroupDistributionChartStub,
+        },
+      },
+    });
+
+    vi.advanceTimersByTime(120);
+    await flushPromises();
+
+    list.mockClear();
+    getStats.mockClear();
+    getSnapshotV2.mockClear();
+    getModelStats.mockClear();
+
+    await wrapper.get('[data-test="apply-channel-filter"]').trigger("click");
+    await flushPromises();
+
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({ channel_id: 11 }),
+      expect.any(Object),
+    );
+    expect(getStats).toHaveBeenCalledWith(
+      expect.objectContaining({ channel_id: 11 }),
+    );
+    expect(getSnapshotV2).toHaveBeenCalledWith(
+      expect.objectContaining({ channel_id: 11 }),
+    );
+    expect(getModelStats).toHaveBeenCalledWith(
+      expect.objectContaining({ channel_id: 11, model_source: "requested" }),
+    );
   });
 });

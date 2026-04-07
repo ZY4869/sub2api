@@ -852,7 +852,6 @@ func (s *stubAdminService) CheckProxyQuality(ctx context.Context, id int64) (*se
 			{Target: "openai", Status: "pass", HTTPStatus: 401},
 			{Target: "anthropic", Status: "pass", HTTPStatus: 401},
 			{Target: "gemini", Status: "pass", HTTPStatus: 200},
-			{Target: "sora", Status: "pass", HTTPStatus: 401},
 		},
 	}, nil
 }
@@ -917,6 +916,10 @@ func (s *stubAdminService) ResetAccountQuota(ctx context.Context, id int64) erro
 }
 
 func (s *stubAdminService) EnsureOpenAIPrivacy(ctx context.Context, account *service.Account) string {
+	return ""
+}
+
+func (s *stubAdminService) EnsureAntigravityPrivacy(ctx context.Context, account *service.Account) string {
 	return ""
 }
 

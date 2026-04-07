@@ -130,24 +130,6 @@ func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]mod
 			})
 		}
 	}
-	for _, model := range DefaultSoraModels(s.cfg) {
-		details = append(details, modelregistry.AdminModelDetail{
-			ModelEntry: modelregistry.ModelEntry{
-				ID:               model.ID,
-				DisplayName:      model.DisplayName,
-				Provider:         PlatformOpenAI,
-				Platforms:        []string{PlatformSora},
-				ProtocolIDs:      []string{model.ID},
-				Aliases:          []string{},
-				PricingLookupIDs: []string{model.ID},
-				Modalities:       defaultModalitiesForMode(inferModelMode(model.ID, model.Type)),
-				Capabilities:     defaultCapabilitiesForMode(inferModelMode(model.ID, model.Type)),
-				UIPriority:       5000,
-				ExposedIn:        []string{"runtime"},
-			},
-			Available: true,
-		})
-	}
 	return details, nil
 }
 
@@ -289,7 +271,7 @@ func inferModelProvider(model string) string {
 		return PlatformGemini
 	case strings.HasPrefix(model, "grok"):
 		return PlatformGrok
-	case strings.HasPrefix(model, "gpt"), strings.HasPrefix(model, "sora"), strings.HasPrefix(model, "codex"), openAIReasoningModelPattern.MatchString(model), strings.HasPrefix(model, "prompt-enhance"):
+	case strings.HasPrefix(model, "gpt"), strings.HasPrefix(model, "codex"), openAIReasoningModelPattern.MatchString(model):
 		return PlatformOpenAI
 	default:
 		return ""
@@ -301,9 +283,6 @@ func inferModelMode(model string, current string) string {
 		return current
 	}
 	model = CanonicalizeModelNameForPricing(model)
-	if config, ok := soraModelConfigs[model]; ok {
-		return config.Type
-	}
 	if strings.Contains(model, "video") {
 		return "video"
 	}

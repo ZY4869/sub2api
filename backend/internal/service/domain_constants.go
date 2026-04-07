@@ -25,7 +25,6 @@ const (
 	PlatformGemini          = domain.PlatformGemini
 	PlatformProtocolGateway = domain.PlatformProtocolGateway
 	PlatformAntigravity     = domain.PlatformAntigravity
-	PlatformSora            = domain.PlatformSora
 	PlatformKiro            = domain.PlatformKiro
 	PlatformCopilot         = domain.PlatformCopilot
 	PlatformGrok            = domain.PlatformGrok
@@ -107,7 +106,6 @@ const (
 	SettingKeyLinuxDoConnectClientSecret = "linuxdo_connect_client_secret"
 	SettingKeyLinuxDoConnectRedirectURL  = "linuxdo_connect_redirect_url"
 
-	SettingKeySoraClientEnabled           = "sora_client_enabled"
 	SettingKeySiteName                    = "site_name"
 	SettingKeySiteLogo                    = "site_logo"
 	SettingKeySiteSubtitle                = "site_subtitle"
@@ -159,19 +157,7 @@ const (
 	SettingKeyBetaPolicySettings       = "beta_policy_settings"
 	SettingKeyBlacklistRuleCandidates  = "blacklist_rule_candidates"
 
-	SettingKeySoraS3Enabled          = "sora_s3_enabled"
-	SettingKeySoraS3Endpoint         = "sora_s3_endpoint"
-	SettingKeySoraS3Region           = "sora_s3_region"
-	SettingKeySoraS3Bucket           = "sora_s3_bucket"
-	SettingKeySoraS3AccessKeyID      = "sora_s3_access_key_id"
-	SettingKeySoraS3SecretAccessKey  = "sora_s3_secret_access_key"
-	SettingKeySoraS3Prefix           = "sora_s3_prefix"
-	SettingKeySoraS3ForcePathStyle   = "sora_s3_force_path_style"
-	SettingKeySoraS3CDNURL           = "sora_s3_cdn_url"
-	SettingKeySoraS3Profiles         = "sora_s3_profiles"
 	SettingKeyGoogleBatchGCSProfiles = "google_batch_gcs_profiles"
-
-	SettingKeySoraDefaultStorageQuotaBytes = "sora_default_storage_quota_bytes"
 
 	SettingKeyMinClaudeCodeVersion = "min_claude_code_version"
 	SettingKeyMaxClaudeCodeVersion = "max_claude_code_version"

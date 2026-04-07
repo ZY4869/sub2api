@@ -25,6 +25,7 @@ func RegisterAdminRoutes(
 
 		// 分组管理
 		registerGroupRoutes(admin, h)
+		registerChannelRoutes(admin, h)
 
 		// 账号管理
 		registerAccountRoutes(admin, h)
@@ -36,8 +37,6 @@ func RegisterAdminRoutes(
 		registerOpenAIOAuthRoutes(admin, h)
 		registerCopilotOAuthRoutes(admin, h)
 		registerKiroOAuthRoutes(admin, h)
-		// Sora OAuth（实现复用 OpenAI OAuth 服务，入口独立）
-		registerSoraOAuthRoutes(admin, h)
 
 		// Gemini OAuth
 		registerGeminiOAuthRoutes(admin, h)
@@ -287,6 +286,17 @@ func registerGroupRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
+func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	channels := admin.Group("/channels")
+	{
+		channels.GET("", h.Admin.Channel.List)
+		channels.GET("/:id", h.Admin.Channel.GetByID)
+		channels.POST("", h.Admin.Channel.Create)
+		channels.PUT("/:id", h.Admin.Channel.Update)
+		channels.DELETE("/:id", h.Admin.Channel.Delete)
+	}
+}
+
 func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	accounts := admin.Group("/accounts")
 	{
@@ -416,19 +426,6 @@ func registerKiroOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerSoraOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	sora := admin.Group("/sora")
-	{
-		sora.POST("/generate-auth-url", h.Admin.OpenAIOAuth.GenerateAuthURL)
-		sora.POST("/exchange-code", h.Admin.OpenAIOAuth.ExchangeCode)
-		sora.POST("/refresh-token", h.Admin.OpenAIOAuth.RefreshToken)
-		sora.POST("/st2at", h.Admin.OpenAIOAuth.ExchangeSoraSessionToken)
-		sora.POST("/rt2at", h.Admin.OpenAIOAuth.RefreshToken)
-		sora.POST("/accounts/:id/refresh", h.Admin.OpenAIOAuth.RefreshAccountToken)
-		sora.POST("/create-from-oauth", h.Admin.OpenAIOAuth.CreateAccountFromOAuth)
-	}
-}
-
 func registerGeminiOAuthRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	gemini := admin.Group("/gemini")
 	{
@@ -518,15 +515,6 @@ func registerSettingsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// Beta 策略配置
 		adminSettings.GET("/beta-policy", h.Admin.Setting.GetBetaPolicySettings)
 		adminSettings.PUT("/beta-policy", h.Admin.Setting.UpdateBetaPolicySettings)
-		// Sora S3 存储配置
-		adminSettings.GET("/sora-s3", h.Admin.Setting.GetSoraS3Settings)
-		adminSettings.PUT("/sora-s3", h.Admin.Setting.UpdateSoraS3Settings)
-		adminSettings.POST("/sora-s3/test", h.Admin.Setting.TestSoraS3Connection)
-		adminSettings.GET("/sora-s3/profiles", h.Admin.Setting.ListSoraS3Profiles)
-		adminSettings.POST("/sora-s3/profiles", h.Admin.Setting.CreateSoraS3Profile)
-		adminSettings.PUT("/sora-s3/profiles/:profile_id", h.Admin.Setting.UpdateSoraS3Profile)
-		adminSettings.DELETE("/sora-s3/profiles/:profile_id", h.Admin.Setting.DeleteSoraS3Profile)
-		adminSettings.POST("/sora-s3/profiles/:profile_id/activate", h.Admin.Setting.SetActiveSoraS3Profile)
 		adminSettings.GET("/gemini-rate-catalog", h.Admin.Setting.GetGeminiRateCatalog)
 		adminSettings.GET("/google-batch-archive", h.Admin.Setting.GetGoogleBatchArchiveSettings)
 		adminSettings.PUT("/google-batch-archive", h.Admin.Setting.UpdateGoogleBatchArchiveSettings)

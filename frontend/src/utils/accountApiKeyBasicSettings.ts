@@ -20,7 +20,7 @@ export function resolveAccountApiKeyDefaultBaseUrl(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.defaultBaseUrl
   if (platform === 'grok') return 'https://api.x.ai'
-  if (platform === 'openai' || platform === 'sora') return 'https://api.openai.com'
+  if (platform === 'openai') return 'https://api.openai.com'
   if (platform === 'copilot') return 'https://api.githubcopilot.com'
   if (platform === 'gemini') return 'https://generativelanguage.googleapis.com'
   if (platform === 'antigravity') return 'https://cloudcode-pa.googleapis.com'
@@ -34,7 +34,7 @@ export function resolveAccountApiKeyPlaceholder(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.apiKeyPlaceholder
   if (platform === 'grok') return 'xai-...'
-  if (platform === 'openai' || platform === 'sora') return 'sk-proj-...'
+  if (platform === 'openai') return 'sk-proj-...'
   if (platform === 'copilot') return 'ghu_...'
   if (platform === 'gemini') return 'AIza...'
   if (platform === 'antigravity') return 'sk-...'
@@ -43,14 +43,13 @@ export function resolveAccountApiKeyPlaceholder(
 
 export function resolveAccountApiKeyBaseUrlHintKey(
   platform: AccountPlatform,
-  mode: AccountApiKeySettingsMode,
+  _mode: AccountApiKeySettingsMode,
   gatewayProtocol?: GatewayProtocol
 ): string {
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.baseUrlHintKey
   if (platform === 'grok') return 'admin.accounts.grokDedicatedRouteHint'
-  if (mode === 'create' && platform === 'sora') return 'admin.accounts.soraUpstreamBaseUrlHint'
-  if (platform === 'openai' || platform === 'sora' || platform === 'copilot') return 'admin.accounts.openai.baseUrlHint'
+  if (platform === 'openai' || platform === 'copilot') return 'admin.accounts.openai.baseUrlHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.baseUrlHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.baseUrlHint'
   return 'admin.accounts.baseUrlHint'
@@ -65,7 +64,7 @@ export function resolveAccountApiKeyHintKey(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.apiKeyHintKey
   if (platform === 'grok') return 'admin.accounts.openai.apiKeyHint'
-  if (platform === 'openai' || platform === 'sora' || platform === 'copilot') return 'admin.accounts.openai.apiKeyHint'
+  if (platform === 'openai' || platform === 'copilot') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.apiKeyHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.apiKeyHint'
   return 'admin.accounts.apiKeyHint'

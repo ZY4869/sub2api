@@ -101,20 +101,3 @@ func TestCollectModelCatalogAccessSources_RespectsMixedSchedulingForNativeProtoc
 	sources = collectModelCatalogAccessSources(context.Background(), &GatewayService{}, record, accounts)
 	require.Equal(t, []string{ModelCatalogAccessSourceKey}, sources)
 }
-
-func TestCollectModelCatalogAccessSources_SoraUsesSoraPlatformInsteadOfOpenAI(t *testing.T) {
-	record := &modelCatalogRecord{
-		model:            "sora2",
-		canonicalModelID: "sora2",
-		provider:         PlatformOpenAI,
-		mode:             "video",
-		defaultPlatforms: []string{PlatformSora},
-	}
-	accounts := []Account{
-		{Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Status: StatusActive},
-		{Platform: PlatformSora, Type: AccountTypeSetupToken, Status: StatusActive},
-	}
-
-	sources := collectModelCatalogAccessSources(context.Background(), &GatewayService{}, record, accounts)
-	require.Equal(t, []string{ModelCatalogAccessSourceLogin}, sources)
-}

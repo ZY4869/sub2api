@@ -43,6 +43,9 @@ func (r *opsRepository) ListRequestDetails(ctx context.Context, filter *service.
 		if filter.GroupID != nil && *filter.GroupID > 0 {
 			addCondition(fmt.Sprintf("group_id = $%d", len(args)+1), *filter.GroupID)
 		}
+		if filter.ChannelID != nil && *filter.ChannelID > 0 {
+			addCondition(fmt.Sprintf("channel_id = $%d", len(args)+1), *filter.ChannelID)
+		}
 
 		if filter.UserID != nil && *filter.UserID > 0 {
 			addCondition(fmt.Sprintf("user_id = $%d", len(args)+1), *filter.UserID)
@@ -64,10 +67,10 @@ func (r *opsRepository) ListRequestDetails(ctx context.Context, filter *service.
 			like := "%" + strings.ToLower(q) + "%"
 			startIdx := len(args) + 1
 			addCondition(
-				fmt.Sprintf("(LOWER(COALESCE(request_id,'')) LIKE $%d OR LOWER(COALESCE(model,'')) LIKE $%d OR LOWER(COALESCE(message,'')) LIKE $%d)",
-					startIdx, startIdx+1, startIdx+2,
+				fmt.Sprintf("(LOWER(COALESCE(request_id,'')) LIKE $%d OR LOWER(COALESCE(model,'')) LIKE $%d OR LOWER(COALESCE(message,'')) LIKE $%d OR LOWER(COALESCE(channel_name,'')) LIKE $%d OR LOWER(COALESCE(model_mapping_chain,'')) LIKE $%d)",
+					startIdx, startIdx+1, startIdx+2, startIdx+3, startIdx+4,
 				),
-				like, like, like,
+				like, like, like, like, like,
 			)
 		}
 
@@ -92,6 +95,13 @@ WITH combined AS (
     ul.request_id AS request_id,
     COALESCE(NULLIF(g.platform, ''), NULLIF(a.platform, ''), '') AS platform,
     ul.model AS model,
+    ul.channel_id AS channel_id,
+    COALESCE(NULLIF(ch.name, ''), '') AS channel_name,
+    ul.model_mapping_chain AS model_mapping_chain,
+    ul.billing_tier AS billing_tier,
+    ul.billing_mode AS billing_mode,
+    ul.image_output_tokens AS image_output_tokens,
+    ul.image_output_cost AS image_output_cost,
     ul.duration_ms AS duration_ms,
     NULL::INT AS status_code,
     NULL::BIGINT AS error_id,
@@ -106,6 +116,7 @@ WITH combined AS (
   FROM usage_logs ul
   LEFT JOIN groups g ON g.id = ul.group_id
   LEFT JOIN accounts a ON a.id = ul.account_id
+  LEFT JOIN channels ch ON ch.id = ul.channel_id
   WHERE ul.created_at >= $1 AND ul.created_at < $2
 
   UNION ALL
@@ -116,6 +127,13 @@ WITH combined AS (
     COALESCE(NULLIF(o.request_id,''), NULLIF(o.client_request_id,''), '') AS request_id,
     COALESCE(NULLIF(o.platform, ''), NULLIF(g.platform, ''), NULLIF(a.platform, ''), '') AS platform,
     o.model AS model,
+    o.channel_id AS channel_id,
+    COALESCE(NULLIF(ch.name, ''), '') AS channel_name,
+    NULL::TEXT AS model_mapping_chain,
+    NULL::TEXT AS billing_tier,
+    NULL::TEXT AS billing_mode,
+    NULL::INT AS image_output_tokens,
+    NULL::DOUBLE PRECISION AS image_output_cost,
     o.duration_ms AS duration_ms,
     o.status_code AS status_code,
     o.id AS error_id,
@@ -130,6 +148,7 @@ WITH combined AS (
   FROM ops_error_logs o
   LEFT JOIN groups g ON g.id = o.group_id
   LEFT JOIN accounts a ON a.id = o.account_id
+  LEFT JOIN channels ch ON ch.id = o.channel_id
   WHERE o.created_at >= $1 AND o.created_at < $2
     AND COALESCE(o.status_code, 0) >= 400
 )
@@ -165,6 +184,13 @@ SELECT
   request_id,
   platform,
   model,
+  channel_id,
+  channel_name,
+  model_mapping_chain,
+  billing_tier,
+  billing_mode,
+  image_output_tokens,
+  image_output_cost,
   duration_ms,
   status_code,
   error_id,
@@ -207,11 +233,18 @@ LIMIT $%d OFFSET $%d
 	out := make([]*service.OpsRequestDetail, 0, pageSize)
 	for rows.Next() {
 		var (
-			kind      string
-			createdAt time.Time
-			requestID sql.NullString
-			platform  sql.NullString
-			model     sql.NullString
+			kind              string
+			createdAt         time.Time
+			requestID         sql.NullString
+			platform          sql.NullString
+			model             sql.NullString
+			channelID         sql.NullInt64
+			channelName       sql.NullString
+			modelMappingChain sql.NullString
+			billingTier       sql.NullString
+			billingMode       sql.NullString
+			imageOutputTokens sql.NullInt64
+			imageOutputCost   sql.NullFloat64
 
 			durationMs sql.NullInt64
 			statusCode sql.NullInt64
@@ -235,6 +268,13 @@ LIMIT $%d OFFSET $%d
 			&requestID,
 			&platform,
 			&model,
+			&channelID,
+			&channelName,
+			&modelMappingChain,
+			&billingTier,
+			&billingMode,
+			&imageOutputTokens,
+			&imageOutputCost,
 			&durationMs,
 			&statusCode,
 			&errorID,
@@ -251,11 +291,16 @@ LIMIT $%d OFFSET $%d
 		}
 
 		item := &service.OpsRequestDetail{
-			Kind:      service.OpsRequestKind(kind),
-			CreatedAt: createdAt,
-			RequestID: strings.TrimSpace(requestID.String),
-			Platform:  strings.TrimSpace(platform.String),
-			Model:     strings.TrimSpace(model.String),
+			Kind:              service.OpsRequestKind(kind),
+			CreatedAt:         createdAt,
+			RequestID:         strings.TrimSpace(requestID.String),
+			Platform:          strings.TrimSpace(platform.String),
+			Model:             strings.TrimSpace(model.String),
+			ChannelID:         toInt64Ptr(channelID),
+			ChannelName:       strings.TrimSpace(channelName.String),
+			ModelMappingChain: strings.TrimSpace(modelMappingChain.String),
+			BillingTier:       strings.TrimSpace(billingTier.String),
+			BillingMode:       strings.TrimSpace(billingMode.String),
 
 			DurationMs: toIntPtr(durationMs),
 			StatusCode: toIntPtr(statusCode),
@@ -270,6 +315,14 @@ LIMIT $%d OFFSET $%d
 			GroupID:   toInt64Ptr(groupID),
 
 			Stream: stream,
+		}
+		if imageOutputTokens.Valid {
+			value := int(imageOutputTokens.Int64)
+			item.ImageOutputTokens = &value
+		}
+		if imageOutputCost.Valid {
+			value := imageOutputCost.Float64
+			item.ImageOutputCost = &value
 		}
 
 		if item.Platform == "" {

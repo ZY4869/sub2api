@@ -19,10 +19,10 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	}
 	if account != nil && account.IsAnthropicAPIKeyPassthroughEnabled() {
 		passthroughBody := parsed.Body
-		if reqModel := parsed.Model; reqModel != "" {
+		if reqModel := ResolveGatewaySelectionModelFromContext(ctx, parsed.Model); reqModel != "" {
 			if mappedModel := account.GetMappedModel(reqModel); mappedModel != reqModel {
 				passthroughBody = s.replaceModelInBody(passthroughBody, mappedModel)
-				logger.LegacyPrintf("service.gateway", "CountTokens passthrough model mapping: %s -> %s (account: %s)", reqModel, mappedModel, account.Name)
+				logger.LegacyPrintf("service.gateway", "CountTokens passthrough model mapping: %s -> %s (account: %s)", parsed.Model, mappedModel, account.Name)
 			}
 		}
 		return s.forwardCountTokensAnthropicAPIKeyPassthrough(ctx, c, account, passthroughBody)
@@ -31,6 +31,9 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	reqModel := s.resolveCanonicalRequestModel(ctx, parsed.Model)
 	if reqModel == "" {
 		reqModel = parsed.Model
+	}
+	if selectionModel := ResolveGatewaySelectionModelFromContext(ctx, reqModel); selectionModel != "" {
+		reqModel = selectionModel
 	}
 	body = StripEmptyTextBlocks(body)
 	isClaudeCode := isClaudeCodeRequest(ctx, c, parsed)

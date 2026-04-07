@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -156,13 +157,13 @@ ORDER BY bucket ASC`
 	// - No platform/group: totals by platform
 	// - Platform selected but no group: top groups in that platform
 	if platform == "" && (groupID == nil || *groupID <= 0) {
-		items, err := r.getThroughputBreakdownByPlatform(ctx, start, end)
+		items, err := r.getThroughputBreakdownByPlatform(ctx, start, end, filter.ChannelID)
 		if err != nil {
 			return nil, err
 		}
 		byPlatform = items
 	} else if platform != "" && (groupID == nil || *groupID <= 0) {
-		items, err := r.getThroughputTopGroupsByPlatform(ctx, start, end, platform, 10)
+		items, err := r.getThroughputTopGroupsByPlatform(ctx, start, end, platform, filter.ChannelID, 10)
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +179,16 @@ ORDER BY bucket ASC`
 	}, nil
 }
 
-func (r *opsRepository) getThroughputBreakdownByPlatform(ctx context.Context, start, end time.Time) ([]*service.OpsThroughputPlatformBreakdownItem, error) {
+func (r *opsRepository) getThroughputBreakdownByPlatform(ctx context.Context, start, end time.Time, channelID *int64) ([]*service.OpsThroughputPlatformBreakdownItem, error) {
+	usageChannelClause := ""
+	errorChannelClause := ""
+	args := []any{start, end}
+	if channelID != nil && *channelID > 0 {
+		usageChannelClause = "    AND ul.channel_id = $3\n"
+		errorChannelClause = "    AND channel_id = $3\n"
+		args = append(args, *channelID)
+	}
+
 	q := `
 WITH usage_totals AS (
   SELECT COALESCE(NULLIF(g.platform,''), a.platform) AS platform,
@@ -188,6 +198,7 @@ WITH usage_totals AS (
   LEFT JOIN groups g ON g.id = ul.group_id
   LEFT JOIN accounts a ON a.id = ul.account_id
   WHERE ul.created_at >= $1 AND ul.created_at < $2
+` + usageChannelClause + `
   GROUP BY 1
 ),
 error_totals AS (
@@ -195,8 +206,9 @@ error_totals AS (
          COUNT(*) AS error_count
   FROM ops_error_logs
   WHERE created_at >= $1 AND created_at < $2
+` + errorChannelClause + `
     AND COALESCE(status_code, 0) >= 400
-    AND is_count_tokens = FALSE  -- 排除 count_tokens 请求的错误
+    AND is_count_tokens = FALSE
   GROUP BY 1
 ),
 combined AS (
@@ -212,7 +224,7 @@ FROM combined
 WHERE platform IS NOT NULL AND platform <> ''
 ORDER BY request_count DESC`
 
-	rows, err := r.db.QueryContext(ctx, q, start, end)
+	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -242,12 +254,23 @@ ORDER BY request_count DESC`
 	return items, nil
 }
 
-func (r *opsRepository) getThroughputTopGroupsByPlatform(ctx context.Context, start, end time.Time, platform string, limit int) ([]*service.OpsThroughputGroupBreakdownItem, error) {
+func (r *opsRepository) getThroughputTopGroupsByPlatform(ctx context.Context, start, end time.Time, platform string, channelID *int64, limit int) ([]*service.OpsThroughputGroupBreakdownItem, error) {
 	if strings.TrimSpace(platform) == "" {
 		return nil, nil
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 10
+	}
+
+	usageChannelClause := ""
+	errorChannelClause := ""
+	args := []any{start, end, platform}
+	limitIndex := 4
+	if channelID != nil && *channelID > 0 {
+		usageChannelClause = "    AND ul.channel_id = $4\n"
+		errorChannelClause = "    AND channel_id = $4\n"
+		args = append(args, *channelID)
+		limitIndex = 5
 	}
 
 	q := `
@@ -260,6 +283,7 @@ WITH usage_totals AS (
   JOIN groups g ON g.id = ul.group_id
   WHERE ul.created_at >= $1 AND ul.created_at < $2
     AND g.platform = $3
+` + usageChannelClause + `
   GROUP BY 1, 2
 ),
 error_totals AS (
@@ -269,8 +293,9 @@ error_totals AS (
   WHERE created_at >= $1 AND created_at < $2
     AND platform = $3
     AND group_id IS NOT NULL
+` + errorChannelClause + `
     AND COALESCE(status_code, 0) >= 400
-    AND is_count_tokens = FALSE  -- 排除 count_tokens 请求的错误
+    AND is_count_tokens = FALSE
   GROUP BY 1
 ),
 combined AS (
@@ -287,9 +312,10 @@ SELECT group_id, group_name, (success_count + error_count) AS request_count, tok
 FROM combined
 WHERE group_id IS NOT NULL
 ORDER BY request_count DESC
-LIMIT $4`
+LIMIT $` + strconv.Itoa(limitIndex)
 
-	rows, err := r.db.QueryContext(ctx, q, start, end, platform, limit)
+	args = append(args, limit)
+	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}

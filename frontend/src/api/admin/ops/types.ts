@@ -79,6 +79,7 @@ export interface OpsDashboardOverview {
   end_time: string
   platform: string
   group_id?: number | null
+  channel_id?: number | null
 
   health_score?: number
 
@@ -165,6 +166,13 @@ export interface OpsRequestDetail {
 
   platform?: string
   model?: string
+  channel_id?: number | null
+  channel_name?: string
+  model_mapping_chain?: string
+  billing_tier?: string
+  billing_mode?: string
+  image_output_tokens?: number | null
+  image_output_cost?: number | null
   duration_ms?: number | null
   status_code?: number | null
 
@@ -190,6 +198,7 @@ export interface OpsRequestDetailsParams {
 
   platform?: string
   group_id?: number | null
+  channel_id?: number | null
 
   user_id?: number
   api_key_id?: number
@@ -220,6 +229,7 @@ export interface OpsLatencyHistogramResponse {
   end_time: string
   platform: string
   group_id?: number | null
+  channel_id?: number | null
 
   total_requests: number
   buckets: OpsLatencyHistogramBucket[]
@@ -277,6 +287,7 @@ export interface OpsOpenAITokenStatsResponse {
   end_time: string
   platform?: string
   group_id?: number | null
+  channel_id?: number | null
   items: OpsOpenAITokenStatsItem[]
   total: number
   page?: number
@@ -288,6 +299,7 @@ export interface OpsOpenAITokenStatsParams {
   time_range?: OpsOpenAITokenStatsTimeRange
   platform?: string
   group_id?: number | null
+  channel_id?: number | null
   page?: number
   page_size?: number
   top_n?: number
@@ -443,6 +455,7 @@ export interface OpsRealtimeTrafficSummary {
   end_time: string
   platform: string
   group_id?: number | null
+  channel_id?: number | null
   qps: OpsRateSummary
   tps: OpsRateSummary
 }

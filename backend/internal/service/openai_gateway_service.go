@@ -83,6 +83,7 @@ type OpenAIGatewayService struct {
 	rateLimitService              *RateLimitService
 	billingCacheService           *BillingCacheService
 	userGroupRateResolver         *userGroupRateResolver
+	channelService                *ChannelService
 	httpUpstream                  HTTPUpstream
 	deferredService               *DeferredService
 	openAITokenProvider           *OpenAITokenProvider
@@ -146,6 +147,10 @@ func (s *OpenAIGatewayService) billingDeps() *billingDeps {
 		billingCacheService: s.billingCacheService,
 		deferredService:     s.deferredService,
 	}
+}
+
+func (s *OpenAIGatewayService) SetChannelService(channelService *ChannelService) {
+	s.channelService = channelService
 }
 
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {

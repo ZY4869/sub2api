@@ -28,12 +28,6 @@ const (
 	ConnectionPoolIsolationAccountProxy = "account_proxy"
 )
 
-type SoraStorageCleanupConfig struct {
-	Enabled       bool   `mapstructure:"enabled"`
-	Schedule      string `mapstructure:"schedule"`
-	RetentionDays int    `mapstructure:"retention_days"`
-}
-
 func (r *RedisConfig) Address() string {
 	return fmt.Sprintf("%s:%d", r.Host, r.Port)
 }

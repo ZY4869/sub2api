@@ -64,8 +64,6 @@ func accountTestPlatformLabel(platform string) string {
 		return "Kiro"
 	case PlatformCopilot:
 		return "GitHub Copilot"
-	case PlatformSora:
-		return "Sora"
 	case PlatformProtocolGateway:
 		return "Protocol Gateway"
 	default:
@@ -171,8 +169,6 @@ func (s *AccountTestService) testAccountConnectionRealForward(c *gin.Context, ac
 	}
 
 	switch RoutingPlatformForAccount(account) {
-	case PlatformSora:
-		return s.testSoraAccountConnection(c, account)
 	case PlatformAntigravity:
 		return s.testAntigravityRealForwardConnection(c, account, modelID, prompt)
 	}

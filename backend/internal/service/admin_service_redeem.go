@@ -19,9 +19,15 @@ func (s *adminServiceImpl) GetRedeemCode(ctx context.Context, id int64) (*Redeem
 	return s.redeemCodeRepo.GetByID(ctx, id)
 }
 func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *GenerateRedeemCodesInput) ([]RedeemCode, error) {
+	if input.Type != RedeemTypeInvitation && input.Value == 0 {
+		return nil, errors.New("value must not be zero")
+	}
 	if input.Type == RedeemTypeSubscription {
 		if input.GroupID == nil {
 			return nil, errors.New("group_id is required for subscription type")
+		}
+		if input.ValidityDays == 0 {
+			return nil, errors.New("validity_days must not be zero for subscription type")
 		}
 		group, err := s.groupRepo.GetByID(ctx, *input.GroupID)
 		if err != nil {
@@ -41,9 +47,6 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 		if input.Type == RedeemTypeSubscription {
 			code.GroupID = input.GroupID
 			code.ValidityDays = input.ValidityDays
-			if code.ValidityDays <= 0 {
-				code.ValidityDays = 30
-			}
 		}
 		if err := s.redeemCodeRepo.Create(ctx, &code); err != nil {
 			return nil, err

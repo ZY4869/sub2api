@@ -5,7 +5,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"log/slog"
-	"strings"
 	"time"
 )
 
@@ -141,16 +140,6 @@ func (s *GatewayService) calculateGatewayMediaCost(result *ForwardResult, apiKey
 		return &CostBreakdown{}
 	}
 	if result.MediaType == "image" {
-		if platform == PlatformSora {
-			var soraConfig *SoraPriceConfig
-			if apiKey != nil && apiKey.Group != nil {
-				soraConfig = &SoraPriceConfig{
-					ImagePrice360: apiKey.Group.SoraImagePrice360,
-					ImagePrice540: apiKey.Group.SoraImagePrice540,
-				}
-			}
-			return s.billingService.CalculateSoraImageCost(result.ImageSize, result.ImageCount, soraConfig, multiplier)
-		}
 		var groupConfig *ImagePriceConfig
 		if apiKey != nil && apiKey.Group != nil {
 			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
@@ -158,16 +147,6 @@ func (s *GatewayService) calculateGatewayMediaCost(result *ForwardResult, apiKey
 		return s.billingService.CalculateImageCost(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier)
 	}
 	if result.MediaType == "video" {
-		if platform == PlatformSora {
-			var soraConfig *SoraPriceConfig
-			if apiKey != nil && apiKey.Group != nil {
-				soraConfig = &SoraPriceConfig{
-					VideoPricePerRequest:   apiKey.Group.SoraVideoPricePerRequest,
-					VideoPricePerRequestHD: apiKey.Group.SoraVideoPricePerRequestHD,
-				}
-			}
-			return s.billingService.CalculateSoraVideoCost(result.Model, soraConfig, multiplier)
-		}
 		if platform == PlatformGrok {
 			return s.billingService.CalculateVideoRequestCost(result.Model, multiplier)
 		}
@@ -207,10 +186,25 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		groupDefault := apiKey.Group.RateMultiplier
 		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
+	tokens := UsageTokens{
+		InputTokens:           result.Usage.InputTokens,
+		OutputTokens:          result.Usage.OutputTokens,
+		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:       result.Usage.CacheReadInputTokens,
+		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
+		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
+	}
+	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
+		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
+		ImageOutputTokens: result.Usage.OutputTokens,
+		ImageCount:        result.ImageCount,
+	})
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	if channelResolution != nil && channelResolution.BillingModel != "" {
+		billingModel = channelResolution.BillingModel
+	}
 	cost := s.calculateGatewayMediaCost(result, apiKey, account, multiplier)
 	if cost == nil {
-		tokens := UsageTokens{InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens}
 		var err error
 		cost, err = s.billingService.CalculateCost(billingModel, tokens, multiplier)
 		if err != nil {
@@ -218,6 +212,11 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 			cost = &CostBreakdown{ActualCost: 0}
 		}
 	}
+	var channelPricing *GatewayChannelResolvedPricing
+	if channelResolution != nil {
+		channelPricing = channelResolution.Pricing
+	}
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
@@ -228,14 +227,10 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if result.ImageSize != "" {
 		imageSize = &result.ImageSize
 	}
-	var mediaType *string
-	if strings.TrimSpace(result.MediaType) != "" {
-		mediaType = &result.MediaType
-	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: usageLogThinkingEnabledFromContext(ctx), InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, MediaType: mediaType, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: usageLogThinkingEnabledFromContext(ctx), InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -251,6 +246,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
+	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		logger.LegacyPrintf("service.gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())
@@ -318,7 +314,23 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		groupDefault := apiKey.Group.RateMultiplier
 		multiplier = s.getUserGroupRateMultiplier(ctx, user.ID, *apiKey.GroupID, groupDefault)
 	}
+	tokens := UsageTokens{
+		InputTokens:           result.Usage.InputTokens,
+		OutputTokens:          result.Usage.OutputTokens,
+		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:       result.Usage.CacheReadInputTokens,
+		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
+		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
+	}
+	channelResolution := resolveGatewayChannelBilling(ctx, s.channelService, result.Model, result.UpstreamModel, GatewayChannelUsage{
+		TotalTokens:       tokens.InputTokens + tokens.OutputTokens + tokens.CacheCreationTokens + tokens.CacheReadTokens + tokens.CacheCreation5mTokens + tokens.CacheCreation1hTokens,
+		ImageOutputTokens: result.Usage.OutputTokens,
+		ImageCount:        result.ImageCount,
+	})
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
+	if channelResolution != nil && channelResolution.BillingModel != "" {
+		billingModel = channelResolution.BillingModel
+	}
 	var cost *CostBreakdown
 	if result.ImageCount > 0 {
 		var groupConfig *ImagePriceConfig
@@ -327,7 +339,6 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		}
 		cost = s.billingService.CalculateImageCost(billingModel, result.ImageSize, result.ImageCount, groupConfig, multiplier)
 	} else {
-		tokens := UsageTokens{InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens}
 		var err error
 		cost, err = s.billingService.CalculateCostWithLongContext(billingModel, tokens, multiplier, input.LongContextThreshold, input.LongContextMultiplier)
 		if err != nil {
@@ -335,6 +346,11 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 			cost = &CostBreakdown{ActualCost: 0}
 		}
 	}
+	var channelPricing *GatewayChannelResolvedPricing
+	if channelResolution != nil {
+		channelPricing = channelResolution.Pricing
+	}
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 	billingType := BillingTypeBalance
 	if isSubscriptionBilling {
@@ -364,6 +380,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
+	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 		logger.LegacyPrintf("service.gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())

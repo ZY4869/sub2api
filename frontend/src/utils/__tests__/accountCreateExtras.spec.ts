@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { OPENAI_WS_MODE_OFF, OPENAI_WS_MODE_PASSTHROUGH } from '@/utils/openaiWsMode'
-import { buildAnthropicExtra, buildOpenAIExtra, buildSoraExtra } from '@/utils/accountCreateExtras'
+import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
 
 describe('accountCreateExtras', () => {
   describe('buildOpenAIExtra', () => {
@@ -88,24 +88,6 @@ describe('accountCreateExtras', () => {
         anthropicPassthroughEnabled: false
       })
       expect(untouched).toEqual({ anthropic_passthrough: true })
-    })
-  })
-
-  describe('buildSoraExtra', () => {
-    it('links openai account id and strips openai-only flags', () => {
-      const out = buildSoraExtra({
-        base: {
-          openai_passthrough: true,
-          codex_cli_only: true,
-          openai_oauth_responses_websockets_v2_mode: OPENAI_WS_MODE_PASSTHROUGH
-        },
-        linkedOpenAIAccountId: 123
-      })
-
-      expect(out).toMatchObject({ linked_openai_account_id: '123' })
-      expect(out).not.toHaveProperty('openai_passthrough')
-      expect(out).not.toHaveProperty('codex_cli_only')
-      expect(out).not.toHaveProperty('openai_oauth_responses_websockets_v2_mode')
     })
   })
 })

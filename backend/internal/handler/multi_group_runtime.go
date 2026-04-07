@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -10,6 +11,10 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
+
+type gatewayChannelStateResolver interface {
+	ResolveChannelState(ctx context.Context, group *service.Group, requestedModel string) (*service.GatewayChannelState, error)
+}
 
 var (
 	openAICompatiblePlatforms  = []string{service.PlatformOpenAI, service.PlatformCopilot}
@@ -21,7 +26,6 @@ var (
 	}
 	geminiCompatiblePlatforms = []string{service.PlatformGemini, service.PlatformAntigravity}
 	grokCompatiblePlatforms   = []string{service.PlatformGrok}
-	soraCompatiblePlatforms   = []string{service.PlatformSora}
 )
 
 func multiGroupRoutingEnabled(ctx context.Context, apiKey *service.APIKey, settingService *service.SettingService) bool {
@@ -176,4 +180,37 @@ func excludeSelectedGroup(excludedGroupIDs map[int64]struct{}, apiKey *service.A
 	}
 	excludedGroupIDs[*apiKey.GroupID] = struct{}{}
 	return true
+}
+
+func bindGatewayChannelState(
+	c *gin.Context,
+	resolver gatewayChannelStateResolver,
+	group *service.Group,
+	requestedModel string,
+) (string, *service.GatewayChannelState, error) {
+	if c == nil || c.Request == nil || resolver == nil || group == nil {
+		return requestedModel, nil, nil
+	}
+
+	state, err := resolver.ResolveChannelState(c.Request.Context(), group, requestedModel)
+	if err != nil {
+		return "", nil, err
+	}
+
+	ctx := c.Request.Context()
+	if state != nil {
+		ctx = service.WithGatewayChannelState(ctx, state)
+	}
+	c.Request = c.Request.WithContext(ctx)
+	if state != nil && strings.TrimSpace(state.SelectionModel) != "" {
+		return state.SelectionModel, state, nil
+	}
+	return requestedModel, state, nil
+}
+
+func reattachGatewayChannelState(ctx context.Context, state *service.GatewayChannelState) context.Context {
+	if state == nil {
+		return ctx
+	}
+	return service.WithGatewayChannelState(ctx, state)
 }

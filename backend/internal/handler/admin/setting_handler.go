@@ -32,11 +32,10 @@ type SettingHandler struct {
 	telegramNotifier *service.TelegramNotifierService
 	turnstileService *service.TurnstileService
 	opsService       *service.OpsService
-	soraS3Storage    *service.SoraS3Storage
 }
 
-func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, telegramNotifier *service.TelegramNotifierService, turnstileService *service.TurnstileService, opsService *service.OpsService, soraS3Storage *service.SoraS3Storage) *SettingHandler {
-	return &SettingHandler{settingService: settingService, emailService: emailService, telegramNotifier: telegramNotifier, turnstileService: turnstileService, opsService: opsService, soraS3Storage: soraS3Storage}
+func NewSettingHandler(settingService *service.SettingService, emailService *service.EmailService, telegramNotifier *service.TelegramNotifierService, turnstileService *service.TurnstileService, opsService *service.OpsService) *SettingHandler {
+	return &SettingHandler{settingService: settingService, emailService: emailService, telegramNotifier: telegramNotifier, turnstileService: turnstileService, opsService: opsService}
 }
 func (h *SettingHandler) auditSettingsUpdate(c *gin.Context, before *service.SystemSettings, after *service.SystemSettings, req UpdateSettingsRequest) {
 	if before == nil || after == nil {
@@ -254,7 +253,6 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		HideCcsImportButton:                  settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
-		SoraClientEnabled:                    settings.SoraClientEnabled,
 		CustomMenuItems:                      customMenuItems,
 		DefaultConcurrency:                   settings.DefaultConcurrency,
 		DefaultBalance:                       settings.DefaultBalance,
@@ -384,44 +382,6 @@ func (h *SettingHandler) GetStreamTimeoutSettings(c *gin.Context) {
 		return
 	}
 	response.Success(c, dto.StreamTimeoutSettings{Enabled: settings.Enabled, Action: settings.Action, TempUnschedMinutes: settings.TempUnschedMinutes, ThresholdCount: settings.ThresholdCount, ThresholdWindowMinutes: settings.ThresholdWindowMinutes})
-}
-func (h *SettingHandler) TestSoraS3Connection(c *gin.Context) {
-	if h.soraS3Storage == nil {
-		response.Error(c, 500, "S3 存储服务未初始化")
-		return
-	}
-	var req UpdateSoraS3SettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-	if !req.Enabled {
-		response.BadRequest(c, "S3 未启用，无法测试连接")
-		return
-	}
-	if req.SecretAccessKey == "" {
-		if req.ProfileID != "" {
-			profiles, err := h.settingService.ListSoraS3Profiles(c.Request.Context())
-			if err == nil {
-				profile := findSoraS3ProfileByID(profiles.Items, req.ProfileID)
-				if profile != nil {
-					req.SecretAccessKey = profile.SecretAccessKey
-				}
-			}
-		}
-		if req.SecretAccessKey == "" {
-			existing, err := h.settingService.GetSoraS3Settings(c.Request.Context())
-			if err == nil {
-				req.SecretAccessKey = existing.SecretAccessKey
-			}
-		}
-	}
-	testCfg := &service.SoraS3Settings{Enabled: true, Endpoint: req.Endpoint, Region: req.Region, Bucket: req.Bucket, AccessKeyID: req.AccessKeyID, SecretAccessKey: req.SecretAccessKey, Prefix: req.Prefix, ForcePathStyle: req.ForcePathStyle, CDNURL: req.CDNURL}
-	if err := h.soraS3Storage.TestConnectionWithSettings(c.Request.Context(), testCfg); err != nil {
-		response.Error(c, 400, "S3 连接测试失败: "+err.Error())
-		return
-	}
-	response.Success(c, gin.H{"message": "S3 连接成功"})
 }
 func (h *SettingHandler) UpdateBetaPolicySettings(c *gin.Context) {
 	var req UpdateBetaPolicySettingsRequest

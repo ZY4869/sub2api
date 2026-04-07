@@ -10,7 +10,7 @@ import (
 )
 
 func TestAccountTestService_TestClaudeAccountConnection_UsesClaudeTokenProviderForKiroOAuth(t *testing.T) {
-	ctx, recorder := newSoraTestContext()
+	ctx, recorder := newGatewayTestContext()
 	upstream := &queuedHTTPUpstream{
 		responses: []*http.Response{
 			newKiroEventStreamHTTPResponse(http.StatusOK, kiroTestStreamEvent{
@@ -53,7 +53,7 @@ func TestAccountTestService_TestClaudeAccountConnection_UsesClaudeTokenProviderF
 }
 
 func TestAccountTestService_TestClaudeAccountConnection_KiroUnauthorizedDoesNotLeakAnthropicMessage(t *testing.T) {
-	ctx, recorder := newSoraTestContext()
+	ctx, recorder := newGatewayTestContext()
 	upstream := &queuedHTTPUpstream{
 		responses: []*http.Response{
 			newJSONResponse(http.StatusUnauthorized, `{"message":"token expired"}`),

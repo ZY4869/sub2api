@@ -75,7 +75,7 @@ func (m *openAITokenRuntimeMetricsStore) touchNow() {
 // OpenAITokenCache token cache interface.
 type OpenAITokenCache = GeminiTokenCache
 
-// OpenAITokenProvider manages access_token for OpenAI/Sora OAuth accounts.
+// OpenAITokenProvider manages access_token for OpenAI-family OAuth accounts.
 type OpenAITokenProvider struct {
 	accountRepo         AccountRepository
 	tokenCache          OpenAITokenCache
@@ -139,7 +139,7 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 	if account.Type != AccountTypeOAuth {
 		return "", errors.New("not an oauth account")
 	}
-	if account.Platform != PlatformSora && !account.IsOpenAI() {
+	if !account.IsOpenAI() {
 		return "", errors.New("not an openai-family oauth account")
 	}
 
@@ -169,8 +169,7 @@ func (p *OpenAITokenProvider) GetAccessToken(ctx context.Context, account *Accou
 		p.metrics.refreshRequests.Add(1)
 		p.metrics.touchNow()
 
-		// Sora accounts skip OpenAI OAuth refresh and keep existing token path.
-		if account.Platform == PlatformSora || account.Platform == PlatformCopilot {
+		if account.Platform == PlatformCopilot {
 			slog.Debug("openai_token_refresh_skipped", "account_id", account.ID, "platform", account.Platform)
 			refreshFailed = true
 		} else {

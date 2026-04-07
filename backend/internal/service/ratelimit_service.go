@@ -175,6 +175,15 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 		}
 		// 其他 400 错误（如参数问题）不处理，不禁用账号
 	case 401:
+		if runtimePlatform == PlatformOpenAI && isOpenAIPermanentUnauthorizedDetail(responseBody) {
+			msg := "Unauthorized (401): account authentication failed permanently"
+			if upstreamMsg != "" {
+				msg = "Unauthorized (401): " + upstreamMsg
+			}
+			s.handleAuthError(ctx, account, msg)
+			shouldDisable = true
+			break
+		}
 		// OAuth 账号在 401 错误时临时不可调度（给 token 刷新窗口）；非 OAuth 账号保持原有 SetError 行为。
 		// Antigravity 除外：其 401 由 applyErrorPolicy 的 temp_unschedulable_rules 自行控制。
 		if account.Type == AccountTypeOAuth && runtimePlatform != PlatformAntigravity {
@@ -263,6 +272,21 @@ func (s *RateLimitService) HandleUpstreamError(ctx context.Context, account *Acc
 	return shouldDisable
 }
 
+func isOpenAIPermanentUnauthorizedDetail(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+
+	var payload struct {
+		Detail string `json:"detail"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return false
+	}
+
+	return strings.EqualFold(strings.TrimSpace(payload.Detail), "Unauthorized")
+}
+
 // PreCheckUsage proactively checks local quota before dispatching a request.
 // Returns false when the account should be skipped.
 func (s *RateLimitService) PreCheckUsage(ctx context.Context, account *Account, requestedModel string) (bool, error) {
@@ -299,7 +323,7 @@ func (s *RateLimitService) PreCheckUsage(ctx context.Context, account *Account, 
 			start := geminiDailyWindowStart(now)
 			totals, ok := s.getGeminiUsageTotals(account.ID, start, now)
 			if !ok {
-				stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, start, now, 0, 0, account.ID, 0, nil, nil, nil)
+				stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, start, now, 0, 0, account.ID, 0, 0, nil, nil, nil)
 				if err != nil {
 					return true, err
 				}
@@ -346,7 +370,7 @@ func (s *RateLimitService) PreCheckUsage(ctx context.Context, account *Account, 
 
 		if limit > 0 {
 			start := now.Truncate(time.Minute)
-			stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, start, now, 0, 0, account.ID, 0, nil, nil, nil)
+			stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, start, now, 0, 0, account.ID, 0, 0, nil, nil, nil)
 			if err != nil {
 				return true, err
 			}
@@ -537,7 +561,7 @@ func (s *RateLimitService) getGeminiUsageTotalsBatch(ctx context.Context, accoun
 	}
 
 	for _, accountID := range ids {
-		stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, start, end, 0, 0, accountID, 0, nil, nil, nil)
+		stats, err := s.usageRepo.GetModelStatsWithFilters(ctx, start, end, 0, 0, accountID, 0, 0, nil, nil, nil)
 		if err != nil {
 			return nil, err
 		}

@@ -179,8 +179,7 @@ const platformOptions = computed(() => [
   { value: 'grok', label: t('admin.accounts.platforms.grok') },
   { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') },
   { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
-  { value: 'sora', label: t('admin.accounts.platforms.sora') }
+  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') }
 ])
 
 const groupOptions = computed(() => [

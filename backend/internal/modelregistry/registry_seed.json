@@ -2912,32 +2912,6 @@
     ]
   },
   {
-    "id": "gpt-image",
-    "display_name": "GPT-image",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "gpt-image"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-image"
-    ],
-    "modalities": [
-      "text",
-      "image"
-    ],
-    "capabilities": [
-      "image"
-    ],
-    "ui_priority": 0,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-3.5-turbo-0125",
     "display_name": "GPT-3.5-turbo-0125",
     "provider": "openai",
@@ -2955,32 +2929,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 1,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "gpt-image-landscape",
-    "display_name": "GPT-image-landscape",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "gpt-image-landscape"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-image-landscape"
-    ],
-    "modalities": [
-      "text",
-      "image"
-    ],
-    "capabilities": [
-      "image"
-    ],
     "ui_priority": 1,
     "exposed_in": [
       "whitelist"
@@ -3010,32 +2958,6 @@
     ]
   },
   {
-    "id": "gpt-image-portrait",
-    "display_name": "GPT-image-portrait",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "gpt-image-portrait"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-image-portrait"
-    ],
-    "modalities": [
-      "text",
-      "image"
-    ],
-    "capabilities": [
-      "image"
-    ],
-    "ui_priority": 2,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-3.5-turbo-16k",
     "display_name": "GPT-3.5-turbo-16k",
     "provider": "openai",
@@ -3053,32 +2975,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 3,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2-landscape-10s",
-    "display_name": "Sora2-landscape-10s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2-landscape-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2-landscape-10s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
     "ui_priority": 3,
     "exposed_in": [
       "whitelist"
@@ -3108,32 +3004,6 @@
     ]
   },
   {
-    "id": "sora2-portrait-10s",
-    "display_name": "Sora2-portrait-10s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2-portrait-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2-portrait-10s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 4,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-4-turbo",
     "display_name": "GPT-4-turbo",
     "provider": "openai",
@@ -3151,32 +3021,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 5,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2-landscape-15s",
-    "display_name": "Sora2-landscape-15s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2-landscape-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2-landscape-15s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
     "ui_priority": 5,
     "exposed_in": [
       "whitelist"
@@ -3206,32 +3050,6 @@
     ]
   },
   {
-    "id": "sora2-portrait-15s",
-    "display_name": "Sora2-portrait-15s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2-portrait-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2-portrait-15s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 6,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-4o",
     "display_name": "GPT-4o",
     "provider": "openai",
@@ -3249,32 +3067,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 7,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2-landscape-25s",
-    "display_name": "Sora2-landscape-25s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2-landscape-25s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2-landscape-25s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
     "ui_priority": 7,
     "exposed_in": [
       "whitelist"
@@ -3304,32 +3096,6 @@
     ]
   },
   {
-    "id": "sora2-portrait-25s",
-    "display_name": "Sora2-portrait-25s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2-portrait-25s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2-portrait-25s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 8,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-4o-2024-11-20",
     "display_name": "GPT-4o-2024-11-20",
     "provider": "openai",
@@ -3347,32 +3113,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 9,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2pro-landscape-10s",
-    "display_name": "Sora2pro-landscape-10s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-landscape-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-landscape-10s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
     "ui_priority": 9,
     "exposed_in": [
       "whitelist"
@@ -3402,32 +3142,6 @@
     ]
   },
   {
-    "id": "sora2pro-portrait-10s",
-    "display_name": "Sora2pro-portrait-10s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-portrait-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-portrait-10s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 10,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-4o-mini-2024-07-18",
     "display_name": "GPT-4o-mini-2024-07-18",
     "provider": "openai",
@@ -3445,32 +3159,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 11,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2pro-landscape-15s",
-    "display_name": "Sora2pro-landscape-15s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-landscape-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-landscape-15s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
     "ui_priority": 11,
     "exposed_in": [
       "whitelist"
@@ -3500,32 +3188,6 @@
     ]
   },
   {
-    "id": "sora2pro-portrait-15s",
-    "display_name": "Sora2pro-portrait-15s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-portrait-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-portrait-15s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 12,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-4.1",
     "display_name": "GPT-4.1",
     "provider": "openai",
@@ -3549,32 +3211,6 @@
     ]
   },
   {
-    "id": "sora2pro-landscape-25s",
-    "display_name": "Sora2pro-landscape-25s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-landscape-25s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-landscape-25s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 13,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-4.1-mini",
     "display_name": "GPT-4.1-mini",
     "provider": "openai",
@@ -3592,32 +3228,6 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 14,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2pro-portrait-25s",
-    "display_name": "Sora2pro-portrait-25s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-portrait-25s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-portrait-25s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
     "ui_priority": 14,
     "exposed_in": [
       "whitelist"
@@ -3670,32 +3280,6 @@
     ]
   },
   {
-    "id": "sora2pro-hd-landscape-10s",
-    "display_name": "Sora2pro-hd-landscape-10s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-hd-landscape-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-hd-landscape-10s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 15,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "o1",
     "display_name": "O1",
     "provider": "openai",
@@ -3714,32 +3298,6 @@
     ],
     "capabilities": [
       "reasoning"
-    ],
-    "ui_priority": 16,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2pro-hd-portrait-10s",
-    "display_name": "Sora2pro-hd-portrait-10s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-hd-portrait-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-hd-portrait-10s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
     ],
     "ui_priority": 16,
     "exposed_in": [
@@ -3772,32 +3330,6 @@
     ]
   },
   {
-    "id": "sora2pro-hd-landscape-15s",
-    "display_name": "Sora2pro-hd-landscape-15s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-hd-landscape-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-hd-landscape-15s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
-    ],
-    "ui_priority": 17,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
     "id": "o1-mini",
     "display_name": "O1-mini",
     "provider": "openai",
@@ -3816,32 +3348,6 @@
     ],
     "capabilities": [
       "reasoning"
-    ],
-    "ui_priority": 18,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "sora2pro-hd-portrait-15s",
-    "display_name": "Sora2pro-hd-portrait-15s",
-    "provider": "openai",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "sora2pro-hd-portrait-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "sora2pro-hd-portrait-15s"
-    ],
-    "modalities": [
-      "text",
-      "video"
-    ],
-    "capabilities": [
-      "video"
     ],
     "ui_priority": 18,
     "exposed_in": [
@@ -5361,213 +4867,6 @@
     ],
     "capabilities": [],
     "ui_priority": 19,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-short-10s",
-    "display_name": "Prompt-enhance-short-10s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-short-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-short-10s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 19,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-short-15s",
-    "display_name": "Prompt-enhance-short-15s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-short-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-short-15s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 20,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-short-20s",
-    "display_name": "Prompt-enhance-short-20s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-short-20s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-short-20s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 21,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-medium-10s",
-    "display_name": "Prompt-enhance-medium-10s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-medium-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-medium-10s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 22,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-medium-15s",
-    "display_name": "Prompt-enhance-medium-15s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-medium-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-medium-15s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 23,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-medium-20s",
-    "display_name": "Prompt-enhance-medium-20s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-medium-20s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-medium-20s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 24,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-long-10s",
-    "display_name": "Prompt-enhance-long-10s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-long-10s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-long-10s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 25,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-long-15s",
-    "display_name": "Prompt-enhance-long-15s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-long-15s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-long-15s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 26,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "prompt-enhance-long-20s",
-    "display_name": "Prompt-enhance-long-20s",
-    "provider": "sora",
-    "platforms": [
-      "sora"
-    ],
-    "protocol_ids": [
-      "prompt-enhance-long-20s"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "prompt-enhance-long-20s"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 27,
     "exposed_in": [
       "whitelist"
     ]

@@ -26,6 +26,9 @@ func (s *OpsService) GetOpenAITokenStats(ctx context.Context, filter *OpsOpenAIT
 	if filter.GroupID != nil && *filter.GroupID <= 0 {
 		return nil, infraerrors.BadRequest("OPS_GROUP_ID_INVALID", "group_id must be > 0")
 	}
+	if filter.ChannelID != nil && *filter.ChannelID <= 0 {
+		return nil, infraerrors.BadRequest("OPS_CHANNEL_ID_INVALID", "channel_id must be > 0")
+	}
 
 	// top_n cannot be mixed with page/page_size params.
 	if filter.TopN > 0 && (filter.Page > 0 || filter.PageSize > 0) {

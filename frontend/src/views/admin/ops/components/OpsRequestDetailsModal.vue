@@ -22,6 +22,7 @@ interface Props {
   preset: OpsRequestDetailsPreset
   platform?: string
   groupId?: number | null
+  channelId?: number | null
 }
 
 const props = defineProps<Props>()
@@ -73,6 +74,7 @@ const fetchData = async () => {
     const platform = (props.platform || '').trim()
     if (platform) params.platform = platform
     if (typeof props.groupId === 'number' && props.groupId > 0) params.group_id = props.groupId
+    if (typeof props.channelId === 'number' && props.channelId > 0) params.channel_id = props.channelId
 
     if (typeof props.preset.min_duration_ms === 'number') params.min_duration_ms = props.preset.min_duration_ms
     if (typeof props.preset.max_duration_ms === 'number') params.max_duration_ms = props.preset.max_duration_ms
@@ -106,6 +108,7 @@ watch(
     props.timeRange,
     props.platform,
     props.groupId,
+    props.channelId,
     props.preset.kind,
     props.preset.sort,
     props.preset.min_duration_ms,
@@ -229,10 +232,47 @@ const kindBadgeClass = (kind: string) => {
                     </span>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs font-medium text-gray-700 dark:text-gray-200">
-                    {{ (row.platform || 'unknown').toUpperCase() }}
+                    <div class="space-y-1">
+                      <div>{{ (row.platform || 'unknown').toUpperCase() }}</div>
+                      <div
+                        v-if="row.channel_name || row.channel_id"
+                        class="text-[11px] font-normal text-gray-500 dark:text-gray-400"
+                        :title="row.channel_name || ''"
+                      >
+                        {{ row.channel_name || `CH#${row.channel_id}` }}
+                      </div>
+                    </div>
                   </td>
-                  <td class="max-w-[240px] truncate px-4 py-3 text-xs text-gray-600 dark:text-gray-300" :title="row.model || ''">
-                    {{ row.model || '-' }}
+                  <td class="max-w-[280px] px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
+                    <div class="space-y-1">
+                      <div class="truncate" :title="row.model || ''">
+                        {{ row.model || '-' }}
+                      </div>
+                      <div
+                        v-if="row.model_mapping_chain && row.model_mapping_chain !== row.model"
+                        class="truncate text-[11px] text-gray-500 dark:text-gray-400"
+                        :title="row.model_mapping_chain"
+                      >
+                        {{ row.model_mapping_chain }}
+                      </div>
+                      <div
+                        v-if="row.billing_mode || row.billing_tier"
+                        class="flex flex-wrap gap-1"
+                      >
+                        <span
+                          v-if="row.billing_mode"
+                          class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+                        >
+                          {{ row.billing_mode }}
+                        </span>
+                        <span
+                          v-if="row.billing_tier"
+                          class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                        >
+                          {{ row.billing_tier }}
+                        </span>
+                      </div>
+                    </div>
                   </td>
                   <td class="whitespace-nowrap px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
                     {{ typeof row.duration_ms === 'number' ? `${row.duration_ms} ms` : '-' }}

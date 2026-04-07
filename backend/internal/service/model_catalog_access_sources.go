@@ -115,15 +115,12 @@ func modelCatalogRequestPlatforms(record *modelCatalogRecord) []string {
 	if len(record.defaultPlatforms) > 0 {
 		return compactStrings(record.defaultPlatforms)
 	}
-	if modelCatalogLooksLikeSora(record) {
-		return []string{PlatformSora}
-	}
 	provider := strings.TrimSpace(record.provider)
 	if provider == "" {
 		provider = inferModelProvider(record.model)
 	}
 	switch provider {
-	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformSora, PlatformGrok:
+	case PlatformAnthropic, PlatformOpenAI, PlatformGemini, PlatformAntigravity, PlatformGrok:
 		return []string{provider}
 	case "xai":
 		return []string{PlatformGrok}
@@ -154,36 +151,6 @@ func modelCatalogAccountCanServePlatform(ctx context.Context, gateway *GatewaySe
 func modelCatalogUsesMixedScheduling(platform string) bool {
 	switch strings.ToLower(strings.TrimSpace(platform)) {
 	case PlatformAnthropic, PlatformGemini:
-		return true
-	default:
-		return false
-	}
-}
-
-func modelCatalogSupportsPlatform(record *modelCatalogRecord, platform string) bool {
-	if record == nil {
-		return false
-	}
-	for _, current := range record.defaultPlatforms {
-		if strings.EqualFold(strings.TrimSpace(current), platform) {
-			return true
-		}
-	}
-	return false
-}
-
-func modelCatalogLooksLikeSora(record *modelCatalogRecord) bool {
-	if record == nil {
-		return false
-	}
-	if modelCatalogSupportsPlatform(record, PlatformSora) {
-		return true
-	}
-	if len(buildSoraModelAliases(record.model)) > 0 {
-		return true
-	}
-	switch strings.ToLower(strings.TrimSpace(record.mode)) {
-	case "video", "prompt_enhance":
 		return true
 	default:
 		return false

@@ -6,7 +6,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/util/soraerror"
 	"io"
 	"net/http"
 	"time"
@@ -213,19 +212,10 @@ func runProxyQualityTarget(ctx context.Context, client *http.Client, target prox
 	}()
 	item.LatencyMs = time.Since(start).Milliseconds()
 	item.HTTPStatus = resp.StatusCode
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, proxyQualityMaxBodyBytes+1))
+	_, readErr := io.ReadAll(io.LimitReader(resp.Body, proxyQualityMaxBodyBytes+1))
 	if readErr != nil {
 		item.Status = "fail"
 		item.Message = fmt.Sprintf("读取响应失败: %v", readErr)
-		return item
-	}
-	if int64(len(body)) > proxyQualityMaxBodyBytes {
-		body = body[:proxyQualityMaxBodyBytes]
-	}
-	if target.Target == "sora" && soraerror.IsCloudflareChallengeResponse(resp.StatusCode, resp.Header, body) {
-		item.Status = "challenge"
-		item.CFRay = soraerror.ExtractCloudflareRayID(resp.Header, body)
-		item.Message = "Sora 命中 Cloudflare challenge"
 		return item
 	}
 	if _, ok := target.AllowedStatuses[resp.StatusCode]; ok {

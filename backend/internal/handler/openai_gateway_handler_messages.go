@@ -146,6 +146,15 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				return
 			}
 		}
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, requestedRoutingModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				h.anthropicStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
+				return
+			}
+			h.anthropicStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
+			return
+		}
 
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
@@ -163,7 +172,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				currentAPIKey.GroupID,
 				"",
 				sessionHash,
-				requestedRoutingModel,
+				runtimeSelectionModel,
 				failedAccountIDs,
 				service.OpenAIUpstreamTransportAny,
 			)
@@ -177,10 +186,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				)
 				if len(failedAccountIDs) == 0 {
 					defaultModel := ""
-					if currentAPIKey.Group != nil {
+					if channelState == nil && currentAPIKey.Group != nil {
 						defaultModel = currentAPIKey.Group.DefaultMappedModel
 					}
-					if defaultModel != "" && defaultModel != requestedRoutingModel {
+					if defaultModel != "" && defaultModel != runtimeSelectionModel {
 						reqLog.Info("openai_messages.fallback_to_default_model",
 							zap.String("default_mapped_model", defaultModel),
 						)
@@ -232,7 +241,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			reqLog.Debug("openai_messages.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			_ = scheduleDecision
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			accountRoutingModel := requestedRoutingModel
+			accountRoutingModel := runtimeSelectionModel
 			if fallback := strings.TrimSpace(c.GetString("openai_messages_fallback_model")); fallback != "" {
 				accountRoutingModel = fallback
 			}
@@ -345,6 +354,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:        result,
 					APIKey:        currentAPIKey,

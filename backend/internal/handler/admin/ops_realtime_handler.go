@@ -137,7 +137,6 @@ func (h *OpsHandler) GetAccountAvailability(c *gin.Context) {
 		}
 		groupID = &id
 	}
-
 	platformStats, groupStats, accountStats, collectedAt, err := h.opsService.GetAccountAvailabilityStats(c.Request.Context(), platform, groupID)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -196,6 +195,7 @@ func (h *OpsHandler) GetRealtimeTrafficSummary(c *gin.Context) {
 
 	platform := strings.TrimSpace(c.Query("platform"))
 	var groupID *int64
+	var channelID *int64
 	if v := strings.TrimSpace(c.Query("group_id")); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || id <= 0 {
@@ -203,6 +203,14 @@ func (h *OpsHandler) GetRealtimeTrafficSummary(c *gin.Context) {
 			return
 		}
 		groupID = &id
+	}
+	if v := strings.TrimSpace(c.Query("channel_id")); v != "" {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || id <= 0 {
+			response.BadRequest(c, "Invalid channel_id")
+			return
+		}
+		channelID = &id
 	}
 
 	endTime := time.Now().UTC()
@@ -215,6 +223,7 @@ func (h *OpsHandler) GetRealtimeTrafficSummary(c *gin.Context) {
 			EndTime:   endTime,
 			Platform:  platform,
 			GroupID:   groupID,
+			ChannelID: channelID,
 			QPS:       service.OpsRateSummary{},
 			TPS:       service.OpsRateSummary{},
 		}
@@ -231,6 +240,7 @@ func (h *OpsHandler) GetRealtimeTrafficSummary(c *gin.Context) {
 		EndTime:   endTime,
 		Platform:  platform,
 		GroupID:   groupID,
+		ChannelID: channelID,
 		QueryMode: service.OpsQueryModeRaw,
 	}
 

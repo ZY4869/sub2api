@@ -14,8 +14,6 @@ import (
 var (
 	ErrRegistrationDisabled          = infraerrors.Forbidden("REGISTRATION_DISABLED", "registration is currently disabled")
 	ErrSettingNotFound               = infraerrors.NotFound("SETTING_NOT_FOUND", "setting not found")
-	ErrSoraS3ProfileNotFound         = infraerrors.NotFound("SORA_S3_PROFILE_NOT_FOUND", "sora s3 profile not found")
-	ErrSoraS3ProfileExists           = infraerrors.Conflict("SORA_S3_PROFILE_EXISTS", "sora s3 profile already exists")
 	ErrGoogleBatchGCSProfileNotFound = infraerrors.NotFound("GOOGLE_BATCH_GCS_PROFILE_NOT_FOUND", "google batch gcs profile not found")
 	ErrGoogleBatchGCSProfileExists   = infraerrors.Conflict("GOOGLE_BATCH_GCS_PROFILE_EXISTS", "google batch gcs profile already exists")
 	ErrDefaultSubGroupInvalid        = infraerrors.BadRequest(
@@ -149,13 +147,6 @@ func (s *SettingService) SetStreamTimeoutSettings(ctx context.Context, settings 
 		return fmt.Errorf("marshal stream timeout settings: %w", err)
 	}
 	return s.settingRepo.Set(ctx, SettingKeyStreamTimeoutSettings, string(data))
-}
-
-func maxInt64(value int64, min int64) int64 {
-	if value < min {
-		return min
-	}
-	return value
 }
 
 func logClaudeCodeVersionBoundsFallback(err error) {

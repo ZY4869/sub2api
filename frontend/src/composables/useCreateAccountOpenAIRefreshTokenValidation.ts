@@ -34,10 +34,6 @@ interface UseCreateAccountOpenAIRefreshTokenValidationOptions {
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
   buildAccountExtra: (base?: Record<string, unknown>) => Record<string, unknown> | undefined
-  buildSoraAccountExtra: (
-    base?: Record<string, unknown>,
-    linkedOpenAIAccountId?: string | number
-  ) => Record<string, unknown> | undefined
   afterCreateImportModels: (accounts: Account[]) => Promise<void>
   emitCreated: () => void
   onClose: () => void
@@ -70,8 +66,6 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
     let failedCount = 0
     const errors: string[] = []
     const createdAccounts: Account[] = []
-    const shouldCreateOpenAI = options.form.platform === 'openai'
-    const shouldCreateSora = options.form.platform === 'sora'
 
     try {
       for (let i = 0; i < refreshTokens.length; i++) {
@@ -88,7 +82,7 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
           const oauthExtra = oauthClient.buildExtraInfo(tokenInfo)
           const extra = options.buildAccountExtra(oauthExtra)
 
-          if (shouldCreateOpenAI && !options.isOpenAIModelRestrictionDisabled.value) {
+          if (!options.isOpenAIModelRestrictionDisabled.value) {
             const modelMapping = buildModelMappingObject(
               options.modelRestrictionMode.value,
               options.allowedModels.value,
@@ -101,59 +95,23 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
 
           const accountName = refreshTokens.length > 1 ? `${options.form.name} #${i + 1}` : options.form.name
 
-          let openaiAccountId: string | number | undefined
-
-          if (shouldCreateOpenAI) {
-            const openaiAccount = await adminAPI.accounts.create({
-              name: accountName,
-              notes: options.form.notes,
-              platform: 'openai',
-              type: 'oauth',
-              credentials,
-              extra,
-              proxy_id: options.form.proxy_id,
-              concurrency: options.form.concurrency,
-              load_factor: options.form.load_factor ?? undefined,
-              priority: options.form.priority,
-              rate_multiplier: options.form.rate_multiplier,
-              group_ids: options.form.group_ids,
-              expires_at: options.form.expires_at,
-              auto_pause_on_expired: options.autoPauseOnExpired.value
-            })
-            openaiAccountId = openaiAccount.id
-            createdAccounts.push(openaiAccount)
-          }
-
-          if (shouldCreateSora) {
-            const soraCredentials = {
-              access_token: credentials.access_token,
-              refresh_token: credentials.refresh_token,
-              client_id: credentials.client_id,
-              expires_at: credentials.expires_at
-            }
-            const soraName = shouldCreateOpenAI ? `${accountName} (Sora)` : accountName
-            const soraExtra = options.buildSoraAccountExtra(
-              shouldCreateOpenAI ? extra : oauthExtra,
-              openaiAccountId
-            )
-            const soraAccount = await adminAPI.accounts.create({
-              name: soraName,
-              notes: options.form.notes,
-              platform: 'sora',
-              type: 'oauth',
-              credentials: soraCredentials,
-              extra: soraExtra,
-              proxy_id: options.form.proxy_id,
-              concurrency: options.form.concurrency,
-              load_factor: options.form.load_factor ?? undefined,
-              priority: options.form.priority,
-              rate_multiplier: options.form.rate_multiplier,
-              group_ids: options.form.group_ids,
-              expires_at: options.form.expires_at,
-              auto_pause_on_expired: options.autoPauseOnExpired.value
-            })
-            createdAccounts.push(soraAccount)
-          }
+          const openaiAccount = await adminAPI.accounts.create({
+            name: accountName,
+            notes: options.form.notes,
+            platform: 'openai',
+            type: 'oauth',
+            credentials,
+            extra,
+            proxy_id: options.form.proxy_id,
+            concurrency: options.form.concurrency,
+            load_factor: options.form.load_factor ?? undefined,
+            priority: options.form.priority,
+            rate_multiplier: options.form.rate_multiplier,
+            group_ids: options.form.group_ids,
+            expires_at: options.form.expires_at,
+            auto_pause_on_expired: options.autoPauseOnExpired.value
+          })
+          createdAccounts.push(openaiAccount)
 
           successCount++
         } catch (error: any) {

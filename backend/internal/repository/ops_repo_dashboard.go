@@ -129,6 +129,7 @@ func (r *opsRepository) getDashboardOverviewRaw(ctx context.Context, filter *ser
 		EndTime:   end,
 		Platform:  strings.TrimSpace(filter.Platform),
 		GroupID:   filter.GroupID,
+		ChannelID: filter.ChannelID,
 
 		SuccessCount:         successCount,
 		ErrorCountTotal:      errorTotal,
@@ -309,6 +310,7 @@ func (r *opsRepository) getDashboardOverviewPreaggregated(ctx context.Context, f
 		EndTime:   end,
 		Platform:  strings.TrimSpace(filter.Platform),
 		GroupID:   filter.GroupID,
+		ChannelID: filter.ChannelID,
 
 		SuccessCount:         successCount,
 		ErrorCountTotal:      errorTotal,
@@ -343,6 +345,7 @@ func (r *opsRepository) getDashboardOverviewPreaggregated(ctx context.Context, f
 
 type opsHourlyMetricsRow struct {
 	bucketStart time.Time
+	channelID   sql.NullInt64
 
 	successCount         int64
 	errorCountTotal      int64
@@ -384,32 +387,57 @@ func (r *opsRepository) listHourlyMetricsRows(ctx context.Context, filter *servi
 
 	platform := ""
 	groupID := (*int64)(nil)
+	channelID := (*int64)(nil)
 	if filter != nil {
 		platform = strings.TrimSpace(strings.ToLower(filter.Platform))
 		groupID = filter.GroupID
+		channelID = filter.ChannelID
 	}
 
 	switch {
-	case groupID != nil && *groupID > 0:
+	case groupID != nil && *groupID > 0 && channelID != nil && *channelID > 0:
 		where += fmt.Sprintf(" AND group_id = $%d", idx)
 		args = append(args, *groupID)
+		idx++
+		where += fmt.Sprintf(" AND channel_id = $%d", idx)
+		args = append(args, *channelID)
 		idx++
 		if platform != "" {
 			where += fmt.Sprintf(" AND platform = $%d", idx)
 			args = append(args, platform)
-			// idx++ removed - not used after this
 		}
+	case groupID != nil && *groupID > 0:
+		where += fmt.Sprintf(" AND group_id = $%d", idx)
+		args = append(args, *groupID)
+		idx++
+		where += " AND channel_id IS NULL"
+		if platform != "" {
+			where += fmt.Sprintf(" AND platform = $%d", idx)
+			args = append(args, platform)
+		}
+	case channelID != nil && *channelID > 0 && platform != "":
+		where += fmt.Sprintf(" AND platform = $%d", idx)
+		args = append(args, platform)
+		idx++
+		where += " AND group_id IS NULL"
+		where += fmt.Sprintf(" AND channel_id = $%d", idx)
+		args = append(args, *channelID)
+	case channelID != nil && *channelID > 0:
+		where += fmt.Sprintf(" AND channel_id = $%d", idx)
+		args = append(args, *channelID)
+		where += " AND platform IS NULL AND group_id IS NULL"
 	case platform != "":
 		where += fmt.Sprintf(" AND platform = $%d AND group_id IS NULL", idx)
 		args = append(args, platform)
-		// idx++ removed - not used after this
+		where += " AND channel_id IS NULL"
 	default:
-		where += " AND platform IS NULL AND group_id IS NULL"
+		where += " AND platform IS NULL AND group_id IS NULL AND channel_id IS NULL"
 	}
 
 	q := `
 SELECT
   bucket_start,
+  channel_id,
   success_count,
   error_count_total,
   business_limited_count,
@@ -445,6 +473,7 @@ ORDER BY bucket_start ASC`
 		var row opsHourlyMetricsRow
 		if err := rows.Scan(
 			&row.bucketStart,
+			&row.channelID,
 			&row.successCount,
 			&row.errorCountTotal,
 			&row.businessLimitedCount,
@@ -958,9 +987,11 @@ func isQueryTimeoutErr(err error) bool {
 func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, startIndex int) (join string, where string, args []any, nextIndex int) {
 	platform := ""
 	groupID := (*int64)(nil)
+	channelID := (*int64)(nil)
 	if filter != nil {
 		platform = strings.TrimSpace(strings.ToLower(filter.Platform))
 		groupID = filter.GroupID
+		channelID = filter.ChannelID
 	}
 
 	idx := startIndex
@@ -979,6 +1010,11 @@ func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 		clauses = append(clauses, fmt.Sprintf("ul.group_id = $%d", idx))
 		idx++
 	}
+	if channelID != nil && *channelID > 0 {
+		args = append(args, *channelID)
+		clauses = append(clauses, fmt.Sprintf("ul.channel_id = $%d", idx))
+		idx++
+	}
 	if platform != "" {
 		// Prefer group.platform when available; fall back to account.platform so we don't
 		// drop rows where group_id is NULL.
@@ -995,9 +1031,11 @@ func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 func buildErrorWhere(filter *service.OpsDashboardFilter, start, end time.Time, startIndex int) (where string, args []any, nextIndex int) {
 	platform := ""
 	groupID := (*int64)(nil)
+	channelID := (*int64)(nil)
 	if filter != nil {
 		platform = strings.TrimSpace(strings.ToLower(filter.Platform))
 		groupID = filter.GroupID
+		channelID = filter.ChannelID
 	}
 
 	idx := startIndex
@@ -1016,6 +1054,11 @@ func buildErrorWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 	if groupID != nil && *groupID > 0 {
 		args = append(args, *groupID)
 		clauses = append(clauses, fmt.Sprintf("group_id = $%d", idx))
+		idx++
+	}
+	if channelID != nil && *channelID > 0 {
+		args = append(args, *channelID)
+		clauses = append(clauses, fmt.Sprintf("channel_id = $%d", idx))
 		idx++
 	}
 	if platform != "" {

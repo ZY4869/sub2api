@@ -20,10 +20,13 @@ func (r *opsRepository) UpsertHourlyMetrics(ctx context.Context, startTime, endT
 
 	// NOTE:
 	// - We aggregate usage_logs + ops_error_logs into ops_metrics_hourly.
-	// - We emit three dimension granularities via GROUPING SETS:
+	// - We emit six dimension granularities via GROUPING SETS:
 	//   1) overall: (bucket_start)
 	//   2) platform: (bucket_start, platform)
 	//   3) group: (bucket_start, platform, group_id)
+	//   4) channel: (bucket_start, channel_id)
+	//   5) platform+channel: (bucket_start, platform, channel_id)
+	//   6) group+channel: (bucket_start, platform, group_id, channel_id)
 	//
 	// IMPORTANT: Postgres UNIQUE treats NULLs as distinct, so the table uses a COALESCE-based
 	// unique index; our ON CONFLICT target must match that expression set.
@@ -33,6 +36,7 @@ WITH usage_base AS (
     date_trunc('hour', ul.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS bucket_start,
     g.platform AS platform,
     ul.group_id AS group_id,
+    ul.channel_id AS channel_id,
     ul.duration_ms AS duration_ms,
     ul.first_token_ms AS first_token_ms,
     (ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens) AS tokens
@@ -45,6 +49,7 @@ usage_agg AS (
     bucket_start,
     CASE WHEN GROUPING(platform) = 1 THEN NULL ELSE platform END AS platform,
     CASE WHEN GROUPING(group_id) = 1 THEN NULL ELSE group_id END AS group_id,
+    CASE WHEN GROUPING(channel_id) = 1 THEN NULL ELSE channel_id END AS channel_id,
     COUNT(*) AS success_count,
     COALESCE(SUM(tokens), 0) AS token_consumed,
 
@@ -65,8 +70,13 @@ usage_agg AS (
   GROUP BY GROUPING SETS (
     (bucket_start),
     (bucket_start, platform),
-    (bucket_start, platform, group_id)
+    (bucket_start, platform, group_id),
+    (bucket_start, channel_id),
+    (bucket_start, platform, channel_id),
+    (bucket_start, platform, group_id, channel_id)
   )
+  HAVING (GROUPING(group_id) = 1 OR group_id IS NOT NULL)
+     AND (GROUPING(channel_id) = 1 OR channel_id IS NOT NULL)
 ),
 error_base AS (
   SELECT
@@ -75,6 +85,7 @@ error_base AS (
     -- value so platform-level GROUPING SETS don't collide with the overall (platform=NULL) row.
     COALESCE(platform, 'unknown') AS platform,
     group_id AS group_id,
+    channel_id AS channel_id,
     is_business_limited AS is_business_limited,
     error_owner AS error_owner,
     status_code AS client_status_code,
@@ -89,6 +100,7 @@ error_agg AS (
     bucket_start,
     CASE WHEN GROUPING(platform) = 1 THEN NULL ELSE platform END AS platform,
     CASE WHEN GROUPING(group_id) = 1 THEN NULL ELSE group_id END AS group_id,
+    CASE WHEN GROUPING(channel_id) = 1 THEN NULL ELSE channel_id END AS channel_id,
     COUNT(*) FILTER (WHERE COALESCE(client_status_code, 0) >= 400) AS error_count_total,
     COUNT(*) FILTER (WHERE COALESCE(client_status_code, 0) >= 400 AND is_business_limited) AS business_limited_count,
     COUNT(*) FILTER (WHERE COALESCE(client_status_code, 0) >= 400 AND NOT is_business_limited) AS error_count_sla,
@@ -99,15 +111,20 @@ error_agg AS (
   GROUP BY GROUPING SETS (
     (bucket_start),
     (bucket_start, platform),
-    (bucket_start, platform, group_id)
+    (bucket_start, platform, group_id),
+    (bucket_start, channel_id),
+    (bucket_start, platform, channel_id),
+    (bucket_start, platform, group_id, channel_id)
   )
-  HAVING GROUPING(group_id) = 1 OR group_id IS NOT NULL
+  HAVING (GROUPING(group_id) = 1 OR group_id IS NOT NULL)
+     AND (GROUPING(channel_id) = 1 OR channel_id IS NOT NULL)
 ),
 combined AS (
   SELECT
     COALESCE(u.bucket_start, e.bucket_start) AS bucket_start,
     COALESCE(u.platform, e.platform) AS platform,
     COALESCE(u.group_id, e.group_id) AS group_id,
+    COALESCE(u.channel_id, e.channel_id) AS channel_id,
 
     COALESCE(u.success_count, 0) AS success_count,
     COALESCE(e.error_count_total, 0) AS error_count_total,
@@ -137,11 +154,13 @@ combined AS (
     ON u.bucket_start = e.bucket_start
    AND COALESCE(u.platform, '') = COALESCE(e.platform, '')
    AND COALESCE(u.group_id, 0) = COALESCE(e.group_id, 0)
+   AND COALESCE(u.channel_id, 0) = COALESCE(e.channel_id, 0)
 )
 INSERT INTO ops_metrics_hourly (
   bucket_start,
   platform,
   group_id,
+  channel_id,
   success_count,
   error_count_total,
   business_limited_count,
@@ -168,6 +187,7 @@ SELECT
   bucket_start,
   NULLIF(platform, '') AS platform,
   group_id,
+  channel_id,
   success_count,
   error_count_total,
   business_limited_count,
@@ -192,7 +212,7 @@ SELECT
 FROM combined
 WHERE bucket_start IS NOT NULL
   AND (platform IS NULL OR platform <> '')
-ON CONFLICT (bucket_start, COALESCE(platform, ''), COALESCE(group_id, 0)) DO UPDATE SET
+ON CONFLICT (bucket_start, COALESCE(platform, ''), COALESCE(group_id, 0), COALESCE(channel_id, 0)) DO UPDATE SET
   success_count = EXCLUDED.success_count,
   error_count_total = EXCLUDED.error_count_total,
   business_limited_count = EXCLUDED.business_limited_count,
@@ -239,6 +259,7 @@ INSERT INTO ops_metrics_daily (
   bucket_date,
   platform,
   group_id,
+  channel_id,
   success_count,
   error_count_total,
   business_limited_count,
@@ -265,6 +286,7 @@ SELECT
   (bucket_start AT TIME ZONE 'UTC')::date AS bucket_date,
   platform,
   group_id,
+  channel_id,
 
   COALESCE(SUM(success_count), 0) AS success_count,
   COALESCE(SUM(error_count_total), 0) AS error_count_total,
@@ -299,8 +321,8 @@ SELECT
   NOW()
 FROM ops_metrics_hourly
 WHERE bucket_start >= $1 AND bucket_start < $2
-GROUP BY 1, 2, 3
-ON CONFLICT (bucket_date, COALESCE(platform, ''), COALESCE(group_id, 0)) DO UPDATE SET
+GROUP BY 1, 2, 3, 4
+ON CONFLICT (bucket_date, COALESCE(platform, ''), COALESCE(group_id, 0), COALESCE(channel_id, 0)) DO UPDATE SET
   success_count = EXCLUDED.success_count,
   error_count_total = EXCLUDED.error_count_total,
   business_limited_count = EXCLUDED.business_limited_count,

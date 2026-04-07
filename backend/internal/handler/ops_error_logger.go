@@ -682,6 +682,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 				ClientRequestID: clientRequestID,
 
 				AccountID: accountID,
+				ChannelID: resolveOpsChannelID(c),
 				Platform:  platform,
 				Model:     modelName,
 				RequestPath: func() string {
@@ -816,6 +817,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			ClientRequestID: clientRequestID,
 
 			AccountID: accountID,
+			ChannelID: resolveOpsChannelID(c),
 			Platform:  platform,
 			Model:     modelName,
 			RequestPath: func() string {
@@ -984,6 +986,17 @@ func applyOpsLatencyFieldsFromContext(c *gin.Context, entry *service.OpsInsertEr
 	entry.UpstreamLatencyMs = getContextLatencyMs(c, service.OpsUpstreamLatencyMsKey)
 	entry.ResponseLatencyMs = getContextLatencyMs(c, service.OpsResponseLatencyMsKey)
 	entry.TimeToFirstTokenMs = getContextLatencyMs(c, service.OpsTimeToFirstTokenMsKey)
+}
+
+func resolveOpsChannelID(c *gin.Context) *int64 {
+	if c == nil || c.Request == nil {
+		return nil
+	}
+	state, ok := service.GatewayChannelStateFromContext(c.Request.Context())
+	if !ok {
+		return nil
+	}
+	return state.ChannelIDPtr()
 }
 
 func getContextLatencyMs(c *gin.Context, key string) *int64 {

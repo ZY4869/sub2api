@@ -162,7 +162,11 @@ type UsageLog struct {
 	// UpstreamURL is the best-effort actual upstream base/request URL resolved at runtime.
 	UpstreamURL *string
 	// UpstreamService records the resolved upstream service family, e.g. copilot / kiro.
-	UpstreamService *string
+	UpstreamService   *string
+	ChannelID         *int64
+	ModelMappingChain *string
+	BillingTier       *string
+	BillingMode       *string
 
 	GroupID        *int64
 	SubscriptionID *int64
@@ -206,9 +210,11 @@ type UsageLog struct {
 	CacheTTLOverridden bool
 
 	// 图片生成字段
-	ImageCount int
-	ImageSize  *string
-	MediaType  *string
+	ImageCount        int
+	ImageSize         *string
+	MediaType         *string
+	ImageOutputTokens *int
+	ImageOutputCost   *float64
 
 	CreatedAt time.Time
 

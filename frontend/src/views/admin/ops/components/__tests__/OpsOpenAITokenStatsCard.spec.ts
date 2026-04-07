@@ -53,6 +53,7 @@ const sampleResponse = {
   end_time: '2026-01-31T00:00:00Z',
   platform: 'openai',
   group_id: 7,
+  channel_id: 9,
   items: [
     {
       model: 'gpt-4o-mini',
@@ -82,6 +83,7 @@ describe('OpsOpenAITokenStatsCard', () => {
       props: {
         platformFilter: 'openai',
         groupIdFilter: 7,
+        channelIdFilter: 9,
         refreshToken: 0,
       },
       global: {
@@ -98,6 +100,7 @@ describe('OpsOpenAITokenStatsCard', () => {
         time_range: '30d',
         platform: 'openai',
         group_id: 7,
+        channel_id: 9,
         top_n: 20,
       })
     )
@@ -111,6 +114,7 @@ describe('OpsOpenAITokenStatsCard', () => {
         time_range: '1h',
         platform: 'openai',
         group_id: 7,
+        channel_id: 9,
       })
     )
   })

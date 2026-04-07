@@ -127,6 +127,15 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
+				return
+			}
+			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
+			return
+		}
 
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
@@ -144,7 +153,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				currentAPIKey.GroupID,
 				"",
 				sessionHash,
-				reqModel,
+				runtimeSelectionModel,
 				failedAccountIDs,
 				service.OpenAIUpstreamTransportAny,
 			)
@@ -158,10 +167,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				)
 				if len(failedAccountIDs) == 0 {
 					defaultModel := ""
-					if currentAPIKey.Group != nil {
+					if channelState == nil && currentAPIKey.Group != nil {
 						defaultModel = currentAPIKey.Group.DefaultMappedModel
 					}
-					if defaultModel != "" && defaultModel != reqModel {
+					if defaultModel != "" && defaultModel != runtimeSelectionModel {
 						reqLog.Info("openai_chat_completions.fallback_to_default_model",
 							zap.String("default_mapped_model", defaultModel),
 						)
@@ -213,7 +222,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			reqLog.Debug("openai_chat_completions.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			_ = scheduleDecision
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			routingModel := reqModel
+			routingModel := runtimeSelectionModel
 			if fallback := strings.TrimSpace(c.GetString("openai_chat_completions_fallback_model")); fallback != "" {
 				routingModel = fallback
 			}
@@ -326,6 +335,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:           result,
 					APIKey:           currentAPIKey,

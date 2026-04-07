@@ -158,7 +158,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 		defer userReleaseFunc()
 	}
 
-	sessionHash := generateOpenAISessionHash(c, body)
+	sessionHash := generateGrokSessionHash(c, body)
 	excludedGroupIDs := make(map[int64]struct{})
 
 	for {
@@ -182,6 +182,15 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			h.handleStreamingAwareError(c, status, code, message, streamStarted)
 			return
 		}
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
+				return
+			}
+			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
+			return
+		}
 
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
@@ -191,7 +200,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			if isRequestCanceled(c.Request.Context(), nil) {
 				return
 			}
-			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionHash, reqModel, failedAccountIDs, "")
+			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionHash, runtimeSelectionModel, failedAccountIDs, "")
 			if err != nil {
 				reqLog.Warn("grok.account_select_failed", zap.Error(err), zap.Int("excluded_account_count", len(failedAccountIDs)))
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -220,7 +229,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			}
 			mappedModel := ""
 			if action != grokActionVideoStatus {
-				mappedModel = account.GetMappedModel(reqModel)
+				mappedModel = account.GetMappedModel(runtimeSelectionModel)
 			}
 			setOpsEndpointContext(c, mappedModel, requestType)
 			accountReleaseFunc, acquired := h.acquireAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
@@ -315,6 +324,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 				userAgent := c.GetHeader("User-Agent")
 				clientIP := ip.GetClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = reattachGatewayChannelState(ctx, channelState)
 					if recordErr := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{
 						Result:           result.Result,
 						APIKey:           currentAPIKey,
@@ -527,4 +537,21 @@ func firstNonEmptyString(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func generateGrokSessionHash(c *gin.Context, body []byte) string {
+	if c == nil {
+		return ""
+	}
+	sessionID := strings.TrimSpace(c.GetHeader("session_id"))
+	if sessionID == "" {
+		sessionID = strings.TrimSpace(c.GetHeader("conversation_id"))
+	}
+	if sessionID == "" && len(body) > 0 {
+		sessionID = strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String())
+	}
+	if sessionID == "" {
+		return ""
+	}
+	return service.DeriveSessionHashFromSeed(sessionID)
 }

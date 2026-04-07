@@ -558,7 +558,7 @@ func inferOpsTraceProtocolOut(protocolIn string, platform string) string {
 			return protocolIn
 		}
 		return "anthropic"
-	case service.PlatformOpenAI, service.PlatformCopilot, service.PlatformKiro, service.PlatformSora, service.PlatformGrok:
+	case service.PlatformOpenAI, service.PlatformCopilot, service.PlatformKiro, service.PlatformGrok:
 		return "openai"
 	default:
 		if protocolIn != "" {
@@ -569,6 +569,13 @@ func inferOpsTraceProtocolOut(protocolIn string, platform string) string {
 }
 
 func inferOpsTraceChannel(c *gin.Context, protocolIn, protocolOut string) string {
+	if c != nil && c.Request != nil {
+		if state, ok := service.GatewayChannelStateFromContext(c.Request.Context()); ok && state != nil {
+			if channelName := strings.TrimSpace(state.ChannelName()); channelName != "" {
+				return channelName
+			}
+		}
+	}
 	path := strings.ToLower(inferOpsTraceRoutePath(c))
 	switch {
 	case strings.Contains(path, "/publishers/google/models/"):

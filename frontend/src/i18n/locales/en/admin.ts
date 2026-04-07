@@ -674,8 +674,6 @@ export default {
       failedToLoadApiKeys: 'Failed to load user API keys',
       emailRequired: 'Please enter email',
       concurrencyMin: 'Concurrency must be at least 1',
-      soraStorageQuota: 'Sora Storage Quota',
-      soraStorageQuotaHint: 'In GB, 0 means use group or system default quota',
       amountRequired: 'Please enter a valid amount',
       insufficientBalance: 'Insufficient balance',
       deleteConfirm: "Are you sure you want to delete '{email}'? This action cannot be undone.",
@@ -879,8 +877,7 @@ export default {
         copilot: 'GitHub Copilot',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity',
-        sora: 'Sora'
+        antigravity: 'Antigravity'
       },
       deleteConfirm:
         "Are you sure you want to delete '{name}'? All associated API keys will no longer belong to any group.",
@@ -904,16 +901,6 @@ export default {
       imagePricing: {
         title: 'Image Generation Pricing',
         description: 'Configure pricing for image generation models. Leave empty to use default prices.'
-      },
-      soraPricing: {
-        title: 'Sora Per-Request Pricing',
-        description: 'Configure per-request pricing for Sora image/video generation. Leave empty to disable billing.',
-        image360: 'Image 360px ($)',
-        image540: 'Image 540px ($)',
-        video: 'Video (standard) ($)',
-        videoHd: 'Video (Pro-HD) ($)',
-        storageQuota: 'Storage Quota',
-        storageQuotaHint: 'In GB, set the Sora storage quota for users in this group. 0 means use system default'
       },
       claudeCode: {
         title: 'Claude Code Client Restriction',
@@ -1250,8 +1237,7 @@ export default {
         protocol_gateway: 'Protocol Gateway',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity',
-        sora: 'Sora'
+        antigravity: 'Antigravity'
       },
       types: {
         oauth: 'OAuth',
@@ -1264,10 +1250,6 @@ export default {
         antigravityApikey: 'Connect via Base URL + API Key',
         grokSso: 'SSO Token',
         grokSsoHint: 'Paste a normalized Grok SSO token. The Bearer prefix will be normalized on save.',
-        soraApiKey: 'API Key / Upstream',
-        soraApiKeyHint: 'Connect to another Sub2API or compatible API',
-        soraBaseUrlRequired: 'Sora API Key account requires a Base URL',
-        soraBaseUrlInvalidScheme: 'Base URL must start with http:// or https://',
         upstream: 'Upstream',
         upstreamDesc: 'Connect via Base URL + API Key'
       },
@@ -1489,7 +1471,7 @@ export default {
         runFailed: 'Failed to run batch test',
         loadModelsFailed: 'Failed to load shared test models',
         noSharedModels: 'No shared catalog model is available for the selected accounts. Switch to manual input or use auto model selection instead.',
-        realForwardUnsupportedHint: 'The current selection includes Grok or Sora accounts, so only health check mode is available.',
+        realForwardUnsupportedHint: 'The current selection includes Grok accounts, so only health check mode is available.',
         quickCheck: 'Quick Check',
         promptLabel: 'Shared test prompt',
         promptPlaceholder: 'Only real forward tests will use this prompt.',
@@ -1641,9 +1623,7 @@ export default {
         codexCLIOnly: 'Codex official clients only',
         codexCLIOnlyDesc:
           'Only applies to OpenAI OAuth. When enabled, only Codex official client families are allowed; when disabled, the gateway bypasses this restriction and keeps existing behavior.',
-        modelRestrictionDisabledByPassthrough: 'Automatic passthrough is enabled: model whitelist/mapping will not take effect.',
-        enableSora: 'Enable Sora simultaneously',
-        enableSoraHint: 'Sora uses the same OpenAI account. Enable to create Sora account simultaneously.'
+        modelRestrictionDisabledByPassthrough: 'Automatic passthrough is enabled: model whitelist/mapping will not take effect.'
       },
       anthropic: {
         apiKeyPassthrough: 'Auto passthrough (auth only)',
@@ -1730,9 +1710,6 @@ export default {
         'Map request models to actual models. Left is the requested model, right is the actual model sent to API.',
       selectedModels: 'Selected {count} model(s)',
       supportsAllModels: '(supports all models)',
-      soraModelsLoadFailed: 'Failed to load Sora models, fallback to default list',
-      soraModelsLoading: 'Loading Sora models...',
-      soraModelsRetry: 'Load failed, click to retry',
       requestModel: 'Request model',
       actualModel: 'Actual model',
       addMapping: 'Add Mapping',
@@ -1924,8 +1901,6 @@ export default {
         test: 'Test Page',
         runtime: 'Runtime'
       },
-      soraAccountCreated: 'Sora account created simultaneously',
-      soraAccountFailed: 'Failed to create Sora account, please add manually later',
       accountUpdated: 'Account updated successfully',
       failedToCreate: 'Failed to create account',
       failedToUpdate: 'Failed to update account',
@@ -2105,8 +2080,6 @@ export default {
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',
           sessionTokenAuth: 'Manual ST Input',
-          sessionTokenDesc: 'Enter your existing Sora Session Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
-          sessionTokenPlaceholder: 'Paste your Sora Session Token...\nSupports multiple, one per line',
           sessionTokenRawLabel: 'Raw Input',
           sessionTokenRawPlaceholder: 'Paste /api/auth/session raw payload or Session Token...',
           sessionTokenRawHint: 'You can paste full JSON. The system will auto-parse ST and AT.',
@@ -2494,7 +2467,6 @@ export default {
       kiroAccount: 'Kiro Account',
       openaiAccount: 'OpenAI Account',
       copilotAccount: 'GitHub Copilot Account',
-      soraAccount: 'Sora Account',
       geminiAccount: 'Gemini Account',
       antigravityAccount: 'Antigravity Account',
       reauthUnavailableForPlatform: 'This version cannot re-authorize {platform} accounts from the web console yet. Please refresh credentials through the import flow first.',
@@ -2637,11 +2609,6 @@ export default {
       geminiImageTestMode: 'Mode: Gemini image generation test',
       geminiImagePreview: 'Generated images:',
       geminiImageReceived: 'Received test image #{count}',
-      soraUpstreamBaseUrlHint: 'Upstream Sora service URL (another Sub2API instance or compatible API)',
-      soraTestHint: 'Sora test runs connectivity and capability checks (/backend/me, subscription, Sora2 invite and remaining quota).',
-      soraTestTarget: 'Target: Sora account capability',
-      soraTestMode: 'Mode: Connectivity + Capability checks',
-      soraTestingFlow: 'Running Sora connectivity and capability checks...',
       testRuntimeContextTitle: 'Test runtime context',
       testRuntimeContextMode: 'Mode: {mode}',
       testRuntimeContextPlatform: 'Platform: {platform}',
@@ -2993,6 +2960,7 @@ export default {
       codeType: 'Code Type',
       amount: 'Amount ($)',
       value: 'Value',
+      adjustmentHint: 'Positive adds, negative subtracts, 0 is invalid',
       count: 'Count',
       generating: 'Generating...',
       generate: 'Generate',
@@ -3022,6 +2990,7 @@ export default {
       selectGroupPlaceholder: 'Choose a subscription group',
       validityDays: 'Validity Days',
       groupRequired: 'Please select a subscription group',
+      nonZeroValueRequired: 'Please enter a non-zero value',
       days: ' days',
       status: {
         unused: 'Unused',
@@ -3181,7 +3150,9 @@ export default {
       allModels: 'All Models',
       allAccounts: 'All Accounts',
       allGroups: 'All Groups',
+      allChannels: 'All Channels',
       allTypes: 'All Types',
+      channel: 'Channel',
       inputCost: 'Input Cost',
       outputCost: 'Output Cost',
       cacheCreationCost: 'Cache Creation Cost',
@@ -3335,6 +3306,7 @@ export default {
         '7d': 'Last 7 days',
         '30d': 'Last 30 days'
       },
+      allChannels: 'All Channels',
       openaiTokenStats: {
         title: 'OpenAI Token Request Stats',
         viewModeTopN: 'TopN',
@@ -3477,6 +3449,7 @@ export default {
         },
         total: 'Total:',
         searchPlaceholder: 'Search request_id / client_request_id / message',
+        channelFilterNotice: 'This list is not filtered by channel. Only time, platform, and group filters are applied.',
       },
       // Error Detail Modal
       errorDetail: {
@@ -4194,12 +4167,6 @@ export default {
         integrationDoc: 'Payment Integration Docs',
         integrationDocHint: 'Covers endpoint specs, idempotency semantics, and code samples'
       },
-      soraClient: {
-        title: 'Sora Client',
-        description: 'Control whether to show the Sora client entry in the sidebar',
-        enabled: 'Enable Sora Client',
-        enabledHint: 'When enabled, the Sora entry will be shown in the sidebar for users to access Sora features'
-      },
       customMenu: {
         title: 'Custom Menu Pages',
         description: 'Add custom iframe pages to the sidebar navigation. Each page can be visible to regular users or administrators.',
@@ -4291,60 +4258,6 @@ export default {
         keyWarning: 'This key will only be shown once. Please copy it now.',
         securityWarning: 'Warning: This key provides full admin access. Keep it secure.',
         usage: 'Usage: Add to request header - x-api-key: <your-admin-api-key>'
-      },
-      soraS3: {
-        title: 'Sora S3 Storage',
-        description: 'Manage multiple Sora S3 endpoints and switch the active profile',
-        newProfile: 'New Profile',
-        reloadProfiles: 'Reload Profiles',
-        empty: 'No Sora S3 profiles yet, create one first',
-        createTitle: 'Create Sora S3 Profile',
-        editTitle: 'Edit Sora S3 Profile',
-        profileID: 'Profile ID',
-        profileName: 'Profile Name',
-        setActive: 'Set as active after creation',
-        saveProfile: 'Save Profile',
-        activateProfile: 'Activate',
-        profileCreated: 'Sora S3 profile created',
-        profileSaved: 'Sora S3 profile saved',
-        profileDeleted: 'Sora S3 profile deleted',
-        profileActivated: 'Sora S3 active profile switched',
-        profileIDRequired: 'Profile ID is required',
-        profileNameRequired: 'Profile name is required',
-        profileSelectRequired: 'Please select a profile first',
-        endpointRequired: 'S3 endpoint is required when enabled',
-        bucketRequired: 'Bucket is required when enabled',
-        accessKeyRequired: 'Access Key ID is required when enabled',
-        deleteConfirm: 'Delete Sora S3 profile {profileID}?',
-        columns: {
-          profile: 'Profile',
-          active: 'Active',
-          endpoint: 'Endpoint',
-          bucket: 'Bucket',
-          quota: 'Default Quota',
-          updatedAt: 'Updated At',
-          actions: 'Actions'
-        },
-        enabled: 'Enable S3 Storage',
-        enabledHint: 'When enabled, Sora generated media files will be automatically uploaded to S3 storage',
-        endpoint: 'S3 Endpoint',
-        region: 'Region',
-        bucket: 'Bucket',
-        prefix: 'Object Prefix',
-        accessKeyId: 'Access Key ID',
-        secretAccessKey: 'Secret Access Key',
-        secretConfigured: '(Configured, leave blank to keep)',
-        cdnUrl: 'CDN URL',
-        cdnUrlHint: 'Optional. When configured, files are accessed via CDN URL instead of presigned URLs',
-        forcePathStyle: 'Force Path Style',
-        defaultQuota: 'Default Storage Quota',
-        defaultQuotaHint: 'Default quota when not specified at user or group level. 0 means unlimited',
-        testConnection: 'Test Connection',
-        testing: 'Testing...',
-        testSuccess: 'S3 connection test successful',
-        testFailed: 'S3 connection test failed',
-        saved: 'Sora S3 settings saved successfully',
-        saveFailed: 'Failed to save Sora S3 settings'
       },
       googleBatchGcs: {
         title: 'Google Batch GCS Staging',

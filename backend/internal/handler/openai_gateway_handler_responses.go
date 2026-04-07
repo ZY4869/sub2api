@@ -187,6 +187,15 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
+		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		if err != nil {
+			if errors.Is(err, service.ErrChannelModelNotAllowed) {
+				h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
+				return
+			}
+			h.handleStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
+			return
+		}
 
 		switchCount := 0
 		failedAccountIDs := make(map[int64]struct{})
@@ -204,7 +213,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				currentAPIKey.GroupID,
 				previousResponseID,
 				sessionHash,
-				reqModel,
+				runtimeSelectionModel,
 				failedAccountIDs,
 				service.OpenAIUpstreamTransportAny,
 			)
@@ -259,7 +268,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 			reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			setOpsSelectedAccount(c, account.ID, account.Platform)
-			setOpsEndpointContext(c, account.GetMappedModel(reqModel), service.RequestTypeFromLegacy(reqStream, false))
+			setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 
 			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
 			if !acquired {
@@ -378,6 +387,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 
 			// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 			h.submitUsageRecordTask(func(ctx context.Context) {
+				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 					Result:        result,
 					APIKey:        currentAPIKey,

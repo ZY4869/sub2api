@@ -10,21 +10,19 @@ describe('accountApiKeyBasicSettings', () => {
   it('resolves platform defaults and placeholders', () => {
     expect(resolveAccountApiKeyDefaultBaseUrl('anthropic')).toBe('https://api.anthropic.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('openai')).toBe('https://api.openai.com')
-    expect(resolveAccountApiKeyDefaultBaseUrl('sora')).toBe('https://api.openai.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('copilot')).toBe('https://api.githubcopilot.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('gemini')).toBe('https://generativelanguage.googleapis.com')
     expect(resolveAccountApiKeyDefaultBaseUrl('antigravity')).toBe('https://cloudcode-pa.googleapis.com')
 
     expect(resolveAccountApiKeyPlaceholder('anthropic')).toBe('sk-ant-...')
     expect(resolveAccountApiKeyPlaceholder('openai')).toBe('sk-proj-...')
-    expect(resolveAccountApiKeyPlaceholder('sora')).toBe('sk-proj-...')
     expect(resolveAccountApiKeyPlaceholder('copilot')).toBe('ghu_...')
     expect(resolveAccountApiKeyPlaceholder('gemini')).toBe('AIza...')
     expect(resolveAccountApiKeyPlaceholder('antigravity')).toBe('sk-...')
   })
 
   it('resolves mode-aware hint keys', () => {
-    expect(resolveAccountApiKeyBaseUrlHintKey('sora', 'create')).toBe('admin.accounts.soraUpstreamBaseUrlHint')
+    expect(resolveAccountApiKeyBaseUrlHintKey('openai', 'create')).toBe('admin.accounts.openai.baseUrlHint')
     expect(resolveAccountApiKeyBaseUrlHintKey('openai', 'edit')).toBe('admin.accounts.openai.baseUrlHint')
     expect(resolveAccountApiKeyBaseUrlHintKey('copilot', 'create')).toBe('admin.accounts.openai.baseUrlHint')
     expect(resolveAccountApiKeyBaseUrlHintKey('gemini', 'create')).toBe('admin.accounts.gemini.baseUrlHint')

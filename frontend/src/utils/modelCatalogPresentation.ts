@@ -10,8 +10,7 @@ const MODEL_CATALOG_PROVIDER_LABELS: Record<string, string> = {
   openai: 'OpenAI',
   copilot: 'Copilot',
   gemini: 'Gemini',
-  antigravity: 'Antigravity',
-  sora: 'Sora'
+  antigravity: 'Antigravity'
 }
 
 export function resolveModelCatalogDisplayName(model: string, displayName?: string): string {

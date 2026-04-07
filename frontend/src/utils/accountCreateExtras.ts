@@ -67,28 +67,3 @@ export function buildAnthropicExtra(options: {
 
   return Object.keys(extra).length > 0 ? extra : undefined
 }
-
-export function buildSoraExtra(options: {
-  base?: Record<string, unknown>
-  linkedOpenAIAccountId?: string | number
-}): Record<string, unknown> | undefined {
-  const extra: Record<string, unknown> = { ...(options.base || {}) }
-  if (options.linkedOpenAIAccountId !== undefined && options.linkedOpenAIAccountId !== null) {
-    const id = String(options.linkedOpenAIAccountId).trim()
-    if (id) {
-      extra.linked_openai_account_id = id
-    }
-  }
-
-  delete extra.openai_passthrough
-  delete extra.openai_oauth_passthrough
-  delete extra.codex_cli_only
-  delete extra.openai_oauth_responses_websockets_v2_mode
-  delete extra.openai_apikey_responses_websockets_v2_mode
-  delete extra.openai_oauth_responses_websockets_v2_enabled
-  delete extra.openai_apikey_responses_websockets_v2_enabled
-  delete extra.responses_websockets_v2_enabled
-  delete extra.openai_ws_enabled
-
-  return Object.keys(extra).length > 0 ? extra : undefined
-}

@@ -16,8 +16,7 @@ const supportedModelPlatforms: AccountPlatform[] = [
   'anthropic',
   'antigravity',
   'openai',
-  'gemini',
-  'sora'
+  'gemini'
 ]
 
 function dedupeByKey<T>(items: T[], getKey: (item: T) => string): T[] {

@@ -8,8 +8,7 @@ export const MODEL_REGISTRY_PLATFORM_PRESETS = [
   'openai',
   'copilot',
   'gemini',
-  'antigravity',
-  'sora'
+  'antigravity'
 ] as const
 
 export type ModelRegistryCapability =

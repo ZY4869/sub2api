@@ -52,8 +52,6 @@ export function formatProviderLabel(provider: string): string {
       return 'Gemini'
     case 'antigravity':
       return 'Antigravity'
-    case 'sora':
-      return 'Sora'
     default:
       return provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Unknown'
   }

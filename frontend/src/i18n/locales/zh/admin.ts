@@ -731,8 +731,6 @@
       failedToAdjust: '调整失败',
       emailRequired: '请输入邮箱',
       concurrencyMin: '并发数不能小于1',
-      soraStorageQuota: 'Sora 存储配额',
-      soraStorageQuotaHint: '单位 GB，0 表示使用分组或系统默认配额',
       amountRequired: '请输入有效金额',
       insufficientBalance: '余额不足',
       setAllowedGroups: '设置允许分组',
@@ -925,8 +923,7 @@
         copilot: 'GitHub Copilot',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity',
-        sora: 'Sora'
+        antigravity: 'Antigravity'
       },
       saving: '保存中...',
       noGroups: '暂无分组',
@@ -982,16 +979,6 @@
       imagePricing: {
         title: '图片生成计费',
         description: '配置图片生成模型的图片生成价格，留空则使用默认价格'
-      },
-      soraPricing: {
-        title: 'Sora 按次计费',
-        description: '配置 Sora 图片/视频按次收费价格，留空则默认不计费',
-        image360: '图片 360px ($)',
-        image540: '图片 540px ($)',
-        video: '视频（标准）($)',
-        videoHd: '视频（Pro-HD）($)',
-        storageQuota: '存储配额',
-        storageQuotaHint: '单位 GB，设置该分组用户的 Sora 存储配额上限，0 表示使用系统默认'
       },
       claudeCode: {
         title: 'Claude Code 客户端限制',
@@ -1433,8 +1420,7 @@
         protocol_gateway: '协议网关',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity',
-        sora: 'Sora'
+        antigravity: 'Antigravity'
       },
       types: {
         oauth: 'OAuth',
@@ -1447,10 +1433,6 @@
         antigravityApikey: '通过 Base URL + API Key 连接',
         grokSso: 'SSO Token',
         grokSsoHint: '粘贴标准化后的 Grok SSO token，保存时会自动规范化 Bearer 前缀',
-        soraApiKey: 'API Key / 上游透传',
-        soraApiKeyHint: '连接另一个 Sub2API 或兼容 API',
-        soraBaseUrlRequired: 'Sora apikey 账号必须设置上游地址（Base URL）',
-        soraBaseUrlInvalidScheme: 'Base URL 必须以 http:// 或 https:// 开头',
         upstream: '对接上游',
         upstreamDesc: '通过 Base URL + API Key 连接上游',
         api_key: 'API Key',
@@ -1637,7 +1619,7 @@
         runFailed: '批量测试失败',
         loadModelsFailed: '加载共同可用模型失败',
         noSharedModels: '当前选中账号没有共同可用的目录模型，可切换为手动输入或改用自动选模型。',
-        realForwardUnsupportedHint: '当前选中的账号包含 Grok 或 Sora，仅支持快速探活测试。',
+        realForwardUnsupportedHint: '当前选中的账号包含 Grok，仅支持快速探活测试。',
         quickCheck: '快速检测',
         promptLabel: '统一测试提示词',
         promptPlaceholder: '仅真实转发测试会使用这段提示词。',
@@ -1787,9 +1769,7 @@
         responsesWebsocketsV2PassthroughHint: '当前已开启自动透传：仅影响 HTTP 透传链路，不影响 WS mode。',
         codexCLIOnly: '仅允许 Codex 官方客户端',
         codexCLIOnlyDesc: '仅对 OpenAI OAuth 生效。开启后仅允许 Codex 官方客户端家族访问；关闭后完全绕过并保持原逻辑。',
-        modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。',
-        enableSora: '同时启用 Sora',
-        enableSoraHint: 'Sora 使用相同的 OpenAI 账号，开启后将同时创建 Sora 平台账号'
+        modelRestrictionDisabledByPassthrough: '已开启自动透传：模型白名单/映射不会生效。'
       },
       anthropic: {
         apiKeyPassthrough: '自动透传（仅替换认证）',
@@ -1875,9 +1855,6 @@
       mapRequestModels: '将请求模型映射到实际模型。左边是请求的模型，右边是发送到 API 的实际模型。',
       selectedModels: '已选择 {count} 个模型',
       supportsAllModels: '（支持所有模型）',
-      soraModelsLoadFailed: '加载 Sora 模型列表失败，已回退到默认列表',
-      soraModelsLoading: '正在加载 Sora 模型...',
-      soraModelsRetry: '加载失败，点击重试',
       requestModel: '请求模型',
       actualModel: '实际模型',
       addMapping: '添加映射',
@@ -2067,8 +2044,6 @@
         test: '账号测试页',
         runtime: '运行时'
       },
-      soraAccountCreated: 'Sora 账号已同时创建',
-      soraAccountFailed: 'Sora 账号创建失败，请稍后手动添加',
       accountUpdated: '账号更新成功',
       failedToCreate: '创建账号失败',
       failedToUpdate: '更新账号失败',
@@ -2242,8 +2217,6 @@
           refreshTokenDesc: '输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 OpenAI Refresh Token...\n支持多个，每行一个',
           sessionTokenAuth: '手动输入 ST',
-          sessionTokenDesc: '输入您已有的 Sora Session Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
-          sessionTokenPlaceholder: '粘贴您的 Sora Session Token...\n支持多个，每行一个',
           sessionTokenRawLabel: '原始字符串',
           sessionTokenRawPlaceholder: '粘贴 /api/auth/session 原始数据或 Session Token...',
           sessionTokenRawHint: '支持粘贴完整 JSON，系统会自动解析 ST 和 AT。',
@@ -2625,7 +2598,6 @@
       kiroAccount: 'Kiro 账号',
       openaiAccount: 'OpenAI 账号',
       copilotAccount: 'GitHub Copilot 账号',
-      soraAccount: 'Sora 账号',
       geminiAccount: 'Gemini 账号',
       antigravityAccount: 'Antigravity 账号',
       reauthUnavailableForPlatform: '当前版本暂不支持在控制台中直接重新授权 {platform} 账号，请先更新凭证或继续使用导入流程。',
@@ -2766,11 +2738,6 @@
       geminiImageTestMode: '模式：Gemini 生图测试',
       geminiImagePreview: '生成结果：',
       geminiImageReceived: '已收到第 {count} 张测试图片',
-      soraUpstreamBaseUrlHint: '上游 Sora 服务地址（另一个 Sub2API 实例或兼容 API）',
-      soraTestHint: 'Sora 测试将执行连通性与能力检测（/backend/me、订阅信息、Sora2 邀请码与剩余额度）。',
-      soraTestTarget: '检测目标：Sora 账号能力',
-      soraTestMode: '模式：连通性 + 能力探测',
-      soraTestingFlow: '执行 Sora 连通性与能力检测...',
       testRuntimeContextTitle: '本次测试上下文',
       testRuntimeContextMode: '测试模式：{mode}',
       testRuntimeContextPlatform: '实际平台：{platform}',
@@ -3127,6 +3094,7 @@
       codeType: '类型',
       amount: '金额 ($)',
       value: '面值',
+      adjustmentHint: '正数增加、负数扣减、0 非法',
       count: '数量',
       generate: '生成',
       copyAll: '全部复制',
@@ -3143,6 +3111,7 @@
       selectGroupPlaceholder: '选择订阅分组',
       validityDays: '有效天数',
       groupRequired: '请选择订阅分组',
+      nonZeroValueRequired: '请输入非 0 数值',
       days: '天',
       status: {
         unused: '未使用',
@@ -3340,7 +3309,9 @@
       allModels: '全部模型',
       allAccounts: '全部账户',
       allGroups: '全部分组',
+      allChannels: '全部通道',
       allTypes: '全部类型',
+      channel: '通道',
       inputCost: '输入成本',
       outputCost: '输出成本',
       cacheCreationCost: '缓存创建成本',
@@ -3496,6 +3467,7 @@
         '30d': '近30天',
         custom: '自定义'
       },
+      allChannels: '全部通道',
       openaiTokenStats: {
         title: 'OpenAI Token 请求统计',
         viewModeTopN: 'TopN',
@@ -3641,7 +3613,8 @@
           internal: '内部'
         },
         total: '总计：',
-        searchPlaceholder: '搜索 request_id / client_request_id / message'
+        searchPlaceholder: '搜索 request_id / client_request_id / message',
+        channelFilterNotice: '当前列表未按 channel 过滤，仅沿用时间、平台和分组筛选。'
       },
       // Error Detail Modal
       errorDetail: {
@@ -4359,12 +4332,6 @@
         integrationDoc: '支付集成文档',
         integrationDocHint: '包含接口说明、幂等语义及示例代码'
       },
-      soraClient: {
-        title: 'Sora 客户端',
-        description: '控制是否在侧边栏展示 Sora 客户端入口',
-        enabled: '启用 Sora 客户端',
-        enabledHint: '开启后，侧边栏将显示 Sora 入口，用户可访问 Sora 功能'
-      },
       customMenu: {
         title: '自定义菜单页面',
         description: '添加自定义 iframe 页面到侧边栏导航。每个页面可以设置为普通用户或管理员可见。',
@@ -4455,60 +4422,6 @@
         keyWarning: '此密钥仅显示一次，请立即复制保存。',
         securityWarning: '警告：此密钥拥有完整的管理员权限，请妥善保管。',
         usage: '使用方法：在请求头中添加 x-api-key: <your-admin-api-key>'
-      },
-      soraS3: {
-        title: 'Sora S3 存储配置',
-        description: '以多配置列表方式管理 Sora S3 端点，并可切换生效配置',
-        newProfile: '新建配置',
-        reloadProfiles: '刷新列表',
-        empty: '暂无 Sora S3 配置，请先创建',
-        createTitle: '新建 Sora S3 配置',
-        editTitle: '编辑 Sora S3 配置',
-        profileID: '配置 ID',
-        profileName: '配置名称',
-        setActive: '创建后设为生效',
-        saveProfile: '保存配置',
-        activateProfile: '设为生效',
-        profileCreated: 'Sora S3 配置创建成功',
-        profileSaved: 'Sora S3 配置保存成功',
-        profileDeleted: 'Sora S3 配置删除成功',
-        profileActivated: 'Sora S3 生效配置已切换',
-        profileIDRequired: '请填写配置 ID',
-        profileNameRequired: '请填写配置名称',
-        profileSelectRequired: '请先选择配置',
-        endpointRequired: '启用时必须填写 S3 端点',
-        bucketRequired: '启用时必须填写存储桶',
-        accessKeyRequired: '启用时必须填写访问密钥 ID',
-        deleteConfirm: '确定删除 Sora S3 配置 {profileID} 吗？',
-        columns: {
-          profile: '配置',
-          active: '生效状态',
-          endpoint: '端点',
-          bucket: '存储桶',
-          quota: '默认配额',
-          updatedAt: '更新时间',
-          actions: '操作'
-        },
-        enabled: '启用 S3 存储',
-        enabledHint: '启用后，Sora 生成的媒体文件将自动上传到 S3 存储',
-        endpoint: 'S3 端点',
-        region: '区域',
-        bucket: '存储桶',
-        prefix: '对象前缀',
-        accessKeyId: '访问密钥 ID',
-        secretAccessKey: '秘密访问密钥',
-        secretConfigured: '(已配置，留空保持不变)',
-        cdnUrl: 'CDN URL',
-        cdnUrlHint: '可选，配置后使用 CDN URL 访问文件，否则使用预签名 URL',
-        forcePathStyle: '强制路径风格（Path Style）',
-        defaultQuota: '默认存储配额',
-        defaultQuotaHint: '未在用户或分组级别指定配额时的默认值，0 表示无限制',
-        testConnection: '测试连接',
-        testing: '测试中...',
-        testSuccess: 'S3 连接测试成功',
-        testFailed: 'S3 连接测试失败',
-        saved: 'Sora S3 设置保存成功',
-        saveFailed: '保存 Sora S3 设置失败'
       },
       googleBatchGcs: {
         title: 'Google Batch GCS 中转配置',

@@ -35,7 +35,6 @@ func newGatewayRoutesTestRouterWithAuth(auth gin.HandlerFunc) *gin.Engine {
 		&handler.Handlers{
 			Gateway:       &handler.GatewayHandler{},
 			OpenAIGateway: &handler.OpenAIGatewayHandler{},
-			SoraGateway:   &handler.SoraGatewayHandler{},
 		},
 		servermiddleware.APIKeyAuthMiddleware(authMiddleware),
 		nil,

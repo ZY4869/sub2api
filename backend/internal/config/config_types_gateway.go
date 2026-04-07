@@ -27,16 +27,8 @@ type GatewayConfig struct {
 	LogUpstreamErrorBodyMaxBytes         int                      `mapstructure:"log_upstream_error_body_max_bytes"`
 	InjectBetaForAPIKey                  bool                     `mapstructure:"inject_beta_for_apikey"`
 	FailoverOn400                        bool                     `mapstructure:"failover_on_400"`
-	SoraMaxBodySize                      int64                    `mapstructure:"sora_max_body_size"`
 	GrokVideoPollIntervalSeconds         int                      `mapstructure:"grok_video_poll_interval_seconds"`
 	GrokVideoWaitTimeoutSeconds          int                      `mapstructure:"grok_video_wait_timeout_seconds"`
-	SoraStreamTimeoutSeconds             int                      `mapstructure:"sora_stream_timeout_seconds"`
-	SoraRequestTimeoutSeconds            int                      `mapstructure:"sora_request_timeout_seconds"`
-	SoraStreamMode                       string                   `mapstructure:"sora_stream_mode"`
-	SoraModelFilters                     SoraModelFiltersConfig   `mapstructure:"sora_model_filters"`
-	SoraMediaRequireAPIKey               bool                     `mapstructure:"sora_media_require_api_key"`
-	SoraMediaSigningKey                  string                   `mapstructure:"sora_media_signing_key"`
-	SoraMediaSignedURLTTLSeconds         int                      `mapstructure:"sora_media_signed_url_ttl_seconds"`
 	MaxAccountSwitches                   int                      `mapstructure:"max_account_switches"`
 	MaxAccountSwitchesGemini             int                      `mapstructure:"max_account_switches_gemini"`
 	AntigravityFallbackCooldownMinutes   int                      `mapstructure:"antigravity_fallback_cooldown_minutes"`
@@ -138,9 +130,6 @@ type GatewayUsageRecordConfig struct {
 	AutoScaleDownStep             int    `mapstructure:"auto_scale_down_step"`
 	AutoScaleCheckIntervalSeconds int    `mapstructure:"auto_scale_check_interval_seconds"`
 	AutoScaleCooldownSeconds      int    `mapstructure:"auto_scale_cooldown_seconds"`
-}
-type SoraModelFiltersConfig struct {
-	HidePromptEnhance bool `mapstructure:"hide_prompt_enhance"`
 }
 type TLSFingerprintConfig struct {
 	Enabled  bool                        `mapstructure:"enabled"`

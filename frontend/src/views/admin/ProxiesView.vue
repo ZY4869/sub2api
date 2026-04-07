@@ -1563,8 +1563,6 @@ const qualityTargetLabel = (target: string) => {
       return t('admin.accounts.platforms.anthropic')
     case 'gemini':
       return t('admin.accounts.platforms.gemini')
-    case 'sora':
-      return t('admin.accounts.platforms.sora')
     default:
       return target
   }

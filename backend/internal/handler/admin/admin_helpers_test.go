@@ -108,7 +108,7 @@ func TestParseOpsOpenAITokenStatsFilter_WithTopN(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(
 		http.MethodGet,
-		"/?time_range=1h&platform=openai&group_id=12&top_n=50",
+		"/?time_range=1h&platform=openai&group_id=12&channel_id=18&top_n=50",
 		nil,
 	)
 
@@ -118,6 +118,8 @@ func TestParseOpsOpenAITokenStatsFilter_WithTopN(t *testing.T) {
 	require.Equal(t, "openai", filter.Platform)
 	require.NotNil(t, filter.GroupID)
 	require.Equal(t, int64(12), *filter.GroupID)
+	require.NotNil(t, filter.ChannelID)
+	require.Equal(t, int64(18), *filter.ChannelID)
 	require.Equal(t, 50, filter.TopN)
 	require.Equal(t, 0, filter.Page)
 	require.Equal(t, 0, filter.PageSize)
@@ -128,6 +130,8 @@ func TestParseOpsOpenAITokenStatsFilter_InvalidParams(t *testing.T) {
 		"/?time_range=7d",
 		"/?group_id=0",
 		"/?group_id=abc",
+		"/?channel_id=0",
+		"/?channel_id=abc",
 		"/?top_n=0",
 		"/?top_n=101",
 		"/?top_n=10&page=1",
@@ -189,6 +193,21 @@ func TestParseOpsQueryMode(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/?mode=raw", nil)
 	require.Equal(t, service.ParseOpsQueryMode("raw"), parseOpsQueryMode(c))
 	require.Equal(t, service.OpsQueryMode(""), parseOpsQueryMode(nil))
+}
+
+func TestBuildOpsDashboardFilterFromRequest_ChannelID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/?time_range=1h&platform=openai&group_id=8&channel_id=21", nil)
+
+	filter, _, _, err := buildOpsDashboardFilterFromRequest(c, "1h")
+	require.NoError(t, err)
+	require.Equal(t, "openai", filter.Platform)
+	require.NotNil(t, filter.GroupID)
+	require.Equal(t, int64(8), *filter.GroupID)
+	require.NotNil(t, filter.ChannelID)
+	require.Equal(t, int64(21), *filter.ChannelID)
 }
 
 func TestOpsAlertRuleValidation(t *testing.T) {

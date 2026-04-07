@@ -69,7 +69,7 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 	return user, nil
 }
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
-	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups, SoraStorageQuotaBytes: input.SoraStorageQuotaBytes}
+	user := &User{Email: input.Email, Username: input.Username, Notes: input.Notes, Role: RoleUser, Balance: input.Balance, Concurrency: input.Concurrency, Status: StatusActive, AllowedGroups: input.AllowedGroups}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
@@ -125,9 +125,6 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 	if input.AllowedGroups != nil {
 		user.AllowedGroups = *input.AllowedGroups
-	}
-	if input.SoraStorageQuotaBytes != nil {
-		user.SoraStorageQuotaBytes = *input.SoraStorageQuotaBytes
 	}
 	if input.AdminFreeBilling != nil {
 		user.AdminFreeBilling = user.Role == RoleAdmin && *input.AdminFreeBilling

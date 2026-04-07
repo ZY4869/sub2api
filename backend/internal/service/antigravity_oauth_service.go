@@ -89,6 +89,7 @@ type AntigravityTokenInfo struct {
 	TokenType        string `json:"token_type"`
 	Email            string `json:"email,omitempty"`
 	ProjectID        string `json:"project_id,omitempty"`
+	PrivacyMode      string `json:"-"`
 	ProjectIDMissing bool   `json:"-"` // LoadCodeAssist 未返回 project_id
 }
 
@@ -153,6 +154,8 @@ func (s *AntigravityOAuthService) ExchangeCode(ctx context.Context, input *Antig
 	} else {
 		result.ProjectID = projectID
 	}
+
+	result.PrivacyMode = setAntigravityPrivacy(ctx, result.AccessToken, result.ProjectID, proxyURL)
 
 	return result, nil
 }
@@ -238,6 +241,8 @@ func (s *AntigravityOAuthService) ValidateRefreshToken(ctx context.Context, refr
 	} else {
 		tokenInfo.ProjectID = projectID
 	}
+
+	tokenInfo.PrivacyMode = setAntigravityPrivacy(ctx, tokenInfo.AccessToken, tokenInfo.ProjectID, proxyURL)
 
 	return tokenInfo, nil
 }

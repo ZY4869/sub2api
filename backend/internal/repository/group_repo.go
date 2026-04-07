@@ -49,10 +49,6 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetNillableImagePrice1k(groupIn.ImagePrice1K).
 		SetNillableImagePrice2k(groupIn.ImagePrice2K).
 		SetNillableImagePrice4k(groupIn.ImagePrice4K).
-		SetNillableSoraImagePrice360(groupIn.SoraImagePrice360).
-		SetNillableSoraImagePrice540(groupIn.SoraImagePrice540).
-		SetNillableSoraVideoPricePerRequest(groupIn.SoraVideoPricePerRequest).
-		SetNillableSoraVideoPricePerRequestHd(groupIn.SoraVideoPricePerRequestHD).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
 		SetNillableFallbackGroupID(groupIn.FallbackGroupID).
@@ -60,7 +56,6 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetGeminiMixedProtocolEnabled(groupIn.GeminiMixedProtocolEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
-		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel)
 
@@ -132,16 +127,11 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetNillableImagePrice1k(groupIn.ImagePrice1K).
 		SetNillableImagePrice2k(groupIn.ImagePrice2K).
 		SetNillableImagePrice4k(groupIn.ImagePrice4K).
-		SetNillableSoraImagePrice360(groupIn.SoraImagePrice360).
-		SetNillableSoraImagePrice540(groupIn.SoraImagePrice540).
-		SetNillableSoraVideoPricePerRequest(groupIn.SoraVideoPricePerRequest).
-		SetNillableSoraVideoPricePerRequestHd(groupIn.SoraVideoPricePerRequestHD).
 		SetDefaultValidityDays(groupIn.DefaultValidityDays).
 		SetClaudeCodeOnly(groupIn.ClaudeCodeOnly).
 		SetModelRoutingEnabled(groupIn.ModelRoutingEnabled).
 		SetGeminiMixedProtocolEnabled(groupIn.GeminiMixedProtocolEnabled).
 		SetMcpXMLInject(groupIn.MCPXMLInject).
-		SetSoraStorageQuotaBytes(groupIn.SoraStorageQuotaBytes).
 		SetAllowMessagesDispatch(groupIn.AllowMessagesDispatch).
 		SetDefaultMappedModel(groupIn.DefaultMappedModel)
 

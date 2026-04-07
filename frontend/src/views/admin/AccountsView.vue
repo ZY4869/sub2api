@@ -421,8 +421,7 @@ const ACCOUNT_PLATFORM_DISPLAY_ORDER: AccountPlatform[] = [
   'grok',
   'protocol_gateway',
   'gemini',
-  'antigravity',
-  'sora'
+  'antigravity'
 ]
 const ACCOUNT_PLATFORM_ORDER_INDEX = new Map(
   ACCOUNT_PLATFORM_DISPLAY_ORDER.map((platform, index) => [platform, index])

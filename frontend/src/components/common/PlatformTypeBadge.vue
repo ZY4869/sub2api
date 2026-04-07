@@ -54,6 +54,13 @@
         <span>{{ privacyBadge.label }}</span>
       </span>
     </div>
+    <div
+      v-if="expiresLabel"
+      class="pl-0.5 text-[10px] leading-tight text-gray-400 dark:text-gray-500"
+      :title="subscriptionExpiresAt"
+    >
+      {{ expiresLabel }}
+    </div>
   </div>
 </template>
 
@@ -76,6 +83,7 @@ interface Props {
   type: AccountType
   planType?: string
   privacyMode?: string
+  subscriptionExpiresAt?: string
 }
 
 const props = defineProps<Props>()
@@ -141,6 +149,17 @@ const planLabel = computed(() => {
   }
 })
 
+const expiresLabel = computed(() => {
+  if (!props.subscriptionExpiresAt || !props.planType) return ''
+  if (props.planType.toLowerCase() === 'free') return ''
+  const expiresAt = new Date(props.subscriptionExpiresAt)
+  if (Number.isNaN(expiresAt.getTime())) return ''
+  const yyyy = expiresAt.getFullYear()
+  const mm = String(expiresAt.getMonth() + 1).padStart(2, '0')
+  const dd = String(expiresAt.getDate()).padStart(2, '0')
+  return `${t('admin.accounts.subscriptionExpires')} ${yyyy}-${mm}-${dd}`
+})
+
 const platformClass = computed(() => {
   if (props.platform === 'anthropic') {
     return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
@@ -162,9 +181,6 @@ const platformClass = computed(() => {
   }
   if (props.platform === 'antigravity') {
     return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-  }
-  if (props.platform === 'sora') {
-    return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
   }
   return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
 })
@@ -190,9 +206,6 @@ const typeClass = computed(() => {
   }
   if (props.platform === 'antigravity') {
     return 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
-  }
-  if (props.platform === 'sora') {
-    return 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400'
   }
   return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
 })

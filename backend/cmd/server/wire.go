@@ -69,7 +69,6 @@ func provideCleanup(
 	opsCleanup *service.OpsCleanupService,
 	opsScheduledReport *service.OpsScheduledReportService,
 	opsSystemLogSink *service.OpsSystemLogSink,
-	soraMediaCleanup *service.SoraMediaCleanupService,
 	googleBatchArchivePoller *service.GoogleBatchArchivePollerService,
 	googleBatchArchivePrefetch *service.GoogleBatchArchivePrefetchService,
 	googleBatchArchiveCleanup *service.GoogleBatchArchiveCleanupService,
@@ -119,12 +118,6 @@ func provideCleanup(
 			{"OpsSystemLogSink", func() error {
 				if opsSystemLogSink != nil {
 					opsSystemLogSink.Stop()
-				}
-				return nil
-			}},
-			{"SoraMediaCleanupService", func() error {
-				if soraMediaCleanup != nil {
-					soraMediaCleanup.Stop()
 				}
 				return nil
 			}},

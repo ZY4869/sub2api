@@ -83,7 +83,7 @@ func EnrichOpenAIOAuthCredentials(platform, accountType string, credentials map[
 	}
 
 	normalizedPlatform := strings.ToLower(strings.TrimSpace(platform))
-	if normalizedPlatform != PlatformOpenAI && normalizedPlatform != PlatformSora {
+	if normalizedPlatform != PlatformOpenAI {
 		return credentials, false
 	}
 	if strings.ToLower(strings.TrimSpace(accountType)) != AccountTypeOAuth {
