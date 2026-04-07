@@ -183,9 +183,18 @@ func TestOpsSystemLogSink_StartStopAndFlushSuccess(t *testing.T) {
 	if strings.TrimSpace(item.Message) == "" {
 		t.Fatalf("message should not be empty")
 	}
-	health := sink.Health()
-	if health.WrittenCount == 0 {
-		t.Fatalf("written_count should be >0")
+
+	// The repo callback can complete before the sink goroutine updates health counters.
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for {
+		health := sink.Health()
+		if health.WrittenCount > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("written_count should be >0")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
