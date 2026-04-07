@@ -165,15 +165,15 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("model", mappedModel)
 	}
 	if model, ok := reqBody["model"].(string); ok {
-		normalizedModel := normalizeCodexModel(model)
-		if normalizedModel != "" && normalizedModel != model {
-			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Codex model normalization: %s -> %s (account: %s, type: %s, isCodexCLI: %v)", model, normalizedModel, account.Name, account.Type, isCodexCLI)
-			reqBody["model"] = normalizedModel
-			mappedModel = normalizedModel
+		upstreamModel := normalizeOpenAIModelForUpstream(account, model)
+		if upstreamModel != "" && upstreamModel != model {
+			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Upstream model resolved: %s -> %s (account: %s, type: %s, isCodexCLI: %v)", model, upstreamModel, account.Name, account.Type, isCodexCLI)
+			reqBody["model"] = upstreamModel
+			mappedModel = upstreamModel
 			bodyModified = true
-			markPatchSet("model", normalizedModel)
+			markPatchSet("model", upstreamModel)
 		}
-		if !SupportsVerbosity(normalizedModel) {
+		if !SupportsVerbosity(mappedModel) {
 			if text, ok := reqBody["text"].(map[string]any); ok {
 				delete(text, "verbosity")
 			}
