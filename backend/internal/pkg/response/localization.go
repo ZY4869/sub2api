@@ -301,7 +301,7 @@ var localizedMessageKeys = map[string]localizedMessageMap{
 		"en": "No available Gemini accounts",
 		"zh": "没有可用的 Gemini 账号。",
 	},
-"gateway.gemini.upstream_failed": {
+	"gateway.gemini.upstream_failed": {
 		"en": "Upstream request failed",
 		"zh": "上游请求失败。",
 	},
