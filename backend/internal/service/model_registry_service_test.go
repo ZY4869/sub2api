@@ -26,9 +26,9 @@ func TestModelRegistryService_ListProviderSummaries_SortsAndPaginates(t *testing
 		totalCount     int
 		availableCount int
 	}{
-		{provider: "zz-provider-summary-top", platform: PlatformOpenAI, totalCount: maxTotalCount + 3, availableCount: 2},
-		{provider: "yy-provider-summary-mid", platform: PlatformAnthropic, totalCount: maxTotalCount + 2, availableCount: 1},
-		{provider: "xx-provider-summary-low", platform: PlatformGemini, totalCount: maxTotalCount + 1, availableCount: 1},
+		{provider: "aa-provider-summary-top", platform: PlatformOpenAI, totalCount: maxTotalCount + 3, availableCount: 2},
+		{provider: "ab-provider-summary-mid", platform: PlatformAnthropic, totalCount: maxTotalCount + 2, availableCount: 1},
+		{provider: "ac-provider-summary-low", platform: PlatformGemini, totalCount: maxTotalCount + 1, availableCount: 1},
 	}
 
 	activateModels := make([]string, 0, 4)
@@ -56,12 +56,14 @@ func TestModelRegistryService_ListProviderSummaries_SortsAndPaginates(t *testing
 	require.Equal(t, baselineTotal+3, total)
 	require.Len(t, items, 2)
 	require.Equal(t, ModelRegistryProviderSummary{
-		Provider:       "zz-provider-summary-top",
+		Provider:       "aa-provider-summary-top",
+		ProviderLabel:  "Aa-Provider-Summary-Top",
 		TotalCount:     maxTotalCount + 3,
 		AvailableCount: 2,
 	}, items[0])
 	require.Equal(t, ModelRegistryProviderSummary{
-		Provider:       "yy-provider-summary-mid",
+		Provider:       "ab-provider-summary-mid",
+		ProviderLabel:  "Ab-Provider-Summary-Mid",
 		TotalCount:     maxTotalCount + 2,
 		AvailableCount: 1,
 	}, items[1])
@@ -71,7 +73,8 @@ func TestModelRegistryService_ListProviderSummaries_SortsAndPaginates(t *testing
 	require.Equal(t, baselineTotal+3, total)
 	require.Len(t, items, 2)
 	require.Equal(t, ModelRegistryProviderSummary{
-		Provider:       "xx-provider-summary-low",
+		Provider:       "ac-provider-summary-low",
+		ProviderLabel:  "Ac-Provider-Summary-Low",
 		TotalCount:     maxTotalCount + 1,
 		AvailableCount: 1,
 	}, items[0])

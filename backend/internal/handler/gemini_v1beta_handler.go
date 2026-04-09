@@ -7,18 +7,20 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/gemini"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/google/uuid"
@@ -36,13 +38,13 @@ var geminiCLITmpDirRegex = regexp.MustCompile(`/\.gemini/tmp/([A-Fa-f0-9]{64})`)
 func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil {
-		googleError(c, http.StatusUnauthorized, "Invalid API key")
+		googleErrorKey(c, http.StatusUnauthorized, "gateway.gemini.invalid_api_key", "Invalid API key")
 		return
 	}
 	// 检查平台：优先使用强制平台（/antigravity 路由），否则要求 gemini 分组
 	forcePlatform, hasForcePlatform := middleware.GetForcePlatformFromContext(c)
 	if forcePlatform == service.PlatformKiro || forcePlatform == service.PlatformCopilot {
-		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
 	effectivePlatform := service.PlatformGemini
@@ -68,18 +70,18 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil {
-		googleError(c, http.StatusUnauthorized, "Invalid API key")
+		googleErrorKey(c, http.StatusUnauthorized, "gateway.gemini.invalid_api_key", "Invalid API key")
 		return
 	}
 	// 检查平台：优先使用强制平台（/antigravity 路由），否则要求 gemini 分组
 	forcePlatform, hasForcePlatform := middleware.GetForcePlatformFromContext(c)
 	if forcePlatform == service.PlatformKiro || forcePlatform == service.PlatformCopilot {
-		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
 	modelName := strings.TrimSpace(c.Param("model"))
 	if modelName == "" {
-		googleError(c, http.StatusBadRequest, "Missing model in URL")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.missing_model", "Missing model in URL")
 		return
 	}
 	effectivePlatform := service.PlatformGemini
@@ -97,7 +99,7 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		c.JSON(http.StatusOK, apiKeyPublicEntryToGeminiModel(*publicEntry))
 		return
 	}
-	googleError(c, http.StatusNotFound, "Model not found")
+	googleErrorKey(c, http.StatusNotFound, "gateway.gemini.model_not_found", "Model not found")
 }
 
 // GeminiV1BetaModels proxies Gemini native REST endpoints like:
@@ -107,12 +109,12 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil {
-		googleError(c, http.StatusUnauthorized, "Invalid API key")
+		googleErrorKey(c, http.StatusUnauthorized, "gateway.gemini.invalid_api_key", "Invalid API key")
 		return
 	}
 	authSubject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok {
-		googleError(c, http.StatusInternalServerError, "User context not found")
+		googleErrorKey(c, http.StatusInternalServerError, "gateway.gemini.user_context_missing", "User context not found")
 		return
 	}
 	reqLog := requestLogger(
@@ -126,18 +128,26 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	// 检查平台：优先使用强制平台（/antigravity 路由，中间件已设置 request.Context），否则要求 gemini 分组
 	if !middleware.HasForcePlatform(c) && !multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) {
 		if apiKey.Group != nil && (apiKey.Group.Platform == service.PlatformKiro || apiKey.Group.Platform == service.PlatformCopilot) {
-			googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 			return
 		}
 		if apiKey.Group == nil || apiKey.Group.Platform != service.PlatformGemini {
-			googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 			return
 		}
 	}
 
 	modelName, action, err := parseGeminiModelAction(strings.TrimPrefix(c.Param("modelAction"), "/"))
 	if err != nil {
-		googleError(c, http.StatusNotFound, err.Error())
+		messageKey, fallback, mismatchKind := geminiModelActionRouteMismatchDetails(err)
+		protocolruntime.RecordRouteMismatch(mismatchKind)
+		slog.Warn(
+			"gateway_route_mismatch",
+			"runtime_platform", selectionPlatformForGeminiRoute(c, apiKey),
+			"inbound_endpoint", GetInboundEndpoint(c),
+			"reason", mismatchKind,
+		)
+		googleErrorWithReason(c, http.StatusNotFound, service.GatewayReasonRouteMismatch, messageKey, fallback)
 		return
 	}
 	selectionPlatform := service.PlatformGemini
@@ -145,6 +155,29 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		selectionPlatform = forcePlatform
 	} else if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
 		selectionPlatform = apiKey.Group.Platform
+	}
+	decision := service.DecideProtocolCapability(selectionPlatform, GetInboundEndpoint(c), action)
+	if !decision.Supported {
+		slog.Warn(
+			"gateway_unsupported_action",
+			"runtime_platform", selectionPlatform,
+			"inbound_endpoint", GetInboundEndpoint(c),
+			"action", action,
+			"model", modelName,
+			"reason", decision.Reason,
+		)
+		switch decision.Reason {
+		case service.GatewayReasonUnsupportedAction:
+			protocolruntime.RecordUnsupportedAction(decision.Reason)
+		default:
+			protocolruntime.RecordRouteMismatch(decision.InternalMismatchKind)
+		}
+		googleErrorFromDecision(c, decision)
+		return
+	}
+	if service.GeminiActionEndpoint(action) == service.EndpointGeminiBatches {
+		h.GeminiV1BetaBatches(c)
+		return
 	}
 	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, selectionPlatform, modelName)
 
@@ -154,14 +187,14 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 	if err != nil {
 		if maxErr, ok := extractMaxBytesError(err); ok {
-			googleError(c, http.StatusRequestEntityTooLarge, buildBodyTooLargeMessage(maxErr.Limit))
+			googleErrorBodyTooLarge(c, maxErr.Limit)
 			return
 		}
-		googleError(c, http.StatusBadRequest, "Failed to read request body")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.read_body_failed", "Failed to read request body")
 		return
 	}
 	if len(body) == 0 {
-		googleError(c, http.StatusBadRequest, "Request body is empty")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.body_empty", "Request body is empty")
 		return
 	}
 
@@ -181,7 +214,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		reqLog.Warn("gemini.user_wait_counter_increment_failed", zap.Error(err))
 	} else if !canWait {
 		reqLog.Info("gemini.user_wait_queue_full", zap.Int("max_wait", maxWait))
-		googleError(c, http.StatusTooManyRequests, "Too many pending requests, please retry later")
+		googleErrorKey(c, http.StatusTooManyRequests, "gateway.gemini.pending_requests", "Too many pending requests, please retry later")
 		return
 	}
 	if err == nil && canWait {
@@ -201,7 +234,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	userReleaseFunc, err := geminiConcurrency.AcquireUserSlotWithWait(c, authSubject.UserID, authSubject.Concurrency, stream, &streamStarted)
 	if err != nil {
 		reqLog.Warn("gemini.user_slot_acquire_failed", zap.Error(err))
-		googleError(c, http.StatusTooManyRequests, err.Error())
+		googleErrorPendingRequests(c)
 		return
 	}
 	if waitCounted {
@@ -216,7 +249,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 
 	selectedForcePlatform, hasSelectedForcePlatform := middleware.GetForcePlatformFromContext(c)
 	if hasSelectedForcePlatform && (selectedForcePlatform == service.PlatformKiro || selectedForcePlatform == service.PlatformCopilot) {
-		googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
 	selectedAllowedPlatforms := geminiCompatiblePlatforms
@@ -239,8 +272,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		)
 		if err != nil {
 			reqLog.Info("gemini.group_selection_failed", zap.Error(err))
-			status, _, message := groupSelectionErrorDetails(err)
-			googleError(c, status, message)
+			googleErrorFromServiceError(c, err)
 			return
 		}
 
@@ -252,23 +284,23 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 				continue
 			}
-			googleError(c, http.StatusBadRequest, "Gemini protocol is not supported for this platform")
+			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 			return
 		}
 		if currentPlatform != service.PlatformGemini && currentPlatform != service.PlatformAntigravity {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 				continue
 			}
-			googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+			googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 			return
 		}
 		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
 		if err != nil {
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
-				googleError(c, http.StatusBadRequest, "Requested model is not allowed by the bound channel")
+				googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.channel_model_not_allowed", "Requested model is not allowed by the bound channel")
 				return
 			}
-			googleError(c, http.StatusInternalServerError, "Failed to resolve channel routing")
+			googleErrorKey(c, http.StatusInternalServerError, "gateway.gemini.channel_routing_failed", "Failed to resolve channel routing")
 			return
 		}
 
@@ -371,7 +403,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 						break
 					}
-					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
+					googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts_detail", "No available Gemini accounts: %s", err.Error())
 					return
 				}
 				action := fs.HandleSelectionExhausted(c.Request.Context())
@@ -421,7 +453,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 						break
 					}
-					googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts")
+					googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts", "No available Gemini accounts")
 					return
 				}
 				accountWaitCounted := false
@@ -434,7 +466,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 						zap.Any("group_id", currentAPIKey.GroupID),
 						zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
 					)
-					googleError(c, http.StatusTooManyRequests, "Too many pending requests, please retry later")
+					googleErrorKey(c, http.StatusTooManyRequests, "gateway.gemini.pending_requests", "Too many pending requests, please retry later")
 					return
 				}
 				if err == nil && canWait {
@@ -456,7 +488,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				)
 				if err != nil {
 					reqLog.Warn("gemini.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.Error(err))
-					googleError(c, http.StatusTooManyRequests, err.Error())
+					googleErrorPendingRequests(c)
 					return
 				}
 				if accountWaitCounted {
@@ -713,7 +745,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "") // Gemini 不使用会话限制
 		if err != nil {
 			if len(fs.FailedAccountIDs) == 0 {
-				googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts: "+err.Error())
+				googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts_detail", "No available Gemini accounts: %s", err.Error())
 				return
 			}
 			action := fs.HandleSelectionExhausted(c.Request.Context())
@@ -761,7 +793,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		accountReleaseFunc := selection.ReleaseFunc
 		if !selection.Acquired {
 			if selection.WaitPlan == nil {
-				googleError(c, http.StatusServiceUnavailable, "No available Gemini accounts")
+				googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts", "No available Gemini accounts")
 				return
 			}
 			accountWaitCounted := false
@@ -773,7 +805,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 					zap.Int64("account_id", account.ID),
 					zap.Int("max_waiting", selection.WaitPlan.MaxWaiting),
 				)
-				googleError(c, http.StatusTooManyRequests, "Too many pending requests, please retry later")
+				googleErrorKey(c, http.StatusTooManyRequests, "gateway.gemini.pending_requests", "Too many pending requests, please retry later")
 				return
 			}
 			if err == nil && canWait {
@@ -795,7 +827,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			)
 			if err != nil {
 				reqLog.Warn("gemini.account_slot_acquire_failed", zap.Int64("account_id", account.ID), zap.Error(err))
-				googleError(c, http.StatusTooManyRequests, err.Error())
+				googleErrorPendingRequests(c)
 				return
 			}
 			if accountWaitCounted {
@@ -948,7 +980,7 @@ func parseGeminiModelAction(rest string) (model string, action string, err error
 
 func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError) {
 	if failoverErr == nil {
-		googleError(c, http.StatusBadGateway, "Upstream request failed")
+		googleErrorKey(c, http.StatusBadGateway, "gateway.gemini.upstream_failed", "Upstream request failed")
 		return
 	}
 
@@ -984,30 +1016,55 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 
 	// 使用默认的错误映射
-	status, message := mapGeminiUpstreamError(statusCode)
-	googleError(c, status, message)
+	status, messageKey, message := mapGeminiUpstreamError(statusCode)
+	googleErrorKey(c, status, messageKey, message)
 }
 
-func mapGeminiUpstreamError(statusCode int) (int, string) {
+func mapGeminiUpstreamError(statusCode int) (int, string, string) {
 	switch statusCode {
 	case 401:
-		return http.StatusBadGateway, "Upstream authentication failed, please contact administrator"
+		return http.StatusBadGateway, "gateway.gemini.upstream_auth_failed", "Upstream authentication failed, please contact administrator"
 	case 403:
-		return http.StatusBadGateway, "Upstream access forbidden, please contact administrator"
+		return http.StatusBadGateway, "gateway.gemini.upstream_forbidden", "Upstream access forbidden, please contact administrator"
 	case 429:
-		return http.StatusTooManyRequests, "Upstream rate limit exceeded, please retry later"
+		return http.StatusTooManyRequests, "gateway.gemini.upstream_rate_limited", "Upstream rate limit exceeded, please retry later"
 	case 529:
-		return http.StatusServiceUnavailable, "Upstream service overloaded, please retry later"
+		return http.StatusServiceUnavailable, "gateway.gemini.upstream_overloaded", "Upstream service overloaded, please retry later"
 	case 500, 502, 503, 504:
-		return http.StatusBadGateway, "Upstream service temporarily unavailable"
+		return http.StatusBadGateway, "gateway.gemini.upstream_unavailable", "Upstream service temporarily unavailable"
 	default:
-		return http.StatusBadGateway, "Upstream request failed"
+		return http.StatusBadGateway, "gateway.gemini.upstream_failed", "Upstream request failed"
 	}
 }
 
 type pathParseError struct{ msg string }
 
 func (e *pathParseError) Error() string { return e.msg }
+
+func geminiModelActionRouteMismatchDetails(err error) (messageKey string, fallback string, mismatchKind string) {
+	var parseErr *pathParseError
+	if errors.As(err, &parseErr) {
+		switch strings.TrimSpace(parseErr.msg) {
+		case "missing path":
+			return "gateway.gemini.model_action_path_missing", "Gemini model action path is missing", "missing_model_action_path"
+		case "invalid model action path":
+			return "gateway.gemini.model_action_path_invalid", "Gemini model action path is invalid", "invalid_model_action_path"
+		}
+	}
+	return "gateway.gemini.model_action_path_invalid", "Gemini model action path is invalid", "invalid_model_action_path"
+}
+
+func selectionPlatformForGeminiRoute(c *gin.Context, apiKey *service.APIKey) string {
+	if forcePlatform, ok := middleware.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcePlatform) != "" {
+		return forcePlatform
+	}
+	if apiKey != nil && apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
+		return apiKey.Group.Platform
+	}
+	return service.PlatformGemini
+}
+
+const googleRPCTypeErrorInfo = "type.googleapis.com/google.rpc.ErrorInfo"
 
 func googleError(c *gin.Context, status int, message string) {
 	c.JSON(status, gin.H{
@@ -1019,25 +1076,38 @@ func googleError(c *gin.Context, status int, message string) {
 	})
 }
 
-func googleErrorFromServiceError(c *gin.Context, err error) {
-	if err == nil {
-		googleError(c, http.StatusBadGateway, "Upstream request failed")
-		return
+func googleErrorKey(c *gin.Context, status int, messageKey string, fallback string, args ...any) {
+	googleErrorWithReason(c, status, "", messageKey, fallback, args...)
+}
+
+func googleErrorWithReason(c *gin.Context, status int, reason string, messageKey string, fallback string, args ...any) {
+	payload := gin.H{
+		"code":    status,
+		"message": response.LocalizedMessage(c, messageKey, fallback, args...),
+		"status":  googleapi.HTTPStatusToGoogleStatus(status),
 	}
-	appErr := infraerrors.FromError(err)
-	status := http.StatusBadGateway
-	message := err.Error()
-	if appErr != nil {
-		status = int(appErr.Code)
-		if strings.TrimSpace(appErr.Message) != "" && appErr.Message != infraerrors.UnknownMessage {
-			message = appErr.Message
+	if strings.TrimSpace(reason) != "" {
+		payload["details"] = []gin.H{
+			{
+				"@type":  googleRPCTypeErrorInfo,
+				"reason": reason,
+			},
 		}
 	}
-	googleError(c, status, message)
+	c.JSON(status, gin.H{"error": payload})
 }
+
+func googleErrorFromDecision(c *gin.Context, decision service.ProtocolCapabilityDecision) {
+	fallback := "%s is not supported for this platform"
+	if decision.Reason == service.GatewayReasonUnsupportedAction {
+		fallback = "%s does not support this action on the current route"
+	}
+	googleErrorWithReason(c, decision.StatusCode, decision.Reason, decision.MessageKey, fallback, decision.RequestFormat)
+}
+
 func writeUpstreamResponse(c *gin.Context, res *service.UpstreamHTTPResult) {
 	if res == nil {
-		googleError(c, http.StatusBadGateway, "Empty upstream response")
+		googleErrorKey(c, http.StatusBadGateway, "gateway.gemini.upstream_empty", "Empty upstream response")
 		return
 	}
 	for k, vv := range res.Headers {

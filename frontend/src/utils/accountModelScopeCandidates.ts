@@ -1,4 +1,8 @@
 import type { ModelRegistryEntry } from '@/generated/modelRegistry'
+import {
+  buildProviderDisplaySortKey,
+  formatProviderLabel as formatProviderLabelBySlug
+} from '@/utils/providerLabels'
 
 export const COMMON_MAX_PER_PROVIDER = 24
 export const MAX_RESULTS_PER_PROVIDER = 120
@@ -35,26 +39,26 @@ function normalizePlatform(platform: string): string {
 }
 
 function sortEntries(entries: ModelRegistryEntry[]): ModelRegistryEntry[] {
-  return [...entries].sort((left, right) => (left.ui_priority - right.ui_priority) || left.id.localeCompare(right.id))
+  return [...entries].sort((left, right) => {
+    const leftKey = buildProviderDisplaySortKey({
+      provider: left.provider,
+      displayName: left.display_name,
+      fallbackId: left.id
+    })
+    const rightKey = buildProviderDisplaySortKey({
+      provider: right.provider,
+      displayName: right.display_name,
+      fallbackId: right.id
+    })
+    if (leftKey !== rightKey) {
+      return leftKey.localeCompare(rightKey)
+    }
+    return left.id.localeCompare(right.id)
+  })
 }
 
 export function formatProviderLabel(provider: string): string {
-  switch (provider) {
-    case 'openai':
-      return 'OpenAI'
-    case 'anthropic':
-      return 'Anthropic'
-    case 'kiro':
-      return 'Kiro'
-    case 'copilot':
-      return 'Copilot'
-    case 'gemini':
-      return 'Gemini'
-    case 'antigravity':
-      return 'Antigravity'
-    default:
-      return provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Unknown'
-  }
+  return formatProviderLabelBySlug(provider)
 }
 
 function computeViewMode(query: string, showAllModels: boolean): ModelScopeWhitelistViewMode {

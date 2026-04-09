@@ -1683,6 +1683,12 @@ export default {
         probeEmpty: 'Detected upstream models will appear here after you click "Probe And Fetch Models".',
         probeImportPartial: 'Account was created, but {failed} model(s) could not be synced into the local registry',
         probeImportFailed: 'Account was created, but syncing probed models into the local registry failed',
+        defaultTestTargetTitle: 'Default Test Target',
+        defaultTestTargetHint: 'Preset the default provider and model for protocol gateway tests. Leave the model empty to use the provider default at runtime.',
+        testProviderLabel: 'Test Provider',
+        testProviderAutoOption: 'Unspecified, resolve from defaults or a unique match',
+        testModelLabel: 'Test Model ID (Optional)',
+        testModelAutoOption: 'Leave empty to use the provider default test model at runtime',
         protocols: {
           openai: {
             baseUrlHint: 'Enter an OpenAI-compatible upstream URL, or leave default for official OpenAI API',
@@ -2588,6 +2594,7 @@ export default {
       testing: 'Testing...',
       retry: 'Retry',
       copyOutput: 'Copy output',
+      testNoResponseBody: 'No response body',
       outputCopied: 'Output copied',
       startingTestForAccount: 'Starting test for account: {name}',
       testAccountTypeLabel: 'Account type: {type}',

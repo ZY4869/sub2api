@@ -165,10 +165,10 @@ func buildSavedAccountModelProbeSummary(modelIDs []string, probeSource string) *
 
 	details := make([]AccountModelProbeModel, 0, len(normalized))
 	for _, modelID := range normalized {
-		details = append(details, AccountModelProbeModel{
+		details = append(details, applyAccountModelProbeProvider(AccountModelProbeModel{
 			ID:          modelID,
 			DisplayName: FormatModelCatalogDisplayName(modelID),
-		})
+		}, ""))
 	}
 
 	return &AccountModelProbeSummary{

@@ -216,8 +216,12 @@ import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import AccountTestModelSelectionFields from './AccountTestModelSelectionFields.vue'
-import { buildAccountTestModelOptionKeyFromModel, findAccountTestModelByKey } from '@/utils/accountTestModelOptions'
+import { findAccountTestModelByKey } from '@/utils/accountTestModelOptions'
 import { normalizeGatewayAcceptedProtocol, resolveGatewayProtocolLabel } from '@/utils/accountProtocolGateway'
+import {
+  resolveCatalogTargetFromModel,
+  resolveGatewayTestSelectedModelKey
+} from '@/utils/accountGatewayTestDefaults'
 
 type ModelStrategy = 'auto' | 'specified'
 
@@ -319,7 +323,7 @@ const loadAvailableModels = async () => {
   try {
     const models = await adminAPI.accounts.getBatchTestModels(targetAccountIds.value)
     availableModels.value = models
-    selectedModelKey.value = models[0] ? buildAccountTestModelOptionKeyFromModel(models[0]) : ''
+    selectedModelKey.value = resolveGatewayTestSelectedModelKey(props.accounts, models)
   } catch (error) {
     console.error('Failed to load batch test models:', error)
     availableModels.value = []
@@ -380,12 +384,17 @@ const handleSubmit = async () => {
   }
 
   if (modelStrategy.value === 'specified') {
+    const catalogTarget = resolveCatalogTargetFromModel(selectedModelOption.value)
     if (modelInputMode.value === 'manual') {
       payload.manual_model_id = manualModelId.value.trim()
     } else if (selectedModelOption.value?.id) {
       payload.model_id = selectedModelOption.value.id
+      payload.target_provider = catalogTarget.targetProvider
+      payload.target_model_id = catalogTarget.targetModelId
     }
-    if (selectedSourceProtocol.value) {
+    if (modelInputMode.value === 'catalog') {
+      payload.source_protocol = catalogTarget.sourceProtocol || selectedSourceProtocol.value
+    } else if (selectedSourceProtocol.value) {
       payload.source_protocol = selectedSourceProtocol.value
     }
   }

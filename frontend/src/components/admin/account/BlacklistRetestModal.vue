@@ -60,10 +60,13 @@ import type { Account, ClaudeModel } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import AccountTestModelSelectionFields from './AccountTestModelSelectionFields.vue'
 import {
-  buildAccountTestModelOptionKeyFromModel,
   findAccountTestModelByKey
 } from '@/utils/accountTestModelOptions'
 import { normalizeGatewayAcceptedProtocol } from '@/utils/accountProtocolGateway'
+import {
+  resolveCatalogTargetFromModel,
+  resolveGatewayTestSelectedModelKey
+} from '@/utils/accountGatewayTestDefaults'
 
 const props = withDefaults(defineProps<{
   show: boolean
@@ -123,7 +126,7 @@ const loadAvailableModels = async () => {
   try {
     const models = await adminAPI.accounts.getBlacklistRetestModels(targetAccountIds.value)
     availableModels.value = models
-    selectedModelKey.value = models[0] ? buildAccountTestModelOptionKeyFromModel(models[0]) : ''
+    selectedModelKey.value = resolveGatewayTestSelectedModelKey(props.accounts, models)
   } catch (error) {
     console.error('Failed to load blacklist retest models:', error)
     availableModels.value = []
@@ -163,10 +166,14 @@ const handleConfirm = () => {
       payload.manual_model_id = manualModelId.value.trim()
     }
   } else if (selectedModelOption.value?.id) {
+    const catalogTarget = resolveCatalogTargetFromModel(selectedModelOption.value)
     payload.model_id = selectedModelOption.value.id
+    payload.target_provider = catalogTarget.targetProvider
+    payload.target_model_id = catalogTarget.targetModelId
+    payload.source_protocol = catalogTarget.sourceProtocol || undefined
   }
 
-  if (effectiveSourceProtocol.value) {
+  if (modelInputMode.value === 'manual' && effectiveSourceProtocol.value) {
     payload.source_protocol = effectiveSourceProtocol.value
   }
 

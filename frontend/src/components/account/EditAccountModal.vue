@@ -227,6 +227,8 @@
         v-model:accepted-protocols="gatewayAcceptedProtocols"
         v-model:client-profiles="gatewayClientProfiles"
         v-model:client-routes="gatewayClientRoutes"
+        v-model:gateway-test-provider="gatewayTestProvider"
+        v-model:gateway-test-model-id="gatewayTestModelId"
         :gateway-protocol="gatewayProtocol"
         :base-url="editBaseUrl"
         :api-key="resolvedProtocolGatewayApiKey"
@@ -639,6 +641,8 @@ const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
+const gatewayTestProvider = ref('')
+const gatewayTestModelId = ref('')
 const gatewayBatchEnabled = ref(false)
 const claudeCodeMimicEnabled = ref(false)
 const claudeTLSFingerprintEnabled = ref(false)
@@ -1211,6 +1215,8 @@ watch(
         .map((value) => normalizeGatewayClientProfile(value))
         .filter((value): value is GatewayClientProfile => Boolean(value))
       gatewayClientRoutes.value = normalizeGatewayClientRoutes(newAccount.extra?.gateway_client_routes)
+      gatewayTestProvider.value = String(newAccount.extra?.gateway_test_provider || '').trim().toLowerCase()
+      gatewayTestModelId.value = String(newAccount.extra?.gateway_test_model_id || '').trim()
       gatewayBatchEnabled.value = normalizeGatewayBatchEnabled(
         newAccount.gateway_batch_enabled ?? newAccount.extra?.gateway_batch_enabled
       )
@@ -1482,6 +1488,8 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
+      gatewayTestProvider.value = ''
+      gatewayTestModelId.value = ''
       gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
@@ -1522,6 +1530,8 @@ watch(
     )
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    gatewayTestProvider.value = ''
+    gatewayTestModelId.value = ''
     gatewayBatchEnabled.value = false
     protocolGatewayProbeModels.value = []
     allowedModels.value = []
@@ -1941,7 +1951,9 @@ const handleSubmit = async () => {
           gateway_protocol: gatewayProtocol.value,
           gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
           gateway_client_profiles: [...gatewayClientProfiles.value],
-          gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
+          gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
+          gateway_test_provider: gatewayTestProvider.value || undefined,
+          gateway_test_model_id: gatewayTestModelId.value || undefined
         }, {
           platform: props.account.platform,
           type: props.account.type,

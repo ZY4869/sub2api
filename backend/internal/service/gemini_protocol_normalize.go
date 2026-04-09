@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 )
 
 const (
@@ -332,7 +333,11 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 	if capabilities.SupportsThinkingLevel {
 		mappedLevel := mapGeminiReasoningEffortToThinkingLevel(reasoningEffort)
 		if (hasLevel || mappedLevel != "") && hasBudget {
-			return geminiThinkingConfigResult{}, fmt.Errorf("thinkingLevel and thinkingBudget cannot be used together for Gemini 3 models")
+			return geminiThinkingConfigResult{}, apicompat.NewCompatError(
+				apicompat.CompatReasonGeminiThinkingConflict,
+				"compat.gemini.thinking_conflict",
+				"thinkingLevel and thinkingBudget cannot be used together for Gemini 3 models",
+			)
 		}
 
 		finalLevel := explicitLevel
@@ -346,7 +351,11 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 		}
 		if finalLevel != "" {
 			if finalLevel == "MINIMAL" && !capabilities.SupportsMinimalThinkingLevel {
-				return geminiThinkingConfigResult{}, fmt.Errorf("thinkingLevel MINIMAL is only supported by gemini-3-flash-preview and gemini-3.1-flash-lite-preview")
+				return geminiThinkingConfigResult{}, apicompat.NewCompatError(
+					apicompat.CompatReasonGeminiMinimalThinkingUnsupported,
+					"compat.gemini.minimal_thinking_unsupported",
+					"thinkingLevel MINIMAL is only supported by gemini-3-flash-preview and gemini-3.1-flash-lite-preview",
+				)
 			}
 			return geminiThinkingConfigResult{
 				Config: map[string]any{
@@ -379,11 +388,19 @@ func buildGeminiThinkingConfig(req map[string]any, model string) (geminiThinking
 	}
 
 	if hasLevel {
-		return geminiThinkingConfigResult{}, fmt.Errorf("thinkingLevel is only supported by Gemini 3 thinking models")
+		return geminiThinkingConfigResult{}, apicompat.NewCompatError(
+			apicompat.CompatReasonGeminiThinkingLevelUnsupported,
+			"compat.gemini.thinking_level_unsupported",
+			"thinkingLevel is only supported by Gemini 3 thinking models",
+		)
 	}
 
 	if reasoningEffort == "none" {
-		return geminiThinkingConfigResult{}, fmt.Errorf("reasoning_effort=none is only supported by gemini-3-flash-preview and gemini-3.1-flash-lite-preview")
+		return geminiThinkingConfigResult{}, apicompat.NewCompatError(
+			apicompat.CompatReasonGeminiReasoningNoneUnsupported,
+			"compat.gemini.reasoning_none_unsupported",
+			"reasoning_effort=none is only supported by gemini-3-flash-preview and gemini-3.1-flash-lite-preview",
+		)
 	}
 
 	if hasBudget || thinkingType == "adaptive" {
@@ -561,10 +578,18 @@ func extractGeminiMediaResolution(req map[string]any, model string) (string, boo
 	}
 	normalized, ok := normalizeGeminiMediaResolution(raw)
 	if !ok {
-		return "", false, fmt.Errorf("mediaResolution only supports LOW, MEDIUM, or HIGH on the current Gemini route")
+		return "", false, apicompat.NewCompatError(
+			apicompat.CompatReasonGeminiMediaResolutionInvalid,
+			"compat.gemini.media_resolution_invalid",
+			"mediaResolution only supports LOW, MEDIUM, or HIGH on the current Gemini route",
+		)
 	}
 	if !detectGeminiModelCapabilities(model).SupportsMediaResolution {
-		return "", false, fmt.Errorf("mediaResolution is only supported by Gemini 3 models")
+		return "", false, apicompat.NewCompatError(
+			apicompat.CompatReasonGeminiMediaResolutionUnsupported,
+			"compat.gemini.media_resolution_unsupported",
+			"mediaResolution is only supported by Gemini 3 models",
+		)
 	}
 	return normalized, true, nil
 }

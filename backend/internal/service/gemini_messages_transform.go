@@ -2,8 +2,9 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 )
 
 func convertClaudeMessagesToGeminiGenerateContent(body []byte, options ...geminiTransformOptions) ([]byte, error) {
@@ -70,7 +71,11 @@ func extractClaudeSystemText(system any) string {
 func convertClaudeMessagesToGeminiContents(messages any, toolUseIDToName map[string]string, allowDummyThought bool) ([]any, error) {
 	arr, ok := messages.([]any)
 	if !ok {
-		return nil, errors.New("messages must be an array")
+		return nil, apicompat.NewCompatError(
+			apicompat.CompatReasonGeminiMessagesInvalid,
+			"compat.gemini.messages_invalid",
+			"messages must be an array",
+		)
 	}
 	out := make([]any, 0, len(arr))
 	for _, m := range arr {
@@ -343,7 +348,11 @@ func convertClaudeToolsToGeminiTools(tools any, options geminiTransformOptions) 
 		}
 		if builtInKind := extractGeminiBuiltInToolKind(tm); builtInKind != "" {
 			if builtInKind == "urlContext" && !options.AllowURLContext {
-				return nil, geminiToolSummary{}, errors.New("urlContext is only available on Gemini API accounts, not Vertex Gemini channels")
+				return nil, geminiToolSummary{}, apicompat.NewCompatError(
+					apicompat.CompatReasonGeminiURLContextUnsupported,
+					"compat.gemini.url_context_unsupported",
+					"urlContext is only available on Gemini API accounts, not Vertex Gemini channels",
+				)
 			}
 			if _, exists := builtInToolConfigs[builtInKind]; !exists {
 				builtInToolOrder = append(builtInToolOrder, builtInKind)

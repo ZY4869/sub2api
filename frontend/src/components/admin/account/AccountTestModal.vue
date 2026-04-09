@@ -344,9 +344,12 @@ import {
   resolveGatewayProtocolLabel
 } from '@/utils/accountProtocolGateway'
 import {
-  buildAccountTestModelOptionKeyFromModel,
   findAccountTestModelByKey
 } from '@/utils/accountTestModelOptions'
+import {
+  resolveCatalogTargetFromModel,
+  resolveGatewayTestSelectedModelKey
+} from '@/utils/accountGatewayTestDefaults'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -643,7 +646,7 @@ const loadAvailableModels = async () => {
   try {
     const models = await adminAPI.accounts.getAvailableModels(props.account.id)
     availableModels.value = models
-    selectedModelKey.value = buildAccountTestModelOptionKeyFromModel(models[0])
+    selectedModelKey.value = resolveGatewayTestSelectedModelKey(props.account ? [props.account] : [], models)
   } catch (error) {
     console.error('Failed to load available models:', error)
     availableModels.value = []
@@ -720,17 +723,23 @@ const resolveTestRequestBody = () => {
       prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
     }
   }
+  const catalogTarget = resolveCatalogTargetFromModel(selectedModelOption.value)
   if (isGrokAccount.value) {
     return {
       model_id: selectedModelId.value,
-      model: selectedModelId.value
+      model: selectedModelId.value,
+      source_protocol: catalogTarget.sourceProtocol,
+      target_provider: catalogTarget.targetProvider,
+      target_model_id: catalogTarget.targetModelId
     }
   }
   return {
     model_id: selectedModelId.value,
     model: selectedModelId.value,
     test_mode: selectedTestMode.value,
-    source_protocol: effectiveSelectedSourceProtocol.value || undefined,
+    source_protocol: catalogTarget.sourceProtocol || effectiveSelectedSourceProtocol.value || undefined,
+    target_provider: catalogTarget.targetProvider,
+    target_model_id: catalogTarget.targetModelId,
     prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
   }
 }
@@ -799,7 +808,7 @@ const startTest = async () => {
 
     const reader = response.body?.getReader()
     if (!reader) {
-      throw new Error('No response body')
+      throw new Error(t('admin.accounts.testNoResponseBody'))
     }
 
     const decoder = new TextDecoder()

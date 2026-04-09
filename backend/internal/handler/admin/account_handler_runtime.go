@@ -37,7 +37,7 @@ func (h *AccountHandler) GetRuntimeSummary(c *gin.Context) {
 		} else {
 			parsedGroupID, err := strconv.ParseInt(groupIDStr, 10, 64)
 			if err != nil || parsedGroupID < 0 {
-				response.BadRequest(c, "Invalid group filter")
+				response.BadRequestKey(c, "admin.account.invalid_group_filter", "Invalid group filter")
 				return
 			}
 			groupID = parsedGroupID

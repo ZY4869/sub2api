@@ -433,3 +433,94 @@ func TestScheduledTestRunnerService_SuccessResetsCountersAndSendsAlwaysNotificat
 	require.Contains(t, notifier.messages[0], "Recovered Account")
 	require.Contains(t, notifier.messages[0], "success")
 }
+
+func TestScheduledTestRunnerService_InjectsGatewayDefaultsForMixedAccounts(t *testing.T) {
+	planRepo := &scheduledTestPlanRepoStub{}
+	resultRepo := &scheduledTestResultRepoStub{}
+	scheduledSvc := NewScheduledTestService(planRepo, resultRepo)
+	notifier := &scheduledTestNotifierStub{}
+	accountRepo := &scheduledTestAccountRepoStub{
+		account: &Account{
+			ID:       11,
+			Name:     "Mixed Gateway",
+			Platform: PlatformProtocolGateway,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"gateway_protocol":           GatewayProtocolMixed,
+				"gateway_accepted_protocols": []string{PlatformOpenAI, PlatformAnthropic},
+				"gateway_test_provider":      PlatformOpenAI,
+				"gateway_test_model_id":      "gpt-5.4",
+			},
+		},
+	}
+	executor := &scheduledTestExecutorStub{result: &ScheduledTestResult{Status: "success", FinishedAt: time.Now()}}
+	runner := NewScheduledTestRunnerService(
+		planRepo,
+		scheduledSvc,
+		executor,
+		nil,
+		accountRepo,
+		notifier,
+		&config.Config{},
+	)
+
+	plan := &ScheduledTestPlan{
+		ID:             4,
+		AccountID:      11,
+		ModelID:        "shared-model",
+		CronExpression: "* * * * *",
+		MaxResults:     20,
+	}
+
+	runner.runOnePlan(context.Background(), plan)
+
+	require.Equal(t, PlatformOpenAI, executor.input.TargetProvider)
+	require.Equal(t, "gpt-5.4", executor.input.TargetModelID)
+	require.Empty(t, executor.input.SourceProtocol)
+}
+
+func TestScheduledTestRunnerService_ExplicitSourceProtocolStillWinsOverGatewayDefaults(t *testing.T) {
+	planRepo := &scheduledTestPlanRepoStub{}
+	resultRepo := &scheduledTestResultRepoStub{}
+	scheduledSvc := NewScheduledTestService(planRepo, resultRepo)
+	notifier := &scheduledTestNotifierStub{}
+	accountRepo := &scheduledTestAccountRepoStub{
+		account: &Account{
+			ID:       11,
+			Name:     "Mixed Gateway",
+			Platform: PlatformProtocolGateway,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"gateway_protocol":           GatewayProtocolMixed,
+				"gateway_accepted_protocols": []string{PlatformOpenAI, PlatformAnthropic},
+				"gateway_test_provider":      PlatformOpenAI,
+				"gateway_test_model_id":      "gpt-5.4",
+			},
+		},
+	}
+	executor := &scheduledTestExecutorStub{result: &ScheduledTestResult{Status: "success", FinishedAt: time.Now()}}
+	runner := NewScheduledTestRunnerService(
+		planRepo,
+		scheduledSvc,
+		executor,
+		nil,
+		accountRepo,
+		notifier,
+		&config.Config{},
+	)
+
+	plan := &ScheduledTestPlan{
+		ID:             5,
+		AccountID:      11,
+		ModelID:        "claude-sonnet",
+		SourceProtocol: PlatformAnthropic,
+		CronExpression: "* * * * *",
+		MaxResults:     20,
+	}
+
+	runner.runOnePlan(context.Background(), plan)
+
+	require.Equal(t, PlatformAnthropic, executor.input.SourceProtocol)
+	require.Equal(t, PlatformOpenAI, executor.input.TargetProvider)
+	require.Equal(t, "gpt-5.4", executor.input.TargetModelID)
+}

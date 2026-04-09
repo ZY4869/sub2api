@@ -56,8 +56,11 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 
 	// 3. Convert to Responses and forward
 	// ChatCompletionsToResponses always sets Stream=true (upstream always streams).
-	responsesReq, err := apicompat.ChatCompletionsToResponses(&chatReq)
+	responsesReq, _, err := ConvertChatCompletionsToResponsesRuntime(&chatReq)
 	if err != nil {
+		if writeLocalizedCompatError(c, writeChatCompletionsError, "invalid_request_error", err) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("convert chat completions to responses: %w", err)
 	}
 	responsesReq.Model = mappedModel
@@ -133,7 +136,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
-		writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
+		writeChatCompletionsError(c, http.StatusBadGateway, "upstream_error", "Upstream request failed", "")
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -281,7 +284,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 	}
 
 	if finalResponse == nil {
-		writeChatCompletionsError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event")
+		writeChatCompletionsError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event", "")
 		return nil, fmt.Errorf("upstream stream ended without terminal event")
 	}
 
@@ -517,11 +520,14 @@ func (s *OpenAIGatewayService) handleChatStreamingResponse(
 }
 
 // writeChatCompletionsError writes an error response in OpenAI Chat Completions format.
-func writeChatCompletionsError(c *gin.Context, statusCode int, errType, message string) {
-	c.JSON(statusCode, gin.H{
-		"error": gin.H{
-			"type":    errType,
-			"message": message,
-		},
-	})
+func writeChatCompletionsError(c *gin.Context, statusCode int, errType, message, reason string) {
+	errorPayload := gin.H{
+		"type":    errType,
+		"message": message,
+	}
+	if trimmedReason := strings.TrimSpace(reason); trimmedReason != "" {
+		errorPayload["reason"] = trimmedReason
+		errorPayload["code"] = trimmedReason
+	}
+	c.JSON(statusCode, gin.H{"error": errorPayload})
 }

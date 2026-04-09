@@ -136,12 +136,15 @@ func (s *ScheduledTestRunnerService) runScheduled() {
 }
 
 func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *ScheduledTestPlan) {
-	result, err := s.accountTestSvc.RunTestBackground(ctx, ScheduledTestExecutionInput{
+	input := ScheduledTestExecutionInput{
 		AccountID:      plan.AccountID,
 		ModelID:        plan.EffectiveModelID(),
 		SourceProtocol: plan.SourceProtocol,
 		RequestAlias:   plan.RequestAlias,
-	})
+	}
+	input = s.applyScheduledGatewayTestDefaults(ctx, input)
+
+	result, err := s.accountTestSvc.RunTestBackground(ctx, input)
 	if err != nil {
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d RunTestBackground error: %v", plan.ID, err)
 		result = &ScheduledTestResult{
@@ -216,6 +219,31 @@ func (s *ScheduledTestRunnerService) runOnePlan(ctx context.Context, plan *Sched
 			logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] plan=%d final notification failed: %v", plan.ID, notifyErr)
 		}
 	}
+}
+
+func (s *ScheduledTestRunnerService) applyScheduledGatewayTestDefaults(ctx context.Context, input ScheduledTestExecutionInput) ScheduledTestExecutionInput {
+	if s == nil || s.accountRepo == nil || input.AccountID <= 0 {
+		return input
+	}
+
+	account, err := s.accountRepo.GetByID(ctx, input.AccountID)
+	if err != nil || account == nil || !IsProtocolGatewayAccount(account) {
+		return input
+	}
+
+	if input.TargetProvider == "" {
+		input.TargetProvider = GetAccountGatewayTestProvider(account)
+	}
+	if input.TargetModelID == "" {
+		input.TargetModelID = GetAccountGatewayTestModelID(account)
+	}
+	if input.SourceProtocol == "" {
+		acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
+		if len(acceptedProtocols) == 1 {
+			input.SourceProtocol = acceptedProtocols[0]
+		}
+	}
+	return input
 }
 
 // tryRecoverAccount attempts to recover an account from recoverable runtime state.

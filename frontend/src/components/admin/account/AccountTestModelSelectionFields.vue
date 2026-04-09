@@ -59,7 +59,7 @@
         <div v-if="option" class="min-w-0">
           <div class="flex items-center gap-2">
             <span class="truncate font-medium text-gray-900 dark:text-white">
-              {{ option.display_name || option.id }}
+              {{ displayModelTitle(option) }}
             </span>
             <span
               v-if="option.source_protocol"
@@ -88,7 +88,7 @@
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-2">
               <span class="truncate font-medium text-gray-900 dark:text-white">
-                {{ option.display_name || option.id }}
+                {{ displayModelTitle(option) }}
               </span>
               <span
                 v-if="option.source_protocol"
@@ -173,6 +173,7 @@ import { Icon } from '@/components/icons'
 import type { ClaudeModel } from '@/types'
 import { resolveGatewayProtocolLabel } from '@/utils/accountProtocolGateway'
 import { buildAccountTestModelOptionKeyFromModel } from '@/utils/accountTestModelOptions'
+import { buildProviderDisplayName } from '@/utils/providerLabels'
 
 type ManualSourceProtocol = 'openai' | 'anthropic' | 'gemini' | ''
 
@@ -212,6 +213,9 @@ const { t } = useI18n()
 type ModelDescriptor = {
   id?: unknown
   canonical_id?: unknown
+  display_name?: unknown
+  provider?: unknown
+  provider_label?: unknown
   status?: unknown
 }
 
@@ -225,6 +229,14 @@ const displayModelIdentifier = (model: ModelDescriptor | null | undefined) => {
   }
   return getModelStringField(model, 'id')
 }
+
+const displayModelTitle = (model: ModelDescriptor | null | undefined) =>
+  buildProviderDisplayName({
+    provider: getModelStringField(model, 'provider'),
+    providerLabel: getModelStringField(model, 'provider_label'),
+    displayName: getModelStringField(model, 'display_name'),
+    fallbackId: getModelStringField(model, 'id')
+  })
 
 const availableModelOptions = computed<AccountTestModelOption[]>(() =>
   props.availableModels.map((model) => ({

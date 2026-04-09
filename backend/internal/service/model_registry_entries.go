@@ -114,7 +114,10 @@ func (s *ModelRegistryService) ListProviderSummaries(ctx context.Context, page i
 		}
 		group := groups[provider]
 		if group == nil {
-			group = &ModelRegistryProviderSummary{Provider: provider}
+			group = &ModelRegistryProviderSummary{
+				Provider:      provider,
+				ProviderLabel: FormatProviderLabel(provider),
+			}
 			groups[provider] = group
 		}
 		group.TotalCount++
@@ -125,13 +128,16 @@ func (s *ModelRegistryService) ListProviderSummaries(ctx context.Context, page i
 
 	summaries := make([]ModelRegistryProviderSummary, 0, len(groups))
 	for _, summary := range groups {
+		if summary.ProviderLabel == "" {
+			summary.ProviderLabel = FormatProviderLabel(summary.Provider)
+		}
 		summaries = append(summaries, *summary)
 	}
 	sort.Slice(summaries, func(i, j int) bool {
-		if summaries[i].TotalCount == summaries[j].TotalCount {
+		if strings.EqualFold(summaries[i].ProviderLabel, summaries[j].ProviderLabel) {
 			return summaries[i].Provider < summaries[j].Provider
 		}
-		return summaries[i].TotalCount > summaries[j].TotalCount
+		return strings.ToLower(summaries[i].ProviderLabel) < strings.ToLower(summaries[j].ProviderLabel)
 	})
 
 	total := int64(len(summaries))

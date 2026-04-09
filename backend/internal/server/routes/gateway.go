@@ -1,10 +1,13 @@
 package routes
 
 import (
-	"net/http"
+	"log/slog"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -31,6 +34,7 @@ func RegisterGatewayRoutes(
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
 	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
 	requireGroupGoogle := middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter)
+	dispatchers := newGatewayRouteDispatchers(h)
 
 	// API网关（Claude API兼容）
 	gateway := r.Group("/v1")
@@ -43,108 +47,22 @@ func RegisterGatewayRoutes(
 	gateway.Use(requireGroupAnthropic)
 	{
 		// /v1/messages: auto-route based on group platform
-		gateway.POST("/messages", func(c *gin.Context) {
-			if platform := getGroupPlatform(c); platform == service.PlatformGrok {
-				writeGrokMessagesUnsupported(c)
-				return
-			} else if platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
-				h.OpenAIGateway.Messages(c)
-				return
-			}
-			h.Gateway.Messages(c)
-		})
+		gateway.POST("/messages", dispatchers.AnthropicMessages)
 		// /v1/messages/count_tokens: OpenAI groups get 404
-		gateway.POST("/messages/count_tokens", func(c *gin.Context) {
-			if platform := getGroupPlatform(c); platform == service.PlatformGrok {
-				writeGrokMessagesUnsupported(c)
-				return
-			} else if platform == service.PlatformOpenAI || platform == service.PlatformCopilot {
-				c.JSON(http.StatusNotFound, gin.H{
-					"type": "error",
-					"error": gin.H{
-						"type":    "not_found_error",
-						"message": "Token counting is not supported for this platform",
-					},
-				})
-				return
-			}
-			h.Gateway.CountTokens(c)
-		})
+		gateway.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
 		gateway.GET("/models", h.Gateway.Models)
 		gateway.GET("/usage", h.Gateway.Usage)
-		gateway.POST("/responses", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.Responses(c)
-				return
-			}
-			h.OpenAIGateway.Responses(c)
-		})
-		gateway.POST("/responses/*subpath", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.Responses(c)
-				return
-			}
-			h.OpenAIGateway.Responses(c)
-		})
-		gateway.GET("/responses/*subpath", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.Responses(c)
-				return
-			}
-			h.OpenAIGateway.Responses(c)
-		})
-		gateway.DELETE("/responses/*subpath", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.Responses(c)
-				return
-			}
-			h.OpenAIGateway.Responses(c)
-		})
-		gateway.GET("/responses", func(c *gin.Context) {
-			h.OpenAIGateway.ResponsesWebSocket(c)
-		})
-		gateway.POST("/chat/completions", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.ChatCompletions(c)
-				return
-			}
-			h.OpenAIGateway.ChatCompletions(c)
-		})
-		gateway.POST("/images/generations", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.ImagesGeneration(c)
-				return
-			}
-			writeGrokAliasUnavailable(c, "/v1/images/generations")
-		})
-		gateway.POST("/images/edits", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.ImagesEdits(c)
-				return
-			}
-			writeGrokAliasUnavailable(c, "/v1/images/edits")
-		})
-		gateway.POST("/videos", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.VideosGeneration(c)
-				return
-			}
-			writeGrokAliasUnavailable(c, "/v1/videos")
-		})
-		gateway.POST("/videos/generations", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.VideosGeneration(c)
-				return
-			}
-			writeGrokAliasUnavailable(c, "/v1/videos/generations")
-		})
-		gateway.GET("/videos/:request_id", func(c *gin.Context) {
-			if isGrokGroup(c) {
-				h.GrokGateway.VideoStatus(c)
-				return
-			}
-			writeGrokAliasUnavailable(c, "/v1/videos/:request_id")
-		})
+		gateway.POST("/responses", dispatchers.OpenAIResponses)
+		gateway.POST("/responses/*subpath", dispatchers.OpenAIResponses)
+		gateway.GET("/responses/*subpath", dispatchers.OpenAIResponses)
+		gateway.DELETE("/responses/*subpath", dispatchers.OpenAIResponses)
+		gateway.GET("/responses", dispatchers.OpenAIResponsesWebSocket)
+		gateway.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+		gateway.POST("/images/generations", dispatchers.GrokImagesGeneration)
+		gateway.POST("/images/edits", dispatchers.GrokImagesEdits)
+		gateway.POST("/videos", dispatchers.GrokVideosGeneration)
+		gateway.POST("/videos/generations", dispatchers.GrokVideosGeneration)
+		gateway.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
@@ -160,16 +78,16 @@ func RegisterGatewayRoutes(
 	grokV1.Use(requireGroupAnthropic)
 	{
 		grokV1.GET("/models", h.Gateway.Models)
-		grokV1.POST("/chat/completions", h.GrokGateway.ChatCompletions)
-		grokV1.POST("/responses", h.GrokGateway.Responses)
-		grokV1.POST("/responses/*subpath", h.GrokGateway.Responses)
-		grokV1.GET("/responses/*subpath", h.GrokGateway.Responses)
-		grokV1.DELETE("/responses/*subpath", h.GrokGateway.Responses)
-		grokV1.POST("/images/generations", h.GrokGateway.ImagesGeneration)
-		grokV1.POST("/images/edits", h.GrokGateway.ImagesEdits)
-		grokV1.POST("/videos", h.GrokGateway.VideosGeneration)
-		grokV1.POST("/videos/generations", h.GrokGateway.VideosGeneration)
-		grokV1.GET("/videos/:request_id", h.GrokGateway.VideoStatus)
+		grokV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+		grokV1.POST("/responses", dispatchers.OpenAIResponses)
+		grokV1.POST("/responses/*subpath", dispatchers.OpenAIResponses)
+		grokV1.GET("/responses/*subpath", dispatchers.OpenAIResponses)
+		grokV1.DELETE("/responses/*subpath", dispatchers.OpenAIResponses)
+		grokV1.POST("/images/generations", dispatchers.GrokImagesGeneration)
+		grokV1.POST("/images/edits", dispatchers.GrokImagesEdits)
+		grokV1.POST("/videos", dispatchers.GrokVideosGeneration)
+		grokV1.POST("/videos/generations", dispatchers.GrokVideosGeneration)
+		grokV1.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
@@ -182,19 +100,19 @@ func RegisterGatewayRoutes(
 		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		gemini.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
 		// Gin treats ":" as a param marker, but Gemini uses "{model}:{action}" in the same segment.
-		gemini.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
-		gemini.GET("/files", h.Gateway.GeminiV1BetaFiles)
-		gemini.POST("/files", h.Gateway.GeminiV1BetaFiles)
-		gemini.POST("/files:action", h.Gateway.GeminiV1BetaFiles)
-		gemini.GET("/files/*subpath", h.Gateway.GeminiV1BetaFiles)
-		gemini.DELETE("/files/*subpath", h.Gateway.GeminiV1BetaFiles)
-		gemini.GET("/batches", h.Gateway.GeminiV1BetaBatches)
-		gemini.GET("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
-		gemini.POST("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
-		gemini.DELETE("/batches/*subpath", h.Gateway.GeminiV1BetaBatches)
+		gemini.POST("/models/*modelAction", dispatchers.GeminiModels)
+		gemini.GET("/files", dispatchers.GeminiFiles)
+		gemini.POST("/files", dispatchers.GeminiFiles)
+		gemini.POST("/files:action", dispatchers.GeminiFiles)
+		gemini.GET("/files/*subpath", dispatchers.GeminiFiles)
+		gemini.DELETE("/files/*subpath", dispatchers.GeminiFiles)
+		gemini.GET("/batches", dispatchers.GeminiBatches)
+		gemini.GET("/batches/*subpath", dispatchers.GeminiBatches)
+		gemini.POST("/batches/*subpath", dispatchers.GeminiBatches)
+		gemini.DELETE("/batches/*subpath", dispatchers.GeminiBatches)
 	}
-	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileUpload)
-	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, h.Gateway.GeminiV1BetaFileDownload)
+	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFilesUpload)
+	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFilesDownload)
 	googleBatchArchive := r.Group("/google/batch/archive/v1beta")
 	googleBatchArchive.Use(bodyLimit)
 	googleBatchArchive.Use(clientRequestID)
@@ -204,8 +122,8 @@ func RegisterGatewayRoutes(
 	googleBatchArchive.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	googleBatchArchive.Use(requireGroupGoogle)
 	{
-		googleBatchArchive.GET("/batches/*subpath", h.Gateway.GoogleBatchArchiveBatch)
-		googleBatchArchive.GET("/files/*subpath", h.Gateway.GoogleBatchArchiveFileDownload)
+		googleBatchArchive.GET("/batches/*subpath", dispatchers.GoogleBatchArchiveBatch)
+		googleBatchArchive.GET("/files/*subpath", dispatchers.GoogleBatchArchiveFileDownload)
 	}
 	vertexBatch := r.Group("/v1/projects/:project/locations/:location")
 	vertexBatch.Use(bodyLimit)
@@ -216,89 +134,27 @@ func RegisterGatewayRoutes(
 	vertexBatch.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
 	vertexBatch.Use(requireGroupGoogle)
 	{
-		vertexBatch.POST("/publishers/google/models/*modelAction", h.Gateway.GeminiV1BetaModels)
-		vertexBatch.GET("/batchPredictionJobs", h.Gateway.VertexBatchPredictionJobs)
-		vertexBatch.POST("/batchPredictionJobs", h.Gateway.VertexBatchPredictionJobs)
-		vertexBatch.GET("/batchPredictionJobs/*subpath", h.Gateway.VertexBatchPredictionJobs)
-		vertexBatch.POST("/batchPredictionJobs/*subpath", h.Gateway.VertexBatchPredictionJobs)
-		vertexBatch.DELETE("/batchPredictionJobs/*subpath", h.Gateway.VertexBatchPredictionJobs)
+		vertexBatch.POST("/publishers/google/models/*modelAction", dispatchers.VertexModels)
+		vertexBatch.GET("/batchPredictionJobs", dispatchers.VertexBatchPredictionJobs)
+		vertexBatch.POST("/batchPredictionJobs", dispatchers.VertexBatchPredictionJobs)
+		vertexBatch.GET("/batchPredictionJobs/*subpath", dispatchers.VertexBatchPredictionJobs)
+		vertexBatch.POST("/batchPredictionJobs/*subpath", dispatchers.VertexBatchPredictionJobs)
+		vertexBatch.DELETE("/batchPredictionJobs/*subpath", dispatchers.VertexBatchPredictionJobs)
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）
-	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.Responses(c)
-			return
-		}
-		h.OpenAIGateway.Responses(c)
-	})
-	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.Responses(c)
-			return
-		}
-		h.OpenAIGateway.Responses(c)
-	})
-	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.Responses(c)
-			return
-		}
-		h.OpenAIGateway.Responses(c)
-	})
-	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.Responses(c)
-			return
-		}
-		h.OpenAIGateway.Responses(c)
-	})
-	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		h.OpenAIGateway.ResponsesWebSocket(c)
-	})
+	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponsesWebSocket)
 	// OpenAI Chat Completions API（不带v1前缀的别名）
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.ChatCompletions(c)
-			return
-		}
-		h.OpenAIGateway.ChatCompletions(c)
-	})
-	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.ImagesGeneration(c)
-			return
-		}
-		writeGrokAliasUnavailable(c, "/images/generations")
-	})
-	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.ImagesEdits(c)
-			return
-		}
-		writeGrokAliasUnavailable(c, "/images/edits")
-	})
-	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.VideosGeneration(c)
-			return
-		}
-		writeGrokAliasUnavailable(c, "/videos")
-	})
-	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.VideosGeneration(c)
-			return
-		}
-		writeGrokAliasUnavailable(c, "/videos/generations")
-	})
-	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, func(c *gin.Context) {
-		if isGrokGroup(c) {
-			h.GrokGateway.VideoStatus(c)
-			return
-		}
-		writeGrokAliasUnavailable(c, "/videos/:request_id")
-	})
+	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
+	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokImagesGeneration)
+	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokImagesEdits)
+	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokVideosGeneration)
+	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokVideosGeneration)
+	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokVideosStatus)
 
 	// Antigravity 模型列表
 	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
@@ -314,8 +170,8 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
 	antigravityV1.Use(requireGroupAnthropic)
 	{
-		antigravityV1.POST("/messages", h.Gateway.Messages)
-		antigravityV1.POST("/messages/count_tokens", h.Gateway.CountTokens)
+		antigravityV1.POST("/messages", dispatchers.AnthropicMessages)
+		antigravityV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
 		antigravityV1.GET("/models", h.Gateway.AntigravityModels)
 		antigravityV1.GET("/usage", h.Gateway.Usage)
 	}
@@ -332,7 +188,7 @@ func RegisterGatewayRoutes(
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
 		antigravityV1Beta.GET("/models/:model", h.Gateway.GeminiV1BetaGetModel)
-		antigravityV1Beta.POST("/models/*modelAction", h.Gateway.GeminiV1BetaModels)
+		antigravityV1Beta.POST("/models/*modelAction", dispatchers.GeminiModels)
 	}
 }
 
@@ -374,21 +230,100 @@ func isGrokGroup(c *gin.Context) bool {
 	return service.IsGrokPlatform(getGroupPlatform(c))
 }
 
+func dispatchMessagesRoute(c *gin.Context, nativeHandler gin.HandlerFunc, compatHandler gin.HandlerFunc) {
+	decision := service.DecideProtocolCapability(getGroupPlatform(c), service.EndpointMessages, service.ProtocolCapabilityActionDefault)
+	switch decision.Mode {
+	case service.ProtocolCapabilityNativePassthrough:
+		nativeHandler(c)
+	case service.ProtocolCapabilityCompatTranslate:
+		compatHandler(c)
+	default:
+		writeOpenAIGatewayCapabilityError(c, service.GrokMessagesUnsupportedDecision(), "invalid_request_error")
+	}
+}
+
+func dispatchCountTokensRoute(c *gin.Context, nativeHandler gin.HandlerFunc) {
+	decision := service.DecideProtocolCapability(getGroupPlatform(c), service.EndpointMessages, service.ProtocolCapabilityActionCountTokens)
+	if decision.Supported && decision.Mode == service.ProtocolCapabilityNativePassthrough {
+		nativeHandler(c)
+		return
+	}
+	decision.MessageKey = "gateway.count_tokens.unsupported_platform"
+	writeOpenAIGatewayCapabilityError(c, decision, "not_found_error")
+}
+
+func dispatchOpenAIRoute(c *gin.Context, inboundEndpoint string, action string, openAIHandler gin.HandlerFunc, grokHandler gin.HandlerFunc) {
+	decision := service.DecideProtocolCapability(getGroupPlatform(c), inboundEndpoint, action)
+	if !decision.Supported || decision.Mode != service.ProtocolCapabilityNativePassthrough {
+		writeOpenAIGatewayCapabilityError(c, decision, "not_found_error")
+		return
+	}
+	if isGrokGroup(c) {
+		if grokHandler == nil {
+			writeOpenAIGatewayCapabilityError(c, service.PublicEndpointUnsupportedDecision(inboundEndpoint, action), "not_found_error")
+			return
+		}
+		grokHandler(c)
+		return
+	}
+	openAIHandler(c)
+}
+
+func dispatchGrokOnlyRoute(c *gin.Context, inboundEndpoint string, grokHandler gin.HandlerFunc) {
+	decision := service.DecideProtocolCapability(getGroupPlatform(c), inboundEndpoint, service.ProtocolCapabilityActionDefault)
+	if !decision.Supported || decision.Mode != service.ProtocolCapabilityNativePassthrough || !isGrokGroup(c) {
+		writeOpenAIGatewayCapabilityError(c, service.GrokAliasReservedDecision(inboundEndpoint), "not_found_error")
+		return
+	}
+	grokHandler(c)
+}
+
 func writeGrokMessagesUnsupported(c *gin.Context) {
-	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+	writeOpenAIGatewayCapabilityError(c, service.GrokMessagesUnsupportedDecision(), "invalid_request_error")
+}
+
+func writeGrokAliasUnavailable(c *gin.Context, path string) {
+	writeOpenAIGatewayCapabilityError(c, service.GrokAliasReservedDecision(path), "not_found_error")
+}
+
+func writePublicEndpointUnsupported(c *gin.Context, path string) {
+	writeOpenAIGatewayCapabilityError(c, service.PublicEndpointUnsupportedDecision(path, service.ProtocolCapabilityActionDefault), "not_found_error")
+}
+
+func writeOpenAIGatewayCapabilityError(c *gin.Context, decision service.ProtocolCapabilityDecision, errorType string) {
+	logOpenAIGatewayCapabilityDecision(c, decision)
+	messageKey := decision.MessageKey
+	if strings.TrimSpace(messageKey) == "" {
+		messageKey = "gateway.public_endpoint.unsupported_platform"
+	}
+	c.AbortWithStatusJSON(decision.StatusCode, gin.H{
 		"type": "error",
 		"error": gin.H{
-			"type":    "invalid_request_error",
-			"message": "Grok groups do not support /v1/messages endpoints",
+			"type":    errorType,
+			"message": response.LocalizedMessage(c, messageKey, "%s is not supported for this platform", decision.RequestFormat),
+			"code":    decision.Reason,
+			"reason":  decision.Reason,
 		},
 	})
 }
 
-func writeGrokAliasUnavailable(c *gin.Context, path string) {
-	c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
-		"error": gin.H{
-			"type":    "not_found_error",
-			"message": path + " is reserved for Grok groups only",
-		},
-	})
+func logOpenAIGatewayCapabilityDecision(c *gin.Context, decision service.ProtocolCapabilityDecision) {
+	switch decision.Reason {
+	case service.GatewayReasonUnsupportedAction:
+		protocolruntime.RecordUnsupportedAction(decision.Reason)
+		slog.Warn(
+			"gateway_unsupported_action",
+			"runtime_platform", getGroupPlatform(c),
+			"inbound_endpoint", decision.RequestFormat,
+			"reason", decision.InternalMismatchKind,
+		)
+	default:
+		protocolruntime.RecordRouteMismatch(decision.InternalMismatchKind)
+		slog.Warn(
+			"gateway_route_mismatch",
+			"runtime_platform", getGroupPlatform(c),
+			"inbound_endpoint", decision.RequestFormat,
+			"reason", decision.InternalMismatchKind,
+		)
+	}
 }

@@ -62,17 +62,17 @@ func (h *GatewayHandler) GoogleBatchArchiveFileDownload(c *gin.Context) {
 
 func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error)) {
 	if h == nil || h.geminiCompatService == nil {
-		googleError(c, http.StatusServiceUnavailable, "Gemini batch service not configured")
+		googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.batch_service_missing", "Gemini batch service not configured")
 		return
 	}
 	apiKey, ok := middleware.GetAPIKeyFromContext(c)
 	if !ok || apiKey == nil {
-		googleError(c, http.StatusUnauthorized, "Invalid API key")
+		googleErrorKey(c, http.StatusUnauthorized, "gateway.gemini.invalid_api_key", "Invalid API key")
 		return
 	}
 	authSubject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok {
-		googleError(c, http.StatusInternalServerError, "User context not found")
+		googleErrorKey(c, http.StatusInternalServerError, "gateway.gemini.user_context_missing", "User context not found")
 		return
 	}
 	subscription, _ := middleware.GetSubscriptionFromContext(c)
@@ -92,7 +92,7 @@ func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(servi
 		return
 	}
 	if !middleware.HasForcePlatform(c) && currentAPIKey.Group != nil && strings.TrimSpace(currentAPIKey.Group.Platform) != service.PlatformGemini {
-		googleError(c, http.StatusBadRequest, "API key group platform is not gemini")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.group_platform_invalid", "API key group platform is not gemini")
 		return
 	}
 	body, openBody, cleanupBody, contentLength, err := readGoogleBatchForwardBody(c)
@@ -153,7 +153,7 @@ func readGoogleBatchForwardBody(c *gin.Context) ([]byte, func() (io.ReadCloser, 
 		}
 		replayableBody, err := newReplayableGoogleBatchBody(c.Request.Body)
 		if err != nil {
-			googleError(c, http.StatusInternalServerError, "Failed to prepare request body")
+			googleErrorKey(c, http.StatusInternalServerError, "gateway.gemini.prepare_body_failed", "Failed to prepare request body")
 			return nil, nil, nil, 0, err
 		}
 		return nil, replayableBody.Open, replayableBody.Cleanup, c.Request.ContentLength, nil
@@ -161,10 +161,10 @@ func readGoogleBatchForwardBody(c *gin.Context) ([]byte, func() (io.ReadCloser, 
 	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 	if err != nil {
 		if maxErr, ok := extractMaxBytesError(err); ok {
-			googleError(c, http.StatusRequestEntityTooLarge, buildBodyTooLargeMessage(maxErr.Limit))
+			googleErrorBodyTooLarge(c, maxErr.Limit)
 			return nil, nil, nil, 0, err
 		}
-		googleError(c, http.StatusBadRequest, "Failed to read request body")
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.read_body_failed", "Failed to read request body")
 		return nil, nil, nil, 0, err
 	}
 	return body, nil, nil, int64(len(body)), nil

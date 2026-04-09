@@ -22,7 +22,7 @@ type stubAccountTestService struct {
 
 func (s *stubAccountTestService) SetModelRegistryService(_ *service.ModelRegistryService) {}
 
-func (s *stubAccountTestService) TestAccountConnection(_ *gin.Context, _ int64, _ string, _ string, _ string, _ string) error {
+func (s *stubAccountTestService) TestAccountConnection(_ *gin.Context, _ int64, _ string, _ string, _ string, _ string, _ string, _ string) error {
 	panic("unexpected TestAccountConnection call")
 }
 

@@ -2,7 +2,6 @@ package apicompat
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -61,7 +60,7 @@ func AnthropicToResponses(req *AnthropicRequest) (*ResponsesRequest, error) {
 	if len(req.ToolChoice) > 0 {
 		tc, err := convertAnthropicToolChoiceToResponses(req.ToolChoice)
 		if err != nil {
-			return nil, fmt.Errorf("convert tool_choice: %w", err)
+			return nil, err
 		}
 		out.ToolChoice = tc
 	}
@@ -81,7 +80,11 @@ func convertAnthropicToolChoiceToResponses(raw json.RawMessage) (json.RawMessage
 		Name string `json:"name"`
 	}
 	if err := json.Unmarshal(raw, &tc); err != nil {
-		return nil, err
+		return nil, WrapCompatError(err,
+			CompatReasonAnthropicToolChoiceInvalid,
+			"compat.anthropic.tool_choice_invalid",
+			"tool_choice must be an object with a valid type",
+		)
 	}
 
 	switch tc.Type {
@@ -141,7 +144,11 @@ func parseAnthropicSystemPrompt(raw json.RawMessage) (string, error) {
 	}
 	var blocks []AnthropicContentBlock
 	if err := json.Unmarshal(raw, &blocks); err != nil {
-		return "", err
+		return "", WrapCompatError(err,
+			CompatReasonAnthropicSystemInvalid,
+			"compat.anthropic.system_invalid",
+			"system must be a string or an array of text blocks",
+		)
 	}
 	var parts []string
 	for _, b := range blocks {
@@ -178,7 +185,11 @@ func anthropicUserToResponses(raw json.RawMessage) ([]ResponsesInputItem, error)
 
 	var blocks []AnthropicContentBlock
 	if err := json.Unmarshal(raw, &blocks); err != nil {
-		return nil, err
+		return nil, WrapCompatError(err,
+			CompatReasonAnthropicMessageContentInvalid,
+			"compat.anthropic.message_content_invalid",
+			"Anthropic message content must be a string or an array of content blocks",
+		)
 	}
 
 	var out []ResponsesInputItem
@@ -246,7 +257,11 @@ func anthropicAssistantToResponses(raw json.RawMessage) ([]ResponsesInputItem, e
 
 	var blocks []AnthropicContentBlock
 	if err := json.Unmarshal(raw, &blocks); err != nil {
-		return nil, err
+		return nil, WrapCompatError(err,
+			CompatReasonAnthropicMessageContentInvalid,
+			"compat.anthropic.message_content_invalid",
+			"Anthropic message content must be a string or an array of content blocks",
+		)
 	}
 
 	var items []ResponsesInputItem

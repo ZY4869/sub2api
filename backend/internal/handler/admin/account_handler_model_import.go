@@ -15,23 +15,23 @@ import (
 
 func (h *AccountHandler) ImportModels(c *gin.Context) {
 	if h.accountModelImportService == nil {
-		response.InternalError(c, "Account model import service unavailable")
+		response.InternalErrorKey(c, "admin.account.model_import_service_missing", "Account model import service unavailable")
 		return
 	}
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 	var req ImportAccountModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 	ctx := c.Request.Context()
 	account, err := h.adminService.GetAccount(ctx, accountID)
 	if err != nil || account == nil {
-		response.NotFound(c, "Account not found")
+		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
 		return
 	}
 	result, err := h.accountModelImportService.ImportAccountModels(ctx, account, req.Trigger, req.Models)
@@ -76,12 +76,16 @@ type probeProtocolGatewayModelsRequest struct {
 	BaseURL           string                       `json:"base_url"`
 	APIKey            string                       `json:"api_key" binding:"required"`
 	ProxyID           *int64                       `json:"proxy_id"`
+	TargetProvider    string                       `json:"target_provider"`
+	TargetModelID     string                       `json:"target_model_id"`
 	ManualModels      []service.AccountManualModel `json:"manual_models"`
 }
 
 type probeProtocolGatewayModelItem struct {
 	ID                 string `json:"id"`
 	DisplayName        string `json:"display_name"`
+	Provider           string `json:"provider,omitempty"`
+	ProviderLabel      string `json:"provider_label,omitempty"`
 	RegistryState      string `json:"registry_state"`
 	RegistryModel      string `json:"registry_model_id,omitempty"`
 	SourceProtocol     string `json:"source_protocol,omitempty"`
@@ -110,12 +114,12 @@ type probeAccountModelsRequest struct {
 
 func (h *AccountHandler) ProbeModels(c *gin.Context) {
 	if h.accountModelImportService == nil {
-		response.InternalError(c, "Account model import service unavailable")
+		response.InternalErrorKey(c, "admin.account.model_import_service_missing", "Account model import service unavailable")
 		return
 	}
 	var req probeAccountModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
@@ -148,17 +152,17 @@ func (h *AccountHandler) ProbeModels(c *gin.Context) {
 
 func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 	if h.accountModelImportService == nil {
-		response.InternalError(c, "Account model import service unavailable")
+		response.InternalErrorKey(c, "admin.account.model_import_service_missing", "Account model import service unavailable")
 		return
 	}
 	var req probeProtocolGatewayModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 	descriptor, ok := service.ProtocolGatewayDescriptorByID(req.GatewayProtocol)
 	if !ok {
-		response.BadRequest(c, "Invalid gateway protocol")
+		response.BadRequestKey(c, "admin.account.gateway_protocol_invalid", "Invalid gateway protocol")
 		return
 	}
 
@@ -177,6 +181,12 @@ func (h *AccountHandler) ProbeProtocolGatewayModels(c *gin.Context) {
 				"gateway_accepted_protocols": req.AcceptedProtocols,
 			}),
 		},
+	}
+	if provider := service.NormalizeModelProvider(req.TargetProvider); provider != "" {
+		draftAccount.Extra["gateway_test_provider"] = provider
+	}
+	if modelID := strings.TrimSpace(req.TargetModelID); modelID != "" {
+		draftAccount.Extra["gateway_test_model_id"] = modelID
 	}
 	if manualModels := service.AccountManualModelsToExtraValue(req.ManualModels, true); len(manualModels) > 0 {
 		draftAccount.Extra["manual_models"] = manualModels
@@ -207,6 +217,8 @@ func (h *AccountHandler) writeProbeModelsResponse(c *gin.Context, draftAccount *
 		item := probeProtocolGatewayModelItem{
 			ID:                 modelID,
 			DisplayName:        detectedModel.DisplayName,
+			Provider:           detectedModel.Provider,
+			ProviderLabel:      detectedModel.ProviderLabel,
 			RegistryState:      "missing",
 			SourceProtocol:     detectedModel.SourceProtocol,
 			UpstreamSource:     detectedModel.UpstreamSource,
@@ -238,12 +250,12 @@ func (h *AccountHandler) writeProbeModelsResponse(c *gin.Context, draftAccount *
 func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
 	if err != nil {
-		response.NotFound(c, "Account not found")
+		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
 		return
 	}
 	response.Success(c, service.BuildAvailableTestModels(c.Request.Context(), account, h.modelRegistryService))

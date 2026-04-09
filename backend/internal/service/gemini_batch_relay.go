@@ -682,7 +682,11 @@ func extractAIStudioResourceName(path string, prefix string) string {
 	if resourceID == "" {
 		return ""
 	}
-	base := strings.Trim(strings.TrimPrefix(strings.TrimSuffix(prefix, "/"), "/v1beta/"), "/")
+	basePrefix := strings.TrimSpace(strings.TrimSuffix(prefix, "/"))
+	if idx := strings.LastIndex(basePrefix, "/v1beta/"); idx >= 0 {
+		basePrefix = basePrefix[idx+len("/v1beta/"):]
+	}
+	base := strings.Trim(basePrefix, "/")
 	return base + "/" + resourceID
 }
 

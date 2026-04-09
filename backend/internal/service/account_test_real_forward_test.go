@@ -24,7 +24,17 @@ func TestAccountTestServiceSendResolvedTestRuntimeMetaEvents(t *testing.T) {
 
 	svc := &AccountTestService{}
 	svc.prepareTestStream(ctx)
-	svc.setResolvedTestRuntimeMeta(ctx, AccountTestModeHealthCheck, PlatformOpenAI, PlatformAnthropic, GatewayClientProfileCodex)
+	svc.setResolvedTestRuntimeMeta(ctx, accountTestRuntimeMeta{
+		Mode:            AccountTestModeHealthCheck,
+		RuntimePlatform: PlatformOpenAI,
+		SourceProtocol:  PlatformAnthropic,
+		SimulatedClient: GatewayClientProfileCodex,
+		InboundEndpoint: EndpointMessages,
+		CompatPath:      "anthropic->openai:compat_translate",
+		TargetProvider:  PlatformOpenAI,
+		TargetModelID:   "gpt-5.4",
+		ResolvedModelID: "gpt-5.4",
+	})
 	svc.sendResolvedTestRuntimeMetaEvents(ctx)
 
 	body := recorder.Body.String()
@@ -36,4 +46,14 @@ func TestAccountTestServiceSendResolvedTestRuntimeMetaEvents(t *testing.T) {
 	require.True(t, strings.Contains(body, `"value":"anthropic"`))
 	require.True(t, strings.Contains(body, `"key":"simulated_client"`))
 	require.True(t, strings.Contains(body, `"value":"codex"`))
+	require.True(t, strings.Contains(body, `"key":"inbound_endpoint"`))
+	require.True(t, strings.Contains(body, `"value":"/v1/messages"`))
+	require.True(t, strings.Contains(body, `"key":"compat_path"`))
+	require.True(t, strings.Contains(body, `compat_translate`))
+	require.True(t, strings.Contains(body, `"key":"target_provider"`))
+	require.True(t, strings.Contains(body, `"value":"openai"`))
+	require.True(t, strings.Contains(body, `"key":"target_model_id"`))
+	require.True(t, strings.Contains(body, `"value":"gpt-5.4"`))
+	require.True(t, strings.Contains(body, `"key":"resolved_model_id"`))
+	require.True(t, strings.Contains(body, `"value":"gpt-5.4"`))
 }

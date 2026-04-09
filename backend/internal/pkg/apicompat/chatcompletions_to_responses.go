@@ -2,7 +2,6 @@ package apicompat
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -70,7 +69,7 @@ func ChatCompletionsToResponses(req *ChatCompletionsRequest) (*ResponsesRequest,
 	} else if len(req.FunctionCall) > 0 {
 		tc, err := convertChatFunctionCallToToolChoice(req.FunctionCall)
 		if err != nil {
-			return nil, fmt.Errorf("convert function_call: %w", err)
+			return nil, err
 		}
 		out.ToolChoice = tc
 	}
@@ -136,7 +135,11 @@ func chatUserToResponses(m ChatMessage) ([]ResponsesInputItem, error) {
 
 	var parts []ChatContentPart
 	if err := json.Unmarshal(m.Content, &parts); err != nil {
-		return nil, fmt.Errorf("parse user content: %w", err)
+		return nil, WrapCompatError(err,
+			CompatReasonChatUserContentInvalid,
+			"compat.chat.user_content_invalid",
+			"user message content must be a string or an array of content parts",
+		)
 	}
 
 	var responseParts []ResponsesContentPart
@@ -319,7 +322,11 @@ func parseChatContent(raw json.RawMessage) (string, error) {
 	}
 	var s string
 	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", fmt.Errorf("parse content as string: %w", err)
+		return "", WrapCompatError(err,
+			CompatReasonChatStringContentInvalid,
+			"compat.chat.string_content_invalid",
+			"message content must be a JSON string on this compatibility path",
+		)
 	}
 	return s, nil
 }
@@ -376,7 +383,11 @@ func convertChatFunctionCallToToolChoice(raw json.RawMessage) (json.RawMessage, 
 		Name string `json:"name"`
 	}
 	if err := json.Unmarshal(raw, &obj); err != nil {
-		return nil, err
+		return nil, WrapCompatError(err,
+			CompatReasonChatFunctionCallInvalid,
+			"compat.chat.function_call_invalid",
+			"function_call must be a string or an object with a name",
+		)
 	}
 	return json.Marshal(map[string]any{
 		"type":     "function",

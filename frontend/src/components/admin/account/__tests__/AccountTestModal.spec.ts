@@ -73,7 +73,8 @@ function mountModal() {
         name: 'Gemini Image Test',
         platform: 'gemini',
         type: 'apikey',
-        status: 'active'
+        status: 'active',
+        extra: {}
       }
     } as any,
     global: {
@@ -160,6 +161,7 @@ describe('AccountTestModal', () => {
     expect(JSON.parse(request.body)).toEqual({
       model: 'gemini-3.1-flash-image',
       model_id: 'gemini-3.1-flash-image',
+      target_model_id: 'gemini-3.1-flash-image',
       test_mode: 'real_forward',
       prompt: 'draw a tiny orange cat astronaut'
     })
@@ -245,6 +247,85 @@ describe('AccountTestModal', () => {
     expect(text).not.toContain('claude-sonnet-4-5-20250929')
   })
 
+  it('prefills protocol gateway defaults and forwards catalog target fields', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      {
+        id: 'gpt-5.4-preview',
+        canonical_id: 'gpt-5.4',
+        provider: 'openai',
+        source_protocol: 'openai',
+        display_name: 'GPT-5.4'
+      },
+      {
+        id: 'claude-sonnet-4-5-20250929',
+        canonical_id: 'claude-sonnet-4.5',
+        provider: 'anthropic',
+        source_protocol: 'anthropic',
+        display_name: 'Claude Sonnet 4.5'
+      }
+    ])
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 51,
+          name: 'Gateway Test',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {
+            gateway_test_provider: 'anthropic',
+            gateway_test_model_id: 'claude-sonnet-4.5'
+          }
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div class="select-stub">
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+    await startButton!.trigger('click')
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model: 'claude-sonnet-4-5-20250929',
+      model_id: 'claude-sonnet-4-5-20250929',
+      source_protocol: 'anthropic',
+      target_provider: 'anthropic',
+      target_model_id: 'claude-sonnet-4.5',
+      test_mode: 'real_forward',
+      prompt: ''
+    })
+  })
+
   it('shows blacklist advice and emits direct blacklist feedback from the test modal', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       createStreamResponse([
@@ -318,6 +399,7 @@ describe('AccountTestModal', () => {
     expect(JSON.parse(request.body)).toEqual({
       model: 'gemini-3.1-flash-image',
       model_id: 'gemini-3.1-flash-image',
+      target_model_id: 'gemini-3.1-flash-image',
       test_mode: 'health_check',
       prompt: 'Generate a cute orange cat astronaut sticker on a clean pastel background.'
     })
@@ -397,6 +479,7 @@ describe('AccountTestModal', () => {
       model_id: 'claude-sonnet-4-5',
       test_mode: 'real_forward',
       source_protocol: 'anthropic',
+      target_model_id: 'claude-sonnet-4-5',
       prompt: ''
     })
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextTitle')
@@ -499,7 +582,10 @@ describe('AccountTestModal', () => {
 
     expect(testGrokAccount).toHaveBeenCalledWith(9, {
       model: 'grok-3-beta',
-      model_id: 'grok-3-beta'
+      model_id: 'grok-3-beta',
+      source_protocol: undefined,
+      target_provider: undefined,
+      target_model_id: 'grok-3-beta'
     })
     expect(wrapper.text()).toContain('Reverse runtime connectivity probe started')
     expect(wrapper.text()).toContain('Visible models after model_mapping: grok-3-beta')

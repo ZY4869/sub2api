@@ -84,6 +84,7 @@ describe('BlacklistRetestModal', () => {
         type: 'model',
         display_name: 'GPT-5.4',
         created_at: '',
+        provider: 'openai',
         source_protocol: 'openai'
       },
       {
@@ -107,7 +108,73 @@ describe('BlacklistRetestModal', () => {
         account_ids: [101],
         model_input_mode: 'catalog',
         model_id: 'gpt-5.4',
+        source_protocol: 'openai',
+        target_provider: 'openai',
+        target_model_id: 'gpt-5.4'
+      }
+    ]])
+  })
+
+  it('uses shared gateway defaults for multi-account blacklist retests', async () => {
+    getBlacklistRetestModels.mockResolvedValueOnce([
+      {
+        id: 'gpt-5.4-preview',
+        canonical_id: 'gpt-5.4',
+        type: 'model',
+        display_name: 'GPT-5.4',
+        created_at: '',
+        provider: 'openai',
         source_protocol: 'openai'
+      },
+      {
+        id: 'claude-sonnet-4-5-20250929',
+        canonical_id: 'claude-sonnet-4.5',
+        type: 'model',
+        display_name: 'Claude Sonnet 4.5',
+        created_at: '',
+        provider: 'anthropic',
+        source_protocol: 'anthropic'
+      }
+    ])
+
+    const wrapper = mountModal({
+      accounts: [
+        {
+          id: 201,
+          name: 'Gateway 201',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {
+            gateway_test_provider: 'anthropic',
+            gateway_test_model_id: 'claude-sonnet-4.5'
+          }
+        },
+        {
+          id: 202,
+          name: 'Gateway 202',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {
+            gateway_test_provider: 'anthropic',
+            gateway_test_model_id: 'claude-sonnet-4.5'
+          }
+        }
+      ]
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-test="blacklist-retest-confirm"]').trigger('click')
+
+    expect(wrapper.emitted('confirm')).toEqual([[
+      {
+        account_ids: [201, 202],
+        model_input_mode: 'catalog',
+        model_id: 'claude-sonnet-4-5-20250929',
+        source_protocol: 'anthropic',
+        target_provider: 'anthropic',
+        target_model_id: 'claude-sonnet-4.5'
       }
     ]])
   })

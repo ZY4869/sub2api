@@ -79,6 +79,8 @@ type ScheduledTestExecutionInput struct {
 	AccountID      int64
 	ModelID        string
 	SourceProtocol string
+	TargetProvider string
+	TargetModelID  string
 	RequestAlias   string
 	Prompt         string
 	TestMode       string

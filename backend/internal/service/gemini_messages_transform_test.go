@@ -2,9 +2,9 @@ package service
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +44,9 @@ func TestConvertClaudeMessagesToGeminiGenerateContent_Gemini3ThinkingConflict(t 
 
 	_, err := convertClaudeMessagesToGeminiGenerateContent(body)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "thinkingLevel and thinkingBudget")
+	compatErr, ok := apicompat.AsCompatError(err)
+	require.True(t, ok)
+	require.Equal(t, apicompat.CompatReasonGeminiThinkingConflict, compatErr.Reason)
 }
 
 func TestConvertClaudeMessagesToGeminiGenerateContent_Gemini3MinimalThinkingRestricted(t *testing.T) {
@@ -58,7 +60,9 @@ func TestConvertClaudeMessagesToGeminiGenerateContent_Gemini3MinimalThinkingRest
 
 	_, err := convertClaudeMessagesToGeminiGenerateContent(body)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "MINIMAL")
+	compatErr, ok := apicompat.AsCompatError(err)
+	require.True(t, ok)
+	require.Equal(t, apicompat.CompatReasonGeminiMinimalThinkingUnsupported, compatErr.Reason)
 }
 
 func TestConvertClaudeMessagesToGeminiGenerateContent_Gemini3LegacyBudgetCompatibility(t *testing.T) {
@@ -129,5 +133,7 @@ func TestConvertClaudeMessagesToGeminiGenerateContent_URLContextRejectedForVerte
 
 	_, err := convertClaudeMessagesToGeminiGenerateContent(body, geminiTransformOptions{AllowURLContext: false})
 	require.Error(t, err)
-	require.True(t, strings.Contains(err.Error(), "urlContext") || strings.Contains(err.Error(), "URL Context"))
+	compatErr, ok := apicompat.AsCompatError(err)
+	require.True(t, ok)
+	require.Equal(t, apicompat.CompatReasonGeminiURLContextUnsupported, compatErr.Reason)
 }

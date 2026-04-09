@@ -19,7 +19,7 @@ func NewOAuthHandler(oauthService *service.OAuthService) *OAuthHandler {
 
 type accountTestServicePort interface {
 	SetModelRegistryService(modelRegistryService *service.ModelRegistryService)
-	TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, testMode string) error
+	TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, targetProvider string, targetModelID string, testMode string) error
 	RunTestBackgroundDetailed(ctx context.Context, input service.ScheduledTestExecutionInput) (*service.BackgroundAccountTestResult, error)
 	RunTestBackground(ctx context.Context, input service.ScheduledTestExecutionInput) (*service.ScheduledTestResult, error)
 }
@@ -145,7 +145,7 @@ const accountListGroupUngroupedQueryValue = "ungrouped"
 func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	var req CheckMixedChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 	if len(req.GroupIDs) == 0 {
@@ -161,7 +161,7 @@ func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {
-			response.Success(c, gin.H{"has_risk": true, "error": "mixed_channel_warning", "message": mixedErr.Error(), "details": gin.H{"group_id": mixedErr.GroupID, "group_name": mixedErr.GroupName, "current_platform": mixedErr.CurrentPlatform, "other_platform": mixedErr.OtherPlatform}})
+			response.Success(c, gin.H{"has_risk": true, "error": "mixed_channel_warning", "message": mixedChannelWarningMessage(c, mixedErr), "details": gin.H{"group_id": mixedErr.GroupID, "group_name": mixedErr.GroupName, "current_platform": mixedErr.CurrentPlatform, "other_platform": mixedErr.OtherPlatform}})
 			return
 		}
 		response.ErrorFrom(c, err)
@@ -172,7 +172,7 @@ func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 func (h *AccountHandler) Delete(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 	err = h.adminService.DeleteAccount(c.Request.Context(), accountID)
@@ -180,16 +180,16 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"message": "Account deleted successfully"})
+	response.Success(c, gin.H{"message": response.LocalizedMessage(c, "admin.account.deleted", "Account deleted successfully")})
 }
 func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 	var req BulkUpdateAccountsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 	if req.RateMultiplier != nil && *req.RateMultiplier < 0 {
-		response.BadRequest(c, "rate_multiplier must be >= 0")
+		response.BadRequestKey(c, "admin.account.rate_multiplier_invalid", "rate_multiplier must be >= 0")
 		return
 	}
 	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
@@ -197,14 +197,14 @@ func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 	skipCheck := req.ConfirmMixedChannelRisk != nil && *req.ConfirmMixedChannelRisk
 	hasUpdates := req.Name != "" || req.ProxyID != nil || req.Concurrency != nil || req.Priority != nil || req.RateMultiplier != nil || req.LoadFactor != nil || normalizedStatus != "" || req.Schedulable != nil || req.GroupIDs != nil || len(req.Credentials) > 0 || len(req.Extra) > 0
 	if !hasUpdates {
-		response.BadRequest(c, "No updates provided")
+		response.BadRequestKey(c, "admin.account.no_updates", "No updates provided")
 		return
 	}
 	result, err := h.adminService.BulkUpdateAccounts(c.Request.Context(), &service.BulkUpdateAccountsInput{AccountIDs: req.AccountIDs, Name: req.Name, ProxyID: req.ProxyID, Concurrency: req.Concurrency, Priority: req.Priority, RateMultiplier: req.RateMultiplier, LoadFactor: req.LoadFactor, Status: normalizedStatus, Schedulable: req.Schedulable, GroupIDs: req.GroupIDs, Credentials: req.Credentials, Extra: req.Extra, SkipMixedChannelCheck: skipCheck})
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {
-			c.JSON(409, gin.H{"error": "mixed_channel_warning", "message": mixedErr.Error()})
+			c.JSON(409, gin.H{"error": "mixed_channel_warning", "message": mixedChannelWarningMessage(c, mixedErr)})
 			return
 		}
 		response.ErrorFrom(c, err)

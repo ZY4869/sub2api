@@ -29,15 +29,25 @@ export interface ModelRegistryPreset {
 export interface ModelRegistrySnapshot {
   etag: string
   updated_at: string
+  provider_labels: Record<string, string>
   models: ModelRegistryEntry[]
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-06T10:48:31Z"
+export const generatedModelRegistryBuiltAt = "2026-04-08T13:21:55Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"37ebf978942228a4cab94cf3416e3779daca4c368496530ae0f0051a483dbd58\"",
-  "updated_at": "2026-04-06T10:48:31Z",
+  "etag": "W/\"46710c596a7b2ec7ab4ba474fe1bdedc195fc6aec7725f85e1e76222d6840862\"",
+  "updated_at": "2026-04-08T13:21:55Z",
+  "provider_labels": {
+    "anthropic": "Anthropic-Claude",
+    "antigravity": "Antigravity",
+    "copilot": "GitHub-Copilot",
+    "gemini": "Google-Gemini",
+    "grok": "xAI-Grok",
+    "kiro": "Kiro",
+    "openai": "OpenAI-GPT"
+  },
   "models": [
     {
       "id": "abab6.5-chat",

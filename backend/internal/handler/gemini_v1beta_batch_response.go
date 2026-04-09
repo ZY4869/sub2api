@@ -17,13 +17,13 @@ func writeGoogleBatchUpstreamResponse(c *gin.Context, res service.GoogleBatchUps
 	case *service.UpstreamHTTPStreamResult:
 		writeGoogleBatchStreamResponse(c, typed)
 	default:
-		googleError(c, http.StatusBadGateway, "Empty upstream response")
+		googleErrorKey(c, http.StatusBadGateway, "gateway.gemini.upstream_empty", "Empty upstream response")
 	}
 }
 
 func writeGoogleBatchStreamResponse(c *gin.Context, res *service.UpstreamHTTPStreamResult) {
 	if res == nil || res.Body == nil {
-		googleError(c, http.StatusBadGateway, "Empty upstream response")
+		googleErrorKey(c, http.StatusBadGateway, "gateway.gemini.upstream_empty", "Empty upstream response")
 		return
 	}
 	defer func() { _ = res.Body.Close() }()

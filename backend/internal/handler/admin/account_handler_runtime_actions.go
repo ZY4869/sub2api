@@ -36,18 +36,20 @@ type accountTestRequest struct {
 	RequestAlias   string `json:"request_alias"`
 	Prompt         string `json:"prompt"`
 	SourceProtocol string `json:"source_protocol"`
+	TargetProvider string `json:"target_provider"`
+	TargetModelID  string `json:"target_model_id"`
 	TestMode       string `json:"test_mode"`
 }
 
 func (h *AccountHandler) PreviewFromCRS(c *gin.Context) {
 	if h.crsSyncService == nil {
-		response.Error(c, 500, "CRS sync service is not configured")
+		response.ErrorKey(c, 500, "admin.account.crs_sync_missing", "CRS sync service is not configured")
 		return
 	}
 
 	var req syncFromCRSRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
@@ -68,13 +70,13 @@ func (h *AccountHandler) PreviewFromCRS(c *gin.Context) {
 
 func (h *AccountHandler) SyncFromCRS(c *gin.Context) {
 	if h.crsSyncService == nil {
-		response.Error(c, 500, "CRS sync service is not configured")
+		response.ErrorKey(c, 500, "admin.account.crs_sync_missing", "CRS sync service is not configured")
 		return
 	}
 
 	var req syncFromCRSRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
@@ -95,19 +97,19 @@ func (h *AccountHandler) SyncFromCRS(c *gin.Context) {
 
 func (h *AccountHandler) Test(c *gin.Context) {
 	if h.accountTestService == nil {
-		response.Error(c, 500, "Account test service is not configured")
+		response.ErrorKey(c, 500, "admin.account.test_service_missing", "Account test service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
 	var req accountTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
@@ -129,11 +131,19 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	if sourceProtocol == "" {
 		sourceProtocol = strings.TrimSpace(c.Query("source_protocol"))
 	}
+	targetProvider := strings.TrimSpace(req.TargetProvider)
+	if targetProvider == "" {
+		targetProvider = strings.TrimSpace(c.Query("target_provider"))
+	}
+	targetModelID := strings.TrimSpace(req.TargetModelID)
+	if targetModelID == "" {
+		targetModelID = strings.TrimSpace(c.Query("target_model_id"))
+	}
 	testMode := strings.TrimSpace(req.TestMode)
 	if testMode == "" {
 		testMode = strings.TrimSpace(c.Query("test_mode"))
 	}
-	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt, sourceProtocol, testMode); err != nil {
+	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt, sourceProtocol, targetProvider, targetModelID, testMode); err != nil {
 		if !c.Writer.Written() {
 			response.ErrorFrom(c, err)
 		}
@@ -143,13 +153,13 @@ func (h *AccountHandler) Test(c *gin.Context) {
 
 func (h *AccountHandler) RecoverState(c *gin.Context) {
 	if h.rateLimitService == nil {
-		response.Error(c, 500, "Rate limit service is not configured")
+		response.ErrorKey(c, 500, "admin.account.rate_limit_service_missing", "Rate limit service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -172,19 +182,19 @@ func (h *AccountHandler) RecoverState(c *gin.Context) {
 
 func (h *AccountHandler) GetStats(c *gin.Context) {
 	if h.accountUsageService == nil {
-		response.Error(c, 500, "Account usage service is not configured")
+		response.ErrorKey(c, 500, "admin.account.usage_service_missing", "Account usage service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
 	days, err := strconv.Atoi(c.DefaultQuery("days", "30"))
 	if err != nil || days <= 0 {
-		response.BadRequest(c, "Invalid days")
+		response.BadRequestKey(c, "admin.account.invalid_days", "Invalid days")
 		return
 	}
 
@@ -202,7 +212,7 @@ func (h *AccountHandler) GetStats(c *gin.Context) {
 func (h *AccountHandler) ClearError(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -221,13 +231,13 @@ func (h *AccountHandler) ClearError(c *gin.Context) {
 
 func (h *AccountHandler) GetUsage(c *gin.Context) {
 	if h.accountUsageService == nil {
-		response.Error(c, 500, "Account usage service is not configured")
+		response.ErrorKey(c, 500, "admin.account.usage_service_missing", "Account usage service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -241,7 +251,7 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 	case "passive":
 		usage, err = h.accountUsageService.GetPassiveUsage(c.Request.Context(), accountID)
 	default:
-		response.BadRequest(c, "Invalid source")
+		response.BadRequestKey(c, "admin.account.invalid_source", "Invalid source")
 		return
 	}
 	if err != nil {
@@ -254,13 +264,13 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 
 func (h *AccountHandler) GetTodayStats(c *gin.Context) {
 	if h.accountUsageService == nil {
-		response.Error(c, 500, "Account usage service is not configured")
+		response.ErrorKey(c, 500, "admin.account.usage_service_missing", "Account usage service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -275,13 +285,13 @@ func (h *AccountHandler) GetTodayStats(c *gin.Context) {
 
 func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {
 	if h.accountUsageService == nil {
-		response.Error(c, 500, "Account usage service is not configured")
+		response.ErrorKey(c, 500, "admin.account.usage_service_missing", "Account usage service is not configured")
 		return
 	}
 
 	var req batchTodayStatsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
@@ -301,13 +311,13 @@ func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {
 
 func (h *AccountHandler) ClearRateLimit(c *gin.Context) {
 	if h.rateLimitService == nil {
-		response.Error(c, 500, "Rate limit service is not configured")
+		response.ErrorKey(c, 500, "admin.account.rate_limit_service_missing", "Rate limit service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -328,7 +338,7 @@ func (h *AccountHandler) ClearRateLimit(c *gin.Context) {
 func (h *AccountHandler) ResetQuota(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -348,13 +358,13 @@ func (h *AccountHandler) ResetQuota(c *gin.Context) {
 
 func (h *AccountHandler) GetTempUnschedulable(c *gin.Context) {
 	if h.rateLimitService == nil {
-		response.Error(c, 500, "Rate limit service is not configured")
+		response.ErrorKey(c, 500, "admin.account.rate_limit_service_missing", "Rate limit service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -372,13 +382,13 @@ func (h *AccountHandler) GetTempUnschedulable(c *gin.Context) {
 
 func (h *AccountHandler) ClearTempUnschedulable(c *gin.Context) {
 	if h.rateLimitService == nil {
-		response.Error(c, 500, "Rate limit service is not configured")
+		response.ErrorKey(c, 500, "admin.account.rate_limit_service_missing", "Rate limit service is not configured")
 		return
 	}
 
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
@@ -387,19 +397,19 @@ func (h *AccountHandler) ClearTempUnschedulable(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{"message": "Temporary unschedulable status cleared"})
+	response.Success(c, gin.H{"message": response.LocalizedMessage(c, "admin.account.temp_unsched_cleared", "Temporary unschedulable status cleared")})
 }
 
 func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
 	var req setSchedulableRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 

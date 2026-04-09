@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -43,10 +44,13 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 		simulatedClient = route.ClientProfile
 	}
 	shouldMimicGeminiCLI := simulatedClient == GatewayClientProfileGeminiCLI
-	geminiReq, err := convertClaudeMessagesToGeminiGenerateContent(body, geminiTransformOptions{
+	geminiReq, _, err := ConvertAnthropicMessagesToGeminiGenerateContentRuntime(body, geminiTransformOptions{
 		AllowURLContext: account == nil || !account.IsGeminiVertexSource(),
 	})
 	if err != nil {
+		if message, ok := response.LocalizedCompatErrorMessage(c, err); ok {
+			return nil, s.writeClaudeError(c, http.StatusBadRequest, "invalid_request_error", message)
+		}
 		return nil, s.writeClaudeError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
 	}
 	geminiReq = ensureGeminiFunctionCallThoughtSignatures(geminiReq)
@@ -218,7 +222,7 @@ func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Contex
 					stageName = "thinking+tools"
 					signatureRetryStage = 2
 				}
-				retryGeminiReq, txErr := convertClaudeMessagesToGeminiGenerateContent(strippedClaudeBody, geminiTransformOptions{
+				retryGeminiReq, _, txErr := ConvertAnthropicMessagesToGeminiGenerateContentRuntime(strippedClaudeBody, geminiTransformOptions{
 					AllowURLContext: account == nil || !account.IsGeminiVertexSource(),
 				})
 				if txErr == nil {

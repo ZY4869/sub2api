@@ -597,6 +597,8 @@ export interface ClaudeModel {
   display_name: string;
   created_at: string;
   canonical_id?: string;
+  provider?: string;
+  provider_label?: string;
   source_protocol?: "openai" | "anthropic" | "gemini";
   status?: "stable" | "beta" | "deprecated";
   deprecated_at?: string;

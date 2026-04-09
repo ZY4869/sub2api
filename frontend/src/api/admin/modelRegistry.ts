@@ -11,6 +11,7 @@ export interface ModelRegistryDetail extends ModelRegistryEntry {
 
 export interface ModelRegistryProviderSummary {
   provider: string
+  provider_label?: string
   total_count: number
   available_count: number
 }

@@ -23,6 +23,7 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -349,47 +350,336 @@ func gatewayTestSimulatedClientLabel(simulatedClient string) string {
 	}
 }
 
-func (s *AccountTestService) resolveRequestedSourceProtocol(ctx context.Context, account *Account, modelID string, requested string) (string, error) {
-	if !IsProtocolGatewayAccount(account) {
-		return "", nil
+type resolvedGatewayTestTarget struct {
+	ModelID        string
+	SourceProtocol string
+	TargetProvider string
+	TargetModelID  string
+}
+
+func containsGatewayProtocol(values []string, target string) bool {
+	target = normalizeTestSourceProtocol(target)
+	for _, value := range values {
+		if normalizeTestSourceProtocol(value) == target {
+			return true
+		}
 	}
-	acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
-	if len(acceptedProtocols) == 1 {
-		return acceptedProtocols[0], nil
+	return false
+}
+
+func supportedProtocolsForProvider(provider string) []string {
+	switch NormalizeModelProvider(provider) {
+	case PlatformOpenAI, PlatformGrok, PlatformCopilot:
+		return []string{PlatformOpenAI}
+	case PlatformAnthropic, PlatformKiro:
+		return []string{PlatformAnthropic}
+	case PlatformGemini:
+		return []string{PlatformGemini}
+	case PlatformAntigravity:
+		return []string{PlatformAnthropic, PlatformGemini}
+	default:
+		return nil
 	}
-	if normalizedRequested := normalizeTestSourceProtocol(requested); normalizedRequested != "" {
-		for _, protocol := range acceptedProtocols {
-			if protocol == normalizedRequested {
-				return normalizedRequested, nil
+}
+
+func firstNonEmptyGatewayTestValue(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func matchGatewayTestProtocols(models []AvailableTestModel, acceptedProtocols []string, provider string, modelID string) []string {
+	provider = NormalizeModelProvider(provider)
+	trimmedModelID := strings.TrimSpace(modelID)
+	normalizedModelID := normalizeRegistryID(trimmedModelID)
+
+	matched := make([]string, 0, len(acceptedProtocols))
+	seen := make(map[string]struct{}, len(acceptedProtocols))
+	for _, candidate := range models {
+		protocol := normalizeTestSourceProtocol(candidate.SourceProtocol)
+		if protocol == "" || !containsGatewayProtocol(acceptedProtocols, protocol) {
+			continue
+		}
+		if provider != "" && NormalizeModelProvider(candidate.Provider) != provider {
+			continue
+		}
+		if trimmedModelID != "" {
+			if candidate.ID != trimmedModelID && normalizeRegistryID(candidate.CanonicalID) != normalizedModelID {
+				continue
 			}
 		}
-		return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_INVALID", "selected source_protocol is not accepted by this account")
-	}
-	if strings.TrimSpace(modelID) == "" {
-		return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "mixed protocol gateway test requires source_protocol")
-	}
-	normalizedModelID := normalizeRegistryID(modelID)
-	matchedProtocol := ""
-	for _, candidate := range BuildAvailableTestModels(ctx, account, s.modelRegistryService) {
-		if candidate.ID != strings.TrimSpace(modelID) && candidate.CanonicalID != normalizedModelID {
+		if _, ok := seen[protocol]; ok {
 			continue
 		}
-		protocol := normalizeTestSourceProtocol(candidate.SourceProtocol)
-		if protocol == "" {
+		seen[protocol] = struct{}{}
+		matched = append(matched, protocol)
+	}
+	if len(matched) > 0 || provider == "" || trimmedModelID != "" {
+		return matched
+	}
+	for _, protocol := range supportedProtocolsForProvider(provider) {
+		if !containsGatewayProtocol(acceptedProtocols, protocol) {
 			continue
 		}
-		if matchedProtocol == "" {
-			matchedProtocol = protocol
+		if _, ok := seen[protocol]; ok {
 			continue
 		}
-		if matchedProtocol != protocol {
-			return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "mixed protocol gateway test requires source_protocol")
+		seen[protocol] = struct{}{}
+		matched = append(matched, protocol)
+	}
+	return matched
+}
+
+func resolveGatewayDefaultTestModelID(models []AvailableTestModel, provider string) string {
+	normalizedProvider := NormalizeModelProvider(provider)
+	for _, model := range models {
+		if NormalizeModelProvider(model.Provider) == normalizedProvider {
+			return strings.TrimSpace(model.ID)
 		}
 	}
-	if matchedProtocol == "" {
-		return "", infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_REQUIRED", "mixed protocol gateway test requires source_protocol")
+	return ""
+}
+
+func invalidGatewaySourceProtocolError() error {
+	return infraerrors.BadRequest("TEST_SOURCE_PROTOCOL_INVALID", "selected source_protocol is not accepted by this account")
+}
+
+func invalidGatewayTargetProviderError() error {
+	return infraerrors.BadRequest("TEST_TARGET_PROVIDER_INVALID", "selected target_provider is not available for this account")
+}
+
+func incompatibleGatewayTargetProviderError() error {
+	return infraerrors.BadRequest("TEST_TARGET_PROVIDER_INCOMPATIBLE", "selected target_provider is not compatible with source_protocol")
+}
+
+func ambiguousGatewayTargetProviderError() error {
+	return infraerrors.BadRequest("TEST_TARGET_PROVIDER_REQUIRED", "mixed protocol gateway test requires target_provider or source_protocol")
+}
+
+func invalidGatewayTargetModelError() error {
+	return infraerrors.BadRequest("TEST_TARGET_MODEL_INVALID", "selected target_model_id is not available for this account")
+}
+
+func missingGatewayDefaultTargetModelError() error {
+	return infraerrors.BadRequest("TEST_TARGET_MODEL_REQUIRED", "selected target_provider does not have a default test model")
+}
+
+func ambiguousGatewayProbeResolutionError() error {
+	return infraerrors.BadRequest("TEST_PROBE_RESOLUTION_FAILED", "mixed protocol gateway test could not resolve a unique protocol")
+}
+
+func (s *AccountTestService) resolveGatewayTestTarget(ctx context.Context, account *Account, modelID string, requested string, targetProvider string, targetModelID string) (resolvedGatewayTestTarget, error) {
+	resolution := resolvedGatewayTestTarget{
+		ModelID:        strings.TrimSpace(modelID),
+		SourceProtocol: normalizeTestSourceProtocol(requested),
+		TargetProvider: NormalizeModelProvider(targetProvider),
+		TargetModelID:  strings.TrimSpace(targetModelID),
 	}
-	return matchedProtocol, nil
+	if resolution.ModelID == "" && resolution.TargetModelID != "" {
+		resolution.ModelID = resolution.TargetModelID
+	}
+	if !IsProtocolGatewayAccount(account) {
+		return resolution, nil
+	}
+
+	acceptedProtocols := GetAccountGatewayAcceptedProtocols(account)
+	if len(acceptedProtocols) == 0 {
+		return resolution, nil
+	}
+
+	availableModels := BuildAvailableTestModels(ctx, account, s.modelRegistryService)
+	defaultProvider := ""
+	defaultTargetModelID := ""
+	if resolution.SourceProtocol == "" && resolution.TargetProvider == "" && resolution.TargetModelID == "" {
+		defaultProvider = GetAccountGatewayTestProvider(account)
+		defaultTargetModelID = GetAccountGatewayTestModelID(account)
+	}
+
+	resolveDefaultModelForProvider := func(provider string) (string, error) {
+		if provider == "" {
+			return "", nil
+		}
+		if defaultModelID := resolveGatewayDefaultTestModelID(availableModels, provider); defaultModelID != "" {
+			return defaultModelID, nil
+		}
+		return "", missingGatewayDefaultTargetModelError()
+	}
+
+	resolveProtocol := func(provider string, explicitModelID string) ([]string, error) {
+		if provider != "" && strings.TrimSpace(explicitModelID) != "" {
+			if matches := matchGatewayTestProtocols(availableModels, acceptedProtocols, provider, ""); len(matches) == 0 {
+				return nil, invalidGatewayTargetProviderError()
+			}
+		}
+		matched := matchGatewayTestProtocols(availableModels, acceptedProtocols, provider, explicitModelID)
+		if len(matched) == 0 {
+			if explicitModelID != "" {
+				return nil, invalidGatewayTargetModelError()
+			}
+			if provider != "" {
+				return nil, invalidGatewayTargetProviderError()
+			}
+			return nil, ambiguousGatewayTargetProviderError()
+		}
+		return matched, nil
+	}
+
+	if len(acceptedProtocols) == 1 {
+		resolution.SourceProtocol = acceptedProtocols[0]
+		if normalizedRequested := normalizeTestSourceProtocol(requested); normalizedRequested != "" && normalizedRequested != resolution.SourceProtocol {
+			return resolvedGatewayTestTarget{}, invalidGatewaySourceProtocolError()
+		}
+		providerToValidate := firstNonEmptyGatewayTestValue(resolution.TargetProvider, defaultProvider)
+		if providerToValidate != "" {
+			matchedProtocols, err := resolveProtocol(providerToValidate, resolution.ModelID)
+			if err != nil {
+				return resolvedGatewayTestTarget{}, err
+			}
+			if !containsGatewayProtocol(matchedProtocols, resolution.SourceProtocol) {
+				return resolvedGatewayTestTarget{}, incompatibleGatewayTargetProviderError()
+			}
+			if resolution.ModelID == "" {
+				defaultModelID, err := resolveDefaultModelForProvider(providerToValidate)
+				if err != nil {
+					return resolvedGatewayTestTarget{}, err
+				}
+				resolution.ModelID = defaultModelID
+			}
+		}
+		if resolution.TargetModelID == "" {
+			resolution.TargetModelID = defaultTargetModelID
+		}
+		if resolution.TargetProvider == "" {
+			resolution.TargetProvider = defaultProvider
+		}
+		if resolution.ModelID == "" && resolution.TargetModelID != "" {
+			resolution.ModelID = resolution.TargetModelID
+		}
+		return resolution, nil
+	}
+
+	if resolution.SourceProtocol != "" {
+		if !containsGatewayProtocol(acceptedProtocols, resolution.SourceProtocol) {
+			return resolvedGatewayTestTarget{}, invalidGatewaySourceProtocolError()
+		}
+		if resolution.TargetProvider != "" {
+			matchedProtocols, err := resolveProtocol(resolution.TargetProvider, resolution.ModelID)
+			if err != nil {
+				return resolvedGatewayTestTarget{}, err
+			}
+			if !containsGatewayProtocol(matchedProtocols, resolution.SourceProtocol) {
+				return resolvedGatewayTestTarget{}, incompatibleGatewayTargetProviderError()
+			}
+			if resolution.ModelID == "" {
+				defaultModelID, err := resolveDefaultModelForProvider(resolution.TargetProvider)
+				if err != nil {
+					return resolvedGatewayTestTarget{}, err
+				}
+				resolution.ModelID = defaultModelID
+			}
+		}
+		return resolution, nil
+	}
+
+	if resolution.TargetProvider != "" {
+		matchedProtocols, err := resolveProtocol(resolution.TargetProvider, resolution.ModelID)
+		if err != nil {
+			return resolvedGatewayTestTarget{}, err
+		}
+		if len(matchedProtocols) > 1 {
+			return resolvedGatewayTestTarget{}, ambiguousGatewayProbeResolutionError()
+		}
+		resolution.SourceProtocol = matchedProtocols[0]
+		if resolution.ModelID == "" {
+			defaultModelID, err := resolveDefaultModelForProvider(resolution.TargetProvider)
+			if err != nil {
+				return resolvedGatewayTestTarget{}, err
+			}
+			resolution.ModelID = defaultModelID
+		}
+		return resolution, nil
+	}
+
+	if resolution.TargetModelID != "" {
+		matchedProtocols, err := resolveProtocol("", resolution.TargetModelID)
+		if err != nil {
+			return resolvedGatewayTestTarget{}, err
+		}
+		if len(matchedProtocols) > 1 {
+			return resolvedGatewayTestTarget{}, ambiguousGatewayTargetProviderError()
+		}
+		resolution.SourceProtocol = matchedProtocols[0]
+		if resolution.ModelID == "" {
+			resolution.ModelID = resolution.TargetModelID
+		}
+		return resolution, nil
+	}
+
+	if defaultProvider != "" {
+		matchedProtocols, err := resolveProtocol(defaultProvider, firstNonEmptyGatewayTestValue(resolution.ModelID, defaultTargetModelID))
+		if err != nil {
+			return resolvedGatewayTestTarget{}, err
+		}
+		if len(matchedProtocols) > 1 {
+			return resolvedGatewayTestTarget{}, ambiguousGatewayProbeResolutionError()
+		}
+		resolution.SourceProtocol = matchedProtocols[0]
+		resolution.TargetProvider = defaultProvider
+		resolution.TargetModelID = defaultTargetModelID
+		if resolution.ModelID == "" {
+			if resolution.TargetModelID != "" {
+				resolution.ModelID = resolution.TargetModelID
+			} else {
+				defaultModelID, err := resolveDefaultModelForProvider(defaultProvider)
+				if err != nil {
+					return resolvedGatewayTestTarget{}, err
+				}
+				resolution.ModelID = defaultModelID
+			}
+		}
+		return resolution, nil
+	}
+
+	if defaultTargetModelID != "" {
+		matchedProtocols, err := resolveProtocol("", defaultTargetModelID)
+		if err != nil {
+			return resolvedGatewayTestTarget{}, err
+		}
+		if len(matchedProtocols) > 1 {
+			return resolvedGatewayTestTarget{}, ambiguousGatewayTargetProviderError()
+		}
+		resolution.SourceProtocol = matchedProtocols[0]
+		resolution.TargetModelID = defaultTargetModelID
+		if resolution.ModelID == "" {
+			resolution.ModelID = defaultTargetModelID
+		}
+		return resolution, nil
+	}
+
+	if resolution.ModelID != "" {
+		matchedProtocols, err := resolveProtocol("", resolution.ModelID)
+		if err != nil {
+			return resolvedGatewayTestTarget{}, err
+		}
+		if len(matchedProtocols) > 1 {
+			return resolvedGatewayTestTarget{}, ambiguousGatewayTargetProviderError()
+		}
+		resolution.SourceProtocol = matchedProtocols[0]
+		return resolution, nil
+	}
+
+	matchedProtocols, err := resolveProtocol("", "")
+	if err != nil {
+		return resolvedGatewayTestTarget{}, err
+	}
+	if len(matchedProtocols) != 1 {
+		return resolvedGatewayTestTarget{}, ambiguousGatewayTargetProviderError()
+	}
+	resolution.SourceProtocol = matchedProtocols[0]
+	return resolution, nil
 }
 
 func (s *AccountTestService) resolveGatewayTestSimulatedClient(ctx context.Context, account *Account, sourceProtocol string, modelID string) string {
@@ -426,7 +716,7 @@ func (s *AccountTestService) resolveGatewayTestSimulatedClient(ctx context.Conte
 // TestAccountConnection tests an account's connection by sending a test request
 // All account types use full Claude Code client characteristics, only auth header differs
 // modelID is optional - if empty, defaults to claude.DefaultTestModel
-func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, testMode string) error {
+func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, targetProvider string, targetModelID string, testMode string) error {
 	ctx := c.Request.Context()
 
 	// Get account
@@ -435,22 +725,105 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.sendErrorAndEnd(c, "Account not found")
 	}
 
-	resolvedSourceProtocol, err := s.resolveRequestedSourceProtocol(ctx, account, modelID, sourceProtocol)
+	resolvedTarget, err := s.resolveGatewayTestTarget(ctx, account, modelID, sourceProtocol, targetProvider, targetModelID)
 	if err != nil {
+		reason := infraerrors.Reason(err)
+		if reason == "TEST_PROBE_RESOLUTION_FAILED" {
+			protocolruntime.RecordAccountProbeResolutionFailed(reason)
+			slog.Warn(
+				"account_probe_resolution_failed",
+				"account_id", accountID,
+				"requested_model_id", strings.TrimSpace(modelID),
+				"source_protocol", normalizeTestSourceProtocol(sourceProtocol),
+				"target_provider", NormalizeModelProvider(targetProvider),
+				"target_model_id", strings.TrimSpace(targetModelID),
+				"reason", reason,
+				"error", err,
+			)
+		} else {
+			protocolruntime.RecordAccountTestResolutionFailed(reason)
+		}
+		slog.Warn(
+			"account_test_resolution_failed",
+			"account_id", accountID,
+			"requested_model_id", strings.TrimSpace(modelID),
+			"source_protocol", normalizeTestSourceProtocol(sourceProtocol),
+			"target_provider", NormalizeModelProvider(targetProvider),
+			"target_model_id", strings.TrimSpace(targetModelID),
+			"reason", reason,
+			"error", err,
+		)
 		return err
 	}
-	if resolvedSourceProtocol != "" {
-		account = ResolveProtocolGatewayInboundAccount(account, resolvedSourceProtocol)
+	if resolvedTarget.SourceProtocol != "" {
+		account = ResolveProtocolGatewayInboundAccount(account, resolvedTarget.SourceProtocol)
 	}
-	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedSourceProtocol, modelID)
+	if resolvedTarget.ModelID != "" {
+		modelID = resolvedTarget.ModelID
+	}
+	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedTarget.SourceProtocol, modelID)
 	normalizedTestMode := normalizeAccountTestMode(testMode)
-	s.setResolvedTestRuntimeMeta(c, normalizedTestMode, RoutingPlatformForAccount(account), resolvedSourceProtocol, simulatedClient)
+	runtimeMeta := buildAccountTestRuntimeMeta(
+		account,
+		normalizedTestMode,
+		resolvedTarget.SourceProtocol,
+		resolvedTarget.TargetProvider,
+		resolvedTarget.TargetModelID,
+		modelID,
+		simulatedClient,
+	)
+	s.setResolvedTestRuntimeMeta(c, runtimeMeta)
+	slog.Info(
+		"account_test_start",
+		"account_id", accountID,
+		"test_mode", string(normalizedTestMode),
+		"inbound_endpoint", runtimeMeta.InboundEndpoint,
+		"source_protocol", runtimeMeta.SourceProtocol,
+		"target_provider", runtimeMeta.TargetProvider,
+		"target_model_id", runtimeMeta.TargetModelID,
+		"resolved_model_id", runtimeMeta.ResolvedModelID,
+		"compat_path", runtimeMeta.CompatPath,
+		"runtime_platform", runtimeMeta.RuntimePlatform,
+		"simulated_client", runtimeMeta.SimulatedClient,
+	)
 
+	var testErr error
 	if normalizedTestMode == AccountTestModeRealForward {
-		return s.testAccountConnectionRealForward(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
+		testErr = s.testAccountConnectionRealForward(c, account, modelID, prompt, resolvedTarget.SourceProtocol, simulatedClient)
+	} else {
+		testErr = s.testAccountConnectionHealthCheck(c, account, modelID, prompt, resolvedTarget.SourceProtocol, simulatedClient)
 	}
-
-	return s.testAccountConnectionHealthCheck(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
+	if testErr != nil {
+		slog.Warn(
+			"account_test_complete",
+			"account_id", accountID,
+			"status", "failed",
+			"test_mode", string(normalizedTestMode),
+			"inbound_endpoint", runtimeMeta.InboundEndpoint,
+			"source_protocol", runtimeMeta.SourceProtocol,
+			"target_provider", runtimeMeta.TargetProvider,
+			"target_model_id", runtimeMeta.TargetModelID,
+			"resolved_model_id", runtimeMeta.ResolvedModelID,
+			"compat_path", runtimeMeta.CompatPath,
+			"runtime_platform", runtimeMeta.RuntimePlatform,
+			"error", testErr,
+		)
+		return testErr
+	}
+	slog.Info(
+		"account_test_complete",
+		"account_id", accountID,
+		"status", "success",
+		"test_mode", string(normalizedTestMode),
+		"inbound_endpoint", runtimeMeta.InboundEndpoint,
+		"source_protocol", runtimeMeta.SourceProtocol,
+		"target_provider", runtimeMeta.TargetProvider,
+		"target_model_id", runtimeMeta.TargetModelID,
+		"resolved_model_id", runtimeMeta.ResolvedModelID,
+		"compat_path", runtimeMeta.CompatPath,
+		"runtime_platform", runtimeMeta.RuntimePlatform,
+	)
+	return nil
 }
 
 func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, account *Account, modelID string, prompt string, resolvedSourceProtocol string, simulatedClient string) error {
@@ -1637,6 +2010,8 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 		strings.TrimSpace(input.ModelID),
 		strings.TrimSpace(input.Prompt),
 		normalizeTestSourceProtocol(input.SourceProtocol),
+		NormalizeModelProvider(input.TargetProvider),
+		strings.TrimSpace(input.TargetModelID),
 		testMode,
 	)
 

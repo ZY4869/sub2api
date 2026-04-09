@@ -27,6 +27,11 @@ const (
 	accountTestRuntimePlatformKey       = "account_test_runtime_platform"
 	accountTestRuntimeSourceProtocolKey = "account_test_runtime_source_protocol"
 	accountTestRuntimeClientKey         = "account_test_runtime_client"
+	accountTestRuntimeInboundKey        = "account_test_runtime_inbound_endpoint"
+	accountTestRuntimeCompatPathKey     = "account_test_runtime_compat_path"
+	accountTestRuntimeTargetProviderKey = "account_test_runtime_target_provider"
+	accountTestRuntimeTargetModelIDKey  = "account_test_runtime_target_model_id"
+	accountTestRuntimeResolvedModelKey  = "account_test_runtime_resolved_model_id"
 	accountTestRuntimeMetaSource        = "account_test"
 )
 
@@ -71,14 +76,19 @@ func accountTestPlatformLabel(platform string) string {
 	}
 }
 
-func (s *AccountTestService) setResolvedTestRuntimeMeta(c *gin.Context, mode AccountTestMode, platform string, sourceProtocol string, simulatedClient string) {
+func (s *AccountTestService) setResolvedTestRuntimeMeta(c *gin.Context, meta accountTestRuntimeMeta) {
 	if c == nil {
 		return
 	}
-	c.Set(accountTestRuntimeModeKey, string(mode))
-	c.Set(accountTestRuntimePlatformKey, strings.TrimSpace(platform))
-	c.Set(accountTestRuntimeSourceProtocolKey, normalizeTestSourceProtocol(sourceProtocol))
-	c.Set(accountTestRuntimeClientKey, strings.TrimSpace(simulatedClient))
+	c.Set(accountTestRuntimeModeKey, string(meta.Mode))
+	c.Set(accountTestRuntimePlatformKey, strings.TrimSpace(meta.RuntimePlatform))
+	c.Set(accountTestRuntimeSourceProtocolKey, normalizeTestSourceProtocol(meta.SourceProtocol))
+	c.Set(accountTestRuntimeClientKey, strings.TrimSpace(meta.SimulatedClient))
+	c.Set(accountTestRuntimeInboundKey, strings.TrimSpace(meta.InboundEndpoint))
+	c.Set(accountTestRuntimeCompatPathKey, strings.TrimSpace(meta.CompatPath))
+	c.Set(accountTestRuntimeTargetProviderKey, NormalizeModelProvider(meta.TargetProvider))
+	c.Set(accountTestRuntimeTargetModelIDKey, strings.TrimSpace(meta.TargetModelID))
+	c.Set(accountTestRuntimeResolvedModelKey, strings.TrimSpace(meta.ResolvedModelID))
 }
 
 func (s *AccountTestService) sendResolvedTestRuntimeMetaEvents(c *gin.Context) {
@@ -132,6 +142,71 @@ func (s *AccountTestService) sendResolvedTestRuntimeMetaEvents(c *gin.Context) {
 				clientLabel,
 				accountTestRuntimeMetaSource,
 				"Gateway simulated client: "+clientLabel,
+			)
+		}
+	}
+	if inboundEndpoint, ok := c.Get(accountTestRuntimeInboundKey); ok {
+		inboundValue := strings.TrimSpace(toTrimmedString(inboundEndpoint))
+		if inboundValue != "" {
+			s.sendTestRuntimeMetaEvent(
+				c,
+				"inbound_endpoint",
+				inboundValue,
+				inboundValue,
+				accountTestRuntimeMetaSource,
+				"Inbound endpoint: "+inboundValue,
+			)
+		}
+	}
+	if compatPath, ok := c.Get(accountTestRuntimeCompatPathKey); ok {
+		compatValue := strings.TrimSpace(toTrimmedString(compatPath))
+		if compatValue != "" {
+			s.sendTestRuntimeMetaEvent(
+				c,
+				"compat_path",
+				compatValue,
+				compatValue,
+				accountTestRuntimeMetaSource,
+				"Compatibility path: "+compatValue,
+			)
+		}
+	}
+	if targetProvider, ok := c.Get(accountTestRuntimeTargetProviderKey); ok {
+		providerValue := NormalizeModelProvider(toTrimmedString(targetProvider))
+		if providerValue != "" {
+			s.sendTestRuntimeMetaEvent(
+				c,
+				"target_provider",
+				providerValue,
+				FormatProviderLabel(providerValue),
+				accountTestRuntimeMetaSource,
+				"Target provider: "+FormatProviderLabel(providerValue),
+			)
+		}
+	}
+	if targetModelID, ok := c.Get(accountTestRuntimeTargetModelIDKey); ok {
+		modelValue := strings.TrimSpace(toTrimmedString(targetModelID))
+		if modelValue != "" {
+			s.sendTestRuntimeMetaEvent(
+				c,
+				"target_model_id",
+				modelValue,
+				modelValue,
+				accountTestRuntimeMetaSource,
+				"Target model: "+modelValue,
+			)
+		}
+	}
+	if resolvedModelID, ok := c.Get(accountTestRuntimeResolvedModelKey); ok {
+		modelValue := strings.TrimSpace(toTrimmedString(resolvedModelID))
+		if modelValue != "" {
+			s.sendTestRuntimeMetaEvent(
+				c,
+				"resolved_model_id",
+				modelValue,
+				modelValue,
+				accountTestRuntimeMetaSource,
+				"Resolved model: "+modelValue,
 			)
 		}
 	}

@@ -20,6 +20,8 @@ type BlacklistRetestRequest struct {
 	ModelInputMode string  `json:"model_input_mode"`
 	ManualModelID  string  `json:"manual_model_id"`
 	SourceProtocol string  `json:"source_protocol"`
+	TargetProvider string  `json:"target_provider"`
+	TargetModelID  string  `json:"target_model_id"`
 }
 
 type BlacklistRetestModelsRequest struct {
@@ -65,13 +67,13 @@ func resolveBlacklistRetestModelInput(req BlacklistRetestRequest) (string, strin
 func (h *AccountHandler) Blacklist(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 
 	var req BlacklistAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
@@ -88,28 +90,32 @@ func (h *AccountHandler) Blacklist(c *gin.Context) {
 
 func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 	if h.accountTestService == nil {
-		response.Error(c, 500, "Account test service is not configured")
+		response.ErrorKey(c, 500, "admin.account.test_service_missing", "Account test service is not configured")
 		return
 	}
 
 	var req BlacklistRetestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
 	accountIDs := normalizeInt64IDList(req.AccountIDs)
 	if len(accountIDs) == 0 {
-		response.BadRequest(c, "account_ids is required")
+		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
 		return
 	}
 	requestedModelID, modelInputMode, requestedSourceProtocol := resolveBlacklistRetestModelInput(req)
+	requestedTargetProvider := strings.TrimSpace(req.TargetProvider)
+	requestedTargetModelID := strings.TrimSpace(req.TargetModelID)
 	slog.Info(
 		"account_blacklist_retest_start",
 		"account_ids", accountIDs,
 		"requested_model_id", requestedModelID,
 		"model_input_mode", modelInputMode,
 		"source_protocol", requestedSourceProtocol,
+		"target_provider", requestedTargetProvider,
+		"target_model_id", requestedTargetModelID,
 	)
 
 	accounts, err := h.adminService.GetAccountsByIDs(c.Request.Context(), accountIDs)
@@ -146,6 +152,8 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 					AccountID:      accountID,
 					ModelID:        requestedModelID,
 					SourceProtocol: requestedSourceProtocol,
+					TargetProvider: firstNonEmptyString(requestedTargetProvider, service.GetAccountGatewayTestProvider(account)),
+					TargetModelID:  firstNonEmptyString(requestedTargetModelID, service.GetAccountGatewayTestModelID(account)),
 				})
 				if testResult != nil {
 					result.ResponseText = testResult.ResponseText
@@ -176,6 +184,8 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 				"requested_model_id", requestedModelID,
 				"model_input_mode", modelInputMode,
 				"source_protocol", requestedSourceProtocol,
+				"target_provider", firstNonEmptyString(requestedTargetProvider, service.GetAccountGatewayTestProvider(account)),
+				"target_model_id", firstNonEmptyString(requestedTargetModelID, service.GetAccountGatewayTestModelID(account)),
 				"success", result.Success,
 				"restored", result.Restored,
 				"error_message", result.ErrorMessage,
@@ -195,13 +205,13 @@ func (h *AccountHandler) RetestBlacklisted(c *gin.Context) {
 func (h *AccountHandler) RetestBlacklistedModels(c *gin.Context) {
 	var req BlacklistRetestModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
 	accountIDs := normalizeInt64IDList(req.AccountIDs)
 	if len(accountIDs) == 0 {
-		response.BadRequest(c, "account_ids is required")
+		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
 		return
 	}
 
@@ -225,17 +235,17 @@ func (h *AccountHandler) RetestBlacklistedModels(c *gin.Context) {
 func (h *AccountHandler) BatchDeleteBlacklisted(c *gin.Context) {
 	var req BlacklistBatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
 	accountIDs := normalizeInt64IDList(req.IDs)
 	switch {
 	case req.DeleteAll && len(accountIDs) > 0:
-		response.BadRequest(c, "ids and delete_all cannot be provided together")
+		response.BadRequestKey(c, "admin.account.ids_delete_all_conflict", "ids and delete_all cannot be provided together")
 		return
 	case !req.DeleteAll && len(accountIDs) == 0:
-		response.BadRequest(c, "either ids or delete_all=true is required")
+		response.BadRequestKey(c, "admin.account.ids_or_delete_all_required", "either ids or delete_all=true is required")
 		return
 	}
 

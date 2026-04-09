@@ -1,17 +1,10 @@
+import { formatProviderLabel } from '@/utils/providerLabels'
+
 export const MODEL_CATALOG_DEFAULT_THRESHOLD = 200000
 export const MODEL_CATALOG_PAGE_SIZE = 100
 export const MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY = 'admin_model_catalog_price_display_mode'
 
 export type ModelCatalogPriceDisplayMode = 'usd' | 'dual'
-
-const MODEL_CATALOG_PROVIDER_LABELS: Record<string, string> = {
-  anthropic: 'Anthropic',
-  kiro: 'Kiro',
-  openai: 'OpenAI',
-  copilot: 'Copilot',
-  gemini: 'Gemini',
-  antigravity: 'Antigravity'
-}
 
 export function resolveModelCatalogDisplayName(model: string, displayName?: string): string {
   return displayName || model
@@ -25,8 +18,7 @@ export function formatModelCatalogProvider(provider?: string): string {
   if (!normalized) {
     return '-'
   }
-  const lower = normalized.toLowerCase()
-  return MODEL_CATALOG_PROVIDER_LABELS[lower] || `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`
+  return formatProviderLabel(normalized)
 }
 
 export function formatModelCatalogPlatforms(platforms?: string[]): string[] {

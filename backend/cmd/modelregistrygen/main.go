@@ -13,13 +13,15 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type tsSnapshot struct {
-	ETag      string                        `json:"etag"`
-	UpdatedAt string                        `json:"updated_at"`
-	Models    []modelregistry.ModelEntry    `json:"models"`
-	Presets   []modelregistry.PresetMapping `json:"presets"`
+	ETag           string                        `json:"etag"`
+	UpdatedAt      string                        `json:"updated_at"`
+	ProviderLabels map[string]string             `json:"provider_labels"`
+	Models         []modelregistry.ModelEntry    `json:"models"`
+	Presets        []modelregistry.PresetMapping `json:"presets"`
 }
 
 func main() {
@@ -30,12 +32,14 @@ func main() {
 
 	models := modelregistry.SeedModels()
 	presets := modelregistry.SeedPresets()
+	providerLabels := service.ProviderLabelCatalog()
 	builtAt := time.Now().UTC().Format(time.RFC3339)
 	snapshot := tsSnapshot{
-		ETag:      computeETag(models, presets),
-		UpdatedAt: builtAt,
-		Models:    normalizeModels(models),
-		Presets:   append([]modelregistry.PresetMapping(nil), presets...),
+		ETag:           computeETag(models, presets, providerLabels),
+		UpdatedAt:      builtAt,
+		ProviderLabels: providerLabels,
+		Models:         normalizeModels(models),
+		Presets:        append([]modelregistry.PresetMapping(nil), presets...),
 	}
 
 	writes := []struct {
@@ -81,13 +85,15 @@ func resolveRepoRoot() (string, error) {
 	return "", fmt.Errorf("unable to resolve repo root from %s", wd)
 }
 
-func computeETag(models []modelregistry.ModelEntry, presets []modelregistry.PresetMapping) string {
+func computeETag(models []modelregistry.ModelEntry, presets []modelregistry.PresetMapping, providerLabels map[string]string) string {
 	payload, _ := json.Marshal(struct {
-		Models  []modelregistry.ModelEntry    `json:"models"`
-		Presets []modelregistry.PresetMapping `json:"presets"`
+		ProviderLabels map[string]string             `json:"provider_labels"`
+		Models         []modelregistry.ModelEntry    `json:"models"`
+		Presets        []modelregistry.PresetMapping `json:"presets"`
 	}{
-		Models:  models,
-		Presets: presets,
+		ProviderLabels: providerLabels,
+		Models:         models,
+		Presets:        presets,
 	})
 	sum := sha256.Sum256(payload)
 	return `W/"` + hex.EncodeToString(sum[:]) + `"`
@@ -212,6 +218,7 @@ func renderTypeScriptSnapshot(snapshot tsSnapshot, builtAt string) []byte {
 	mustWriteString(&buf, "export interface ModelRegistrySnapshot {\n")
 	mustWriteString(&buf, "  etag: string\n")
 	mustWriteString(&buf, "  updated_at: string\n")
+	mustWriteString(&buf, "  provider_labels: Record<string, string>\n")
 	mustWriteString(&buf, "  models: ModelRegistryEntry[]\n")
 	mustWriteString(&buf, "  presets: ModelRegistryPreset[]\n")
 	mustWriteString(&buf, "}\n\n")

@@ -117,6 +117,63 @@
       </div>
     </div>
 
+    <div
+      v-if="providerOptions.length > 0"
+      class="space-y-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-4 dark:border-dark-500 dark:bg-dark-800/60"
+    >
+      <div class="space-y-1">
+        <div class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {{ t('admin.accounts.protocolGateway.defaultTestTargetTitle') }}
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.protocolGateway.defaultTestTargetHint') }}
+        </p>
+      </div>
+
+      <div class="grid gap-3 md:grid-cols-2">
+        <label class="space-y-1.5">
+          <span class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.protocolGateway.testProviderLabel') }}
+          </span>
+          <select
+            :value="gatewayTestProvider"
+            class="input h-11"
+            @change="updateGatewayTestProvider(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">{{ t('admin.accounts.protocolGateway.testProviderAutoOption') }}</option>
+            <option
+              v-for="option in providerOptions"
+              :key="option.provider"
+              :value="option.provider"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="space-y-1.5">
+          <span class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.protocolGateway.testModelLabel') }}
+          </span>
+          <select
+            :value="gatewayTestModelId"
+            class="input h-11"
+            :disabled="!gatewayTestProvider"
+            @change="updateGatewayTestModelId(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">{{ t('admin.accounts.protocolGateway.testModelAutoOption') }}</option>
+            <option
+              v-for="option in testModelOptions"
+              :key="option.id"
+              :value="option.id"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+      </div>
+    </div>
+
     <AccountResolvedUpstreamPanel
       :upstream-url="resolvedUpstream?.upstream_url"
       :upstream-host="resolvedUpstream?.upstream_host"
@@ -185,10 +242,16 @@
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="break-words text-sm font-semibold" :title="model.display_name || model.id">
-                  {{ model.display_name || model.id }}
+                  {{ displayModelTitle(model) }}
                 </div>
                 <div class="break-words text-xs opacity-80" :title="model.id">{{ model.id }}</div>
                 <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span
+                    v-if="resolveProviderLabel(model)"
+                    class="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                  >
+                    {{ resolveProviderLabel(model) }}
+                  </span>
                   <span
                     v-if="resolveModelProtocol(model)"
                     class="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
@@ -335,6 +398,7 @@ import {
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 import { checkProtocolGatewayBaseUrl } from '@/utils/protocolGatewayBaseUrl'
+import { buildProviderDisplayName, formatProviderLabel, normalizeProviderSlug } from '@/utils/providerLabels'
 
 const props = defineProps<{
   gatewayProtocol: GatewayProtocol
@@ -356,6 +420,8 @@ const clientRoutes = defineModel<GatewayClientRoute[]>('clientRoutes', { require
 const manualModels = defineModel<AccountManualModel[]>('manualModels', { required: true })
 const resolvedUpstream = defineModel<AccountResolvedUpstreamDraft | null>('resolvedUpstream', { required: true })
 const probeSnapshot = defineModel<AccountModelProbeSnapshotDraft | null>('probeSnapshot', { default: null })
+const gatewayTestProvider = defineModel<string>('gatewayTestProvider', { default: '' })
+const gatewayTestModelId = defineModel<string>('gatewayTestModelId', { default: '' })
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -387,6 +453,36 @@ const availableClientProfiles = computed<GatewayClientProfile[]>(() => {
   return [...new Set(values)]
 })
 const shouldShowProtocolGrouping = computed(() => props.gatewayProtocol === 'mixed')
+const providerOptions = computed(() => {
+  const seen = new Set<string>()
+  return [...probedModels.value]
+    .filter((model) => {
+      const provider = normalizeProviderSlug(model.provider)
+      if (!provider || seen.has(provider)) {
+        return false
+      }
+      seen.add(provider)
+      return true
+    })
+    .map((model) => ({
+      provider: normalizeProviderSlug(model.provider),
+      label: resolveProviderLabel(model)
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label))
+})
+const testModelOptions = computed(() => {
+  const provider = normalizeProviderSlug(gatewayTestProvider.value)
+  if (!provider) {
+    return []
+  }
+  return [...probedModels.value]
+    .filter((model) => normalizeProviderSlug(model.provider) === provider)
+    .sort((left, right) => displayModelTitle(left).localeCompare(displayModelTitle(right)))
+    .map((model) => ({
+      id: model.id,
+      label: displayModelTitle(model)
+    }))
+})
 
 watch(
   () => [props.gatewayProtocol, props.baseUrl, props.apiKey, props.proxyId, probedModels.value.length] as const,
@@ -458,6 +554,22 @@ watch(
     }
   },
   { immediate: true, deep: true }
+)
+
+watch(
+  [providerOptions, testModelOptions],
+  () => {
+    const provider = normalizeProviderSlug(gatewayTestProvider.value)
+    if (provider && !providerOptions.value.some((option) => option.provider === provider)) {
+      gatewayTestProvider.value = ''
+      gatewayTestModelId.value = ''
+      return
+    }
+    if (gatewayTestModelId.value && !testModelOptions.value.some((option) => option.id === gatewayTestModelId.value)) {
+      gatewayTestModelId.value = ''
+    }
+  },
+  { immediate: true }
 )
 
 watch(
@@ -596,6 +708,23 @@ const resolveModelProtocol = (model: ProtocolGatewayProbeModel): GatewayAccepted
 const protocolLabel = (protocol: GatewayAcceptedProtocol) =>
   resolveGatewayProtocolDescriptor(protocol)?.displayName || protocol
 
+const resolveProviderLabel = (model: ProtocolGatewayProbeModel) => {
+  const provider = normalizeProviderSlug(model.provider)
+  const providerLabel = String(model.provider_label || '').trim()
+  if (!provider && !providerLabel) {
+    return ''
+  }
+  return formatProviderLabel(provider, providerLabel)
+}
+
+const displayModelTitle = (model: ProtocolGatewayProbeModel) =>
+  buildProviderDisplayName({
+    provider: model.provider,
+    providerLabel: model.provider_label,
+    displayName: model.display_name,
+    fallbackId: model.id
+  })
+
 const groupedProbedModels = computed(() => {
   const grouped = new Map<GatewayAcceptedProtocol, ProtocolGatewayProbeModel[]>()
   for (const model of probedModels.value) {
@@ -611,14 +740,24 @@ const groupedProbedModels = computed(() => {
   const orderedProtocols = PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS.filter((protocol) => grouped.has(protocol))
   return orderedProtocols.map((protocol) => {
     const descriptor = resolveGatewayProtocolDescriptor(protocol)
+    const models = [...(grouped.get(protocol) || [])].sort((left, right) => displayModelTitle(left).localeCompare(displayModelTitle(right)))
     return {
       protocol,
       label: descriptor?.displayName || protocol,
       requestFormats: (descriptor?.requestFormats || []).join(', '),
-      models: grouped.get(protocol) || []
+      models
     }
   })
 })
+
+const updateGatewayTestProvider = (provider: string) => {
+  gatewayTestProvider.value = normalizeProviderSlug(provider)
+  gatewayTestModelId.value = ''
+}
+
+const updateGatewayTestModelId = (modelId: string) => {
+  gatewayTestModelId.value = String(modelId || '').trim()
+}
 
 const routeKeyForModel = (model: ProtocolGatewayProbeModel) =>
   `${resolveModelProtocol(model)}:${model.id}`
@@ -820,6 +959,8 @@ const handleProbe = async () => {
       accepted_protocols: normalizedAcceptedProtocols.value,
       base_url: props.baseUrl.trim() || undefined,
       api_key: trimmedApiKey.value,
+      target_provider: gatewayTestProvider.value || undefined,
+      target_model_id: gatewayTestModelId.value || undefined,
       manual_models: manualModels.value,
       proxy_id: props.proxyId ?? undefined
     })

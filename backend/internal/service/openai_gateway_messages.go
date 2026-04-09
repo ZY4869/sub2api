@@ -44,8 +44,11 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	clientStream := anthropicReq.Stream // client's original stream preference
 
 	// 2. Convert Anthropic → Responses
-	responsesReq, err := apicompat.AnthropicToResponses(&anthropicReq)
+	responsesReq, _, err := ConvertAnthropicMessagesToResponsesRuntime(&anthropicReq)
 	if err != nil {
+		if writeLocalizedCompatError(c, writeAnthropicError, "invalid_request_error", err) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("convert anthropic to responses: %w", err)
 	}
 
@@ -132,7 +135,7 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 			Kind:               "request_error",
 			Message:            safeErr,
 		})
-		writeAnthropicError(c, http.StatusBadGateway, "api_error", "Upstream request failed")
+		writeAnthropicError(c, http.StatusBadGateway, "api_error", "Upstream request failed", "")
 		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -288,7 +291,7 @@ func (s *OpenAIGatewayService) handleAnthropicBufferedStreamingResponse(
 	}
 
 	if finalResponse == nil {
-		writeAnthropicError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event")
+		writeAnthropicError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event", "")
 		return nil, fmt.Errorf("upstream stream ended without terminal event")
 	}
 
@@ -530,12 +533,17 @@ func (s *OpenAIGatewayService) handleAnthropicStreamingResponse(
 }
 
 // writeAnthropicError writes an error response in Anthropic Messages API format.
-func writeAnthropicError(c *gin.Context, statusCode int, errType, message string) {
+func writeAnthropicError(c *gin.Context, statusCode int, errType, message, reason string) {
+	errorPayload := gin.H{
+		"type":    errType,
+		"message": message,
+	}
+	if trimmedReason := strings.TrimSpace(reason); trimmedReason != "" {
+		errorPayload["reason"] = trimmedReason
+		errorPayload["code"] = trimmedReason
+	}
 	c.JSON(statusCode, gin.H{
-		"type": "error",
-		"error": gin.H{
-			"type":    errType,
-			"message": message,
-		},
+		"type":  "error",
+		"error": errorPayload,
 	})
 }

@@ -15,20 +15,20 @@ import (
 // ──────────────────────────────────────────────────────────
 
 const (
-	EndpointMessages         = "/v1/messages"
-	EndpointChatCompletions  = "/v1/chat/completions"
-	EndpointResponses        = "/v1/responses"
-	EndpointImagesGen        = "/v1/images/generations"
-	EndpointImagesEdits      = "/v1/images/edits"
-	EndpointVideosCreate     = "/v1/videos"
-	EndpointVideosGen        = "/v1/videos/generations"
-	EndpointVideosStatus     = "/v1/videos/:request_id"
-	EndpointGeminiModels     = "/v1beta/models"
-	EndpointGeminiFiles      = "/v1beta/files"
-	EndpointGeminiFilesUp    = "/upload/v1beta/files"
-	EndpointGeminiBatches    = "/v1beta/batches"
-	EndpointVertexSyncModels = "/v1/projects/:project/locations/:location/publishers/google/models"
-	EndpointVertexBatchJobs  = "/v1/projects/:project/locations/:location/batchPredictionJobs"
+	EndpointMessages         = service.EndpointMessages
+	EndpointChatCompletions  = service.EndpointChatCompletions
+	EndpointResponses        = service.EndpointResponses
+	EndpointImagesGen        = service.EndpointImagesGen
+	EndpointImagesEdits      = service.EndpointImagesEdits
+	EndpointVideosCreate     = service.EndpointVideosCreate
+	EndpointVideosGen        = service.EndpointVideosGen
+	EndpointVideosStatus     = service.EndpointVideosStatus
+	EndpointGeminiModels     = service.EndpointGeminiModels
+	EndpointGeminiFiles      = service.EndpointGeminiFiles
+	EndpointGeminiFilesUp    = service.EndpointGeminiFilesUp
+	EndpointGeminiBatches    = service.EndpointGeminiBatches
+	EndpointVertexSyncModels = service.EndpointVertexSyncModels
+	EndpointVertexBatchJobs  = service.EndpointVertexBatchJobs
 )
 
 // gin.Context keys used by the middleware and helpers below.
@@ -48,39 +48,7 @@ const (
 //	"/openai/v1/responses/foo"   → "/v1/responses"
 //	"/v1beta/models/gemini:gen"  → "/v1beta/models"
 func NormalizeInboundEndpoint(path string) string {
-	path = strings.TrimSpace(path)
-	switch {
-	case strings.Contains(path, EndpointChatCompletions):
-		return EndpointChatCompletions
-	case strings.Contains(path, EndpointImagesGen):
-		return EndpointImagesGen
-	case strings.Contains(path, EndpointImagesEdits):
-		return EndpointImagesEdits
-	case path == EndpointVideosCreate || path == "/videos" || path == "/grok/v1/videos":
-		return EndpointVideosCreate
-	case strings.Contains(path, "/v1/videos/") && !strings.Contains(path, EndpointVideosGen):
-		return EndpointVideosStatus
-	case strings.Contains(path, EndpointVideosGen):
-		return EndpointVideosCreate
-	case strings.Contains(path, EndpointMessages):
-		return EndpointMessages
-	case strings.Contains(path, EndpointResponses):
-		return EndpointResponses
-	case strings.Contains(path, EndpointGeminiFilesUp):
-		return EndpointGeminiFilesUp
-	case strings.Contains(path, "/publishers/google/models/"):
-		return EndpointVertexSyncModels
-	case strings.Contains(path, "/batchPredictionJobs"):
-		return EndpointVertexBatchJobs
-	case strings.Contains(path, ":batchGenerateContent") || strings.Contains(path, EndpointGeminiBatches):
-		return EndpointGeminiBatches
-	case strings.Contains(path, EndpointGeminiFiles):
-		return EndpointGeminiFiles
-	case strings.Contains(path, EndpointGeminiModels):
-		return EndpointGeminiModels
-	default:
-		return path
-	}
+	return service.NormalizeInboundEndpoint(path)
 }
 
 // DeriveUpstreamEndpoint determines the upstream endpoint from the

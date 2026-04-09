@@ -66,6 +66,10 @@ func Error(c *gin.Context, statusCode int, message string) {
 	})
 }
 
+func ErrorKey(c *gin.Context, statusCode int, messageKey string, fallback string, args ...any) {
+	Error(c, statusCode, LocalizedMessage(c, messageKey, fallback, args...))
+}
+
 // ErrorWithDetails returns an error response compatible with the existing envelope while
 // optionally providing structured error fields (reason/metadata).
 func ErrorWithDetails(c *gin.Context, statusCode int, message, reason string, metadata map[string]string) {
@@ -91,13 +95,17 @@ func ErrorFrom(c *gin.Context, err error) bool {
 		log.Printf("[ERROR] %s %s\n  Error: %s", c.Request.Method, c.Request.URL.Path, logredact.RedactText(err.Error()))
 	}
 
-	ErrorWithDetails(c, statusCode, status.Message, status.Reason, status.Metadata)
+	ErrorWithDetails(c, statusCode, localizeMessage(c, status.Message, status.Reason), status.Reason, status.Metadata)
 	return true
 }
 
 // BadRequest 返回400错误
 func BadRequest(c *gin.Context, message string) {
 	Error(c, http.StatusBadRequest, message)
+}
+
+func BadRequestKey(c *gin.Context, messageKey string, fallback string, args ...any) {
+	ErrorKey(c, http.StatusBadRequest, messageKey, fallback, args...)
 }
 
 // Unauthorized 返回401错误
@@ -118,6 +126,10 @@ func NotFound(c *gin.Context, message string) {
 // InternalError 返回500错误
 func InternalError(c *gin.Context, message string) {
 	Error(c, http.StatusInternalServerError, message)
+}
+
+func InternalErrorKey(c *gin.Context, messageKey string, fallback string, args ...any) {
+	ErrorKey(c, http.StatusInternalServerError, messageKey, fallback, args...)
 }
 
 // Paginated 返回分页数据

@@ -246,6 +246,8 @@
           v-model:accepted-protocols="gatewayAcceptedProtocols"
           v-model:client-profiles="gatewayClientProfiles"
           v-model:client-routes="gatewayClientRoutes"
+          v-model:gateway-test-provider="gatewayTestProvider"
+          v-model:gateway-test-model-id="gatewayTestModelId"
           :gateway-protocol="gatewayProtocol"
           :base-url="apiKeyBaseUrl"
           :api-key="apiKeyValue"
@@ -788,6 +790,8 @@ const protocolGatewayProbeModels = ref<ProtocolGatewayProbeModel[]>([])
 const gatewayAcceptedProtocols = ref<GatewayAcceptedProtocol[]>(['openai'])
 const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
+const gatewayTestProvider = ref('')
+const gatewayTestModelId = ref('')
 const gatewayBatchEnabled = ref(false)
 const claudeCodeMimicEnabled = ref(false)
 const claudeTLSFingerprintEnabled = ref(false)
@@ -1135,6 +1139,8 @@ watch(
       gatewayAcceptedProtocols.value = ['openai']
       gatewayClientProfiles.value = []
       gatewayClientRoutes.value = []
+      gatewayTestProvider.value = ''
+      gatewayTestModelId.value = ''
       gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       if (form.platform === 'antigravity') {
@@ -1190,6 +1196,8 @@ watch(
     protocolGatewayProbeModels.value = []
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    gatewayTestProvider.value = ''
+    gatewayTestModelId.value = ''
     gatewayBatchEnabled.value = false
     resetProtocolGatewayClaudeMimicState()
     modelMappings.value = []
@@ -1277,6 +1285,8 @@ watch(
       : [newProtocol as GatewayAcceptedProtocol]
     gatewayClientProfiles.value = []
     gatewayClientRoutes.value = []
+    gatewayTestProvider.value = ''
+    gatewayTestModelId.value = ''
     gatewayBatchEnabled.value = false
     if (oldProtocol === 'openai' && newProtocol !== 'openai') {
       openaiPassthroughEnabled.value = false
@@ -1609,7 +1619,9 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
         gateway_protocol: gatewayProtocol.value,
         gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
         gateway_client_profiles: [...gatewayClientProfiles.value],
-        gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route }))
+        gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
+        gateway_test_provider: gatewayTestProvider.value || undefined,
+        gateway_test_model_id: gatewayTestModelId.value || undefined
       }, {
         platform: form.platform,
         type: form.type,

@@ -307,6 +307,7 @@ import {
   resolveAccountModelImportErrorMessage,
   shouldInvalidateModelInventory
 } from '@/utils/accountModelImport'
+import { buildProviderDisplayName } from '@/utils/providerLabels'
 import type { AccountListRequestParams } from '@/utils/accountListSync'
 import type {
   Account,
@@ -1388,9 +1389,15 @@ const handleSchedule = async (a: Account) => {
     scheduleModelOptions.value = models.map((m: ClaudeModel) => {
       const sourceProtocol = String(m.source_protocol || '').trim()
       const protocolLabel = scheduleSourceProtocolLabel(sourceProtocol)
+      const displayName = buildProviderDisplayName({
+        provider: m.provider,
+        providerLabel: m.provider_label,
+        displayName: m.display_name,
+        fallbackId: m.id
+      })
       return {
         value: `${sourceProtocol || 'default'}::${m.id}`,
-        label: protocolLabel ? `${m.display_name || m.id} · ${protocolLabel}` : (m.display_name || m.id),
+        label: protocolLabel ? `${displayName} · ${protocolLabel}` : displayName,
         model_id: m.id,
         source_protocol: sourceProtocol || undefined
       }

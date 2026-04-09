@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -12,15 +13,15 @@ import (
 func (h *AccountHandler) Create(c *gin.Context) {
 	var req CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 	if req.RateMultiplier != nil && *req.RateMultiplier < 0 {
-		response.BadRequest(c, "rate_multiplier must be >= 0")
+		response.BadRequestKey(c, "admin.account.rate_multiplier_invalid", "rate_multiplier must be >= 0")
 		return
 	}
 	if err := validateProtocolGatewayType(req.Platform, req.Type, req.GatewayProtocol); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorFrom(c, err)
 		return
 	}
 	sanitizeExtraBaseRPM(req.Extra)
@@ -41,7 +42,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {
-			c.JSON(409, gin.H{"error": "mixed_channel_warning", "message": mixedErr.Error()})
+			c.JSON(409, gin.H{"error": "mixed_channel_warning", "message": mixedChannelWarningMessage(c, mixedErr)})
 			return
 		}
 		if retryAfter := service.RetryAfterSecondsFromError(err); retryAfter > 0 {
@@ -58,16 +59,16 @@ func (h *AccountHandler) Create(c *gin.Context) {
 func (h *AccountHandler) Update(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
+		response.BadRequestKey(c, "admin.account.invalid_id", "Invalid account ID")
 		return
 	}
 	var req UpdateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 	if req.RateMultiplier != nil && *req.RateMultiplier < 0 {
-		response.BadRequest(c, "rate_multiplier must be >= 0")
+		response.BadRequestKey(c, "admin.account.rate_multiplier_invalid", "rate_multiplier must be >= 0")
 		return
 	}
 	sanitizeExtraBaseRPM(req.Extra)
@@ -78,7 +79,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 	if accountBeforeUpdate == nil {
-		response.NotFound(c, "Account not found")
+		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
 		return
 	}
 	accountType := req.Type
@@ -86,7 +87,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		accountType = accountBeforeUpdate.Type
 	}
 	if err := validateProtocolGatewayType(accountBeforeUpdate.Platform, accountType, req.GatewayProtocol); err != nil {
-		response.BadRequest(c, err.Error())
+		response.ErrorFrom(c, err)
 		return
 	}
 	normalizedStatus := service.NormalizeAdminAccountStatusInput(req.Status)
@@ -100,7 +101,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 	if err != nil {
 		var mixedErr *service.MixedChannelError
 		if errors.As(err, &mixedErr) {
-			c.JSON(409, gin.H{"error": "mixed_channel_warning", "message": mixedErr.Error()})
+			c.JSON(409, gin.H{"error": "mixed_channel_warning", "message": mixedChannelWarningMessage(c, mixedErr)})
 			return
 		}
 		response.ErrorFrom(c, err)
@@ -114,10 +115,10 @@ func validateProtocolGatewayType(platform string, accountType string, gatewayPro
 		return nil
 	}
 	if accountType != service.AccountTypeAPIKey {
-		return errors.New("protocol_gateway accounts only support apikey type")
+		return infraerrors.BadRequest("ACCOUNT_PROTOCOL_GATEWAY_APIKEY_REQUIRED", "protocol_gateway accounts only support apikey type")
 	}
 	if service.NormalizeGatewayProtocol(gatewayProtocol) == "" {
-		return errors.New("protocol_gateway accounts require gateway_protocol")
+		return infraerrors.BadRequest("ACCOUNT_PROTOCOL_GATEWAY_PROTOCOL_REQUIRED", "protocol_gateway accounts require gateway_protocol")
 	}
 	return nil
 }

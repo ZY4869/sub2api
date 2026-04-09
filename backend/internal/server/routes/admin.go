@@ -159,6 +159,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		{
 			runtime.GET("/alert", h.Admin.Ops.GetAlertRuntimeSettings)
 			runtime.GET("/google-batch", h.Admin.Ops.GetGoogleBatchRuntimeMetrics)
+			runtime.GET("/protocol-gateway", h.Admin.Ops.GetProtocolGatewayRuntimeMetrics)
 			runtime.PUT("/alert", h.Admin.Ops.UpdateAlertRuntimeSettings)
 			runtime.GET("/logging", h.Admin.Ops.GetRuntimeLogConfig)
 			runtime.PUT("/logging", h.Admin.Ops.UpdateRuntimeLogConfig)

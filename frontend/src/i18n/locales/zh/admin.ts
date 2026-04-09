@@ -1829,6 +1829,12 @@
         probeEmpty: '点击“探测并取模”后，这里会列出上游支持的模型。',
         probeImportPartial: '账号已创建，但有 {failed} 个模型未能同步到本地模型库',
         probeImportFailed: '账号已创建，但同步取回模型到本地模型库失败',
+        defaultTestTargetTitle: '默认测试目标',
+        defaultTestTargetHint: '为协议网关账号预设默认测试厂商与模型。留空模型时，运行时会自动回退到该厂商的默认测试模型。',
+        testProviderLabel: '测试厂商',
+        testProviderAutoOption: '不指定，按唯一匹配或账号默认处理',
+        testModelLabel: '测试模型 ID（可选）',
+        testModelAutoOption: '留空，运行时自动使用该厂商默认测试模型',
         protocols: {
           openai: {
             baseUrlHint: '填写兼容 OpenAI 协议的上游地址，留空使用官方 OpenAI API',
@@ -2717,6 +2723,7 @@
       startTest: '开始测试',
       retry: '重试',
       copyOutput: '复制输出',
+      testNoResponseBody: '未收到响应体',
       outputCopied: '输出已复制',
       startingTestForAccount: '开始测试账号：{name}',
       testAccountTypeLabel: '账号类型：{type}',

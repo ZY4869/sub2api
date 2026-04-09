@@ -93,7 +93,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *ht
 	return nil, fmt.Errorf("upstream error: %d message=%s", resp.StatusCode, upstreamMsg)
 }
 
-type compatErrorWriter func(c *gin.Context, statusCode int, errType, message string)
+type compatErrorWriter func(c *gin.Context, statusCode int, errType, message, reason string)
 
 func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c *gin.Context, account *Account, writeError compatErrorWriter) (*OpenAIForwardResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
@@ -112,7 +112,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c 
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 	if status, errType, errMsg, matched := applyErrorPassthroughRule(c, account.Platform, resp.StatusCode, body, http.StatusBadGateway, "api_error", "Upstream request failed"); matched {
-		writeError(c, status, errType, errMsg)
+		writeError(c, status, errType, errMsg, "")
 		if upstreamMsg == "" {
 			upstreamMsg = errMsg
 		}
@@ -123,7 +123,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c 
 	}
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{Platform: RoutingPlatformForAccount(account), AccountID: account.ID, AccountName: account.Name, UpstreamStatusCode: resp.StatusCode, UpstreamRequestID: resp.Header.Get("x-request-id"), Kind: "http_error", Message: upstreamMsg, Detail: upstreamDetail})
-		writeError(c, http.StatusInternalServerError, "api_error", "Upstream gateway error")
+		writeError(c, http.StatusInternalServerError, "api_error", "Upstream gateway error", "")
 		if upstreamMsg == "" {
 			return nil, fmt.Errorf("upstream error: %d (not in custom error codes)", resp.StatusCode)
 		}
@@ -152,7 +152,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c 
 	case resp.StatusCode >= 500:
 		errType = "api_error"
 	}
-	writeError(c, resp.StatusCode, errType, upstreamMsg)
+	writeError(c, resp.StatusCode, errType, upstreamMsg, "")
 	return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
 }
 

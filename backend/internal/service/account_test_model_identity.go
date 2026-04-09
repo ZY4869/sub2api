@@ -18,7 +18,7 @@ func buildAvailableTestModelFromRegistryDetail(detail modelregistry.AdminModelDe
 	}
 
 	displayName := firstNonEmptyTestModelLabel(detail.DisplayName, FormatModelCatalogDisplayName(publicID), publicID)
-	return AvailableTestModel{
+	return applyAvailableTestModelProvider(AvailableTestModel{
 		ID:             publicID,
 		Type:           "model",
 		DisplayName:    displayName,
@@ -27,7 +27,7 @@ func buildAvailableTestModelFromRegistryDetail(detail modelregistry.AdminModelDe
 		Status:         status,
 		DeprecatedAt:   deprecatedAt,
 		ReplacedBy:     replacedBy,
-	}
+	}, detail.Provider)
 }
 
 func normalizeAvailableTestModelPublicID(detail modelregistry.AdminModelDetail) (string, bool) {

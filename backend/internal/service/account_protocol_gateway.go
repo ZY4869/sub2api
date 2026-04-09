@@ -20,6 +20,8 @@ const (
 	gatewayExtraClientProfilesKey    = "gateway_client_profiles"
 	gatewayExtraClientRoutesKey      = "gateway_client_routes"
 	gatewayExtraBatchEnabledKey      = "gateway_batch_enabled"
+	gatewayExtraTestProviderKey      = "gateway_test_provider"
+	gatewayExtraTestModelIDKey       = "gateway_test_model_id"
 	claudeCodeMimicEnabledKey        = "claude_code_mimic_enabled"
 	enableTLSFingerprintKey          = "enable_tls_fingerprint"
 	sessionIDMaskingEnabledKey       = "session_id_masking_enabled"
@@ -58,7 +60,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	PlatformOpenAI: {
 		ID:                  PlatformOpenAI,
 		DisplayName:         "OpenAI",
-		RequestFormats:      []string{"/v1/chat/completions", "/v1/responses"},
+		RequestFormats:      ProtocolGatewayRequestFormats(PlatformOpenAI),
 		DefaultBaseURL:      "https://api.openai.com",
 		APIKeyPlaceholder:   "sk-proj-...",
 		ModelImportStrategy: "openai",
@@ -69,7 +71,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	PlatformAnthropic: {
 		ID:                  PlatformAnthropic,
 		DisplayName:         "Anthropic",
-		RequestFormats:      []string{"/v1/messages"},
+		RequestFormats:      ProtocolGatewayRequestFormats(PlatformAnthropic),
 		DefaultBaseURL:      "https://api.anthropic.com",
 		APIKeyPlaceholder:   "sk-ant-...",
 		ModelImportStrategy: "anthropic",
@@ -80,7 +82,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	PlatformGemini: {
 		ID:                  PlatformGemini,
 		DisplayName:         "Gemini",
-		RequestFormats:      []string{"/v1beta/models/{model}:generateContent", "/upload/v1beta/files", "/v1beta/files", "/v1beta/models/{model}:batchGenerateContent", "/v1beta/batches/{batch}"},
+		RequestFormats:      ProtocolGatewayRequestFormats(PlatformGemini),
 		DefaultBaseURL:      "https://generativelanguage.googleapis.com",
 		APIKeyPlaceholder:   "AIza...",
 		ModelImportStrategy: "gemini",
@@ -91,7 +93,7 @@ var protocolGatewayDescriptors = map[string]ProtocolGatewayDescriptor{
 	GatewayProtocolMixed: {
 		ID:                  GatewayProtocolMixed,
 		DisplayName:         "Mixed",
-		RequestFormats:      []string{"/v1/chat/completions", "/v1/responses", "/v1/messages", "/v1beta/models/{model}:generateContent", "/upload/v1beta/files", "/v1beta/files", "/v1beta/models/{model}:batchGenerateContent", "/v1beta/batches/{batch}", "/v1/projects/{project}/locations/{location}/batchPredictionJobs"},
+		RequestFormats:      ProtocolGatewayRequestFormats(GatewayProtocolMixed),
 		DefaultBaseURL:      "",
 		APIKeyPlaceholder:   "gateway-key-...",
 		ModelImportStrategy: GatewayProtocolMixed,
@@ -126,7 +128,8 @@ var gatewayClientProfileDescriptors = map[string]GatewayClientProfileDescriptor{
 
 func NormalizeGatewayProtocol(protocol string) string {
 	normalized := strings.TrimSpace(strings.ToLower(protocol))
-	if _, ok := protocolGatewayDescriptors[normalized]; ok {
+	switch normalized {
+	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, GatewayProtocolMixed:
 		return normalized
 	}
 	return ""
@@ -248,6 +251,40 @@ func GetAccountGatewayAcceptedProtocols(account *Account) []string {
 		return nil
 	}
 	return NormalizeGatewayAcceptedProtocols(GetAccountGatewayProtocol(account), account.Extra)
+}
+
+func GetAccountGatewayTestProvider(account *Account) string {
+	if !IsProtocolGatewayAccount(account) {
+		return ""
+	}
+	return NormalizeModelProvider(account.GetExtraString(gatewayExtraTestProviderKey))
+}
+
+func ResolveAccountGatewayTestProvider(platform string, extra map[string]any) string {
+	if !IsProtocolGatewayPlatform(platform) || len(extra) == 0 {
+		return ""
+	}
+	if value, ok := extra[gatewayExtraTestProviderKey].(string); ok {
+		return NormalizeModelProvider(value)
+	}
+	return ""
+}
+
+func GetAccountGatewayTestModelID(account *Account) string {
+	if !IsProtocolGatewayAccount(account) {
+		return ""
+	}
+	return strings.TrimSpace(account.GetExtraString(gatewayExtraTestModelIDKey))
+}
+
+func ResolveAccountGatewayTestModelID(platform string, extra map[string]any) string {
+	if !IsProtocolGatewayPlatform(platform) || len(extra) == 0 {
+		return ""
+	}
+	if value, ok := extra[gatewayExtraTestModelIDKey].(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
 }
 
 func ResolveAccountGatewayAcceptedProtocols(platform string, extra map[string]any) []string {
@@ -655,6 +692,8 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		delete(nextExtra, gatewayExtraClientProfilesKey)
 		delete(nextExtra, gatewayExtraClientRoutesKey)
 		delete(nextExtra, gatewayExtraBatchEnabledKey)
+		delete(nextExtra, gatewayExtraTestProviderKey)
+		delete(nextExtra, gatewayExtraTestModelIDKey)
 		return nextExtra
 	}
 	nextExtra[gatewayExtraProtocolKey] = protocol
@@ -685,6 +724,16 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		nextExtra[gatewayExtraBatchEnabledKey] = true
 	} else {
 		delete(nextExtra, gatewayExtraBatchEnabledKey)
+	}
+	if provider := ResolveAccountGatewayTestProvider(platform, nextExtra); provider != "" {
+		nextExtra[gatewayExtraTestProviderKey] = provider
+	} else {
+		delete(nextExtra, gatewayExtraTestProviderKey)
+	}
+	if modelID := ResolveAccountGatewayTestModelID(platform, nextExtra); modelID != "" {
+		nextExtra[gatewayExtraTestModelIDKey] = modelID
+	} else {
+		delete(nextExtra, gatewayExtraTestModelIDKey)
 	}
 	return nextExtra
 }

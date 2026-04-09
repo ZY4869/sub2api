@@ -219,6 +219,8 @@ export interface AccountTestRequestPayload {
   request_alias?: string
   prompt?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  target_provider?: string
+  target_model_id?: string
   test_mode?: AccountTestMode
 }
 
@@ -807,6 +809,8 @@ export interface BlacklistRetestRequestPayload {
   model_input_mode?: AccountTestModelInputMode
   manual_model_id?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  target_provider?: string
+  target_model_id?: string
 }
 
 export type BatchAccountTestModelInputMode = 'auto' | AccountTestModelInputMode
@@ -818,6 +822,8 @@ export interface BatchAccountTestRequestPayload {
   model_input_mode?: BatchAccountTestModelInputMode
   manual_model_id?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
+  target_provider?: string
+  target_model_id?: string
   prompt?: string
   test_mode?: AccountTestMode
 }
@@ -1121,6 +1127,8 @@ export async function diagnoseAccountModels(
 export interface ProtocolGatewayProbeModel {
   id: string
   display_name: string
+  provider?: string
+  provider_label?: string
   registry_state: 'existing' | 'missing'
   registry_model_id?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
@@ -1159,6 +1167,8 @@ export async function probeProtocolGatewayModels(payload: {
   accepted_protocols?: string[]
   base_url?: string
   api_key: string
+  target_provider?: string
+  target_model_id?: string
   manual_models?: AccountManualModel[]
   proxy_id?: number | null
 }): Promise<ProtocolGatewayProbeResponse> {

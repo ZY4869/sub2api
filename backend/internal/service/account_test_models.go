@@ -18,6 +18,8 @@ type AvailableTestModel struct {
 	DisplayName    string `json:"display_name"`
 	CreatedAt      string `json:"created_at"`
 	CanonicalID    string `json:"canonical_id,omitempty"`
+	Provider       string `json:"provider,omitempty"`
+	ProviderLabel  string `json:"provider_label,omitempty"`
 	SourceProtocol string `json:"source_protocol,omitempty"`
 	Status         string `json:"status,omitempty"`
 	DeprecatedAt   string `json:"deprecated_at,omitempty"`
@@ -47,6 +49,7 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 		if len(sourceCandidates) == 0 {
 			sourceCandidates, sourceEntries = buildFallbackTestModelCandidates(ctx, protocolAccount, registry, sourceProtocol)
 		}
+		sourceCandidates = append(sourceCandidates, buildManualTestModelCandidates(account, sourceProtocol)...)
 		candidates = append(candidates, sourceCandidates...)
 		if len(sourceEntries) > 0 {
 			resolutionEntries = sourceEntries
@@ -234,13 +237,13 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 			}
 			seen[normalized] = struct{}{}
 			candidates = append(candidates, testModelCandidate{
-				model: AvailableTestModel{
+				model: applyAvailableTestModelProvider(AvailableTestModel{
 					ID:             modelID,
 					Type:           "model",
 					DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
 					SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
 					Status:         "stable",
-				},
+				}, PlatformGrok),
 				source:     "runtime",
 				uiPriority: fallbackTestModelPriority(modelID),
 			})
@@ -335,6 +338,7 @@ func buildFallbackTestModelCandidates(ctx context.Context, account *Account, reg
 		item.Status = status
 		item.DeprecatedAt = deprecatedAt
 		item.ReplacedBy = replacedBy
+		item = applyAvailableTestModelProvider(item, inferAvailableTestModelProvider(account, sourceProtocol))
 		candidates = append(candidates, testModelCandidate{
 			model:      item,
 			source:     source,
@@ -364,13 +368,13 @@ func buildManualTestModelCandidates(account *Account, sourceProtocol string) []t
 			manualProtocol = normalizedSourceProtocol
 		}
 		candidates = append(candidates, testModelCandidate{
-			model: AvailableTestModel{
+			model: applyAvailableTestModelProvider(AvailableTestModel{
 				ID:             modelID,
 				Type:           "model",
 				DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
 				SourceProtocol: manualProtocol,
 				Status:         "manual",
-			},
+			}, inferAvailableTestModelProvider(account, manualProtocol)),
 			source:     "manual",
 			uiPriority: -10,
 		})
@@ -396,6 +400,7 @@ func dedupeAndSortAvailableTestModels(candidates []testModelCandidate, resolutio
 			canonicalID = resolved
 		}
 		candidate.model.CanonicalID = canonicalID
+		candidate.model = applyAvailableTestModelProvider(candidate.model, candidate.model.Provider)
 		grouped[testModelDedupeKey(canonicalID, candidate.model.SourceProtocol)] = append(
 			grouped[testModelDedupeKey(canonicalID, candidate.model.SourceProtocol)],
 			candidate,
@@ -456,10 +461,20 @@ func compareAvailableTestModels(left AvailableTestModel, right AvailableTestMode
 	if leftPriority != rightPriority {
 		return leftPriority - rightPriority
 	}
-	leftLabel := strings.ToLower(firstNonEmptyTestModelLabel(left.DisplayName, left.ID))
-	rightLabel := strings.ToLower(firstNonEmptyTestModelLabel(right.DisplayName, right.ID))
-	if leftLabel != rightLabel {
-		return strings.Compare(leftLabel, rightLabel)
+	leftSortLabel := FinalDisplayNameSortKey(
+		left.Provider,
+		left.ProviderLabel,
+		firstNonEmptyTestModelLabel(left.DisplayName, left.ID),
+		left.ID,
+	)
+	rightSortLabel := FinalDisplayNameSortKey(
+		right.Provider,
+		right.ProviderLabel,
+		firstNonEmptyTestModelLabel(right.DisplayName, right.ID),
+		right.ID,
+	)
+	if leftSortLabel != rightSortLabel {
+		return strings.Compare(leftSortLabel, rightSortLabel)
 	}
 	if protocolRank := compareSourceProtocol(left.SourceProtocol, right.SourceProtocol); protocolRank != 0 {
 		return protocolRank
@@ -550,6 +565,31 @@ func firstNonEmptyTestModelLabel(values ...string) string {
 	return ""
 }
 
+func inferAvailableTestModelProvider(account *Account, sourceProtocol string) string {
+	if normalized := NormalizeModelProvider(sourceProtocol); normalized != "" {
+		return normalized
+	}
+	if account == nil {
+		return ""
+	}
+	return ProviderForPlatform(RoutingPlatformForAccount(account))
+}
+
+func applyAvailableTestModelProvider(model AvailableTestModel, provider string) AvailableTestModel {
+	normalized := NormalizeModelProvider(provider)
+	if normalized == "" {
+		normalized = NormalizeModelProvider(model.Provider)
+	}
+	if normalized == "" {
+		normalized = NormalizeModelProvider(model.SourceProtocol)
+	}
+	model.Provider = normalized
+	if normalized != "" {
+		model.ProviderLabel = FormatProviderLabel(normalized)
+	}
+	return model
+}
+
 func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 	if account == nil {
 		return []AvailableTestModel{}
@@ -568,7 +608,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Status:      "stable",
 			})
 		}
-		return result
+		return decorateDefaultTestModels(result, PlatformKiro)
 	case PlatformGemini:
 		result := make([]AvailableTestModel, 0, len(geminicli.DefaultModels))
 		for _, item := range geminicli.DefaultModels {
@@ -580,7 +620,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Status:      "stable",
 			})
 		}
-		return result
+		return decorateDefaultTestModels(result, PlatformGemini)
 	case PlatformAntigravity:
 		items := antigravity.DefaultModels()
 		result := make([]AvailableTestModel, 0, len(items))
@@ -593,7 +633,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Status:      "stable",
 			})
 		}
-		return result
+		return decorateDefaultTestModels(result, PlatformAntigravity)
 	case PlatformOpenAI, PlatformCopilot:
 		result := make([]AvailableTestModel, 0, len(openai.DefaultModels))
 		for _, item := range openai.DefaultModels {
@@ -604,7 +644,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Status:      "stable",
 			})
 		}
-		return result
+		return decorateDefaultTestModels(result, ProviderForPlatform(RoutingPlatformForAccount(account)))
 	case PlatformGrok:
 		models := GrokVisibleModelIDsForAccount(account)
 		result := make([]AvailableTestModel, 0, len(models))
@@ -616,7 +656,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Status:      "stable",
 			})
 		}
-		return result
+		return decorateDefaultTestModels(result, PlatformGrok)
 	default:
 		result := make([]AvailableTestModel, 0, len(claude.DefaultModels))
 		for _, item := range claude.DefaultModels {
@@ -628,6 +668,13 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Status:      "stable",
 			})
 		}
-		return result
+		return decorateDefaultTestModels(result, ProviderForPlatform(RoutingPlatformForAccount(account)))
 	}
+}
+
+func decorateDefaultTestModels(items []AvailableTestModel, provider string) []AvailableTestModel {
+	for index := range items {
+		items[index] = applyAvailableTestModelProvider(items[index], provider)
+	}
+	return items
 }

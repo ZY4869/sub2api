@@ -93,11 +93,11 @@ func (s *AccountModelImportService) detectMixedProtocolGatewayModels(ctx context
 			}
 			if _, exists := detailByID[modelID]; !exists {
 				mergedModels = append(mergedModels, modelID)
-				detailByID[modelID] = AccountModelProbeModel{
+				detailByID[modelID] = applyAccountModelProbeProvider(AccountModelProbeModel{
 					ID:             modelID,
 					DisplayName:    FormatModelCatalogDisplayName(modelID),
 					SourceProtocol: protocol,
-				}
+				}, protocol)
 			}
 		}
 		for _, detail := range probeResult.Details {
@@ -112,7 +112,7 @@ func (s *AccountModelImportService) detectMixedProtocolGatewayModels(ctx context
 				if existing.SourceProtocol == "" {
 					existing.SourceProtocol = protocol
 				}
-				detailByID[modelID] = existing
+				detailByID[modelID] = applyAccountModelProbeProvider(existing, protocol)
 			}
 		}
 	}
@@ -355,23 +355,23 @@ func newGeminiVertexProbeResult(catalog *VertexCatalogResult, source string, not
 	if catalog != nil {
 		for _, model := range catalog.OfficialModels {
 			displayedModels = append(displayedModels, model.ID)
-			details = append(details, AccountModelProbeModel{
+			details = append(details, applyAccountModelProbeProvider(AccountModelProbeModel{
 				ID:                 model.ID,
 				DisplayName:        model.DisplayName,
 				UpstreamSource:     model.UpstreamSource,
 				Availability:       model.Availability,
 				AvailabilityReason: model.AvailabilityReason,
-			})
+			}, PlatformGemini))
 		}
 		for _, model := range catalog.VerifiedExtras {
 			displayedModels = append(displayedModels, model.ID)
-			details = append(details, AccountModelProbeModel{
+			details = append(details, applyAccountModelProbeProvider(AccountModelProbeModel{
 				ID:                 model.ID,
 				DisplayName:        model.DisplayName,
 				UpstreamSource:     model.UpstreamSource,
 				Availability:       model.Availability,
 				AvailabilityReason: model.AvailabilityReason,
-			})
+			}, PlatformGemini))
 		}
 	}
 	displayedModels, _ = normalizeImportedModelIDs(displayedModels)

@@ -70,7 +70,7 @@ export function useAdminModelRegistryProviders() {
   const providerGroups = computed<AdminModelRegistryProviderGroup[]>(() => {
     return items.value.map((item) => ({
       provider: item.provider,
-      label: formatModelCatalogProvider(item.provider),
+      label: item.label || formatModelCatalogProvider(item.provider),
       totalCount: item.totalCount,
       availableCount: item.availableCount
     }))
@@ -130,7 +130,7 @@ export function useAdminModelRegistryProviders() {
       })
       const nextItems = response.items.map((item) => ({
         provider: getProviderKey(item.provider),
-        label: formatModelCatalogProvider(item.provider),
+        label: item.provider_label || formatModelCatalogProvider(item.provider),
         totalCount: item.total_count,
         availableCount: item.available_count
       }))

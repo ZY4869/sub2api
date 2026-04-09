@@ -109,12 +109,20 @@ describe('AccountBatchTestModal', () => {
     })
   })
 
-  it('loads shared models for specified strategy and submits the first catalog model', async () => {
+  it('uses a single-account stored default when loading specified catalog models', async () => {
     getBatchTestModels.mockResolvedValueOnce([
       {
         id: 'gpt-5.4',
         display_name: 'GPT-5.4',
+        provider: 'openai',
         source_protocol: 'openai'
+      },
+      {
+        id: 'claude-sonnet-4-5-20250929',
+        canonical_id: 'claude-sonnet-4.5',
+        display_name: 'Claude Sonnet 4.5',
+        provider: 'anthropic',
+        source_protocol: 'anthropic'
       }
     ])
     batchTestAccounts.mockResolvedValueOnce({
@@ -129,7 +137,21 @@ describe('AccountBatchTestModal', () => {
       ]
     })
 
-    const wrapper = mountModal()
+    const wrapper = mountModal({
+      accounts: [
+        {
+          id: 101,
+          name: 'OpenAI 101',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {
+            gateway_test_provider: 'anthropic',
+            gateway_test_model_id: 'claude-sonnet-4.5'
+          }
+        }
+      ]
+    })
     await flushPromises()
 
     await wrapper.get('[data-test="batch-model-strategy-specified"]').trigger('click')
@@ -141,9 +163,72 @@ describe('AccountBatchTestModal', () => {
 
     expect(batchTestAccounts).toHaveBeenCalledWith({
       account_ids: [101],
+      model_id: 'claude-sonnet-4-5-20250929',
+      model_input_mode: 'catalog',
+      source_protocol: 'anthropic',
+      target_provider: 'anthropic',
+      target_model_id: 'claude-sonnet-4.5',
+      test_mode: 'health_check'
+    })
+  })
+
+  it('falls back to the first catalog model when multi-account defaults are not shared', async () => {
+    getBatchTestModels.mockResolvedValueOnce([
+      {
+        id: 'gpt-5.4',
+        display_name: 'GPT-5.4',
+        provider: 'openai',
+        source_protocol: 'openai'
+      },
+      {
+        id: 'claude-sonnet-4-5-20250929',
+        canonical_id: 'claude-sonnet-4.5',
+        display_name: 'Claude Sonnet 4.5',
+        provider: 'anthropic',
+        source_protocol: 'anthropic'
+      }
+    ])
+    batchTestAccounts.mockResolvedValueOnce({ results: [] })
+
+    const wrapper = mountModal({
+      accounts: [
+        {
+          id: 101,
+          name: 'Gateway 101',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {
+            gateway_test_provider: 'openai',
+            gateway_test_model_id: 'gpt-5.4'
+          }
+        },
+        {
+          id: 102,
+          name: 'Gateway 102',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {
+            gateway_test_provider: 'anthropic',
+            gateway_test_model_id: 'claude-sonnet-4.5'
+          }
+        }
+      ]
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-test="batch-model-strategy-specified"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-test="batch-test-submit"]').trigger('click')
+
+    expect(batchTestAccounts).toHaveBeenCalledWith({
+      account_ids: [101, 102],
       model_id: 'gpt-5.4',
       model_input_mode: 'catalog',
       source_protocol: 'openai',
+      target_provider: 'openai',
+      target_model_id: 'gpt-5.4',
       test_mode: 'health_check'
     })
   })

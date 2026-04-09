@@ -29,6 +29,8 @@ type batchAccountTestRequest struct {
 	ModelInputMode string  `json:"model_input_mode"`
 	ManualModelID  string  `json:"manual_model_id"`
 	SourceProtocol string  `json:"source_protocol"`
+	TargetProvider string  `json:"target_provider"`
+	TargetModelID  string  `json:"target_model_id"`
 	Prompt         string  `json:"prompt"`
 	TestMode       string  `json:"test_mode"`
 }
@@ -94,13 +96,13 @@ func uniqueAccountIDsPreserveOrder(ids []int64) []int64 {
 func (h *AccountHandler) GetBatchTestModels(c *gin.Context) {
 	var req batchAccountTestModelsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
 	accountIDs := uniqueAccountIDsPreserveOrder(req.AccountIDs)
 	if len(accountIDs) == 0 {
-		response.BadRequest(c, "account_ids is required")
+		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
 		return
 	}
 
@@ -123,19 +125,19 @@ func (h *AccountHandler) GetBatchTestModels(c *gin.Context) {
 
 func (h *AccountHandler) BatchTest(c *gin.Context) {
 	if h.accountTestService == nil {
-		response.Error(c, 500, "Account test service is not configured")
+		response.ErrorKey(c, 500, "admin.account.test_service_missing", "Account test service is not configured")
 		return
 	}
 
 	var req batchAccountTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
 		return
 	}
 
 	accountIDs := uniqueAccountIDsPreserveOrder(req.AccountIDs)
 	if len(accountIDs) == 0 {
-		response.BadRequest(c, "account_ids is required")
+		response.BadRequestKey(c, "admin.account.account_ids_required", "account_ids is required")
 		return
 	}
 
@@ -154,7 +156,7 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 	modelInputMode := normalizeBatchAccountTestModelInputMode(req.ModelInputMode)
 	requestedModelID := resolveRequestedBatchModelID(req, modelInputMode)
 	if modelInputMode != batchAccountTestModelInputModeAuto && requestedModelID == "" {
-		response.BadRequest(c, "model_id is required when model_input_mode is not auto")
+		response.BadRequestKey(c, "admin.account.model_required_for_manual_mode", "model_id is required when model_input_mode is not auto")
 		return
 	}
 	testMode := strings.TrimSpace(req.TestMode)
@@ -256,9 +258,11 @@ func (h *AccountHandler) resolveBatchAccountTestExecutionInput(
 	req batchAccountTestRequest,
 ) (service.ScheduledTestExecutionInput, error) {
 	input := service.ScheduledTestExecutionInput{
-		AccountID: account.ID,
-		Prompt:    strings.TrimSpace(req.Prompt),
-		TestMode:  strings.TrimSpace(req.TestMode),
+		AccountID:      account.ID,
+		Prompt:         strings.TrimSpace(req.Prompt),
+		TestMode:       strings.TrimSpace(req.TestMode),
+		TargetProvider: strings.TrimSpace(req.TargetProvider),
+		TargetModelID:  strings.TrimSpace(req.TargetModelID),
 	}
 	if input.TestMode == "" {
 		input.TestMode = string(service.AccountTestModeHealthCheck)
@@ -267,10 +271,18 @@ func (h *AccountHandler) resolveBatchAccountTestExecutionInput(
 	modelInputMode := normalizeBatchAccountTestModelInputMode(req.ModelInputMode)
 	switch modelInputMode {
 	case batchAccountTestModelInputModeAuto:
-		models := service.BuildAvailableTestModels(ctx, account, h.modelRegistryService)
-		if len(models) > 0 {
-			input.ModelID = strings.TrimSpace(models[0].ID)
-			input.SourceProtocol = normalizeBatchTestSourceProtocol(models[0].SourceProtocol)
+		if input.TargetProvider == "" {
+			input.TargetProvider = service.GetAccountGatewayTestProvider(account)
+		}
+		if input.TargetModelID == "" {
+			input.TargetModelID = service.GetAccountGatewayTestModelID(account)
+		}
+		if !service.IsProtocolGatewayAccount(account) {
+			models := service.BuildAvailableTestModels(ctx, account, h.modelRegistryService)
+			if len(models) > 0 {
+				input.ModelID = strings.TrimSpace(models[0].ID)
+				input.SourceProtocol = normalizeBatchTestSourceProtocol(models[0].SourceProtocol)
+			}
 		}
 		if input.SourceProtocol == "" && service.IsProtocolGatewayAccount(account) {
 			acceptedProtocols := service.GetAccountGatewayAcceptedProtocols(account)

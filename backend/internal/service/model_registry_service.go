@@ -16,6 +16,7 @@ type ModelRegistryListFilter struct {
 
 type ModelRegistryProviderSummary struct {
 	Provider       string `json:"provider"`
+	ProviderLabel  string `json:"provider_label,omitempty"`
 	TotalCount     int    `json:"total_count"`
 	AvailableCount int    `json:"available_count"`
 }

@@ -21,6 +21,22 @@ vi.mock('@/stores/auth', () => ({
   })
 }))
 
+vi.mock('@/stores/modelRegistry', () => ({
+  ensureModelRegistryFresh: vi.fn().mockResolvedValue({
+    etag: 'test-etag',
+    updated_at: '2026-04-08T00:00:00Z',
+    models: [],
+    presets: []
+  }),
+  getModelRegistrySnapshot: vi.fn(() => ({
+    etag: 'test-etag',
+    updated_at: '2026-04-08T00:00:00Z',
+    models: [],
+    presets: []
+  })),
+  invalidateModelRegistry: vi.fn()
+}))
+
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     accounts: {
@@ -82,6 +98,39 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       <span data-testid="model-whitelist-value">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
+    </div>
+  `
+})
+
+const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
+  name: 'AccountProtocolGatewayModelProbeEditor',
+  props: {
+    gatewayTestProvider: {
+      type: String,
+      default: ''
+    },
+    gatewayTestModelId: {
+      type: String,
+      default: ''
+    }
+  },
+  emits: ['update:gatewayTestProvider', 'update:gatewayTestModelId', 'update:gateway-test-provider', 'update:gateway-test-model-id'],
+  template: `
+    <div>
+      <span data-testid="gateway-test-provider-prop">{{ gatewayTestProvider }}</span>
+      <span data-testid="gateway-test-model-prop">{{ gatewayTestModelId }}</span>
+      <button
+        type="button"
+        data-testid="set-gateway-test-defaults"
+        @click="
+          $emit('update:gatewayTestProvider', 'openai');
+          $emit('update:gateway-test-provider', 'openai');
+          $emit('update:gatewayTestModelId', 'gpt-5.4');
+          $emit('update:gateway-test-model-id', 'gpt-5.4')
+        "
+      >
+        set defaults
+      </button>
     </div>
   `
 })
@@ -263,6 +312,7 @@ function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
       show: true,
+      loading: false,
       account,
       proxies: [],
       groups: []
@@ -272,7 +322,7 @@ function mountModal(account = buildAccount()) {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
         AccountApiKeyModelProbeEditor: true,
-        AccountProtocolGatewayModelProbeEditor: true,
+        AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
         AccountProtocolGatewayBatchEditor: true,
         AccountGeminiVertexCredentialsEditor: true,
         AccountModelScopeEditor: true,
@@ -439,5 +489,28 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_batch_enabled).toBe(true)
     expect(updateAccountMock.mock.calls[0]?.[1]?.gateway_protocol).toBe('mixed')
+  })
+
+  it('rehydrates and persists gateway test provider/model defaults for protocol gateway accounts', async () => {
+    const account = buildProtocolGatewayGeminiAccount()
+    account.extra.gateway_test_provider = 'anthropic'
+    account.extra.gateway_test_model_id = 'claude-sonnet-4.5'
+
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="gateway-test-provider-prop"]').text()).toBe('anthropic')
+    expect(wrapper.get('[data-testid="gateway-test-model-prop"]').text()).toBe('claude-sonnet-4.5')
+
+    await wrapper.get('[data-testid="set-gateway-test-defaults"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_provider).toBe('openai')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBe('gpt-5.4')
   })
 })

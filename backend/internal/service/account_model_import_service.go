@@ -65,6 +65,8 @@ type AccountModelProbeSummary struct {
 type AccountModelProbeModel struct {
 	ID                 string `json:"id"`
 	DisplayName        string `json:"display_name"`
+	Provider           string `json:"provider,omitempty"`
+	ProviderLabel      string `json:"provider_label,omitempty"`
 	SourceProtocol     string `json:"source_protocol,omitempty"`
 	UpstreamSource     string `json:"upstream_source,omitempty"`
 	Availability       string `json:"availability,omitempty"`
@@ -82,10 +84,10 @@ type accountModelProbeResult struct {
 func newAccountModelProbeResult(models []string) *accountModelProbeResult {
 	details := make([]AccountModelProbeModel, 0, len(models))
 	for _, modelID := range models {
-		details = append(details, AccountModelProbeModel{
+		details = append(details, applyAccountModelProbeProvider(AccountModelProbeModel{
 			ID:          modelID,
 			DisplayName: FormatModelCatalogDisplayName(modelID),
-		})
+		}, ""))
 	}
 	return &accountModelProbeResult{
 		Models:  models,
@@ -173,13 +175,20 @@ func (s *AccountModelImportService) ListAccountModels(
 
 	return &AccountModelProbeSummary{
 		DetectedModels:          detectedModels,
-		Models:                  normalizeAccountModelProbeDetails(probeResult.Details, detectedModels),
+		Models:                  decorateAccountModelProbeDetails(normalizeAccountModelProbeDetails(probeResult.Details, detectedModels), accountModelProbeProviderForPlatform(RoutingPlatformForAccount(account))),
 		ProbeSource:             probeSource,
 		ProbeNotice:             strings.TrimSpace(probeResult.Notice),
 		ResolvedUpstreamURL:     strings.TrimSpace(resolvedUpstream.URL),
 		ResolvedUpstreamHost:    strings.TrimSpace(resolvedUpstream.Host),
 		ResolvedUpstreamService: strings.TrimSpace(resolvedUpstream.Service),
 	}, nil
+}
+
+func decorateAccountModelProbeDetails(details []AccountModelProbeModel, provider string) []AccountModelProbeModel {
+	for index := range details {
+		details[index] = applyAccountModelProbeProvider(details[index], provider)
+	}
+	return details
 }
 
 func (s *AccountModelImportService) ImportAccountModels(ctx context.Context, account *Account, trigger string, selectedModels ...[]string) (*AccountModelImportResult, error) {
@@ -546,6 +555,7 @@ func normalizeAccountModelProbeDetails(details []AccountModelProbeModel, detecte
 		if strings.TrimSpace(detail.DisplayName) == "" {
 			detail.DisplayName = FormatModelCatalogDisplayName(modelID)
 		}
+		detail = applyAccountModelProbeProvider(detail, detail.Provider)
 		detail.SourceProtocol = NormalizeGatewayProtocol(detail.SourceProtocol)
 		detail.UpstreamSource = strings.TrimSpace(detail.UpstreamSource)
 		detail.Availability = strings.TrimSpace(detail.Availability)
@@ -560,11 +570,19 @@ func normalizeAccountModelProbeDetails(details []AccountModelProbeModel, detecte
 			result = append(result, detail)
 			continue
 		}
-		result = append(result, AccountModelProbeModel{
+		result = append(result, applyAccountModelProbeProvider(AccountModelProbeModel{
 			ID:          modelID,
 			DisplayName: FormatModelCatalogDisplayName(modelID),
-		})
+		}, ""))
 	}
+	sort.SliceStable(result, func(i, j int) bool {
+		leftSortKey := FinalDisplayNameSortKey(result[i].Provider, result[i].ProviderLabel, result[i].DisplayName, result[i].ID)
+		rightSortKey := FinalDisplayNameSortKey(result[j].Provider, result[j].ProviderLabel, result[j].DisplayName, result[j].ID)
+		if leftSortKey != rightSortKey {
+			return leftSortKey < rightSortKey
+		}
+		return result[i].ID < result[j].ID
+	})
 	return result
 }
 
@@ -594,17 +612,36 @@ func (s *AccountModelImportService) mergeManualModelsIntoProbeResult(account *Ac
 			continue
 		}
 		seen[modelID] = struct{}{}
-		mergedDetails = append(mergedDetails, AccountModelProbeModel{
+		mergedDetails = append(mergedDetails, applyAccountModelProbeProvider(AccountModelProbeModel{
 			ID:             modelID,
 			DisplayName:    FormatModelCatalogDisplayName(modelID),
 			SourceProtocol: manualModel.SourceProtocol,
 			UpstreamSource: "manual",
 			Availability:   "manual",
-		})
+		}, NormalizeModelProvider(manualModel.SourceProtocol)))
 	}
 	result.Models = mergedModels
 	result.Details = mergedDetails
 	return result
+}
+
+func accountModelProbeProviderForPlatform(platform string) string {
+	return ProviderForPlatform(platform)
+}
+
+func applyAccountModelProbeProvider(detail AccountModelProbeModel, provider string) AccountModelProbeModel {
+	normalized := NormalizeModelProvider(provider)
+	if normalized == "" {
+		normalized = NormalizeModelProvider(detail.Provider)
+	}
+	if normalized == "" {
+		normalized = NormalizeModelProvider(detail.SourceProtocol)
+	}
+	detail.Provider = normalized
+	if normalized != "" {
+		detail.ProviderLabel = FormatProviderLabel(normalized)
+	}
+	return detail
 }
 
 func accountManualModelsSignature(models []AccountManualModel) string {

@@ -242,7 +242,7 @@ func (h *AccountHandler) TestGrokAccount(c *gin.Context) {
 		modelID = strings.TrimSpace(req.Model)
 	}
 
-	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, "", "", string(service.AccountTestModeHealthCheck)); err != nil && !c.Writer.Written() {
+	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, "", "", "", "", string(service.AccountTestModeHealthCheck)); err != nil && !c.Writer.Written() {
 		response.ErrorFrom(c, err)
 	}
 }

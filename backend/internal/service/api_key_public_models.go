@@ -223,10 +223,10 @@ func projectProbeSummaryToPublicEntries(
 		if _, exists := detectedSet[sourceID]; exists {
 			continue
 		}
-		detectedSet[sourceID] = AccountModelProbeModel{
+		detectedSet[sourceID] = applyAccountModelProbeProvider(AccountModelProbeModel{
 			ID:          sourceID,
 			DisplayName: FormatModelCatalogDisplayName(sourceID),
-		}
+		}, platform)
 	}
 
 	candidates := make([]apiKeyPublicProjectionCandidate, 0, len(detectedSet))
