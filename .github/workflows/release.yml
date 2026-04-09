@@ -44,7 +44,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: go version | grep -q 'go1.26.1'
+        run: go version | grep -q 'go1.26.2'
       - name: Validate version files against tag
         shell: bash
         run: |
@@ -101,7 +101,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: go version | grep -q 'go1.26.1'
+        run: go version | grep -q 'go1.26.2'
       - uses: pnpm/action-setup@v5
         with:
           version: 9
@@ -146,7 +146,7 @@ jobs:
           cache: true
           cache-dependency-path: backend/go.sum
       - name: Verify Go version
-        run: go version | grep -q 'go1.26.1'
+        run: go version | grep -q 'go1.26.2'
       - uses: pnpm/action-setup@v5
         with:
           version: 9

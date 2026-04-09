@@ -21,6 +21,7 @@ function cloneSnapshot(snapshot: ModelRegistrySnapshot): ModelRegistrySnapshot {
   return {
     etag: snapshot.etag,
     updated_at: snapshot.updated_at,
+    provider_labels: { ...snapshot.provider_labels },
     models: snapshot.models.map((model) => ({
       ...model,
       platforms: [...model.platforms],

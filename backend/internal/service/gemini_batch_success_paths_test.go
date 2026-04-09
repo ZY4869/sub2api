@@ -278,7 +278,9 @@ func TestGeminiBatchFilesForwardSuccessPaths(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, listAccount)
 	require.Equal(t, account.ID, listAccount.ID)
-	require.Equal(t, http.StatusOK, listResult.(*UpstreamHTTPResult).StatusCode)
+	listHTTPResult, ok := listResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, listHTTPResult.StatusCode)
 
 	uploadResult, uploadAccount, err := svc.ForwardGoogleFiles(context.Background(), GoogleBatchForwardInput{
 		GroupID: &groupID,
@@ -289,7 +291,9 @@ func TestGeminiBatchFilesForwardSuccessPaths(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, uploadAccount)
 	require.Equal(t, account.ID, uploadAccount.ID)
-	require.Equal(t, http.StatusOK, uploadResult.(*UpstreamHTTPResult).StatusCode)
+	uploadHTTPResult, ok := uploadResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, uploadHTTPResult.StatusCode)
 	require.NotNil(t, bindingRepo.items["uploaded-file"])
 
 	getResult, getAccount, err := svc.ForwardGoogleFiles(context.Background(), GoogleBatchForwardInput{
@@ -299,7 +303,9 @@ func TestGeminiBatchFilesForwardSuccessPaths(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, account.ID, getAccount.ID)
-	require.Equal(t, http.StatusOK, getResult.(*UpstreamHTTPResult).StatusCode)
+	getHTTPResult, ok := getResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, getHTTPResult.StatusCode)
 
 	deleteResult, deleteAccount, err := svc.ForwardGoogleFiles(context.Background(), GoogleBatchForwardInput{
 		GroupID: &groupID,
@@ -308,7 +314,9 @@ func TestGeminiBatchFilesForwardSuccessPaths(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, account.ID, deleteAccount.ID)
-	require.Equal(t, http.StatusOK, deleteResult.(*UpstreamHTTPResult).StatusCode)
+	deleteHTTPResult, ok := deleteResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, deleteHTTPResult.StatusCode)
 
 	downloadResult, downloadAccount, err := svc.ForwardGoogleFileDownload(context.Background(), GoogleBatchForwardInput{
 		GroupID: &groupID,
@@ -317,7 +325,8 @@ func TestGeminiBatchFilesForwardSuccessPaths(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, account.ID, downloadAccount.ID)
-	streamResult := downloadResult.(*UpstreamHTTPStreamResult)
+	streamResult, ok := downloadResult.(*UpstreamHTTPStreamResult)
+	require.True(t, ok)
 	defer func() { _ = streamResult.Body.Close() }()
 	body, readErr := io.ReadAll(streamResult.Body)
 	require.NoError(t, readErr)
@@ -437,7 +446,9 @@ func TestGeminiBatchArchiveAndVertexSuccessPaths(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, archiveBatchAccount)
 	require.Equal(t, aistudioAccount.ID, archiveBatchAccount.ID)
-	require.Equal(t, http.StatusOK, archiveBatchResult.(*UpstreamHTTPResult).StatusCode)
+	archiveBatchHTTPResult, ok := archiveBatchResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, archiveBatchHTTPResult.StatusCode)
 
 	archiveFileResult, archiveFileAccount, err := svc.ForwardGoogleArchiveFileDownload(context.Background(), GoogleBatchForwardInput{
 		GroupID: &groupID,
@@ -447,7 +458,8 @@ func TestGeminiBatchArchiveAndVertexSuccessPaths(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, archiveFileAccount)
 	require.Equal(t, aistudioAccount.ID, archiveFileAccount.ID)
-	archiveStreamResult := archiveFileResult.(*UpstreamHTTPStreamResult)
+	archiveStreamResult, ok := archiveFileResult.(*UpstreamHTTPStreamResult)
+	require.True(t, ok)
 	defer func() { _ = archiveStreamResult.Body.Close() }()
 	archiveBody, readErr := io.ReadAll(archiveStreamResult.Body)
 	require.NoError(t, readErr)
@@ -461,7 +473,9 @@ func TestGeminiBatchArchiveAndVertexSuccessPaths(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, vertexListAccount)
 	require.Equal(t, vertexAccount.ID, vertexListAccount.ID)
-	require.Equal(t, http.StatusOK, vertexListResult.(*UpstreamHTTPResult).StatusCode)
+	vertexListHTTPResult, ok := vertexListResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, vertexListHTTPResult.StatusCode)
 
 	vertexCreateResult, vertexCreateAccount, err := svc.ForwardVertexBatchPredictionJobs(context.Background(), GoogleBatchForwardInput{
 		GroupID: &groupID,
@@ -472,7 +486,9 @@ func TestGeminiBatchArchiveAndVertexSuccessPaths(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, vertexCreateAccount)
 	require.Equal(t, vertexAccount.ID, vertexCreateAccount.ID)
-	require.Equal(t, http.StatusOK, vertexCreateResult.(*UpstreamHTTPResult).StatusCode)
+	vertexCreateHTTPResult, ok := vertexCreateResult.(*UpstreamHTTPResult)
+	require.True(t, ok)
+	require.Equal(t, http.StatusOK, vertexCreateHTTPResult.StatusCode)
 
 	vertexPaths := map[string]string{
 		http.MethodGet:    "/v1/projects/vertex-project/locations/us-central1/batchPredictionJobs/job-1",
@@ -488,7 +504,9 @@ func TestGeminiBatchArchiveAndVertexSuccessPaths(t *testing.T) {
 		require.NoError(t, forwardErr)
 		require.NotNil(t, account)
 		require.Equal(t, vertexAccount.ID, account.ID)
-		require.Equal(t, http.StatusOK, result.(*UpstreamHTTPResult).StatusCode)
+		httpResult, ok := result.(*UpstreamHTTPResult)
+		require.True(t, ok)
+		require.Equal(t, http.StatusOK, httpResult.StatusCode)
 	}
 }
 

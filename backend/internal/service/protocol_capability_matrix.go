@@ -586,16 +586,6 @@ func matchPublicEndpointRoute(path string, pattern string) bool {
 	return matched
 }
 
-func matchPublicRouteSegment(segment string, pattern string) bool {
-	if segment == pattern {
-		return true
-	}
-
-	expression := buildPublicRouteSegmentExpression(pattern)
-	matched, _ := regexp.MatchString(expression, segment)
-	return matched
-}
-
 func buildPublicRouteExpression(pattern string) string {
 	segments := splitPublicRouteSegments(pattern)
 	if len(segments) == 0 {
@@ -603,24 +593,24 @@ func buildPublicRouteExpression(pattern string) string {
 	}
 
 	var expression strings.Builder
-	expression.WriteString("^")
+	writeBuilderString(&expression, "^")
 	for _, segment := range segments {
-		expression.WriteString("/")
+		writeBuilderString(&expression, "/")
 		switch {
 		case strings.HasPrefix(segment, "*"):
-			expression.WriteString(".+")
-			expression.WriteString("$")
+			writeBuilderString(&expression, ".+")
+			writeBuilderString(&expression, "$")
 			return expression.String()
 		case strings.HasPrefix(segment, ":"):
-			expression.WriteString(`[^/]+`)
+			writeBuilderString(&expression, `[^/]+`)
 		default:
 			segmentExpression := buildPublicRouteSegmentExpression(segment)
 			segmentExpression = strings.TrimPrefix(segmentExpression, "^")
 			segmentExpression = strings.TrimSuffix(segmentExpression, "$")
-			expression.WriteString(segmentExpression)
+			writeBuilderString(&expression, segmentExpression)
 		}
 	}
-	expression.WriteString("$")
+	writeBuilderString(&expression, "$")
 	return expression.String()
 }
 
@@ -696,12 +686,12 @@ func publicEndpointRouteSpecificity(pattern string) int {
 
 func buildPublicRouteSegmentExpression(pattern string) string {
 	var expression strings.Builder
-	expression.WriteString("^")
+	writeBuilderString(&expression, "^")
 	for index := 0; index < len(pattern); {
 		switch pattern[index] {
 		case '{':
 			if end := strings.IndexByte(pattern[index:], '}'); end >= 0 {
-				expression.WriteString(`[^/]+`)
+				writeBuilderString(&expression, `[^/]+`)
 				index += end + 1
 				continue
 			}
@@ -714,16 +704,20 @@ func buildPublicRouteSegmentExpression(pattern string) string {
 				for end < len(pattern) && isRouteParamContinue(pattern[end]) {
 					end++
 				}
-				expression.WriteString(`[^/]+`)
+				writeBuilderString(&expression, `[^/]+`)
 				index = end
 				continue
 			}
 		}
-		expression.WriteString(regexp.QuoteMeta(string(pattern[index])))
+		writeBuilderString(&expression, regexp.QuoteMeta(string(pattern[index])))
 		index++
 	}
-	expression.WriteString("$")
+	writeBuilderString(&expression, "$")
 	return expression.String()
+}
+
+func writeBuilderString(builder *strings.Builder, value string) {
+	_, _ = builder.WriteString(value)
 }
 
 func isRouteParamStart(ch byte) bool {

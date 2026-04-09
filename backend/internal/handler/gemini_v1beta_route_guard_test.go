@@ -17,10 +17,10 @@ func TestGeminiV1BetaModels_ModelActionParseFailuresReturnRouteMismatch(t *testi
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
-		rawPath    string
+		name        string
+		rawPath     string
 		modelAction string
-		wantKey    string
+		wantKey     string
 	}{
 		{
 			name:        "missing path",

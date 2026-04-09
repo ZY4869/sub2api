@@ -40,12 +40,6 @@ func newGatewayRoutesTestRouterForPlatform(platform string) *gin.Engine {
 	}, platform)
 }
 
-func newGatewayRoutesTestRouterWithoutContextAuth(googlePlatform string) *gin.Engine {
-	return newGatewayRoutesTestRouterWithAuthAndGooglePlatform(func(c *gin.Context) {
-		c.Next()
-	}, googlePlatform)
-}
-
 func newGatewayRoutesTestRouterWithAuthAndGooglePlatform(auth gin.HandlerFunc, googlePlatform string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

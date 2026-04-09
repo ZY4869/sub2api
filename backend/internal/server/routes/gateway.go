@@ -278,18 +278,6 @@ func dispatchGrokOnlyRoute(c *gin.Context, inboundEndpoint string, grokHandler g
 	grokHandler(c)
 }
 
-func writeGrokMessagesUnsupported(c *gin.Context) {
-	writeOpenAIGatewayCapabilityError(c, service.GrokMessagesUnsupportedDecision(), "invalid_request_error")
-}
-
-func writeGrokAliasUnavailable(c *gin.Context, path string) {
-	writeOpenAIGatewayCapabilityError(c, service.GrokAliasReservedDecision(path), "not_found_error")
-}
-
-func writePublicEndpointUnsupported(c *gin.Context, path string) {
-	writeOpenAIGatewayCapabilityError(c, service.PublicEndpointUnsupportedDecision(path, service.ProtocolCapabilityActionDefault), "not_found_error")
-}
-
 func writeOpenAIGatewayCapabilityError(c *gin.Context, decision service.ProtocolCapabilityDecision, errorType string) {
 	logOpenAIGatewayCapabilityDecision(c, decision)
 	messageKey := decision.MessageKey

@@ -393,7 +393,7 @@ const handleSubmit = async () => {
       payload.target_model_id = catalogTarget.targetModelId
     }
     if (modelInputMode.value === 'catalog') {
-      payload.source_protocol = catalogTarget.sourceProtocol || selectedSourceProtocol.value
+      payload.source_protocol = catalogTarget.sourceProtocol || selectedSourceProtocol.value || undefined
     } else if (selectedSourceProtocol.value) {
       payload.source_protocol = selectedSourceProtocol.value
     }

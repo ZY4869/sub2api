@@ -483,7 +483,7 @@ func localizeMessage(c *gin.Context, message string, reason string) string {
 	if c == nil {
 		return message
 	}
-	locale := detectLocale(c.GetHeader("Accept-Language"))
+	locale := detectLocale(contextAcceptLanguage(c))
 	if translations, ok := localizedReasonMessages[strings.TrimSpace(reason)]; ok {
 		if translated := strings.TrimSpace(translations[locale]); translated != "" {
 			return translated
@@ -520,7 +520,7 @@ func localizedMessageTemplate(c *gin.Context, messageKey string) (string, bool) 
 
 	locale := "en"
 	if c != nil {
-		locale = detectLocale(c.GetHeader("Accept-Language"))
+		locale = detectLocale(contextAcceptLanguage(c))
 	}
 
 	template := strings.TrimSpace(translations[locale])
@@ -592,4 +592,11 @@ func detectLocale(header string) string {
 		}
 	}
 	return "en"
+}
+
+func contextAcceptLanguage(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	return c.GetHeader("Accept-Language")
 }

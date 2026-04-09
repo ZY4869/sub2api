@@ -8,23 +8,23 @@ import (
 )
 
 type MetricsSnapshot struct {
-	RouteMismatchTotal              int64            `json:"route_mismatch_total"`
-	UnsupportedActionTotal          int64            `json:"unsupported_action_total"`
-	LocalizationFallbackTotal       int64            `json:"localization_fallback_total"`
-	AccountTestResolutionFailedTotal int64           `json:"account_test_resolution_failed_total"`
-	AccountProbeResolutionFailedTotal int64          `json:"account_probe_resolution_failed_total"`
-	RouteMismatchByKind             map[string]int64 `json:"route_mismatch_by_kind"`
-	UnsupportedActionByReason       map[string]int64 `json:"unsupported_action_by_reason"`
-	LocalizationFallbackByKind      map[string]int64 `json:"localization_fallback_by_kind"`
-	AccountTestResolutionByReason   map[string]int64 `json:"account_test_resolution_by_reason"`
-	AccountProbeResolutionByReason  map[string]int64 `json:"account_probe_resolution_by_reason"`
+	RouteMismatchTotal                int64            `json:"route_mismatch_total"`
+	UnsupportedActionTotal            int64            `json:"unsupported_action_total"`
+	LocalizationFallbackTotal         int64            `json:"localization_fallback_total"`
+	AccountTestResolutionFailedTotal  int64            `json:"account_test_resolution_failed_total"`
+	AccountProbeResolutionFailedTotal int64            `json:"account_probe_resolution_failed_total"`
+	RouteMismatchByKind               map[string]int64 `json:"route_mismatch_by_kind"`
+	UnsupportedActionByReason         map[string]int64 `json:"unsupported_action_by_reason"`
+	LocalizationFallbackByKind        map[string]int64 `json:"localization_fallback_by_kind"`
+	AccountTestResolutionByReason     map[string]int64 `json:"account_test_resolution_by_reason"`
+	AccountProbeResolutionByReason    map[string]int64 `json:"account_probe_resolution_by_reason"`
 }
 
 type metrics struct {
-	routeMismatchTotal               atomic.Int64
-	unsupportedActionTotal           atomic.Int64
-	localizationFallbackTotal        atomic.Int64
-	accountTestResolutionFailedTotal atomic.Int64
+	routeMismatchTotal                atomic.Int64
+	unsupportedActionTotal            atomic.Int64
+	localizationFallbackTotal         atomic.Int64
+	accountTestResolutionFailedTotal  atomic.Int64
 	accountProbeResolutionFailedTotal atomic.Int64
 
 	routeMismatchByKind            sync.Map
@@ -38,16 +38,16 @@ var defaultMetrics metrics
 
 func Snapshot() MetricsSnapshot {
 	return MetricsSnapshot{
-		RouteMismatchTotal:               defaultMetrics.routeMismatchTotal.Load(),
-		UnsupportedActionTotal:           defaultMetrics.unsupportedActionTotal.Load(),
-		LocalizationFallbackTotal:        defaultMetrics.localizationFallbackTotal.Load(),
-		AccountTestResolutionFailedTotal: defaultMetrics.accountTestResolutionFailedTotal.Load(),
+		RouteMismatchTotal:                defaultMetrics.routeMismatchTotal.Load(),
+		UnsupportedActionTotal:            defaultMetrics.unsupportedActionTotal.Load(),
+		LocalizationFallbackTotal:         defaultMetrics.localizationFallbackTotal.Load(),
+		AccountTestResolutionFailedTotal:  defaultMetrics.accountTestResolutionFailedTotal.Load(),
 		AccountProbeResolutionFailedTotal: defaultMetrics.accountProbeResolutionFailedTotal.Load(),
-		RouteMismatchByKind:              snapshotCounterMap(&defaultMetrics.routeMismatchByKind),
-		UnsupportedActionByReason:        snapshotCounterMap(&defaultMetrics.unsupportedActionByReason),
-		LocalizationFallbackByKind:       snapshotCounterMap(&defaultMetrics.localizationFallbackByKind),
-		AccountTestResolutionByReason:    snapshotCounterMap(&defaultMetrics.accountTestResolutionByReason),
-		AccountProbeResolutionByReason:   snapshotCounterMap(&defaultMetrics.accountProbeResolutionByReason),
+		RouteMismatchByKind:               snapshotCounterMap(&defaultMetrics.routeMismatchByKind),
+		UnsupportedActionByReason:         snapshotCounterMap(&defaultMetrics.unsupportedActionByReason),
+		LocalizationFallbackByKind:        snapshotCounterMap(&defaultMetrics.localizationFallbackByKind),
+		AccountTestResolutionByReason:     snapshotCounterMap(&defaultMetrics.accountTestResolutionByReason),
+		AccountProbeResolutionByReason:    snapshotCounterMap(&defaultMetrics.accountProbeResolutionByReason),
 	}
 }
 
@@ -95,7 +95,11 @@ func incrementCounterMap(target *sync.Map, key string) {
 		normalized = "unknown"
 	}
 	counter, _ := target.LoadOrStore(normalized, &atomic.Int64{})
-	counter.(*atomic.Int64).Add(1)
+	typedCounter, ok := counter.(*atomic.Int64)
+	if !ok {
+		return
+	}
+	incrementAtomicCounter(typedCounter)
 }
 
 func snapshotCounterMap(source *sync.Map) map[string]int64 {
@@ -127,4 +131,13 @@ func resetCounterMap(source *sync.Map) {
 		source.Delete(key)
 		return true
 	})
+}
+
+func incrementAtomicCounter(counter *atomic.Int64) {
+	for {
+		current := counter.Load()
+		if counter.CompareAndSwap(current, current+1) {
+			return
+		}
+	}
 }
