@@ -7,6 +7,7 @@ import type {
   GatewayClientRoute,
   GatewayProtocol
 } from '@/types'
+import { generatedProtocolGatewayDescriptors } from '@/generated/protocolGateway'
 
 export interface ProtocolGatewayDescriptor {
   id: GatewayProtocol
@@ -26,69 +27,57 @@ export const PROTOCOL_GATEWAY_PLATFORM = 'protocol_gateway' as const
 export const PROTOCOL_GATEWAY_PROTOCOLS = ['openai', 'anthropic', 'gemini', 'mixed'] as const
 export const PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const
 export const PROTOCOL_GATEWAY_CLIENT_PROFILES = ['codex', 'gemini_cli'] as const
-export const PROTOCOL_GATEWAY_GEMINI_BATCH_REQUEST_FORMATS = [
-  '/upload/v1beta/files',
-  '/v1beta/files',
-  '/v1beta/models/{model}:batchGenerateContent',
-  '/v1beta/batches/{batch}',
-  '/v1/projects/{project}/locations/{location}/batchPredictionJobs'
-] as const
 
-export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatewayDescriptor> = {
+const PROTOCOL_GATEWAY_HINT_KEYS: Record<
+  GatewayProtocol,
+  Pick<ProtocolGatewayDescriptor, 'baseUrlHintKey' | 'apiKeyHintKey'>
+> = {
   openai: {
-    id: 'openai',
-    displayName: 'OpenAI',
-    requestFormats: ['/v1/chat/completions', '/v1/responses'],
-    defaultBaseUrl: 'https://api.openai.com',
-    apiKeyPlaceholder: 'sk-proj-...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.openai.baseUrlHint',
-    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.openai.apiKeyHint',
-    modelImportStrategy: 'openai',
-    testStrategy: 'openai',
-    targetGroupPlatform: 'openai'
+    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.openai.apiKeyHint'
   },
   anthropic: {
-    id: 'anthropic',
-    displayName: 'Anthropic',
-    requestFormats: ['/v1/messages'],
-    defaultBaseUrl: 'https://api.anthropic.com',
-    apiKeyPlaceholder: 'sk-ant-...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.anthropic.baseUrlHint',
-    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.anthropic.apiKeyHint',
-    modelImportStrategy: 'anthropic',
-    testStrategy: 'anthropic',
-    targetGroupPlatform: 'anthropic'
+    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.anthropic.apiKeyHint'
   },
   gemini: {
-    id: 'gemini',
-    displayName: 'Gemini',
-    requestFormats: ['/v1beta/models/{model}:generateContent'],
-    defaultBaseUrl: 'https://generativelanguage.googleapis.com',
-    apiKeyPlaceholder: 'AIza...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.gemini.baseUrlHint',
-    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.gemini.apiKeyHint',
-    modelImportStrategy: 'gemini',
-    testStrategy: 'gemini',
-    targetGroupPlatform: 'gemini'
+    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.gemini.apiKeyHint'
   },
   mixed: {
-    id: 'mixed',
-    displayName: 'Mixed',
-    requestFormats: [
-      '/v1/chat/completions',
-      '/v1/responses',
-      '/v1/messages',
-      '/v1beta/models/{model}:generateContent'
-    ],
-    defaultBaseUrl: '',
-    apiKeyPlaceholder: 'gateway-key-...',
     baseUrlHintKey: 'admin.accounts.protocolGateway.protocols.mixed.baseUrlHint',
-    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.mixed.apiKeyHint',
-    modelImportStrategy: 'mixed',
-    testStrategy: 'mixed',
-    targetGroupPlatform: ''
+    apiKeyHintKey: 'admin.accounts.protocolGateway.protocols.mixed.apiKeyHint'
   }
 }
+
+function isGeminiBatchRequestFormat(format: string): boolean {
+  const normalized = format.trim().toLowerCase()
+  if (!normalized) {
+    return false
+  }
+
+  return (
+    normalized.includes('/files') ||
+    normalized.includes(':batchgeneratecontent') ||
+    normalized.includes('/batches/') ||
+    normalized.includes('/google/batch/archive/') ||
+    normalized.includes('/batchpredictionjobs')
+  )
+}
+
+export const PROTOCOL_GATEWAY_DESCRIPTORS: Record<GatewayProtocol, ProtocolGatewayDescriptor> =
+  PROTOCOL_GATEWAY_PROTOCOLS.reduce(
+    (descriptors, protocol) => {
+      const generatedDescriptor = generatedProtocolGatewayDescriptors[protocol]
+      descriptors[protocol] = {
+        ...generatedDescriptor,
+        requestFormats: [...generatedDescriptor.requestFormats],
+        ...PROTOCOL_GATEWAY_HINT_KEYS[protocol]
+      }
+      return descriptors
+    },
+    {} as Record<GatewayProtocol, ProtocolGatewayDescriptor>
+  )
 
 export function isProtocolGatewayPlatform(platform: string | null | undefined): platform is typeof PROTOCOL_GATEWAY_PLATFORM {
   return String(platform || '').trim().toLowerCase() === PROTOCOL_GATEWAY_PLATFORM
@@ -338,9 +327,13 @@ export function resolveProtocolGatewayBatchRequestFormats(options: {
     options.acceptedProtocols
   )
 
-  return acceptedProtocols.includes('gemini')
-    ? [...PROTOCOL_GATEWAY_GEMINI_BATCH_REQUEST_FORMATS]
-    : []
+  if (!acceptedProtocols.includes('gemini')) {
+    return []
+  }
+
+  return PROTOCOL_GATEWAY_DESCRIPTORS.gemini.requestFormats.filter((format) =>
+    isGeminiBatchRequestFormat(format)
+  )
 }
 
 export function applyProtocolGatewayGeminiBatchExtra(

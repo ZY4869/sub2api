@@ -18,13 +18,15 @@ export const protocolGatewayAuditedVueFiles = [
 
 export const protocolGatewayAuditedScriptFiles = [
   ...protocolGatewayAuditedVueFiles,
+  'src/utils/accountProtocolGateway.ts',
   'src/utils/accountGatewayTestDefaults.ts',
   'src/utils/accountModelScopeCandidates.ts',
   'src/utils/providerLabels.ts'
 ]
 
 export const protocolGatewayExcludedGeneratedFiles = [
-  'src/generated/modelRegistry.ts'
+  'src/generated/modelRegistry.ts',
+  'src/generated/protocolGateway.ts'
 ]
 
 export const protocolGatewayExactLiteralAllowlist: ProtocolGatewayLocalizationExactLiteral[] = []

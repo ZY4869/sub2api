@@ -403,7 +403,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 						break
 					}
-					googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts_detail", "No available Gemini accounts: %s", err.Error())
+					googleNoAvailableAccountsError(c, err)
 					return
 				}
 				action := fs.HandleSelectionExhausted(c.Request.Context())
@@ -745,7 +745,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), apiKey.GroupID, sessionKey, selectionModel, fs.FailedAccountIDs, "") // Gemini 不使用会话限制
 		if err != nil {
 			if len(fs.FailedAccountIDs) == 0 {
-				googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts_detail", "No available Gemini accounts: %s", err.Error())
+				googleNoAvailableAccountsError(c, err)
 				return
 			}
 			action := fs.HandleSelectionExhausted(c.Request.Context())

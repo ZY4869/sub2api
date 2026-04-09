@@ -198,6 +198,9 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.text()).toContain('Gemini')
     expect(wrapper.text()).toContain('/v1/chat/completions')
     expect(wrapper.text()).toContain('/v1beta/models/{model}:generateContent')
+    expect(wrapper.text()).toContain('/upload/v1beta/files')
+    expect(wrapper.text()).toContain('/google/batch/archive/v1beta/batches')
+    expect(wrapper.text()).toContain('/v1/projects/:project/locations/:location/batchPredictionJobs')
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.clientProfileCodex')
 
     const applyAllGeminiCliButton = findButtonByText(

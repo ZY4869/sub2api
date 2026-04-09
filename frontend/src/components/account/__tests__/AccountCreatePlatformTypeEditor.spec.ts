@@ -200,6 +200,9 @@ describe('AccountCreatePlatformTypeEditor', () => {
     expect(wrapper.get('[data-testid="selected-option"]').text()).toContain('/v1/chat/completions')
     expect(wrapper.text()).toContain('/v1/responses')
     expect(wrapper.text()).toContain('/v1/messages')
+    expect(wrapper.text()).toContain('/v1beta/models/{model}:streamGenerateContent')
+    expect(wrapper.text()).toContain('/google/batch/archive/v1beta/batches')
+    expect(wrapper.text()).toContain('/v1/projects/:project/locations/:location/batchPredictionJobs')
 
     const anthropicButton = wrapper.findAll('.select-option').find((button) =>
       button.text().includes('Anthropic')

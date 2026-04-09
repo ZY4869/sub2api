@@ -116,3 +116,41 @@ func TestGoogleErrorPendingRequestsUsesStableMessage(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, recorder.Code)
 	require.Equal(t, "Too many pending requests, please retry later", payload.Error.Message)
 }
+
+func TestGoogleNoAvailableAccountsErrorUsesKnownReasonMapping(t *testing.T) {
+	t.Parallel()
+	gin.SetMode(gin.TestMode)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1beta/models/gemini-2.5-pro:generateContent", nil)
+	c.Request.Header.Set("Accept-Language", "en")
+
+	googleNoAvailableAccountsError(c, infraerrors.ServiceUnavailable("GROUP_EXHAUSTED", "all accounts in the group have been exhausted"))
+
+	var payload geminiGoogleErrorPayload
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+	require.Equal(t, "All accounts in the selected group have been exhausted", payload.Error.Message)
+	require.Len(t, payload.Error.Details, 1)
+	require.Equal(t, "GROUP_EXHAUSTED", payload.Error.Details[0].Reason)
+}
+
+func TestGoogleNoAvailableAccountsErrorDoesNotExposeRawDetail(t *testing.T) {
+	t.Parallel()
+	gin.SetMode(gin.TestMode)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1beta/models/gemini-2.5-pro:generateContent", nil)
+	c.Request.Header.Set("Accept-Language", "en")
+
+	googleNoAvailableAccountsError(c, errors.New("sensitive upstream selection detail"))
+
+	var payload geminiGoogleErrorPayload
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+	require.Equal(t, "No available Gemini accounts", payload.Error.Message)
+	require.NotContains(t, payload.Error.Message, "sensitive upstream selection detail")
+	require.Empty(t, payload.Error.Details)
+}

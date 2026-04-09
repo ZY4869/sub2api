@@ -85,6 +85,17 @@ func googleErrorPendingRequests(c *gin.Context) {
 	googleErrorKey(c, http.StatusTooManyRequests, "gateway.gemini.pending_requests", "Too many pending requests, please retry later")
 }
 
+func googleNoAvailableAccountsError(c *gin.Context, err error) {
+	if strings.TrimSpace(infraerrors.Reason(err)) != "" {
+		googleErrorFromServiceError(c, err)
+		return
+	}
+	if err != nil {
+		slog.Warn("gateway_gemini_no_available_accounts_unkeyed", "error", err.Error())
+	}
+	googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts", "No available Gemini accounts")
+}
+
 func geminiReasonLocalization(reason string) (geminiErrorLocalization, bool) {
 	localization, ok := geminiReasonLocalizations[strings.TrimSpace(reason)]
 	return localization, ok

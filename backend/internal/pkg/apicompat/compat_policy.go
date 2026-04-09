@@ -103,6 +103,8 @@ const (
 	CompatReasonGeminiMediaResolutionInvalid     = "COMPAT_GEMINI_MEDIA_RESOLUTION_INVALID"
 	CompatReasonGeminiMediaResolutionUnsupported = "COMPAT_GEMINI_MEDIA_RESOLUTION_UNSUPPORTED"
 	CompatReasonRuntimeRegistryMissing           = "COMPAT_RUNTIME_REGISTRY_MISSING"
+	CompatReasonUpstreamRequestFailed            = "COMPAT_UPSTREAM_REQUEST_FAILED"
+	CompatReasonUpstreamTerminalEventMissing     = "COMPAT_UPSTREAM_TERMINAL_EVENT_MISSING"
 )
 
 var anthropicMessagesToResponsesCompatPolicy = CompatPolicy{

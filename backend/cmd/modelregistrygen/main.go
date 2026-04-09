@@ -24,6 +24,17 @@ type tsSnapshot struct {
 	Presets        []modelregistry.PresetMapping `json:"presets"`
 }
 
+type protocolGatewayTSSnapshotDescriptor struct {
+	ID                  string   `json:"id"`
+	DisplayName         string   `json:"displayName"`
+	RequestFormats      []string `json:"requestFormats"`
+	DefaultBaseURL      string   `json:"defaultBaseUrl"`
+	APIKeyPlaceholder   string   `json:"apiKeyPlaceholder"`
+	ModelImportStrategy string   `json:"modelImportStrategy"`
+	TestStrategy        string   `json:"testStrategy"`
+	TargetGroupPlatform string   `json:"targetGroupPlatform"`
+}
+
 func main() {
 	root, err := resolveRepoRoot()
 	if err != nil {
@@ -57,6 +68,10 @@ func main() {
 		{
 			path:    filepath.Join(root, "frontend", "src", "generated", "modelRegistry.ts"),
 			content: renderTypeScriptSnapshot(snapshot, builtAt),
+		},
+		{
+			path:    filepath.Join(root, "frontend", "src", "generated", "protocolGateway.ts"),
+			content: renderProtocolGatewayTypeScriptSnapshot(protocolGatewayDescriptorsSnapshot(), builtAt),
 		},
 	}
 
@@ -229,6 +244,31 @@ func renderTypeScriptSnapshot(snapshot tsSnapshot, builtAt string) []byte {
 	return buf.Bytes()
 }
 
+func renderProtocolGatewayTypeScriptSnapshot(snapshot map[string]protocolGatewayTSSnapshotDescriptor, builtAt string) []byte {
+	payload, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		exitWithError(err)
+	}
+
+	var buf bytes.Buffer
+	mustWriteString(&buf, "import type { GatewayAcceptedProtocol, GatewayProtocol } from '@/types'\n\n")
+	mustWriteString(&buf, "export interface GeneratedProtocolGatewayDescriptor {\n")
+	mustWriteString(&buf, "  id: GatewayProtocol\n")
+	mustWriteString(&buf, "  displayName: string\n")
+	mustWriteString(&buf, "  requestFormats: string[]\n")
+	mustWriteString(&buf, "  defaultBaseUrl: string\n")
+	mustWriteString(&buf, "  apiKeyPlaceholder: string\n")
+	mustWriteString(&buf, "  modelImportStrategy: GatewayProtocol\n")
+	mustWriteString(&buf, "  testStrategy: GatewayProtocol\n")
+	mustWriteString(&buf, "  targetGroupPlatform: GatewayAcceptedProtocol | ''\n")
+	mustWriteString(&buf, "}\n\n")
+	mustWriteString(&buf, fmt.Sprintf("export const generatedProtocolGatewayBuiltAt = %q\n\n", builtAt))
+	mustWriteString(&buf, "export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = ")
+	mustWrite(&buf, payload)
+	mustWriteString(&buf, "\n")
+	return buf.Bytes()
+}
+
 func normalizeModels(models []modelregistry.ModelEntry) []modelregistry.ModelEntry {
 	items := make([]modelregistry.ModelEntry, len(models))
 	for index, model := range models {
@@ -252,6 +292,33 @@ func normalizeModels(models []modelregistry.ModelEntry) []modelregistry.ModelEnt
 		}
 	}
 	return items
+}
+
+func protocolGatewayDescriptorsSnapshot() map[string]protocolGatewayTSSnapshotDescriptor {
+	protocols := []string{
+		service.GatewayProtocolOpenAI,
+		service.GatewayProtocolAnthropic,
+		service.GatewayProtocolGemini,
+		service.GatewayProtocolMixed,
+	}
+	descriptors := make(map[string]protocolGatewayTSSnapshotDescriptor, len(protocols))
+	for _, protocol := range protocols {
+		descriptor, ok := service.ProtocolGatewayDescriptorByID(protocol)
+		if !ok {
+			exitWithError(fmt.Errorf("missing protocol gateway descriptor for %s", protocol))
+		}
+		descriptors[protocol] = protocolGatewayTSSnapshotDescriptor{
+			ID:                  descriptor.ID,
+			DisplayName:         descriptor.DisplayName,
+			RequestFormats:      append([]string(nil), descriptor.RequestFormats...),
+			DefaultBaseURL:      descriptor.DefaultBaseURL,
+			APIKeyPlaceholder:   descriptor.APIKeyPlaceholder,
+			ModelImportStrategy: descriptor.ModelImportStrategy,
+			TestStrategy:        descriptor.TestStrategy,
+			TargetGroupPlatform: descriptor.TargetGroupPlatform,
+		}
+	}
+	return descriptors
 }
 
 func clonePreferredProtocolIDs(values map[string]string) map[string]string {

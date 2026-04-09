@@ -23,6 +23,11 @@ const allowedAttributeValuePatterns = [
   /^[A-Za-z0-9._:/-]+$/
 ]
 
+function resolveAuditedFiles(relativePaths: string[]): string[] {
+  const excluded = new Set(protocolGatewayExcludedGeneratedFiles)
+  return relativePaths.filter((relativePath) => !excluded.has(relativePath))
+}
+
 function toAbsolute(relativePath: string): string {
   return path.join(frontendRoot, relativePath)
 }
@@ -103,13 +108,20 @@ describe('protocol gateway localization audit', () => {
       'src/components/admin/account/BlacklistRetestModal.vue',
       'src/utils/accountGatewayTestDefaults.ts',
       'src/utils/accountModelScopeCandidates.ts',
+      'src/utils/accountProtocolGateway.ts',
       'src/utils/providerLabels.ts'
     ])
-    expect(protocolGatewayExcludedGeneratedFiles).toEqual(['src/generated/modelRegistry.ts'])
+    expect(protocolGatewayExcludedGeneratedFiles).toEqual([
+      'src/generated/modelRegistry.ts',
+      'src/generated/protocolGateway.ts'
+    ])
+    expect(
+      resolveAuditedFiles(protocolGatewayAuditedScriptFiles).includes('src/generated/protocolGateway.ts')
+    ).toBe(false)
   })
 
   it('does not leave hard-coded user text in audited Vue templates', () => {
-    const offenders = protocolGatewayAuditedVueFiles.flatMap((relativePath) => {
+    const offenders = resolveAuditedFiles(protocolGatewayAuditedVueFiles).flatMap((relativePath) => {
       const source = fs.readFileSync(toAbsolute(relativePath), 'utf8')
       const template = extractTemplate(source)
       return [
@@ -122,7 +134,7 @@ describe('protocol gateway localization audit', () => {
   })
 
   it('does not leave hard-coded user text in audited scripts', () => {
-    const offenders = protocolGatewayAuditedScriptFiles.flatMap((relativePath) => {
+    const offenders = resolveAuditedFiles(protocolGatewayAuditedScriptFiles).flatMap((relativePath) => {
       const source = fs.readFileSync(toAbsolute(relativePath), 'utf8')
       return collectScriptStringOffenders(relativePath, source).map((value) => `${relativePath}::script::${value}`)
     })
