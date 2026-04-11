@@ -59,22 +59,63 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		compatPromptCacheInjected = promptCacheKey != ""
 	}
 
-	// 3. Convert to Responses and forward
-	// ChatCompletionsToResponses always sets Stream=true (upstream always streams).
-	responsesReq, _, err := ConvertChatCompletionsToResponsesRuntime(&chatReq)
-	if err != nil {
-		if writeLocalizedCompatError(c, writeChatCompletionsError, "invalid_request_error", err) {
-			return nil, err
+	// 3. Build the upstream Responses body. Cursor cloud can POST a
+	// Responses-shaped payload to /v1/chat/completions, so preserve the raw
+	// `input` array instead of round-tripping it through ChatCompletionsRequest.
+	isResponsesShape := !gjson.GetBytes(body, "messages").Exists() && gjson.GetBytes(body, "input").Exists()
+
+	var (
+		responsesReq  *apicompat.ResponsesRequest
+		responsesBody []byte
+		err           error
+	)
+	if isResponsesShape {
+		responsesBody, err = sjson.SetBytes(body, "model", mappedModel)
+		if err != nil {
+			return nil, fmt.Errorf("rewrite model in responses-shape body: %w", err)
 		}
-		return nil, fmt.Errorf("convert chat completions to responses: %w", err)
+		for _, unsupportedField := range []string{
+			"prompt_cache_retention",
+			"safety_identifier",
+			"metadata",
+			"stream_options",
+		} {
+			if !gjson.GetBytes(responsesBody, unsupportedField).Exists() {
+				continue
+			}
+			responsesBody, err = sjson.DeleteBytes(responsesBody, unsupportedField)
+			if err != nil {
+				return nil, fmt.Errorf("strip unsupported responses field %s: %w", unsupportedField, err)
+			}
+		}
+		responsesReq = &apicompat.ResponsesRequest{
+			Model:       mappedModel,
+			ServiceTier: gjson.GetBytes(responsesBody, "service_tier").String(),
+		}
+		if effort := gjson.GetBytes(responsesBody, "reasoning.effort").String(); effort != "" {
+			responsesReq.Reasoning = &apicompat.ResponsesReasoning{Effort: effort}
+		}
+	} else {
+		responsesReq, _, err = ConvertChatCompletionsToResponsesRuntime(&chatReq)
+		if err != nil {
+			if writeLocalizedCompatError(c, writeChatCompletionsError, "invalid_request_error", err) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("convert chat completions to responses: %w", err)
+		}
+		responsesReq.Model = mappedModel
+		responsesBody, err = json.Marshal(responsesReq)
+		if err != nil {
+			return nil, fmt.Errorf("marshal responses request: %w", err)
+		}
 	}
-	responsesReq.Model = mappedModel
 
 	logFields := []zap.Field{
 		zap.Int64("account_id", account.ID),
 		zap.String("original_model", originalModel),
 		zap.String("mapped_model", mappedModel),
 		zap.Bool("stream", clientStream),
+		zap.Bool("responses_shape", isResponsesShape),
 	}
 	if compatPromptCacheInjected {
 		logFields = append(logFields,
@@ -83,12 +124,6 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		)
 	}
 	logger.L().Debug("openai chat_completions: model mapping applied", logFields...)
-
-	// 4. Marshal Responses request body, then apply OAuth codex transform
-	responsesBody, err := json.Marshal(responsesReq)
-	if err != nil {
-		return nil, fmt.Errorf("marshal responses request: %w", err)
-	}
 
 	if isChatGPTOpenAIOAuthAccount(account) {
 		var reqBody map[string]any
