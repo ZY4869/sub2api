@@ -16,8 +16,17 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 )
+
+var cursorResponsesUnsupportedFields = []string{
+	"prompt_cache_retention",
+	"safety_identifier",
+	"metadata",
+	"stream_options",
+}
 
 // ForwardAsChatCompletions accepts a Chat Completions request body, converts it
 // to OpenAI Responses API format, forwards to the OpenAI upstream, and converts
@@ -74,12 +83,7 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 		if err != nil {
 			return nil, fmt.Errorf("rewrite model in responses-shape body: %w", err)
 		}
-		for _, unsupportedField := range []string{
-			"prompt_cache_retention",
-			"safety_identifier",
-			"metadata",
-			"stream_options",
-		} {
+		for _, unsupportedField := range cursorResponsesUnsupportedFields {
 			if !gjson.GetBytes(responsesBody, unsupportedField).Exists() {
 				continue
 			}
