@@ -35,7 +35,7 @@ func appendBundledModelCatalogSeedDetails(base []modelregistry.AdminModelDetail)
 				availability[candidate] = false
 			}
 		}
-		if id := normalizeRegistryID(detail.ModelEntry.ID); id != "" {
+		if id := normalizeRegistryID(detail.ID); id != "" {
 			seen[id] = struct{}{}
 		}
 	}

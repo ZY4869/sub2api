@@ -15,10 +15,10 @@ import (
 )
 
 type geminiLiveUsageState struct {
-	mu          sync.Mutex
-	usage       service.ClaudeUsage
-	mediaType   string
-	requestID   string
+	mu            sync.Mutex
+	usage         service.ClaudeUsage
+	mediaType     string
+	requestID     string
 	upstreamModel string
 }
 

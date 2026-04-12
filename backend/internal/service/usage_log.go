@@ -190,26 +190,26 @@ type UsageLog struct {
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
 
-	BillingType     int8
-	RequestType     RequestType
-	Status          string
-	Stream          bool
-	OpenAIWSMode    bool
-	DurationMs      *int
-	FirstTokenMs    *int
-	UserAgent       *string
-	IPAddress       *string
-	HTTPStatus      *int
-	ErrorCode       *string
-	ErrorMessage    *string
-	SimulatedClient     *string
-	OperationType       *string
-	ChargeSource        *string
-	GeminiSurface       *string
-	GeminiBatchMode     *string
-	GeminiCachePhase    *string
-	GeminiGroundingKind *string
-	GeminiInputModality *string
+	BillingType          int8
+	RequestType          RequestType
+	Status               string
+	Stream               bool
+	OpenAIWSMode         bool
+	DurationMs           *int
+	FirstTokenMs         *int
+	UserAgent            *string
+	IPAddress            *string
+	HTTPStatus           *int
+	ErrorCode            *string
+	ErrorMessage         *string
+	SimulatedClient      *string
+	OperationType        *string
+	ChargeSource         *string
+	GeminiSurface        *string
+	GeminiBatchMode      *string
+	GeminiCachePhase     *string
+	GeminiGroundingKind  *string
+	GeminiInputModality  *string
 	GeminiOutputModality *string
 
 	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）

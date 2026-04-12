@@ -9,11 +9,9 @@ import (
 )
 
 func buildGeminiPassthroughForwardResult(input GeminiPublicPassthroughInput, requestedModel string, headers http.Header, body []byte, duration time.Duration, stream bool) *ForwardResult {
-	usage := ClaudeUsage{}
+	usage := extractOpenAICompatUsage(body)
 	if parsed := extractGeminiUsage(body); parsed != nil {
 		usage = *parsed
-	} else {
-		usage = extractOpenAICompatUsage(body)
 	}
 	requestID := strings.TrimSpace(firstNonEmptyString(
 		headers.Get("x-request-id"),

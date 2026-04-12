@@ -19,29 +19,29 @@ type UsageBillingCommand struct {
 	RequestFingerprint string
 	RequestPayloadHash string
 
-	UserID              int64
-	AccountID           int64
-	GroupID             *int64
-	SubscriptionID      *int64
-	AccountType         string
-	Model               string
-	ServiceTier         string
-	ReasoningEffort     string
-	OperationType       string
-	ChargeSource        string
-	GeminiSurface       string
-	GeminiBatchMode     string
-	GeminiCachePhase    string
-	GeminiGroundingKind string
-	GeminiInputModality string
+	UserID               int64
+	AccountID            int64
+	GroupID              *int64
+	SubscriptionID       *int64
+	AccountType          string
+	Model                string
+	ServiceTier          string
+	ReasoningEffort      string
+	OperationType        string
+	ChargeSource         string
+	GeminiSurface        string
+	GeminiBatchMode      string
+	GeminiCachePhase     string
+	GeminiGroundingKind  string
+	GeminiInputModality  string
 	GeminiOutputModality string
-	BillingType         int8
-	InputTokens         int
-	OutputTokens        int
-	CacheCreationTokens int
-	CacheReadTokens     int
-	ImageCount          int
-	MediaType           string
+	BillingType          int8
+	InputTokens          int
+	OutputTokens         int
+	CacheCreationTokens  int
+	CacheReadTokens      int
+	ImageCount           int
+	MediaType            string
 
 	BalanceCost          float64
 	SubscriptionCost     float64

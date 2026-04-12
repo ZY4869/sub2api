@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	UpstreamResourceKindGeminiFile     = "gemini_file"
-	UpstreamResourceKindGeminiBatch    = "gemini_batch"
-	UpstreamResourceKindVertexBatchJob = "vertex_batch_job"
+	UpstreamResourceKindGeminiFile            = "gemini_file"
+	UpstreamResourceKindGeminiBatch           = "gemini_batch"
+	UpstreamResourceKindVertexBatchJob        = "vertex_batch_job"
 	UpstreamResourceKindGeminiCachedContent   = "gemini_cached_content"
 	UpstreamResourceKindGeminiFileSearchStore = "gemini_file_search_store"
 	UpstreamResourceKindGeminiDocument        = "gemini_document"

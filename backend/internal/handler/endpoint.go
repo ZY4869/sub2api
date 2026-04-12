@@ -15,18 +15,18 @@ import (
 // ──────────────────────────────────────────────────────────
 
 const (
-	EndpointMessages         = service.EndpointMessages
-	EndpointChatCompletions  = service.EndpointChatCompletions
-	EndpointResponses        = service.EndpointResponses
-	EndpointImagesGen        = service.EndpointImagesGen
-	EndpointImagesEdits      = service.EndpointImagesEdits
-	EndpointVideosCreate     = service.EndpointVideosCreate
-	EndpointVideosGen        = service.EndpointVideosGen
-	EndpointVideosStatus     = service.EndpointVideosStatus
-	EndpointGeminiModels     = service.EndpointGeminiModels
-	EndpointGeminiFiles      = service.EndpointGeminiFiles
-	EndpointGeminiFilesUp    = service.EndpointGeminiFilesUp
-	EndpointGeminiBatches    = service.EndpointGeminiBatches
+	EndpointMessages               = service.EndpointMessages
+	EndpointChatCompletions        = service.EndpointChatCompletions
+	EndpointResponses              = service.EndpointResponses
+	EndpointImagesGen              = service.EndpointImagesGen
+	EndpointImagesEdits            = service.EndpointImagesEdits
+	EndpointVideosCreate           = service.EndpointVideosCreate
+	EndpointVideosGen              = service.EndpointVideosGen
+	EndpointVideosStatus           = service.EndpointVideosStatus
+	EndpointGeminiModels           = service.EndpointGeminiModels
+	EndpointGeminiFiles            = service.EndpointGeminiFiles
+	EndpointGeminiFilesUp          = service.EndpointGeminiFilesUp
+	EndpointGeminiBatches          = service.EndpointGeminiBatches
 	EndpointGeminiCachedContents   = service.EndpointGeminiCachedContents
 	EndpointGeminiFileSearchStores = service.EndpointGeminiFileSearchStores
 	EndpointGeminiDocuments        = service.EndpointGeminiDocuments
@@ -35,8 +35,8 @@ const (
 	EndpointGeminiInteractions     = service.EndpointGeminiInteractions
 	EndpointGeminiLive             = service.EndpointGeminiLive
 	EndpointGeminiOpenAICompat     = service.EndpointGeminiOpenAICompat
-	EndpointVertexSyncModels = service.EndpointVertexSyncModels
-	EndpointVertexBatchJobs  = service.EndpointVertexBatchJobs
+	EndpointVertexSyncModels       = service.EndpointVertexSyncModels
+	EndpointVertexBatchJobs        = service.EndpointVertexBatchJobs
 )
 
 // gin.Context keys used by the middleware and helpers below.

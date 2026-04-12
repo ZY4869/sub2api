@@ -293,15 +293,6 @@ func geminiMatrixRuleMatches(rule BillingRule, model string, layer string) bool 
 	return billingRuleMatchesModel(rule, model)
 }
 
-func hasGeminiMatrixRulesForModel(rules []BillingRule, model string, layer string) bool {
-	for _, rule := range rules {
-		if geminiMatrixRuleMatches(rule, model, layer) {
-			return true
-		}
-	}
-	return false
-}
-
 func canonicalGeminiMatrixRulesForModel(rules []BillingRule, model string, layer string) []BillingRule {
 	filtered := make([]BillingRule, 0, len(rules))
 	for _, rule := range rules {
