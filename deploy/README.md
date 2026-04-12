@@ -505,19 +505,15 @@ This repository already reuses `.github/workflows/release.yml` and `.goreleaser*
 
 ### Recommended Flow
 
-1. Create an annotated pre-release tag first:
-   ```bash
-   git tag -a v0.0.1-rc1 -m "v0.0.1-rc1"
-   git push origin v0.0.1-rc1
-   ```
-2. Confirm the `Release` workflow succeeds in GitHub Actions.
-3. Confirm GitHub Releases contains binaries and `checksums.txt`.
-4. Confirm GHCR contains `ghcr.io/zy4869/sub2api:v0.0.1-rc1`.
-5. Publish the final annotated tag after validation:
+1. Create the final annotated release tag directly:
    ```bash
    git tag -a v0.0.1 -m "v0.0.1"
    git push origin v0.0.1
    ```
+2. Confirm the `Release` workflow succeeds in GitHub Actions.
+3. Confirm GitHub Releases contains binaries and `checksums.txt`.
+4. Confirm GHCR contains `ghcr.io/zy4869/sub2api:v0.0.1`.
+5. Do not use `-rc` tags for release publishing; the workflow only accepts final tags in `v1.2.3` format.
 
 ### Optional Secrets
 

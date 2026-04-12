@@ -588,19 +588,15 @@ go generate ./cmd/server
 
 ### 推荐发布流程
 
-1. 先创建 annotated tag 做预发布验证：
-   ```bash
-   git tag -a v0.0.1-rc1 -m "v0.0.1-rc1"
-   git push origin v0.0.1-rc1
-   ```
-2. 在 GitHub Actions 中确认 `Release` workflow 执行成功。
-3. 在 GitHub Releases 中确认已生成二进制压缩包与 `checksums.txt`。
-4. 在 GHCR 中确认已生成 `ghcr.io/zy4869/sub2api:v0.0.1-rc1`。
-5. 验证无误后，再发布正式 tag：
+1. 直接创建正式版 annotated tag：
    ```bash
    git tag -a v0.0.1 -m "v0.0.1"
    git push origin v0.0.1
    ```
+2. 在 GitHub Actions 中确认 `Release` workflow 执行成功。
+3. 在 GitHub Releases 中确认已生成二进制压缩包与 `checksums.txt`。
+4. 在 GHCR 中确认已生成 `ghcr.io/zy4869/sub2api:v0.0.1`。
+5. 以后不要再使用 `-rc` 标签发布，工作流只接受 `v1.2.3` 这种正式版本格式。
 
 ### 可选 Secrets
 
