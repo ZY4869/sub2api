@@ -119,3 +119,46 @@ func TestRoutingPlatformsFromValuesForMixedProtocolGateway(t *testing.T) {
 
 	require.Equal(t, []string{PlatformGemini, PlatformOpenAI}, platforms)
 }
+
+func TestNormalizeProtocolGatewayExtra_OpenAIRequestFormatDefaultsToChatCompletions(t *testing.T) {
+	extra := NormalizeProtocolGatewayExtra(PlatformProtocolGateway, map[string]any{
+		"gateway_protocol": "openai",
+	}, "openai", "")
+
+	require.Equal(t, GatewayOpenAIRequestFormatChatCompletions, extra[gatewayExtraOpenAIRequestFormatKey])
+}
+
+func TestNormalizeProtocolGatewayExtra_OpenAIRequestFormatFallsBackWhenInvalid(t *testing.T) {
+	extra := NormalizeProtocolGatewayExtra(PlatformProtocolGateway, map[string]any{
+		"gateway_protocol":              "mixed",
+		"gateway_accepted_protocols":    []any{"openai", "anthropic"},
+		"gateway_openai_request_format": "/v1/invalid",
+	}, "mixed", "")
+
+	require.Equal(t, GatewayOpenAIRequestFormatChatCompletions, extra[gatewayExtraOpenAIRequestFormatKey])
+}
+
+func TestNormalizeProtocolGatewayExtra_RemovesOpenAIRequestFormatWhenOpenAINotAccepted(t *testing.T) {
+	extra := NormalizeProtocolGatewayExtra(PlatformProtocolGateway, map[string]any{
+		"gateway_protocol":              "gemini",
+		"gateway_openai_request_format": GatewayOpenAIRequestFormatResponses,
+	}, "gemini", "")
+
+	_, exists := extra[gatewayExtraOpenAIRequestFormatKey]
+	require.False(t, exists)
+}
+
+func TestResolveOpenAITextRequestFormatForAccount_UsesGatewayPreference(t *testing.T) {
+	account := &Account{
+		Platform: PlatformProtocolGateway,
+		Type:     AccountTypeAPIKey,
+		Extra: map[string]any{
+			"gateway_protocol":              GatewayProtocolOpenAI,
+			"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	require.Equal(t, GatewayOpenAIRequestFormatChatCompletions, ResolveOpenAITextRequestFormatForAccount(account, ""))
+	require.Equal(t, EndpointChatCompletions, ResolveOpenAITextRequestFormatForAccount(account, EndpointChatCompletions))
+	require.Equal(t, EndpointChatCompletions, ResolveOpenAITextRequestFormatForAccount(account, EndpointResponses))
+}

@@ -135,6 +135,29 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
   `
 })
 
+const AccountProtocolGatewayOpenAIRequestFormatEditorStub = defineComponent({
+  name: 'AccountProtocolGatewayOpenAIRequestFormatEditor',
+  props: {
+    value: {
+      type: String,
+      default: '/v1/chat/completions'
+    }
+  },
+  emits: ['update:value'],
+  template: `
+    <div>
+      <span data-testid="gateway-openai-request-format-prop">{{ value }}</span>
+      <button
+        type="button"
+        data-testid="set-gateway-openai-request-format"
+        @click="$emit('update:value', '/v1/responses')"
+      >
+        set openai request format
+      </button>
+    </div>
+  `
+})
+
 function buildAccount() {
   return {
     id: 1,
@@ -308,6 +331,34 @@ function buildProtocolGatewayGeminiAccount() {
   } as any
 }
 
+function buildProtocolGatewayOpenAIAccount() {
+  return {
+    id: 7,
+    name: 'OpenAI Gateway',
+    notes: '',
+    platform: 'protocol_gateway',
+    gateway_protocol: 'openai',
+    type: 'apikey',
+    credentials: {
+      api_key: 'gateway-key',
+      base_url: 'https://gateway.example.com'
+    },
+    extra: {
+      gateway_protocol: 'openai',
+      gateway_accepted_protocols: ['openai'],
+      gateway_openai_request_format: '/v1/chat/completions'
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
@@ -323,6 +374,7 @@ function mountModal(account = buildAccount()) {
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
         AccountApiKeyModelProbeEditor: true,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
+        AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
         AccountProtocolGatewayBatchEditor: true,
         AccountGeminiVertexCredentialsEditor: true,
         AccountModelScopeEditor: true,
@@ -512,5 +564,23 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_provider).toBe('openai')
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBe('gpt-5.4')
+  })
+
+  it('rehydrates and persists the protocol gateway OpenAI request format', async () => {
+    const account = buildProtocolGatewayOpenAIAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="gateway-openai-request-format-prop"]').text()).toBe('/v1/chat/completions')
+
+    await wrapper.get('[data-testid="set-gateway-openai-request-format"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_openai_request_format).toBe('/v1/responses')
   })
 })

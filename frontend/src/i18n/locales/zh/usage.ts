@@ -55,6 +55,7 @@ export default {
     firstToken: "\u9996 Token",
     duration: "\u8017\u65f6",
     time: "\u65f6\u95f4",
+    requestProtocol: "\u8bf7\u6c42\u534f\u8bae",
     endpoint: "\u7aef\u70b9",
     httpStatus: "HTTP \u72b6\u6001",
     errorCode: "\u9519\u8bef\u7801",
@@ -95,6 +96,17 @@ export default {
       responses: "\u54cd\u5e94\u63a5\u53e3",
       geminiModels: "Gemini \u6a21\u578b\u63a5\u53e3",
     },
+    protocolFamilies: {
+      openai: "OpenAI",
+      anthropic: "Anthropic",
+      gemini: "Gemini",
+      unknown: "\u672a\u77e5",
+    },
+    protocolModes: {
+      native: "\u539f\u751f",
+      compatible: "\u517c\u5bb9",
+    },
+    protocolTransition: "\u5165\u7ad9 -> \u4e0a\u6e38\uff1a{transition}",
     userAgentNames: {
       claudeCode: "Claude Code",
       codexCli: "Codex CLI",

@@ -154,6 +154,12 @@ import { useAppStore } from "@/stores/app";
 import { adminAPI } from "@/api/admin";
 import { adminUsageAPI } from "@/api/admin/usage";
 import { formatReasoningEffort, formatThinkingEnabled } from "@/utils/format";
+import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
+import {
+  calculateUsageAmount,
+  formatUsageAmount,
+  formatUsageMultiplier,
+} from "@/utils/usageCost";
 import { requestTypeToLegacyStream } from "@/utils/usageRequestType";
 import { getUsageOperationLabel } from "@/utils/usageOperation";
 import AppLayout from "@/components/layout/AppLayout.vue";
@@ -513,6 +519,7 @@ const exportToExcel = async () => {
       t("usage.upstreamModel"),
       t("usage.thinkingMode"),
       t("usage.reasoningEffort"),
+      t("usage.requestProtocol"),
       t("admin.usage.group"),
       t("usage.type"),
       t("usage.httpStatus"),
@@ -570,6 +577,7 @@ const exportToExcel = async () => {
         log.upstream_model || "",
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffort(log.reasoning_effort),
+        formatUsageProtocolExportText(log.inbound_endpoint, log.upstream_endpoint),
         log.group?.name || "",
         getRequestTypeLabel(log),
         log.http_status ?? "",
@@ -579,15 +587,15 @@ const exportToExcel = async () => {
         log.output_tokens,
         log.cache_read_tokens,
         log.cache_creation_tokens,
-        log.input_cost?.toFixed(6) || "0.000000",
-        log.output_cost?.toFixed(6) || "0.000000",
-        log.cache_read_cost?.toFixed(6) || "0.000000",
-        log.cache_creation_cost?.toFixed(6) || "0.000000",
-        log.rate_multiplier?.toFixed(2) || "1.00",
-        (log.account_rate_multiplier ?? 1).toFixed(2),
-        log.total_cost?.toFixed(6) || "0.000000",
-        log.actual_cost?.toFixed(6) || "0.000000",
-        (log.total_cost * (log.account_rate_multiplier ?? 1)).toFixed(6),
+        formatUsageAmount(log.input_cost),
+        formatUsageAmount(log.output_cost),
+        formatUsageAmount(log.cache_read_cost),
+        formatUsageAmount(log.cache_creation_cost),
+        formatUsageMultiplier(log.rate_multiplier),
+        formatUsageMultiplier(log.account_rate_multiplier),
+        formatUsageAmount(log.total_cost),
+        formatUsageAmount(log.actual_cost),
+        formatUsageAmount(calculateUsageAmount(log.total_cost, log.account_rate_multiplier)),
         log.billing_exempt_reason || "",
         log.first_token_ms ?? "",
         log.duration_ms,
@@ -647,6 +655,7 @@ const allColumns = computed(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
+  { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "group", label: t("admin.usage.group"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },

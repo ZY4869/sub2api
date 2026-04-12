@@ -66,6 +66,72 @@
       failedToLoad: '加载仪表盘数据失败'
     },
 
+    channels: {
+      nav: '渠道管理',
+      title: '渠道管理',
+      description: '管理渠道级分组绑定、模型映射与价格规则。',
+      createChannel: '创建渠道',
+      editChannel: '编辑渠道',
+      deleteChannel: '删除渠道',
+      deleteConfirm: '确认删除渠道“{name}”？此操作不可撤销。',
+      searchChannels: '搜索渠道...',
+      allStatus: '全部状态',
+      statusActive: '启用',
+      statusDisabled: '停用',
+      groupsUnit: '个分组',
+      pricingUnit: '条价格规则',
+      noChannelsYet: '暂无渠道',
+      createFirstChannel: '创建第一个渠道，用于管理分组路由和模型定价。',
+      nameRequired: '请输入渠道名称',
+      noGroupsSelected: '至少选择一个分组',
+      emptyModelsInPricing: '价格规则必须填写模型 ID',
+      mappingConflict: '当前平台页存在重复的源模型映射',
+      modelConflict: '当前平台页存在重复的定价模型',
+      loadError: '加载渠道列表失败',
+      createSuccess: '渠道创建成功',
+      createError: '渠道创建失败',
+      updateSuccess: '渠道更新成功',
+      updateError: '渠道更新失败',
+      deleteSuccess: '渠道删除成功',
+      deleteError: '渠道删除失败',
+      columns: {
+        name: '名称',
+        description: '描述',
+        status: '状态',
+        groups: '分组',
+        pricing: '定价',
+        createdAt: '创建时间',
+        actions: '操作'
+      },
+      form: {
+        basicSettings: '基础设置',
+        name: '名称',
+        namePlaceholder: '请输入渠道名称',
+        description: '描述',
+        descriptionPlaceholder: '可选描述',
+        status: '状态',
+        restrictModels: '限制模型',
+        restrictModelsHint: '开启后，仅允许当前渠道定价列表中的模型通过。',
+        billingModelSource: '计费依据',
+        billingModelSourceHint: '选择定价查找时使用的模型 ID。',
+        billingModelSourceRequested: '请求模型',
+        billingModelSourceUpstream: '上游模型',
+        billingModelSourceChannelMapped: '渠道映射模型',
+        platformConfig: '平台配置',
+        groups: '关联分组',
+        selectedCount: '已选择 {count} 个',
+        noGroupsAvailable: '暂无可用分组',
+        inOtherChannel: '已被其他渠道使用',
+        modelMapping: '模型映射',
+        noMappingRules: '暂无映射规则',
+        mappingSource: '源模型',
+        mappingTarget: '目标模型',
+        modelPricing: '模型定价',
+        noPricingRules: '暂无定价规则',
+        perRequestPriceRequired: '按次价格不能为空'
+      }
+    },
+
     models: {
       title: '模型库',
       description: '浏览可用模型、完整模型注册表，以及独立的计费中心配置。',
@@ -1950,6 +2016,16 @@
           hint: '保持 Google 官方原生协议，不引入自定义 Batch DTO。AI Studio 走 Files API + Batch API；Vertex AI 走 batchPredictionJobs。',
           toggle: '启用 Gemini Batch',
           toggleHint: '仅对 Gemini 子协议生效。关闭时继续保持现有同步 Gemini 行为，不暴露 Files / Batch 路径。'
+        },
+        openaiRequestFormat: {
+          title: 'OpenAI 文本请求格式',
+          description: '控制该协议网关账号默认使用哪一种 OpenAI 文本请求格式。账号测试、定时测试和真实转发都会遵循这里的选择。',
+          label: '默认 OpenAI 格式',
+          hint: '兼容型上游默认建议使用 chat/completions；如果你的上游原生以 Responses 为主，可以切换为 /v1/responses。',
+          options: {
+            chatCompletions: 'OpenAI 兼容 · /v1/chat/completions',
+            responses: 'OpenAI 原生 · /v1/responses'
+          }
         },
         baseUrlInvalidWarning: 'Base URL 格式不正确，请填写以 http:// 或 https:// 开头的完整地址。',
         baseUrlLoopbackWarning:

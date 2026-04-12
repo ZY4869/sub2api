@@ -99,7 +99,7 @@ func (h *OpenAIGatewayHandler) submitFailedUsageRecordTask(
 	userAgent := c.GetHeader("User-Agent")
 	clientIP := ip.GetClientIP(c)
 	inboundEndpoint := GetInboundEndpoint(c)
-	upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
+	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 	simulatedClient := resolveFailedUsageSimulatedClient(account, service.PlatformOpenAI, model)
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
@@ -153,7 +153,7 @@ func (h *GatewayHandler) submitFailedUsageRecordTask(
 	userAgent := c.GetHeader("User-Agent")
 	clientIP := ip.GetClientIP(c)
 	inboundEndpoint := GetInboundEndpoint(c)
-	upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
+	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 	simulatedClient := resolveFailedUsageSimulatedClient(account, protocol, model)
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
@@ -209,7 +209,7 @@ func (h *GrokGatewayHandler) submitFailedUsageRecordTask(
 	userAgent := c.GetHeader("User-Agent")
 	clientIP := ip.GetClientIP(c)
 	inboundEndpoint := GetInboundEndpoint(c)
-	upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
+	upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 
 	h.submitUsageRecordTask(func(ctx context.Context) {
 		if recordErr := h.gatewayService.RecordFailedUsage(ctx, &service.RecordFailedUsageInput{

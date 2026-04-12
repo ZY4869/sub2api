@@ -320,6 +320,115 @@ describe("user UsageView tooltip", () => {
     clickSpy.mockRestore();
   });
 
+  it("keeps rendering and exporting rows when cost fields are undefined, null, or NaN", async () => {
+    const exportedLogs = [
+      {
+        request_id: "req-user-unpriced",
+        actual_cost: undefined,
+        total_cost: Number.NaN,
+        rate_multiplier: undefined,
+        service_tier: "standard",
+        input_cost: null,
+        output_cost: undefined,
+        cache_creation_cost: Number.NaN,
+        cache_read_cost: null,
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_tokens: 0,
+        cache_read_tokens: 0,
+        cache_creation_5m_tokens: 0,
+        cache_creation_1h_tokens: 0,
+        image_count: 0,
+        image_size: null,
+        first_token_ms: null,
+        duration_ms: 12,
+        created_at: "2026-03-08T00:00:00Z",
+        model: "gpt-5.4",
+        thinking_enabled: false,
+        reasoning_effort: null,
+        inbound_endpoint: "/v1/chat/completions",
+        upstream_endpoint: "/v1/chat/completions",
+        api_key: { name: "demo-key" },
+      },
+    ];
+
+    query.mockResolvedValue({
+      items: exportedLogs,
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 12,
+    });
+    list.mockResolvedValue({ items: [] });
+
+    let exportedBlob: Blob | null = null;
+    const originalCreateObjectURL = window.URL.createObjectURL;
+    const originalRevokeObjectURL = window.URL.revokeObjectURL;
+    const OriginalBlob = globalThis.Blob;
+    class MockBlob {
+      private readonly content: string;
+
+      constructor(parts: Array<BlobPart>) {
+        this.content = parts.map((part) => String(part)).join("");
+      }
+
+      text() {
+        return Promise.resolve(this.content);
+      }
+    }
+    vi.stubGlobal("Blob", MockBlob as typeof Blob);
+    window.URL.createObjectURL = vi.fn((blob: Blob | MediaSource) => {
+      exportedBlob = blob as Blob;
+      return "blob:usage-export-invalid";
+    }) as typeof window.URL.createObjectURL;
+    window.URL.revokeObjectURL = vi.fn(
+      () => {},
+    ) as typeof window.URL.revokeObjectURL;
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    const columns = setupState.columns.value ?? setupState.columns;
+    expect(columns.map((column: { key: string }) => column.key)).toContain("request_protocol");
+
+    await setupState.exportToCSV();
+
+    expect(exportedBlob).not.toBeNull();
+    const csvText = await exportedBlob!.text();
+    expect(csvText).toContain("demo-key");
+    expect(csvText).toContain("gpt-5.4");
+    expect(csvText).toContain("OpenAI /v1/chat/completions Native");
+    expect(showError).not.toHaveBeenCalled();
+
+    window.URL.createObjectURL = originalCreateObjectURL;
+    window.URL.revokeObjectURL = originalRevokeObjectURL;
+    vi.stubGlobal("Blob", OriginalBlob);
+    clickSpy.mockRestore();
+  });
+
   it("formats failed status labels and simulated client tags for failed rows", async () => {
     query.mockResolvedValue({
       items: [

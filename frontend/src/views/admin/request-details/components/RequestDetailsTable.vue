@@ -2,12 +2,12 @@
 import { useI18n } from 'vue-i18n'
 import Pagination from '@/components/common/Pagination.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
+import ProtocolPairDisplay from '@/components/common/ProtocolPairDisplay.vue'
 import type { OpsRequestTraceListItem } from '@/api/admin/ops'
 import { formatDateTime, formatNumber } from '@/utils/format'
 import TruncatedCopyText from './TruncatedCopyText.vue'
 import {
   formatDurationMs,
-  getProtocolPairLabel,
   getRequestTraceCaptureReasonLabel,
   getRequestTraceFlagBadges,
   getRequestTraceFinishReasonLabel,
@@ -22,11 +22,13 @@ const props = defineProps<{
   page: number
   pageSize: number
   loading: boolean
+  refreshing?: boolean
   selectedId?: number | null
 }>()
 
 const emit = defineEmits<{
   (e: 'select', value: OpsRequestTraceListItem): void
+  (e: 'refresh'): void
   (e: 'update:page', value: number): void
   (e: 'update:pageSize', value: number): void
 }>()
@@ -70,8 +72,7 @@ function getRouteSummary(item: OpsRequestTraceListItem): string {
     item.platform,
     item.gemini_surface,
     item.probe_action,
-    item.billing_rule_id,
-    getProtocolPairLabel(t, item.protocol_in, item.protocol_out)
+    item.billing_rule_id
   ])
 }
 
@@ -131,13 +132,18 @@ function getModelTitle(modelId?: string | null) {
           {{ t('admin.requestDetails.table.description') }}
         </p>
       </div>
-      <div class="text-xs text-gray-400 dark:text-gray-500">
-        {{ t('common.total') }}: {{ formatNumber(total) }}
+      <div class="flex items-center gap-3">
+        <button class="btn btn-secondary btn-sm" type="button" :disabled="loading || refreshing" @click="emit('refresh')">
+          {{ t('common.refresh') }}
+        </button>
+        <div class="text-xs text-gray-400 dark:text-gray-500">
+          {{ t('common.total') }}: {{ formatNumber(total) }}
+        </div>
       </div>
     </div>
 
     <div class="overflow-x-auto">
-      <table class="min-w-[1480px] divide-y divide-gray-200 whitespace-nowrap dark:divide-dark-700">
+      <table class="min-w-[1640px] divide-y divide-gray-200 whitespace-nowrap dark:divide-dark-700">
         <thead class="bg-gray-50 dark:bg-dark-900">
           <tr>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -148,6 +154,9 @@ function getModelTitle(modelId?: string | null) {
             </th>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {{ t('admin.requestDetails.table.columns.subject') }}
+            </th>
+            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              {{ t('admin.requestDetails.table.columns.protocolPair') }}
             </th>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {{ t('admin.requestDetails.table.columns.route') }}
@@ -172,13 +181,13 @@ function getModelTitle(modelId?: string | null) {
 
         <tbody class="divide-y divide-gray-200 dark:divide-dark-700">
           <tr v-if="loading" v-for="i in 8" :key="i">
-            <td v-for="j in 9" :key="j" class="px-4 py-4">
+            <td v-for="j in 10" :key="j" class="px-4 py-4">
               <div class="h-4 animate-pulse rounded bg-gray-100 dark:bg-dark-700"></div>
             </td>
           </tr>
 
           <tr v-else-if="props.items.length === 0">
-            <td colspan="9" class="px-4 py-14 text-center text-sm text-gray-500 dark:text-gray-400">
+            <td colspan="10" class="px-4 py-14 text-center text-sm text-gray-500 dark:text-gray-400">
               {{ t('admin.requestDetails.table.empty') }}
             </td>
           </tr>
@@ -209,6 +218,13 @@ function getModelTitle(modelId?: string | null) {
                 :display-text="getSubjectSummary(item)"
                 :copy-value="getSubjectSummary(item)"
                 :title-text="getSubjectSummary(item)"
+              />
+            </td>
+
+            <td class="px-4 py-3">
+              <ProtocolPairDisplay
+                :protocol-in="item.protocol_in"
+                :protocol-out="item.protocol_out"
               />
             </td>
 

@@ -569,6 +569,7 @@ export type AccountPlatformCountSortOrder = "count_asc" | "count_desc";
 export type GatewayProtocol = "openai" | "anthropic" | "gemini" | "mixed";
 export type GatewayAcceptedProtocol = "openai" | "anthropic" | "gemini";
 export type GatewayClientProfile = "codex" | "gemini_cli";
+export type GatewayOpenAIRequestFormat = "/v1/chat/completions" | "/v1/responses";
 export interface GatewayClientRoute {
   protocol: GatewayAcceptedProtocol;
   match_type: "exact" | "prefix";
@@ -760,6 +761,9 @@ export interface Account {
       string,
       { rate_limited_at: string; rate_limit_reset_at: string }
     >;
+    gateway_protocol?: GatewayProtocol;
+    gateway_accepted_protocols?: GatewayAcceptedProtocol[];
+    gateway_openai_request_format?: GatewayOpenAIRequestFormat;
   } & Record<string, unknown>;
   proxy_id: number | null;
   concurrency: number;
@@ -1209,14 +1213,14 @@ export interface UsageLog {
   cache_creation_5m_tokens: number;
   cache_creation_1h_tokens: number;
 
-  input_cost: number;
-  output_cost: number;
-  cache_creation_cost: number;
-  cache_read_cost: number;
-  total_cost: number;
-  actual_cost: number;
+  input_cost: number | null;
+  output_cost: number | null;
+  cache_creation_cost: number | null;
+  cache_read_cost: number | null;
+  total_cost: number | null;
+  actual_cost: number | null;
   billing_exempt_reason?: "admin_free" | null;
-  rate_multiplier: number;
+  rate_multiplier: number | null;
   billing_type: number;
 
   request_type?: UsageRequestType;

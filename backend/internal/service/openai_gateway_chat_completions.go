@@ -32,6 +32,11 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	promptCacheKey string,
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	account = ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI)
+	if ResolveOpenAITextRequestFormatForAccount(account, EndpointChatCompletions) == GatewayOpenAIRequestFormatChatCompletions {
+		return s.ForwardNativeChatCompletions(ctx, c, account, body, defaultMappedModel)
+	}
+
 	startTime := time.Now()
 
 	// 1. Parse Chat Completions request

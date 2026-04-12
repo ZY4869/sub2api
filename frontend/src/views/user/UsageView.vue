@@ -69,12 +69,12 @@
                   {{ t("usage.totalCost") }}
                 </p>
                 <p class="text-xl font-bold text-green-600 dark:text-green-400">
-                  ${{ (usageStats?.total_actual_cost || 0).toFixed(4) }}
+                  ${{ formatUsageAmount(usageStats?.total_actual_cost, 4) }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ t("usage.actualCost") }} /
                   <span class="line-through"
-                    >${{ (usageStats?.total_cost || 0).toFixed(4) }}</span
+                    >${{ formatUsageAmount(usageStats?.total_cost, 4) }}</span
                   >
                   {{ t("usage.standardCost") }}
                 </p>
@@ -84,7 +84,7 @@
                 >
                   管理员免扣
                   {{ usageStats.admin_free_requests.toLocaleString() }} 次 / ${{
-                    (usageStats.admin_free_standard_cost || 0).toFixed(4)
+                    formatUsageAmount(usageStats.admin_free_standard_cost, 4)
                   }}
                   标准成本
                 </p>
@@ -264,6 +264,13 @@
             </span>
           </template>
 
+          <template #cell-request_protocol="{ row }">
+            <UsageProtocolCell
+              :inbound-path="row.inbound_endpoint"
+              :upstream-path="row.upstream_endpoint"
+            />
+          </template>
+
           <template #cell-endpoint="{ row }">
             <div
               class="block max-w-[320px] space-y-1 text-sm text-gray-600 dark:text-gray-300"
@@ -407,7 +414,7 @@
           <template #cell-cost="{ row }">
             <div class="flex items-center gap-1.5 text-sm">
               <span class="font-medium text-green-600 dark:text-green-400">
-                ${{ row.actual_cost.toFixed(6) }}
+                ${{ formatUsageAmount(row.actual_cost) }}
               </span>
               <span
                 v-if="getChargeLabel(row)"
@@ -665,25 +672,25 @@
               {{ t("usage.costDetails") }}
             </div>
             <div
-              v-if="tooltipData && tooltipData.input_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.input_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.inputCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.input_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.input_cost) }}</span
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.output_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.output_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.outputCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.output_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.output_cost) }}</span
               >
             </div>
             <div
@@ -721,25 +728,25 @@
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.cache_creation_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.cache_creation_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.cacheCreationCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.cache_creation_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.cache_creation_cost) }}</span
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.cache_read_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.cache_read_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.cacheReadCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.cache_read_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.cache_read_cost) }}</span
               >
             </div>
           </div>
@@ -753,13 +760,13 @@
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.rate") }}</span>
             <span class="font-semibold text-blue-400"
-              >{{ (tooltipData?.rate_multiplier || 1).toFixed(2) }}x</span
+              >{{ formatUsageMultiplier(tooltipData?.rate_multiplier) }}x</span
             >
           </div>
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.original") }}</span>
             <span class="font-medium text-white"
-              >${{ tooltipData?.total_cost.toFixed(6) }}</span
+              >${{ formatUsageAmount(tooltipData?.total_cost) }}</span
             >
           </div>
           <div
@@ -767,7 +774,7 @@
           >
             <span class="text-gray-400">{{ t("usage.billed") }}</span>
             <span class="font-semibold text-green-400"
-              >${{ tooltipData?.actual_cost.toFixed(6) }}</span
+              >${{ formatUsageAmount(tooltipData?.actual_cost) }}</span
             >
           </div>
           <div
@@ -806,6 +813,7 @@ import Select from "@/components/common/Select.vue";
 import DateRangePicker from "@/components/common/DateRangePicker.vue";
 import ModelIcon from "@/components/common/ModelIcon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
+import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   UsageLog,
@@ -827,12 +835,18 @@ import {
   formatUsageEndpointDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
+import { formatUsageProtocolExportText } from "@/utils/protocolDisplay";
 import {
   getUsageChargeBadgeClass,
   getUsageChargeLabel,
   getUsageOperationBadgeClass,
   getUsageOperationLabel,
 } from "@/utils/usageOperation";
+import {
+  formatUsageAmount,
+  formatUsageMultiplier,
+  hasPositiveUsageAmount,
+} from "@/utils/usageCost";
 
 const { t } = useI18n();
 const appStore = useAppStore();
@@ -863,6 +877,7 @@ const columns = computed<Column[]>(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
+  { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },
@@ -1174,6 +1189,7 @@ const exportToCSV = async () => {
       "Simulated Client",
       "Thinking Mode",
       "Reasoning Effort",
+      "Request Protocol",
       "Inbound Endpoint",
       "Type",
       "HTTP Status",
@@ -1199,6 +1215,7 @@ const exportToCSV = async () => {
         log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffort(log.reasoning_effort),
+        formatUsageProtocolExportText(log.inbound_endpoint, log.upstream_endpoint),
         log.inbound_endpoint || "",
         getRequestTypeExportText(log),
         log.http_status ?? "",
@@ -1208,9 +1225,9 @@ const exportToCSV = async () => {
         log.output_tokens,
         log.cache_read_tokens,
         log.cache_creation_tokens,
-        log.rate_multiplier,
-        log.actual_cost.toFixed(8),
-        log.total_cost.toFixed(8),
+        formatUsageMultiplier(log.rate_multiplier),
+        formatUsageAmount(log.actual_cost, 8),
+        formatUsageAmount(log.total_cost, 8),
         log.billing_exempt_reason || "",
         log.first_token_ms ?? "",
         log.duration_ms,

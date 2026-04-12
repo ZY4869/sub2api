@@ -263,7 +263,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		zap.String("schedule_layer", scheduleDecision.Layer),
 		zap.Int("candidate_count", scheduleDecision.CandidateCount),
 	)
-	setOpsSelectedAccount(c, account.ID, account.Platform)
+	setOpsSelectedAccountDetails(c, account)
 	setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeWSV2)
 
 	hooks := &service.OpenAIWSIngressHooks{
@@ -310,14 +310,16 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			h.submitUsageRecordTask(func(taskCtx context.Context) {
 				taskCtx = reattachGatewayChannelState(taskCtx, channelState)
 				if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
-					Result:        result,
-					APIKey:        currentAPIKey,
-					User:          currentAPIKey.User,
-					Account:       account,
-					Subscription:  currentSubscription,
-					UserAgent:     userAgent,
-					IPAddress:     clientIP,
-					APIKeyService: h.apiKeyService,
+					Result:           result,
+					APIKey:           currentAPIKey,
+					User:             currentAPIKey.User,
+					Account:          account,
+					Subscription:     currentSubscription,
+					InboundEndpoint:  GetInboundEndpoint(c),
+					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
+					UserAgent:        userAgent,
+					IPAddress:        clientIP,
+					APIKeyService:    h.apiKeyService,
 				}); err != nil {
 					reqLog.Error("openai.websocket_record_usage_failed",
 						zap.Int64("account_id", account.ID),

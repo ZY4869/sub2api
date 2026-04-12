@@ -48,11 +48,13 @@ vi.mock('@/stores/modelRegistry', () => ({
 
 const translations: Record<string, string> = {
   'common.total': 'Total',
+  'common.refresh': 'Refresh',
   'admin.requestDetails.table.title': 'Trace Table',
   'admin.requestDetails.table.description': 'Trace table description',
   'admin.requestDetails.table.columns.time': 'Time',
   'admin.requestDetails.table.columns.requestId': 'Request ID',
   'admin.requestDetails.table.columns.subject': 'Subject',
+  'admin.requestDetails.table.columns.protocolPair': 'Protocol Pair',
   'admin.requestDetails.table.columns.route': 'Route',
   'admin.requestDetails.table.columns.models': 'Models',
   'admin.requestDetails.table.columns.status': 'Status / Reason',
@@ -111,10 +113,10 @@ const baseItem = {
   client_request_id: 'client-1',
   upstream_request_id: 'upstream-1',
   platform: 'protocol_gateway',
-  protocol_in: 'openai',
-  protocol_out: 'openai',
+  protocol_in: '/v1/responses',
+  protocol_out: '/v1/chat/completions',
   channel: 'openai_compat',
-  route_path: '/responses',
+  route_path: '/v1/responses',
   request_type: 'chat_completions',
   user_id: 10,
   api_key_id: 20,
@@ -185,7 +187,8 @@ describe('RequestDetailsTable', () => {
     expect(wrapper.text()).toContain('API Key 20')
     expect(wrapper.text()).toContain('Account 30')
     expect(wrapper.text()).toContain('Group 40')
-    expect(wrapper.text()).toContain('/responses')
+    expect(wrapper.text()).toContain('/v1/responses')
+    expect(wrapper.text()).toContain('/v1/responses -> /v1/chat/completions')
     expect(wrapper.text()).toContain('openai_compat')
     expect(wrapper.text()).toContain('protocol_gateway')
     expect(wrapper.text()).toContain('live')
@@ -233,5 +236,33 @@ describe('RequestDetailsTable', () => {
     await wrapper.find('tbody tr').trigger('click')
 
     expect(wrapper.emitted('select')).toHaveLength(1)
+  })
+
+  it('emits refresh from the table toolbar', async () => {
+    const wrapper = mount(RequestDetailsTable, {
+      props: {
+        items: [baseItem],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        loading: false,
+        refreshing: false,
+        selectedId: null
+      },
+      global: {
+        stubs: {
+          Pagination: true,
+          ModelIcon: true
+        }
+      }
+    })
+
+    const refreshButton = wrapper.findAll('button').find((button) => button.text() === 'Refresh')
+    expect(refreshButton).toBeTruthy()
+
+    await refreshButton!.trigger('click')
+
+    expect(wrapper.emitted('refresh')).toHaveLength(1)
+    expect(wrapper.emitted('select')).toBeUndefined()
   })
 })

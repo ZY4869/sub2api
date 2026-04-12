@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -237,4 +238,77 @@ func TestDefaultOpenAIOAuthTestModelID_FallsBackWhenKnownModelsExcludeGPT54(t *t
 	}
 
 	require.Equal(t, "gpt-4.1-mini", defaultOpenAIOAuthTestModelID(context.Background(), account, nil))
+}
+
+func TestAccountTestService_OpenAIProtocolGatewayChatPreferenceUsesChatCompletionsHealthCheck(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Header.Set("Content-Type", "text/event-stream")
+	resp.Body = io.NopCloser(strings.NewReader("data: {\"id\":\"chatcmpl_1\",\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\ndata: [DONE]\n\n"))
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{httpUpstream: upstream, cfg: &config.Config{}}
+	account := &Account{
+		ID:          92,
+		Platform:    PlatformProtocolGateway,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+		Extra: map[string]any{
+			"gateway_protocol":              GatewayProtocolOpenAI,
+			"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", PlatformOpenAI, "")
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_RunTestBackgroundDetailed_InheritsGatewayOpenAIRequestFormat(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Header.Set("Content-Type", "text/event-stream")
+	resp.Body = io.NopCloser(strings.NewReader("data: {\"id\":\"chatcmpl_bg_1\",\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\ndata: [DONE]\n\n"))
+
+	account := &Account{
+		ID:          93,
+		Platform:    PlatformProtocolGateway,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+		Extra: map[string]any{
+			"gateway_protocol":              GatewayProtocolOpenAI,
+			"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				account.ID: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.RunTestBackgroundDetailed(context.Background(), ScheduledTestExecutionInput{
+		AccountID: account.ID,
+		ModelID:   "gpt-5.4",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "success", result.Status)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
 }

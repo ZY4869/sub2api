@@ -83,7 +83,7 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 		h.errorResponse(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable")
 		return
 	}
-	setOpsSelectedAccount(c, account.ID, account.Platform)
+	setOpsSelectedAccountDetails(c, account)
 	setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeSync)
 	if err := h.gatewayService.ForwardCountTokens(c.Request.Context(), c, account, parsedReq); err != nil {
 		reqLog.Error("gateway.count_tokens_forward_failed", zap.Int64("account_id", account.ID), zap.Error(err))

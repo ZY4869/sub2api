@@ -221,7 +221,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 			reqLog.Debug("openai_chat_completions.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			_ = scheduleDecision
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			routingModel := runtimeSelectionModel
 			if fallback := strings.TrimSpace(c.GetString("openai_chat_completions_fallback_model")); fallback != "" {
 				routingModel = fallback
@@ -343,7 +343,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					Account:          account,
 					Subscription:     currentSubscription,
 					InboundEndpoint:  GetInboundEndpoint(c),
-					UpstreamEndpoint: GetUpstreamEndpoint(c, service.EffectiveProtocol(account)),
+					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
 					UserAgent:        userAgent,
 					IPAddress:        clientIP,
 					APIKeyService:    h.apiKeyService,

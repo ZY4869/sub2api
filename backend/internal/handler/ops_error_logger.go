@@ -22,12 +22,13 @@ import (
 )
 
 const (
-	opsModelKey         = "ops_model"
-	opsStreamKey        = "ops_stream"
-	opsRequestBodyKey   = "ops_request_body"
-	opsAccountIDKey     = "ops_account_id"
-	opsUpstreamModelKey = "ops_upstream_model"
-	opsRequestTypeKey   = "ops_request_type"
+	opsModelKey            = "ops_model"
+	opsStreamKey           = "ops_stream"
+	opsRequestBodyKey      = "ops_request_body"
+	opsAccountIDKey        = "ops_account_id"
+	opsUpstreamModelKey    = "ops_upstream_model"
+	opsUpstreamEndpointKey = "ops_upstream_endpoint"
+	opsRequestTypeKey      = "ops_request_type"
 
 	// 错误过滤匹配常量 — shouldSkipOpsErrorLog 和错误分类共用
 	opsErrContextCanceled            = "context canceled"
@@ -397,6 +398,34 @@ func setOpsSelectedAccount(c *gin.Context, accountID int64, platform ...string) 
 	}
 }
 
+func setOpsUpstreamEndpoint(c *gin.Context, endpoint string) {
+	if c == nil {
+		return
+	}
+	if trimmed := strings.TrimSpace(endpoint); trimmed != "" {
+		c.Set(opsUpstreamEndpointKey, trimmed)
+	}
+}
+
+func setOpsSelectedAccountDetails(c *gin.Context, account *service.Account) {
+	if account == nil {
+		return
+	}
+	setOpsSelectedAccount(c, account.ID, account.Platform)
+	setOpsUpstreamEndpoint(c, GetUpstreamEndpointForAccount(c, account))
+}
+
+func resolveOpsUpstreamEndpoint(c *gin.Context, platform string) string {
+	if c != nil {
+		if value, ok := c.Get(opsUpstreamEndpointKey); ok {
+			if endpoint, ok := value.(string); ok && strings.TrimSpace(endpoint) != "" {
+				return strings.TrimSpace(endpoint)
+			}
+		}
+	}
+	return GetUpstreamEndpoint(c, platform)
+}
+
 func resolveOpsUpstreamModel(c *gin.Context) string {
 	if c == nil {
 		return ""
@@ -698,7 +727,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 				}(),
 				Stream:           stream,
 				InboundEndpoint:  GetInboundEndpoint(c),
-				UpstreamEndpoint: GetUpstreamEndpoint(c, platform),
+				UpstreamEndpoint: resolveOpsUpstreamEndpoint(c, platform),
 				RequestedModel:   modelName,
 				UpstreamModel:    resolveOpsUpstreamModel(c),
 				RequestType:      resolveOpsRequestType(c, stream),
@@ -834,7 +863,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			}(),
 			Stream:           stream,
 			InboundEndpoint:  GetInboundEndpoint(c),
-			UpstreamEndpoint: GetUpstreamEndpoint(c, platform),
+			UpstreamEndpoint: resolveOpsUpstreamEndpoint(c, platform),
 			RequestedModel:   modelName,
 			UpstreamModel:    resolveOpsUpstreamModel(c),
 			RequestType:      resolveOpsRequestType(c, stream),

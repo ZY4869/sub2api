@@ -148,10 +148,10 @@ const detail = {
   client_request_id: 'client-1',
   upstream_request_id: 'upstream-1',
   platform: 'openai',
-  protocol_in: 'openai',
-  protocol_out: 'openai',
+  protocol_in: '/v1/responses',
+  protocol_out: '/v1/chat/completions',
   channel: 'main',
-  route_path: '/responses',
+  route_path: '/v1/responses',
   request_type: 'chat_completions',
   user_id: 10,
   api_key_id: 20,
@@ -229,6 +229,13 @@ describe('RequestDetailsDrawer', () => {
     expect(wrapper.text()).toContain('rule-interactions-9')
     expect(wrapper.text()).toContain('Probe Action')
     expect(wrapper.text()).toContain('blacklist')
+  })
+
+  it('shows endpoint-level protocol pair details in the overview card', () => {
+    const wrapper = createWrapper()
+
+    expect(wrapper.text()).toContain('/v1/responses -> /v1/chat/completions')
+    expect(wrapper.text()).toContain('/v1/responses')
   })
 
   it('renders payload empty state instead of a blank pre block', async () => {

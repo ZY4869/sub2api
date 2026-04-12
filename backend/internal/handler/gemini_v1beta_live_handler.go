@@ -113,7 +113,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 		return
 	}
 
-	setOpsSelectedAccount(c, account.ID, account.Platform)
+	setOpsSelectedAccountDetails(c, account)
 	setOpsEndpointContext(c, requestedModel, service.RequestTypeStream)
 	reqLog = reqLog.With(zap.Int64("account_id", account.ID), zap.String("model", requestedModel), zap.Bool("has_resumption_handle", sessionHash != ""))
 

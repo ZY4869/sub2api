@@ -8,12 +8,13 @@ import (
 )
 
 const (
-	copilotDefaultUserAgent     = "GithubCopilot/1.0"
-	copilotDefaultEditorVersion = "vscode/1.100.0"
-	copilotDefaultPluginVersion = "copilot/1.300.0"
-	copilotDefaultIntegrationID = "vscode-chat"
-	copilotDefaultOpenAIIntent  = "conversation-panel"
-	copilotGitHubAPIVersion     = "2025-10-01"
+	copilotDefaultUserAgent          = "GithubCopilot/1.0"
+	copilotDefaultEditorVersion      = "vscode/1.100.0"
+	copilotDefaultPluginVersion      = "copilot/1.300.0"
+	copilotDefaultIntegrationID      = "vscode-chat"
+	copilotDefaultOpenAIIntent       = "conversation-panel"
+	copilotGitHubAPIVersion          = "2025-10-01"
+	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
 )
 
 func isChatGPTOpenAIOAuthAccount(account *Account) bool {
@@ -47,6 +48,35 @@ func resolveOpenAIResponsesTargetURL(account *Account, validateBaseURL func(stri
 	return buildOpenAIResponsesURLForPlatform(baseURL, account.Platform), nil
 }
 
+func resolveOpenAIChatCompletionsTargetURL(account *Account, validateBaseURL func(string) (string, error)) (string, error) {
+	if account == nil {
+		return openaiPlatformChatCompletionsURL, nil
+	}
+
+	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+	if baseURL == "" && account.Platform != PlatformCopilot {
+		return openaiPlatformChatCompletionsURL, nil
+	}
+	if validateBaseURL != nil && baseURL != "" {
+		validatedURL, err := validateBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		baseURL = validatedURL
+	}
+
+	return buildOpenAIChatCompletionsURLForPlatform(baseURL, account.Platform), nil
+}
+
+func resolveOpenAITargetURLForRequestFormat(account *Account, requestFormat string, validateBaseURL func(string) (string, error)) (string, error) {
+	switch NormalizeGatewayOpenAIRequestFormat(requestFormat) {
+	case GatewayOpenAIRequestFormatChatCompletions:
+		return resolveOpenAIChatCompletionsTargetURL(account, validateBaseURL)
+	default:
+		return resolveOpenAIResponsesTargetURL(account, validateBaseURL)
+	}
+}
+
 func buildOpenAIResponsesURLForPlatform(baseURL string, platform string) string {
 	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if normalized == "" {
@@ -71,6 +101,32 @@ func buildOpenAIResponsesURLForPlatform(baseURL string, platform string) string 
 		return normalized + "/responses"
 	}
 	return normalized + "/v1/responses"
+}
+
+func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if normalized == "" {
+		if platform == PlatformCopilot {
+			return "https://api.githubcopilot.com/chat/completions"
+		}
+		return openaiPlatformChatCompletionsURL
+	}
+	if strings.HasSuffix(normalized, "/chat/completions") {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1/chat/completions") {
+		return normalized
+	}
+	if platform == PlatformCopilot {
+		if strings.HasSuffix(normalized, "/v1") {
+			return normalized + "/chat/completions"
+		}
+		return normalized + "/chat/completions"
+	}
+	if strings.HasSuffix(normalized, "/v1") {
+		return normalized + "/chat/completions"
+	}
+	return normalized + "/v1/chat/completions"
 }
 
 func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {

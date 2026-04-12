@@ -49,6 +49,72 @@ export default {
       failedToLoad: 'Failed to load dashboard statistics'
     },
 
+    channels: {
+      nav: 'Channels',
+      title: 'Channels',
+      description: 'Manage channel-level group bindings, model mapping, and pricing rules.',
+      createChannel: 'Create Channel',
+      editChannel: 'Edit Channel',
+      deleteChannel: 'Delete Channel',
+      deleteConfirm: 'Delete channel "{name}"? This cannot be undone.',
+      searchChannels: 'Search channels...',
+      allStatus: 'All Status',
+      statusActive: 'Active',
+      statusDisabled: 'Disabled',
+      groupsUnit: 'groups',
+      pricingUnit: 'pricing rules',
+      noChannelsYet: 'No Channels Yet',
+      createFirstChannel: 'Create your first channel to manage group routing and model pricing.',
+      nameRequired: 'Channel name is required',
+      noGroupsSelected: 'At least one group must be selected',
+      emptyModelsInPricing: 'Pricing rules require a model ID',
+      mappingConflict: 'Duplicate source model mapping in this platform tab',
+      modelConflict: 'Duplicate pricing model in this platform tab',
+      loadError: 'Failed to load channels',
+      createSuccess: 'Channel created successfully',
+      createError: 'Failed to create channel',
+      updateSuccess: 'Channel updated successfully',
+      updateError: 'Failed to update channel',
+      deleteSuccess: 'Channel deleted successfully',
+      deleteError: 'Failed to delete channel',
+      columns: {
+        name: 'Name',
+        description: 'Description',
+        status: 'Status',
+        groups: 'Groups',
+        pricing: 'Pricing',
+        createdAt: 'Created At',
+        actions: 'Actions'
+      },
+      form: {
+        basicSettings: 'Basic Settings',
+        name: 'Name',
+        namePlaceholder: 'Enter channel name',
+        description: 'Description',
+        descriptionPlaceholder: 'Optional description',
+        status: 'Status',
+        restrictModels: 'Restrict Models',
+        restrictModelsHint: 'When enabled, only models in this channel pricing list are allowed.',
+        billingModelSource: 'Billing Basis',
+        billingModelSourceHint: 'Choose which model ID is used for billing lookup.',
+        billingModelSourceRequested: 'Requested model',
+        billingModelSourceUpstream: 'Upstream model',
+        billingModelSourceChannelMapped: 'Channel-mapped model',
+        platformConfig: 'Platform Configuration',
+        groups: 'Associated Groups',
+        selectedCount: '{count} selected',
+        noGroupsAvailable: 'No groups available',
+        inOtherChannel: 'Already used by another channel',
+        modelMapping: 'Model Mapping',
+        noMappingRules: 'No mapping rules yet',
+        mappingSource: 'Source model',
+        mappingTarget: 'Target model',
+        modelPricing: 'Model Pricing',
+        noPricingRules: 'No pricing rules yet',
+        perRequestPriceRequired: 'Per-request price is required'
+      }
+    },
+
     models: {
       title: 'Model Catalog',
       description: 'Browse available models, the full registry, and the dedicated billing center.',
@@ -1804,6 +1870,16 @@ export default {
           hint: 'Keeps the official Google protocol shapes. AI Studio uses Files API + Batch API, while Vertex AI uses standard batchPredictionJobs.',
           toggle: 'Enable Gemini Batch',
           toggleHint: 'Only applies to the Gemini subprotocol. When disabled, existing synchronous Gemini behavior remains unchanged and Files / Batch paths stay hidden.'
+        },
+        openaiRequestFormat: {
+          title: 'OpenAI Text Request Format',
+          description: 'Controls which OpenAI text endpoint this gateway account uses by default. Account tests and runtime forwarding will follow the same selection.',
+          label: 'Default OpenAI format',
+          hint: 'Use chat/completions for OpenAI-compatible upstreams by default, or switch to Responses when the upstream is natively Responses-first.',
+          options: {
+            chatCompletions: 'OpenAI Compatible · /v1/chat/completions',
+            responses: 'OpenAI Native · /v1/responses'
+          }
         },
         baseUrlInvalidWarning: 'Base URL is invalid. Enter a full upstream URL that starts with http:// or https://.',
         baseUrlLoopbackWarning:

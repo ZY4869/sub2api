@@ -54,3 +54,30 @@ func TestOpenAIUpstreamEndpoint_ViaGetUpstreamEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestOpenAIUpstreamEndpoint_ViaGetUpstreamEndpointForAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	account := &service.Account{
+		Platform: service.PlatformProtocolGateway,
+		Type:     service.AccountTypeAPIKey,
+		Extra: map[string]any{
+			"gateway_protocol":              service.GatewayProtocolOpenAI,
+			"gateway_openai_request_format": service.GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+
+	got := GetUpstreamEndpointForAccount(c, account)
+	require.Equal(t, EndpointChatCompletions, got)
+
+	rec = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+
+	got = GetUpstreamEndpointForAccount(c, account)
+	require.Equal(t, EndpointChatCompletions, got)
+}

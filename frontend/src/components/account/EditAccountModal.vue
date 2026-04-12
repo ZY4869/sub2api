@@ -156,6 +156,11 @@
           v-model:session-id-masking-enabled="claudeSessionIDMaskingEnabled"
         />
 
+        <AccountProtocolGatewayOpenAIRequestFormatEditor
+          v-if="showProtocolGatewayOpenAIRequestFormatEditor"
+          v-model:value="gatewayOpenAIRequestFormat"
+        />
+
         <AccountProtocolGatewayBatchEditor
           v-if="showProtocolGatewayBatchEditor"
           v-model:enabled="gatewayBatchEnabled"
@@ -499,6 +504,7 @@ import AccountModelScopeEditor from '@/components/account/AccountModelScopeEdito
 import AccountPoolModeEditor from '@/components/account/AccountPoolModeEditor.vue'
 import AccountProtocolGatewayClaudeMimicEditor from '@/components/account/AccountProtocolGatewayClaudeMimicEditor.vue'
 import AccountProtocolGatewayBatchEditor from '@/components/account/AccountProtocolGatewayBatchEditor.vue'
+import AccountProtocolGatewayOpenAIRequestFormatEditor from '@/components/account/AccountProtocolGatewayOpenAIRequestFormatEditor.vue'
 import AccountProtocolGatewayModelProbeEditor from '@/components/account/AccountProtocolGatewayModelProbeEditor.vue'
 import AccountQuotaControlEditor from '@/components/account/AccountQuotaControlEditor.vue'
 import AccountRuntimeSettingsEditor from '@/components/account/AccountRuntimeSettingsEditor.vue'
@@ -553,6 +559,8 @@ import {
   type GrokTier
 } from '@/utils/grokAccount'
 import {
+  DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT,
+  applyProtocolGatewayOpenAIRequestFormatExtra,
   applyProtocolGatewayGeminiBatchExtra,
   applyProtocolGatewayClaudeClientMimicExtra,
   PROTOCOL_GATEWAY_PROTOCOLS,
@@ -561,13 +569,15 @@ import {
   normalizeGatewayAcceptedProtocols,
   normalizeGatewayClientProfile,
   normalizeGatewayClientRoutes,
+  resolveAccountGatewayOpenAIRequestFormat,
   resolveProtocolGatewayBatchRequestFormats,
   resolveAccountGatewayProtocol,
   resolveEffectiveAccountPlatform,
   resolveEffectiveAccountPlatforms,
   resolveGatewayProtocolDescriptor,
   supportsProtocolGatewayClaudeClientMimic,
-  supportsProtocolGatewayGeminiBatch
+  supportsProtocolGatewayGeminiBatch,
+  supportsProtocolGatewayOpenAIRequestFormat
 } from '@/utils/accountProtocolGateway'
 import {
   normalizeGeminiAIStudioTier,
@@ -586,7 +596,8 @@ import {
 import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
-  GatewayClientRoute
+  GatewayClientRoute,
+  GatewayOpenAIRequestFormat
 } from '@/types'
 import {
   deriveConfiguredAccountModelIds,
@@ -643,6 +654,7 @@ const gatewayClientProfiles = ref<GatewayClientProfile[]>([])
 const gatewayClientRoutes = ref<GatewayClientRoute[]>([])
 const gatewayTestProvider = ref('')
 const gatewayTestModelId = ref('')
+const gatewayOpenAIRequestFormat = ref<GatewayOpenAIRequestFormat>(DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT)
 const gatewayBatchEnabled = ref(false)
 const claudeCodeMimicEnabled = ref(false)
 const claudeTLSFingerprintEnabled = ref(false)
@@ -905,6 +917,14 @@ const showProtocolGatewayClaudeMimicEditor = computed(() =>
 )
 const showProtocolGatewayBatchEditor = computed(() =>
   supportsProtocolGatewayGeminiBatch({
+    platform: props.account?.platform,
+    type: props.account?.type,
+    gatewayProtocol: gatewayProtocol.value,
+    acceptedProtocols: gatewayAcceptedProtocols.value
+  })
+)
+const showProtocolGatewayOpenAIRequestFormatEditor = computed(() =>
+  supportsProtocolGatewayOpenAIRequestFormat({
     platform: props.account?.platform,
     type: props.account?.type,
     gatewayProtocol: gatewayProtocol.value,
@@ -1217,6 +1237,7 @@ watch(
       gatewayClientRoutes.value = normalizeGatewayClientRoutes(newAccount.extra?.gateway_client_routes)
       gatewayTestProvider.value = String(newAccount.extra?.gateway_test_provider || '').trim().toLowerCase()
       gatewayTestModelId.value = String(newAccount.extra?.gateway_test_model_id || '').trim()
+      gatewayOpenAIRequestFormat.value = resolveAccountGatewayOpenAIRequestFormat(newAccount)
       gatewayBatchEnabled.value = normalizeGatewayBatchEnabled(
         newAccount.gateway_batch_enabled ?? newAccount.extra?.gateway_batch_enabled
       )
@@ -1490,6 +1511,7 @@ watch(
       gatewayClientRoutes.value = []
       gatewayTestProvider.value = ''
       gatewayTestModelId.value = ''
+      gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
       gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
@@ -1532,6 +1554,7 @@ watch(
     gatewayClientRoutes.value = []
     gatewayTestProvider.value = ''
     gatewayTestModelId.value = ''
+    gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
     gatewayBatchEnabled.value = false
     protocolGatewayProbeModels.value = []
     allowedModels.value = []
@@ -1540,6 +1563,15 @@ watch(
       props.account?.platform || 'protocol_gateway',
       newProtocol
     )
+  }
+)
+
+watch(
+  showProtocolGatewayOpenAIRequestFormatEditor,
+  (supported) => {
+    if (!supported) {
+      gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+    }
   }
 )
 
@@ -1946,23 +1978,32 @@ const handleSubmit = async () => {
         (props.account.extra as Record<string, unknown>) || {}
       updatePayload.gateway_protocol = gatewayProtocol.value
       updatePayload.extra = applyProtocolGatewayGeminiBatchExtra(
-        applyProtocolGatewayClaudeClientMimicExtra({
-          ...currentExtra,
-          gateway_protocol: gatewayProtocol.value,
-          gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
-          gateway_client_profiles: [...gatewayClientProfiles.value],
-          gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
-          gateway_test_provider: gatewayTestProvider.value || undefined,
-          gateway_test_model_id: gatewayTestModelId.value || undefined
-        }, {
-          platform: props.account.platform,
-          type: props.account.type,
-          gatewayProtocol: gatewayProtocol.value,
-          acceptedProtocols: gatewayAcceptedProtocols.value,
-          claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
-          enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
-          sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
-        }),
+        applyProtocolGatewayOpenAIRequestFormatExtra(
+          applyProtocolGatewayClaudeClientMimicExtra({
+            ...currentExtra,
+            gateway_protocol: gatewayProtocol.value,
+            gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+            gateway_client_profiles: [...gatewayClientProfiles.value],
+            gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
+            gateway_test_provider: gatewayTestProvider.value || undefined,
+            gateway_test_model_id: gatewayTestModelId.value || undefined
+          }, {
+            platform: props.account.platform,
+            type: props.account.type,
+            gatewayProtocol: gatewayProtocol.value,
+            acceptedProtocols: gatewayAcceptedProtocols.value,
+            claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+            enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+            sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+          }),
+          {
+            platform: props.account.platform,
+            type: props.account.type,
+            gatewayProtocol: gatewayProtocol.value,
+            acceptedProtocols: gatewayAcceptedProtocols.value,
+            gatewayOpenAIRequestFormat: gatewayOpenAIRequestFormat.value
+          }
+        ),
         {
           platform: props.account.platform,
           type: props.account.type,

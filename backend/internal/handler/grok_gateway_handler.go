@@ -222,7 +222,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			}
 
 			account := selection.Account
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			requestType := service.RequestTypeSync
 			if action != grokActionVideoStatus {
 				requestType = service.RequestTypeFromLegacy(reqStream, false)
@@ -332,7 +332,7 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 						Account:          account,
 						Subscription:     currentSubscription,
 						InboundEndpoint:  GetInboundEndpoint(c),
-						UpstreamEndpoint: GetUpstreamEndpoint(c, service.EffectiveProtocol(account)),
+						UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
 						UserAgent:        userAgent,
 						IPAddress:        clientIP,
 						APIKeyService:    h.apiKeyService,

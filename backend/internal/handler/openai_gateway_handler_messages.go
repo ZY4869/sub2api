@@ -240,7 +240,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 			reqLog.Debug("openai_messages.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			_ = scheduleDecision
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			accountRoutingModel := runtimeSelectionModel
 			if fallback := strings.TrimSpace(c.GetString("openai_messages_fallback_model")); fallback != "" {
 				accountRoutingModel = fallback
@@ -356,14 +356,16 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-					Result:        result,
-					APIKey:        currentAPIKey,
-					User:          currentAPIKey.User,
-					Account:       account,
-					Subscription:  currentSubscription,
-					UserAgent:     userAgent,
-					IPAddress:     clientIP,
-					APIKeyService: h.apiKeyService,
+					Result:           result,
+					APIKey:           currentAPIKey,
+					User:             currentAPIKey.User,
+					Account:          account,
+					Subscription:     currentSubscription,
+					InboundEndpoint:  GetInboundEndpoint(c),
+					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
+					UserAgent:        userAgent,
+					IPAddress:        clientIP,
+					APIKeyService:    h.apiKeyService,
 				}); err != nil {
 					logger.L().With(
 						zap.String("component", "handler.openai_gateway.messages"),

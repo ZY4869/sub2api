@@ -54,6 +54,7 @@ export default {
     firstToken: "First Token",
     duration: "Duration",
     time: "Time",
+    requestProtocol: "Request Protocol",
     endpoint: "Endpoint",
     httpStatus: "HTTP Status",
     errorCode: "Error Code",
@@ -94,6 +95,17 @@ export default {
       responses: "Responses API",
       geminiModels: "Gemini Models API",
     },
+    protocolFamilies: {
+      openai: "OpenAI",
+      anthropic: "Anthropic",
+      gemini: "Gemini",
+      unknown: "Unknown",
+    },
+    protocolModes: {
+      native: "Native",
+      compatible: "Compatible",
+    },
+    protocolTransition: "Inbound -> Upstream: {transition}",
     userAgentNames: {
       claudeCode: "Claude Code",
       codexCli: "Codex CLI",

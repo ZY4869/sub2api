@@ -105,6 +105,29 @@ func TestSetOpsEndpointContext_StoresMappingAndRequestType(t *testing.T) {
 	require.Equal(t, int16(service.RequestTypeStream), *requestType)
 }
 
+func TestSetOpsSelectedAccountDetails_UsesAccountAwareOpenAIUpstreamEndpoint(t *testing.T) {
+	resetOpsErrorLoggerStateForTest(t)
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Set(ctxKeyInboundEndpoint, EndpointResponses)
+
+	account := &service.Account{
+		ID:       99,
+		Platform: service.PlatformProtocolGateway,
+		Type:     service.AccountTypeAPIKey,
+		Extra: map[string]any{
+			"gateway_protocol":              service.GatewayProtocolOpenAI,
+			"gateway_openai_request_format": service.GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+	setOpsSelectedAccountDetails(c, account)
+
+	require.Equal(t, EndpointChatCompletions, resolveOpsUpstreamEndpoint(c, account.Platform))
+}
+
 func TestResolveOpsRequestType_FallsBackToWebsocket(t *testing.T) {
 	resetOpsErrorLoggerStateForTest(t)
 	gin.SetMode(gin.TestMode)

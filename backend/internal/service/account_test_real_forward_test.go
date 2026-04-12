@@ -1,10 +1,13 @@
 package service
 
 import (
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -56,4 +59,63 @@ func TestAccountTestServiceSendResolvedTestRuntimeMetaEvents(t *testing.T) {
 	require.True(t, strings.Contains(body, `"value":"gpt-5.4"`))
 	require.True(t, strings.Contains(body, `"key":"resolved_model_id"`))
 	require.True(t, strings.Contains(body, `"value":"gpt-5.4"`))
+}
+
+func TestBuildAccountTestRuntimeMeta_UsesGatewayOpenAIRequestFormatPreference(t *testing.T) {
+	meta := buildAccountTestRuntimeMeta(
+		&Account{
+			Platform: PlatformProtocolGateway,
+			Type:     AccountTypeAPIKey,
+			Extra: map[string]any{
+				"gateway_protocol":              GatewayProtocolOpenAI,
+				"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
+			},
+		},
+		AccountTestModeHealthCheck,
+		PlatformOpenAI,
+		PlatformOpenAI,
+		"gpt-5.4",
+		"gpt-5.4",
+		"",
+	)
+
+	require.Equal(t, EndpointChatCompletions, meta.InboundEndpoint)
+	require.Equal(t, PlatformOpenAI, meta.SourceProtocol)
+}
+
+func TestAccountTestService_OpenAIRealForwardUsesGatewayChatPreference(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newGatewayTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Header.Set("Content-Type", "text/event-stream")
+	resp.Body = io.NopCloser(strings.NewReader(
+		"data: {\"id\":\"chatcmpl_1\",\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n" +
+			"data: {\"choices\":[],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":3}}\n\n" +
+			"data: [DONE]\n\n",
+	))
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	gatewaySvc := &OpenAIGatewayService{
+		httpUpstream:  upstream,
+		cfg:           &config.Config{},
+		toolCorrector: NewCodexToolCorrector(),
+	}
+	svc := &AccountTestService{openAIGatewayService: gatewaySvc}
+	account := &Account{
+		ID:          12,
+		Platform:    PlatformProtocolGateway,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+		Extra: map[string]any{
+			"gateway_protocol":              GatewayProtocolOpenAI,
+			"gateway_openai_request_format": GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	err := svc.testOpenAIRealForwardConnection(ctx, account, "gpt-5.4", "")
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
+	require.Contains(t, recorder.Body.String(), "test_complete")
 }

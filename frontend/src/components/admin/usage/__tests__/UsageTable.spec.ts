@@ -47,6 +47,7 @@ const DataTableStub = {
     <div>
       <div v-for="row in data" :key="row.request_id">
         <slot name="cell-status" :row="row" />
+        <slot name="cell-request_protocol" :row="row" />
         <slot name="cell-cost" :row="row" />
       </div>
     </div>
@@ -162,5 +163,43 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('rate_limited')
     expect(text).toContain('Error Message')
     expect(text).toContain('Rate limit exceeded for this account')
+  })
+
+  it('renders the request protocol cell with badge text and normalized path', () => {
+    const row = {
+      request_id: 'req-admin-protocol',
+      inbound_endpoint: '/v1/chat/completions',
+      upstream_endpoint: '/v1/responses',
+      actual_cost: 0,
+      total_cost: 0,
+      account_rate_multiplier: 1,
+      rate_multiplier: 1,
+      input_cost: 0,
+      output_cost: 0,
+      cache_creation_cost: 0,
+      cache_read_cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+    }
+
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [row],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('OpenAI')
+    expect(text).toContain('/v1/chat/completions')
   })
 })

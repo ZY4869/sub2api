@@ -239,7 +239,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					}
 				}
 				account := selection.Account
-				setOpsSelectedAccount(c, account.ID, account.Platform)
+				setOpsSelectedAccountDetails(c, account)
 				setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
@@ -427,7 +427,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					}
 				}
 				account := selection.Account
-				setOpsSelectedAccount(c, account.ID, account.Platform)
+				setOpsSelectedAccountDetails(c, account)
 				setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 				if account.IsInterceptWarmupEnabled() {
 					interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
@@ -692,7 +692,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 			account := selection.Account
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
 				interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)
@@ -856,7 +856,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 			account := selection.Account
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(reqStream, false))
 			if account.IsInterceptWarmupEnabled() {
 				interceptType := detectInterceptType(body, reqModel, parsedReq.MaxTokens, reqStream, isClaudeCodeClient)

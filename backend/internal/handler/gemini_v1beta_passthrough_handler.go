@@ -111,7 +111,7 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	if result.ForwardResult != nil {
 		upstreamModel = firstNonEmptyHandlerString(result.ForwardResult.UpstreamModel, upstreamModel)
 	}
-	setOpsSelectedAccount(c, result.Account.ID, result.Account.Platform)
+	setOpsSelectedAccountDetails(c, result.Account)
 	setOpsEndpointContext(c, upstreamModel, requestType)
 
 	writeGoogleBatchUpstreamResponse(c, result.Response)

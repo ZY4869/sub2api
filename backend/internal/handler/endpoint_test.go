@@ -112,6 +112,26 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 	}
 }
 
+func TestDeriveUpstreamEndpointForAccount_UsesProtocolGatewayOpenAIPreference(t *testing.T) {
+	account := &service.Account{
+		Platform: service.PlatformProtocolGateway,
+		Type:     service.AccountTypeAPIKey,
+		Extra: map[string]any{
+			"gateway_protocol":              service.GatewayProtocolOpenAI,
+			"gateway_openai_request_format": service.GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	require.Equal(t,
+		EndpointChatCompletions,
+		DeriveUpstreamEndpointForAccount(account, EndpointChatCompletions, "/v1/chat/completions"),
+	)
+	require.Equal(t,
+		EndpointChatCompletions,
+		DeriveUpstreamEndpointForAccount(account, EndpointResponses, "/v1/responses"),
+	)
+}
+
 // ──────────────────────────────────────────────────────────
 // responsesSubpathSuffix
 // ──────────────────────────────────────────────────────────
@@ -176,4 +196,22 @@ func TestGetUpstreamEndpoint_FullFlow(t *testing.T) {
 
 	got := GetUpstreamEndpoint(c, service.PlatformOpenAI)
 	require.Equal(t, "/v1/responses/compact", got)
+}
+
+func TestGetUpstreamEndpointForAccount_UsesAccountPreference(t *testing.T) {
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	c.Set(ctxKeyInboundEndpoint, NormalizeInboundEndpoint(c.Request.URL.Path))
+
+	account := &service.Account{
+		Platform: service.PlatformProtocolGateway,
+		Type:     service.AccountTypeAPIKey,
+		Extra: map[string]any{
+			"gateway_protocol":              service.GatewayProtocolOpenAI,
+			"gateway_openai_request_format": service.GatewayOpenAIRequestFormatChatCompletions,
+		},
+	}
+
+	require.Equal(t, EndpointChatCompletions, GetUpstreamEndpointForAccount(c, account))
 }

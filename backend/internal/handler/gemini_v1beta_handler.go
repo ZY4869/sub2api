@@ -428,7 +428,7 @@ groupSelectionLoop:
 				}
 			}
 			account := selection.Account
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(stream, false))
 
 			if sessionBoundAccountID > 0 && sessionBoundAccountID != account.ID {
@@ -585,7 +585,7 @@ groupSelectionLoop:
 
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
-			upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
+			upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
@@ -768,7 +768,7 @@ groupSelectionLoop:
 			}
 		}
 		account := selection.Account
-		setOpsSelectedAccount(c, account.ID, account.Platform)
+		setOpsSelectedAccountDetails(c, account)
 		setOpsEndpointContext(c, account.GetMappedModel(selectionModel), service.RequestTypeFromLegacy(stream, false))
 
 		// 检测账号切换：如果粘性会话绑定的账号与当前选择的账号不同，清除 thoughtSignature
@@ -928,7 +928,7 @@ groupSelectionLoop:
 		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 		requestPayloadHash := service.HashUsageRequestPayload(body)
 		inboundEndpoint := GetInboundEndpoint(c)
-		upstreamEndpoint := GetUpstreamEndpoint(c, service.EffectiveProtocol(account))
+		upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
 		h.submitUsageRecordTask(func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
 				Result:                result,

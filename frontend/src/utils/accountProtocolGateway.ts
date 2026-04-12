@@ -5,6 +5,7 @@ import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
+  GatewayOpenAIRequestFormat,
   GatewayProtocol
 } from '@/types'
 import { generatedProtocolGatewayDescriptors } from '@/generated/protocolGateway'
@@ -27,6 +28,8 @@ export const PROTOCOL_GATEWAY_PLATFORM = 'protocol_gateway' as const
 export const PROTOCOL_GATEWAY_PROTOCOLS = ['openai', 'anthropic', 'gemini', 'mixed'] as const
 export const PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const
 export const PROTOCOL_GATEWAY_CLIENT_PROFILES = ['codex', 'gemini_cli'] as const
+export const PROTOCOL_GATEWAY_OPENAI_REQUEST_FORMATS = ['/v1/chat/completions', '/v1/responses'] as const
+export const DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT = '/v1/chat/completions' as const
 
 const PROTOCOL_GATEWAY_HINT_KEYS: Record<
   GatewayProtocol,
@@ -155,6 +158,21 @@ export function normalizeGatewayBatchEnabled(value: unknown): boolean {
     return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
   }
   return false
+}
+
+export function isGatewayOpenAIRequestFormat(value: unknown): value is GatewayOpenAIRequestFormat {
+  return typeof value === 'string' && (PROTOCOL_GATEWAY_OPENAI_REQUEST_FORMATS as readonly string[]).includes(value)
+}
+
+export function normalizeGatewayOpenAIRequestFormat(value: unknown): GatewayOpenAIRequestFormat {
+  if (typeof value !== 'string') {
+    return DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+  }
+  const normalized = value.trim().toLowerCase()
+  if (normalized === '/v1/responses') {
+    return '/v1/responses'
+  }
+  return '/v1/chat/completions'
 }
 
 export function supportedGatewayClientProfilesForProtocol(protocol: GatewayAcceptedProtocol): GatewayClientProfile[] {
@@ -303,6 +321,81 @@ export function supportsProtocolGatewayGeminiBatch(options: {
   )
 
   return acceptedProtocols.includes('gemini')
+}
+
+export function supportsProtocolGatewayOpenAIRequestFormat(options: {
+  platform?: AccountPlatform | string | null
+  type?: AccountType | string | null
+  gatewayProtocol?: unknown
+  acceptedProtocols?: unknown
+}): boolean {
+  if (!isProtocolGatewayPlatform(options.platform)) {
+    return false
+  }
+  if (String(options.type || '').trim().toLowerCase() !== 'apikey') {
+    return false
+  }
+
+  const acceptedProtocols = normalizeGatewayAcceptedProtocols(
+    normalizeGatewayProtocol(options.gatewayProtocol) || 'mixed',
+    options.acceptedProtocols
+  )
+
+  return acceptedProtocols.includes('openai')
+}
+
+export function resolveGatewayOpenAIRequestFormat(options: {
+  gatewayProtocol?: unknown
+  acceptedProtocols?: unknown
+  value?: unknown
+}): GatewayOpenAIRequestFormat {
+  const acceptedProtocols = normalizeGatewayAcceptedProtocols(
+    normalizeGatewayProtocol(options.gatewayProtocol) || 'mixed',
+    options.acceptedProtocols
+  )
+  if (!acceptedProtocols.includes('openai')) {
+    return DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+  }
+  return normalizeGatewayOpenAIRequestFormat(options.value)
+}
+
+export function resolveAccountGatewayOpenAIRequestFormat(
+  account?: Pick<Account, 'platform' | 'type' | 'gateway_protocol' | 'extra'> | null
+): GatewayOpenAIRequestFormat {
+  if (!account) {
+    return DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+  }
+  return resolveGatewayOpenAIRequestFormat({
+    gatewayProtocol: account.gateway_protocol ?? account.extra?.gateway_protocol,
+    acceptedProtocols: account.extra?.gateway_accepted_protocols,
+    value: account.extra?.gateway_openai_request_format
+  })
+}
+
+export function applyProtocolGatewayOpenAIRequestFormatExtra(
+  base: Record<string, unknown> | undefined,
+  options: {
+    platform?: AccountPlatform | string | null
+    type?: AccountType | string | null
+    gatewayProtocol?: unknown
+    acceptedProtocols?: unknown
+    gatewayOpenAIRequestFormat?: unknown
+  }
+): Record<string, unknown> | undefined {
+  const nextExtra: Record<string, unknown> = { ...(base || {}) }
+  const supported = supportsProtocolGatewayOpenAIRequestFormat(options)
+
+  if (!supported) {
+    delete nextExtra.gateway_openai_request_format
+    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+  }
+
+  nextExtra.gateway_openai_request_format = resolveGatewayOpenAIRequestFormat({
+    gatewayProtocol: options.gatewayProtocol,
+    acceptedProtocols: options.acceptedProtocols,
+    value: options.gatewayOpenAIRequestFormat
+  })
+  return nextExtra
 }
 
 export function supportsProtocolGatewayGeminiBatchAccount(

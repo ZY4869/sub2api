@@ -29,9 +29,9 @@
             </p>
             <p
               class="text-xs text-gray-500 dark:text-dark-400"
-              :title="(log.input_tokens + log.output_tokens).toLocaleString()"
+              :title="(normalizeUsageTokens(log.input_tokens) + normalizeUsageTokens(log.output_tokens)).toLocaleString()"
             >
-              {{ formatTokens(log.input_tokens + log.output_tokens) }} tokens
+              {{ formatTokens(log.input_tokens, log.output_tokens) }} tokens
             </p>
           </div>
         </div>
@@ -52,6 +52,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 import { formatDateTime } from '@/utils/format'
+import { normalizeUsageAmount } from '@/utils/usageCost'
 import type { UsageLog } from '@/types'
 
 defineProps<{
@@ -60,6 +61,16 @@ defineProps<{
 }>()
 const { t } = useI18n()
 const { formatTokenDisplay } = useTokenDisplayMode()
-const formatCost = (c: number) => c.toFixed(4)
-const formatTokens = (tokens: number) => formatTokenDisplay(tokens)
+
+function normalizeUsageTokens(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function formatCost(value: unknown): string {
+  return normalizeUsageAmount(value).toFixed(4)
+}
+
+function formatTokens(inputTokens: unknown, outputTokens: unknown): string {
+  return formatTokenDisplay(normalizeUsageTokens(inputTokens) + normalizeUsageTokens(outputTokens))
+}
 </script>

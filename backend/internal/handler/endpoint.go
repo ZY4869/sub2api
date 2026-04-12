@@ -133,6 +133,71 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 	return inbound
 }
 
+func gatewayProtocolHintForInboundEndpoint(inbound string) string {
+	switch strings.TrimSpace(inbound) {
+	case EndpointMessages:
+		return service.PlatformAnthropic
+	case EndpointChatCompletions,
+		EndpointResponses,
+		EndpointImagesGen,
+		EndpointImagesEdits,
+		EndpointVideosCreate,
+		EndpointVideosGen,
+		EndpointVideosStatus:
+		return service.PlatformOpenAI
+	case EndpointGeminiModels,
+		EndpointGeminiFiles,
+		EndpointGeminiFilesUp,
+		EndpointGeminiBatches,
+		EndpointGeminiCachedContents,
+		EndpointGeminiFileSearchStores,
+		EndpointGeminiDocuments,
+		EndpointGeminiOperations,
+		EndpointGeminiEmbeddings,
+		EndpointGeminiInteractions,
+		EndpointGeminiLive,
+		EndpointGeminiOpenAICompat,
+		EndpointVertexSyncModels,
+		EndpointVertexBatchJobs:
+		return service.PlatformGemini
+	default:
+		return ""
+	}
+}
+
+func DeriveUpstreamEndpointForAccount(account *service.Account, inbound, rawRequestPath string) string {
+	normalizedInbound := NormalizeInboundEndpoint(inbound)
+	if normalizedInbound == "" {
+		normalizedInbound = strings.TrimSpace(inbound)
+	}
+
+	resolvedAccount := account
+	if service.IsProtocolGatewayAccount(account) {
+		if protocolHint := gatewayProtocolHintForInboundEndpoint(normalizedInbound); protocolHint != "" {
+			if narrowed := service.ResolveProtocolGatewayInboundAccount(account, protocolHint); narrowed != nil {
+				resolvedAccount = narrowed
+			}
+		}
+	}
+
+	platform := service.EffectiveProtocol(resolvedAccount)
+	if platform == service.PlatformOpenAI {
+		switch normalizedInbound {
+		case EndpointChatCompletions, EndpointResponses:
+			requestFormat := service.ResolveOpenAITextRequestFormatForAccount(resolvedAccount, normalizedInbound)
+			if requestFormat == service.GatewayOpenAIRequestFormatChatCompletions {
+				return EndpointChatCompletions
+			}
+			if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
+				return EndpointResponses + suffix
+			}
+			return EndpointResponses
+		}
+	}
+
+	return DeriveUpstreamEndpoint(normalizedInbound, rawRequestPath, platform)
+}
+
 func normalizeVideoStatusPath(rawPath string) string {
 	trimmed := strings.TrimRight(strings.TrimSpace(rawPath), "/")
 	if trimmed == "" {
@@ -223,4 +288,13 @@ func GetUpstreamEndpoint(c *gin.Context, platform string) string {
 		rawPath = c.Request.URL.Path
 	}
 	return DeriveUpstreamEndpoint(inbound, rawPath, platform)
+}
+
+func GetUpstreamEndpointForAccount(c *gin.Context, account *service.Account) string {
+	inbound := GetInboundEndpoint(c)
+	rawPath := ""
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		rawPath = c.Request.URL.Path
+	}
+	return DeriveUpstreamEndpointForAccount(account, inbound, rawPath)
 }

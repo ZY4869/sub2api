@@ -1,5 +1,6 @@
 import type { UsageLog } from '@/types'
 import { resolveUsageRequestType } from '@/utils/usageRequestType'
+import { hasUsageAmount } from '@/utils/usageCost'
 
 type TranslateFn = (
   key: string,
@@ -11,6 +12,7 @@ type UsageOperationRow = Pick<
   | 'operation_type'
   | 'charge_source'
   | 'actual_cost'
+  | 'total_cost'
   | 'request_type'
   | 'stream'
   | 'openai_ws_mode'
@@ -85,7 +87,13 @@ export function getUsageChargeLabel(
     case 'none':
       return t('usage.chargeSourceNone')
     default:
-      return row.operation_type ? t('usage.notCharged') : null
+      if (row.operation_type) {
+        return t('usage.notCharged')
+      }
+      if (!hasUsageAmount(row.actual_cost) && !hasUsageAmount(row.total_cost)) {
+        return t('usage.chargeSourceNone')
+      }
+      return null
   }
 }
 

@@ -277,7 +277,7 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 
 	result.Platform = resolveOpsTracePlatform(c, apiKey)
 	result.ProtocolIn = inferOpsTraceProtocolIn(c)
-	result.ProtocolOut = inferOpsTraceProtocolOut(result.ProtocolIn, result.Platform)
+	result.ProtocolOut = inferOpsTraceProtocolOut(c, result.ProtocolIn, result.Platform)
 	result.Channel = inferOpsTraceChannel(c, result.ProtocolIn, result.ProtocolOut)
 	result.RoutePath = inferOpsTraceRoutePath(c)
 	result.RequestType = inferOpsTraceRequestType(c)
@@ -416,8 +416,8 @@ func enrichOpsTraceResponseMetadata(payload map[string]any, protocolOut string, 
 		return
 	}
 
-	switch strings.ToLower(strings.TrimSpace(protocolOut)) {
-	case "gemini", "vertex":
+	switch opsTraceProtocolFamily(protocolOut) {
+	case "gemini":
 		if responseID := strings.TrimSpace(stringValueFromMap(payload, "responseId")); responseID != "" {
 			result.UpstreamRequestID = responseID
 		}
@@ -512,9 +512,18 @@ func shouldQueueOpsRequestTrace(input *service.OpsRecordRequestTraceInput) bool 
 }
 
 func isGoogleTraceForQueue(normalize service.ProtocolNormalizeResult) bool {
-	for _, value := range []string{normalize.Platform, normalize.ProtocolIn, normalize.ProtocolOut, normalize.Channel} {
+	for _, value := range []string{normalize.Platform, normalize.Channel} {
 		value = strings.ToLower(strings.TrimSpace(value))
 		if strings.Contains(value, "gemini") || strings.Contains(value, "vertex") || strings.Contains(value, "google") {
+			return true
+		}
+	}
+	for _, value := range []string{normalize.ProtocolIn, normalize.ProtocolOut} {
+		if opsTraceProtocolFamily(value) == "gemini" {
+			return true
+		}
+		value = strings.ToLower(strings.TrimSpace(value))
+		if strings.Contains(value, "vertex") || strings.Contains(value, "google") {
 			return true
 		}
 	}
@@ -552,38 +561,20 @@ func resolveOpsTracePlatform(c *gin.Context, apiKey *service.APIKey) string {
 }
 
 func inferOpsTraceProtocolIn(c *gin.Context) string {
-	path := strings.ToLower(inferOpsTraceRoutePath(c))
-	switch {
-	case strings.Contains(path, "/publishers/google/models/"):
-		return "vertex"
-	case strings.HasPrefix(path, "/v1beta"), strings.HasPrefix(path, "/upload/v1beta"), strings.HasPrefix(path, "/download/v1beta"), strings.HasPrefix(path, "/google/batch/archive/v1beta"):
-		return "gemini"
-	case strings.Contains(path, "/messages"):
-		return "claude"
-	case strings.Contains(path, "/responses"), strings.Contains(path, "/chat/completions"), strings.Contains(path, "/images/"), strings.Contains(path, "/videos"):
-		return "openai"
-	default:
-		return "gateway"
+	if inbound := normalizeOpsTraceProtocolValue(GetInboundEndpoint(c)); inbound != "" {
+		return inbound
 	}
+	return normalizeOpsTraceProtocolValue(inferOpsTraceRoutePath(c))
 }
 
-func inferOpsTraceProtocolOut(protocolIn string, platform string) string {
-	switch strings.TrimSpace(platform) {
-	case service.PlatformGemini:
-		return "gemini"
-	case service.PlatformAntigravity:
-		if protocolIn == "gemini" || protocolIn == "vertex" {
-			return protocolIn
-		}
-		return "anthropic"
-	case service.PlatformOpenAI, service.PlatformCopilot, service.PlatformKiro, service.PlatformGrok:
-		return "openai"
-	default:
-		if protocolIn != "" {
-			return protocolIn
-		}
-		return "gateway"
+func inferOpsTraceProtocolOut(c *gin.Context, protocolIn string, platform string) string {
+	if endpoint := normalizeOpsTraceProtocolValue(resolveOpsUpstreamEndpoint(c, platform)); endpoint != "" {
+		return endpoint
 	}
+	if inbound := normalizeOpsTraceProtocolValue(protocolIn); inbound != "" {
+		return inbound
+	}
+	return normalizeOpsTraceProtocolValue(GetUpstreamEndpoint(c, platform))
 }
 
 func inferOpsTraceChannel(c *gin.Context, protocolIn, protocolOut string) string {
@@ -595,19 +586,84 @@ func inferOpsTraceChannel(c *gin.Context, protocolIn, protocolOut string) string
 		}
 	}
 	path := strings.ToLower(inferOpsTraceRoutePath(c))
+	inboundFamily := opsTraceProtocolFamily(protocolIn)
+	outboundFamily := opsTraceProtocolFamily(protocolOut)
 	switch {
 	case strings.Contains(path, "/publishers/google/models/"):
 		return "vertex"
-	case protocolOut == "gemini" && protocolIn != "gemini":
+	case outboundFamily == "gemini" && inboundFamily != "gemini":
 		return "gemini_compat"
-	case protocolOut == "gemini":
+	case outboundFamily == "gemini":
 		return "ai_studio"
-	case protocolOut == "anthropic":
+	case outboundFamily == "anthropic":
 		return "anthropic"
-	case protocolOut == "openai":
+	case outboundFamily == "openai":
 		return "openai_compat"
 	default:
-		return protocolOut
+		if outboundFamily != "" {
+			return outboundFamily
+		}
+		return normalizeOpsTraceProtocolValue(protocolOut)
+	}
+}
+
+func normalizeOpsTraceProtocolValue(value string) string {
+	normalized := strings.TrimSpace(service.NormalizeInboundEndpoint(value))
+	if normalized != "" && len(normalized) <= 50 {
+		return normalized
+	}
+	return ""
+}
+
+func opsTraceProtocolFamily(value string) string {
+	switch normalized := strings.ToLower(normalizeOpsTraceProtocolValue(value)); normalized {
+	case "", "unknown":
+		return ""
+	case "openai", "anthropic", "claude", "gemini", "vertex":
+		if normalized == "claude" {
+			return "anthropic"
+		}
+		if normalized == "vertex" {
+			return "gemini"
+		}
+		return normalized
+	case EndpointMessages:
+		return "anthropic"
+	case EndpointChatCompletions, EndpointResponses, EndpointImagesGen, EndpointImagesEdits, EndpointVideosCreate, EndpointVideosGen, EndpointVideosStatus:
+		return "openai"
+	case EndpointGeminiModels,
+		EndpointGeminiFiles,
+		EndpointGeminiFilesUp,
+		EndpointGeminiBatches,
+		EndpointGeminiCachedContents,
+		EndpointGeminiFileSearchStores,
+		EndpointGeminiDocuments,
+		EndpointGeminiOperations,
+		EndpointGeminiEmbeddings,
+		EndpointGeminiInteractions,
+		EndpointGeminiLive,
+		EndpointGeminiOpenAICompat,
+		EndpointVertexSyncModels,
+		EndpointVertexBatchJobs:
+		return "gemini"
+	default:
+		switch {
+		case strings.HasPrefix(normalized, "/v1/messages"):
+			return "anthropic"
+		case strings.HasPrefix(normalized, "/v1/chat/completions"),
+			strings.HasPrefix(normalized, "/v1/responses"),
+			strings.HasPrefix(normalized, "/v1/images/"),
+			strings.HasPrefix(normalized, "/v1/videos"):
+			return "openai"
+		case strings.HasPrefix(normalized, "/v1beta/"),
+			strings.HasPrefix(normalized, "/upload/v1beta/"),
+			strings.HasPrefix(normalized, "/download/v1beta/"),
+			strings.HasPrefix(normalized, "/google/batch/archive/"),
+			strings.HasPrefix(normalized, "/v1/projects/"):
+			return "gemini"
+		default:
+			return ""
+		}
 	}
 }
 

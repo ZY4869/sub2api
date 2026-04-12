@@ -7,6 +7,7 @@ import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
+  GatewayOpenAIRequestFormat,
   GatewayProtocol
 } from '@/types'
 import { getModelsByPlatform } from '@/composables/useModelWhitelist'
@@ -21,6 +22,7 @@ import {
   resetAccountPoolModeState
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
+import { DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT } from '@/utils/accountProtocolGateway'
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 import type { VertexAuthMode } from '@/utils/vertexAi'
@@ -84,6 +86,7 @@ interface UseCreateAccountResetOptions {
   gatewayAcceptedProtocols?: Ref<GatewayAcceptedProtocol[]>
   gatewayClientProfiles?: Ref<GatewayClientProfile[]>
   gatewayClientRoutes?: Ref<GatewayClientRoute[]>
+  gatewayOpenAIRequestFormat?: Ref<GatewayOpenAIRequestFormat>
   gatewayBatchEnabled?: Ref<boolean>
   claudeCodeMimicEnabled?: Ref<boolean>
   claudeTLSFingerprintEnabled?: Ref<boolean>
@@ -176,6 +179,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.gatewayAcceptedProtocols && (options.gatewayAcceptedProtocols.value = ['openai'])
     options.gatewayClientProfiles && (options.gatewayClientProfiles.value = [])
     options.gatewayClientRoutes && (options.gatewayClientRoutes.value = [])
+    options.gatewayOpenAIRequestFormat && (options.gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT)
     options.gatewayBatchEnabled && (options.gatewayBatchEnabled.value = false)
     options.claudeCodeMimicEnabled && (options.claudeCodeMimicEnabled.value = false)
     options.claudeTLSFingerprintEnabled && (options.claudeTLSFingerprintEnabled.value = false)

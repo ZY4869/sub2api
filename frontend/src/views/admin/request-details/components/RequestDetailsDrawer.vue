@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
+import ProtocolPairDisplay from '@/components/common/ProtocolPairDisplay.vue'
 import type { OpsRequestTraceDetail, OpsRequestTraceRawDetail } from '@/api/admin/ops'
 import { formatDateTime, formatNumber } from '@/utils/format'
 import RequestDetailsContentDialog from './RequestDetailsContentDialog.vue'
@@ -9,7 +10,6 @@ import RequestDetailsPayloadPanel from './RequestDetailsPayloadPanel.vue'
 import {
   formatDurationMs,
   formatPrettyJSON,
-  getProtocolPairLabel,
   getRequestTraceCapabilityFields,
   getRequestTraceExecutionFields,
   getRequestTraceFlagBadges,
@@ -397,8 +397,12 @@ watch(
                 </span>
                 <span class="text-sm text-gray-500 dark:text-gray-400">{{ detail.status_code }}</span>
               </div>
-              <div class="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                {{ getProtocolPairLabel(t, detail.protocol_in, detail.protocol_out) }}
+              <div class="mt-3">
+                <ProtocolPairDisplay
+                  compact
+                  :protocol-in="detail.protocol_in"
+                  :protocol-out="detail.protocol_out"
+                />
               </div>
             </div>
 

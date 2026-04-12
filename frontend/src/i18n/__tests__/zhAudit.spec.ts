@@ -15,4 +15,15 @@ describe('zh locale audit', () => {
     expect(zh.admin.accounts.kiroAuth.startUrl).not.toContain('Start URL')
     expect(zh.admin.accounts.kiroAuth.region).not.toContain('Region')
   })
+
+  it('exposes merged billing and channels locale branches in the final zh tree', () => {
+    expect(zh.admin.channels.nav).toBeTruthy()
+    expect(zh.admin.channels.title).toBeTruthy()
+    expect(zh.admin.channels.description).toBeTruthy()
+    expect(zh.admin.channels.nav).not.toBe('admin.channels.nav')
+    expect(zh.admin.models.pages.billing.nav).toBeTruthy()
+    expect(zh.admin.models.pages.billing.title).toBeTruthy()
+    expect(zh.admin.models.pages.billing.description).toBeTruthy()
+    expect(zh.admin.models.pages.billing.nav).not.toBe('admin.models.pages.billing.nav')
+  })
 })

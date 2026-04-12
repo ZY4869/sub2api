@@ -15,16 +15,23 @@ const (
 	GatewayClientProfileCodex     = "codex"
 	GatewayClientProfileGeminiCLI = "gemini_cli"
 
-	gatewayExtraProtocolKey          = "gateway_protocol"
-	gatewayExtraAcceptedProtocolsKey = "gateway_accepted_protocols"
-	gatewayExtraClientProfilesKey    = "gateway_client_profiles"
-	gatewayExtraClientRoutesKey      = "gateway_client_routes"
-	gatewayExtraBatchEnabledKey      = "gateway_batch_enabled"
-	gatewayExtraTestProviderKey      = "gateway_test_provider"
-	gatewayExtraTestModelIDKey       = "gateway_test_model_id"
-	claudeCodeMimicEnabledKey        = "claude_code_mimic_enabled"
-	enableTLSFingerprintKey          = "enable_tls_fingerprint"
-	sessionIDMaskingEnabledKey       = "session_id_masking_enabled"
+	gatewayExtraProtocolKey            = "gateway_protocol"
+	gatewayExtraAcceptedProtocolsKey   = "gateway_accepted_protocols"
+	gatewayExtraClientProfilesKey      = "gateway_client_profiles"
+	gatewayExtraClientRoutesKey        = "gateway_client_routes"
+	gatewayExtraBatchEnabledKey        = "gateway_batch_enabled"
+	gatewayExtraTestProviderKey        = "gateway_test_provider"
+	gatewayExtraTestModelIDKey         = "gateway_test_model_id"
+	gatewayExtraOpenAIRequestFormatKey = "gateway_openai_request_format"
+	claudeCodeMimicEnabledKey          = "claude_code_mimic_enabled"
+	enableTLSFingerprintKey            = "enable_tls_fingerprint"
+	sessionIDMaskingEnabledKey         = "session_id_masking_enabled"
+)
+
+const (
+	GatewayOpenAIRequestFormatChatCompletions = EndpointChatCompletions
+	GatewayOpenAIRequestFormatResponses       = EndpointResponses
+	DefaultGatewayOpenAIRequestFormat         = GatewayOpenAIRequestFormatChatCompletions
 )
 
 type ProtocolGatewayDescriptor struct {
@@ -289,6 +296,87 @@ func ResolveAccountGatewayTestModelID(platform string, extra map[string]any) str
 
 func ResolveAccountGatewayAcceptedProtocols(platform string, extra map[string]any) []string {
 	return NormalizeGatewayAcceptedProtocols(ResolveAccountGatewayProtocol(platform, extra), extra)
+}
+
+func NormalizeGatewayOpenAIRequestFormat(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case GatewayOpenAIRequestFormatChatCompletions:
+		return GatewayOpenAIRequestFormatChatCompletions
+	case GatewayOpenAIRequestFormatResponses:
+		return GatewayOpenAIRequestFormatResponses
+	default:
+		return ""
+	}
+}
+
+func SupportsProtocolGatewayOpenAIRequestFormatValues(platform string, extra map[string]any) bool {
+	if !IsProtocolGatewayPlatform(platform) {
+		return false
+	}
+	for _, protocol := range ResolveAccountGatewayAcceptedProtocols(platform, extra) {
+		if protocol == PlatformOpenAI {
+			return true
+		}
+	}
+	return false
+}
+
+func ResolveAccountGatewayOpenAIRequestFormat(platform string, extra map[string]any) string {
+	if !SupportsProtocolGatewayOpenAIRequestFormatValues(platform, extra) {
+		return ""
+	}
+	if value, ok := extra[gatewayExtraOpenAIRequestFormatKey].(string); ok {
+		if normalized := NormalizeGatewayOpenAIRequestFormat(value); normalized != "" {
+			return normalized
+		}
+	}
+	return DefaultGatewayOpenAIRequestFormat
+}
+
+func GetAccountGatewayOpenAIRequestFormat(account *Account) string {
+	if !IsProtocolGatewayAccount(account) {
+		return ""
+	}
+	return ResolveAccountGatewayOpenAIRequestFormat(account.Platform, account.Extra)
+}
+
+func ResolveOpenAITextRequestFormatForAccount(account *Account, inboundEndpoint string) string {
+	normalizedInbound := NormalizeInboundEndpoint(inboundEndpoint)
+	if normalizedInbound == "" {
+		normalizedInbound = strings.TrimSpace(inboundEndpoint)
+	}
+
+	resolvedAccount := account
+	if IsProtocolGatewayAccount(account) {
+		if narrowed := ResolveProtocolGatewayInboundAccount(account, PlatformOpenAI); narrowed != nil {
+			resolvedAccount = narrowed
+		}
+	}
+
+	preferred := ""
+	if resolvedAccount != nil &&
+		IsProtocolGatewayAccount(resolvedAccount) &&
+		GetAccountGatewayProtocol(resolvedAccount) == PlatformOpenAI {
+		preferred = GetAccountGatewayOpenAIRequestFormat(resolvedAccount)
+	}
+
+	switch normalizedInbound {
+	case EndpointResponses, EndpointChatCompletions:
+		if preferred != "" {
+			return preferred
+		}
+		if normalizedInbound == EndpointChatCompletions {
+			return EndpointResponses
+		}
+		return EndpointResponses
+	case "":
+		if preferred != "" {
+			return preferred
+		}
+		return EndpointResponses
+	default:
+		return normalizedInbound
+	}
 }
 
 func SupportsProtocolGatewayBatchValues(platform string, accountType string, extra map[string]any) bool {
@@ -694,6 +782,7 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		delete(nextExtra, gatewayExtraBatchEnabledKey)
 		delete(nextExtra, gatewayExtraTestProviderKey)
 		delete(nextExtra, gatewayExtraTestModelIDKey)
+		delete(nextExtra, gatewayExtraOpenAIRequestFormatKey)
 		return nextExtra
 	}
 	nextExtra[gatewayExtraProtocolKey] = protocol
@@ -734,6 +823,11 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		nextExtra[gatewayExtraTestModelIDKey] = modelID
 	} else {
 		delete(nextExtra, gatewayExtraTestModelIDKey)
+	}
+	if requestFormat := ResolveAccountGatewayOpenAIRequestFormat(platform, nextExtra); requestFormat != "" {
+		nextExtra[gatewayExtraOpenAIRequestFormatKey] = requestFormat
+	} else {
+		delete(nextExtra, gatewayExtraOpenAIRequestFormatKey)
 	}
 	return nextExtra
 }

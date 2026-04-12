@@ -175,6 +175,29 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
   `
 })
 
+const AccountProtocolGatewayOpenAIRequestFormatEditorStub = defineComponent({
+  name: 'AccountProtocolGatewayOpenAIRequestFormatEditor',
+  props: {
+    value: {
+      type: String,
+      default: '/v1/chat/completions'
+    }
+  },
+  emits: ['update:value'],
+  template: `
+    <div>
+      <span data-testid="gateway-openai-request-format-prop">{{ value }}</span>
+      <button
+        type="button"
+        data-testid="set-gateway-openai-request-format"
+        @click="$emit('update:value', '/v1/responses')"
+      >
+        set openai request format
+      </button>
+    </div>
+  `
+})
+
 function mountModal() {
   return mount(CreateAccountModal, {
     props: {
@@ -189,6 +212,7 @@ function mountModal() {
         AccountCreatePlatformTypeEditor: AccountCreatePlatformTypeEditorStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
+        AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
         AccountApiKeyModelProbeEditor: true,
         AccountAntigravityModelMappingEditor: true,
         AccountAutoPauseToggle: true,
@@ -294,5 +318,32 @@ describe('CreateAccountModal', () => {
         gateway_test_model_id: 'claude-sonnet-4.5'
       }
     })
+  })
+
+  it('persists the protocol gateway OpenAI request format selection', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 10,
+      name: 'Gateway OpenAI Account',
+      platform: 'protocol_gateway',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="set-gateway-openai-request-format"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Gateway OpenAI Account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]?.extra?.gateway_openai_request_format).toBe('/v1/responses')
   })
 })

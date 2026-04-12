@@ -301,11 +301,12 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 		return s.testOpenAIAccountConnection(c, account, modelID, "", simulatedClient)
 	}
 
+	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
 	testModelID := strings.TrimSpace(modelID)
 	if testModelID == "" {
 		testModelID = defaultOpenAIOAuthTestModelID(c.Request.Context(), account, s.modelRegistryService)
 	}
-	body, err := json.Marshal(createOpenAITestPayload(testModelID, isChatGPTOpenAIOAuthAccount(account)))
+	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, requestFormat, isChatGPTOpenAIOAuthAccount(account)))
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to encode OpenAI test payload")
 	}
@@ -314,14 +315,26 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
 	s.sendResolvedTestRuntimeMetaEvents(c)
 
-	child, recorder := s.prepareForwardTestContext(c, http.MethodPost, "/v1/responses", body)
-	SetOpenAIClientTransport(child, OpenAIClientTransportHTTP)
+	targetPath := "/v1/responses"
+	if requestFormat == GatewayOpenAIRequestFormatChatCompletions {
+		targetPath = "/v1/chat/completions"
+	}
+	child, recorder := s.prepareForwardTestContext(c, http.MethodPost, targetPath, body)
+	if requestFormat == GatewayOpenAIRequestFormatResponses {
+		SetOpenAIClientTransport(child, OpenAIClientTransportHTTP)
+	}
 	if strings.TrimSpace(simulatedClient) == GatewayClientProfileCodex {
 		child.Request.Header.Set("User-Agent", codexCLIUserAgent)
 		child.Request.Header.Set("Originator", "codex_cli_rs")
 	}
 
-	_, forwardErr := s.openAIGatewayService.Forward(c.Request.Context(), child, account, body)
+	var forwardErr error
+	if requestFormat == GatewayOpenAIRequestFormatChatCompletions {
+		_, forwardErr = s.openAIGatewayService.ForwardAsChatCompletions(c.Request.Context(), child, account, body, "", "")
+		return s.relayForwardRecorderStream(c, account, recorder, forwardErr, s.processOpenAIChatCompletionsStream)
+	}
+
+	_, forwardErr = s.openAIGatewayService.Forward(c.Request.Context(), child, account, body)
 	return s.relayForwardRecorderStream(c, account, recorder, forwardErr, s.processOpenAIStream)
 }
 

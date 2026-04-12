@@ -156,6 +156,13 @@
           </span>
         </template>
 
+        <template #cell-request_protocol="{ row }">
+          <UsageProtocolCell
+            :inbound-path="row.inbound_endpoint"
+            :upstream-path="row.upstream_endpoint"
+          />
+        </template>
+
         <template #cell-endpoint="{ row }">
           <div class="max-w-[320px] space-y-1 text-xs">
             <div
@@ -334,7 +341,7 @@
           <div class="text-sm">
             <div class="flex items-center gap-1.5">
               <span class="font-medium text-green-600 dark:text-green-400"
-                >${{ row.actual_cost?.toFixed(6) || "0.000000" }}</span
+                >${{ formatUsageAmount(row.actual_cost) }}</span
               >
               <span
                 v-if="row.billing_exempt_reason === 'admin_free'"
@@ -364,7 +371,7 @@
               v-if="row.account_rate_multiplier != null"
               class="mt-0.5 text-[11px] text-gray-400"
             >
-              A ${{ (row.total_cost * row.account_rate_multiplier).toFixed(6) }}
+              A ${{ formatUsageAmount(calculateUsageAmount(row.total_cost, row.account_rate_multiplier)) }}
             </div>
             <div v-if="getChargeLabel(row)" class="mt-1">
               <span
@@ -598,34 +605,34 @@
               {{ t("usage.costDetails") }}
             </div>
             <div
-              v-if="tooltipData && tooltipData.input_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.input_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.inputCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.input_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.input_cost) }}</span
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.output_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.output_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.outputCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.output_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.output_cost) }}</span
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.image_output_cost"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.image_output_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{ t("usage.imageOutput") }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.image_output_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.image_output_cost) }}</span
               >
             </div>
             <div
@@ -663,25 +670,25 @@
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.cache_creation_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.cache_creation_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.cacheCreationCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.cache_creation_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.cache_creation_cost) }}</span
               >
             </div>
             <div
-              v-if="tooltipData && tooltipData.cache_read_cost > 0"
+              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.cache_read_cost)"
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
                 t("admin.usage.cacheReadCost")
               }}</span>
               <span class="font-medium text-white"
-                >${{ tooltipData.cache_read_cost.toFixed(6) }}</span
+                >${{ formatUsageAmount(tooltipData.cache_read_cost) }}</span
               >
             </div>
           </div>
@@ -695,7 +702,7 @@
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.rate") }}</span>
             <span class="font-semibold text-blue-400"
-              >{{ (tooltipData?.rate_multiplier || 1).toFixed(2) }}x</span
+              >{{ formatUsageMultiplier(tooltipData?.rate_multiplier) }}x</span
             >
           </div>
           <div class="flex items-center justify-between gap-6">
@@ -703,21 +710,19 @@
               t("usage.accountMultiplier")
             }}</span>
             <span class="font-semibold text-blue-400"
-              >{{
-                (tooltipData?.account_rate_multiplier ?? 1).toFixed(2)
-              }}x</span
+              >{{ formatUsageMultiplier(tooltipData?.account_rate_multiplier) }}x</span
             >
           </div>
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.original") }}</span>
             <span class="font-medium text-white"
-              >${{ tooltipData?.total_cost?.toFixed(6) || "0.000000" }}</span
+              >${{ formatUsageAmount(tooltipData?.total_cost) }}</span
             >
           </div>
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.userBilled") }}</span>
             <span class="font-semibold text-green-400"
-              >${{ tooltipData?.actual_cost?.toFixed(6) || "0.000000" }}</span
+              >${{ formatUsageAmount(tooltipData?.actual_cost) }}</span
             >
           </div>
           <div
@@ -738,10 +743,12 @@
             <span class="text-gray-400">{{ t("usage.accountBilled") }}</span>
             <span class="font-semibold text-green-400">
               ${{
-                (
-                  (tooltipData?.total_cost || 0) *
-                    (tooltipData?.account_rate_multiplier ?? 1) || 0
-                ).toFixed(6)
+                formatUsageAmount(
+                  calculateUsageAmount(
+                    tooltipData?.total_cost,
+                    tooltipData?.account_rate_multiplier,
+                  ),
+                )
               }}
             </span>
           </div>
@@ -769,12 +776,19 @@ import {
   formatUsageEndpointDisplay,
   formatUsageUserAgentDisplay,
 } from "@/utils/usageDisplay";
+import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import {
   getUsageChargeBadgeClass,
   getUsageChargeLabel,
   getUsageOperationBadgeClass,
   getUsageOperationLabel,
 } from "@/utils/usageOperation";
+import {
+  calculateUsageAmount,
+  formatUsageAmount,
+  formatUsageMultiplier,
+  hasPositiveUsageAmount,
+} from "@/utils/usageCost";
 import DataTable from "@/components/common/DataTable.vue";
 import EmptyState from "@/components/common/EmptyState.vue";
 import ModelIcon from "@/components/common/ModelIcon.vue";

@@ -42,6 +42,7 @@ const loadingList = ref(false)
 const loadingSummary = ref(false)
 const loadingDetail = ref(false)
 const loadingRaw = ref(false)
+const refreshing = ref(false)
 
 let listController: AbortController | null = null
 let summaryController: AbortController | null = null
@@ -139,6 +140,25 @@ async function fetchRawDetail() {
 
 async function fetchAllNow() {
   await Promise.all([fetchList(), fetchSummary()])
+}
+
+async function handleManualRefresh() {
+  if (refreshing.value) return
+
+  refreshing.value = true
+  try {
+    const selectedTraceID = selectedId.value
+    const shouldRefreshRaw = Boolean(selectedTraceID && rawDetail.value)
+    await fetchAllNow()
+    if (selectedTraceID) {
+      await fetchDetail(selectedTraceID)
+      if (shouldRefreshRaw) {
+        await fetchRawDetail()
+      }
+    }
+  } finally {
+    refreshing.value = false
+  }
 }
 
 function syncRouteQuery() {
@@ -325,7 +345,9 @@ onUnmounted(() => {
         :page="filters.page || 1"
         :page-size="filters.page_size || 20"
         :loading="loadingList"
+        :refreshing="refreshing"
         :selected-id="selectedId"
+        @refresh="handleManualRefresh"
         @select="handleSelect"
         @update:page="handlePage"
         @update:page-size="handlePageSize"

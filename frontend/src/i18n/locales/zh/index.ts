@@ -80,6 +80,10 @@ export default {
           ...zhAdminPages.pricing,
           ...zhAdminOverridePages.pricing
         },
+        billing: {
+          ...zhAdminPages.billing,
+          ...zhAdminOverridePages.billing
+        },
         official: {
           ...zhAdminPages.official
         },

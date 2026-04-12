@@ -267,7 +267,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			account := selection.Account
 			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 			reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
-			setOpsSelectedAccount(c, account.ID, account.Platform)
+			setOpsSelectedAccountDetails(c, account)
 			setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeFromLegacy(reqStream, false))
 
 			accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, reqStream, &streamStarted, reqLog)
@@ -389,14 +389,16 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			h.submitUsageRecordTask(func(ctx context.Context) {
 				ctx = reattachGatewayChannelState(ctx, channelState)
 				if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
-					Result:        result,
-					APIKey:        currentAPIKey,
-					User:          currentAPIKey.User,
-					Account:       account,
-					Subscription:  currentSubscription,
-					UserAgent:     userAgent,
-					IPAddress:     clientIP,
-					APIKeyService: h.apiKeyService,
+					Result:           result,
+					APIKey:           currentAPIKey,
+					User:             currentAPIKey.User,
+					Account:          account,
+					Subscription:     currentSubscription,
+					InboundEndpoint:  GetInboundEndpoint(c),
+					UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account),
+					UserAgent:        userAgent,
+					IPAddress:        clientIP,
+					APIKeyService:    h.apiKeyService,
 				}); err != nil {
 					logger.L().With(
 						zap.String("component", "handler.openai_gateway.responses"),
