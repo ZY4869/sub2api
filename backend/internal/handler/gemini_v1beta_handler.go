@@ -179,6 +179,10 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		h.GeminiV1BetaBatches(c)
 		return
 	}
+	if service.GeminiActionEndpoint(action) == service.EndpointGeminiEmbeddings {
+		h.GeminiV1BetaEmbeddings(c, modelName)
+		return
+	}
 	selectionModel := h.gatewayService.ResolveAPIKeySelectionModel(c.Request.Context(), apiKey, selectionPlatform, modelName)
 
 	stream := action == "streamGenerateContent"
@@ -258,6 +262,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 	}
 	excludedGroupIDs := make(map[int64]struct{})
 
+groupSelectionLoop:
 	for {
 		currentAPIKey, currentSubscription, err := resolveSelectedGatewayAPIKey(
 			c,
@@ -400,8 +405,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, runtimeSelectionModel, fs.FailedAccountIDs, "")
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
-					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-						break
+					if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						continue groupSelectionLoop
 					}
 					googleNoAvailableAccountsError(c, err)
 					return
@@ -415,8 +420,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 				case FailoverCanceled:
 					return
 				default:
-					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-						break
+					if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						continue groupSelectionLoop
 					}
 					h.handleGeminiFailoverExhausted(c, fs.LastFailoverErr)
 					return
@@ -450,8 +455,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			accountReleaseFunc := selection.ReleaseFunc
 			if !selection.Acquired {
 				if selection.WaitPlan == nil {
-					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-						break
+					if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+						continue groupSelectionLoop
 					}
 					googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.no_available_accounts", "No available Gemini accounts")
 					return
@@ -509,7 +514,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 			if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
 				result, err = h.antigravityGatewayService.ForwardGemini(requestCtx, c, account, modelName, action, stream, body, hasBoundSession)
 			} else {
-				result, err = h.geminiCompatService.ForwardNative(requestCtx, c, account, modelName, action, stream, body)
+				result, err = h.geminiNativeService.ForwardNative(requestCtx, c, account, modelName, action, stream, body)
 			}
 			if accountReleaseFunc != nil {
 				accountReleaseFunc()
@@ -522,8 +527,8 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 					case FailoverContinue:
 						continue
 					case FailoverExhausted:
-						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
-							break
+						if multiGroupRoutingEnabled(c.Request.Context(), apiKey, h.settingService) && excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
+							continue groupSelectionLoop
 						}
 						h.submitFailedUsageRecordTask(
 							"handler.gemini_v1beta.models",
@@ -593,6 +598,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 					UpstreamEndpoint:      upstreamEndpoint,
 					UserAgent:             userAgent,
 					IPAddress:             clientIP,
+					RequestBody:           body,
 					RequestPayloadHash:    requestPayloadHash,
 					LongContextThreshold:  200000,
 					LongContextMultiplier: 2.0,
@@ -850,7 +856,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
 			result, err = h.antigravityGatewayService.ForwardGemini(requestCtx, c, account, modelName, action, stream, body, hasBoundSession)
 		} else {
-			result, err = h.geminiCompatService.ForwardNative(requestCtx, c, account, modelName, action, stream, body)
+			result, err = h.geminiNativeService.ForwardNative(requestCtx, c, account, modelName, action, stream, body)
 		}
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()

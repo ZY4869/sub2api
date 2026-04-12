@@ -3,9 +3,11 @@
 package handler
 
 import (
+	"net/http/httptest"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +23,7 @@ func TestGeminiV1BetaHandler_PlatformRoutingInvariant(t *testing.T) {
 		{
 			name:            "Gemini平台使用ForwardNative",
 			platform:        service.PlatformGemini,
-			expectedService: "GeminiMessagesCompatService.ForwardNative",
+			expectedService: "GeminiNativeGatewayService.ForwardNative",
 			description:     "Gemini OAuth 账户直接调用 Google API",
 		},
 		{
@@ -39,12 +41,71 @@ func TestGeminiV1BetaHandler_PlatformRoutingInvariant(t *testing.T) {
 			if tt.platform == service.PlatformAntigravity {
 				routedService = "AntigravityGatewayService.ForwardGemini"
 			} else {
-				routedService = "GeminiMessagesCompatService.ForwardNative"
+				routedService = "GeminiNativeGatewayService.ForwardNative"
 			}
 
 			require.Equal(t, tt.expectedService, routedService,
 				"平台 %s 应该路由到 %s: %s",
 				tt.platform, tt.expectedService, tt.description)
+		})
+	}
+}
+
+func TestGatewayHandler_ResolveGeminiPassthroughService(t *testing.T) {
+	nativeBase := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	compatBase := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	liveBase := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	interactionsBase := service.NewGeminiMessagesCompatService(nil, nil, nil, nil, nil, nil, nil, nil, nil)
+
+	h := &GatewayHandler{
+		geminiNativeService:       service.NewGeminiNativeGatewayService(nativeBase),
+		geminiCompatService:       service.NewGeminiCompatGatewayService(compatBase),
+		geminiLiveService:         service.NewGeminiLiveGatewayService(liveBase),
+		geminiInteractionsService: service.NewGeminiInteractionsGatewayService(interactionsBase),
+	}
+
+	tests := []struct {
+		name         string
+		path         string
+		resourceKind string
+		expected     any
+	}{
+		{
+			name:     "native surface",
+			path:     "/v1beta/models/gemini-2.5-flash:fileSearch",
+			expected: h.geminiNativeService,
+		},
+		{
+			name:     "openai compat surface",
+			path:     "/v1beta/openai/chat/completions",
+			expected: h.geminiCompatService,
+		},
+		{
+			name:     "live surface",
+			path:     "/v1beta/live/auth-token",
+			expected: h.geminiLiveService,
+		},
+		{
+			name:         "interactions surface",
+			path:         "/v1beta/interactions",
+			resourceKind: service.UpstreamResourceKindGeminiInteraction,
+			expected:     h.geminiInteractionsService,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest("POST", tt.path, nil)
+
+			got := h.resolveGeminiPassthroughService(c, service.GeminiPublicPassthroughInput{
+				ResourceKind: tt.resourceKind,
+				GoogleBatchForwardInput: service.GoogleBatchForwardInput{
+					Path: tt.path,
+				},
+			})
+			require.Same(t, tt.expected, got)
 		})
 	}
 }

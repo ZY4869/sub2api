@@ -9,6 +9,11 @@ const (
 	UpstreamResourceKindGeminiFile     = "gemini_file"
 	UpstreamResourceKindGeminiBatch    = "gemini_batch"
 	UpstreamResourceKindVertexBatchJob = "vertex_batch_job"
+	UpstreamResourceKindGeminiCachedContent   = "gemini_cached_content"
+	UpstreamResourceKindGeminiFileSearchStore = "gemini_file_search_store"
+	UpstreamResourceKindGeminiDocument        = "gemini_document"
+	UpstreamResourceKindGeminiOperation       = "gemini_operation"
+	UpstreamResourceKindGeminiInteraction     = "gemini_interaction"
 
 	UpstreamProviderAIStudio = "ai_studio"
 	UpstreamProviderVertexAI = "vertex_ai"

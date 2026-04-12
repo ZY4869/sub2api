@@ -130,6 +130,7 @@ func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]mod
 			})
 		}
 	}
+	details = appendBundledModelCatalogSeedDetails(details)
 	return details, nil
 }
 

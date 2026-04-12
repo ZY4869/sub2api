@@ -312,6 +312,7 @@ func (h *OpenAIOAuthHandler) RefreshAccountToken(c *gin.Context) {
 
 	updatedAccount, err := h.adminService.UpdateAccount(c.Request.Context(), accountID, &service.UpdateAccountInput{
 		Credentials: newCredentials,
+		Extra:       service.EnsureOpenAIOAuthTestTargetExtra(account.Extra),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -404,7 +405,7 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		Platform:    platform,
 		Type:        "oauth",
 		Credentials: credentials,
-		Extra:       nil,
+		Extra:       service.EnsureOpenAIOAuthTestTargetExtra(nil),
 		ProxyID:     req.ProxyID,
 		Concurrency: req.Concurrency,
 		Priority:    req.Priority,

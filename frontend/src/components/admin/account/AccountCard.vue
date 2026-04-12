@@ -39,6 +39,12 @@
         <AccountStatusIndicator :account="account" @show-temp-unsched="emit('show-temp-unsched', account)" />
       </div>
 
+      <AccountAutoRecoveryProbeNotice
+        v-if="account.auto_recovery_probe"
+        class="mt-4"
+        :summary="account.auto_recovery_probe"
+      />
+
       <div class="mt-4 grid gap-3 sm:grid-cols-2">
         <div class="rounded-xl bg-gray-50 px-3 py-3 dark:bg-dark-900/40">
           <div class="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
@@ -110,6 +116,7 @@ import AccountStatusIndicator from '@/components/account/AccountStatusIndicator.
 import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import type { Account, WindowStats } from '@/types'
 import { formatRelativeTime } from '@/utils/format'
+import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 
 const props = defineProps<{

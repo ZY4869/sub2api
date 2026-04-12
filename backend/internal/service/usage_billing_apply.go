@@ -115,11 +115,35 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		if usageLog.MediaType != nil {
 			cmd.MediaType = *usageLog.MediaType
 		}
+		if usageLog.OperationType != nil {
+			cmd.OperationType = *usageLog.OperationType
+		}
+		if usageLog.ChargeSource != nil {
+			cmd.ChargeSource = *usageLog.ChargeSource
+		}
 		if usageLog.ServiceTier != nil {
 			cmd.ServiceTier = *usageLog.ServiceTier
 		}
 		if usageLog.ReasoningEffort != nil {
 			cmd.ReasoningEffort = *usageLog.ReasoningEffort
+		}
+		if usageLog.GeminiSurface != nil {
+			cmd.GeminiSurface = *usageLog.GeminiSurface
+		}
+		if usageLog.GeminiBatchMode != nil {
+			cmd.GeminiBatchMode = *usageLog.GeminiBatchMode
+		}
+		if usageLog.GeminiCachePhase != nil {
+			cmd.GeminiCachePhase = *usageLog.GeminiCachePhase
+		}
+		if usageLog.GeminiGroundingKind != nil {
+			cmd.GeminiGroundingKind = *usageLog.GeminiGroundingKind
+		}
+		if usageLog.GeminiInputModality != nil {
+			cmd.GeminiInputModality = *usageLog.GeminiInputModality
+		}
+		if usageLog.GeminiOutputModality != nil {
+			cmd.GeminiOutputModality = *usageLog.GeminiOutputModality
 		}
 		if usageLog.SubscriptionID != nil {
 			cmd.SubscriptionID = usageLog.SubscriptionID

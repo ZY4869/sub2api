@@ -196,6 +196,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
 
     expect(wrapper.text()).toContain('OpenAI')
     expect(wrapper.text()).toContain('Gemini')
+    expect(wrapper.text()).toContain('admin.accounts.protocolGateway.geminiCompatibilityBadge')
     expect(wrapper.text()).toContain('/v1/chat/completions')
     expect(wrapper.text()).toContain('/v1beta/models/{model}:generateContent')
     expect(wrapper.text()).toContain('/upload/v1beta/files')

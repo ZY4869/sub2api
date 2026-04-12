@@ -5,6 +5,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -39,6 +40,7 @@ type RecordUsageInput struct {
 	UpstreamService    string
 	UserAgent          string
 	IPAddress          string
+	RequestBody        []byte
 	RequestPayloadHash string
 	ForceCacheBilling  bool
 	APIKeyService      APIKeyQuotaUpdater
@@ -130,6 +132,96 @@ func (s *GatewayService) billingDeps() *billingDeps {
 	return &billingDeps{accountRepo: s.accountRepo, userRepo: s.userRepo, userSubRepo: s.userSubRepo, billingCacheService: s.billingCacheService, deferredService: s.deferredService}
 }
 
+func isGeminiBillingEndpoint(inboundEndpoint string) bool {
+	normalized := NormalizeInboundEndpoint(inboundEndpoint)
+	switch normalized {
+	case EndpointGeminiModels,
+		EndpointGeminiFiles,
+		EndpointGeminiFilesUp,
+		EndpointGeminiFilesDownload,
+		EndpointGeminiBatches,
+		EndpointGoogleBatchArchiveBatches,
+		EndpointGoogleBatchArchiveFiles,
+		EndpointVertexSyncModels,
+		EndpointVertexBatchJobs:
+		return true
+	}
+
+	path := strings.TrimSpace(strings.ToLower(inboundEndpoint))
+	return strings.Contains(path, "/v1beta/openai/") ||
+		strings.Contains(path, "/v1beta/live") ||
+		strings.Contains(path, "/v1beta/interactions") ||
+		strings.Contains(path, "/cachedcontents") ||
+		strings.Contains(path, "/filesearchstores") ||
+		strings.Contains(path, "/documents") ||
+		strings.Contains(path, "/operations") ||
+		strings.Contains(path, "/embeddings")
+}
+
+func geminiVideoRequestsForUsage(result *ForwardResult) int {
+	if result == nil || strings.TrimSpace(strings.ToLower(result.MediaType)) != "video" {
+		return 0
+	}
+	return 1
+}
+
+func (s *GatewayService) calculateGeminiGatewayCost(
+	ctx context.Context,
+	inboundEndpoint string,
+	requestBody []byte,
+	billingModel string,
+	result *ForwardResult,
+	multiplier float64,
+) (*GeminiBillingCalculationResult, error) {
+	if s == nil ||
+		s.billingService == nil ||
+		s.billingService.billingCenterService == nil ||
+		result == nil ||
+		!isGeminiBillingEndpoint(inboundEndpoint) {
+		return nil, nil
+	}
+
+	return s.billingService.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
+		Model:           billingModel,
+		InboundEndpoint: inboundEndpoint,
+		RequestBody:     requestBody,
+		Tokens: UsageTokens{
+			InputTokens:           result.Usage.InputTokens,
+			OutputTokens:          result.Usage.OutputTokens,
+			CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+			CacheReadTokens:       result.Usage.CacheReadInputTokens,
+			CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
+			CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
+		},
+		ImageCount:     result.ImageCount,
+		VideoRequests:  geminiVideoRequestsForUsage(result),
+		MediaType:      result.MediaType,
+		RateMultiplier: multiplier,
+	})
+}
+
+func applyGeminiClassificationToUsageLog(usageLog *UsageLog, classification *GeminiRequestClassification, fallbackMediaType string) {
+	if usageLog == nil || classification == nil {
+		return
+	}
+
+	usageLog.OperationType = optionalTrimmedStringPtr(classification.OperationType)
+	usageLog.ChargeSource = optionalTrimmedStringPtr(classification.ChargeSource)
+	usageLog.ServiceTier = optionalTrimmedStringPtr(classification.ServiceTier)
+	usageLog.GeminiSurface = optionalTrimmedStringPtr(classification.Surface)
+	usageLog.GeminiBatchMode = optionalTrimmedStringPtr(classification.BatchMode)
+	usageLog.GeminiCachePhase = optionalTrimmedStringPtr(classification.CachePhase)
+	usageLog.GeminiGroundingKind = optionalTrimmedStringPtr(classification.GroundingKind)
+	usageLog.GeminiInputModality = optionalTrimmedStringPtr(classification.InputModality)
+	usageLog.GeminiOutputModality = optionalTrimmedStringPtr(classification.OutputModality)
+
+	mediaType := classification.MediaType
+	if strings.TrimSpace(mediaType) == "" {
+		mediaType = fallbackMediaType
+	}
+	usageLog.MediaType = optionalTrimmedStringPtr(mediaType)
+}
+
 func (s *GatewayService) calculateGatewayMediaCost(result *ForwardResult, apiKey *APIKey, account *Account, multiplier float64) *CostBreakdown {
 	if s == nil || s.billingService == nil || result == nil {
 		return &CostBreakdown{}
@@ -203,7 +295,19 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if channelResolution != nil && channelResolution.BillingModel != "" {
 		billingModel = channelResolution.BillingModel
 	}
-	cost := s.calculateGatewayMediaCost(result, apiKey, account, multiplier)
+	var geminiBillingResult *GeminiBillingCalculationResult
+	var cost *CostBreakdown
+	if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
+		logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
+	} else {
+		geminiBillingResult = geminiCost
+	}
+	if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
+		cost = geminiBillingResult.Cost
+		applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
+	} else {
+		cost = s.calculateGatewayMediaCost(result, apiKey, account, multiplier)
+	}
 	if cost == nil {
 		var err error
 		cost, err = s.billingService.CalculateCost(billingModel, tokens, multiplier)
@@ -246,6 +350,9 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
+	if geminiBillingResult != nil {
+		applyGeminiClassificationToUsageLog(usageLog, geminiBillingResult.Classification, result.MediaType)
+	}
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
@@ -283,6 +390,7 @@ type RecordUsageLongContextInput struct {
 	UpstreamService       string
 	UserAgent             string
 	IPAddress             string
+	RequestBody           []byte
 	RequestPayloadHash    string
 	LongContextThreshold  int
 	LongContextMultiplier float64
@@ -331,8 +439,17 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if channelResolution != nil && channelResolution.BillingModel != "" {
 		billingModel = channelResolution.BillingModel
 	}
+	var geminiBillingResult *GeminiBillingCalculationResult
 	var cost *CostBreakdown
-	if result.ImageCount > 0 {
+	if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
+		logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
+	} else {
+		geminiBillingResult = geminiCost
+	}
+	if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
+		cost = geminiBillingResult.Cost
+		applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
+	} else if result.ImageCount > 0 {
 		var groupConfig *ImagePriceConfig
 		if apiKey.Group != nil {
 			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
@@ -380,6 +497,9 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
+	if geminiBillingResult != nil {
+		applyGeminiClassificationToUsageLog(usageLog, geminiBillingResult.Classification, result.MediaType)
+	}
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
@@ -403,4 +523,16 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
 	return nil
+}
+
+func applyGeminiBillingMetadataToContext(ctx context.Context, result *GeminiBillingCalculationResult) {
+	if result == nil {
+		return
+	}
+	if result.Classification != nil {
+		SetGeminiSurfaceMetadata(ctx, result.Classification.Surface)
+	}
+	if len(result.MatchedRuleIDs) > 0 {
+		SetBillingRuleIDMetadata(ctx, result.MatchedRuleIDs[0])
+	}
 }

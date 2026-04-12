@@ -202,3 +202,39 @@ func TestAccountTestService_OpenAISuccessProbeFailureKeepsExistingKnownModels(t 
 	require.Equal(t, OpenAIKnownModelsSourceImportModels, account.Extra["openai_known_models_source"])
 	require.Contains(t, recorder.Body.String(), "test_complete")
 }
+
+func TestEnsureOpenAIOAuthTestTargetExtra_FillsMissingDefault(t *testing.T) {
+	extra := EnsureOpenAIOAuthTestTargetExtra(nil)
+	require.Equal(t, PlatformOpenAI, extra[gatewayExtraTestProviderKey])
+	require.Equal(t, OpenAIOAuthDefaultTestModelID, extra[gatewayExtraTestModelIDKey])
+}
+
+func TestEnsureOpenAIOAuthTestTargetExtra_PreservesExplicitSetting(t *testing.T) {
+	extra := EnsureOpenAIOAuthTestTargetExtra(map[string]any{
+		gatewayExtraTestProviderKey: PlatformAnthropic,
+		gatewayExtraTestModelIDKey:  "claude-sonnet-4.5",
+	})
+	require.Equal(t, PlatformAnthropic, extra[gatewayExtraTestProviderKey])
+	require.Equal(t, "claude-sonnet-4.5", extra[gatewayExtraTestModelIDKey])
+}
+
+func TestDefaultOpenAIOAuthTestModelID_PrefersGPT54WithoutSnapshot(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+	}
+
+	require.Equal(t, OpenAIOAuthDefaultTestModelID, defaultOpenAIOAuthTestModelID(context.Background(), account, nil))
+}
+
+func TestDefaultOpenAIOAuthTestModelID_FallsBackWhenKnownModelsExcludeGPT54(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Extra: map[string]any{
+			"openai_known_models": []string{"gpt-4.1-mini", "o4-mini"},
+		},
+	}
+
+	require.Equal(t, "gpt-4.1-mini", defaultOpenAIOAuthTestModelID(context.Background(), account, nil))
+}

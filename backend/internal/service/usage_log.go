@@ -202,9 +202,15 @@ type UsageLog struct {
 	HTTPStatus      *int
 	ErrorCode       *string
 	ErrorMessage    *string
-	SimulatedClient *string
-	OperationType   *string
-	ChargeSource    *string
+	SimulatedClient     *string
+	OperationType       *string
+	ChargeSource        *string
+	GeminiSurface       *string
+	GeminiBatchMode     *string
+	GeminiCachePhase    *string
+	GeminiGroundingKind *string
+	GeminiInputModality *string
+	GeminiOutputModality *string
 
 	// Cache TTL Override 标记（管理员强制替换了缓存 TTL 计费）
 	CacheTTLOverridden bool

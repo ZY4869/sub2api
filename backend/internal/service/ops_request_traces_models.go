@@ -37,6 +37,9 @@ type ProtocolNormalizeResult struct {
 	ToolKinds                        []string `json:"tool_kinds,omitempty"`
 	CountTokensSource                string   `json:"count_tokens_source"`
 	UpstreamRequestID                string   `json:"upstream_request_id"`
+	GeminiSurface                    string   `json:"gemini_surface,omitempty"`
+	BillingRuleID                    string   `json:"billing_rule_id,omitempty"`
+	ProbeAction                      string   `json:"probe_action,omitempty"`
 	IncludeServerSideToolInvocations bool     `json:"include_server_side_tool_invocations"`
 	HasTools                         bool     `json:"has_tools"`
 	HasThinking                      bool     `json:"has_thinking"`
@@ -61,6 +64,9 @@ type OpsInsertRequestTraceInput struct {
 	RequestID             string
 	ClientRequestID       string
 	UpstreamRequestID     string
+	GeminiSurface         string
+	BillingRuleID         string
+	ProbeAction           string
 	UserID                *int64
 	APIKeyID              *int64
 	AccountID             *int64
@@ -147,6 +153,9 @@ type OpsRequestTraceFilter struct {
 	RequestID         string `json:"request_id,omitempty"`
 	ClientRequestID   string `json:"client_request_id,omitempty"`
 	UpstreamRequestID string `json:"upstream_request_id,omitempty"`
+	GeminiSurface     string `json:"gemini_surface,omitempty"`
+	BillingRuleID     string `json:"billing_rule_id,omitempty"`
+	ProbeAction       string `json:"probe_action,omitempty"`
 	Query             string `json:"q,omitempty"`
 
 	UserID     *int64 `json:"user_id,omitempty"`
@@ -223,6 +232,9 @@ type OpsRequestTraceListItem struct {
 	RequestedModel      string `json:"requested_model"`
 	UpstreamModel       string `json:"upstream_model"`
 	ActualUpstreamModel string `json:"actual_upstream_model"`
+	GeminiSurface       string `json:"gemini_surface,omitempty"`
+	BillingRuleID       string `json:"billing_rule_id,omitempty"`
+	ProbeAction         string `json:"probe_action,omitempty"`
 	Status              string `json:"status"`
 	StatusCode          int    `json:"status_code"`
 	UpstreamStatusCode  *int   `json:"upstream_status_code,omitempty"`

@@ -191,6 +191,9 @@ func buildOpsRequestTraceFilterFromQuery(c *gin.Context) (*service.OpsRequestTra
 		RequestID:         strings.TrimSpace(c.Query("request_id")),
 		ClientRequestID:   strings.TrimSpace(c.Query("client_request_id")),
 		UpstreamRequestID: strings.TrimSpace(c.Query("upstream_request_id")),
+		GeminiSurface:     strings.TrimSpace(c.Query("gemini_surface")),
+		BillingRuleID:     strings.TrimSpace(c.Query("billing_rule_id")),
+		ProbeAction:       strings.TrimSpace(c.Query("probe_action")),
 		Query:             strings.TrimSpace(c.Query("q")),
 		Sort:              strings.TrimSpace(c.Query("sort")),
 	}

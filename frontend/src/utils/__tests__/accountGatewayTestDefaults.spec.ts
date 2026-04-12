@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ensureOpenAIOAuthGatewayTestDefaults,
   findDefaultGatewayTestModel,
   resolveCatalogTargetFromModel,
   resolveGatewayTestSelectedModelKey
@@ -23,6 +24,20 @@ const models = [
 ] as any
 
 describe('accountGatewayTestDefaults', () => {
+  it('fills OpenAI OAuth test target defaults without overwriting explicit values', () => {
+    expect(ensureOpenAIOAuthGatewayTestDefaults()).toEqual({
+      gateway_test_provider: 'openai',
+      gateway_test_model_id: 'gpt-5.4'
+    })
+    expect(ensureOpenAIOAuthGatewayTestDefaults({
+      gateway_test_provider: 'openai',
+      gateway_test_model_id: 'gpt-4.1-mini'
+    })).toEqual({
+      gateway_test_provider: 'openai',
+      gateway_test_model_id: 'gpt-4.1-mini'
+    })
+  })
+
   it('uses a single account stored default when the catalog entry is still available', () => {
     const selected = findDefaultGatewayTestModel([
       {

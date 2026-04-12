@@ -20,6 +20,14 @@ const (
 	EndpointGeminiFilesUp             = "/upload/v1beta/files"
 	EndpointGeminiFilesDownload       = "/download/v1beta/files"
 	EndpointGeminiBatches             = "/v1beta/batches"
+	EndpointGeminiCachedContents      = "/v1beta/cachedContents"
+	EndpointGeminiFileSearchStores    = "/v1beta/fileSearchStores"
+	EndpointGeminiDocuments           = "/v1beta/documents"
+	EndpointGeminiOperations          = "/v1beta/operations"
+	EndpointGeminiEmbeddings          = "/v1beta/embeddings"
+	EndpointGeminiInteractions        = "/v1beta/interactions"
+	EndpointGeminiLive                = "/v1beta/live"
+	EndpointGeminiOpenAICompat        = "/v1beta/openai"
 	EndpointGoogleBatchArchiveBatches = "/google/batch/archive/v1beta/batches"
 	EndpointGoogleBatchArchiveFiles   = "/google/batch/archive/v1beta/files"
 	EndpointVertexSyncModels          = "/v1/projects/:project/locations/:location/publishers/google/models"
@@ -82,6 +90,9 @@ const (
 	ProtocolCapabilityActionStreamGenerateContent = "streamGenerateContent"
 	ProtocolCapabilityActionBatchGenerateContent  = "batchGenerateContent"
 	ProtocolCapabilityActionGeminiCountTokens     = "countTokens"
+	ProtocolCapabilityActionGeminiEmbedContent    = "embedContent"
+	ProtocolCapabilityActionGeminiBatchEmbeddings = "batchEmbedContents"
+	ProtocolCapabilityActionGeminiAsyncEmbedding  = "asyncBatchEmbedContent"
 )
 
 var publicEndpointRegistry = []PublicEndpointRegistryEntry{
@@ -291,6 +302,137 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 	},
 	{
+		CanonicalEndpoint: EndpointGeminiCachedContents,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_cached_contents",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/cachedContents"},
+			{Method: http.MethodPost, Pattern: "/v1beta/cachedContents"},
+			{Method: http.MethodGet, Pattern: "/v1beta/cachedContents/*subpath"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/cachedContents/*subpath"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/cachedContents/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiCachedContents, RequestFormat: EndpointGeminiCachedContents, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiFileSearchStores,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_file_search_stores",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores"},
+			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores"},
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/*subpath"},
+			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores/*subpath"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/fileSearchStores/*subpath"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/fileSearchStores/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiFileSearchStores, RequestFormat: EndpointGeminiFileSearchStores, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiDocuments,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_documents",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/documents"},
+			{Method: http.MethodPost, Pattern: "/v1beta/documents"},
+			{Method: http.MethodGet, Pattern: "/v1beta/documents/*subpath"},
+			{Method: http.MethodPost, Pattern: "/v1beta/documents/*subpath"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/documents/*subpath"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/documents/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiDocuments, RequestFormat: EndpointGeminiDocuments, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiOperations,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_operations",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/operations"},
+			{Method: http.MethodGet, Pattern: "/v1beta/operations/*subpath"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/operations/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiOperations, RequestFormat: EndpointGeminiOperations, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiEmbeddings,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_embeddings",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1beta/embeddings"},
+			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:embedContent", RegisteredHandlerFamily: "gemini_models"},
+			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:batchEmbedContents", RegisteredHandlerFamily: "gemini_models"},
+			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:asyncBatchEmbedContent", RegisteredHandlerFamily: "gemini_models"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: EndpointGeminiEmbeddings, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1beta/models/{model}:embedContent", Action: ProtocolCapabilityActionGeminiEmbedContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1beta/models/{model}:batchEmbedContents", Action: ProtocolCapabilityActionGeminiBatchEmbeddings, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1beta/models/{model}:asyncBatchEmbedContent", Action: ProtocolCapabilityActionGeminiAsyncEmbedding, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiInteractions,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_interactions",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1beta/interactions"},
+			{Method: http.MethodGet, Pattern: "/v1beta/interactions/*subpath"},
+			{Method: http.MethodPost, Pattern: "/v1beta/interactions/*subpath"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/interactions/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiInteractions, RequestFormat: EndpointGeminiInteractions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiLive,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_live",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/live"},
+			{Method: http.MethodGet, Pattern: "/v1beta/live/*subpath"},
+			{Method: http.MethodPost, Pattern: "/v1beta/live"},
+			{Method: http.MethodPost, Pattern: "/v1beta/live/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiLive, RequestFormat: EndpointGeminiLive, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiLive, RequestFormat: EndpointGeminiLive, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiOpenAICompat,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_openai_compat",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/models"},
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/models/*subpath"},
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/files"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/files"},
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/files/*subpath"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/openai/files/*subpath"},
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/batches"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/batches"},
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/batches/*subpath"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/batches/*subpath"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/chat/completions"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/embeddings"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/images/generations"},
+			{Method: http.MethodPost, Pattern: "/v1beta/openai/videos"},
+			{Method: http.MethodGet, Pattern: "/v1beta/openai/videos/*subpath"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiOpenAICompat, RequestFormat: EndpointGeminiOpenAICompat, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
 		CanonicalEndpoint: EndpointGoogleBatchArchiveBatches,
 		SourceProtocol:    PlatformGemini,
 		HandlerFamily:     "google_batch_archive_batches",
@@ -423,6 +565,12 @@ func NormalizeProtocolCapabilityAction(action string) string {
 		return ProtocolCapabilityActionBatchGenerateContent
 	case ProtocolCapabilityActionGeminiCountTokens:
 		return ProtocolCapabilityActionGeminiCountTokens
+	case ProtocolCapabilityActionGeminiEmbedContent:
+		return ProtocolCapabilityActionGeminiEmbedContent
+	case ProtocolCapabilityActionGeminiBatchEmbeddings:
+		return ProtocolCapabilityActionGeminiBatchEmbeddings
+	case ProtocolCapabilityActionGeminiAsyncEmbedding:
+		return ProtocolCapabilityActionGeminiAsyncEmbedding
 	default:
 		return strings.TrimSpace(action)
 	}
@@ -432,6 +580,8 @@ func GeminiActionEndpoint(action string) string {
 	switch NormalizeProtocolCapabilityAction(action) {
 	case ProtocolCapabilityActionBatchGenerateContent:
 		return EndpointGeminiBatches
+	case ProtocolCapabilityActionGeminiEmbedContent, ProtocolCapabilityActionGeminiBatchEmbeddings, ProtocolCapabilityActionGeminiAsyncEmbedding:
+		return EndpointGeminiEmbeddings
 	default:
 		return EndpointGeminiModels
 	}

@@ -14,6 +14,18 @@ export interface AccountGatewayCatalogTarget {
   targetModelId?: string
 }
 
+export function ensureOpenAIOAuthGatewayTestDefaults(
+  extra?: Record<string, unknown> | null
+): Record<string, unknown> {
+  const provider = normalizeProviderSlug(String(extra?.gateway_test_provider || ''))
+  const modelId = String(extra?.gateway_test_model_id || '').trim()
+  return {
+    ...(extra || {}),
+    gateway_test_provider: provider || 'openai',
+    gateway_test_model_id: modelId || 'gpt-5.4'
+  }
+}
+
 function normalizeModelID(value?: string | null): string {
   return String(value || '').trim().toLowerCase()
 }

@@ -25,6 +25,9 @@ func TestOpsServiceRecordErrorBatch_SanitizesAndBatches(t *testing.T) {
 	detail := `{"authorization":"Bearer secret-token"}`
 	entries := []*OpsInsertErrorLogInput{
 		{
+			GeminiSurface:        "native",
+			BillingRuleID:        "rule_text_input",
+			ProbeAction:          "recover",
 			ErrorBody:            `{"error":"bad","access_token":"secret"}`,
 			UpstreamStatusCode:   intPtr(-10),
 			UpstreamErrorMessage: strPtr(msg),
@@ -63,6 +66,9 @@ func TestOpsServiceRecordErrorBatch_SanitizesAndBatches(t *testing.T) {
 	require.NotNil(t, first.UpstreamErrorsJSON)
 	require.NotContains(t, *first.UpstreamErrorsJSON, "secret")
 	require.Contains(t, *first.UpstreamErrorsJSON, "[REDACTED]")
+	require.Equal(t, "native", first.GeminiSurface)
+	require.Equal(t, "rule_text_input", first.BillingRuleID)
+	require.Equal(t, "recover", first.ProbeAction)
 
 	second := captured[1]
 	require.Equal(t, "upstream", second.ErrorPhase)

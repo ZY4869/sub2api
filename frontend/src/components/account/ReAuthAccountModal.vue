@@ -249,6 +249,7 @@ import {
   type GeminiBrowserOAuthType,
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
+import { ensureOpenAIOAuthGatewayTestDefaults } from '@/utils/accountGatewayTestDefaults'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
 import AccountKiroAuthPanel from '@/components/account/AccountKiroAuthPanel.vue'
@@ -480,7 +481,10 @@ const handleExchangeCode = async () => {
 
     // Build credentials and extra info
     const credentials = oauthClient.buildCredentials(tokenInfo)
-    const extra = oauthClient.buildExtraInfo(tokenInfo)
+    const extra = ensureOpenAIOAuthGatewayTestDefaults({
+      ...((props.account.extra || {}) as Record<string, unknown>),
+      ...oauthClient.buildExtraInfo(tokenInfo)
+    })
 
     try {
       // Update account with new credentials

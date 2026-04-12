@@ -30,6 +30,12 @@ var validOpsAlertMetricTypes = []string{
 	"account_error_count",
 	"account_error_ratio",
 	"overload_account_count",
+	"recovery_probe_started_count",
+	"recovery_probe_success_count",
+	"recovery_probe_retry_count",
+	"recovery_probe_blacklisted_count",
+	"gemini_billing_fallback_applied_count",
+	"gemini_billing_fallback_miss_count",
 }
 
 var validOpsAlertMetricTypeSet = func() map[string]struct{} {

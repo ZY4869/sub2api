@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -207,7 +208,7 @@ func TestComputeRuleMetricNewIndicators(t *testing.T) {
 			rule := &OpsAlertRule{
 				MetricType: tt.metricType,
 			}
-			gotValue, gotOK := svc.computeRuleMetric(ctx, rule, nil, start, end, platform, tt.groupID, newOpsAlertEvaluationCache())
+			gotValue, gotOK := svc.computeRuleMetric(ctx, rule, nil, start, end, platform, tt.groupID, nil, newOpsAlertEvaluationCache())
 			require.Equal(t, tt.wantOK, gotOK)
 			if !tt.wantOK {
 				return
@@ -255,6 +256,7 @@ func TestComputeRuleMetricCachesOverviewPerEvaluationCycle(t *testing.T) {
 				end,
 				"openai",
 				&groupID,
+				nil,
 				cache,
 			)
 			require.True(t, ok)
@@ -317,6 +319,7 @@ func TestComputeRuleMetricCachesAvailabilityPerEvaluationCycle(t *testing.T) {
 			time.Now().UTC(),
 			"openai",
 			&groupID,
+			nil,
 			cache,
 		)
 		require.True(t, ok)
@@ -326,4 +329,55 @@ func TestComputeRuleMetricCachesAvailabilityPerEvaluationCycle(t *testing.T) {
 	require.Equal(t, 1, calls)
 	require.Equal(t, 1, cache.stats.AvailabilityMisses)
 	require.Equal(t, 2, cache.stats.AvailabilityHits)
+}
+
+func TestComputeRuleMetricReasonScopedRuntimeMetrics(t *testing.T) {
+	t.Parallel()
+
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	protocolruntime.RecordRecoveryProbeStarted("rate_limited")
+	protocolruntime.RecordRecoveryProbeStarted("rate_limited")
+	protocolruntime.RecordRecoveryProbeStarted("unknown")
+	protocolruntime.RecordGeminiBillingFallbackApplied("no_billing_rule_match")
+	protocolruntime.RecordGeminiBillingFallbackApplied("no_billing_rule_match")
+	protocolruntime.RecordGeminiBillingFallbackMiss("missing_context_window")
+
+	svc := &OpsAlertEvaluatorService{}
+	cache := newOpsAlertEvaluationCache()
+	start := time.Now().UTC().Add(-5 * time.Minute)
+	end := time.Now().UTC()
+
+	rateLimited := "rate_limited"
+	noBillingRuleMatch := "no_billing_rule_match"
+
+	tests := []struct {
+		name       string
+		metricType string
+		reason     *string
+		want       float64
+	}{
+		{name: "recovery total", metricType: "recovery_probe_started_count", reason: nil, want: 3},
+		{name: "recovery reason bucket", metricType: "recovery_probe_started_count", reason: &rateLimited, want: 2},
+		{name: "fallback applied total", metricType: "gemini_billing_fallback_applied_count", reason: nil, want: 2},
+		{name: "fallback applied reason bucket", metricType: "gemini_billing_fallback_applied_count", reason: &noBillingRuleMatch, want: 2},
+		{name: "fallback miss total", metricType: "gemini_billing_fallback_miss_count", reason: nil, want: 1},
+	}
+
+	for _, tt := range tests {
+		got, ok := svc.computeRuleMetric(
+			context.Background(),
+			&OpsAlertRule{MetricType: tt.metricType},
+			nil,
+			start,
+			end,
+			"",
+			nil,
+			tt.reason,
+			cache,
+		)
+		require.True(t, ok, tt.name)
+		require.InDelta(t, tt.want, got, 0.0001, tt.name)
+	}
 }

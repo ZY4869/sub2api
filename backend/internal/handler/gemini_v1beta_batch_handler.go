@@ -14,54 +14,54 @@ import (
 func (h *GatewayHandler) GeminiV1BetaFiles(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardGoogleFiles(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardGoogleFiles(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GeminiV1BetaFileUpload(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardGoogleFiles(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardGoogleFiles(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GeminiV1BetaFileDownload(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardGoogleFileDownload(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardGoogleFileDownload(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GeminiV1BetaBatches(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardGoogleBatches(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardGoogleBatches(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) VertexBatchPredictionJobs(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardVertexBatchPredictionJobs(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardVertexBatchPredictionJobs(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GoogleBatchArchiveBatch(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardGoogleArchiveBatch(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardGoogleArchiveBatch(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) GoogleBatchArchiveFileDownload(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
-		return h.geminiCompatService.ForwardGoogleArchiveFileDownload(c.Request.Context(), input)
+		return h.geminiNativeService.ForwardGoogleArchiveFileDownload(c.Request.Context(), input)
 	})
 }
 
 func (h *GatewayHandler) forwardGoogleBatch(c *gin.Context, forwarder func(service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error)) {
-	if h == nil || h.geminiCompatService == nil {
+	if h == nil || h.geminiNativeService == nil {
 		googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.batch_service_missing", "Gemini batch service not configured")
 		return
 	}

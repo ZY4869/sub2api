@@ -19,6 +19,9 @@ INSERT INTO ops_request_traces (
   request_id,
   client_request_id,
   upstream_request_id,
+  gemini_surface,
+  billing_rule_id,
+  probe_action,
   user_id,
   api_key_id,
   account_id,
@@ -71,7 +74,7 @@ INSERT INTO ops_request_traces (
   search_text,
   created_at
 ) VALUES (
-  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54
+  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55,$56,$57
 )`
 
 func (r *opsRepository) InsertRequestTrace(ctx context.Context, input *service.OpsInsertRequestTraceInput) (int64, error) {
@@ -94,6 +97,9 @@ func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any 
 		opsNullString(input.RequestID),
 		opsNullString(input.ClientRequestID),
 		opsNullString(input.UpstreamRequestID),
+		opsNullString(input.GeminiSurface),
+		opsNullString(input.BillingRuleID),
+		opsNullString(input.ProbeAction),
 		opsNullInt64(input.UserID),
 		opsNullInt64(input.APIKeyID),
 		opsNullInt64(input.AccountID),
@@ -206,6 +212,9 @@ SELECT
   COALESCE(t.requested_model, ''),
   COALESCE(t.upstream_model, ''),
   COALESCE(t.actual_upstream_model, ''),
+  COALESCE(t.gemini_surface, ''),
+  COALESCE(t.billing_rule_id, ''),
+  COALESCE(t.probe_action, ''),
   COALESCE(t.status, ''),
   COALESCE(t.status_code, 0),
   t.upstream_status_code,
@@ -282,6 +291,9 @@ SELECT
   COALESCE(t.requested_model, ''),
   COALESCE(t.upstream_model, ''),
   COALESCE(t.actual_upstream_model, ''),
+  COALESCE(t.gemini_surface, ''),
+  COALESCE(t.billing_rule_id, ''),
+  COALESCE(t.probe_action, ''),
   COALESCE(t.status, ''),
   COALESCE(t.status_code, 0),
   t.upstream_status_code,
@@ -355,6 +367,9 @@ LIMIT 1`
 		&out.RequestedModel,
 		&out.UpstreamModel,
 		&out.ActualUpstreamModel,
+		&out.GeminiSurface,
+		&out.BillingRuleID,
+		&out.ProbeAction,
 		&out.Status,
 		&out.StatusCode,
 		&upstreamStatusCode,
@@ -719,6 +734,9 @@ func buildOpsRequestTracesWhere(filter *service.OpsRequestTraceFilter) (string, 
 	addOpsRequestTraceStringFilter("COALESCE(t.request_id,'')", filter.RequestID)
 	addOpsRequestTraceStringFilter("COALESCE(t.client_request_id,'')", filter.ClientRequestID)
 	addOpsRequestTraceStringFilter("COALESCE(t.upstream_request_id,'')", filter.UpstreamRequestID)
+	addOpsRequestTraceStringFilter("COALESCE(t.gemini_surface,'')", filter.GeminiSurface)
+	addOpsRequestTraceStringFilter("COALESCE(t.billing_rule_id,'')", filter.BillingRuleID)
+	addOpsRequestTraceStringFilter("COALESCE(t.probe_action,'')", filter.ProbeAction)
 
 	if filter.UserID != nil && *filter.UserID > 0 {
 		args = append(args, *filter.UserID)
@@ -795,6 +813,9 @@ func scanOpsRequestTraceListItem(scanner interface {
 		&item.RequestedModel,
 		&item.UpstreamModel,
 		&item.ActualUpstreamModel,
+		&item.GeminiSurface,
+		&item.BillingRuleID,
+		&item.ProbeAction,
 		&item.Status,
 		&item.StatusCode,
 		&upstreamStatusCode,

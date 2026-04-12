@@ -122,7 +122,10 @@ export function createDefaultRequestTraceFilter(): OpsRequestTraceFilter {
     upstream_model: '',
     request_id: '',
     client_request_id: '',
-    upstream_request_id: ''
+    upstream_request_id: '',
+    gemini_surface: '',
+    billing_rule_id: '',
+    probe_action: ''
   }
 }
 
@@ -151,6 +154,9 @@ export function parseRequestTraceFilterFromQuery(query: LocationQuery): OpsReque
     request_id: firstQueryValue(query.request_id),
     client_request_id: firstQueryValue(query.client_request_id),
     upstream_request_id: firstQueryValue(query.upstream_request_id),
+    gemini_surface: firstQueryValue(query.gemini_surface),
+    billing_rule_id: firstQueryValue(query.billing_rule_id),
+    probe_action: firstQueryValue(query.probe_action),
     q: firstQueryValue(query.q),
     page: parseOptionalNumber(firstQueryValue(query.page)) || defaults.page,
     page_size: parseOptionalNumber(firstQueryValue(query.page_size)) || defaults.page_size,
@@ -205,6 +211,9 @@ export function buildRequestTraceQuery(filter: OpsRequestTraceFilter): Record<st
   assignText('request_id')
   assignText('client_request_id')
   assignText('upstream_request_id')
+  assignText('gemini_surface')
+  assignText('billing_rule_id')
+  assignText('probe_action')
   assignText('q')
   assignText('sort')
   assignNumber('page')
@@ -310,6 +319,8 @@ export function getRequestTraceRouteFields(t: TranslateFn, item: TraceRow): Requ
     createField(t('admin.requestDetails.presentation.labels.routePath'), item.route_path),
     createField(t('admin.requestDetails.presentation.labels.channel'), item.channel),
     createField(t('admin.requestDetails.presentation.labels.platform'), item.platform),
+    createField(t('admin.requestDetails.presentation.labels.geminiSurface'), item.gemini_surface),
+    createField(t('admin.requestDetails.presentation.labels.probeAction'), item.probe_action),
     createField(
       t('admin.requestDetails.presentation.labels.protocolPair'),
       getProtocolPairLabel(t, item.protocol_in, item.protocol_out)
@@ -339,7 +350,8 @@ export function getRequestTraceIdentityFields(t: TranslateFn, item: TraceRow): R
   return [
     createField(t('admin.requestDetails.presentation.labels.requestId'), item.request_id, true),
     createField(t('admin.requestDetails.presentation.labels.clientRequestId'), item.client_request_id, true),
-    createField(t('admin.requestDetails.presentation.labels.upstreamRequestId'), item.upstream_request_id, true)
+    createField(t('admin.requestDetails.presentation.labels.upstreamRequestId'), item.upstream_request_id, true),
+    createField(t('admin.requestDetails.presentation.labels.billingRuleId'), item.billing_rule_id, true)
   ]
 }
 

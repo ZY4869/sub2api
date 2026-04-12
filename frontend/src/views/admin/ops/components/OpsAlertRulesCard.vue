@@ -62,6 +62,15 @@ const groupMetricTypes = new Set<MetricType>([
   'group_rate_limit_ratio'
 ])
 
+const reasonMetricTypes = new Set<MetricType>([
+  'recovery_probe_started_count',
+  'recovery_probe_success_count',
+  'recovery_probe_retry_count',
+  'recovery_probe_blacklisted_count',
+  'gemini_billing_fallback_applied_count',
+  'gemini_billing_fallback_miss_count'
+])
+
 function parsePositiveInt(value: unknown): number | null {
   if (value == null) return null
   if (typeof value === 'boolean') return null
@@ -86,6 +95,11 @@ const isGroupMetricSelected = computed(() => {
   return metricType ? groupMetricTypes.has(metricType) : false
 })
 
+const isReasonMetricSelected = computed(() => {
+  const metricType = draft.value?.metric_type
+  return metricType ? reasonMetricTypes.has(metricType) : false
+})
+
 const draftGroupId = computed<number | null>({
   get() {
     return parsePositiveInt(draft.value?.filters?.group_id)
@@ -108,6 +122,27 @@ const draftGroupId = computed<number | null>({
 const groupOptions = computed<SelectOption[]>(() => {
   if (isGroupMetricSelected.value) return groupOptionsBase.value
   return [{ value: null, label: t('admin.ops.alertRules.form.allGroups') }, ...groupOptionsBase.value]
+})
+
+const draftReason = computed<string>({
+  get() {
+    const value = draft.value?.filters?.reason
+    return typeof value === 'string' ? value : ''
+  },
+  set(value) {
+    if (!draft.value) return
+    const trimmed = value.trim()
+    if (!trimmed) {
+      if (!draft.value.filters) return
+      delete draft.value.filters.reason
+      if (Object.keys(draft.value.filters).length === 0) {
+        delete draft.value.filters
+      }
+      return
+    }
+    if (!draft.value.filters) draft.value.filters = {}
+    draft.value.filters.reason = trimmed
+  }
 })
 
 const metricDefinitions = computed(() => {
@@ -226,6 +261,54 @@ const metricDefinitions = computed(() => {
       group: 'account',
       label: t('admin.ops.alertRules.metrics.overloadAccountCount'),
       description: t('admin.ops.alertRules.metricDescriptions.overloadAccountCount'),
+      recommendedOperator: '>',
+      recommendedThreshold: 0
+    },
+    {
+      type: 'recovery_probe_started_count',
+      group: 'system',
+      label: t('admin.ops.alertRules.metrics.recoveryProbeStartedCount'),
+      description: t('admin.ops.alertRules.metricDescriptions.recoveryProbeStartedCount'),
+      recommendedOperator: '>',
+      recommendedThreshold: 0
+    },
+    {
+      type: 'recovery_probe_success_count',
+      group: 'system',
+      label: t('admin.ops.alertRules.metrics.recoveryProbeSuccessCount'),
+      description: t('admin.ops.alertRules.metricDescriptions.recoveryProbeSuccessCount'),
+      recommendedOperator: '>',
+      recommendedThreshold: 0
+    },
+    {
+      type: 'recovery_probe_retry_count',
+      group: 'system',
+      label: t('admin.ops.alertRules.metrics.recoveryProbeRetryCount'),
+      description: t('admin.ops.alertRules.metricDescriptions.recoveryProbeRetryCount'),
+      recommendedOperator: '>',
+      recommendedThreshold: 0
+    },
+    {
+      type: 'recovery_probe_blacklisted_count',
+      group: 'system',
+      label: t('admin.ops.alertRules.metrics.recoveryProbeBlacklistedCount'),
+      description: t('admin.ops.alertRules.metricDescriptions.recoveryProbeBlacklistedCount'),
+      recommendedOperator: '>',
+      recommendedThreshold: 0
+    },
+    {
+      type: 'gemini_billing_fallback_applied_count',
+      group: 'system',
+      label: t('admin.ops.alertRules.metrics.geminiBillingFallbackAppliedCount'),
+      description: t('admin.ops.alertRules.metricDescriptions.geminiBillingFallbackAppliedCount'),
+      recommendedOperator: '>',
+      recommendedThreshold: 0
+    },
+    {
+      type: 'gemini_billing_fallback_miss_count',
+      group: 'system',
+      label: t('admin.ops.alertRules.metrics.geminiBillingFallbackMissCount'),
+      description: t('admin.ops.alertRules.metricDescriptions.geminiBillingFallbackMissCount'),
       recommendedOperator: '>',
       recommendedThreshold: 0
     }
@@ -492,7 +575,7 @@ function cancelDelete() {
 
           <div>
             <label class="input-label">{{ t('admin.ops.alertRules.form.metric') }}</label>
-            <Select v-model="draft!.metric_type" :options="metricOptions" />
+            <Select v-model="draft!.metric_type" :options="metricOptions" data-test="alert-rule-metric-select" />
             <div v-if="selectedMetricDefinition" class="mt-1 space-y-0.5 text-xs text-gray-500 dark:text-gray-400">
               <p>{{ selectedMetricDefinition.description }}</p>
               <p>
@@ -526,6 +609,20 @@ function cancelDelete() {
             />
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {{ isGroupMetricSelected ? t('admin.ops.alertRules.hints.groupRequired') : t('admin.ops.alertRules.hints.groupOptional') }}
+            </p>
+          </div>
+
+          <div v-if="isReasonMetricSelected" class="md:col-span-2">
+            <label class="input-label">{{ t('admin.ops.alertRules.form.reason') }}</label>
+            <input
+              v-model="draftReason"
+              data-test="alert-rule-reason-input"
+              class="input"
+              type="text"
+              :placeholder="t('admin.ops.alertRules.form.reasonPlaceholder')"
+            />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.ops.alertRules.hints.reasonOptional') }}
             </p>
           </div>
 

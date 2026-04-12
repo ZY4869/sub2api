@@ -259,6 +259,12 @@
                     {{ protocolLabel(resolveModelProtocol(model)) }}
                   </span>
                   <span
+                    v-if="resolveModelProtocol(model) === 'gemini'"
+                    class="inline-flex items-center rounded-full bg-sky-500/15 px-2 py-0.5 font-medium text-sky-700 dark:text-sky-200"
+                  >
+                    {{ t('admin.accounts.protocolGateway.geminiCompatibilityBadge') }}
+                  </span>
+                  <span
                     v-if="currentRouteProfile(model)"
                     class="inline-flex items-center rounded-full bg-primary-500/15 px-2 py-0.5 font-medium text-primary-700 dark:text-primary-200"
                   >

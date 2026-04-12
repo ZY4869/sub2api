@@ -325,7 +325,7 @@ func (s *OpsAlertEvaluatorService) evaluateOnce(interval time.Duration) {
 		}
 		rulesEnabled++
 
-		scopePlatform, scopeGroupID, scopeRegion := parseOpsAlertRuleScope(rule.Filters)
+		scopePlatform, scopeGroupID, scopeRegion, scopeReason := parseOpsAlertRuleScope(rule.Filters)
 
 		windowMinutes := rule.WindowMinutes
 		if windowMinutes <= 0 {
@@ -334,7 +334,7 @@ func (s *OpsAlertEvaluatorService) evaluateOnce(interval time.Duration) {
 		windowStart := safeEnd.Add(-time.Duration(windowMinutes) * time.Minute)
 		windowEnd := safeEnd
 
-		metricValue, ok := s.computeRuleMetric(ctx, rule, systemMetrics, windowStart, windowEnd, scopePlatform, scopeGroupID, evalCache)
+		metricValue, ok := s.computeRuleMetric(ctx, rule, systemMetrics, windowStart, windowEnd, scopePlatform, scopeGroupID, scopeReason, evalCache)
 		if !ok {
 			s.resetRuleState(rule.ID, now)
 			continue
@@ -384,10 +384,10 @@ func (s *OpsAlertEvaluatorService) evaluateOnce(interval time.Duration) {
 				Severity:       strings.TrimSpace(rule.Severity),
 				Status:         OpsAlertStatusFiring,
 				Title:          fmt.Sprintf("%s: %s", strings.TrimSpace(rule.Severity), strings.TrimSpace(rule.Name)),
-				Description:    buildOpsAlertDescription(rule, metricValue, windowMinutes, scopePlatform, scopeGroupID),
+				Description:    buildOpsAlertDescription(rule, metricValue, windowMinutes, scopePlatform, scopeGroupID, scopeReason),
 				MetricValue:    float64Ptr(metricValue),
 				ThresholdValue: float64Ptr(rule.Threshold),
-				Dimensions:     buildOpsAlertDimensions(scopePlatform, scopeGroupID),
+				Dimensions:     buildOpsAlertDimensions(scopePlatform, scopeGroupID, scopeReason),
 				FiredAt:        now,
 				CreatedAt:      now,
 			}
@@ -508,9 +508,9 @@ func requiredSustainedBreaches(sustainedMinutes int, interval time.Duration) int
 	return required
 }
 
-func parseOpsAlertRuleScope(filters map[string]any) (platform string, groupID *int64, region *string) {
+func parseOpsAlertRuleScope(filters map[string]any) (platform string, groupID *int64, region *string, reason *string) {
 	if filters == nil {
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 	if v, ok := filters["platform"]; ok {
 		if s, ok := v.(string); ok {
@@ -549,7 +549,15 @@ func parseOpsAlertRuleScope(filters map[string]any) (platform string, groupID *i
 			}
 		}
 	}
-	return platform, groupID, region
+	if v, ok := filters["reason"]; ok {
+		if s, ok := v.(string); ok {
+			vv := strings.TrimSpace(s)
+			if vv != "" {
+				reason = &vv
+			}
+		}
+	}
+	return platform, groupID, region, reason
 }
 
 func (s *OpsAlertEvaluatorService) computeRuleMetric(
@@ -560,12 +568,31 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 	end time.Time,
 	platform string,
 	groupID *int64,
+	reason *string,
 	evalCache *opsAlertEvaluationCache,
 ) (float64, bool) {
 	if rule == nil {
 		return 0, false
 	}
 	switch strings.TrimSpace(rule.MetricType) {
+	case "recovery_probe_started_count":
+		snapshot := SnapshotProtocolGatewayRuntimeMetrics()
+		return selectOpsAlertReasonMetric(snapshot.RecoveryProbeStartedTotal, snapshot.RecoveryProbeStartedByReason, reason), true
+	case "recovery_probe_success_count":
+		snapshot := SnapshotProtocolGatewayRuntimeMetrics()
+		return selectOpsAlertReasonMetric(snapshot.RecoveryProbeSuccessTotal, snapshot.RecoveryProbeSuccessByReason, reason), true
+	case "recovery_probe_retry_count":
+		snapshot := SnapshotProtocolGatewayRuntimeMetrics()
+		return selectOpsAlertReasonMetric(snapshot.RecoveryProbeRetryTotal, snapshot.RecoveryProbeRetryByReason, reason), true
+	case "recovery_probe_blacklisted_count":
+		snapshot := SnapshotProtocolGatewayRuntimeMetrics()
+		return selectOpsAlertReasonMetric(snapshot.RecoveryProbeBlacklistedTotal, snapshot.RecoveryProbeBlacklistedByReason, reason), true
+	case "gemini_billing_fallback_applied_count":
+		snapshot := SnapshotProtocolGatewayRuntimeMetrics()
+		return selectOpsAlertReasonMetric(snapshot.GeminiBillingFallbackAppliedTotal, snapshot.GeminiBillingFallbackByReason, reason), true
+	case "gemini_billing_fallback_miss_count":
+		snapshot := SnapshotProtocolGatewayRuntimeMetrics()
+		return selectOpsAlertReasonMetric(snapshot.GeminiBillingFallbackMissTotal, snapshot.GeminiBillingFallbackMissByReason, reason), true
 	case "cpu_usage_percent":
 		if systemMetrics != nil && systemMetrics.CPUUsagePercent != nil {
 			return *systemMetrics.CPUUsagePercent, true
@@ -703,6 +730,16 @@ func (s *OpsAlertEvaluatorService) computeRuleMetric(
 	}
 }
 
+func selectOpsAlertReasonMetric(total int64, buckets map[string]int64, reason *string) float64 {
+	if reason == nil || strings.TrimSpace(*reason) == "" {
+		return float64(total)
+	}
+	if buckets == nil {
+		return 0
+	}
+	return float64(buckets[strings.TrimSpace(*reason)])
+}
+
 func (s *OpsAlertEvaluatorService) getCachedAccountAvailability(
 	ctx context.Context,
 	platform string,
@@ -762,7 +799,7 @@ func compareMetric(value float64, operator string, threshold float64) bool {
 	}
 }
 
-func buildOpsAlertDimensions(platform string, groupID *int64) map[string]any {
+func buildOpsAlertDimensions(platform string, groupID *int64, reason *string) map[string]any {
 	dims := map[string]any{}
 	if strings.TrimSpace(platform) != "" {
 		dims["platform"] = strings.TrimSpace(platform)
@@ -770,13 +807,16 @@ func buildOpsAlertDimensions(platform string, groupID *int64) map[string]any {
 	if groupID != nil && *groupID > 0 {
 		dims["group_id"] = *groupID
 	}
+	if reason != nil && strings.TrimSpace(*reason) != "" {
+		dims["reason"] = strings.TrimSpace(*reason)
+	}
 	if len(dims) == 0 {
 		return nil
 	}
 	return dims
 }
 
-func buildOpsAlertDescription(rule *OpsAlertRule, value float64, windowMinutes int, platform string, groupID *int64) string {
+func buildOpsAlertDescription(rule *OpsAlertRule, value float64, windowMinutes int, platform string, groupID *int64, reason *string) string {
 	if rule == nil {
 		return ""
 	}
@@ -786,6 +826,9 @@ func buildOpsAlertDescription(rule *OpsAlertRule, value float64, windowMinutes i
 	}
 	if groupID != nil && *groupID > 0 {
 		scope = fmt.Sprintf("%s group_id=%d", scope, *groupID)
+	}
+	if reason != nil && strings.TrimSpace(*reason) != "" {
+		scope = fmt.Sprintf("%s reason=%s", scope, strings.TrimSpace(*reason))
 	}
 	if windowMinutes <= 0 {
 		windowMinutes = 1

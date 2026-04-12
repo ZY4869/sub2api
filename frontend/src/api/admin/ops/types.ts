@@ -525,6 +525,12 @@ export type MetricType =
   | 'account_error_count'
   | 'account_error_ratio'
   | 'overload_account_count'
+  | 'recovery_probe_started_count'
+  | 'recovery_probe_success_count'
+  | 'recovery_probe_retry_count'
+  | 'recovery_probe_blacklisted_count'
+  | 'gemini_billing_fallback_applied_count'
+  | 'gemini_billing_fallback_miss_count'
 export type Operator = '>' | '>=' | '<' | '<=' | '==' | '!='
 
 export interface AlertRule {
@@ -670,6 +676,9 @@ export interface OpsRequestTraceFilter {
   request_id?: string
   client_request_id?: string
   upstream_request_id?: string
+  gemini_surface?: string
+  billing_rule_id?: string
+  probe_action?: string
   q?: string
   user_id?: number | null
   api_key_id?: number | null
@@ -683,6 +692,8 @@ export interface OpsRequestTraceFilter {
   sampled?: boolean
   sort?: OpsRequestTraceSort
 }
+
+export type OpsRequestTraceQuery = OpsRequestTraceFilter
 
 export interface OpsRequestTraceListItem {
   id: number
@@ -703,6 +714,9 @@ export interface OpsRequestTraceListItem {
   requested_model: string
   upstream_model: string
   actual_upstream_model: string
+  gemini_surface?: string
+  billing_rule_id?: string
+  probe_action?: string
   status: string
   status_code: number
   upstream_status_code?: number | null
@@ -915,6 +929,9 @@ export interface OpsErrorLog {
   upstream_model?: string
   request_type?: number | null
   upstream_url?: string
+  gemini_surface?: string
+  billing_rule_id?: string
+  probe_action?: string
 }
 
 export interface OpsErrorDetail extends OpsErrorLog {
@@ -963,6 +980,9 @@ export type OpsErrorListQueryParams = {
   q?: string
   status_codes?: string
   status_codes_other?: string
+  gemini_surface?: string
+  billing_rule_id?: string
+  probe_action?: string
 }
 
 export interface AlertEventsQuery {

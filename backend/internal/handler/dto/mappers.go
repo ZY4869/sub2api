@@ -261,6 +261,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		OverloadUntil:           a.OverloadUntil,
 		TempUnschedulableUntil:  a.TempUnschedulableUntil,
 		TempUnschedulableReason: a.TempUnschedulableReason,
+		AutoRecoveryProbe:       accountAutoRecoveryProbeSummaryFromService(service.AccountAutoRecoveryProbeSummaryFromExtra(a.Extra)),
 		SessionWindowStart:      a.SessionWindowStart,
 		SessionWindowEnd:        a.SessionWindowEnd,
 		SessionWindowStatus:     a.SessionWindowStatus,
@@ -457,6 +458,20 @@ func timeToUnixSeconds(value *time.Time) *int64 {
 	}
 	ts := value.Unix()
 	return &ts
+}
+
+func accountAutoRecoveryProbeSummaryFromService(summary *service.AccountAutoRecoveryProbeSummary) *AccountAutoRecoveryProbeSummary {
+	if summary == nil {
+		return nil
+	}
+	return &AccountAutoRecoveryProbeSummary{
+		CheckedAt:   summary.CheckedAt,
+		Status:      summary.Status,
+		Summary:     summary.Summary,
+		Blacklisted: summary.Blacklisted,
+		NextRetryAt: summary.NextRetryAt,
+		ErrorCode:   summary.ErrorCode,
+	}
 }
 
 func AccountGroupFromService(ag *service.AccountGroup) *AccountGroup {

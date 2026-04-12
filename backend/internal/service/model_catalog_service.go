@@ -14,6 +14,7 @@ type ModelCatalogService struct {
 	settingRepo          SettingRepository
 	adminService         AdminService
 	billingService       *BillingService
+	billingCenterService *BillingCenterService
 	pricingService       *PricingService
 	exchangeRateService  *ModelCatalogExchangeRateService
 	modelRegistryService *ModelRegistryService
@@ -35,9 +36,11 @@ func NewModelCatalogService(
 		exchangeRateService: newModelCatalogExchangeRateService(nil),
 		cfg:                 cfg,
 	}
+	service.billingCenterService = NewBillingCenterService(settingRepo, billingService)
+	service.billingCenterService.SetModelCatalogService(service)
 	if billingService != nil {
-		billingService.ReplaceModelOfficialPriceOverrides(service.loadOfficialPriceOverrides(context.Background()))
-		billingService.ReplaceModelPriceOverrides(service.loadSalePriceOverrides(context.Background()))
+		billingService.SetBillingCenterService(service.billingCenterService)
+		service.billingCenterService.syncBillingServiceOverrides(context.Background())
 	}
 	return service
 }
@@ -142,34 +145,39 @@ func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, 
 	if !ok {
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 	}
+	if isGeminiBillingCompatModel(record.model) {
+		return nil, infraerrors.BadRequest(
+			"GEMINI_PRICING_OVERRIDE_DEPRECATED",
+			"Gemini legacy pricing override is deprecated; update the Gemini billing matrix instead",
+		)
+	}
 	if err := validateOverridePricing(input.ModelCatalogPricing); err != nil {
 		return nil, err
 	}
 
 	var overrides map[string]*ModelPricingOverride
-	var override *ModelPricingOverride
-	var effectivePricing *ModelCatalogPricing
+	var currentEffective *ModelCatalogPricing
 	if official {
 		overrides = s.loadOfficialPriceOverrides(ctx)
-		override = overrides[overrideKey]
-		effectivePricing = cloneCatalogPricing(record.upstreamPricing)
+		currentEffective = cloneCatalogPricing(record.officialPricing)
 	} else {
 		overrides = s.loadSalePriceOverrides(ctx)
-		override = overrides[overrideKey]
-		effectivePricing = cloneCatalogPricing(record.officialPricing)
+		currentEffective = cloneCatalogPricing(record.salePricing)
 	}
-	if override == nil {
-		override = &ModelPricingOverride{}
+	if currentEffective == nil {
+		currentEffective = &ModelCatalogPricing{}
 	}
-	if effectivePricing == nil {
-		effectivePricing = &ModelCatalogPricing{}
-	}
-	mergeCatalogPricing(effectivePricing, &override.ModelCatalogPricing)
-	mergeCatalogPricing(effectivePricing, &input.ModelCatalogPricing)
-	if err := validateTieredPricingConfiguration(effectivePricing); err != nil {
+	nextEffective := cloneCatalogPricing(currentEffective)
+	mergeCatalogPricing(nextEffective, &input.ModelCatalogPricing)
+	if err := validateTieredPricingConfiguration(nextEffective); err != nil {
 		return nil, err
 	}
 
+	existingLegacy := cloneModelPricingOverride(overrides[overrideKey])
+	override := existingLegacy
+	if override == nil {
+		override = &ModelPricingOverride{}
+	}
 	mergeCatalogPricing(&override.ModelCatalogPricing, &input.ModelCatalogPricing)
 	override.UpdatedAt = time.Now().UTC()
 	override.UpdatedByUserID = actor.UserID
@@ -180,18 +188,42 @@ func (s *ModelCatalogService) upsertPricingOverrideByLayer(ctx context.Context, 
 		if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
 			return nil, err
 		}
-		if s.billingService != nil {
-			s.billingService.ReplaceModelOfficialPriceOverrides(overrides)
-		}
 	} else {
 		if err := s.persistSalePriceOverrides(ctx, overrides); err != nil {
 			return nil, err
 		}
-		if s.billingService != nil {
-			s.billingService.ReplaceModelPriceOverrides(overrides)
-		}
 	}
+	s.billingCenterService.syncBillingServiceOverrides(ctx)
 	return s.GetModelDetail(ctx, overrideKey)
+}
+
+func (s *ModelCatalogService) clearGeminiLegacyPricingOverrideLayer(ctx context.Context, model string, layer string) error {
+	if s == nil || !isGeminiBillingCompatModel(model) {
+		return nil
+	}
+	alias := NormalizeModelCatalogModelID(model)
+	if alias == "" {
+		alias = CanonicalizeModelNameForPricing(model)
+	}
+	if alias == "" {
+		return nil
+	}
+	switch normalizeBillingDimension(layer, BillingLayerSale) {
+	case BillingLayerOfficial:
+		overrides := s.loadOfficialPriceOverrides(ctx)
+		if _, ok := overrides[alias]; !ok {
+			return nil
+		}
+		delete(overrides, alias)
+		return s.persistOfficialPriceOverrides(ctx, overrides)
+	default:
+		overrides := s.loadSalePriceOverrides(ctx)
+		if _, ok := overrides[alias]; !ok {
+			return nil
+		}
+		delete(overrides, alias)
+		return s.persistSalePriceOverrides(ctx, overrides)
+	}
 }
 
 func (s *ModelCatalogService) DeleteOfficialPricingOverride(ctx context.Context, _ ModelCatalogActor, model string) error {
@@ -207,6 +239,52 @@ func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, 
 	if alias == "" {
 		return infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
+	layer := BillingLayerSale
+	if official {
+		layer = BillingLayerOfficial
+	}
+	records, err := s.buildCatalogRecords(ctx)
+	if err != nil {
+		return err
+	}
+	record, ok := resolveModelCatalogRecord(records, model)
+	if !ok {
+		return infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
+	if isGeminiBillingCompatModel(record.model) {
+		rules := loadBillingRulesBySetting(ctx, s.settingRepo, SettingKeyBillingCenterRules)
+		filteredRules, removedRules := deleteGeminiCompatRules(rules, record, layer)
+		foundOverride := false
+		if official {
+			overrides := s.loadOfficialPriceOverrides(ctx)
+			if _, ok := overrides[alias]; ok {
+				foundOverride = true
+				delete(overrides, alias)
+				if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
+					return err
+				}
+			}
+		} else {
+			overrides := s.loadSalePriceOverrides(ctx)
+			if _, ok := overrides[alias]; ok {
+				foundOverride = true
+				delete(overrides, alias)
+				if err := s.persistSalePriceOverrides(ctx, overrides); err != nil {
+					return err
+				}
+			}
+		}
+		if !foundOverride && !removedRules {
+			return infraerrors.NotFound("MODEL_OVERRIDE_NOT_FOUND", "pricing override not found")
+		}
+		if removedRules {
+			if err := persistBillingRulesBySetting(ctx, s.settingRepo, SettingKeyBillingCenterRules, filteredRules); err != nil {
+				return err
+			}
+		}
+		s.billingCenterService.syncBillingServiceOverrides(ctx)
+		return nil
+	}
 	if official {
 		overrides := s.loadOfficialPriceOverrides(ctx)
 		if _, ok := overrides[alias]; !ok {
@@ -216,9 +294,7 @@ func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, 
 		if err := s.persistOfficialPriceOverrides(ctx, overrides); err != nil {
 			return err
 		}
-		if s.billingService != nil {
-			s.billingService.ReplaceModelOfficialPriceOverrides(overrides)
-		}
+		s.billingCenterService.syncBillingServiceOverrides(ctx)
 		return nil
 	}
 	overrides := s.loadSalePriceOverrides(ctx)
@@ -229,9 +305,7 @@ func (s *ModelCatalogService) deletePricingOverrideByLayer(ctx context.Context, 
 	if err := s.persistSalePriceOverrides(ctx, overrides); err != nil {
 		return err
 	}
-	if s.billingService != nil {
-		s.billingService.ReplaceModelPriceOverrides(overrides)
-	}
+	s.billingCenterService.syncBillingServiceOverrides(ctx)
 	return nil
 }
 

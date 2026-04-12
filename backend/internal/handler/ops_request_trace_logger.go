@@ -304,6 +304,24 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 			c.Writer.Header().Get("x-goog-request-id"),
 		))
 	}
+	if geminiSurface, ok := service.GeminiSurfaceMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiSurface = geminiSurface
+	} else if result.Platform == service.PlatformGemini {
+		classifier := service.NewGeminiRequestClassifier()
+		classification := classifier.ClassifyRequest(service.GeminiBillingCalculationInput{
+			InboundEndpoint: c.Request.URL.Path,
+			RequestBody:     requestBody,
+		})
+		if classification != nil {
+			result.GeminiSurface = classification.Surface
+		}
+	}
+	if billingRuleID, ok := service.BillingRuleIDMetadataFromContext(c.Request.Context()); ok {
+		result.BillingRuleID = billingRuleID
+	}
+	if probeAction, ok := service.ProbeActionMetadataFromContext(c.Request.Context()); ok {
+		result.ProbeAction = probeAction
+	}
 	if headerValue := strings.TrimSpace(c.Writer.Header().Get("X-Sub2api-CountTokens-Source")); headerValue != "" {
 		result.CountTokensSource = headerValue
 	}

@@ -229,6 +229,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.upstream_response_read_max_bytes", int64(8*1024*1024))
 	viper.SetDefault("gateway.proxy_probe_response_read_max_bytes", int64(1024*1024))
 	viper.SetDefault("gateway.gemini_debug_response_headers", false)
+	viper.SetDefault("gateway.gemini_live_enabled", false)
+	viper.SetDefault("gateway.gemini_interactions_enabled", false)
 	viper.SetDefault("gateway.grok_video_poll_interval_seconds", 2)
 	viper.SetDefault("gateway.grok_video_wait_timeout_seconds", 180)
 	viper.SetDefault("gateway.connection_pool_isolation", ConnectionPoolIsolationAccountProxy)

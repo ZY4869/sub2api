@@ -11,7 +11,7 @@ export interface GeneratedProtocolGatewayDescriptor {
   targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
-export const generatedProtocolGatewayBuiltAt = "2026-04-09T05:39:03Z"
+export const generatedProtocolGatewayBuiltAt = "2026-04-10T14:26:03Z"
 
 export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = {
   "anthropic": {
@@ -39,6 +39,17 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/download/v1beta/files",
       "/v1beta/models/{model}:batchGenerateContent",
       "/v1beta/batches/{batch}",
+      "/v1beta/cachedContents",
+      "/v1beta/fileSearchStores",
+      "/v1beta/documents",
+      "/v1beta/operations",
+      "/v1beta/embeddings",
+      "/v1beta/models/{model}:embedContent",
+      "/v1beta/models/{model}:batchEmbedContents",
+      "/v1beta/models/{model}:asyncBatchEmbedContent",
+      "/v1beta/interactions",
+      "/v1beta/live",
+      "/v1beta/openai",
       "/google/batch/archive/v1beta/batches",
       "/google/batch/archive/v1beta/files",
       "/v1/projects/:project/locations/:location/publishers/google/models",
@@ -71,6 +82,17 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/download/v1beta/files",
       "/v1beta/models/{model}:batchGenerateContent",
       "/v1beta/batches/{batch}",
+      "/v1beta/cachedContents",
+      "/v1beta/fileSearchStores",
+      "/v1beta/documents",
+      "/v1beta/operations",
+      "/v1beta/embeddings",
+      "/v1beta/models/{model}:embedContent",
+      "/v1beta/models/{model}:batchEmbedContents",
+      "/v1beta/models/{model}:asyncBatchEmbedContent",
+      "/v1beta/interactions",
+      "/v1beta/live",
+      "/v1beta/openai",
       "/google/batch/archive/v1beta/batches",
       "/google/batch/archive/v1beta/files",
       "/v1/projects/:project/locations/:location/publishers/google/models",

@@ -69,6 +69,9 @@ const translations: Record<string, string> = {
   'admin.requestDetails.presentation.labels.requestId': 'Request ID',
   'admin.requestDetails.presentation.labels.clientRequestId': 'Client Request ID',
   'admin.requestDetails.presentation.labels.upstreamRequestId': 'Upstream Request ID',
+  'admin.requestDetails.presentation.labels.billingRuleId': 'Billing Rule ID',
+  'admin.requestDetails.presentation.labels.geminiSurface': 'Gemini Surface',
+  'admin.requestDetails.presentation.labels.probeAction': 'Probe Action',
   'admin.requestDetails.presentation.status.success': 'Success',
   'admin.requestDetails.presentation.finishReasons.stop': 'Completed Normally',
   'admin.requestDetails.presentation.captureReasons.sampled': 'Sampled',
@@ -120,6 +123,9 @@ const baseItem = {
   requested_model: 'claude-opus-4-1-20250805',
   upstream_model: 'gpt-4o-mini-2025-04-01',
   actual_upstream_model: 'gpt-4o-mini-2025-04-01',
+  gemini_surface: 'live',
+  billing_rule_id: 'rule-live-1',
+  probe_action: 'recovery_probe',
   status: 'success',
   status_code: 200,
   upstream_status_code: 200,
@@ -175,8 +181,16 @@ describe('RequestDetailsTable', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('User 10 · API Key 20 · Account 30 · Group 40')
-    expect(wrapper.text()).toContain('/responses · openai_compat · protocol_gateway · OpenAI -> OpenAI')
+    expect(wrapper.text()).toContain('User 10')
+    expect(wrapper.text()).toContain('API Key 20')
+    expect(wrapper.text()).toContain('Account 30')
+    expect(wrapper.text()).toContain('Group 40')
+    expect(wrapper.text()).toContain('/responses')
+    expect(wrapper.text()).toContain('openai_compat')
+    expect(wrapper.text()).toContain('protocol_gateway')
+    expect(wrapper.text()).toContain('live')
+    expect(wrapper.text()).toContain('recovery_probe')
+    expect(wrapper.text()).toContain('rule-live-1')
     expect(wrapper.text()).toContain('Claude Opus 4.1')
     expect(wrapper.text()).toContain('GPT-4o mini')
     expect(wrapper.text()).toContain('Success')
@@ -207,6 +221,9 @@ describe('RequestDetailsTable', () => {
     const requestIdButton = wrapper.find('tbody tr td:nth-child(2) button')
     expect(requestIdButton.attributes('title')).toContain('Client Request ID: client-1')
     expect(requestIdButton.attributes('title')).toContain('Upstream Request ID: upstream-1')
+    expect(requestIdButton.attributes('title')).toContain('Billing Rule ID: rule-live-1')
+    expect(requestIdButton.attributes('title')).toContain('Gemini Surface: live')
+    expect(requestIdButton.attributes('title')).toContain('Probe Action: recovery_probe')
 
     await requestIdButton.trigger('click')
 

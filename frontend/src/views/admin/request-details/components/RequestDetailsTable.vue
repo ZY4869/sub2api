@@ -68,6 +68,9 @@ function getRouteSummary(item: OpsRequestTraceListItem): string {
     item.route_path,
     item.channel,
     item.platform,
+    item.gemini_surface,
+    item.probe_action,
+    item.billing_rule_id,
     getProtocolPairLabel(t, item.protocol_in, item.protocol_out)
   ])
 }
@@ -76,7 +79,10 @@ function getRequestIdTooltip(item: OpsRequestTraceListItem): string {
   return [
     `${t('admin.requestDetails.presentation.labels.requestId')}: ${item.request_id || '-'}`,
     `${t('admin.requestDetails.presentation.labels.clientRequestId')}: ${item.client_request_id || '-'}`,
-    `${t('admin.requestDetails.presentation.labels.upstreamRequestId')}: ${item.upstream_request_id || '-'}`
+    `${t('admin.requestDetails.presentation.labels.upstreamRequestId')}: ${item.upstream_request_id || '-'}`,
+    `${t('admin.requestDetails.presentation.labels.billingRuleId')}: ${item.billing_rule_id || '-'}`,
+    `${t('admin.requestDetails.presentation.labels.geminiSurface')}: ${item.gemini_surface || '-'}`,
+    `${t('admin.requestDetails.presentation.labels.probeAction')}: ${item.probe_action || '-'}`
   ].join('\n')
 }
 

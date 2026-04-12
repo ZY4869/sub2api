@@ -127,6 +127,7 @@ type BillingService struct {
 	cfg                    *config.Config
 	pricingService         *PricingService
 	modelRegistryService   *ModelRegistryService
+	billingCenterService   *BillingCenterService
 	fallbackPrices         map[string]*ModelPricing // ???????
 	overrideMu             sync.RWMutex
 	officialPriceOverrides map[string]*ModelPricingOverride
@@ -151,6 +152,10 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 
 func (s *BillingService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *BillingService) SetBillingCenterService(billingCenterService *BillingCenterService) {
+	s.billingCenterService = billingCenterService
 }
 
 // initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）

@@ -1192,10 +1192,9 @@ func (s *AccountTestService) testBedrockAccountConnection(c *gin.Context, ctx co
 func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account *Account, modelID string, sourceProtocol string, simulatedClient string) error {
 	ctx := c.Request.Context()
 
-	// Default to openai.DefaultTestModel for OpenAI testing
 	testModelID := modelID
 	if testModelID == "" {
-		testModelID = openai.DefaultTestModel
+		testModelID = defaultOpenAIOAuthTestModelID(ctx, account, s.modelRegistryService)
 	}
 
 	// For API Key accounts with model mapping, map the model

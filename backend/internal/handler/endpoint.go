@@ -27,6 +27,14 @@ const (
 	EndpointGeminiFiles      = service.EndpointGeminiFiles
 	EndpointGeminiFilesUp    = service.EndpointGeminiFilesUp
 	EndpointGeminiBatches    = service.EndpointGeminiBatches
+	EndpointGeminiCachedContents   = service.EndpointGeminiCachedContents
+	EndpointGeminiFileSearchStores = service.EndpointGeminiFileSearchStores
+	EndpointGeminiDocuments        = service.EndpointGeminiDocuments
+	EndpointGeminiOperations       = service.EndpointGeminiOperations
+	EndpointGeminiEmbeddings       = service.EndpointGeminiEmbeddings
+	EndpointGeminiInteractions     = service.EndpointGeminiInteractions
+	EndpointGeminiLive             = service.EndpointGeminiLive
+	EndpointGeminiOpenAICompat     = service.EndpointGeminiOpenAICompat
 	EndpointVertexSyncModels = service.EndpointVertexSyncModels
 	EndpointVertexBatchJobs  = service.EndpointVertexBatchJobs
 )
@@ -78,7 +86,19 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	case service.PlatformGemini:
 		switch inbound {
-		case EndpointGeminiFiles, EndpointGeminiFilesUp, EndpointGeminiBatches, EndpointVertexSyncModels, EndpointVertexBatchJobs:
+		case EndpointGeminiFiles,
+			EndpointGeminiFilesUp,
+			EndpointGeminiBatches,
+			EndpointGeminiCachedContents,
+			EndpointGeminiFileSearchStores,
+			EndpointGeminiDocuments,
+			EndpointGeminiOperations,
+			EndpointGeminiEmbeddings,
+			EndpointGeminiInteractions,
+			EndpointGeminiLive,
+			EndpointGeminiOpenAICompat,
+			EndpointVertexSyncModels,
+			EndpointVertexBatchJobs:
 			return inbound
 		default:
 			return EndpointGeminiModels

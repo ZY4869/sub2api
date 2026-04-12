@@ -69,6 +69,9 @@ type OpsErrorLog struct {
 	UpstreamModel    string `json:"upstream_model"`
 	RequestType      *int16 `json:"request_type"`
 	UpstreamURL      string `json:"upstream_url"`
+	GeminiSurface    string `json:"gemini_surface,omitempty"`
+	BillingRuleID    string `json:"billing_rule_id,omitempty"`
+	ProbeAction      string `json:"probe_action,omitempty"`
 }
 
 type OpsErrorLogDetail struct {
@@ -120,6 +123,9 @@ type OpsErrorLogFilter struct {
 	// Optional correlation keys for exact matching.
 	RequestID       string
 	ClientRequestID string
+	GeminiSurface   string
+	BillingRuleID   string
+	ProbeAction     string
 
 	// View controls error categorization for list endpoints.
 	// - errors: show actionable errors (exclude business-limited / 429 / 529)

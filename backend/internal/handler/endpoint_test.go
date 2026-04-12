@@ -28,6 +28,17 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1/videos", EndpointVideosCreate},
 		{"/v1/videos/generations", EndpointVideosCreate},
 		{"/v1beta/models", EndpointGeminiModels},
+		{"/v1beta/cachedContents", EndpointGeminiCachedContents},
+		{"/v1beta/fileSearchStores", EndpointGeminiFileSearchStores},
+		{"/v1beta/documents", EndpointGeminiDocuments},
+		{"/v1beta/operations/sample", EndpointGeminiOperations},
+		{"/v1beta/openai/chat/completions", EndpointGeminiOpenAICompat},
+		{"/v1beta/openai/files", EndpointGeminiOpenAICompat},
+		{"/v1beta/openai/files/file_123", EndpointGeminiOpenAICompat},
+		{"/v1beta/openai/batches/batch_123", EndpointGeminiOpenAICompat},
+		{"/v1beta/interactions/sample", EndpointGeminiInteractions},
+		{"/v1beta/live/sample", EndpointGeminiLive},
+		{"/v1beta/embeddings", EndpointGeminiEmbeddings},
 
 		// Prefixed paths (antigravity, openai).
 		{"/antigravity/v1/messages", EndpointMessages},
@@ -69,6 +80,12 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 
 		// Gemini.
 		{"gemini models", EndpointGeminiModels, "/v1beta/models/gemini:gen", service.PlatformGemini, EndpointGeminiModels},
+		{"gemini cached contents", EndpointGeminiCachedContents, "/v1beta/cachedContents/sample", service.PlatformGemini, EndpointGeminiCachedContents},
+		{"gemini operations", EndpointGeminiOperations, "/v1beta/operations/sample", service.PlatformGemini, EndpointGeminiOperations},
+		{"gemini openai compat", EndpointGeminiOpenAICompat, "/v1beta/openai/chat/completions", service.PlatformGemini, EndpointGeminiOpenAICompat},
+		{"gemini openai compat files", EndpointGeminiOpenAICompat, "/v1beta/openai/files/file_123", service.PlatformGemini, EndpointGeminiOpenAICompat},
+		{"gemini openai compat batches", EndpointGeminiOpenAICompat, "/v1beta/openai/batches/batch_123", service.PlatformGemini, EndpointGeminiOpenAICompat},
+		{"gemini live", EndpointGeminiLive, "/v1beta/live/sample", service.PlatformGemini, EndpointGeminiLive},
 
 		// Grok videos.
 		{"grok videos create canonical", EndpointVideosCreate, "/v1/videos", service.PlatformGrok, EndpointVideosGen},

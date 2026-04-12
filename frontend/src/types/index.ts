@@ -724,6 +724,15 @@ export interface TempUnschedulableStatus {
   state?: TempUnschedulableState;
 }
 
+export interface AccountAutoRecoveryProbeSummary {
+  checked_at?: string;
+  status?: "success" | "retry_scheduled" | "blacklisted" | string;
+  summary?: string;
+  blacklisted?: boolean;
+  next_retry_at?: string;
+  error_code?: string;
+}
+
 export interface Account {
   id: number;
   name: string;
@@ -777,6 +786,7 @@ export interface Account {
   overload_until: string | null;
   temp_unschedulable_until: string | null;
   temp_unschedulable_reason: string | null;
+  auto_recovery_probe?: AccountAutoRecoveryProbeSummary | null;
 
   // Session window fields (5-hour window)
   session_window_start: string | null;

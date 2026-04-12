@@ -1,0 +1,157 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"strings"
+)
+
+func (s *GeminiMessagesCompatService) persistGeminiPassthroughBinding(ctx context.Context, input GeminiPublicPassthroughInput, account *Account, binding *UpstreamResourceBinding, statusCode int, body []byte) error {
+	if s.resourceBindingRepo == nil || strings.TrimSpace(input.ResourceKind) == "" {
+		return nil
+	}
+	resourceName := extractGeminiPassthroughResourceName(input.ResourceKind, input.Path)
+	if binding != nil && shouldSoftDeleteGeminiPassthroughBinding(input.Method) && resourceName != "" && isSuccessfulHTTPStatus(statusCode) {
+		return s.resourceBindingRepo.SoftDelete(ctx, input.ResourceKind, resourceName)
+	}
+	if !shouldUpsertGeminiPassthroughBinding(input.Method) || !isSuccessfulHTTPStatus(statusCode) {
+		return nil
+	}
+	resourceNames := extractGeminiPassthroughCreatedResourceNames(input.ResourceKind, body)
+	for _, createdName := range resourceNames {
+		if strings.TrimSpace(createdName) == "" {
+			continue
+		}
+		apiKeyID := input.APIKeyID
+		userID := input.UserID
+		if err := s.resourceBindingRepo.Upsert(ctx, &UpstreamResourceBinding{
+			ResourceKind:   input.ResourceKind,
+			ResourceName:   createdName,
+			ProviderFamily: UpstreamProviderAIStudio,
+			AccountID:      account.ID,
+			APIKeyID:       &apiKeyID,
+			GroupID:        input.GroupID,
+			UserID:         &userID,
+			MetadataJSON: buildGoogleBatchBindingMetadata(map[string]any{
+				"requested_model": strings.TrimSpace(firstNonEmptyString(input.RequestedModel, detectGeminiPassthroughRequestedModel(input.Path, input.Body))),
+				"path":            strings.TrimSpace(input.Path),
+			}),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func shouldSoftDeleteGeminiPassthroughBinding(method string) bool {
+	return strings.EqualFold(strings.TrimSpace(method), http.MethodDelete)
+}
+
+func shouldUpsertGeminiPassthroughBinding(method string) bool {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+		return true
+	default:
+		return false
+	}
+}
+
+func extractGeminiPassthroughCreatedResourceNames(resourceKind string, body []byte) []string {
+	switch resourceKind {
+	case UpstreamResourceKindGeminiFile, UpstreamResourceKindGeminiBatch:
+		return extractOpenAICompatObjectIDs(body)
+	case UpstreamResourceKindGeminiCachedContent,
+		UpstreamResourceKindGeminiFileSearchStore,
+		UpstreamResourceKindGeminiDocument,
+		UpstreamResourceKindGeminiOperation,
+		UpstreamResourceKindGeminiInteraction:
+		return extractTopLevelNames(body)
+	default:
+		return nil
+	}
+}
+
+func extractGeminiPassthroughResourceName(resourceKind string, path string) string {
+	trimmed := strings.TrimSpace(path)
+	switch resourceKind {
+	case UpstreamResourceKindGeminiFile:
+		if id := extractAIStudioResourceName(trimmed, "/v1beta/files/"); id != "" {
+			return id
+		}
+		return extractOpenAICompatResourceID(trimmed, "/v1beta/openai/files/")
+	case UpstreamResourceKindGeminiBatch:
+		if id := extractAIStudioResourceName(trimmed, "/v1beta/batches/"); id != "" {
+			return id
+		}
+		return extractOpenAICompatResourceID(trimmed, "/v1beta/openai/batches/")
+	case UpstreamResourceKindGeminiCachedContent:
+		return extractAIStudioResourceName(trimmed, "/v1beta/cachedContents/")
+	case UpstreamResourceKindGeminiFileSearchStore:
+		return extractAIStudioResourceName(trimmed, "/v1beta/fileSearchStores/")
+	case UpstreamResourceKindGeminiDocument:
+		if name := extractAIStudioResourceName(trimmed, "/v1beta/documents/"); name != "" {
+			return name
+		}
+		if idx := strings.Index(trimmed, "/documents/"); idx >= 0 {
+			suffix := strings.TrimPrefix(trimmed[idx:], "/")
+			for _, sep := range []string{":", "?"} {
+				if cut := strings.Index(suffix, sep); cut >= 0 {
+					suffix = suffix[:cut]
+				}
+			}
+			return strings.TrimSpace(suffix)
+		}
+	case UpstreamResourceKindGeminiOperation:
+		return extractAIStudioResourceName(trimmed, "/v1beta/operations/")
+	case UpstreamResourceKindGeminiInteraction:
+		return extractAIStudioResourceName(trimmed, "/v1beta/interactions/")
+	}
+	return ""
+}
+
+func extractOpenAICompatObjectIDs(body []byte) []string {
+	ids := append(extractTopLevelIDs(body), extractListIDs(body, "data")...)
+	return uniqueStrings(ids)
+}
+
+func extractTopLevelIDs(body []byte) []string {
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil
+	}
+	id := strings.TrimSpace(stringMapValue(payload, "id"))
+	if id == "" {
+		return nil
+	}
+	return []string{id}
+}
+
+func extractListIDs(body []byte, listKey string) []string {
+	items := extractNamedListItems(body, listKey)
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		if id := strings.TrimSpace(stringMapValue(item, "id")); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func extractOpenAICompatResourceID(path string, prefix string) string {
+	trimmed := strings.TrimSpace(path)
+	if !strings.HasPrefix(trimmed, prefix) {
+		return ""
+	}
+	resourceID := strings.TrimPrefix(trimmed, prefix)
+	for _, sep := range []string{":", "/", "?"} {
+		if idx := strings.Index(resourceID, sep); idx >= 0 {
+			resourceID = resourceID[:idx]
+		}
+	}
+	return strings.TrimSpace(resourceID)
+}
+
+func isSuccessfulHTTPStatus(status int) bool {
+	return status >= 200 && status < 300
+}

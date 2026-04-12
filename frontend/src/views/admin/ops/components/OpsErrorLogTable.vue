@@ -93,6 +93,9 @@
                   <div v-if="shouldShowUpstreamEndpoint(log)" class="truncate text-[10px] text-gray-400 dark:text-gray-500">
                     -> {{ log.upstream_endpoint }}
                   </div>
+                  <div v-if="log.gemini_surface || log.probe_action" class="truncate text-[10px] text-gray-400 dark:text-gray-500">
+                    {{ [log.gemini_surface, log.probe_action].filter(Boolean).join(' / ') }}
+                  </div>
                 </div>
               </td>
 
@@ -104,6 +107,9 @@
                   </span>
                   <span v-if="shouldShowModelMapping(log)" class="block truncate text-[10px] text-gray-400 dark:text-gray-500">
                     -> {{ log.upstream_model }}
+                  </span>
+                  <span v-if="log.billing_rule_id" class="block truncate text-[10px] text-gray-400 dark:text-gray-500">
+                    {{ t('admin.ops.errorLog.billingRule') }}: {{ log.billing_rule_id }}
                   </span>
                   <span v-if="!getRequestedModel(log)" class="text-xs text-gray-400">-</span>
                 </div>

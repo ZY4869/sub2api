@@ -20,6 +20,7 @@ const DataTableStub = defineComponent({
   template: `
     <div>
       <div class="header-select"><slot name="header-select" /></div>
+      <div class="cell-name"><slot name="cell-name" :row="data[0]" :value="data[0].name" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
       <div class="cell-actions"><slot name="cell-actions" :row="data[0]" /></div>
@@ -63,7 +64,12 @@ function mountTable() {
           platform: 'openai',
           type: 'apikey',
           status: 'active',
-          schedulable: true
+          schedulable: true,
+          auto_recovery_probe: {
+            status: 'retry_scheduled',
+            summary: 'Temporary gateway error',
+            checked_at: '2026-04-09T00:00:00Z'
+          }
         }
       ],
       loading: false,
@@ -122,5 +128,12 @@ describe('AccountsViewTable', () => {
     expect(wrapper.emitted('open-menu')?.[0]?.[0].account).toEqual(expect.objectContaining({ id: 1 }))
     expect(wrapper.emitted('page-change')).toEqual([[2]])
     expect(wrapper.emitted('page-size-change')).toEqual([[50]])
+  })
+
+  it('renders auto recovery probe summary in the name cell', () => {
+    const wrapper = mountTable()
+
+    expect(wrapper.text()).toContain('Temporary gateway error')
+    expect(wrapper.text()).toContain('admin.accounts.autoRecoveryProbe.headline')
   })
 })

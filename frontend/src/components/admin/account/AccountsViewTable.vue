@@ -29,7 +29,7 @@
     </template>
 
     <template #cell-name="{ row, value }">
-      <div class="flex flex-col">
+      <div class="flex flex-col gap-2">
         <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
         <span
           v-if="row.extra?.email_address"
@@ -38,6 +38,10 @@
         >
           {{ row.extra.email_address }}
         </span>
+        <AccountAutoRecoveryProbeNotice
+          v-if="row.auto_recovery_probe"
+          :summary="row.auto_recovery_probe"
+        />
       </div>
     </template>
 
@@ -204,6 +208,7 @@ import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountUsageResetCell from '@/components/account/AccountUsageResetCell.vue'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { formatCountryLabel } from '@/utils/displayLabels'
+import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 
 withDefaults(defineProps<{

@@ -207,6 +207,10 @@ func sampleRequestBody(pattern string) string {
 		return `{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}]}`
 	case strings.Contains(pattern, "/responses"):
 		return `{"model":"gpt-5.4","input":"hello"}`
+	case strings.Contains(pattern, "/embeddings"):
+		return `{"model":"gemini-2.5-flash","input":"hello"}`
+	case strings.Contains(pattern, "/interactions"):
+		return `{"model":"gemini-2.5-flash","input":"hello"}`
 	case strings.Contains(pattern, "/images/"):
 		return `{"model":"grok-image-1","prompt":"draw a cat"}`
 	case strings.Contains(pattern, "/videos"):
@@ -263,6 +267,22 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "gemini_files_download"
 	case strings.Contains(handlerName, ".GeminiBatches-fm"):
 		return "gemini_batches"
+	case strings.Contains(handlerName, ".GeminiEmbeddings-fm"):
+		return "gemini_embeddings"
+	case strings.Contains(handlerName, ".GeminiCachedContents-fm"):
+		return "gemini_cached_contents"
+	case strings.Contains(handlerName, ".GeminiFileSearchStores-fm"):
+		return "gemini_file_search_stores"
+	case strings.Contains(handlerName, ".GeminiDocuments-fm"):
+		return "gemini_documents"
+	case strings.Contains(handlerName, ".GeminiOperations-fm"):
+		return "gemini_operations"
+	case strings.Contains(handlerName, ".GeminiInteractions-fm"):
+		return "gemini_interactions"
+	case strings.Contains(handlerName, ".GeminiOpenAICompat-fm"):
+		return "gemini_openai_compat"
+	case strings.Contains(handlerName, ".GeminiLive-fm"):
+		return "gemini_live"
 	case strings.Contains(handlerName, ".GoogleBatchArchiveBatch-fm"):
 		return "google_batch_archive_batches"
 	case strings.Contains(handlerName, ".GoogleBatchArchiveFileDownload-fm"):

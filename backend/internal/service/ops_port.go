@@ -128,6 +128,9 @@ type OpsInsertErrorLogInput struct {
 	RequestBodyTruncated bool
 	RequestBodyBytes     *int
 	RequestHeadersJSON   *string // optional json string
+	GeminiSurface        string
+	BillingRuleID        string
+	ProbeAction          string
 
 	IsRetryable bool
 	RetryCount  int

@@ -76,6 +76,7 @@ func provideCleanup(
 	tokenRefresh *service.TokenRefreshService,
 	accountExpiry *service.AccountExpiryService,
 	accountBlacklistCleanup *service.AccountBlacklistCleanupService,
+	accountRateLimitRecoveryProbe *service.AccountRateLimitRecoveryProbeService,
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
@@ -186,6 +187,12 @@ func provideCleanup(
 			{"AccountBlacklistCleanupService", func() error {
 				if accountBlacklistCleanup != nil {
 					accountBlacklistCleanup.Stop()
+				}
+				return nil
+			}},
+			{"AccountRateLimitRecoveryProbeService", func() error {
+				if accountRateLimitRecoveryProbe != nil {
+					accountRateLimitRecoveryProbe.Stop()
 				}
 				return nil
 			}},

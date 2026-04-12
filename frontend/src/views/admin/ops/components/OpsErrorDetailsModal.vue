@@ -34,6 +34,9 @@ const q = ref('')
 const statusCode = ref<number | 'other' | null>(null)
 const phase = ref<string>('')
 const errorOwner = ref<string>('')
+const geminiSurface = ref('')
+const billingRuleId = ref('')
+const probeAction = ref('')
 const viewMode = ref<'errors' | 'excluded' | 'all'>('errors')
 
 
@@ -110,6 +113,9 @@ async function fetchErrorLogs() {
 
     const ownerVal = String(errorOwner.value || '').trim()
     if (ownerVal) params.error_owner = ownerVal
+    if (geminiSurface.value.trim()) params.gemini_surface = geminiSurface.value.trim()
+    if (billingRuleId.value.trim()) params.billing_rule_id = billingRuleId.value.trim()
+    if (probeAction.value.trim()) params.probe_action = probeAction.value.trim()
 
 
     const res = props.errorType === 'upstream'
@@ -131,6 +137,9 @@ async function fetchErrorLogs() {
     statusCode.value = null
     phase.value = props.errorType === 'upstream' ? 'upstream' : ''
     errorOwner.value = ''
+    geminiSurface.value = ''
+    billingRuleId.value = ''
+    probeAction.value = ''
     viewMode.value = 'errors'
     page.value = 1
     fetchErrorLogs()
@@ -178,7 +187,7 @@ watch(
 )
 
 watch(
-  () => [statusCode.value, phase.value, errorOwner.value, viewMode.value] as const,
+  () => [statusCode.value, phase.value, errorOwner.value, geminiSurface.value, billingRuleId.value, probeAction.value, viewMode.value] as const,
   () => {
     if (!props.show) return
     page.value = 1
@@ -199,7 +208,7 @@ watch(
 
       <!-- Filters -->
       <div class="mb-4 flex-shrink-0 border-b border-gray-200 pb-4 dark:border-dark-700">
-        <div class="grid grid-cols-8 gap-2">
+        <div class="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-8">
           <div class="col-span-2 compact-select">
             <div class="relative group">
               <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -231,6 +240,33 @@ watch(
 
           <div class="compact-select">
             <Select :model-value="errorOwner" :options="ownerSelectOptions" @update:model-value="errorOwner = String($event ?? '')" />
+          </div>
+
+          <div class="compact-select">
+            <input
+              v-model="geminiSurface"
+              type="text"
+              class="input"
+              :placeholder="t('admin.ops.errorDetails.filters.geminiSurface')"
+            />
+          </div>
+
+          <div class="compact-select">
+            <input
+              v-model="billingRuleId"
+              type="text"
+              class="input"
+              :placeholder="t('admin.ops.errorDetails.filters.billingRuleId')"
+            />
+          </div>
+
+          <div class="compact-select">
+            <input
+              v-model="probeAction"
+              type="text"
+              class="input"
+              :placeholder="t('admin.ops.errorDetails.filters.probeAction')"
+            />
           </div>
 
 

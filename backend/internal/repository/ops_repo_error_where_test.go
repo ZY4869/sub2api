@@ -46,3 +46,25 @@ func TestBuildOpsErrorLogsWhere_UserQueryUsesExistsSubquery(t *testing.T) {
 		t.Fatalf("where should include EXISTS user email condition: %s", where)
 	}
 }
+
+func TestBuildOpsErrorLogsWhere_UsesGeminiMetadataExactMatchFilters(t *testing.T) {
+	filter := &service.OpsErrorLogFilter{
+		GeminiSurface: "openai_compat",
+		BillingRuleID: "rule_text_input",
+		ProbeAction:   "recover",
+	}
+
+	where, args := buildOpsErrorLogsWhere(filter)
+	if len(args) != 3 {
+		t.Fatalf("args len = %d, want 3", len(args))
+	}
+	if !strings.Contains(where, "COALESCE(e.gemini_surface,'') = $") {
+		t.Fatalf("where should include gemini_surface exact match: %s", where)
+	}
+	if !strings.Contains(where, "COALESCE(e.billing_rule_id,'') = $") {
+		t.Fatalf("where should include billing_rule_id exact match: %s", where)
+	}
+	if !strings.Contains(where, "COALESCE(e.probe_action,'') = $") {
+		t.Fatalf("where should include probe_action exact match: %s", where)
+	}
+}

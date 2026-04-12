@@ -21,7 +21,7 @@ const route = useRoute()
 const { t } = useI18n()
 
 const items = computed(() => [
-  { to: '/admin/models/pricing', label: t('admin.models.pages.pricing.nav') },
+  { to: '/admin/models/billing', label: t('admin.models.pages.billing.nav') },
   { to: '/admin/models/available', label: t('admin.models.pages.available.nav') },
   { to: '/admin/models/all', label: t('admin.models.pages.all.nav') }
 ])

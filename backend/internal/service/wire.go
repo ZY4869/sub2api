@@ -130,6 +130,13 @@ func ProvideAntigravityTokenProvider(
 	return p
 }
 
+func ProvideOAuthRefreshAPI(
+	accountRepo AccountRepository,
+	tokenCache GeminiTokenCache,
+) *OAuthRefreshAPI {
+	return NewOAuthRefreshAPI(accountRepo, tokenCache)
+}
+
 func ProvideGeminiMessagesCompatService(
 	accountRepo AccountRepository,
 	apiKeyRepo APIKeyRepository,
@@ -164,6 +171,22 @@ func ProvideGeminiMessagesCompatService(
 	return svc
 }
 
+func ProvideGeminiNativeGatewayService(compatService *GeminiMessagesCompatService) *GeminiNativeGatewayService {
+	return NewGeminiNativeGatewayService(compatService)
+}
+
+func ProvideGeminiCompatGatewayService(compatService *GeminiMessagesCompatService) *GeminiCompatGatewayService {
+	return NewGeminiCompatGatewayService(compatService)
+}
+
+func ProvideGeminiLiveGatewayService(compatService *GeminiMessagesCompatService) *GeminiLiveGatewayService {
+	return NewGeminiLiveGatewayService(compatService)
+}
+
+func ProvideGeminiInteractionsGatewayService(compatService *GeminiMessagesCompatService) *GeminiInteractionsGatewayService {
+	return NewGeminiInteractionsGatewayService(compatService)
+}
+
 // ProvideDashboardAggregationService 创建并启动仪表盘聚合服务
 func ProvideDashboardAggregationService(repo DashboardAggregationRepository, timingWheel *TimingWheelService, cfg *config.Config) *DashboardAggregationService {
 	svc := NewDashboardAggregationService(repo, timingWheel, cfg)
@@ -187,6 +210,16 @@ func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpirySe
 
 func ProvideAccountBlacklistCleanupService(accountRepo AccountRepository) *AccountBlacklistCleanupService {
 	svc := NewAccountBlacklistCleanupService(accountRepo, time.Hour)
+	svc.Start()
+	return svc
+}
+
+func ProvideAccountRateLimitRecoveryProbeService(
+	accountRepo AccountRepository,
+	accountTestService *AccountTestService,
+	rateLimitService *RateLimitService,
+) *AccountRateLimitRecoveryProbeService {
+	svc := NewAccountRateLimitRecoveryProbeService(accountRepo, accountTestService, rateLimitService, time.Minute)
 	svc.Start()
 	return svc
 }
@@ -680,9 +713,13 @@ var ProviderSet = wire.NewSet(
 	NewCompositeTokenCacheInvalidator,
 	wire.Bind(new(TokenCacheInvalidator), new(*CompositeTokenCacheInvalidator)),
 	NewAntigravityOAuthService,
-	NewOAuthRefreshAPI,
+	ProvideOAuthRefreshAPI,
 	ProvideGeminiTokenProvider,
 	ProvideGeminiMessagesCompatService,
+	ProvideGeminiNativeGatewayService,
+	ProvideGeminiCompatGatewayService,
+	ProvideGeminiLiveGatewayService,
+	ProvideGeminiInteractionsGatewayService,
 	ProvideAntigravityTokenProvider,
 	ProvideOpenAITokenProvider,
 	ProvideClaudeTokenProvider,
@@ -715,6 +752,7 @@ var ProviderSet = wire.NewSet(
 	ProvideTokenRefreshService,
 	ProvideAccountExpiryService,
 	ProvideAccountBlacklistCleanupService,
+	ProvideAccountRateLimitRecoveryProbeService,
 	ProvideSubscriptionExpiryService,
 	ProvideTimingWheelService,
 	ProvideDashboardAggregationService,

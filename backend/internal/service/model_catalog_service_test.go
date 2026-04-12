@@ -251,6 +251,215 @@ func TestModelCatalogPricingValidationRejectsInvalidOverrides(t *testing.T) {
 	}))
 }
 
+func TestModelCatalogService_GeminiPricingOverrideDeprecated(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-3-pro-preview": {
+			InputCostPerToken:           2e-6,
+			OutputCostPerToken:          7e-6,
+			CacheCreationInputTokenCost: 1e-6,
+			CacheReadInputTokenCost:     0.2e-6,
+			LiteLLMProvider:             PlatformGemini,
+			Mode:                        "chat",
+			SupportsServiceTier:         true,
+		},
+	})
+
+	_, err := svc.UpsertPricingOverride(context.Background(), ModelCatalogActor{UserID: 1, Email: "gemini@example.com"}, UpsertModelPricingOverrideInput{
+		Model: "gemini-3-pro",
+		ModelCatalogPricing: ModelCatalogPricing{
+			InputCostPerToken:  modelCatalogFloat64Ptr(3e-6),
+			OutputCostPerImage: modelCatalogFloat64Ptr(0.04),
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "GEMINI_PRICING_OVERRIDE_DEPRECATED")
+
+	_, err = svc.UpsertOfficialPricingOverride(context.Background(), ModelCatalogActor{UserID: 1, Email: "gemini@example.com"}, UpsertModelPricingOverrideInput{
+		Model: "gemini-3-pro",
+		ModelCatalogPricing: ModelCatalogPricing{
+			InputCostPerToken: modelCatalogFloat64Ptr(3e-6),
+		},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "GEMINI_PRICING_OVERRIDE_DEPRECATED")
+}
+
+func TestModelCatalogService_GeminiLegacySeedStillBuildsMatrixWithoutCanonical(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
+		"gemini-2.5-pro": {
+			ModelCatalogPricing: ModelCatalogPricing{
+				InputCostPerToken:                   modelCatalogFloat64Ptr(3e-6),
+				InputTokenThreshold:                 modelCatalogIntPtr(200000),
+				InputCostPerTokenAboveThreshold:     modelCatalogFloat64Ptr(5e-6),
+				CacheCreationInputTokenCostAbove1hr: modelCatalogFloat64Ptr(7e-6),
+			},
+		},
+	})
+	svc, billingService := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-pro": {
+			InputCostPerToken:                   2e-6,
+			OutputCostPerToken:                  8e-6,
+			CacheCreationInputTokenCost:         1.5e-6,
+			CacheReadInputTokenCost:             0.3e-6,
+			CacheCreationInputTokenCostAbove1hr: 6e-6,
+			LiteLLMProvider:                     PlatformGemini,
+			Mode:                                "chat",
+			SupportsServiceTier:                 true,
+		},
+	})
+
+	override := svc.loadSalePriceOverrides(context.Background())["gemini-2.5-pro"]
+	require.NotNil(t, override)
+	require.NotNil(t, override.InputCostPerToken)
+	require.NotNil(t, override.InputTokenThreshold)
+	require.Equal(t, 200000, *override.InputTokenThreshold)
+	require.Equal(t, 5e-6, *override.InputCostPerTokenAboveThreshold)
+	require.Equal(t, 7e-6, *override.CacheCreationInputTokenCostAbove1hr)
+
+	sheet, err := svc.billingCenterService.GetSheet(context.Background(), "gemini-2.5-pro")
+	require.NoError(t, err)
+	require.NotNil(t, sheet.SaleMatrix)
+	cell := geminiMatrixCell(sheet.SaleMatrix, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextInput)
+	require.NotNil(t, cell)
+	require.NotNil(t, cell.Price)
+	require.Equal(t, 3e-6, *cell.Price)
+
+	detail, err := svc.GetModelDetail(context.Background(), "gemini-2.5-pro")
+	require.NoError(t, err)
+	require.NotNil(t, detail.SalePricing)
+	require.Equal(t, 3e-6, *detail.SalePricing.InputCostPerToken)
+	require.Equal(t, 200000, *detail.SalePricing.InputTokenThreshold)
+	require.Equal(t, 5e-6, *detail.SalePricing.InputCostPerTokenAboveThreshold)
+	require.Equal(t, 7e-6, *detail.SalePricing.CacheCreationInputTokenCostAbove1hr)
+
+	pricing, err := billingService.getPricingForBilling("gemini-2.5-pro")
+	require.NoError(t, err)
+	require.Equal(t, 3e-6, pricing.InputPricePerToken)
+	require.Equal(t, 200000, pricing.InputTokenThreshold)
+	require.Equal(t, 5e-6, pricing.InputPricePerTokenAboveThreshold)
+	require.Equal(t, 7e-6, pricing.CacheCreation1hPrice)
+}
+
+func TestModelCatalogService_GeminiBillingSheetUsesCanonicalRulesAndClearsLegacyOverride(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
+		"gemini-3-pro": {
+			ModelCatalogPricing: ModelCatalogPricing{
+				InputCostPerToken:  modelCatalogFloat64Ptr(3e-6),
+				OutputCostPerToken: modelCatalogFloat64Ptr(8e-6),
+			},
+		},
+	})
+	svc, billingService := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-3-pro-preview": {
+			InputCostPerToken:           2e-6,
+			OutputCostPerToken:          7e-6,
+			CacheCreationInputTokenCost: 1e-6,
+			CacheReadInputTokenCost:     0.2e-6,
+			LiteLLMProvider:             PlatformGemini,
+			Mode:                        "chat",
+			SupportsServiceTier:         true,
+		},
+	})
+
+	matrix := newGeminiBillingMatrix()
+	textInput := 4e-6
+	textOutput := 9e-6
+	imageOutput := 0.05
+	row := geminiMatrixRow(matrix, BillingSurfaceGeminiNative, BillingServiceTierStandard)
+	require.NotNil(t, row)
+	row.Slots[BillingChargeSlotTextInput] = GeminiBillingMatrixCell{Price: &textInput}
+	row.Slots[BillingChargeSlotTextOutput] = GeminiBillingMatrixCell{Price: &textOutput}
+	row.Slots[BillingChargeSlotImageOutput] = GeminiBillingMatrixCell{Price: &imageOutput}
+
+	sheet, err := svc.UpsertBillingSheet(context.Background(), ModelCatalogActor{UserID: 4, Email: "matrix@example.com"}, UpsertModelBillingSheetInput{
+		Model:  "gemini-3-pro",
+		Layer:  BillingLayerSale,
+		Matrix: matrix,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, sheet)
+	require.NotNil(t, sheet.SaleMatrix)
+
+	rules := loadBillingRulesBySetting(context.Background(), repo, SettingKeyBillingCenterRules)
+	require.Nil(t, buildGeminiCompatPricingOverride("gemini-3-pro-preview", BillingLayerSale, rules))
+	_, exists := svc.loadSalePriceOverrides(context.Background())["gemini-3-pro"]
+	require.False(t, exists)
+
+	cell := geminiMatrixCell(sheet.SaleMatrix, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextInput)
+	require.NotNil(t, cell)
+	require.NotNil(t, cell.Price)
+	require.Equal(t, 4e-6, *cell.Price)
+
+	pricing, err := billingService.getPricingForBilling("gemini-3-pro-preview")
+	require.NoError(t, err)
+	require.Equal(t, 2e-6, pricing.InputPricePerToken)
+	require.Equal(t, 7e-6, pricing.OutputPricePerToken)
+	require.Zero(t, pricing.OutputPricePerImage)
+}
+
+func TestModelCatalogService_DeleteGeminiPricingOverrideClearsCompatAndLegacy(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
+		"gemini-2.5-pro": {
+			ModelCatalogPricing: ModelCatalogPricing{
+				InputCostPerToken:               modelCatalogFloat64Ptr(3e-6),
+				InputTokenThreshold:             modelCatalogIntPtr(200000),
+				InputCostPerTokenAboveThreshold: modelCatalogFloat64Ptr(5e-6),
+			},
+		},
+	})
+	repo.values[SettingKeyBillingCenterRules] = mustModelCatalogJSON(t, []BillingRule{{
+		ID:            "manual_rule_keep",
+		Provider:      BillingRuleProviderGemini,
+		Layer:         BillingLayerSale,
+		Surface:       BillingSurfaceAny,
+		OperationType: "",
+		ServiceTier:   "",
+		BatchMode:     BillingBatchModeAny,
+		Matchers:      BillingRuleMatchers{Models: []string{"gemini-2.5-flash"}},
+		Unit:          BillingUnitInputToken,
+		Price:         9e-6,
+		Priority:      1,
+		Enabled:       true,
+	}})
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-pro": {
+			InputCostPerToken:           2e-6,
+			OutputCostPerToken:          8e-6,
+			CacheCreationInputTokenCost: 1e-6,
+			CacheReadInputTokenCost:     0.2e-6,
+			LiteLLMProvider:             PlatformGemini,
+			Mode:                        "chat",
+		},
+	})
+
+	err := svc.DeletePricingOverride(context.Background(), ModelCatalogActor{}, "gemini-2.5-pro")
+	require.NoError(t, err)
+
+	rules := loadBillingRulesBySetting(context.Background(), repo, SettingKeyBillingCenterRules)
+	require.Len(t, rules, 1)
+	require.Equal(t, "manual_rule_keep", rules[0].ID)
+	require.Nil(t, buildGeminiCompatPricingOverride("gemini-2.5-pro", BillingLayerSale, rules))
+	_, exists := svc.loadSalePriceOverrides(context.Background())["gemini-2.5-pro"]
+	require.False(t, exists)
+
+	detail, err := svc.GetModelDetail(context.Background(), "gemini-2.5-pro")
+	require.NoError(t, err)
+	require.Nil(t, detail.SaleOverridePricing)
+	require.NotNil(t, detail.SalePricing)
+	require.Equal(t, 2e-6, *detail.SalePricing.InputCostPerToken)
+}
+
+func newGeminiBillingCatalogService(repo *modelCatalogSettingRepoStub, pricing map[string]*LiteLLMModelPricing) (*ModelCatalogService, *BillingService) {
+	cfg := &config.Config{}
+	pricingService := &PricingService{pricingData: pricing}
+	billingService := NewBillingService(cfg, pricingService)
+	return NewModelCatalogService(repo, nil, billingService, pricingService, cfg), billingService
+}
+
 func mustModelCatalogJSON(t *testing.T, value any) string {
 	t.Helper()
 	payload, err := json.Marshal(value)

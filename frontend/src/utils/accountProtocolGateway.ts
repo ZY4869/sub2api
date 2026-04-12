@@ -57,7 +57,9 @@ function isGeminiBatchRequestFormat(format: string): boolean {
   }
 
   return (
-    normalized.includes('/files') ||
+    normalized === '/v1beta/files' ||
+    normalized === '/upload/v1beta/files' ||
+    normalized === '/download/v1beta/files' ||
     normalized.includes(':batchgeneratecontent') ||
     normalized.includes('/batches/') ||
     normalized.includes('/google/batch/archive/') ||

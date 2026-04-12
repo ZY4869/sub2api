@@ -73,12 +73,12 @@ func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
 	return &ModelCatalogPricing{
 		InputCostPerToken:                        modelCatalogFloat64Ptr(pricing.InputCostPerToken),
 		InputCostPerTokenPriority:                modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriority),
-		InputTokenThreshold:                      modelCatalogIntPtr(pricing.InputTokenThreshold),
+		InputTokenThreshold:                      modelCatalogPositiveIntPtr(pricing.InputTokenThreshold),
 		InputCostPerTokenAboveThreshold:          modelCatalogFloat64Ptr(pricing.InputCostPerTokenAboveThreshold),
 		InputCostPerTokenPriorityAboveThreshold:  modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriorityAboveThreshold),
 		OutputCostPerToken:                       modelCatalogFloat64Ptr(pricing.OutputCostPerToken),
 		OutputCostPerTokenPriority:               modelCatalogFloat64Ptr(pricing.OutputCostPerTokenPriority),
-		OutputTokenThreshold:                     modelCatalogIntPtr(pricing.OutputTokenThreshold),
+		OutputTokenThreshold:                     modelCatalogPositiveIntPtr(pricing.OutputTokenThreshold),
 		OutputCostPerTokenAboveThreshold:         modelCatalogFloat64Ptr(pricing.OutputCostPerTokenAboveThreshold),
 		OutputCostPerTokenPriorityAboveThreshold: modelCatalogFloat64Ptr(pricing.OutputCostPerTokenPriorityAboveThreshold),
 		CacheCreationInputTokenCost:              modelCatalogFloat64Ptr(pricing.CacheCreationInputTokenCost),
@@ -97,12 +97,12 @@ func pricingFromBilling(pricing *ModelPricing) *ModelCatalogPricing {
 	return &ModelCatalogPricing{
 		InputCostPerToken:                        modelCatalogFloat64Ptr(pricing.InputPricePerToken),
 		InputCostPerTokenPriority:                modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriority),
-		InputTokenThreshold:                      modelCatalogIntPtr(pricing.InputTokenThreshold),
+		InputTokenThreshold:                      modelCatalogPositiveIntPtr(pricing.InputTokenThreshold),
 		InputCostPerTokenAboveThreshold:          modelCatalogFloat64Ptr(pricing.InputPricePerTokenAboveThreshold),
 		InputCostPerTokenPriorityAboveThreshold:  modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriorityAboveThreshold),
 		OutputCostPerToken:                       modelCatalogFloat64Ptr(pricing.OutputPricePerToken),
 		OutputCostPerTokenPriority:               modelCatalogFloat64Ptr(pricing.OutputPricePerTokenPriority),
-		OutputTokenThreshold:                     modelCatalogIntPtr(pricing.OutputTokenThreshold),
+		OutputTokenThreshold:                     modelCatalogPositiveIntPtr(pricing.OutputTokenThreshold),
 		OutputCostPerTokenAboveThreshold:         modelCatalogFloat64Ptr(pricing.OutputPricePerTokenAboveThreshold),
 		OutputCostPerTokenPriorityAboveThreshold: modelCatalogFloat64Ptr(pricing.OutputPricePerTokenPriorityAboveThreshold),
 		CacheCreationInputTokenCost:              modelCatalogFloat64Ptr(pricing.CacheCreationPricePerToken),
@@ -285,4 +285,11 @@ func modelCatalogFloat64Ptr(value float64) *float64 {
 func modelCatalogIntPtr(value int) *int {
 	v := value
 	return &v
+}
+
+func modelCatalogPositiveIntPtr(value int) *int {
+	if value <= 0 {
+		return nil
+	}
+	return modelCatalogIntPtr(value)
 }

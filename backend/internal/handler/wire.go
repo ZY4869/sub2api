@@ -133,7 +133,10 @@ func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelR
 
 func ProvideGatewayHandler(
 	gatewayService *service.GatewayService,
-	geminiCompatService *service.GeminiMessagesCompatService,
+	geminiNativeService *service.GeminiNativeGatewayService,
+	geminiCompatService *service.GeminiCompatGatewayService,
+	geminiLiveService *service.GeminiLiveGatewayService,
+	geminiInteractionsService *service.GeminiInteractionsGatewayService,
 	antigravityGatewayService *service.AntigravityGatewayService,
 	userService *service.UserService,
 	concurrencyService *service.ConcurrencyService,
@@ -148,7 +151,7 @@ func ProvideGatewayHandler(
 	modelRegistryService *service.ModelRegistryService,
 ) *GatewayHandler {
 	gatewayService.SetModelRegistryService(modelRegistryService)
-	handler := NewGatewayHandler(gatewayService, geminiCompatService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, userMsgQueueService, cfg, settingService)
+	handler := NewGatewayHandler(gatewayService, geminiNativeService, geminiCompatService, geminiLiveService, geminiInteractionsService, antigravityGatewayService, userService, concurrencyService, billingCacheService, usageService, apiKeyService, usageRecordWorkerPool, errorPassthroughService, userMsgQueueService, cfg, settingService)
 	handler.SetModelRegistryService(modelRegistryService)
 	return handler
 }

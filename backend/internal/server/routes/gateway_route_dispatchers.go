@@ -70,6 +70,38 @@ func (d gatewayRouteDispatchers) GeminiBatches(c *gin.Context) {
 	d.handlers.Gateway.GeminiV1BetaBatches(c)
 }
 
+func (d gatewayRouteDispatchers) GeminiEmbeddings(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaEmbeddings(c, "")
+}
+
+func (d gatewayRouteDispatchers) GeminiCachedContents(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaCachedContents(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiFileSearchStores(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaFileSearchStores(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiDocuments(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaDocuments(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiOperations(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaOperations(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiInteractions(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaInteractions(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiOpenAICompat(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaOpenAICompat(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiLive(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaLive(c)
+}
+
 func (d gatewayRouteDispatchers) GoogleBatchArchiveBatch(c *gin.Context) {
 	d.handlers.Gateway.GoogleBatchArchiveBatch(c)
 }

@@ -28,9 +28,12 @@ func TestOpsInsertRequestTraceArgsUsesEmptyStringsForRequiredTextColumns(t *test
 	t.Parallel()
 
 	args := opsInsertRequestTraceArgs(&service.OpsInsertRequestTraceInput{})
-	require.Equal(t, "", args[7])
-	require.Equal(t, "", args[8])
-	require.Equal(t, "", args[9])
+	require.Equal(t, sql.NullString{}, args[0])
+	require.Equal(t, sql.NullString{}, args[1])
+	require.Equal(t, sql.NullString{}, args[2])
+	require.Equal(t, sql.NullString{}, args[3])
+	require.Equal(t, sql.NullString{}, args[4])
+	require.Equal(t, sql.NullString{}, args[5])
 	require.Equal(t, "", args[10])
 	require.Equal(t, "", args[11])
 	require.Equal(t, "", args[12])
@@ -38,25 +41,44 @@ func TestOpsInsertRequestTraceArgsUsesEmptyStringsForRequiredTextColumns(t *test
 	require.Equal(t, "", args[14])
 	require.Equal(t, "", args[15])
 	require.Equal(t, "", args[16])
-	require.Equal(t, "", args[24])
-	require.Equal(t, "", args[25])
-	require.Equal(t, "", args[30])
-	require.Equal(t, "", args[31])
+	require.Equal(t, "", args[17])
+	require.Equal(t, "", args[18])
+	require.Equal(t, "", args[19])
+	require.Equal(t, "", args[27])
+	require.Equal(t, "", args[28])
 	require.Equal(t, "", args[33])
 	require.Equal(t, "", args[34])
-	require.Equal(t, "", args[35])
+	require.Equal(t, "", args[36])
+	require.Equal(t, "", args[37])
+	require.Equal(t, "", args[38])
 }
 
 func TestOpsInsertRequestTraceArgsUsesEmptyArrayForToolKinds(t *testing.T) {
 	t.Parallel()
 
 	args := opsInsertRequestTraceArgs(&service.OpsInsertRequestTraceInput{})
-	valuer, ok := args[28].(driver.Valuer)
+	valuer, ok := args[31].(driver.Valuer)
 	require.True(t, ok)
 
 	value, err := valuer.Value()
 	require.NoError(t, err)
 	require.Equal(t, "{}", value)
+}
+
+func TestBuildOpsRequestTracesWhere_UsesGeminiMetadataExactMatchFilters(t *testing.T) {
+	t.Parallel()
+
+	filter := &service.OpsRequestTraceFilter{
+		GeminiSurface: "native",
+		BillingRuleID: "rule_text_output",
+		ProbeAction:   "test",
+	}
+
+	where, args := buildOpsRequestTracesWhere(filter)
+	require.Len(t, args, 3)
+	require.Contains(t, where, "COALESCE(t.gemini_surface,'') = $")
+	require.Contains(t, where, "COALESCE(t.billing_rule_id,'') = $")
+	require.Contains(t, where, "COALESCE(t.probe_action,'') = $")
 }
 
 func TestOpsRepositoryGetRequestTraceSummaryOffsetsTrendPlaceholders(t *testing.T) {

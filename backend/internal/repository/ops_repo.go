@@ -60,11 +60,14 @@ INSERT INTO ops_error_logs (
   request_body_truncated,
   request_body_bytes,
   request_headers,
+  gemini_surface,
+  billing_rule_id,
+  probe_action,
   is_retryable,
   retry_count,
   created_at
 ) VALUES (
-  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45
+  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48
 )`
 
 func NewOpsRepository(db *sql.DB) service.OpsRepository {
@@ -178,6 +181,9 @@ func opsInsertErrorLogArgs(input *service.OpsInsertErrorLogInput) []any {
 		input.RequestBodyTruncated,
 		opsNullInt(input.RequestBodyBytes),
 		opsNullString(input.RequestHeadersJSON),
+		opsNullString(input.GeminiSurface),
+		opsNullString(input.BillingRuleID),
+		opsNullString(input.ProbeAction),
 		input.IsRetryable,
 		input.RetryCount,
 		input.CreatedAt,
@@ -251,7 +257,10 @@ SELECT
   COALESCE(e.requested_model, ''),
   COALESCE(e.upstream_model, ''),
   e.request_type,
-  COALESCE(e.upstream_url, '')
+  COALESCE(e.upstream_url, ''),
+  COALESCE(e.gemini_surface, ''),
+  COALESCE(e.billing_rule_id, ''),
+  COALESCE(e.probe_action, '')
 FROM ops_error_logs e
 LEFT JOIN accounts a ON e.account_id = a.id
 LEFT JOIN groups g ON e.group_id = g.id
@@ -321,6 +330,9 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			&item.UpstreamModel,
 			&requestType,
 			&item.UpstreamURL,
+			&item.GeminiSurface,
+			&item.BillingRuleID,
+			&item.ProbeAction,
 		); err != nil {
 			return nil, err
 		}
@@ -430,6 +442,9 @@ SELECT
   COALESCE(e.upstream_model, ''),
   e.request_type,
   COALESCE(e.upstream_url, ''),
+  COALESCE(e.gemini_surface, ''),
+  COALESCE(e.billing_rule_id, ''),
+  COALESCE(e.probe_action, ''),
   COALESCE(e.user_agent, ''),
   e.auth_latency_ms,
   e.routing_latency_ms,
@@ -508,6 +523,9 @@ LIMIT 1`
 		&out.UpstreamModel,
 		&requestType,
 		&out.UpstreamURL,
+		&out.GeminiSurface,
+		&out.BillingRuleID,
+		&out.ProbeAction,
 		&out.UserAgent,
 		&authLatency,
 		&routingLatency,
@@ -1369,6 +1387,18 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	if crid := strings.TrimSpace(filter.ClientRequestID); crid != "" {
 		args = append(args, crid)
 		clauses = append(clauses, "COALESCE(e.client_request_id,'') = $"+itoa(len(args)))
+	}
+	if surface := strings.TrimSpace(filter.GeminiSurface); surface != "" {
+		args = append(args, surface)
+		clauses = append(clauses, "COALESCE(e.gemini_surface,'') = $"+itoa(len(args)))
+	}
+	if billingRuleID := strings.TrimSpace(filter.BillingRuleID); billingRuleID != "" {
+		args = append(args, billingRuleID)
+		clauses = append(clauses, "COALESCE(e.billing_rule_id,'') = $"+itoa(len(args)))
+	}
+	if probeAction := strings.TrimSpace(filter.ProbeAction); probeAction != "" {
+		args = append(args, probeAction)
+		clauses = append(clauses, "COALESCE(e.probe_action,'') = $"+itoa(len(args)))
 	}
 
 	if q := strings.TrimSpace(filter.Query); q != "" {

@@ -240,7 +240,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/models',
     name: 'AdminModels',
-    redirect: '/admin/models/pricing',
+    redirect: '/admin/models/billing',
     component: () => import('@/views/admin/models/ModelsLayoutView.vue'),
     meta: {
       requiresAuth: true,
@@ -250,6 +250,18 @@ const routes: RouteRecordRaw[] = [
       descriptionKey: 'admin.models.description'
     },
     children: [
+      {
+        path: 'billing',
+        name: 'AdminModelsBilling',
+        component: () => import('@/views/admin/models/BillingCenterView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Billing Center',
+          titleKey: 'admin.models.pages.billing.title',
+          descriptionKey: 'admin.models.pages.billing.description'
+        }
+      },
       {
         path: 'available',
         name: 'AdminModelsAvailable',
@@ -277,26 +289,26 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'pricing',
         name: 'AdminModelsPricing',
-        component: () => import('@/views/admin/models/ModelPricingView.vue'),
+        redirect: '/admin/models/billing',
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Model Pricing',
-          titleKey: 'admin.models.pages.pricing.title',
-          descriptionKey: 'admin.models.pages.pricing.description'
+          title: 'Billing Center',
+          titleKey: 'admin.models.pages.billing.title',
+          descriptionKey: 'admin.models.pages.billing.description'
         }
       },
       {
         path: 'official',
-        redirect: '/admin/models/pricing'
+        redirect: '/admin/models/billing'
       },
       {
         path: 'sale',
-        redirect: '/admin/models/pricing'
+        redirect: '/admin/models/billing'
       },
       {
         path: 'relay',
-        redirect: '/admin/models/pricing'
+        redirect: '/admin/models/billing'
       },
       {
         path: 'registry',
@@ -304,13 +316,13 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: '',
-        redirect: '/admin/models/pricing',
+        redirect: '/admin/models/billing',
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Model Pricing',
-          titleKey: 'admin.models.pages.pricing.title',
-          descriptionKey: 'admin.models.pages.pricing.description'
+          title: 'Billing Center',
+          titleKey: 'admin.models.pages.billing.title',
+          descriptionKey: 'admin.models.pages.billing.description'
         }
       }
     ]

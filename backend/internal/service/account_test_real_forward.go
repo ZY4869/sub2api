@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 )
 
@@ -304,7 +303,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 
 	testModelID := strings.TrimSpace(modelID)
 	if testModelID == "" {
-		testModelID = openai.DefaultTestModel
+		testModelID = defaultOpenAIOAuthTestModelID(c.Request.Context(), account, s.modelRegistryService)
 	}
 	body, err := json.Marshal(createOpenAITestPayload(testModelID, isChatGPTOpenAIOAuthAccount(account)))
 	if err != nil {

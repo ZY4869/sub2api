@@ -8,6 +8,8 @@ type GatewayConfig struct {
 	UpstreamResponseReadMaxBytes         int64                    `mapstructure:"upstream_response_read_max_bytes"`
 	ProxyProbeResponseReadMaxBytes       int64                    `mapstructure:"proxy_probe_response_read_max_bytes"`
 	GeminiDebugResponseHeaders           bool                     `mapstructure:"gemini_debug_response_headers"`
+	GeminiLiveEnabled                    bool                     `mapstructure:"gemini_live_enabled"`
+	GeminiInteractionsEnabled            bool                     `mapstructure:"gemini_interactions_enabled"`
 	ConnectionPoolIsolation              string                   `mapstructure:"connection_pool_isolation"`
 	ForceCodexCLI                        bool                     `mapstructure:"force_codex_cli"`
 	OpenAIPassthroughAllowTimeoutHeaders bool                     `mapstructure:"openai_passthrough_allow_timeout_headers"`

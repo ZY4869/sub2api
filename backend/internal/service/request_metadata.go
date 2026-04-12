@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -18,6 +19,9 @@ type RequestMetadata struct {
 	PrefetchedStickyGroupID    *int64
 	SingleAccountRetry         *bool
 	AccountSwitchCount         *int
+	GeminiSurface              *string
+	BillingRuleID              *string
+	ProbeAction                *string
 }
 
 var (
@@ -44,6 +48,16 @@ func metadataFromContext(ctx context.Context) *RequestMetadata {
 	}
 	md, _ := ctx.Value(requestMetadataKey).(*RequestMetadata)
 	return md
+}
+
+func EnsureRequestMetadata(ctx context.Context) context.Context {
+	if ctx == nil {
+		return nil
+	}
+	if metadataFromContext(ctx) != nil {
+		return ctx
+	}
+	return context.WithValue(ctx, requestMetadataKey, &RequestMetadata{})
 }
 
 func updateRequestMetadata(
@@ -213,4 +227,58 @@ func AccountSwitchCountFromContext(ctx context.Context) (int, bool) {
 		return int(t), true
 	}
 	return 0, false
+}
+
+func SetGeminiSurfaceMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiSurface = nil
+			return
+		}
+		md.GeminiSurface = &trimmed
+	}
+}
+
+func GeminiSurfaceMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiSurface != nil {
+		return strings.TrimSpace(*md.GeminiSurface), true
+	}
+	return "", false
+}
+
+func SetBillingRuleIDMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.BillingRuleID = nil
+			return
+		}
+		md.BillingRuleID = &trimmed
+	}
+}
+
+func BillingRuleIDMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.BillingRuleID != nil {
+		return strings.TrimSpace(*md.BillingRuleID), true
+	}
+	return "", false
+}
+
+func SetProbeActionMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.ProbeAction = nil
+			return
+		}
+		md.ProbeAction = &trimmed
+	}
+}
+
+func ProbeActionMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ProbeAction != nil {
+		return strings.TrimSpace(*md.ProbeAction), true
+	}
+	return "", false
 }

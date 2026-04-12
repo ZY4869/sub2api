@@ -138,6 +138,26 @@ func TestResolveOpsChannelID_FromGatewayContext(t *testing.T) {
 	require.Equal(t, int64(42), *channelID)
 }
 
+func TestApplyOpsGeminiMetadataFromContext(t *testing.T) {
+	resetOpsErrorLoggerStateForTest(t)
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	ctx := service.EnsureRequestMetadata(context.Background())
+	service.SetGeminiSurfaceMetadata(ctx, "openai_compat")
+	service.SetBillingRuleIDMetadata(ctx, "rule_text_output")
+	service.SetProbeActionMetadata(ctx, "test")
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/openai/chat/completions", nil).WithContext(ctx)
+
+	entry := &service.OpsInsertErrorLogInput{}
+	applyOpsGeminiMetadataFromContext(c, entry)
+
+	require.Equal(t, "openai_compat", entry.GeminiSurface)
+	require.Equal(t, "rule_text_output", entry.BillingRuleID)
+	require.Equal(t, "test", entry.ProbeAction)
+}
+
 func TestEnqueueOpsErrorLog_QueueFullDrop(t *testing.T) {
 	resetOpsErrorLoggerStateForTest(t)
 

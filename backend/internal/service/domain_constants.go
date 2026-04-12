@@ -131,6 +131,7 @@ const (
 	SettingKeyModelCatalogEntries                            = "model_catalog_entries"
 	SettingKeyModelPriceOverrides                            = "model_price_overrides"
 	SettingKeyModelOfficialPriceOverrides                    = "model_official_price_overrides"
+	SettingKeyBillingCenterRules                             = "billing_center_rules"
 	SettingKeyModelRegistryEntries                           = "model_registry_entries"
 	SettingKeyModelRegistryHiddenModels                      = "model_registry_hidden_models"
 	SettingKeyModelRegistryTombstones                        = "model_registry_tombstones"

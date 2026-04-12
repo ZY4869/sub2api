@@ -27,6 +27,14 @@ type UsageBillingCommand struct {
 	Model               string
 	ServiceTier         string
 	ReasoningEffort     string
+	OperationType       string
+	ChargeSource        string
+	GeminiSurface       string
+	GeminiBatchMode     string
+	GeminiCachePhase    string
+	GeminiGroundingKind string
+	GeminiInputModality string
+	GeminiOutputModality string
 	BillingType         int8
 	InputTokens         int
 	OutputTokens        int
@@ -58,7 +66,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		return ""
 	}
 	raw := fmt.Sprintf(
-		"%d|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
+		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
 		c.UserID,
 		c.AccountID,
 		c.APIKeyID,
@@ -67,6 +75,14 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		strings.TrimSpace(c.Model),
 		strings.TrimSpace(c.ServiceTier),
 		strings.TrimSpace(c.ReasoningEffort),
+		strings.TrimSpace(c.OperationType),
+		strings.TrimSpace(c.ChargeSource),
+		strings.TrimSpace(c.GeminiSurface),
+		strings.TrimSpace(c.GeminiBatchMode),
+		strings.TrimSpace(c.GeminiCachePhase),
+		strings.TrimSpace(c.GeminiGroundingKind),
+		strings.TrimSpace(c.GeminiInputModality),
+		strings.TrimSpace(c.GeminiOutputModality),
 		c.BillingType,
 		c.InputTokens,
 		c.OutputTokens,

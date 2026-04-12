@@ -233,6 +233,18 @@ function resetFilters() {
           <input :value="draft.client_request_id || ''" type="text" class="input" @input="updateField('client_request_id', String(($event.target as HTMLInputElement).value || ''))" />
         </div>
         <div>
+          <label class="input-label">{{ t('admin.requestDetails.filters.geminiSurface') }}</label>
+          <input :value="draft.gemini_surface || ''" type="text" class="input" @input="updateField('gemini_surface', String(($event.target as HTMLInputElement).value || ''))" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.requestDetails.filters.billingRuleId') }}</label>
+          <input :value="draft.billing_rule_id || ''" type="text" class="input" @input="updateField('billing_rule_id', String(($event.target as HTMLInputElement).value || ''))" />
+        </div>
+        <div>
+          <label class="input-label">{{ t('admin.requestDetails.filters.probeAction') }}</label>
+          <input :value="draft.probe_action || ''" type="text" class="input" @input="updateField('probe_action', String(($event.target as HTMLInputElement).value || ''))" />
+        </div>
+        <div>
           <label class="input-label">{{ t('admin.requestDetails.filters.captureReason') }}</label>
           <input :value="draft.capture_reason || ''" type="text" class="input" @input="updateField('capture_reason', String(($event.target as HTMLInputElement).value || ''))" />
         </div>

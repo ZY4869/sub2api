@@ -24,8 +24,11 @@ vi.mock('@/stores/modelRegistry', () => ({
 }))
 
 import {
+  buildRequestTraceQuery,
+  createDefaultRequestTraceFilter,
   getRequestTraceFinishReasonLabel,
   getRequestTraceStatusLabel,
+  parseRequestTraceFilterFromQuery,
   resolveRequestTraceModelPresentation
 } from '../helpers'
 
@@ -55,5 +58,28 @@ describe('request-details helpers', () => {
       displayName: 'Claude Opus 4.1',
       provider: 'anthropic'
     })
+  })
+
+  it('parses and rebuilds gemini metadata filters', () => {
+    const parsed = parseRequestTraceFilterFromQuery({
+      gemini_surface: 'live',
+      billing_rule_id: 'rule-live-1',
+      probe_action: 'retry',
+    })
+
+    expect(parsed.gemini_surface).toBe('live')
+    expect(parsed.billing_rule_id).toBe('rule-live-1')
+    expect(parsed.probe_action).toBe('retry')
+
+    const rebuilt = buildRequestTraceQuery({
+      ...createDefaultRequestTraceFilter(),
+      gemini_surface: 'compat',
+      billing_rule_id: 'rule-compat-2',
+      probe_action: 'blacklist',
+    })
+
+    expect(rebuilt.gemini_surface).toBe('compat')
+    expect(rebuilt.billing_rule_id).toBe('rule-compat-2')
+    expect(rebuilt.probe_action).toBe('blacklist')
   })
 })

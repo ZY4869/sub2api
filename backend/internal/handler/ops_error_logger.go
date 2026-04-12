@@ -342,8 +342,13 @@ func setOpsRequestContext(c *gin.Context, model string, stream bool, requestBody
 		c.Set(opsRequestBodyKey, requestBody)
 	}
 	if c.Request != nil && model != "" {
-		ctx := context.WithValue(c.Request.Context(), ctxkey.Model, model)
+		ctx := service.EnsureRequestMetadata(c.Request.Context())
+		ctx = context.WithValue(ctx, ctxkey.Model, model)
 		c.Request = c.Request.WithContext(ctx)
+		return
+	}
+	if c.Request != nil {
+		c.Request = c.Request.WithContext(service.EnsureRequestMetadata(c.Request.Context()))
 	}
 }
 
@@ -724,6 +729,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 				CreatedAt:   time.Now(),
 			}
 			applyOpsLatencyFieldsFromContext(c, entry)
+			applyOpsGeminiMetadataFromContext(c, entry)
 
 			if apiKey != nil {
 				entry.APIKeyID = &apiKey.ID
@@ -853,6 +859,7 @@ func OpsErrorLoggerMiddleware(ops *service.OpsService) gin.HandlerFunc {
 			CreatedAt:   time.Now(),
 		}
 		applyOpsLatencyFieldsFromContext(c, entry)
+		applyOpsGeminiMetadataFromContext(c, entry)
 
 		// Capture upstream error context set by gateway services (if present).
 		// This does NOT affect the client response; it enriches Ops troubleshooting data.
@@ -986,6 +993,21 @@ func applyOpsLatencyFieldsFromContext(c *gin.Context, entry *service.OpsInsertEr
 	entry.UpstreamLatencyMs = getContextLatencyMs(c, service.OpsUpstreamLatencyMsKey)
 	entry.ResponseLatencyMs = getContextLatencyMs(c, service.OpsResponseLatencyMsKey)
 	entry.TimeToFirstTokenMs = getContextLatencyMs(c, service.OpsTimeToFirstTokenMsKey)
+}
+
+func applyOpsGeminiMetadataFromContext(c *gin.Context, entry *service.OpsInsertErrorLogInput) {
+	if c == nil || c.Request == nil || entry == nil {
+		return
+	}
+	if value, ok := service.GeminiSurfaceMetadataFromContext(c.Request.Context()); ok {
+		entry.GeminiSurface = value
+	}
+	if value, ok := service.BillingRuleIDMetadataFromContext(c.Request.Context()); ok {
+		entry.BillingRuleID = value
+	}
+	if value, ok := service.ProbeActionMetadataFromContext(c.Request.Context()); ok {
+		entry.ProbeAction = value
+	}
 }
 
 func resolveOpsChannelID(c *gin.Context) *int64 {

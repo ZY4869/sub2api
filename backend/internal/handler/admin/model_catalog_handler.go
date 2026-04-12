@@ -74,6 +74,90 @@ func (h *ModelCatalogHandler) ExchangeRate(c *gin.Context) {
 	response.Success(c, rate)
 }
 
+func (h *ModelCatalogHandler) BillingCenter(c *gin.Context) {
+	payload, err := h.modelCatalogService.GetBillingCenter(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, payload)
+}
+
+func (h *ModelCatalogHandler) UpsertBillingSheet(c *gin.Context) {
+	var req service.UpsertModelBillingSheetInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	sheet, err := h.modelCatalogService.UpsertBillingSheet(c.Request.Context(), h.resolveActor(c), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, sheet)
+}
+
+func (h *ModelCatalogHandler) DeleteBillingSheet(c *gin.Context) {
+	model := strings.TrimSpace(c.Query("model"))
+	layer := strings.TrimSpace(c.Query("layer"))
+	if err := h.modelCatalogService.DeleteBillingSheet(c.Request.Context(), h.resolveActor(c), model, layer); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"model": service.NormalizeModelCatalogModelID(model), "layer": layer})
+}
+
+func (h *ModelCatalogHandler) UpsertBillingRule(c *gin.Context) {
+	var req service.BillingRule
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	rule, err := h.modelCatalogService.UpsertBillingRule(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, rule)
+}
+
+func (h *ModelCatalogHandler) DeleteBillingRule(c *gin.Context) {
+	id := strings.TrimSpace(c.Query("id"))
+	if err := h.modelCatalogService.DeleteBillingRule(c.Request.Context(), id); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"id": id})
+}
+
+func (h *ModelCatalogHandler) SimulateBilling(c *gin.Context) {
+	var req service.BillingSimulationInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.modelCatalogService.SimulateBilling(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *ModelCatalogHandler) CopyBillingSheetOfficialToSale(c *gin.Context) {
+	var req service.CopyModelCatalogPricingFromOfficialInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	sheet, err := h.modelCatalogService.CopyBillingSheetOfficialToSale(c.Request.Context(), h.resolveActor(c), req.Model)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, sheet)
+}
+
 func (h *ModelCatalogHandler) CopyOfficialPricingToSale(c *gin.Context) {
 	var req service.CopyModelCatalogPricingFromOfficialInput
 	if err := c.ShouldBindJSON(&req); err != nil {

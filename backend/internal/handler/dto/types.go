@@ -174,8 +174,9 @@ type Account struct {
 	RateLimitReason  string     `json:"rate_limit_reason,omitempty"`
 	OverloadUntil    *time.Time `json:"overload_until"`
 
-	TempUnschedulableUntil  *time.Time `json:"temp_unschedulable_until"`
-	TempUnschedulableReason string     `json:"temp_unschedulable_reason"`
+	TempUnschedulableUntil  *time.Time                       `json:"temp_unschedulable_until"`
+	TempUnschedulableReason string                           `json:"temp_unschedulable_reason"`
+	AutoRecoveryProbe       *AccountAutoRecoveryProbeSummary `json:"auto_recovery_probe,omitempty"`
 
 	SessionWindowStart  *time.Time `json:"session_window_start"`
 	SessionWindowEnd    *time.Time `json:"session_window_end"`
@@ -251,6 +252,15 @@ type Account struct {
 
 	GroupIDs []int64  `json:"group_ids,omitempty"`
 	Groups   []*Group `json:"groups,omitempty"`
+}
+
+type AccountAutoRecoveryProbeSummary struct {
+	CheckedAt   string `json:"checked_at,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Summary     string `json:"summary,omitempty"`
+	Blacklisted bool   `json:"blacklisted,omitempty"`
+	NextRetryAt string `json:"next_retry_at,omitempty"`
+	ErrorCode   string `json:"error_code,omitempty"`
 }
 
 type AccountGroup struct {

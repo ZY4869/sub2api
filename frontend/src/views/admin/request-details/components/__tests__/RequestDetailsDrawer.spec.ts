@@ -75,6 +75,9 @@ const translations: Record<string, string> = {
   'admin.requestDetails.presentation.labels.requestId': 'Request ID',
   'admin.requestDetails.presentation.labels.clientRequestId': 'Client Request ID',
   'admin.requestDetails.presentation.labels.upstreamRequestId': 'Upstream Request ID',
+  'admin.requestDetails.presentation.labels.billingRuleId': 'Billing Rule ID',
+  'admin.requestDetails.presentation.labels.geminiSurface': 'Gemini Surface',
+  'admin.requestDetails.presentation.labels.probeAction': 'Probe Action',
   'admin.requestDetails.presentation.labels.userId': 'User ID',
   'admin.requestDetails.presentation.labels.apiKeyId': 'API Key ID',
   'admin.requestDetails.presentation.labels.accountId': 'Account ID',
@@ -157,6 +160,9 @@ const detail = {
   requested_model: 'claude-opus-4-1-20250805',
   upstream_model: 'claude-opus-4-1-20250805',
   actual_upstream_model: 'claude-opus-4-1-20250805',
+  gemini_surface: 'interactions',
+  billing_rule_id: 'rule-interactions-9',
+  probe_action: 'blacklist',
   status: 'success',
   status_code: 200,
   upstream_status_code: 200,
@@ -214,6 +220,17 @@ function createWrapper(overrides?: Record<string, unknown>) {
 }
 
 describe('RequestDetailsDrawer', () => {
+  it('shows gemini metadata fields in overview sections', () => {
+    const wrapper = createWrapper()
+
+    expect(wrapper.text()).toContain('Gemini Surface')
+    expect(wrapper.text()).toContain('interactions')
+    expect(wrapper.text()).toContain('Billing Rule ID')
+    expect(wrapper.text()).toContain('rule-interactions-9')
+    expect(wrapper.text()).toContain('Probe Action')
+    expect(wrapper.text()).toContain('blacklist')
+  })
+
   it('renders payload empty state instead of a blank pre block', async () => {
     const wrapper = createWrapper()
 

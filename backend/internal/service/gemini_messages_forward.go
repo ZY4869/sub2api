@@ -21,7 +21,10 @@ import (
 	"time"
 )
 
-func (s *GeminiMessagesCompatService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {
+func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {
+	if s == nil || s.GeminiMessagesCompatService == nil {
+		return nil, nil
+	}
 	account = ResolveProtocolGatewayInboundAccount(account, PlatformGemini)
 	startTime := time.Now()
 	var req struct {
@@ -410,7 +413,10 @@ func isGeminiSignatureRelatedError(respBody []byte) bool {
 	}
 	return strings.Contains(msg, "thought_signature") || strings.Contains(msg, "signature")
 }
-func (s *GeminiMessagesCompatService) ForwardNative(ctx context.Context, c *gin.Context, account *Account, originalModel string, action string, stream bool, body []byte) (*ForwardResult, error) {
+func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.Context, account *Account, originalModel string, action string, stream bool, body []byte) (*ForwardResult, error) {
+	if s == nil || s.GeminiMessagesCompatService == nil {
+		return nil, nil
+	}
 	account = ResolveProtocolGatewayInboundAccount(account, PlatformGemini)
 	startTime := time.Now()
 	if strings.TrimSpace(originalModel) == "" {
