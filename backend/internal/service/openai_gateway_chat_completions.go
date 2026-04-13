@@ -247,6 +247,7 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 
 	var finalResponse *apicompat.ResponsesResponse
 	var usage OpenAIUsage
+	acc := apicompat.NewBufferedResponseAccumulator()
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -264,7 +265,11 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 			continue
 		}
 
-		if (event.Type == "response.completed" || event.Type == "response.incomplete" || event.Type == "response.failed") &&
+		// Accumulate delta content for fallback when terminal output is empty.
+		acc.ProcessEvent(&event)
+
+		if (event.Type == "response.completed" || event.Type == "response.done" ||
+			event.Type == "response.incomplete" || event.Type == "response.failed") &&
 			event.Response != nil {
 			finalResponse = event.Response
 			if event.Response.Usage != nil {
@@ -292,6 +297,10 @@ func (s *OpenAIGatewayService) handleChatBufferedStreamingResponse(
 		writeChatCompletionsError(c, http.StatusBadGateway, "api_error", "Upstream stream ended without a terminal response event", apicompat.CompatReasonUpstreamTerminalEventMissing)
 		return nil, fmt.Errorf("upstream stream ended without terminal event")
 	}
+
+	// When the terminal event has an empty output array, reconstruct from
+	// accumulated delta events so the client receives the full content.
+	acc.SupplementResponseOutput(finalResponse)
 
 	chatResp := apicompat.ResponsesToChatCompletions(finalResponse, originalModel)
 

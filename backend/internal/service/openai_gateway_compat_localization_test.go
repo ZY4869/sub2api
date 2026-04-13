@@ -138,6 +138,29 @@ func TestHandleChatBufferedStreamingResponse_WritesTerminalEventMissingReason(t 
 	require.Equal(t, apicompat.CompatReasonUpstreamTerminalEventMissing, gjson.GetBytes(recorder.Body.Bytes(), "error.code").String())
 }
 
+func TestHandleChatBufferedStreamingResponse_ReconstructsOutputFromDeltaWhenTerminalOutputEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	recorder, c := newCompatGatewayTestContext(http.MethodPost, "/v1/chat/completions", nil)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+			`data: {"type":"response.output_text.delta","delta":"Hello"}`,
+			`data: {"type":"response.output_text.delta","delta":" world"}`,
+			`data: {"type":"response.done","response":{"id":"resp_delta","model":"gpt-5.4","output":[],"usage":{"input_tokens":3,"output_tokens":2}}}`,
+			`data: [DONE]`,
+		}, "\n"))),
+	}
+
+	result, err := (&OpenAIGatewayService{}).handleChatBufferedStreamingResponse(resp, c, "gpt-5.4", "gpt-5.4", time.Now())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 3, result.Usage.InputTokens)
+	require.Equal(t, 2, result.Usage.OutputTokens)
+	require.Contains(t, recorder.Body.String(), `"Hello world"`)
+}
+
 func TestForwardAsAnthropic_WritesUpstreamRequestFailureReason(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

@@ -1845,6 +1845,34 @@ func TestHandleOAuthSSEToJSON_CompletedEventReturnsJSON(t *testing.T) {
 	require.NotContains(t, rec.Body.String(), "data:")
 }
 
+func TestHandleOAuthSSEToJSON_ReconstructsOutputFromDeltaWhenTerminalOutputEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	svc := &OpenAIGatewayService{cfg: &config.Config{}}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+	}
+	body := []byte(strings.Join([]string{
+		`data: {"type":"response.output_text.delta","delta":"Hello"}`,
+		`data: {"type":"response.output_text.delta","delta":" world"}`,
+		`data: {"type":"response.completed","response":{"id":"resp_delta","model":"gpt-4o","output":[],"usage":{"input_tokens":4,"output_tokens":2,"input_tokens_details":{"cached_tokens":1}}}}`,
+		`data: [DONE]`,
+	}, "\n"))
+
+	usage, err := svc.handleOAuthSSEToJSON(resp, c, body, "gpt-4o", "gpt-4o")
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Equal(t, 4, usage.InputTokens)
+	require.Equal(t, 2, usage.OutputTokens)
+	require.Equal(t, 1, usage.CacheReadInputTokens)
+	require.Contains(t, rec.Body.String(), `"Hello world"`)
+	require.NotContains(t, rec.Body.String(), `"output":[]`)
+}
+
 func TestHandleOAuthSSEToJSON_NoFinalResponseKeepsSSEBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()

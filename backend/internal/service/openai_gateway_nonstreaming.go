@@ -3,12 +3,14 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -212,6 +214,9 @@ func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.
 		if parsedUsage, parsed := extractOpenAIUsageFromJSONBytes(finalResponse); parsed {
 			*usage = parsedUsage
 		}
+		if supplemented, rebuilt := supplementOpenAIResponseOutputFromSSE(finalResponse, bodyText); rebuilt {
+			finalResponse = supplemented
+		}
 		body = finalResponse
 		if originalModel != mappedModel {
 			body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
@@ -242,6 +247,44 @@ func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.
 	}
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
+}
+
+func supplementOpenAIResponseOutputFromSSE(finalResponse []byte, bodyText string) ([]byte, bool) {
+	if len(gjson.GetBytes(finalResponse, "output").Array()) > 0 {
+		return nil, false
+	}
+
+	var response apicompat.ResponsesResponse
+	if err := json.Unmarshal(finalResponse, &response); err != nil {
+		return nil, false
+	}
+
+	acc := apicompat.NewBufferedResponseAccumulator()
+	for _, line := range strings.Split(bodyText, "\n") {
+		data, ok := extractOpenAISSEDataLine(line)
+		if !ok || data == "" || data == "[DONE]" {
+			continue
+		}
+		var event apicompat.ResponsesStreamEvent
+		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			continue
+		}
+		acc.ProcessEvent(&event)
+	}
+	if !acc.HasContent() {
+		return nil, false
+	}
+
+	acc.SupplementResponseOutput(&response)
+	if len(response.Output) == 0 {
+		return nil, false
+	}
+
+	supplemented, err := json.Marshal(response)
+	if err != nil {
+		return nil, false
+	}
+	return supplemented, true
 }
 
 func extractOpenAISSETerminalEvent(body string) (string, []byte, bool) {
