@@ -66,7 +66,7 @@ func (s *GatewayService) Forward(ctx context.Context, c *gin.Context, account *A
 	shouldMimicClaudeCode := IsClaudeClientMimicEnabled(account, PlatformAnthropic) && !isClaudeCode
 	if shouldMimicClaudeCode {
 		if !strings.Contains(strings.ToLower(reqModel), "haiku") && !systemIncludesClaudeCodePrompt(parsed.System) {
-			body = injectClaudeCodePrompt(body, parsed.System)
+			body = rewriteSystemForNonClaudeCode(body, parsed.System)
 		}
 		normalizeOpts := claudeOAuthNormalizeOptions{stripSystemCacheControl: true}
 		if s.identityService != nil {
