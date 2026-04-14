@@ -2,8 +2,14 @@ package apicompat
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
+
+type chatMessageContent struct {
+	Text  *string
+	Parts []ChatContentPart
+}
 
 // ChatCompletionsToResponses converts a Chat Completions request into a
 // Responses API request. The upstream always streams, so Stream is forced to
@@ -112,11 +118,16 @@ func chatMessageToResponsesItems(m ChatMessage) ([]ResponsesInputItem, error) {
 
 // chatSystemToResponses converts a system message.
 func chatSystemToResponses(m ChatMessage) ([]ResponsesInputItem, error) {
-	text, err := parseChatContent(m.Content)
-	if err != nil {
-		return nil, err
+	parsed, ok := parseChatMessageContent(m.Content)
+	if !ok {
+		return nil, WrapCompatError(
+			fmt.Errorf("parse content as string or parts array"),
+			CompatReasonChatStringContentInvalid,
+			"compat.chat.string_content_invalid",
+			"message content must be a JSON string or an array of content parts on this compatibility path",
+		)
 	}
-	content, err := json.Marshal(text)
+	content, err := marshalChatInputContent(parsed)
 	if err != nil {
 		return nil, err
 	}
@@ -126,43 +137,16 @@ func chatSystemToResponses(m ChatMessage) ([]ResponsesInputItem, error) {
 // chatUserToResponses converts a user message, handling both plain strings and
 // multi-modal content arrays.
 func chatUserToResponses(m ChatMessage) ([]ResponsesInputItem, error) {
-	// Try plain string first.
-	var s string
-	if err := json.Unmarshal(m.Content, &s); err == nil {
-		content, _ := json.Marshal(s)
-		return []ResponsesInputItem{{Role: "user", Content: content}}, nil
-	}
-
-	var parts []ChatContentPart
-	if err := json.Unmarshal(m.Content, &parts); err != nil {
-		return nil, WrapCompatError(err,
+	parsed, ok := parseChatMessageContent(m.Content)
+	if !ok {
+		return nil, WrapCompatError(
+			fmt.Errorf("parse content as string or parts array"),
 			CompatReasonChatUserContentInvalid,
 			"compat.chat.user_content_invalid",
 			"user message content must be a string or an array of content parts",
 		)
 	}
-
-	var responseParts []ResponsesContentPart
-	for _, p := range parts {
-		switch p.Type {
-		case "text":
-			if p.Text != "" {
-				responseParts = append(responseParts, ResponsesContentPart{
-					Type: "input_text",
-					Text: p.Text,
-				})
-			}
-		case "image_url":
-			if p.ImageURL != nil && p.ImageURL.URL != "" {
-				responseParts = append(responseParts, ResponsesContentPart{
-					Type:     "input_image",
-					ImageURL: p.ImageURL.URL,
-				})
-			}
-		}
-	}
-
-	content, err := json.Marshal(responseParts)
+	content, err := marshalChatInputContent(parsed)
 	if err != nil {
 		return nil, err
 	}
@@ -315,20 +299,84 @@ func chatFunctionToResponses(m ChatMessage) ([]ResponsesInputItem, error) {
 }
 
 // parseChatContent returns the string value of a ChatMessage Content field.
-// Content must be a JSON string. Returns "" if content is null or empty.
+// Content can be a JSON string or an array of typed parts. Array content is
+// flattened to text by concatenating text parts and ignoring non-text parts.
 func parseChatContent(raw json.RawMessage) (string, error) {
-	if len(raw) == 0 {
-		return "", nil
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", WrapCompatError(err,
+	parsed, ok := parseChatMessageContent(raw)
+	if !ok {
+		return "", WrapCompatError(
+			fmt.Errorf("parse content as string or parts array"),
 			CompatReasonChatStringContentInvalid,
 			"compat.chat.string_content_invalid",
-			"message content must be a JSON string on this compatibility path",
+			"message content must be a JSON string or an array of content parts on this compatibility path",
 		)
 	}
-	return s, nil
+	if parsed.Text != nil {
+		return *parsed.Text, nil
+	}
+	return flattenChatContentParts(parsed.Parts), nil
+}
+
+func parseChatMessageContent(raw json.RawMessage) (chatMessageContent, bool) {
+	if len(raw) == 0 {
+		return chatMessageContent{Text: stringPtr("")}, true
+	}
+
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return chatMessageContent{Text: &s}, true
+	}
+
+	var parts []ChatContentPart
+	if err := json.Unmarshal(raw, &parts); err == nil {
+		return chatMessageContent{Parts: parts}, true
+	}
+
+	return chatMessageContent{}, false
+}
+
+func marshalChatInputContent(content chatMessageContent) (json.RawMessage, error) {
+	if content.Text != nil {
+		return json.Marshal(*content.Text)
+	}
+	return json.Marshal(convertChatContentPartsToResponses(content.Parts))
+}
+
+func convertChatContentPartsToResponses(parts []ChatContentPart) []ResponsesContentPart {
+	var responseParts []ResponsesContentPart
+	for _, p := range parts {
+		switch p.Type {
+		case "text":
+			if p.Text != "" {
+				responseParts = append(responseParts, ResponsesContentPart{
+					Type: "input_text",
+					Text: p.Text,
+				})
+			}
+		case "image_url":
+			if p.ImageURL != nil && p.ImageURL.URL != "" {
+				responseParts = append(responseParts, ResponsesContentPart{
+					Type:     "input_image",
+					ImageURL: p.ImageURL.URL,
+				})
+			}
+		}
+	}
+	return responseParts
+}
+
+func flattenChatContentParts(parts []ChatContentPart) string {
+	var textParts []string
+	for _, p := range parts {
+		if p.Type == "text" && p.Text != "" {
+			textParts = append(textParts, p.Text)
+		}
+	}
+	return strings.Join(textParts, "")
+}
+
+func stringPtr(s string) *string {
+	return &s
 }
 
 // convertChatToolsToResponses maps Chat Completions tool definitions and legacy
