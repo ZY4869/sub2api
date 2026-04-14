@@ -174,14 +174,18 @@ func shouldStreamGoogleBatchRequestBody(method string, path string) bool {
 	if !strings.EqualFold(strings.TrimSpace(method), http.MethodPost) {
 		return false
 	}
-	return strings.EqualFold(strings.TrimSpace(path), "/upload/v1beta/files")
+	trimmed := strings.ToLower(strings.TrimSpace(path))
+	return trimmed == "/upload/v1beta/files" || strings.HasPrefix(trimmed, "/upload/v1beta/filesearchstores/")
 }
 
 func attachGeminiPublicProtocolContext(c *gin.Context) {
 	if c == nil || c.Request == nil {
 		return
 	}
-	c.Request = c.Request.WithContext(service.WithGeminiPublicProtocol(c.Request.Context(), geminiInboundPublicProtocol(c)))
+	ctx := service.EnsureRequestMetadata(c.Request.Context())
+	ctx = service.WithGeminiPublicProtocol(ctx, geminiInboundPublicProtocol(c))
+	c.Request = c.Request.WithContext(ctx)
+	applyGeminiPublicPathMetadata(c, "")
 }
 
 func geminiInboundPublicProtocol(c *gin.Context) string {

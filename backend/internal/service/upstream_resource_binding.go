@@ -13,6 +13,7 @@ const (
 	UpstreamResourceKindGeminiFileSearchStore = "gemini_file_search_store"
 	UpstreamResourceKindGeminiDocument        = "gemini_document"
 	UpstreamResourceKindGeminiOperation       = "gemini_operation"
+	UpstreamResourceKindGeminiUploadOperation = "gemini_upload_operation"
 	UpstreamResourceKindGeminiInteraction     = "gemini_interaction"
 
 	UpstreamProviderAIStudio = "ai_studio"

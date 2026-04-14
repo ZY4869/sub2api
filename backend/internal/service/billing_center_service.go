@@ -297,7 +297,7 @@ func (s *BillingCenterService) Simulate(ctx context.Context, input BillingSimula
 	classification := s.classifier.ClassifySimulation(normalized)
 	result := s.evaluateSimulation(normalized, classification, s.ListRules(ctx), s.resolveLongContextThreshold(ctx, normalized.Model), 1.0)
 	if len(result.Lines) == 0 && normalized.Provider == BillingRuleProviderGemini {
-		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(normalized.Model, normalized.Charges, normalized.ServiceTier, 1.0)
+		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(normalized.Model, normalized.Charges, normalized.ServiceTier, normalized.BatchMode, 1.0)
 		if err != nil {
 			return nil, err
 		}
@@ -327,7 +327,7 @@ func (s *BillingCenterService) CalculateGeminiCost(ctx context.Context, input Ge
 	})
 	result := s.evaluateSimulation(sim, classification, s.ListRules(ctx), s.resolveLongContextThreshold(ctx, sim.Model), input.RateMultiplier)
 	if len(result.Lines) == 0 {
-		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(sim.Model, sim.Charges, sim.ServiceTier, input.RateMultiplier)
+		fallback, cost, coveredSlots, err := s.buildLegacyGeminiFallback(sim.Model, sim.Charges, sim.ServiceTier, sim.BatchMode, input.RateMultiplier)
 		if err != nil {
 			return nil, err
 		}
@@ -392,6 +392,9 @@ func (s *BillingCenterService) buildGeminiCalculationCharges(input GeminiBilling
 	if charges.CacheReadTokens == 0 {
 		charges.CacheReadTokens = float64(input.Tokens.CacheReadTokens)
 	}
+	if charges.CacheStorageTokenHours == 0 {
+		charges.CacheStorageTokenHours = geminiCacheStorageTokenHours(input.Tokens)
+	}
 	if charges.ImageOutputs == 0 {
 		charges.ImageOutputs = float64(input.ImageCount)
 	}
@@ -452,7 +455,7 @@ func (s *BillingCenterService) resolveLongContextThreshold(ctx context.Context, 
 	return record.longContextInputTokenThreshold
 }
 
-func (s *BillingCenterService) buildLegacyGeminiFallback(model string, charges BillingSimulationCharges, serviceTier string, rateMultiplier float64) (*BillingSimulationFallback, *CostBreakdown, map[string]struct{}, error) {
+func (s *BillingCenterService) buildLegacyGeminiFallback(model string, charges BillingSimulationCharges, serviceTier string, batchMode string, rateMultiplier float64) (*BillingSimulationFallback, *CostBreakdown, map[string]struct{}, error) {
 	if s == nil || s.billingService == nil {
 		return &BillingSimulationFallback{
 			Policy:      "legacy_model_pricing",
@@ -465,7 +468,7 @@ func (s *BillingCenterService) buildLegacyGeminiFallback(model string, charges B
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	lines, cost, reason, coveredSlots := buildLegacyGeminiFallbackLines(pricing, charges, serviceTier, rateMultiplier)
+	lines, cost, reason, coveredSlots := buildLegacyGeminiFallbackLines(pricing, charges, serviceTier, batchMode, rateMultiplier)
 	applied := len(lines) > 0
 	if applied {
 		reason = "no_billing_rule_match"
@@ -480,9 +483,17 @@ func (s *BillingCenterService) buildLegacyGeminiFallback(model string, charges B
 }
 
 func recordGeminiBillingRuntimeMetrics(result *BillingSimulationResult, fallback *BillingSimulationFallback) {
-	if fallback != nil && fallback.Applied {
-		protocolruntime.RecordGeminiBillingFallbackApplied(normalizeGeminiBillingMetricReason(fallback.Reason))
-		return
+	if fallback != nil {
+		if fallback.Applied {
+			protocolruntime.RecordGeminiBillingFallbackApplied(normalizeGeminiBillingMetricReason(fallback.Reason))
+			return
+		}
+		if reason := normalizeGeminiBillingMetricReason(fallback.Reason); reason != "" && reason != "unknown" {
+			protocolruntime.RecordGeminiBillingFallbackMiss(reason)
+			if result == nil || len(result.UnmatchedDemands) == 0 {
+				return
+			}
+		}
 	}
 	if result == nil {
 		protocolruntime.RecordGeminiBillingFallbackMiss("unknown")
@@ -535,7 +546,7 @@ func costBreakdownFromSimulation(result *BillingSimulationResult) *CostBreakdown
 		switch line.Unit {
 		case BillingUnitInputToken:
 			cost.InputCost += line.Cost
-		case BillingUnitCacheCreateToken:
+		case BillingUnitCacheCreateToken, BillingUnitCacheStorageTokenHour:
 			cost.CacheCreationCost += line.Cost
 		case BillingUnitCacheReadToken:
 			cost.CacheReadCost += line.Cost
@@ -550,6 +561,7 @@ func buildLegacyGeminiFallbackLines(
 	pricing *ModelPricing,
 	charges BillingSimulationCharges,
 	serviceTier string,
+	batchMode string,
 	rateMultiplier float64,
 ) ([]BillingSimulationLine, *CostBreakdown, string, map[string]struct{}) {
 	if pricing == nil {
@@ -566,7 +578,17 @@ func buildLegacyGeminiFallbackLines(
 	inputPrice := pricing.InputPricePerToken
 	outputPrice := pricing.OutputPricePerToken
 	cacheReadPrice := pricing.CacheReadPricePerToken
-	usingPriorityPricing := usePriorityServiceTierPricing(serviceTier, pricing)
+	usingPriorityPricing := normalizeBillingServiceTier(serviceTier) == BillingServiceTierPriority
+	if usingPriorityPricing {
+		switch {
+		case (charges.TextInputTokens > 0 || charges.AudioInputTokens > 0) && pricing.InputPricePerTokenPriority <= 0:
+			return nil, &CostBreakdown{}, "priority_price_missing", nil
+		case (charges.TextOutputTokens > 0 || charges.AudioOutputTokens > 0) && pricing.OutputPricePerTokenPriority <= 0:
+			return nil, &CostBreakdown{}, "priority_price_missing", nil
+		case charges.CacheReadTokens > 0 && pricing.CacheReadPricePerTokenPriority <= 0:
+			return nil, &CostBreakdown{}, "priority_price_missing", nil
+		}
+	}
 	tierMultiplier := 1.0
 	if usingPriorityPricing {
 		if pricing.InputPricePerTokenPriority > 0 {
@@ -655,13 +677,21 @@ func buildLegacyGeminiFallbackLines(
 	appendLine(BillingChargeSlotImageOutput, BillingUnitImage, charges.ImageOutputs, pricing.OutputPricePerImage)
 	appendLine(BillingChargeSlotVideoRequest, BillingUnitVideoRequest, charges.VideoRequests, pricing.OutputPricePerVideoRequest)
 
+	if normalizeBillingActualBatchMode(batchMode) == BillingBatchModeBatch {
+		for index := range lines {
+			lines[index].Price *= 0.5
+			lines[index].Cost *= 0.5
+			lines[index].ActualCost *= 0.5
+		}
+	}
+
 	for _, line := range lines {
 		cost.TotalCost += line.Cost
 		cost.ActualCost += line.ActualCost
 		switch line.Unit {
 		case BillingUnitInputToken:
 			cost.InputCost += line.Cost
-		case BillingUnitCacheCreateToken:
+		case BillingUnitCacheCreateToken, BillingUnitCacheStorageTokenHour:
 			cost.CacheCreationCost += line.Cost
 		case BillingUnitCacheReadToken:
 			cost.CacheReadCost += line.Cost
@@ -677,6 +707,10 @@ func buildLegacyGeminiFallbackLines(
 		return nil, cost, "legacy_pricing_missing_supported_slot_prices", nil
 	}
 	return nil, cost, "legacy_pricing_no_supported_charges", nil
+}
+
+func geminiCacheStorageTokenHours(tokens UsageTokens) float64 {
+	return float64(tokens.CacheCreation5mTokens)*(5.0/60.0) + float64(tokens.CacheCreation1hTokens)
 }
 
 func filterFallbackCoveredUnmatchedDemands(

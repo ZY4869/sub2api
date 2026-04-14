@@ -34,12 +34,12 @@ func normalizeSimulationInput(input BillingSimulationInput) BillingSimulationInp
 	input.Model = CanonicalizeModelNameForPricing(input.Model)
 	input.Surface = normalizeBillingSurface(input.Surface)
 	input.OperationType = normalizeBillingDimension(input.OperationType, "generate_content")
-	input.ServiceTier = normalizeBillingActualServiceTier(input.ServiceTier)
 	input.BatchMode = normalizeBillingActualBatchMode(input.BatchMode)
 	input.InputModality = normalizeBillingDimension(input.InputModality, "text")
 	input.OutputModality = normalizeBillingDimension(input.OutputModality, inferSimulationOutputModality(input))
 	input.CachePhase = normalizeBillingDimension(input.CachePhase, "")
 	input.GroundingKind = normalizeBillingDimension(input.GroundingKind, "")
+	input.ServiceTier = resolveGeminiResolvedServiceTier(input.ServiceTier, input.OperationType, input.BatchMode, input.CachePhase)
 	input.Charges = normalizeBillingSimulationCharges(input)
 	return input
 }
@@ -118,7 +118,8 @@ func (s *BillingCenterService) evaluateSimulation(
 			unmatchedDemands = append(unmatchedDemands, describeUnmatchedDemand(rules, demand))
 			continue
 		}
-		cost := demand.count * rule.Price
+		price := billingRuleEffectivePrice(rule, demand.context)
+		cost := demand.count * price
 		lineActualCost := cost
 		if actualMultiplier > 0 {
 			lineActualCost = cost * actualMultiplier
@@ -129,7 +130,7 @@ func (s *BillingCenterService) evaluateSimulation(
 			ChargeSlot: demand.chargeSlot,
 			Unit:       demand.unit,
 			Units:      demand.count,
-			Price:      rule.Price,
+			Price:      price,
 			Cost:       cost,
 			ActualCost: lineActualCost,
 			RuleID:     rule.ID,
@@ -217,6 +218,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
 				ctx.OperationType = "cache_usage"
 				ctx.CachePhase = "create"
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.ContextWindow = ""
 			}),
 		},
@@ -227,6 +229,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
 				ctx.OperationType = "cache_usage"
 				ctx.CachePhase = "read"
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.ContextWindow = ""
 			}),
 		},
@@ -236,6 +239,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			count:      charges.CacheStorageTokenHours,
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
 				ctx.OperationType = "cache_storage"
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.CachePhase = ""
 				ctx.ContextWindow = ""
 			}),
@@ -264,6 +268,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			count:      charges.FileSearchEmbeddingTokens,
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
 				ctx.OperationType = "file_search_embedding"
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.ContextWindow = ""
 			}),
 		},
@@ -273,6 +278,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			count:      charges.FileSearchRetrievalTokens,
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
 				ctx.OperationType = "file_search_retrieval"
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.ContextWindow = ""
 			}),
 		},
@@ -281,6 +287,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			unit:       BillingUnitGroundingSearchRequest,
 			count:      charges.GroundingSearchQueries,
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.GroundingKind = "search"
 				ctx.ContextWindow = ""
 			}),
@@ -290,6 +297,7 @@ func simulationDemands(input BillingSimulationInput, contextWindow string) []bil
 			unit:       BillingUnitGroundingMapsRequest,
 			count:      charges.GroundingMapsQueries,
 			context: withBillingContext(base, func(ctx *billingMatchContext) {
+				ctx.ServiceTier = BillingServiceTierStandard
 				ctx.GroundingKind = "maps"
 				ctx.ContextWindow = ""
 			}),
@@ -359,6 +367,7 @@ func billingRulePreferred(left BillingRule, right BillingRule, actual billingMat
 	for _, pair := range [][2]int{
 		{billingRuleMatchExplicitness(left.Surface, actual.Surface), billingRuleMatchExplicitness(right.Surface, actual.Surface)},
 		{billingRuleMatchExplicitness(left.OperationType, actual.OperationType), billingRuleMatchExplicitness(right.OperationType, actual.OperationType)},
+		{billingRuleMatchExplicitness(left.BatchMode, actual.BatchMode), billingRuleMatchExplicitness(right.BatchMode, actual.BatchMode)},
 		{billingRuleMatchExplicitness(left.ServiceTier, actual.ServiceTier), billingRuleMatchExplicitness(right.ServiceTier, actual.ServiceTier)},
 		{billingRuleMatchExplicitness(left.Matchers.InputModality, actual.InputModality), billingRuleMatchExplicitness(right.Matchers.InputModality, actual.InputModality)},
 		{billingRuleMatchExplicitness(left.Matchers.OutputModality, actual.OutputModality), billingRuleMatchExplicitness(right.Matchers.OutputModality, actual.OutputModality)},
@@ -476,8 +485,7 @@ func describeUnmatchedDemand(rules []BillingRule, demand billingUnitDemand) Bill
 		if !rule.Enabled ||
 			rule.Provider != demand.context.Provider ||
 			rule.Layer != demand.context.Layer ||
-			rule.Unit != demand.unit ||
-			!billingRuleMatchesDimension(rule.BatchMode, demand.context.BatchMode) {
+			rule.Unit != demand.unit {
 			continue
 		}
 		filtered = append(filtered, rule)
@@ -494,6 +502,7 @@ func describeUnmatchedDemand(rules []BillingRule, demand billingUnitDemand) Bill
 			{name: "surface", ruleFn: func(rule BillingRule) string { return rule.Surface }, actual: demand.context.Surface},
 			{name: "operation_type", ruleFn: func(rule BillingRule) string { return rule.OperationType }, actual: demand.context.OperationType},
 			{name: "service_tier", ruleFn: func(rule BillingRule) string { return rule.ServiceTier }, actual: demand.context.ServiceTier},
+			{name: "batch_mode", ruleFn: func(rule BillingRule) string { return rule.BatchMode }, actual: demand.context.BatchMode},
 			{name: "input_modality", ruleFn: func(rule BillingRule) string { return rule.Matchers.InputModality }, actual: demand.context.InputModality},
 			{name: "output_modality", ruleFn: func(rule BillingRule) string { return rule.Matchers.OutputModality }, actual: demand.context.OutputModality},
 			{name: "cache_phase", ruleFn: func(rule BillingRule) string { return rule.Matchers.CachePhase }, actual: demand.context.CachePhase},
@@ -526,6 +535,12 @@ func describeUnmatchedDemand(rules []BillingRule, demand billingUnitDemand) Bill
 				reason = "model_matcher_miss"
 				missing = append(missing, "model")
 			}
+		}
+	}
+	if demand.chargeSlot == BillingChargeSlotCacheStorageTokenHour {
+		reason = "cache_storage_missing"
+		if len(missing) == 0 {
+			missing = []string{"cache_storage"}
 		}
 	}
 	return BillingSimulationUnmatchedDemand{
@@ -567,4 +582,16 @@ func ternaryString(condition bool, whenTrue string, whenFalse string) string {
 		return whenTrue
 	}
 	return whenFalse
+}
+
+func billingRuleEffectivePrice(rule *BillingRule, actual billingMatchContext) float64 {
+	if rule == nil {
+		return 0
+	}
+	price := rule.Price
+	if normalizeBillingActualBatchMode(actual.BatchMode) == BillingBatchModeBatch &&
+		!billingRuleUsesExplicitValue(rule.BatchMode) {
+		price *= 0.5
+	}
+	return price
 }

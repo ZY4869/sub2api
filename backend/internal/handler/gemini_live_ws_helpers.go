@@ -96,7 +96,8 @@ func normalizeGeminiLiveModelName(value string) string {
 
 func geminiLiveAuthTokenProxyRequested(path string) bool {
 	normalized := strings.ToLower(strings.Trim(strings.TrimSpace(path), "/"))
-	return strings.HasSuffix(normalized, "live/authtokens") ||
+	return strings.HasSuffix(normalized, "v1alpha/authtokens") ||
+		strings.HasSuffix(normalized, "live/authtokens") ||
 		strings.HasSuffix(normalized, "live/auth-tokens") ||
 		strings.HasSuffix(normalized, "live/auth-token")
 }

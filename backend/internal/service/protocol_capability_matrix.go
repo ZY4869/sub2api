@@ -24,9 +24,11 @@ const (
 	EndpointGeminiFileSearchStores    = "/v1beta/fileSearchStores"
 	EndpointGeminiDocuments           = "/v1beta/documents"
 	EndpointGeminiOperations          = "/v1beta/operations"
+	EndpointGeminiUploadOperations    = "/v1beta/fileSearchStores/upload/operations"
 	EndpointGeminiEmbeddings          = "/v1beta/embeddings"
 	EndpointGeminiInteractions        = "/v1beta/interactions"
 	EndpointGeminiLive                = "/v1beta/live"
+	EndpointGeminiLiveAuthTokens      = "/v1alpha/authTokens"
 	EndpointGeminiOpenAICompat        = "/v1beta/openai"
 	EndpointGoogleBatchArchiveBatches = "/google/batch/archive/v1beta/batches"
 	EndpointGoogleBatchArchiveFiles   = "/google/batch/archive/v1beta/files"
@@ -230,6 +232,9 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		SourceProtocol:    PlatformGemini,
 		HandlerFamily:     "gemini_models",
 		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1/models", RegisteredHandlerFamily: "gateway_v1_models_list"},
+			{Method: http.MethodGet, Pattern: "/v1/models/:model", RegisteredHandlerFamily: "gateway_v1_models_get"},
+			{Method: http.MethodPost, Pattern: "/v1/models/*modelAction", RegisteredHandlerFamily: "gateway_v1_models_action"},
 			{Method: http.MethodGet, Pattern: "/v1beta/models"},
 			{Method: http.MethodGet, Pattern: "/v1beta/models/:model"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/*modelAction"},
@@ -238,12 +243,16 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodPost, Pattern: "/antigravity/v1beta/models/*modelAction"},
 		},
 		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:countTokens", Action: ProtocolCapabilityActionGeminiCountTokens, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:countTokens", Action: ProtocolCapabilityActionGeminiCountTokens, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models/{model}:countTokens", Action: ProtocolCapabilityActionGeminiCountTokens, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{
@@ -323,10 +332,13 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores"},
 			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores"},
+			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores/{store}:uploadToFileSearchStore"},
+			{Method: http.MethodPost, Pattern: "/upload/v1beta/fileSearchStores/{store}:uploadToFileSearchStore"},
 			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/*subpath"},
 			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores/*subpath"},
 			{Method: http.MethodPatch, Pattern: "/v1beta/fileSearchStores/*subpath"},
 			{Method: http.MethodDelete, Pattern: "/v1beta/fileSearchStores/*subpath"},
+			{Method: http.MethodPost, Pattern: "/upload/v1beta/fileSearchStores/*subpath"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiFileSearchStores, RequestFormat: EndpointGeminiFileSearchStores, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
@@ -337,6 +349,9 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		SourceProtocol:    PlatformGemini,
 		HandlerFamily:     "gemini_documents",
 		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/{store}/documents", RegisteredHandlerFamily: "gemini_file_search_stores"},
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/{store}/documents/{document}", RegisteredHandlerFamily: "gemini_file_search_stores"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/fileSearchStores/{store}/documents/{document}", RegisteredHandlerFamily: "gemini_file_search_stores"},
 			{Method: http.MethodGet, Pattern: "/v1beta/documents"},
 			{Method: http.MethodPost, Pattern: "/v1beta/documents"},
 			{Method: http.MethodGet, Pattern: "/v1beta/documents/*subpath"},
@@ -353,6 +368,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		SourceProtocol:    PlatformGemini,
 		HandlerFamily:     "gemini_operations",
 		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/{store}/operations/{operation}", RegisteredHandlerFamily: "gemini_file_search_stores"},
 			{Method: http.MethodGet, Pattern: "/v1beta/operations"},
 			{Method: http.MethodGet, Pattern: "/v1beta/operations/*subpath"},
 			{Method: http.MethodDelete, Pattern: "/v1beta/operations/*subpath"},
@@ -362,17 +378,30 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 	},
 	{
+		CanonicalEndpoint: EndpointGeminiUploadOperations,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_upload_operations",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/{store}/upload/operations/{operation}", RegisteredHandlerFamily: "gemini_file_search_stores"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiUploadOperations, RequestFormat: "/v1beta/fileSearchStores/{store}/upload/operations/{operation}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
 		CanonicalEndpoint: EndpointGeminiEmbeddings,
 		SourceProtocol:    PlatformGemini,
 		HandlerFamily:     "gemini_embeddings",
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodPost, Pattern: "/v1beta/embeddings"},
+			{Method: http.MethodPost, Pattern: "/v1/models/{model}:embedContent", RegisteredHandlerFamily: "gateway_v1_models_action"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:embedContent", RegisteredHandlerFamily: "gemini_models"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:batchEmbedContents", RegisteredHandlerFamily: "gemini_models"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:asyncBatchEmbedContent", RegisteredHandlerFamily: "gemini_models"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: EndpointGeminiEmbeddings, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1/models/{model}:embedContent", Action: ProtocolCapabilityActionGeminiEmbedContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1beta/models/{model}:embedContent", Action: ProtocolCapabilityActionGeminiEmbedContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1beta/models/{model}:batchEmbedContents", Action: ProtocolCapabilityActionGeminiBatchEmbeddings, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiEmbeddings, RequestFormat: "/v1beta/models/{model}:asyncBatchEmbedContent", Action: ProtocolCapabilityActionGeminiAsyncEmbedding, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
@@ -405,6 +434,19 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiLive, RequestFormat: EndpointGeminiLive, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiLive, RequestFormat: EndpointGeminiLive, Action: ProtocolCapabilityActionWebSocket, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiLiveAuthTokens,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_live_auth_tokens",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1alpha/authTokens", RegisteredHandlerFamily: "gemini_live_auth_tokens"},
+			{Method: http.MethodPost, Pattern: "/v1beta/live/auth-token", RegisteredHandlerFamily: "gemini_live"},
+			{Method: http.MethodPost, Pattern: "/v1beta/live/auth-tokens", RegisteredHandlerFamily: "gemini_live"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiLiveAuthTokens, RequestFormat: "/v1alpha/authTokens", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{

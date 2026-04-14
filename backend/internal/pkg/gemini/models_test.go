@@ -26,6 +26,9 @@ func TestDefaultModels_ContainsImageModels(t *testing.T) {
 		if len(model.SupportedGenerationMethods) == 0 {
 			t.Fatalf("expected fallback model %q to advertise generation methods", name)
 		}
+		if model.InputTokenLimit <= 0 || model.OutputTokenLimit <= 0 {
+			t.Fatalf("expected fallback model %q to include token limits", name)
+		}
 	}
 }
 
@@ -64,5 +67,35 @@ func TestDefaultModels_AdvertiseCountTokens(t *testing.T) {
 		if !found {
 			t.Fatalf("expected fallback model %q to advertise countTokens", model.Name)
 		}
+	}
+}
+
+func TestBuildModel_SplitsPreviewVersion(t *testing.T) {
+	t.Parallel()
+
+	model := BuildModel("gemini-3.1-pro-preview-customtools", "Gemini 3.1 Pro Preview Customtools", "", nil)
+
+	if model.BaseModelID != "gemini-3.1-pro" {
+		t.Fatalf("expected baseModelId gemini-3.1-pro, got %q", model.BaseModelID)
+	}
+	if model.Version != "preview-customtools" {
+		t.Fatalf("expected version preview-customtools, got %q", model.Version)
+	}
+	if !model.Thinking {
+		t.Fatalf("expected preview text model to advertise thinking support")
+	}
+}
+
+func TestSupportedGenerationMethodsForModel_IsDynamic(t *testing.T) {
+	t.Parallel()
+
+	imageMethods := SupportedGenerationMethodsForModel("gemini-2.5-flash-image")
+	if len(imageMethods) != 2 || imageMethods[0] != "generateContent" || imageMethods[1] != "countTokens" {
+		t.Fatalf("unexpected image methods: %#v", imageMethods)
+	}
+
+	embeddingMethods := SupportedGenerationMethodsForModel("gemini-embedding-001")
+	if len(embeddingMethods) != 2 || embeddingMethods[0] != "embedContent" || embeddingMethods[1] != "countTokens" {
+		t.Fatalf("unexpected embedding methods: %#v", embeddingMethods)
 	}
 }

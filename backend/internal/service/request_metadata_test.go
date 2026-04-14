@@ -117,3 +117,27 @@ func TestRequestMetadataRead_PreferMetadataOverLegacy(t *testing.T) {
 	require.True(t, thinking)
 	require.Equal(t, false, ctx.Value(ctxkey.ThinkingEnabled))
 }
+
+func TestRequestMetadataGeminiPublicFields(t *testing.T) {
+	ctx := EnsureRequestMetadata(context.Background())
+	SetGeminiPublicVersionMetadata(ctx, "v1alpha")
+	SetGeminiPublicResourceMetadata(ctx, "live_auth_tokens")
+	SetGeminiAliasUsedMetadata(ctx, true)
+	SetGeminiUpstreamPathMetadata(ctx, "/v1alpha/authTokens")
+
+	version, ok := GeminiPublicVersionMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "v1alpha", version)
+
+	resource, ok := GeminiPublicResourceMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "live_auth_tokens", resource)
+
+	aliasUsed, ok := GeminiAliasUsedMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.True(t, aliasUsed)
+
+	upstreamPath, ok := GeminiUpstreamPathMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "/v1alpha/authTokens", upstreamPath)
+}

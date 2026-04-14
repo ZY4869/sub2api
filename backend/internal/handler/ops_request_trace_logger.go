@@ -314,10 +314,43 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 		})
 		if classification != nil {
 			result.GeminiSurface = classification.Surface
+			result.GeminiRequestedServiceTier = classification.RequestedServiceTier
+			result.GeminiResolvedServiceTier = classification.ServiceTier
+			result.GeminiBatchMode = classification.BatchMode
+			result.GeminiCachePhase = classification.CachePhase
 		}
+	}
+	if geminiRequestedServiceTier, ok := service.GeminiRequestedServiceTierMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiRequestedServiceTier = geminiRequestedServiceTier
+	}
+	if geminiResolvedServiceTier, ok := service.GeminiResolvedServiceTierMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiResolvedServiceTier = geminiResolvedServiceTier
+	}
+	if geminiBatchMode, ok := service.GeminiBatchModeMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiBatchMode = geminiBatchMode
+	}
+	if geminiCachePhase, ok := service.GeminiCachePhaseMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiCachePhase = geminiCachePhase
+	}
+	if geminiPublicVersion, ok := service.GeminiPublicVersionMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiPublicVersion = geminiPublicVersion
+	}
+	if geminiPublicResource, ok := service.GeminiPublicResourceMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiPublicResource = geminiPublicResource
+	}
+	if geminiAliasUsed, ok := service.GeminiAliasUsedMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiAliasUsed = geminiAliasUsed
+	}
+	if upstreamPath, ok := service.GeminiUpstreamPathMetadataFromContext(c.Request.Context()); ok {
+		result.UpstreamPath = upstreamPath
+	} else {
+		result.UpstreamPath = strings.TrimSpace(resolveOpsUpstreamEndpoint(c, result.Platform))
 	}
 	if billingRuleID, ok := service.BillingRuleIDMetadataFromContext(c.Request.Context()); ok {
 		result.BillingRuleID = billingRuleID
+	}
+	if fallbackReason, ok := service.GeminiBillingFallbackReasonMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiBillingFallbackReason = fallbackReason
 	}
 	if probeAction, ok := service.ProbeActionMetadataFromContext(c.Request.Context()); ok {
 		result.ProbeAction = probeAction
@@ -639,9 +672,11 @@ func opsTraceProtocolFamily(value string) string {
 		EndpointGeminiFileSearchStores,
 		EndpointGeminiDocuments,
 		EndpointGeminiOperations,
+		EndpointGeminiUploadOperations,
 		EndpointGeminiEmbeddings,
 		EndpointGeminiInteractions,
 		EndpointGeminiLive,
+		EndpointGeminiLiveAuthTokens,
 		EndpointGeminiOpenAICompat,
 		EndpointVertexSyncModels,
 		EndpointVertexBatchJobs:
@@ -656,6 +691,7 @@ func opsTraceProtocolFamily(value string) string {
 			strings.HasPrefix(normalized, "/v1/videos"):
 			return "openai"
 		case strings.HasPrefix(normalized, "/v1beta/"),
+			strings.HasPrefix(normalized, "/v1alpha/"),
 			strings.HasPrefix(normalized, "/upload/v1beta/"),
 			strings.HasPrefix(normalized, "/download/v1beta/"),
 			strings.HasPrefix(normalized, "/google/batch/archive/"),

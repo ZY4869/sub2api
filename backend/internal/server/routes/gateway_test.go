@@ -189,6 +189,10 @@ func sampleRequestPath(pattern string) string {
 	if strings.Contains(sample, "*modelAction") {
 		sample = strings.ReplaceAll(sample, "*modelAction", "gemini-2.5-pro:predict")
 	}
+	sample = strings.ReplaceAll(sample, "{batch}", "batch-123")
+	sample = strings.ReplaceAll(sample, "{store}", "default-store")
+	sample = strings.ReplaceAll(sample, "{document}", "doc-123")
+	sample = strings.ReplaceAll(sample, "{operation}", "op-123")
 	sample = strings.ReplaceAll(sample, "{model}", "gemini-2.5-pro")
 	sample = strings.ReplaceAll(sample, ":project", "demo-project")
 	sample = strings.ReplaceAll(sample, ":location", "us-central1")
@@ -259,6 +263,12 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		strings.Contains(handlerName, ".GeminiV1BetaListModels-fm"),
 		strings.Contains(handlerName, ".GeminiV1BetaGetModel-fm"):
 		return "gemini_models"
+	case strings.Contains(handlerName, ".GatewayV1ModelsList-fm"):
+		return "gateway_v1_models_list"
+	case strings.Contains(handlerName, ".GatewayV1ModelsGet-fm"):
+		return "gateway_v1_models_get"
+	case strings.Contains(handlerName, ".GatewayV1ModelsAction-fm"):
+		return "gateway_v1_models_action"
 	case strings.Contains(handlerName, ".GeminiFiles-fm"):
 		return "gemini_files"
 	case strings.Contains(handlerName, ".GeminiFilesUpload-fm"):
@@ -277,12 +287,16 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "gemini_documents"
 	case strings.Contains(handlerName, ".GeminiOperations-fm"):
 		return "gemini_operations"
+	case strings.Contains(handlerName, ".GeminiUploadOperations-fm"):
+		return "gemini_upload_operations"
 	case strings.Contains(handlerName, ".GeminiInteractions-fm"):
 		return "gemini_interactions"
 	case strings.Contains(handlerName, ".GeminiOpenAICompat-fm"):
 		return "gemini_openai_compat"
 	case strings.Contains(handlerName, ".GeminiLive-fm"):
 		return "gemini_live"
+	case strings.Contains(handlerName, ".GeminiLiveAuthTokens-fm"):
+		return "gemini_live_auth_tokens"
 	case strings.Contains(handlerName, ".GoogleBatchArchiveBatch-fm"):
 		return "google_batch_archive_batches"
 	case strings.Contains(handlerName, ".GoogleBatchArchiveFileDownload-fm"):

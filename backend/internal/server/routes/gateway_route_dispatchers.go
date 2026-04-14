@@ -22,6 +22,18 @@ func (d gatewayRouteDispatchers) AnthropicCountTokens(c *gin.Context) {
 	dispatchCountTokensRoute(c, d.handlers.Gateway.CountTokens)
 }
 
+func (d gatewayRouteDispatchers) GatewayV1ModelsList(c *gin.Context) {
+	d.handlers.Gateway.GatewayV1ModelsList(c)
+}
+
+func (d gatewayRouteDispatchers) GatewayV1ModelsGet(c *gin.Context) {
+	d.handlers.Gateway.GatewayV1ModelsGet(c)
+}
+
+func (d gatewayRouteDispatchers) GatewayV1ModelsAction(c *gin.Context) {
+	d.handlers.Gateway.GatewayV1ModelsAction(c)
+}
+
 func (d gatewayRouteDispatchers) OpenAIResponses(c *gin.Context) {
 	dispatchOpenAIRoute(c, service.EndpointResponses, service.ProtocolCapabilityActionDefault, d.handlers.OpenAIGateway.Responses, d.handlers.GrokGateway.Responses)
 }
@@ -90,6 +102,10 @@ func (d gatewayRouteDispatchers) GeminiOperations(c *gin.Context) {
 	d.handlers.Gateway.GeminiV1BetaOperations(c)
 }
 
+func (d gatewayRouteDispatchers) GeminiUploadOperations(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaUploadOperations(c)
+}
+
 func (d gatewayRouteDispatchers) GeminiInteractions(c *gin.Context) {
 	d.handlers.Gateway.GeminiV1BetaInteractions(c)
 }
@@ -100,6 +116,10 @@ func (d gatewayRouteDispatchers) GeminiOpenAICompat(c *gin.Context) {
 
 func (d gatewayRouteDispatchers) GeminiLive(c *gin.Context) {
 	d.handlers.Gateway.GeminiV1BetaLive(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiLiveAuthTokens(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1AlphaAuthTokens(c)
 }
 
 func (d gatewayRouteDispatchers) GoogleBatchArchiveBatch(c *gin.Context) {

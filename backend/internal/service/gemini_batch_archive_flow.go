@@ -49,13 +49,13 @@ func (s *GeminiMessagesCompatService) ForwardGoogleFileDownload(ctx context.Cont
 							return nil, account, openErr
 						}
 						if localResult != nil {
-							_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationOfficialResultDownload, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-download:"+resourceName+":"+generateRequestID())
+							_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationOfficialResultDownload, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-download:"+resourceName+":"+generateRequestID())
 							recordGoogleBatchArchiveFetchSource("local")
 							return localResult, account, nil
 						}
 					}
 				}
-				_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationOfficialResultDownload, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-download:"+resourceName+":"+generateRequestID())
+				_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationOfficialResultDownload, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-download:"+resourceName+":"+generateRequestID())
 				recordGoogleBatchArchiveFetchSource("official")
 				return result, account, nil
 			}
@@ -207,7 +207,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateWithArchive(ctx co
 				recordGoogleBatchCreateOutcome(false)
 				return nil, nil, err
 			}
-			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, extractGoogleBatchModelID(input.Path, input.Body), UsageOperationBatchCreate, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-create:"+generateRequestID())
+			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, extractGoogleBatchModelID(input.Path, input.Body), UsageOperationBatchCreate, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-create:"+generateRequestID())
 			recordGoogleBatchCreateOutcome(true)
 			return result, account, nil
 		}
@@ -341,7 +341,7 @@ func (s *GeminiMessagesCompatService) forwardAIStudioBatchBoundResourceWithArchi
 			if err == nil && result != nil && result.StatusCode >= 200 && result.StatusCode < 300 {
 				body := translateVertexBatchPayloadToAIStudio(job, result.Body)
 				_ = s.syncArchiveJobFromBatchPayload(ctx, vertexInput, account, resourceName, body)
-				_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationBatchStatus, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-status:"+resourceName+":"+generateRequestID())
+				_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationBatchStatus, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-status:"+resourceName+":"+generateRequestID())
 				return s.buildGoogleBatchJSONResult(http.StatusOK, body), account, nil
 			}
 		}
@@ -351,7 +351,7 @@ func (s *GeminiMessagesCompatService) forwardAIStudioBatchBoundResourceWithArchi
 		account = resolveNilAccount(account, func() *Account { return s.lookupArchiveExecutionAccountByJob(ctx, job) })
 		if account != nil {
 			_ = s.syncArchiveJobFromBatchPayload(ctx, input, account, resourceName, result.Body)
-			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationBatchStatus, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-status:"+resourceName+":"+generateRequestID())
+			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationBatchStatus, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-status:"+resourceName+":"+generateRequestID())
 		}
 		return result, account, nil
 	}
@@ -363,7 +363,7 @@ func (s *GeminiMessagesCompatService) forwardAIStudioBatchBoundResourceWithArchi
 		}
 		account = s.lookupArchiveExecutionAccountByJob(ctx, job)
 		if account != nil {
-			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationBatchStatus, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-status-local:"+resourceName+":"+generateRequestID())
+			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationBatchStatus, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-status-local:"+resourceName+":"+generateRequestID())
 		}
 		return s.buildGoogleBatchJSONResult(http.StatusOK, buildArchivedAIStudioBatchPayload(job, body)), account, nil
 	}
@@ -387,7 +387,7 @@ func (s *GeminiMessagesCompatService) forwardAIStudioFileBoundResourceWithArchiv
 	if job != nil && (archiveVirtualResource(job) || bindingVirtualResource(binding) || strings.EqualFold(bindingExecutionProtocol(binding), UpstreamProviderVertexAI)) {
 		account := s.lookupArchiveExecutionAccount(ctx, object, binding)
 		if account != nil {
-			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationGetFileMetadata, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-file-meta-virtual:"+resourceName+":"+generateRequestID())
+			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationGetFileMetadata, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-file-meta-virtual:"+resourceName+":"+generateRequestID())
 		}
 		return s.buildGoogleBatchJSONResult(http.StatusOK, buildArchivedAIStudioFilePayload(job, ensureArchiveResultObject(job, object, resourceName))), account, nil
 	}
@@ -395,14 +395,14 @@ func (s *GeminiMessagesCompatService) forwardAIStudioFileBoundResourceWithArchiv
 	if err == nil && result != nil && strings.EqualFold(input.Method, http.MethodGet) && result.StatusCode >= 200 && result.StatusCode < 300 {
 		account = resolveNilAccount(account, func() *Account { return s.lookupArchiveExecutionAccount(ctx, object, nil) })
 		if account != nil {
-			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationGetFileMetadata, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-file-meta:"+resourceName+":"+generateRequestID())
+			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationGetFileMetadata, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-file-meta:"+resourceName+":"+generateRequestID())
 		}
 		return result, account, nil
 	}
 	if strings.EqualFold(input.Method, http.MethodGet) && object != nil {
 		account = s.lookupArchiveExecutionAccount(ctx, object, nil)
 		if account != nil {
-			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationGetFileMetadata, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-file-meta-local:"+resourceName+":"+generateRequestID())
+			_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, binding), UsageOperationGetFileMetadata, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-file-meta-local:"+resourceName+":"+generateRequestID())
 		}
 		return s.buildGoogleBatchJSONResult(http.StatusOK, buildArchivedAIStudioFilePayload(job, object)), account, nil
 	}
@@ -567,8 +567,8 @@ func (s *GeminiMessagesCompatService) resolveGoogleBatchSettlementInput(ctx cont
 }
 
 func (s *GeminiMessagesCompatService) applyGoogleBatchArchiveSettlement(ctx context.Context, input GoogleBatchForwardInput, account *Account, job *GoogleBatchArchiveJob, tokens UsageTokens) error {
-	cost := s.calculateGoogleBatchSettlementCost(job.RequestedModel, account, tokens)
-	if err := s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, nil), UsageOperationBatchSettlement, UsageChargeSourceModelBatch, tokens, cost, "google-batch-settlement:"+job.PublicBatchName); err != nil {
+	billingResult, cost := s.calculateGoogleBatchSettlementCost(ctx, job.RequestedModel, account, tokens)
+	if err := s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, nil), UsageOperationBatchSettlement, UsageChargeSourceModelBatch, tokens, cost, billingResult, "google-batch-settlement:"+job.PublicBatchName); err != nil {
 		if s.googleBatchArchiveJobRepo != nil {
 			reverted, revertErr := s.googleBatchArchiveJobRepo.TryRestoreBillingPending(ctx, job.ID)
 			if revertErr == nil && reverted {
@@ -602,7 +602,7 @@ func (s *GeminiMessagesCompatService) recordArchiveDownloadUsage(ctx context.Con
 		cost.ActualCost = account.GetBatchArchiveDownloadPriceUSD()
 		chargeSource = UsageChargeSourceArchiveDownload
 	}
-	_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, nil), UsageOperationLocalArchiveDownload, chargeSource, UsageTokens{}, cost, "google-batch-local-download:"+job.PublicBatchName+":"+generateRequestID())
+	_ = s.recordGoogleBatchUsageEvent(ctx, input, account, archiveRequestedModel(job, nil), UsageOperationLocalArchiveDownload, chargeSource, UsageTokens{}, cost, nil, "google-batch-local-download:"+job.PublicBatchName+":"+generateRequestID())
 }
 
 func extractGoogleBatchResultFileName(payload []byte, job *GoogleBatchArchiveJob) string {

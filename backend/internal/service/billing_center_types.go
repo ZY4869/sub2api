@@ -164,18 +164,19 @@ type BillingSimulationResult struct {
 }
 
 type GeminiRequestClassification struct {
-	Surface        string `json:"surface"`
-	OperationType  string `json:"operation_type"`
-	ServiceTier    string `json:"service_tier,omitempty"`
-	BatchMode      string `json:"batch_mode,omitempty"`
-	InputModality  string `json:"input_modality,omitempty"`
-	OutputModality string `json:"output_modality,omitempty"`
-	CachePhase     string `json:"cache_phase,omitempty"`
-	GroundingKind  string `json:"grounding_kind,omitempty"`
-	ContextWindow  string `json:"context_window,omitempty"`
-	ChargeSource   string `json:"charge_source,omitempty"`
-	MediaType      string `json:"media_type,omitempty"`
-	MediaUnits     int    `json:"media_units,omitempty"`
+	Surface              string `json:"surface"`
+	OperationType        string `json:"operation_type"`
+	RequestedServiceTier string `json:"requested_service_tier,omitempty"`
+	ServiceTier          string `json:"service_tier,omitempty"`
+	BatchMode            string `json:"batch_mode,omitempty"`
+	InputModality        string `json:"input_modality,omitempty"`
+	OutputModality       string `json:"output_modality,omitempty"`
+	CachePhase           string `json:"cache_phase,omitempty"`
+	GroundingKind        string `json:"grounding_kind,omitempty"`
+	ContextWindow        string `json:"context_window,omitempty"`
+	ChargeSource         string `json:"charge_source,omitempty"`
+	MediaType            string `json:"media_type,omitempty"`
+	MediaUnits           int    `json:"media_units,omitempty"`
 }
 
 type GeminiBillingCalculationInput struct {

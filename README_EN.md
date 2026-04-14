@@ -563,6 +563,14 @@ In Claude Code, Plan Mode cannot exit automatically. (Normally when using the na
 
 ---
 
+## Gemini API Surface
+
+- Official paths now supported by default: `/v1/models`, `/v1alpha/authTokens`, `/v1beta/fileSearchStores/...`, `/upload/v1beta/files`, `/upload/v1beta/fileSearchStores/...`
+- Deprecated aliases kept for one transition version: `/v1beta/live/auth-token`, `/v1beta/live/auth-tokens`, `/v1beta/documents`, `/v1beta/operations`
+- Explicitly unsupported for now: `generateText`, `generateMessage`, `predict`, `predictLongRunning`
+
+---
+
 ## Project Structure
 
 ```

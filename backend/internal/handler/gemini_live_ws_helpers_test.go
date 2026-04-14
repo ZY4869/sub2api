@@ -8,6 +8,7 @@ import (
 )
 
 func TestGeminiLiveAuthTokenProxyRequested(t *testing.T) {
+	require.True(t, geminiLiveAuthTokenProxyRequested("/v1alpha/authTokens"))
 	require.True(t, geminiLiveAuthTokenProxyRequested("/v1beta/live/auth-token"))
 	require.True(t, geminiLiveAuthTokenProxyRequested("/v1beta/live/auth-tokens"))
 	require.True(t, geminiLiveAuthTokenProxyRequested("/v1beta/live/authtokens"))

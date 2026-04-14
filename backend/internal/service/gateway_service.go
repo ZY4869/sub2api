@@ -167,6 +167,7 @@ type ForwardResult struct {
 	Usage            ClaudeUsage
 	Model            string
 	UpstreamModel    string
+	ServiceTier      *string
 	SimulatedClient  string
 	ReasoningEffort  *string
 	Stream           bool

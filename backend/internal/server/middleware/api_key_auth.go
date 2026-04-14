@@ -31,7 +31,8 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 		queryKey := strings.TrimSpace(c.Query("key"))
 		queryApiKey := strings.TrimSpace(c.Query("api_key"))
-		if queryKey != "" || queryApiKey != "" {
+		allowQueryKey := allowGoogleQueryKey(c.Request.URL.Path)
+		if queryApiKey != "" || (queryKey != "" && !allowQueryKey) {
 			AbortWithError(c, 400, "api_key_in_query_deprecated", "API key in query parameter is deprecated. Please use Authorization header instead.")
 			return
 		}
@@ -59,6 +60,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		}
 
 		// 如果所有header都没有API key
+		if apiKeyString == "" && allowQueryKey {
+			apiKeyString = queryKey
+		}
+
 		if apiKeyString == "" {
 			AbortWithError(c, 401, "API_KEY_REQUIRED", "API key is required in Authorization header (Bearer scheme), x-api-key header, or x-goog-api-key header")
 			return

@@ -404,7 +404,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, ServiceTier: extractGeminiRequestedServiceTierFromBody(body), SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func isGeminiSignatureRelatedError(respBody []byte) bool {
 	msg := strings.ToLower(strings.TrimSpace(extractAntigravityErrorMessage(respBody)))
@@ -797,7 +797,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, ServiceTier: extractGeminiRequestedServiceTierFromBody(body), SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func (s *GeminiMessagesCompatService) checkErrorPolicyInLoop(ctx context.Context, account *Account, resp *http.Response) (matched bool, rebuilt *http.Response) {
 	if resp.StatusCode < 400 || s.rateLimitService == nil {
@@ -1119,6 +1119,7 @@ func (s *GeminiMessagesCompatService) finishGeminiEstimatedCountTokensResponse(
 		Usage:           ClaudeUsage{},
 		Model:           originalModel,
 		UpstreamModel:   mappedModel,
+		ServiceTier:     extractGeminiRequestedServiceTierFromBody(body),
 		SimulatedClient: simulatedClient,
 		Stream:          false,
 		Duration:        time.Since(startTime),

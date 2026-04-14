@@ -180,11 +180,21 @@ func (s *GatewayService) calculateGeminiGatewayCost(
 		!isGeminiBillingEndpoint(inboundEndpoint) {
 		return nil, nil
 	}
+	requestedServiceTier := ""
+	if result.ServiceTier != nil {
+		requestedServiceTier = strings.TrimSpace(*result.ServiceTier)
+	}
+	if requestedServiceTier == "" {
+		if extracted := extractGeminiRequestedServiceTierFromBody(requestBody); extracted != nil {
+			requestedServiceTier = strings.TrimSpace(*extracted)
+		}
+	}
 
 	return s.billingService.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
-		Model:           billingModel,
-		InboundEndpoint: inboundEndpoint,
-		RequestBody:     requestBody,
+		Model:                billingModel,
+		InboundEndpoint:      inboundEndpoint,
+		RequestBody:          requestBody,
+		RequestedServiceTier: requestedServiceTier,
 		Tokens: UsageTokens{
 			InputTokens:           result.Usage.InputTokens,
 			OutputTokens:          result.Usage.OutputTokens,
@@ -531,8 +541,15 @@ func applyGeminiBillingMetadataToContext(ctx context.Context, result *GeminiBill
 	}
 	if result.Classification != nil {
 		SetGeminiSurfaceMetadata(ctx, result.Classification.Surface)
+		SetGeminiRequestedServiceTierMetadata(ctx, result.Classification.RequestedServiceTier)
+		SetGeminiResolvedServiceTierMetadata(ctx, result.Classification.ServiceTier)
+		SetGeminiBatchModeMetadata(ctx, result.Classification.BatchMode)
+		SetGeminiCachePhaseMetadata(ctx, result.Classification.CachePhase)
 	}
 	if len(result.MatchedRuleIDs) > 0 {
 		SetBillingRuleIDMetadata(ctx, result.MatchedRuleIDs[0])
+	}
+	if result.Fallback != nil {
+		SetGeminiBillingFallbackReasonMetadata(ctx, result.Fallback.Reason)
 	}
 }

@@ -38,6 +38,15 @@ type ProtocolNormalizeResult struct {
 	CountTokensSource                string   `json:"count_tokens_source"`
 	UpstreamRequestID                string   `json:"upstream_request_id"`
 	GeminiSurface                    string   `json:"gemini_surface,omitempty"`
+	GeminiRequestedServiceTier       string   `json:"gemini_requested_service_tier,omitempty"`
+	GeminiResolvedServiceTier        string   `json:"gemini_resolved_service_tier,omitempty"`
+	GeminiBatchMode                  string   `json:"gemini_batch_mode,omitempty"`
+	GeminiCachePhase                 string   `json:"gemini_cache_phase,omitempty"`
+	GeminiPublicVersion              string   `json:"gemini_public_version,omitempty"`
+	GeminiPublicResource             string   `json:"gemini_public_resource,omitempty"`
+	GeminiAliasUsed                  bool     `json:"gemini_alias_used"`
+	UpstreamPath                     string   `json:"upstream_path,omitempty"`
+	GeminiBillingFallbackReason      string   `json:"gemini_billing_fallback_reason,omitempty"`
 	BillingRuleID                    string   `json:"billing_rule_id,omitempty"`
 	ProbeAction                      string   `json:"probe_action,omitempty"`
 	IncludeServerSideToolInvocations bool     `json:"include_server_side_tool_invocations"`

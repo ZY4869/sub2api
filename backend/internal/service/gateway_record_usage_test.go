@@ -478,3 +478,43 @@ func TestGatewayServiceRecordUsageWithLongContext_ThinkingEnabledPersistedFromCo
 	require.NotNil(t, usageRepo.lastLog.ThinkingEnabled)
 	require.True(t, *usageRepo.lastLog.ThinkingEnabled)
 }
+
+func TestGatewayServiceRecordUsage_GeminiServiceTierUsesForwardResultMetadata(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+	_, billingService := newGeminiBillingCatalogService(&modelCatalogSettingRepoStub{values: map[string]string{}}, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-pro": {
+			InputCostPerToken:       2e-6,
+			OutputCostPerToken:      6e-6,
+			CacheReadInputTokenCost: 0.2e-6,
+			LiteLLMProvider:         PlatformGemini,
+			Mode:                    "chat",
+			SupportsServiceTier:     true,
+		},
+	})
+	svc.billingService = billingService
+
+	serviceTier := BillingServiceTierFlex
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID:   "gemini-flex-forward-result",
+			Usage:       ClaudeUsage{InputTokens: 1000},
+			Model:       "gemini-2.5-pro",
+			ServiceTier: &serviceTier,
+			Duration:    time.Second,
+		},
+		APIKey:          &APIKey{ID: 601},
+		User:            &User{ID: 701},
+		Account:         &Account{ID: 801},
+		InboundEndpoint: "/v1/models/gemini-2.5-pro:generateContent",
+		RequestBody:     []byte(`{"contents":[{"parts":[{"text":"hi"}]}]}`),
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.ServiceTier)
+	require.Equal(t, BillingServiceTierFlex, *usageRepo.lastLog.ServiceTier)
+	require.NotNil(t, usageRepo.lastLog.GeminiBatchMode)
+	require.Equal(t, BillingBatchModeRealtime, *usageRepo.lastLog.GeminiBatchMode)
+	require.InDelta(t, 0.001, usageRepo.lastLog.TotalCost, 1e-12)
+}

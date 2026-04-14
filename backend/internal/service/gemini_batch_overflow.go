@@ -602,7 +602,7 @@ func (s *GeminiMessagesCompatService) forwardGoogleBatchCreateViaVertexOverflow(
 	if err := s.reserveGoogleBatchQuota(ctx, vertexInput, selection.targetAccount, googleBatchTargetVertex, executionNames[0]); err != nil {
 		return nil, nil, err
 	}
-	_ = s.recordGoogleBatchUsageEvent(ctx, input, selection.targetAccount, requestedModel, UsageOperationBatchCreate, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, "google-batch-create:"+generateRequestID())
+	_ = s.recordGoogleBatchUsageEvent(ctx, input, selection.targetAccount, requestedModel, UsageOperationBatchCreate, UsageChargeSourceNone, UsageTokens{}, &CostBreakdown{}, nil, "google-batch-create:"+generateRequestID())
 	return s.buildGoogleBatchJSONResult(http.StatusOK, virtualBatch), selection.targetAccount, nil
 }
 

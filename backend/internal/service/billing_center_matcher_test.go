@@ -175,3 +175,104 @@ func TestDescribeUnmatchedDemand_ReturnsSpecificMissReason(t *testing.T) {
 	require.Equal(t, "surface_miss", unmatched.Reason)
 	require.Equal(t, []string{"surface"}, unmatched.MissingDimensions)
 }
+
+func TestMatchBillingRule_PrefersExplicitBatchModeRule(t *testing.T) {
+	rules := []BillingRule{
+		{
+			ID:            "any-batch",
+			Provider:      BillingRuleProviderGemini,
+			Layer:         BillingLayerSale,
+			Surface:       BillingSurfaceGeminiNative,
+			OperationType: "generate_content",
+			ServiceTier:   BillingServiceTierStandard,
+			BatchMode:     BillingBatchModeAny,
+			Unit:          BillingUnitInputToken,
+			Price:         2,
+			Enabled:       true,
+		},
+		{
+			ID:            "explicit-batch",
+			Provider:      BillingRuleProviderGemini,
+			Layer:         BillingLayerSale,
+			Surface:       BillingSurfaceGeminiNative,
+			OperationType: "generate_content",
+			ServiceTier:   BillingServiceTierStandard,
+			BatchMode:     BillingBatchModeBatch,
+			Unit:          BillingUnitInputToken,
+			Price:         1,
+			Enabled:       true,
+		},
+	}
+
+	selected := matchBillingRule(rules, billingUnitDemand{
+		chargeSlot: BillingChargeSlotTextInput,
+		unit:       BillingUnitInputToken,
+		count:      64,
+		context: billingMatchContext{
+			Provider:      BillingRuleProviderGemini,
+			Layer:         BillingLayerSale,
+			Model:         "gemini-2.5-pro",
+			Surface:       BillingSurfaceGeminiNative,
+			OperationType: "generate_content",
+			ServiceTier:   BillingServiceTierStandard,
+			BatchMode:     BillingBatchModeBatch,
+			InputModality: "text",
+			ContextWindow: BillingContextWindowStandard,
+		},
+	})
+
+	require.NotNil(t, selected)
+	require.Equal(t, "explicit-batch", selected.ID)
+}
+
+func TestDescribeUnmatchedDemand_ReturnsBatchAndCacheStorageMisses(t *testing.T) {
+	batchRules := []BillingRule{
+		{
+			ID:            "realtime-only",
+			Provider:      BillingRuleProviderGemini,
+			Layer:         BillingLayerSale,
+			Surface:       BillingSurfaceGeminiNative,
+			OperationType: "generate_content",
+			ServiceTier:   BillingServiceTierStandard,
+			BatchMode:     BillingBatchModeRealtime,
+			Unit:          BillingUnitInputToken,
+			Enabled:       true,
+		},
+	}
+
+	batchUnmatched := describeUnmatchedDemand(batchRules, billingUnitDemand{
+		chargeSlot: BillingChargeSlotTextInput,
+		unit:       BillingUnitInputToken,
+		count:      32,
+		context: billingMatchContext{
+			Provider:      BillingRuleProviderGemini,
+			Layer:         BillingLayerSale,
+			Model:         "gemini-2.5-pro",
+			Surface:       BillingSurfaceGeminiNative,
+			OperationType: "generate_content",
+			ServiceTier:   BillingServiceTierStandard,
+			BatchMode:     BillingBatchModeBatch,
+			InputModality: "text",
+			ContextWindow: BillingContextWindowStandard,
+		},
+	})
+	require.Equal(t, "batch_mode_miss", batchUnmatched.Reason)
+	require.Equal(t, []string{"batch_mode"}, batchUnmatched.MissingDimensions)
+
+	cacheStorageUnmatched := describeUnmatchedDemand(batchRules, billingUnitDemand{
+		chargeSlot: BillingChargeSlotCacheStorageTokenHour,
+		unit:       BillingUnitCacheStorageTokenHour,
+		count:      10,
+		context: billingMatchContext{
+			Provider:      BillingRuleProviderGemini,
+			Layer:         BillingLayerSale,
+			Model:         "gemini-2.5-pro",
+			Surface:       BillingSurfaceGeminiNative,
+			OperationType: "cache_storage",
+			ServiceTier:   BillingServiceTierStandard,
+			BatchMode:     BillingBatchModeRealtime,
+		},
+	})
+	require.Equal(t, "cache_storage_missing", cacheStorageUnmatched.Reason)
+	require.Equal(t, []string{"cache_storage"}, cacheStorageUnmatched.MissingDimensions)
+}

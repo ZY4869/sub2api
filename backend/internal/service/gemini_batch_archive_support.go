@@ -226,7 +226,7 @@ func (s *GeminiMessagesCompatService) openGoogleBatchArchiveObjectStreamResult(s
 	return s.buildGoogleBatchBinaryStreamResult(object.ContentType, filename, file, contentLength), nil
 }
 
-func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Context, input GoogleBatchForwardInput, account *Account, requestedModel string, operationType string, chargeSource string, tokens UsageTokens, cost *CostBreakdown, requestID string) error {
+func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Context, input GoogleBatchForwardInput, account *Account, requestedModel string, operationType string, chargeSource string, tokens UsageTokens, cost *CostBreakdown, billingResult *GeminiBillingCalculationResult, requestID string) error {
 	if s == nil || s.usageLogRepo == nil || account == nil {
 		return nil
 	}
@@ -246,6 +246,10 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		outputCost = cost.OutputCost
 		cacheCreationCost = cost.CacheCreationCost
 		cacheReadCost = cost.CacheReadCost
+	}
+	billingEndpoint := strings.TrimSpace(input.Path)
+	if billingResult != nil && billingResult.Classification != nil && billingResult.Classification.BatchMode == BillingBatchModeBatch {
+		billingEndpoint = googleBatchSyntheticBillingEndpoint(requestedModel)
 	}
 	usageLog := &UsageLog{
 		UserID:                input.UserID,
@@ -275,11 +279,14 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		Status:                UsageLogStatusSucceeded,
 		OperationType:         optionalTrimmedStringPtr(operationType),
 		ChargeSource:          optionalTrimmedStringPtr(chargeSource),
-		InboundEndpoint:       optionalTrimmedStringPtr(strings.TrimSpace(input.Path)),
-		UpstreamEndpoint:      optionalTrimmedStringPtr(strings.TrimSpace(input.Path)),
+		InboundEndpoint:       optionalTrimmedStringPtr(billingEndpoint),
+		UpstreamEndpoint:      optionalTrimmedStringPtr(billingEndpoint),
 		UpstreamURL:           optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, "")),
 		UpstreamService:       optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, "")),
 		CreatedAt:             time.Now(),
+	}
+	if billingResult != nil && billingResult.Classification != nil {
+		applyGeminiClassificationToUsageLog(usageLog, billingResult.Classification, "")
 	}
 	if _, err := s.usageLogRepo.Create(ctx, usageLog); err != nil {
 		return err
@@ -288,22 +295,31 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		return nil
 	}
 	cmd := &UsageBillingCommand{
-		RequestID:           requestID,
-		APIKeyID:            input.APIKeyID,
-		RequestFingerprint:  operationType + "|" + strings.TrimSpace(requestedModel) + "|" + strings.TrimSpace(chargeSource),
-		RequestPayloadHash:  HashUsageRequestPayload(input.Body),
-		UserID:              input.UserID,
-		AccountID:           account.ID,
-		GroupID:             input.GroupID,
-		SubscriptionID:      input.SubscriptionID,
-		AccountType:         account.Type,
-		Model:               strings.TrimSpace(requestedModel),
-		BillingType:         input.BillingType,
-		InputTokens:         tokens.InputTokens,
-		OutputTokens:        tokens.OutputTokens,
-		CacheCreationTokens: tokens.CacheCreationTokens,
-		CacheReadTokens:     tokens.CacheReadTokens,
-		AccountQuotaCost:    totalCost * account.BillingRateMultiplier(),
+		RequestID:            requestID,
+		APIKeyID:             input.APIKeyID,
+		RequestFingerprint:   operationType + "|" + strings.TrimSpace(requestedModel) + "|" + strings.TrimSpace(chargeSource),
+		RequestPayloadHash:   HashUsageRequestPayload(input.Body),
+		UserID:               input.UserID,
+		AccountID:            account.ID,
+		GroupID:              input.GroupID,
+		SubscriptionID:       input.SubscriptionID,
+		AccountType:          account.Type,
+		Model:                strings.TrimSpace(requestedModel),
+		ServiceTier:          stringPtrValue(usageLog.ServiceTier),
+		OperationType:        stringPtrValue(usageLog.OperationType),
+		ChargeSource:         stringPtrValue(usageLog.ChargeSource),
+		GeminiSurface:        stringPtrValue(usageLog.GeminiSurface),
+		GeminiBatchMode:      stringPtrValue(usageLog.GeminiBatchMode),
+		GeminiCachePhase:     stringPtrValue(usageLog.GeminiCachePhase),
+		GeminiGroundingKind:  stringPtrValue(usageLog.GeminiGroundingKind),
+		GeminiInputModality:  stringPtrValue(usageLog.GeminiInputModality),
+		GeminiOutputModality: stringPtrValue(usageLog.GeminiOutputModality),
+		BillingType:          input.BillingType,
+		InputTokens:          tokens.InputTokens,
+		OutputTokens:         tokens.OutputTokens,
+		CacheCreationTokens:  tokens.CacheCreationTokens,
+		CacheReadTokens:      tokens.CacheReadTokens,
+		AccountQuotaCost:     totalCost * account.BillingRateMultiplier(),
 	}
 	switch input.BillingType {
 	case BillingTypeSubscription:
@@ -382,15 +398,35 @@ func googleBatchCostWithDiscount(base *CostBreakdown, factor float64) *CostBreak
 	}
 }
 
-func (s *GeminiMessagesCompatService) calculateGoogleBatchSettlementCost(requestedModel string, account *Account, tokens UsageTokens) *CostBreakdown {
+func googleBatchSyntheticBillingEndpoint(requestedModel string) string {
+	model := strings.TrimPrefix(strings.TrimSpace(requestedModel), "models/")
+	if model == "" {
+		model = "unknown"
+	}
+	return "/v1beta/models/" + model + ":batchGenerateContent"
+}
+
+func (s *GeminiMessagesCompatService) calculateGoogleBatchSettlementCost(ctx context.Context, requestedModel string, account *Account, tokens UsageTokens) (*GeminiBillingCalculationResult, *CostBreakdown) {
 	if s == nil || s.billingService == nil || account == nil {
-		return nil
+		return nil, nil
+	}
+	if s.billingService.billingCenterService != nil {
+		billingResult, err := s.billingService.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
+			Model:                strings.TrimSpace(requestedModel),
+			InboundEndpoint:      googleBatchSyntheticBillingEndpoint(requestedModel),
+			RequestedServiceTier: BillingServiceTierStandard,
+			Tokens:               tokens,
+			RateMultiplier:       account.BillingRateMultiplier(),
+		})
+		if err == nil && billingResult != nil && billingResult.Cost != nil {
+			return billingResult, billingResult.Cost
+		}
 	}
 	base, err := s.billingService.CalculateCost(strings.TrimSpace(requestedModel), tokens, account.BillingRateMultiplier())
 	if err != nil {
-		return nil
+		return nil, nil
 	}
-	return googleBatchCostWithDiscount(base, 0.5)
+	return nil, googleBatchCostWithDiscount(base, 0.5)
 }
 
 func buildArchivedAIStudioBatchPayload(job *GoogleBatchArchiveJob, snapshotBody []byte) []byte {

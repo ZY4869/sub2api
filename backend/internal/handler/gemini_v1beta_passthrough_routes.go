@@ -15,7 +15,7 @@ func (h *GatewayHandler) GeminiV1BetaCachedContents(c *gin.Context) {
 
 func (h *GatewayHandler) GeminiV1BetaFileSearchStores(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiFileSearchStore})
+	h.forwardGeminiPassthrough(c, resolveGeminiFileSearchPassthroughInput(c))
 }
 
 func (h *GatewayHandler) GeminiV1BetaDocuments(c *gin.Context) {
@@ -26,6 +26,11 @@ func (h *GatewayHandler) GeminiV1BetaDocuments(c *gin.Context) {
 func (h *GatewayHandler) GeminiV1BetaOperations(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiOperation})
+}
+
+func (h *GatewayHandler) GeminiV1BetaUploadOperations(c *gin.Context) {
+	attachGeminiPublicProtocolContext(c)
+	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiUploadOperation})
 }
 
 func (h *GatewayHandler) GeminiV1BetaInteractions(c *gin.Context) {
@@ -71,4 +76,23 @@ func (h *GatewayHandler) GeminiV1BetaEmbeddings(c *gin.Context, modelName string
 	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{
 		RequestedModel: strings.TrimSpace(modelName),
 	})
+}
+
+func resolveGeminiFileSearchPassthroughInput(c *gin.Context) service.GeminiPublicPassthroughInput {
+	path := ""
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		path = strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
+	}
+	switch {
+	case strings.Contains(path, "/upload/operations/"):
+		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiUploadOperation}
+	case strings.Contains(path, "/documents"):
+		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiDocument}
+	case strings.Contains(path, "/operations/"):
+		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiOperation}
+	case strings.Contains(path, ":uploadtofilesearchstore"):
+		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiUploadOperation}
+	default:
+		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiFileSearchStore}
+	}
 }

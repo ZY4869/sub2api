@@ -31,9 +31,11 @@ const (
 	EndpointGeminiFileSearchStores = service.EndpointGeminiFileSearchStores
 	EndpointGeminiDocuments        = service.EndpointGeminiDocuments
 	EndpointGeminiOperations       = service.EndpointGeminiOperations
+	EndpointGeminiUploadOperations = service.EndpointGeminiUploadOperations
 	EndpointGeminiEmbeddings       = service.EndpointGeminiEmbeddings
 	EndpointGeminiInteractions     = service.EndpointGeminiInteractions
 	EndpointGeminiLive             = service.EndpointGeminiLive
+	EndpointGeminiLiveAuthTokens   = service.EndpointGeminiLiveAuthTokens
 	EndpointGeminiOpenAICompat     = service.EndpointGeminiOpenAICompat
 	EndpointVertexSyncModels       = service.EndpointVertexSyncModels
 	EndpointVertexBatchJobs        = service.EndpointVertexBatchJobs
@@ -93,9 +95,11 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 			EndpointGeminiFileSearchStores,
 			EndpointGeminiDocuments,
 			EndpointGeminiOperations,
+			EndpointGeminiUploadOperations,
 			EndpointGeminiEmbeddings,
 			EndpointGeminiInteractions,
 			EndpointGeminiLive,
+			EndpointGeminiLiveAuthTokens,
 			EndpointGeminiOpenAICompat,
 			EndpointVertexSyncModels,
 			EndpointVertexBatchJobs:
@@ -153,9 +157,11 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 		EndpointGeminiFileSearchStores,
 		EndpointGeminiDocuments,
 		EndpointGeminiOperations,
+		EndpointGeminiUploadOperations,
 		EndpointGeminiEmbeddings,
 		EndpointGeminiInteractions,
 		EndpointGeminiLive,
+		EndpointGeminiLiveAuthTokens,
 		EndpointGeminiOpenAICompat,
 		EndpointVertexSyncModels,
 		EndpointVertexBatchJobs:

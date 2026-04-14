@@ -635,7 +635,7 @@ func pricingValueForTier(base *float64, explicitPriority *float64, tier string) 
 		if explicitPriority != nil {
 			return modelCatalogFloat64Ptr(*explicitPriority)
 		}
-		return modelCatalogFloat64Ptr(*base * serviceTierCostMultiplier(BillingServiceTierPriority))
+		return nil
 	case BillingServiceTierFlex:
 		return modelCatalogFloat64Ptr(*base * serviceTierCostMultiplier(BillingServiceTierFlex))
 	default:

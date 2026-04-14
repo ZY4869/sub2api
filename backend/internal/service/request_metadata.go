@@ -13,15 +13,24 @@ type requestMetadataContextKey struct{}
 var requestMetadataKey = requestMetadataContextKey{}
 
 type RequestMetadata struct {
-	IsMaxTokensOneHaikuRequest *bool
-	ThinkingEnabled            *bool
-	PrefetchedStickyAccountID  *int64
-	PrefetchedStickyGroupID    *int64
-	SingleAccountRetry         *bool
-	AccountSwitchCount         *int
-	GeminiSurface              *string
-	BillingRuleID              *string
-	ProbeAction                *string
+	IsMaxTokensOneHaikuRequest  *bool
+	ThinkingEnabled             *bool
+	PrefetchedStickyAccountID   *int64
+	PrefetchedStickyGroupID     *int64
+	SingleAccountRetry          *bool
+	AccountSwitchCount          *int
+	GeminiSurface               *string
+	GeminiRequestedServiceTier  *string
+	GeminiResolvedServiceTier   *string
+	GeminiBatchMode             *string
+	GeminiCachePhase            *string
+	GeminiPublicVersion         *string
+	GeminiPublicResource        *string
+	GeminiAliasUsed             *bool
+	GeminiUpstreamPath          *string
+	GeminiBillingFallbackReason *string
+	BillingRuleID               *string
+	ProbeAction                 *string
 }
 
 var (
@@ -243,6 +252,164 @@ func SetGeminiSurfaceMetadata(ctx context.Context, value string) {
 func GeminiSurfaceMetadataFromContext(ctx context.Context) (string, bool) {
 	if md := metadataFromContext(ctx); md != nil && md.GeminiSurface != nil {
 		return strings.TrimSpace(*md.GeminiSurface), true
+	}
+	return "", false
+}
+
+func SetGeminiRequestedServiceTierMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiRequestedServiceTier = nil
+			return
+		}
+		md.GeminiRequestedServiceTier = &trimmed
+	}
+}
+
+func GeminiRequestedServiceTierMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiRequestedServiceTier != nil {
+		return strings.TrimSpace(*md.GeminiRequestedServiceTier), true
+	}
+	return "", false
+}
+
+func SetGeminiResolvedServiceTierMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiResolvedServiceTier = nil
+			return
+		}
+		md.GeminiResolvedServiceTier = &trimmed
+	}
+}
+
+func GeminiResolvedServiceTierMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiResolvedServiceTier != nil {
+		return strings.TrimSpace(*md.GeminiResolvedServiceTier), true
+	}
+	return "", false
+}
+
+func SetGeminiBatchModeMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiBatchMode = nil
+			return
+		}
+		md.GeminiBatchMode = &trimmed
+	}
+}
+
+func GeminiBatchModeMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiBatchMode != nil {
+		return strings.TrimSpace(*md.GeminiBatchMode), true
+	}
+	return "", false
+}
+
+func SetGeminiCachePhaseMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiCachePhase = nil
+			return
+		}
+		md.GeminiCachePhase = &trimmed
+	}
+}
+
+func GeminiCachePhaseMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiCachePhase != nil {
+		return strings.TrimSpace(*md.GeminiCachePhase), true
+	}
+	return "", false
+}
+
+func SetGeminiPublicVersionMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiPublicVersion = nil
+			return
+		}
+		md.GeminiPublicVersion = &trimmed
+	}
+}
+
+func GeminiPublicVersionMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiPublicVersion != nil {
+		return strings.TrimSpace(*md.GeminiPublicVersion), true
+	}
+	return "", false
+}
+
+func SetGeminiPublicResourceMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiPublicResource = nil
+			return
+		}
+		md.GeminiPublicResource = &trimmed
+	}
+}
+
+func GeminiPublicResourceMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiPublicResource != nil {
+		return strings.TrimSpace(*md.GeminiPublicResource), true
+	}
+	return "", false
+}
+
+func SetGeminiAliasUsedMetadata(ctx context.Context, value bool) {
+	if md := metadataFromContext(ctx); md != nil {
+		v := value
+		md.GeminiAliasUsed = &v
+	}
+}
+
+func GeminiAliasUsedMetadataFromContext(ctx context.Context) (bool, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiAliasUsed != nil {
+		return *md.GeminiAliasUsed, true
+	}
+	return false, false
+}
+
+func SetGeminiUpstreamPathMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiUpstreamPath = nil
+			return
+		}
+		md.GeminiUpstreamPath = &trimmed
+	}
+}
+
+func GeminiUpstreamPathMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiUpstreamPath != nil {
+		return strings.TrimSpace(*md.GeminiUpstreamPath), true
+	}
+	return "", false
+}
+
+func SetGeminiBillingFallbackReasonMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiBillingFallbackReason = nil
+			return
+		}
+		md.GeminiBillingFallbackReason = &trimmed
+	}
+}
+
+func GeminiBillingFallbackReasonMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiBillingFallbackReason != nil {
+		return strings.TrimSpace(*md.GeminiBillingFallbackReason), true
 	}
 	return "", false
 }

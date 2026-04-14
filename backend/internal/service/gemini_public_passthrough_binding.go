@@ -65,6 +65,7 @@ func extractGeminiPassthroughCreatedResourceNames(resourceKind string, body []by
 		UpstreamResourceKindGeminiFileSearchStore,
 		UpstreamResourceKindGeminiDocument,
 		UpstreamResourceKindGeminiOperation,
+		UpstreamResourceKindGeminiUploadOperation,
 		UpstreamResourceKindGeminiInteraction:
 		return extractTopLevelNames(body)
 	default:
@@ -93,21 +94,58 @@ func extractGeminiPassthroughResourceName(resourceKind string, path string) stri
 		if name := extractAIStudioResourceName(trimmed, "/v1beta/documents/"); name != "" {
 			return name
 		}
-		if idx := strings.Index(trimmed, "/documents/"); idx >= 0 {
-			suffix := strings.TrimPrefix(trimmed[idx:], "/")
-			for _, sep := range []string{":", "?"} {
-				if cut := strings.Index(suffix, sep); cut >= 0 {
-					suffix = suffix[:cut]
-				}
-			}
-			return strings.TrimSpace(suffix)
-		}
+		return extractGeminiNestedResourceName(trimmed, "documents")
 	case UpstreamResourceKindGeminiOperation:
-		return extractAIStudioResourceName(trimmed, "/v1beta/operations/")
+		if name := extractAIStudioResourceName(trimmed, "/v1beta/operations/"); name != "" {
+			return name
+		}
+		return extractGeminiNestedResourceName(trimmed, "operations")
+	case UpstreamResourceKindGeminiUploadOperation:
+		return extractGeminiNestedUploadOperationName(trimmed)
 	case UpstreamResourceKindGeminiInteraction:
 		return extractAIStudioResourceName(trimmed, "/v1beta/interactions/")
 	}
 	return ""
+}
+
+func extractGeminiNestedResourceName(path string, collection string) string {
+	trimmed := strings.TrimSpace(path)
+	marker := "/" + strings.TrimSpace(collection) + "/"
+	idx := strings.Index(trimmed, marker)
+	if idx < 0 {
+		return ""
+	}
+	prefix := strings.Trim(trimmed[:idx], "/")
+	suffix := strings.Trim(trimmed[idx+1:], "/")
+	for _, sep := range []string{":", "?"} {
+		if cut := strings.Index(suffix, sep); cut >= 0 {
+			suffix = suffix[:cut]
+		}
+	}
+	if prefix == "" || suffix == "" {
+		return ""
+	}
+	return prefix + "/" + suffix
+}
+
+func extractGeminiNestedUploadOperationName(path string) string {
+	trimmed := strings.TrimSpace(path)
+	marker := "/upload/operations/"
+	idx := strings.Index(trimmed, marker)
+	if idx < 0 {
+		return ""
+	}
+	prefix := strings.Trim(trimmed[:idx], "/")
+	suffix := strings.Trim(trimmed[idx+1:], "/")
+	for _, sep := range []string{":", "?"} {
+		if cut := strings.Index(suffix, sep); cut >= 0 {
+			suffix = suffix[:cut]
+		}
+	}
+	if prefix == "" || suffix == "" {
+		return ""
+	}
+	return prefix + "/" + suffix
 }
 
 func extractOpenAICompatObjectIDs(body []byte) []string {

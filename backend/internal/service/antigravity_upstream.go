@@ -250,7 +250,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	case "generateContent", "streamGenerateContent":
 	case "countTokens":
 		c.JSON(http.StatusOK, map[string]any{"totalTokens": 0})
-		return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
+		return &ForwardResult{RequestID: "", Usage: ClaudeUsage{}, Model: originalModel, ServiceTier: extractGeminiRequestedServiceTierFromBody(body), Stream: false, Duration: time.Since(startTime), FirstTokenMs: nil}, nil
 	default:
 		return nil, s.writeGoogleError(c, http.StatusNotFound, "Unsupported action: "+action)
 	}
@@ -458,7 +458,7 @@ func (s *AntigravityGatewayService) ForwardGemini(ctx context.Context, c *gin.Co
 	if isImageGenerationModel(mappedModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: billingModel, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect, ImageCount: imageCount, ImageSize: imageSize}, nil
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: billingModel, ServiceTier: extractGeminiRequestedServiceTierFromBody(body), Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ClientDisconnect: clientDisconnect, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func (s *AntigravityGatewayService) ForwardUpstream(ctx context.Context, c *gin.Context, account *Account, body []byte) (*ForwardResult, error) {
 	startTime := time.Now()

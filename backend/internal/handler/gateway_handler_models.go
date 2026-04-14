@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
@@ -98,11 +99,11 @@ func apiKeyPublicEntryToGeminiModel(entry service.APIKeyPublicModelEntry) gemini
 	if displayName == "" {
 		displayName = entry.PublicID
 	}
-	return gemini.Model{
-		Name:                       "models/" + entry.PublicID,
-		DisplayName:                displayName,
-		SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
+	description := ""
+	if strings.TrimSpace(entry.Platform) != "" {
+		description = "Gemini model metadata projected from " + strings.TrimSpace(entry.Platform) + " public model availability."
 	}
+	return gemini.BuildModel(entry.PublicID, displayName, description, nil)
 }
 
 func (h *GatewayHandler) resolveParsedRequestModel(ctx context.Context, parsed *service.ParsedRequest) {

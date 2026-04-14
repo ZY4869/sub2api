@@ -34,8 +34,10 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "antigravity count tokens rejected", runtimePlatform: PlatformAntigravity, inboundEndpoint: EndpointMessages, action: ProtocolCapabilityActionCountTokens, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "grok websocket responses rejected", runtimePlatform: PlatformGrok, inboundEndpoint: EndpointResponses, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "gemini batch alias uses batch capability", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/models/gemini-2.5-pro:batchGenerateContent", action: ProtocolCapabilityActionBatchGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "gemini v1 generate content supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1/models/gemini-2.5-pro:generateContent", action: ProtocolCapabilityActionGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini embed action uses embeddings capability", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/models/gemini-2.5-pro:embedContent", action: ProtocolCapabilityActionGeminiEmbedContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini live websocket supported", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointGeminiLive, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "gemini auth tokens supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1alpha/authTokens", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini openai compat supported", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointGeminiOpenAICompat, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "antigravity batch alias rejected", runtimePlatform: PlatformAntigravity, inboundEndpoint: "/antigravity/v1beta/models/gemini-2.5-pro:batchGenerateContent", action: ProtocolCapabilityActionBatchGenerateContent, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "openai images fall back to reject", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityReject, wantOK: true},
@@ -54,11 +56,17 @@ func TestLookupProtocolCapability(t *testing.T) {
 func TestPublicEndpointRequestFormatForAction(t *testing.T) {
 	require.Equal(t, "/v1/messages/count_tokens", PublicEndpointRequestFormatForAction(EndpointMessages, ProtocolCapabilityActionCountTokens))
 	require.Equal(t, "/v1beta/models/{model}:batchGenerateContent", PublicEndpointRequestFormatForAction(EndpointGeminiBatches, ProtocolCapabilityActionBatchGenerateContent))
-	require.Equal(t, "/v1beta/models/{model}:embedContent", PublicEndpointRequestFormatForAction(EndpointGeminiEmbeddings, ProtocolCapabilityActionGeminiEmbedContent))
+	require.Equal(t, "/v1/models/{model}:embedContent", PublicEndpointRequestFormatForAction(EndpointGeminiEmbeddings, ProtocolCapabilityActionGeminiEmbedContent))
+	require.Equal(t, "/v1alpha/authTokens", PublicEndpointRequestFormatForAction(EndpointGeminiLiveAuthTokens, ProtocolCapabilityActionDefault))
 	require.Equal(t, EndpointResponses, PublicEndpointRequestFormatForAction(EndpointResponses, ProtocolCapabilityActionWebSocket))
 }
 
 func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
+	require.Equal(t, EndpointGeminiModels, NormalizeInboundEndpoint("/v1/models/gemini-2.5-pro:generateContent"))
+	require.Equal(t, EndpointGeminiLiveAuthTokens, NormalizeInboundEndpoint("/v1alpha/authTokens"))
+	require.Equal(t, EndpointGeminiDocuments, NormalizeInboundEndpoint("/v1beta/fileSearchStores/default/documents/doc_123"))
+	require.Equal(t, EndpointGeminiOperations, NormalizeInboundEndpoint("/v1beta/fileSearchStores/default/operations/op_123"))
+	require.Equal(t, EndpointGeminiUploadOperations, NormalizeInboundEndpoint("/v1beta/fileSearchStores/default/upload/operations/op_123"))
 	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/openai/v1/responses"))
 	require.Equal(t, EndpointResponses, NormalizeInboundEndpoint("/openai/v1/responses/compact"))
 	require.Equal(t, EndpointChatCompletions, NormalizeInboundEndpoint("/openai/v1/chat/completions"))

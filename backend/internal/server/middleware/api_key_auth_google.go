@@ -155,7 +155,18 @@ func extractAPIKeyForGoogle(c *gin.Context) string {
 }
 
 func allowGoogleQueryKey(path string) bool {
-	return strings.HasPrefix(path, "/v1beta") || strings.HasPrefix(path, "/antigravity/v1beta")
+	normalized := strings.ToLower(strings.TrimSpace(path))
+	switch {
+	case strings.HasPrefix(normalized, "/v1beta"),
+		strings.HasPrefix(normalized, "/antigravity/v1beta"),
+		strings.HasPrefix(normalized, "/v1/models"),
+		strings.HasPrefix(normalized, "/v1alpha/authtokens"),
+		strings.HasPrefix(normalized, "/upload/v1beta/files"),
+		strings.HasPrefix(normalized, "/upload/v1beta/filesearchstores"):
+		return true
+	default:
+		return false
+	}
 }
 
 func abortWithGoogleError(c *gin.Context, status int, message string) {

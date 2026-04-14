@@ -33,6 +33,7 @@ func buildGeminiPassthroughForwardResult(input GeminiPublicPassthroughInput, req
 		Usage:         usage,
 		Model:         requestedModel,
 		UpstreamModel: upstreamModel,
+		ServiceTier:   extractGeminiRequestedServiceTierFromBody(input.Body),
 		Stream:        stream,
 		Duration:      duration,
 		MediaType:     mediaType,

@@ -68,6 +68,7 @@ func TestGatewayHandler_ResolveGeminiPassthroughService(t *testing.T) {
 		name         string
 		path         string
 		resourceKind string
+		upstreamPath string
 		expected     any
 	}{
 		{
@@ -86,6 +87,12 @@ func TestGatewayHandler_ResolveGeminiPassthroughService(t *testing.T) {
 			expected: h.geminiLiveService,
 		},
 		{
+			name:         "official live auth tokens surface",
+			path:         "/v1alpha/authTokens",
+			upstreamPath: service.GeminiLiveAuthTokensPath,
+			expected:     h.geminiLiveService,
+		},
+		{
 			name:         "interactions surface",
 			path:         "/v1beta/interactions",
 			resourceKind: service.UpstreamResourceKindGeminiInteraction,
@@ -101,6 +108,7 @@ func TestGatewayHandler_ResolveGeminiPassthroughService(t *testing.T) {
 
 			got := h.resolveGeminiPassthroughService(c, service.GeminiPublicPassthroughInput{
 				ResourceKind: tt.resourceKind,
+				UpstreamPath: tt.upstreamPath,
 				GoogleBatchForwardInput: service.GoogleBatchForwardInput{
 					Path: tt.path,
 				},

@@ -97,6 +97,30 @@ func TestGeminiV1BetaLive_AuthTokenFailureUsesLiveSurfaceRecorder(t *testing.T) 
 	assertGeminiPassthroughFailure(t, recorder, fixture.liveRecorder, fixture, "GEMINI_PASSTHROUGH_UPSTREAM_ERROR")
 }
 
+func TestGeminiV1AlphaAuthTokens_UsesLiveSurfaceRecorder(t *testing.T) {
+	fixture := newGeminiSurfaceFixture(t)
+	fixture.liveRecorder.response = geminiSurfaceHTTPResponse{
+		statusCode: http.StatusOK,
+		body:       `{"name":"authTokens/test-token-v1alpha"}`,
+	}
+
+	c, recorder := fixture.newContext(
+		http.MethodPost,
+		"/v1alpha/authTokens",
+		`{"ttl":60}`,
+		nil,
+	)
+
+	fixture.handler.GeminiV1AlphaAuthTokens(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	fixture.requireOnlyRecorderHit(fixture.liveRecorder)
+	require.NotNil(t, fixture.liveRecorder.lastReq)
+	require.Equal(t, "/v1alpha/authTokens", fixture.liveRecorder.lastReq.URL.Path)
+	require.Equal(t, "gemini-test-key", fixture.liveRecorder.lastReq.Header.Get("x-goog-api-key"))
+	require.JSONEq(t, `{"ttl":60}`, string(fixture.liveRecorder.lastBody))
+}
+
 func TestGeminiV1BetaInteractions_UsesInteractionsSurfaceRecorder(t *testing.T) {
 	fixture := newGeminiSurfaceFixture(t)
 	fixture.interactionsRecorder.response = geminiSurfaceHTTPResponse{

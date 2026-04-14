@@ -14,6 +14,7 @@ import (
 )
 
 func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.GeminiPublicPassthroughInput) {
+	applyGeminiPublicPathMetadata(c, input.UpstreamPath)
 	passthroughService := h.resolveGeminiPassthroughService(c, input)
 	if passthroughService == nil {
 		googleErrorKey(c, http.StatusServiceUnavailable, "gateway.gemini.passthrough_service_missing", "Gemini passthrough service not configured")
@@ -161,7 +162,9 @@ func (h *GatewayHandler) resolveGeminiPassthroughService(c *gin.Context, input s
 	switch {
 	case input.ResourceKind == service.UpstreamResourceKindGeminiInteraction:
 		return h.geminiInteractionsService
-	case strings.Contains(path, "/v1beta/live"):
+	case strings.Contains(path, "/v1alpha/authtokens"),
+		strings.Contains(path, "/v1beta/live"),
+		strings.EqualFold(strings.TrimSpace(input.UpstreamPath), service.GeminiLiveAuthTokensPath):
 		return h.geminiLiveService
 	case strings.Contains(path, "/v1beta/openai/"):
 		return h.geminiCompatService

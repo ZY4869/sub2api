@@ -50,7 +50,6 @@ func RegisterGatewayRoutes(
 		gateway.POST("/messages", dispatchers.AnthropicMessages)
 		// /v1/messages/count_tokens: OpenAI groups get 404
 		gateway.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
-		gateway.GET("/models", h.Gateway.Models)
 		gateway.GET("/usage", h.Gateway.Usage)
 		gateway.POST("/responses", dispatchers.OpenAIResponses)
 		gateway.POST("/responses/*subpath", dispatchers.OpenAIResponses)
@@ -67,6 +66,11 @@ func RegisterGatewayRoutes(
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
 	gemini := r.Group("/v1beta")
+	r.GET("/v1/models", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GatewayV1ModelsList)
+	r.GET("/v1/models/:model", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GatewayV1ModelsGet)
+	r.POST("/v1/models/*modelAction", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GatewayV1ModelsAction)
+
+	v1alpha := r.Group("/v1alpha")
 	grokV1 := r.Group("/grok/v1")
 	grokV1.Use(bodyLimit)
 	grokV1.Use(clientRequestID)
@@ -135,7 +139,18 @@ func RegisterGatewayRoutes(
 		gemini.Any("/live", dispatchers.GeminiLive)
 		gemini.Any("/live/*subpath", dispatchers.GeminiLive)
 	}
+	v1alpha.Use(bodyLimit)
+	v1alpha.Use(clientRequestID)
+	v1alpha.Use(opsErrorLogger)
+	v1alpha.Use(opsRequestTraceLogger)
+	v1alpha.Use(endpointNorm)
+	v1alpha.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	v1alpha.Use(requireGroupGoogle)
+	{
+		v1alpha.POST("/authTokens", dispatchers.GeminiLiveAuthTokens)
+	}
 	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFilesUpload)
+	r.POST("/upload/v1beta/fileSearchStores/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFileSearchStores)
 	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFilesDownload)
 	googleBatchArchive := r.Group("/google/batch/archive/v1beta")
 	googleBatchArchive.Use(bodyLimit)
