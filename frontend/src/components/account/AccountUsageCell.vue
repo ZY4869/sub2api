@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div ref="rootRef">
     <div v-if="presentation.meta.antigravityTierLabel" class="mb-1 flex items-center gap-1">
       <span
         :class="[
@@ -172,6 +172,7 @@ import { useI18n } from 'vue-i18n'
 import type { Account, WindowStats } from '@/types'
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
 import { useFloatingTooltip } from '@/composables/useFloatingTooltip'
+import { useViewportAutoLoadGate } from '@/composables/useViewportAutoLoadGate'
 import UsageProgressBar from './UsageProgressBar.vue'
 
 const props = withDefaults(
@@ -189,7 +190,10 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
-const { presentation, loadUsage, shouldFetchUsage } = useAccountUsagePresentation(() => props.account)
+const { rootRef, autoLoadEnabled } = useViewportAutoLoadGate()
+const { presentation, requestAutoLoad, shouldFetchUsage } = useAccountUsagePresentation(() => props.account, {
+  autoLoadEnabled,
+})
 const {
   tooltipVisible,
   tooltipRef,
@@ -255,9 +259,7 @@ watch(
     if (nextToken === prevToken) return
     if (!shouldFetchUsage.value) return
 
-    loadUsage().catch((error) => {
-      console.error('Failed to refresh usage after manual refresh:', error)
-    })
+    requestAutoLoad()
   }
 )
 

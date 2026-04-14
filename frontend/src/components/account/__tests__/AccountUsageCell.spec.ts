@@ -96,6 +96,19 @@ const passiveUsageResponse = {
   },
 }
 
+const createMatchMediaMock = (matches: boolean) => {
+  return vi.fn().mockImplementation((query: string) => ({
+    matches,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }))
+}
+
 enableAutoUnmount(afterEach)
 
 describe('AccountUsageCell', () => {
@@ -109,6 +122,119 @@ describe('AccountUsageCell', () => {
   afterEach(() => {
     resetUiNowForTests()
     vi.useRealTimers()
+  })
+
+  it('defers mobile usage auto loads until the cell enters the viewport', async () => {
+    const originalMatchMedia = window.matchMedia
+    const originalIntersectionObserver = globalThis.IntersectionObserver
+
+    const observerRecords: Array<{
+      callback: IntersectionObserverCallback
+      observe: ReturnType<typeof vi.fn>
+      disconnect: ReturnType<typeof vi.fn>
+    }> = []
+
+    window.matchMedia = createMatchMediaMock(false) as typeof window.matchMedia
+    globalThis.IntersectionObserver = class {
+      observe = vi.fn()
+      disconnect = vi.fn()
+      readonly callback: IntersectionObserverCallback
+
+      constructor(callback: IntersectionObserverCallback) {
+        this.callback = callback
+        observerRecords.push({
+          callback,
+          observe: this.observe,
+          disconnect: this.disconnect,
+        })
+      }
+    } as unknown as typeof IntersectionObserver
+
+    getUsage.mockResolvedValue(passiveUsageResponse)
+
+    try {
+      const wrapper = mount(AccountUsageCell, {
+        props: {
+          account: {
+            id: 1050,
+            platform: 'anthropic',
+            type: 'oauth',
+            extra: {},
+          } as any,
+        },
+        global: {
+          stubs: {
+            UsageProgressBar: usageBarStub,
+          },
+        },
+      })
+
+      await flushPromises()
+
+      expect(getUsage).not.toHaveBeenCalled()
+      expect(observerRecords.length).toBeGreaterThan(0)
+      const activeObserver = observerRecords.at(-1)
+      expect(activeObserver?.observe).toHaveBeenCalledTimes(1)
+
+      const target = activeObserver?.observe.mock.calls[0]?.[0]
+      activeObserver?.callback(
+        [{ isIntersecting: true, target } as IntersectionObserverEntry],
+        {} as IntersectionObserver,
+      )
+      await flushPromises()
+
+      expect(getUsage).toHaveBeenCalledTimes(1)
+      expect(getUsage).toHaveBeenCalledWith(1050, { force: undefined, source: 'passive' })
+      expect(wrapper.text()).toContain('5h|21|2026-03-08T12:00:00Z|3600|false|200')
+    } finally {
+      window.matchMedia = originalMatchMedia
+      globalThis.IntersectionObserver = originalIntersectionObserver
+    }
+  })
+
+  it('keeps desktop usage auto loads immediate', async () => {
+    const originalMatchMedia = window.matchMedia
+    const originalIntersectionObserver = globalThis.IntersectionObserver
+    const intersectionObserverSpy = vi.fn()
+
+    window.matchMedia = createMatchMediaMock(true) as typeof window.matchMedia
+    globalThis.IntersectionObserver = class {
+      observe = vi.fn()
+      disconnect = vi.fn()
+
+      constructor() {
+        intersectionObserverSpy()
+      }
+    } as unknown as typeof IntersectionObserver
+
+    getUsage.mockResolvedValue(passiveUsageResponse)
+
+    try {
+      mount(AccountUsageCell, {
+        props: {
+          account: {
+            id: 1051,
+            platform: 'anthropic',
+            type: 'oauth',
+            extra: {},
+          } as any,
+        },
+        global: {
+          stubs: {
+            UsageProgressBar: usageBarStub,
+          },
+        },
+      })
+
+      await flushPromises()
+
+      expect(getUsage).toHaveBeenCalledTimes(1)
+      expect(getUsage).toHaveBeenCalledWith(1051, { force: undefined, source: 'passive' })
+      expect(intersectionObserverSpy).not.toHaveBeenCalled()
+    } finally {
+      window.matchMedia = originalMatchMedia
+      globalThis.IntersectionObserver = originalIntersectionObserver
+    }
   })
 
   it('aggregates antigravity image usage from multiple models', async () => {

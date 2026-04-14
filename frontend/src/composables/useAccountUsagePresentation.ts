@@ -53,6 +53,10 @@ interface RefreshUsageResult {
   failed: number
 }
 
+interface UseAccountUsagePresentationOptions {
+  autoLoadEnabled?: MaybeRefOrGetter<boolean>
+}
+
 const usageCache = new Map<number, UsageCacheEntry>()
 const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000
 const AUTO_USAGE_LOAD_CONCURRENCY = 3
@@ -326,13 +330,20 @@ export async function refreshAccountUsagePresentation(
   }
 }
 
-export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Account>) {
+export function useAccountUsagePresentation(
+  accountSource: MaybeRefOrGetter<Account>,
+  options: UseAccountUsagePresentationOptions = {},
+) {
   const { t } = useI18n()
   const { nowMs, nowDate } = useUiNow()
   const account = computed(() => toValue(accountSource))
   const cacheEntry = computed(() => getUsageCacheEntry(account.value.id))
   const usageInfo = computed(() => cacheEntry.value.usageInfo)
   const lastExpiredOpenAIUsageRefresh = ref<{ key: string; requestedAt: number } | null>(null)
+  const pendingAutoLoadOptions = ref<LoadUsageOptions | null>(null)
+  const autoLoadEnabled = computed(() => {
+    return options.autoLoadEnabled == null ? true : Boolean(toValue(options.autoLoadEnabled))
+  })
 
   const loadingRows = computed(() => {
     const runtimePlatform = getRuntimePlatform(account.value)
@@ -944,14 +955,34 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     })
   }
 
+  const queueAutoLoad = (loadOptions: LoadUsageOptions = {}) => {
+    const pending = pendingAutoLoadOptions.value
+    pendingAutoLoadOptions.value = {
+      force: loadOptions.force ?? pending?.force,
+      source: loadOptions.source ?? pending?.source,
+      queue: loadOptions.queue ?? pending?.queue,
+    }
+  }
+
+  const requestAutoLoad = (loadOptions: LoadUsageOptions = {}) => {
+    if (!shouldFetchUsage.value) return
+    if (!autoLoadEnabled.value) {
+      queueAutoLoad(loadOptions)
+      return
+    }
+
+    loadUsage(loadOptions).catch((error) => {
+      console.error('Failed to auto load usage:', error)
+    })
+  }
+
   watch(
-    () => [account.value.id, shouldAutoLoadUsageOnMount.value] as const,
+    () => [account.value.id, shouldAutoLoadUsageOnMount.value, autoLoadEnabled.value] as const,
     ([, shouldLoad]) => {
       if (!shouldLoad) return
       if (cacheEntry.value.usageInfo || cacheEntry.value.loading) return
-      loadUsage({ queue: true }).catch((error) => {
-        console.error('Failed to initialize account usage:', error)
-      })
+
+      requestAutoLoad({ queue: true })
     },
     { immediate: true },
   )
@@ -961,9 +992,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
     if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return
     if (!isActiveOpenAIRateLimited.value && hasCompleteCodexUsage.value && !isOpenAICodexSnapshotStale.value) return
 
-    loadUsage().catch((error) => {
-      console.error('Failed to refresh OpenAI usage:', error)
-    })
+    requestAutoLoad()
   })
 
   watch(
@@ -990,12 +1019,20 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
         requestedAt: currentNow,
       }
 
-      loadUsage().catch((error) => {
-        console.error('Failed to refresh expired OpenAI usage window:', error)
-      })
+      requestAutoLoad()
     },
     { immediate: true },
   )
+
+  watch(autoLoadEnabled, (enabled) => {
+    if (!enabled || !pendingAutoLoadOptions.value) return
+
+    const loadOptions = pendingAutoLoadOptions.value
+    pendingAutoLoadOptions.value = null
+    loadUsage(loadOptions).catch((error) => {
+      console.error('Failed to flush deferred usage load:', error)
+    })
+  })
 
   const presentation = computed<AccountUsagePresentation>(() => {
     const meta = createEmptyMeta(loadingRows.value)
@@ -1102,6 +1139,7 @@ export function useAccountUsagePresentation(accountSource: MaybeRefOrGetter<Acco
   return {
     presentation,
     loadUsage,
+    requestAutoLoad,
     shouldFetchUsage,
   }
 }
