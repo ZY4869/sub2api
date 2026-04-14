@@ -205,8 +205,12 @@ import Icon from '@/components/icons/Icon.vue'
 const { t } = useI18n()
 
 const desktopViewportQuery = '(min-width: 768px)'
+const canUseMatchMedia = () =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+const getDesktopViewportMatches = () =>
+  canUseMatchMedia() ? window.matchMedia(desktopViewportQuery).matches : true
 const isDesktopViewport = ref(
-  typeof window === 'undefined' ? true : window.matchMedia(desktopViewportQuery).matches
+  getDesktopViewportMatches()
 )
 
 const emit = defineEmits<{
@@ -306,7 +310,7 @@ const attachDesktopTableTracking = () => {
 }
 
 onMounted(() => {
-  if (typeof window !== 'undefined') {
+  if (canUseMatchMedia()) {
     desktopViewportMediaQuery = window.matchMedia(desktopViewportQuery)
     isDesktopViewport.value = desktopViewportMediaQuery.matches
     desktopViewportListener = (event: MediaQueryListEvent) => {
