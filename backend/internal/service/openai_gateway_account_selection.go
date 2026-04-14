@@ -135,29 +135,58 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
 		return nil
 	}
+	account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
+	if account == nil {
+		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+		return nil
+	}
 	_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
 	return account
 }
 func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, accounts []Account, requestedModel string, excludedIDs map[int64]struct{}) *Account {
-	var selected *Account
-	for i := range accounts {
-		acc := &accounts[i]
-		if _, excluded := excludedIDs[acc.ID]; excluded {
-			continue
-		}
-		fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
-		if fresh == nil {
-			continue
+	localExcluded := copyAccountIDSet(excludedIDs)
+	for {
+		var selected *Account
+		for i := range accounts {
+			acc := &accounts[i]
+			if _, excluded := localExcluded[acc.ID]; excluded {
+				continue
+			}
+			fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
+			if fresh == nil {
+				continue
+			}
+			if selected == nil {
+				selected = fresh
+				continue
+			}
+			if s.isBetterAccount(fresh, selected) {
+				selected = fresh
+			}
 		}
 		if selected == nil {
-			selected = fresh
-			continue
+			return nil
 		}
-		if s.isBetterAccount(fresh, selected) {
-			selected = fresh
+		rechecked := s.recheckSelectedOpenAIAccountFromDB(ctx, selected, requestedModel)
+		if rechecked != nil {
+			return rechecked
 		}
+		if localExcluded == nil {
+			localExcluded = make(map[int64]struct{})
+		}
+		localExcluded[selected.ID] = struct{}{}
 	}
-	return selected
+}
+
+func copyAccountIDSet(src map[int64]struct{}) map[int64]struct{} {
+	if len(src) == 0 {
+		return nil
+	}
+	out := make(map[int64]struct{}, len(src))
+	for id := range src {
+		out[id] = struct{}{}
+	}
+	return out
 }
 func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account) bool {
 	if candidate.Priority < current.Priority {
@@ -226,14 +255,19 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 					_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 				}
 				if !clearSticky && account.IsSchedulable() && account.IsOpenAI() && (requestedModel == "" || account.IsModelSupported(requestedModel)) {
-					result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
-					if err == nil && result.Acquired {
-						_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
-						return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
-					}
-					waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, accountID)
-					if waitingCount < cfg.StickySessionMaxWaiting {
-						return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
+					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
+					if account == nil {
+						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+					} else {
+						result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
+						if err == nil && result.Acquired {
+							_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
+							return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
+						}
+						waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, accountID)
+						if waitingCount < cfg.StickySessionMaxWaiting {
+							return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
+						}
 					}
 				}
 			}
@@ -266,6 +300,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		sortAccountsByPriorityAndLastUsed(ordered, false)
 		for _, acc := range ordered {
 			fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
+			if fresh == nil {
+				continue
+			}
+			fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
 			if fresh == nil {
 				continue
 			}
@@ -314,6 +352,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				if fresh == nil {
 					continue
 				}
+				fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
+				if fresh == nil {
+					continue
+				}
 				result, err := s.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
 				if err == nil && result.Acquired {
 					if sessionHash != "" {
@@ -327,6 +369,10 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	sortAccountsByPriorityAndLastUsed(candidates, false)
 	for _, acc := range candidates {
 		fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
+		if fresh == nil {
+			continue
+		}
+		fresh = s.recheckSelectedOpenAIAccountFromDB(ctx, fresh, requestedModel)
 		if fresh == nil {
 			continue
 		}
