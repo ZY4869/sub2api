@@ -488,7 +488,8 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 				if useUpstreamStream {
 					fullURL += "?alt=sse"
 				}
-				upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
+				restGeminiReq := normalizeGeminiRequestForAIStudio(body)
+				upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(restGeminiReq))
 				if err != nil {
 					return nil, "", err
 				}
@@ -536,7 +537,8 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 				if useUpstreamStream {
 					fullURL += "?alt=sse"
 				}
-				upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
+				restGeminiReq := normalizeGeminiRequestForAIStudio(body)
+				upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(restGeminiReq))
 				if err != nil {
 					return nil, "", err
 				}

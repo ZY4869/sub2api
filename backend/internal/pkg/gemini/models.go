@@ -20,6 +20,7 @@ var defaultFallbackModels = []Model{
 	{Name: "models/gemini-2.5-pro", DisplayName: "Gemini 2.5 Pro"},
 	{Name: "models/gemini-3-flash-preview", DisplayName: "Gemini 3 Flash Preview"},
 	{Name: "models/gemini-3.1-pro-preview", DisplayName: "Gemini 3.1 Pro Preview"},
+	{Name: "models/gemini-3.1-pro-preview-customtools", DisplayName: "Gemini 3.1 Pro Preview Customtools"},
 	{Name: "models/gemini-3.1-flash-lite-preview", DisplayName: "Gemini 3.1 Flash Lite Preview"},
 	{Name: "models/gemini-3.1-flash-image-preview", DisplayName: "Gemini 3.1 Flash Image Preview"},
 	{Name: "models/gemini-3-pro-image-preview", DisplayName: "Gemini 3 Pro Image Preview"},

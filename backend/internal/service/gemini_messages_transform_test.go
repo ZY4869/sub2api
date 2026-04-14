@@ -137,3 +137,34 @@ func TestConvertClaudeMessagesToGeminiGenerateContent_URLContextRejectedForVerte
 	require.True(t, ok)
 	require.Equal(t, apicompat.CompatReasonGeminiURLContextUnsupported, compatErr.Reason)
 }
+
+func TestConvertClaudeMessagesToGeminiGenerateContent_VersionedWebSearchTool(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{
+		"model":"gemini-3.1-pro-preview",
+		"messages":[{"role":"user","content":"hello"}],
+		"tools":[
+			{"name":"get_weather","description":"Get weather","input_schema":{"type":"object"}},
+			{"type":"web_search_20250305"}
+		]
+	}`)
+
+	out, err := convertClaudeMessagesToGeminiGenerateContent(body)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out, &payload))
+
+	tools, _ := payload["tools"].([]any)
+	require.Len(t, tools, 2)
+
+	functionTool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	require.NotEmpty(t, functionTool["functionDeclarations"])
+
+	searchTool, ok := tools[1].(map[string]any)
+	require.True(t, ok)
+	_, hasGoogleSearch := searchTool["googleSearch"]
+	require.True(t, hasGoogleSearch)
+}

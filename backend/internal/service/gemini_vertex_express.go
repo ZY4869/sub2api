@@ -266,7 +266,8 @@ func (s *GeminiMessagesCompatService) buildGeminiAPIKeyUpstreamRequest(
 	if action == "streamGenerateContent" {
 		fullURL += "?alt=sse"
 	}
-	upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(body))
+	restBody := normalizeGeminiRequestForAIStudio(body)
+	upstreamReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fullURL, bytes.NewReader(restBody))
 	if err != nil {
 		return nil, "", err
 	}

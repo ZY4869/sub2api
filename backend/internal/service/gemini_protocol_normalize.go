@@ -666,16 +666,16 @@ func normalizeGeminiBuiltInToolKind(raw string) string {
 		return ""
 	}
 	value = strings.NewReplacer("-", "", "_", "", " ", "").Replace(value)
-	switch value {
-	case "googlesearch", "websearch", "google":
+	switch {
+	case strings.HasPrefix(value, "googlesearch"), strings.HasPrefix(value, "websearch"), value == "google":
 		return "googleSearch"
-	case "codeexecution":
+	case strings.HasPrefix(value, "codeexecution"):
 		return "codeExecution"
-	case "googlemaps", "maps":
+	case strings.HasPrefix(value, "googlemaps"), value == "maps":
 		return "googleMaps"
-	case "filesearch":
+	case strings.HasPrefix(value, "filesearch"):
 		return "fileSearch"
-	case "urlcontext":
+	case strings.HasPrefix(value, "urlcontext"):
 		return "urlContext"
 	default:
 		return ""
