@@ -17,10 +17,12 @@ import (
 // refreshAPIAccountRepo implements AccountRepository for OAuthRefreshAPI tests.
 type refreshAPIAccountRepo struct {
 	mockAccountRepoForGemini
-	account     *Account // returned by GetByID
-	getByIDErr  error
-	updateErr   error
-	updateCalls int
+	account                *Account // returned by GetByID
+	getByIDErr             error
+	updateErr              error
+	updateCalls            int
+	fullUpdateCalls        int
+	updateCredentialsCalls int
 }
 
 func (r *refreshAPIAccountRepo) GetByID(_ context.Context, _ int64) (*Account, error) {
@@ -32,6 +34,19 @@ func (r *refreshAPIAccountRepo) GetByID(_ context.Context, _ int64) (*Account, e
 
 func (r *refreshAPIAccountRepo) Update(_ context.Context, _ *Account) error {
 	r.updateCalls++
+	r.fullUpdateCalls++
+	return r.updateErr
+}
+
+func (r *refreshAPIAccountRepo) UpdateCredentials(_ context.Context, id int64, credentials map[string]any) error {
+	r.updateCalls++
+	r.updateCredentialsCalls++
+	if r.updateErr != nil {
+		return r.updateErr
+	}
+	if r.account != nil && r.account.ID == id {
+		r.account.Credentials = cloneAccountCredentialsMap(credentials)
+	}
 	return r.updateErr
 }
 
@@ -107,7 +122,9 @@ func TestRefreshIfNeeded_Success(t *testing.T) {
 	require.Equal(t, "new-token", result.NewCredentials["access_token"])
 	require.NotNil(t, result.NewCredentials["_token_version"]) // version stamp set
 	require.Equal(t, 1, repo.updateCalls)                      // DB updated
-	require.Equal(t, 1, cache.releaseCalls)                    // lock released
+	require.Equal(t, 0, repo.fullUpdateCalls)
+	require.Equal(t, 1, repo.updateCredentialsCalls)
+	require.Equal(t, 1, cache.releaseCalls) // lock released
 	require.Equal(t, 1, executor.refreshCalls)
 }
 

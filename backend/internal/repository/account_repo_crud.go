@@ -318,6 +318,18 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 	r.syncSchedulerAccountSnapshot(ctx, account.ID)
 	return nil
 }
+
+func (r *accountRepository) UpdateCredentials(ctx context.Context, id int64, credentials map[string]any) error {
+	if id <= 0 {
+		return service.ErrAccountNotFound
+	}
+	if _, err := r.client.Account.UpdateOneID(id).SetCredentials(normalizeJSONMap(credentials)).Save(ctx); err != nil {
+		return translatePersistenceError(err, service.ErrAccountNotFound, nil)
+	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
+	return nil
+}
+
 func (r *accountRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Account, *pagination.PaginationResult, error) {
 	return r.ListWithFilters(ctx, params, "", "", "", "", 0, service.AccountLifecycleNormal, "")
 }

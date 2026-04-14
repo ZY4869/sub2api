@@ -15,14 +15,31 @@ import (
 
 type rateLimitAccountRepoStub struct {
 	mockAccountRepoForGemini
-	setErrorCalls int
-	tempCalls     int
-	lastErrorMsg  string
+	setErrorCalls          int
+	tempCalls              int
+	fullUpdateCalls        int
+	updateCredentialsCalls int
+	lastErrorMsg           string
+	lastCredentials        map[string]any
 }
 
 func (r *rateLimitAccountRepoStub) SetError(ctx context.Context, id int64, errorMsg string) error {
 	r.setErrorCalls++
 	r.lastErrorMsg = errorMsg
+	return nil
+}
+
+func (r *rateLimitAccountRepoStub) Update(ctx context.Context, account *Account) error {
+	r.fullUpdateCalls++
+	if account != nil {
+		r.lastCredentials = cloneAccountCredentialsMap(account.Credentials)
+	}
+	return nil
+}
+
+func (r *rateLimitAccountRepoStub) UpdateCredentials(ctx context.Context, id int64, credentials map[string]any) error {
+	r.updateCredentialsCalls++
+	r.lastCredentials = cloneAccountCredentialsMap(credentials)
 	return nil
 }
 
@@ -69,6 +86,9 @@ func TestRateLimitService_HandleUpstreamError_OAuth401SetsTempUnschedulable(t *t
 		require.True(t, shouldDisable)
 		require.Equal(t, 0, repo.setErrorCalls)
 		require.Equal(t, 1, repo.tempCalls)
+		require.Equal(t, 0, repo.fullUpdateCalls)
+		require.Equal(t, 1, repo.updateCredentialsCalls)
+		require.NotEmpty(t, repo.lastCredentials["expires_at"])
 		require.Len(t, invalidator.accounts, 1)
 	})
 
@@ -110,6 +130,9 @@ func TestRateLimitService_HandleUpstreamError_OAuth401InvalidatorError(t *testin
 	require.True(t, shouldDisable)
 	require.Equal(t, 0, repo.setErrorCalls)
 	require.Equal(t, 1, repo.tempCalls)
+	require.Equal(t, 0, repo.fullUpdateCalls)
+	require.Equal(t, 1, repo.updateCredentialsCalls)
+	require.NotEmpty(t, repo.lastCredentials["expires_at"])
 	require.Len(t, invalidator.accounts, 1)
 }
 

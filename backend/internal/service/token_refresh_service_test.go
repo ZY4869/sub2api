@@ -150,6 +150,8 @@ func TestTokenRefreshService_RefreshWithRetry_InvalidatesCache(t *testing.T) {
 	err := service.refreshWithRetry(context.Background(), account, refresher, refresher, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, 1, repo.updateCalls)
+	require.Equal(t, 0, repo.fullUpdateCalls)
+	require.Equal(t, 1, repo.updateCredentialsCalls)
 	require.Equal(t, 1, invalidator.calls)
 	require.Equal(t, "new-token", account.GetCredential("access_token"))
 }
@@ -588,6 +590,8 @@ func TestPathA_Success(t *testing.T) {
 
 	err := service.refreshWithRetry(context.Background(), account, refresher, refresher, time.Hour)
 	require.NoError(t, err)
+	require.Equal(t, 0, repo.fullUpdateCalls)
+	require.Equal(t, 1, repo.updateCredentialsCalls)
 	require.Equal(t, 1, repo.updateCalls)   // DB 更新被调用
 	require.Equal(t, 1, invalidator.calls)  // 缓存失效被调用
 	require.Equal(t, 1, cache.releaseCalls) // 锁被释放
