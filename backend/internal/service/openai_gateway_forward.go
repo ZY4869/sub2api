@@ -200,6 +200,10 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 			promptCacheKey = codexResult.PromptCacheKey
 		}
 	}
+	if sanitizeEmptyBase64InputImagesInOpenAIRequestBodyMap(reqBody) {
+		bodyModified = true
+		disablePatch()
+	}
 	if profile := resolveSimulatedClient(mappedModel); profile == GatewayClientProfileCodex {
 		simulatedClient = profile
 		isCodexCLI = true
