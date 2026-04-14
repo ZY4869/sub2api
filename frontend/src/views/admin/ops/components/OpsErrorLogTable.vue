@@ -288,7 +288,7 @@ function getEndpointTooltip(log: OpsErrorLog): string {
 }
 
 function getRequestedModel(log: OpsErrorLog): string {
-  return String(log.requested_model || log.model || '').trim()
+  return String(log.requested_model || log.upstream_model || log.model || '').trim()
 }
 
 function shouldShowModelMapping(log: OpsErrorLog): boolean {

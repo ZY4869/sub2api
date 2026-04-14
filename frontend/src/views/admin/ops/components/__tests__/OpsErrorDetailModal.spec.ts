@@ -153,4 +153,31 @@ describe('OpsErrorDetailModal', () => {
     expect(findSummaryValue(wrapper, 'admin.ops.errorDetail.billingRuleId')).toBe('-')
     expect(findSummaryValue(wrapper, 'admin.ops.errorDetail.probeAction')).toBe('-')
   })
+
+  it('falls back to upstream model when requested model is empty', async () => {
+    mockGetRequestErrorDetail.mockResolvedValue(
+      createErrorDetail({
+        requested_model: '',
+        upstream_model: 'gpt-5.1-codex'
+      })
+    )
+
+    const wrapper = mount(OpsErrorDetailModal, {
+      props: {
+        show: true,
+        errorId: 789,
+        errorType: 'request'
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(findSummaryValue(wrapper, 'admin.ops.errorDetail.model')).toContain('gpt-5.1-codex')
+  })
 })

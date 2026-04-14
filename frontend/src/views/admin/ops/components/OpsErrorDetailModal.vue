@@ -358,7 +358,7 @@ const statusClass = computed(() => {
 })
 
 function getRequestedModel(value: OpsErrorDetail | null): string {
-  return String(value?.requested_model || value?.model || '').trim()
+  return String(value?.requested_model || value?.upstream_model || value?.model || '').trim()
 }
 
 function shouldShowModelMapping(value: OpsErrorDetail | null): boolean {

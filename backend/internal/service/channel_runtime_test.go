@@ -37,3 +37,27 @@ func TestResolveChannelMappingTarget_UsesPlatformScopedMapping(t *testing.T) {
 	require.Equal(t, "ag-target", resolveChannelMappingTarget(channel, PlatformAntigravity, "claude-3-7-sonnet"))
 	require.Equal(t, "fallback-target", resolveChannelMappingTarget(channel, PlatformAntigravity, "claude-3-7-opus"))
 }
+
+func TestGatewayChannelState_ResolveBillingModel_ChannelMappedFallsBackToRequestedWhenUnmapped(t *testing.T) {
+	state := &GatewayChannelState{
+		Channel: &model.Channel{
+			BillingModelSource: model.ChannelBillingModelSourceMapped,
+		},
+		RequestedModel: "glm",
+		SelectionModel: "glm",
+	}
+
+	require.Equal(t, "glm", state.ResolveBillingModel("gpt-5.1"))
+}
+
+func TestGatewayChannelState_ResolveBillingModel_ChannelMappedUsesSelectionWhenMapped(t *testing.T) {
+	state := &GatewayChannelState{
+		Channel: &model.Channel{
+			BillingModelSource: model.ChannelBillingModelSourceMapped,
+		},
+		RequestedModel: "glm",
+		SelectionModel: "gpt-5.1",
+	}
+
+	require.Equal(t, "gpt-5.1", state.ResolveBillingModel("gpt-5.1-codex"))
+}

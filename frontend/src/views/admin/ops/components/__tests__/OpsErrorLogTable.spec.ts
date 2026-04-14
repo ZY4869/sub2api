@@ -82,4 +82,29 @@ describe('OpsErrorLogTable', () => {
     expect(wrapper.text()).toContain('live / recovery_probe')
     expect(wrapper.text()).toContain('Billing Rule: rule-42')
   })
+
+  it('falls back to upstream model when requested model is empty', () => {
+    const wrapper = mount(OpsErrorLogTable, {
+      props: {
+        rows: [
+          createErrorLog({
+            requested_model: '',
+            upstream_model: 'gpt-5.1-codex'
+          })
+        ],
+        total: 1,
+        loading: false,
+        page: 1,
+        pageSize: 10
+      },
+      global: {
+        stubs: {
+          Pagination: PaginationStub,
+          'el-tooltip': ElTooltipStub
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('gpt-5.1-codex')
+  })
 })
