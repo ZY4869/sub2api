@@ -17,12 +17,13 @@ type Model struct {
 	MaxTemperature             float64  `json:"maxTemperature,omitempty"`
 	TopP                       float64  `json:"topP,omitempty"`
 	TopK                       int      `json:"topK,omitempty"`
-	Thinking                   bool     `json:"thinking"`
+	Thinking                   bool     `json:"thinking,omitempty"`
 	SupportedGenerationMethods []string `json:"supportedGenerationMethods,omitempty"`
 }
 
 type ModelsListResponse struct {
-	Models []Model `json:"models"`
+	Models        []Model `json:"models"`
+	NextPageToken string  `json:"nextPageToken,omitempty"`
 }
 
 var defaultFallbackModels = []Model{
@@ -54,6 +55,24 @@ func FallbackModel(model string) Model {
 	return BuildModel(model, "", "", nil)
 }
 
+func ProjectMinimalModel(model string, displayName string, description string, methods []string) Model {
+	name := normalizeModelName(model)
+	if strings.TrimSpace(displayName) == "" {
+		displayName = strings.TrimPrefix(name, "models/")
+	}
+	projected := Model{
+		Name:        name,
+		DisplayName: displayName,
+	}
+	if strings.TrimSpace(description) != "" {
+		projected.Description = description
+	}
+	if len(methods) > 0 {
+		projected.SupportedGenerationMethods = append([]string(nil), methods...)
+	}
+	return projected
+}
+
 func BuildModel(model string, displayName string, description string, methods []string) Model {
 	name := normalizeModelName(model)
 	modelID := strings.TrimPrefix(name, "models/")
@@ -82,18 +101,6 @@ func BuildModel(model string, displayName string, description string, methods []
 		TopK:                       64,
 		Thinking:                   supportsThinking(modelID),
 		SupportedGenerationMethods: append([]string(nil), methods...),
-	}
-}
-
-func SupportedGenerationMethodsForModel(model string) []string {
-	normalized := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(model, "models/")))
-	switch {
-	case strings.Contains(normalized, "embedding"):
-		return []string{"embedContent", "countTokens"}
-	case strings.Contains(normalized, "image"), strings.Contains(normalized, "video"), strings.Contains(normalized, "tts"):
-		return []string{"generateContent", "countTokens"}
-	default:
-		return []string{"generateContent", "streamGenerateContent", "countTokens", "batchGenerateContent"}
 	}
 }
 

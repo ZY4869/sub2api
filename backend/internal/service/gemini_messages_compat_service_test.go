@@ -183,7 +183,7 @@ func TestGeminiHandleNativeNonStreamingResponse_DebugDisabledDoesNotEmitHeaderLo
 		Body: io.NopCloser(strings.NewReader(`{"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":2}}`)),
 	}
 
-	usage, err := svc.handleNativeNonStreamingResponse(c, resp, false)
+	usage, _, err := svc.handleNativeNonStreamingResponse(c, resp, false)
 	require.NoError(t, err)
 	require.NotNil(t, usage)
 	require.False(t, logSink.ContainsMessage("[GeminiAPI]"), "debug 关闭时不应输出 Gemini 响应头日志")
@@ -205,7 +205,7 @@ func TestGeminiHandleNativeNonStreamingResponse_SetsRequestIDFromBodyResponseID(
 		Body: io.NopCloser(strings.NewReader(`{"responseId":"resp-native-1","usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":2}}`)),
 	}
 
-	usage, err := svc.handleNativeNonStreamingResponse(c, resp, false)
+	usage, _, err := svc.handleNativeNonStreamingResponse(c, resp, false)
 	require.NoError(t, err)
 	require.NotNil(t, usage)
 	require.Equal(t, "resp-native-1", w.Header().Get("x-request-id"))
@@ -288,6 +288,47 @@ func TestForwardNativeCountTokens_EstimatedFallbackHeader(t *testing.T) {
 	require.Equal(t, "upstream-count-1", w.Header().Get("x-request-id"))
 	require.Equal(t, string(geminiCountTokensSourceEstimated), w.Header().Get(geminiCountTokensSourceHeader))
 	require.Contains(t, w.Body.String(), `"totalTokens":`)
+}
+
+func TestForwardNativeGenerateAnswer_Passthrough(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &GeminiMessagesCompatService{
+		httpUpstream: &geminiCompatHTTPUpstreamStub{
+			do: func(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
+				require.Equal(t, http.MethodPost, req.Method)
+				require.Contains(t, req.URL.String(), ":generateAnswer")
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type": []string{"application/json"},
+						"x-request-id": []string{"upstream-answer-1"},
+					},
+					Body: io.NopCloser(strings.NewReader(`{"answer":"ok","usageMetadata":{"promptTokenCount":5,"candidatesTokenCount":2}}`)),
+				}, nil
+			},
+		},
+	}
+
+	body := []byte(`{"contents":[{"role":"user","parts":[{"text":"hello world"}]}]}`)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1beta/models/gemini-2.5-flash:generateAnswer", strings.NewReader(string(body)))
+
+	result, err := svc.ForwardNative(context.Background(), c, &Account{
+		ID:       503,
+		Name:     "Gemini API Key",
+		Platform: PlatformGemini,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"api_key": "test-key",
+		},
+	}, "gemini-2.5-flash", "generateAnswer", false, body)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "upstream-answer-1", result.RequestID)
+	require.Equal(t, "upstream-answer-1", w.Header().Get("x-request-id"))
+	require.Contains(t, w.Body.String(), `"answer":"ok"`)
 }
 
 func TestConvertClaudeMessagesToGeminiGenerateContent_AddsThoughtSignatureForToolUse(t *testing.T) {

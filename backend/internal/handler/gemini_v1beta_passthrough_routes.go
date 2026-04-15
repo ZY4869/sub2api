@@ -15,7 +15,12 @@ func (h *GatewayHandler) GeminiV1BetaCachedContents(c *gin.Context) {
 
 func (h *GatewayHandler) GeminiV1BetaFileSearchStores(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
-	h.forwardGeminiPassthrough(c, resolveGeminiFileSearchPassthroughInput(c))
+	input, ok := resolveGeminiStrictFileSearchPassthroughInput(c)
+	if !ok {
+		rejectGeminiStrictV1BetaUnsupported(c)
+		return
+	}
+	h.forwardGeminiPassthrough(c, input)
 }
 
 func (h *GatewayHandler) GeminiV1BetaDocuments(c *gin.Context) {
@@ -40,6 +45,46 @@ func (h *GatewayHandler) GeminiV1BetaInteractions(c *gin.Context) {
 	}
 	attachGeminiPublicProtocolContext(c)
 	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiInteraction})
+}
+
+func (h *GatewayHandler) GeminiV1BetaCorpora(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaCorporaOperations(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaCorporaPermissions(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaDynamic(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaGeneratedFiles(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaGeneratedFilesOperations(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaModelOperations(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaTunedModels(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaTunedModelsPermissions(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
+}
+
+func (h *GatewayHandler) GeminiV1BetaTunedModelsOperations(c *gin.Context) {
+	h.forwardGeminiStrictV1BetaPassthrough(c)
 }
 
 func (h *GatewayHandler) GeminiV1BetaOpenAICompat(c *gin.Context) {
@@ -76,23 +121,4 @@ func (h *GatewayHandler) GeminiV1BetaEmbeddings(c *gin.Context, modelName string
 	h.forwardGeminiPassthrough(c, service.GeminiPublicPassthroughInput{
 		RequestedModel: strings.TrimSpace(modelName),
 	})
-}
-
-func resolveGeminiFileSearchPassthroughInput(c *gin.Context) service.GeminiPublicPassthroughInput {
-	path := ""
-	if c != nil && c.Request != nil && c.Request.URL != nil {
-		path = strings.ToLower(strings.TrimSpace(c.Request.URL.Path))
-	}
-	switch {
-	case strings.Contains(path, "/upload/operations/"):
-		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiUploadOperation}
-	case strings.Contains(path, "/documents"):
-		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiDocument}
-	case strings.Contains(path, "/operations/"):
-		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiOperation}
-	case strings.Contains(path, ":uploadtofilesearchstore"):
-		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiUploadOperation}
-	default:
-		return service.GeminiPublicPassthroughInput{ResourceKind: service.UpstreamResourceKindGeminiFileSearchStore}
-	}
 }

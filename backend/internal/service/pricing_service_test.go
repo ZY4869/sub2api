@@ -174,3 +174,25 @@ func TestParsePricingData_PreservesServiceTierPriorityFields(t *testing.T) {
 	require.InDelta(t, 0.0000005, pricing.CacheReadInputTokenCostPriority, 1e-12)
 	require.True(t, pricing.SupportsServiceTier)
 }
+
+func TestParsePricingData_PreservesPriorityImagePrice(t *testing.T) {
+	svc := &PricingService{}
+	pricingData, err := svc.parsePricingData([]byte(`{
+		"gemini-2.5-flash-image": {
+			"input_cost_per_token": 0.0000003,
+			"input_cost_per_token_priority": 0.00000054,
+			"output_cost_per_image": 0.039,
+			"output_cost_per_image_priority": 0.0702,
+			"supports_service_tier": true,
+			"litellm_provider": "vertex_ai-language-models",
+			"mode": "image_generation"
+		}
+	}`))
+	require.NoError(t, err)
+
+	pricing := pricingData["gemini-2.5-flash-image"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 0.039, pricing.OutputCostPerImage, 1e-12)
+	require.InDelta(t, 0.0702, pricing.OutputCostPerImagePriority, 1e-12)
+	require.True(t, pricing.SupportsServiceTier)
+}

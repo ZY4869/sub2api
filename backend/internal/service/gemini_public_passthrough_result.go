@@ -28,17 +28,19 @@ func buildGeminiPassthroughForwardResult(input GeminiPublicPassthroughInput, req
 	mediaType := detectGeminiPassthroughMediaType(input.Path, input.Body, body)
 	imageCount := detectGeminiPassthroughImageCount(input.Path, body)
 	imageSize := detectGeminiPassthroughImageSize(input.Body)
+	requestedServiceTier, resolvedServiceTier := resolveGeminiForwardServiceTiers(input.Body, headers, body)
 	return &ForwardResult{
-		RequestID:     requestID,
-		Usage:         usage,
-		Model:         requestedModel,
-		UpstreamModel: upstreamModel,
-		ServiceTier:   extractGeminiRequestedServiceTierFromBody(input.Body),
-		Stream:        stream,
-		Duration:      duration,
-		MediaType:     mediaType,
-		ImageCount:    imageCount,
-		ImageSize:     imageSize,
+		RequestID:            requestID,
+		Usage:                usage,
+		Model:                requestedModel,
+		UpstreamModel:        upstreamModel,
+		RequestedServiceTier: requestedServiceTier,
+		ServiceTier:          resolvedServiceTier,
+		Stream:               stream,
+		Duration:             duration,
+		MediaType:            mediaType,
+		ImageCount:           imageCount,
+		ImageSize:            imageSize,
 	}
 }
 
@@ -57,14 +59,17 @@ func detectGeminiPassthroughRequestedModel(path string, body []byte) string {
 		return model
 	}
 	trimmed := strings.TrimSpace(path)
-	if idx := strings.Index(trimmed, "/models/"); idx >= 0 {
-		modelPart := trimmed[idx+len("/models/"):]
-		for _, sep := range []string{":", "?", "/"} {
-			if cut := strings.Index(modelPart, sep); cut >= 0 {
-				modelPart = modelPart[:cut]
+	lower := strings.ToLower(trimmed)
+	for _, marker := range []string{"/models/", "/tunedmodels/", "/dynamic/"} {
+		if idx := strings.Index(lower, marker); idx >= 0 {
+			modelPart := trimmed[idx+len(marker):]
+			for _, sep := range []string{":", "?", "/"} {
+				if cut := strings.Index(modelPart, sep); cut >= 0 {
+					modelPart = modelPart[:cut]
+				}
 			}
+			return strings.TrimSpace(modelPart)
 		}
-		return strings.TrimSpace(modelPart)
 	}
 	return ""
 }

@@ -30,6 +30,10 @@ func (d gatewayRouteDispatchers) GatewayV1ModelsGet(c *gin.Context) {
 	d.handlers.Gateway.GatewayV1ModelsGet(c)
 }
 
+func (d gatewayRouteDispatchers) GeminiModelsGet(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaGetModel(c)
+}
+
 func (d gatewayRouteDispatchers) GatewayV1ModelsAction(c *gin.Context) {
 	d.handlers.Gateway.GatewayV1ModelsAction(c)
 }
@@ -108,6 +112,46 @@ func (d gatewayRouteDispatchers) GeminiUploadOperations(c *gin.Context) {
 
 func (d gatewayRouteDispatchers) GeminiInteractions(c *gin.Context) {
 	d.handlers.Gateway.GeminiV1BetaInteractions(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiCorpora(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaCorpora(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiCorporaOperations(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaCorporaOperations(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiCorporaPermissions(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaCorporaPermissions(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiDynamic(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaDynamic(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiGeneratedFiles(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaGeneratedFiles(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiGeneratedFilesOperations(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaGeneratedFilesOperations(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiModelOperations(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaModelOperations(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiTunedModels(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaTunedModels(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiTunedModelsPermissions(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaTunedModelsPermissions(c)
+}
+
+func (d gatewayRouteDispatchers) GeminiTunedModelsOperations(c *gin.Context) {
+	d.handlers.Gateway.GeminiV1BetaTunedModelsOperations(c)
 }
 
 func (d gatewayRouteDispatchers) GeminiOpenAICompat(c *gin.Context) {

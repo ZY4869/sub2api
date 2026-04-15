@@ -565,9 +565,15 @@ In Claude Code, Plan Mode cannot exit automatically. (Normally when using the na
 
 ## Gemini API Surface
 
-- Official paths now supported by default: `/v1/models`, `/v1alpha/authTokens`, `/v1beta/fileSearchStores/...`, `/upload/v1beta/files`, `/upload/v1beta/fileSearchStores/...`
-- Deprecated aliases kept for one transition version: `/v1beta/live/auth-token`, `/v1beta/live/auth-tokens`, `/v1beta/documents`, `/v1beta/operations`
-- Explicitly unsupported for now: `generateText`, `generateMessage`, `predict`, `predictLongRunning`
+- Supported Gemini resource families now follow the checked-in official discovery surface from April 15, 2026: `models`, `files`, `batches`, `cachedContents`, `fileSearchStores`, `interactions`, `live authTokens`, `corpora`, `corpora.permissions`, `dynamic`, `generatedFiles`, `generatedFiles.operations`, `models.operations`, `tunedModels`, `tunedModels.permissions`, `tunedModels.operations`, Gemini OpenAI compat, and existing Vertex Gemini routes.
+- Official public entry points remain the documented default surface: `/v1/models`, `/v1alpha/authTokens`, `/v1beta/fileSearchStores/...`, `/upload/v1beta/files`, `/upload/v1beta/fileSearchStores/...`, plus the current discovery-listed `v1beta` resource paths above.
+- There are currently no additional official Gemini resource families in discovery that this repository intentionally leaves unsupported.
+- At the method level, the remaining non-deprecated official discovery methods are now covered as well; only the explicitly listed deprecated/history methods stay unsupported.
+- `models.generateAnswer` is supported according to discovery. If the `all-methods` page temporarily omits it, that is treated as official doc drift rather than a repository-specific extension.
+- `interactions` is still treated as a beta/preview surface. The gateway stays passthrough-first and preserves unknown response fields or newly added `usage.*` subfields instead of blocking them.
+- `models.list/get` still prefers upstream metadata. When upstream metadata is unavailable, fallback keeps returning visible model entries, but uncertain fields are omitted or left empty, `supportedGenerationMethods` is only emitted when confirmed, and fallback pagination keeps using opaque `nextPageToken` values.
+- Deprecated aliases remain compatibility-only for one transition version: `/v1beta/live/auth-token`, `/v1beta/live/auth-tokens`, `/v1beta/documents`, `/v1beta/operations`. They are no longer the documented primary path and do not receive new capability expansion.
+- Explicitly unsupported deprecated/history methods remain blocked: `generateText`, `generateMessage`, `countTextTokens`, `countMessageTokens`, `embedText`, `batchEmbedText`, `predict`, `predictLongRunning`.
 
 ---
 

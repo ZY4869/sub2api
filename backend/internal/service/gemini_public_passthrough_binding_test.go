@@ -51,3 +51,20 @@ func TestBuildGeminiPassthroughRequestUsesUpstreamPathOverride(t *testing.T) {
 	require.Equal(t, "gemini-test-key", req.Header.Get("x-goog-api-key"))
 	require.Equal(t, "1", req.Header.Get("X-Test"))
 }
+
+func TestExtractGeminiPassthroughResourceName_NewGeminiResources(t *testing.T) {
+	require.Equal(t, "fileSearchStores/default-store", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiFileSearchStore, "/v1beta/fileSearchStores/default-store:importFile"))
+	require.Equal(t, "corpora/sample-corpus/operations/op-1", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiCorpusOperation, "/v1beta/corpora/sample-corpus/operations/op-1"))
+	require.Equal(t, "corpora/sample-corpus/permissions/perm-1", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiCorpusPermission, "/v1beta/corpora/sample-corpus/permissions/perm-1"))
+	require.Equal(t, "generatedFiles/file-1/operations/op-1", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiGeneratedFileOperation, "/v1beta/generatedFiles/file-1/operations/op-1"))
+	require.Equal(t, "models/gemini-2.5-pro/operations/op-9", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiModelOperation, "/v1beta/models/gemini-2.5-pro/operations/op-9"))
+	require.Equal(t, "tunedModels/tuned-1/permissions/perm-1", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiTunedModelPermission, "/v1beta/tunedModels/tuned-1/permissions/perm-1"))
+	require.Equal(t, "tunedModels/tuned-1/operations/op-9", extractGeminiPassthroughResourceName(UpstreamResourceKindGeminiTunedModelOperation, "/v1beta/tunedModels/tuned-1/operations/op-9"))
+}
+
+func TestExtractGeminiPassthroughCreatedResourceNames_NewGeminiChildKinds(t *testing.T) {
+	require.Equal(t, []string{"generatedFiles/file-1/operations/op-1"}, extractGeminiPassthroughCreatedResourceNames(UpstreamResourceKindGeminiGeneratedFileOperation, []byte(`{"name":"generatedFiles/file-1/operations/op-1"}`)))
+	require.Equal(t, []string{"tunedModels/tuned-1/permissions/perm-1"}, extractGeminiPassthroughCreatedResourceNames(UpstreamResourceKindGeminiTunedModelPermission, []byte(`{"name":"tunedModels/tuned-1/permissions/perm-1"}`)))
+	require.Equal(t, []string{"tunedModels/tuned-1/operations/op-9"}, extractGeminiPassthroughCreatedResourceNames(UpstreamResourceKindGeminiTunedModelOperation, []byte(`{"name":"tunedModels/tuned-1/operations/op-9"}`)))
+	require.Equal(t, []string{"tunedModels/tuned-1/operations/op-async-1"}, extractGeminiPassthroughCreatedResourceNames(UpstreamResourceKindGeminiTunedModelOperation, []byte(`{"name":"tunedModels/tuned-1/operations/op-async-1"}`)))
+}

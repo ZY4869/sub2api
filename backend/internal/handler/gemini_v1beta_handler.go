@@ -60,10 +60,28 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		return
 	}
 	if len(publicEntries) == 0 {
+		applyGeminiModelMetadataSource(c, geminiModelMetadataSourceProjectedEmpty)
 		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: []gemini.Model{}})
 		return
 	}
-	c.JSON(http.StatusOK, apiKeyPublicEntriesToGeminiModels(publicEntries))
+	pageSize, err := parseGeminiModelsPageSize(c.Query("pageSize"))
+	if err != nil {
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.invalid_pagination", "Invalid Gemini models pagination parameters")
+		return
+	}
+	if upstreamResult, ok := h.fetchGeminiUpstreamModelsList(c, apiKey, effectivePlatform, publicEntries, pageSize, c.Query("pageToken")); ok {
+		applyGeminiModelMetadataSource(c, geminiModelMetadataSourceUpstream)
+		applyGeminiPublicPathMetadata(c, "/v1beta/models")
+		writeUpstreamResponse(c, upstreamResult)
+		return
+	}
+	pagedEntries, nextPageToken, err := paginateGeminiPublicModels(publicEntries, c.Query("pageSize"), c.Query("pageToken"))
+	if err != nil {
+		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.invalid_pagination", "Invalid Gemini models pagination parameters")
+		return
+	}
+	applyGeminiModelMetadataSource(c, geminiModelMetadataSourceProjectedEmpty)
+	c.JSON(http.StatusOK, apiKeyPublicEntriesToGeminiModelsWithRegistry(pagedEntries, nextPageToken, h.modelRegistryService))
 }
 
 // GeminiV1BetaGetModel proxies:
@@ -81,11 +99,16 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.unsupported_platform", "Gemini protocol is not supported for this platform")
 		return
 	}
-	modelName := strings.TrimSpace(c.Param("model"))
-	if modelName == "" {
+	modelPath := strings.Trim(strings.TrimSpace(firstNonEmptyString(c.Param("model"), c.Param("modelPath"))), "/")
+	if modelPath == "" {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.missing_model", "Missing model in URL")
 		return
 	}
+	if isGeminiModelOperationsPath(modelPath) {
+		h.GeminiV1BetaModelOperations(c)
+		return
+	}
+	modelName := modelPath
 	effectivePlatform := service.PlatformGemini
 	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
 		effectivePlatform = forcePlatform
@@ -98,7 +121,14 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 	if ok {
-		c.JSON(http.StatusOK, apiKeyPublicEntryToGeminiModel(*publicEntry))
+		if upstreamResult, ok := h.fetchGeminiUpstreamModelDetail(c, apiKey, effectivePlatform, *publicEntry); ok {
+			applyGeminiModelMetadataSource(c, geminiModelMetadataSourceUpstream)
+			applyGeminiPublicPathMetadata(c, "/v1beta/models/"+modelName)
+			writeUpstreamResponse(c, upstreamResult)
+			return
+		}
+		applyGeminiModelMetadataSource(c, geminiModelMetadataSourceProjectedEmpty)
+		c.JSON(http.StatusOK, apiKeyPublicEntryToGeminiModelWithRegistry(*publicEntry, h.modelRegistryService))
 		return
 	}
 	googleErrorKey(c, http.StatusNotFound, "gateway.gemini.model_not_found", "Model not found")
@@ -1103,6 +1133,14 @@ func googleErrorWithReason(c *gin.Context, status int, reason string, messageKey
 		}
 	}
 	c.JSON(status, gin.H{"error": payload})
+}
+
+func isGeminiModelOperationsPath(modelPath string) bool {
+	trimmed := strings.Trim(strings.TrimSpace(modelPath), "/")
+	if trimmed == "" {
+		return false
+	}
+	return strings.HasSuffix(trimmed, "/operations") || strings.Contains(trimmed, "/operations/")
 }
 
 func googleErrorFromDecision(c *gin.Context, decision service.ProtocolCapabilityDecision) {

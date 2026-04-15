@@ -7,33 +7,43 @@ import (
 )
 
 const (
-	EndpointMessages                  = "/v1/messages"
-	EndpointChatCompletions           = "/v1/chat/completions"
-	EndpointResponses                 = "/v1/responses"
-	EndpointImagesGen                 = "/v1/images/generations"
-	EndpointImagesEdits               = "/v1/images/edits"
-	EndpointVideosCreate              = "/v1/videos"
-	EndpointVideosGen                 = "/v1/videos/generations"
-	EndpointVideosStatus              = "/v1/videos/:request_id"
-	EndpointGeminiModels              = "/v1beta/models"
-	EndpointGeminiFiles               = "/v1beta/files"
-	EndpointGeminiFilesUp             = "/upload/v1beta/files"
-	EndpointGeminiFilesDownload       = "/download/v1beta/files"
-	EndpointGeminiBatches             = "/v1beta/batches"
-	EndpointGeminiCachedContents      = "/v1beta/cachedContents"
-	EndpointGeminiFileSearchStores    = "/v1beta/fileSearchStores"
-	EndpointGeminiDocuments           = "/v1beta/documents"
-	EndpointGeminiOperations          = "/v1beta/operations"
-	EndpointGeminiUploadOperations    = "/v1beta/fileSearchStores/upload/operations"
-	EndpointGeminiEmbeddings          = "/v1beta/embeddings"
-	EndpointGeminiInteractions        = "/v1beta/interactions"
-	EndpointGeminiLive                = "/v1beta/live"
-	EndpointGeminiLiveAuthTokens      = "/v1alpha/authTokens"
-	EndpointGeminiOpenAICompat        = "/v1beta/openai"
-	EndpointGoogleBatchArchiveBatches = "/google/batch/archive/v1beta/batches"
-	EndpointGoogleBatchArchiveFiles   = "/google/batch/archive/v1beta/files"
-	EndpointVertexSyncModels          = "/v1/projects/:project/locations/:location/publishers/google/models"
-	EndpointVertexBatchJobs           = "/v1/projects/:project/locations/:location/batchPredictionJobs"
+	EndpointMessages                       = "/v1/messages"
+	EndpointChatCompletions                = "/v1/chat/completions"
+	EndpointResponses                      = "/v1/responses"
+	EndpointImagesGen                      = "/v1/images/generations"
+	EndpointImagesEdits                    = "/v1/images/edits"
+	EndpointVideosCreate                   = "/v1/videos"
+	EndpointVideosGen                      = "/v1/videos/generations"
+	EndpointVideosStatus                   = "/v1/videos/:request_id"
+	EndpointGeminiModels                   = "/v1beta/models"
+	EndpointGeminiFiles                    = "/v1beta/files"
+	EndpointGeminiFilesUp                  = "/upload/v1beta/files"
+	EndpointGeminiFilesDownload            = "/download/v1beta/files"
+	EndpointGeminiBatches                  = "/v1beta/batches"
+	EndpointGeminiCachedContents           = "/v1beta/cachedContents"
+	EndpointGeminiFileSearchStores         = "/v1beta/fileSearchStores"
+	EndpointGeminiDocuments                = "/v1beta/documents"
+	EndpointGeminiOperations               = "/v1beta/operations"
+	EndpointGeminiUploadOperations         = "/v1beta/fileSearchStores/upload/operations"
+	EndpointGeminiEmbeddings               = "/v1beta/embeddings"
+	EndpointGeminiInteractions             = "/v1beta/interactions"
+	EndpointGeminiCorpora                  = "/v1beta/corpora"
+	EndpointGeminiCorporaOperations        = "/v1beta/corpora/operations"
+	EndpointGeminiCorporaPermissions       = "/v1beta/corpora/permissions"
+	EndpointGeminiDynamic                  = "/v1beta/dynamic"
+	EndpointGeminiGeneratedFiles           = "/v1beta/generatedFiles"
+	EndpointGeminiGeneratedFilesOperations = "/v1beta/generatedFiles/operations"
+	EndpointGeminiModelOperations          = "/v1beta/models/operations"
+	EndpointGeminiTunedModels              = "/v1beta/tunedModels"
+	EndpointGeminiTunedModelsPermissions   = "/v1beta/tunedModels/permissions"
+	EndpointGeminiTunedModelsOperations    = "/v1beta/tunedModels/operations"
+	EndpointGeminiLive                     = "/v1beta/live"
+	EndpointGeminiLiveAuthTokens           = "/v1alpha/authTokens"
+	EndpointGeminiOpenAICompat             = "/v1beta/openai"
+	EndpointGoogleBatchArchiveBatches      = "/google/batch/archive/v1beta/batches"
+	EndpointGoogleBatchArchiveFiles        = "/google/batch/archive/v1beta/files"
+	EndpointVertexSyncModels               = "/v1/projects/:project/locations/:location/publishers/google/models"
+	EndpointVertexBatchJobs                = "/v1/projects/:project/locations/:location/batchPredictionJobs"
 )
 
 type ProtocolCapabilityMode string
@@ -89,8 +99,11 @@ const (
 	ProtocolCapabilityActionCountTokens           = "count_tokens"
 	ProtocolCapabilityActionWebSocket             = "websocket"
 	ProtocolCapabilityActionGenerateContent       = "generateContent"
+	ProtocolCapabilityActionGenerateAnswer        = "generateAnswer"
 	ProtocolCapabilityActionStreamGenerateContent = "streamGenerateContent"
 	ProtocolCapabilityActionBatchGenerateContent  = "batchGenerateContent"
+	ProtocolCapabilityActionImportFile            = "importFile"
+	ProtocolCapabilityActionTransferOwnership     = "transferOwnership"
 	ProtocolCapabilityActionGeminiCountTokens     = "countTokens"
 	ProtocolCapabilityActionGeminiEmbedContent    = "embedContent"
 	ProtocolCapabilityActionGeminiBatchEmbeddings = "batchEmbedContents"
@@ -236,7 +249,8 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodGet, Pattern: "/v1/models/:model", RegisteredHandlerFamily: "gateway_v1_models_get"},
 			{Method: http.MethodPost, Pattern: "/v1/models/*modelAction", RegisteredHandlerFamily: "gateway_v1_models_action"},
 			{Method: http.MethodGet, Pattern: "/v1beta/models"},
-			{Method: http.MethodGet, Pattern: "/v1beta/models/:model"},
+			{Method: http.MethodGet, Pattern: "/v1beta/models/{model}", RegisteredHandlerFamily: "gemini_models_get"},
+			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:generateAnswer"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/*modelAction"},
 			{Method: http.MethodGet, Pattern: "/antigravity/v1beta/models"},
 			{Method: http.MethodGet, Pattern: "/antigravity/v1beta/models/:model"},
@@ -247,6 +261,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:generateAnswer", Action: ProtocolCapabilityActionGenerateAnswer, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1beta/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityCompatTranslate},
 			{InboundEndpoint: EndpointGeminiModels, RequestFormat: "/v1/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
@@ -300,6 +315,7 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodGet, Pattern: "/v1beta/batches"},
 			{Method: http.MethodGet, Pattern: "/v1beta/batches/*subpath"},
 			{Method: http.MethodPost, Pattern: "/v1beta/batches/*subpath"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/batches/*subpath"},
 			{Method: http.MethodDelete, Pattern: "/v1beta/batches/*subpath"},
 			{Method: http.MethodPost, Pattern: "/v1beta/models/{model}:batchGenerateContent", RegisteredHandlerFamily: "gemini_models"},
 			{Method: http.MethodPost, Pattern: "/antigravity/v1beta/models/{model}:batchGenerateContent", RegisteredHandlerFamily: "gemini_models"},
@@ -307,6 +323,8 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiBatches, RequestFormat: "/v1beta/models/{model}:batchGenerateContent", Action: ProtocolCapabilityActionBatchGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiBatches, RequestFormat: "/v1beta/batches/{batch}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiBatches, RequestFormat: "/v1beta/batches/{batch}:updateGenerateContentBatch", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiBatches, RequestFormat: "/v1beta/batches/{batch}:updateEmbedContentBatch", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointGeminiBatches, RequestFormat: "/v1beta/models/{model}:batchGenerateContent", Action: ProtocolCapabilityActionBatchGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformAntigravity, Mode: ProtocolCapabilityReject},
 		},
 	},
@@ -332,16 +350,15 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores"},
 			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores"},
+			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/{store}"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/fileSearchStores/{store}"},
+			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores/{store}:importFile"},
 			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores/{store}:uploadToFileSearchStore"},
 			{Method: http.MethodPost, Pattern: "/upload/v1beta/fileSearchStores/{store}:uploadToFileSearchStore"},
-			{Method: http.MethodGet, Pattern: "/v1beta/fileSearchStores/*subpath"},
-			{Method: http.MethodPost, Pattern: "/v1beta/fileSearchStores/*subpath"},
-			{Method: http.MethodPatch, Pattern: "/v1beta/fileSearchStores/*subpath"},
-			{Method: http.MethodDelete, Pattern: "/v1beta/fileSearchStores/*subpath"},
-			{Method: http.MethodPost, Pattern: "/upload/v1beta/fileSearchStores/*subpath"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiFileSearchStores, RequestFormat: EndpointGeminiFileSearchStores, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiFileSearchStores, RequestFormat: "/v1beta/fileSearchStores/{store}:importFile", Action: ProtocolCapabilityActionImportFile, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{
@@ -419,6 +436,145 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointGeminiInteractions, RequestFormat: EndpointGeminiInteractions, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiCorpora,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_corpora",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/corpora"},
+			{Method: http.MethodPost, Pattern: "/v1beta/corpora"},
+			{Method: http.MethodGet, Pattern: "/v1beta/corpora/{corpus}"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/corpora/{corpus}"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiCorpora, RequestFormat: EndpointGeminiCorpora, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiCorporaOperations,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_corpora_operations",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/corpora/{corpus}/operations/{operation}", RegisteredHandlerFamily: "gemini_corpora_operations"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiCorporaOperations, RequestFormat: "/v1beta/corpora/{corpus}/operations/{operation}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiCorporaPermissions,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_corpora_permissions",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/corpora/{corpus}/permissions", RegisteredHandlerFamily: "gemini_corpora_permissions"},
+			{Method: http.MethodPost, Pattern: "/v1beta/corpora/{corpus}/permissions", RegisteredHandlerFamily: "gemini_corpora_permissions"},
+			{Method: http.MethodGet, Pattern: "/v1beta/corpora/{corpus}/permissions/{permission}", RegisteredHandlerFamily: "gemini_corpora_permissions"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/corpora/{corpus}/permissions/{permission}", RegisteredHandlerFamily: "gemini_corpora_permissions"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/corpora/{corpus}/permissions/{permission}", RegisteredHandlerFamily: "gemini_corpora_permissions"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiCorporaPermissions, RequestFormat: "/v1beta/corpora/{corpus}/permissions/{permission}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiDynamic,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_dynamic",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodPost, Pattern: "/v1beta/dynamic/{dynamic}:generateContent"},
+			{Method: http.MethodPost, Pattern: "/v1beta/dynamic/{dynamic}:streamGenerateContent"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiDynamic, RequestFormat: "/v1beta/dynamic/{dynamic}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiDynamic, RequestFormat: "/v1beta/dynamic/{dynamic}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiGeneratedFiles,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_generated_files",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/generatedFiles"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiGeneratedFiles, RequestFormat: EndpointGeminiGeneratedFiles, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiGeneratedFilesOperations,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_generated_files_operations",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/generatedFiles/{generatedFile}/operations/{operation}", RegisteredHandlerFamily: "gemini_generated_files_operations"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiGeneratedFilesOperations, RequestFormat: "/v1beta/generatedFiles/{generatedFile}/operations/{operation}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiModelOperations,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_model_operations",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/models/{model}/operations", RegisteredHandlerFamily: "gemini_model_operations"},
+			{Method: http.MethodGet, Pattern: "/v1beta/models/{model}/operations/{operation}", RegisteredHandlerFamily: "gemini_model_operations"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiModelOperations, RequestFormat: "/v1beta/models/{model}/operations/{operation}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiTunedModels,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_tuned_models",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/tunedModels"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels"},
+			{Method: http.MethodGet, Pattern: "/v1beta/tunedModels/{tunedModel}"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/tunedModels/{tunedModel}"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/tunedModels/{tunedModel}"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels/{tunedModel}:generateContent"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels/{tunedModel}:streamGenerateContent"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels/{tunedModel}:batchGenerateContent"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels/{tunedModel}:asyncBatchEmbedContent"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels/{tunedModel}:transferOwnership"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiTunedModels, RequestFormat: EndpointGeminiTunedModels, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiTunedModels, RequestFormat: "/v1beta/tunedModels/{tunedModel}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiTunedModels, RequestFormat: "/v1beta/tunedModels/{tunedModel}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiTunedModels, RequestFormat: "/v1beta/tunedModels/{tunedModel}:batchGenerateContent", Action: ProtocolCapabilityActionBatchGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiTunedModels, RequestFormat: "/v1beta/tunedModels/{tunedModel}:asyncBatchEmbedContent", Action: ProtocolCapabilityActionGeminiAsyncEmbedding, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointGeminiTunedModels, RequestFormat: "/v1beta/tunedModels/{tunedModel}:transferOwnership", Action: ProtocolCapabilityActionTransferOwnership, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiTunedModelsPermissions,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_tuned_models_permissions",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/tunedModels/{tunedModel}/permissions", RegisteredHandlerFamily: "gemini_tuned_models_permissions"},
+			{Method: http.MethodPost, Pattern: "/v1beta/tunedModels/{tunedModel}/permissions", RegisteredHandlerFamily: "gemini_tuned_models_permissions"},
+			{Method: http.MethodGet, Pattern: "/v1beta/tunedModels/{tunedModel}/permissions/{permission}", RegisteredHandlerFamily: "gemini_tuned_models_permissions"},
+			{Method: http.MethodPatch, Pattern: "/v1beta/tunedModels/{tunedModel}/permissions/{permission}", RegisteredHandlerFamily: "gemini_tuned_models_permissions"},
+			{Method: http.MethodDelete, Pattern: "/v1beta/tunedModels/{tunedModel}/permissions/{permission}", RegisteredHandlerFamily: "gemini_tuned_models_permissions"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiTunedModelsPermissions, RequestFormat: "/v1beta/tunedModels/{tunedModel}/permissions/{permission}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+		},
+	},
+	{
+		CanonicalEndpoint: EndpointGeminiTunedModelsOperations,
+		SourceProtocol:    PlatformGemini,
+		HandlerFamily:     "gemini_tuned_models_operations",
+		Routes: []PublicEndpointRoute{
+			{Method: http.MethodGet, Pattern: "/v1beta/tunedModels/{tunedModel}/operations", RegisteredHandlerFamily: "gemini_tuned_models_operations"},
+			{Method: http.MethodGet, Pattern: "/v1beta/tunedModels/{tunedModel}/operations/{operation}", RegisteredHandlerFamily: "gemini_tuned_models_operations"},
+		},
+		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointGeminiTunedModelsOperations, RequestFormat: "/v1beta/tunedModels/{tunedModel}/operations/{operation}", Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{
@@ -601,10 +757,16 @@ func NormalizeProtocolCapabilityAction(action string) string {
 		return ProtocolCapabilityActionWebSocket
 	case ProtocolCapabilityActionGenerateContent:
 		return ProtocolCapabilityActionGenerateContent
+	case ProtocolCapabilityActionGenerateAnswer:
+		return ProtocolCapabilityActionGenerateAnswer
 	case ProtocolCapabilityActionStreamGenerateContent:
 		return ProtocolCapabilityActionStreamGenerateContent
 	case ProtocolCapabilityActionBatchGenerateContent:
 		return ProtocolCapabilityActionBatchGenerateContent
+	case ProtocolCapabilityActionImportFile:
+		return ProtocolCapabilityActionImportFile
+	case ProtocolCapabilityActionTransferOwnership:
+		return ProtocolCapabilityActionTransferOwnership
 	case ProtocolCapabilityActionGeminiCountTokens:
 		return ProtocolCapabilityActionGeminiCountTokens
 	case ProtocolCapabilityActionGeminiEmbedContent:
@@ -862,18 +1024,50 @@ func splitPublicRouteSegments(value string) []string {
 func publicEndpointRouteSpecificity(pattern string) int {
 	score := 0
 	for _, segment := range splitPublicRouteSegments(pattern) {
-		switch {
-		case strings.HasPrefix(segment, "*"):
-			score += 1
-		case strings.HasPrefix(segment, ":"):
-			score += 2
-		case strings.Contains(segment, "{"):
-			score += 3
-		default:
-			score += 4
+		literalCount, paramCount, wildcard := publicEndpointRouteSegmentWeights(segment)
+		score += 2
+		score += literalCount * 10
+		score += paramCount * 5
+		if wildcard {
+			score++
 		}
 	}
 	return score
+}
+
+func publicEndpointRouteSegmentWeights(segment string) (literalCount int, paramCount int, wildcard bool) {
+	for index := 0; index < len(segment); {
+		switch segment[index] {
+		case '*':
+			if index == 0 {
+				return literalCount, paramCount, true
+			}
+		case '{':
+			if end := strings.IndexByte(segment[index:], '}'); end >= 0 {
+				paramCount++
+				index += end + 1
+				continue
+			}
+		case ':':
+			if index > 0 && segment[index-1] == '}' {
+				literalCount++
+				index++
+				continue
+			}
+			if index+1 < len(segment) && isRouteParamStart(segment[index+1]) {
+				paramCount++
+				end := index + 2
+				for end < len(segment) && isRouteParamContinue(segment[end]) {
+					end++
+				}
+				index = end
+				continue
+			}
+		}
+		literalCount++
+		index++
+	}
+	return literalCount, paramCount, false
 }
 
 func buildPublicRouteSegmentExpression(pattern string) string {

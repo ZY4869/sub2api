@@ -168,3 +168,104 @@ func TestConvertClaudeMessagesToGeminiGenerateContent_VersionedWebSearchTool(t *
 	_, hasGoogleSearch := searchTool["googleSearch"]
 	require.True(t, hasGoogleSearch)
 }
+
+func TestConvertClaudeMessagesToGeminiGenerateContent_PreservesGeminiOfficialFields(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{
+		"model":"gemini-2.5-pro",
+		"system":"anthropic system",
+		"messages":[{"role":"user","content":"hello"}],
+		"service_tier":"flex",
+		"cachedContent":"cachedContents/cache-1",
+		"safetySettings":[{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"BLOCK_ONLY_HIGH"}],
+		"systemInstruction":{"parts":[{"text":"existing system"}]},
+		"generationConfig":{"candidateCount":2,"topP":0.9,"responseModalities":["TEXT"]},
+		"toolConfig":{"functionCallingConfig":{"mode":"ANY","allowedFunctionNames":["keep_me"]}},
+		"tool_choice":{"type":"auto"},
+		"max_tokens":256,
+		"top_p":0.3
+	}`)
+
+	out, err := convertClaudeMessagesToGeminiGenerateContent(body)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out, &payload))
+
+	require.Equal(t, "flex", payload["service_tier"])
+	require.Equal(t, "cachedContents/cache-1", payload["cachedContent"])
+
+	safetySettings, ok := payload["safetySettings"].([]any)
+	require.True(t, ok)
+	require.Len(t, safetySettings, 1)
+
+	systemInstruction, ok := payload["systemInstruction"].(map[string]any)
+	require.True(t, ok)
+	parts, ok := systemInstruction["parts"].([]any)
+	require.True(t, ok)
+	texts := make([]string, 0, len(parts))
+	for _, rawPart := range parts {
+		part, ok := rawPart.(map[string]any)
+		require.True(t, ok)
+		if text, ok := part["text"].(string); ok {
+			texts = append(texts, text)
+		}
+	}
+	require.Contains(t, texts, "existing system")
+	require.Contains(t, texts, "anthropic system")
+
+	generationConfig, ok := payload["generationConfig"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(2), generationConfig["candidateCount"])
+	require.Equal(t, 0.9, generationConfig["topP"])
+	require.Equal(t, float64(256), generationConfig["maxOutputTokens"])
+
+	toolConfig, ok := payload["toolConfig"].(map[string]any)
+	require.True(t, ok)
+	functionCallingConfig, ok := toolConfig["functionCallingConfig"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "ANY", functionCallingConfig["mode"])
+	require.Equal(t, []any{"keep_me"}, functionCallingConfig["allowedFunctionNames"])
+}
+
+func TestConvertClaudeMessagesToGeminiGenerateContent_PreservesExistingGeminiFunctionDeclarationTools(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{
+		"model":"gemini-2.5-pro",
+		"messages":[{"role":"user","content":"hello"}],
+		"tools":[
+			{"functionDeclarations":[{"name":"existing_tool","description":"Keep me","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}]},
+			{"name":"new_tool","description":"New tool","input_schema":{"type":"object","properties":{"zip":{"type":"string"}}}}
+		]
+	}`)
+
+	out, err := convertClaudeMessagesToGeminiGenerateContent(body)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(out, &payload))
+
+	tools, ok := payload["tools"].([]any)
+	require.True(t, ok)
+	require.Len(t, tools, 2)
+
+	existingTool, ok := tools[0].(map[string]any)
+	require.True(t, ok)
+	existingDecls, ok := existingTool["functionDeclarations"].([]any)
+	require.True(t, ok)
+	require.Len(t, existingDecls, 1)
+	existingDecl, ok := existingDecls[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "existing_tool", existingDecl["name"])
+
+	convertedTool, ok := tools[1].(map[string]any)
+	require.True(t, ok)
+	convertedDecls, ok := convertedTool["functionDeclarations"].([]any)
+	require.True(t, ok)
+	require.Len(t, convertedDecls, 1)
+	convertedDecl, ok := convertedDecls[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "new_tool", convertedDecl["name"])
+}

@@ -45,6 +45,7 @@ type ProtocolNormalizeResult struct {
 	GeminiPublicVersion              string   `json:"gemini_public_version,omitempty"`
 	GeminiPublicResource             string   `json:"gemini_public_resource,omitempty"`
 	GeminiAliasUsed                  bool     `json:"gemini_alias_used"`
+	GeminiModelMetadataSource        string   `json:"gemini_model_metadata_source,omitempty"`
 	UpstreamPath                     string   `json:"upstream_path,omitempty"`
 	GeminiBillingFallbackReason      string   `json:"gemini_billing_fallback_reason,omitempty"`
 	BillingRuleID                    string   `json:"billing_rule_id,omitempty"`

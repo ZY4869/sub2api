@@ -164,19 +164,23 @@ type BillingSimulationResult struct {
 }
 
 type GeminiRequestClassification struct {
-	Surface              string `json:"surface"`
-	OperationType        string `json:"operation_type"`
-	RequestedServiceTier string `json:"requested_service_tier,omitempty"`
-	ServiceTier          string `json:"service_tier,omitempty"`
-	BatchMode            string `json:"batch_mode,omitempty"`
-	InputModality        string `json:"input_modality,omitempty"`
-	OutputModality       string `json:"output_modality,omitempty"`
-	CachePhase           string `json:"cache_phase,omitempty"`
-	GroundingKind        string `json:"grounding_kind,omitempty"`
-	ContextWindow        string `json:"context_window,omitempty"`
-	ChargeSource         string `json:"charge_source,omitempty"`
-	MediaType            string `json:"media_type,omitempty"`
-	MediaUnits           int    `json:"media_units,omitempty"`
+	Surface               string `json:"surface"`
+	OperationType         string `json:"operation_type"`
+	RequestedMode         string `json:"requested_mode,omitempty"`
+	ResolvedMode          string `json:"resolved_mode,omitempty"`
+	RequestedServiceTier  string `json:"requested_service_tier,omitempty"`
+	ServiceTierExplicit   bool   `json:"service_tier_explicit,omitempty"`
+	ServiceTierDowngraded bool   `json:"service_tier_downgraded,omitempty"`
+	ServiceTier           string `json:"service_tier,omitempty"`
+	BatchMode             string `json:"batch_mode,omitempty"`
+	InputModality         string `json:"input_modality,omitempty"`
+	OutputModality        string `json:"output_modality,omitempty"`
+	CachePhase            string `json:"cache_phase,omitempty"`
+	GroundingKind         string `json:"grounding_kind,omitempty"`
+	ContextWindow         string `json:"context_window,omitempty"`
+	ChargeSource          string `json:"charge_source,omitempty"`
+	MediaType             string `json:"media_type,omitempty"`
+	MediaUnits            int    `json:"media_units,omitempty"`
 }
 
 type GeminiBillingCalculationInput struct {
@@ -189,6 +193,7 @@ type GeminiBillingCalculationInput struct {
 	MediaType            string
 	RateMultiplier       float64
 	RequestedServiceTier string
+	ResolvedServiceTier  string
 	Charges              BillingSimulationCharges
 }
 

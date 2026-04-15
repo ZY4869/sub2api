@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
 	"strings"
@@ -54,6 +55,9 @@ func (s *GeminiMessagesCompatService) resolvePlatformAndSchedulingMode(ctx conte
 		return ctx, forcePlatform, false, true, nil
 	}
 	if groupID != nil {
+		if s.groupRepo == nil {
+			return ctx, "", false, false, infraerrors.ServiceUnavailable("GROUP_REPO_UNAVAILABLE", "group repository is unavailable")
+		}
 		var group *Group
 		var err error
 		if ctxGroup, ok := ctx.Value(ctxkey.Group).(*Group); ok && IsGroupContextValid(ctxGroup) && ctxGroup.ID == *groupID {
@@ -208,12 +212,18 @@ func (s *GeminiMessagesCompatService) getSchedulableAccount(ctx context.Context,
 	if s.schedulerSnapshot != nil {
 		return s.schedulerSnapshot.GetAccount(ctx, accountID)
 	}
+	if s.accountRepo == nil {
+		return nil, infraerrors.ServiceUnavailable("ACCOUNT_REPO_UNAVAILABLE", "account repository is unavailable")
+	}
 	return s.accountRepo.GetByID(ctx, accountID)
 }
 func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Context, groupID *int64, platform string, hasForcePlatform bool) ([]Account, error) {
 	selectionCtx := ctx
 	if groupID != nil && platform == PlatformGemini && GeminiPublicProtocolFromContext(ctx) != "" {
 		if ctxGroup, ok := ctx.Value(ctxkey.Group).(*Group); !ok || !IsGroupContextValid(ctxGroup) || ctxGroup.ID != *groupID {
+			if s.groupRepo == nil {
+				return nil, infraerrors.ServiceUnavailable("GROUP_REPO_UNAVAILABLE", "group repository is unavailable")
+			}
 			if group, err := s.groupRepo.GetByIDLite(ctx, *groupID); err == nil {
 				selectionCtx = withGeminiGroupContext(ctx, group)
 			}
@@ -222,6 +232,9 @@ func (s *GeminiMessagesCompatService) listSchedulableAccountsOnce(ctx context.Co
 	if s.schedulerSnapshot != nil {
 		accounts, _, err := s.schedulerSnapshot.ListSchedulableAccounts(ctx, groupID, platform, hasForcePlatform)
 		return filterGeminiAccountsByPublicProtocol(selectionCtx, accounts, platform), err
+	}
+	if s.accountRepo == nil {
+		return nil, infraerrors.ServiceUnavailable("ACCOUNT_REPO_UNAVAILABLE", "account repository is unavailable")
 	}
 	useMixedScheduling := platform == PlatformGemini && !hasForcePlatform
 	queryPlatforms := QueryPlatformsForGroupPlatform(platform, useMixedScheduling)

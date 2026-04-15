@@ -18,11 +18,16 @@ func (c *GeminiRequestClassifier) ClassifySimulation(input BillingSimulationInpu
 	batchMode := normalizeBillingActualBatchMode(input.BatchMode)
 	cachePhase := normalizeBillingDimension(input.CachePhase, "")
 	requestedServiceTier := normalizeGeminiRequestedServiceTier(input.ServiceTier)
+	serviceTierExplicit := strings.TrimSpace(input.ServiceTier) != ""
+	resolvedServiceTier := resolveGeminiResolvedServiceTier(requestedServiceTier, operationType, batchMode, cachePhase)
 	classification := &GeminiRequestClassification{
 		Surface:              normalizeBillingSurface(input.Surface),
 		OperationType:        operationType,
+		RequestedMode:        resolveGeminiRequestedMode(serviceTierExplicit, requestedServiceTier, operationType, batchMode, cachePhase),
+		ResolvedMode:         resolveGeminiResolvedMode(requestedServiceTier, operationType, batchMode, cachePhase),
 		RequestedServiceTier: normalizeBillingDimension(requestedServiceTier, BillingServiceTierStandard),
-		ServiceTier:          resolveGeminiResolvedServiceTier(requestedServiceTier, operationType, batchMode, cachePhase),
+		ServiceTierExplicit:  serviceTierExplicit,
+		ServiceTier:          resolvedServiceTier,
 		BatchMode:            batchMode,
 		InputModality:        normalizeBillingDimension(input.InputModality, "text"),
 		OutputModality:       normalizeBillingDimension(input.OutputModality, inferSimulationOutputModality(input)),
@@ -40,21 +45,34 @@ func (c *GeminiRequestClassifier) ClassifyRequest(input GeminiBillingCalculation
 	operationType := detectGeminiOperationType(input.InboundEndpoint, input.RequestBody)
 	batchMode := detectGeminiBatchMode(input.InboundEndpoint)
 	cachePhase := detectGeminiCachePhase(input.InboundEndpoint)
-	requestedServiceTier := parseGeminiRequestedServiceTier(input.RequestedServiceTier, input.RequestBody)
+	requestedServiceTier, serviceTierExplicit := parseGeminiRequestedServiceTier(input.RequestedServiceTier, input.RequestBody)
+	resolvedServiceTierInput, resolvedServiceTierExplicit := parseGeminiResolvedServiceTier(input.ResolvedServiceTier)
 	groundingKind := detectGeminiGroundingKind(input.RequestBody)
 	inputModality, outputModality := detectGeminiModalities(input.RequestBody, input.MediaType, input.ImageCount, input.VideoRequests)
+	resolvedServiceTierBase := requestedServiceTier
+	if resolvedServiceTierExplicit {
+		resolvedServiceTierBase = resolvedServiceTierInput
+	}
+	resolvedServiceTier := resolveGeminiResolvedServiceTier(resolvedServiceTierBase, operationType, batchMode, cachePhase)
 	classification := &GeminiRequestClassification{
 		Surface:              surface,
 		OperationType:        operationType,
+		RequestedMode:        resolveGeminiRequestedMode(serviceTierExplicit, requestedServiceTier, operationType, batchMode, cachePhase),
+		ResolvedMode:         resolveGeminiResolvedMode(resolvedServiceTierBase, operationType, batchMode, cachePhase),
 		RequestedServiceTier: normalizeBillingDimension(requestedServiceTier, BillingServiceTierStandard),
-		ServiceTier:          resolveGeminiResolvedServiceTier(requestedServiceTier, operationType, batchMode, cachePhase),
-		BatchMode:            batchMode,
-		InputModality:        inputModality,
-		OutputModality:       outputModality,
-		CachePhase:           cachePhase,
-		GroundingKind:        groundingKind,
-		MediaType:            normalizeBillingDimension(input.MediaType, outputModality),
-		MediaUnits:           inferRequestMediaUnits(input, outputModality),
+		ServiceTierExplicit:  serviceTierExplicit,
+		ServiceTierDowngraded: serviceTierExplicit &&
+			resolvedServiceTierExplicit &&
+			geminiServiceTierEligible(operationType, batchMode, cachePhase) &&
+			normalizeBillingActualServiceTier(requestedServiceTier) != normalizeBillingActualServiceTier(resolvedServiceTierInput),
+		ServiceTier:    resolvedServiceTier,
+		BatchMode:      batchMode,
+		InputModality:  inputModality,
+		OutputModality: outputModality,
+		CachePhase:     cachePhase,
+		GroundingKind:  groundingKind,
+		MediaType:      normalizeBillingDimension(input.MediaType, outputModality),
+		MediaUnits:     inferRequestMediaUnits(input, outputModality),
 	}
 	classification.ChargeSource = inferGeminiChargeSource(classification)
 	return classification
@@ -89,6 +107,7 @@ func detectGeminiOperationType(inboundEndpoint string, body []byte) string {
 		return "generate_content"
 	case strings.Contains(path, ":streamgeneratecontent"),
 		strings.Contains(path, ":generatecontent"),
+		strings.Contains(path, ":generateanswer"),
 		strings.Contains(path, "/chat/completions"),
 		strings.Contains(path, "/images/generations"),
 		strings.Contains(path, "/videos"):
@@ -327,29 +346,43 @@ func normalizeBillingDimension(value string, fallback string) string {
 	return value
 }
 
-func parseGeminiRequestedServiceTier(value string, body []byte) string {
+func parseGeminiRequestedServiceTier(value string, body []byte) (string, bool) {
 	if strings.TrimSpace(value) != "" {
-		return normalizeGeminiRequestedServiceTier(value)
+		return normalizeGeminiRequestedServiceTier(value), true
 	}
-	if extracted := extractGeminiRequestedServiceTierFromBody(body); extracted != nil {
-		return *extracted
+	if extracted, explicit := extractGeminiRequestedServiceTierValue(body); explicit {
+		return extracted, true
 	}
-	return BillingServiceTierStandard
+	return BillingServiceTierStandard, false
+}
+
+func parseGeminiResolvedServiceTier(value string) (string, bool) {
+	if strings.TrimSpace(value) == "" {
+		return "", false
+	}
+	return normalizeGeminiRequestedServiceTier(value), true
 }
 
 func extractGeminiRequestedServiceTierFromBody(body []byte) *string {
-	if len(body) == 0 {
-		return nil
-	}
-	raw := gjson.GetBytes(body, "service_tier")
-	if !raw.Exists() {
-		return nil
-	}
-	normalized := normalizeGeminiRequestedServiceTier(raw.String())
-	if strings.TrimSpace(normalized) == "" {
+	normalized, explicit := extractGeminiRequestedServiceTierValue(body)
+	if !explicit {
 		return nil
 	}
 	return &normalized
+}
+
+func extractGeminiRequestedServiceTierValue(body []byte) (string, bool) {
+	if len(body) == 0 {
+		return "", false
+	}
+	for _, path := range []string{"service_tier", "serviceTier"} {
+		raw := gjson.GetBytes(body, path)
+		if !raw.Exists() {
+			continue
+		}
+		return normalizeGeminiRequestedServiceTier(raw.String()), true
+	}
+	return "", false
 }
 
 func normalizeGeminiRequestedServiceTier(value string) string {
@@ -373,10 +406,56 @@ func resolveGeminiResolvedServiceTier(requestedServiceTier string, operationType
 	return normalizeBillingActualServiceTier(requestedServiceTier)
 }
 
+func resolveGeminiRequestedMode(serviceTierExplicit bool, requestedServiceTier string, operationType string, batchMode string, cachePhase string) string {
+	requestedServiceTier = normalizeGeminiRequestedServiceTier(requestedServiceTier)
+	if serviceTierExplicit {
+		return normalizeBillingActualServiceTier(requestedServiceTier)
+	}
+	return resolveGeminiResolvedMode(requestedServiceTier, operationType, batchMode, cachePhase)
+}
+
+func resolveGeminiResolvedMode(requestedServiceTier string, operationType string, batchMode string, cachePhase string) string {
+	if normalizeBillingActualBatchMode(batchMode) == BillingBatchModeBatch {
+		return BillingBatchModeBatch
+	}
+	if normalizeBillingDimension(cachePhase, "") != "" {
+		return "cache"
+	}
+	return resolveGeminiResolvedServiceTier(requestedServiceTier, operationType, batchMode, cachePhase)
+}
+
+func resolveGeminiModeFallbackReason(classification *GeminiRequestClassification) string {
+	if classification == nil || !classification.ServiceTierExplicit {
+		return ""
+	}
+	if normalizeBillingActualBatchMode(classification.BatchMode) == BillingBatchModeBatch {
+		return "service_tier_ignored_for_batch"
+	}
+	if normalizeBillingDimension(classification.CachePhase, "") != "" {
+		return "service_tier_ignored_for_cache"
+	}
+	if !geminiServiceTierOperationEligible(classification.OperationType) {
+		return "service_tier_ignored_for_non_realtime_operation"
+	}
+	if classification.ServiceTierDowngraded {
+		return "service_tier_downgraded_by_upstream"
+	}
+	return ""
+}
+
 func geminiServiceTierEligible(operationType string, batchMode string, cachePhase string) bool {
-	return normalizeBillingDimension(operationType, "generate_content") == "generate_content" &&
+	return geminiServiceTierOperationEligible(operationType) &&
 		normalizeBillingActualBatchMode(batchMode) == BillingBatchModeRealtime &&
 		normalizeBillingDimension(cachePhase, "") == ""
+}
+
+func geminiServiceTierOperationEligible(operationType string) bool {
+	switch normalizeBillingDimension(operationType, "generate_content") {
+	case "generate_content", "interaction":
+		return true
+	default:
+		return false
+	}
 }
 
 func detectGroundingQueryCount(body []byte, groundingKind string) int {

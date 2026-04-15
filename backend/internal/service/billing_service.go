@@ -42,29 +42,30 @@ type BillingCache interface {
 	InvalidateAPIKeyRateLimit(ctx context.Context, keyID int64) error
 }
 
-// ModelPricing 模型价格配置（per-token价格，与LiteLLM格式一致）
+// ModelPricing 妯″瀷浠锋牸閰嶇疆锛坧er-token浠锋牸锛屼笌LiteLLM鏍煎紡涓€鑷达級
 type ModelPricing struct {
-	InputPricePerToken                        float64 // 每token输入价格 (USD)
-	InputPricePerTokenPriority                float64 // priority service tier 下每token输入价格 (USD)
+	InputPricePerToken                        float64
+	InputPricePerTokenPriority                float64
 	InputTokenThreshold                       int
 	InputPricePerTokenAboveThreshold          float64
 	InputPricePerTokenPriorityAboveThreshold  float64
-	OutputPricePerToken                       float64 // 每token输出价格 (USD)
-	OutputPricePerTokenPriority               float64 // priority service tier 下每token输出价格 (USD)
+	OutputPricePerToken                       float64
+	OutputPricePerTokenPriority               float64
 	OutputTokenThreshold                      int
 	OutputPricePerTokenAboveThreshold         float64
 	OutputPricePerTokenPriorityAboveThreshold float64
-	OutputPricePerImage                       float64 // 每张图片价格 (USD)
-	OutputPricePerVideoRequest                float64 // 每次视频请求价格 (USD)
-	CacheCreationPricePerToken                float64 // 缓存创建每token价格 (USD)
-	CacheReadPricePerToken                    float64 // 缓存读取每token价格 (USD)
-	CacheReadPricePerTokenPriority            float64 // priority service tier 下缓存读取每token价格 (USD)
-	CacheCreation5mPrice                      float64 // 5分钟缓存创建每token价格 (USD)
-	CacheCreation1hPrice                      float64 // 1小时缓存创建每token价格 (USD)
-	SupportsCacheBreakdown                    bool    // 是否支持详细的缓存分类
-	LongContextInputThreshold                 int     // 超过阈值后按整次会话提升输入价格
-	LongContextInputMultiplier                float64 // 长上下文整次会话输入倍率
-	LongContextOutputMultiplier               float64 // 长上下文整次会话输出倍率
+	OutputPricePerImage                       float64
+	OutputPricePerImagePriority               float64
+	OutputPricePerVideoRequest                float64
+	CacheCreationPricePerToken                float64
+	CacheReadPricePerToken                    float64
+	CacheReadPricePerTokenPriority            float64
+	CacheCreation5mPrice                      float64
+	CacheCreation1hPrice                      float64
+	SupportsCacheBreakdown                    bool
+	LongContextInputThreshold                 int
+	LongContextInputMultiplier                float64
+	LongContextOutputMultiplier               float64
 }
 
 const (
@@ -102,7 +103,7 @@ func resolveTieredTokenPrice(tokenCount int, lowPrice float64, threshold int, hi
 	return highPrice
 }
 
-// UsageTokens 使用的token数量
+// UsageTokens 浣跨敤鐨則oken鏁伴噺
 type UsageTokens struct {
 	InputTokens           int
 	OutputTokens          int
@@ -112,17 +113,17 @@ type UsageTokens struct {
 	CacheCreation1hTokens int
 }
 
-// CostBreakdown 费用明细
+// CostBreakdown 璐圭敤鏄庣粏
 type CostBreakdown struct {
 	InputCost         float64
 	OutputCost        float64
 	CacheCreationCost float64
 	CacheReadCost     float64
 	TotalCost         float64
-	ActualCost        float64 // 应用倍率后的实际费用
+	ActualCost        float64 // 搴旂敤鍊嶇巼鍚庣殑瀹為檯璐圭敤
 }
 
-// BillingService 计费服务
+// BillingService 璁¤垂鏈嶅姟
 type BillingService struct {
 	cfg                    *config.Config
 	pricingService         *PricingService
@@ -134,7 +135,7 @@ type BillingService struct {
 	priceOverrides         map[string]*ModelPricingOverride
 }
 
-// NewBillingService 创建计费服务实例
+// NewBillingService 鍒涘缓璁¤垂鏈嶅姟瀹炰緥
 func NewBillingService(cfg *config.Config, pricingService *PricingService) *BillingService {
 	s := &BillingService{
 		cfg:                    cfg,
@@ -144,7 +145,7 @@ func NewBillingService(cfg *config.Config, pricingService *PricingService) *Bill
 		priceOverrides:         make(map[string]*ModelPricingOverride),
 	}
 
-	// 初始化硬编码回退价格（当动态价格不可用时使用）
+	// 鍒濆鍖栫‖缂栫爜鍥為€€浠锋牸锛堝綋鍔ㄦ€佷环鏍间笉鍙敤鏃朵娇鐢級
 	s.initFallbackPricing()
 
 	return s
@@ -158,8 +159,8 @@ func (s *BillingService) SetBillingCenterService(billingCenterService *BillingCe
 	s.billingCenterService = billingCenterService
 }
 
-// initFallbackPricing 初始化硬编码回退价格（当动态价格不可用时使用）
-// 价格单位：USD per token（与LiteLLM格式一致）
+// initFallbackPricing 鍒濆鍖栫‖缂栫爜鍥為€€浠锋牸锛堝綋鍔ㄦ€佷环鏍间笉鍙敤鏃朵娇鐢級
+// 浠锋牸鍗曚綅锛歎SD per token锛堜笌LiteLLM鏍煎紡涓€鑷达級
 func (s *BillingService) initFallbackPricing() {
 	// Claude 4.5 Opus
 	s.fallbackPrices["claude-opus-4.5"] = &ModelPricing{
@@ -215,7 +216,7 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown:     false,
 	}
 
-	// Claude 4.6 Opus (与4.5同价)
+	// Claude 4.6 Opus (涓?.5鍚屼环)
 	s.fallbackPrices["claude-opus-4.6"] = s.fallbackPrices["claude-opus-4.5"]
 
 	// Gemini 3.1 Pro
@@ -227,7 +228,7 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown:     false,
 	}
 
-	// OpenAI GPT-5.1（本地兜底，防止动态定价不可用时拒绝计费）
+	// OpenAI GPT-5.1锛堟湰鍦板厹搴曪紝闃叉鍔ㄦ€佸畾浠蜂笉鍙敤鏃舵嫆缁濊璐癸級
 	s.fallbackPrices["gpt-5.1"] = &ModelPricing{
 		InputPricePerToken:             1.25e-6, // $1.25 per MTok
 		InputPricePerTokenPriority:     2.5e-6,  // $2.5 per MTok
@@ -238,7 +239,7 @@ func (s *BillingService) initFallbackPricing() {
 		CacheReadPricePerTokenPriority: 0.25e-6,
 		SupportsCacheBreakdown:         false,
 	}
-	// OpenAI GPT-5.4（业务指定价格）
+	// OpenAI GPT-5.4锛堜笟鍔℃寚瀹氫环鏍硷級
 	s.fallbackPrices["gpt-5.4"] = &ModelPricing{
 		InputPricePerToken:             2.5e-6,  // $2.5 per MTok
 		InputPricePerTokenPriority:     5e-6,    // $5 per MTok
@@ -252,7 +253,7 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextInputMultiplier:     openAIGPT54LongContextInputMultiplier,
 		LongContextOutputMultiplier:    openAIGPT54LongContextOutputMultiplier,
 	}
-	// OpenAI GPT-5.4 Pro（官方定价兜底）
+	// OpenAI GPT-5.4 Pro锛堝畼鏂瑰畾浠峰厹搴曪級
 	s.fallbackPrices["gpt-5.4-pro"] = &ModelPricing{
 		InputPricePerToken:                3e-5, // $30 per MTok
 		InputTokenThreshold:               openAIGPT54LongContextInputThreshold,
@@ -265,7 +266,7 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextInputMultiplier:        openAIGPT54LongContextInputMultiplier,
 		LongContextOutputMultiplier:       openAIGPT54LongContextOutputMultiplier,
 	}
-	// OpenAI GPT-5.2（本地兜底）
+	// OpenAI GPT-5.2锛堟湰鍦板厹搴曪級
 	s.fallbackPrices["gpt-5.2"] = &ModelPricing{
 		InputPricePerToken:             1.75e-6,
 		InputPricePerTokenPriority:     3.5e-6,
@@ -276,7 +277,7 @@ func (s *BillingService) initFallbackPricing() {
 		CacheReadPricePerTokenPriority: 0.35e-6,
 		SupportsCacheBreakdown:         false,
 	}
-	// Codex 族兜底统一按 GPT-5.1 Codex 价格计费
+	// Codex 鏃忓厹搴曠粺涓€鎸?GPT-5.1 Codex 浠锋牸璁¤垂
 	s.fallbackPrices["gpt-5.1-codex"] = &ModelPricing{
 		InputPricePerToken:             1.5e-6, // $1.5 per MTok
 		InputPricePerTokenPriority:     3e-6,   // $3 per MTok
@@ -300,11 +301,11 @@ func (s *BillingService) initFallbackPricing() {
 	s.fallbackPrices["gpt-5.3-codex"] = s.fallbackPrices["gpt-5.1-codex"]
 }
 
-// getFallbackPricing 根据模型系列获取回退价格
+// getFallbackPricing 鏍规嵁妯″瀷绯诲垪鑾峰彇鍥為€€浠锋牸
 func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	modelLower := strings.ToLower(model)
 
-	// 按模型系列匹配
+	// 鎸夋ā鍨嬬郴鍒楀尮閰?
 	if strings.Contains(modelLower, "opus") {
 		if strings.Contains(modelLower, "4.6") || strings.Contains(modelLower, "4-6") {
 			return s.fallbackPrices["claude-opus-4.6"]
@@ -326,7 +327,7 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 		}
 		return s.fallbackPrices["claude-3-haiku"]
 	}
-	// Claude 未知型号统一回退到 Sonnet，避免计费中断。
+	// Claude 鏈煡鍨嬪彿缁熶竴鍥為€€鍒?Sonnet锛岄伩鍏嶈璐逛腑鏂€?
 	if strings.Contains(modelLower, "claude") {
 		return s.fallbackPrices["claude-sonnet-4"]
 	}
@@ -334,7 +335,7 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 		return s.fallbackPrices["gemini-3.1-pro"]
 	}
 
-	// OpenAI 仅匹配已知 GPT-5/Codex 族，避免未知 OpenAI 型号误计价。
+	// OpenAI 浠呭尮閰嶅凡鐭?GPT-5/Codex 鏃忥紝閬垮厤鏈煡 OpenAI 鍨嬪彿璇浠枫€?
 	if strings.Contains(modelLower, "gpt-5") || strings.Contains(modelLower, "codex") {
 		normalized := normalizeCodexModel(modelLower)
 		switch {
@@ -358,9 +359,9 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 	return nil
 }
 
-// GetModelPricing 获取模型价格配置
+// GetModelPricing 鑾峰彇妯″瀷浠锋牸閰嶇疆
 func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
-	// 标准化模型名称（转小写）
+	// 鏍囧噯鍖栨ā鍨嬪悕绉帮紙杞皬鍐欙級
 	model = strings.ToLower(model)
 	if s.modelRegistryService != nil {
 		if pricingModel, ok, err := s.modelRegistryService.ResolvePricingModel(context.Background(), model); err == nil && ok && pricingModel != "" {
@@ -368,13 +369,13 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 		}
 	}
 
-	// 1. 优先从动态价格服务获取
+	// 1. 浼樺厛浠庡姩鎬佷环鏍兼湇鍔¤幏鍙?
 	if s.pricingService != nil {
 		litellmPricing := s.pricingService.GetModelPricing(model)
 		if litellmPricing != nil {
-			// 启用 5m/1h 分类计费的条件：
-			// 1. 存在 1h 价格
-			// 2. 1h 价格 > 5m 价格（防止 LiteLLM 数据错误导致少收费）
+			// 鍚敤 5m/1h 鍒嗙被璁¤垂鐨勬潯浠讹細
+			// 1. 瀛樺湪 1h 浠锋牸
+			// 2. 1h 浠锋牸 > 5m 浠锋牸锛堥槻姝?LiteLLM 鏁版嵁閿欒瀵艰嚧灏戞敹璐癸級
 			price5m := litellmPricing.CacheCreationInputTokenCost
 			price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
 			enableBreakdown := price1h > 0 && price1h > price5m
@@ -390,6 +391,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				OutputPricePerTokenAboveThreshold:         litellmPricing.OutputCostPerTokenAboveThreshold,
 				OutputPricePerTokenPriorityAboveThreshold: litellmPricing.OutputCostPerTokenPriorityAboveThreshold,
 				OutputPricePerImage:                       litellmPricing.OutputCostPerImage,
+				OutputPricePerImagePriority:               litellmPricing.OutputCostPerImagePriority,
 				OutputPricePerVideoRequest:                litellmPricing.OutputCostPerVideoRequest,
 				CacheCreationPricePerToken:                litellmPricing.CacheCreationInputTokenCost,
 				CacheReadPricePerToken:                    litellmPricing.CacheReadInputTokenCost,
@@ -404,7 +406,7 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 		}
 	}
 
-	// 2. 使用硬编码回退价格
+	// 2. 浣跨敤纭紪鐮佸洖閫€浠锋牸
 	fallback := s.getFallbackPricing(model)
 	if fallback != nil {
 		log.Printf("[Billing] Using fallback pricing for model: %s", model)
@@ -514,6 +516,9 @@ func applyModelPricingOverride(pricing *ModelPricing, override *ModelPricingOver
 	if override.OutputCostPerImage != nil {
 		cloned.OutputPricePerImage = *override.OutputCostPerImage
 	}
+	if override.OutputCostPerImagePriority != nil {
+		cloned.OutputPricePerImagePriority = *override.OutputCostPerImagePriority
+	}
 	if override.OutputCostPerVideoRequest != nil {
 		cloned.OutputPricePerVideoRequest = *override.OutputCostPerVideoRequest
 	}
@@ -530,7 +535,7 @@ func (s *BillingService) getPricingForBilling(model string) (*ModelPricing, erro
 	return pricing, nil
 }
 
-// CalculateCost 计算使用费用
+// CalculateCost 璁＄畻浣跨敤璐圭敤
 func (s *BillingService) CalculateCost(model string, tokens UsageTokens, rateMultiplier float64) (*CostBreakdown, error) {
 	return s.CalculateCostWithServiceTier(model, tokens, rateMultiplier, "")
 }
@@ -654,7 +659,7 @@ func isOpenAIGPT54Model(model string) bool {
 	return strings.HasPrefix(normalized, "gpt-5.4")
 }
 
-// CalculateCostWithConfig 使用配置中的默认倍率计算费用
+// CalculateCostWithConfig 浣跨敤閰嶇疆涓殑榛樿鍊嶇巼璁＄畻璐圭敤
 func (s *BillingService) CalculateCostWithConfig(model string, tokens UsageTokens) (*CostBreakdown, error) {
 	multiplier := s.cfg.Default.RateMultiplier
 	if multiplier <= 0 {
@@ -663,13 +668,11 @@ func (s *BillingService) CalculateCostWithConfig(model string, tokens UsageToken
 	return s.CalculateCost(model, tokens, multiplier)
 }
 
-// CalculateCostWithLongContext 计算费用，支持长上下文双倍计费
-// threshold: 阈值（如 200000），超过此值的部分按 extraMultiplier 倍计费
-// extraMultiplier: 超出部分的倍率（如 2.0 表示双倍）
+// CalculateCostWithLongContext 璁＄畻璐圭敤锛屾敮鎸侀暱涓婁笅鏂囧弻鍊嶈璐?// threshold: 闃堝€硷紙濡?200000锛夛紝瓒呰繃姝ゅ€肩殑閮ㄥ垎鎸?extraMultiplier 鍊嶈璐?// extraMultiplier: 瓒呭嚭閮ㄥ垎鐨勫€嶇巼锛堝 2.0 琛ㄧず鍙屽€嶏級
 //
-// 示例：缓存 210k + 输入 10k = 220k，阈值 200k，倍率 2.0
-// 拆分为：范围内 (200k, 0) + 范围外 (10k, 10k)
-// 范围内正常计费，范围外 × 2 计费
+// 绀轰緥锛氱紦瀛?210k + 杈撳叆 10k = 220k锛岄槇鍊?200k锛屽€嶇巼 2.0
+// 鎷嗗垎涓猴細鑼冨洿鍐?(200k, 0) + 鑼冨洿澶?(10k, 10k)
+// 鑼冨洿鍐呮甯歌璐癸紝鑼冨洿澶?脳 2 璁¤垂
 func (s *BillingService) CalculateCostWithLongContext(model string, tokens UsageTokens, rateMultiplier float64, threshold int, extraMultiplier float64) (*CostBreakdown, error) {
 	// ?????????????????
 	if threshold <= 0 || extraMultiplier <= 1 {
@@ -734,19 +737,19 @@ func (s *BillingService) CalculateCostWithLongContext(model string, tokens Usage
 	}, nil
 }
 
-// ListSupportedModels 列出所有支持的模型（现在总是返回true，因为有模糊匹配）
+// ListSupportedModels 鍒楀嚭鎵€鏈夋敮鎸佺殑妯″瀷锛堢幇鍦ㄦ€绘槸杩斿洖true锛屽洜涓烘湁妯＄硦鍖归厤锛?
 func (s *BillingService) ListSupportedModels() []string {
 	models := make([]string, 0)
-	// 返回回退价格支持的模型系列
+	// 杩斿洖鍥為€€浠锋牸鏀寔鐨勬ā鍨嬬郴鍒?
 	for model := range s.fallbackPrices {
 		models = append(models, model)
 	}
 	return models
 }
 
-// IsModelSupported 检查模型是否支持（现在总是返回true，因为有模糊匹配回退）
+// IsModelSupported 妫€鏌ユā鍨嬫槸鍚︽敮鎸侊紙鐜板湪鎬绘槸杩斿洖true锛屽洜涓烘湁妯＄硦鍖归厤鍥為€€锛?
 func (s *BillingService) IsModelSupported(model string) bool {
-	// 所有Claude模型都有回退价格支持
+	// 鎵€鏈塁laude妯″瀷閮芥湁鍥為€€浠锋牸鏀寔
 	modelLower := strings.ToLower(model)
 	return strings.Contains(modelLower, "claude") ||
 		strings.Contains(modelLower, "opus") ||
@@ -754,7 +757,7 @@ func (s *BillingService) IsModelSupported(model string) bool {
 		strings.Contains(modelLower, "haiku")
 }
 
-// GetEstimatedCost 估算费用（用于前端展示）
+// GetEstimatedCost 浼扮畻璐圭敤锛堢敤浜庡墠绔睍绀猴級
 func (s *BillingService) GetEstimatedCost(model string, estimatedInputTokens, estimatedOutputTokens int) (float64, error) {
 	tokens := UsageTokens{
 		InputTokens:  estimatedInputTokens,
@@ -769,7 +772,7 @@ func (s *BillingService) GetEstimatedCost(model string, estimatedInputTokens, es
 	return breakdown.ActualCost, nil
 }
 
-// GetPricingServiceStatus 获取价格服务状态
+// GetPricingServiceStatus 鑾峰彇浠锋牸鏈嶅姟鐘舵€?
 func (s *BillingService) GetPricingServiceStatus() map[string]any {
 	if s.pricingService != nil {
 		return s.pricingService.GetStatus()
@@ -781,7 +784,7 @@ func (s *BillingService) GetPricingServiceStatus() map[string]any {
 	}
 }
 
-// ForceUpdatePricing 强制更新价格数据
+// ForceUpdatePricing 寮哄埗鏇存柊浠锋牸鏁版嵁
 func (s *BillingService) ForceUpdatePricing() error {
 	if s.pricingService != nil {
 		return s.pricingService.ForceUpdate()
@@ -789,31 +792,28 @@ func (s *BillingService) ForceUpdatePricing() error {
 	return fmt.Errorf("pricing service not initialized")
 }
 
-// ImagePriceConfig 图片计费配置
+// ImagePriceConfig 鍥剧墖璁¤垂閰嶇疆
 type ImagePriceConfig struct {
-	Price1K *float64 // 1K 尺寸价格（nil 表示使用默认值）
-	Price2K *float64 // 2K 尺寸价格（nil 表示使用默认值）
-	Price4K *float64 // 4K 尺寸价格（nil 表示使用默认值）
+	Price1K *float64 // 1K 灏哄浠锋牸锛坣il 琛ㄧず浣跨敤榛樿鍊硷級
+	Price2K *float64 // 2K 灏哄浠锋牸锛坣il 琛ㄧず浣跨敤榛樿鍊硷級
+	Price4K *float64 // 4K 灏哄浠锋牸锛坣il 琛ㄧず浣跨敤榛樿鍊硷級
 }
 
-// CalculateImageCost 计算图片生成费用
-// model: 请求的模型名称（用于获取 LiteLLM 默认价格）
-// imageSize: 图片尺寸 "1K", "2K", "4K"
-// imageCount: 生成的图片数量
-// groupConfig: 分组配置的价格（可能为 nil，表示使用默认值）
-// rateMultiplier: 费率倍数
+// CalculateImageCost 璁＄畻鍥剧墖鐢熸垚璐圭敤
+// model: 璇锋眰鐨勬ā鍨嬪悕绉帮紙鐢ㄤ簬鑾峰彇 LiteLLM 榛樿浠锋牸锛?// imageSize: 鍥剧墖灏哄 "1K", "2K", "4K"
+// imageCount: 鐢熸垚鐨勫浘鐗囨暟閲?// groupConfig: 鍒嗙粍閰嶇疆鐨勪环鏍硷紙鍙兘涓?nil锛岃〃绀轰娇鐢ㄩ粯璁ゅ€硷級
+// rateMultiplier: 璐圭巼鍊嶆暟
 func (s *BillingService) CalculateImageCost(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64) *CostBreakdown {
+	return s.CalculateImageCostWithServiceTier(model, imageSize, imageCount, groupConfig, rateMultiplier, "")
+}
+
+func (s *BillingService) CalculateImageCostWithServiceTier(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64, serviceTier string) *CostBreakdown {
 	if imageCount <= 0 {
 		return &CostBreakdown{}
 	}
 
-	// 获取单价
-	unitPrice := s.getImageUnitPrice(model, imageSize, groupConfig)
-
-	// 计算总费用
+	unitPrice := s.getImageUnitPrice(model, imageSize, groupConfig, serviceTier)
 	totalCost := unitPrice * float64(imageCount)
-
-	// 应用倍率
 	if rateMultiplier <= 0 {
 		rateMultiplier = 1.0
 	}
@@ -840,9 +840,8 @@ func (s *BillingService) CalculateVideoRequestCost(model string, rateMultiplier 
 	}
 }
 
-// getImageUnitPrice 获取图片单价
-func (s *BillingService) getImageUnitPrice(model string, imageSize string, groupConfig *ImagePriceConfig) float64 {
-	// 优先使用分组配置的价格
+// getImageUnitPrice 鑾峰彇鍥剧墖鍗曚环
+func (s *BillingService) getImageUnitPrice(model string, imageSize string, groupConfig *ImagePriceConfig, serviceTier string) float64 {
 	if groupConfig != nil {
 		switch imageSize {
 		case "1K":
@@ -859,25 +858,29 @@ func (s *BillingService) getImageUnitPrice(model string, imageSize string, group
 			}
 		}
 	}
-
-	// 回退到 LiteLLM 默认价格
-	return s.getDefaultImagePrice(model, imageSize)
+	return s.getDefaultImagePrice(model, imageSize, serviceTier)
 }
 
-// getDefaultImagePrice 获取 LiteLLM 默认图片价格
-func (s *BillingService) getDefaultImagePrice(model string, imageSize string) float64 {
+// getDefaultImagePrice returns the default image price for the requested size and service tier.
+func (s *BillingService) getDefaultImagePrice(model string, imageSize string, serviceTier string) float64 {
 	basePrice := 0.0
 
-	if pricing, err := s.getPricingForBilling(model); err == nil && pricing != nil && pricing.OutputPricePerImage > 0 {
+	if pricing, err := s.getPricingForBilling(model); err == nil && pricing != nil {
 		basePrice = pricing.OutputPricePerImage
+		switch normalizeBillingServiceTier(serviceTier) {
+		case BillingServiceTierPriority:
+			if pricing.OutputPricePerImagePriority > 0 {
+				basePrice = pricing.OutputPricePerImagePriority
+			}
+		case BillingServiceTierFlex:
+			if basePrice > 0 {
+				basePrice *= serviceTierCostMultiplier(BillingServiceTierFlex)
+			}
+		}
 	}
-
-	// 如果没有找到价格，使用硬编码默认值（$0.134，来自 gemini-3-pro-image-preview）
 	if basePrice <= 0 {
 		basePrice = 0.134
 	}
-
-	// 2K 尺寸 1.5 倍，4K 尺寸翻倍
 	if imageSize == "2K" {
 		return basePrice * 1.5
 	}

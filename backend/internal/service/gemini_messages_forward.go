@@ -346,6 +346,8 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 	}
 	var usage *ClaudeUsage
 	var firstTokenMs *int
+	requestedServiceTier := extractGeminiRequestedServiceTierFromBody(body)
+	var resolvedServiceTier *string
 	if req.Stream {
 		streamRes, err := s.handleStreamingResponse(c, resp, startTime, originalModel)
 		if err != nil {
@@ -353,6 +355,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 		}
 		usage = streamRes.usage
 		firstTokenMs = streamRes.firstTokenMs
+		resolvedServiceTier = streamRes.resolvedServiceTier
 		if requestID == "" && strings.TrimSpace(streamRes.responseID) != "" {
 			requestID = strings.TrimSpace(streamRes.responseID)
 			c.Header("x-request-id", requestID)
@@ -364,6 +367,9 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 				return nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream stream")
 			}
 			collectedBytes, _ := json.Marshal(collected)
+			if candidate := extractGeminiResolvedServiceTierFromResponse(collectedBytes, resp.Header); candidate != nil {
+				resolvedServiceTier = candidate
+			}
 			claudeResp, usageObj2, convErr := convertGeminiToClaudeMessage(collected, originalModel, collectedBytes)
 			if convErr != nil {
 				var compatErr *geminiCompatResponseError
@@ -389,7 +395,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 			}
 		} else {
 			responseID := ""
-			usage, responseID, err = s.handleNonStreamingResponse(c, resp, originalModel)
+			usage, responseID, resolvedServiceTier, err = s.handleNonStreamingResponse(c, resp, originalModel)
 			if err != nil {
 				return nil, err
 			}
@@ -404,7 +410,13 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, ServiceTier: extractGeminiRequestedServiceTierFromBody(body), SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	if resolvedServiceTier == nil {
+		resolvedServiceTier = extractGeminiResolvedServiceTierFromResponse(nil, resp.Header)
+	}
+	if resolvedServiceTier == nil {
+		resolvedServiceTier = requestedServiceTier
+	}
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: req.Stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func isGeminiSignatureRelatedError(respBody []byte) bool {
 	msg := strings.ToLower(strings.TrimSpace(extractAntigravityErrorMessage(respBody)))
@@ -432,7 +444,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 		body = filteredBody
 	}
 	switch action {
-	case "generateContent", "streamGenerateContent", "countTokens":
+	case "generateContent", "generateAnswer", "streamGenerateContent", "countTokens":
 	default:
 		return nil, s.writeGoogleError(c, http.StatusNotFound, "Unsupported action: "+action)
 	}
@@ -750,6 +762,8 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	}
 	var usage *ClaudeUsage
 	var firstTokenMs *int
+	requestedServiceTier := extractGeminiRequestedServiceTierFromBody(body)
+	var resolvedServiceTier *string
 	if stream {
 		streamRes, err := s.handleNativeStreamingResponse(c, resp, startTime, isOAuth)
 		if err != nil {
@@ -757,6 +771,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 		}
 		usage = streamRes.usage
 		firstTokenMs = streamRes.firstTokenMs
+		resolvedServiceTier = streamRes.resolvedServiceTier
 		if requestID == "" && strings.TrimSpace(streamRes.responseID) != "" {
 			requestID = strings.TrimSpace(streamRes.responseID)
 		}
@@ -769,21 +784,25 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 			if err != nil {
 				return nil, s.writeGoogleError(c, http.StatusBadGateway, "Failed to read upstream stream")
 			}
+			collectedBytes, _ := json.Marshal(collected)
+			if candidate := extractGeminiResolvedServiceTierFromResponse(collectedBytes, resp.Header); candidate != nil {
+				resolvedServiceTier = candidate
+			}
 			if requestID == "" {
 				if responseID := strings.TrimSpace(stringValueFromAny(collected["responseId"])); responseID != "" {
 					requestID = responseID
 					c.Header("x-request-id", requestID)
 				}
 			}
-			b, _ := json.Marshal(collected)
-			c.Data(http.StatusOK, "application/json", b)
+			c.Data(http.StatusOK, "application/json", collectedBytes)
 			usage = usageObj
 		} else {
-			usageResp, err := s.handleNativeNonStreamingResponse(c, resp, isOAuth)
+			usageResp, resolvedTier, err := s.handleNativeNonStreamingResponse(c, resp, isOAuth)
 			if err != nil {
 				return nil, err
 			}
 			usage = usageResp
+			resolvedServiceTier = resolvedTier
 			if requestID == "" && c != nil && c.Writer != nil {
 				requestID = strings.TrimSpace(c.Writer.Header().Get("x-request-id"))
 			}
@@ -797,7 +816,13 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	if isImageGenerationModel(originalModel) {
 		imageCount = 1
 	}
-	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, ServiceTier: extractGeminiRequestedServiceTierFromBody(body), SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
+	if resolvedServiceTier == nil {
+		resolvedServiceTier = extractGeminiResolvedServiceTierFromResponse(nil, resp.Header)
+	}
+	if resolvedServiceTier == nil {
+		resolvedServiceTier = requestedServiceTier
+	}
+	return &ForwardResult{RequestID: requestID, Usage: *usage, Model: originalModel, UpstreamModel: mappedModel, RequestedServiceTier: requestedServiceTier, ServiceTier: resolvedServiceTier, SimulatedClient: simulatedClient, Stream: stream, Duration: time.Since(startTime), FirstTokenMs: firstTokenMs, ImageCount: imageCount, ImageSize: imageSize}, nil
 }
 func (s *GeminiMessagesCompatService) checkErrorPolicyInLoop(ctx context.Context, account *Account, resp *http.Response) (matched bool, rebuilt *http.Response) {
 	if resp.StatusCode < 400 || s.rateLimitService == nil {
@@ -897,7 +922,7 @@ type UpstreamHTTPResult struct {
 	Body       []byte
 }
 
-func (s *GeminiMessagesCompatService) handleNativeNonStreamingResponse(c *gin.Context, resp *http.Response, isOAuth bool) (*ClaudeUsage, error) {
+func (s *GeminiMessagesCompatService) handleNativeNonStreamingResponse(c *gin.Context, resp *http.Response, isOAuth bool) (*ClaudeUsage, *string, error) {
 	if s.cfg != nil && s.cfg.Gateway.GeminiDebugResponseHeaders {
 		logger.LegacyPrintf("service.gemini_messages_compat", "[GeminiAPI] ========== Response Headers ==========")
 		for key, values := range resp.Header {
@@ -914,7 +939,7 @@ func (s *GeminiMessagesCompatService) handleNativeNonStreamingResponse(c *gin.Co
 			setOpsUpstreamError(c, http.StatusBadGateway, "upstream response too large", "")
 			c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"type": "upstream_error", "message": "Upstream response too large"}})
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	if isOAuth {
 		unwrappedBody, uwErr := unwrapGeminiResponse(respBody)
@@ -922,6 +947,7 @@ func (s *GeminiMessagesCompatService) handleNativeNonStreamingResponse(c *gin.Co
 			respBody = unwrappedBody
 		}
 	}
+	resolvedServiceTier := extractGeminiResolvedServiceTierFromResponse(respBody, resp.Header)
 	var geminiResp map[string]any
 	_ = json.Unmarshal(respBody, &geminiResp)
 	analysis := analyzeGeminiResponse(geminiResp, respBody)
@@ -935,9 +961,9 @@ func (s *GeminiMessagesCompatService) handleNativeNonStreamingResponse(c *gin.Co
 	}
 	c.Data(resp.StatusCode, contentType, respBody)
 	if analysis.Usage != nil {
-		return analysis.Usage, nil
+		return analysis.Usage, resolvedServiceTier, nil
 	}
-	return &ClaudeUsage{}, nil
+	return &ClaudeUsage{}, resolvedServiceTier, nil
 }
 func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Context, resp *http.Response, startTime time.Time, isOAuth bool) (*geminiNativeStreamResult, error) {
 	if s.cfg != nil && s.cfg.Gateway.GeminiDebugResponseHeaders {
@@ -969,6 +995,7 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 	usage := &ClaudeUsage{}
 	var firstTokenMs *int
 	responseID := ""
+	var resolvedServiceTier *string
 	for {
 		line, err := reader.ReadString('\n')
 		if len(line) > 0 {
@@ -996,6 +1023,9 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 						analysis := analyzeGeminiResponse(geminiResp, rawBytes)
 						if analysis.Usage != nil {
 							usage = analysis.Usage
+						}
+						if candidate := extractGeminiResolvedServiceTierFromResponse(rawBytes, nil); candidate != nil {
+							resolvedServiceTier = candidate
 						}
 						if responseID == "" && strings.TrimSpace(analysis.ResponseID) != "" {
 							responseID = analysis.ResponseID
@@ -1029,7 +1059,10 @@ func (s *GeminiMessagesCompatService) handleNativeStreamingResponse(c *gin.Conte
 			return nil, err
 		}
 	}
-	return &geminiNativeStreamResult{usage: usage, firstTokenMs: firstTokenMs, responseID: responseID}, nil
+	if resolvedServiceTier == nil {
+		resolvedServiceTier = extractGeminiResolvedServiceTierFromResponse(nil, resp.Header)
+	}
+	return &geminiNativeStreamResult{usage: usage, firstTokenMs: firstTokenMs, responseID: responseID, resolvedServiceTier: resolvedServiceTier}, nil
 }
 
 func setGeminiCountTokensSourceHeader(c *gin.Context, source geminiCountTokensSource) {
@@ -1115,14 +1148,15 @@ func (s *GeminiMessagesCompatService) finishGeminiEstimatedCountTokensResponse(
 		c.JSON(http.StatusOK, map[string]any{"totalTokens": estimateGeminiCountTokens(body)})
 	}
 	return &ForwardResult{
-		RequestID:       requestID,
-		Usage:           ClaudeUsage{},
-		Model:           originalModel,
-		UpstreamModel:   mappedModel,
-		ServiceTier:     extractGeminiRequestedServiceTierFromBody(body),
-		SimulatedClient: simulatedClient,
-		Stream:          false,
-		Duration:        time.Since(startTime),
-		FirstTokenMs:    nil,
+		RequestID:            requestID,
+		Usage:                ClaudeUsage{},
+		Model:                originalModel,
+		UpstreamModel:        mappedModel,
+		RequestedServiceTier: extractGeminiRequestedServiceTierFromBody(body),
+		ServiceTier:          extractGeminiRequestedServiceTierFromBody(body),
+		SimulatedClient:      simulatedClient,
+		Stream:               false,
+		Duration:             time.Since(startTime),
+		FirstTokenMs:         nil,
 	}, nil
 }

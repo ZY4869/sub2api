@@ -104,6 +104,36 @@ func deriveGeminiPublicPathMetadata(path string) geminiPublicPathMetadata {
 	case strings.HasPrefix(normalized, "v1beta/interactions"):
 		meta.version = "v1beta"
 		meta.resource = "interactions"
+	case strings.HasPrefix(normalized, "v1beta/corpora/") && strings.Contains(normalized, "/permissions/"):
+		meta.version = "v1beta"
+		meta.resource = "corpora_permissions"
+	case strings.HasPrefix(normalized, "v1beta/corpora/") && (strings.HasSuffix(normalized, "/operations") || strings.Contains(normalized, "/operations/")):
+		meta.version = "v1beta"
+		meta.resource = "corpora_operations"
+	case strings.HasPrefix(normalized, "v1beta/corpora"):
+		meta.version = "v1beta"
+		meta.resource = "corpora"
+	case strings.HasPrefix(normalized, "v1beta/dynamic"):
+		meta.version = "v1beta"
+		meta.resource = "dynamic"
+	case strings.HasPrefix(normalized, "v1beta/generatedfiles/") && (strings.HasSuffix(normalized, "/operations") || strings.Contains(normalized, "/operations/")):
+		meta.version = "v1beta"
+		meta.resource = "generated_files_operations"
+	case strings.HasPrefix(normalized, "v1beta/generatedfiles"):
+		meta.version = "v1beta"
+		meta.resource = "generated_files"
+	case strings.HasPrefix(normalized, "v1beta/models/") && strings.Contains(normalized, "/operations"):
+		meta.version = "v1beta"
+		meta.resource = "model_operations"
+	case strings.HasPrefix(normalized, "v1beta/tunedmodels/") && strings.Contains(normalized, "/permissions/"):
+		meta.version = "v1beta"
+		meta.resource = "tuned_models_permissions"
+	case strings.HasPrefix(normalized, "v1beta/tunedmodels/") && strings.Contains(normalized, "/operations"):
+		meta.version = "v1beta"
+		meta.resource = "tuned_models_operations"
+	case strings.HasPrefix(normalized, "v1beta/tunedmodels"):
+		meta.version = "v1beta"
+		meta.resource = "tuned_models"
 	case strings.HasPrefix(normalized, "v1beta/openai/"):
 		meta.version = "v1beta"
 		meta.resource = "openai_compat"

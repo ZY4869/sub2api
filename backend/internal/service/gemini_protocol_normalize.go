@@ -179,16 +179,22 @@ func buildGeminiToolConfig(req map[string]any, summary geminiToolSummary) map[st
 		return nil
 	}
 
-	out := make(map[string]any)
-	if sourceConfig := normalizeGeminiFunctionCallingConfigMap(firstNonNil(req["toolConfig"], req["tool_config"])); len(sourceConfig) > 0 {
-		out["functionCallingConfig"] = sourceConfig
+	out := normalizeGeminiToolConfigMap(firstNonNil(req["toolConfig"], req["tool_config"]))
+	if out == nil {
+		out = make(map[string]any)
 	}
 	if toolChoiceConfig := buildGeminiFunctionCallingConfig(firstNonNil(req["tool_choice"], req["toolChoice"])); len(toolChoiceConfig) > 0 {
-		out["functionCallingConfig"] = toolChoiceConfig
+		if existing, ok := out["functionCallingConfig"].(map[string]any); ok && existing != nil {
+			out["functionCallingConfig"] = mergeGeminiMapsKeepExisting(existing, toolChoiceConfig)
+		} else {
+			out["functionCallingConfig"] = toolChoiceConfig
+		}
 	}
 
 	if includeServerSideToolInvocations, ok := extractGeminiIncludeServerSideToolInvocations(req); ok {
-		out["includeServerSideToolInvocations"] = includeServerSideToolInvocations
+		if _, exists := out["includeServerSideToolInvocations"]; !exists {
+			out["includeServerSideToolInvocations"] = includeServerSideToolInvocations
+		}
 		if includeServerSideToolInvocations && summary.HasFunctionDeclarations {
 			functionCallingConfig, _ := out["functionCallingConfig"].(map[string]any)
 			if len(functionCallingConfig) == 0 {
@@ -257,6 +263,54 @@ func normalizeGeminiFunctionCallingConfigMap(raw any) map[string]any {
 		return nil
 	}
 	return buildGeminiFunctionCallingConfig(functionCallingConfig)
+}
+
+func normalizeGeminiToolConfigMap(raw any) map[string]any {
+	config, ok := deepCloneGeminiValue(raw).(map[string]any)
+	if !ok || config == nil {
+		return nil
+	}
+	if sourceConfig := normalizeGeminiFunctionCallingConfigMap(raw); len(sourceConfig) > 0 {
+		if existing, ok := config["functionCallingConfig"].(map[string]any); ok && existing != nil {
+			config["functionCallingConfig"] = mergeGeminiMapsKeepExisting(existing, sourceConfig)
+		} else {
+			config["functionCallingConfig"] = sourceConfig
+		}
+		delete(config, "function_calling_config")
+	}
+	if include, ok := extractGeminiIncludeServerSideToolInvocations(map[string]any{"toolConfig": config}); ok {
+		if _, exists := config["includeServerSideToolInvocations"]; !exists {
+			config["includeServerSideToolInvocations"] = include
+		}
+		delete(config, "include_server_side_tool_invocations")
+	}
+	if len(config) == 0 {
+		return nil
+	}
+	return config
+}
+
+func mergeGeminiMapsKeepExisting(existing map[string]any, defaults map[string]any) map[string]any {
+	if existing == nil {
+		if defaults == nil {
+			return nil
+		}
+		cloned, _ := deepCloneGeminiValue(defaults).(map[string]any)
+		return cloned
+	}
+	for key, value := range defaults {
+		current, exists := existing[key]
+		if !exists {
+			existing[key] = deepCloneGeminiValue(value)
+			continue
+		}
+		currentMap, currentOK := current.(map[string]any)
+		defaultMap, defaultOK := value.(map[string]any)
+		if currentOK && defaultOK {
+			existing[key] = mergeGeminiMapsKeepExisting(currentMap, defaultMap)
+		}
+	}
+	return existing
 }
 
 func normalizeGeminiAllowedFunctionNames(value any) []string {
@@ -716,24 +770,22 @@ func copyGeminiStructuredOutputConfig(req map[string]any, generationConfig map[s
 	case string:
 		switch strings.ToLower(strings.TrimSpace(value)) {
 		case "json", "json_object", "application/json":
-			generationConfig["responseMimeType"] = "application/json"
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", "application/json")
 		case "text", "text/plain":
-			generationConfig["responseMimeType"] = "text/plain"
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", "text/plain")
 		}
 	case map[string]any:
 		if mimeType := strings.TrimSpace(stringValueFromAny(value["mime_type"])); mimeType != "" {
-			generationConfig["responseMimeType"] = mimeType
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", mimeType)
 		}
 		if mimeType := strings.TrimSpace(stringValueFromAny(value["mimeType"])); mimeType != "" {
-			generationConfig["responseMimeType"] = mimeType
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", mimeType)
 		}
 		switch strings.ToLower(strings.TrimSpace(stringValueFromAny(value["type"]))) {
 		case "json", "json_object", "json_schema":
-			if _, ok := generationConfig["responseMimeType"]; !ok {
-				generationConfig["responseMimeType"] = "application/json"
-			}
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", "application/json")
 		case "text":
-			generationConfig["responseMimeType"] = "text/plain"
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", "text/plain")
 		}
 
 		schemaSource := value
@@ -747,12 +799,20 @@ func copyGeminiStructuredOutputConfig(req map[string]any, generationConfig map[s
 			value["response_json_schema"],
 		)
 		if cleanedSchema := normalizeGeminiSchema(schema); cleanedSchema != nil {
-			generationConfig["responseJsonSchema"] = cleanedSchema
-			if _, ok := generationConfig["responseMimeType"]; !ok {
-				generationConfig["responseMimeType"] = "application/json"
-			}
+			setGeminiValueIfMissing(generationConfig, "responseJsonSchema", cleanedSchema)
+			setGeminiValueIfMissing(generationConfig, "responseMimeType", "application/json")
 		}
 	}
+}
+
+func setGeminiValueIfMissing(target map[string]any, key string, value any) {
+	if target == nil || strings.TrimSpace(key) == "" {
+		return
+	}
+	if _, exists := target[key]; exists {
+		return
+	}
+	target[key] = deepCloneGeminiValue(value)
 }
 
 func normalizeGeminiSchema(schema any) any {

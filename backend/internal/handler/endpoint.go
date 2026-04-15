@@ -15,30 +15,40 @@ import (
 // ──────────────────────────────────────────────────────────
 
 const (
-	EndpointMessages               = service.EndpointMessages
-	EndpointChatCompletions        = service.EndpointChatCompletions
-	EndpointResponses              = service.EndpointResponses
-	EndpointImagesGen              = service.EndpointImagesGen
-	EndpointImagesEdits            = service.EndpointImagesEdits
-	EndpointVideosCreate           = service.EndpointVideosCreate
-	EndpointVideosGen              = service.EndpointVideosGen
-	EndpointVideosStatus           = service.EndpointVideosStatus
-	EndpointGeminiModels           = service.EndpointGeminiModels
-	EndpointGeminiFiles            = service.EndpointGeminiFiles
-	EndpointGeminiFilesUp          = service.EndpointGeminiFilesUp
-	EndpointGeminiBatches          = service.EndpointGeminiBatches
-	EndpointGeminiCachedContents   = service.EndpointGeminiCachedContents
-	EndpointGeminiFileSearchStores = service.EndpointGeminiFileSearchStores
-	EndpointGeminiDocuments        = service.EndpointGeminiDocuments
-	EndpointGeminiOperations       = service.EndpointGeminiOperations
-	EndpointGeminiUploadOperations = service.EndpointGeminiUploadOperations
-	EndpointGeminiEmbeddings       = service.EndpointGeminiEmbeddings
-	EndpointGeminiInteractions     = service.EndpointGeminiInteractions
-	EndpointGeminiLive             = service.EndpointGeminiLive
-	EndpointGeminiLiveAuthTokens   = service.EndpointGeminiLiveAuthTokens
-	EndpointGeminiOpenAICompat     = service.EndpointGeminiOpenAICompat
-	EndpointVertexSyncModels       = service.EndpointVertexSyncModels
-	EndpointVertexBatchJobs        = service.EndpointVertexBatchJobs
+	EndpointMessages                       = service.EndpointMessages
+	EndpointChatCompletions                = service.EndpointChatCompletions
+	EndpointResponses                      = service.EndpointResponses
+	EndpointImagesGen                      = service.EndpointImagesGen
+	EndpointImagesEdits                    = service.EndpointImagesEdits
+	EndpointVideosCreate                   = service.EndpointVideosCreate
+	EndpointVideosGen                      = service.EndpointVideosGen
+	EndpointVideosStatus                   = service.EndpointVideosStatus
+	EndpointGeminiModels                   = service.EndpointGeminiModels
+	EndpointGeminiFiles                    = service.EndpointGeminiFiles
+	EndpointGeminiFilesUp                  = service.EndpointGeminiFilesUp
+	EndpointGeminiBatches                  = service.EndpointGeminiBatches
+	EndpointGeminiCachedContents           = service.EndpointGeminiCachedContents
+	EndpointGeminiFileSearchStores         = service.EndpointGeminiFileSearchStores
+	EndpointGeminiDocuments                = service.EndpointGeminiDocuments
+	EndpointGeminiOperations               = service.EndpointGeminiOperations
+	EndpointGeminiUploadOperations         = service.EndpointGeminiUploadOperations
+	EndpointGeminiEmbeddings               = service.EndpointGeminiEmbeddings
+	EndpointGeminiInteractions             = service.EndpointGeminiInteractions
+	EndpointGeminiCorpora                  = service.EndpointGeminiCorpora
+	EndpointGeminiCorporaOperations        = service.EndpointGeminiCorporaOperations
+	EndpointGeminiCorporaPermissions       = service.EndpointGeminiCorporaPermissions
+	EndpointGeminiDynamic                  = service.EndpointGeminiDynamic
+	EndpointGeminiGeneratedFiles           = service.EndpointGeminiGeneratedFiles
+	EndpointGeminiGeneratedFilesOperations = service.EndpointGeminiGeneratedFilesOperations
+	EndpointGeminiModelOperations          = service.EndpointGeminiModelOperations
+	EndpointGeminiTunedModels              = service.EndpointGeminiTunedModels
+	EndpointGeminiTunedModelsPermissions   = service.EndpointGeminiTunedModelsPermissions
+	EndpointGeminiTunedModelsOperations    = service.EndpointGeminiTunedModelsOperations
+	EndpointGeminiLive                     = service.EndpointGeminiLive
+	EndpointGeminiLiveAuthTokens           = service.EndpointGeminiLiveAuthTokens
+	EndpointGeminiOpenAICompat             = service.EndpointGeminiOpenAICompat
+	EndpointVertexSyncModels               = service.EndpointVertexSyncModels
+	EndpointVertexBatchJobs                = service.EndpointVertexBatchJobs
 )
 
 // gin.Context keys used by the middleware and helpers below.
@@ -98,6 +108,16 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 			EndpointGeminiUploadOperations,
 			EndpointGeminiEmbeddings,
 			EndpointGeminiInteractions,
+			EndpointGeminiCorpora,
+			EndpointGeminiCorporaOperations,
+			EndpointGeminiCorporaPermissions,
+			EndpointGeminiDynamic,
+			EndpointGeminiGeneratedFiles,
+			EndpointGeminiGeneratedFilesOperations,
+			EndpointGeminiModelOperations,
+			EndpointGeminiTunedModels,
+			EndpointGeminiTunedModelsPermissions,
+			EndpointGeminiTunedModelsOperations,
 			EndpointGeminiLive,
 			EndpointGeminiLiveAuthTokens,
 			EndpointGeminiOpenAICompat,
@@ -160,6 +180,16 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 		EndpointGeminiUploadOperations,
 		EndpointGeminiEmbeddings,
 		EndpointGeminiInteractions,
+		EndpointGeminiCorpora,
+		EndpointGeminiCorporaOperations,
+		EndpointGeminiCorporaPermissions,
+		EndpointGeminiDynamic,
+		EndpointGeminiGeneratedFiles,
+		EndpointGeminiGeneratedFilesOperations,
+		EndpointGeminiModelOperations,
+		EndpointGeminiTunedModels,
+		EndpointGeminiTunedModelsPermissions,
+		EndpointGeminiTunedModelsOperations,
 		EndpointGeminiLive,
 		EndpointGeminiLiveAuthTokens,
 		EndpointGeminiOpenAICompat,

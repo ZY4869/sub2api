@@ -98,3 +98,27 @@ func TestGeminiBatchDispatchPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestGeminiBatchDispatchPaths_PatchUpdateRoutesUseBatchResourceFlow(t *testing.T) {
+	t.Parallel()
+
+	svc := &GeminiMessagesCompatService{}
+	paths := []string{
+		"/v1beta/batches/batch-1:updateGenerateContentBatch",
+		"/v1beta/batches/batch-1:updateEmbedContentBatch",
+	}
+
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			_, _, err := svc.ForwardGoogleBatches(context.Background(), GoogleBatchForwardInput{
+				Method: http.MethodPatch,
+				Path:   path,
+			})
+			require.Error(t, err)
+
+			appErr := infraerrors.FromError(err)
+			require.NotNil(t, appErr)
+			require.NotEqual(t, "GOOGLE_BATCH_PATH_UNSUPPORTED", appErr.Reason)
+		})
+	}
+}

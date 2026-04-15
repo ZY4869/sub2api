@@ -193,11 +193,18 @@ func sampleRequestPath(pattern string) string {
 	sample = strings.ReplaceAll(sample, "{store}", "default-store")
 	sample = strings.ReplaceAll(sample, "{document}", "doc-123")
 	sample = strings.ReplaceAll(sample, "{operation}", "op-123")
+	sample = strings.ReplaceAll(sample, "{corpus}", "corpus-123")
+	sample = strings.ReplaceAll(sample, "{permission}", "perm-123")
 	sample = strings.ReplaceAll(sample, "{model}", "gemini-2.5-pro")
+	sample = strings.ReplaceAll(sample, "{dynamic}", "dynamic-123")
+	sample = strings.ReplaceAll(sample, "{generatedFile}", "generated-file-123")
+	sample = strings.ReplaceAll(sample, "{tunedModel}", "tuned-model-123")
 	sample = strings.ReplaceAll(sample, ":project", "demo-project")
 	sample = strings.ReplaceAll(sample, ":location", "us-central1")
 	sample = strings.ReplaceAll(sample, ":request_id", "req_123")
 	sample = strings.ReplaceAll(sample, ":model", "gemini-2.5-pro")
+	sample = strings.ReplaceAll(sample, ":corpus", "corpus-123")
+	sample = strings.ReplaceAll(sample, ":permission", "perm-123")
 	sample = strings.ReplaceAll(sample, ":action", ":register")
 	sample = strings.ReplaceAll(sample, "*subpath", "sample")
 	return path.Clean(sample)
@@ -267,6 +274,8 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "gateway_v1_models_list"
 	case strings.Contains(handlerName, ".GatewayV1ModelsGet-fm"):
 		return "gateway_v1_models_get"
+	case strings.Contains(handlerName, ".GeminiModelsGet-fm"):
+		return "gemini_models_get"
 	case strings.Contains(handlerName, ".GatewayV1ModelsAction-fm"):
 		return "gateway_v1_models_action"
 	case strings.Contains(handlerName, ".GeminiFiles-fm"):
@@ -291,6 +300,26 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "gemini_upload_operations"
 	case strings.Contains(handlerName, ".GeminiInteractions-fm"):
 		return "gemini_interactions"
+	case strings.Contains(handlerName, ".GeminiCorpora-fm"):
+		return "gemini_corpora"
+	case strings.Contains(handlerName, ".GeminiCorporaOperations-fm"):
+		return "gemini_corpora_operations"
+	case strings.Contains(handlerName, ".GeminiCorporaPermissions-fm"):
+		return "gemini_corpora_permissions"
+	case strings.Contains(handlerName, ".GeminiDynamic-fm"):
+		return "gemini_dynamic"
+	case strings.Contains(handlerName, ".GeminiGeneratedFiles-fm"):
+		return "gemini_generated_files"
+	case strings.Contains(handlerName, ".GeminiGeneratedFilesOperations-fm"):
+		return "gemini_generated_files_operations"
+	case strings.Contains(handlerName, ".GeminiModelOperations-fm"):
+		return "gemini_model_operations"
+	case strings.Contains(handlerName, ".GeminiTunedModels-fm"):
+		return "gemini_tuned_models"
+	case strings.Contains(handlerName, ".GeminiTunedModelsPermissions-fm"):
+		return "gemini_tuned_models_permissions"
+	case strings.Contains(handlerName, ".GeminiTunedModelsOperations-fm"):
+		return "gemini_tuned_models_operations"
 	case strings.Contains(handlerName, ".GeminiOpenAICompat-fm"):
 		return "gemini_openai_compat"
 	case strings.Contains(handlerName, ".GeminiLive-fm"):
@@ -410,6 +439,19 @@ func assertExplicitGatewayReject(t *testing.T, body string) {
 		service.GatewayReasonUnsupportedAction,
 		service.GatewayReasonPublicEndpointUnsupported,
 	}, reason)
+}
+
+func applyGeminiRouteAuth(req *http.Request, authMode string) {
+	switch authMode {
+	case "authorization":
+		req.Header.Set("Authorization", "Bearer test-gateway-key")
+	case "x-goog-api-key":
+		req.Header.Set("x-goog-api-key", "test-gateway-key")
+	case "query":
+		query := req.URL.Query()
+		query.Set("key", "test-gateway-key")
+		req.URL.RawQuery = query.Encode()
+	}
 }
 
 func TestGatewayRoutesOpenAIResponsesCompactPathIsRegistered(t *testing.T) {
@@ -555,6 +597,103 @@ func TestGatewayRoutesEveryRegistryPublicEndpointHasDynamicSample(t *testing.T) 
 			if w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound {
 				assertExplicitGatewayReject(t, w.Body.String())
 			}
+		})
+	}
+}
+
+func TestGatewayRoutesGeminiStrictUnsupportedPathsReturnExplicitError(t *testing.T) {
+	router := newGatewayRoutesTestRouterForPlatform(service.PlatformGemini)
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "corpora item post", method: http.MethodPost, path: "/v1beta/corpora/corpus-123", body: `{}`},
+		{name: "corpora item patch", method: http.MethodPatch, path: "/v1beta/corpora/corpus-123", body: `{}`},
+		{name: "corpora operations collection get", method: http.MethodGet, path: "/v1beta/corpora/corpus-123/operations"},
+		{name: "generated files item get", method: http.MethodGet, path: "/v1beta/generatedFiles/generated-file-123"},
+		{name: "file search unknown action", method: http.MethodPost, path: "/v1beta/fileSearchStores/default-store:unknown", body: `{}`},
+		{name: "models predict action", method: http.MethodPost, path: "/v1beta/models/gemini-2.5-pro:predict", body: `{}`},
+		{name: "dynamic unsupported action", method: http.MethodPost, path: "/v1beta/dynamic/dynamic-123:predict", body: `{}`},
+		{name: "tuned models generate text", method: http.MethodPost, path: "/v1beta/tunedModels/tuned-model-123:generateText", body: `{}`},
+		{name: "tuned models unknown child", method: http.MethodGet, path: "/v1beta/tunedModels/tuned-model-123/unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, strings.NewReader(tt.body))
+			if tt.method != http.MethodGet && tt.method != http.MethodDelete && tt.method != http.MethodHead {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			applyGeminiRouteAuth(req, "authorization")
+			req.Header.Set("Accept-Language", "en")
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
+			require.Equal(t, service.GatewayReasonUnsupportedAction, gjson.Get(w.Body.String(), "error.details.0.reason").String())
+		})
+	}
+}
+
+func TestGatewayRoutesGeminiStrictOfficialRoutesAcceptAuthorizationAndQueryKey(t *testing.T) {
+	router := newGatewayRoutesTestRouterForPlatform(service.PlatformGemini)
+
+	type authCase struct {
+		name   string
+		method string
+		path   string
+		body   string
+		auth   string
+	}
+
+	cases := []authCase{
+		{name: "corpora authorization", method: http.MethodGet, path: "/v1beta/corpora", auth: "authorization"},
+		{name: "corpora query", method: http.MethodGet, path: "/v1beta/corpora", auth: "query"},
+		{name: "corpora permissions authorization", method: http.MethodGet, path: "/v1beta/corpora/corpus-123/permissions", auth: "authorization"},
+		{name: "corpora permissions query", method: http.MethodGet, path: "/v1beta/corpora/corpus-123/permissions", auth: "query"},
+		{name: "corpora operations authorization", method: http.MethodGet, path: "/v1beta/corpora/corpus-123/operations/op-123", auth: "authorization"},
+		{name: "corpora operations query", method: http.MethodGet, path: "/v1beta/corpora/corpus-123/operations/op-123", auth: "query"},
+		{name: "file search import authorization", method: http.MethodPost, path: "/v1beta/fileSearchStores/default-store:importFile", body: `{}`, auth: "authorization"},
+		{name: "file search import query", method: http.MethodPost, path: "/v1beta/fileSearchStores/default-store:importFile", body: `{}`, auth: "query"},
+		{name: "models generate answer authorization", method: http.MethodPost, path: "/v1beta/models/gemini-2.5-pro:generateAnswer", body: `{}`, auth: "authorization"},
+		{name: "models generate answer query", method: http.MethodPost, path: "/v1beta/models/gemini-2.5-pro:generateAnswer", body: `{}`, auth: "query"},
+		{name: "dynamic authorization", method: http.MethodPost, path: "/v1beta/dynamic/dynamic-123:generateContent", body: `{}`, auth: "authorization"},
+		{name: "dynamic x-goog-api-key", method: http.MethodPost, path: "/v1beta/dynamic/dynamic-123:generateContent", body: `{}`, auth: "x-goog-api-key"},
+		{name: "dynamic query", method: http.MethodPost, path: "/v1beta/dynamic/dynamic-123:generateContent", body: `{}`, auth: "query"},
+		{name: "generated files authorization", method: http.MethodGet, path: "/v1beta/generatedFiles", auth: "authorization"},
+		{name: "generated files query", method: http.MethodGet, path: "/v1beta/generatedFiles", auth: "query"},
+		{name: "generated files operations authorization", method: http.MethodGet, path: "/v1beta/generatedFiles/generated-file-123/operations/op-123", auth: "authorization"},
+		{name: "generated files operations query", method: http.MethodGet, path: "/v1beta/generatedFiles/generated-file-123/operations/op-123", auth: "query"},
+		{name: "model operations authorization", method: http.MethodGet, path: "/v1beta/models/gemini-2.5-pro/operations", auth: "authorization"},
+		{name: "model operations query", method: http.MethodGet, path: "/v1beta/models/gemini-2.5-pro/operations", auth: "query"},
+		{name: "tuned models authorization", method: http.MethodGet, path: "/v1beta/tunedModels", auth: "authorization"},
+		{name: "tuned models query", method: http.MethodGet, path: "/v1beta/tunedModels", auth: "query"},
+		{name: "tuned models async embedding authorization", method: http.MethodPost, path: "/v1beta/tunedModels/tuned-model-123:asyncBatchEmbedContent", body: `{}`, auth: "authorization"},
+		{name: "tuned models async embedding query", method: http.MethodPost, path: "/v1beta/tunedModels/tuned-model-123:asyncBatchEmbedContent", body: `{}`, auth: "query"},
+		{name: "tuned models permissions authorization", method: http.MethodGet, path: "/v1beta/tunedModels/tuned-model-123/permissions", auth: "authorization"},
+		{name: "tuned models permissions query", method: http.MethodGet, path: "/v1beta/tunedModels/tuned-model-123/permissions", auth: "query"},
+		{name: "tuned models operations authorization", method: http.MethodGet, path: "/v1beta/tunedModels/tuned-model-123/operations", auth: "authorization"},
+		{name: "tuned models operations query", method: http.MethodGet, path: "/v1beta/tunedModels/tuned-model-123/operations", auth: "query"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			if tc.method != http.MethodGet && tc.method != http.MethodDelete && tc.method != http.MethodHead {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			applyGeminiRouteAuth(req, tc.auth)
+			req.Header.Set("Accept-Language", "en")
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.NotEqual(t, http.StatusUnauthorized, w.Code)
+			require.False(t, w.Code == http.StatusNotFound && strings.Contains(strings.ToLower(w.Body.String()), "404 page not found"))
 		})
 	}
 }

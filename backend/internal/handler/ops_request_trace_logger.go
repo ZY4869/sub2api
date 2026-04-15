@@ -341,6 +341,9 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 	if geminiAliasUsed, ok := service.GeminiAliasUsedMetadataFromContext(c.Request.Context()); ok {
 		result.GeminiAliasUsed = geminiAliasUsed
 	}
+	if metadataSource, ok := service.GeminiModelMetadataSourceMetadataFromContext(c.Request.Context()); ok {
+		result.GeminiModelMetadataSource = metadataSource
+	}
 	if upstreamPath, ok := service.GeminiUpstreamPathMetadataFromContext(c.Request.Context()); ok {
 		result.UpstreamPath = upstreamPath
 	} else {
@@ -675,6 +678,16 @@ func opsTraceProtocolFamily(value string) string {
 		EndpointGeminiUploadOperations,
 		EndpointGeminiEmbeddings,
 		EndpointGeminiInteractions,
+		EndpointGeminiCorpora,
+		EndpointGeminiCorporaOperations,
+		EndpointGeminiCorporaPermissions,
+		EndpointGeminiDynamic,
+		EndpointGeminiGeneratedFiles,
+		EndpointGeminiGeneratedFilesOperations,
+		EndpointGeminiModelOperations,
+		EndpointGeminiTunedModels,
+		EndpointGeminiTunedModelsPermissions,
+		EndpointGeminiTunedModelsOperations,
 		EndpointGeminiLive,
 		EndpointGeminiLiveAuthTokens,
 		EndpointGeminiOpenAICompat,

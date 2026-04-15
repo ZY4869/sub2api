@@ -86,6 +86,7 @@ func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
 		CacheReadInputTokenCost:                  modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCost),
 		CacheReadInputTokenCostPriority:          modelCatalogFloat64Ptr(pricing.CacheReadInputTokenCostPriority),
 		OutputCostPerImage:                       modelCatalogFloat64Ptr(pricing.OutputCostPerImage),
+		OutputCostPerImagePriority:               modelCatalogFloat64Ptr(pricing.OutputCostPerImagePriority),
 		OutputCostPerVideoRequest:                modelCatalogFloat64Ptr(pricing.OutputCostPerVideoRequest),
 	}
 }
@@ -110,6 +111,7 @@ func pricingFromBilling(pricing *ModelPricing) *ModelCatalogPricing {
 		CacheReadInputTokenCost:                  modelCatalogFloat64Ptr(pricing.CacheReadPricePerToken),
 		CacheReadInputTokenCostPriority:          modelCatalogFloat64Ptr(pricing.CacheReadPricePerTokenPriority),
 		OutputCostPerImage:                       modelCatalogFloat64Ptr(pricing.OutputPricePerImage),
+		OutputCostPerImagePriority:               modelCatalogFloat64Ptr(pricing.OutputPricePerImagePriority),
 		OutputCostPerVideoRequest:                modelCatalogFloat64Ptr(pricing.OutputPricePerVideoRequest),
 	}
 }
@@ -169,6 +171,7 @@ func mergeCatalogPricing(target *ModelCatalogPricing, patch *ModelCatalogPricing
 	assignFloat(&target.CacheReadInputTokenCost, patch.CacheReadInputTokenCost)
 	assignFloat(&target.CacheReadInputTokenCostPriority, patch.CacheReadInputTokenCostPriority)
 	assignFloat(&target.OutputCostPerImage, patch.OutputCostPerImage)
+	assignFloat(&target.OutputCostPerImagePriority, patch.OutputCostPerImagePriority)
 	assignFloat(&target.OutputCostPerVideoRequest, patch.OutputCostPerVideoRequest)
 }
 
@@ -189,6 +192,7 @@ func pricingEmpty(pricing *ModelCatalogPricing) bool {
 			pricing.CacheReadInputTokenCost == nil &&
 			pricing.CacheReadInputTokenCostPriority == nil &&
 			pricing.OutputCostPerImage == nil &&
+			pricing.OutputCostPerImagePriority == nil &&
 			pricing.OutputCostPerVideoRequest == nil)
 }
 
@@ -223,6 +227,7 @@ func validateOverridePricing(pricing ModelCatalogPricing) error {
 		pricing.CacheReadInputTokenCost,
 		pricing.CacheReadInputTokenCostPriority,
 		pricing.OutputCostPerImage,
+		pricing.OutputCostPerImagePriority,
 		pricing.OutputCostPerVideoRequest,
 	}
 	for _, value := range values {

@@ -123,6 +123,7 @@ func TestRequestMetadataGeminiPublicFields(t *testing.T) {
 	SetGeminiPublicVersionMetadata(ctx, "v1alpha")
 	SetGeminiPublicResourceMetadata(ctx, "live_auth_tokens")
 	SetGeminiAliasUsedMetadata(ctx, true)
+	SetGeminiModelMetadataSourceMetadata(ctx, "projected_empty")
 	SetGeminiUpstreamPathMetadata(ctx, "/v1alpha/authTokens")
 
 	version, ok := GeminiPublicVersionMetadataFromContext(ctx)
@@ -136,6 +137,10 @@ func TestRequestMetadataGeminiPublicFields(t *testing.T) {
 	aliasUsed, ok := GeminiAliasUsedMetadataFromContext(ctx)
 	require.True(t, ok)
 	require.True(t, aliasUsed)
+
+	metadataSource, ok := GeminiModelMetadataSourceMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "projected_empty", metadataSource)
 
 	upstreamPath, ok := GeminiUpstreamPathMetadataFromContext(ctx)
 	require.True(t, ok)

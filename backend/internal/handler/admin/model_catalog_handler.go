@@ -312,6 +312,8 @@ func pricingOverrideFieldNames(pricing service.ModelCatalogPricing) []string {
 	appendIfPresent("cache_read_input_token_cost", pricing.CacheReadInputTokenCost)
 	appendIfPresent("cache_read_input_token_cost_priority", pricing.CacheReadInputTokenCostPriority)
 	appendIfPresent("output_cost_per_image", pricing.OutputCostPerImage)
+	appendIfPresent("output_cost_per_image_priority", pricing.OutputCostPerImagePriority)
+	appendIfPresent("output_cost_per_video_request", pricing.OutputCostPerVideoRequest)
 	return fields
 }
 

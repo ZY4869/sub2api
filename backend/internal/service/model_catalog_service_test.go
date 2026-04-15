@@ -342,6 +342,36 @@ func TestModelCatalogService_GeminiLegacySeedStillBuildsMatrixWithoutCanonical(t
 	require.Equal(t, 7e-6, pricing.CacheCreation1hPrice)
 }
 
+func TestModelCatalogService_GeminiImagePricingSeedsPriorityMatrixCell(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-flash-image": {
+			InputCostPerToken:          3e-7,
+			InputCostPerTokenPriority:  5.4e-7,
+			OutputCostPerImage:         0.039,
+			OutputCostPerImagePriority: 0.0702,
+			LiteLLMProvider:            PlatformGemini,
+			Mode:                       "image_generation",
+			SupportsServiceTier:        true,
+		},
+	})
+
+	sheet, err := svc.billingCenterService.GetSheet(context.Background(), "gemini-2.5-flash-image")
+	require.NoError(t, err)
+	require.NotNil(t, sheet)
+	require.NotNil(t, sheet.OfficialMatrix)
+
+	standardCell := geminiMatrixCell(sheet.OfficialMatrix, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotImageOutput)
+	require.NotNil(t, standardCell)
+	require.NotNil(t, standardCell.Price)
+	require.InDelta(t, 0.039, *standardCell.Price, 1e-12)
+
+	priorityCell := geminiMatrixCell(sheet.OfficialMatrix, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotImageOutput)
+	require.NotNil(t, priorityCell)
+	require.NotNil(t, priorityCell.Price)
+	require.InDelta(t, 0.0702, *priorityCell.Price, 1e-12)
+}
+
 func TestModelCatalogService_GeminiBillingSheetUsesCanonicalRulesAndClearsLegacyOverride(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	repo.values[SettingKeyModelPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{

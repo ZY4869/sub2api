@@ -541,7 +541,7 @@ func applyPricingToGeminiMatrix(matrix *GeminiBillingMatrix, pricing *ModelCatal
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotAudioOutput, pricingValueForTier(pricing.OutputCostPerToken, pricing.OutputCostPerTokenPriority, tier), derivedVia)
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotCacheCreate, pricingValueForTier(pricing.CacheCreationInputTokenCost, nil, tier), derivedVia)
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotCacheRead, pricingValueForTier(pricing.CacheReadInputTokenCost, pricing.CacheReadInputTokenCostPriority, tier), derivedVia)
-			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotImageOutput, pricing.OutputCostPerImage, derivedVia)
+			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotImageOutput, pricingValueForTier(pricing.OutputCostPerImage, pricing.OutputCostPerImagePriority, tier), derivedVia)
 			assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotVideoRequest, pricing.OutputCostPerVideoRequest, derivedVia)
 			if pricing.CacheCreationInputTokenCostAbove1hr != nil {
 				assignGeminiMatrixPrice(matrix, surface, tier, BillingChargeSlotCacheStorageTokenHour, pricing.CacheCreationInputTokenCostAbove1hr, derivedVia)

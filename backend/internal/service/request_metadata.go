@@ -27,6 +27,7 @@ type RequestMetadata struct {
 	GeminiPublicVersion         *string
 	GeminiPublicResource        *string
 	GeminiAliasUsed             *bool
+	GeminiModelMetadataSource   *string
 	GeminiUpstreamPath          *string
 	GeminiBillingFallbackReason *string
 	BillingRuleID               *string
@@ -376,6 +377,24 @@ func GeminiAliasUsedMetadataFromContext(ctx context.Context) (bool, bool) {
 		return *md.GeminiAliasUsed, true
 	}
 	return false, false
+}
+
+func SetGeminiModelMetadataSourceMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			md.GeminiModelMetadataSource = nil
+			return
+		}
+		md.GeminiModelMetadataSource = &trimmed
+	}
+}
+
+func GeminiModelMetadataSourceMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.GeminiModelMetadataSource != nil {
+		return strings.TrimSpace(*md.GeminiModelMetadataSource), true
+	}
+	return "", false
 }
 
 func SetGeminiUpstreamPathMetadata(ctx context.Context, value string) {

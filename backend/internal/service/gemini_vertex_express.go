@@ -167,7 +167,7 @@ func buildGeminiVertexCatalogModelsResponseFromCatalog(models []VertexCatalogMod
 		items = append(items, pkggemini.Model{
 			Name:                       "models/" + modelID,
 			DisplayName:                displayName,
-			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
+			SupportedGenerationMethods: pkggemini.SupportedGenerationMethodsForModel(modelID),
 		})
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -189,7 +189,7 @@ func buildGeminiVertexCatalogModelResponseFromCatalog(modelID string, models []V
 		return buildGeminiUpstreamJSONResult(http.StatusOK, pkggemini.Model{
 			Name:                       "models/" + modelID,
 			DisplayName:                displayName,
-			SupportedGenerationMethods: []string{"generateContent", "streamGenerateContent", "countTokens"},
+			SupportedGenerationMethods: pkggemini.SupportedGenerationMethodsForModel(modelID),
 		})
 	}
 	return buildGeminiUpstreamJSONResult(http.StatusNotFound, map[string]any{

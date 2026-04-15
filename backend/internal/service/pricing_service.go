@@ -75,6 +75,7 @@ type LiteLLMModelPricing struct {
 	Mode                                     string  `json:"mode"`
 	SupportsPromptCaching                    bool    `json:"supports_prompt_caching"`
 	OutputCostPerImage                       float64 `json:"output_cost_per_image"` // 图片生成模型每张图片价格
+	OutputCostPerImagePriority               float64 `json:"output_cost_per_image_priority"`
 	OutputCostPerVideoRequest                float64 `json:"output_cost_per_video_request"`
 }
 
@@ -112,6 +113,7 @@ type LiteLLMRawEntry struct {
 	Mode                                      string   `json:"mode"`
 	SupportsPromptCaching                     bool     `json:"supports_prompt_caching"`
 	OutputCostPerImage                        *float64 `json:"output_cost_per_image"`
+	OutputCostPerImagePriority                *float64 `json:"output_cost_per_image_priority"`
 	OutputCostPerVideoRequest                 *float64 `json:"output_cost_per_video_request"`
 }
 
@@ -466,6 +468,9 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		if entry.OutputCostPerImage != nil {
 			pricing.OutputCostPerImage = *entry.OutputCostPerImage
 		}
+		if entry.OutputCostPerImagePriority != nil {
+			pricing.OutputCostPerImagePriority = *entry.OutputCostPerImagePriority
+		}
 		if entry.OutputCostPerVideoRequest != nil {
 			pricing.OutputCostPerVideoRequest = *entry.OutputCostPerVideoRequest
 		}
@@ -683,6 +688,7 @@ func hasAnyPricingValue(entry LiteLLMRawEntry) bool {
 		entry.CacheReadInputTokenCost != nil ||
 		entry.CacheReadInputTokenCostPriority != nil ||
 		entry.OutputCostPerImage != nil ||
+		entry.OutputCostPerImagePriority != nil ||
 		entry.OutputCostPerVideoRequest != nil
 }
 

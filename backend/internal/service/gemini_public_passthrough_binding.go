@@ -66,7 +66,17 @@ func extractGeminiPassthroughCreatedResourceNames(resourceKind string, body []by
 		UpstreamResourceKindGeminiDocument,
 		UpstreamResourceKindGeminiOperation,
 		UpstreamResourceKindGeminiUploadOperation,
-		UpstreamResourceKindGeminiInteraction:
+		UpstreamResourceKindGeminiInteraction,
+		UpstreamResourceKindGeminiCorpus,
+		UpstreamResourceKindGeminiCorpusOperation,
+		UpstreamResourceKindGeminiCorpusPermission,
+		UpstreamResourceKindGeminiDynamic,
+		UpstreamResourceKindGeminiGeneratedFile,
+		UpstreamResourceKindGeminiGeneratedFileOperation,
+		UpstreamResourceKindGeminiModelOperation,
+		UpstreamResourceKindGeminiTunedModel,
+		UpstreamResourceKindGeminiTunedModelPermission,
+		UpstreamResourceKindGeminiTunedModelOperation:
 		return extractTopLevelNames(body)
 	default:
 		return nil
@@ -104,8 +114,55 @@ func extractGeminiPassthroughResourceName(resourceKind string, path string) stri
 		return extractGeminiNestedUploadOperationName(trimmed)
 	case UpstreamResourceKindGeminiInteraction:
 		return extractAIStudioResourceName(trimmed, "/v1beta/interactions/")
+	case UpstreamResourceKindGeminiCorpus:
+		return extractAIStudioResourceName(trimmed, "/v1beta/corpora/")
+	case UpstreamResourceKindGeminiCorpusOperation:
+		return extractGeminiNestedCollectionResourceName(trimmed, "/v1beta/corpora/", "corpora", "/operations/")
+	case UpstreamResourceKindGeminiCorpusPermission:
+		return extractGeminiNestedCollectionResourceName(trimmed, "/v1beta/corpora/", "corpora", "/permissions/")
+	case UpstreamResourceKindGeminiDynamic:
+		return extractAIStudioResourceName(trimmed, "/v1beta/dynamic/")
+	case UpstreamResourceKindGeminiGeneratedFile:
+		return extractAIStudioResourceName(trimmed, "/v1beta/generatedFiles/")
+	case UpstreamResourceKindGeminiGeneratedFileOperation:
+		return extractGeminiNestedCollectionResourceName(trimmed, "/v1beta/generatedFiles/", "generatedFiles", "/operations/")
+	case UpstreamResourceKindGeminiModelOperation:
+		return extractGeminiNestedCollectionResourceName(trimmed, "/v1beta/models/", "models", "/operations/")
+	case UpstreamResourceKindGeminiTunedModel:
+		return extractAIStudioResourceName(trimmed, "/v1beta/tunedModels/")
+	case UpstreamResourceKindGeminiTunedModelPermission:
+		return extractGeminiNestedCollectionResourceName(trimmed, "/v1beta/tunedModels/", "tunedModels", "/permissions/")
+	case UpstreamResourceKindGeminiTunedModelOperation:
+		return extractGeminiNestedCollectionResourceName(trimmed, "/v1beta/tunedModels/", "tunedModels", "/operations/")
 	}
 	return ""
+}
+
+func extractGeminiNestedCollectionResourceName(path string, parentPrefix string, parentCollection string, nestedMarker string) string {
+	trimmed := strings.TrimSpace(path)
+	if strings.HasPrefix(trimmed, parentPrefix) {
+		trimmed = strings.TrimPrefix(trimmed, parentPrefix)
+	}
+	idx := strings.Index(trimmed, nestedMarker)
+	if idx < 0 {
+		return ""
+	}
+	parent := strings.Trim(trimmed[:idx], "/")
+	nested := strings.Trim(strings.TrimPrefix(trimmed[idx:], nestedMarker), "/")
+	for _, sep := range []string{"/", ":", "?"} {
+		if cut := strings.Index(nested, sep); cut >= 0 {
+			nested = nested[:cut]
+		}
+	}
+	if parent == "" || nested == "" {
+		return ""
+	}
+	collection := strings.Trim(strings.TrimSpace(nestedMarker), "/")
+	parentCollection = strings.Trim(strings.TrimSpace(parentCollection), "/")
+	if collection == "" || parentCollection == "" {
+		return ""
+	}
+	return parentCollection + "/" + parent + "/" + collection + "/" + nested
 }
 
 func extractGeminiNestedResourceName(path string, collection string) string {

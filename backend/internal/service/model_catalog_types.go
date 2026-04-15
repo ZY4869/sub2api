@@ -27,6 +27,7 @@ type ModelCatalogPricing struct {
 	CacheReadInputTokenCost                  *float64 `json:"cache_read_input_token_cost,omitempty"`
 	CacheReadInputTokenCostPriority          *float64 `json:"cache_read_input_token_cost_priority,omitempty"`
 	OutputCostPerImage                       *float64 `json:"output_cost_per_image,omitempty"`
+	OutputCostPerImagePriority               *float64 `json:"output_cost_per_image_priority,omitempty"`
 	OutputCostPerVideoRequest                *float64 `json:"output_cost_per_video_request,omitempty"`
 }
 

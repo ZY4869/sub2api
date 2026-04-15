@@ -587,6 +587,8 @@ func buildLegacyGeminiFallbackLines(
 			return nil, &CostBreakdown{}, "priority_price_missing", nil
 		case charges.CacheReadTokens > 0 && pricing.CacheReadPricePerTokenPriority <= 0:
 			return nil, &CostBreakdown{}, "priority_price_missing", nil
+		case charges.ImageOutputs > 0 && pricing.OutputPricePerImagePriority <= 0:
+			return nil, &CostBreakdown{}, "priority_price_missing", nil
 		}
 	}
 	tierMultiplier := 1.0
@@ -642,6 +644,14 @@ func buildLegacyGeminiFallbackLines(
 	if !usingPriorityPricing {
 		cacheStoragePrice *= tierMultiplier
 	}
+	imageOutputPrice := pricing.OutputPricePerImage
+	if usingPriorityPricing {
+		if pricing.OutputPricePerImagePriority > 0 {
+			imageOutputPrice = pricing.OutputPricePerImagePriority
+		}
+	} else {
+		imageOutputPrice *= tierMultiplier
+	}
 
 	lines := make([]BillingSimulationLine, 0, 11)
 	cost := &CostBreakdown{}
@@ -674,7 +684,7 @@ func buildLegacyGeminiFallbackLines(
 	appendLine(BillingChargeSlotCacheCreate, BillingUnitCacheCreateToken, charges.CacheCreateTokens, cacheCreatePrice)
 	appendLine(BillingChargeSlotCacheRead, BillingUnitCacheReadToken, charges.CacheReadTokens, cacheReadPrice)
 	appendLine(BillingChargeSlotCacheStorageTokenHour, BillingUnitCacheStorageTokenHour, charges.CacheStorageTokenHours, cacheStoragePrice)
-	appendLine(BillingChargeSlotImageOutput, BillingUnitImage, charges.ImageOutputs, pricing.OutputPricePerImage)
+	appendLine(BillingChargeSlotImageOutput, BillingUnitImage, charges.ImageOutputs, imageOutputPrice)
 	appendLine(BillingChargeSlotVideoRequest, BillingUnitVideoRequest, charges.VideoRequests, pricing.OutputPricePerVideoRequest)
 
 	if normalizeBillingActualBatchMode(batchMode) == BillingBatchModeBatch {

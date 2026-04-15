@@ -140,22 +140,41 @@ func isGeminiBillingEndpoint(inboundEndpoint string) bool {
 		EndpointGeminiFilesUp,
 		EndpointGeminiFilesDownload,
 		EndpointGeminiBatches,
+		EndpointGeminiCachedContents,
+		EndpointGeminiFileSearchStores,
+		EndpointGeminiDocuments,
+		EndpointGeminiOperations,
+		EndpointGeminiEmbeddings,
+		EndpointGeminiInteractions,
+		EndpointGeminiLive,
+		EndpointGeminiLiveAuthTokens,
+		EndpointGeminiOpenAICompat,
 		EndpointGoogleBatchArchiveBatches,
 		EndpointGoogleBatchArchiveFiles,
 		EndpointVertexSyncModels,
 		EndpointVertexBatchJobs:
 		return true
+	default:
+		return false
 	}
+}
 
-	path := strings.TrimSpace(strings.ToLower(inboundEndpoint))
-	return strings.Contains(path, "/v1beta/openai/") ||
-		strings.Contains(path, "/v1beta/live") ||
-		strings.Contains(path, "/v1beta/interactions") ||
-		strings.Contains(path, "/cachedcontents") ||
-		strings.Contains(path, "/filesearchstores") ||
-		strings.Contains(path, "/documents") ||
-		strings.Contains(path, "/operations") ||
-		strings.Contains(path, "/embeddings")
+func isGeminiNonBillablePassthroughEndpoint(inboundEndpoint string) bool {
+	switch NormalizeInboundEndpoint(inboundEndpoint) {
+	case EndpointGeminiCorpora,
+		EndpointGeminiCorporaOperations,
+		EndpointGeminiCorporaPermissions,
+		EndpointGeminiDynamic,
+		EndpointGeminiGeneratedFiles,
+		EndpointGeminiGeneratedFilesOperations,
+		EndpointGeminiModelOperations,
+		EndpointGeminiTunedModels,
+		EndpointGeminiTunedModelsPermissions,
+		EndpointGeminiTunedModelsOperations:
+		return true
+	default:
+		return false
+	}
 }
 
 func geminiVideoRequestsForUsage(result *ForwardResult) int {
@@ -163,6 +182,21 @@ func geminiVideoRequestsForUsage(result *ForwardResult) int {
 		return 0
 	}
 	return 1
+}
+
+func geminiForwardResultServiceTier(result *ForwardResult) string {
+	if result == nil {
+		return ""
+	}
+	if result.ServiceTier != nil {
+		if value := strings.TrimSpace(*result.ServiceTier); value != "" {
+			return value
+		}
+	}
+	if result.RequestedServiceTier != nil {
+		return strings.TrimSpace(*result.RequestedServiceTier)
+	}
+	return ""
 }
 
 func (s *GatewayService) calculateGeminiGatewayCost(
@@ -181,13 +215,17 @@ func (s *GatewayService) calculateGeminiGatewayCost(
 		return nil, nil
 	}
 	requestedServiceTier := ""
-	if result.ServiceTier != nil {
-		requestedServiceTier = strings.TrimSpace(*result.ServiceTier)
+	if result.RequestedServiceTier != nil {
+		requestedServiceTier = strings.TrimSpace(*result.RequestedServiceTier)
 	}
 	if requestedServiceTier == "" {
 		if extracted := extractGeminiRequestedServiceTierFromBody(requestBody); extracted != nil {
 			requestedServiceTier = strings.TrimSpace(*extracted)
 		}
+	}
+	resolvedServiceTier := requestedServiceTier
+	if result.ServiceTier != nil {
+		resolvedServiceTier = strings.TrimSpace(*result.ServiceTier)
 	}
 
 	return s.billingService.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
@@ -195,6 +233,7 @@ func (s *GatewayService) calculateGeminiGatewayCost(
 		InboundEndpoint:      inboundEndpoint,
 		RequestBody:          requestBody,
 		RequestedServiceTier: requestedServiceTier,
+		ResolvedServiceTier:  resolvedServiceTier,
 		Tokens: UsageTokens{
 			InputTokens:           result.Usage.InputTokens,
 			OutputTokens:          result.Usage.OutputTokens,
@@ -246,7 +285,7 @@ func (s *GatewayService) calculateGatewayMediaCost(result *ForwardResult, apiKey
 		if apiKey != nil && apiKey.Group != nil {
 			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 		}
-		return s.billingService.CalculateImageCost(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier)
+		return s.billingService.CalculateImageCostWithServiceTier(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier, geminiForwardResultServiceTier(result))
 	}
 	if result.MediaType == "video" {
 		if platform == PlatformGrok {
@@ -259,7 +298,7 @@ func (s *GatewayService) calculateGatewayMediaCost(result *ForwardResult, apiKey
 		if apiKey != nil && apiKey.Group != nil {
 			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 		}
-		return s.billingService.CalculateImageCost(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier)
+		return s.billingService.CalculateImageCostWithServiceTier(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier, geminiForwardResultServiceTier(result))
 	}
 	return nil
 }
@@ -305,25 +344,30 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if channelResolution != nil && channelResolution.BillingModel != "" {
 		billingModel = channelResolution.BillingModel
 	}
+	nonBillableGeminiPassthrough := isGeminiNonBillablePassthroughEndpoint(input.InboundEndpoint)
 	var geminiBillingResult *GeminiBillingCalculationResult
 	var cost *CostBreakdown
-	if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
-		logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
+	if nonBillableGeminiPassthrough {
+		cost = &CostBreakdown{}
 	} else {
-		geminiBillingResult = geminiCost
-	}
-	if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
-		cost = geminiBillingResult.Cost
-		applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
-	} else {
-		cost = s.calculateGatewayMediaCost(result, apiKey, account, multiplier)
-	}
-	if cost == nil {
-		var err error
-		cost, err = s.billingService.CalculateCost(billingModel, tokens, multiplier)
-		if err != nil {
-			logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
-			cost = &CostBreakdown{ActualCost: 0}
+		if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
+			logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
+		} else {
+			geminiBillingResult = geminiCost
+		}
+		if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
+			cost = geminiBillingResult.Cost
+			applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
+		} else {
+			cost = s.calculateGatewayMediaCost(result, apiKey, account, multiplier)
+		}
+		if cost == nil {
+			var err error
+			cost, err = s.billingService.CalculateCost(billingModel, tokens, multiplier)
+			if err != nil {
+				logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
+				cost = &CostBreakdown{ActualCost: 0}
+			}
 		}
 	}
 	var channelPricing *GatewayChannelResolvedPricing
@@ -449,28 +493,33 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if channelResolution != nil && channelResolution.BillingModel != "" {
 		billingModel = channelResolution.BillingModel
 	}
+	nonBillableGeminiPassthrough := isGeminiNonBillablePassthroughEndpoint(input.InboundEndpoint)
 	var geminiBillingResult *GeminiBillingCalculationResult
 	var cost *CostBreakdown
-	if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
-		logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
+	if nonBillableGeminiPassthrough {
+		cost = &CostBreakdown{}
 	} else {
-		geminiBillingResult = geminiCost
-	}
-	if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
-		cost = geminiBillingResult.Cost
-		applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
-	} else if result.ImageCount > 0 {
-		var groupConfig *ImagePriceConfig
-		if apiKey.Group != nil {
-			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
+		if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
+			logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
+		} else {
+			geminiBillingResult = geminiCost
 		}
-		cost = s.billingService.CalculateImageCost(billingModel, result.ImageSize, result.ImageCount, groupConfig, multiplier)
-	} else {
-		var err error
-		cost, err = s.billingService.CalculateCostWithLongContext(billingModel, tokens, multiplier, input.LongContextThreshold, input.LongContextMultiplier)
-		if err != nil {
-			logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
-			cost = &CostBreakdown{ActualCost: 0}
+		if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
+			cost = geminiBillingResult.Cost
+			applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
+		} else if result.ImageCount > 0 {
+			var groupConfig *ImagePriceConfig
+			if apiKey.Group != nil {
+				groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
+			}
+			cost = s.billingService.CalculateImageCost(billingModel, result.ImageSize, result.ImageCount, groupConfig, multiplier)
+		} else {
+			var err error
+			cost, err = s.billingService.CalculateCostWithLongContext(billingModel, tokens, multiplier, input.LongContextThreshold, input.LongContextMultiplier)
+			if err != nil {
+				logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
+				cost = &CostBreakdown{ActualCost: 0}
+			}
 		}
 	}
 	var channelPricing *GatewayChannelResolvedPricing
@@ -539,17 +588,26 @@ func applyGeminiBillingMetadataToContext(ctx context.Context, result *GeminiBill
 	if result == nil {
 		return
 	}
+	fallbackReasons := make([]string, 0, 2)
 	if result.Classification != nil {
 		SetGeminiSurfaceMetadata(ctx, result.Classification.Surface)
 		SetGeminiRequestedServiceTierMetadata(ctx, result.Classification.RequestedServiceTier)
 		SetGeminiResolvedServiceTierMetadata(ctx, result.Classification.ServiceTier)
 		SetGeminiBatchModeMetadata(ctx, result.Classification.BatchMode)
 		SetGeminiCachePhaseMetadata(ctx, result.Classification.CachePhase)
+		if reason := strings.TrimSpace(resolveGeminiModeFallbackReason(result.Classification)); reason != "" {
+			fallbackReasons = append(fallbackReasons, reason)
+		}
 	}
 	if len(result.MatchedRuleIDs) > 0 {
 		SetBillingRuleIDMetadata(ctx, result.MatchedRuleIDs[0])
 	}
 	if result.Fallback != nil {
-		SetGeminiBillingFallbackReasonMetadata(ctx, result.Fallback.Reason)
+		if reason := strings.TrimSpace(result.Fallback.Reason); reason != "" {
+			fallbackReasons = append(fallbackReasons, reason)
+		}
+	}
+	if len(fallbackReasons) > 0 {
+		SetGeminiBillingFallbackReasonMetadata(ctx, strings.Join(uniqueTrimmedStringsPreserveCase(fallbackReasons), ","))
 	}
 }

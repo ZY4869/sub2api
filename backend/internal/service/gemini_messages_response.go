@@ -20,33 +20,34 @@ import (
 	"time"
 )
 
-func (s *GeminiMessagesCompatService) handleNonStreamingResponse(c *gin.Context, resp *http.Response, originalModel string) (*ClaudeUsage, string, error) {
+func (s *GeminiMessagesCompatService) handleNonStreamingResponse(c *gin.Context, resp *http.Response, originalModel string) (*ClaudeUsage, string, *string, error) {
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
-		return nil, "", s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream response")
+		return nil, "", nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream response")
 	}
 	unwrappedBody, err := unwrapGeminiResponse(body)
 	if err != nil {
-		return nil, "", s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")
+		return nil, "", nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")
 	}
 	var geminiResp map[string]any
 	if err := json.Unmarshal(unwrappedBody, &geminiResp); err != nil {
-		return nil, "", s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")
+		return nil, "", nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")
 	}
+	resolvedServiceTier := extractGeminiResolvedServiceTierFromResponse(unwrappedBody, resp.Header)
 	claudeResp, usage, convErr := convertGeminiToClaudeMessage(geminiResp, originalModel, unwrappedBody)
 	if convErr != nil {
 		var compatErr *geminiCompatResponseError
 		if errors.As(convErr, &compatErr) {
-			return nil, compatErr.responseID, s.writeClaudeError(c, compatErr.statusCode, compatErr.errorType, compatErr.message)
+			return nil, compatErr.responseID, resolvedServiceTier, s.writeClaudeError(c, compatErr.statusCode, compatErr.errorType, compatErr.message)
 		}
-		return nil, "", s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", convErr.Error())
+		return nil, "", resolvedServiceTier, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", convErr.Error())
 	}
 	responseID := strings.TrimSpace(stringValueFromAny(claudeResp["google_response_id"]))
 	if c != nil && c.Writer != nil && c.Writer.Header().Get("x-request-id") == "" && responseID != "" {
 		c.Header("x-request-id", responseID)
 	}
 	c.JSON(http.StatusOK, claudeResp)
-	return usage, responseID, nil
+	return usage, responseID, resolvedServiceTier, nil
 }
 
 func (s *GeminiMessagesCompatService) handleStreamingResponse(c *gin.Context, resp *http.Response, startTime time.Time, originalModel string) (*geminiStreamResult, error) {
@@ -202,9 +203,10 @@ func pickGeminiCollectResult(last map[string]any, lastWithParts map[string]any) 
 }
 
 type geminiNativeStreamResult struct {
-	usage        *ClaudeUsage
-	firstTokenMs *int
-	responseID   string
+	usage               *ClaudeUsage
+	firstTokenMs        *int
+	responseID          string
+	resolvedServiceTier *string
 }
 
 func isGeminiInsufficientScope(headers http.Header, body []byte) bool {
@@ -222,6 +224,7 @@ func (s *GeminiMessagesCompatService) ForwardAIStudioGET(ctx context.Context, ac
 	if path == "" || !strings.HasPrefix(path, "/") {
 		return nil, errors.New("invalid path")
 	}
+	pathOnly, _, _ := strings.Cut(path, "?")
 	if account.IsGeminiVertexExpress() || account.IsGeminiVertexAI() {
 		if s.vertexCatalogService == nil {
 			return nil, fmt.Errorf("vertex catalog service is not configured")
@@ -231,10 +234,10 @@ func (s *GeminiMessagesCompatService) ForwardAIStudioGET(ctx context.Context, ac
 			return nil, err
 		}
 		switch {
-		case path == "/v1beta/models":
+		case pathOnly == "/v1beta/models":
 			return buildGeminiVertexCatalogModelsResponseFromCatalog(catalog.CallableUnion)
-		case strings.HasPrefix(path, "/v1beta/models/"):
-			return buildGeminiVertexCatalogModelResponseFromCatalog(strings.TrimPrefix(path, "/v1beta/models/"), catalog.CallableUnion)
+		case strings.HasPrefix(pathOnly, "/v1beta/models/"):
+			return buildGeminiVertexCatalogModelResponseFromCatalog(strings.TrimPrefix(pathOnly, "/v1beta/models/"), catalog.CallableUnion)
 		default:
 			return nil, fmt.Errorf("unsupported vertex AI GET path: %s", path)
 		}
@@ -421,14 +424,54 @@ func convertGeminiToClaudeMessage(geminiResp map[string]any, originalModel strin
 }
 func extractGeminiUsage(data []byte) *ClaudeUsage {
 	usage := gjson.GetBytes(data, "usageMetadata")
-	if !usage.Exists() {
+	if usage.Exists() {
+		prompt := int(usage.Get("promptTokenCount").Int())
+		cand := int(usage.Get("candidatesTokenCount").Int())
+		cached := int(usage.Get("cachedContentTokenCount").Int())
+		thoughts := int(usage.Get("thoughtsTokenCount").Int())
+		if prompt < cached {
+			prompt = cached
+		}
+		return &ClaudeUsage{InputTokens: prompt - cached, OutputTokens: cand + thoughts, CacheReadInputTokens: cached}
+	}
+	interactionUsage := gjson.GetBytes(data, "usage")
+	if !interactionUsage.Exists() {
 		return nil
 	}
-	prompt := int(usage.Get("promptTokenCount").Int())
-	cand := int(usage.Get("candidatesTokenCount").Int())
-	cached := int(usage.Get("cachedContentTokenCount").Int())
-	thoughts := int(usage.Get("thoughtsTokenCount").Int())
-	return &ClaudeUsage{InputTokens: prompt - cached, OutputTokens: cand + thoughts, CacheReadInputTokens: cached}
+	totalInput := int(interactionUsage.Get("total_input_tokens").Int())
+	if totalInput == 0 {
+		totalInput = int(interactionUsage.Get("totalInputTokens").Int())
+	}
+	totalOutput := int(interactionUsage.Get("total_output_tokens").Int())
+	if totalOutput == 0 {
+		totalOutput = int(interactionUsage.Get("totalOutputTokens").Int())
+	}
+	totalCached := int(interactionUsage.Get("total_cached_tokens").Int())
+	if totalCached == 0 {
+		totalCached = int(interactionUsage.Get("totalCachedTokens").Int())
+	}
+	totalThought := int(interactionUsage.Get("total_thought_tokens").Int())
+	if totalThought == 0 {
+		totalThought = int(interactionUsage.Get("totalThoughtTokens").Int())
+	}
+	if totalThought == 0 {
+		totalThought = int(interactionUsage.Get("total_reasoning_tokens").Int())
+	}
+	if totalThought == 0 {
+		totalThought = int(interactionUsage.Get("totalReasoningTokens").Int())
+	}
+	if totalInput == 0 && totalOutput == 0 && totalCached == 0 && totalThought == 0 {
+		return nil
+	}
+	billableInput := totalInput - totalCached
+	if billableInput < 0 {
+		billableInput = 0
+	}
+	return &ClaudeUsage{
+		InputTokens:          billableInput,
+		OutputTokens:         totalOutput + totalThought,
+		CacheReadInputTokens: totalCached,
+	}
 }
 func asInt(v any) (int, bool) {
 	switch t := v.(type) {

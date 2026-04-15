@@ -38,11 +38,12 @@ type geminiClaudeStreamEmitter struct {
 	seenToolJSON      string
 	toolSequence      int
 
-	usage        ClaudeUsage
-	finishReason string
-	sawToolUse   bool
-	firstTokenMs *int
-	responseID   string
+	usage               ClaudeUsage
+	finishReason        string
+	sawToolUse          bool
+	firstTokenMs        *int
+	responseID          string
+	resolvedServiceTier *string
 }
 
 func newGeminiClaudeStreamEmitter(writer io.Writer, flusher interface{ Flush() }, startTime time.Time, model string) *geminiClaudeStreamEmitter {
@@ -62,6 +63,9 @@ func (e *geminiClaudeStreamEmitter) consumeResponse(geminiResp map[string]any, r
 	analysis := analyzeGeminiResponse(geminiResp, raw)
 	if analysis.Usage != nil {
 		e.usage = *analysis.Usage
+	}
+	if resolvedServiceTier := extractGeminiResolvedServiceTierFromResponse(raw, nil); resolvedServiceTier != nil {
+		e.resolvedServiceTier = resolvedServiceTier
 	}
 	if strings.TrimSpace(analysis.ResponseID) != "" {
 		e.responseID = analysis.ResponseID
@@ -279,7 +283,7 @@ func (e *geminiClaudeStreamEmitter) finalize() *geminiStreamResult {
 		e.closeTool()
 	}
 	if !e.started {
-		return &geminiStreamResult{usage: &e.usage, firstTokenMs: e.firstTokenMs, responseID: e.responseID}
+		return &geminiStreamResult{usage: &e.usage, firstTokenMs: e.firstTokenMs, responseID: e.responseID, resolvedServiceTier: e.resolvedServiceTier}
 	}
 	stopReason := mapGeminiFinishReasonToClaudeStopReason(e.finishReason)
 	if e.sawToolUse {
@@ -299,7 +303,7 @@ func (e *geminiClaudeStreamEmitter) finalize() *geminiStreamResult {
 	})
 	writeSSE(e.writer, "message_stop", map[string]any{"type": "message_stop"})
 	e.flush()
-	return &geminiStreamResult{usage: &e.usage, firstTokenMs: e.firstTokenMs, responseID: e.responseID}
+	return &geminiStreamResult{usage: &e.usage, firstTokenMs: e.firstTokenMs, responseID: e.responseID, resolvedServiceTier: e.resolvedServiceTier}
 }
 
 func (e *geminiClaudeStreamEmitter) closeText() {

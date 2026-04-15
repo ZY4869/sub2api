@@ -2,6 +2,10 @@ package handler
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
@@ -11,8 +15,11 @@ import (
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
-	"net/http"
-	"strings"
+)
+
+const (
+	geminiModelsDefaultPageSize = 50
+	geminiModelsMaxPageSize     = 1000
 )
 
 func (h *GatewayHandler) Models(c *gin.Context) {
@@ -86,24 +93,55 @@ func apiKeyPublicEntriesToClaudeModels(entries []service.APIKeyPublicModelEntry)
 	return models
 }
 
-func apiKeyPublicEntriesToGeminiModels(entries []service.APIKeyPublicModelEntry) gemini.ModelsListResponse {
-	models := make([]gemini.Model, 0, len(entries))
-	for _, entry := range entries {
-		models = append(models, apiKeyPublicEntryToGeminiModel(entry))
-	}
-	return gemini.ModelsListResponse{Models: models}
+func apiKeyPublicEntriesToGeminiModels(entries []service.APIKeyPublicModelEntry, nextPageToken string) gemini.ModelsListResponse {
+	return apiKeyPublicEntriesToGeminiModelsWithRegistry(entries, nextPageToken, nil)
 }
 
 func apiKeyPublicEntryToGeminiModel(entry service.APIKeyPublicModelEntry) gemini.Model {
-	displayName := entry.DisplayName
-	if displayName == "" {
-		displayName = entry.PublicID
+	return apiKeyPublicEntryToGeminiModelWithRegistry(entry, nil)
+}
+
+func paginateGeminiPublicModels(entries []service.APIKeyPublicModelEntry, rawPageSize string, rawPageToken string) ([]service.APIKeyPublicModelEntry, string, error) {
+	pageSize, err := parseGeminiModelsPageSize(rawPageSize)
+	if err != nil {
+		return nil, "", err
 	}
-	description := ""
-	if strings.TrimSpace(entry.Platform) != "" {
-		description = "Gemini model metadata projected from " + strings.TrimSpace(entry.Platform) + " public model availability."
+	offset, err := parseGeminiModelsPageToken(rawPageToken)
+	if err != nil {
+		return nil, "", err
 	}
-	return gemini.BuildModel(entry.PublicID, displayName, description, nil)
+	if offset >= len(entries) {
+		return []service.APIKeyPublicModelEntry{}, "", nil
+	}
+	end := len(entries)
+	if pageSize > 0 && offset+pageSize < end {
+		end = offset + pageSize
+	}
+	nextPageToken := ""
+	if end < len(entries) {
+		nextPageToken = encodeGeminiFallbackPageToken(end)
+	}
+	page := make([]service.APIKeyPublicModelEntry, 0, end-offset)
+	page = append(page, entries[offset:end]...)
+	return page, nextPageToken, nil
+}
+
+func parseGeminiModelsPageSize(raw string) (int, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return geminiModelsDefaultPageSize, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 0 {
+		return 0, fmt.Errorf("invalid pageSize")
+	}
+	if value == 0 {
+		return geminiModelsDefaultPageSize, nil
+	}
+	if value > geminiModelsMaxPageSize {
+		return geminiModelsMaxPageSize, nil
+	}
+	return value, nil
 }
 
 func (h *GatewayHandler) resolveParsedRequestModel(ctx context.Context, parsed *service.ParsedRequest) {

@@ -20,8 +20,11 @@ func convertClaudeMessagesToGeminiGenerateContent(body []byte, options ...gemini
 		return nil, err
 	}
 	out := make(map[string]any)
-	if systemText != "" {
-		out["systemInstruction"] = map[string]any{"parts": []any{map[string]any{"text": systemText}}}
+	copyGeminiRequestFieldExact(out, req, "service_tier", "serviceTier")
+	copyGeminiRequestField(out, req, "cachedContent", "cachedContent", "cached_content")
+	copyGeminiRequestField(out, req, "safetySettings", "safetySettings", "safety_settings")
+	if systemInstruction := buildGeminiSystemInstruction(req, systemText); systemInstruction != nil {
+		out["systemInstruction"] = systemInstruction
 	}
 	out["contents"] = contents
 	tools, toolSummary, err := convertClaudeToolsToGeminiTools(req["tools"], transformOptions)
@@ -42,6 +45,63 @@ func convertClaudeMessagesToGeminiGenerateContent(body []byte, options ...gemini
 		out["generationConfig"] = generationConfig
 	}
 	return json.Marshal(out)
+}
+
+func copyGeminiRequestField(out map[string]any, req map[string]any, targetKey string, sourceKeys ...string) {
+	if out == nil || req == nil || strings.TrimSpace(targetKey) == "" {
+		return
+	}
+	for _, sourceKey := range sourceKeys {
+		if value, exists := req[sourceKey]; exists && value != nil {
+			out[targetKey] = deepCloneGeminiValue(value)
+			return
+		}
+	}
+}
+
+func copyGeminiRequestFieldExact(out map[string]any, req map[string]any, keys ...string) {
+	if out == nil || req == nil {
+		return
+	}
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		if value, exists := req[key]; exists && value != nil {
+			out[key] = deepCloneGeminiValue(value)
+			return
+		}
+	}
+}
+
+func buildGeminiSystemInstruction(req map[string]any, systemText string) map[string]any {
+	instruction, _ := deepCloneGeminiValue(firstNonNil(req["systemInstruction"], req["system_instruction"])).(map[string]any)
+	if strings.TrimSpace(systemText) == "" {
+		return instruction
+	}
+	if instruction == nil {
+		return map[string]any{"parts": []any{map[string]any{"text": systemText}}}
+	}
+
+	parts, _ := instruction["parts"].([]any)
+	if len(parts) == 0 {
+		instruction["parts"] = []any{map[string]any{"text": systemText}}
+		return instruction
+	}
+
+	trimmedSystemText := strings.TrimSpace(systemText)
+	for _, rawPart := range parts {
+		part, ok := rawPart.(map[string]any)
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(stringValueFromAny(part["text"])) == trimmedSystemText {
+			return instruction
+		}
+	}
+	instruction["parts"] = append(parts, map[string]any{"text": systemText})
+	return instruction
 }
 
 func extractClaudeSystemText(system any) string {
@@ -338,12 +398,19 @@ func convertClaudeToolsToGeminiTools(tools any, options geminiTransformOptions) 
 	if !ok || len(arr) == 0 {
 		return nil, geminiToolSummary{}, nil
 	}
+	preservedTools := make([]any, 0, len(arr))
 	funcDecls := make([]any, 0, len(arr))
 	builtInToolConfigs := make(map[string]map[string]any)
 	builtInToolOrder := make([]string, 0, 4)
+	hasFunctionDeclarations := false
 	for _, t := range arr {
 		tm, ok := t.(map[string]any)
 		if !ok {
+			continue
+		}
+		if preservedTool, hasDeclarations := cloneGeminiFunctionDeclarationsTool(tm); preservedTool != nil {
+			preservedTools = append(preservedTools, preservedTool)
+			hasFunctionDeclarations = hasFunctionDeclarations || hasDeclarations
 			continue
 		}
 		if builtInKind := extractGeminiBuiltInToolKind(tm); builtInKind != "" {
@@ -392,11 +459,19 @@ func convertClaudeToolsToGeminiTools(tools any, options geminiTransformOptions) 
 		funcDecls = append(funcDecls, map[string]any{"name": name, "description": desc, "parameters": cleanedParams})
 	}
 	if len(funcDecls) == 0 && len(builtInToolOrder) == 0 {
-		return nil, geminiToolSummary{}, nil
+		if len(preservedTools) == 0 {
+			return nil, geminiToolSummary{}, nil
+		}
+		return preservedTools, geminiToolSummary{
+			HasFunctionDeclarations: hasFunctionDeclarations,
+			BuiltInKinds:            append([]string(nil), builtInToolOrder...),
+		}, nil
 	}
-	toolsOut := make([]any, 0, 1+len(builtInToolOrder))
+	toolsOut := make([]any, 0, len(preservedTools)+1+len(builtInToolOrder))
+	toolsOut = append(toolsOut, preservedTools...)
 	if len(funcDecls) > 0 {
 		toolsOut = append(toolsOut, map[string]any{"functionDeclarations": funcDecls})
+		hasFunctionDeclarations = true
 	}
 	for _, kind := range builtInToolOrder {
 		config := builtInToolConfigs[kind]
@@ -406,39 +481,42 @@ func convertClaudeToolsToGeminiTools(tools any, options geminiTransformOptions) 
 		toolsOut = append(toolsOut, map[string]any{kind: config})
 	}
 	return toolsOut, geminiToolSummary{
-		HasFunctionDeclarations: len(funcDecls) > 0,
+		HasFunctionDeclarations: hasFunctionDeclarations,
 		BuiltInKinds:            append([]string(nil), builtInToolOrder...),
 	}, nil
 }
 
 func convertClaudeGenerationConfig(req map[string]any) (map[string]any, error) {
-	out := make(map[string]any)
+	out, _ := deepCloneGeminiValue(firstNonNil(req["generationConfig"], req["generation_config"])).(map[string]any)
+	if out == nil {
+		out = make(map[string]any)
+	}
 	if mt, ok := asInt(firstNonNil(req["max_tokens"], req["maxTokens"])); ok && mt > 0 {
-		out["maxOutputTokens"] = mt
+		setGeminiValueIfMissing(out, "maxOutputTokens", mt)
 	}
 	if temp, ok := req["temperature"].(float64); ok {
-		out["temperature"] = temp
+		setGeminiValueIfMissing(out, "temperature", temp)
 	}
 	if topP, ok := firstNonNil(req["top_p"], req["topP"]).(float64); ok {
-		out["topP"] = topP
+		setGeminiValueIfMissing(out, "topP", topP)
 	}
 	if topK, ok := asInt(firstNonNil(req["top_k"], req["topK"])); ok && topK > 0 {
-		out["topK"] = topK
+		setGeminiValueIfMissing(out, "topK", topK)
 	}
 	thinkingConfig, err := buildGeminiThinkingConfig(req, stringValueFromAny(req["model"]))
 	if err != nil {
 		return nil, err
 	}
 	if thinkingConfig.Config != nil {
-		out["thinkingConfig"] = thinkingConfig.Config
+		setGeminiValueIfMissing(out, "thinkingConfig", thinkingConfig.Config)
 	}
 	if mediaResolution, ok, err := extractGeminiMediaResolution(req, stringValueFromAny(req["model"])); err != nil {
 		return nil, err
 	} else if ok {
-		out["mediaResolution"] = mediaResolution
+		setGeminiValueIfMissing(out, "mediaResolution", mediaResolution)
 	}
 	if stopSeq, ok := firstNonNil(req["stop_sequences"], req["stopSequences"]).([]any); ok && len(stopSeq) > 0 {
-		out["stopSequences"] = normalizeClaudeStringList(stopSeq)
+		setGeminiValueIfMissing(out, "stopSequences", normalizeClaudeStringList(stopSeq))
 	}
 	copyGeminiStructuredOutputConfig(req, out)
 	if len(out) == 1 {
@@ -453,6 +531,15 @@ func convertClaudeGenerationConfig(req map[string]any) (map[string]any, error) {
 		return nil, nil
 	}
 	return out, nil
+}
+
+func cloneGeminiFunctionDeclarationsTool(tool map[string]any) (map[string]any, bool) {
+	declarations, ok := tool["functionDeclarations"].([]any)
+	if !ok || len(declarations) == 0 {
+		return nil, false
+	}
+	cloned, _ := deepCloneGeminiValue(tool).(map[string]any)
+	return cloned, len(declarations) > 0
 }
 
 func normalizeClaudeStringList(values []any) []string {

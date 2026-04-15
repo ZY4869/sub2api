@@ -264,6 +264,61 @@ func TestBillingCenterService_CalculateGeminiCost_PriorityRequiresExplicitPrice(
 	require.Zero(t, result.TotalCost)
 }
 
+func TestBillingCenterService_CalculateGeminiCost_ImagePriorityUsesExplicitImagePrice(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-flash-image": {
+			InputCostPerToken:          3e-7,
+			InputCostPerTokenPriority:  5.4e-7,
+			OutputCostPerImage:         0.039,
+			OutputCostPerImagePriority: 0.0702,
+			LiteLLMProvider:            PlatformGemini,
+			Mode:                       "image_generation",
+			SupportsServiceTier:        true,
+		},
+	})
+
+	result, err := svc.billingCenterService.CalculateGeminiCost(context.Background(), GeminiBillingCalculationInput{
+		Model:                "gemini-2.5-flash-image",
+		InboundEndpoint:      "/v1/models/gemini-2.5-flash-image:generateContent",
+		RequestedServiceTier: BillingServiceTierPriority,
+		ImageCount:           2,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Fallback)
+	require.Equal(t, BillingServiceTierPriority, result.Classification.ServiceTier)
+	imageLine := billingLineBySlot(result.Fallback.CostLines, BillingChargeSlotImageOutput)
+	require.NotNil(t, imageLine)
+	require.InDelta(t, 0.0702, imageLine.Price, 1e-12)
+	require.InDelta(t, 0.1404, result.TotalCost, 1e-12)
+}
+
+func TestBillingCenterService_CalculateGeminiCost_ImageFlexUsesHalfPrice(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-flash-image": {
+			OutputCostPerImage:  0.039,
+			LiteLLMProvider:     PlatformGemini,
+			Mode:                "image_generation",
+			SupportsServiceTier: true,
+		},
+	})
+
+	result, err := svc.billingCenterService.CalculateGeminiCost(context.Background(), GeminiBillingCalculationInput{
+		Model:                "gemini-2.5-flash-image",
+		InboundEndpoint:      "/v1/models/gemini-2.5-flash-image:generateContent",
+		RequestedServiceTier: BillingServiceTierFlex,
+		ImageCount:           2,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, result.Fallback)
+	require.Equal(t, BillingServiceTierFlex, result.Classification.ServiceTier)
+	imageLine := billingLineBySlot(result.Fallback.CostLines, BillingChargeSlotImageOutput)
+	require.NotNil(t, imageLine)
+	require.InDelta(t, 0.0195, imageLine.Price, 1e-12)
+	require.InDelta(t, 0.039, result.TotalCost, 1e-12)
+}
+
 func TestBillingCenterService_CalculateGeminiCost_BatchUsesHalfPrice(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
@@ -291,6 +346,66 @@ func TestBillingCenterService_CalculateGeminiCost_BatchUsesHalfPrice(t *testing.
 	require.Equal(t, BillingBatchModeBatch, result.Classification.BatchMode)
 	require.Equal(t, BillingServiceTierStandard, result.Classification.ServiceTier)
 	require.InDelta(t, 0.0025, result.TotalCost, 1e-12)
+}
+
+func TestBillingCenterService_CalculateGeminiCost_InteractionsUseServiceTier(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-pro": {
+			InputCostPerToken:       2e-6,
+			OutputCostPerToken:      6e-6,
+			CacheReadInputTokenCost: 0.2e-6,
+			LiteLLMProvider:         PlatformGemini,
+			Mode:                    "chat",
+			SupportsServiceTier:     true,
+		},
+	})
+
+	result, err := svc.billingCenterService.CalculateGeminiCost(context.Background(), GeminiBillingCalculationInput{
+		Model:                "gemini-2.5-pro",
+		InboundEndpoint:      "/v1beta/interactions",
+		RequestedServiceTier: BillingServiceTierFlex,
+		Tokens: UsageTokens{
+			InputTokens:     1000,
+			OutputTokens:    500,
+			CacheReadTokens: 100,
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, BillingSurfaceInteractions, result.Classification.Surface)
+	require.Equal(t, BillingServiceTierFlex, result.Classification.ServiceTier)
+	require.InDelta(t, 0.00251, result.TotalCost, 1e-12)
+}
+
+func TestBillingCenterService_CalculateGeminiCost_UsesResolvedTierAfterUpstreamDowngrade(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	svc, _ := newGeminiBillingCatalogService(repo, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-pro": {
+			InputCostPerToken:       2e-6,
+			OutputCostPerToken:      6e-6,
+			CacheReadInputTokenCost: 0.2e-6,
+			LiteLLMProvider:         PlatformGemini,
+			Mode:                    "chat",
+			SupportsServiceTier:     true,
+		},
+	})
+
+	result, err := svc.billingCenterService.CalculateGeminiCost(context.Background(), GeminiBillingCalculationInput{
+		Model:                "gemini-2.5-pro",
+		InboundEndpoint:      "/v1beta/interactions",
+		RequestedServiceTier: BillingServiceTierPriority,
+		ResolvedServiceTier:  BillingServiceTierStandard,
+		Tokens: UsageTokens{
+			InputTokens:  1000,
+			OutputTokens: 500,
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, BillingServiceTierPriority, result.Classification.RequestedServiceTier)
+	require.Equal(t, BillingServiceTierStandard, result.Classification.ServiceTier)
+	require.True(t, result.Classification.ServiceTierDowngraded)
+	require.Equal(t, "service_tier_downgraded_by_upstream", resolveGeminiModeFallbackReason(result.Classification))
+	require.InDelta(t, 0.005, result.TotalCost, 1e-12)
 }
 
 func TestBillingCenterService_CalculateGeminiCost_CacheStorageUsesTokenHours(t *testing.T) {
