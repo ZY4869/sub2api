@@ -8,7 +8,7 @@ import (
 )
 
 type billingPricingFormMetadata struct {
-	InputSupported  bool
+	InputSupported   bool
 	OutputChargeSlot string
 }
 
@@ -54,7 +54,7 @@ func billingPricingMetadataForRecord(record *modelCatalogRecord, items []Billing
 		}
 	}
 	return billingPricingFormMetadata{
-		InputSupported:  inputSupported,
+		InputSupported:   inputSupported,
 		OutputChargeSlot: outputSlot,
 	}
 }
@@ -69,10 +69,6 @@ func billingDefaultOutputChargeSlot(mode string) string {
 	default:
 		return BillingChargeSlotTextOutput
 	}
-}
-
-func billingPricingLayerFormFromItems(record *modelCatalogRecord, items []BillingPriceItem) BillingPricingLayerForm {
-	return billingPricingLayerFormFromItemsWithMetadata(billingPricingMetadataForRecord(record, items), items)
 }
 
 func billingPricingLayerFormFromItemsWithMetadata(metadata billingPricingFormMetadata, items []BillingPriceItem) BillingPricingLayerForm {
@@ -245,19 +241,6 @@ func geminiMatrixFromSimpleForm(form BillingPricingLayerForm) *GeminiBillingMatr
 	appendCell(BillingChargeSlotFileSearchEmbeddingToken, form.Special.FileSearchEmbedding)
 	appendCell(BillingChargeSlotFileSearchRetrievalToken, form.Special.FileSearchRetrieval)
 	return matrix
-}
-
-func billingPricingLayerFormEmpty(form *BillingPricingLayerForm) bool {
-	if form == nil {
-		return true
-	}
-	return form.InputPrice == nil &&
-		form.OutputPrice == nil &&
-		form.CachePrice == nil &&
-		form.TierThresholdTokens == nil &&
-		form.InputPriceAboveThreshold == nil &&
-		form.OutputPriceAboveThreshold == nil &&
-		!billingPricingSimpleSpecialEnabled(form.Special)
 }
 
 func cloneBillingPricingLayerForm(form BillingPricingLayerForm) BillingPricingLayerForm {

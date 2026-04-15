@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	apiKeyPublicModelsSourceSavedProbe          = "saved_probe"
-	apiKeyPublicModelsSourceLiveProbe           = "live_probe"
+	apiKeyPublicModelsSourceSavedProbe         = "saved_probe"
+	apiKeyPublicModelsSourceLiveProbe          = "live_probe"
 	apiKeyPublicModelsSourceRestrictedFallback = "restricted_fallback"
 	apiKeyPublicModelsSourceRegistryFallback   = "registry_fallback"
 	apiKeyPublicModelsSourceVertexCatalog      = "vertex_catalog"
@@ -142,7 +142,6 @@ func (s *GatewayService) buildAccountModelProbeSummaryFromModelIDs(
 			if resolution, err := s.modelRegistryService.ExplainResolution(ctx, modelID); err == nil && resolution != nil {
 				resolvedID := firstNonEmptyString(resolution.EffectiveID, resolution.CanonicalID, resolution.Entry.ID)
 				if normalizedResolved := normalizeRegistryID(resolvedID); normalizedResolved != "" {
-					modelID = normalizedResolved
 					item.ID = normalizedResolved
 				}
 				if displayName := strings.TrimSpace(resolution.Entry.DisplayName); displayName != "" {

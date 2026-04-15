@@ -477,20 +477,6 @@ func generatedPricingRuleID(model string, item BillingPriceItem) string {
 	}, "__")
 }
 
-func geminiMatrixFromItems(items []BillingPriceItem) *GeminiBillingMatrix {
-	matrix := newGeminiBillingMatrix()
-	for _, raw := range items {
-		item := normalizeBillingPriceItem(raw)
-		if item.Surface == "" || item.BatchMode == BillingBatchModeBatch || !geminiChargeSlotSupported(item.ChargeSlot) {
-			continue
-		}
-		tier := defaultString(item.ServiceTier, BillingServiceTierStandard)
-		price := item.Price
-		setGeminiMatrixCell(matrix, item.Surface, tier, item.ChargeSlot, &price, item.RuleID, item.DerivedVia, true)
-	}
-	return matrix
-}
-
 func defaultString(value string, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback
