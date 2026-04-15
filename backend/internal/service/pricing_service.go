@@ -35,6 +35,14 @@ var (
 		Mode:                            "chat",
 		SupportsPromptCaching:           true,
 	}
+	openAIGPT45PreviewFallbackPricing = &LiteLLMModelPricing{
+		InputCostPerToken:       7.5e-05, // $75 per MTok
+		OutputCostPerToken:      1.5e-04, // $150 per MTok
+		CacheReadInputTokenCost: 3.75e-05,
+		LiteLLMProvider:         "openai",
+		Mode:                    "chat",
+		SupportsPromptCaching:   true,
+	}
 	openAIGPT54ProFallbackPricing = &LiteLLMModelPricing{
 		InputCostPerToken:                3e-05, // $30 per MTok
 		InputTokenThreshold:              272000,
@@ -125,6 +133,7 @@ type PricingService struct {
 	pricingData  map[string]*LiteLLMModelPricing
 	lastUpdated  time.Time
 	localHash    string
+	fallbackLogs sync.Map
 
 	// 停止信号
 	stopCh chan struct{}
@@ -852,8 +861,7 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 	if strings.HasPrefix(model, "gpt-5.3-codex-spark") {
 		if pricing, ok := s.pricingData["gpt-5.1-codex"]; ok {
 			logger.LegacyPrintf("service.pricing", "[Pricing][SparkBilling] %s -> %s billing", model, "gpt-5.1-codex")
-			logger.With(zap.String("component", "service.pricing")).
-				Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.1-codex"))
+			s.logOpenAIFallbackOnce(model, "gpt-5.1-codex", "matched")
 			return pricing
 		}
 	}
@@ -863,36 +871,37 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 
 	for _, variant := range variants {
 		if pricing, ok := s.pricingData[variant]; ok {
-			logger.With(zap.String("component", "service.pricing")).
-				Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, variant))
+			s.logOpenAIFallbackOnce(model, variant, "matched")
 			return pricing
 		}
 	}
 
 	if strings.HasPrefix(model, "gpt-5.3-codex") {
 		if pricing, ok := s.pricingData["gpt-5.2-codex"]; ok {
-			logger.With(zap.String("component", "service.pricing")).
-				Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.2-codex"))
+			s.logOpenAIFallbackOnce(model, "gpt-5.2-codex", "matched")
 			return pricing
 		}
 	}
 
+	if strings.HasPrefix(model, "gpt-4.5") {
+		s.logOpenAIFallbackOnce(model, "gpt-4.5-preview(static)", "matched")
+		return openAIGPT45PreviewFallbackPricing
+	}
+
 	if strings.HasPrefix(model, "gpt-5.4-pro") {
-		logger.With(zap.String("component", "service.pricing")).
-			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.4-pro(static)"))
+		s.logOpenAIFallbackOnce(model, "gpt-5.4-pro(static)", "matched")
 		return openAIGPT54ProFallbackPricing
 	}
 
 	if strings.HasPrefix(model, "gpt-5.4") {
-		logger.With(zap.String("component", "service.pricing")).
-			Info(fmt.Sprintf("[Pricing] OpenAI fallback matched %s -> %s", model, "gpt-5.4(static)"))
+		s.logOpenAIFallbackOnce(model, "gpt-5.4(static)", "matched")
 		return openAIGPT54FallbackPricing
 	}
 
 	// 最终回退到 DefaultTestModel
 	defaultModel := strings.ToLower(openai.DefaultTestModel)
 	if pricing, ok := s.pricingData[defaultModel]; ok {
-		logger.LegacyPrintf("service.pricing", "[Pricing] OpenAI fallback to default model %s -> %s", model, defaultModel)
+		s.logOpenAIFallbackOnce(model, defaultModel, "default")
 		return pricing
 	}
 
@@ -900,6 +909,24 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 }
 
 // generateOpenAIModelVariants 生成 OpenAI 模型的回退变体列表
+func (s *PricingService) logOpenAIFallbackOnce(model string, target string, kind string) {
+	if s == nil {
+		return
+	}
+	key := strings.TrimSpace(strings.ToLower(kind + "|" + model + "|" + target))
+	if key == "" {
+		return
+	}
+	if _, loaded := s.fallbackLogs.LoadOrStore(key, struct{}{}); loaded {
+		return
+	}
+	message := "[Pricing] OpenAI fallback matched %s -> %s"
+	if strings.TrimSpace(strings.ToLower(kind)) == "default" {
+		message = "[Pricing] OpenAI fallback to default model %s -> %s"
+	}
+	logger.With(zap.String("component", "service.pricing")).Debug(fmt.Sprintf(message, model, target))
+}
+
 func (s *PricingService) generateOpenAIModelVariants(model string, datePattern *regexp.Regexp) []string {
 	seen := make(map[string]bool)
 	var variants []string

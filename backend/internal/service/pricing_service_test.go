@@ -63,7 +63,7 @@ func TestGetModelPricing_Gpt53CodexFallbackStillUsesGpt52Codex(t *testing.T) {
 	require.Same(t, gpt52CodexPricing, got)
 }
 
-func TestGetModelPricing_OpenAIFallbackMatchedLoggedAsInfo(t *testing.T) {
+func TestGetModelPricing_OpenAIFallbackMatchedLoggedAsDebug(t *testing.T) {
 	logSink, restore := captureStructuredLog(t)
 	defer restore()
 
@@ -77,7 +77,8 @@ func TestGetModelPricing_OpenAIFallbackMatchedLoggedAsInfo(t *testing.T) {
 	got := svc.GetModelPricing("gpt-5.3-codex")
 	require.Same(t, gpt52CodexPricing, got)
 
-	require.True(t, logSink.ContainsMessageAtLevel("[Pricing] OpenAI fallback matched gpt-5.3-codex -> gpt-5.2-codex", "info"))
+	require.True(t, logSink.ContainsMessageAtLevel("[Pricing] OpenAI fallback matched gpt-5.3-codex -> gpt-5.2-codex", "debug"))
+	require.False(t, logSink.ContainsMessageAtLevel("[Pricing] OpenAI fallback matched gpt-5.3-codex -> gpt-5.2-codex", "info"))
 	require.False(t, logSink.ContainsMessageAtLevel("[Pricing] OpenAI fallback matched gpt-5.3-codex -> gpt-5.2-codex", "warn"))
 }
 
@@ -96,6 +97,53 @@ func TestGetModelPricing_Gpt54UsesStaticFallbackWhenRemoteMissing(t *testing.T) 
 	require.Equal(t, 272000, got.LongContextInputTokenThreshold)
 	require.InDelta(t, 2.0, got.LongContextInputCostMultiplier, 1e-12)
 	require.InDelta(t, 1.5, got.LongContextOutputCostMultiplier, 1e-12)
+}
+
+func TestGetModelPricing_Gpt45PreviewUsesStaticFallbackWhenRemoteMissing(t *testing.T) {
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"gpt-5.1-codex": {InputCostPerToken: 1.25e-6},
+		},
+	}
+
+	got := svc.GetModelPricing("gpt-4.5-preview")
+	require.NotNil(t, got)
+	require.InDelta(t, 7.5e-5, got.InputCostPerToken, 1e-12)
+	require.InDelta(t, 1.5e-4, got.OutputCostPerToken, 1e-12)
+	require.InDelta(t, 3.75e-5, got.CacheReadInputTokenCost, 1e-12)
+	require.True(t, got.SupportsPromptCaching)
+}
+
+func TestGetModelPricing_GptOss120bMediumFallsBackToDefaultModel(t *testing.T) {
+	defaultPricing := &LiteLLMModelPricing{InputCostPerToken: 1.25e-6}
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"gpt-5.1-codex": defaultPricing,
+		},
+	}
+
+	got := svc.GetModelPricing("gpt-oss-120b-medium")
+	require.Same(t, defaultPricing, got)
+}
+
+func TestGetModelPricing_GptOss120bMediumFallbackIsDebugOnly(t *testing.T) {
+	logSink, restore := captureStructuredLog(t)
+	defer restore()
+
+	defaultPricing := &LiteLLMModelPricing{InputCostPerToken: 1.25e-6}
+	svc := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"gpt-5.1-codex": defaultPricing,
+		},
+	}
+
+	require.Same(t, defaultPricing, svc.GetModelPricing("gpt-oss-120b-medium"))
+	require.Same(t, defaultPricing, svc.GetModelPricing("gpt-oss-120b-medium"))
+
+	message := "[Pricing] OpenAI fallback to default model gpt-oss-120b-medium -> gpt-5.1-codex"
+	require.True(t, logSink.ContainsMessageAtLevel(message, "debug"))
+	require.False(t, logSink.ContainsMessageAtLevel(message, "info"))
+	require.False(t, logSink.ContainsMessageAtLevel(message, "warn"))
 }
 
 func TestGetModelPricing_Gpt54ProUsesStaticFallbackWhenRemoteMissing(t *testing.T) {

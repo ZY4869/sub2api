@@ -116,6 +116,15 @@ describe('BillingPricingEditorDialog', () => {
     expect(officialColumn.findAll('article')).toHaveLength(4)
   })
 
+  it('hides advanced matcher inputs for simple base pricing rows', () => {
+    const wrapper = mountDialog([createDetail()])
+
+    const officialColumn = wrapper.findAllComponents(BillingPriceColumn)[0]
+    expect(officialColumn.text()).not.toContain('Surface')
+    expect(officialColumn.text()).not.toContain('Operation')
+    expect(officialColumn.text()).not.toContain('Input Modality')
+  })
+
   it('emits workset discount payloads with the selected sale item ids', async () => {
     const wrapper = mountDialog([
       createDetail(),

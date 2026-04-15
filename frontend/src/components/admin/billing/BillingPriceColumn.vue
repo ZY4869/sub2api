@@ -47,29 +47,29 @@
             <span>单位</span>
             <input class="input" type="text" :value="item.unit" @input="update(item.id, 'unit', ($event.target as HTMLInputElement).value)" />
           </label>
-          <label class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+          <label v-if="showsServiceTierField(item)" class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
             <span>服务层级</span>
             <select class="input" :value="item.service_tier || ''" @change="update(item.id, 'service_tier', ($event.target as HTMLSelectElement).value)">
               <option v-for="option in billingServiceTierOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
           </label>
-          <label class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+          <label v-if="showsBatchModeField(item)" class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
             <span>Batch 模式</span>
             <select class="input" :value="item.batch_mode || ''" @change="update(item.id, 'batch_mode', ($event.target as HTMLSelectElement).value)">
               <option v-for="option in billingBatchModeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
           </label>
-          <label class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+          <label v-if="showsTieredFields(item)" class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
             <span>阈值 Token</span>
             <input class="input" type="number" step="1" :value="item.threshold_tokens ?? ''" @input="updateOptionalNumber(item.id, 'threshold_tokens', ($event.target as HTMLInputElement).value)" />
           </label>
-          <label class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+          <label v-if="showsTieredFields(item)" class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
             <span>阈值后价格</span>
             <input class="input" type="number" step="0.0000001" :value="item.price_above_threshold ?? ''" @input="updateOptionalNumber(item.id, 'price_above_threshold', ($event.target as HTMLInputElement).value)" />
           </label>
         </div>
 
-        <div class="mt-3 grid gap-3 md:grid-cols-2">
+        <div v-if="showsAdvancedFields(item)" class="mt-3 grid gap-3 md:grid-cols-2">
           <label class="space-y-1 text-xs text-gray-600 dark:text-gray-300">
             <span>Surface</span>
             <input class="input" type="text" :value="item.surface || ''" @input="update(item.id, 'surface', ($event.target as HTMLInputElement).value)" />
@@ -150,5 +150,29 @@ function update(id: string, field: keyof BillingPriceItem, value: BillingPriceIt
 function updateOptionalNumber(id: string, field: 'threshold_tokens' | 'price_above_threshold', raw: string) {
   const normalized = raw.trim()
   update(id, field, normalized === '' ? undefined : Number(normalized))
+}
+
+function showsServiceTierField(item: BillingPriceItem) {
+  return item.mode === 'service_tier' || item.mode === 'provider_special' || Boolean(item.service_tier)
+}
+
+function showsBatchModeField(item: BillingPriceItem) {
+  return item.mode === 'batch' || item.mode === 'provider_special' || Boolean(item.batch_mode)
+}
+
+function showsTieredFields(item: BillingPriceItem) {
+  return item.mode === 'tiered' || item.threshold_tokens != null || item.price_above_threshold != null
+}
+
+function showsAdvancedFields(item: BillingPriceItem) {
+  return item.mode === 'provider_special' || [
+    item.surface,
+    item.operation_type,
+    item.input_modality,
+    item.output_modality,
+    item.cache_phase,
+    item.grounding_kind,
+    item.context_window,
+  ].some((value) => String(value || '').trim().length > 0)
 }
 </script>

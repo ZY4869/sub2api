@@ -14,69 +14,6 @@ import (
 
 var opsSQLPlaceholderPattern = regexp.MustCompile(`\$(\d+)`)
 
-const insertOpsRequestTraceSQL = `
-INSERT INTO ops_request_traces (
-  request_id,
-  client_request_id,
-  upstream_request_id,
-  gemini_surface,
-  billing_rule_id,
-  probe_action,
-  user_id,
-  api_key_id,
-  account_id,
-  group_id,
-  platform,
-  protocol_in,
-  protocol_out,
-  channel,
-  route_path,
-  request_type,
-  requested_model,
-  upstream_model,
-  actual_upstream_model,
-  status,
-  status_code,
-  upstream_status_code,
-  duration_ms,
-  ttft_ms,
-  input_tokens,
-  output_tokens,
-  total_tokens,
-  finish_reason,
-  prompt_block_reason,
-  stream,
-  has_tools,
-  tool_kinds,
-  has_thinking,
-  thinking_source,
-  thinking_level,
-  thinking_budget,
-  media_resolution,
-  count_tokens_source,
-  capture_reason,
-  sampled,
-  raw_available,
-  inbound_request,
-  normalized_request,
-  upstream_request,
-  upstream_response,
-  gateway_response,
-  tool_trace,
-  request_headers,
-  response_headers,
-  raw_request,
-  raw_response,
-  raw_request_bytes,
-  raw_response_bytes,
-  raw_request_truncated,
-  raw_response_truncated,
-  search_text,
-  created_at
-) VALUES (
-  $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54,$55,$56,$57
-)`
-
 func (r *opsRepository) InsertRequestTrace(ctx context.Context, input *service.OpsInsertRequestTraceInput) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, fmt.Errorf("nil ops repository")
@@ -84,8 +21,13 @@ func (r *opsRepository) InsertRequestTrace(ctx context.Context, input *service.O
 	if input == nil {
 		return 0, fmt.Errorf("nil input")
 	}
+	schema, err := r.getOpsRequestTraceSchema(ctx)
+	if err != nil {
+		return 0, err
+	}
+	query, args := buildInsertOpsRequestTraceSQLAndArgs(input, schema)
 	var id int64
-	err := r.db.QueryRowContext(ctx, insertOpsRequestTraceSQL+" RETURNING id", opsInsertRequestTraceArgs(input)...).Scan(&id)
+	err = r.db.QueryRowContext(ctx, query+" RETURNING id", args...).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -93,65 +35,154 @@ func (r *opsRepository) InsertRequestTrace(ctx context.Context, input *service.O
 }
 
 func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any {
-	return []any{
-		opsNullString(input.RequestID),
-		opsNullString(input.ClientRequestID),
-		opsNullString(input.UpstreamRequestID),
-		opsNullString(input.GeminiSurface),
-		opsNullString(input.BillingRuleID),
-		opsNullString(input.ProbeAction),
-		opsNullInt64(input.UserID),
-		opsNullInt64(input.APIKeyID),
-		opsNullInt64(input.AccountID),
-		opsNullInt64(input.GroupID),
-		opsStringOrEmpty(input.Platform),
-		opsStringOrEmpty(input.ProtocolIn),
-		opsStringOrEmpty(input.ProtocolOut),
-		opsStringOrEmpty(input.Channel),
-		opsStringOrEmpty(input.RoutePath),
-		opsStringOrEmpty(input.RequestType),
-		opsStringOrEmpty(input.RequestedModel),
-		opsStringOrEmpty(input.UpstreamModel),
-		opsStringOrEmpty(input.ActualUpstreamModel),
-		opsStringOrEmpty(input.Status),
-		input.StatusCode,
-		opsNullInt(input.UpstreamStatusCode),
-		input.DurationMs,
-		opsNullInt64(input.TTFTMs),
-		input.InputTokens,
-		input.OutputTokens,
-		input.TotalTokens,
-		opsStringOrEmpty(input.FinishReason),
-		opsStringOrEmpty(input.PromptBlockReason),
-		input.Stream,
-		input.HasTools,
-		opsTextArrayOrEmpty(input.ToolKinds),
-		input.HasThinking,
-		opsStringOrEmpty(input.ThinkingSource),
-		opsStringOrEmpty(input.ThinkingLevel),
-		opsNullInt(input.ThinkingBudget),
-		opsStringOrEmpty(input.MediaResolution),
-		opsStringOrEmpty(input.CountTokensSource),
-		opsStringOrEmpty(input.CaptureReason),
-		input.Sampled,
-		input.RawAvailable,
-		opsNullString(input.InboundRequestJSON),
-		opsNullString(input.NormalizedRequestJSON),
-		opsNullString(input.UpstreamRequestJSON),
-		opsNullString(input.UpstreamResponseJSON),
-		opsNullString(input.GatewayResponseJSON),
-		opsNullString(input.ToolTraceJSON),
-		opsNullString(input.RequestHeadersJSON),
-		opsNullString(input.ResponseHeadersJSON),
-		nullBytes(input.RawRequestCiphertext),
-		nullBytes(input.RawResponseCiphertext),
-		opsNullInt(input.RawRequestBytes),
-		opsNullInt(input.RawResponseBytes),
-		input.RawRequestTruncated,
-		input.RawResponseTruncated,
-		input.SearchText,
-		input.CreatedAt,
+	return opsInsertRequestTraceArgsForSchema(input, defaultOpsRequestTraceSchema())
+}
+
+func opsInsertRequestTraceArgsForSchema(input *service.OpsInsertRequestTraceInput, schema opsRequestTraceSchema) []any {
+	args := make([]any, 0, 57)
+	appendArg := func(value any) {
+		args = append(args, value)
 	}
+
+	appendArg(opsNullString(input.RequestID))
+	appendArg(opsNullString(input.ClientRequestID))
+	appendArg(opsNullString(input.UpstreamRequestID))
+	if schema.HasGeminiSurface {
+		appendArg(opsNullString(input.GeminiSurface))
+	}
+	if schema.HasBillingRuleID {
+		appendArg(opsNullString(input.BillingRuleID))
+	}
+	if schema.HasProbeAction {
+		appendArg(opsNullString(input.ProbeAction))
+	}
+	appendArg(opsNullInt64(input.UserID))
+	appendArg(opsNullInt64(input.APIKeyID))
+	appendArg(opsNullInt64(input.AccountID))
+	appendArg(opsNullInt64(input.GroupID))
+	appendArg(opsStringOrEmpty(input.Platform))
+	appendArg(opsStringOrEmpty(input.ProtocolIn))
+	appendArg(opsStringOrEmpty(input.ProtocolOut))
+	appendArg(opsStringOrEmpty(input.Channel))
+	appendArg(opsStringOrEmpty(input.RoutePath))
+	appendArg(opsStringOrEmpty(input.RequestType))
+	appendArg(opsStringOrEmpty(input.RequestedModel))
+	appendArg(opsStringOrEmpty(input.UpstreamModel))
+	appendArg(opsStringOrEmpty(input.ActualUpstreamModel))
+	appendArg(opsStringOrEmpty(input.Status))
+	appendArg(input.StatusCode)
+	appendArg(opsNullInt(input.UpstreamStatusCode))
+	appendArg(input.DurationMs)
+	appendArg(opsNullInt64(input.TTFTMs))
+	appendArg(input.InputTokens)
+	appendArg(input.OutputTokens)
+	appendArg(input.TotalTokens)
+	appendArg(opsStringOrEmpty(input.FinishReason))
+	appendArg(opsStringOrEmpty(input.PromptBlockReason))
+	appendArg(input.Stream)
+	appendArg(input.HasTools)
+	appendArg(opsTextArrayOrEmpty(input.ToolKinds))
+	appendArg(input.HasThinking)
+	appendArg(opsStringOrEmpty(input.ThinkingSource))
+	appendArg(opsStringOrEmpty(input.ThinkingLevel))
+	appendArg(opsNullInt(input.ThinkingBudget))
+	appendArg(opsStringOrEmpty(input.MediaResolution))
+	appendArg(opsStringOrEmpty(input.CountTokensSource))
+	appendArg(opsStringOrEmpty(input.CaptureReason))
+	appendArg(input.Sampled)
+	appendArg(input.RawAvailable)
+	appendArg(opsNullString(input.InboundRequestJSON))
+	appendArg(opsNullString(input.NormalizedRequestJSON))
+	appendArg(opsNullString(input.UpstreamRequestJSON))
+	appendArg(opsNullString(input.UpstreamResponseJSON))
+	appendArg(opsNullString(input.GatewayResponseJSON))
+	appendArg(opsNullString(input.ToolTraceJSON))
+	appendArg(opsNullString(input.RequestHeadersJSON))
+	appendArg(opsNullString(input.ResponseHeadersJSON))
+	appendArg(nullBytes(input.RawRequestCiphertext))
+	appendArg(nullBytes(input.RawResponseCiphertext))
+	appendArg(opsNullInt(input.RawRequestBytes))
+	appendArg(opsNullInt(input.RawResponseBytes))
+	appendArg(input.RawRequestTruncated)
+	appendArg(input.RawResponseTruncated)
+	appendArg(input.SearchText)
+	appendArg(input.CreatedAt)
+	return args
+}
+
+func buildInsertOpsRequestTraceSQLAndArgs(input *service.OpsInsertRequestTraceInput, schema opsRequestTraceSchema) (string, []any) {
+	columns := make([]string, 0, 57)
+	appendColumn := func(name string, supported bool) {
+		if supported {
+			columns = append(columns, name)
+		}
+	}
+
+	appendColumn("request_id", true)
+	appendColumn("client_request_id", true)
+	appendColumn("upstream_request_id", true)
+	appendColumn("gemini_surface", schema.HasGeminiSurface)
+	appendColumn("billing_rule_id", schema.HasBillingRuleID)
+	appendColumn("probe_action", schema.HasProbeAction)
+	appendColumn("user_id", true)
+	appendColumn("api_key_id", true)
+	appendColumn("account_id", true)
+	appendColumn("group_id", true)
+	appendColumn("platform", true)
+	appendColumn("protocol_in", true)
+	appendColumn("protocol_out", true)
+	appendColumn("channel", true)
+	appendColumn("route_path", true)
+	appendColumn("request_type", true)
+	appendColumn("requested_model", true)
+	appendColumn("upstream_model", true)
+	appendColumn("actual_upstream_model", true)
+	appendColumn("status", true)
+	appendColumn("status_code", true)
+	appendColumn("upstream_status_code", true)
+	appendColumn("duration_ms", true)
+	appendColumn("ttft_ms", true)
+	appendColumn("input_tokens", true)
+	appendColumn("output_tokens", true)
+	appendColumn("total_tokens", true)
+	appendColumn("finish_reason", true)
+	appendColumn("prompt_block_reason", true)
+	appendColumn("stream", true)
+	appendColumn("has_tools", true)
+	appendColumn("tool_kinds", true)
+	appendColumn("has_thinking", true)
+	appendColumn("thinking_source", true)
+	appendColumn("thinking_level", true)
+	appendColumn("thinking_budget", true)
+	appendColumn("media_resolution", true)
+	appendColumn("count_tokens_source", true)
+	appendColumn("capture_reason", true)
+	appendColumn("sampled", true)
+	appendColumn("raw_available", true)
+	appendColumn("inbound_request", true)
+	appendColumn("normalized_request", true)
+	appendColumn("upstream_request", true)
+	appendColumn("upstream_response", true)
+	appendColumn("gateway_response", true)
+	appendColumn("tool_trace", true)
+	appendColumn("request_headers", true)
+	appendColumn("response_headers", true)
+	appendColumn("raw_request", true)
+	appendColumn("raw_response", true)
+	appendColumn("raw_request_bytes", true)
+	appendColumn("raw_response_bytes", true)
+	appendColumn("raw_request_truncated", true)
+	appendColumn("raw_response_truncated", true)
+	appendColumn("search_text", true)
+	appendColumn("created_at", true)
+
+	placeholders := make([]string, 0, len(columns))
+	for index := range columns {
+		placeholders = append(placeholders, "$"+itoa(index+1))
+	}
+
+	query := "INSERT INTO ops_request_traces (\n  " + strings.Join(columns, ",\n  ") + "\n) VALUES (\n  " + strings.Join(placeholders, ",") + "\n)"
+	return query, opsInsertRequestTraceArgsForSchema(input, schema)
 }
 
 func opsTextArrayOrEmpty(items []string) any {
@@ -165,6 +196,10 @@ func (r *opsRepository) ListRequestTraces(ctx context.Context, filter *service.O
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("nil ops repository")
 	}
+	schema, err := r.getOpsRequestTraceSchema(ctx)
+	if err != nil {
+		return nil, err
+	}
 	page, pageSize, startTime, endTime := filter.Normalize()
 	filterCopy := &service.OpsRequestTraceFilter{}
 	if filter != nil {
@@ -175,7 +210,7 @@ func (r *opsRepository) ListRequestTraces(ctx context.Context, filter *service.O
 	filterCopy.StartTime = &startTime
 	filterCopy.EndTime = &endTime
 
-	where, args := buildOpsRequestTracesWhere(filterCopy)
+	where, args := buildOpsRequestTracesWhereWithSchema(filterCopy, schema)
 	countSQL := "SELECT COUNT(*) FROM ops_request_traces t " + where
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
@@ -192,6 +227,9 @@ func (r *opsRepository) ListRequestTraces(ctx context.Context, filter *service.O
 	}
 
 	offset := (page - 1) * pageSize
+	geminiSurfaceExpr := opsRequestTraceOptionalStringExpr("t.gemini_surface", schema.HasGeminiSurface)
+	billingRuleExpr := opsRequestTraceOptionalStringExpr("t.billing_rule_id", schema.HasBillingRuleID)
+	probeActionExpr := opsRequestTraceOptionalStringExpr("t.probe_action", schema.HasProbeAction)
 	query := `
 SELECT
   t.id,
@@ -212,9 +250,9 @@ SELECT
   COALESCE(t.requested_model, ''),
   COALESCE(t.upstream_model, ''),
   COALESCE(t.actual_upstream_model, ''),
-  COALESCE(t.gemini_surface, ''),
-  COALESCE(t.billing_rule_id, ''),
-  COALESCE(t.probe_action, ''),
+  ` + geminiSurfaceExpr + `,
+  ` + billingRuleExpr + `,
+  ` + probeActionExpr + `,
   COALESCE(t.status, ''),
   COALESCE(t.status_code, 0),
   t.upstream_status_code,
@@ -271,6 +309,13 @@ func (r *opsRepository) GetRequestTraceByID(ctx context.Context, id int64) (*ser
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("nil ops repository")
 	}
+	schema, err := r.getOpsRequestTraceSchema(ctx)
+	if err != nil {
+		return nil, err
+	}
+	geminiSurfaceExpr := opsRequestTraceOptionalStringExpr("t.gemini_surface", schema.HasGeminiSurface)
+	billingRuleExpr := opsRequestTraceOptionalStringExpr("t.billing_rule_id", schema.HasBillingRuleID)
+	probeActionExpr := opsRequestTraceOptionalStringExpr("t.probe_action", schema.HasProbeAction)
 	query := `
 SELECT
   t.id,
@@ -291,9 +336,9 @@ SELECT
   COALESCE(t.requested_model, ''),
   COALESCE(t.upstream_model, ''),
   COALESCE(t.actual_upstream_model, ''),
-  COALESCE(t.gemini_surface, ''),
-  COALESCE(t.billing_rule_id, ''),
-  COALESCE(t.probe_action, ''),
+  ` + geminiSurfaceExpr + `,
+  ` + billingRuleExpr + `,
+  ` + probeActionExpr + `,
   COALESCE(t.status, ''),
   COALESCE(t.status_code, 0),
   t.upstream_status_code,
@@ -348,7 +393,7 @@ LIMIT 1`
 		responseHeaders    string
 	)
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err = r.db.QueryRowContext(ctx, query, id).Scan(
 		&out.ID,
 		&out.CreatedAt,
 		&out.RequestID,
@@ -472,6 +517,10 @@ func (r *opsRepository) GetRequestTraceSummary(ctx context.Context, filter *serv
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("nil ops repository")
 	}
+	schema, err := r.getOpsRequestTraceSchema(ctx)
+	if err != nil {
+		return nil, err
+	}
 	_, _, startTime, endTime := filter.Normalize()
 	filterCopy := &service.OpsRequestTraceFilter{}
 	if filter != nil {
@@ -480,7 +529,7 @@ func (r *opsRepository) GetRequestTraceSummary(ctx context.Context, filter *serv
 	filterCopy.StartTime = &startTime
 	filterCopy.EndTime = &endTime
 
-	where, args := buildOpsRequestTracesWhere(filterCopy)
+	where, args := buildOpsRequestTracesWhereWithSchema(filterCopy, schema)
 	summary := &service.OpsRequestTraceSummary{
 		StartTime: startTime,
 		EndTime:   endTime,
@@ -687,6 +736,10 @@ ORDER BY created_at DESC, id DESC
 }
 
 func buildOpsRequestTracesWhere(filter *service.OpsRequestTraceFilter) (string, []any) {
+	return buildOpsRequestTracesWhereWithSchema(filter, defaultOpsRequestTraceSchema())
+}
+
+func buildOpsRequestTracesWhereWithSchema(filter *service.OpsRequestTraceFilter, schema opsRequestTraceSchema) (string, []any) {
 	clauses := make([]string, 0, 20)
 	args := make([]any, 0, 20)
 	clauses = append(clauses, "1=1")
@@ -734,9 +787,9 @@ func buildOpsRequestTracesWhere(filter *service.OpsRequestTraceFilter) (string, 
 	addOpsRequestTraceStringFilter("COALESCE(t.request_id,'')", filter.RequestID)
 	addOpsRequestTraceStringFilter("COALESCE(t.client_request_id,'')", filter.ClientRequestID)
 	addOpsRequestTraceStringFilter("COALESCE(t.upstream_request_id,'')", filter.UpstreamRequestID)
-	addOpsRequestTraceStringFilter("COALESCE(t.gemini_surface,'')", filter.GeminiSurface)
-	addOpsRequestTraceStringFilter("COALESCE(t.billing_rule_id,'')", filter.BillingRuleID)
-	addOpsRequestTraceStringFilter("COALESCE(t.probe_action,'')", filter.ProbeAction)
+	addOpsRequestTraceStringFilter(opsRequestTraceOptionalStringExpr("t.gemini_surface", schema.HasGeminiSurface), filter.GeminiSurface)
+	addOpsRequestTraceStringFilter(opsRequestTraceOptionalStringExpr("t.billing_rule_id", schema.HasBillingRuleID), filter.BillingRuleID)
+	addOpsRequestTraceStringFilter(opsRequestTraceOptionalStringExpr("t.probe_action", schema.HasProbeAction), filter.ProbeAction)
 
 	if filter.UserID != nil && *filter.UserID > 0 {
 		args = append(args, *filter.UserID)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -14,6 +15,14 @@ import (
 
 type opsRepository struct {
 	db *sql.DB
+
+	requestTraceSchema opsRequestTraceSchemaState
+}
+
+type opsRequestTraceSchemaState struct {
+	mu     sync.RWMutex
+	loaded bool
+	value  opsRequestTraceSchema
 }
 
 const insertOpsErrorLogSQL = `

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,11 +82,70 @@ func TestBuildOpsRequestTracesWhere_UsesGeminiMetadataExactMatchFilters(t *testi
 	require.Contains(t, where, "COALESCE(t.probe_action,'') = $")
 }
 
+func TestBuildOpsRequestTracesWhere_GracefullyHandlesMissingGeminiMetadataColumns(t *testing.T) {
+	t.Parallel()
+
+	filter := &service.OpsRequestTraceFilter{
+		GeminiSurface: "native",
+		BillingRuleID: "rule_text_output",
+		ProbeAction:   "test",
+	}
+
+	where, args := buildOpsRequestTracesWhereWithSchema(filter, opsRequestTraceSchema{})
+	require.Len(t, args, 3)
+	require.NotContains(t, where, "t.gemini_surface")
+	require.NotContains(t, where, "t.billing_rule_id")
+	require.NotContains(t, where, "t.probe_action")
+	require.Equal(t, 3, strings.Count(where, "'' = $"))
+}
+
+func TestBuildInsertOpsRequestTraceSQLAndArgs_OmitsMissingGeminiMetadataColumns(t *testing.T) {
+	t.Parallel()
+
+	query, args := buildInsertOpsRequestTraceSQLAndArgs(&service.OpsInsertRequestTraceInput{}, opsRequestTraceSchema{})
+	require.NotContains(t, query, "gemini_surface")
+	require.NotContains(t, query, "billing_rule_id")
+	require.NotContains(t, query, "probe_action")
+	require.Len(t, args, 54)
+}
+
+func TestOpsRepositoryListRequestTraces_UsesLiteralFallbackMetadataExpressions(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+	repo.requestTraceSchema.loaded = true
+	repo.requestTraceSchema.value = opsRequestTraceSchema{}
+
+	startTime := time.Date(2026, 4, 3, 20, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(2 * time.Hour)
+	filter := &service.OpsRequestTraceFilter{
+		StartTime: &startTime,
+		EndTime:   &endTime,
+	}
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM ops_request_traces t WHERE 1=1 AND t.created_at >= $1 AND t.created_at < $2")).
+		WithArgs(startTime.UTC(), endTime.UTC()).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(0)))
+	mock.ExpectQuery(`(?s)SELECT.*''.*,.*''.*,.*''.*FROM ops_request_traces t\s+WHERE 1=1 AND t\.created_at >= \$1 AND t\.created_at < \$2\s+ORDER BY t.created_at DESC, t.id DESC\s+LIMIT \$3 OFFSET \$4`).
+		WithArgs(startTime.UTC(), endTime.UTC(), 50, 0).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	result, err := repo.ListRequestTraces(context.Background(), filter)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Empty(t, result.Items)
+	require.EqualValues(t, 0, result.Total)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestOpsRepositoryGetRequestTraceSummaryOffsetsTrendPlaceholders(t *testing.T) {
 	t.Parallel()
 
 	db, mock := newOpsSQLMock(t)
 	repo := &opsRepository{db: db}
+	repo.requestTraceSchema.loaded = true
+	repo.requestTraceSchema.value = defaultOpsRequestTraceSchema()
 
 	startTime := time.Date(2026, 4, 3, 20, 0, 0, 0, time.UTC)
 	endTime := startTime.Add(2 * time.Hour)
@@ -168,6 +228,8 @@ func TestOpsRepositoryGetRequestTraceSummaryOffsetsTrendPlaceholdersWithAddition
 
 	db, mock := newOpsSQLMock(t)
 	repo := &opsRepository{db: db}
+	repo.requestTraceSchema.loaded = true
+	repo.requestTraceSchema.value = defaultOpsRequestTraceSchema()
 
 	startTime := time.Date(2026, 4, 3, 20, 0, 0, 0, time.UTC)
 	endTime := startTime.Add(2 * time.Hour)

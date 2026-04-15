@@ -390,18 +390,17 @@ func buildGeminiMatrixForRecord(record *modelCatalogRecord, layer string, rules 
 	if record == nil || !isGeminiBillingCompatModel(record.model) {
 		return matrix
 	}
-	if canonical := canonicalGeminiMatrixRulesForModel(rules, record.model, layer); len(canonical) > 0 {
-		applyGeminiRulesToMatrix(matrix, canonical, "canonical_rule", true)
-		return matrix
-	}
+	pricing := selectGeminiMatrixPricing(record, layer)
+	applyPricingToGeminiMatrix(matrix, pricing, record, "legacy_pricing")
 	compatRules := legacyGeminiCompatRulesForRecord(record, layer, rules)
 	if len(compatRules) > 0 {
-		applyGeminiRulesToMatrix(matrix, compatRules, "legacy_compat_rule", false)
-		deriveGeminiMatrixLongContext(matrix, selectGeminiMatrixPricing(record, layer), record)
-		deriveGeminiMatrixAudioAndStorage(matrix, selectGeminiMatrixPricing(record, layer))
-		return matrix
+		applyGeminiRulesToMatrix(matrix, compatRules, "legacy_compat_rule", true)
 	}
-	applyPricingToGeminiMatrix(matrix, selectGeminiMatrixPricing(record, layer), record, "legacy_pricing")
+	if canonical := canonicalGeminiMatrixRulesForModel(rules, record.model, layer); len(canonical) > 0 {
+		applyGeminiRulesToMatrix(matrix, canonical, "canonical_rule", true)
+	}
+	deriveGeminiMatrixLongContext(matrix, pricing, record)
+	deriveGeminiMatrixAudioAndStorage(matrix, pricing)
 	return matrix
 }
 

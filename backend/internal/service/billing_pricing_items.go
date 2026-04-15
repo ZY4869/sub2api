@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
@@ -27,31 +28,51 @@ func pricingItemsForRecord(record *modelCatalogRecord, layer string, rules []Bil
 	if record == nil {
 		return []BillingPriceItem{}
 	}
+	if isGeminiBillingCompatModel(record.model) {
+		items := pricingItemsForGeminiRecord(record, layer, rules)
+		sort.SliceStable(items, func(i, j int) bool {
+			if items[i].ChargeSlot == items[j].ChargeSlot {
+				return items[i].ID < items[j].ID
+			}
+			return items[i].ChargeSlot < items[j].ChargeSlot
+		})
+		return prepareBillingPriceItemsForEditor(items)
+	}
 	items := make([]BillingPriceItem, 0, 24)
 	pricing := selectGeminiMatrixPricing(record, layer)
-	if !isGeminiBillingCompatModel(record.model) {
-		items = append(items, pricingItemsFromFlatPricing(record, layer, pricing)...)
-	}
+	items = append(items, pricingItemsFromFlatPricing(record, layer, pricing)...)
 	items = append(items, pricingItemsFromRules(record, layer, rules)...)
-	if isGeminiBillingCompatModel(record.model) {
-		items = append(items, pricingItemsFromGeminiMatrix(record, layer, rules)...)
-	}
 	sort.SliceStable(items, func(i, j int) bool {
 		if items[i].ChargeSlot == items[j].ChargeSlot {
 			return items[i].ID < items[j].ID
 		}
 		return items[i].ChargeSlot < items[j].ChargeSlot
 	})
-	return dedupeBillingPriceItems(items)
+	return prepareBillingPriceItemsForEditor(items)
+}
+
+func pricingItemsForGeminiRecord(record *modelCatalogRecord, layer string, rules []BillingRule) []BillingPriceItem {
+	matrix := buildGeminiMatrixForRecord(record, layer, rules)
+	pricing := compactGeminiPricingFromMatrix(matrix, record)
+	if pricing == nil {
+		pricing = selectGeminiMatrixPricing(record, layer)
+	}
+
+	items := make([]BillingPriceItem, 0, 24)
+	items = append(items, pricingItemsFromFlatPricing(record, layer, pricing)...)
+	items = append(items, pricingItemsFromRules(record, layer, rules)...)
+	items = append(items, pricingItemsFromGeminiMatrixDiff(record, layer, matrix, pricing)...)
+	return items
 }
 
 func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, pricing *ModelCatalogPricing) []BillingPriceItem {
 	if record == nil || pricing == nil {
 		return []BillingPriceItem{}
 	}
+	explicit := billingFlatPriceExplicitFields(record, layer)
 	items := make([]BillingPriceItem, 0, 16)
-	appendBase := func(chargeSlot, unit string, base *float64, priority *float64, threshold *int, above *float64, priorityAbove *float64) {
-		if base != nil {
+	appendBase := func(chargeSlot, unit string, base *float64, baseExplicit bool, priority *float64, priorityExplicit bool, threshold *int, above *float64, priorityAbove *float64) {
+		if shouldExposeFlatPrice(base, baseExplicit) {
 			item := BillingPriceItem{
 				ID:         billingBaseItemID(layer, chargeSlot, ""),
 				ChargeSlot: chargeSlot,
@@ -68,7 +89,7 @@ func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, prici
 			}
 			items = append(items, item)
 		}
-		if priority != nil {
+		if shouldExposeFlatPrice(priority, priorityExplicit) {
 			item := BillingPriceItem{
 				ID:          billingBaseItemID(layer, chargeSlot, BillingServiceTierPriority),
 				ChargeSlot:  chargeSlot,
@@ -88,14 +109,14 @@ func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, prici
 		}
 	}
 
-	appendBase(BillingChargeSlotTextInput, BillingUnitInputToken, pricing.InputCostPerToken, pricing.InputCostPerTokenPriority, pricing.InputTokenThreshold, pricing.InputCostPerTokenAboveThreshold, pricing.InputCostPerTokenPriorityAboveThreshold)
-	appendBase(BillingChargeSlotTextOutput, BillingUnitOutputToken, pricing.OutputCostPerToken, pricing.OutputCostPerTokenPriority, pricing.OutputTokenThreshold, pricing.OutputCostPerTokenAboveThreshold, pricing.OutputCostPerTokenPriorityAboveThreshold)
-	appendBase(BillingChargeSlotCacheCreate, BillingUnitCacheCreateToken, pricing.CacheCreationInputTokenCost, nil, nil, nil, nil)
-	appendBase(BillingChargeSlotCacheRead, BillingUnitCacheReadToken, pricing.CacheReadInputTokenCost, pricing.CacheReadInputTokenCostPriority, nil, nil, nil)
-	appendBase(BillingChargeSlotImageOutput, BillingUnitImage, pricing.OutputCostPerImage, pricing.OutputCostPerImagePriority, nil, nil, nil)
-	appendBase(BillingChargeSlotVideoRequest, BillingUnitVideoRequest, pricing.OutputCostPerVideoRequest, nil, nil, nil, nil)
+	appendBase(BillingChargeSlotTextInput, BillingUnitInputToken, pricing.InputCostPerToken, explicit["input"], pricing.InputCostPerTokenPriority, explicit["input_priority"], pricing.InputTokenThreshold, pricing.InputCostPerTokenAboveThreshold, pricing.InputCostPerTokenPriorityAboveThreshold)
+	appendBase(BillingChargeSlotTextOutput, BillingUnitOutputToken, pricing.OutputCostPerToken, explicit["output"], pricing.OutputCostPerTokenPriority, explicit["output_priority"], pricing.OutputTokenThreshold, pricing.OutputCostPerTokenAboveThreshold, pricing.OutputCostPerTokenPriorityAboveThreshold)
+	appendBase(BillingChargeSlotCacheCreate, BillingUnitCacheCreateToken, pricing.CacheCreationInputTokenCost, explicit["cache_create"], nil, false, nil, nil, nil)
+	appendBase(BillingChargeSlotCacheRead, BillingUnitCacheReadToken, pricing.CacheReadInputTokenCost, explicit["cache_read"], pricing.CacheReadInputTokenCostPriority, explicit["cache_read_priority"], nil, nil, nil)
+	appendBase(BillingChargeSlotImageOutput, BillingUnitImage, pricing.OutputCostPerImage, explicit["image_output"], pricing.OutputCostPerImagePriority, explicit["image_output_priority"], nil, nil, nil)
+	appendBase(BillingChargeSlotVideoRequest, BillingUnitVideoRequest, pricing.OutputCostPerVideoRequest, explicit["video_request"], nil, false, nil, nil, nil)
 
-	if pricing.CacheCreationInputTokenCostAbove1hr != nil {
+	if shouldExposeFlatPrice(pricing.CacheCreationInputTokenCostAbove1hr, explicit["cache_storage"]) {
 		items = append(items, BillingPriceItem{
 			ID:            billingBaseItemID(layer, BillingChargeSlotCacheStorageTokenHour, ""),
 			ChargeSlot:    BillingChargeSlotCacheStorageTokenHour,
@@ -108,7 +129,6 @@ func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, prici
 		})
 	}
 
-	items = append(items, defaultBatchFormulaItems(record, layer, items)...)
 	return items
 }
 
@@ -225,6 +245,139 @@ func pricingItemsFromGeminiMatrix(record *modelCatalogRecord, layer string, rule
 	return items
 }
 
+func compactGeminiPricingFromMatrix(matrix *GeminiBillingMatrix, record *modelCatalogRecord) *ModelCatalogPricing {
+	if matrix == nil {
+		return nil
+	}
+	pricing := &ModelCatalogPricing{}
+
+	assign := func(target **float64, surface, tier, slot string) bool {
+		cell := geminiMatrixCell(matrix, surface, tier, slot)
+		if cell == nil || cell.Price == nil {
+			return false
+		}
+		*target = modelCatalogFloat64Ptr(*cell.Price)
+		return true
+	}
+
+	assign(&pricing.InputCostPerToken, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextInput)
+	assign(&pricing.InputCostPerTokenPriority, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotTextInput)
+	assign(&pricing.OutputCostPerToken, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextOutput)
+	assign(&pricing.OutputCostPerTokenPriority, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotTextOutput)
+	assign(&pricing.CacheCreationInputTokenCost, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotCacheCreate)
+	assign(&pricing.CacheReadInputTokenCost, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotCacheRead)
+	assign(&pricing.CacheReadInputTokenCostPriority, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotCacheRead)
+	assign(&pricing.CacheCreationInputTokenCostAbove1hr, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotCacheStorageTokenHour)
+	assign(&pricing.OutputCostPerImage, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotImageOutput)
+	assign(&pricing.OutputCostPerImagePriority, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotImageOutput)
+	assign(&pricing.OutputCostPerVideoRequest, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotVideoRequest)
+
+	if record != nil && record.longContextInputTokenThreshold > 0 {
+		hasLongInput := assign(&pricing.InputCostPerTokenAboveThreshold, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextInputLongContext)
+		hasLongPriority := assign(&pricing.InputCostPerTokenPriorityAboveThreshold, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotTextInputLongContext)
+		if hasLongInput || hasLongPriority {
+			pricing.InputTokenThreshold = modelCatalogIntPtr(record.longContextInputTokenThreshold)
+		}
+
+		hasLongOutput := assign(&pricing.OutputCostPerTokenAboveThreshold, BillingSurfaceGeminiNative, BillingServiceTierStandard, BillingChargeSlotTextOutputLongContext)
+		hasLongOutputPriority := assign(&pricing.OutputCostPerTokenPriorityAboveThreshold, BillingSurfaceGeminiNative, BillingServiceTierPriority, BillingChargeSlotTextOutputLongContext)
+		if hasLongOutput || hasLongOutputPriority {
+			pricing.OutputTokenThreshold = modelCatalogIntPtr(record.longContextInputTokenThreshold)
+		}
+	}
+
+	if pricingEmpty(pricing) {
+		return nil
+	}
+	return pricing
+}
+
+func pricingItemsFromGeminiMatrixDiff(record *modelCatalogRecord, layer string, matrix *GeminiBillingMatrix, pricing *ModelCatalogPricing) []BillingPriceItem {
+	if matrix == nil {
+		return []BillingPriceItem{}
+	}
+	baseline := newGeminiBillingMatrix()
+	if pricing != nil {
+		applyPricingToGeminiMatrix(baseline, pricing, record, "editor_baseline")
+		deriveGeminiMatrixAudioAndStorage(baseline, pricing)
+	}
+
+	items := make([]BillingPriceItem, 0, 16)
+	for _, row := range matrix.Rows {
+		for slot, cell := range row.Slots {
+			if cell.Price == nil {
+				continue
+			}
+			spec, ok := geminiMatrixSlotSpecs[slot]
+			if !ok {
+				continue
+			}
+			if geminiMatrixPriceMatchesBaseline(baseline, row.Surface, row.ServiceTier, slot, *cell.Price) {
+				continue
+			}
+
+			mode := BillingPriceItemModeProviderRule
+			surface := row.Surface
+			if geminiMatrixCanUseServiceTierMode(row.Surface, row.ServiceTier, slot) {
+				mode = BillingPriceItemModeServiceTier
+				surface = ""
+			}
+
+			items = append(items, BillingPriceItem{
+				ID:             geminiMatrixRuleID(record.model, layer, row.Surface, row.ServiceTier, slot),
+				ChargeSlot:     slot,
+				Unit:           spec.unit,
+				Layer:          normalizeBillingDimension(layer, BillingLayerSale),
+				Mode:           mode,
+				ServiceTier:    row.ServiceTier,
+				Surface:        surface,
+				OperationType:  spec.operation,
+				InputModality:  spec.matchers.InputModality,
+				OutputModality: spec.matchers.OutputModality,
+				CachePhase:     spec.matchers.CachePhase,
+				GroundingKind:  spec.matchers.GroundingKind,
+				ContextWindow:  spec.matchers.ContextWindow,
+				Price:          *cell.Price,
+				RuleID:         cell.RuleID,
+				DerivedVia:     cell.DerivedVia,
+				Enabled:        true,
+			})
+		}
+	}
+	return items
+}
+
+func geminiMatrixCanUseServiceTierMode(surface string, serviceTier string, slot string) bool {
+	if normalizeBillingSurface(surface) != BillingSurfaceGeminiNative {
+		return false
+	}
+	switch normalizeBillingServiceTier(serviceTier) {
+	case BillingServiceTierFlex, BillingServiceTierPriority:
+	default:
+		return false
+	}
+	switch normalizeBillingDimension(slot, "") {
+	case BillingChargeSlotTextInput, BillingChargeSlotTextOutput, BillingChargeSlotCacheRead, BillingChargeSlotImageOutput:
+		return true
+	default:
+		return false
+	}
+}
+
+func geminiMatrixPriceMatchesBaseline(matrix *GeminiBillingMatrix, surface string, tier string, slot string, actual float64) bool {
+	cell := geminiMatrixCell(matrix, surface, tier, slot)
+	if cell == nil || cell.Price == nil {
+		return false
+	}
+	return billingPricesAlmostEqual(actual, *cell.Price)
+}
+
+func billingPricesAlmostEqual(left float64, right float64) bool {
+	delta := math.Abs(left - right)
+	scale := math.Max(1, math.Max(math.Abs(left), math.Abs(right)))
+	return delta <= 1e-12*scale
+}
+
 func dedupeBillingPriceItems(items []BillingPriceItem) []BillingPriceItem {
 	seen := make(map[string]struct{}, len(items))
 	filtered := make([]BillingPriceItem, 0, len(items))
@@ -237,6 +390,17 @@ func dedupeBillingPriceItems(items []BillingPriceItem) []BillingPriceItem {
 		filtered = append(filtered, normalizeBillingPriceItem(item))
 	}
 	return filtered
+}
+
+func prepareBillingPriceItemsForEditor(items []BillingPriceItem) []BillingPriceItem {
+	deduped := dedupeBillingPriceItems(items)
+	if len(deduped) == 0 {
+		return []BillingPriceItem{}
+	}
+	for index := range deduped {
+		deduped[index] = sanitizeBillingPriceItemForEditor(deduped[index])
+	}
+	return deduped
 }
 
 func billingPriceItemKey(item BillingPriceItem) string {
@@ -274,6 +438,59 @@ func normalizeBillingPriceItem(item BillingPriceItem) BillingPriceItem {
 	}
 	item.Enabled = item.Enabled || item.Price > 0
 	return item
+}
+
+func sanitizeBillingPriceItemForEditor(item BillingPriceItem) BillingPriceItem {
+	item = normalizeBillingPriceItem(item)
+	if item.ServiceTier == BillingServiceTierStandard {
+		item.ServiceTier = ""
+	}
+	if item.BatchMode == BillingBatchModeAny {
+		item.BatchMode = ""
+	}
+	if item.Surface == BillingSurfaceGeminiNative || item.Surface == BillingSurfaceAny {
+		item.Surface = ""
+	}
+	if item.OperationType == operationTypeForChargeSlot(item.ChargeSlot) {
+		item.OperationType = ""
+	}
+	return item
+}
+
+func shouldExposeFlatPrice(value *float64, explicit bool) bool {
+	if value == nil {
+		return false
+	}
+	return explicit || math.Abs(*value) > 0
+}
+
+func billingFlatPriceExplicitFields(record *modelCatalogRecord, layer string) map[string]bool {
+	explicit := map[string]bool{}
+	if record == nil {
+		return explicit
+	}
+	var override *ModelPricingOverride
+	switch normalizeBillingDimension(layer, BillingLayerSale) {
+	case BillingLayerOfficial:
+		override = record.officialOverridePricing
+	case BillingLayerSale:
+		override = record.saleOverridePricing
+	}
+	if override == nil {
+		return explicit
+	}
+	explicit["input"] = override.InputCostPerToken != nil
+	explicit["input_priority"] = override.InputCostPerTokenPriority != nil
+	explicit["output"] = override.OutputCostPerToken != nil
+	explicit["output_priority"] = override.OutputCostPerTokenPriority != nil
+	explicit["cache_create"] = override.CacheCreationInputTokenCost != nil
+	explicit["cache_read"] = override.CacheReadInputTokenCost != nil
+	explicit["cache_read_priority"] = override.CacheReadInputTokenCostPriority != nil
+	explicit["cache_storage"] = override.CacheCreationInputTokenCostAbove1hr != nil
+	explicit["image_output"] = override.OutputCostPerImage != nil
+	explicit["image_output_priority"] = override.OutputCostPerImagePriority != nil
+	explicit["video_request"] = override.OutputCostPerVideoRequest != nil
+	return explicit
 }
 
 func billingBaseItemID(layer, chargeSlot, suffix string) string {
