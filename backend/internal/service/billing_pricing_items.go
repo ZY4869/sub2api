@@ -97,14 +97,14 @@ func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, prici
 
 	if pricing.CacheCreationInputTokenCostAbove1hr != nil {
 		items = append(items, BillingPriceItem{
-			ID:          billingBaseItemID(layer, BillingChargeSlotCacheStorageTokenHour, ""),
-			ChargeSlot:  BillingChargeSlotCacheStorageTokenHour,
-			Unit:        BillingUnitCacheStorageTokenHour,
-			Layer:       normalizeBillingDimension(layer, BillingLayerSale),
-			Mode:        BillingPriceItemModeProviderRule,
+			ID:            billingBaseItemID(layer, BillingChargeSlotCacheStorageTokenHour, ""),
+			ChargeSlot:    BillingChargeSlotCacheStorageTokenHour,
+			Unit:          BillingUnitCacheStorageTokenHour,
+			Layer:         normalizeBillingDimension(layer, BillingLayerSale),
+			Mode:          BillingPriceItemModeProviderRule,
 			OperationType: "cache_storage",
-			Price:       *pricing.CacheCreationInputTokenCostAbove1hr,
-			Enabled:     true,
+			Price:         *pricing.CacheCreationInputTokenCostAbove1hr,
+			Enabled:       true,
 		})
 	}
 
@@ -123,17 +123,17 @@ func defaultBatchFormulaItems(record *modelCatalogRecord, layer string, source [
 		}
 		multiplier := 0.5
 		items = append(items, BillingPriceItem{
-			ID:               billingBaseItemID(layer, item.ChargeSlot, "batch"),
-			ChargeSlot:       item.ChargeSlot,
-			Unit:             item.Unit,
-			Layer:            normalizeBillingDimension(layer, BillingLayerSale),
-			Mode:             BillingPriceItemModeBatch,
-			BatchMode:        BillingBatchModeBatch,
-			OperationType:    operationTypeForChargeSlot(item.ChargeSlot),
-			Price:            item.Price * multiplier,
-			FormulaSource:    item.ID,
+			ID:                billingBaseItemID(layer, item.ChargeSlot, "batch"),
+			ChargeSlot:        item.ChargeSlot,
+			Unit:              item.Unit,
+			Layer:             normalizeBillingDimension(layer, BillingLayerSale),
+			Mode:              BillingPriceItemModeBatch,
+			BatchMode:         BillingBatchModeBatch,
+			OperationType:     operationTypeForChargeSlot(item.ChargeSlot),
+			Price:             item.Price * multiplier,
+			FormulaSource:     item.ID,
 			FormulaMultiplier: modelCatalogFloat64Ptr(multiplier),
-			Enabled:          true,
+			Enabled:           true,
 		})
 	}
 	return items
@@ -163,23 +163,23 @@ func pricingItemsFromRules(record *modelCatalogRecord, layer string, rules []Bil
 			mode = BillingPriceItemModeServiceTier
 		}
 		items = append(items, BillingPriceItem{
-			ID:            rule.ID,
-			ChargeSlot:    slot,
-			Unit:          rule.Unit,
-			Layer:         rule.Layer,
-			Mode:          mode,
-			ServiceTier:   rule.ServiceTier,
-			BatchMode:     rule.BatchMode,
-			Surface:       rule.Surface,
-			OperationType: rule.OperationType,
-			InputModality: rule.Matchers.InputModality,
+			ID:             rule.ID,
+			ChargeSlot:     slot,
+			Unit:           rule.Unit,
+			Layer:          rule.Layer,
+			Mode:           mode,
+			ServiceTier:    rule.ServiceTier,
+			BatchMode:      rule.BatchMode,
+			Surface:        rule.Surface,
+			OperationType:  rule.OperationType,
+			InputModality:  rule.Matchers.InputModality,
 			OutputModality: rule.Matchers.OutputModality,
-			CachePhase:    rule.Matchers.CachePhase,
-			GroundingKind: rule.Matchers.GroundingKind,
-			ContextWindow: rule.Matchers.ContextWindow,
-			Price:         rule.Price,
-			RuleID:        rule.ID,
-			Enabled:       rule.Enabled,
+			CachePhase:     rule.Matchers.CachePhase,
+			GroundingKind:  rule.Matchers.GroundingKind,
+			ContextWindow:  rule.Matchers.ContextWindow,
+			Price:          rule.Price,
+			RuleID:         rule.ID,
+			Enabled:        rule.Enabled,
 		})
 	}
 	return items

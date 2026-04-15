@@ -184,7 +184,24 @@ func geminiVideoRequestsForUsage(result *ForwardResult) int {
 	return 1
 }
 
-func geminiForwardResultServiceTier(result *ForwardResult) string {
+func geminiForwardResultRequestedServiceTier(result *ForwardResult) string {
+	if result == nil {
+		return ""
+	}
+	if result.RequestedServiceTier != nil {
+		if value := strings.TrimSpace(*result.RequestedServiceTier); value != "" {
+			return value
+		}
+	}
+	if result.ServiceTier != nil {
+		if value := strings.TrimSpace(*result.ServiceTier); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func geminiForwardResultResolvedServiceTier(result *ForwardResult) string {
 	if result == nil {
 		return ""
 	}
@@ -219,6 +236,20 @@ func applyGeminiClassificationToUsageLog(usageLog *UsageLog, classification *Gem
 		mediaType = fallbackMediaType
 	}
 	usageLog.MediaType = optionalTrimmedStringPtr(mediaType)
+}
+
+func normalizeBillingRuntimeResult(runtimeResult *BillingRuntimeResult, err error, logKey string) (*BillingRuntimeResult, *CostBreakdown) {
+	if err != nil {
+		logger.LegacyPrintf(logKey, "Resolve runtime billing failed: %v", err)
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
+	}
+	if runtimeResult == nil {
+		runtimeResult = &BillingRuntimeResult{}
+	}
+	if runtimeResult.Cost == nil {
+		runtimeResult.Cost = &CostBreakdown{}
+	}
+	return runtimeResult, runtimeResult.Cost
 }
 
 func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInput) error {
@@ -264,29 +295,25 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:           billingModel,
-		Provider:        RoutingPlatformForAccount(account),
-		Layer:           BillingLayerSale,
-		InboundEndpoint: input.InboundEndpoint,
-		RequestBody:     input.RequestBody,
-		Tokens:          tokens,
-		ImageCount:      result.ImageCount,
-		ImageSize:       result.ImageSize,
-		VideoRequests:   geminiVideoRequestsForUsage(result),
-		MediaType:       result.MediaType,
-		ServiceTier:     geminiForwardResultServiceTier(result),
-		RateMultiplier:  multiplier,
-		ImagePriceConfig: groupConfig,
+		Model:                billingModel,
+		Provider:             RoutingPlatformForAccount(account),
+		Layer:                BillingLayerSale,
+		InboundEndpoint:      input.InboundEndpoint,
+		RequestBody:          input.RequestBody,
+		Tokens:               tokens,
+		ImageCount:           result.ImageCount,
+		ImageSize:            result.ImageSize,
+		VideoRequests:        geminiVideoRequestsForUsage(result),
+		MediaType:            result.MediaType,
+		ServiceTier:          geminiForwardResultResolvedServiceTier(result),
+		RequestedServiceTier: geminiForwardResultRequestedServiceTier(result),
+		ResolvedServiceTier:  geminiForwardResultResolvedServiceTier(result),
+		RateMultiplier:       multiplier,
+		ImagePriceConfig:     groupConfig,
 	})
-	if err != nil {
-		logger.LegacyPrintf("service.gateway", "Resolve runtime billing failed: %v", err)
-		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
-	}
-	if runtimeResult == nil || runtimeResult.Cost == nil {
-		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{}}
-	}
+	runtimeResult, cost := normalizeBillingRuntimeResult(runtimeResult, err, "service.gateway")
 	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
-	cost := runtimeResult.Cost
+	runtimeClassification := runtimeResult.Classification
 	var channelPricing *GatewayChannelResolvedPricing
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
@@ -321,8 +348,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
-	if runtimeResult != nil && runtimeResult.Classification != nil {
-		applyGeminiClassificationToUsageLog(usageLog, runtimeResult.Classification, result.MediaType)
+	if runtimeClassification != nil {
+		applyGeminiClassificationToUsageLog(usageLog, runtimeClassification, result.MediaType)
 	}
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
@@ -422,21 +449,17 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		ImageSize:             result.ImageSize,
 		VideoRequests:         geminiVideoRequestsForUsage(result),
 		MediaType:             result.MediaType,
-		ServiceTier:           geminiForwardResultServiceTier(result),
+		ServiceTier:           geminiForwardResultResolvedServiceTier(result),
+		RequestedServiceTier:  geminiForwardResultRequestedServiceTier(result),
+		ResolvedServiceTier:   geminiForwardResultResolvedServiceTier(result),
 		RateMultiplier:        multiplier,
 		ImagePriceConfig:      groupConfig,
 		LongContextThreshold:  input.LongContextThreshold,
 		LongContextMultiplier: input.LongContextMultiplier,
 	})
-	if err != nil {
-		logger.LegacyPrintf("service.gateway", "Resolve runtime billing failed: %v", err)
-		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
-	}
-	if runtimeResult == nil || runtimeResult.Cost == nil {
-		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{}}
-	}
+	runtimeResult, cost := normalizeBillingRuntimeResult(runtimeResult, err, "service.gateway")
 	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
-	cost := runtimeResult.Cost
+	runtimeClassification := runtimeResult.Classification
 	var channelPricing *GatewayChannelResolvedPricing
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
@@ -471,8 +494,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
-	if runtimeResult != nil && runtimeResult.Classification != nil {
-		applyGeminiClassificationToUsageLog(usageLog, runtimeResult.Classification, result.MediaType)
+	if runtimeClassification != nil {
+		applyGeminiClassificationToUsageLog(usageLog, runtimeClassification, result.MediaType)
 	}
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {

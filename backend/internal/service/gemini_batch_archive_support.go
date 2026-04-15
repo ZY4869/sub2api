@@ -381,23 +381,6 @@ func googleBatchAggregateUsageFromReader(reader io.Reader) (UsageTokens, error) 
 	return tokens, err
 }
 
-func googleBatchCostWithDiscount(base *CostBreakdown, factor float64) *CostBreakdown {
-	if base == nil {
-		return &CostBreakdown{}
-	}
-	if factor <= 0 {
-		factor = 1
-	}
-	return &CostBreakdown{
-		InputCost:         base.InputCost * factor,
-		OutputCost:        base.OutputCost * factor,
-		CacheCreationCost: base.CacheCreationCost * factor,
-		CacheReadCost:     base.CacheReadCost * factor,
-		TotalCost:         base.TotalCost * factor,
-		ActualCost:        base.ActualCost * factor,
-	}
-}
-
 func googleBatchSyntheticBillingEndpoint(requestedModel string) string {
 	model := strings.TrimPrefix(strings.TrimSpace(requestedModel), "models/")
 	if model == "" {

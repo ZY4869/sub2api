@@ -151,44 +151,76 @@
 
         <!-- Data rows (virtual scroll) -->
         <template v-else>
-          <tr v-if="virtualPaddingTop > 0" aria-hidden="true">
-            <td :colspan="columns.length"
-                :style="{ height: virtualPaddingTop + 'px', padding: 0, border: 'none' }">
-            </td>
-          </tr>
-          <tr
-            v-for="virtualRow in virtualItems"
-            :key="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
-            :data-row-id="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
-            :data-index="virtualRow.index"
-            :ref="measureElement"
-            class="hover:bg-gray-50 dark:hover:bg-dark-800"
-          >
-            <td
-              v-for="(column, colIndex) in columns"
-              :key="column.key"
-              :class="[
-                'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
-                getAdaptivePaddingClass(),
-                getStickyColumnClass(column, colIndex),
-                column.class
-              ]"
+          <template v-if="shouldFallbackToDirectRows">
+            <!-- Fallback render when the virtualizer has not produced visible rows yet. -->
+            <tr
+              v-for="(row, rowIndex) in sortedData"
+              :key="resolveRowKey(row, rowIndex)"
+              :data-row-id="resolveRowKey(row, rowIndex)"
+              :data-index="rowIndex"
+              class="hover:bg-gray-50 dark:hover:bg-dark-800"
             >
-              <slot :name="`cell-${column.key}`"
-                    :row="sortedData[virtualRow.index]"
-                    :value="sortedData[virtualRow.index][column.key]"
-                    :expanded="actionsExpanded">
-                {{ column.formatter
-                   ? column.formatter(sortedData[virtualRow.index][column.key], sortedData[virtualRow.index])
-                   : sortedData[virtualRow.index][column.key] }}
-              </slot>
-            </td>
-          </tr>
-          <tr v-if="virtualPaddingBottom > 0" aria-hidden="true">
-            <td :colspan="columns.length"
-                :style="{ height: virtualPaddingBottom + 'px', padding: 0, border: 'none' }">
-            </td>
-          </tr>
+              <td
+                v-for="(column, colIndex) in columns"
+                :key="column.key"
+                :class="[
+                  'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
+                  getAdaptivePaddingClass(),
+                  getStickyColumnClass(column, colIndex),
+                  column.class
+                ]"
+              >
+                <slot :name="`cell-${column.key}`"
+                      :row="row"
+                      :value="row[column.key]"
+                      :expanded="actionsExpanded">
+                  {{ column.formatter
+                     ? column.formatter(row[column.key], row)
+                     : row[column.key] }}
+                </slot>
+              </td>
+            </tr>
+          </template>
+          <template v-else>
+            <tr v-if="virtualPaddingTop > 0" aria-hidden="true">
+              <td :colspan="columns.length"
+                  :style="{ height: virtualPaddingTop + 'px', padding: 0, border: 'none' }">
+              </td>
+            </tr>
+            <tr
+              v-for="virtualRow in virtualItems"
+              :key="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
+              :data-row-id="resolveRowKey(sortedData[virtualRow.index], virtualRow.index)"
+              :data-index="virtualRow.index"
+              :ref="measureElement"
+              class="hover:bg-gray-50 dark:hover:bg-dark-800"
+            >
+              <td
+                v-for="(column, colIndex) in columns"
+                :key="column.key"
+                :class="[
+                  'whitespace-nowrap py-4 text-sm text-gray-900 dark:text-gray-100',
+                  getAdaptivePaddingClass(),
+                  getStickyColumnClass(column, colIndex),
+                  column.class
+                ]"
+              >
+                <slot :name="`cell-${column.key}`"
+                      :row="sortedData[virtualRow.index]"
+                      :value="sortedData[virtualRow.index][column.key]"
+                      :expanded="actionsExpanded">
+                  {{ column.formatter
+                     ? column.formatter(sortedData[virtualRow.index][column.key], sortedData[virtualRow.index])
+                     : sortedData[virtualRow.index][column.key] }}
+                </slot>
+              </td>
+            </tr>
+            <tr v-if="virtualPaddingBottom > 0" aria-hidden="true">
+              <td :colspan="columns.length"
+                  :style="{ height: virtualPaddingBottom + 'px', padding: 0, border: 'none' }">
+              </td>
+            </tr>
+          </template>
         </template>
       </tbody>
     </table>
@@ -602,6 +634,15 @@ const rowVirtualizer = useVirtualizer(computed(() => ({
 })))
 
 const virtualItems = computed(() => rowVirtualizer.value.getVirtualItems())
+
+const shouldFallbackToDirectRows = computed(() => {
+  return (
+    isDesktopViewport.value &&
+    !props.loading &&
+    (sortedData.value?.length ?? 0) > 0 &&
+    virtualItems.value.length === 0
+  )
+})
 
 const virtualPaddingTop = computed(() => {
   const items = virtualItems.value

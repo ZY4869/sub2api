@@ -8,23 +8,23 @@ import (
 )
 
 type BillingRuntimeInput struct {
-	Model                string
-	Provider             string
-	Layer                string
-	InboundEndpoint      string
-	RequestBody          []byte
-	Tokens               UsageTokens
-	ImageCount           int
-	ImageSize            string
-	VideoRequests        int
-	MediaType            string
-	ServiceTier          string
-	RequestedServiceTier string
-	ResolvedServiceTier  string
-	BatchMode            string
-	RateMultiplier       float64
-	ImagePriceConfig     *ImagePriceConfig
-	LongContextThreshold int
+	Model                 string
+	Provider              string
+	Layer                 string
+	InboundEndpoint       string
+	RequestBody           []byte
+	Tokens                UsageTokens
+	ImageCount            int
+	ImageSize             string
+	VideoRequests         int
+	MediaType             string
+	ServiceTier           string
+	RequestedServiceTier  string
+	ResolvedServiceTier   string
+	BatchMode             string
+	RateMultiplier        float64
+	ImagePriceConfig      *ImagePriceConfig
+	LongContextThreshold  int
 	LongContextMultiplier float64
 }
 
@@ -90,7 +90,6 @@ func normalizeBillingRuntimeInput(input BillingRuntimeInput) BillingRuntimeInput
 	input.RequestedServiceTier = normalizeBillingDimension(input.RequestedServiceTier, "")
 	input.ResolvedServiceTier = normalizeBillingDimension(input.ResolvedServiceTier, "")
 	input.BatchMode = normalizeBillingActualBatchMode(input.BatchMode)
-	input.InboundEndpoint = NormalizeInboundEndpoint(input.InboundEndpoint)
 	input.MediaType = strings.TrimSpace(strings.ToLower(input.MediaType))
 	if input.RateMultiplier <= 0 {
 		input.RateMultiplier = 1
@@ -194,10 +193,10 @@ func (r *BillingRuntimeResolver) resolveRuleBasedRuntime(ctx context.Context, in
 	}
 	protocolruntime.RecordBillingResolver("billing_rules")
 	return &BillingRuntimeResult{
-		Cost:         costBreakdownFromSimulation(result),
-		MatchedItems: append([]string(nil), result.MatchedRuleIDs...),
+		Cost:          costBreakdownFromSimulation(result),
+		MatchedItems:  append([]string(nil), result.MatchedRuleIDs...),
 		PricingSource: "billing_rules",
-		ResolverPath: "billing_rules",
+		ResolverPath:  "billing_rules",
 	}
 }
 

@@ -88,13 +88,13 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
 	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
-		Model:          billingModel,
-		Provider:       PlatformOpenAI,
-		Layer:          BillingLayerSale,
+		Model:           billingModel,
+		Provider:        PlatformOpenAI,
+		Layer:           BillingLayerSale,
 		InboundEndpoint: input.InboundEndpoint,
-		Tokens:         tokens,
-		ServiceTier:    serviceTier,
-		RateMultiplier: multiplier,
+		Tokens:          tokens,
+		ServiceTier:     serviceTier,
+		RateMultiplier:  multiplier,
 	})
 	if err != nil {
 		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
