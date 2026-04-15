@@ -132,33 +132,6 @@ func pricingItemsFromFlatPricing(record *modelCatalogRecord, layer string, prici
 	return items
 }
 
-func defaultBatchFormulaItems(record *modelCatalogRecord, layer string, source []BillingPriceItem) []BillingPriceItem {
-	if record == nil || !billingPricingCapabilitiesForRecord(record).SupportsBatchPricing {
-		return []BillingPriceItem{}
-	}
-	items := make([]BillingPriceItem, 0, len(source))
-	for _, item := range source {
-		if item.Mode == BillingPriceItemModeBatch || item.Price <= 0 || item.ChargeSlot == BillingChargeSlotCacheStorageTokenHour {
-			continue
-		}
-		multiplier := 0.5
-		items = append(items, BillingPriceItem{
-			ID:                billingBaseItemID(layer, item.ChargeSlot, "batch"),
-			ChargeSlot:        item.ChargeSlot,
-			Unit:              item.Unit,
-			Layer:             normalizeBillingDimension(layer, BillingLayerSale),
-			Mode:              BillingPriceItemModeBatch,
-			BatchMode:         BillingBatchModeBatch,
-			OperationType:     operationTypeForChargeSlot(item.ChargeSlot),
-			Price:             item.Price * multiplier,
-			FormulaSource:     item.ID,
-			FormulaMultiplier: modelCatalogFloat64Ptr(multiplier),
-			Enabled:           true,
-		})
-	}
-	return items
-}
-
 func pricingItemsFromRules(record *modelCatalogRecord, layer string, rules []BillingRule) []BillingPriceItem {
 	if record == nil {
 		return []BillingPriceItem{}
@@ -201,46 +174,6 @@ func pricingItemsFromRules(record *modelCatalogRecord, layer string, rules []Bil
 			RuleID:         rule.ID,
 			Enabled:        rule.Enabled,
 		})
-	}
-	return items
-}
-
-func pricingItemsFromGeminiMatrix(record *modelCatalogRecord, layer string, rules []BillingRule) []BillingPriceItem {
-	matrix := buildGeminiMatrixForRecord(record, layer, rules)
-	items := make([]BillingPriceItem, 0, len(matrix.Rows)*4)
-	for _, row := range matrix.Rows {
-		for slot, cell := range row.Slots {
-			if cell.Price == nil {
-				continue
-			}
-			spec, ok := geminiMatrixSlotSpecs[slot]
-			if !ok {
-				continue
-			}
-			mode := BillingPriceItemModeProviderRule
-			if row.ServiceTier != "" && row.ServiceTier != BillingServiceTierStandard {
-				mode = BillingPriceItemModeServiceTier
-			}
-			items = append(items, BillingPriceItem{
-				ID:             geminiMatrixRuleID(record.model, layer, row.Surface, row.ServiceTier, slot),
-				ChargeSlot:     slot,
-				Unit:           spec.unit,
-				Layer:          normalizeBillingDimension(layer, BillingLayerSale),
-				Mode:           mode,
-				ServiceTier:    row.ServiceTier,
-				Surface:        row.Surface,
-				OperationType:  spec.operation,
-				InputModality:  spec.matchers.InputModality,
-				OutputModality: spec.matchers.OutputModality,
-				CachePhase:     spec.matchers.CachePhase,
-				GroundingKind:  spec.matchers.GroundingKind,
-				ContextWindow:  spec.matchers.ContextWindow,
-				Price:          *cell.Price,
-				RuleID:         cell.RuleID,
-				DerivedVia:     cell.DerivedVia,
-				Enabled:        true,
-			})
-		}
 	}
 	return items
 }
