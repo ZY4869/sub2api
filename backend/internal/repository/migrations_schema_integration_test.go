@@ -92,6 +92,14 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 
 	// user_allowed_groups: created_at should be timestamptz
 	requireColumn(t, tx, "user_allowed_groups", "created_at", "timestamp with time zone", 0, false)
+
+	// ops_request_traces: request detail queries depend on Gemini/ billing metadata columns and indexes
+	requireColumn(t, tx, "ops_request_traces", "gemini_surface", "character varying", 64, false)
+	requireColumn(t, tx, "ops_request_traces", "billing_rule_id", "character varying", 128, false)
+	requireColumn(t, tx, "ops_request_traces", "probe_action", "character varying", 64, false)
+	requireIndex(t, tx, "ops_request_traces", "idx_ops_request_traces_gemini_surface_time")
+	requireIndex(t, tx, "ops_request_traces", "idx_ops_request_traces_billing_rule_id")
+	requireIndex(t, tx, "ops_request_traces", "idx_ops_request_traces_probe_action_time")
 }
 
 func requireIndex(t *testing.T, tx *sql.Tx, table, index string) {
