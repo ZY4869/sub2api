@@ -805,6 +805,6 @@ func TestCalculateCost_UsesRuntimePricingOverridesWithoutMutatingBasePricing(t *
 	require.NoError(t, err)
 	require.InDelta(t, 101*12e-6, cost.InputCost, 1e-12)
 
-	imageCost := svc.getDefaultImagePrice("gpt-5.4", "1024x1024")
+	imageCost := svc.getDefaultImagePrice("gpt-5.4", "1024x1024", "")
 	require.InDelta(t, 0.5, imageCost, 1e-12)
 }

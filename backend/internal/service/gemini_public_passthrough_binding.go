@@ -140,9 +140,7 @@ func extractGeminiPassthroughResourceName(resourceKind string, path string) stri
 
 func extractGeminiNestedCollectionResourceName(path string, parentPrefix string, parentCollection string, nestedMarker string) string {
 	trimmed := strings.TrimSpace(path)
-	if strings.HasPrefix(trimmed, parentPrefix) {
-		trimmed = strings.TrimPrefix(trimmed, parentPrefix)
-	}
+	trimmed = strings.TrimPrefix(trimmed, parentPrefix)
 	idx := strings.Index(trimmed, nestedMarker)
 	if idx < 0 {
 		return ""

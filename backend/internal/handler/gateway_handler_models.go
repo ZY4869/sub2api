@@ -97,10 +97,6 @@ func apiKeyPublicEntriesToGeminiModels(entries []service.APIKeyPublicModelEntry,
 	return apiKeyPublicEntriesToGeminiModelsWithRegistry(entries, nextPageToken, nil)
 }
 
-func apiKeyPublicEntryToGeminiModel(entry service.APIKeyPublicModelEntry) gemini.Model {
-	return apiKeyPublicEntryToGeminiModelWithRegistry(entry, nil)
-}
-
 func paginateGeminiPublicModels(entries []service.APIKeyPublicModelEntry, rawPageSize string, rawPageToken string) ([]service.APIKeyPublicModelEntry, string, error) {
 	pageSize, err := parseGeminiModelsPageSize(rawPageSize)
 	if err != nil {
