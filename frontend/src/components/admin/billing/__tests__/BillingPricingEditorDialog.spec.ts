@@ -1,10 +1,26 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
-import type { BillingPricingSheetDetail } from '@/api/admin/billing'
+import type { BillingPricingLayerForm, BillingPricingSheetDetail } from '@/api/admin/billing'
 import BillingBulkDiscountPanel from '../BillingBulkDiscountPanel.vue'
-import BillingPriceColumn from '../BillingPriceColumn.vue'
 import BillingPricingEditorDialog from '../BillingPricingEditorDialog.vue'
+
+function createForm(overrides: Partial<BillingPricingLayerForm> = {}): BillingPricingLayerForm {
+  return {
+    input_price: 1,
+    output_price: 2,
+    cache_price: undefined,
+    special_enabled: false,
+    special: {
+      ...(overrides.special || {}),
+    },
+    tiered_enabled: false,
+    tier_threshold_tokens: undefined,
+    input_price_above_threshold: undefined,
+    output_price_above_threshold: undefined,
+    ...overrides,
+  }
+}
 
 function createDetail(overrides: Partial<BillingPricingSheetDetail> = {}): BillingPricingSheetDetail {
   return {
@@ -12,49 +28,30 @@ function createDetail(overrides: Partial<BillingPricingSheetDetail> = {}): Billi
     display_name: 'GPT-5.4',
     provider: 'openai',
     mode: 'chat',
-    supports_prompt_caching: false,
-    supports_service_tier: true,
+    input_supported: true,
+    output_charge_slot: 'text_output',
+    supports_prompt_caching: true,
+    supports_service_tier: false,
     long_context_input_token_threshold: 200000,
     long_context_input_cost_multiplier: 2,
     long_context_output_cost_multiplier: 2,
     capabilities: {
       supports_tiered_pricing: true,
       supports_batch_pricing: true,
-      supports_service_tier: true,
-      supports_prompt_caching: false,
+      supports_service_tier: false,
+      supports_prompt_caching: true,
       supports_provider_special: true,
     },
-    official_items: [
-      {
-        id: 'official-input',
-        charge_slot: 'text_input',
-        unit: 'input_token',
-        layer: 'official',
-        mode: 'base',
-        price: 1,
-        enabled: true,
-      },
-      {
-        id: 'official-output',
-        charge_slot: 'text_output',
-        unit: 'output_token',
-        layer: 'official',
-        mode: 'base',
-        price: 2,
-        enabled: true,
-      },
-    ],
-    sale_items: [
-      {
-        id: 'sale-1',
-        charge_slot: 'text_input',
-        unit: 'input_token',
-        layer: 'sale',
-        mode: 'base',
-        price: 1.5,
-        enabled: true,
-      },
-    ],
+    official_form: createForm({
+      input_price: 1,
+      output_price: 2,
+      cache_price: 0.1,
+    }),
+    sale_form: createForm({
+      input_price: 1.5,
+      output_price: 2.5,
+      cache_price: 0.2,
+    }),
     ...overrides,
   }
 }
@@ -78,78 +75,100 @@ function mountDialog(details: BillingPricingSheetDetail[]) {
 }
 
 describe('BillingPricingEditorDialog', () => {
-  it('shows preset actions only for the active model capabilities', () => {
+  it('renders simplified sections and removes the old raw advanced controls', () => {
+    const wrapper = mountDialog([createDetail()])
+    const officialColumn = wrapper.get('[data-testid="official-column"]')
+
+    expect(officialColumn.find('[data-testid="pricing-field-input_price"]').exists()).toBe(true)
+    expect(officialColumn.find('[data-testid="pricing-field-output_price"]').exists()).toBe(true)
+    expect(officialColumn.find('[data-testid="pricing-field-cache_price"]').exists()).toBe(true)
+    expect(officialColumn.find('[data-testid="pricing-special-toggle"]').exists()).toBe(true)
+    expect(officialColumn.find('[data-testid="pricing-tier-toggle"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Surface')
+    expect(wrapper.text()).not.toContain('Provider Special')
+  })
+
+  it('uses dynamic output mapping and hides input and tier fields for image models', () => {
     const wrapper = mountDialog([
       createDetail({
+        model: 'gpt-image-1',
+        display_name: 'GPT Image 1',
+        mode: 'image',
+        input_supported: false,
+        output_charge_slot: 'image_output',
         capabilities: {
           supports_tiered_pricing: true,
           supports_batch_pricing: false,
-          supports_service_tier: true,
+          supports_service_tier: false,
           supports_prompt_caching: false,
-          supports_provider_special: true,
+          supports_provider_special: false,
         },
+        official_form: createForm({
+          input_price: undefined,
+          output_price: 0.08,
+          cache_price: undefined,
+        }),
+        sale_form: createForm({
+          input_price: undefined,
+          output_price: 0.1,
+          cache_price: undefined,
+        }),
       }),
     ])
 
-    expect(wrapper.text()).toContain('启用阶梯')
-    expect(wrapper.text()).toContain('启用层级')
-    expect(wrapper.text()).toContain('Provider Special')
-    expect(wrapper.text()).not.toContain('启用 Batch')
-    expect(wrapper.text()).not.toContain('启用缓存')
+    const officialColumn = wrapper.get('[data-testid="official-column"]')
+    expect(officialColumn.text()).toContain('图片输出定价')
+    expect(officialColumn.find('[data-testid="pricing-field-input_price"]').exists()).toBe(false)
+    expect(officialColumn.find('[data-testid="pricing-tier-toggle"]').exists()).toBe(false)
   })
 
-  it('dedupes generated preset rows when batch preset is applied repeatedly', async () => {
+  it('emits simplified form payloads when saving a layer', async () => {
     const wrapper = mountDialog([createDetail()])
+    const officialColumn = wrapper.get('[data-testid="official-column"]')
 
-    const batchButton = wrapper.findAll('button').find((button) => button.text() === '启用 Batch')
-    expect(batchButton).toBeTruthy()
-    const officialColumn = wrapper.findAllComponents(BillingPriceColumn)[0]
-
-    await batchButton!.trigger('click')
+    await officialColumn.get('[data-testid="pricing-field-input_price"]').setValue('1.8')
+    await officialColumn.get('[data-testid="pricing-special-toggle"]').trigger('click')
     await nextTick()
-    const firstPassCount = officialColumn.findAll('article').length
+    await officialColumn.get('[data-testid="pricing-field-batch_input_price"]').setValue('0.9')
+    await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
 
-    await batchButton!.trigger('click')
-    await nextTick()
-
-    expect(firstPassCount).toBe(4)
-    expect(officialColumn.findAll('article')).toHaveLength(4)
+    expect(wrapper.emitted('save-layer')).toEqual([
+      [
+        {
+          model: 'gpt-5.4',
+          layer: 'official',
+          form: expect.objectContaining({
+            input_price: 1.8,
+            output_price: 2,
+            cache_price: 0.1,
+            special_enabled: true,
+            special: expect.objectContaining({
+              batch_input_price: 0.9,
+            }),
+          }),
+        },
+      ],
+    ])
   })
 
-  it('hides advanced matcher inputs for simple base pricing rows', () => {
-    const wrapper = mountDialog([createDetail()])
-
-    const officialColumn = wrapper.findAllComponents(BillingPriceColumn)[0]
-    expect(officialColumn.text()).not.toContain('Surface')
-    expect(officialColumn.text()).not.toContain('Operation')
-    expect(officialColumn.text()).not.toContain('Input Modality')
-  })
-
-  it('emits workset discount payloads with the selected sale item ids', async () => {
+  it('emits workset discount payloads with selected sale field ids', async () => {
     const wrapper = mountDialog([
       createDetail(),
       createDetail({
         model: 'claude-sonnet-4.5',
         display_name: 'Claude Sonnet 4.5',
         provider: 'anthropic',
-        sale_items: [
-          {
-            id: 'sale-2',
-            charge_slot: 'text_output',
-            unit: 'output_token',
-            layer: 'sale',
-            mode: 'base',
-            price: 2.5,
-            enabled: true,
-          },
-        ],
+        sale_form: createForm({
+          input_price: 2,
+          output_price: 3,
+          cache_price: 0.4,
+        }),
       }),
     ])
 
     wrapper.getComponent(BillingBulkDiscountPanel).vm.$emit('update:scope', 'workset')
     await nextTick()
-    wrapper.findAllComponents(BillingPriceColumn)[1].vm.$emit('toggle-select', 'sale-1')
-    await nextTick()
+    await wrapper.get('[data-testid="sale-column"]').get('[data-testid="field-select-input_price"] input').setValue(true)
     wrapper.getComponent(BillingBulkDiscountPanel).vm.$emit('apply-selected')
     await nextTick()
 
@@ -157,7 +176,7 @@ describe('BillingPricingEditorDialog', () => {
       [
         {
           models: ['gpt-5.4', 'claude-sonnet-4.5'],
-          itemIds: ['sale-1'],
+          itemIds: ['input_price'],
           discountRatio: 0.9,
         },
       ],

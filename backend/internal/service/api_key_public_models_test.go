@@ -4,9 +4,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/model"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,6 +73,9 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefix(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -130,6 +137,9 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefi
 		DefaultVertexPublicModelAlias("gemini-2.0-flash"),
 		svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash")),
 	)
+
+	snapshot := protocolruntime.Snapshot()
+	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceVertexCatalog], int64(2))
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertexPrefix(t *testing.T) {
@@ -309,7 +319,10 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIGroupIncludesProtocolGateway
 	require.Equal(t, "grok-auto", entry.PublicID)
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureDegradesToEmpty(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureFallsBackToRegistry(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -330,9 +343,22 @@ func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureDegradesToEmpty(t 
 		statusCode: http.StatusForbidden,
 		body:       `{"error":"You have insufficient permissions for this operation. Missing scopes: api.model.read."}`,
 	}
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "registry-openai-fallback",
+		DisplayName: "Registry OpenAI Fallback",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		ExposedIn:   []string{"runtime"},
+		UIPriority:  1,
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"registry-openai-fallback"})
+	require.NoError(t, err)
 	svc := &GatewayService{
 		accountRepo:               repo,
 		accountModelImportService: NewAccountModelImportService(nil, nil, upstream, nil),
+		modelRegistryService:      registrySvc,
 	}
 	apiKey := &APIKey{
 		ID:               14,
@@ -340,6 +366,9 @@ func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureDegradesToEmpty(t 
 		GroupBindings: []APIKeyGroupBinding{
 			{
 				GroupID: 24,
+				ModelPatterns: []string{
+					"registry-openai-*",
+				},
 				Group: &Group{
 					ID:       24,
 					Name:     "openai-group",
@@ -352,10 +381,17 @@ func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureDegradesToEmpty(t 
 
 	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
 	require.NoError(t, err)
-	require.Nil(t, entries)
+	require.Len(t, entries, 1)
+	require.Equal(t, "registry-openai-fallback", entries[0].PublicID)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceRegistryFallback])
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -410,6 +446,9 @@ func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t
 	require.Equal(t, "gpt-4.1-mini", entries[0].PublicID)
 	require.Nil(t, upstream.lastReq)
 	require.Len(t, repo.updateExtraCalls, 0)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceSavedProbe])
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t *testing.T) {
@@ -463,4 +502,290 @@ func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t 
 		AccountModelProbeSnapshotSourcePublicModelsLive,
 		repo.updateExtraCalls[0].updates["openai_known_models_source"],
 	)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_RestrictedFallbackStillRespectsScopeAndChannel(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	for _, entry := range []UpsertModelRegistryEntryInput{
+		{
+			ID:          "registry-openai-alpha",
+			DisplayName: "Registry OpenAI Alpha",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime"},
+			UIPriority:  1,
+		},
+		{
+			ID:          "registry-openai-beta",
+			DisplayName: "Registry OpenAI Beta",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime"},
+			UIPriority:  2,
+		},
+	} {
+		_, err := registrySvc.UpsertEntry(context.Background(), entry)
+		require.NoError(t, err)
+	}
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-alpha", "registry-openai-beta"})
+	require.NoError(t, err)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          8,
+				Name:        "openai-scoped",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "sk-test",
+					"base_url": "https://openai.example.test",
+				},
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"supported_models_by_provider": map[string]any{
+							PlatformOpenAI: []any{"registry-openai-beta"},
+						},
+					},
+				},
+			},
+		},
+	}
+	svc := &GatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+		channelService: &ChannelService{repo: &apiKeyPublicModelsChannelRepoStub{
+			channel: &model.Channel{
+				ID:             1,
+				Name:           "restricted",
+				Status:         model.ChannelStatusActive,
+				RestrictModels: true,
+				ModelPricing: []model.ChannelModelPricing{
+					{
+						ID:          1,
+						Platform:    PlatformOpenAI,
+						Models:      []string{"registry-openai-beta"},
+						BillingMode: model.ChannelBillingModeToken,
+					},
+				},
+			},
+		}},
+	}
+	apiKey := &APIKey{
+		ID:               18,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 28,
+				ModelPatterns: []string{
+					"registry-openai-*",
+				},
+				Group: &Group{
+					ID:       28,
+					Name:     "openai-group",
+					Platform: PlatformOpenAI,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "registry-openai-beta", entries[0].PublicID)
+	require.NotEmpty(t, entries[0].DisplayName)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.PublicModelRestrictionHitTotal)
+	require.Equal(t, int64(1), snapshot.PublicModelRestrictionByReason["account_scope"])
+	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceRestrictedFallback])
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_RestrictedFallbackKeepsManualModelsAlongsideMapping(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	for _, entry := range []UpsertModelRegistryEntryInput{
+		{
+			ID:          "registry-openai-alpha",
+			DisplayName: "Registry OpenAI Alpha",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime"},
+			UIPriority:  1,
+		},
+		{
+			ID:          "registry-openai-beta",
+			DisplayName: "Registry OpenAI Beta",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime"},
+			UIPriority:  2,
+		},
+	} {
+		_, err := registrySvc.UpsertEntry(context.Background(), entry)
+		require.NoError(t, err)
+	}
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-alpha", "registry-openai-beta"})
+	require.NoError(t, err)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          9,
+				Name:        "openai-manual-and-mapping",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "sk-test",
+					"base_url": "https://openai.example.test",
+					"model_mapping": map[string]any{
+						"friendly-beta": "registry-openai-beta",
+					},
+				},
+				Extra: map[string]any{
+					"manual_models": []any{
+						map[string]any{"model_id": "registry-openai-alpha"},
+					},
+				},
+			},
+		},
+	}
+	svc := &GatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+	}
+	apiKey := &APIKey{
+		ID:               19,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 29,
+				ModelPatterns: []string{
+					"registry-openai-*",
+				},
+				Group: &Group{
+					ID:       29,
+					Name:     "openai-group",
+					Platform: PlatformOpenAI,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	require.ElementsMatch(t, []string{"registry-openai-alpha", "registry-openai-beta"}, []string{entries[0].PublicID, entries[1].PublicID})
+}
+
+func TestGatewayService_FindAPIKeyPublicModel_VertexCatalogFailureFallsBackToRegistry(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gemini-2.0-flash",
+		DisplayName: "Gemini 2.0 Flash",
+		Provider:    PlatformGemini,
+		Platforms:   []string{PlatformGemini},
+		ExposedIn:   []string{"runtime"},
+		UIPriority:  1,
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gemini-2.0-flash"})
+	require.NoError(t, err)
+
+	vertexProvider := newTestVertexCatalogProvider(nil)
+	vertexProvider.err = errors.New(`status 403 PERMISSION_DENIED: missing scope api.model.read`)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          30,
+				Name:        "vertex-express",
+				Platform:    PlatformGemini,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":            "vertex-express-key",
+					"gemini_api_variant": GeminiAPIKeyVariantVertexExpress,
+				},
+			},
+		},
+	}
+	svc := &GatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+		vertexCatalogService: vertexProvider,
+	}
+	apiKey := &APIKey{
+		ID:               30,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: 30,
+				Group: &Group{
+					ID:       30,
+					Name:     "gemini-group",
+					Platform: PlatformGemini,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NotNil(t, entry)
+	require.Equal(t, "gemini-2.0-flash", entry.PublicID)
+
+	account, unique, err := svc.ResolveGeminiPublicModelMetadataAccount(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
+	require.NoError(t, err)
+	require.True(t, unique)
+	require.NotNil(t, account)
+	require.Equal(t, int64(30), account.ID)
+
+	snapshot := protocolruntime.Snapshot()
+	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceRegistryFallback], int64(1))
+}
+
+type apiKeyPublicModelsChannelRepoStub struct {
+	channel *model.Channel
+}
+
+func (s *apiKeyPublicModelsChannelRepoStub) List(_ context.Context, _ pagination.PaginationParams, _ ChannelListFilters) ([]*model.Channel, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+
+func (s *apiKeyPublicModelsChannelRepoStub) GetByID(_ context.Context, _ int64) (*model.Channel, error) {
+	return s.channel, nil
+}
+
+func (s *apiKeyPublicModelsChannelRepoStub) GetActiveByGroupID(_ context.Context, _ int64) (*model.Channel, error) {
+	return s.channel, nil
+}
+
+func (s *apiKeyPublicModelsChannelRepoStub) Create(_ context.Context, channel *model.Channel) (*model.Channel, error) {
+	s.channel = channel
+	return channel, nil
+}
+
+func (s *apiKeyPublicModelsChannelRepoStub) Update(_ context.Context, channel *model.Channel) (*model.Channel, error) {
+	s.channel = channel
+	return channel, nil
+}
+
+func (s *apiKeyPublicModelsChannelRepoStub) Delete(_ context.Context, _ int64) error {
+	s.channel = nil
+	return nil
 }

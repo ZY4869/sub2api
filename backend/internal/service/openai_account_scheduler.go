@@ -330,7 +330,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, nil
 	}
-	if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
+	if req.RequestedModel != "" && !s.service.isModelSupportedByAccountWithContext(ctx, account, req.RequestedModel) {
 		return nil, nil
 	}
 	if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
@@ -594,7 +594,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		if !account.IsSchedulable() || !account.IsOpenAI() {
 			continue
 		}
-		if req.RequestedModel != "" && !account.IsModelSupported(req.RequestedModel) {
+		if req.RequestedModel != "" && !s.service.isModelSupportedByAccountWithContext(ctx, account, req.RequestedModel) {
 			continue
 		}
 		if !s.isAccountTransportCompatible(account, req.RequiredTransport) {

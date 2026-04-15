@@ -302,10 +302,7 @@ func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, acc
 	}
 
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
-	testModelID := strings.TrimSpace(modelID)
-	if testModelID == "" {
-		testModelID = defaultOpenAIOAuthTestModelID(c.Request.Context(), account, s.modelRegistryService)
-	}
+	testModelID := resolveOpenAITestModelID(c.Request.Context(), account, modelID, s.modelRegistryService)
 	body, err := json.Marshal(createOpenAITestPayloadForRequestFormat(testModelID, requestFormat, isChatGPTOpenAIOAuthAccount(account)))
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to encode OpenAI test payload")

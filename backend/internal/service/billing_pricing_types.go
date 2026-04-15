@@ -44,6 +44,28 @@ type BillingPricingCapabilities struct {
 	SupportsProviderSpecial bool `json:"supports_provider_special"`
 }
 
+type BillingPricingSimpleSpecial struct {
+	BatchInputPrice    *float64 `json:"batch_input_price,omitempty"`
+	BatchOutputPrice   *float64 `json:"batch_output_price,omitempty"`
+	BatchCachePrice    *float64 `json:"batch_cache_price,omitempty"`
+	GroundingSearch    *float64 `json:"grounding_search,omitempty"`
+	GroundingMaps      *float64 `json:"grounding_maps,omitempty"`
+	FileSearchEmbedding *float64 `json:"file_search_embedding,omitempty"`
+	FileSearchRetrieval *float64 `json:"file_search_retrieval,omitempty"`
+}
+
+type BillingPricingLayerForm struct {
+	InputPrice               *float64                   `json:"input_price,omitempty"`
+	OutputPrice              *float64                   `json:"output_price,omitempty"`
+	CachePrice               *float64                   `json:"cache_price,omitempty"`
+	SpecialEnabled           bool                       `json:"special_enabled"`
+	Special                  BillingPricingSimpleSpecial `json:"special"`
+	TieredEnabled            bool                       `json:"tiered_enabled"`
+	TierThresholdTokens      *int                       `json:"tier_threshold_tokens,omitempty"`
+	InputPriceAboveThreshold *float64                   `json:"input_price_above_threshold,omitempty"`
+	OutputPriceAboveThreshold *float64                  `json:"output_price_above_threshold,omitempty"`
+}
+
 type BillingPricingListItem struct {
 	Model          string                     `json:"model"`
 	DisplayName    string                     `json:"display_name,omitempty"`
@@ -68,14 +90,18 @@ type BillingPricingSheetDetail struct {
 	DisplayName                     string                     `json:"display_name,omitempty"`
 	Provider                        string                     `json:"provider,omitempty"`
 	Mode                            string                     `json:"mode,omitempty"`
+	InputSupported                  bool                       `json:"input_supported"`
+	OutputChargeSlot                string                     `json:"output_charge_slot,omitempty"`
 	SupportsPromptCaching           bool                       `json:"supports_prompt_caching"`
 	SupportsServiceTier             bool                       `json:"supports_service_tier"`
 	LongContextInputTokenThreshold  int                        `json:"long_context_input_token_threshold,omitempty"`
 	LongContextInputCostMultiplier  float64                    `json:"long_context_input_cost_multiplier,omitempty"`
 	LongContextOutputCostMultiplier float64                    `json:"long_context_output_cost_multiplier,omitempty"`
 	Capabilities                    BillingPricingCapabilities `json:"capabilities"`
-	OfficialItems                   []BillingPriceItem         `json:"official_items"`
-	SaleItems                       []BillingPriceItem         `json:"sale_items"`
+	OfficialForm                    BillingPricingLayerForm    `json:"official_form"`
+	SaleForm                        BillingPricingLayerForm    `json:"sale_form"`
+	OfficialItems                   []BillingPriceItem         `json:"-"`
+	SaleItems                       []BillingPriceItem         `json:"-"`
 }
 
 type BillingPricingListFilter struct {
@@ -93,7 +119,8 @@ type BillingPricingDetailsRequest struct {
 type UpsertBillingPricingLayerInput struct {
 	Model string             `json:"model"`
 	Layer string             `json:"layer"`
-	Items []BillingPriceItem `json:"items"`
+	Form  *BillingPricingLayerForm `json:"form,omitempty"`
+	Items []BillingPriceItem       `json:"items,omitempty"`
 }
 
 type BillingCopyOfficialToSaleInput struct {

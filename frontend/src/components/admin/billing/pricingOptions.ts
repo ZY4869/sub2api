@@ -1,95 +1,88 @@
-import type { BillingPriceItem } from '@/api/admin/billing'
+import type { BillingPricingLayerForm, BillingPricingSheetDetail, BillingPricingSimpleSpecial } from '@/api/admin/billing'
 
-export const billingChargeSlotOptions = [
-  { value: 'text_input', label: 'Input' },
-  { value: 'text_output', label: 'Output' },
-  { value: 'cache_create', label: 'Cache Create' },
-  { value: 'cache_read', label: 'Cache Read' },
-  { value: 'cache_storage_token_hour', label: 'Cache Storage' },
-  { value: 'image_output', label: 'Image' },
-  { value: 'video_request', label: 'Video Request' },
-  { value: 'grounding_search_request', label: 'Grounding Search' },
-  { value: 'grounding_maps_request', label: 'Grounding Maps' },
-  { value: 'file_search_embedding_token', label: 'File Search Embed' },
-  { value: 'file_search_retrieval_token', label: 'File Search Retrieval' },
-] as const
+export const BILLING_DISCOUNT_FIELD_IDS = {
+  input_price: 'input_price',
+  output_price: 'output_price',
+  cache_price: 'cache_price',
+  input_price_above_threshold: 'input_price_above_threshold',
+  output_price_above_threshold: 'output_price_above_threshold',
+  batch_input_price: 'batch_input_price',
+  batch_output_price: 'batch_output_price',
+  batch_cache_price: 'batch_cache_price',
+  grounding_search: 'grounding_search',
+  grounding_maps: 'grounding_maps',
+  file_search_embedding: 'file_search_embedding',
+  file_search_retrieval: 'file_search_retrieval',
+} as const
 
-export const billingModeOptions = [
-  { value: 'base', label: 'Base' },
-  { value: 'tiered', label: 'Tiered' },
-  { value: 'batch', label: 'Batch' },
-  { value: 'service_tier', label: 'Service Tier' },
-  { value: 'provider_special', label: 'Provider Special' },
-] as const
+export function createEmptyBillingPricingSpecial(): BillingPricingSimpleSpecial {
+  return {}
+}
 
-export const billingServiceTierOptions = [
-  { value: '', label: 'Default' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'flex', label: 'Flex' },
-  { value: 'priority', label: 'Priority' },
-] as const
-
-export const billingBatchModeOptions = [
-  { value: '', label: 'Any' },
-  { value: 'realtime', label: 'Realtime' },
-  { value: 'batch', label: 'Batch' },
-] as const
-
-export function defaultUnitForChargeSlot(chargeSlot: string): string {
-  switch (chargeSlot) {
-    case 'text_input':
-    case 'audio_input':
-      return 'input_token'
-    case 'text_output':
-    case 'audio_output':
-      return 'output_token'
-    case 'cache_create':
-      return 'cache_create_token'
-    case 'cache_read':
-      return 'cache_read_token'
-    case 'cache_storage_token_hour':
-      return 'cache_storage_token_hour'
-    case 'image_output':
-      return 'image'
-    case 'video_request':
-      return 'video_request'
-    case 'grounding_search_request':
-      return 'grounding_search_request'
-    case 'grounding_maps_request':
-      return 'grounding_maps_request'
-    case 'file_search_embedding_token':
-      return 'file_search_embedding_token'
-    case 'file_search_retrieval_token':
-      return 'file_search_retrieval_token'
-    default:
-      return 'input_token'
+export function createEmptyBillingPricingLayerForm(seed: Partial<BillingPricingLayerForm> = {}): BillingPricingLayerForm {
+  return {
+    input_price: seed.input_price,
+    output_price: seed.output_price,
+    cache_price: seed.cache_price,
+    special_enabled: seed.special_enabled ?? false,
+    special: {
+      ...createEmptyBillingPricingSpecial(),
+      ...(seed.special || {}),
+    },
+    tiered_enabled: seed.tiered_enabled ?? false,
+    tier_threshold_tokens: seed.tier_threshold_tokens,
+    input_price_above_threshold: seed.input_price_above_threshold,
+    output_price_above_threshold: seed.output_price_above_threshold,
   }
 }
 
-export function newBillingPriceItem(layer: 'official' | 'sale', seed?: Partial<BillingPriceItem>): BillingPriceItem {
-  const chargeSlot = seed?.charge_slot || 'text_input'
+export function cloneBillingPricingLayerForm(form?: Partial<BillingPricingLayerForm>): BillingPricingLayerForm {
+  return createEmptyBillingPricingLayerForm(form || {})
+}
+
+export function normalizeBillingPricingSheetDetail(detail: BillingPricingSheetDetail): BillingPricingSheetDetail {
   return {
-    id: seed?.id || `item_${Math.random().toString(36).slice(2, 10)}`,
-    charge_slot: chargeSlot,
-    unit: seed?.unit || defaultUnitForChargeSlot(chargeSlot),
-    layer,
-    mode: seed?.mode || 'base',
-    service_tier: seed?.service_tier || '',
-    batch_mode: seed?.batch_mode || '',
-    surface: seed?.surface || '',
-    operation_type: seed?.operation_type || '',
-    input_modality: seed?.input_modality || '',
-    output_modality: seed?.output_modality || '',
-    cache_phase: seed?.cache_phase || '',
-    grounding_kind: seed?.grounding_kind || '',
-    context_window: seed?.context_window || '',
-    threshold_tokens: seed?.threshold_tokens,
-    price: seed?.price ?? 0,
-    price_above_threshold: seed?.price_above_threshold,
-    formula_source: seed?.formula_source || '',
-    formula_multiplier: seed?.formula_multiplier,
-    rule_id: seed?.rule_id || '',
-    derived_via: seed?.derived_via || '',
-    enabled: seed?.enabled ?? true,
+    ...detail,
+    official_form: cloneBillingPricingLayerForm(detail.official_form),
+    sale_form: cloneBillingPricingLayerForm(detail.sale_form),
   }
+}
+
+export function outputPriceLabel(outputChargeSlot?: string): string {
+  switch (outputChargeSlot) {
+    case 'image_output':
+      return '图片输出定价'
+    case 'video_request':
+      return '视频请求定价'
+    default:
+      return '输出定价'
+  }
+}
+
+export function billingLayerHasValues(form?: Partial<BillingPricingLayerForm>): boolean {
+  if (!form) return false
+  return countConfiguredBillingFields(form) > 0
+}
+
+export function countConfiguredBillingFields(form?: Partial<BillingPricingLayerForm>): number {
+  if (!form) return 0
+
+  const rootValues = [
+    form.input_price,
+    form.output_price,
+    form.cache_price,
+    form.input_price_above_threshold,
+    form.output_price_above_threshold,
+  ]
+  const specialValues = [
+    form.special?.batch_input_price,
+    form.special?.batch_output_price,
+    form.special?.batch_cache_price,
+    form.special?.grounding_search,
+    form.special?.grounding_maps,
+    form.special?.file_search_embedding,
+    form.special?.file_search_retrieval,
+  ]
+
+  return [...rootValues, ...specialValues].filter((value) => value != null).length
 }

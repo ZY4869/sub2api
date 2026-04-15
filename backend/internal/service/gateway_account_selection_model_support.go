@@ -6,6 +6,9 @@ import (
 )
 
 func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Context, account *Account, requestedModel string) bool {
+	if account == nil {
+		return false
+	}
 	if account.Platform == PlatformAntigravity {
 		if strings.TrimSpace(requestedModel) == "" {
 			return true
@@ -23,28 +26,9 @@ func (s *GatewayService) isModelSupportedByAccountWithContext(ctx context.Contex
 		}
 		return true
 	}
-	return s.isModelSupportedByAccount(account, requestedModel)
+	return isRequestedModelSupportedByAccount(ctx, s.modelRegistryService, account, requestedModel)
 }
+
 func (s *GatewayService) isModelSupportedByAccount(account *Account, requestedModel string) bool {
-	if account != nil && account.Type == AccountTypeBedrock {
-		if strings.TrimSpace(requestedModel) == "" {
-			return true
-		}
-		_, ok := ResolveBedrockModelID(account, requestedModel)
-		return ok
-	}
-	if account.Platform == PlatformAntigravity {
-		if strings.TrimSpace(requestedModel) == "" {
-			return true
-		}
-		return mapAntigravityModel(account, requestedModel) != ""
-	}
-	canonicalModel := s.resolveCanonicalRequestModel(context.Background(), requestedModel)
-	if canonicalModel == "" {
-		return account.IsModelSupported(requestedModel)
-	}
-	if account.IsModelSupported(canonicalModel) {
-		return true
-	}
-	return account.IsModelSupported(s.resolveUpstreamModelID(context.Background(), account, canonicalModel))
+	return isRequestedModelSupportedByAccount(context.Background(), s.modelRegistryService, account, requestedModel)
 }

@@ -65,6 +65,7 @@ func (s *GatewayService) ResolveGeminiPublicModelMetadataAccount(
 					}
 					continue
 				}
+				entries = s.filterPublicEntriesByActiveChannel(ctx, binding.GroupID, bindingPlatform, entries)
 				if !publicModelEntriesContainID(entries, normalizedModelID) {
 					continue
 				}

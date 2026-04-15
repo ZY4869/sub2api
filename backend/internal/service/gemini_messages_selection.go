@@ -203,7 +203,7 @@ func (s *GeminiMessagesCompatService) isModelSupportedByAccount(account *Account
 		}
 		return mapAntigravityModel(account, requestedModel) != ""
 	}
-	return account.IsModelSupported(requestedModel)
+	return isRequestedModelSupportedByAccount(context.Background(), nil, account, requestedModel)
 }
 func (s *GeminiMessagesCompatService) GetAntigravityGatewayService() *AntigravityGatewayService {
 	return s.antigravityGatewayService

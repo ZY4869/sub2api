@@ -152,6 +152,48 @@ func TestBuildAvailableTestModels_FiltersChatGPTOpenAIModelsByKnownSnapshot(t *t
 	require.NotContains(t, ids, "gpt-5.1-codex-mini")
 }
 
+func TestBuildAvailableTestModels_FiltersKnownUnsupportedChatGPTModelsWithoutSnapshot(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.4",
+		DisplayName: "GPT-5.4",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.1-codex-mini",
+		DisplayName: "GPT-5.1 Codex Mini",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-5.4", "gpt-5.1-codex-mini"})
+	require.NoError(t, err)
+
+	account := &Account{
+		ID:       995,
+		Name:     "openai-chatgpt-oauth-no-snapshot",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+
+	require.Contains(t, ids, "gpt-5.4")
+	require.NotContains(t, ids, "gpt-5.1-codex-mini")
+}
+
 func TestBuildAvailableTestModels_DoesNotRestrictOpenAIAPIKeyModelsByKnownSnapshot(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 

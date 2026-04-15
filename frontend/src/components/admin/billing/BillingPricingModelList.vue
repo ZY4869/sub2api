@@ -101,9 +101,7 @@ function capabilityBadges(item: BillingPricingListItem): string[] {
   const badges: string[] = []
   if (item.capabilities.supports_tiered_pricing) badges.push('Tiered')
   if (item.capabilities.supports_batch_pricing) badges.push('Batch')
-  if (item.capabilities.supports_service_tier) badges.push('Service Tier')
   if (item.capabilities.supports_prompt_caching) badges.push('Caching')
-  if (item.capabilities.supports_provider_special) badges.push('Provider Special')
   return badges
 }
 </script>

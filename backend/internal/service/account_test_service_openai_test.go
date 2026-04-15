@@ -270,6 +270,38 @@ func TestDefaultOpenAIOAuthTestModelID_FallsBackWhenKnownModelsExcludeGPT54(t *t
 	require.Equal(t, "gpt-4.1-mini", defaultOpenAIOAuthTestModelID(context.Background(), account, nil))
 }
 
+func TestAccountTestService_OpenAIChatGPTOAuthExplicitUnsupportedModelFallsBackToDefault(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
+	account := &Account{
+		ID:          96,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{"access_token": "test-token"},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.1-codex-mini", "", "")
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+
+	body, readErr := io.ReadAll(upstream.requests[0].Body)
+	require.NoError(t, readErr)
+	require.Contains(t, string(body), `"model":"gpt-5.4"`)
+	require.NotContains(t, string(body), `"model":"gpt-5.1-codex-mini"`)
+	require.Contains(t, recorder.Body.String(), `"model":"gpt-5.4"`)
+}
+
 func TestAccountTestService_OpenAIProtocolGatewayChatPreferenceUsesChatCompletionsHealthCheck(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newTestContext()

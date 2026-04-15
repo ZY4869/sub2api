@@ -5,6 +5,7 @@ func filterChatGPTOpenAIKnownTestModelCandidates(account *Account, sourceProtoco
 		return candidates
 	}
 
+	candidates = filterChatGPTOpenAIUnsupportedTestModelCandidates(candidates)
 	knownModels := normalizeStringSliceAny(account.Extra["openai_known_models"], NormalizeModelCatalogModelID)
 	if len(knownModels) == 0 {
 		return candidates
@@ -36,6 +37,9 @@ func filterChatGPTOpenAIKnownTestModelCandidates(account *Account, sourceProtoco
 
 	provider := inferAvailableTestModelProvider(account, sourceProtocol)
 	for _, modelID := range knownModels {
+		if isChatGPTOpenAIUnsupportedTestModelID(modelID) {
+			continue
+		}
 		if _, ok := seen[modelID]; ok {
 			continue
 		}
@@ -52,5 +56,17 @@ func filterChatGPTOpenAIKnownTestModelCandidates(account *Account, sourceProtoco
 		})
 	}
 
+	return filtered
+}
+
+func filterChatGPTOpenAIUnsupportedTestModelCandidates(candidates []testModelCandidate) []testModelCandidate {
+	filtered := make([]testModelCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if isChatGPTOpenAIUnsupportedTestModelID(candidate.model.ID) ||
+			isChatGPTOpenAIUnsupportedTestModelID(candidate.model.CanonicalID) {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
 	return filtered
 }

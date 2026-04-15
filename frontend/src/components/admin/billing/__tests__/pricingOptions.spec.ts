@@ -1,62 +1,66 @@
 import { describe, expect, it } from 'vitest'
 import {
-  defaultUnitForChargeSlot,
-  newBillingPriceItem,
+  billingLayerHasValues,
+  cloneBillingPricingLayerForm,
+  countConfiguredBillingFields,
+  outputPriceLabel,
 } from '../pricingOptions'
 
 describe('pricingOptions', () => {
-  it('maps cache storage and media charge slots to the expected default units', () => {
-    expect(defaultUnitForChargeSlot('cache_storage_token_hour')).toBe('cache_storage_token_hour')
-    expect(defaultUnitForChargeSlot('image_output')).toBe('image')
-    expect(defaultUnitForChargeSlot('video_request')).toBe('video_request')
+  it('clones layer forms and preserves nested special values', () => {
+    const form = cloneBillingPricingLayerForm({
+      input_price: 1.2,
+      special_enabled: true,
+      special: {
+        batch_input_price: 0.5,
+      },
+      tiered_enabled: true,
+      tier_threshold_tokens: 200000,
+    })
+
+    expect(form).toEqual({
+      input_price: 1.2,
+      output_price: undefined,
+      cache_price: undefined,
+      special_enabled: true,
+      special: {
+        batch_input_price: 0.5,
+      },
+      tiered_enabled: true,
+      tier_threshold_tokens: 200000,
+      input_price_above_threshold: undefined,
+      output_price_above_threshold: undefined,
+    })
+
+    form.special.batch_input_price = 0.8
+
+    const clonedAgain = cloneBillingPricingLayerForm({
+      special_enabled: true,
+      special: {
+        batch_input_price: 0.5,
+      },
+    })
+    expect(clonedAgain.special.batch_input_price).toBe(0.5)
   })
 
-  it.each([
-    {
-      charge_slot: 'text_input',
-      mode: 'tiered',
-      threshold_tokens: 200000,
-      price: 1.2,
-      price_above_threshold: 2.4,
-      enabled: false,
-    },
-    {
-      charge_slot: 'text_output',
-      mode: 'batch',
-      batch_mode: 'batch',
-      price: 0.8,
-    },
-    {
-      charge_slot: 'image_output',
-      mode: 'service_tier',
-      service_tier: 'priority',
-      price: 3.5,
-    },
-    {
-      charge_slot: 'cache_storage_token_hour',
-      mode: 'provider_special',
-      service_tier: 'flex',
-      batch_mode: 'batch',
-      surface: 'live',
-      operation_type: 'grounding',
-      input_modality: 'text',
-      output_modality: 'text',
-      cache_phase: 'storage',
-      grounding_kind: 'search',
-      context_window: 'long',
-      formula_source: 'gemini',
-      formula_multiplier: 1.5,
-      rule_id: 'rule-gemini-live',
-      derived_via: 'provider_special',
-      price: 4.2,
-    },
-  ] as const)('preserves seeded billing fields for $mode items', (seed) => {
-    const item = newBillingPriceItem('sale', seed)
+  it('counts configured fields across base, tier and special sections', () => {
+    expect(countConfiguredBillingFields({
+      input_price: 1,
+      output_price: 2,
+      special: {
+        grounding_search: 0.01,
+      },
+      input_price_above_threshold: 3,
+    })).toBe(4)
 
-    expect(item).toMatchObject({
-      ...seed,
-      layer: 'sale',
-      unit: defaultUnitForChargeSlot(seed.charge_slot),
-    })
+    expect(billingLayerHasValues({
+      special: {},
+    })).toBe(false)
+  })
+
+  it('maps output labels by model charge slot', () => {
+    expect(outputPriceLabel()).toBe('输出定价')
+    expect(outputPriceLabel('image_output')).toBe('图片输出定价')
+    expect(outputPriceLabel('video_request')).toBe('视频请求定价')
   })
 })

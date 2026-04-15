@@ -1,8 +1,6 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
 
-export type BillingPriceItemMode = 'base' | 'tiered' | 'batch' | 'service_tier' | 'provider_special'
-
 export interface BillingRuleMatchers {
   models?: string[]
   model_families?: string[]
@@ -132,29 +130,26 @@ export interface BillingSimulationResult {
   actual_cost: number
 }
 
-export interface BillingPriceItem {
-  id: string
-  charge_slot: string
-  unit: string
-  layer: string
-  mode: BillingPriceItemMode
-  service_tier?: string
-  batch_mode?: string
-  surface?: string
-  operation_type?: string
-  input_modality?: string
-  output_modality?: string
-  cache_phase?: string
-  grounding_kind?: string
-  context_window?: string
-  threshold_tokens?: number
-  price: number
-  price_above_threshold?: number
-  formula_source?: string
-  formula_multiplier?: number
-  rule_id?: string
-  derived_via?: string
-  enabled: boolean
+export interface BillingPricingSimpleSpecial {
+  batch_input_price?: number
+  batch_output_price?: number
+  batch_cache_price?: number
+  grounding_search?: number
+  grounding_maps?: number
+  file_search_embedding?: number
+  file_search_retrieval?: number
+}
+
+export interface BillingPricingLayerForm {
+  input_price?: number
+  output_price?: number
+  cache_price?: number
+  special_enabled: boolean
+  special: BillingPricingSimpleSpecial
+  tiered_enabled: boolean
+  tier_threshold_tokens?: number
+  input_price_above_threshold?: number
+  output_price_above_threshold?: number
 }
 
 export interface BillingPricingCapabilities {
@@ -189,14 +184,16 @@ export interface BillingPricingSheetDetail {
   display_name?: string
   provider?: string
   mode?: string
+  input_supported: boolean
+  output_charge_slot?: string
   supports_prompt_caching: boolean
   supports_service_tier: boolean
   long_context_input_token_threshold?: number
   long_context_input_cost_multiplier?: number
   long_context_output_cost_multiplier?: number
   capabilities: BillingPricingCapabilities
-  official_items: BillingPriceItem[]
-  sale_items: BillingPriceItem[]
+  official_form: BillingPricingLayerForm
+  sale_form: BillingPricingLayerForm
 }
 
 export interface BillingPricingListParams {
@@ -208,7 +205,7 @@ export interface BillingPricingListParams {
 }
 
 export interface BillingSavePricingLayerPayload {
-  items: BillingPriceItem[]
+  form: BillingPricingLayerForm
 }
 
 export interface BillingCopyOfficialToSalePayload {

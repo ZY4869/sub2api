@@ -69,6 +69,7 @@ import {
   listBillingPricingModels,
   listBillingPricingProviders,
   updateBillingPricingLayer,
+  type BillingPricingLayerForm,
   type BillingPricingListItem,
   type BillingPricingProviderGroup,
   type BillingPricingSheetDetail,
@@ -173,10 +174,10 @@ async function openEditor(model: string) {
   }
 }
 
-async function handleSaveLayer(payload: { model: string; layer: 'official' | 'sale'; items: any[] }) {
+async function handleSaveLayer(payload: { model: string; layer: 'official' | 'sale'; form: BillingPricingLayerForm }) {
   editorBusy.value = true
   try {
-    const detail = await updateBillingPricingLayer(payload.model, payload.layer, { items: payload.items })
+    const detail = await updateBillingPricingLayer(payload.model, payload.layer, { form: payload.form })
     mergeEditorDetail(detail)
     appStore.showSuccess(payload.layer === 'official' ? '官方价格已保存' : '出售价格已保存')
     await guardedLoad(reloadModels)

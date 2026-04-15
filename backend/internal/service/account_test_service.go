@@ -761,6 +761,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	if resolvedTarget.ModelID != "" {
 		modelID = resolvedTarget.ModelID
 	}
+	if account != nil && account.IsOpenAI() {
+		modelID = resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)
+	}
 	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedTarget.SourceProtocol, modelID)
 	normalizedTestMode := normalizeAccountTestMode(testMode)
 	runtimeMeta := buildAccountTestRuntimeMeta(
@@ -1193,10 +1196,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	ctx := c.Request.Context()
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
 
-	testModelID := modelID
-	if testModelID == "" {
-		testModelID = defaultOpenAIOAuthTestModelID(ctx, account, s.modelRegistryService)
-	}
+	testModelID := resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)
 
 	// For API Key accounts with model mapping, map the model
 	if account.Type == "apikey" {

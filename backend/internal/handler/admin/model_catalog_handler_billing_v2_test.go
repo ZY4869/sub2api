@@ -75,7 +75,13 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.Len(t, detailsResp.Data, 2)
 	require.Equal(t, "claude-sonnet-4.5", detailsResp.Data[0].Model)
 	require.Equal(t, "gpt-5.4", detailsResp.Data[1].Model)
-	require.NotEmpty(t, detailsResp.Data[0].OfficialItems)
+	require.True(t, detailsResp.Data[0].InputSupported)
+	require.NotNil(t, detailsResp.Data[0].OfficialForm.InputPrice)
+	require.InDelta(t, 3e-6, *detailsResp.Data[0].OfficialForm.InputPrice, 1e-12)
+	require.NotNil(t, detailsResp.Data[1].OfficialForm.InputPrice)
+	require.NotNil(t, detailsResp.Data[1].OfficialForm.OutputPrice)
+	require.InDelta(t, 1.5e-6, *detailsResp.Data[1].OfficialForm.InputPrice, 1e-12)
+	require.InDelta(t, 6e-6, *detailsResp.Data[1].OfficialForm.OutputPrice, 1e-12)
 
 	copyRec := httptest.NewRecorder()
 	copyReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/sale/copy-from-official", mustJSONBody(t, map[string]any{
@@ -92,7 +98,10 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.NoError(t, json.Unmarshal(copyRec.Body.Bytes(), &copyResp))
 	require.Zero(t, copyResp.Code)
 	require.Len(t, copyResp.Data, 1)
-	require.NotEmpty(t, copyResp.Data[0].SaleItems)
+	require.NotNil(t, copyResp.Data[0].SaleForm.InputPrice)
+	require.NotNil(t, copyResp.Data[0].SaleForm.OutputPrice)
+	require.InDelta(t, 1.5e-6, *copyResp.Data[0].SaleForm.InputPrice, 1e-12)
+	require.InDelta(t, 6e-6, *copyResp.Data[0].SaleForm.OutputPrice, 1e-12)
 
 	discountRec := httptest.NewRecorder()
 	discountReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/sale/apply-discount", mustJSONBody(t, map[string]any{
@@ -110,7 +119,8 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.NoError(t, json.Unmarshal(discountRec.Body.Bytes(), &discountResp))
 	require.Zero(t, discountResp.Code)
 	require.Len(t, discountResp.Data, 1)
-	require.InDelta(t, 0.75e-6, billingPriceForTest(discountResp.Data[0].SaleItems, service.BillingChargeSlotTextInput, service.BillingPriceItemModeBase), 1e-12)
+	require.NotNil(t, discountResp.Data[0].SaleForm.InputPrice)
+	require.InDelta(t, 0.75e-6, *discountResp.Data[0].SaleForm.InputPrice, 1e-12)
 }
 
 func TestModelCatalogHandler_DeprecatedBillingAPIs_LogMetricsAndPreservePayload(t *testing.T) {
@@ -229,15 +239,6 @@ func mustJSONBody(t *testing.T, value any) *bytes.Reader {
 	payload, err := json.Marshal(value)
 	require.NoError(t, err)
 	return bytes.NewReader(payload)
-}
-
-func billingPriceForTest(items []service.BillingPriceItem, slot string, mode service.BillingPriceItemMode) float64 {
-	for _, item := range items {
-		if item.ChargeSlot == slot && item.Mode == mode {
-			return item.Price
-		}
-	}
-	return 0
 }
 
 func billingProvidersForTest(items []service.BillingPricingProviderGroup) []string {

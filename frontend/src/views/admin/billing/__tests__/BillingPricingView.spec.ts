@@ -1,5 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BillingPricingLayerForm } from '@/api/admin/billing'
+import BillingPricingModeToggle from '@/components/admin/billing/BillingPricingModeToggle.vue'
+import BillingPricingModelList from '@/components/admin/billing/BillingPricingModelList.vue'
+import BillingPricingProviderGrid from '@/components/admin/billing/BillingPricingProviderGrid.vue'
 import BillingPricingView from '../BillingPricingView.vue'
 
 const apiMocks = vi.hoisted(() => ({
@@ -44,10 +48,24 @@ function createListItem(overrides: Record<string, unknown> = {}) {
     capabilities: {
       supports_tiered_pricing: true,
       supports_batch_pricing: true,
-      supports_service_tier: true,
-      supports_prompt_caching: false,
+      supports_service_tier: false,
+      supports_prompt_caching: true,
       supports_provider_special: true,
     },
+    ...overrides,
+  }
+}
+
+function createForm(overrides: Partial<BillingPricingLayerForm> = {}): BillingPricingLayerForm {
+  return {
+    input_price: 1,
+    output_price: 2,
+    cache_price: 0.1,
+    special_enabled: false,
+    special: {
+      ...(overrides.special || {}),
+    },
+    tiered_enabled: false,
     ...overrides,
   }
 }
@@ -58,20 +76,26 @@ function createDetail() {
     display_name: 'GPT-5.4',
     provider: 'openai',
     mode: 'chat',
-    supports_prompt_caching: false,
-    supports_service_tier: true,
+    input_supported: true,
+    output_charge_slot: 'text_output',
+    supports_prompt_caching: true,
+    supports_service_tier: false,
     long_context_input_token_threshold: 200000,
     long_context_input_cost_multiplier: 2,
     long_context_output_cost_multiplier: 2,
     capabilities: {
       supports_tiered_pricing: true,
       supports_batch_pricing: true,
-      supports_service_tier: true,
-      supports_prompt_caching: false,
+      supports_service_tier: false,
+      supports_prompt_caching: true,
       supports_provider_special: true,
     },
-    official_items: [],
-    sale_items: [],
+    official_form: createForm(),
+    sale_form: createForm({
+      input_price: 1.5,
+      output_price: 2.5,
+      cache_price: 0.2,
+    }),
   }
 }
 
@@ -80,7 +104,29 @@ function mountView() {
     global: {
       stubs: {
         BillingPricingEditorDialog: {
-          template: '<div data-testid="editor-dialog-stub" />',
+          props: ['show', 'activeModel'],
+          emits: ['save-layer', 'copy-official', 'apply-discount', 'close', 'update:activeModel'],
+          template: `
+            <div v-if="show" data-testid="editor-dialog-stub">
+              <button
+                data-testid="emit-save-layer"
+                @click="$emit('save-layer', {
+                  model: activeModel || 'gpt-5.4',
+                  layer: 'official',
+                  form: {
+                    input_price: 1.25,
+                    output_price: 2.5,
+                    cache_price: 0.3,
+                    special_enabled: false,
+                    special: {},
+                    tiered_enabled: false
+                  }
+                })"
+              >
+                save
+              </button>
+            </div>
+          `,
         },
         ModelPlatformIcon: true,
       },
@@ -135,14 +181,9 @@ describe('BillingPricingView', () => {
       page_size: 50,
     }))
 
-    const gridButton = wrapper.findAll('button').find((button) => button.text() === '九宫格模式')
-    expect(gridButton).toBeTruthy()
-    await gridButton!.trigger('click')
+    wrapper.getComponent(BillingPricingModeToggle).vm.$emit('update:modelValue', 'grid')
     await flushPromises()
-
-    const providerButton = wrapper.findAll('button').find((button) => button.text().includes('OpenAI'))
-    expect(providerButton).toBeTruthy()
-    await providerButton!.trigger('click')
+    wrapper.getComponent(BillingPricingProviderGrid).vm.$emit('toggle-provider', 'openai')
     await flushPromises()
 
     expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -156,11 +197,30 @@ describe('BillingPricingView', () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const openButton = wrapper.findAll('button').find((button) => button.text() === '编辑定价')
-    expect(openButton).toBeTruthy()
-    await openButton!.trigger('click')
+    wrapper.getComponent(BillingPricingModelList).vm.$emit('open', 'gpt-5.4')
     await flushPromises()
 
     expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['gpt-5.4'])
+  })
+
+  it('sends simplified form payloads to the save-layer api', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    wrapper.getComponent(BillingPricingModelList).vm.$emit('open', 'gpt-5.4')
+    await flushPromises()
+    await wrapper.get('[data-testid="emit-save-layer"]').trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledWith('gpt-5.4', 'official', {
+      form: {
+        input_price: 1.25,
+        output_price: 2.5,
+        cache_price: 0.3,
+        special_enabled: false,
+        special: {},
+        tiered_enabled: false,
+      },
+    })
   })
 })

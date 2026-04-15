@@ -7,6 +7,8 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 func (s *BillingCenterService) ListPricingProviders(ctx context.Context) ([]BillingPricingProviderGroup, error) {
@@ -136,19 +138,27 @@ func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []s
 		if !ok || record == nil {
 			return nil, infraerrors.NotFound("BILLING_MODEL_NOT_FOUND", "billing model not found")
 		}
+		officialItems := pricingItemsForRecord(record, BillingLayerOfficial, rules)
+		saleItems := pricingItemsForRecord(record, BillingLayerSale, rules)
+		combinedItems := append(append([]BillingPriceItem(nil), officialItems...), saleItems...)
+		metadata := billingPricingMetadataForRecord(record, combinedItems)
 		items = append(items, BillingPricingSheetDetail{
 			Model:                           NormalizeModelCatalogModelID(record.model),
 			DisplayName:                     record.displayName,
 			Provider:                        record.provider,
 			Mode:                            record.mode,
+			InputSupported:                  metadata.InputSupported,
+			OutputChargeSlot:                metadata.OutputChargeSlot,
 			SupportsPromptCaching:           record.supportsPromptCaching,
 			SupportsServiceTier:             record.supportsServiceTier,
 			LongContextInputTokenThreshold:  record.longContextInputTokenThreshold,
 			LongContextInputCostMultiplier:  record.longContextInputCostMultiplier,
 			LongContextOutputCostMultiplier: record.longContextOutputCostMultiplier,
 			Capabilities:                    billingPricingCapabilitiesForRecord(record),
-			OfficialItems:                   pricingItemsForRecord(record, BillingLayerOfficial, rules),
-			SaleItems:                       pricingItemsForRecord(record, BillingLayerSale, rules),
+			OfficialForm:                    billingPricingLayerFormFromItemsWithMetadata(metadata, officialItems),
+			SaleForm:                        billingPricingLayerFormFromItemsWithMetadata(metadata, saleItems),
+			OfficialItems:                   officialItems,
+			SaleItems:                       saleItems,
 		})
 	}
 	return items, nil
@@ -170,11 +180,20 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	if !ok || record == nil {
 		return nil, infraerrors.NotFound("BILLING_MODEL_NOT_FOUND", "billing model not found")
 	}
-	items := make([]BillingPriceItem, 0, len(input.Items))
-	for _, item := range input.Items {
-		item.Layer = layer
-		items = append(items, normalizeBillingPriceItem(item))
+	rules := s.ListRules(ctx)
+	currentItems := pricingItemsForRecord(record, layer, rules)
+	metadata := billingPricingMetadataForRecord(record, currentItems)
+	form := BillingPricingLayerForm{}
+	switch {
+	case input.Form != nil:
+		form = cloneBillingPricingLayerForm(*input.Form)
+	case len(input.Items) > 0:
+		form = billingPricingLayerFormFromItemsWithMetadata(metadata, input.Items)
 	}
+	if err := validateBillingPricingLayerForm(form); err != nil {
+		return nil, err
+	}
+	items := billingPricingItemsFromForm(metadata, layer, form)
 
 	legacyPricing := flatPricingFromItems(items)
 	if err := validateFlatPricingForSave(legacyPricing); err != nil {
@@ -184,19 +203,29 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 		return nil, err
 	}
 
-	rules := s.ListRules(ctx)
 	rules = deleteGeneratedPricingRules(rules, record.model, layer)
+	rules, _ = deleteGeminiCompatRules(rules, record, layer)
 	if isGeminiBillingCompatModel(record.model) {
-		matrix := geminiMatrixFromItems(items)
+		matrix := geminiMatrixFromSimpleForm(form)
 		rules = replaceGeminiMatrixRules(rules, record, layer, matrix)
 	} else {
 		rules, _ = deleteGeminiMatrixRules(rules, record.model, layer)
 	}
-	rules = append(rules, pricingRulesFromItems(record, layer, items)...)
+	rules = append(rules, billingPricingRulesFromForm(record, layer, items)...)
 	if err := persistBillingRulesBySetting(ctx, s.settingRepo, SettingKeyBillingCenterRules, rules); err != nil {
 		return nil, err
 	}
 	s.syncBillingServiceOverrides(ctx)
+	logger.FromContext(ctx).Info(
+		"billing pricing layer normalized save",
+		zap.String("component", "service.billing_center"),
+		zap.String("model", record.model),
+		zap.String("layer", layer),
+		zap.Bool("input_supported", metadata.InputSupported),
+		zap.String("output_charge_slot", metadata.OutputChargeSlot),
+		zap.Bool("special_enabled", form.SpecialEnabled),
+		zap.Bool("tiered_enabled", form.TieredEnabled),
+	)
 
 	details, err := s.GetPricingDetails(ctx, []string{record.model})
 	if err != nil || len(details) == 0 {
@@ -212,10 +241,11 @@ func (s *BillingCenterService) CopyPricingItemsOfficialToSale(ctx context.Contex
 	}
 	updated := make([]BillingPricingSheetDetail, 0, len(details))
 	for _, detail := range details {
+		form := cloneBillingPricingLayerForm(detail.OfficialForm)
 		next, err := s.SavePricingLayer(ctx, actor, UpsertBillingPricingLayerInput{
 			Model: detail.Model,
 			Layer: BillingLayerSale,
-			Items: append([]BillingPriceItem(nil), detail.OfficialItems...),
+			Form:  &form,
 		})
 		if err != nil {
 			return nil, err
@@ -239,23 +269,11 @@ func (s *BillingCenterService) ApplySaleDiscount(ctx context.Context, actor Mode
 	}
 	updated := make([]BillingPricingSheetDetail, 0, len(details))
 	for _, detail := range details {
-		items := append([]BillingPriceItem(nil), detail.SaleItems...)
-		for index := range items {
-			if len(itemFilter) > 0 {
-				if _, ok := itemFilter[strings.TrimSpace(items[index].ID)]; !ok {
-					continue
-				}
-			}
-			items[index].Price *= input.DiscountRatio
-			if items[index].PriceAboveThresh != nil {
-				value := *items[index].PriceAboveThresh * input.DiscountRatio
-				items[index].PriceAboveThresh = &value
-			}
-		}
+		form := applyDiscountToBillingPricingLayerForm(detail.SaleForm, input.DiscountRatio, itemFilter)
 		next, err := s.SavePricingLayer(ctx, actor, UpsertBillingPricingLayerInput{
 			Model: detail.Model,
 			Layer: BillingLayerSale,
-			Items: items,
+			Form:  &form,
 		})
 		if err != nil {
 			return nil, err

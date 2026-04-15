@@ -23,6 +23,8 @@ type MetricsSnapshot struct {
 	BillingBulkApplyTotal             int64            `json:"billing_bulk_apply_total"`
 	GeminiBillingFallbackAppliedTotal int64            `json:"gemini_billing_fallback_applied_total"`
 	GeminiBillingFallbackMissTotal    int64            `json:"gemini_billing_fallback_miss_total"`
+	PublicModelProjectionTotal        int64            `json:"public_model_projection_total"`
+	PublicModelRestrictionHitTotal    int64            `json:"public_model_restriction_hit_total"`
 	RouteMismatchByKind               map[string]int64 `json:"route_mismatch_by_kind"`
 	UnsupportedActionByReason         map[string]int64 `json:"unsupported_action_by_reason"`
 	LocalizationFallbackByKind        map[string]int64 `json:"localization_fallback_by_kind"`
@@ -38,6 +40,8 @@ type MetricsSnapshot struct {
 	BillingBulkApplyByOperation       map[string]int64 `json:"billing_bulk_apply_by_operation"`
 	GeminiBillingFallbackByReason     map[string]int64 `json:"gemini_billing_fallback_by_reason"`
 	GeminiBillingFallbackMissByReason map[string]int64 `json:"gemini_billing_fallback_miss_by_reason"`
+	PublicModelProjectionBySource     map[string]int64 `json:"public_model_projection_by_source"`
+	PublicModelRestrictionByReason    map[string]int64 `json:"public_model_restriction_by_reason"`
 }
 
 type metrics struct {
@@ -56,6 +60,8 @@ type metrics struct {
 	billingBulkApplyTotal             atomic.Int64
 	geminiBillingFallbackAppliedTotal atomic.Int64
 	geminiBillingFallbackMissTotal    atomic.Int64
+	publicModelProjectionTotal        atomic.Int64
+	publicModelRestrictionHitTotal    atomic.Int64
 
 	routeMismatchByKind               sync.Map
 	unsupportedActionByReason         sync.Map
@@ -72,6 +78,8 @@ type metrics struct {
 	billingBulkApplyByOperation       sync.Map
 	geminiBillingFallbackByReason     sync.Map
 	geminiBillingFallbackMissByReason sync.Map
+	publicModelProjectionBySource     sync.Map
+	publicModelRestrictionByReason    sync.Map
 }
 
 var defaultMetrics metrics
@@ -93,6 +101,8 @@ func Snapshot() MetricsSnapshot {
 		BillingBulkApplyTotal:             defaultMetrics.billingBulkApplyTotal.Load(),
 		GeminiBillingFallbackAppliedTotal: defaultMetrics.geminiBillingFallbackAppliedTotal.Load(),
 		GeminiBillingFallbackMissTotal:    defaultMetrics.geminiBillingFallbackMissTotal.Load(),
+		PublicModelProjectionTotal:        defaultMetrics.publicModelProjectionTotal.Load(),
+		PublicModelRestrictionHitTotal:    defaultMetrics.publicModelRestrictionHitTotal.Load(),
 		RouteMismatchByKind:               snapshotCounterMap(&defaultMetrics.routeMismatchByKind),
 		UnsupportedActionByReason:         snapshotCounterMap(&defaultMetrics.unsupportedActionByReason),
 		LocalizationFallbackByKind:        snapshotCounterMap(&defaultMetrics.localizationFallbackByKind),
@@ -108,6 +118,8 @@ func Snapshot() MetricsSnapshot {
 		BillingBulkApplyByOperation:       snapshotCounterMap(&defaultMetrics.billingBulkApplyByOperation),
 		GeminiBillingFallbackByReason:     snapshotCounterMap(&defaultMetrics.geminiBillingFallbackByReason),
 		GeminiBillingFallbackMissByReason: snapshotCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason),
+		PublicModelProjectionBySource:     snapshotCounterMap(&defaultMetrics.publicModelProjectionBySource),
+		PublicModelRestrictionByReason:    snapshotCounterMap(&defaultMetrics.publicModelRestrictionByReason),
 	}
 }
 
@@ -186,6 +198,16 @@ func RecordGeminiBillingFallbackMiss(reason string) {
 	incrementCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason, reason)
 }
 
+func RecordPublicModelProjection(source string) {
+	defaultMetrics.publicModelProjectionTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.publicModelProjectionBySource, source)
+}
+
+func RecordPublicModelRestrictionHit(reason string) {
+	defaultMetrics.publicModelRestrictionHitTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.publicModelRestrictionByReason, reason)
+}
+
 func ResetForTest() {
 	defaultMetrics.routeMismatchTotal.Store(0)
 	defaultMetrics.unsupportedActionTotal.Store(0)
@@ -202,6 +224,8 @@ func ResetForTest() {
 	defaultMetrics.billingBulkApplyTotal.Store(0)
 	defaultMetrics.geminiBillingFallbackAppliedTotal.Store(0)
 	defaultMetrics.geminiBillingFallbackMissTotal.Store(0)
+	defaultMetrics.publicModelProjectionTotal.Store(0)
+	defaultMetrics.publicModelRestrictionHitTotal.Store(0)
 	resetCounterMap(&defaultMetrics.routeMismatchByKind)
 	resetCounterMap(&defaultMetrics.unsupportedActionByReason)
 	resetCounterMap(&defaultMetrics.localizationFallbackByKind)
@@ -217,6 +241,8 @@ func ResetForTest() {
 	resetCounterMap(&defaultMetrics.billingBulkApplyByOperation)
 	resetCounterMap(&defaultMetrics.geminiBillingFallbackByReason)
 	resetCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason)
+	resetCounterMap(&defaultMetrics.publicModelProjectionBySource)
+	resetCounterMap(&defaultMetrics.publicModelRestrictionByReason)
 }
 
 func incrementCounterMap(target *sync.Map, key string) {
