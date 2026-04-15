@@ -104,3 +104,95 @@ func TestBuildAvailableTestModels_FiltersCrossPlatformProviderForDirectOpenAIAcc
 	require.Contains(t, ids, "openai-native-test")
 	require.NotContains(t, ids, "grok-disguised-openai")
 }
+
+func TestBuildAvailableTestModels_FiltersChatGPTOpenAIModelsByKnownSnapshot(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.4",
+		DisplayName: "GPT-5.4",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.1-codex-mini",
+		DisplayName: "GPT-5.1 Codex Mini",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-5.4", "gpt-5.1-codex-mini"})
+	require.NoError(t, err)
+
+	account := &Account{
+		ID:       993,
+		Name:     "openai-chatgpt-oauth",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Extra: map[string]any{
+			"openai_known_models": []string{"gpt-5.4", "gpt-4.1-mini"},
+		},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+
+	require.Len(t, ids, 2)
+	require.Contains(t, ids, "gpt-5.4")
+	require.Contains(t, ids, "gpt-4.1-mini")
+	require.NotContains(t, ids, "gpt-5.1-codex-mini")
+}
+
+func TestBuildAvailableTestModels_DoesNotRestrictOpenAIAPIKeyModelsByKnownSnapshot(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.4",
+		DisplayName: "GPT-5.4",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-5.1-codex-mini",
+		DisplayName: "GPT-5.1 Codex Mini",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-5.4", "gpt-5.1-codex-mini"})
+	require.NoError(t, err)
+
+	account := &Account{
+		ID:       994,
+		Name:     "openai-apikey",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Extra: map[string]any{
+			"openai_known_models": []string{"gpt-5.4"},
+		},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+
+	require.Contains(t, ids, "gpt-5.4")
+	require.Contains(t, ids, "gpt-5.1-codex-mini")
+}

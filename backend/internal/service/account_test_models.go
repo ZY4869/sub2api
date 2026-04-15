@@ -45,11 +45,7 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 	resolutionEntries := []modelregistry.ModelEntry{}
 	for _, sourceProtocol := range sourceProtocols {
 		protocolAccount := ResolveProtocolGatewayInboundAccount(account, sourceProtocol)
-		sourceCandidates, sourceEntries := buildRegistryTestModelCandidates(ctx, protocolAccount, registry, sourceProtocol)
-		if len(sourceCandidates) == 0 {
-			sourceCandidates, sourceEntries = buildFallbackTestModelCandidates(ctx, protocolAccount, registry, sourceProtocol)
-		}
-		sourceCandidates = append(sourceCandidates, buildManualTestModelCandidates(account, sourceProtocol)...)
+		sourceCandidates, sourceEntries := buildAvailableTestModelCandidatesForSource(ctx, protocolAccount, registry, sourceProtocol)
 		candidates = append(candidates, sourceCandidates...)
 		if len(sourceEntries) > 0 {
 			resolutionEntries = sourceEntries
@@ -150,12 +146,18 @@ func IntersectAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTes
 }
 
 func buildAvailableTestModelsForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) []AvailableTestModel {
+	candidates, resolutionEntries := buildAvailableTestModelCandidatesForSource(ctx, account, registry, sourceProtocol)
+	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
+}
+
+func buildAvailableTestModelCandidatesForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) ([]testModelCandidate, []modelregistry.ModelEntry) {
 	candidates, resolutionEntries := buildRegistryTestModelCandidates(ctx, account, registry, sourceProtocol)
 	if len(candidates) == 0 {
 		candidates, resolutionEntries = buildFallbackTestModelCandidates(ctx, account, registry, sourceProtocol)
 	}
 	candidates = append(candidates, buildManualTestModelCandidates(account, sourceProtocol)...)
-	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
+	candidates = filterChatGPTOpenAIKnownTestModelCandidates(account, sourceProtocol, candidates)
+	return candidates, resolutionEntries
 }
 
 func buildRegistryTestModelCandidates(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) ([]testModelCandidate, []modelregistry.ModelEntry) {
