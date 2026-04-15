@@ -48,13 +48,13 @@ func opsInsertRequestTraceArgsForSchema(input *service.OpsInsertRequestTraceInpu
 	appendArg(opsNullString(input.ClientRequestID))
 	appendArg(opsNullString(input.UpstreamRequestID))
 	if schema.HasGeminiSurface {
-		appendArg(opsNullString(input.GeminiSurface))
+		appendArg(opsStringOrEmpty(input.GeminiSurface))
 	}
 	if schema.HasBillingRuleID {
-		appendArg(opsNullString(input.BillingRuleID))
+		appendArg(opsStringOrEmpty(input.BillingRuleID))
 	}
 	if schema.HasProbeAction {
-		appendArg(opsNullString(input.ProbeAction))
+		appendArg(opsStringOrEmpty(input.ProbeAction))
 	}
 	appendArg(opsNullInt64(input.UserID))
 	appendArg(opsNullInt64(input.APIKeyID))
