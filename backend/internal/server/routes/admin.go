@@ -84,6 +84,7 @@ func RegisterAdminRoutes(
 		// API Key 管理
 		registerAdminAPIKeyRoutes(admin, h)
 		registerModelCatalogRoutes(admin, h)
+		registerAdminBillingRoutes(admin, h)
 		registerModelRegistryRoutes(admin, h)
 
 		// 定时测试计划
@@ -98,18 +99,38 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		models.GET("", h.Admin.ModelCatalog.List)
 		models.GET("/detail", h.Admin.ModelCatalog.Detail)
 		models.GET("/exchange-rate", h.Admin.ModelCatalog.ExchangeRate)
-		models.GET("/billing", h.Admin.ModelCatalog.BillingCenter)
-		models.PUT("/billing/sheets", h.Admin.ModelCatalog.UpsertBillingSheet)
-		models.DELETE("/billing/sheets", h.Admin.ModelCatalog.DeleteBillingSheet)
-		models.PUT("/billing/rules", h.Admin.ModelCatalog.UpsertBillingRule)
-		models.DELETE("/billing/rules", h.Admin.ModelCatalog.DeleteBillingRule)
-		models.POST("/billing/simulate", h.Admin.ModelCatalog.SimulateBilling)
-		models.POST("/billing/sheets/copy-official-to-sale", h.Admin.ModelCatalog.CopyBillingSheetOfficialToSale)
-		models.PUT("/official-pricing-override", h.Admin.ModelCatalog.UpsertOfficialPricingOverride)
-		models.DELETE("/official-pricing-override", h.Admin.ModelCatalog.DeleteOfficialPricingOverride)
-		models.PUT("/pricing-override", h.Admin.ModelCatalog.UpsertPricingOverride)
-		models.DELETE("/pricing-override", h.Admin.ModelCatalog.DeletePricingOverride)
-		models.POST("/pricing-override/copy-from-official", h.Admin.ModelCatalog.CopyOfficialPricingToSale)
+		models.GET("/billing", h.Admin.ModelCatalog.DeprecatedBillingCenter)
+		models.PUT("/billing/sheets", h.Admin.ModelCatalog.DeprecatedUpsertBillingSheet)
+		models.DELETE("/billing/sheets", h.Admin.ModelCatalog.DeprecatedDeleteBillingSheet)
+		models.PUT("/billing/rules", h.Admin.ModelCatalog.DeprecatedUpsertBillingRule)
+		models.DELETE("/billing/rules", h.Admin.ModelCatalog.DeprecatedDeleteBillingRule)
+		models.POST("/billing/simulate", h.Admin.ModelCatalog.DeprecatedSimulateBilling)
+		models.POST("/billing/sheets/copy-official-to-sale", h.Admin.ModelCatalog.DeprecatedCopyBillingSheetOfficialToSale)
+		models.PUT("/official-pricing-override", h.Admin.ModelCatalog.DeprecatedUpsertOfficialPricingOverride)
+		models.DELETE("/official-pricing-override", h.Admin.ModelCatalog.DeprecatedDeleteOfficialPricingOverride)
+		models.PUT("/pricing-override", h.Admin.ModelCatalog.DeprecatedUpsertPricingOverride)
+		models.DELETE("/pricing-override", h.Admin.ModelCatalog.DeprecatedDeletePricingOverride)
+		models.POST("/pricing-override/copy-from-official", h.Admin.ModelCatalog.DeprecatedCopyOfficialPricingToSale)
+	}
+}
+
+func registerAdminBillingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	billing := admin.Group("/billing")
+	{
+		pricing := billing.Group("/pricing")
+		{
+			pricing.GET("/providers", h.Admin.ModelCatalog.ListBillingPricingProviders)
+			pricing.GET("/models", h.Admin.ModelCatalog.ListBillingPricingModels)
+			pricing.POST("/details", h.Admin.ModelCatalog.GetBillingPricingDetails)
+			pricing.PUT("/models/:model/layers/:layer", h.Admin.ModelCatalog.SaveBillingPricingLayer)
+			pricing.POST("/sale/copy-from-official", h.Admin.ModelCatalog.CopyBillingPricingOfficialToSale)
+			pricing.POST("/sale/apply-discount", h.Admin.ModelCatalog.ApplyBillingPricingSaleDiscount)
+		}
+
+		billing.GET("/rules", h.Admin.ModelCatalog.ListBillingRules)
+		billing.PUT("/rules", h.Admin.ModelCatalog.UpsertBillingRule)
+		billing.DELETE("/rules", h.Admin.ModelCatalog.DeleteBillingRule)
+		billing.POST("/rules/simulate", h.Admin.ModelCatalog.SimulateBilling)
 	}
 }
 

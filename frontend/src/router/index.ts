@@ -240,7 +240,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/models',
     name: 'AdminModels',
-    redirect: '/admin/models/billing',
+    redirect: '/admin/models/all',
     component: () => import('@/views/admin/models/ModelsLayoutView.vue'),
     meta: {
       requiresAuth: true,
@@ -253,7 +253,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'billing',
         name: 'AdminModelsBilling',
-        component: () => import('@/views/admin/models/BillingCenterView.vue'),
+        redirect: '/admin/billing/pricing',
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
@@ -289,7 +289,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'pricing',
         name: 'AdminModelsPricing',
-        redirect: '/admin/models/billing',
+        redirect: '/admin/billing/pricing',
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
@@ -300,31 +300,59 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'official',
-        redirect: '/admin/models/billing'
+        redirect: '/admin/billing/pricing'
       },
       {
         path: 'sale',
-        redirect: '/admin/models/billing'
+        redirect: '/admin/billing/pricing'
       },
       {
         path: 'relay',
-        redirect: '/admin/models/billing'
+        redirect: '/admin/billing/pricing'
       },
       {
         path: 'registry',
         redirect: '/admin/models/all'
       },
+    ]
+  },
+  {
+    path: '/admin/billing',
+    name: 'AdminBilling',
+    redirect: '/admin/billing/pricing',
+    component: () => import('@/views/admin/billing/BillingLayoutView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Billing Center',
+      titleKey: 'admin.billing.title',
+      descriptionKey: 'admin.billing.description'
+    },
+    children: [
       {
-        path: '',
-        redirect: '/admin/models/billing',
+        path: 'pricing',
+        name: 'AdminBillingPricing',
+        component: () => import('@/views/admin/billing/BillingPricingView.vue'),
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Billing Center',
-          titleKey: 'admin.models.pages.billing.title',
-          descriptionKey: 'admin.models.pages.billing.description'
+          title: 'Billing Pricing',
+          titleKey: 'admin.billing.pages.pricing.title',
+          descriptionKey: 'admin.billing.pages.pricing.description'
         }
-      }
+      },
+      {
+        path: 'rules',
+        name: 'AdminBillingRules',
+        component: () => import('@/views/admin/billing/BillingRulesView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Billing Rules',
+          titleKey: 'admin.billing.pages.rules.title',
+          descriptionKey: 'admin.billing.pages.rules.description'
+        }
+      },
     ]
   },
   {

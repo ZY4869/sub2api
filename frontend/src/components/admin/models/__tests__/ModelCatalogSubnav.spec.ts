@@ -11,7 +11,6 @@ vi.mock('vue-i18n', async () => {
       locale: ref('zh'),
       t: (key: string) => {
         const labels: Record<string, string> = {
-          'admin.models.pages.billing.nav': 'Billing Center',
           'admin.models.pages.available.nav': 'Available Models',
           'admin.models.pages.all.nav': 'All Models'
         }
@@ -25,7 +24,7 @@ vi.mock('vue-router', async () => {
   const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
   return {
     ...actual,
-    useRoute: () => ({ path: '/admin/models/billing' }),
+    useRoute: () => ({ path: '/admin/models/all' }),
     RouterLink: defineComponent({
       props: { to: { type: String, required: true } },
       template: '<a :href="to"><slot /></a>'
@@ -34,12 +33,12 @@ vi.mock('vue-router', async () => {
 })
 
 describe('ModelCatalogSubnav', () => {
-  it('renders billing, available, all in the expected order', () => {
+  it('renders available and all in the expected order', () => {
     const wrapper = mount(ModelCatalogSubnav)
     const labels = wrapper.findAll('a').map((link) => link.text())
     const destinations = wrapper.findAll('a').map((link) => link.attributes('href'))
 
-    expect(labels).toEqual(['Billing Center', 'Available Models', 'All Models'])
-    expect(destinations).toEqual(['/admin/models/billing', '/admin/models/available', '/admin/models/all'])
+    expect(labels).toEqual(['Available Models', 'All Models'])
+    expect(destinations).toEqual(['/admin/models/available', '/admin/models/all'])
   })
 })

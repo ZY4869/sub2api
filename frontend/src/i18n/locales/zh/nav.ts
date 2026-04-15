@@ -1,6 +1,7 @@
 export default {
   nav: {
     models: '模型库',
+    billing: '计费中心',
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',

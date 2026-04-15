@@ -94,7 +94,7 @@ export default adminAPI
 export type { BalanceHistoryItem } from './users'
 export type { ErrorPassthroughRule, CreateRuleRequest, UpdateRuleRequest } from './errorPassthrough'
 export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
-export type { ModelCatalogItem, ModelCatalogDetail, ModelCatalogPricing, UpdatePricingOverridePayload } from './models'
+export type { ModelCatalogItem, ModelCatalogDetail, ModelCatalogPricing } from './models'
 export type {
   TLSFingerprintProfile,
   CreateTLSFingerprintProfileRequest,

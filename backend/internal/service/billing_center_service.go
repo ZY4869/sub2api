@@ -14,14 +14,17 @@ type BillingCenterService struct {
 	modelCatalogService *ModelCatalogService
 	billingService      *BillingService
 	classifier          *GeminiRequestClassifier
+	runtimeResolver     *BillingRuntimeResolver
 }
 
 func NewBillingCenterService(settingRepo SettingRepository, billingService *BillingService) *BillingCenterService {
-	return &BillingCenterService{
+	service := &BillingCenterService{
 		settingRepo:    settingRepo,
 		billingService: billingService,
 		classifier:     NewGeminiRequestClassifier(),
 	}
+	service.runtimeResolver = NewBillingRuntimeResolver(service, billingService)
+	return service
 }
 
 func (s *BillingCenterService) SetModelCatalogService(modelCatalogService *ModelCatalogService) {

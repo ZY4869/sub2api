@@ -80,9 +80,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageOutputTokens: result.Usage.OutputTokens,
 	})
 	billingModel := result.BillingModel
-	if channelResolution != nil && channelResolution.BillingModel != "" {
-		billingModel = channelResolution.BillingModel
-	}
 	if billingModel == "" {
 		billingModel = forwardResultBillingModel(result.Model, result.UpstreamModel)
 	}
@@ -90,10 +87,23 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if result.ServiceTier != nil {
 		serviceTier = strings.TrimSpace(*result.ServiceTier)
 	}
-	cost, err := s.billingService.CalculateCostWithServiceTier(billingModel, tokens, multiplier, serviceTier)
+	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
+		Model:          billingModel,
+		Provider:       PlatformOpenAI,
+		Layer:          BillingLayerSale,
+		InboundEndpoint: input.InboundEndpoint,
+		Tokens:         tokens,
+		ServiceTier:    serviceTier,
+		RateMultiplier: multiplier,
+	})
 	if err != nil {
-		cost = &CostBreakdown{ActualCost: 0}
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
 	}
+	if runtimeResult == nil || runtimeResult.Cost == nil {
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{}}
+	}
+	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
+	cost := runtimeResult.Cost
 	var channelPricing *GatewayChannelResolvedPricing
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing

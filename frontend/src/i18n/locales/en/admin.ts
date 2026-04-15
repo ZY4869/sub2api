@@ -568,6 +568,22 @@ export default {
         promptEnhance: 'Prompt Enhance'
       }
     },
+    billing: {
+      title: 'Billing Center',
+      description: 'Manage model pricing, advanced billing rules, and simulation workflows in one place.',
+      pages: {
+        pricing: {
+          nav: 'Model Pricing',
+          title: 'Model Pricing',
+          description: 'Browse model pricing in paginated list mode by default, with an optional provider grid for bulk inspection.'
+        },
+        rules: {
+          nav: 'Rules & Simulation',
+          title: 'Rules & Simulation',
+          description: 'Maintain advanced billing rules and verify matched paths with the simulator.'
+        }
+      }
+    },
     dataManagement: {
       title: 'Data Management',
       description: 'Manage data management agent status, object storage settings, and backup jobs in one place',

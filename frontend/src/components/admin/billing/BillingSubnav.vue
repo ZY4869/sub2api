@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <nav class="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-dark-700 dark:bg-dark-800">
     <RouterLink
       v-for="item in items"
@@ -14,14 +14,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 const route = useRoute()
 const { t } = useI18n()
 
 const items = computed(() => [
-  { to: '/admin/models/available', label: t('admin.models.pages.available.nav') },
-  { to: '/admin/models/all', label: t('admin.models.pages.all.nav') }
+  { to: '/admin/billing/pricing', label: t('admin.billing.pages.pricing.nav', '模型定价') },
+  { to: '/admin/billing/rules', label: t('admin.billing.pages.rules.nav', '规则与模拟') },
 ])
 </script>

@@ -618,6 +618,7 @@ const customMenuItemsForAdmin = computed(() => {
 const adminNavItems = computed((): NavItem[] => {
   const baseItems: NavItem[] = [
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+    { path: '/admin/billing', label: t('nav.billing', 'Billing Center'), icon: CreditCardIcon },
     { path: '/admin/models', label: t('nav.models'), icon: DatabaseIcon },
     ...(adminSettingsStore.opsMonitoringEnabled
       ? [

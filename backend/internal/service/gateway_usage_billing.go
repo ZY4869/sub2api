@@ -199,56 +199,6 @@ func geminiForwardResultServiceTier(result *ForwardResult) string {
 	return ""
 }
 
-func (s *GatewayService) calculateGeminiGatewayCost(
-	ctx context.Context,
-	inboundEndpoint string,
-	requestBody []byte,
-	billingModel string,
-	result *ForwardResult,
-	multiplier float64,
-) (*GeminiBillingCalculationResult, error) {
-	if s == nil ||
-		s.billingService == nil ||
-		s.billingService.billingCenterService == nil ||
-		result == nil ||
-		!isGeminiBillingEndpoint(inboundEndpoint) {
-		return nil, nil
-	}
-	requestedServiceTier := ""
-	if result.RequestedServiceTier != nil {
-		requestedServiceTier = strings.TrimSpace(*result.RequestedServiceTier)
-	}
-	if requestedServiceTier == "" {
-		if extracted := extractGeminiRequestedServiceTierFromBody(requestBody); extracted != nil {
-			requestedServiceTier = strings.TrimSpace(*extracted)
-		}
-	}
-	resolvedServiceTier := requestedServiceTier
-	if result.ServiceTier != nil {
-		resolvedServiceTier = strings.TrimSpace(*result.ServiceTier)
-	}
-
-	return s.billingService.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
-		Model:                billingModel,
-		InboundEndpoint:      inboundEndpoint,
-		RequestBody:          requestBody,
-		RequestedServiceTier: requestedServiceTier,
-		ResolvedServiceTier:  resolvedServiceTier,
-		Tokens: UsageTokens{
-			InputTokens:           result.Usage.InputTokens,
-			OutputTokens:          result.Usage.OutputTokens,
-			CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
-			CacheReadTokens:       result.Usage.CacheReadInputTokens,
-			CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
-			CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
-		},
-		ImageCount:     result.ImageCount,
-		VideoRequests:  geminiVideoRequestsForUsage(result),
-		MediaType:      result.MediaType,
-		RateMultiplier: multiplier,
-	})
-}
-
 func applyGeminiClassificationToUsageLog(usageLog *UsageLog, classification *GeminiRequestClassification, fallbackMediaType string) {
 	if usageLog == nil || classification == nil {
 		return
@@ -269,38 +219,6 @@ func applyGeminiClassificationToUsageLog(usageLog *UsageLog, classification *Gem
 		mediaType = fallbackMediaType
 	}
 	usageLog.MediaType = optionalTrimmedStringPtr(mediaType)
-}
-
-func (s *GatewayService) calculateGatewayMediaCost(result *ForwardResult, apiKey *APIKey, account *Account, multiplier float64) *CostBreakdown {
-	if s == nil || s.billingService == nil || result == nil {
-		return &CostBreakdown{}
-	}
-
-	platform := RoutingPlatformForAccount(account)
-	if result.MediaType == "prompt" {
-		return &CostBreakdown{}
-	}
-	if result.MediaType == "image" {
-		var groupConfig *ImagePriceConfig
-		if apiKey != nil && apiKey.Group != nil {
-			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
-		}
-		return s.billingService.CalculateImageCostWithServiceTier(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier, geminiForwardResultServiceTier(result))
-	}
-	if result.MediaType == "video" {
-		if platform == PlatformGrok {
-			return s.billingService.CalculateVideoRequestCost(result.Model, multiplier)
-		}
-		return &CostBreakdown{}
-	}
-	if result.ImageCount > 0 {
-		var groupConfig *ImagePriceConfig
-		if apiKey != nil && apiKey.Group != nil {
-			groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
-		}
-		return s.billingService.CalculateImageCostWithServiceTier(result.Model, result.ImageSize, result.ImageCount, groupConfig, multiplier, geminiForwardResultServiceTier(result))
-	}
-	return nil
 }
 
 func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInput) error {
@@ -341,35 +259,34 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		ImageCount:        result.ImageCount,
 	})
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
-	if channelResolution != nil && channelResolution.BillingModel != "" {
-		billingModel = channelResolution.BillingModel
+	var groupConfig *ImagePriceConfig
+	if apiKey != nil && apiKey.Group != nil {
+		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 	}
-	nonBillableGeminiPassthrough := isGeminiNonBillablePassthroughEndpoint(input.InboundEndpoint)
-	var geminiBillingResult *GeminiBillingCalculationResult
-	var cost *CostBreakdown
-	if nonBillableGeminiPassthrough {
-		cost = &CostBreakdown{}
-	} else {
-		if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
-			logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
-		} else {
-			geminiBillingResult = geminiCost
-		}
-		if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
-			cost = geminiBillingResult.Cost
-			applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
-		} else {
-			cost = s.calculateGatewayMediaCost(result, apiKey, account, multiplier)
-		}
-		if cost == nil {
-			var err error
-			cost, err = s.billingService.CalculateCost(billingModel, tokens, multiplier)
-			if err != nil {
-				logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
-				cost = &CostBreakdown{ActualCost: 0}
-			}
-		}
+	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
+		Model:           billingModel,
+		Provider:        RoutingPlatformForAccount(account),
+		Layer:           BillingLayerSale,
+		InboundEndpoint: input.InboundEndpoint,
+		RequestBody:     input.RequestBody,
+		Tokens:          tokens,
+		ImageCount:      result.ImageCount,
+		ImageSize:       result.ImageSize,
+		VideoRequests:   geminiVideoRequestsForUsage(result),
+		MediaType:       result.MediaType,
+		ServiceTier:     geminiForwardResultServiceTier(result),
+		RateMultiplier:  multiplier,
+		ImagePriceConfig: groupConfig,
+	})
+	if err != nil {
+		logger.LegacyPrintf("service.gateway", "Resolve runtime billing failed: %v", err)
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
 	}
+	if runtimeResult == nil || runtimeResult.Cost == nil {
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{}}
+	}
+	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
+	cost := runtimeResult.Cost
 	var channelPricing *GatewayChannelResolvedPricing
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
@@ -404,8 +321,8 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
-	if geminiBillingResult != nil {
-		applyGeminiClassificationToUsageLog(usageLog, geminiBillingResult.Classification, result.MediaType)
+	if runtimeResult != nil && runtimeResult.Classification != nil {
+		applyGeminiClassificationToUsageLog(usageLog, runtimeResult.Classification, result.MediaType)
 	}
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
@@ -490,38 +407,36 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		ImageCount:        result.ImageCount,
 	})
 	billingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
-	if channelResolution != nil && channelResolution.BillingModel != "" {
-		billingModel = channelResolution.BillingModel
+	var groupConfig *ImagePriceConfig
+	if apiKey != nil && apiKey.Group != nil {
+		groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
 	}
-	nonBillableGeminiPassthrough := isGeminiNonBillablePassthroughEndpoint(input.InboundEndpoint)
-	var geminiBillingResult *GeminiBillingCalculationResult
-	var cost *CostBreakdown
-	if nonBillableGeminiPassthrough {
-		cost = &CostBreakdown{}
-	} else {
-		if geminiCost, err := s.calculateGeminiGatewayCost(ctx, input.InboundEndpoint, input.RequestBody, billingModel, result, multiplier); err != nil {
-			logger.LegacyPrintf("service.gateway", "Calculate Gemini billing center cost failed: %v", err)
-		} else {
-			geminiBillingResult = geminiCost
-		}
-		if geminiBillingResult != nil && geminiBillingResult.Cost != nil {
-			cost = geminiBillingResult.Cost
-			applyGeminiBillingMetadataToContext(ctx, geminiBillingResult)
-		} else if result.ImageCount > 0 {
-			var groupConfig *ImagePriceConfig
-			if apiKey.Group != nil {
-				groupConfig = &ImagePriceConfig{Price1K: apiKey.Group.ImagePrice1K, Price2K: apiKey.Group.ImagePrice2K, Price4K: apiKey.Group.ImagePrice4K}
-			}
-			cost = s.billingService.CalculateImageCost(billingModel, result.ImageSize, result.ImageCount, groupConfig, multiplier)
-		} else {
-			var err error
-			cost, err = s.billingService.CalculateCostWithLongContext(billingModel, tokens, multiplier, input.LongContextThreshold, input.LongContextMultiplier)
-			if err != nil {
-				logger.LegacyPrintf("service.gateway", "Calculate cost failed: %v", err)
-				cost = &CostBreakdown{ActualCost: 0}
-			}
-		}
+	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
+		Model:                 billingModel,
+		Provider:              RoutingPlatformForAccount(account),
+		Layer:                 BillingLayerSale,
+		InboundEndpoint:       input.InboundEndpoint,
+		RequestBody:           input.RequestBody,
+		Tokens:                tokens,
+		ImageCount:            result.ImageCount,
+		ImageSize:             result.ImageSize,
+		VideoRequests:         geminiVideoRequestsForUsage(result),
+		MediaType:             result.MediaType,
+		ServiceTier:           geminiForwardResultServiceTier(result),
+		RateMultiplier:        multiplier,
+		ImagePriceConfig:      groupConfig,
+		LongContextThreshold:  input.LongContextThreshold,
+		LongContextMultiplier: input.LongContextMultiplier,
+	})
+	if err != nil {
+		logger.LegacyPrintf("service.gateway", "Resolve runtime billing failed: %v", err)
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{ActualCost: 0}}
 	}
+	if runtimeResult == nil || runtimeResult.Cost == nil {
+		runtimeResult = &BillingRuntimeResult{Cost: &CostBreakdown{}}
+	}
+	applyBillingRuntimeResultMetadataToContext(ctx, runtimeResult)
+	cost := runtimeResult.Cost
 	var channelPricing *GatewayChannelResolvedPricing
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
@@ -556,8 +471,8 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	if simulatedClient := NormalizeUsageLogSimulatedClient(result.SimulatedClient); simulatedClient != nil {
 		usageLog.SimulatedClient = simulatedClient
 	}
-	if geminiBillingResult != nil {
-		applyGeminiClassificationToUsageLog(usageLog, geminiBillingResult.Classification, result.MediaType)
+	if runtimeResult != nil && runtimeResult.Classification != nil {
+		applyGeminiClassificationToUsageLog(usageLog, runtimeResult.Classification, result.MediaType)
 	}
 	applyGatewayChannelUsageLogMetadata(usageLog, channelResolution, imageOutputTokens, imageOutputCost)
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {

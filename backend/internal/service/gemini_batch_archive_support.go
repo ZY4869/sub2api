@@ -410,23 +410,33 @@ func (s *GeminiMessagesCompatService) calculateGoogleBatchSettlementCost(ctx con
 	if s == nil || s.billingService == nil || account == nil {
 		return nil, nil
 	}
-	if s.billingService.billingCenterService != nil {
-		billingResult, err := s.billingService.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
-			Model:                strings.TrimSpace(requestedModel),
-			InboundEndpoint:      googleBatchSyntheticBillingEndpoint(requestedModel),
-			RequestedServiceTier: BillingServiceTierStandard,
-			Tokens:               tokens,
-			RateMultiplier:       account.BillingRateMultiplier(),
-		})
-		if err == nil && billingResult != nil && billingResult.Cost != nil {
-			return billingResult, billingResult.Cost
+	runtimeResult, err := s.billingService.ResolveRuntime(ctx, BillingRuntimeInput{
+		Model:           strings.TrimSpace(requestedModel),
+		Provider:        PlatformGemini,
+		Layer:           BillingLayerSale,
+		InboundEndpoint: googleBatchSyntheticBillingEndpoint(requestedModel),
+		Tokens:          tokens,
+		BatchMode:       BillingBatchModeBatch,
+		ServiceTier:     BillingServiceTierStandard,
+		RateMultiplier:  account.BillingRateMultiplier(),
+	})
+	if err == nil && runtimeResult != nil && runtimeResult.Cost != nil {
+		if runtimeResult.Classification != nil || len(runtimeResult.MatchedItems) > 0 || runtimeResult.FallbackReason != "" {
+			return &GeminiBillingCalculationResult{
+				Cost:           runtimeResult.Cost,
+				Classification: runtimeResult.Classification,
+				MatchedRuleIDs: append([]string(nil), runtimeResult.MatchedItems...),
+				Fallback: &BillingSimulationFallback{
+					Applied: strings.TrimSpace(runtimeResult.FallbackReason) != "",
+					Reason:  runtimeResult.FallbackReason,
+				},
+				TotalCost:  runtimeResult.Cost.TotalCost,
+				ActualCost: runtimeResult.Cost.ActualCost,
+			}, runtimeResult.Cost
 		}
+		return nil, runtimeResult.Cost
 	}
-	base, err := s.billingService.CalculateCost(strings.TrimSpace(requestedModel), tokens, account.BillingRateMultiplier())
-	if err != nil {
-		return nil, nil
-	}
-	return nil, googleBatchCostWithDiscount(base, 0.5)
+	return nil, nil
 }
 
 func buildArchivedAIStudioBatchPayload(job *GoogleBatchArchiveJob, snapshotBody []byte) []byte {
