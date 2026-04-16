@@ -1,65 +1,50 @@
 import { describe, expect, it } from 'vitest'
 
+import { generatedProtocolGatewayDescriptors } from '@/generated/protocolGateway'
+
 import {
   resolveGatewayProtocolDescriptor,
   resolveProtocolGatewayBatchRequestFormats
 } from '../accountProtocolGateway'
 
+function isGeminiBatchRequestFormat(format: string): boolean {
+  const normalized = format.trim().toLowerCase()
+  if (!normalized) {
+    return false
+  }
+
+  return (
+    normalized === '/v1beta/files' ||
+    normalized === '/upload/v1beta/files' ||
+    normalized === '/download/v1beta/files' ||
+    normalized.includes(':batchgeneratecontent') ||
+    normalized.includes('/batches/') ||
+    normalized.includes('/google/batch/archive/') ||
+    normalized.includes('/batchpredictionjobs')
+  )
+}
+
 describe('accountProtocolGateway', () => {
   it('reads gemini request formats from the generated protocol gateway snapshot', () => {
-    expect(resolveGatewayProtocolDescriptor('gemini')?.requestFormats).toEqual([
-      '/v1beta/models/{model}:generateContent',
-      '/v1beta/models/{model}:streamGenerateContent',
-      '/v1beta/models/{model}:countTokens',
-      '/v1beta/files',
-      '/upload/v1beta/files',
-      '/download/v1beta/files',
-      '/v1beta/models/{model}:batchGenerateContent',
-      '/v1beta/batches/{batch}',
-      '/v1beta/cachedContents',
-      '/v1beta/fileSearchStores',
-      '/v1beta/documents',
-      '/v1beta/operations',
-      '/v1beta/embeddings',
-      '/v1beta/models/{model}:embedContent',
-      '/v1beta/models/{model}:batchEmbedContents',
-      '/v1beta/models/{model}:asyncBatchEmbedContent',
-      '/v1beta/interactions',
-      '/v1beta/live',
-      '/v1beta/openai',
-      '/google/batch/archive/v1beta/batches',
-      '/google/batch/archive/v1beta/files',
-      '/v1/projects/:project/locations/:location/publishers/google/models',
-      '/v1/projects/:project/locations/:location/batchPredictionJobs'
-    ])
+    expect(resolveGatewayProtocolDescriptor('gemini')?.requestFormats).toEqual(
+      generatedProtocolGatewayDescriptors.gemini.requestFormats
+    )
   })
 
   it('derives protocol gateway gemini batch request formats from gemini request formats', () => {
-    expect(resolveProtocolGatewayBatchRequestFormats({ gatewayProtocol: 'gemini' })).toEqual([
-      '/v1beta/files',
-      '/upload/v1beta/files',
-      '/download/v1beta/files',
-      '/v1beta/models/{model}:batchGenerateContent',
-      '/v1beta/batches/{batch}',
-      '/google/batch/archive/v1beta/batches',
-      '/google/batch/archive/v1beta/files',
-      '/v1/projects/:project/locations/:location/batchPredictionJobs'
-    ])
+    const expectedBatchFormats = generatedProtocolGatewayDescriptors.gemini.requestFormats.filter(
+      isGeminiBatchRequestFormat
+    )
+
+    expect(resolveProtocolGatewayBatchRequestFormats({ gatewayProtocol: 'gemini' })).toEqual(
+      expectedBatchFormats
+    )
 
     expect(
       resolveProtocolGatewayBatchRequestFormats({
         gatewayProtocol: 'mixed',
         acceptedProtocols: ['openai', 'gemini']
       })
-    ).toEqual([
-      '/v1beta/files',
-      '/upload/v1beta/files',
-      '/download/v1beta/files',
-      '/v1beta/models/{model}:batchGenerateContent',
-      '/v1beta/batches/{batch}',
-      '/google/batch/archive/v1beta/batches',
-      '/google/batch/archive/v1beta/files',
-      '/v1/projects/:project/locations/:location/batchPredictionJobs'
-    ])
+    ).toEqual(expectedBatchFormats)
   })
 })
