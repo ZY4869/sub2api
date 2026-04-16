@@ -11,6 +11,7 @@
             type="checkbox"
             class="h-4 w-4 rounded border-gray-300 text-primary-600"
             :checked="selected"
+            :disabled="disabled"
             @change="emit('toggle-select')"
           />
           选中
@@ -26,36 +27,102 @@
 
       <input
         class="input w-full sm:w-[220px] sm:min-w-[220px]"
-        type="number"
-        :step="step"
-        :value="value ?? ''"
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
+        :value="draft"
+        :disabled="disabled"
         :data-testid="`pricing-field-${fieldId}`"
-        @input="emit('update:value', ($event.target as HTMLInputElement).value)"
+        @focus="focused = true"
+        @input="handleInput"
+        @blur="handleBlur"
+        @keydown.enter="($event.target as HTMLInputElement).blur()"
       />
     </div>
+
+    <p
+      v-if="secondaryText"
+      class="mt-2 text-xs text-gray-500 dark:text-gray-400"
+      :data-testid="`pricing-field-secondary-${fieldId}`"
+    >
+      {{ secondaryText }}
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue'
+import {
+  formatBillingPricingEditableNumber,
+  parseBillingPricingDecimalInput,
+} from './pricingCurrency'
+
 const props = withDefaults(defineProps<{
   fieldId: string
   label: string
   unitLabel: string
   value?: number
+  secondaryText?: string
   selectable?: boolean
   selected?: boolean
-  step?: string
+  disabled?: boolean
 }>(), {
   value: undefined,
+  secondaryText: '',
   selectable: false,
   selected: false,
-  step: '0.0000001',
+  disabled: false,
 })
-
-void props
 
 const emit = defineEmits<{
   (e: 'toggle-select'): void
   (e: 'update:value', value: string): void
 }>()
+
+const draft = ref('')
+const focused = ref(false)
+
+watch(
+  () => props.value,
+  () => {
+    if (!focused.value) {
+      draft.value = formatBillingPricingEditableNumber(props.value)
+    }
+  },
+  { immediate: true },
+)
+
+function handleInput(event: Event) {
+  const raw = (event.target as HTMLInputElement).value
+  draft.value = raw
+
+  if (!raw.trim()) {
+    emit('update:value', '')
+    return
+  }
+
+  if (parseBillingPricingDecimalInput(raw) != null) {
+    emit('update:value', raw)
+  }
+}
+
+function handleBlur() {
+  focused.value = false
+
+  if (!draft.value.trim()) {
+    draft.value = ''
+    emit('update:value', '')
+    return
+  }
+
+  const parsed = parseBillingPricingDecimalInput(draft.value)
+  if (parsed == null) {
+    draft.value = formatBillingPricingEditableNumber(props.value)
+    return
+  }
+
+  const normalized = formatBillingPricingEditableNumber(parsed)
+  draft.value = normalized
+  emit('update:value', normalized)
+}
 </script>

@@ -27,8 +27,10 @@
             :label="field.label"
             :unit-label="field.unitLabel"
             :value="field.value"
+            :secondary-text="field.secondaryText"
             :selectable="selectable"
             :selected="selectedIds.includes(field.id)"
+            :disabled="disabled"
             @toggle-select="emit('toggle-select', field.id)"
             @update:value="updateRootNumber(field.field, $event)"
           />
@@ -56,14 +58,18 @@
             :label="field.label"
             :unit-label="field.unitLabel"
             :value="field.value"
+            :secondary-text="field.secondaryText"
             :selectable="selectable"
             :selected="selectedIds.includes(field.id)"
+            :disabled="disabled"
             @toggle-select="emit('toggle-select', field.id)"
             @update:value="updateSpecialNumber(field.field, $event)"
           />
         </div>
 
-        <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">打开后才会显示 Batch 和 Gemini 的特殊价格输入项。</p>
+        <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+          开启后可配置特殊区价格。
+        </p>
       </article>
 
       <article
@@ -73,7 +79,9 @@
         <div class="flex items-center justify-between gap-3">
           <div>
             <h4 class="text-sm font-semibold text-gray-900 dark:text-white">阶梯区</h4>
-            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">单开关、单阈值，同时控制文本输入和文本输出。</p>
+            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">
+              统一控制长上下文阈值后的输入与输出价格。
+            </p>
           </div>
           <Toggle
             :model-value="form.tiered_enabled"
@@ -87,57 +95,41 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span class="text-sm font-medium text-gray-900 dark:text-white">共享阈值</span>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">同一个 Token 阈值同时作用于输入价和输出价。</p>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  同一阈值会同时作用于输入价和输出价。
+                </p>
               </div>
               <input
                 class="input w-full max-w-[220px]"
                 type="number"
                 step="1"
                 :value="form.tier_threshold_tokens ?? ''"
+                :disabled="disabled"
                 data-testid="pricing-field-tier_threshold_tokens"
                 @input="updateTierThreshold(($event.target as HTMLInputElement).value)"
               />
             </div>
           </div>
 
-          <div
+          <BillingPricingCompactFieldRow
             v-for="field in tierFields"
             :key="field.id"
-            class="rounded-2xl border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-900/60"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <label
-                    v-if="selectable"
-                    class="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300"
-                    :data-testid="`field-select-${field.id}`"
-                  >
-                    <input
-                      type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-primary-600"
-                      :checked="selectedIds.includes(field.id)"
-                      @change="emit('toggle-select', field.id)"
-                    />
-                    选中
-                  </label>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ field.label }}</span>
-                </div>
-                <p v-if="field.hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.hint }}</p>
-              </div>
-              <input
-                class="input w-full max-w-[220px]"
-                type="number"
-                step="0.0000001"
-                :value="field.value ?? ''"
-                :data-testid="`pricing-field-${field.id}`"
-                @input="updateRootNumber(field.field, ($event.target as HTMLInputElement).value)"
-              />
-            </div>
-          </div>
+            :field-id="field.id"
+            :label="field.label"
+            :unit-label="field.unitLabel"
+            :value="field.value"
+            :secondary-text="field.secondaryText"
+            :selectable="selectable"
+            :selected="selectedIds.includes(field.id)"
+            :disabled="disabled"
+            @toggle-select="emit('toggle-select', field.id)"
+            @update:value="updateRootNumber(field.field, $event)"
+          />
         </div>
 
-        <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">打开后才会显示共享阈值和阈值后的价格。</p>
+        <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+          开启后可配置共享阈值和阈值后的价格。
+        </p>
       </article>
     </div>
   </section>
@@ -147,13 +139,22 @@
 import { computed } from 'vue'
 import type {
   BillingPricingCapabilities,
+  BillingPricingCurrency,
   BillingPricingLayerForm,
 } from '@/api/admin/billing'
 import Toggle from '@/components/common/Toggle.vue'
 import BillingPricingCompactFieldRow from './BillingPricingCompactFieldRow.vue'
 import {
-  pricingFieldUnitLabelForField,
+  buildBillingPricingAlternateText,
+  convertCanonicalUSDPriceToDisplayValue,
+  convertDisplayValueToCanonicalUSD,
+  parseBillingPricingDecimalInput,
+} from './pricingCurrency'
+import {
+  pricingFieldUnitLabel,
+  resolvePricingFieldUnit,
   type BillingPricingFieldId,
+  type PricingFieldUnit,
   type RootNumberField,
   type SpecialNumberField,
 } from './pricingFieldPresentation'
@@ -170,18 +171,12 @@ interface BillingSpecialVisibility {
 }
 
 interface PricingFieldDescriptor<T extends BillingPricingFieldId> {
-  id: string
+  id: T
   label: string
+  unit: PricingFieldUnit
   unitLabel: string
   value?: number
-  field: T
-}
-
-interface TierFieldDescriptor<T extends RootNumberField> {
-  id: string
-  label: string
-  hint?: string
-  value?: number
+  secondaryText: string
   field: T
 }
 
@@ -189,20 +184,25 @@ const props = withDefaults(defineProps<{
   title: string
   description?: string
   form: BillingPricingLayerForm
+  currency: BillingPricingCurrency
+  usdToCnyRate?: number | null
   inputSupported: boolean
   outputChargeSlot?: string
   supportsPromptCaching?: boolean
   capabilities: BillingPricingCapabilities
   selectedIds?: string[]
   selectable?: boolean
+  disabled?: boolean
   columnTestId?: string
   specialVisibility?: BillingSpecialVisibility
 }>(), {
   description: '',
+  usdToCnyRate: null,
   outputChargeSlot: 'text_output',
   supportsPromptCaching: false,
   selectedIds: () => [],
   selectable: false,
+  disabled: false,
   columnTestId: undefined,
   specialVisibility: () => ({}),
 })
@@ -247,8 +247,14 @@ const supportsProviderSpecial = computed(() => (
   ].some((value) => value != null)
 ))
 
-const supportsSpecialSection = computed(() => supportsBatchPricing.value || supportsProviderSpecial.value)
-const showSpecialFields = computed(() => props.form.special_enabled || props.specialVisibility.forceSectionOpen)
+const supportsSpecialSection = computed(() => (
+  supportsBatchPricing.value || supportsProviderSpecial.value
+))
+
+const showSpecialFields = computed(() => (
+  props.form.special_enabled || props.specialVisibility.forceSectionOpen
+))
+
 const supportsTierSection = computed(() => (
   (props.capabilities.supports_tiered_pricing && props.outputChargeSlot === 'text_output')
   || props.form.tiered_enabled
@@ -261,130 +267,122 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
   const fields: PricingFieldDescriptor<RootNumberField>[] = []
 
   if (props.inputSupported) {
-    fields.push({
+    fields.push(buildFieldDescriptor({
       id: 'input_price',
       label: '输入定价',
-      unitLabel: pricingFieldUnitLabelForField('input_price', props.outputChargeSlot),
-      value: props.form.input_price,
+      canonicalValue: props.form.input_price,
       field: 'input_price',
-    })
+    }))
   }
 
-  fields.push({
+  fields.push(buildFieldDescriptor({
     id: 'output_price',
     label: outputPriceLabel(props.outputChargeSlot),
-    unitLabel: pricingFieldUnitLabelForField('output_price', props.outputChargeSlot),
-    value: props.form.output_price,
+    canonicalValue: props.form.output_price,
     field: 'output_price',
-  })
+  }))
 
   if (showCachePricing.value) {
-    fields.push({
+    fields.push(buildFieldDescriptor({
       id: 'cache_price',
       label: '缓存定价',
-      unitLabel: pricingFieldUnitLabelForField('cache_price', props.outputChargeSlot),
-      value: props.form.cache_price,
+      canonicalValue: props.form.cache_price,
       field: 'cache_price',
-    })
+    }))
   }
 
   return fields
 })
 
 const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() => {
-  if (!showSpecialFields.value) return []
+  if (!showSpecialFields.value) {
+    return []
+  }
 
   const fields: PricingFieldDescriptor<SpecialNumberField>[] = []
 
   if (supportsBatchPricing.value) {
     if (props.inputSupported) {
-      fields.push({
+      fields.push(buildFieldDescriptor({
         id: 'batch_input_price',
         label: 'Batch 输入定价',
-        unitLabel: pricingFieldUnitLabelForField('batch_input_price', props.outputChargeSlot),
-        value: props.form.special.batch_input_price,
+        canonicalValue: props.form.special.batch_input_price,
         field: 'batch_input_price',
-      })
+      }))
     }
 
-    fields.push({
+    fields.push(buildFieldDescriptor({
       id: 'batch_output_price',
       label: `Batch ${outputPriceLabel(props.outputChargeSlot)}`,
-      unitLabel: pricingFieldUnitLabelForField('batch_output_price', props.outputChargeSlot),
-      value: props.form.special.batch_output_price,
+      canonicalValue: props.form.special.batch_output_price,
       field: 'batch_output_price',
-    })
+    }))
 
     if (showCachePricing.value) {
-      fields.push({
+      fields.push(buildFieldDescriptor({
         id: 'batch_cache_price',
         label: 'Batch 缓存定价',
-        unitLabel: pricingFieldUnitLabelForField('batch_cache_price', props.outputChargeSlot),
-        value: props.form.special.batch_cache_price,
+        canonicalValue: props.form.special.batch_cache_price,
         field: 'batch_cache_price',
-      })
+      }))
     }
   }
 
   if (supportsProviderSpecial.value) {
     fields.push(
-      {
+      buildFieldDescriptor({
         id: 'grounding_search',
         label: 'Grounding Search',
-        unitLabel: pricingFieldUnitLabelForField('grounding_search', props.outputChargeSlot),
-        value: props.form.special.grounding_search,
+        canonicalValue: props.form.special.grounding_search,
         field: 'grounding_search',
-      },
-      {
+      }),
+      buildFieldDescriptor({
         id: 'grounding_maps',
         label: 'Grounding Maps',
-        unitLabel: pricingFieldUnitLabelForField('grounding_maps', props.outputChargeSlot),
-        value: props.form.special.grounding_maps,
+        canonicalValue: props.form.special.grounding_maps,
         field: 'grounding_maps',
-      },
-      {
+      }),
+      buildFieldDescriptor({
         id: 'file_search_embedding',
         label: 'File Search Embedding',
-        unitLabel: pricingFieldUnitLabelForField('file_search_embedding', props.outputChargeSlot),
-        value: props.form.special.file_search_embedding,
+        canonicalValue: props.form.special.file_search_embedding,
         field: 'file_search_embedding',
-      },
-      {
+      }),
+      buildFieldDescriptor({
         id: 'file_search_retrieval',
         label: 'File Search Retrieval',
-        unitLabel: pricingFieldUnitLabelForField('file_search_retrieval', props.outputChargeSlot),
-        value: props.form.special.file_search_retrieval,
+        canonicalValue: props.form.special.file_search_retrieval,
         field: 'file_search_retrieval',
-      },
+      }),
     )
   }
 
   return fields
 })
 
-const tierFields = computed<TierFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[]>(() => {
-  if (!props.form.tiered_enabled) return []
+const tierFields = computed<PricingFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[]>(() => {
+  if (!props.form.tiered_enabled) {
+    return []
+  }
 
-  const fields: TierFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[] = []
+  const fields: PricingFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[] = []
 
   if (props.inputSupported) {
-    fields.push({
+    fields.push(buildFieldDescriptor({
       id: 'input_price_above_threshold',
       label: '输入阈值后定价',
-      hint: '超过共享阈值后的输入单价。',
-      value: props.form.input_price_above_threshold,
+      canonicalValue: props.form.input_price_above_threshold,
       field: 'input_price_above_threshold',
-    })
+    }))
   }
 
   if (props.outputChargeSlot === 'text_output') {
-    fields.push({
+    fields.push(buildFieldDescriptor({
       id: 'output_price_above_threshold',
       label: '输出阈值后定价',
-      hint: '超过共享阈值后的输出单价。',
-      value: props.form.output_price_above_threshold,
+      canonicalValue: props.form.output_price_above_threshold,
       field: 'output_price_above_threshold',
-    })
+    }))
   }
 
   return fields
@@ -394,17 +392,54 @@ function emitForm(next: BillingPricingLayerForm) {
   emit('update-form', cloneBillingPricingLayerForm(next))
 }
 
-function normalizeOptionalNumber(raw: string, integer = false): number | undefined {
-  const normalized = raw.trim()
-  if (!normalized) return undefined
+function buildFieldDescriptor<T extends BillingPricingFieldId>(options: {
+  id: T
+  label: string
+  canonicalValue?: number
+  field: T
+}): PricingFieldDescriptor<T> {
+  const unit = resolvePricingFieldUnit(options.id, props.outputChargeSlot)
+  return {
+    id: options.id,
+    label: options.label,
+    unit,
+    unitLabel: pricingFieldUnitLabel(unit, props.currency),
+    value: convertCanonicalUSDPriceToDisplayValue({
+      canonicalUSD: options.canonicalValue,
+      currency: props.currency,
+      unit,
+      usdToCnyRate: props.usdToCnyRate,
+    }),
+    secondaryText: buildBillingPricingAlternateText({
+      canonicalUSD: options.canonicalValue,
+      currency: props.currency,
+      unit,
+      usdToCnyRate: props.usdToCnyRate,
+    }),
+    field: options.field,
+  }
+}
 
-  const parsed = integer ? Number.parseInt(normalized, 10) : Number(normalized)
-  return Number.isFinite(parsed) ? parsed : undefined
+function parseCanonicalPrice(
+  field: BillingPricingFieldId,
+  raw: string,
+): number | undefined {
+  const displayValue = parseBillingPricingDecimalInput(raw)
+  if (displayValue == null) {
+    return undefined
+  }
+
+  return convertDisplayValueToCanonicalUSD({
+    displayValue,
+    currency: props.currency,
+    unit: resolvePricingFieldUnit(field, props.outputChargeSlot),
+    usdToCnyRate: props.usdToCnyRate,
+  })
 }
 
 function updateRootNumber(field: RootNumberField, raw: string) {
   const next = cloneBillingPricingLayerForm(props.form)
-  next[field] = normalizeOptionalNumber(raw) as BillingPricingLayerForm[RootNumberField]
+  next[field] = parseCanonicalPrice(field, raw) as BillingPricingLayerForm[RootNumberField]
   emitForm(next)
 }
 
@@ -412,15 +447,16 @@ function updateSpecialNumber(field: SpecialNumberField, raw: string) {
   const next = cloneBillingPricingLayerForm(props.form)
   next.special = {
     ...next.special,
-    [field]: normalizeOptionalNumber(raw),
+    [field]: parseCanonicalPrice(field, raw),
   }
   next.special_enabled = true
   emitForm(next)
 }
 
 function updateTierThreshold(raw: string) {
+  const normalized = raw.trim()
   const next = cloneBillingPricingLayerForm(props.form)
-  next.tier_threshold_tokens = normalizeOptionalNumber(raw, true)
+  next.tier_threshold_tokens = normalized ? Number.parseInt(normalized, 10) : undefined
   next.tiered_enabled = true
   emitForm(next)
 }

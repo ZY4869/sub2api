@@ -1,6 +1,8 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
 
+export type BillingPricingCurrency = 'USD' | 'CNY'
+
 export interface BillingRuleMatchers {
   models?: string[]
   model_families?: string[]
@@ -184,6 +186,7 @@ export interface BillingPricingSheetDetail {
   display_name?: string
   provider?: string
   mode?: string
+  currency: BillingPricingCurrency
   input_supported: boolean
   output_charge_slot?: string
   supports_prompt_caching: boolean
@@ -206,6 +209,7 @@ export interface BillingPricingListParams {
 
 export interface BillingSavePricingLayerPayload {
   form: BillingPricingLayerForm
+  currency?: BillingPricingCurrency
 }
 
 export interface BillingCopyOfficialToSalePayload {

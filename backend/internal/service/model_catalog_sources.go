@@ -16,6 +16,7 @@ type modelCatalogRecord struct {
 	iconKey                         string
 	provider                        string
 	mode                            string
+	pricingCurrency                 string
 	defaultAvailable                bool
 	defaultPlatforms                []string
 	accessSources                   []string
@@ -39,6 +40,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 	}
 	officialOverrides := s.loadOfficialPriceOverrides(ctx)
 	saleOverrides := s.loadSalePriceOverrides(ctx)
+	currencyPrefs := s.loadModelPricingCurrencies(ctx)
 	records := make(map[string]*modelCatalogRecord, len(details))
 
 	for _, detail := range details {
@@ -93,6 +95,13 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		record.saleOverridePricing = override
 		mergeRecordMetadata(record, inferModelProvider(model), inferModelMode(model, record.mode))
 	}
+	for model, pref := range currencyPrefs {
+		record, ok := resolveModelCatalogRecord(records, model)
+		if !ok || record == nil || pref == nil {
+			continue
+		}
+		record.pricingCurrency = defaultModelPricingCurrency(pref.Currency)
+	}
 	for _, record := range records {
 		if record.provider == "" {
 			record.provider = inferModelProvider(record.model)
@@ -106,6 +115,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		if record.displayName == "" {
 			record.displayName = FormatModelCatalogDisplayName(record.model)
 		}
+		record.pricingCurrency = defaultModelPricingCurrency(record.pricingCurrency)
 		record.iconKey = InferModelCatalogIconKey(record.model)
 		record.officialPricing = applyPricingOverride(record.upstreamPricing, record.officialOverridePricing)
 		record.salePricing = applyPricingOverride(record.officialPricing, record.saleOverridePricing)

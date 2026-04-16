@@ -76,6 +76,7 @@ function createDetail() {
     display_name: 'GPT-5.4',
     provider: 'openai',
     mode: 'chat',
+    currency: 'USD',
     input_supported: true,
     output_charge_slot: 'text_output',
     supports_prompt_caching: true,
@@ -113,6 +114,7 @@ function mountView() {
                 @click="$emit('save-layer', {
                   model: activeModel || 'gpt-5.4',
                   layer: 'official',
+                  currency: 'CNY',
                   form: {
                     input_price: 1.25,
                     output_price: 2.5,
@@ -141,9 +143,10 @@ describe('BillingPricingView', () => {
 
     apiMocks.listBillingPricingProviders.mockResolvedValue([
       { provider: 'openai', label: 'OpenAI', total_count: 1, official_count: 2, sale_count: 1 },
+      { provider: 'anthropic', label: 'Anthropic', total_count: 2, official_count: 3, sale_count: 2 },
     ])
     apiMocks.listBillingPricingModels.mockImplementation(async (params: Record<string, unknown> = {}) => ({
-      items: [createListItem(params.provider ? { model: 'gpt-5.4-mini', display_name: 'GPT-5.4 Mini' } : {})],
+      items: [createListItem(params.provider ? { model: `${params.provider}-model`, display_name: `${params.provider} model`, provider: params.provider } : {})],
       total: 1,
       page: Number(params.page || 1),
       page_size: Number(params.page_size || 20),
@@ -165,7 +168,21 @@ describe('BillingPricingView', () => {
     }))
   })
 
-  it('persists page size changes and loads provider grid data on demand', async () => {
+  it('filters list mode with provider quick cards and resets to page 1', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="provider-quick-filter-openai"]').trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
+      provider: 'openai',
+      page: 1,
+      page_size: 20,
+    }))
+  })
+
+  it('persists page size changes and expands the selected provider in grid mode quick filters', async () => {
     const wrapper = mountView()
     await flushPromises()
 
@@ -183,9 +200,11 @@ describe('BillingPricingView', () => {
 
     wrapper.getComponent(BillingPricingModeToggle).vm.$emit('update:modelValue', 'grid')
     await flushPromises()
-    wrapper.getComponent(BillingPricingProviderGrid).vm.$emit('toggle-provider', 'openai')
+    await wrapper.get('[data-testid="provider-quick-filter-openai"]').trigger('click')
     await flushPromises()
 
+    const grid = wrapper.getComponent(BillingPricingProviderGrid)
+    expect(grid.props('expandedProvider')).toBe('openai')
     expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
       provider: 'openai',
       page: 1,
@@ -203,7 +222,7 @@ describe('BillingPricingView', () => {
     expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['gpt-5.4'])
   })
 
-  it('sends simplified form payloads to the save-layer api', async () => {
+  it('sends canonical form payloads and currency to the save-layer api', async () => {
     const wrapper = mountView()
     await flushPromises()
 
@@ -221,6 +240,7 @@ describe('BillingPricingView', () => {
         special: {},
         tiered_enabled: false,
       },
+      currency: 'CNY',
     })
   })
 })

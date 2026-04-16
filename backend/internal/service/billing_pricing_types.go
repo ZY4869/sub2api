@@ -1,5 +1,7 @@
 package service
 
+import "time"
+
 type BillingPriceItemMode string
 
 const (
@@ -66,6 +68,13 @@ type BillingPricingLayerForm struct {
 	OutputPriceAboveThreshold *float64                    `json:"output_price_above_threshold,omitempty"`
 }
 
+type BillingPricingCurrencyPreference struct {
+	Currency        string    `json:"currency"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	UpdatedByUserID int64     `json:"updated_by_user_id"`
+	UpdatedByEmail  string    `json:"updated_by_email,omitempty"`
+}
+
 type BillingPricingListItem struct {
 	Model          string                     `json:"model"`
 	DisplayName    string                     `json:"display_name,omitempty"`
@@ -97,6 +106,7 @@ type BillingPricingSheetDetail struct {
 	LongContextInputTokenThreshold  int                        `json:"long_context_input_token_threshold,omitempty"`
 	LongContextInputCostMultiplier  float64                    `json:"long_context_input_cost_multiplier,omitempty"`
 	LongContextOutputCostMultiplier float64                    `json:"long_context_output_cost_multiplier,omitempty"`
+	Currency                        string                     `json:"currency"`
 	Capabilities                    BillingPricingCapabilities `json:"capabilities"`
 	OfficialForm                    BillingPricingLayerForm    `json:"official_form"`
 	SaleForm                        BillingPricingLayerForm    `json:"sale_form"`
@@ -117,10 +127,11 @@ type BillingPricingDetailsRequest struct {
 }
 
 type UpsertBillingPricingLayerInput struct {
-	Model string                   `json:"model"`
-	Layer string                   `json:"layer"`
-	Form  *BillingPricingLayerForm `json:"form,omitempty"`
-	Items []BillingPriceItem       `json:"items,omitempty"`
+	Model    string                   `json:"model"`
+	Layer    string                   `json:"layer"`
+	Currency string                   `json:"currency,omitempty"`
+	Form     *BillingPricingLayerForm `json:"form,omitempty"`
+	Items    []BillingPriceItem       `json:"items,omitempty"`
 }
 
 type BillingCopyOfficialToSaleInput struct {
