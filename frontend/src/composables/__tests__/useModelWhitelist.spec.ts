@@ -38,11 +38,13 @@ describe("useModelWhitelist", () => {
     expect(models).toContain("claude-opus-4-6-thinking");
   });
 
-  it("openai models include GPT-5.4 and GPT-5.4-pro official snapshots", () => {
+  it("openai models include GPT-5.4 mini/nano and GPT-5.4 official snapshots", () => {
     const models = getModelsByPlatform("openai");
 
     expect(models).toContain("gpt-5.4");
     expect(models).toContain("gpt-5.4-2026-03-05");
+    expect(models).toContain("gpt-5.4-mini");
+    expect(models).toContain("gpt-5.4-nano");
     expect(models).toContain("gpt-5.4-pro");
     expect(models).toContain("gpt-5.4-pro-2026-03-05");
   });
@@ -79,6 +81,8 @@ describe("useModelWhitelist", () => {
     const geminiModels = getModelsByPlatform("gemini", "use_key");
 
     expect(openAIModels).toContain("gpt-5-codex");
+    expect(openAIModels).toContain("gpt-5.4-mini");
+    expect(openAIModels).toContain("gpt-5.4-nano");
     expect(openAIModels).not.toContain("gpt-5.4");
     expect(geminiModels).toContain("gemini-2.0-flash");
     expect(geminiModels).toContain("gemini-2.5-flash");

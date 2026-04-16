@@ -306,7 +306,10 @@ function buildAdminStreamUrl(path: string): string {
 
 export async function testGrokAccount(
   id: number,
-  payload: AccountTestRequestPayload = {}
+  payload: AccountTestRequestPayload = {},
+  options?: {
+    signal?: AbortSignal
+  }
 ): Promise<Response> {
   return fetch(buildAdminStreamUrl(`/admin/grok/accounts/${id}/test`), {
     method: 'POST',
@@ -314,7 +317,8 @@ export async function testGrokAccount(
       Authorization: `Bearer ${localStorage.getItem('auth_token') || ''}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    signal: options?.signal
   })
 }
 

@@ -37,6 +37,7 @@ type APIKey struct {
 	UserID           int64      `json:"user_id"`
 	Key              string     `json:"key"`
 	Name             string     `json:"name"`
+	Deleted          bool       `json:"deleted"`
 	ModelDisplayMode string     `json:"model_display_mode"`
 	GroupID          *int64     `json:"group_id"`
 	GroupIDs         []int64    `json:"group_ids,omitempty"`

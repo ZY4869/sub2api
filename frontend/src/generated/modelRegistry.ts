@@ -34,11 +34,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-08T13:21:55Z"
+export const generatedModelRegistryBuiltAt = "2026-04-16T04:06:18Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"46710c596a7b2ec7ab4ba474fe1bdedc195fc6aec7725f85e1e76222d6840862\"",
-  "updated_at": "2026-04-08T13:21:55Z",
+  "etag": "W/\"83077ab3e2752478bb11ea86ee91c105a0bbb4e78b9e7c0a4f7d2b9c51d3f8e5\"",
+  "updated_at": "2026-04-16T04:06:18Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -5908,6 +5908,32 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "gpt-5.4-mini",
+      "display_name": "GPT-5.4 Mini",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.4-mini"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.4-mini"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 49,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist",
+        "use_key"
+      ]
+    },
+    {
       "id": "gpt-5.3-codex",
       "display_name": "GPT-5.3 Codex",
       "provider": "openai",
@@ -5933,6 +5959,32 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "status": "deprecated",
       "replaced_by": "gpt-5-codex"
+    },
+    {
+      "id": "gpt-5.4-nano",
+      "display_name": "GPT-5.4 Nano",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.4-nano"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.4-nano"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 50,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist",
+        "use_key"
+      ]
     },
     {
       "id": "gpt-5.4-pro",

@@ -41,6 +41,16 @@ export interface UpdateModelRegistryAvailabilityPayload {
   models: string[]
 }
 
+export interface ManualAddModelRegistryEntryPayload {
+  id: string
+  display_name?: string
+}
+
+export interface ManualAddModelRegistryEntryResponse {
+  item: ModelRegistryDetail
+  activated: boolean
+}
+
 export interface HardDeleteModelRegistryEntriesPayload {
   models: string[]
 }
@@ -155,6 +165,13 @@ export async function deactivateModelRegistryEntries(
   return data
 }
 
+export async function manualAddModelRegistryEntry(
+  payload: ManualAddModelRegistryEntryPayload
+): Promise<ManualAddModelRegistryEntryResponse> {
+  const { data } = await apiClient.post<ManualAddModelRegistryEntryResponse>('/admin/models/registry/manual-add', payload)
+  return data
+}
+
 export async function syncModelRegistryExposures(
   payload: SyncModelRegistryExposuresPayload
 ): Promise<SyncModelRegistryExposuresResult> {
@@ -179,6 +196,7 @@ export const modelRegistryAPI = {
   hardDeleteModelRegistryEntries,
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
+  manualAddModelRegistryEntry,
   syncModelRegistryExposures,
   moveModelRegistryProvider
 }

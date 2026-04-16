@@ -31,7 +31,9 @@ func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndResolve
 	require.Contains(t, availableSet, "claude-haiku-4.5")
 	require.Contains(t, availableSet, "gpt-5.2")
 	require.Contains(t, availableSet, "gpt-5.4")
+	require.Contains(t, availableSet, "gpt-5.4-mini")
 	require.Contains(t, availableSet, "gpt-5.4-pro")
+	require.NotContains(t, availableSet, "gpt-5.4-nano")
 	require.Contains(t, availableSet, "gemini-3.1-flash-image")
 	require.Contains(t, availableSet, "gemini-3.1-flash-image-preview")
 	require.Contains(t, availableSet, "gemini-3.1-pro-preview")
@@ -44,9 +46,11 @@ func TestModelRegistryService_AvailableBootstrapAppendsRequestedModelsAndResolve
 	require.True(t, svc.IsModelAvailable(ctx, "claude-sonnet-4-6"))
 	require.True(t, svc.IsModelAvailable(ctx, "claude-sonnet-4-5"))
 	require.True(t, svc.IsModelAvailable(ctx, "claude-haiku-4-5"))
+	require.True(t, svc.IsModelAvailable(ctx, "gpt-5.4-mini"))
 
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260313])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317])
+	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416])
 }
 
 func TestModelRegistryService_AvailableBootstrapIsIdempotent(t *testing.T) {
@@ -61,12 +65,14 @@ func TestModelRegistryService_AvailableBootstrapIsIdempotent(t *testing.T) {
 	firstRuntimeEntries := repo.values[SettingKeyModelRegistryEntries]
 	firstMarkerV20260313 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260313]
 	firstMarkerV20260317 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317]
+	firstMarkerV20260416 := repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416]
 
 	require.True(t, svc.IsModelAvailable(ctx, "gpt-5.4-pro"))
 	require.Equal(t, firstAvailable, repo.values[SettingKeyModelRegistryAvailableModels])
 	require.Equal(t, firstRuntimeEntries, repo.values[SettingKeyModelRegistryEntries])
 	require.Equal(t, firstMarkerV20260313, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260313])
 	require.Equal(t, firstMarkerV20260317, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317])
+	require.Equal(t, firstMarkerV20260416, repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416])
 }
 
 func TestModelRegistryService_AvailableBootstrapRunsAfterMigrationWhenSetMissing(t *testing.T) {
@@ -85,4 +91,5 @@ func TestModelRegistryService_AvailableBootstrapRunsAfterMigrationWhenSetMissing
 	require.Contains(t, availableSet, "claude-sonnet-4-6")
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260313])
 	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260317])
+	require.Equal(t, "true", repo.values[SettingKeyModelRegistryAvailableModelsBootstrapV20260416])
 }

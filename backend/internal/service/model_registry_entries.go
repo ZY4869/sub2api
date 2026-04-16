@@ -182,6 +182,88 @@ func (s *ModelRegistryService) UpsertEntry(ctx context.Context, input UpsertMode
 	return s.GetDetail(ctx, entry.ID)
 }
 
+func (s *ModelRegistryService) ManualAddEntry(ctx context.Context, input ManualAddModelRegistryEntryInput) (*modelregistry.AdminModelDetail, bool, bool, error) {
+	modelID := normalizeRegistryID(input.ID)
+	if modelID == "" {
+		return nil, false, false, infraerrors.BadRequest("MODEL_REQUIRED", "model id is required")
+	}
+
+	provider := inferModelProvider(modelID)
+	if provider == "" {
+		return nil, false, false, infraerrors.BadRequest(
+			"MODEL_PROVIDER_INFERENCE_FAILED",
+			"unable to infer provider from model id; please use a supported model family",
+		)
+	}
+
+	runtimeEntries, err := s.loadRuntimeEntries(ctx)
+	if err != nil {
+		return nil, false, false, err
+	}
+
+	var (
+		existingEntry   modelregistry.ModelEntry
+		hasExisting     bool
+		createdRuntime  = true
+		trimDisplayName = strings.TrimSpace(input.DisplayName)
+	)
+	for _, entry := range runtimeEntries {
+		if entry.ID != modelID {
+			continue
+		}
+		existingEntry = entry
+		hasExisting = true
+		createdRuntime = false
+		break
+	}
+	if !hasExisting {
+		entries, _, _, _, mergedErr := s.mergedEntries(ctx)
+		if mergedErr != nil {
+			return nil, false, false, mergedErr
+		}
+		if entry, ok := entries[modelID]; ok {
+			existingEntry = entry
+			hasExisting = true
+		}
+	}
+	if trimDisplayName == "" && hasExisting {
+		trimDisplayName = existingEntry.DisplayName
+	}
+
+	_, err = s.UpsertEntry(ctx, UpsertModelRegistryEntryInput{
+		ID:                   modelID,
+		DisplayName:          trimDisplayName,
+		Provider:             providerOrPlatform(provider, existingEntry.Provider),
+		Platforms:            mergeRegistryStrings(existingEntry.Platforms, defaultPlatformsForProvider(provider)...),
+		ProtocolIDs:          mergeRegistryStrings(existingEntry.ProtocolIDs, modelID),
+		Aliases:              append([]string(nil), existingEntry.Aliases...),
+		PricingLookupIDs:     mergeRegistryStrings(existingEntry.PricingLookupIDs, modelID),
+		PreferredProtocolIDs: existingEntry.PreferredProtocolIDs,
+		Modalities:           append([]string(nil), existingEntry.Modalities...),
+		Capabilities:         append([]string(nil), existingEntry.Capabilities...),
+		UIPriority:           existingEntry.UIPriority,
+		ExposedIn:            mergeRegistryStrings(existingEntry.ExposedIn, "runtime", "whitelist", "use_key", "test"),
+		Status:               existingEntry.Status,
+		DeprecatedAt:         existingEntry.DeprecatedAt,
+		ReplacedBy:           existingEntry.ReplacedBy,
+		DeprecationNotice:    existingEntry.DeprecationNotice,
+	})
+	if err != nil {
+		return nil, false, false, err
+	}
+
+	activatedIDs, err := s.EnsureModelsAvailable(ctx, []string{modelID})
+	if err != nil {
+		return nil, false, false, err
+	}
+
+	detail, err := s.GetDetail(ctx, modelID)
+	if err != nil {
+		return nil, false, false, err
+	}
+	return detail, createdRuntime, len(activatedIDs) > 0, nil
+}
+
 func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input UpsertDiscoveredEntryInput) (*UpsertDiscoveredEntryResult, error) {
 	sourceModelID := normalizeRegistryID(input.ModelID)
 	if sourceModelID == "" {

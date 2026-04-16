@@ -60,6 +60,11 @@ type UsageService struct {
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 }
 
+type usageLogAPIKeyFilterReader interface {
+	ListUsageFilterAPIKeys(ctx context.Context, userID int64, startTime, endTime *time.Time) ([]APIKey, error)
+	SearchUsageAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]APIKey, error)
+}
+
 // NewUsageService 创建使用统计服务实例
 func NewUsageService(usageRepo UsageLogRepository, userRepo UserRepository, entClient *dbent.Client, authCacheInvalidator APIKeyAuthCacheInvalidator) *UsageService {
 	return &UsageService{
@@ -339,6 +344,30 @@ func (s *UsageService) GetBatchAPIKeyUsageStats(ctx context.Context, apiKeyIDs [
 		return nil, fmt.Errorf("get batch api key usage stats: %w", err)
 	}
 	return stats, nil
+}
+
+func (s *UsageService) ListUsageFilterAPIKeys(ctx context.Context, userID int64, startTime, endTime *time.Time) ([]APIKey, error) {
+	reader, ok := s.usageRepo.(usageLogAPIKeyFilterReader)
+	if !ok {
+		return []APIKey{}, nil
+	}
+	keys, err := reader.ListUsageFilterAPIKeys(ctx, userID, startTime, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("list usage filter api keys: %w", err)
+	}
+	return keys, nil
+}
+
+func (s *UsageService) SearchUsageAPIKeys(ctx context.Context, userID int64, keyword string, limit int) ([]APIKey, error) {
+	reader, ok := s.usageRepo.(usageLogAPIKeyFilterReader)
+	if !ok {
+		return []APIKey{}, nil
+	}
+	keys, err := reader.SearchUsageAPIKeys(ctx, userID, keyword, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search usage api keys: %w", err)
+	}
+	return keys, nil
 }
 
 // ListWithFilters lists usage logs with admin filters.

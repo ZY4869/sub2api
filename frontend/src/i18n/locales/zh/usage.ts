@@ -22,6 +22,7 @@ export default {
     perRequest: "\u6bcf\u6b21\u8bf7\u6c42",
     apiKeyFilter: "API \u5bc6\u94a5",
     allApiKeys: "\u5168\u90e8\u5bc6\u94a5",
+    deletedApiKeySuffix: "\u5df2\u5220\u9664",
     timeRange: "\u65f6\u95f4\u8303\u56f4",
     exportCsv: "\u5bfc\u51fa CSV",
     exportExcel: "\u5bfc\u51fa Excel",

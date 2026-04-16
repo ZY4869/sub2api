@@ -449,6 +449,9 @@ export default {
       },
       available: {
         addAction: 'Add Available Models',
+        manualAddAction: 'Manual Add Model',
+        manualAddSuccess: 'Model added and activated',
+        manualAddFailed: 'Failed to add model manually',
         emptyTitle: 'No available models',
         emptyDescription: 'Activate models from the full registry to make them usable at runtime.',
         activateDialog: {
@@ -458,6 +461,16 @@ export default {
           emptyTitle: 'No unavailable models',
           emptyDescription: 'All current models are already active.',
           confirm: 'Activate Selected'
+        },
+        manualAddDialog: {
+          title: 'Manual Add Model',
+          description: 'Add a new model ID directly. The system will infer the provider and activate it immediately.',
+          modelIdLabel: 'Model ID',
+          modelIdPlaceholder: 'For example gpt-5.4-mini',
+          modelIdRequired: 'Model ID is required',
+          displayNameLabel: 'Model Name',
+          displayNamePlaceholder: 'Optional display name',
+          confirm: 'Add And Activate'
         }
       },
       columns: {

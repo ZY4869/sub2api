@@ -432,6 +432,7 @@ export interface ApiKey {
   user_id: number;
   key: string;
   name: string;
+  deleted?: boolean;
   model_display_mode?: "alias_only" | "source_only" | "alias_and_source";
   group_id: number | null;
   group_ids?: number[];

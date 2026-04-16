@@ -35,6 +35,7 @@ export interface SimpleApiKey {
   id: number
   name: string
   user_id: number
+  deleted: boolean
 }
 
 export interface UsageCleanupFilters {

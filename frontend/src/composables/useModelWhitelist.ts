@@ -42,6 +42,18 @@ const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
     options: { store: false },
     variants: { low: {}, medium: {}, high: {}, xhigh: {} },
   },
+  "gpt-5.4-mini": {
+    name: "GPT-5.4 Mini",
+    limit: { context: 400000, output: 128000 },
+    options: { store: false },
+    variants: { low: {}, medium: {}, high: {} },
+  },
+  "gpt-5.4-nano": {
+    name: "GPT-5.4 Nano",
+    limit: { context: 400000, output: 128000 },
+    options: { store: false },
+    variants: { low: {}, medium: {}, high: {} },
+  },
   "gpt-5.4-pro": {
     name: "GPT-5.4 Pro",
     limit: { context: 1050000, output: 128000 },

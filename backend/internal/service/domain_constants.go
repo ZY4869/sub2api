@@ -139,6 +139,7 @@ const (
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260313 = "model_registry_available_models_bootstrap_v20260313"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260317 = "model_registry_available_models_bootstrap_v20260317"
 	SettingKeyModelRegistryAvailableModelsBootstrapV20260328 = "model_registry_available_models_bootstrap_v20260328"
+	SettingKeyModelRegistryAvailableModelsBootstrapV20260416 = "model_registry_available_models_bootstrap_v20260416"
 
 	SettingKeyEnableIdentityPatch = "enable_identity_patch"
 	SettingKeyIdentityPatchPrompt = "identity_patch_prompt"

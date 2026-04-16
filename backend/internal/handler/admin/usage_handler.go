@@ -392,7 +392,7 @@ func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 		userID = id
 	}
 
-	keys, err := h.apiKeyService.SearchAPIKeys(c.Request.Context(), userID, keyword, 30)
+	keys, err := h.usageService.SearchUsageAPIKeys(c.Request.Context(), userID, keyword, 30)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -400,17 +400,19 @@ func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 
 	// Return simplified API key list (only id and name)
 	type SimpleAPIKey struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
-		UserID int64  `json:"user_id"`
+		ID      int64  `json:"id"`
+		Name    string `json:"name"`
+		UserID  int64  `json:"user_id"`
+		Deleted bool   `json:"deleted"`
 	}
 
 	result := make([]SimpleAPIKey, len(keys))
 	for i, k := range keys {
 		result[i] = SimpleAPIKey{
-			ID:     k.ID,
-			Name:   k.Name,
-			UserID: k.UserID,
+			ID:      k.ID,
+			Name:    k.Name,
+			UserID:  k.UserID,
+			Deleted: k.Deleted,
 		}
 	}
 

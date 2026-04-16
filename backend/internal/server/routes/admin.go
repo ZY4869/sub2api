@@ -141,6 +141,7 @@ func registerModelRegistryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		registry.GET("", h.Admin.ModelRegistry.List)
 		registry.GET("/detail", h.Admin.ModelRegistry.Detail)
 		registry.PUT("/entry", h.Admin.ModelRegistry.UpsertEntry)
+		registry.POST("/manual-add", h.Admin.ModelRegistry.ManualAdd)
 		registry.POST("/activate", h.Admin.ModelRegistry.Activate)
 		registry.POST("/deactivate", h.Admin.ModelRegistry.Deactivate)
 		registry.POST("/visibility", h.Admin.ModelRegistry.SetVisibility)

@@ -4082,6 +4082,58 @@
     ]
   },
   {
+    "id": "gpt-5.4-mini",
+    "display_name": "GPT-5.4 Mini",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.4-mini"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.4-mini"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 49,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist",
+      "use_key"
+    ]
+  },
+  {
+    "id": "gpt-5.4-nano",
+    "display_name": "GPT-5.4 Nano",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-5.4-nano"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-5.4-nano"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [],
+    "ui_priority": 50,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist",
+      "use_key"
+    ]
+  },
+  {
     "id": "gpt-5.4-2026-03-05",
     "display_name": "GPT-5.4-2026-03-05",
     "provider": "openai",

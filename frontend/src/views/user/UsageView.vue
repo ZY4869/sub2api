@@ -803,7 +803,7 @@
 import { ref, computed, reactive, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";
-import { usageAPI, keysAPI } from "@/api";
+import { usageAPI } from "@/api";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
 import DataTable from "@/components/common/DataTable.vue";
@@ -817,10 +817,10 @@ import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
 import type {
   UsageLog,
-  ApiKey,
   UsageQueryParams,
   UsageStatsResponse,
 } from "@/types";
+import type { UsageFilterApiKey } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
@@ -889,7 +889,7 @@ const columns = computed<Column[]>(() => [
 ]);
 
 const usageLogs = ref<UsageLog[]>([]);
-const apiKeys = ref<ApiKey[]>([]);
+const apiKeys = ref<UsageFilterApiKey[]>([]);
 const loading = ref(false);
 const exporting = ref(false);
 
@@ -898,7 +898,9 @@ const apiKeyOptions = computed(() => {
     { value: null, label: t("usage.allApiKeys") },
     ...apiKeys.value.map((key) => ({
       value: key.id,
-      label: key.name,
+      label: key.deleted
+        ? `${key.name} (${t("usage.deletedApiKeySuffix")})`
+        : key.name,
     })),
   ];
 });
@@ -1071,8 +1073,25 @@ const loadUsageLogs = async () => {
 
 const loadApiKeys = async () => {
   try {
-    const response = await keysAPI.list(1, 100);
-    apiKeys.value = response.items;
+    const currentSelectedID = filters.value.api_key_id
+      ? Number(filters.value.api_key_id)
+      : undefined;
+    const previousSelected = currentSelectedID
+      ? apiKeys.value.find((key) => key.id === currentSelectedID)
+      : undefined;
+    const items = await usageAPI.listFilterApiKeys({
+      start_date: filters.value.start_date || startDate.value,
+      end_date: filters.value.end_date || endDate.value,
+    });
+    if (
+      currentSelectedID &&
+      previousSelected &&
+      !items.some((key) => key.id === currentSelectedID)
+    ) {
+      apiKeys.value = [previousSelected, ...items];
+      return;
+    }
+    apiKeys.value = items;
   } catch (error) {
     console.error("Failed to load API keys:", error);
   }
@@ -1096,6 +1115,7 @@ const loadUsageStats = async () => {
 
 const applyFilters = () => {
   pagination.page = 1;
+  loadApiKeys();
   loadUsageLogs();
   loadUsageStats();
 };
@@ -1115,6 +1135,7 @@ const resetFilters = () => {
   filters.value.start_date = startDate.value;
   filters.value.end_date = endDate.value;
   pagination.page = 1;
+  loadApiKeys();
   loadUsageLogs();
   loadUsageStats();
 };

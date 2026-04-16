@@ -72,7 +72,7 @@
               @click="selectApiKey(k)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
             >
-              <span class="truncate">{{ k.name || `#${k.id}` }}</span>
+              <span class="truncate">{{ formatApiKeyLabel(k) }}</span>
               <span class="ml-2 text-xs text-gray-400">#{{ k.id }}</span>
             </button>
           </div>
@@ -241,6 +241,11 @@ const billingTypeOptions = ref<SelectOption[]>([
 
 const emitChange = () => emit('change')
 
+const formatApiKeyLabel = (key: SimpleApiKey): string => {
+  const base = key.name || `#${key.id}`
+  return key.deleted ? `${base} (${t('usage.deletedApiKeySuffix')})` : base
+}
+
 const debounceUserSearch = () => {
   if (userSearchTimeout) clearTimeout(userSearchTimeout)
   userSearchTimeout = setTimeout(async () => {
@@ -296,7 +301,7 @@ const clearUser = () => {
 }
 
 const selectApiKey = (k: SimpleApiKey) => {
-  apiKeyKeyword.value = k.name || String(k.id)
+  apiKeyKeyword.value = formatApiKeyLabel(k)
   showApiKeyDropdown.value = false
   filters.value.api_key_id = k.id
   emitChange()

@@ -64,6 +64,12 @@ function createStreamResponse(lines: string[]) {
   } as Response
 }
 
+function createAbortError() {
+  return Object.assign(new Error('Request aborted'), {
+    name: 'AbortError'
+  })
+}
+
 function mountModal() {
   return mount(AccountTestModal, {
     props: {
@@ -405,6 +411,44 @@ describe('AccountTestModal', () => {
     })
   })
 
+  it('allows closing while connecting, aborts the request, and does not render an error state', async () => {
+    let aborted = false
+    global.fetch = vi.fn().mockImplementation((_url: string, request?: RequestInit) => {
+      const signal = request?.signal as AbortSignal | undefined
+      return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+          aborted = true
+          reject(createAbortError())
+        }, { once: true })
+      })
+    }) as any
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+
+    const closeButton = wrapper.findAll('button').find((button) => button.text().includes('common.close'))
+    expect(closeButton).toBeTruthy()
+
+    await closeButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    expect(aborted).toBe(true)
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(request.signal.aborted).toBe(true)
+    expect(wrapper.text()).not.toContain('Request aborted')
+    expect(wrapper.text()).not.toContain('Error:')
+  })
+
   it('submits source_protocol for protocol gateway models and renders runtime context', async () => {
     getAvailableModels.mockResolvedValueOnce([
       {
@@ -580,13 +624,17 @@ describe('AccountTestModal', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(testGrokAccount).toHaveBeenCalledWith(9, {
+    expect(testGrokAccount).toHaveBeenCalledTimes(1)
+    const [accountId, payload, options] = testGrokAccount.mock.calls[0]
+    expect(accountId).toBe(9)
+    expect(payload).toEqual({
       model: 'grok-3-beta',
       model_id: 'grok-3-beta',
       source_protocol: undefined,
       target_provider: undefined,
       target_model_id: 'grok-3-beta'
     })
+    expect(options?.signal).toBeDefined()
     expect(wrapper.text()).toContain('Reverse runtime connectivity probe started')
     expect(wrapper.text()).toContain('Visible models after model_mapping: grok-3-beta')
   })

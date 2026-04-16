@@ -21,6 +21,7 @@ export default {
     perRequest: "per request",
     apiKeyFilter: "API Key",
     allApiKeys: "All API Keys",
+    deletedApiKeySuffix: "Deleted",
     timeRange: "Time Range",
     exportCsv: "Export CSV",
     exportExcel: "Export Excel",

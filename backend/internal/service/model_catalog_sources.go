@@ -131,6 +131,7 @@ func (s *ModelCatalogService) catalogBaselineEntries(ctx context.Context) ([]mod
 		}
 	}
 	details = appendBundledModelCatalogSeedDetails(details)
+	details = s.appendPricingBackedSyntheticCatalogDetails(ctx, details)
 	return details, nil
 }
 

@@ -1473,3 +1473,65 @@ func (s *UsageLogRepoSuite) TestListWithFilters_CombinedFilters() {
 	s.Require().Len(logs, 2)
 	s.Require().Equal(int64(2), page.Total)
 }
+
+func (s *UsageLogRepoSuite) TestListWithFilters_HydratesDeletedAPIKey() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "filtersdeleted@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-filtersdeleted", Name: "Historic Key"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-filtersdeleted"})
+
+	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, time.Now().UTC())
+
+	apiKeyRepo := newAPIKeyRepositoryWithSQL(s.client, s.tx)
+	s.Require().NoError(apiKeyRepo.Delete(s.ctx, apiKey.ID), "Delete api key")
+
+	logs, page, err := s.repo.ListWithFilters(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, usagestats.UsageLogFilters{
+		UserID: user.ID,
+	})
+	s.Require().NoError(err, "ListWithFilters")
+	s.Require().Len(logs, 1)
+	s.Require().Equal(int64(1), page.Total)
+	s.Require().NotNil(logs[0].APIKey)
+	s.Require().Equal(apiKey.ID, logs[0].APIKey.ID)
+	s.Require().Equal("Historic Key", logs[0].APIKey.Name)
+	s.Require().True(logs[0].APIKey.Deleted)
+}
+
+func (s *UsageLogRepoSuite) TestListUsageFilterAPIKeys_IncludesDeletedWithinRange() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "filterkeys@test.com"})
+	historicKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-filterkeys-1", Name: "Historic Key"})
+	currentKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-filterkeys-2", Name: "Current Key"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-filterkeys"})
+
+	base := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
+	s.createUsageLog(user, historicKey, account, 10, 20, 0.5, base)
+	s.createUsageLog(user, currentKey, account, 10, 20, 0.5, base.Add(24*time.Hour))
+
+	apiKeyRepo := newAPIKeyRepositoryWithSQL(s.client, s.tx)
+	s.Require().NoError(apiKeyRepo.Delete(s.ctx, historicKey.ID), "Delete historic key")
+
+	startTime := base.Add(-1 * time.Hour)
+	endTime := base.Add(12 * time.Hour)
+	keys, err := s.repo.ListUsageFilterAPIKeys(s.ctx, user.ID, &startTime, &endTime)
+	s.Require().NoError(err, "ListUsageFilterAPIKeys")
+	s.Require().Len(keys, 1)
+	s.Require().Equal(historicKey.ID, keys[0].ID)
+	s.Require().Equal("Historic Key", keys[0].Name)
+	s.Require().True(keys[0].Deleted)
+}
+
+func (s *UsageLogRepoSuite) TestSearchUsageAPIKeys_IncludesDeleted() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "searchusagekeys@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-searchusagekeys", Name: "Search Historic Key"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-searchusagekeys"})
+
+	s.createUsageLog(user, apiKey, account, 10, 20, 0.5, time.Now().UTC())
+
+	apiKeyRepo := newAPIKeyRepositoryWithSQL(s.client, s.tx)
+	s.Require().NoError(apiKeyRepo.Delete(s.ctx, apiKey.ID), "Delete api key")
+
+	keys, err := s.repo.SearchUsageAPIKeys(s.ctx, user.ID, "historic", 30)
+	s.Require().NoError(err, "SearchUsageAPIKeys")
+	s.Require().Len(keys, 1)
+	s.Require().Equal(apiKey.ID, keys[0].ID)
+	s.Require().True(keys[0].Deleted)
+}

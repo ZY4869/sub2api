@@ -260,7 +260,6 @@
         <button
           @click="handleClose"
           class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-dark-500"
-          :disabled="status === 'connecting'"
         >
           {{ t('common.close') }}
         </button>
@@ -318,7 +317,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -390,7 +389,7 @@ const manualRequestAlias = ref('')
 const manualSourceProtocol = ref<'openai' | 'anthropic' | 'gemini' | ''>('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
-let eventSource: EventSource | null = null
+let activeAbortController: AbortController | null = null
 const blacklistAdvice = ref<BlacklistAdvicePayload | null>(null)
 const selectedTestMode = ref<AccountTestMode>(DEFAULT_ACCOUNT_TEST_MODE)
 const runtimePlatform = computed(() =>
@@ -618,7 +617,8 @@ watch(
       resetState()
       await loadAvailableModels()
     } else {
-      closeEventSource()
+      abortActiveRequest()
+      resetState()
     }
   }
 )
@@ -675,20 +675,35 @@ const resetState = () => {
   resetRuntimeContext()
 }
 
+/*
 const handleClose = () => {
   // 防止在连接测试进行中关闭对话框
   if (status.value === 'connecting') {
-    return
-  }
-  closeEventSource()
+  abortActiveRequest()
+  resetState()
   emit('close')
 }
 
-const closeEventSource = () => {
-  if (eventSource) {
-    eventSource.close()
-    eventSource = null
+*/
+
+const handleClose = () => {
+  abortActiveRequest()
+  resetState()
+  emit('close')
+}
+
+const abortActiveRequest = () => {
+  if (activeAbortController) {
+    activeAbortController.abort()
+    activeAbortController = null
   }
+}
+
+const isAbortError = (error: unknown) => {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+  return String((error as { name?: unknown }).name || '').trim() === 'AbortError'
 }
 
 const addLine = (text: string, className: string = 'text-gray-300') => {
@@ -788,18 +803,23 @@ const startTest = async () => {
   }
   addLine('', 'text-gray-300')
 
-  closeEventSource()
+  abortActiveRequest()
+  const abortController = new AbortController()
+  activeAbortController = abortController
 
   try {
     const response = isGrokAccount.value
-      ? await adminAPI.accounts.testGrokAccount(props.account.id, resolveTestRequestBody())
+      ? await adminAPI.accounts.testGrokAccount(props.account.id, resolveTestRequestBody(), {
+          signal: abortController.signal
+        })
       : await fetch(`/api/v1/admin/accounts/${props.account.id}/test`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(resolveTestRequestBody())
+          body: JSON.stringify(resolveTestRequestBody()),
+          signal: abortController.signal
         })
 
     if (!response.ok) {
@@ -837,9 +857,17 @@ const startTest = async () => {
       }
     }
   } catch (error: any) {
+    if (isAbortError(error)) {
+      status.value = 'idle'
+      return
+    }
     status.value = 'error'
     errorMessage.value = error.message || 'Unknown error'
     addLine(`Error: ${errorMessage.value}`, 'text-red-400')
+  } finally {
+    if (activeAbortController === abortController) {
+      activeAbortController = null
+    }
   }
 }
 
@@ -1016,4 +1044,8 @@ const copyOutput = () => {
   const text = outputLines.value.map((l) => l.text).join('\n')
   copyToClipboard(text, t('admin.accounts.outputCopied'))
 }
+
+onBeforeUnmount(() => {
+  abortActiveRequest()
+})
 </script>

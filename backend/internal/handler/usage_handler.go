@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
@@ -15,6 +16,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+type usageFilterAPIKeyItem struct {
+	ID      int64  `json:"id"`
+	Name    string `json:"name"`
+	Deleted bool   `json:"deleted"`
+}
 
 // UsageHandler handles usage-related requests
 type UsageHandler struct {
@@ -50,7 +57,7 @@ func (h *UsageHandler) List(c *gin.Context) {
 		}
 
 		// [Security Fix] Verify API Key ownership to prevent horizontal privilege escalation
-		apiKey, err := h.apiKeyService.GetByID(c.Request.Context(), id)
+		apiKey, err := h.apiKeyService.GetByIDAllowDeleted(c.Request.Context(), id)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return
@@ -144,6 +151,61 @@ func (h *UsageHandler) List(c *gin.Context) {
 	response.Paginated(c, out, result.Total, page, pageSize)
 }
 
+// FilterAPIKeys handles listing usage-backed API keys for the current user.
+// GET /api/v1/usage/filter-api-keys
+func (h *UsageHandler) FilterAPIKeys(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	var startTime, endTime *time.Time
+	userTZ := c.Query("timezone")
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		t, err := timezone.ParseInUserLocation("2006-01-02", startDateStr, userTZ)
+		if err != nil {
+			response.BadRequest(c, "Invalid start_date format, use YYYY-MM-DD")
+			return
+		}
+		startTime = &t
+	}
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		t, err := timezone.ParseInUserLocation("2006-01-02", endDateStr, userTZ)
+		if err != nil {
+			response.BadRequest(c, "Invalid end_date format, use YYYY-MM-DD")
+			return
+		}
+		t = t.AddDate(0, 0, 1)
+		endTime = &t
+	}
+
+	keys, err := h.usageService.ListUsageFilterAPIKeys(c.Request.Context(), subject.UserID, startTime, endTime)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	items := make([]usageFilterAPIKeyItem, 0, len(keys))
+	for _, key := range keys {
+		items = append(items, usageFilterAPIKeyItem{
+			ID:      key.ID,
+			Name:    key.Name,
+			Deleted: key.Deleted,
+		})
+	}
+
+	logger.LegacyPrintf(
+		"handler.usage",
+		"[UsageFilterAPIKeys] user=%d start=%q end=%q count=%d",
+		subject.UserID,
+		c.Query("start_date"),
+		c.Query("end_date"),
+		len(items),
+	)
+	response.Success(c, items)
+}
+
 // GetByID handles getting a single usage record
 // GET /api/v1/usage/:id
 func (h *UsageHandler) GetByID(c *gin.Context) {
@@ -192,7 +254,7 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 		}
 
 		// [Security Fix] Verify API Key ownership to prevent horizontal privilege escalation
-		apiKey, err := h.apiKeyService.GetByID(c.Request.Context(), id)
+		apiKey, err := h.apiKeyService.GetByIDAllowDeleted(c.Request.Context(), id)
 		if err != nil {
 			response.NotFound(c, "API key not found")
 			return

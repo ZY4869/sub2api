@@ -170,6 +170,58 @@ func TestModelCatalogService_SeedFallbackUsesCuratedBaseline(t *testing.T) {
 	require.False(t, hasOldCodex)
 }
 
+func TestModelCatalogService_PricingBackedSyntheticEntriesAppearInCatalogAndBillingCenter(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	pricingService := &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"gpt-5.4-dynamic-only": {
+				InputCostPerToken:  1e-6,
+				OutputCostPerToken: 2e-6,
+				LiteLLMProvider:    PlatformOpenAI,
+				Mode:               "chat",
+			},
+		},
+	}
+	billingService := NewBillingService(&config.Config{}, nil)
+	billingService.fallbackPrices = map[string]*ModelPricing{
+		"gpt-5.4-billing-only": {
+			InputPricePerToken:  3e-6,
+			OutputPricePerToken: 6e-6,
+		},
+	}
+
+	svc := NewModelCatalogService(repo, nil, billingService, pricingService, &config.Config{})
+
+	dynamicDetail, err := svc.GetModelDetail(context.Background(), "gpt-5.4-dynamic-only")
+	require.NoError(t, err)
+	require.Equal(t, ModelCatalogPricingSourceDynamic, dynamicDetail.BasePricingSource)
+	require.False(t, dynamicDetail.DefaultAvailable)
+	require.Equal(t, PlatformOpenAI, dynamicDetail.Provider)
+
+	billingDetail, err := svc.GetModelDetail(context.Background(), "gpt-5.4-billing-only")
+	require.NoError(t, err)
+	require.Equal(t, ModelCatalogPricingSourceDynamic, billingDetail.BasePricingSource)
+	require.False(t, billingDetail.DefaultAvailable)
+	require.Equal(t, PlatformOpenAI, billingDetail.Provider)
+
+	items, total, err := svc.billingCenterService.ListPricingModels(context.Background(), BillingPricingListFilter{
+		Search:   "gpt-5.4-",
+		Page:     1,
+		PageSize: 50,
+	})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, total, int64(2))
+
+	models := make(map[string]BillingPricingListItem, len(items))
+	for _, item := range items {
+		models[item.Model] = item
+	}
+	_, hasDynamic := models["gpt-5.4-dynamic-only"]
+	_, hasFallback := models["gpt-5.4-billing-only"]
+	require.True(t, hasDynamic)
+	require.True(t, hasFallback)
+}
+
 func TestModelCatalogService_LegacyAliasesResolveToCuratedRows(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	repo.values[SettingKeyModelOfficialPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{

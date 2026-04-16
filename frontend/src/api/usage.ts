@@ -60,6 +60,12 @@ export interface ModelStatsResponse {
   end_date: string
 }
 
+export interface UsageFilterApiKey {
+  id: number
+  name: string
+  deleted: boolean
+}
+
 /**
  * List usage logs with optional filters
  * @param page - Page number (default: 1)
@@ -191,6 +197,16 @@ export async function getById(id: number): Promise<UsageLog> {
   return data
 }
 
+export async function listFilterApiKeys(params?: {
+  start_date?: string
+  end_date?: string
+}): Promise<UsageFilterApiKey[]> {
+  const { data } = await apiClient.get<UsageFilterApiKey[]>('/usage/filter-api-keys', {
+    params
+  })
+  return data
+}
+
 // ==================== Dashboard API ====================
 
 /**
@@ -266,6 +282,7 @@ export const usageAPI = {
   getStatsByDateRange,
   getByDateRange,
   getById,
+  listFilterApiKeys,
   // Dashboard
   getDashboardStats,
   getDashboardTrend,

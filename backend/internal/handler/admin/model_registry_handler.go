@@ -5,6 +5,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -76,6 +77,43 @@ func (h *ModelRegistryHandler) UpsertEntry(c *gin.Context) {
 		return
 	}
 	response.Success(c, detail)
+}
+
+func (h *ModelRegistryHandler) ManualAdd(c *gin.Context) {
+	var req service.ManualAddModelRegistryEntryInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	adminUserID := int64(0)
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
+		adminUserID = subject.UserID
+	}
+
+	log := logger.FromContext(c.Request.Context()).With(
+		zap.String("component", "handler.admin.model_registry"),
+		zap.Int64("admin_user_id", adminUserID),
+		zap.String("model", strings.TrimSpace(req.ID)),
+	)
+	log.Info("manual add model registry entry start")
+
+	detail, createdRuntime, activated, err := h.modelRegistryService.ManualAddEntry(c.Request.Context(), req)
+	if err != nil {
+		log.Warn("manual add model registry entry failed", zap.Error(err))
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	log.Info("manual add model registry entry success",
+		zap.String("provider", detail.Provider),
+		zap.Bool("created_runtime_entry", createdRuntime),
+		zap.Bool("activated", activated),
+	)
+	response.Success(c, service.ManualAddModelRegistryEntryResponse{
+		Item:      *detail,
+		Activated: activated,
+	})
 }
 
 func (h *ModelRegistryHandler) SetVisibility(c *gin.Context) {

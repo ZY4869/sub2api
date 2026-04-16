@@ -93,6 +93,7 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		UserID:           k.UserID,
 		Key:              k.Key,
 		Name:             k.Name,
+		Deleted:          k.Deleted,
 		ModelDisplayMode: k.EffectiveModelDisplayMode(),
 		GroupID:          k.GroupID,
 		Status:           k.Status,

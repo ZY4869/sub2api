@@ -118,6 +118,25 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 	return out, nil
 }
 
+func (r *apiKeyRepository) GetByIDAllowDeleted(ctx context.Context, id int64) (*service.APIKey, error) {
+	m, err := r.client.APIKey.Query().
+		Where(apikey.IDEQ(id)).
+		WithUser().
+		WithGroup().
+		Only(mixins.SkipSoftDelete(ctx))
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return nil, service.ErrAPIKeyNotFound
+		}
+		return nil, err
+	}
+	out := apiKeyEntityToService(m)
+	if err := r.hydrateAPIKeyGroups(mixins.SkipSoftDelete(ctx), []*service.APIKey{out}); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GetKeyAndOwnerID 根据 API Key ID 获取其 key 与所有者（用户）ID。
 // 相比 GetByID，此方法性能更优，因为：
 //   - 使用 Select() 只查询必要字段，减少数据传输量
@@ -701,6 +720,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		UserID:           m.UserID,
 		Key:              m.Key,
 		Name:             m.Name,
+		Deleted:          m.DeletedAt != nil,
 		ModelDisplayMode: service.NormalizeAPIKeyModelDisplayMode(m.ModelDisplayMode),
 		Status:           m.Status,
 		IPWhitelist:      m.IPWhitelist,

@@ -9,8 +9,11 @@
           <button class="btn btn-secondary" :disabled="loading" @click="refreshAll">
             {{ t('common.refresh') }}
           </button>
-          <button class="btn btn-primary" :disabled="loading" @click="openActivateDialog">
+          <button class="btn btn-secondary" :disabled="loading" @click="openActivateDialog">
             {{ t('admin.models.available.addAction') }}
+          </button>
+          <button class="btn btn-primary" :disabled="loading" @click="manualAddDialogOpen = true">
+            {{ t('admin.models.available.manualAddAction') }}
           </button>
         </div>
       </div>
@@ -107,6 +110,12 @@
     @close="activateDialogOpen = false"
     @submit="activateSelected"
   />
+  <ManualAddModelDialog
+    :show="manualAddDialogOpen"
+    :submitting="submitting"
+    @close="manualAddDialogOpen = false"
+    @submit="manualAddModel"
+  />
 </template>
 
 <script setup lang="ts">
@@ -120,10 +129,13 @@ import ModelPlatformsInline from '@/components/common/ModelPlatformsInline.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import ActivateAvailableModelsDialog from '@/components/admin/models/ActivateAvailableModelsDialog.vue'
+import ManualAddModelDialog from '@/components/admin/models/ManualAddModelDialog.vue'
 import {
   activateModelRegistryEntries,
   deactivateModelRegistryEntries,
   listModelRegistry,
+  manualAddModelRegistryEntry,
+  type ManualAddModelRegistryEntryPayload,
   type ModelRegistryDetail
 } from '@/api/admin/modelRegistry'
 import { useAppStore } from '@/stores/app'
@@ -137,6 +149,7 @@ const modelInventoryStore = useModelInventoryStore()
 const loading = ref(false)
 const submitting = ref(false)
 const activateDialogOpen = ref(false)
+const manualAddDialogOpen = ref(false)
 const items = ref<ModelRegistryDetail[]>([])
 
 const filters = reactive({
@@ -255,6 +268,21 @@ async function deactivateOne(modelId: string) {
   } catch (error) {
     console.error('[AvailableModelsView] deactivate failed', error)
     appStore.showError(t('admin.models.registry.availabilityFailed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function manualAddModel(payload: ManualAddModelRegistryEntryPayload) {
+  submitting.value = true
+  try {
+    await manualAddModelRegistryEntry(payload)
+    manualAddDialogOpen.value = false
+    appStore.showSuccess(t('admin.models.available.manualAddSuccess'))
+    await refreshAll()
+  } catch (error) {
+    console.error('[AvailableModelsView] manual add failed', error)
+    appStore.showError(t('admin.models.available.manualAddFailed'))
   } finally {
     submitting.value = false
   }

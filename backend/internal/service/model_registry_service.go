@@ -1,5 +1,7 @@
 package service
 
+import "github.com/Wei-Shaw/sub2api/internal/modelregistry"
+
 type ModelRegistryListFilter struct {
 	Search            string
 	Provider          string
@@ -40,6 +42,11 @@ type UpsertModelRegistryEntryInput struct {
 	DeprecationNotice    string            `json:"deprecation_notice"`
 }
 
+type ManualAddModelRegistryEntryInput struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+}
+
 type UpdateModelRegistryVisibilityInput struct {
 	Model  string `json:"model"`
 	Hidden bool   `json:"hidden"`
@@ -62,6 +69,11 @@ type UpdateModelRegistryAvailabilityInput struct {
 
 type BatchHardDeleteModelRegistryInput struct {
 	Models []string `json:"models"`
+}
+
+type ManualAddModelRegistryEntryResponse struct {
+	Item      modelregistry.AdminModelDetail `json:"item"`
+	Activated bool                           `json:"activated"`
 }
 
 type ModelRegistryExposureSyncFailure struct {

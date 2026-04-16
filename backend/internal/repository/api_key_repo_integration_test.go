@@ -59,6 +59,24 @@ func (s *APIKeyRepoSuite) TestGetByID_NotFound() {
 	s.Require().Error(err, "expected error for non-existent ID")
 }
 
+func (s *APIKeyRepoSuite) TestGetByIDAllowDeleted() {
+	user := s.mustCreateUser("getbyid-deleted@test.com")
+	key := &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-getbyid-deleted",
+		Name:   "Deleted Key",
+		Status: service.StatusActive,
+	}
+	s.Require().NoError(s.repo.Create(s.ctx, key))
+	s.Require().NoError(s.repo.Delete(s.ctx, key.ID))
+
+	got, err := s.repo.GetByIDAllowDeleted(s.ctx, key.ID)
+	s.Require().NoError(err, "GetByIDAllowDeleted")
+	s.Require().Equal(key.ID, got.ID)
+	s.Require().Equal("Deleted Key", got.Name)
+	s.Require().True(got.Deleted)
+}
+
 func (s *APIKeyRepoSuite) TestGetByKey() {
 	user := s.mustCreateUser("getbykey@test.com")
 	group := s.mustCreateGroup("g-key")

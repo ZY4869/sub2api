@@ -254,6 +254,18 @@ func (s *BillingService) initFallbackPricing() {
 		LongContextOutputMultiplier:    openAIGPT54LongContextOutputMultiplier,
 	}
 	// OpenAI GPT-5.4 Pro锛堝畼鏂瑰畾浠峰厹搴曪級
+	s.fallbackPrices["gpt-5.4-mini"] = &ModelPricing{
+		InputPricePerToken:     7.5e-7,
+		OutputPricePerToken:    4.5e-6,
+		CacheReadPricePerToken: 7.5e-8,
+		SupportsCacheBreakdown: false,
+	}
+	s.fallbackPrices["gpt-5.4-nano"] = &ModelPricing{
+		InputPricePerToken:     2e-7,
+		OutputPricePerToken:    1.25e-6,
+		CacheReadPricePerToken: 2e-8,
+		SupportsCacheBreakdown: false,
+	}
 	s.fallbackPrices["gpt-5.4-pro"] = &ModelPricing{
 		InputPricePerToken:                3e-5, // $30 per MTok
 		InputTokenThreshold:               openAIGPT54LongContextInputThreshold,
@@ -341,6 +353,10 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 		switch {
 		case strings.HasPrefix(normalized, "gpt-5.4-pro"):
 			return s.fallbackPrices["gpt-5.4-pro"]
+		case strings.HasPrefix(normalized, "gpt-5.4-mini"):
+			return s.fallbackPrices["gpt-5.4-mini"]
+		case strings.HasPrefix(normalized, "gpt-5.4-nano"):
+			return s.fallbackPrices["gpt-5.4-nano"]
 		case strings.HasPrefix(normalized, "gpt-5.4"):
 			return s.fallbackPrices["gpt-5.4"]
 		case strings.HasPrefix(normalized, "gpt-5.2-codex"):
@@ -656,7 +672,13 @@ func (s *BillingService) shouldApplySessionLongContextPricing(tokens UsageTokens
 
 func isOpenAIGPT54Model(model string) bool {
 	normalized := normalizeCodexModel(strings.TrimSpace(strings.ToLower(model)))
-	return strings.HasPrefix(normalized, "gpt-5.4")
+	base := modelDateVersionSuffixPattern.ReplaceAllString(normalized, "")
+	switch base {
+	case "gpt-5.4", "gpt-5.4-pro":
+		return true
+	default:
+		return false
+	}
 }
 
 // CalculateCostWithConfig 浣跨敤閰嶇疆涓殑榛樿鍊嶇巼璁＄畻璐圭敤

@@ -383,3 +383,57 @@ func TestModelRegistryService_UpsertEntry_RejectsUnknownCapabilities(t *testing.
 	})
 	require.Error(t, err)
 }
+
+func TestModelRegistryService_ManualAddEntry_CreatesAndActivatesModel(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
+	svc := NewModelRegistryService(repo)
+
+	detail, createdRuntime, activated, err := svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+		ID:          "gpt-5.4-manual-preview",
+		DisplayName: "GPT-5.4 Manual Preview",
+	})
+	require.NoError(t, err)
+	require.True(t, createdRuntime)
+	require.True(t, activated)
+	require.Equal(t, "gpt-5.4-manual-preview", detail.ID)
+	require.Equal(t, "GPT-5.4 Manual Preview", detail.DisplayName)
+	require.Equal(t, "openai", detail.Provider)
+	require.True(t, detail.Available)
+	require.ElementsMatch(t, []string{"runtime", "whitelist", "use_key", "test"}, detail.ExposedIn)
+}
+
+func TestModelRegistryService_ManualAddEntry_IsIdempotentForRepeatedSubmit(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
+	svc := NewModelRegistryService(repo)
+
+	first, createdRuntime, activated, err := svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+		ID:          "gpt-5.4-manual-repeat",
+		DisplayName: "GPT-5.4 Manual Repeat",
+	})
+	require.NoError(t, err)
+	require.True(t, createdRuntime)
+	require.True(t, activated)
+
+	second, createdRuntime, activated, err := svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+		ID: "gpt-5.4-manual-repeat",
+	})
+	require.NoError(t, err)
+	require.False(t, createdRuntime)
+	require.False(t, activated)
+	require.Equal(t, first.ID, second.ID)
+	require.Equal(t, "GPT-5.4 Manual Repeat", second.DisplayName)
+	require.True(t, second.Available)
+}
+
+func TestModelRegistryService_ManualAddEntry_RejectsUnknownProvider(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	_, _, _, err := svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+		ID: "custom-providerless-model",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "MODEL_PROVIDER_INFERENCE_FAILED")
+}

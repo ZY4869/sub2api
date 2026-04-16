@@ -39,6 +39,7 @@ type APIKey struct {
 	UserID           int64
 	Key              string
 	Name             string
+	Deleted          bool
 	ModelDisplayMode string
 	GroupID          *int64
 	Status           string

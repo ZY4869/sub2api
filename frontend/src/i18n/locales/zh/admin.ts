@@ -374,6 +374,11 @@
         lastSynced: '最近同步：{time}',
         commaSeparatedHint: '多个值可用逗号或换行分隔。',
         idLockedHint: '编辑模式下锁定模型 ID，避免误改 canonical id。',
+        activateSuccess: '模型已启用',
+        deactivateSuccess: '模型已停用',
+        availabilityFailed: '更新模型可用状态失败',
+        availableStatus: '可用',
+        unavailableStatus: '不可用',
         saveSuccess: '模型注册表已保存',
         saveFailed: '保存模型注册表失败',
         deleteSuccess: '模型已彻底删除',
@@ -461,6 +466,32 @@
           manual: '手动覆盖',
           legacy: '旧目录回退',
           tombstone: '墓碑'
+        }
+      },
+      available: {
+        addAction: '添加可用模型',
+        manualAddAction: '手动添加模型',
+        manualAddSuccess: '模型已添加并启用',
+        manualAddFailed: '手动添加模型失败',
+        emptyTitle: '暂无可用模型',
+        emptyDescription: '可从完整注册表激活模型，使其参与运行时调用。',
+        activateDialog: {
+          title: '添加可用模型',
+          description: '从完整注册表中选择模型，并加入运行时可用集合。',
+          searchPlaceholder: '搜索未启用模型',
+          emptyTitle: '暂无未启用模型',
+          emptyDescription: '当前模型都已经启用。',
+          confirm: '启用选中模型'
+        },
+        manualAddDialog: {
+          title: '手动添加模型',
+          description: '直接录入新的模型 ID，系统会自动推断提供商并立即启用。',
+          modelIdLabel: '模型 ID',
+          modelIdPlaceholder: '例如 gpt-5.4-mini',
+          modelIdRequired: '请输入模型 ID',
+          displayNameLabel: '模型名称',
+          displayNamePlaceholder: '可选，留空则使用系统默认显示名',
+          confirm: '添加并启用'
         }
       },
       catalog: {

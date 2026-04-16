@@ -174,6 +174,26 @@ func TestGetModelPricing_OpenAIGPT54Fallback(t *testing.T) {
 	require.InDelta(t, 1.5, pricing.LongContextOutputMultiplier, 1e-12)
 }
 
+func TestGetModelPricing_OpenAIGPT54MiniAndNanoFallback(t *testing.T) {
+	svc := newTestBillingService()
+
+	mini, err := svc.GetModelPricing("gpt-5.4-mini")
+	require.NoError(t, err)
+	require.NotNil(t, mini)
+	require.InDelta(t, 7.5e-7, mini.InputPricePerToken, 1e-12)
+	require.InDelta(t, 4.5e-6, mini.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 7.5e-8, mini.CacheReadPricePerToken, 1e-12)
+	require.Zero(t, mini.LongContextInputThreshold)
+
+	nano, err := svc.GetModelPricing("gpt-5.4-nano")
+	require.NoError(t, err)
+	require.NotNil(t, nano)
+	require.InDelta(t, 2e-7, nano.InputPricePerToken, 1e-12)
+	require.InDelta(t, 1.25e-6, nano.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 2e-8, nano.CacheReadPricePerToken, 1e-12)
+	require.Zero(t, nano.LongContextInputThreshold)
+}
+
 func TestGetModelPricing_OpenAIGPT54ProFallback(t *testing.T) {
 	svc := newTestBillingService()
 
@@ -204,6 +224,24 @@ func TestCalculateCost_OpenAIGPT54LongContextAppliesWholeSessionMultipliers(t *t
 	require.InDelta(t, expectedOutput, cost.OutputCost, 1e-10)
 	require.InDelta(t, expectedInput+expectedOutput, cost.TotalCost, 1e-10)
 	require.InDelta(t, expectedInput+expectedOutput, cost.ActualCost, 1e-10)
+}
+
+func TestCalculateCost_OpenAIGPT54MiniDoesNotApplyLongContextMultiplier(t *testing.T) {
+	svc := newTestBillingService()
+
+	tokens := UsageTokens{
+		InputTokens:  300000,
+		OutputTokens: 4000,
+	}
+
+	cost, err := svc.CalculateCost("gpt-5.4-mini", tokens, 1.0)
+	require.NoError(t, err)
+
+	expectedInput := float64(tokens.InputTokens) * 7.5e-7
+	expectedOutput := float64(tokens.OutputTokens) * 4.5e-6
+	require.InDelta(t, expectedInput, cost.InputCost, 1e-10)
+	require.InDelta(t, expectedOutput, cost.OutputCost, 1e-10)
+	require.InDelta(t, expectedInput+expectedOutput, cost.TotalCost, 1e-10)
 }
 
 func TestGetFallbackPricing_FamilyMatching(t *testing.T) {

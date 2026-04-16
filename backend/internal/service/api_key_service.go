@@ -82,6 +82,10 @@ type APIKeyRepository interface {
 	GetRateLimitData(ctx context.Context, id int64) (*APIKeyRateLimitData, error)
 }
 
+type apiKeyDeletedReader interface {
+	GetByIDAllowDeleted(ctx context.Context, id int64) (*APIKey, error)
+}
+
 // APIKeyRateLimitData holds rate limit usage and window state for an API key.
 type APIKeyRateLimitData struct {
 	Usage5h       float64
@@ -478,6 +482,18 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	}
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey, nil
+}
+
+func (s *APIKeyService) GetByIDAllowDeleted(ctx context.Context, id int64) (*APIKey, error) {
+	if reader, ok := s.apiKeyRepo.(apiKeyDeletedReader); ok {
+		apiKey, err := reader.GetByIDAllowDeleted(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("get api key: %w", err)
+		}
+		s.compileAPIKeyIPRules(apiKey)
+		return apiKey, nil
+	}
+	return s.GetByID(ctx, id)
 }
 
 // GetByKey 根据Key字符串获取API Key（用于认证）
