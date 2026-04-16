@@ -363,7 +363,9 @@ func TestAPIContracts(t *testing.T) {
 					"total_tokens": 53,
 					"total_cost": 0.75,
 					"total_actual_cost": 0.75,
-					"average_duration_ms": 200
+					"average_duration_ms": 200,
+					"admin_free_requests": 0,
+					"admin_free_standard_cost": 0
 				}
 			}`,
 		},
@@ -1810,37 +1812,7 @@ func (r *stubUsageLogRepo) GetUserModelStats(ctx context.Context, userID int64, 
 }
 
 func (r *stubUsageLogRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters usagestats.UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
-	logs := r.userLogs[filters.UserID]
-
-	// Apply filters
-	var filtered []service.UsageLog
-	for _, log := range logs {
-		// Apply APIKeyID filter
-		if filters.APIKeyID > 0 && log.APIKeyID != filters.APIKeyID {
-			continue
-		}
-		// Apply Model filter
-		if filters.Model != "" && log.Model != filters.Model {
-			continue
-		}
-		// Apply Stream filter
-		if filters.Stream != nil && log.Stream != *filters.Stream {
-			continue
-		}
-		// Apply BillingType filter
-		if filters.BillingType != nil && log.BillingType != *filters.BillingType {
-			continue
-		}
-		// Apply time range filters
-		if filters.StartTime != nil && log.CreatedAt.Before(*filters.StartTime) {
-			continue
-		}
-		if filters.EndTime != nil && log.CreatedAt.After(*filters.EndTime) {
-			continue
-		}
-		filtered = append(filtered, log)
-	}
-
+	filtered := filterUsageLogs(r.userLogs[filters.UserID], filters)
 	total := int64(len(filtered))
 	out := paginateLogs(filtered, params)
 	return out, paginationResult(total, params), nil
@@ -1855,7 +1827,58 @@ func (r *stubUsageLogRepo) GetAccountUsageStats(ctx context.Context, accountID i
 }
 
 func (r *stubUsageLogRepo) GetStatsWithFilters(ctx context.Context, filters usagestats.UsageLogFilters) (*usagestats.UsageStats, error) {
-	return nil, errors.New("not implemented")
+	filtered := filterUsageLogs(r.userLogs[filters.UserID], filters)
+	var (
+		totalDuration int
+		durationCount int
+		stats         usagestats.UsageStats
+	)
+	for _, log := range filtered {
+		stats.TotalRequests++
+		stats.TotalInputTokens += int64(log.InputTokens)
+		stats.TotalOutputTokens += int64(log.OutputTokens)
+		stats.TotalCacheTokens += int64(log.CacheCreationTokens + log.CacheReadTokens + log.CacheCreation5mTokens + log.CacheCreation1hTokens)
+		stats.TotalTokens += int64(log.InputTokens + log.OutputTokens + log.CacheCreationTokens + log.CacheReadTokens + log.CacheCreation5mTokens + log.CacheCreation1hTokens)
+		stats.TotalCost += log.TotalCost
+		stats.TotalActualCost += log.ActualCost
+		if log.DurationMs != nil {
+			totalDuration += *log.DurationMs
+			durationCount++
+		}
+	}
+	if durationCount > 0 {
+		stats.AverageDurationMs = float64(totalDuration) / float64(durationCount)
+	}
+	return &stats, nil
+}
+
+func filterUsageLogs(logs []service.UsageLog, filters usagestats.UsageLogFilters) []service.UsageLog {
+	filtered := make([]service.UsageLog, 0, len(logs))
+	for _, log := range logs {
+		if filters.APIKeyID > 0 && log.APIKeyID != filters.APIKeyID {
+			continue
+		}
+		if filters.Model != "" && log.Model != filters.Model {
+			continue
+		}
+		if filters.RequestType != nil && int16(log.RequestType) != *filters.RequestType {
+			continue
+		}
+		if filters.Stream != nil && log.Stream != *filters.Stream {
+			continue
+		}
+		if filters.BillingType != nil && log.BillingType != *filters.BillingType {
+			continue
+		}
+		if filters.StartTime != nil && log.CreatedAt.Before(*filters.StartTime) {
+			continue
+		}
+		if filters.EndTime != nil && !log.CreatedAt.Before(*filters.EndTime) {
+			continue
+		}
+		filtered = append(filtered, log)
+	}
+	return filtered
 }
 func (r *stubUsageLogRepo) GetAllGroupUsageSummary(ctx context.Context, todayStart time.Time) ([]usagestats.GroupUsageSummary, error) {
 	return nil, errors.New("not implemented")
