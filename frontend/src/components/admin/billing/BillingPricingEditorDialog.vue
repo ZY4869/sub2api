@@ -90,6 +90,7 @@
           :output-charge-slot="currentDetail?.output_charge_slot || 'text_output'"
           :supports-prompt-caching="currentDetail?.supports_prompt_caching ?? false"
           :capabilities="currentCapabilities"
+          :special-visibility="saleSpecialVisibility"
           :selected-ids="selectedSaleFieldIds"
           selectable
           column-test-id="sale-column"
@@ -120,6 +121,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import BillingBulkDiscountPanel from './BillingBulkDiscountPanel.vue'
 import BillingPriceColumn from './BillingPriceColumn.vue'
 import {
+  billingLayerHasSpecialValues,
   billingLayerHasValues,
   cloneBillingPricingLayerForm,
   countConfiguredBillingFields,
@@ -188,6 +190,30 @@ const currentCapabilities = computed<BillingPricingCapabilities>(() => currentDe
   supports_service_tier: false,
   supports_prompt_caching: false,
   supports_provider_special: false,
+})
+const saleSpecialVisibility = computed(() => {
+  const officialForm = currentOfficialForm.value
+  const capabilities = currentCapabilities.value
+  const forceSectionOpen = officialForm.special_enabled || billingLayerHasSpecialValues(officialForm)
+
+  return {
+    forceSectionOpen,
+    forceBatchFields: officialForm.special_enabled
+      ? capabilities.supports_batch_pricing
+      : [
+        officialForm.special.batch_input_price,
+        officialForm.special.batch_output_price,
+        officialForm.special.batch_cache_price,
+      ].some((value) => value != null),
+    forceProviderFields: officialForm.special_enabled
+      ? capabilities.supports_provider_special
+      : [
+        officialForm.special.grounding_search,
+        officialForm.special.grounding_maps,
+        officialForm.special.file_search_embedding,
+        officialForm.special.file_search_retrieval,
+      ].some((value) => value != null),
+  }
 })
 
 const officialDescription = computed(() => {

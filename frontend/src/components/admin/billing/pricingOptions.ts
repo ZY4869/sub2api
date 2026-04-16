@@ -64,6 +64,20 @@ export function billingLayerHasValues(form?: Partial<BillingPricingLayerForm>): 
   return countConfiguredBillingFields(form) > 0
 }
 
+export function billingLayerHasSpecialValues(form?: Partial<BillingPricingLayerForm>): boolean {
+  if (!form) return false
+
+  return [
+    form.special?.batch_input_price,
+    form.special?.batch_output_price,
+    form.special?.batch_cache_price,
+    form.special?.grounding_search,
+    form.special?.grounding_maps,
+    form.special?.file_search_embedding,
+    form.special?.file_search_retrieval,
+  ].some((value) => value != null)
+}
+
 export function countConfiguredBillingFields(form?: Partial<BillingPricingLayerForm>): number {
   if (!form) return 0
 

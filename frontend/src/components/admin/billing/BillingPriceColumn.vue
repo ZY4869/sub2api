@@ -16,48 +16,22 @@
     <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4">
       <article class="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 dark:border-dark-700 dark:bg-dark-800">
         <div class="flex items-center justify-between gap-3">
-          <div>
-            <h4 class="text-sm font-semibold text-gray-900 dark:text-white">基础区</h4>
-            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">统一维护输入、输出和缓存单价。</p>
-          </div>
+          <h4 class="text-sm font-semibold text-gray-900 dark:text-white">基础区</h4>
         </div>
 
         <div class="mt-4 space-y-3">
-          <div
+          <BillingPricingCompactFieldRow
             v-for="field in baseFields"
             :key="field.id"
-            class="rounded-2xl border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-900/60"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <label
-                    v-if="selectable"
-                    class="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300"
-                    :data-testid="`field-select-${field.id}`"
-                  >
-                    <input
-                      type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-primary-600"
-                      :checked="selectedIds.includes(field.id)"
-                      @change="emit('toggle-select', field.id)"
-                    />
-                    选中
-                  </label>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ field.label }}</span>
-                </div>
-                <p v-if="field.hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.hint }}</p>
-              </div>
-              <input
-                class="input w-full max-w-[220px]"
-                type="number"
-                step="0.0000001"
-                :value="field.value ?? ''"
-                :data-testid="`pricing-field-${field.id}`"
-                @input="updateRootNumber(field.field, ($event.target as HTMLInputElement).value)"
-              />
-            </div>
-          </div>
+            :field-id="field.id"
+            :label="field.label"
+            :unit-label="field.unitLabel"
+            :value="field.value"
+            :selectable="selectable"
+            :selected="selectedIds.includes(field.id)"
+            @toggle-select="emit('toggle-select', field.id)"
+            @update:value="updateRootNumber(field.field, $event)"
+          />
         </div>
       </article>
 
@@ -66,10 +40,7 @@
         class="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 dark:border-dark-700 dark:bg-dark-800"
       >
         <div class="flex items-center justify-between gap-3">
-          <div>
-            <h4 class="text-sm font-semibold text-gray-900 dark:text-white">特殊区</h4>
-            <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">仅保留 Batch 与 Gemini 特殊定价。</p>
-          </div>
+          <h4 class="text-sm font-semibold text-gray-900 dark:text-white">特殊区</h4>
           <Toggle
             :model-value="form.special_enabled"
             :data-testid="'pricing-special-toggle'"
@@ -77,42 +48,19 @@
           />
         </div>
 
-        <div v-if="form.special_enabled" class="mt-4 space-y-3">
-          <div
+        <div v-if="showSpecialFields" class="mt-4 space-y-3">
+          <BillingPricingCompactFieldRow
             v-for="field in specialFields"
             :key="field.id"
-            class="rounded-2xl border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-900/60"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <label
-                    v-if="selectable"
-                    class="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300"
-                    :data-testid="`field-select-${field.id}`"
-                  >
-                    <input
-                      type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-primary-600"
-                      :checked="selectedIds.includes(field.id)"
-                      @change="emit('toggle-select', field.id)"
-                    />
-                    选中
-                  </label>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">{{ field.label }}</span>
-                </div>
-                <p v-if="field.hint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.hint }}</p>
-              </div>
-              <input
-                class="input w-full max-w-[220px]"
-                type="number"
-                step="0.0000001"
-                :value="field.value ?? ''"
-                :data-testid="`pricing-field-${field.id}`"
-                @input="updateSpecialNumber(field.field, ($event.target as HTMLInputElement).value)"
-              />
-            </div>
-          </div>
+            :field-id="field.id"
+            :label="field.label"
+            :unit-label="field.unitLabel"
+            :value="field.value"
+            :selectable="selectable"
+            :selected="selectedIds.includes(field.id)"
+            @toggle-select="emit('toggle-select', field.id)"
+            @update:value="updateSpecialNumber(field.field, $event)"
+          />
         </div>
 
         <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">打开后才会显示 Batch 和 Gemini 的特殊价格输入项。</p>
@@ -200,25 +148,36 @@ import { computed } from 'vue'
 import type {
   BillingPricingCapabilities,
   BillingPricingLayerForm,
-  BillingPricingSimpleSpecial,
 } from '@/api/admin/billing'
 import Toggle from '@/components/common/Toggle.vue'
+import BillingPricingCompactFieldRow from './BillingPricingCompactFieldRow.vue'
+import {
+  pricingFieldUnitLabelForField,
+  type BillingPricingFieldId,
+  type RootNumberField,
+  type SpecialNumberField,
+} from './pricingFieldPresentation'
 import {
   cloneBillingPricingLayerForm,
   createEmptyBillingPricingSpecial,
   outputPriceLabel,
 } from './pricingOptions'
 
-type RootNumberField =
-  | 'input_price'
-  | 'output_price'
-  | 'cache_price'
-  | 'input_price_above_threshold'
-  | 'output_price_above_threshold'
+interface BillingSpecialVisibility {
+  forceSectionOpen?: boolean
+  forceBatchFields?: boolean
+  forceProviderFields?: boolean
+}
 
-type SpecialNumberField = keyof BillingPricingSimpleSpecial
+interface PricingFieldDescriptor<T extends BillingPricingFieldId> {
+  id: string
+  label: string
+  unitLabel: string
+  value?: number
+  field: T
+}
 
-interface PricingFieldDescriptor<T extends RootNumberField | SpecialNumberField> {
+interface TierFieldDescriptor<T extends RootNumberField> {
   id: string
   label: string
   hint?: string
@@ -237,6 +196,7 @@ const props = withDefaults(defineProps<{
   selectedIds?: string[]
   selectable?: boolean
   columnTestId?: string
+  specialVisibility?: BillingSpecialVisibility
 }>(), {
   description: '',
   outputChargeSlot: 'text_output',
@@ -244,6 +204,7 @@ const props = withDefaults(defineProps<{
   selectedIds: () => [],
   selectable: false,
   columnTestId: undefined,
+  specialVisibility: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -258,7 +219,12 @@ const showCachePricing = computed(() => (
 ))
 
 const supportsBatchPricing = computed(() => (
-  props.capabilities.supports_batch_pricing
+  props.specialVisibility.forceBatchFields
+  || (
+    props.specialVisibility.forceSectionOpen
+    && props.capabilities.supports_batch_pricing
+  )
+  || props.capabilities.supports_batch_pricing
   || [
     props.form.special.batch_input_price,
     props.form.special.batch_output_price,
@@ -267,7 +233,12 @@ const supportsBatchPricing = computed(() => (
 ))
 
 const supportsProviderSpecial = computed(() => (
-  props.capabilities.supports_provider_special
+  props.specialVisibility.forceProviderFields
+  || (
+    props.specialVisibility.forceSectionOpen
+    && props.capabilities.supports_provider_special
+  )
+  || props.capabilities.supports_provider_special
   || [
     props.form.special.grounding_search,
     props.form.special.grounding_maps,
@@ -277,6 +248,7 @@ const supportsProviderSpecial = computed(() => (
 ))
 
 const supportsSpecialSection = computed(() => supportsBatchPricing.value || supportsProviderSpecial.value)
+const showSpecialFields = computed(() => props.form.special_enabled || props.specialVisibility.forceSectionOpen)
 const supportsTierSection = computed(() => (
   (props.capabilities.supports_tiered_pricing && props.outputChargeSlot === 'text_output')
   || props.form.tiered_enabled
@@ -292,7 +264,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
     fields.push({
       id: 'input_price',
       label: '输入定价',
-      hint: '仅在模型存在文本输入槽位时展示。',
+      unitLabel: pricingFieldUnitLabelForField('input_price', props.outputChargeSlot),
       value: props.form.input_price,
       field: 'input_price',
     })
@@ -301,7 +273,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
   fields.push({
     id: 'output_price',
     label: outputPriceLabel(props.outputChargeSlot),
-    hint: '按模型模式自动映射到文本、图片或视频输出计费。',
+    unitLabel: pricingFieldUnitLabelForField('output_price', props.outputChargeSlot),
     value: props.form.output_price,
     field: 'output_price',
   })
@@ -310,7 +282,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
     fields.push({
       id: 'cache_price',
       label: '缓存定价',
-      hint: '保存后会同时回写 cache create / read / storage。',
+      unitLabel: pricingFieldUnitLabelForField('cache_price', props.outputChargeSlot),
       value: props.form.cache_price,
       field: 'cache_price',
     })
@@ -320,7 +292,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
 })
 
 const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() => {
-  if (!props.form.special_enabled) return []
+  if (!showSpecialFields.value) return []
 
   const fields: PricingFieldDescriptor<SpecialNumberField>[] = []
 
@@ -329,7 +301,7 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
       fields.push({
         id: 'batch_input_price',
         label: 'Batch 输入定价',
-        hint: '仅写入 Batch 文本输入价格。',
+        unitLabel: pricingFieldUnitLabelForField('batch_input_price', props.outputChargeSlot),
         value: props.form.special.batch_input_price,
         field: 'batch_input_price',
       })
@@ -338,7 +310,7 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
     fields.push({
       id: 'batch_output_price',
       label: `Batch ${outputPriceLabel(props.outputChargeSlot)}`,
-      hint: '按模型模式自动映射到对应的 Batch 输出槽位。',
+      unitLabel: pricingFieldUnitLabelForField('batch_output_price', props.outputChargeSlot),
       value: props.form.special.batch_output_price,
       field: 'batch_output_price',
     })
@@ -347,7 +319,7 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
       fields.push({
         id: 'batch_cache_price',
         label: 'Batch 缓存定价',
-        hint: '保存后会同时回写 Batch cache create / read。',
+        unitLabel: pricingFieldUnitLabelForField('batch_cache_price', props.outputChargeSlot),
         value: props.form.special.batch_cache_price,
         field: 'batch_cache_price',
       })
@@ -359,28 +331,28 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
       {
         id: 'grounding_search',
         label: 'Grounding Search',
-        hint: 'Gemini 搜索增强请求价格。',
+        unitLabel: pricingFieldUnitLabelForField('grounding_search', props.outputChargeSlot),
         value: props.form.special.grounding_search,
         field: 'grounding_search',
       },
       {
         id: 'grounding_maps',
         label: 'Grounding Maps',
-        hint: 'Gemini 地图增强请求价格。',
+        unitLabel: pricingFieldUnitLabelForField('grounding_maps', props.outputChargeSlot),
         value: props.form.special.grounding_maps,
         field: 'grounding_maps',
       },
       {
         id: 'file_search_embedding',
         label: 'File Search Embedding',
-        hint: 'Gemini 文件检索 embedding 价格。',
+        unitLabel: pricingFieldUnitLabelForField('file_search_embedding', props.outputChargeSlot),
         value: props.form.special.file_search_embedding,
         field: 'file_search_embedding',
       },
       {
         id: 'file_search_retrieval',
         label: 'File Search Retrieval',
-        hint: 'Gemini 文件检索 retrieval 价格。',
+        unitLabel: pricingFieldUnitLabelForField('file_search_retrieval', props.outputChargeSlot),
         value: props.form.special.file_search_retrieval,
         field: 'file_search_retrieval',
       },
@@ -390,10 +362,10 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
   return fields
 })
 
-const tierFields = computed<PricingFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[]>(() => {
+const tierFields = computed<TierFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[]>(() => {
   if (!props.form.tiered_enabled) return []
 
-  const fields: PricingFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[] = []
+  const fields: TierFieldDescriptor<'input_price_above_threshold' | 'output_price_above_threshold'>[] = []
 
   if (props.inputSupported) {
     fields.push({

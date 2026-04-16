@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  billingLayerHasSpecialValues,
   billingLayerHasValues,
   cloneBillingPricingLayerForm,
   countConfiguredBillingFields,
   outputPriceLabel,
 } from '../pricingOptions'
+import { pricingFieldUnitLabelForField } from '../pricingFieldPresentation'
 
 describe('pricingOptions', () => {
   it('clones layer forms and preserves nested special values', () => {
@@ -56,11 +58,26 @@ describe('pricingOptions', () => {
     expect(billingLayerHasValues({
       special: {},
     })).toBe(false)
+
+    expect(billingLayerHasSpecialValues({
+      special: {
+        grounding_search: 0.01,
+      },
+    })).toBe(true)
   })
 
   it('maps output labels by model charge slot', () => {
     expect(outputPriceLabel()).toBe('输出定价')
     expect(outputPriceLabel('image_output')).toBe('图片输出定价')
     expect(outputPriceLabel('video_request')).toBe('视频请求定价')
+  })
+
+  it('maps pricing field units by field semantics', () => {
+    expect(pricingFieldUnitLabelForField('input_price')).toBe('$ / M Tokens')
+    expect(pricingFieldUnitLabelForField('batch_cache_price')).toBe('$ / M Tokens')
+    expect(pricingFieldUnitLabelForField('grounding_search')).toBe('$ / 次')
+    expect(pricingFieldUnitLabelForField('grounding_maps')).toBe('$ / 次')
+    expect(pricingFieldUnitLabelForField('output_price', 'image_output')).toBe('$ / 张')
+    expect(pricingFieldUnitLabelForField('batch_output_price', 'video_request')).toBe('$ / 次')
   })
 })
