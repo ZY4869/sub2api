@@ -23,11 +23,13 @@ func (h *ModelCatalogHandler) ListBillingPricingProviders(c *gin.Context) {
 func (h *ModelCatalogHandler) ListBillingPricingModels(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	filter := service.BillingPricingListFilter{
-		Search:   c.Query("search"),
-		Provider: c.Query("provider"),
-		Mode:     c.Query("mode"),
-		Page:     page,
-		PageSize: pageSize,
+		Search:    c.Query("search"),
+		Provider:  c.Query("provider"),
+		Mode:      c.Query("mode"),
+		SortBy:    c.Query("sort_by"),
+		SortOrder: c.Query("sort_order"),
+		Page:      page,
+		PageSize:  pageSize,
 	}
 	items, total, err := h.modelCatalogService.ListBillingPricingModels(c.Request.Context(), filter)
 	if err != nil {
@@ -65,6 +67,15 @@ func (h *ModelCatalogHandler) SaveBillingPricingLayer(c *gin.Context) {
 		return
 	}
 	response.Success(c, detail)
+}
+
+func (h *ModelCatalogHandler) RefreshBillingPricingCatalog(c *gin.Context) {
+	result, err := h.modelCatalogService.RefreshBillingPricingCatalog(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 func (h *ModelCatalogHandler) CopyBillingPricingOfficialToSale(c *gin.Context) {

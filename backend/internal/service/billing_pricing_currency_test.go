@@ -52,6 +52,16 @@ func TestBillingCenterService_SavePricingLayer_PersistsCurrencyPreference(t *tes
 	require.Equal(t, int64(9), prefs["gpt-5.4"].UpdatedByUserID)
 	require.Equal(t, "billing@example.com", prefs["gpt-5.4"].UpdatedByEmail)
 
+	snapshot := loadBillingPricingCatalogSnapshotBySetting(context.Background(), svc.settingRepo, SettingKeyBillingPricingCatalogSnapshot)
+	require.NotNil(t, snapshot)
+	model, ok, _ := billingPricingSnapshotModel(snapshot, "gpt-5.4")
+	require.True(t, ok)
+	require.Equal(t, ModelPricingCurrencyCNY, model.Currency)
+	require.NotNil(t, model.OfficialForm.InputPrice)
+	require.NotNil(t, model.OfficialForm.OutputPrice)
+	require.InDelta(t, inputPrice, *model.OfficialForm.InputPrice, 1e-12)
+	require.InDelta(t, outputPrice, *model.OfficialForm.OutputPrice, 1e-12)
+
 	override := svc.loadOfficialPriceOverrides(context.Background())["gpt-5.4"]
 	require.NotNil(t, override)
 	require.NotNil(t, override.InputCostPerToken)

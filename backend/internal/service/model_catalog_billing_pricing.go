@@ -30,6 +30,13 @@ func (s *ModelCatalogService) SaveBillingPricingLayer(ctx context.Context, actor
 	return s.billingCenterService.SavePricingLayer(ctx, actor, input)
 }
 
+func (s *ModelCatalogService) RefreshBillingPricingCatalog(ctx context.Context) (*BillingPricingRefreshResult, error) {
+	if s == nil || s.billingCenterService == nil {
+		return nil, nil
+	}
+	return s.billingCenterService.RefreshPricingCatalog(ctx)
+}
+
 func (s *ModelCatalogService) CopyBillingPricingOfficialToSale(ctx context.Context, actor ModelCatalogActor, models []string) ([]BillingPricingSheetDetail, error) {
 	if s == nil || s.billingCenterService == nil {
 		return []BillingPricingSheetDetail{}, nil

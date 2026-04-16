@@ -22,6 +22,7 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	router.GET("/api/v1/admin/billing/pricing/providers", handler.ListBillingPricingProviders)
 	router.GET("/api/v1/admin/billing/pricing/models", handler.ListBillingPricingModels)
 	router.POST("/api/v1/admin/billing/pricing/details", handler.GetBillingPricingDetails)
+	router.POST("/api/v1/admin/billing/pricing/refresh", handler.RefreshBillingPricingCatalog)
 	router.PUT("/api/v1/admin/billing/pricing/models/:model/layers/:layer", handler.SaveBillingPricingLayer)
 	router.POST("/api/v1/admin/billing/pricing/sale/copy-from-official", handler.CopyBillingPricingOfficialToSale)
 	router.POST("/api/v1/admin/billing/pricing/sale/apply-discount", handler.ApplyBillingPricingSaleDiscount)
@@ -42,7 +43,7 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.Contains(t, billingProvidersForTest(providersResp.Data), "openai")
 
 	modelsRec := httptest.NewRecorder()
-	modelsReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/billing/pricing/models?provider=openai&search=gpt-5.4&page=1&page_size=20", nil)
+	modelsReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/billing/pricing/models?provider=openai&search=gpt-5.4&sort_by=provider&sort_order=desc&page=1&page_size=20", nil)
 	router.ServeHTTP(modelsRec, modelsReq)
 	require.Equal(t, http.StatusOK, modelsRec.Code)
 
@@ -58,6 +59,20 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.NotEmpty(t, modelsResp.Data.Items)
 	require.Contains(t, billingModelsForTest(modelsResp.Data.Items), "gpt-5.4")
 	require.True(t, billingListItemForTest(modelsResp.Data.Items, "gpt-5.4").Capabilities.SupportsBatchPricing)
+
+	refreshRec := httptest.NewRecorder()
+	refreshReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/refresh", nil)
+	router.ServeHTTP(refreshRec, refreshReq)
+	require.Equal(t, http.StatusOK, refreshRec.Code)
+
+	var refreshResp struct {
+		Code int                                 `json:"code"`
+		Data service.BillingPricingRefreshResult `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(refreshRec.Body.Bytes(), &refreshResp))
+	require.Zero(t, refreshResp.Code)
+	require.GreaterOrEqual(t, refreshResp.Data.TotalModels, 2)
+	require.GreaterOrEqual(t, refreshResp.Data.ProviderCount, 2)
 
 	detailsRec := httptest.NewRecorder()
 	detailsReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/details", mustJSONBody(t, map[string]any{

@@ -12,6 +12,7 @@ export { useAnnouncementStore } from './announcements'
 export { useExchangeRateStore } from './exchangeRate'
 export { useModelRegistryStore } from './modelRegistry'
 export { useModelInventoryStore } from './modelInventory'
+export { useBillingPricingStore } from './billingPricing'
 
 // Re-export types for convenience
 export type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'

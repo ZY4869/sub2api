@@ -133,6 +133,7 @@ const (
 	SettingKeyModelOfficialPriceOverrides                    = "model_official_price_overrides"
 	SettingKeyModelPricingCurrencies                         = "model_pricing_currencies"
 	SettingKeyBillingCenterRules                             = "billing_center_rules"
+	SettingKeyBillingPricingCatalogSnapshot                  = "billing_pricing_catalog_snapshot"
 	SettingKeyModelRegistryEntries                           = "model_registry_entries"
 	SettingKeyModelRegistryHiddenModels                      = "model_registry_hidden_models"
 	SettingKeyModelRegistryTombstones                        = "model_registry_tombstones"

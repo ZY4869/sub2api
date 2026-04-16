@@ -2,6 +2,8 @@ import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
 
 export type BillingPricingCurrency = 'USD' | 'CNY'
+export type BillingPricingSortBy = 'display_name' | 'provider'
+export type BillingPricingSortOrder = 'asc' | 'desc'
 
 export interface BillingRuleMatchers {
   models?: string[]
@@ -203,8 +205,16 @@ export interface BillingPricingListParams {
   search?: string
   provider?: string
   mode?: string
+  sort_by?: BillingPricingSortBy
+  sort_order?: BillingPricingSortOrder
   page?: number
   page_size?: number
+}
+
+export interface BillingPricingRefreshResult {
+  updated_at: string
+  total_models: number
+  provider_count: number
 }
 
 export interface BillingSavePricingLayerPayload {
@@ -240,6 +250,11 @@ export async function getBillingPricingDetails(models: string[]): Promise<Billin
   const { data } = await apiClient.post<BillingPricingSheetDetail[]>('/admin/billing/pricing/details', {
     models,
   })
+  return data
+}
+
+export async function refreshBillingPricingCatalog(): Promise<BillingPricingRefreshResult> {
+  const { data } = await apiClient.post<BillingPricingRefreshResult>('/admin/billing/pricing/refresh')
   return data
 }
 

@@ -311,6 +311,35 @@ func TestUsageLogRepositoryListWithFiltersRequestTypePriority(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryListWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	filters := usagestats.UsageLogFilters{
+		UserID:     42,
+		APIKeyID:   7,
+		StartTime:  &start,
+		EndTime:    &end,
+		ExactTotal: true,
+	}
+
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM usage_logs WHERE user_id = \\$1 AND api_key_id = \\$2 AND created_at >= \\$3 AND created_at < \\$4").
+		WithArgs(int64(42), int64(7), start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(0)))
+	mock.ExpectQuery("SELECT .* FROM usage_logs WHERE user_id = \\$1 AND api_key_id = \\$2 AND created_at >= \\$3 AND created_at < \\$4 ORDER BY id DESC LIMIT \\$5 OFFSET \\$6").
+		WithArgs(int64(42), int64(7), start, end, 20, 0).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	logs, page, err := repo.ListWithFilters(context.Background(), pagination.PaginationParams{Page: 1, PageSize: 20}, filters)
+	require.NoError(t, err)
+	require.Empty(t, logs)
+	require.NotNil(t, page)
+	require.Equal(t, int64(0), page.Total)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageLogRepositoryGetUsageTrendWithFiltersRequestTypePriority(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
@@ -362,6 +391,41 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 
 	mock.ExpectQuery("FROM usage_logs\\s+WHERE \\(request_type = \\$1 OR \\(request_type = 0 AND stream = FALSE AND openai_ws_mode = FALSE\\)\\)").
 		WithArgs(requestType).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"total_requests",
+			"total_input_tokens",
+			"total_output_tokens",
+			"total_cache_tokens",
+			"total_cost",
+			"total_actual_cost",
+			"admin_free_requests",
+			"admin_free_standard_cost",
+			"total_account_cost",
+			"avg_duration_ms",
+		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
+
+	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), stats.TotalRequests)
+	require.Equal(t, int64(9), stats.TotalTokens)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetStatsWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	filters := usagestats.UsageLogFilters{
+		UserID:    42,
+		APIKeyID:  7,
+		StartTime: &start,
+		EndTime:   &end,
+	}
+
+	mock.ExpectQuery("FROM usage_logs\\s+WHERE user_id = \\$1 AND api_key_id = \\$2 AND created_at >= \\$3 AND created_at < \\$4").
+		WithArgs(int64(42), int64(7), start, end).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"total_requests",
 			"total_input_tokens",

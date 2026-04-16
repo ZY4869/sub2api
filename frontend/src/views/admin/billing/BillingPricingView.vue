@@ -8,13 +8,24 @@
           </div>
           <h2 class="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">模型定价</h2>
           <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-            计费中心现在独立于模型库。默认列表模式支持分页与每页数量切换，也可以切到九宫格供应商模式做批量巡检。
+            计费中心模型列表已切换为持久化快照，默认进入页面不会重新全量刷新，只有手动刷新时才会重建模型清单。
           </p>
         </div>
-        <BillingPricingModeToggle v-model="viewMode" />
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :disabled="loading || refreshing"
+            data-testid="billing-pricing-refresh"
+            @click="handleManualRefresh"
+          >
+            {{ refreshing ? '刷新中...' : '手动刷新' }}
+          </button>
+          <BillingPricingModeToggle v-model="viewMode" />
+        </div>
       </div>
 
-      <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1.5fr)_220px_220px]">
+      <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1.5fr)_220px_220px_220px]">
         <input
           v-model.trim="search"
           type="text"
@@ -34,6 +45,17 @@
           <option value="image">image</option>
           <option value="video">video</option>
           <option value="embedding">embedding</option>
+        </select>
+        <select
+          v-model="sortMode"
+          class="input"
+          data-testid="billing-pricing-sort"
+          @change="applySort"
+        >
+          <option value="display_name:asc">模型名 A-Z</option>
+          <option value="display_name:desc">模型名 Z-A</option>
+          <option value="provider:asc">厂商名 A-Z</option>
+          <option value="provider:desc">厂商名 Z-A</option>
         </select>
       </div>
 
@@ -81,17 +103,16 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   applyBillingPricingDiscount,
   copyBillingPricingOfficialToSale,
   getBillingPricingDetails,
-  listBillingPricingModels,
-  listBillingPricingProviders,
   updateBillingPricingLayer,
   type BillingPricingLayerForm,
-  type BillingPricingListItem,
-  type BillingPricingProviderGroup,
+  type BillingPricingSortBy,
+  type BillingPricingSortOrder,
   type BillingPricingSheetDetail,
 } from '@/api/admin/billing'
 import BillingPricingEditorDialog from '@/components/admin/billing/BillingPricingEditorDialog.vue'
@@ -99,37 +120,70 @@ import BillingPricingModeToggle from '@/components/admin/billing/BillingPricingM
 import BillingPricingModelList from '@/components/admin/billing/BillingPricingModelList.vue'
 import BillingPricingProviderGrid from '@/components/admin/billing/BillingPricingProviderGrid.vue'
 import BillingPricingProviderQuickFilters from '@/components/admin/billing/BillingPricingProviderQuickFilters.vue'
+import { useBillingPricingStore } from '@/stores'
 import { useAppStore } from '@/stores/app'
 
 const PAGE_SIZE_STORAGE_KEY = 'admin.billing.pricing.page_size'
 
 const appStore = useAppStore()
+const billingPricingStore = useBillingPricingStore()
 
-const viewMode = ref<'list' | 'grid'>('list')
-const search = ref('')
-const providerFilter = ref('')
-const modeFilter = ref('')
-const page = ref(1)
-const pageSize = ref(readPageSize())
-const total = ref(0)
-const items = ref<BillingPricingListItem[]>([])
-const providers = ref<BillingPricingProviderGroup[]>([])
-const providerModels = ref<Record<string, BillingPricingListItem[]>>({})
-const expandedProvider = ref('')
+const {
+  viewMode,
+  search,
+  providerFilter,
+  modeFilter,
+  sortBy,
+  sortOrder,
+  page,
+  pageSize,
+  total,
+  items,
+  providers,
+  providerModels,
+  expandedProvider,
+} = storeToRefs(billingPricingStore)
+
 const editorOpen = ref(false)
 const editorBusy = ref(false)
+const loading = ref(false)
+const refreshing = ref(false)
 const activeEditorModel = ref('')
 const editorDetails = ref<BillingPricingSheetDetail[]>([])
 
-const visibleProviders = computed(() => (
-  providerFilter.value
+const sortMode = computed({
+  get: () => `${sortBy.value}:${sortOrder.value}`,
+  set: (value: string) => {
+    const [nextSortBy, nextSortOrder] = value.split(':')
+    if ((nextSortBy === 'display_name' || nextSortBy === 'provider') && (nextSortOrder === 'asc' || nextSortOrder === 'desc')) {
+      sortBy.value = nextSortBy as BillingPricingSortBy
+      sortOrder.value = nextSortOrder as BillingPricingSortOrder
+    }
+  },
+})
+
+const visibleProviders = computed(() => {
+  const filtered = providerFilter.value
     ? providers.value.filter((provider) => provider.provider === providerFilter.value)
-    : providers.value
-))
+    : [...providers.value]
+  if (sortBy.value !== 'provider') {
+    return filtered
+  }
+  return [...filtered].sort((left, right) => {
+    const compared = left.label.localeCompare(right.label)
+    if (compared === 0) {
+      return left.provider.localeCompare(right.provider)
+    }
+    return sortOrder.value === 'desc' ? -compared : compared
+  })
+})
 
 onMounted(async () => {
   await guardedLoad(async () => {
-    await Promise.all([reloadProviders(), reloadModels()])
+    await Promise.all([billingPricingStore.loadProviders(), billingPricingStore.loadModels()])
+    if (viewMode.value === 'grid' && providerFilter.value) {
+      await syncGridProviderState(providerFilter.value)
+    }
   })
 })
 
@@ -139,30 +193,31 @@ watch(viewMode, async (mode) => {
   }
 })
 
-async function reloadProviders() {
-  providers.value = await listBillingPricingProviders()
+async function reloadProviders(force = false) {
+  await billingPricingStore.loadProviders(force)
 }
 
-async function reloadModels() {
-  const data = await listBillingPricingModels({
-    search: search.value || undefined,
-    provider: providerFilter.value || undefined,
-    mode: modeFilter.value || undefined,
-    page: page.value,
-    page_size: pageSize.value,
-  })
-  items.value = data.items || []
-  total.value = data.total || 0
+async function reloadModels(force = false) {
+  await billingPricingStore.loadModels(force)
 }
 
 async function applyFilters() {
   page.value = 1
   await guardedLoad(async () => {
+    await reloadModels()
     if (viewMode.value === 'grid') {
       await syncGridProviderState(providerFilter.value)
-      return
     }
+  })
+}
+
+async function applySort() {
+  page.value = 1
+  await guardedLoad(async () => {
     await reloadModels()
+    if (viewMode.value === 'grid') {
+      await syncGridProviderState(providerFilter.value || expandedProvider.value)
+    }
   })
 }
 
@@ -170,11 +225,10 @@ async function handleQuickProviderSelect(provider: string) {
   providerFilter.value = provider
   page.value = 1
   await guardedLoad(async () => {
+    await reloadModels()
     if (viewMode.value === 'grid') {
       await syncGridProviderState(provider)
-      return
     }
-    await reloadModels()
   })
 }
 
@@ -196,33 +250,22 @@ async function toggleProvider(provider: string) {
   if (!nextProvider) {
     return
   }
-
   await guardedLoad(() => ensureProviderModelsLoaded(nextProvider))
 }
 
-async function syncGridProviderState(provider: string) {
+async function syncGridProviderState(provider: string, force = false) {
   expandedProvider.value = provider
   if (!provider) {
     return
   }
-
-  await ensureProviderModelsLoaded(provider)
+  await ensureProviderModelsLoaded(provider, force)
 }
 
-async function ensureProviderModelsLoaded(provider: string) {
-  if (!provider || providerModels.value[provider]) {
+async function ensureProviderModelsLoaded(provider: string, force = false) {
+  if (!provider) {
     return
   }
-
-  const data = await listBillingPricingModels({
-    provider,
-    page: 1,
-    page_size: 100,
-  })
-  providerModels.value = {
-    ...providerModels.value,
-    [provider]: data.items || [],
-  }
+  await billingPricingStore.loadProviderModels(provider, force)
 }
 
 async function openEditor(model: string) {
@@ -253,8 +296,9 @@ async function handleSaveLayer(payload: {
       currency: payload.currency,
     })
     mergeEditorDetail(detail)
-    appStore.showSuccess(payload.layer === 'official' ? '官方价格已保存' : '出售价格已保存')
-    await guardedLoad(reloadModels)
+    appStore.showSuccess(payload.layer === 'official' ? '官方价格已保存' : '售价已保存')
+    billingPricingStore.invalidate()
+    await guardedLoad(() => reloadAfterMutation(true))
   } catch (error) {
     appStore.showError(resolveErrorMessage(error, '保存模型定价失败'))
   } finally {
@@ -267,8 +311,9 @@ async function handleCopyOfficial(payload: { models: string[] }) {
   try {
     const details = await copyBillingPricingOfficialToSale(payload)
     details.forEach(mergeEditorDetail)
-    appStore.showSuccess('已套用官方价格到出售价格')
-    await guardedLoad(reloadModels)
+    appStore.showSuccess('已将官方价格复制到售价')
+    billingPricingStore.invalidate()
+    await guardedLoad(() => reloadAfterMutation(true))
   } catch (error) {
     appStore.showError(resolveErrorMessage(error, '复制官方价格失败'))
   } finally {
@@ -285,12 +330,26 @@ async function handleApplyDiscount(payload: { models: string[]; itemIds?: string
       discount_ratio: payload.discountRatio,
     })
     details.forEach(mergeEditorDetail)
-    appStore.showSuccess('出售价格折扣已应用')
-    await guardedLoad(reloadModels)
+    appStore.showSuccess('售价折扣已应用')
+    billingPricingStore.invalidate()
+    await guardedLoad(() => reloadAfterMutation(true))
   } catch (error) {
     appStore.showError(resolveErrorMessage(error, '应用折扣失败'))
   } finally {
     editorBusy.value = false
+  }
+}
+
+async function handleManualRefresh() {
+  refreshing.value = true
+  try {
+    const result = await billingPricingStore.refreshCatalog()
+    await guardedLoad(() => reloadAfterMutation(true))
+    appStore.showSuccess(`模型列表已刷新，共 ${result.total_models} 个模型`)
+  } catch (error) {
+    appStore.showError(resolveErrorMessage(error, '刷新模型列表失败'))
+  } finally {
+    refreshing.value = false
   }
 }
 
@@ -305,22 +364,26 @@ function mergeEditorDetail(detail: BillingPricingSheetDetail) {
   editorDetails.value = next
 }
 
+async function reloadAfterMutation(force = false) {
+  await Promise.all([reloadProviders(force), reloadModels(force)])
+  if (viewMode.value === 'grid') {
+    await syncGridProviderState(expandedProvider.value || providerFilter.value, force)
+  }
+}
+
 async function guardedLoad(loader: () => Promise<void>) {
+  loading.value = true
   try {
     await loader()
   } catch (error) {
     appStore.showError(resolveErrorMessage(error, '加载计费中心数据失败'))
+  } finally {
+    loading.value = false
   }
 }
 
 function dedupeModels(models: string[]): string[] {
   return Array.from(new Set(models.filter(Boolean)))
-}
-
-function readPageSize(): number {
-  const raw = localStorage.getItem(PAGE_SIZE_STORAGE_KEY)
-  const parsed = Number(raw)
-  return parsed === 50 || parsed === 100 ? parsed : 20
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {

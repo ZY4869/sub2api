@@ -15,17 +15,13 @@ func (s *BillingCenterService) ListPricingProviders(ctx context.Context) ([]Bill
 	if s == nil || s.modelCatalogService == nil {
 		return []BillingPricingProviderGroup{}, nil
 	}
-	records, err := s.modelCatalogService.buildCatalogRecords(ctx)
+	snapshot, err := s.ensureBillingPricingCatalogMigrated(ctx)
 	if err != nil {
 		return nil, err
 	}
 	grouped := map[string]*BillingPricingProviderGroup{}
-	rules := s.ListRules(ctx)
-	for _, record := range records {
-		if record == nil {
-			continue
-		}
-		provider := strings.TrimSpace(record.provider)
+	for _, model := range snapshot.Models {
+		provider := strings.TrimSpace(model.Provider)
 		if provider == "" {
 			provider = "unknown"
 		}
@@ -33,23 +29,25 @@ func (s *BillingCenterService) ListPricingProviders(ctx context.Context) ([]Bill
 		if group == nil {
 			group = &BillingPricingProviderGroup{
 				Provider: provider,
-				Label:    strings.ToUpper(provider[:1]) + provider[1:],
+				Label:    FormatProviderLabel(provider),
 			}
 			grouped[provider] = group
 		}
 		group.TotalCount++
-		group.OfficialCount += len(pricingItemsForRecord(record, BillingLayerOfficial, rules))
-		group.SaleCount += len(pricingItemsForRecord(record, BillingLayerSale, rules))
+		group.OfficialCount += model.OfficialCount
+		group.SaleCount += model.SaleCount
 	}
 	items := make([]BillingPricingProviderGroup, 0, len(grouped))
 	for _, group := range grouped {
 		items = append(items, *group)
 	}
 	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].Label == items[j].Label {
+		left := strings.ToLower(strings.TrimSpace(items[i].Label))
+		right := strings.ToLower(strings.TrimSpace(items[j].Label))
+		if left == right {
 			return items[i].Provider < items[j].Provider
 		}
-		return items[i].Label < items[j].Label
+		return left < right
 	})
 	return items, nil
 }
@@ -58,36 +56,18 @@ func (s *BillingCenterService) ListPricingModels(ctx context.Context, filter Bil
 	if s == nil || s.modelCatalogService == nil {
 		return []BillingPricingListItem{}, 0, nil
 	}
-	records, err := s.modelCatalogService.buildCatalogRecords(ctx)
+	snapshot, err := s.ensureBillingPricingCatalogMigrated(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
-	rules := s.ListRules(ctx)
-	items := make([]BillingPricingListItem, 0, len(records))
-	for _, record := range records {
-		if record == nil {
-			continue
-		}
-		item := BillingPricingListItem{
-			Model:         NormalizeModelCatalogModelID(record.model),
-			DisplayName:   record.displayName,
-			Provider:      record.provider,
-			Mode:          record.mode,
-			Capabilities:  billingPricingCapabilitiesForRecord(record),
-			OfficialCount: len(pricingItemsForRecord(record, BillingLayerOfficial, rules)),
-			SaleCount:     len(pricingItemsForRecord(record, BillingLayerSale, rules)),
-		}
-		item.PriceItemCount = item.OfficialCount + item.SaleCount
+	items := make([]BillingPricingListItem, 0, len(snapshot.Models))
+	for _, model := range snapshot.Models {
+		item := billingPricingPersistedModelToListItem(model)
 		if matchesBillingPricingFilter(item, filter) {
 			items = append(items, item)
 		}
 	}
-	sort.SliceStable(items, func(i, j int) bool {
-		if items[i].DisplayName == items[j].DisplayName {
-			return items[i].Model < items[j].Model
-		}
-		return items[i].DisplayName < items[j].DisplayName
-	})
+	sortBillingPricingListItems(items, filter)
 	total := int64(len(items))
 	page, pageSize := normalizeListPagination(filter.Page, filter.PageSize)
 	if pageSize > 100 {
@@ -127,40 +107,17 @@ func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []s
 	if s == nil || s.modelCatalogService == nil {
 		return []BillingPricingSheetDetail{}, nil
 	}
-	records, err := s.modelCatalogService.buildCatalogRecords(ctx)
+	snapshot, err := s.ensureBillingPricingCatalogMigrated(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rules := s.ListRules(ctx)
 	items := make([]BillingPricingSheetDetail, 0, len(models))
 	for _, model := range models {
-		record, ok := resolveModelCatalogRecord(records, model)
-		if !ok || record == nil {
+		persisted, ok, _ := billingPricingSnapshotModel(snapshot, model)
+		if !ok {
 			return nil, infraerrors.NotFound("BILLING_MODEL_NOT_FOUND", "billing model not found")
 		}
-		officialItems := pricingItemsForRecord(record, BillingLayerOfficial, rules)
-		saleItems := pricingItemsForRecord(record, BillingLayerSale, rules)
-		combinedItems := append(append([]BillingPriceItem(nil), officialItems...), saleItems...)
-		metadata := billingPricingMetadataForRecord(record, combinedItems)
-		items = append(items, BillingPricingSheetDetail{
-			Model:                           NormalizeModelCatalogModelID(record.model),
-			DisplayName:                     record.displayName,
-			Provider:                        record.provider,
-			Mode:                            record.mode,
-			Currency:                        defaultModelPricingCurrency(record.pricingCurrency),
-			InputSupported:                  metadata.InputSupported,
-			OutputChargeSlot:                metadata.OutputChargeSlot,
-			SupportsPromptCaching:           record.supportsPromptCaching,
-			SupportsServiceTier:             record.supportsServiceTier,
-			LongContextInputTokenThreshold:  record.longContextInputTokenThreshold,
-			LongContextInputCostMultiplier:  record.longContextInputCostMultiplier,
-			LongContextOutputCostMultiplier: record.longContextOutputCostMultiplier,
-			Capabilities:                    billingPricingCapabilitiesForRecord(record),
-			OfficialForm:                    billingPricingLayerFormFromItemsWithMetadata(metadata, officialItems),
-			SaleForm:                        billingPricingLayerFormFromItemsWithMetadata(metadata, saleItems),
-			OfficialItems:                   officialItems,
-			SaleItems:                       saleItems,
-		})
+		items = append(items, billingPricingPersistedModelToDetail(persisted))
 	}
 	return items, nil
 }
@@ -173,20 +130,19 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	if layer != BillingLayerOfficial && layer != BillingLayerSale {
 		return nil, infraerrors.BadRequest("BILLING_LAYER_INVALID", "layer must be official or sale")
 	}
-	records, err := s.modelCatalogService.buildCatalogRecords(ctx)
+	snapshot, err := s.ensureBillingPricingCatalogMigrated(ctx)
 	if err != nil {
 		return nil, err
 	}
-	record, ok := resolveModelCatalogRecord(records, input.Model)
-	if !ok || record == nil {
+	persisted, ok, index := billingPricingSnapshotModel(snapshot, input.Model)
+	if !ok {
 		return nil, infraerrors.NotFound("BILLING_MODEL_NOT_FOUND", "billing model not found")
 	}
-	rules := s.ListRules(ctx)
-	currentItems := pricingItemsForRecord(record, layer, rules)
-	metadata := billingPricingMetadataForRecord(record, currentItems)
+	record := billingPricingPersistedModelToRecord(persisted)
+	metadata := billingPricingMetadataForPersistedModel(persisted)
 	currency := normalizeModelPricingCurrency(input.Currency)
 	if currency == "" {
-		currency = defaultModelPricingCurrency(record.pricingCurrency)
+		currency = defaultModelPricingCurrency(persisted.Currency)
 	}
 	form := BillingPricingLayerForm{}
 	switch {
@@ -204,10 +160,32 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	if err := validateFlatPricingForSave(legacyPricing); err != nil {
 		return nil, err
 	}
+
+	updatedModel := cloneBillingPricingPersistedModel(persisted)
+	updatedModel.Currency = currency
+	editorItems := prepareBillingPriceItemsForEditor(items)
+	switch layer {
+	case BillingLayerOfficial:
+		updatedModel.OfficialForm = cloneBillingPricingLayerForm(form)
+		updatedModel.OfficialItems = cloneBillingPriceItems(editorItems)
+		updatedModel.OfficialCount = len(updatedModel.OfficialItems)
+	case BillingLayerSale:
+		updatedModel.SaleForm = cloneBillingPricingLayerForm(form)
+		updatedModel.SaleItems = cloneBillingPriceItems(editorItems)
+		updatedModel.SaleCount = len(updatedModel.SaleItems)
+	}
+	updatedModel = cloneBillingPricingPersistedModel(updatedModel)
+	snapshot.Models[index] = updatedModel
+	snapshot.UpdatedAt = time.Now().UTC()
+	if err := s.persistBillingPricingCatalogSnapshot(ctx, snapshot); err != nil {
+		return nil, err
+	}
+
 	if err := s.modelCatalogService.ReplacePricingOverrideLayer(ctx, actor, record.model, layer == BillingLayerOfficial, legacyPricing); err != nil {
 		return nil, err
 	}
 
+	rules := s.ListRules(ctx)
 	rules = deleteGeneratedPricingRules(rules, record.model, layer)
 	rules, _ = deleteGeminiCompatRules(rules, record, layer)
 	if isGeminiBillingCompatModel(record.model) {
@@ -228,19 +206,94 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 		"billing pricing layer normalized save",
 		zap.String("component", "service.billing_center"),
 		zap.String("model", record.model),
+		zap.Int("model_count", 1),
 		zap.String("layer", layer),
 		zap.String("currency", currency),
+		zap.Bool("snapshot", true),
 		zap.Bool("input_supported", metadata.InputSupported),
 		zap.String("output_charge_slot", metadata.OutputChargeSlot),
 		zap.Bool("special_enabled", form.SpecialEnabled),
 		zap.Bool("tiered_enabled", form.TieredEnabled),
 	)
 
-	details, err := s.GetPricingDetails(ctx, []string{record.model})
-	if err != nil || len(details) == 0 {
-		return nil, err
+	detail := billingPricingPersistedModelToDetail(snapshot.Models[index])
+	return &detail, nil
+}
+
+func billingPricingSnapshotModel(snapshot *BillingPricingCatalogSnapshot, model string) (BillingPricingPersistedModel, bool, int) {
+	key := NormalizeModelCatalogModelID(model)
+	if snapshot == nil || key == "" {
+		return BillingPricingPersistedModel{}, false, -1
 	}
-	return &details[0], nil
+	for index, item := range snapshot.Models {
+		if NormalizeModelCatalogModelID(item.Model) == key {
+			return cloneBillingPricingPersistedModel(item), true, index
+		}
+	}
+	return BillingPricingPersistedModel{}, false, -1
+}
+
+const (
+	billingPricingSortByDisplayName = "display_name"
+	billingPricingSortByProvider    = "provider"
+	billingPricingSortOrderAsc      = "asc"
+	billingPricingSortOrderDesc     = "desc"
+)
+
+func normalizeBillingPricingSortBy(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case billingPricingSortByProvider:
+		return billingPricingSortByProvider
+	default:
+		return billingPricingSortByDisplayName
+	}
+}
+
+func normalizeBillingPricingSortOrder(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case billingPricingSortOrderDesc:
+		return billingPricingSortOrderDesc
+	default:
+		return billingPricingSortOrderAsc
+	}
+}
+
+func sortBillingPricingListItems(items []BillingPricingListItem, filter BillingPricingListFilter) {
+	sortBy := normalizeBillingPricingSortBy(filter.SortBy)
+	sortOrder := normalizeBillingPricingSortOrder(filter.SortOrder)
+	sort.SliceStable(items, func(i, j int) bool {
+		left := billingPricingPrimarySortKey(items[i], sortBy)
+		right := billingPricingPrimarySortKey(items[j], sortBy)
+		if left != right {
+			if sortOrder == billingPricingSortOrderDesc {
+				return left > right
+			}
+			return left < right
+		}
+		leftDisplay := billingPricingDisplaySortKey(items[i])
+		rightDisplay := billingPricingDisplaySortKey(items[j])
+		if leftDisplay != rightDisplay {
+			return leftDisplay < rightDisplay
+		}
+		return strings.ToLower(items[i].Model) < strings.ToLower(items[j].Model)
+	})
+}
+
+func billingPricingPrimarySortKey(item BillingPricingListItem, sortBy string) string {
+	switch normalizeBillingPricingSortBy(sortBy) {
+	case billingPricingSortByProvider:
+		return strings.ToLower(strings.TrimSpace(FormatProviderLabel(item.Provider)))
+	default:
+		return billingPricingDisplaySortKey(item)
+	}
+}
+
+func billingPricingDisplaySortKey(item BillingPricingListItem) string {
+	displayName := strings.TrimSpace(item.DisplayName)
+	if displayName != "" {
+		return strings.ToLower(displayName)
+	}
+	return strings.ToLower(strings.TrimSpace(item.Model))
 }
 
 func (s *BillingCenterService) CopyPricingItemsOfficialToSale(ctx context.Context, actor ModelCatalogActor, models []string) ([]BillingPricingSheetDetail, error) {
@@ -261,6 +314,12 @@ func (s *BillingCenterService) CopyPricingItemsOfficialToSale(ctx context.Contex
 		}
 		updated = append(updated, *next)
 	}
+	logger.FromContext(ctx).Info(
+		"billing pricing copy official to sale completed",
+		zap.String("component", "service.billing_center"),
+		zap.Bool("snapshot", true),
+		zap.Int("model_count", len(updated)),
+	)
 	return updated, nil
 }
 
@@ -289,6 +348,12 @@ func (s *BillingCenterService) ApplySaleDiscount(ctx context.Context, actor Mode
 		}
 		updated = append(updated, *next)
 	}
+	logger.FromContext(ctx).Info(
+		"billing pricing discount completed",
+		zap.String("component", "service.billing_center"),
+		zap.Bool("snapshot", true),
+		zap.Int("model_count", len(updated)),
+	)
 	return updated, nil
 }
 

@@ -307,13 +307,14 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 		endTime = now
 	}
 
-	var stats *service.UsageStats
-	var err error
-	if apiKeyID > 0 {
-		stats, err = h.usageService.GetStatsByAPIKey(c.Request.Context(), apiKeyID, startTime, endTime)
-	} else {
-		stats, err = h.usageService.GetStatsByUser(c.Request.Context(), subject.UserID, startTime, endTime)
+	statsFilters := usagestats.UsageLogFilters{
+		UserID:    subject.UserID,
+		APIKeyID:  apiKeyID,
+		StartTime: &startTime,
+		EndTime:   &endTime,
 	}
+
+	stats, err := h.usageService.GetStatsWithFilters(c.Request.Context(), statsFilters)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

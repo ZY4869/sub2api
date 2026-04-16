@@ -122,6 +122,7 @@ func registerAdminBillingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			pricing.GET("/providers", h.Admin.ModelCatalog.ListBillingPricingProviders)
 			pricing.GET("/models", h.Admin.ModelCatalog.ListBillingPricingModels)
 			pricing.POST("/details", h.Admin.ModelCatalog.GetBillingPricingDetails)
+			pricing.POST("/refresh", h.Admin.ModelCatalog.RefreshBillingPricingCatalog)
 			pricing.PUT("/models/:model/layers/:layer", h.Admin.ModelCatalog.SaveBillingPricingLayer)
 			pricing.POST("/sale/copy-from-official", h.Admin.ModelCatalog.CopyBillingPricingOfficialToSale)
 			pricing.POST("/sale/apply-discount", h.Admin.ModelCatalog.ApplyBillingPricingSaleDiscount)
