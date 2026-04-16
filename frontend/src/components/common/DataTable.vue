@@ -398,6 +398,8 @@ interface Props {
    * will emit 'sort' events instead of performing client-side sorting.
    */
   serverSideSort?: boolean
+  /** Render desktop rows directly instead of using virtual scroll */
+  virtualScroll?: boolean
   /** Estimated row height in px for the virtualizer (default 56) */
   estimateRowHeight?: number
   /** Number of rows to render beyond the visible area (default 5) */
@@ -411,7 +413,8 @@ const props = withDefaults(defineProps<Props>(), {
   expandableActions: true,
   defaultSortOrder: 'asc',
   preserveInputOrder: false,
-  serverSideSort: false
+  serverSideSort: false,
+  virtualScroll: true
 })
 
 const sortKey = ref<string>('')
@@ -627,7 +630,7 @@ const sortedData = computed(() => {
 
 // --- Virtual scrolling ---
 const rowVirtualizer = useVirtualizer(computed(() => ({
-  count: isDesktopViewport.value ? (sortedData.value?.length ?? 0) : 0,
+  count: isDesktopViewport.value && props.virtualScroll ? (sortedData.value?.length ?? 0) : 0,
   getScrollElement: () => tableWrapperRef.value,
   estimateSize: () => props.estimateRowHeight ?? 56,
   overscan: props.overscan ?? 5,
@@ -640,7 +643,7 @@ const shouldFallbackToDirectRows = computed(() => {
     isDesktopViewport.value &&
     !props.loading &&
     (sortedData.value?.length ?? 0) > 0 &&
-    virtualItems.value.length === 0
+    (!props.virtualScroll || virtualItems.value.length === 0)
   )
 })
 

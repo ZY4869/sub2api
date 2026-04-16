@@ -7,7 +7,7 @@ import UsageView from "../UsageView.vue";
 const {
   query,
   getStatsByDateRange,
-  list,
+  listFilterApiKeys,
   showError,
   showWarning,
   showSuccess,
@@ -15,7 +15,7 @@ const {
 } = vi.hoisted(() => ({
   query: vi.fn(),
   getStatsByDateRange: vi.fn(),
-  list: vi.fn(),
+  listFilterApiKeys: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn(),
   showSuccess: vi.fn(),
@@ -67,9 +67,7 @@ vi.mock("@/api", () => ({
   usageAPI: {
     query,
     getStatsByDateRange,
-  },
-  keysAPI: {
-    list,
+    listFilterApiKeys,
   },
 }));
 
@@ -89,14 +87,15 @@ vi.mock("vue-i18n", async () => {
 
 const AppLayoutStub = { template: "<div><slot /></div>" };
 const TablePageLayoutStub = {
-  template: '<div><slot name="actions" /><slot name="filters" /><slot /></div>',
+  template:
+    '<div><slot name="actions" /><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>',
 };
 
 describe("user UsageView tooltip", () => {
   beforeEach(() => {
     query.mockReset();
     getStatsByDateRange.mockReset();
-    list.mockReset();
+    listFilterApiKeys.mockReset();
     showError.mockReset();
     showWarning.mockReset();
     showSuccess.mockReset();
@@ -158,7 +157,7 @@ describe("user UsageView tooltip", () => {
       total_cost: 0.1,
       avg_duration_ms: 1,
     });
-    list.mockResolvedValue({ items: [] });
+    listFilterApiKeys.mockResolvedValue([]);
 
     const wrapper = mount(UsageView, {
       global: {
@@ -257,7 +256,7 @@ describe("user UsageView tooltip", () => {
       total_cost: 0.1,
       avg_duration_ms: 1,
     });
-    list.mockResolvedValue({ items: [] });
+    listFilterApiKeys.mockResolvedValue([]);
 
     let exportedBlob: Blob | null = null;
     const originalCreateObjectURL = window.URL.createObjectURL;
@@ -363,7 +362,7 @@ describe("user UsageView tooltip", () => {
       total_cost: 0,
       avg_duration_ms: 12,
     });
-    list.mockResolvedValue({ items: [] });
+    listFilterApiKeys.mockResolvedValue([]);
 
     let exportedBlob: Blob | null = null;
     const originalCreateObjectURL = window.URL.createObjectURL;
@@ -469,7 +468,7 @@ describe("user UsageView tooltip", () => {
       total_cost: 0,
       avg_duration_ms: 10,
     });
-    list.mockResolvedValue({ items: [] });
+    listFilterApiKeys.mockResolvedValue([]);
 
     const wrapper = mount(UsageView, {
       global: {
@@ -498,5 +497,71 @@ describe("user UsageView tooltip", () => {
     expect(setupState.truncateUsageErrorMessage("  Rate limit exceeded for this account  ")).toBe(
       "Rate limit exceeded for this account"
     );
+  });
+
+  it("renders usage rows when query data is returned", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          request_id: "req-user-visible",
+          model: "gpt-5.4",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.01,
+          total_cost: 0.01,
+          input_cost: 0.004,
+          output_cost: 0.006,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 20,
+          duration_ms: 40,
+          created_at: "2026-03-08T00:00:00Z",
+          inbound_endpoint: "/v1/chat/completions",
+          upstream_endpoint: "/v1/chat/completions",
+          api_key: { name: "visible-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 300,
+      total_cost: 0.01,
+      avg_duration_ms: 40,
+    });
+    listFilterApiKeys.mockResolvedValue([{ id: 1, name: "visible-key", deleted: false }]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.findAll('tbody tr[data-row-id]')).toHaveLength(1);
+    expect(wrapper.text()).toContain("visible-key");
+    expect(wrapper.text()).toContain("gpt-5.4");
   });
 });

@@ -464,12 +464,14 @@ export default {
         },
         manualAddDialog: {
           title: 'Manual Add Model',
-          description: 'Add a new model ID directly. The system will infer the provider and activate it immediately.',
+          description: 'Add a new model ID directly. Leave provider empty to let the system infer it automatically before activation.',
           modelIdLabel: 'Model ID',
           modelIdPlaceholder: 'For example gpt-5.4-mini',
           modelIdRequired: 'Model ID is required',
           displayNameLabel: 'Model Name',
           displayNamePlaceholder: 'Optional display name',
+          providerLabel: 'Provider',
+          providerAutoOption: 'Auto Detect',
           confirm: 'Add And Activate'
         }
       },
@@ -2683,8 +2685,8 @@ export default {
         upstreamProbeSource: 'Probe Source',
         upstreamProbedAt: 'Probed At',
         manualModelsTitle: 'Manual Model IDs',
-        manualModelsHint: 'Use this when runtime calls should support a model even if online enumeration is unavailable. Leaving alias blank falls back to the model ID.',
-        manualModelsHintGateway: 'Mixed / protocol-gateway manual models can also set a source protocol. Leaving it empty defers to runtime routing.',
+        manualModelsHint: 'Use this when runtime calls should support a model even if online enumeration is unavailable. You can also pin a provider; leaving alias blank falls back to the model ID.',
+        manualModelsHintGateway: 'Mixed / protocol-gateway manual models can also set provider and source protocol. Leaving source protocol empty defers to runtime routing.',
         addManualModel: 'Add Manual Model',
         removeManualModel: 'Remove',
         manualModelsEmpty: 'No manual model entries yet. You can probe first or add model IDs directly.',
@@ -2692,6 +2694,8 @@ export default {
         manualModelIdPlaceholder: 'For example: gpt-4.1 or claude-sonnet-4-5',
         manualRequestAlias: 'Request Alias',
         manualRequestAliasPlaceholder: 'Defaults to the model ID when left blank',
+        manualProvider: 'Provider',
+        manualProviderAuto: 'Auto Detect',
         manualSourceProtocol: 'Source Protocol',
         manualSourceProtocolAuto: 'Auto'
       },

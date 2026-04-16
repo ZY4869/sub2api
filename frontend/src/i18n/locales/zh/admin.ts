@@ -485,12 +485,14 @@
         },
         manualAddDialog: {
           title: '手动添加模型',
-          description: '直接录入新的模型 ID，系统会自动推断提供商并立即启用。',
+          description: '直接录入新的模型 ID。若不指定提供商，系统会先自动识别后再立即启用。',
           modelIdLabel: '模型 ID',
           modelIdPlaceholder: '例如 gpt-5.4-mini',
           modelIdRequired: '请输入模型 ID',
           displayNameLabel: '模型名称',
           displayNamePlaceholder: '可选，留空则使用系统默认显示名',
+          providerLabel: '提供商',
+          providerAutoOption: '自动识别',
           confirm: '添加并启用'
         }
       },
@@ -2832,8 +2834,8 @@
         upstreamProbeSource: '探测来源',
         upstreamProbedAt: '探测时间',
         manualModelsTitle: '手动模型 ID',
-        manualModelsHint: '适用于暂时无法在线枚举、但你仍希望保存/测试/导入的模型。留空 alias 时默认使用模型 ID。',
-        manualModelsHintGateway: 'Mixed / Protocol Gateway 手动模型可额外指定 source protocol；未指定时按实际请求链路判断。',
+        manualModelsHint: '适用于暂时无法在线枚举、但你仍希望保存/测试/导入的模型。你也可以手动指定提供商；留空 alias 时默认使用模型 ID。',
+        manualModelsHintGateway: 'Mixed / Protocol Gateway 手动模型可额外指定提供商和 source protocol；未指定 source protocol 时按实际请求链路判断。',
         addManualModel: '添加手动模型',
         removeManualModel: '移除',
         manualModelsEmpty: '还没有手动模型条目。你可以先取模，也可以直接手动补充模型 ID。',
@@ -2841,6 +2843,8 @@
         manualModelIdPlaceholder: '例如：gpt-4.1 或 claude-sonnet-4-5',
         manualRequestAlias: '请求别名',
         manualRequestAliasPlaceholder: '留空时默认等于模型 ID',
+        manualProvider: '提供商',
+        manualProviderAuto: '自动识别',
         manualSourceProtocol: '来源协议',
         manualSourceProtocolAuto: '自动判断'
       },

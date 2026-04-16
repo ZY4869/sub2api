@@ -609,6 +609,16 @@ func (s *AccountModelImportService) mergeManualModelsIntoProbeResult(account *Ac
 		}
 		mergedModels = append(mergedModels, modelID)
 		if _, exists := seen[modelID]; exists {
+			for index := range mergedDetails {
+				if NormalizeModelCatalogModelID(mergedDetails[index].ID) != modelID {
+					continue
+				}
+				if mergedDetails[index].SourceProtocol == "" {
+					mergedDetails[index].SourceProtocol = manualModel.SourceProtocol
+				}
+				mergedDetails[index] = applyAccountModelProbeProvider(mergedDetails[index], manualModel.Provider)
+				break
+			}
 			continue
 		}
 		seen[modelID] = struct{}{}
@@ -618,7 +628,7 @@ func (s *AccountModelImportService) mergeManualModelsIntoProbeResult(account *Ac
 			SourceProtocol: manualModel.SourceProtocol,
 			UpstreamSource: "manual",
 			Availability:   "manual",
-		}, NormalizeModelProvider(manualModel.SourceProtocol)))
+		}, manualModel.Provider))
 	}
 	result.Models = mergedModels
 	result.Details = mergedDetails

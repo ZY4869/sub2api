@@ -238,3 +238,27 @@ func TestBuildAvailableTestModels_DoesNotRestrictOpenAIAPIKeyModelsByKnownSnapsh
 	require.Contains(t, ids, "gpt-5.4")
 	require.Contains(t, ids, "gpt-5.1-codex-mini")
 }
+
+func TestBuildManualTestModelCandidates_PrefersManualProviderMetadata(t *testing.T) {
+	account := &Account{
+		ID:       996,
+		Name:     "openai-direct-manual-provider",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Extra: map[string]any{
+			"manual_models": []any{
+				map[string]any{
+					"model_id": "shared-model",
+					"provider": "grok",
+				},
+			},
+		},
+	}
+
+	candidates := buildManualTestModelCandidates(account, "")
+	require.Len(t, candidates, 1)
+	require.Equal(t, "shared-model", candidates[0].model.ID)
+	require.Equal(t, "grok", candidates[0].model.Provider)
+	require.Equal(t, "xAI-Grok", candidates[0].model.ProviderLabel)
+}

@@ -293,4 +293,38 @@ describe('AccountApiKeyModelProbeEditor', () => {
       'upstream model listing failed with status 403\nOpenAI model list permission hint'
     )
   })
+
+  it('passes manual model provider metadata through probe requests', async () => {
+    probeModels.mockResolvedValue({
+      probe_source: 'vertex_express_catalog',
+      probe_notice: '',
+      models: []
+    })
+
+    const wrapper = createWrapper({
+      manualModels: [
+        {
+          model_id: 'custom-model',
+          request_alias: 'Custom Alias',
+          provider: 'grok'
+        }
+      ]
+    })
+
+    const probeButton = findProbeButton(wrapper)
+    await probeButton?.trigger('click')
+    await flushPromises()
+
+    expect(probeModels).toHaveBeenCalledWith(
+      expect.objectContaining({
+        manual_models: [
+          {
+            model_id: 'custom-model',
+            request_alias: 'Custom Alias',
+            provider: 'grok'
+          }
+        ]
+      })
+    )
+  })
 })

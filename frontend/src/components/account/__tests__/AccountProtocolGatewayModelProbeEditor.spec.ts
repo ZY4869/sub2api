@@ -429,4 +429,51 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
       'admin.accounts.protocolGateway.baseUrlInvalidWarning'
     )
   })
+
+  it('passes manual model provider metadata through gateway probe requests', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'openai',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        allowedModels: [],
+        modelMappings: [],
+        probedModels: [],
+        manualModels: [
+          {
+            model_id: 'shared-model',
+            provider: 'grok',
+            source_protocol: 'openai'
+          }
+        ],
+        resolvedUpstream: null,
+        acceptedProtocols: ['openai'],
+        clientProfiles: [],
+        clientRoutes: []
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    const probeButton = findButtonByText(wrapper, 'admin.accounts.protocolGateway.probeAction')
+    expect(probeButton).toBeTruthy()
+
+    await probeButton!.trigger('click')
+    await flushPromises()
+
+    expect(probeProtocolGatewayModels).toHaveBeenCalledWith(
+      expect.objectContaining({
+        manual_models: [
+          {
+            model_id: 'shared-model',
+            provider: 'grok',
+            source_protocol: 'openai'
+          }
+        ]
+      })
+    )
+  })
 })

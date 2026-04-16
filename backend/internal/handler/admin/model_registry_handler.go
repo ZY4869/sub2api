@@ -95,6 +95,7 @@ func (h *ModelRegistryHandler) ManualAdd(c *gin.Context) {
 		zap.String("component", "handler.admin.model_registry"),
 		zap.Int64("admin_user_id", adminUserID),
 		zap.String("model", strings.TrimSpace(req.ID)),
+		zap.String("requested_provider", strings.TrimSpace(req.Provider)),
 	)
 	log.Info("manual add model registry entry start")
 
@@ -106,6 +107,7 @@ func (h *ModelRegistryHandler) ManualAdd(c *gin.Context) {
 	}
 
 	log.Info("manual add model registry entry success",
+		zap.String("requested_provider", strings.TrimSpace(req.Provider)),
 		zap.String("provider", detail.Provider),
 		zap.Bool("created_runtime_entry", createdRuntime),
 		zap.Bool("activated", activated),

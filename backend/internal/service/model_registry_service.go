@@ -45,6 +45,7 @@ type UpsertModelRegistryEntryInput struct {
 type ManualAddModelRegistryEntryInput struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
+	Provider    string `json:"provider"`
 }
 
 type UpdateModelRegistryVisibilityInput struct {

@@ -985,3 +985,40 @@ func registryEntryIDsFromJSON(t *testing.T, payload string) []string {
 	}
 	return ids
 }
+
+func TestAccountModelImportService_MergeManualModelsIntoProbeResult_OverridesProviderMetadata(t *testing.T) {
+	svc := &AccountModelImportService{}
+	account := &Account{
+		ID:       77,
+		Platform: PlatformProtocolGateway,
+		Type:     AccountTypeAPIKey,
+		Extra: map[string]any{
+			"gateway_protocol":           GatewayProtocolMixed,
+			"gateway_accepted_protocols": []string{PlatformOpenAI},
+			"manual_models": []any{
+				map[string]any{
+					"model_id":        "shared-model",
+					"provider":        "grok",
+					"source_protocol": "openai",
+				},
+			},
+		},
+	}
+	result := &accountModelProbeResult{
+		Models: []string{"shared-model"},
+		Details: []AccountModelProbeModel{
+			{
+				ID:          "shared-model",
+				DisplayName: "Shared Model",
+				Provider:    "openai",
+			},
+		},
+	}
+
+	merged := svc.mergeManualModelsIntoProbeResult(account, result)
+
+	require.Len(t, merged.Details, 1)
+	require.Equal(t, "grok", merged.Details[0].Provider)
+	require.Equal(t, "xAI-Grok", merged.Details[0].ProviderLabel)
+	require.Equal(t, "openai", merged.Details[0].SourceProtocol)
+}

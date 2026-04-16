@@ -188,7 +188,10 @@ func (s *ModelRegistryService) ManualAddEntry(ctx context.Context, input ManualA
 		return nil, false, false, infraerrors.BadRequest("MODEL_REQUIRED", "model id is required")
 	}
 
-	provider := inferModelProvider(modelID)
+	provider := normalizeRegistryPlatform(input.Provider)
+	if provider == "" {
+		provider = inferModelProvider(modelID)
+	}
 	if provider == "" {
 		return nil, false, false, infraerrors.BadRequest(
 			"MODEL_PROVIDER_INFERENCE_FAILED",

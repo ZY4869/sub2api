@@ -41,6 +41,22 @@
           @keyup.enter="submit"
         />
       </label>
+
+      <label class="block space-y-1.5">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {{ t('admin.models.available.manualAddDialog.providerLabel') }}
+        </span>
+        <select v-model="provider" class="input">
+          <option value="">{{ t('admin.models.available.manualAddDialog.providerAutoOption') }}</option>
+          <option
+            v-for="option in providerOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+      </label>
     </div>
 
     <template #footer>
@@ -57,10 +73,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ManualAddModelRegistryEntryPayload } from '@/api/admin/modelRegistry'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { formatProviderLabel, listKnownProviders } from '@/utils/providerLabels'
 
 const props = withDefaults(defineProps<{
   show: boolean
@@ -77,11 +94,19 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const modelId = ref('')
 const displayName = ref('')
+const provider = ref('')
 const validationError = ref('')
+const providerOptions = computed(() =>
+  listKnownProviders().map((value) => ({
+    value,
+    label: formatProviderLabel(value)
+  }))
+)
 
 function resetForm() {
   modelId.value = ''
   displayName.value = ''
+  provider.value = ''
   validationError.value = ''
 }
 
@@ -98,7 +123,8 @@ function submit() {
   validationError.value = ''
   emit('submit', {
     id: modelId.value.trim(),
-    display_name: displayName.value.trim() || undefined
+    display_name: displayName.value.trim() || undefined,
+    provider: provider.value || undefined
   })
 }
 

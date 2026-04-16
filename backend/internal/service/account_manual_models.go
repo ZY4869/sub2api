@@ -5,6 +5,7 @@ import "strings"
 type AccountManualModel struct {
 	ModelID        string `json:"model_id"`
 	RequestAlias   string `json:"request_alias,omitempty"`
+	Provider       string `json:"provider,omitempty"`
 	SourceProtocol string `json:"source_protocol,omitempty"`
 }
 
@@ -53,6 +54,7 @@ func AccountManualModelsFromExtra(extra map[string]any, allowSourceProtocol bool
 		parsed = append(parsed, AccountManualModel{
 			ModelID:        stringValueFromAny(entry["model_id"]),
 			RequestAlias:   stringValueFromAny(entry["request_alias"]),
+			Provider:       stringValueFromAny(entry["provider"]),
 			SourceProtocol: stringValueFromAny(entry["source_protocol"]),
 		})
 	}
@@ -72,6 +74,9 @@ func AccountManualModelsToExtraValue(models []AccountManualModel, allowSourcePro
 		if alias := strings.TrimSpace(item.RequestAlias); alias != "" && alias != item.ModelID {
 			entry["request_alias"] = alias
 		}
+		if provider := strings.TrimSpace(item.Provider); provider != "" {
+			entry["provider"] = provider
+		}
 		if protocol := strings.TrimSpace(item.SourceProtocol); protocol != "" {
 			entry["source_protocol"] = protocol
 		}
@@ -89,6 +94,7 @@ func normalizeAccountManualModel(model AccountManualModel, allowSourceProtocol b
 	if model.RequestAlias == "" {
 		model.RequestAlias = model.ModelID
 	}
+	model.Provider = NormalizeModelProvider(model.Provider)
 	if allowSourceProtocol {
 		model.SourceProtocol = NormalizeGatewayProtocol(model.SourceProtocol)
 	} else {

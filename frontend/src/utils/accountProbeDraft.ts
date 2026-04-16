@@ -1,4 +1,5 @@
 import type { AccountManualModel } from '@/api/admin/accounts'
+import { normalizeProviderSlug } from '@/utils/providerLabels'
 
 export interface AccountResolvedUpstreamDraft {
   upstream_url?: string
@@ -32,6 +33,7 @@ export function normalizeAccountManualModels(
       continue
     }
     const requestAlias = String(item?.request_alias || '').trim()
+    const provider = normalizeProvider(item?.provider)
     const sourceProtocol = allowSourceProtocol ? normalizeSourceProtocol(item?.source_protocol) : undefined
     const dedupeKey = `${modelID}::${sourceProtocol || ''}`.toLowerCase()
     if (seen.has(dedupeKey)) {
@@ -41,6 +43,7 @@ export function normalizeAccountManualModels(
     normalized.push({
       model_id: modelID,
       request_alias: requestAlias || undefined,
+      provider,
       source_protocol: sourceProtocol
     })
   }
@@ -59,6 +62,7 @@ export function readAccountManualModelsFromExtra(
     rawItems.map((item) => ({
       model_id: String((item as Record<string, unknown>)?.model_id || ''),
       request_alias: String((item as Record<string, unknown>)?.request_alias || ''),
+      provider: (item as Record<string, unknown>)?.provider as AccountManualModel['provider'],
       source_protocol: (item as Record<string, unknown>)?.source_protocol as AccountManualModel['source_protocol']
     })),
     allowSourceProtocol
@@ -207,6 +211,9 @@ export function mergeAccountManualModelsIntoExtra(
       if (item.request_alias) {
         entry.request_alias = item.request_alias
       }
+      if (item.provider) {
+        entry.provider = item.provider
+      }
       if (allowSourceProtocol && item.source_protocol) {
         entry.source_protocol = item.source_protocol
       }
@@ -281,6 +288,11 @@ function normalizeSourceProtocol(
     return normalized
   }
   return undefined
+}
+
+function normalizeProvider(value: unknown): string | undefined {
+  const normalized = normalizeProviderSlug(String(value || ''))
+  return normalized || undefined
 }
 
 function readString(value: unknown): string | undefined {

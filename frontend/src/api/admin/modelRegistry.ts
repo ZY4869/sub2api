@@ -44,6 +44,7 @@ export interface UpdateModelRegistryAvailabilityPayload {
 export interface ManualAddModelRegistryEntryPayload {
   id: string
   display_name?: string
+  provider?: string
 }
 
 export interface ManualAddModelRegistryEntryResponse {

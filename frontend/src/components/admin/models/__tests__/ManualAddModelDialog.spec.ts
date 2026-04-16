@@ -53,6 +53,7 @@ describe('ManualAddModelDialog', () => {
     const inputs = wrapper.findAll('input')
     await inputs[0].setValue('  gpt-5.4-mini  ')
     await inputs[1].setValue('  GPT-5.4 Mini  ')
+    await wrapper.get('select').setValue('grok')
 
     const confirmButton = wrapper.findAll('button').find((button) =>
       button.text().includes('admin.models.available.manualAddDialog.confirm')
@@ -64,7 +65,8 @@ describe('ManualAddModelDialog', () => {
     expect(wrapper.emitted('submit')).toEqual([[
       {
         id: 'gpt-5.4-mini',
-        display_name: 'GPT-5.4 Mini'
+        display_name: 'GPT-5.4 Mini',
+        provider: 'grok'
       }
     ]])
 
@@ -79,5 +81,6 @@ describe('ManualAddModelDialog', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect((inputs[0].element as HTMLInputElement).value).toBe('')
     expect((inputs[1].element as HTMLInputElement).value).toBe('')
+    expect((wrapper.get('select').element as HTMLSelectElement).value).toBe('')
   })
 })

@@ -28,7 +28,7 @@
         :key="`${index}-${row.model_id}-${row.source_protocol || 'default'}`"
         class="space-y-3 rounded-2xl border border-gray-200 bg-gray-50/80 p-3 dark:border-dark-500 dark:bg-dark-800/60"
       >
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div :class="gridClass">
           <label class="space-y-1">
             <span class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
               {{ t('admin.accounts.probeFinalize.manualModelId') }}
@@ -52,6 +52,25 @@
               :placeholder="row.model_id || t('admin.accounts.probeFinalize.manualRequestAliasPlaceholder')"
               @input="updateRow(index, 'request_alias', ($event.target as HTMLInputElement).value)"
             />
+          </label>
+          <label class="space-y-1">
+            <span class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.probeFinalize.manualProvider') }}
+            </span>
+            <select
+              :value="row.provider || ''"
+              class="input h-10"
+              @change="updateRow(index, 'provider', ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">{{ t('admin.accounts.probeFinalize.manualProviderAuto') }}</option>
+              <option
+                v-for="option in providerOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
           </label>
           <label v-if="allowSourceProtocol" class="space-y-1">
             <span class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -89,6 +108,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AccountManualModel } from '@/api/admin/accounts'
 import { normalizeAccountManualModels } from '@/utils/accountProbeDraft'
+import { formatProviderLabel, listKnownProviders } from '@/utils/providerLabels'
 
 const props = withDefaults(defineProps<{
   allowSourceProtocol?: boolean
@@ -106,6 +126,17 @@ const { t } = useI18n()
 const normalizedRows = computed(() =>
   normalizeAccountManualModels(rows.value, props.allowSourceProtocol)
 )
+const providerOptions = computed(() =>
+  listKnownProviders(rows.value.map((row) => row.provider)).map((value) => ({
+    value,
+    label: formatProviderLabel(value)
+  }))
+)
+const gridClass = computed(() =>
+  props.allowSourceProtocol
+    ? 'grid gap-3 md:grid-cols-2 xl:grid-cols-4'
+    : 'grid gap-3 md:grid-cols-2 xl:grid-cols-3'
+)
 
 function emitRows(nextRows: AccountManualModel[]) {
   rows.value = normalizeAccountManualModels(nextRows, props.allowSourceProtocol)
@@ -117,6 +148,7 @@ function appendRow() {
     {
       model_id: '',
       request_alias: undefined,
+      provider: undefined,
       source_protocol: undefined
     }
   ]

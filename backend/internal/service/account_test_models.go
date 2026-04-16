@@ -369,6 +369,10 @@ func buildManualTestModelCandidates(account *Account, sourceProtocol string) []t
 		if manualProtocol == "" {
 			manualProtocol = normalizedSourceProtocol
 		}
+		provider := NormalizeModelProvider(manualModel.Provider)
+		if provider == "" {
+			provider = inferAvailableTestModelProvider(account, manualProtocol)
+		}
 		candidates = append(candidates, testModelCandidate{
 			model: applyAvailableTestModelProvider(AvailableTestModel{
 				ID:             modelID,
@@ -376,7 +380,7 @@ func buildManualTestModelCandidates(account *Account, sourceProtocol string) []t
 				DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
 				SourceProtocol: manualProtocol,
 				Status:         "manual",
-			}, inferAvailableTestModelProvider(account, manualProtocol)),
+			}, provider),
 			source:     "manual",
 			uiPriority: -10,
 		})

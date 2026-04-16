@@ -1,6 +1,13 @@
 import { generatedModelRegistrySnapshot } from '@/generated/modelRegistry'
 
 const GENERATED_PROVIDER_LABELS = generatedModelRegistrySnapshot.provider_labels || {}
+const GENERATED_MODEL_PROVIDERS = Array.from(
+  new Set(
+    (generatedModelRegistrySnapshot.models || [])
+      .map((model) => normalizeProviderSlug(model.provider))
+      .filter(Boolean)
+  )
+)
 
 export function normalizeProviderSlug(provider?: string | null): string {
   return String(provider || '').trim().toLowerCase()
@@ -16,6 +23,24 @@ function toTitleCase(value: string): string {
 
 export function getProviderLabelCatalog(): Record<string, string> {
   return { ...GENERATED_PROVIDER_LABELS }
+}
+
+export function listKnownProviders(extraProviders: Array<string | null | undefined> = []): string[] {
+  const providers = new Set<string>([
+    ...Object.keys(GENERATED_PROVIDER_LABELS).map((provider) => normalizeProviderSlug(provider)),
+    ...GENERATED_MODEL_PROVIDERS
+  ])
+
+  for (const provider of extraProviders) {
+    const normalized = normalizeProviderSlug(provider)
+    if (normalized) {
+      providers.add(normalized)
+    }
+  }
+
+  return Array.from(providers).sort((left, right) =>
+    formatProviderLabel(left).localeCompare(formatProviderLabel(right))
+  )
 }
 
 export function formatProviderLabel(provider?: string | null, providerLabel?: string | null): string {

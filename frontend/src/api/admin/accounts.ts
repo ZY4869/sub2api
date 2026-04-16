@@ -208,6 +208,7 @@ export type AccountTestModelInputMode = 'catalog' | 'manual'
 export interface AccountManualModel {
   model_id: string
   request_alias?: string
+  provider?: string
   source_protocol?: 'openai' | 'anthropic' | 'gemini'
 }
 

@@ -190,7 +190,13 @@
       </template>
 
       <template #table>
-        <DataTable :columns="columns" :data="usageLogs" :loading="loading">
+        <DataTable
+          :columns="columns"
+          :data="usageLogs"
+          :loading="loading"
+          :virtual-scroll="false"
+          row-key="request_id"
+        >
           <template #cell-api_key="{ row }">
             <span class="text-sm text-gray-900 dark:text-white">{{
               row.api_key?.name || "-"

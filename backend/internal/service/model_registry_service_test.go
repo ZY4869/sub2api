@@ -403,6 +403,22 @@ func TestModelRegistryService_ManualAddEntry_CreatesAndActivatesModel(t *testing
 	require.ElementsMatch(t, []string{"runtime", "whitelist", "use_key", "test"}, detail.ExposedIn)
 }
 
+func TestModelRegistryService_ManualAddEntry_AllowsExplicitProviderOverride(t *testing.T) {
+	repo := newAccountModelImportSettingRepoStub()
+	svc := NewModelRegistryService(repo)
+
+	detail, createdRuntime, activated, err := svc.ManualAddEntry(context.Background(), ManualAddModelRegistryEntryInput{
+		ID:          "custom-provider-model",
+		DisplayName: "Custom Provider Model",
+		Provider:    "grok",
+	})
+	require.NoError(t, err)
+	require.True(t, createdRuntime)
+	require.False(t, activated)
+	require.Equal(t, "grok", detail.Provider)
+	require.Equal(t, []string{"grok"}, detail.Platforms)
+}
+
 func TestModelRegistryService_ManualAddEntry_IsIdempotentForRepeatedSubmit(t *testing.T) {
 	repo := newAccountModelImportSettingRepoStub()
 	require.NoError(t, repo.Set(context.Background(), SettingKeyModelRegistryAvailableModels, `["gpt-4o"]`))
