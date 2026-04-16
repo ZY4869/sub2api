@@ -3,18 +3,30 @@
     <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-800">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div class="inline-flex rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">Billing Center V2</div>
+          <div class="inline-flex rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+            Billing Center V2
+          </div>
           <h2 class="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">模型定价</h2>
-          <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">计费中心现在独立于模型库。默认列表模式支持分页与每页数量切换，也可以切到九宫格供应商模式做批量巡检。</p>
+          <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+            计费中心现在独立于模型库。默认列表模式支持分页与每页数量切换，也可以切到九宫格供应商模式做批量巡检。
+          </p>
         </div>
         <BillingPricingModeToggle v-model="viewMode" />
       </div>
 
       <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1.5fr)_220px_220px]">
-        <input v-model.trim="search" type="text" class="input" placeholder="搜索模型 / 供应商" @keyup.enter="applyFilters" />
+        <input
+          v-model.trim="search"
+          type="text"
+          class="input"
+          placeholder="搜索模型 / 供应商"
+          @keyup.enter="applyFilters"
+        />
         <select v-model="providerFilter" class="input" @change="applyFilters">
           <option value="">全部供应商</option>
-          <option v-for="provider in providers" :key="provider.provider" :value="provider.provider">{{ provider.label }}</option>
+          <option v-for="provider in providers" :key="provider.provider" :value="provider.provider">
+            {{ provider.label }}
+          </option>
         </select>
         <select v-model="modeFilter" class="input" @change="applyFilters">
           <option value="">全部模式</option>
@@ -23,6 +35,14 @@
           <option value="video">video</option>
           <option value="embedding">embedding</option>
         </select>
+      </div>
+
+      <div class="mt-4">
+        <BillingPricingProviderQuickFilters
+          :providers="providers"
+          :active-provider="providerFilter"
+          @select="handleQuickProviderSelect"
+        />
       </div>
     </section>
 
@@ -39,7 +59,7 @@
 
     <BillingPricingProviderGrid
       v-else
-      :providers="providers"
+      :providers="visibleProviders"
       :provider-models="providerModels"
       :expanded-provider="expandedProvider"
       @toggle-provider="toggleProvider"
@@ -61,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   applyBillingPricingDiscount,
   copyBillingPricingOfficialToSale,
@@ -78,6 +98,7 @@ import BillingPricingEditorDialog from '@/components/admin/billing/BillingPricin
 import BillingPricingModeToggle from '@/components/admin/billing/BillingPricingModeToggle.vue'
 import BillingPricingModelList from '@/components/admin/billing/BillingPricingModelList.vue'
 import BillingPricingProviderGrid from '@/components/admin/billing/BillingPricingProviderGrid.vue'
+import BillingPricingProviderQuickFilters from '@/components/admin/billing/BillingPricingProviderQuickFilters.vue'
 import { useAppStore } from '@/stores/app'
 
 const PAGE_SIZE_STORAGE_KEY = 'admin.billing.pricing.page_size'
@@ -100,10 +121,22 @@ const editorBusy = ref(false)
 const activeEditorModel = ref('')
 const editorDetails = ref<BillingPricingSheetDetail[]>([])
 
+const visibleProviders = computed(() => (
+  providerFilter.value
+    ? providers.value.filter((provider) => provider.provider === providerFilter.value)
+    : providers.value
+))
+
 onMounted(async () => {
   await guardedLoad(async () => {
     await Promise.all([reloadProviders(), reloadModels()])
   })
+})
+
+watch(viewMode, async (mode) => {
+  if (mode === 'grid' && providerFilter.value) {
+    await guardedLoad(() => syncGridProviderState(providerFilter.value))
+  }
 })
 
 async function reloadProviders() {
@@ -124,9 +157,25 @@ async function reloadModels() {
 
 async function applyFilters() {
   page.value = 1
-  providerModels.value = {}
-  expandedProvider.value = ''
-  await guardedLoad(reloadModels)
+  await guardedLoad(async () => {
+    if (viewMode.value === 'grid') {
+      await syncGridProviderState(providerFilter.value)
+      return
+    }
+    await reloadModels()
+  })
+}
+
+async function handleQuickProviderSelect(provider: string) {
+  providerFilter.value = provider
+  page.value = 1
+  await guardedLoad(async () => {
+    if (viewMode.value === 'grid') {
+      await syncGridProviderState(provider)
+      return
+    }
+    await reloadModels()
+  })
 }
 
 async function updatePage(nextPage: number) {
@@ -142,20 +191,37 @@ async function updatePageSize(nextPageSize: number) {
 }
 
 async function toggleProvider(provider: string) {
-  expandedProvider.value = expandedProvider.value === provider ? '' : provider
-  if (!expandedProvider.value || providerModels.value[expandedProvider.value]) return
-  try {
-    const data = await listBillingPricingModels({
-      provider: expandedProvider.value,
-      page: 1,
-      page_size: 100,
-    })
-    providerModels.value = {
-      ...providerModels.value,
-      [expandedProvider.value]: data.items || [],
-    }
-  } catch (error) {
-    appStore.showError(resolveErrorMessage(error, '加载供应商模型失败'))
+  const nextProvider = expandedProvider.value === provider ? '' : provider
+  expandedProvider.value = nextProvider
+  if (!nextProvider) {
+    return
+  }
+
+  await guardedLoad(() => ensureProviderModelsLoaded(nextProvider))
+}
+
+async function syncGridProviderState(provider: string) {
+  expandedProvider.value = provider
+  if (!provider) {
+    return
+  }
+
+  await ensureProviderModelsLoaded(provider)
+}
+
+async function ensureProviderModelsLoaded(provider: string) {
+  if (!provider || providerModels.value[provider]) {
+    return
+  }
+
+  const data = await listBillingPricingModels({
+    provider,
+    page: 1,
+    page_size: 100,
+  })
+  providerModels.value = {
+    ...providerModels.value,
+    [provider]: data.items || [],
   }
 }
 
@@ -174,10 +240,18 @@ async function openEditor(model: string) {
   }
 }
 
-async function handleSaveLayer(payload: { model: string; layer: 'official' | 'sale'; form: BillingPricingLayerForm }) {
+async function handleSaveLayer(payload: {
+  model: string
+  layer: 'official' | 'sale'
+  form: BillingPricingLayerForm
+  currency: 'USD' | 'CNY'
+}) {
   editorBusy.value = true
   try {
-    const detail = await updateBillingPricingLayer(payload.model, payload.layer, { form: payload.form })
+    const detail = await updateBillingPricingLayer(payload.model, payload.layer, {
+      form: payload.form,
+      currency: payload.currency,
+    })
     mergeEditorDetail(detail)
     appStore.showSuccess(payload.layer === 'official' ? '官方价格已保存' : '出售价格已保存')
     await guardedLoad(reloadModels)
@@ -193,10 +267,10 @@ async function handleCopyOfficial(payload: { models: string[] }) {
   try {
     const details = await copyBillingPricingOfficialToSale(payload)
     details.forEach(mergeEditorDetail)
-    appStore.showSuccess('已套用官方格式到出售价格')
+    appStore.showSuccess('已套用官方价格到出售价格')
     await guardedLoad(reloadModels)
   } catch (error) {
-    appStore.showError(resolveErrorMessage(error, '复制官方格式失败'))
+    appStore.showError(resolveErrorMessage(error, '复制官方价格失败'))
   } finally {
     editorBusy.value = false
   }
@@ -223,8 +297,11 @@ async function handleApplyDiscount(payload: { models: string[]; itemIds?: string
 function mergeEditorDetail(detail: BillingPricingSheetDetail) {
   const next = [...editorDetails.value]
   const index = next.findIndex((item) => item.model === detail.model)
-  if (index >= 0) next[index] = detail
-  else next.push(detail)
+  if (index >= 0) {
+    next[index] = detail
+  } else {
+    next.push(detail)
+  }
   editorDetails.value = next
 }
 
@@ -247,7 +324,12 @@ function readPageSize(): number {
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+  if (
+    typeof error === 'object'
+    && error
+    && 'message' in error
+    && typeof (error as { message?: unknown }).message === 'string'
+  ) {
     return String((error as { message: string }).message)
   }
   return fallback

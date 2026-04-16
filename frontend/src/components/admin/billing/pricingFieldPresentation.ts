@@ -1,4 +1,7 @@
-import type { BillingPricingSimpleSpecial } from '@/api/admin/billing'
+import type {
+  BillingPricingCurrency,
+  BillingPricingSimpleSpecial,
+} from '@/api/admin/billing'
 
 export type RootNumberField =
   | 'input_price'
@@ -41,20 +44,35 @@ export function resolvePricingFieldUnit(
   return 'per_million_tokens'
 }
 
-export function pricingFieldUnitLabel(unit: PricingFieldUnit): string {
+export function pricingFieldCurrencySymbol(
+  currency: BillingPricingCurrency = 'USD',
+): string {
+  return currency === 'CNY' ? '￥' : '$'
+}
+
+export function pricingFieldUnitLabel(
+  unit: PricingFieldUnit,
+  currency: BillingPricingCurrency = 'USD',
+): string {
+  const symbol = pricingFieldCurrencySymbol(currency)
+
   switch (unit) {
     case 'per_request':
-      return '$ / 次'
+      return `${symbol} / 次`
     case 'per_image':
-      return '$ / 张'
+      return `${symbol} / 张`
     default:
-      return '$ / M Tokens'
+      return `${symbol} / M Tokens`
   }
 }
 
 export function pricingFieldUnitLabelForField(
   fieldId: BillingPricingFieldId,
   outputChargeSlot?: string,
+  currency: BillingPricingCurrency = 'USD',
 ): string {
-  return pricingFieldUnitLabel(resolvePricingFieldUnit(fieldId, outputChargeSlot))
+  return pricingFieldUnitLabel(
+    resolvePricingFieldUnit(fieldId, outputChargeSlot),
+    currency,
+  )
 }

@@ -1,4 +1,5 @@
 import type { BillingPricingLayerForm, BillingPricingSheetDetail, BillingPricingSimpleSpecial } from '@/api/admin/billing'
+import { normalizeBillingPricingCurrency } from './pricingCurrency'
 
 export const BILLING_DISCOUNT_FIELD_IDS = {
   input_price: 'input_price',
@@ -43,6 +44,7 @@ export function cloneBillingPricingLayerForm(form?: Partial<BillingPricingLayerF
 export function normalizeBillingPricingSheetDetail(detail: BillingPricingSheetDetail): BillingPricingSheetDetail {
   return {
     ...detail,
+    currency: normalizeBillingPricingCurrency(detail.currency),
     official_form: cloneBillingPricingLayerForm(detail.official_form),
     sale_form: cloneBillingPricingLayerForm(detail.sale_form),
   }

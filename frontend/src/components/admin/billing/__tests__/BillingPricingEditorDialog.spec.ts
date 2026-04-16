@@ -1,14 +1,38 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BillingPricingLayerForm, BillingPricingSheetDetail } from '@/api/admin/billing'
 import BillingBulkDiscountPanel from '../BillingBulkDiscountPanel.vue'
 import BillingPricingEditorDialog from '../BillingPricingEditorDialog.vue'
 
+const exchangeRateStoreMock = vi.hoisted(() => ({
+  exchangeRate: {
+    base: 'USD',
+    quote: 'CNY',
+    rate: 7.2,
+    date: '2026-04-16',
+    updated_at: '2026-04-16T00:00:00Z',
+    cached: true,
+  } as {
+    base: string
+    quote: string
+    rate: number
+    date: string
+    updated_at: string
+    cached: boolean
+  } | null,
+  loading: false,
+  fetchExchangeRate: vi.fn(),
+}))
+
+vi.mock('@/stores/exchangeRate', () => ({
+  useExchangeRateStore: () => exchangeRateStoreMock,
+}))
+
 function createForm(overrides: Partial<BillingPricingLayerForm> = {}): BillingPricingLayerForm {
   return {
-    input_price: 1,
-    output_price: 2,
+    input_price: 2.8e-7,
+    output_price: 6e-7,
     cache_price: undefined,
     special_enabled: false,
     special: {
@@ -28,6 +52,7 @@ function createDetail(overrides: Partial<BillingPricingSheetDetail> = {}): Billi
     display_name: 'GPT-5.4',
     provider: 'openai',
     mode: 'chat',
+    currency: 'USD',
     input_supported: true,
     output_charge_slot: 'text_output',
     supports_prompt_caching: true,
@@ -43,14 +68,12 @@ function createDetail(overrides: Partial<BillingPricingSheetDetail> = {}): Billi
       supports_provider_special: true,
     },
     official_form: createForm({
-      input_price: 1,
-      output_price: 2,
-      cache_price: 0.1,
+      cache_price: 1e-7,
     }),
     sale_form: createForm({
-      input_price: 1.5,
-      output_price: 2.5,
-      cache_price: 0.2,
+      input_price: 3e-7,
+      output_price: 8e-7,
+      cache_price: 1.2e-7,
     }),
     ...overrides,
   }
@@ -75,21 +98,30 @@ function mountDialog(details: BillingPricingSheetDetail[]) {
 }
 
 describe('BillingPricingEditorDialog', () => {
-  it('renders compact single-line sections and removes old descriptions', () => {
+  beforeEach(() => {
+    exchangeRateStoreMock.exchangeRate = {
+      base: 'USD',
+      quote: 'CNY',
+      rate: 7.2,
+      date: '2026-04-16',
+      updated_at: '2026-04-16T00:00:00Z',
+      cached: true,
+    }
+    exchangeRateStoreMock.loading = false
+    exchangeRateStoreMock.fetchExchangeRate.mockReset()
+    exchangeRateStoreMock.fetchExchangeRate.mockResolvedValue(exchangeRateStoreMock.exchangeRate)
+  })
+
+  it('renders compact single-line sections, defaults to USD, and shows alternate currency text', () => {
     const wrapper = mountDialog([createDetail()])
     const officialColumn = wrapper.get('[data-testid="official-column"]')
 
-    expect(officialColumn.find('[data-testid="pricing-field-input_price"]').exists()).toBe(true)
-    expect(officialColumn.find('[data-testid="pricing-field-output_price"]').exists()).toBe(true)
-    expect(officialColumn.find('[data-testid="pricing-field-cache_price"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="pricing-currency-select"]').element.value).toBe('USD')
     expect(officialColumn.get('[data-testid="pricing-field-unit-input_price"]').text()).toBe('$ / M Tokens')
-    expect(officialColumn.find('[data-testid="pricing-special-toggle"]').exists()).toBe(true)
-    expect(officialColumn.find('[data-testid="pricing-tier-toggle"]').exists()).toBe(true)
+    expect(officialColumn.get('[data-testid="pricing-field-input_price"]').element).toHaveProperty('value', '0.28')
+    expect(officialColumn.get('[data-testid="pricing-field-secondary-input_price"]').text()).toContain('￥')
     expect(wrapper.text()).not.toContain('Surface')
     expect(wrapper.text()).not.toContain('Provider Special')
-    expect(wrapper.text()).not.toContain('统一维护输入、输出和缓存单价。')
-    expect(wrapper.text()).not.toContain('仅保留 Batch 与 Gemini 特殊定价。')
-    expect(wrapper.text()).not.toContain('仅在模型存在文本输入槽位时展示。')
   })
 
   it('uses dynamic output mapping and hides input and tier fields for image models', () => {
@@ -131,18 +163,12 @@ describe('BillingPricingEditorDialog', () => {
     const wrapper = mountDialog([
       createDetail({
         official_form: createForm({
-          input_price: 1,
-          output_price: 2,
-          cache_price: 0.1,
           special_enabled: true,
           special: {
             grounding_search: 0.12,
           },
         }),
         sale_form: createForm({
-          input_price: 1.5,
-          output_price: 2.5,
-          cache_price: 0.2,
           special_enabled: false,
           special: {},
         }),
@@ -159,9 +185,33 @@ describe('BillingPricingEditorDialog', () => {
       {
         model: 'gpt-5.4',
         layer: 'sale',
+        currency: 'USD',
         form: expect.objectContaining({
           special_enabled: false,
           special: {},
+        }),
+      },
+    ])
+  })
+
+  it('shares currency state across official and sale columns and preserves canonical usd values on save', async () => {
+    const wrapper = mountDialog([createDetail()])
+
+    await wrapper.get('[data-testid="pricing-currency-select"]').setValue('CNY')
+
+    expect(wrapper.get('[data-testid="official-column"]').get('[data-testid="pricing-field-unit-input_price"]').text()).toBe('￥ / M Tokens')
+    expect(wrapper.get('[data-testid="sale-column"]').get('[data-testid="pricing-field-unit-input_price"]').text()).toBe('￥ / M Tokens')
+
+    await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
+
+    expect(wrapper.emitted('save-layer')?.[0]).toEqual([
+      {
+        model: 'gpt-5.4',
+        layer: 'official',
+        currency: 'CNY',
+        form: expect.objectContaining({
+          input_price: 2.8e-7,
+          output_price: 6e-7,
         }),
       },
     ])
@@ -171,18 +221,12 @@ describe('BillingPricingEditorDialog', () => {
     const wrapper = mountDialog([
       createDetail({
         official_form: createForm({
-          input_price: 1,
-          output_price: 2,
-          cache_price: 0.1,
           special_enabled: true,
           special: {
             grounding_search: 0.12,
           },
         }),
         sale_form: createForm({
-          input_price: 1.5,
-          output_price: 2.5,
-          cache_price: 0.2,
           special_enabled: false,
           special: {},
         }),
@@ -197,6 +241,7 @@ describe('BillingPricingEditorDialog', () => {
       {
         model: 'gpt-5.4',
         layer: 'sale',
+        currency: 'USD',
         form: expect.objectContaining({
           special_enabled: true,
           special: expect.objectContaining({
@@ -207,33 +252,19 @@ describe('BillingPricingEditorDialog', () => {
     ])
   })
 
-  it('emits simplified form payloads when saving a layer', async () => {
-    const wrapper = mountDialog([createDetail()])
-    const officialColumn = wrapper.get('[data-testid="official-column"]')
-
-    await officialColumn.get('[data-testid="pricing-field-input_price"]').setValue('1.8')
-    await officialColumn.get('[data-testid="pricing-special-toggle"]').trigger('click')
-    await nextTick()
-    await officialColumn.get('[data-testid="pricing-field-batch_input_price"]').setValue('0.9')
-    await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
-
-    expect(wrapper.emitted('save-layer')).toEqual([
-      [
-        {
-          model: 'gpt-5.4',
-          layer: 'official',
-          form: expect.objectContaining({
-            input_price: 1.8,
-            output_price: 2,
-            cache_price: 0.1,
-            special_enabled: true,
-            special: expect.objectContaining({
-              batch_input_price: 0.9,
-            }),
-          }),
-        },
-      ],
+  it('blocks cny save when exchange rate is unavailable', async () => {
+    exchangeRateStoreMock.exchangeRate = null
+    const wrapper = mountDialog([
+      createDetail({
+        currency: 'CNY',
+      }),
     ])
+
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="pricing-currency-alert"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="save-layer-official"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="save-layer-sale"]').attributes('disabled')).toBeDefined()
   })
 
   it('emits workset discount payloads with selected sale field ids', async () => {
@@ -244,9 +275,9 @@ describe('BillingPricingEditorDialog', () => {
         display_name: 'Claude Sonnet 4.5',
         provider: 'anthropic',
         sale_form: createForm({
-          input_price: 2,
-          output_price: 3,
-          cache_price: 0.4,
+          input_price: 2e-7,
+          output_price: 3e-7,
+          cache_price: 4e-8,
         }),
       }),
     ])

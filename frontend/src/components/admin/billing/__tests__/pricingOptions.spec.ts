@@ -79,5 +79,7 @@ describe('pricingOptions', () => {
     expect(pricingFieldUnitLabelForField('grounding_maps')).toBe('$ / 次')
     expect(pricingFieldUnitLabelForField('output_price', 'image_output')).toBe('$ / 张')
     expect(pricingFieldUnitLabelForField('batch_output_price', 'video_request')).toBe('$ / 次')
+    expect(pricingFieldUnitLabelForField('input_price', 'text_output', 'CNY')).toBe('￥ / M Tokens')
+    expect(pricingFieldUnitLabelForField('grounding_search', 'text_output', 'CNY')).toBe('￥ / 次')
   })
 })

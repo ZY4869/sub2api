@@ -147,6 +147,7 @@ func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []s
 			DisplayName:                     record.displayName,
 			Provider:                        record.provider,
 			Mode:                            record.mode,
+			Currency:                        defaultModelPricingCurrency(record.pricingCurrency),
 			InputSupported:                  metadata.InputSupported,
 			OutputChargeSlot:                metadata.OutputChargeSlot,
 			SupportsPromptCaching:           record.supportsPromptCaching,
@@ -183,6 +184,10 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	rules := s.ListRules(ctx)
 	currentItems := pricingItemsForRecord(record, layer, rules)
 	metadata := billingPricingMetadataForRecord(record, currentItems)
+	currency := normalizeModelPricingCurrency(input.Currency)
+	if currency == "" {
+		currency = defaultModelPricingCurrency(record.pricingCurrency)
+	}
 	form := BillingPricingLayerForm{}
 	switch {
 	case input.Form != nil:
@@ -215,12 +220,16 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	if err := persistBillingRulesBySetting(ctx, s.settingRepo, SettingKeyBillingCenterRules, rules); err != nil {
 		return nil, err
 	}
+	if err := s.modelCatalogService.saveModelPricingCurrency(ctx, actor, record.model, currency); err != nil {
+		return nil, err
+	}
 	s.syncBillingServiceOverrides(ctx)
 	logger.FromContext(ctx).Info(
 		"billing pricing layer normalized save",
 		zap.String("component", "service.billing_center"),
 		zap.String("model", record.model),
 		zap.String("layer", layer),
+		zap.String("currency", currency),
 		zap.Bool("input_supported", metadata.InputSupported),
 		zap.String("output_charge_slot", metadata.OutputChargeSlot),
 		zap.Bool("special_enabled", form.SpecialEnabled),
