@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	usageRepairWorkerName       = "usage_repair_worker"
-	usageRepairDefaultDays      = 30
-	usageRepairMaxDays          = 30
-	usageRepairBatchSize        = 500
-	usageRepairWorkerInterval   = 10 * time.Second
-	usageRepairTaskTimeout      = 30 * time.Minute
+	usageRepairWorkerName     = "usage_repair_worker"
+	usageRepairDefaultDays    = 30
+	usageRepairMaxDays        = 30
+	usageRepairBatchSize      = 500
+	usageRepairWorkerInterval = 10 * time.Second
+	usageRepairTaskTimeout    = 30 * time.Minute
 )
 
 type UsageRepairService struct {

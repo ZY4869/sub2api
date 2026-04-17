@@ -18,28 +18,28 @@ const (
 )
 
 type UsageRepairTask struct {
-	ID           int64
-	Kind         string
-	Days         int
-	Status       string
-	CreatedBy    int64
+	ID            int64
+	Kind          string
+	Days          int
+	Status        string
+	CreatedBy     int64
 	ProcessedRows int64
-	RepairedRows int64
-	SkippedRows  int64
-	ErrorMsg     *string
-	CanceledBy   *int64
-	CanceledAt   *time.Time
-	StartedAt    *time.Time
-	FinishedAt   *time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	RepairedRows  int64
+	SkippedRows   int64
+	ErrorMsg      *string
+	CanceledBy    *int64
+	CanceledAt    *time.Time
+	StartedAt     *time.Time
+	FinishedAt    *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type UsageRepairTaskPatch struct {
-	InboundEndpoint *string
+	InboundEndpoint  *string
 	UpstreamEndpoint *string
-	ThinkingEnabled *bool
-	ReasoningEffort *string
+	ThinkingEnabled  *bool
+	ReasoningEffort  *string
 }
 
 func (p UsageRepairTaskPatch) IsEmpty() bool {
@@ -50,20 +50,20 @@ func (p UsageRepairTaskPatch) IsEmpty() bool {
 }
 
 type ClaudeUsageRepairCandidate struct {
-	UsageID            int64
-	RequestID          string
-	CreatedAt          time.Time
-	Model              string
-	RequestedModel     string
-	UpstreamModel      string
-	InboundEndpoint    *string
-	UpstreamEndpoint   *string
-	ThinkingEnabled    *bool
-	ReasoningEffort    *string
-	TraceRoutePath     string
-	TraceUpstreamPath  string
-	TraceHasThinking   *bool
-	TraceInboundJSON   string
+	UsageID             int64
+	RequestID           string
+	CreatedAt           time.Time
+	Model               string
+	RequestedModel      string
+	UpstreamModel       string
+	InboundEndpoint     *string
+	UpstreamEndpoint    *string
+	ThinkingEnabled     *bool
+	ReasoningEffort     *string
+	TraceRoutePath      string
+	TraceUpstreamPath   string
+	TraceHasThinking    *bool
+	TraceInboundJSON    string
 	TraceNormalizedJSON string
 }
 

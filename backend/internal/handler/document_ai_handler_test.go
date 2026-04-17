@@ -287,12 +287,7 @@ func TestDocumentAIHandlerListModelsReturnsAvailableModels(t *testing.T) {
 	handler.ListModels(ctx)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	var payload struct {
-		Provider string                              `json:"provider"`
-		GroupID  int64                               `json:"group_id"`
-		Models   []service.DocumentAIModelDescriptor `json:"models"`
-	}
-	payload = decodeDocumentAIResponseData[struct {
+	payload := decodeDocumentAIResponseData[struct {
 		Provider string                              `json:"provider"`
 		GroupID  int64                               `json:"group_id"`
 		Models   []service.DocumentAIModelDescriptor `json:"models"`

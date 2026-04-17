@@ -122,6 +122,7 @@ type CostBreakdown struct {
 	TotalCost         float64
 	ActualCost        float64 // Final billed amount after multipliers are applied.
 }
+
 // BillingService provides billing and pricing operations.
 type BillingService struct {
 	cfg                    *config.Config
