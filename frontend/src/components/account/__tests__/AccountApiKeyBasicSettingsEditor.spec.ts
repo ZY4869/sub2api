@@ -181,4 +181,31 @@ describe('AccountApiKeyBasicSettingsEditor', () => {
     expect(wrapper.text()).not.toContain('admin.accounts.protocolGateway.baseUrlLoopbackWarning')
     expect(wrapper.text()).not.toContain('admin.accounts.protocolGateway.baseUrlInvalidWarning')
   })
+
+  it('keeps the gemini tier selector hidden for protocol gateway gemini accounts', () => {
+    const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
+      props: {
+        platform: 'protocol_gateway',
+        gatewayProtocol: 'gemini',
+        effectivePlatform: 'gemini',
+        mode: 'create',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'gateway-key',
+        modelScopeMode: 'whitelist',
+        allowedModels: [],
+        modelMappings: [],
+        presetMappings: [],
+        getMappingKey: () => 'mapping-1',
+        skipModelScopeEditor: true,
+        showGeminiTier: false
+      },
+      global: {
+        stubs: {
+          AccountModelScopeEditor: modelScopeStub
+        }
+      }
+    })
+
+    expect(wrapper.find('[data-testid="gemini-api-key-tier"]').exists()).toBe(false)
+  })
 })

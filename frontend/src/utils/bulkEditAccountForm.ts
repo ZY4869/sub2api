@@ -1,6 +1,11 @@
 import type { AccountPlatform, UpdateAccountRequest } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import type { AnthropicQuotaRPMStrategy } from '@/utils/accountQuotaControl'
+import {
+  OPENAI_WS_MODE_OFF,
+  isOpenAIWSModeEnabled,
+  type OpenAIWSMode
+} from '@/utils/openaiWsMode'
 
 export type BulkEditModelRestrictionMode = 'whitelist' | 'mapping'
 export type BulkEditAccountStatus = 'active' | 'inactive'
@@ -8,6 +13,7 @@ export type BulkEditAccountStatus = 'active' | 'inactive'
 export interface BulkEditAccountFormState {
   enableBaseUrl: boolean
   enableModelRestriction: boolean
+  enableOpenAIWSMode: boolean
   enableCustomErrorCodes: boolean
   enableInterceptWarmup: boolean
   enableProxy: boolean
@@ -37,11 +43,18 @@ export interface BulkEditAccountFormState {
   bulkRpmStrategy: AnthropicQuotaRPMStrategy
   bulkRpmStickyBuffer: number | null
   userMsgQueueMode: string | null
+  openAIWSMode: OpenAIWSMode
+}
+
+export interface BuildBulkEditAccountPayloadOptions {
+  applyOpenAIOAuthWSMode?: boolean
+  applyOpenAIAPIKeyWSMode?: boolean
 }
 
 export const createDefaultBulkEditAccountFormState = (): BulkEditAccountFormState => ({
   enableBaseUrl: false,
   enableModelRestriction: false,
+  enableOpenAIWSMode: false,
   enableCustomErrorCodes: false,
   enableInterceptWarmup: false,
   enableProxy: false,
@@ -70,13 +83,15 @@ export const createDefaultBulkEditAccountFormState = (): BulkEditAccountFormStat
   bulkBaseRpm: null,
   bulkRpmStrategy: 'tiered',
   bulkRpmStickyBuffer: null,
-  userMsgQueueMode: null
+  userMsgQueueMode: null,
+  openAIWSMode: OPENAI_WS_MODE_OFF
 })
 
 export const hasBulkEditAccountFieldEnabled = (state: BulkEditAccountFormState): boolean => {
   return (
     state.enableBaseUrl ||
     state.enableModelRestriction ||
+    state.enableOpenAIWSMode ||
     state.enableCustomErrorCodes ||
     state.enableInterceptWarmup ||
     state.enableProxy ||
@@ -105,7 +120,8 @@ export const canBulkEditAccountPreCheck = (
 
 export const buildBulkEditAccountPayload = (
   state: BulkEditAccountFormState,
-  resolveModelMapping: () => Record<string, string> | null
+  resolveModelMapping: () => Record<string, string> | null,
+  options: BuildBulkEditAccountPayloadOptions = {}
 ): Partial<UpdateAccountRequest> | null => {
   const updates: Partial<UpdateAccountRequest> = {}
   const credentials: Record<string, unknown> = {}
@@ -172,7 +188,7 @@ export const buildBulkEditAccountPayload = (
     updates.credentials = credentials
   }
 
-  const extra = buildBulkEditExtra(state)
+  const extra = buildBulkEditExtra(state, options)
   if (extra) {
     updates.extra = extra
   }
@@ -183,15 +199,33 @@ export const buildBulkEditAccountPayload = (
 function buildBulkEditExtra(
   state: Pick<
     BulkEditAccountFormState,
+    | 'enableOpenAIWSMode'
     | 'enableRpmLimit'
     | 'rpmLimitEnabled'
     | 'bulkBaseRpm'
     | 'bulkRpmStrategy'
     | 'bulkRpmStickyBuffer'
     | 'userMsgQueueMode'
-  >
+    | 'openAIWSMode'
+  >,
+  options: BuildBulkEditAccountPayloadOptions
 ): Record<string, unknown> | undefined {
   const extra: Record<string, unknown> = {}
+
+  if (state.enableOpenAIWSMode) {
+    if (options.applyOpenAIOAuthWSMode) {
+      extra.openai_oauth_responses_websockets_v2_mode = state.openAIWSMode
+      extra.openai_oauth_responses_websockets_v2_enabled = isOpenAIWSModeEnabled(
+        state.openAIWSMode
+      )
+    }
+    if (options.applyOpenAIAPIKeyWSMode) {
+      extra.openai_apikey_responses_websockets_v2_mode = state.openAIWSMode
+      extra.openai_apikey_responses_websockets_v2_enabled = isOpenAIWSModeEnabled(
+        state.openAIWSMode
+      )
+    }
+  }
 
   if (state.enableRpmLimit) {
     if (state.rpmLimitEnabled && state.bulkBaseRpm != null && state.bulkBaseRpm > 0) {

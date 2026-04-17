@@ -42,6 +42,14 @@
         :presets="presetMappings"
       />
 
+      <BulkEditOpenAIGatewaySection
+        v-model:enabled="enableOpenAIWSMode"
+        v-model:mode="openAIWSMode"
+        :visible="showOpenAIWSMode"
+        :mode-options="openAIWSModeOptions"
+        :concurrency-hint-key="openAIWSModeConcurrencyHintKey"
+      />
+
       <BulkEditCustomErrorCodesSection
         v-model:enabled="enableCustomErrorCodes"
         v-model:selected-codes="selectedErrorCodes"
@@ -151,12 +159,19 @@ import BulkEditBaseUrlSection from './BulkEditBaseUrlSection.vue'
 import BulkEditAnthropicControlSection from './BulkEditAnthropicControlSection.vue'
 import BulkEditCustomErrorCodesSection from './BulkEditCustomErrorCodesSection.vue'
 import BulkEditModelRestrictionSection from './BulkEditModelRestrictionSection.vue'
+import BulkEditOpenAIGatewaySection from './BulkEditOpenAIGatewaySection.vue'
 import BulkEditRuntimeFieldsSection from './BulkEditRuntimeFieldsSection.vue'
 import BulkEditStatusGroupSection from './BulkEditStatusGroupSection.vue'
 import { useBulkEditAccountForm } from '@/composables/useBulkEditAccountForm'
 import { useBulkEditAccountSubmit } from '@/composables/useBulkEditAccountSubmit'
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { commonErrorCodes } from '@/composables/useModelWhitelist'
+import {
+  OPENAI_WS_MODE_CTX_POOL,
+  OPENAI_WS_MODE_OFF,
+  OPENAI_WS_MODE_PASSTHROUGH,
+  resolveOpenAIWSModeConcurrencyHintKey
+} from '@/utils/openaiWsMode'
 
 interface Props {
   show: boolean
@@ -197,6 +212,7 @@ const {
   enableInterceptWarmup,
   enableLoadFactor,
   enableModelRestriction,
+  enableOpenAIWSMode,
   enablePriority,
   enableProxy,
   enableRateMultiplier,
@@ -208,6 +224,7 @@ const {
   loadFactor,
   modelMappings,
   modelRestrictionMode,
+  openAIWSMode,
   presetMappings,
   priority,
   proxyId,
@@ -215,12 +232,23 @@ const {
   resetFormState,
   rpmLimitEnabled,
   selectedErrorCodes,
+  showOpenAIWSMode,
   status,
   userMsgQueueMode
 } = useBulkEditAccountForm({
   selectedPlatforms: toRef(props, 'selectedPlatforms'),
   selectedTypes: toRef(props, 'selectedTypes')
 })
+
+const openAIWSModeOptions = computed(() => [
+  { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
+  { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
+  { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
+])
+
+const openAIWSModeConcurrencyHintKey = computed(() =>
+  resolveOpenAIWSModeConcurrencyHintKey(openAIWSMode.value)
+)
 
 const {
   showWarning: showMixedChannelWarning,

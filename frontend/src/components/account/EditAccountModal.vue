@@ -143,7 +143,7 @@
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
-          :show-gemini-tier="effectivePlatform === 'gemini'"
+          :show-gemini-tier="shouldPersistGeminiTierId"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -168,13 +168,13 @@
         />
 
         <AccountPoolModeEditor
-          v-model:state="poolModeState"
+          :state="poolModeState"
           :default-retry-count="DEFAULT_POOL_MODE_RETRY_COUNT"
           :max-retry-count="MAX_POOL_MODE_RETRY_COUNT"
         />
 
         <AccountCustomErrorCodesEditor
-          v-model:state="customErrorCodesState"
+          :state="customErrorCodesState"
           :error-code-options="commonErrorCodes"
           :show-error="showFormError"
           :show-info="showFormInfo"
@@ -531,6 +531,7 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import {
+  OPENAI_WS_MODE_CTX_POOL,
   OPENAI_WS_MODE_OFF,
   OPENAI_WS_MODE_PASSTHROUGH,
   isOpenAIWSModeEnabled,
@@ -599,6 +600,7 @@ import type {
   GatewayClientRoute,
   GatewayOpenAIRequestFormat
 } from '@/types'
+import { formatModelDisplayName } from '@/utils/modelDisplayName'
 import {
   deriveConfiguredAccountModelIds,
   mergeAccountModelProbeSnapshotIntoExtra,
@@ -716,7 +718,7 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
     api_key: editApiKey.value.trim() || String(currentAccountCredentials.value.api_key || '').trim(),
     base_url: editBaseUrl.value.trim() || resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic', gatewayProtocol.value)
   }
-  if (effectivePlatform.value === 'gemini') {
+  if (shouldPersistGeminiTierId.value) {
     credentials.tier_id =
       normalizeGeminiAIStudioTier(geminiTierAIStudio.value || currentAccountCredentials.value.tier_id) ||
       'aistudio_free'
@@ -892,6 +894,11 @@ const unifiedProbeReady = computed(() => {
   return oauthProbeReady.value
 })
 const showQuotaLimitSection = computed(() => Boolean(props.account))
+const shouldPersistGeminiTierId = computed(() =>
+  props.account?.platform === 'gemini' &&
+  props.account?.type === 'apikey' &&
+  !isGeminiVertexAccount.value
+)
 const showGeminiAIStudioBatchArchiveEditor = computed(() =>
   resolveGoogleBatchArchiveTargetKind(
     props.account?.platform,
@@ -953,6 +960,7 @@ const gatewayProtocolOptions = computed(() =>
 )
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
+  { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
   { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
 ])
 const openaiResponsesWebSocketV2Mode = computed({
@@ -1010,7 +1018,7 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
         allowedModels.value = selectedModels
         protocolGatewayProbeModels.value = selectedModels.map((modelId) => ({
           id: modelId,
-          display_name: modelId,
+          display_name: formatModelDisplayName(modelId) || modelId,
           registry_state: 'existing',
           registry_model_id: modelId
         }))
@@ -1034,7 +1042,7 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
         allowedModels.value = selectedModels
         protocolGatewayProbeModels.value = selectedModels.map((modelId) => ({
           id: modelId,
-          display_name: modelId,
+          display_name: formatModelDisplayName(modelId) || modelId,
           registry_state: 'existing',
           registry_model_id: modelId
         }))
@@ -1060,7 +1068,7 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
         modelMappings.value = unique.map((modelId) => ({ from: modelId, to: modelId }))
         protocolGatewayProbeModels.value = unique.map((modelId) => ({
           id: modelId,
-          display_name: modelId,
+          display_name: formatModelDisplayName(modelId) || modelId,
           registry_state: 'existing',
           registry_model_id: modelId
         }))
@@ -1097,7 +1105,7 @@ function applyModelRestrictionFromRecord(value: unknown) {
     allowedModels.value = [...new Set(entries.map(({ to }) => to))]
     protocolGatewayProbeModels.value = [...new Set(entries.map(({ to }) => to))].map((modelId) => ({
       id: modelId,
-      display_name: modelId,
+      display_name: formatModelDisplayName(modelId) || modelId,
       registry_state: 'existing',
       registry_model_id: modelId
     }))
@@ -1126,7 +1134,7 @@ function applyDefaultGrokCapabilityMapping() {
 function createStaticProbeModels(modelIds: string[]): ProtocolGatewayProbeModel[] {
   return modelIds.map((modelId) => ({
     id: modelId,
-    display_name: modelId,
+    display_name: formatModelDisplayName(modelId) || modelId,
     registry_state: 'existing',
     registry_model_id: modelId
   }))
@@ -1781,7 +1789,7 @@ const handleSubmit = async () => {
         ...currentCredentials,
         base_url: newBaseUrl
       }
-      if (runtimePlatform === 'gemini') {
+      if (shouldPersistGeminiTierId.value) {
         newCredentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
       } else {
         delete newCredentials.tier_id

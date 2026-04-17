@@ -4,6 +4,8 @@
       'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium transition-colors',
       badgeClass
     ]"
+    :title="name"
+    :aria-label="name"
   >
     <!-- Platform logo -->
     <PlatformIcon v-if="platform" :platform="platform" size="sm" />

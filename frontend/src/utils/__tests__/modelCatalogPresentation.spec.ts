@@ -4,6 +4,7 @@ import {
   formatModelCatalogProvider,
   getModelCatalogPriceDisplayMode,
   MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY,
+  resolveModelCatalogDisplayName,
   setModelCatalogPriceDisplayMode
 } from '../modelCatalogPresentation'
 
@@ -33,5 +34,9 @@ describe('modelCatalogPresentation', () => {
 
     expect(localStorage.getItem(MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY)).toBe('dual')
     expect(getModelCatalogPriceDisplayMode()).toBe('dual')
+  })
+
+  it('falls back to the shared display-name formatter when display_name is missing', () => {
+    expect(resolveModelCatalogDisplayName('claude-opus-4-6')).toBe('Claude Opus 4.6')
   })
 })

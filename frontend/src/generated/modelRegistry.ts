@@ -34,11 +34,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-16T04:06:18Z"
+export const generatedModelRegistryBuiltAt = "2026-04-17T04:29:04Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"83077ab3e2752478bb11ea86ee91c105a0bbb4e78b9e7c0a4f7d2b9c51d3f8e5\"",
-  "updated_at": "2026-04-16T04:06:18Z",
+  "etag": "W/\"cf66d08f965380c2e0427823c2d7e2e517db7fd3837d94fd799a82df2216e17e\"",
+  "updated_at": "2026-04-17T04:29:04Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -1386,6 +1386,36 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "capabilities": [],
       "ui_priority": 3,
       "exposed_in": [
+        "whitelist"
+      ]
+    },
+    {
+      "id": "claude-opus-4-7",
+      "display_name": "Claude Opus 4.7",
+      "provider": "anthropic",
+      "platforms": [
+        "anthropic",
+        "antigravity"
+      ],
+      "protocol_ids": [
+        "claude-opus-4-7"
+      ],
+      "aliases": [
+        "claude-opus-4.7"
+      ],
+      "pricing_lookup_ids": [
+        "claude-opus-4-7"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 3,
+      "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -6495,6 +6525,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "order": 5
     },
     {
+      "platform": "anthropic",
+      "label": "Opus 4.7",
+      "from": "claude-opus-4-7",
+      "to": "claude-opus-4-7",
+      "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+      "order": 6
+    },
+    {
       "platform": "openai",
       "label": "GPT-4o",
       "from": "gpt-4o",
@@ -6821,6 +6859,14 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "to": "claude-opus-4.1",
       "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
       "order": 51
+    },
+    {
+      "platform": "antigravity",
+      "label": "Opus 4.7",
+      "from": "claude-opus-4-7",
+      "to": "claude-opus-4-7",
+      "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+      "order": 52
     }
   ]
 }

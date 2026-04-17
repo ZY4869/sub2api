@@ -1,3 +1,4 @@
+import { formatModelDisplayName } from '@/utils/modelDisplayName'
 import { formatProviderLabel } from '@/utils/providerLabels'
 
 export const MODEL_CATALOG_DEFAULT_THRESHOLD = 200000
@@ -7,7 +8,7 @@ export const MODEL_CATALOG_PRICE_DISPLAY_MODE_STORAGE_KEY = 'admin_model_catalog
 export type ModelCatalogPriceDisplayMode = 'usd' | 'dual'
 
 export function resolveModelCatalogDisplayName(model: string, displayName?: string): string {
-  return displayName || model
+  return displayName || formatModelDisplayName(model) || model
 }
 
 export function formatModelCatalogProvider(provider?: string): string {

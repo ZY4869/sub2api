@@ -6,6 +6,7 @@ import {
   createDefaultBulkEditAccountFormState,
   hasBulkEditAccountFieldEnabled
 } from '@/utils/bulkEditAccountForm'
+import { OPENAI_WS_MODE_OFF } from '@/utils/openaiWsMode'
 import {
   buildModelMappingObject as buildModelMappingPayload,
   getModelsByPlatform,
@@ -71,13 +72,37 @@ export function useBulkEditAccountForm(options: {
 
   const hasAnyFieldEnabled = computed(() => hasBulkEditAccountFieldEnabled(form))
 
+  const showOpenAIWSMode = computed(() => {
+    if (options.selectedPlatforms.value.length !== 1 || options.selectedPlatforms.value[0] !== 'openai') {
+      return false
+    }
+    return (
+      options.selectedTypes.value.length > 0 &&
+      options.selectedTypes.value.every((type) => type === 'oauth' || type === 'apikey')
+    )
+  })
+
+  const applyOpenAIOAuthWSMode = computed(() =>
+    showOpenAIWSMode.value && options.selectedTypes.value.includes('oauth')
+  )
+
+  const applyOpenAIAPIKeyWSMode = computed(() =>
+    showOpenAIWSMode.value && options.selectedTypes.value.includes('apikey')
+  )
+
   const buildUpdatePayload = () => {
-    return buildBulkEditAccountPayload(form, () =>
-      buildModelMappingPayload(
-        form.modelRestrictionMode,
-        form.allowedModels,
-        form.modelMappings
-      )
+    return buildBulkEditAccountPayload(
+      form,
+      () =>
+        buildModelMappingPayload(
+          form.modelRestrictionMode,
+          form.allowedModels,
+          form.modelMappings
+        ),
+      {
+        applyOpenAIOAuthWSMode: applyOpenAIOAuthWSMode.value,
+        applyOpenAIAPIKeyWSMode: applyOpenAIAPIKeyWSMode.value
+      }
     )
   }
 
@@ -85,6 +110,7 @@ export function useBulkEditAccountForm(options: {
 
   const resetFormState = () => {
     Object.assign(form, createDefaultBulkEditAccountFormState())
+    form.openAIWSMode = OPENAI_WS_MODE_OFF
   }
 
   return {
@@ -95,6 +121,7 @@ export function useBulkEditAccountForm(options: {
     hasAnyFieldEnabled,
     buildUpdatePayload,
     canPreCheck,
+    showOpenAIWSMode,
     resetFormState
   }
 }

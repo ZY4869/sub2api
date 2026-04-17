@@ -40,6 +40,14 @@
     "order": 5
   },
   {
+    "platform": "anthropic",
+    "label": "Opus 4.7",
+    "from": "claude-opus-4-7",
+    "to": "claude-opus-4-7",
+    "color": "bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-400",
+    "order": 6
+  },
+  {
     "platform": "openai",
     "label": "GPT-4o",
     "from": "gpt-4o",
@@ -366,5 +374,13 @@
     "to": "claude-opus-4.1",
     "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
     "order": 51
+  },
+  {
+    "platform": "antigravity",
+    "label": "Opus 4.7",
+    "from": "claude-opus-4-7",
+    "to": "claude-opus-4-7",
+    "color": "bg-pink-100 text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-400",
+    "order": 52
   }
 ]

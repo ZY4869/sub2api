@@ -37,6 +37,16 @@ vi.mock('vue-i18n', async () => {
 const findButtonByText = (wrapper: ReturnType<typeof mount>, text: string) =>
   wrapper.findAll('button').find((button) => button.text() === text)
 
+const iconStubs = {
+  Icon: true,
+  ModelIcon: {
+    template: '<span data-testid="model-icon" />'
+  },
+  ModelPlatformIcon: {
+    template: '<span data-testid="provider-icon" />'
+  }
+}
+
 describe('AccountProtocolGatewayModelProbeEditor', () => {
   beforeEach(() => {
     probeProtocolGatewayModels.mockReset()
@@ -47,6 +57,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         {
           id: 'gpt-4.1',
           display_name: 'GPT-4.1',
+          provider: 'openai',
+          provider_label: 'OpenAI-GPT',
           registry_state: 'existing',
           registry_model_id: 'gpt-4.1'
         },
@@ -78,9 +90,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -102,6 +112,17 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.emitted('update:probedModels')?.[0]?.[0]).toHaveLength(2)
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.registryExisting')
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.registryMissing')
+    const displayNames = wrapper
+      .findAll('[data-testid="probe-model-display-name"]')
+      .map((node) => node.text())
+    const modelIds = wrapper.findAll('[data-testid="probe-model-id"]').map((node) => node.text())
+
+    expect(displayNames).toContain('GPT-4.1')
+    expect(displayNames).toContain('Custom Upstream Model')
+    expect(modelIds).toContain('gpt-4.1')
+    expect(modelIds).toContain('custom-upstream-model')
+    expect(wrapper.findAll('[data-testid="probe-model-icon"]')).not.toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="probe-provider-icon"]')).not.toHaveLength(0)
 
     const selectAllButton = findButtonByText(
       wrapper,
@@ -134,9 +155,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -165,6 +184,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
           {
             id: 'gpt-4.1',
             display_name: 'GPT-4.1',
+            provider: 'openai',
             registry_state: 'existing',
             registry_model_id: 'gpt-4.1',
             source_protocol: 'openai'
@@ -172,6 +192,8 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
           {
             id: 'gemini-2.5-pro',
             display_name: 'Gemini 2.5 Pro',
+            provider: 'gemini',
+            provider_label: 'Google-Gemini',
             registry_state: 'missing',
             source_protocol: 'gemini'
           }
@@ -188,9 +210,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         ]
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -203,6 +223,9 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.text()).toContain('/google/batch/archive/v1beta/batches')
     expect(wrapper.text()).toContain('/v1/projects/:project/locations/:location/batchPredictionJobs')
     expect(wrapper.text()).toContain('admin.accounts.protocolGateway.clientProfileCodex')
+    expect(wrapper.findAll('[data-testid="probe-provider-icon"]')).not.toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="probe-model-icon"]')).not.toHaveLength(0)
+    expect(wrapper.text()).not.toContain('Google-Gemini Gemini 2.5 Pro')
 
     const applyAllGeminiCliButton = findButtonByText(
       wrapper,
@@ -245,9 +268,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -296,9 +317,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -346,9 +365,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         ]
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -382,9 +399,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -414,9 +429,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 
@@ -452,9 +465,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         clientRoutes: []
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: iconStubs
       }
     })
 

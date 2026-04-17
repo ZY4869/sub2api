@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import BulkEditAccountModal from '../BulkEditAccountModal.vue'
+import BulkEditOpenAIGatewaySection from '../BulkEditOpenAIGatewaySection.vue'
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -81,5 +82,32 @@ describe('BulkEditAccountModal', () => {
     expect(wrapper.text()).toContain('Sonnet 4.5')
     expect(wrapper.text()).toContain('Opus 4.1')
     expect(wrapper.text()).not.toContain('4.6')
+  })
+
+  it('restores the ctx_pool ws mode option for openai bulk edit', () => {
+    const wrapper = mount(BulkEditAccountModal, {
+      props: {
+        show: true,
+        accountIds: [1],
+        selectedPlatforms: ['openai'],
+        selectedTypes: ['oauth', 'apikey'],
+        proxies: [],
+        groups: []
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: true,
+          ProxySelector: true,
+          GroupSelector: true,
+          Icon: true
+        }
+      }
+    })
+
+    const section = wrapper.findComponent(BulkEditOpenAIGatewaySection)
+    expect(section.exists()).toBe(true)
+    const modeOptions = section.props('modeOptions') as Array<{ label: string }>
+    expect(modeOptions.map((option) => option.label)).toContain('admin.accounts.openai.wsModeCtxPool')
   })
 })

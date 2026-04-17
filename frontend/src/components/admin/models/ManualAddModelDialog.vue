@@ -38,8 +38,15 @@
           type="text"
           class="input"
           :placeholder="t('admin.models.available.manualAddDialog.displayNamePlaceholder')"
+          @input="handleDisplayNameInput"
           @keyup.enter="submit"
         />
+        <p
+          v-if="!displayNameCustomized && autoDisplayName"
+          class="text-xs text-gray-500 dark:text-gray-400"
+        >
+          {{ t('admin.models.available.manualAddDialog.autoDisplayNameHint', { name: autoDisplayName }) }}
+        </p>
       </label>
 
       <label class="block space-y-1.5">
@@ -77,6 +84,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ManualAddModelRegistryEntryPayload } from '@/api/admin/modelRegistry'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { formatModelDisplayName } from '@/utils/modelDisplayName'
 import { formatProviderLabel, listKnownProviders } from '@/utils/providerLabels'
 
 const props = withDefaults(defineProps<{
@@ -96,18 +104,21 @@ const modelId = ref('')
 const displayName = ref('')
 const provider = ref('')
 const validationError = ref('')
+const displayNameCustomized = ref(false)
 const providerOptions = computed(() =>
   listKnownProviders().map((value) => ({
     value,
     label: formatProviderLabel(value)
   }))
 )
+const autoDisplayName = computed(() => formatModelDisplayName(modelId.value))
 
 function resetForm() {
   modelId.value = ''
   displayName.value = ''
   provider.value = ''
   validationError.value = ''
+  displayNameCustomized.value = false
 }
 
 function handleClose() {
@@ -127,6 +138,19 @@ function submit() {
     provider: provider.value || undefined
   })
 }
+
+function handleDisplayNameInput() {
+  displayNameCustomized.value = true
+}
+
+watch(
+  () => modelId.value,
+  () => {
+    if (!displayNameCustomized.value) {
+      displayName.value = autoDisplayName.value
+    }
+  }
+)
 
 watch(
   () => props.show,

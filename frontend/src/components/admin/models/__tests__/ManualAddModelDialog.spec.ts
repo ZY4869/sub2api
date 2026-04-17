@@ -52,7 +52,7 @@ describe('ManualAddModelDialog', () => {
 
     const inputs = wrapper.findAll('input')
     await inputs[0].setValue('  gpt-5.4-mini  ')
-    await inputs[1].setValue('  GPT-5.4 Mini  ')
+    expect((inputs[1].element as HTMLInputElement).value).toBe('GPT 5.4 Mini')
     await wrapper.get('select').setValue('grok')
 
     const confirmButton = wrapper.findAll('button').find((button) =>
@@ -65,7 +65,7 @@ describe('ManualAddModelDialog', () => {
     expect(wrapper.emitted('submit')).toEqual([[
       {
         id: 'gpt-5.4-mini',
-        display_name: 'GPT-5.4 Mini',
+        display_name: 'GPT 5.4 Mini',
         provider: 'grok'
       }
     ]])
@@ -82,5 +82,27 @@ describe('ManualAddModelDialog', () => {
     expect((inputs[0].element as HTMLInputElement).value).toBe('')
     expect((inputs[1].element as HTMLInputElement).value).toBe('')
     expect((wrapper.get('select').element as HTMLSelectElement).value).toBe('')
+  })
+
+  it('stops auto-overwriting the display name after the user edits it manually', async () => {
+    const wrapper = mount(ManualAddModelDialog, {
+      props: {
+        show: true
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub
+        }
+      }
+    })
+
+    const inputs = wrapper.findAll('input')
+    await inputs[0].setValue('claude-opus-4-6')
+    expect((inputs[1].element as HTMLInputElement).value).toBe('Claude Opus 4.6')
+
+    await inputs[1].setValue('My Custom Name')
+    await inputs[0].setValue('gemini-2.5-pro')
+
+    expect((inputs[1].element as HTMLInputElement).value).toBe('My Custom Name')
   })
 })

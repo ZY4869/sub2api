@@ -13,6 +13,7 @@ func cloneStringMap(input map[string]string) map[string]string {
 }
 
 var defaultAntigravityModelMapping = map[string]string{
+	"claude-opus-4-7":                "claude-opus-4-7",
 	"claude-opus-4-6-thinking":       "claude-opus-4-6-thinking",
 	"claude-opus-4-6":                "claude-opus-4-6-thinking",
 	"claude-opus-4-5-thinking":       "claude-opus-4-6-thinking",

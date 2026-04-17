@@ -30,7 +30,19 @@
 
     <template #cell-name="{ row, value }">
       <div class="flex flex-col gap-2">
-        <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+          <span
+            v-if="row.auto_recovery_probe?.status === 'success'"
+            class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
+            :title="t('admin.accounts.autoRecoveryProbe.successIndicator')"
+            :aria-label="t('admin.accounts.autoRecoveryProbe.successIndicator')"
+          >
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+        </div>
         <span
           v-if="row.extra?.email_address"
           class="max-w-[200px] truncate text-xs text-gray-500 dark:text-gray-400"

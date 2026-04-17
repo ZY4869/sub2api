@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -80,7 +81,10 @@ func TestForwardAsAnthropic_NormalizesRoutingAndEffortForGpt54XHigh(t *testing.T
 		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
 	}}
 
-	svc := &OpenAIGatewayService{httpUpstream: upstream}
+	svc := &OpenAIGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
 	account := &Account{
 		ID:          1,
 		Name:        "openai-oauth",
@@ -108,4 +112,33 @@ func TestForwardAsAnthropic_NormalizesRoutingAndEffortForGpt54XHigh(t *testing.T
 	require.Equal(t, "max", gjson.GetBytes(upstream.lastBody, "reasoning.effort").String())
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "gpt-5.4-xhigh", gjson.GetBytes(rec.Body.Bytes(), "model").String())
+}
+
+func TestForwardAsAnthropic_InjectsPromptCacheKeyForAPIKeyAccounts(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"gpt-5.4","max_tokens":32,"messages":[{"role":"user","content":"hello"}],"stream":false}`)
+	rec, c := newCompatGatewayTestContext(http.MethodPost, "/v1/messages", body)
+	upstreamBody := strings.Join([]string{
+		`data: {"type":"response.completed","response":{"id":"resp_cache","object":"response","model":"gpt-5.4","status":"completed","output":[{"type":"message","id":"msg_cache","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":4,"output_tokens":1,"total_tokens":5}}}`,
+		"",
+		"data: [DONE]",
+		"",
+	}, "\n")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader(upstreamBody)),
+	}}
+
+	svc := &OpenAIGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+
+	result, err := svc.ForwardAsAnthropic(context.Background(), c, newCompatForwardAccount(), body, "pc-msg-123", "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "pc-msg-123", gjson.GetBytes(upstream.lastBody, "prompt_cache_key").String())
 }

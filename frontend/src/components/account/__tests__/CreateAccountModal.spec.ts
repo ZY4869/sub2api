@@ -123,24 +123,43 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
       >
         set mixed gateway
       </button>
+      <button
+        type="button"
+        data-testid="set-gateway-gemini"
+        @click="
+          $emit('update:account-category', 'apikey');
+          $emit('update:gateway-protocol', 'gemini')
+        "
+      >
+        set gemini gateway
+      </button>
     </div>
   `
 })
 
 const AccountApiKeyBasicSettingsEditorStub = defineComponent({
   name: 'AccountApiKeyBasicSettingsEditor',
+  props: {
+    showGeminiTier: {
+      type: Boolean,
+      default: false
+    }
+  },
   emits: ['update:api-key', 'update:base-url'],
   template: `
-    <button
-      type="button"
-      data-testid="set-api-key"
-      @click="
-        $emit('update:api-key', 'gateway-key');
-        $emit('update:base-url', 'https://gateway.example.com')
-      "
-    >
-      set api key
-    </button>
+    <div>
+      <span data-testid="show-gemini-tier-prop">{{ showGeminiTier }}</span>
+      <button
+        type="button"
+        data-testid="set-api-key"
+        @click="
+          $emit('update:api-key', 'gateway-key');
+          $emit('update:base-url', 'https://gateway.example.com')
+        "
+      >
+        set api key
+      </button>
+    </div>
   `
 })
 
@@ -345,5 +364,40 @@ describe('CreateAccountModal', () => {
 
     expect(createMock).toHaveBeenCalledTimes(1)
     expect(createMock.mock.calls[0]?.[0]?.extra?.gateway_openai_request_format).toBe('/v1/responses')
+  })
+
+  it('does not send gemini tier_id for protocol gateway gemini accounts', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 11,
+      name: 'Gateway Gemini Account',
+      platform: 'protocol_gateway',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
+    await wrapper.get('[data-testid="set-gateway-gemini"]').trigger('click')
+    expect(wrapper.get('[data-testid="show-gemini-tier-prop"]').text()).toBe('false')
+
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Gateway Gemini Account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      name: 'Gateway Gemini Account',
+      platform: 'protocol_gateway',
+      gateway_protocol: 'gemini',
+      type: 'apikey'
+    })
+    expect(createMock.mock.calls[0]?.[0]?.credentials?.tier_id).toBeUndefined()
   })
 })

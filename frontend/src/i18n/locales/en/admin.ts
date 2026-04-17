@@ -470,6 +470,7 @@ export default {
           modelIdRequired: 'Model ID is required',
           displayNameLabel: 'Model Name',
           displayNamePlaceholder: 'Optional display name',
+          autoDisplayNameHint: 'Auto-filled as {name} until you edit this field manually.',
           providerLabel: 'Provider',
           providerAutoOption: 'Auto Detect',
           confirm: 'Add And Activate'
@@ -1591,6 +1592,7 @@ export default {
         nextRetryAt: 'Next retry: {time}',
         errorCode: 'Error code: {code}',
         autoBlacklisted: 'Auto blacklisted',
+        successIndicator: 'This account passed the recovery probe and is healthy again',
         statuses: {
           success: 'Recovered',
           retry_scheduled: 'Retry scheduled',

@@ -5,6 +5,7 @@ import {
   createDefaultBulkEditAccountFormState,
   hasBulkEditAccountFieldEnabled
 } from '../bulkEditAccountForm'
+import { OPENAI_WS_MODE_CTX_POOL, OPENAI_WS_MODE_OFF } from '../openaiWsMode'
 
 describe('bulkEditAccountForm', () => {
   it('builds the bulk-update payload and omits legacy queue flags', () => {
@@ -70,5 +71,40 @@ describe('bulkEditAccountForm', () => {
     state.enableModelRestriction = true
 
     expect(buildBulkEditAccountPayload(state, () => null)).toBeNull()
+  })
+
+  it('writes openai ws mode updates only for the selected account types', () => {
+    const state = createDefaultBulkEditAccountFormState()
+    state.enableOpenAIWSMode = true
+    state.openAIWSMode = OPENAI_WS_MODE_CTX_POOL
+
+    const payload = buildBulkEditAccountPayload(
+      state,
+      () => null,
+      { applyOpenAIOAuthWSMode: true, applyOpenAIAPIKeyWSMode: false }
+    )
+
+    expect(payload).toEqual({
+      extra: {
+        openai_oauth_responses_websockets_v2_mode: OPENAI_WS_MODE_CTX_POOL,
+        openai_oauth_responses_websockets_v2_enabled: true
+      }
+    })
+
+    state.openAIWSMode = OPENAI_WS_MODE_OFF
+    const bothPayload = buildBulkEditAccountPayload(
+      state,
+      () => null,
+      { applyOpenAIOAuthWSMode: true, applyOpenAIAPIKeyWSMode: true }
+    )
+
+    expect(bothPayload).toEqual({
+      extra: {
+        openai_oauth_responses_websockets_v2_mode: OPENAI_WS_MODE_OFF,
+        openai_oauth_responses_websockets_v2_enabled: false,
+        openai_apikey_responses_websockets_v2_mode: OPENAI_WS_MODE_OFF,
+        openai_apikey_responses_websockets_v2_enabled: false
+      }
+    })
   })
 })

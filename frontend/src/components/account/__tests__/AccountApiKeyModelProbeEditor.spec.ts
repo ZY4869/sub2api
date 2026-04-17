@@ -57,6 +57,12 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
       stubs: {
         Icon: {
           template: '<span />'
+        },
+        ModelIcon: {
+          template: '<span data-testid="model-icon" />'
+        },
+        ModelPlatformIcon: {
+          template: '<span data-testid="provider-icon" />'
         }
       }
     }
@@ -84,6 +90,8 @@ describe('AccountApiKeyModelProbeEditor', () => {
         {
           id: 'gemini-2.0-flash',
           display_name: 'Gemini 2.0 Flash',
+          provider: 'gemini',
+          provider_label: 'Google-Gemini',
           registry_state: 'existing',
           upstream_source: 'official',
           availability: 'callable'
@@ -110,6 +118,10 @@ describe('AccountApiKeyModelProbeEditor', () => {
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.sourceOfficial')
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.sourceVerifiedExtra')
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.availabilityUncallable')
+    expect(wrapper.get('[data-testid="probe-model-display-name"]').text()).toBe('Gemini 2.0 Flash')
+    expect(wrapper.get('[data-testid="probe-model-id"]').text()).toContain('gemini-2.0-flash')
+    expect(wrapper.findAll('[data-testid="probe-model-icon"]')).not.toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="probe-provider-icon"]')).not.toHaveLength(0)
 
     const allowedModelsUpdates = wrapper.emitted('update:allowedModels') || []
     expect(allowedModelsUpdates.at(-1)).toEqual([[]])

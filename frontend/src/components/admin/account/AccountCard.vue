@@ -12,8 +12,20 @@
     <div class="pl-8">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <div class="truncate text-base font-semibold text-gray-900 dark:text-white">
-            {{ account.name }}
+          <div class="flex items-center gap-2">
+            <div class="truncate text-base font-semibold text-gray-900 dark:text-white">
+              {{ account.name }}
+            </div>
+            <span
+              v-if="showAutoRecoverySuccess"
+              class="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
+              :title="t('admin.accounts.autoRecoveryProbe.successIndicator')"
+              :aria-label="t('admin.accounts.autoRecoveryProbe.successIndicator')"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
           </div>
           <div
             v-if="email"
@@ -140,4 +152,5 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const email = computed(() => String(props.account.extra?.email_address || '').trim())
+const showAutoRecoverySuccess = computed(() => props.account.auto_recovery_probe?.status === 'success')
 </script>

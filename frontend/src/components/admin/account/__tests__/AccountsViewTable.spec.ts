@@ -49,7 +49,7 @@ const RowActionsStub = defineComponent({
   `
 })
 
-function mountTable() {
+function mountTable(accountOverrides: Record<string, unknown> = {}) {
   return mount(AccountsViewTable, {
     props: {
       columns: [
@@ -65,11 +65,13 @@ function mountTable() {
           type: 'apikey',
           status: 'active',
           schedulable: true,
+          extra: {},
           auto_recovery_probe: {
             status: 'retry_scheduled',
             summary: 'Temporary gateway error',
             checked_at: '2026-04-09T00:00:00Z'
-          }
+          },
+          ...accountOverrides
         }
       ],
       loading: false,
@@ -135,5 +137,26 @@ describe('AccountsViewTable', () => {
 
     expect(wrapper.text()).toContain('Temporary gateway error')
     expect(wrapper.text()).toContain('admin.accounts.autoRecoveryProbe.headline')
+  })
+
+  it('shows the recovery success indicator and hides the success notice block', () => {
+    const wrapper = mountTable({
+      auto_recovery_probe: {
+        status: 'success',
+        summary: 'Recovered',
+        checked_at: '2026-04-09T00:00:00Z'
+      }
+    })
+
+    const successIndicator = wrapper.find(
+      '[title="admin.accounts.autoRecoveryProbe.successIndicator"]'
+    )
+
+    expect(successIndicator.exists()).toBe(true)
+    expect(successIndicator.attributes('aria-label')).toBe(
+      'admin.accounts.autoRecoveryProbe.successIndicator'
+    )
+    expect(wrapper.text()).not.toContain('Recovered')
+    expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
   })
 })

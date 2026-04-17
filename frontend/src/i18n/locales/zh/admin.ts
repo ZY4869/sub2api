@@ -491,6 +491,7 @@
           modelIdRequired: '请输入模型 ID',
           displayNameLabel: '模型名称',
           displayNamePlaceholder: '可选，留空则使用系统默认显示名',
+          autoDisplayNameHint: '当前将自动使用：{name}。手动修改后将不再自动覆盖。',
           providerLabel: '提供商',
           providerAutoOption: '自动识别',
           confirm: '添加并启用'
@@ -1594,6 +1595,7 @@
         nextRetryAt: '下次重试：{time}',
         errorCode: '错误代码：{code}',
         autoBlacklisted: '已自动拉黑',
+        successIndicator: '该账号已通过恢复探测并恢复正常',
         statuses: {
           success: '已恢复',
           retry_scheduled: '稍后重试',

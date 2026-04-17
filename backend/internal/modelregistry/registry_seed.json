@@ -228,6 +228,36 @@
     ]
   },
   {
+    "id": "claude-opus-4-7",
+    "display_name": "Claude Opus 4.7",
+    "provider": "anthropic",
+    "platforms": [
+      "anthropic",
+      "antigravity"
+    ],
+    "protocol_ids": [
+      "claude-opus-4-7"
+    ],
+    "aliases": [
+      "claude-opus-4.7"
+    ],
+    "pricing_lookup_ids": [
+      "claude-opus-4-7"
+    ],
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 3,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "claude-sonnet-4-5",
     "display_name": "Claude Sonnet 4.5",
     "provider": "anthropic",

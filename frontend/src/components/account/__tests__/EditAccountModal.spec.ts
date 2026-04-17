@@ -83,6 +83,10 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
     allowedModels: {
       type: Array,
       default: () => []
+    },
+    showGeminiTier: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:allowedModels'],
@@ -98,6 +102,7 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       <span data-testid="model-whitelist-value">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
+      <span data-testid="show-gemini-tier-prop">{{ showGeminiTier }}</span>
     </div>
   `
 })
@@ -535,12 +540,14 @@ describe('EditAccountModal', () => {
     const wrapper = mountModal(account)
 
     expect(wrapper.findComponent({ name: 'AccountProtocolGatewayModelProbeEditor' }).exists()).toBe(true)
+    expect(wrapper.get('[data-testid="show-gemini-tier-prop"]').text()).toBe('false')
 
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_batch_enabled).toBe(true)
     expect(updateAccountMock.mock.calls[0]?.[1]?.gateway_protocol).toBe('mixed')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.tier_id).toBeUndefined()
   })
 
   it('rehydrates and persists gateway test provider/model defaults for protocol gateway accounts', async () => {

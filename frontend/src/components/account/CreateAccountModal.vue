@@ -216,7 +216,7 @@
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
-          :show-gemini-tier="effectivePlatform === 'gemini'"
+          :show-gemini-tier="shouldPersistGeminiTierId"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -276,13 +276,13 @@
         />
 
         <AccountPoolModeEditor
-          v-model:state="poolModeState"
+          :state="poolModeState"
           :default-retry-count="DEFAULT_POOL_MODE_RETRY_COUNT"
           :max-retry-count="MAX_POOL_MODE_RETRY_COUNT"
         />
 
         <AccountCustomErrorCodesEditor
-          v-model:state="customErrorCodesState"
+          :state="customErrorCodesState"
           :error-code-options="commonErrorCodes"
           :show-error="showFormError"
           :show-info="showFormInfo"
@@ -683,6 +683,7 @@ import {
 } from '@/utils/accountGoogleBatchArchive'
 import type { ParsedKiroTokenImport } from '@/utils/kiroTokenImport'
 import {
+  OPENAI_WS_MODE_CTX_POOL,
   OPENAI_WS_MODE_OFF,
   OPENAI_WS_MODE_PASSTHROUGH,
   resolveOpenAIWSModeConcurrencyHintKey,
@@ -835,7 +836,7 @@ const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
     api_key: apiKeyValue.value.trim(),
     base_url: apiKeyBaseUrl.value.trim() || resolveAccountApiKeyDefaultBaseUrl(form.platform, gatewayProtocol.value)
   }
-  if (effectivePlatform.value === 'gemini') {
+  if (shouldPersistGeminiTierId.value) {
     credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
   }
   return credentials
@@ -978,9 +979,13 @@ const geminiSelectedTier = computed(() => {
       return geminiTierAIStudio.value
   }
 })
+const shouldPersistGeminiTierId = computed(() =>
+  form.platform === 'gemini' && accountCategory.value === 'apikey'
+)
 
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
+  { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
   { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
 ])
 
@@ -2009,7 +2014,7 @@ const handleSubmit = async () => {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
   }
-  if (effectivePlatform.value === 'gemini') {
+  if (shouldPersistGeminiTierId.value) {
     credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
   }
 

@@ -77,15 +77,23 @@
         @click="toggleModel(model)"
       >
         <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0 space-y-1">
-            <div class="break-words text-sm font-semibold" :title="model.display_name || model.id">
-              {{ model.display_name || model.id }}
-            </div>
-            <div class="break-words text-xs opacity-80" :title="model.id">{{ model.id }}</div>
+          <div class="min-w-0 space-y-1.5">
+            <AccountProbeModelIdentity
+              :model-id="model.id"
+              :display-name="resolveDisplayName(model)"
+              :provider="resolveProvider(model)"
+              :provider-text="resolveProviderLabel(model)"
+            />
             <div
-              v-if="model.upstream_source || model.availability"
+              v-if="resolveProviderLabel(model) || model.upstream_source || model.availability"
               class="mt-2 flex flex-wrap items-center gap-2"
             >
+              <span
+                v-if="resolveProviderLabel(model)"
+                class="inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-white/10 dark:text-slate-200"
+              >
+                {{ resolveProviderLabel(model) }}
+              </span>
               <span
                 v-if="model.upstream_source"
                 class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
@@ -191,6 +199,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { AccountManualModel, ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import AccountManualModelsEditor from '@/components/account/AccountManualModelsEditor.vue'
+import AccountProbeModelIdentity from '@/components/account/AccountProbeModelIdentity.vue'
 import AccountResolvedUpstreamPanel from '@/components/account/AccountResolvedUpstreamPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
@@ -209,6 +218,8 @@ import {
   type AccountModelProbeSnapshotDraft,
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
+import { formatModelDisplayName } from '@/utils/modelDisplayName'
+import { formatProviderLabel, normalizeProviderSlug } from '@/utils/providerLabels'
 import { buildDefaultVertexAlias, isGeminiVertexSourceCredentials } from '@/utils/vertexAi'
 
 const props = defineProps<{
@@ -258,7 +269,7 @@ watch(
       .filter((target) => target && !seen.has(target) && (seen.add(target), true))
       .map((target) => ({
         id: target,
-        display_name: target,
+        display_name: formatModelDisplayName(target) || target,
         registry_state: 'existing' as const,
         registry_model_id: target
       }))
@@ -277,7 +288,7 @@ watch(
       if (probedModels.value.length === 0) {
         probedModels.value = snapshot.models.map((modelId) => ({
           id: modelId,
-          display_name: modelId,
+          display_name: formatModelDisplayName(modelId) || modelId,
           registry_state: 'existing' as const,
           registry_model_id: modelId
         }))
@@ -337,6 +348,21 @@ const availabilityBadgeClasses = (model: ProtocolGatewayProbeModel) =>
   model.availability === 'uncallable'
     ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200'
     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
+
+const resolveProvider = (model: ProtocolGatewayProbeModel) =>
+  normalizeProviderSlug(model.provider)
+
+const resolveProviderLabel = (model: ProtocolGatewayProbeModel) => {
+  const provider = resolveProvider(model)
+  const providerLabel = String(model.provider_label || '').trim()
+  if (!provider && !providerLabel) {
+    return ''
+  }
+  return formatProviderLabel(provider, providerLabel)
+}
+
+const resolveDisplayName = (model: ProtocolGatewayProbeModel) =>
+  String(model.display_name || '').trim() || formatModelDisplayName(model.id) || model.id
 
 const currentAlias = (modelId: string) => {
   if (Object.prototype.hasOwnProperty.call(aliasDrafts.value, modelId)) {

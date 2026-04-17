@@ -241,10 +241,12 @@
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <div class="break-words text-sm font-semibold" :title="model.display_name || model.id">
-                  {{ displayModelTitle(model) }}
-                </div>
-                <div class="break-words text-xs opacity-80" :title="model.id">{{ model.id }}</div>
+                <AccountProbeModelIdentity
+                  :model-id="model.id"
+                  :display-name="displayModelName(model)"
+                  :provider="resolveProvider(model)"
+                  :provider-text="resolveProviderLabel(model)"
+                />
                 <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
                   <span
                     v-if="resolveProviderLabel(model)"
@@ -404,7 +406,9 @@ import {
   type AccountResolvedUpstreamDraft
 } from '@/utils/accountProbeDraft'
 import { checkProtocolGatewayBaseUrl } from '@/utils/protocolGatewayBaseUrl'
-import { buildProviderDisplayName, formatProviderLabel, normalizeProviderSlug } from '@/utils/providerLabels'
+import AccountProbeModelIdentity from '@/components/account/AccountProbeModelIdentity.vue'
+import { formatModelDisplayName } from '@/utils/modelDisplayName'
+import { formatProviderLabel, normalizeProviderSlug } from '@/utils/providerLabels'
 
 const props = defineProps<{
   gatewayProtocol: GatewayProtocol
@@ -483,10 +487,10 @@ const testModelOptions = computed(() => {
   }
   return [...probedModels.value]
     .filter((model) => normalizeProviderSlug(model.provider) === provider)
-    .sort((left, right) => displayModelTitle(left).localeCompare(displayModelTitle(right)))
+    .sort((left, right) => displayModelName(left).localeCompare(displayModelName(right)))
     .map((model) => ({
       id: model.id,
-      label: displayModelTitle(model)
+      label: displayModelName(model)
     }))
 })
 
@@ -544,7 +548,7 @@ watch(
     if (probedModels.value.length === 0) {
       probedModels.value = snapshot.models.map((modelId) => ({
         id: modelId,
-        display_name: modelId,
+        display_name: formatModelDisplayName(modelId) || modelId,
         registry_state: 'existing' as const,
         registry_model_id: modelId
       }))
@@ -622,7 +626,7 @@ watch(
       })
       .map((modelId) => ({
         id: modelId,
-        display_name: modelId,
+        display_name: formatModelDisplayName(modelId) || modelId,
         registry_state: 'existing' as const,
         registry_model_id: modelId
       }))
@@ -700,7 +704,7 @@ const toggleClientProfile = (profile: GatewayClientProfile) => {
   clientProfiles.value = [...clientProfiles.value, profile]
 }
 
-const resolveModelProtocol = (model: ProtocolGatewayProbeModel): GatewayAcceptedProtocol => {
+function resolveModelProtocol(model: ProtocolGatewayProbeModel): GatewayAcceptedProtocol {
   const sourceProtocol = normalizeGatewayAcceptedProtocol(model.source_protocol)
   if (sourceProtocol) {
     return sourceProtocol
@@ -711,11 +715,16 @@ const resolveModelProtocol = (model: ProtocolGatewayProbeModel): GatewayAccepted
   return normalizedAcceptedProtocols.value[0] || 'openai'
 }
 
-const protocolLabel = (protocol: GatewayAcceptedProtocol) =>
-  resolveGatewayProtocolDescriptor(protocol)?.displayName || protocol
+function protocolLabel(protocol: GatewayAcceptedProtocol) {
+  return resolveGatewayProtocolDescriptor(protocol)?.displayName || protocol
+}
 
-const resolveProviderLabel = (model: ProtocolGatewayProbeModel) => {
-  const provider = normalizeProviderSlug(model.provider)
+function resolveProvider(model: ProtocolGatewayProbeModel) {
+  return normalizeProviderSlug(model.provider)
+}
+
+function resolveProviderLabel(model: ProtocolGatewayProbeModel) {
+  const provider = resolveProvider(model)
   const providerLabel = String(model.provider_label || '').trim()
   if (!provider && !providerLabel) {
     return ''
@@ -723,13 +732,9 @@ const resolveProviderLabel = (model: ProtocolGatewayProbeModel) => {
   return formatProviderLabel(provider, providerLabel)
 }
 
-const displayModelTitle = (model: ProtocolGatewayProbeModel) =>
-  buildProviderDisplayName({
-    provider: model.provider,
-    providerLabel: model.provider_label,
-    displayName: model.display_name,
-    fallbackId: model.id
-  })
+function displayModelName(model: ProtocolGatewayProbeModel) {
+  return String(model.display_name || '').trim() || formatModelDisplayName(model.id) || model.id
+}
 
 const groupedProbedModels = computed(() => {
   const grouped = new Map<GatewayAcceptedProtocol, ProtocolGatewayProbeModel[]>()
@@ -746,7 +751,7 @@ const groupedProbedModels = computed(() => {
   const orderedProtocols = PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS.filter((protocol) => grouped.has(protocol))
   return orderedProtocols.map((protocol) => {
     const descriptor = resolveGatewayProtocolDescriptor(protocol)
-    const models = [...(grouped.get(protocol) || [])].sort((left, right) => displayModelTitle(left).localeCompare(displayModelTitle(right)))
+    const models = [...(grouped.get(protocol) || [])].sort((left, right) => displayModelName(left).localeCompare(displayModelName(right)))
     return {
       protocol,
       label: descriptor?.displayName || protocol,
