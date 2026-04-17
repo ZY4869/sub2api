@@ -65,8 +65,8 @@ export default {
           '按 Win+R，输入 %userprofile%\\.codex 打开配置目录。如目录不存在，请先手动创建。'
       },
       grok: {
-        description: 'Grok 鍒嗙粍浣跨敤 OpenAI / xAI 鍏煎璁块棶鏂瑰紡銆傞粯璁や娇鐢ㄦ牴璺緞鍒悕锛屽闇€寮哄埗鍛戒腑 Grok 涓撳睘璺敱锛屽彲鏀圭敤 /grok/v1銆?',
-        note: 'Codex CLI 绀轰緥榛樿浣跨敤鏍瑰叆鍙ｄ互淇濇寔鍏煎鎬с€侽penCode 绀轰緥浼氬悓鏃舵彁渚涙牴鍏ュ彛鍜? /grok/v1 涓撳睘鍏ュ彛銆?',
+        description: 'Grok 分组使用 OpenAI / xAI 兼容访问方式。默认可使用根路径别名；如需强制命中 Grok 专属路由，可改用 /grok/v1。',
+        note: 'Codex CLI 示例默认使用根入口以保持兼容性。OpenCode 示例会同时提供根入口和 /grok/v1 专属入口。',
         examplesHint: '附带 responses、images、videos 与视频状态轮询的 curl 示例。',
       },
       cliTabs: {

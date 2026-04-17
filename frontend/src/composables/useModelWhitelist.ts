@@ -469,12 +469,12 @@ export function buildModelMappingObject(
       const to = item.to.trim();
       if (!from || !to) continue;
       if (!isValidWildcardPattern(from)) {
-        console.warn(`[buildModelMappingObject] ???????????: ${from}`);
+        console.warn(`[buildModelMappingObject] 跳过无效模型映射来源: ${from}`);
         continue;
       }
       if (to.includes("*")) {
         console.warn(
-          `[buildModelMappingObject] ??????????????: ${from} -> ${to}`,
+          `[buildModelMappingObject] 跳过无效模型映射目标: ${from} -> ${to}`,
         );
         continue;
       }

@@ -275,7 +275,9 @@ describe('CreateAccountModal', () => {
   it('uses the protocol gateway probe editor and hides the generic auto-import toggle for that platform', () => {
     expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
     expect(source).toContain(":skip-model-scope-editor=\"form.platform === 'protocol_gateway'\"")
-    expect(source).toContain(":show-auto-import=\"form.platform !== 'protocol_gateway'\"")
+    expect(source).toContain(
+      ":show-auto-import=\"form.platform !== 'protocol_gateway' && form.platform !== 'baidu_document_ai'\""
+    )
   })
 
   it('embeds the Grok batch import panel alongside the single-account Grok fields', () => {

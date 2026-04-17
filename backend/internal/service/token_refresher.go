@@ -113,7 +113,7 @@ func (r *KiroTokenRefresher) Refresh(ctx context.Context, account *Account) (map
 	return newCredentials, nil
 }
 
-// OpenAITokenRefresher 澶勭悊 OpenAI OAuth token鍒锋柊
+// OpenAITokenRefresher handles OpenAI OAuth token refresh.
 type OpenAITokenRefresher struct {
 	openaiOAuthService *OpenAIOAuthService
 }

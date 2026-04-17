@@ -16,7 +16,8 @@ export const ACCOUNT_PLATFORM_ORDER: AccountPlatform[] = [
   'grok',
   'protocol_gateway',
   'gemini',
-  'antigravity'
+  'antigravity',
+  'baidu_document_ai'
 ]
 
 const PLATFORM_BRANDING: Record<AccountPlatform, PlatformBranding> = {
@@ -27,7 +28,8 @@ const PLATFORM_BRANDING: Record<AccountPlatform, PlatformBranding> = {
   grok: { badge: 'Gr', iconKey: 'xai' },
   protocol_gateway: { badge: 'PG', iconKey: 'openrouter' },
   gemini: { badge: 'Go', iconKey: 'google' },
-  antigravity: { badge: 'AG', iconKey: 'antigravity' }
+  antigravity: { badge: 'AG', iconKey: 'antigravity' },
+  baidu_document_ai: { badge: 'BD', iconKey: 'baidu' }
 }
 
 export function getPlatformIconSources(platform?: PlatformKey | string | null): string[] {

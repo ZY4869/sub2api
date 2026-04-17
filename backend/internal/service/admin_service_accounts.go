@@ -54,6 +54,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if err := validateGrokAccountInput(input.Platform, input.Type, input.Credentials, input.Extra); err != nil {
 		return nil, err
 	}
+	if err := validateBaiduDocumentAIAccountInput(input.Platform, input.Type, input.Credentials); err != nil {
+		return nil, err
+	}
 	bindingPlatform := RoutingPlatformFromValues(input.Platform, input.Extra)
 	groupIDs := input.GroupIDs
 	if len(groupIDs) == 0 && !input.SkipDefaultGroupBind {
@@ -104,6 +107,9 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformGrok) {
 		input.Extra = normalizeGrokExtraForStorageByType(input.Type, input.Extra)
 		credentials = normalizeGrokCredentialsForStorage(input.Type, credentials, ResolveGrokTier(input.Extra))
+	}
+	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformBaiduDocumentAI) {
+		credentials = normalizeBaiduDocumentAICredentialsForStorage(credentials)
 	}
 	account := &Account{
 		Name:                   input.Name,
@@ -203,6 +209,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err := validateGrokAccountInput(account.Platform, account.Type, account.Credentials, account.Extra); err != nil {
 		return nil, err
 	}
+	if err := validateBaiduDocumentAIAccountInput(account.Platform, account.Type, account.Credentials); err != nil {
+		return nil, err
+	}
 	if input.ProxyID != nil {
 		if *input.ProxyID == 0 {
 			account.ProxyID = nil
@@ -249,6 +258,9 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformGrok) {
 		account.Extra = normalizeGrokExtraForStorageByType(account.Type, account.Extra)
 		account.Credentials = normalizeGrokCredentialsForStorage(account.Type, account.Credentials, ResolveGrokTier(account.Extra))
+	}
+	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformBaiduDocumentAI) {
+		account.Credentials = normalizeBaiduDocumentAICredentialsForStorage(account.Credentials)
 	}
 	if input.GroupIDs != nil {
 		if err := s.validateGroupIDsExist(ctx, *input.GroupIDs); err != nil {
@@ -487,6 +499,48 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 			if _, ok := rawCapabilities.(map[string]any); !ok {
 				return errors.New("grok accounts require extra.grok_capabilities to be an object")
 			}
+		}
+	}
+	return nil
+}
+
+func validateBaiduDocumentAIAccountInput(platform string, accountType string, credentials map[string]any) error {
+	if !strings.EqualFold(strings.TrimSpace(platform), PlatformBaiduDocumentAI) {
+		return nil
+	}
+	if strings.TrimSpace(strings.ToLower(accountType)) != AccountTypeAPIKey {
+		return errors.New("baidu_document_ai accounts only support apikey type")
+	}
+	if len(credentials) == 0 {
+		return errors.New("baidu_document_ai accounts require credentials")
+	}
+	asyncToken := strings.TrimSpace(anyString(credentials["async_bearer_token"]))
+	directToken := strings.TrimSpace(anyString(credentials["direct_token"]))
+	if asyncToken == "" && directToken == "" {
+		return errors.New("baidu_document_ai accounts require credentials.async_bearer_token or credentials.direct_token")
+	}
+	if raw := strings.TrimSpace(anyString(credentials["async_base_url"])); raw != "" && !strings.HasPrefix(strings.ToLower(raw), "http://") && !strings.HasPrefix(strings.ToLower(raw), "https://") {
+		return errors.New("baidu_document_ai credentials.async_base_url must be an absolute URL")
+	}
+	if rawURLs, ok := credentials["direct_api_urls"]; ok && rawURLs != nil {
+		switch typed := rawURLs.(type) {
+		case map[string]any:
+			for modelID, value := range typed {
+				if strings.TrimSpace(modelID) == "" {
+					return errors.New("baidu_document_ai credentials.direct_api_urls contains an empty model id")
+				}
+				if url := strings.TrimSpace(anyString(value)); url == "" {
+					return errors.New("baidu_document_ai credentials.direct_api_urls contains an empty API URL")
+				}
+			}
+		case map[string]string:
+			for modelID, value := range typed {
+				if strings.TrimSpace(modelID) == "" || strings.TrimSpace(value) == "" {
+					return errors.New("baidu_document_ai credentials.direct_api_urls contains an empty entry")
+				}
+			}
+		default:
+			return errors.New("baidu_document_ai credentials.direct_api_urls must be an object")
 		}
 	}
 	return nil

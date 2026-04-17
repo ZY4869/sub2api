@@ -112,6 +112,15 @@
           @open-gemini-help="showGeminiHelpDialog = true"
         />
 
+        <AccountBaiduDocumentAICredentialsEditor
+          v-if="form.platform === 'baidu_document_ai'"
+          v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
+          v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
+          v-model:direct-token="baiduDocumentAIDirectToken"
+          v-model:direct-api-urls-text="baiduDocumentAIDirectApiUrlsText"
+          mode="create"
+        />
+
         <AccountGeminiVertexCredentialsEditor
           v-if="form.platform === 'gemini' && accountCategory === 'vertex_ai'"
           v-model:auth-mode="geminiVertexAuthMode"
@@ -521,7 +530,7 @@
         :is-manual-input-method="isManualInputMethod"
         :current-o-auth-loading="currentOAuthLoading"
         :can-exchange-code="canExchangeCode"
-        :show-auto-import="form.platform !== 'protocol_gateway'"
+        :show-auto-import="form.platform !== 'protocol_gateway' && form.platform !== 'baidu_document_ai'"
         @close="handleClose"
         @back="goBackToBasicInfo"
         @exchange-code="handleExchangeCode"
@@ -595,6 +604,7 @@ import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKey
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyModelProbeEditor.vue'
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
+import AccountBaiduDocumentAICredentialsEditor from '@/components/account/AccountBaiduDocumentAICredentialsEditor.vue'
 import AccountCopilotDeviceFlowPanel from '@/components/account/AccountCopilotDeviceFlowPanel.vue'
 import AccountCreateFooterActions from '@/components/account/AccountCreateFooterActions.vue'
 import AccountCreateOAuthStep from '@/components/account/AccountCreateOAuthStep.vue'
@@ -689,6 +699,10 @@ import {
   resolveOpenAIWSModeConcurrencyHintKey,
   type OpenAIWSMode
 } from '@/utils/openaiWsMode'
+import {
+  BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL,
+  parseBaiduDocumentAIDirectApiUrlsInput
+} from '@/utils/baiduDocumentAI'
 import type { OAuthFlowExposed } from './oauthFlow.types'
 
 const { t } = useI18n()
@@ -829,6 +843,10 @@ const geminiVertexApiKey = ref('')
 const geminiVertexAccessToken = ref('')
 const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
+const baiduDocumentAIAsyncBearerToken = ref('')
+const baiduDocumentAIAsyncBaseUrl = ref(BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL)
+const baiduDocumentAIDirectToken = ref('')
+const baiduDocumentAIDirectApiUrlsText = ref('')
 const oauthDraftCredentials = ref<Record<string, unknown>>({})
 const oauthDraftExtra = ref<Record<string, unknown>>({})
 const apiKeyProbeCredentials = computed<Record<string, unknown>>(() => {
@@ -887,6 +905,7 @@ const isVertexProbeReady = computed(() => {
 const showCommonApiKeySection = computed(() =>
   form.type === 'apikey' &&
   form.platform !== 'antigravity' &&
+  form.platform !== 'baidu_document_ai' &&
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
 const showQuotaLimitSection = computed(() => true)
@@ -1187,6 +1206,10 @@ watch(
       form.type = 'apikey'
       return
     }
+    if (form.platform === 'baidu_document_ai') {
+      form.type = 'apikey'
+      return
+    }
     if (form.platform === 'grok') {
       form.type = category === 'oauth-based' ? 'sso' : 'apikey'
       return
@@ -1242,6 +1265,17 @@ watch(
       geminiVertexAccessToken.value = ''
       geminiVertexExpiresAtInput.value = ''
       geminiVertexBaseUrl.value = ''
+    }
+    if (newPlatform === 'baidu_document_ai') {
+      accountCategory.value = 'apikey'
+      form.type = 'apikey'
+      autoImportModels.value = false
+      baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+    } else {
+      baiduDocumentAIAsyncBearerToken.value = ''
+      baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+      baiduDocumentAIDirectToken.value = ''
+      baiduDocumentAIDirectApiUrlsText.value = ''
     }
     if (newPlatform === 'protocol_gateway') {
       accountCategory.value = 'apikey'
@@ -1615,6 +1649,10 @@ const { resetForm } = useCreateAccountReset({
   geminiVertexAccessToken,
   geminiVertexExpiresAtInput,
   geminiVertexBaseUrl,
+  baiduDocumentAIAsyncBearerToken,
+  baiduDocumentAIAsyncBaseUrl,
+  baiduDocumentAIDirectToken,
+  baiduDocumentAIDirectApiUrlsText,
   resetTempUnschedRules,
   geminiOAuthType,
   geminiTierGoogleOne,
@@ -1697,6 +1735,41 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     ),
     resolvedUpstream.value
   )
+}
+
+function buildBaiduDocumentAICredentialsForCreate(): Record<string, unknown> | null {
+  const asyncBearerToken = baiduDocumentAIAsyncBearerToken.value.trim()
+  const directToken = baiduDocumentAIDirectToken.value.trim()
+  if (!asyncBearerToken && !directToken) {
+    appStore.showError(t('admin.accounts.baiduDocumentAI.tokenRequired'))
+    return null
+  }
+
+  let directAPIURLs: Record<string, string> = {}
+  try {
+    directAPIURLs = parseBaiduDocumentAIDirectApiUrlsInput(
+      baiduDocumentAIDirectApiUrlsText.value
+    )
+  } catch {
+    appStore.showError(t('admin.accounts.baiduDocumentAI.directApiUrlsInvalid'))
+    return null
+  }
+
+  const credentials: Record<string, unknown> = {
+    async_base_url:
+      baiduDocumentAIAsyncBaseUrl.value.trim() ||
+      BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+  }
+  if (asyncBearerToken) {
+    credentials.async_bearer_token = asyncBearerToken
+  }
+  if (directToken) {
+    credentials.direct_token = directToken
+  }
+  if (Object.keys(directAPIURLs).length > 0) {
+    credentials.direct_api_urls = directAPIURLs
+  }
+  return credentials
 }
 
 const { submitting, createAccountAndFinish } = useCreateAccountSubmit({
@@ -1997,6 +2070,21 @@ const handleSubmit = async () => {
     }
 
     await createAccountAndFinish('gemini', 'oauth', credentials)
+    return
+  }
+
+  if (form.platform === 'baidu_document_ai') {
+    if (!form.name.trim()) {
+      appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
+      return
+    }
+
+    const credentials = buildBaiduDocumentAICredentialsForCreate()
+    if (!credentials) {
+      return
+    }
+
+    await createAccountAndFinish('baidu_document_ai', 'apikey', credentials)
     return
   }
 

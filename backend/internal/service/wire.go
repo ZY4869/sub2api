@@ -201,6 +201,12 @@ func ProvideUsageCleanupService(repo UsageCleanupRepository, timingWheel *Timing
 	return svc
 }
 
+func ProvideUsageRepairService(repo UsageRepairRepository, timingWheel *TimingWheelService) *UsageRepairService {
+	svc := NewUsageRepairService(repo, timingWheel)
+	svc.Start()
+	return svc
+}
+
 // ProvideAccountExpiryService creates and starts AccountExpiryService.
 func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpiryService {
 	svc := NewAccountExpiryService(accountRepo, time.Minute)
@@ -690,6 +696,7 @@ var ProviderSet = wire.NewSet(
 	NewBillingCacheService,
 	NewAnnouncementService,
 	NewAdminService,
+	ProvideDocumentAIService,
 	ProvideModelRegistryService,
 	ProvideModelCatalogService,
 	ProvideTLSFingerprintProfileService,
@@ -757,6 +764,7 @@ var ProviderSet = wire.NewSet(
 	ProvideTimingWheelService,
 	ProvideDashboardAggregationService,
 	ProvideUsageCleanupService,
+	ProvideUsageRepairService,
 	ProvideDeferredService,
 	NewAntigravityQuotaFetcher,
 	NewUserAttributeService,

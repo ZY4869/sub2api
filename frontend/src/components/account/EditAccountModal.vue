@@ -32,6 +32,15 @@
         <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
       </div>
 
+      <AccountBaiduDocumentAICredentialsEditor
+        v-if="isBaiduDocumentAIAccount"
+        v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
+        v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
+        v-model:direct-token="baiduDocumentAIDirectToken"
+        v-model:direct-api-urls-text="baiduDocumentAIDirectApiUrlsText"
+        mode="edit"
+      />
+
       <div
         v-if="isGrokSSOAccount"
         class="space-y-4 rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/30"
@@ -494,6 +503,7 @@ import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKey
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyModelProbeEditor.vue'
 import AccountAutoPauseToggle from '@/components/account/AccountAutoPauseToggle.vue'
+import AccountBaiduDocumentAICredentialsEditor from '@/components/account/AccountBaiduDocumentAICredentialsEditor.vue'
 import AccountCustomErrorCodesEditor from '@/components/account/AccountCustomErrorCodesEditor.vue'
 import AccountGatewaySettingsEditor from '@/components/account/AccountGatewaySettingsEditor.vue'
 import AccountGoogleBatchArchiveEditor from '@/components/account/AccountGoogleBatchArchiveEditor.vue'
@@ -594,6 +604,11 @@ import {
   resolveGoogleBatchArchiveTargetKind,
   type GoogleBatchArchiveBillingMode
 } from '@/utils/accountGoogleBatchArchive'
+import {
+  BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL,
+  parseBaiduDocumentAIDirectApiUrlsInput,
+  stringifyBaiduDocumentAIDirectApiUrls
+} from '@/utils/baiduDocumentAI'
 import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
@@ -707,6 +722,10 @@ const geminiVertexApiKey = ref('')
 const geminiVertexAccessToken = ref('')
 const geminiVertexExpiresAtInput = ref('')
 const geminiVertexBaseUrl = ref('')
+const baiduDocumentAIAsyncBearerToken = ref('')
+const baiduDocumentAIAsyncBaseUrl = ref(BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL)
+const baiduDocumentAIDirectToken = ref('')
+const baiduDocumentAIDirectApiUrlsText = ref('')
 const currentAccountCredentials = computed<Record<string, unknown>>(
   () => ((props.account?.credentials as Record<string, unknown> | undefined) || {})
 )
@@ -807,6 +826,9 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
 )
+const isBaiduDocumentAIAccount = computed(() =>
+  props.account?.platform === 'baidu_document_ai'
+)
 const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
 const isGeminiVertexAccount = computed(() =>
   effectivePlatform.value === 'gemini' &&
@@ -825,13 +847,15 @@ const isGeminiVertexLegacyMode = computed(() => {
   )
 })
 const showCommonApiKeySection = computed(() =>
-  props.account?.type === 'apikey' && !isGeminiVertexAccount.value
+  props.account?.type === 'apikey' &&
+  !isGeminiVertexAccount.value &&
+  !isBaiduDocumentAIAccount.value
 )
 const supportsUnifiedModelEditor = computed(() => {
   if (!props.account) {
     return false
   }
-  if (props.account.platform === 'antigravity') {
+  if (props.account.platform === 'antigravity' || props.account.platform === 'baidu_document_ai') {
     return false
   }
   if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account.type === 'upstream') {
@@ -992,6 +1016,53 @@ const presetMappings = computed(() => getPresetMappingsByPlatform(effectivePlatf
 const defaultBaseUrl = computed(() => {
   return resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic', gatewayProtocol.value)
 })
+
+function buildBaiduDocumentAICredentialsForUpdate(): Record<string, unknown> | null {
+  const currentCredentials = (props.account?.credentials as Record<string, unknown> | undefined) || {}
+  let directAPIURLs: Record<string, string> = {}
+  try {
+    directAPIURLs = parseBaiduDocumentAIDirectApiUrlsInput(
+      baiduDocumentAIDirectApiUrlsText.value
+    )
+  } catch {
+    appStore.showError(t('admin.accounts.baiduDocumentAI.directApiUrlsInvalid'))
+    return null
+  }
+
+  const newCredentials: Record<string, unknown> = {
+    ...currentCredentials,
+    async_base_url:
+      baiduDocumentAIAsyncBaseUrl.value.trim() ||
+      String(currentCredentials.async_base_url || '').trim() ||
+      BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+  }
+  delete newCredentials.base_url
+  delete newCredentials.api_key
+  delete newCredentials.tier_id
+  delete newCredentials.model_mapping
+  delete newCredentials.model_whitelist
+
+  if (baiduDocumentAIAsyncBearerToken.value.trim()) {
+    newCredentials.async_bearer_token = baiduDocumentAIAsyncBearerToken.value.trim()
+  }
+  if (baiduDocumentAIDirectToken.value.trim()) {
+    newCredentials.direct_token = baiduDocumentAIDirectToken.value.trim()
+  }
+  if (Object.keys(directAPIURLs).length > 0) {
+    newCredentials.direct_api_urls = directAPIURLs
+  } else {
+    delete newCredentials.direct_api_urls
+  }
+
+  const asyncBearerToken = String(newCredentials.async_bearer_token || '').trim()
+  const directToken = String(newCredentials.direct_token || '').trim()
+  if (!asyncBearerToken && !directToken) {
+    appStore.showError(t('admin.accounts.baiduDocumentAI.tokenRequired'))
+    return null
+  }
+
+  return newCredentials
+}
 
 function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
   const raw = extra?.model_scope_v2
@@ -1457,16 +1528,34 @@ watch(
       // Initialize API Key fields for apikey type
       if (newAccount.type === 'apikey' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
-        const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
-        editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
+        if (newAccount.platform === 'baidu_document_ai') {
+          baiduDocumentAIAsyncBearerToken.value = ''
+          baiduDocumentAIAsyncBaseUrl.value =
+            String(credentials.async_base_url || '').trim() ||
+            BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+          baiduDocumentAIDirectToken.value = ''
+          baiduDocumentAIDirectApiUrlsText.value = stringifyBaiduDocumentAIDirectApiUrls(
+            credentials.direct_api_urls
+          )
+          modelRestrictionMode.value = 'whitelist'
+          modelMappings.value = []
+          allowedModels.value = []
+          protocolGatewayProbeModels.value = []
+          resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
+          resetAccountCustomErrorCodesState(customErrorCodesState)
+          editBaseUrl.value = ''
+        } else {
+          const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
+          editBaseUrl.value = (credentials.base_url as string) || platformDefaultUrl
 
-        const loadedFromScope = loadModelScopeFromExtra(extra)
-        if (!loadedFromScope) {
-          applyModelRestrictionFromRecord(credentials.model_mapping)
+          const loadedFromScope = loadModelScopeFromExtra(extra)
+          if (!loadedFromScope) {
+            applyModelRestrictionFromRecord(credentials.model_mapping)
+          }
+
+          loadAccountPoolModeStateFromCredentials(poolModeState, credentials, DEFAULT_POOL_MODE_RETRY_COUNT)
+          loadAccountCustomErrorCodesStateFromCredentials(customErrorCodesState, credentials)
         }
-
-        loadAccountPoolModeStateFromCredentials(poolModeState, credentials, DEFAULT_POOL_MODE_RETRY_COUNT)
-        loadAccountCustomErrorCodesStateFromCredentials(customErrorCodesState, credentials)
       } else if (newAccount.type === 'sso' && newAccount.platform === 'grok' && newAccount.credentials) {
         const credentials = newAccount.credentials as Record<string, unknown>
         editBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
@@ -1543,6 +1632,10 @@ watch(
       geminiVertexAccessToken.value = ''
       geminiVertexExpiresAtInput.value = ''
       geminiVertexBaseUrl.value = ''
+      baiduDocumentAIAsyncBearerToken.value = ''
+      baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+      baiduDocumentAIDirectToken.value = ''
+      baiduDocumentAIDirectApiUrlsText.value = ''
     }
   },
   { immediate: true }
@@ -1779,6 +1872,15 @@ const handleSubmit = async () => {
         return
       }
 
+      updatePayload.credentials = newCredentials
+    } else if (props.account.platform === 'baidu_document_ai' && props.account.type === 'apikey') {
+      const newCredentials = buildBaiduDocumentAICredentialsForUpdate()
+      if (!newCredentials) {
+        return
+      }
+      if (!applyTempUnschedConfig(newCredentials)) {
+        return
+      }
       updatePayload.credentials = newCredentials
     } else if (props.account.type === 'apikey') {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
@@ -2119,22 +2221,26 @@ const handleSubmit = async () => {
     )
 
     updatePayload.extra = buildProbeExtra(
-      buildAccountModelScopeExtra(
-        ((updatePayload.extra as Record<string, unknown>) ||
-          (props.account.extra as Record<string, unknown>) ||
-          undefined),
-        {
-          platform: runtimePlatform,
-          enabled: runtimePlatform === 'antigravity'
-            ? true
-            : !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
-          mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
-          allowedModels: allowedModels.value,
-          modelMappings: runtimePlatform === 'antigravity'
-            ? antigravityModelMappings.value
-            : modelMappings.value
-        }
-      )
+      runtimePlatform === 'baidu_document_ai'
+        ? (((updatePayload.extra as Record<string, unknown>) ||
+            (props.account.extra as Record<string, unknown>) ||
+            undefined))
+        : buildAccountModelScopeExtra(
+          ((updatePayload.extra as Record<string, unknown>) ||
+            (props.account.extra as Record<string, unknown>) ||
+            undefined),
+          {
+            platform: runtimePlatform,
+            enabled: runtimePlatform === 'antigravity'
+              ? true
+              : !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
+            mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
+            allowedModels: allowedModels.value,
+            modelMappings: runtimePlatform === 'antigravity'
+              ? antigravityModelMappings.value
+              : modelMappings.value
+          }
+        )
     )
 
     if (props.account.platform === 'grok' && props.account.type !== 'sso') {

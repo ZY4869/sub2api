@@ -50,6 +50,7 @@ type Handlers struct {
 	Gateway       *GatewayHandler
 	OpenAIGateway *OpenAIGatewayHandler
 	GrokGateway   *GrokGatewayHandler
+	DocumentAI    *DocumentAIHandler
 	Setting       *SettingHandler
 	Totp          *TotpHandler
 }

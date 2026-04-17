@@ -785,6 +785,29 @@ func UsageCleanupTaskFromService(task *service.UsageCleanupTask) *UsageCleanupTa
 	}
 }
 
+func UsageRepairTaskFromService(task *service.UsageRepairTask) *UsageRepairTask {
+	if task == nil {
+		return nil
+	}
+	return &UsageRepairTask{
+		ID:            task.ID,
+		Kind:          task.Kind,
+		Days:          task.Days,
+		Status:        task.Status,
+		CreatedBy:     task.CreatedBy,
+		ProcessedRows: task.ProcessedRows,
+		RepairedRows:  task.RepairedRows,
+		SkippedRows:   task.SkippedRows,
+		ErrorMessage:  task.ErrorMsg,
+		CanceledBy:    task.CanceledBy,
+		CanceledAt:    task.CanceledAt,
+		StartedAt:     task.StartedAt,
+		FinishedAt:    task.FinishedAt,
+		CreatedAt:     task.CreatedAt,
+		UpdatedAt:     task.UpdatedAt,
+	}
+}
+
 func requestTypeStringPtr(requestType *int16) *string {
 	if requestType == nil {
 		return nil

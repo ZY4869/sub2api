@@ -79,6 +79,8 @@ func provideCleanup(
 	accountRateLimitRecoveryProbe *service.AccountRateLimitRecoveryProbeService,
 	subscriptionExpiry *service.SubscriptionExpiryService,
 	usageCleanup *service.UsageCleanupService,
+	usageRepair *service.UsageRepairService,
+	documentAI *service.DocumentAIService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
@@ -167,6 +169,18 @@ func provideCleanup(
 			{"UsageCleanupService", func() error {
 				if usageCleanup != nil {
 					usageCleanup.Stop()
+				}
+				return nil
+			}},
+			{"UsageRepairService", func() error {
+				if usageRepair != nil {
+					usageRepair.Stop()
+				}
+				return nil
+			}},
+			{"DocumentAIService", func() error {
+				if documentAI != nil {
+					documentAI.Stop()
 				}
 				return nil
 			}},

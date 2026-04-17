@@ -39,7 +39,7 @@ func opsInsertRequestTraceArgs(input *service.OpsInsertRequestTraceInput) []any 
 }
 
 func opsInsertRequestTraceArgsForSchema(input *service.OpsInsertRequestTraceInput, schema opsRequestTraceSchema) []any {
-	args := make([]any, 0, 57)
+	args := make([]any, 0, 58)
 	appendArg := func(value any) {
 		args = append(args, value)
 	}
@@ -65,6 +65,9 @@ func opsInsertRequestTraceArgsForSchema(input *service.OpsInsertRequestTraceInpu
 	appendArg(opsStringOrEmpty(input.ProtocolOut))
 	appendArg(opsStringOrEmpty(input.Channel))
 	appendArg(opsStringOrEmpty(input.RoutePath))
+	if schema.HasUpstreamPath {
+		appendArg(opsStringOrEmpty(input.UpstreamPath))
+	}
 	appendArg(opsStringOrEmpty(input.RequestType))
 	appendArg(opsStringOrEmpty(input.RequestedModel))
 	appendArg(opsStringOrEmpty(input.UpstreamModel))
@@ -111,7 +114,7 @@ func opsInsertRequestTraceArgsForSchema(input *service.OpsInsertRequestTraceInpu
 }
 
 func buildInsertOpsRequestTraceSQLAndArgs(input *service.OpsInsertRequestTraceInput, schema opsRequestTraceSchema) (string, []any) {
-	columns := make([]string, 0, 57)
+	columns := make([]string, 0, 58)
 	appendColumn := func(name string, supported bool) {
 		if supported {
 			columns = append(columns, name)
@@ -133,6 +136,7 @@ func buildInsertOpsRequestTraceSQLAndArgs(input *service.OpsInsertRequestTraceIn
 	appendColumn("protocol_out", true)
 	appendColumn("channel", true)
 	appendColumn("route_path", true)
+	appendColumn("upstream_path", schema.HasUpstreamPath)
 	appendColumn("request_type", true)
 	appendColumn("requested_model", true)
 	appendColumn("upstream_model", true)

@@ -78,6 +78,9 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
       payload.platform,
       payload.gateway_protocol
     )
+    if (runtimePlatform === 'baidu_document_ai') {
+      return payload
+    }
     return {
       ...payload,
       extra: buildAccountModelScopeExtra(payload.extra as Record<string, unknown> | undefined, {

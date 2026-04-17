@@ -395,7 +395,6 @@ const selectedTestMode = ref<AccountTestMode>(DEFAULT_ACCOUNT_TEST_MODE)
 const runtimePlatform = computed(() =>
   props.account ? resolveEffectiveAccountPlatformFromAccount(props.account) : null
 )
-const supportsTestModes = computed(() => !isGrokAccount.value)
 const selectedModelOption = computed(() =>
   findAccountTestModelByKey(availableModels.value, selectedModelKey.value)
 )
@@ -412,8 +411,10 @@ const effectiveSelectedSourceProtocol = computed(() =>
     : selectedSourceProtocol.value
 )
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
+const isBaiduDocumentAIAccount = computed(() => props.account?.platform === 'baidu_document_ai')
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const isProtocolGatewayAccount = computed(() => props.account?.platform === 'protocol_gateway')
+const supportsTestModes = computed(() => !isGrokAccount.value)
 const generatedImages = ref<PreviewImage[]>([])
 const runtimeContext = ref<{
   testMode: '' | AccountTestMode
@@ -426,18 +427,29 @@ const runtimeContext = ref<{
   sourceProtocol: '',
   simulatedClient: ''
 })
-const testModeOptions = computed(() => [
-  {
-    value: 'real_forward' as const,
-    label: t('admin.accounts.testModes.realForward'),
-    description: t('admin.accounts.testModes.realForwardHint')
-  },
-  {
-    value: 'health_check' as const,
-    label: t('admin.accounts.testModes.healthCheck'),
-    description: t('admin.accounts.testModes.healthCheckHint')
+const availableTestModeValues = computed<AccountTestMode[]>(() => {
+  if (isGrokAccount.value) {
+    return []
   }
-])
+  if (isBaiduDocumentAIAccount.value) {
+    return ['health_check']
+  }
+  return ['real_forward', 'health_check']
+})
+const effectiveTestMode = computed<AccountTestMode>(() =>
+  isBaiduDocumentAIAccount.value ? 'health_check' : normalizeAccountTestMode(selectedTestMode.value)
+)
+const testModeOptions = computed(() =>
+  availableTestModeValues.value.map((mode) => ({
+    value: mode,
+    label: t(mode === 'health_check'
+      ? 'admin.accounts.testModes.healthCheck'
+      : 'admin.accounts.testModes.realForward'),
+    description: t(mode === 'health_check'
+      ? 'admin.accounts.testModes.healthCheckHint'
+      : 'admin.accounts.testModes.realForwardHint')
+  }))
+)
 const effectiveTestPlatform = computed(() =>
   effectiveSelectedSourceProtocol.value || runtimePlatform.value
 )
@@ -612,7 +624,7 @@ watch(
       manualRequestAlias.value = ''
       manualSourceProtocol.value = ''
       selectedTestMode.value = supportsTestModes.value
-        ? loadAccountTestModePreference()
+        ? (isBaiduDocumentAIAccount.value ? 'health_check' : loadAccountTestModePreference())
         : DEFAULT_ACCOUNT_TEST_MODE
       resetState()
       await loadAvailableModels()
@@ -733,7 +745,7 @@ const resolveTestRequestBody = () => {
       model_input_mode: 'manual' as const,
       manual_model_id: manualModelId.value.trim(),
       request_alias: manualRequestAlias.value.trim() || undefined,
-      test_mode: selectedTestMode.value,
+      test_mode: effectiveTestMode.value,
       source_protocol: effectiveSelectedSourceProtocol.value || undefined,
       prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
     }
@@ -751,7 +763,7 @@ const resolveTestRequestBody = () => {
   return {
     model_id: selectedModelId.value,
     model: selectedModelId.value,
-    test_mode: selectedTestMode.value,
+    test_mode: effectiveTestMode.value,
     source_protocol: catalogTarget.sourceProtocol || effectiveSelectedSourceProtocol.value || undefined,
     target_provider: catalogTarget.targetProvider,
     target_model_id: catalogTarget.targetModelId,
@@ -796,7 +808,7 @@ const startTest = async () => {
   if (supportsTestModes.value) {
     addLine(
       t('admin.accounts.testModeLine', {
-        mode: runtimeTestModeLabel(selectedTestMode.value)
+        mode: runtimeTestModeLabel(effectiveTestMode.value)
       }),
       'text-purple-300'
     )
@@ -983,7 +995,7 @@ const handleEvent = (event: {
         break
       }
       if (event.text) {
-        if (isGrokAccount.value || selectedTestMode.value === 'health_check') {
+        if (isGrokAccount.value || effectiveTestMode.value === 'health_check') {
           addLine(event.text, 'text-sky-300')
         } else {
           streamingContent.value += event.text

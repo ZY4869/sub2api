@@ -766,6 +766,9 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedTarget.SourceProtocol, modelID)
 	normalizedTestMode := normalizeAccountTestMode(testMode)
+	if account != nil && account.IsBaiduDocumentAI() {
+		normalizedTestMode = AccountTestModeHealthCheck
+	}
 	runtimeMeta := buildAccountTestRuntimeMeta(
 		account,
 		normalizedTestMode,
@@ -832,6 +835,10 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, account *Account, modelID string, prompt string, resolvedSourceProtocol string, simulatedClient string) error {
 	if account == nil {
 		return s.sendErrorAndEnd(c, "Account not found")
+	}
+
+	if account.IsBaiduDocumentAI() {
+		return s.testBaiduDocumentAIAccountConnection(c, account)
 	}
 
 	if account.IsOpenAI() {

@@ -34,6 +34,7 @@ type RecordUsageInput struct {
 	User               *User
 	Account            *Account
 	Subscription       *UserSubscription
+	ThinkingEnabled    *bool
 	InboundEndpoint    string
 	UpstreamEndpoint   string
 	UpstreamURL        string
@@ -332,7 +333,11 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: usageLogThinkingEnabledFromContext(ctx), InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	thinkingEnabled := input.ThinkingEnabled
+	if thinkingEnabled == nil {
+		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
+	}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -382,6 +387,7 @@ type RecordUsageLongContextInput struct {
 	User                  *User
 	Account               *Account
 	Subscription          *UserSubscription
+	ThinkingEnabled       *bool
 	InboundEndpoint       string
 	UpstreamEndpoint      string
 	UpstreamURL           string
@@ -478,7 +484,11 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: usageLogThinkingEnabledFromContext(ctx), InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	thinkingEnabled := input.ThinkingEnabled
+	if thinkingEnabled == nil {
+		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
+	}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}

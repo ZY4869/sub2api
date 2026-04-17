@@ -25,8 +25,8 @@ export interface UserDashboardStats {
   total_cache_creation_tokens: number;
   total_cache_read_tokens: number;
   total_tokens: number;
-  total_cost: number; // 鏍囧噯璁¤垂
-  total_actual_cost: number; // 瀹為檯鎵ｉ櫎
+  total_cost: number; // Standard billed cost
+  total_actual_cost: number; // Actual deducted cost
   admin_free_requests: number;
   admin_free_standard_cost: number;
   today_requests: number;
@@ -35,11 +35,11 @@ export interface UserDashboardStats {
   today_cache_creation_tokens: number;
   today_cache_read_tokens: number;
   today_tokens: number;
-  today_cost: number; // 浠婃棩鏍囧噯璁¤垂
-  today_actual_cost: number; // 浠婃棩瀹為檯鎵ｉ櫎
+  today_cost: number; // Today's standard billed cost
+  today_actual_cost: number; // Today's actual deducted cost
   average_duration_ms: number;
-  rpm: number; // 杩?鍒嗛挓骞冲潎姣忓垎閽熻姹傛暟
-  tpm: number; // 杩?鍒嗛挓骞冲潎姣忓垎閽烼oken鏁?
+  rpm: number; // Average requests per minute in the recent window
+  tpm: number; // Average tokens per minute in the recent window
 }
 
 export interface TrendParams {

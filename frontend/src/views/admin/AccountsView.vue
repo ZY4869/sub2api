@@ -422,7 +422,8 @@ const ACCOUNT_PLATFORM_DISPLAY_ORDER: AccountPlatform[] = [
   'grok',
   'protocol_gateway',
   'gemini',
-  'antigravity'
+  'antigravity',
+  'baidu_document_ai'
 ]
 const ACCOUNT_PLATFORM_ORDER_INDEX = new Map(
   ACCOUNT_PLATFORM_DISPLAY_ORDER.map((platform, index) => [platform, index])
@@ -1585,12 +1586,12 @@ const loadRuntimeOptions = async () => {
   }
 }
 
-// 婊氬姩鏃跺叧闂搷浣滆彍鍗曪紙涓嶅叧闂垪璁剧疆涓嬫媺鑿滃崟锛?
+// Close the action menu on scroll, but keep the column settings dropdown open.
 const handleScroll = () => {
   menu.show = false
 }
 
-// 鐐瑰嚮澶栭儴鍏抽棴鍒楄缃笅鎷夎彍鍗?
+// Close the column settings dropdown when clicking outside.
 
 onMounted(async () => {
   load().catch((error) => {

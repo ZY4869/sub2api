@@ -504,6 +504,24 @@ type UsageCleanupTask struct {
 	UpdatedAt    time.Time           `json:"updated_at"`
 }
 
+type UsageRepairTask struct {
+	ID            int64      `json:"id"`
+	Kind          string     `json:"kind"`
+	Days          int        `json:"days"`
+	Status        string     `json:"status"`
+	CreatedBy     int64      `json:"created_by"`
+	ProcessedRows int64      `json:"processed_rows"`
+	RepairedRows  int64      `json:"repaired_rows"`
+	SkippedRows   int64      `json:"skipped_rows"`
+	ErrorMessage  *string    `json:"error_message,omitempty"`
+	CanceledBy    *int64     `json:"canceled_by,omitempty"`
+	CanceledAt    *time.Time `json:"canceled_at,omitempty"`
+	StartedAt     *time.Time `json:"started_at,omitempty"`
+	FinishedAt    *time.Time `json:"finished_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
 // AccountSummary is a minimal account info for usage log display.
 // It intentionally excludes sensitive fields like Credentials, Proxy, etc.
 type AccountSummary struct {

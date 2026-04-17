@@ -46,6 +46,8 @@ func DisplayPlatformName(platform string) string {
 		return "Copilot"
 	case PlatformGrok:
 		return "Grok"
+	case PlatformBaiduDocumentAI:
+		return "百度文档智能"
 	default:
 		return ""
 	}

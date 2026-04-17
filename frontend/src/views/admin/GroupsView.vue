@@ -1844,7 +1844,8 @@ const platformOptions = computed(() => [
   { value: 'copilot', label: t('admin.groups.platforms.copilot') },
   { value: 'grok', label: t('admin.groups.platforms.grok') },
   { value: 'gemini', label: t('admin.groups.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.groups.platforms.antigravity') }
+  { value: 'antigravity', label: t('admin.groups.platforms.antigravity') },
+  { value: 'baidu_document_ai', label: t('admin.groups.platforms.baidu_document_ai') }
 ])
 
 const platformFilterOptions = computed(() => [
@@ -1855,7 +1856,8 @@ const platformFilterOptions = computed(() => [
   { value: 'copilot', label: t('admin.groups.platforms.copilot') },
   { value: 'grok', label: t('admin.groups.platforms.grok') },
   { value: 'gemini', label: t('admin.groups.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.groups.platforms.antigravity') }
+  { value: 'antigravity', label: t('admin.groups.platforms.antigravity') },
+  { value: 'baidu_document_ai', label: t('admin.groups.platforms.baidu_document_ai') }
 ])
 
 const editStatusOptions = computed(() => [

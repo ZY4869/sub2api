@@ -25,6 +25,7 @@ import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSe
 import { DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT } from '@/utils/accountProtocolGateway'
 import { OPENAI_WS_MODE_OFF, type OpenAIWSMode } from '@/utils/openaiWsMode'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
+import { BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL } from '@/utils/baiduDocumentAI'
 import type { VertexAuthMode } from '@/utils/vertexAi'
 import type {
   AccountModelProbeSnapshotDraft,
@@ -113,6 +114,10 @@ interface UseCreateAccountResetOptions {
   geminiVertexAccessToken: Ref<string>
   geminiVertexExpiresAtInput: Ref<string>
   geminiVertexBaseUrl: Ref<string>
+  baiduDocumentAIAsyncBearerToken: Ref<string>
+  baiduDocumentAIAsyncBaseUrl: Ref<string>
+  baiduDocumentAIDirectToken: Ref<string>
+  baiduDocumentAIDirectApiUrlsText: Ref<string>
   resetTempUnschedRules: () => void
   geminiOAuthType: Ref<GeminiOAuthType>
   geminiTierGoogleOne: Ref<'google_one_free' | 'google_ai_pro' | 'google_ai_ultra'>
@@ -207,6 +212,10 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.geminiVertexAccessToken.value = ''
     options.geminiVertexExpiresAtInput.value = ''
     options.geminiVertexBaseUrl.value = ''
+    options.baiduDocumentAIAsyncBearerToken.value = ''
+    options.baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+    options.baiduDocumentAIDirectToken.value = ''
+    options.baiduDocumentAIDirectApiUrlsText.value = ''
     options.resetTempUnschedRules()
     options.geminiOAuthType.value = 'code_assist'
     options.geminiTierGoogleOne.value = 'google_one_free'

@@ -195,6 +195,7 @@ func ProvideHandlers(
 	gatewayHandler *GatewayHandler,
 	openaiGatewayHandler *OpenAIGatewayHandler,
 	grokGatewayHandler *GrokGatewayHandler,
+	documentAIHandler *DocumentAIHandler,
 	settingHandler *SettingHandler,
 	totpHandler *TotpHandler,
 	opsService *service.OpsService,
@@ -217,6 +218,7 @@ func ProvideHandlers(
 		Gateway:       gatewayHandler,
 		OpenAIGateway: openaiGatewayHandler,
 		GrokGateway:   grokGatewayHandler,
+		DocumentAI:    documentAIHandler,
 		Setting:       settingHandler,
 		Totp:          totpHandler,
 	}
@@ -236,6 +238,7 @@ var ProviderSet = wire.NewSet(
 	ProvideGatewayHandler,
 	NewOpenAIGatewayHandler,
 	ProvideGrokGatewayHandler,
+	NewDocumentAIHandler,
 	NewTotpHandler,
 	ProvideSettingHandler,
 

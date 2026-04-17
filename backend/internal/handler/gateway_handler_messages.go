@@ -364,7 +364,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				clientIP := ip.GetClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
 					ctx = reattachGatewayChannelState(ctx, channelState)
-					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", currentAPIKey.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 					}
 				})
@@ -616,7 +616,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				clientIP := ip.GetClientIP(c)
 				h.submitUsageRecordTask(func(ctx context.Context) {
 					ctx = reattachGatewayChannelState(ctx, channelState)
-					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: runtimeAPIKey, User: runtimeAPIKey.User, Account: account, Subscription: runtimeSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+					if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: runtimeAPIKey, User: runtimeAPIKey.User, Account: account, Subscription: runtimeSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 						logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", runtimeAPIKey.ID), zap.Any("group_id", runtimeAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 					}
 				})
@@ -810,7 +810,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
 			h.submitUsageRecordTask(func(ctx context.Context) {
-				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: apiKey, User: apiKey.User, Account: account, Subscription: subscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: apiKey, User: apiKey.User, Account: account, Subscription: subscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 					logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", apiKey.ID), zap.Any("group_id", apiKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 				}
 			})
@@ -1038,7 +1038,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
 			h.submitUsageRecordTask(func(ctx context.Context) {
-				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
+				if err := h.gatewayService.RecordUsage(ctx, &service.RecordUsageInput{Result: result, APIKey: currentAPIKey, User: currentAPIKey.User, Account: account, Subscription: currentSubscription, ThinkingEnabled: service.ParseExplicitThinkingEnabledValue(body), InboundEndpoint: GetInboundEndpoint(c), UpstreamEndpoint: GetUpstreamEndpointForAccount(c, account), UserAgent: userAgent, IPAddress: clientIP, ForceCacheBilling: fs.ForceCacheBilling, APIKeyService: h.apiKeyService}); err != nil {
 					logger.L().With(zap.String("component", "handler.gateway.messages"), zap.Int64("user_id", subject.UserID), zap.Int64("api_key_id", currentAPIKey.ID), zap.Any("group_id", currentAPIKey.GroupID), zap.String("model", reqModel), zap.Int64("account_id", account.ID)).Error("gateway.record_usage_failed", zap.Error(err))
 				}
 			})

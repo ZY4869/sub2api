@@ -28,6 +28,7 @@ const (
 	PlatformKiro            = domain.PlatformKiro
 	PlatformCopilot         = domain.PlatformCopilot
 	PlatformGrok            = domain.PlatformGrok
+	PlatformBaiduDocumentAI = domain.PlatformBaiduDocumentAI
 )
 
 // Account type constants.
@@ -170,6 +171,7 @@ const (
 	SettingKeyAllowUngroupedKeyScheduling = "allow_ungrouped_key_scheduling"
 	SettingKeyMultiGroupRoutingEnabled    = "multi_group_routing_enabled"
 	SettingKeyBackendModeEnabled          = "backend_mode_enabled"
+	SettingKeyDocumentAIEnabled           = "document_ai_enabled"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys.

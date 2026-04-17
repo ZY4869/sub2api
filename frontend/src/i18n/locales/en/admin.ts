@@ -1085,7 +1085,8 @@ export default {
         copilot: 'GitHub Copilot',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity'
+        antigravity: 'Antigravity',
+        baidu_document_ai: 'Baidu Document AI'
       },
       deleteConfirm:
         "Are you sure you want to delete '{name}'? All associated API keys will no longer belong to any group.",
@@ -1445,7 +1446,8 @@ export default {
         protocol_gateway: 'Protocol Gateway',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity'
+        antigravity: 'Antigravity',
+        baidu_document_ai: 'Baidu Document AI'
       },
       types: {
         oauth: 'OAuth',
@@ -1456,6 +1458,7 @@ export default {
         codeAssist: 'Code Assist',
         antigravityOauth: 'Antigravity OAuth',
         antigravityApikey: 'Connect via Base URL + API Key',
+        baiduDocumentAIApikey: 'Connect with async token or direct token',
         grokSso: 'SSO Token',
         grokSsoHint: 'Paste a normalized Grok SSO token. The Bearer prefix will be normalized on save.',
         upstream: 'Upstream',
@@ -2250,6 +2253,21 @@ export default {
         apiKeyHint: 'API Key for the upstream service',
         pleaseEnterBaseUrl: 'Please enter upstream Base URL',
         pleaseEnterApiKey: 'Please enter upstream API Key'
+      },
+      baiduDocumentAI: {
+        title: 'Baidu Document AI Credentials',
+        description: 'Configure the async PaddleOCR token and optional direct model endpoints. At least one token is required.',
+        asyncBaseUrl: 'Async Base URL',
+        asyncBaseUrlHint: 'Default async jobs endpoint from Baidu AI Studio PaddleOCR.',
+        asyncBearerToken: 'Async Bearer Token',
+        asyncBearerTokenHint: 'Used for async jobs APIs such as submit, status, and result polling.',
+        directToken: 'Direct Model Token',
+        directTokenHint: 'Optional token for model-specific direct parsing APIs.',
+        directApiUrls: 'Direct API URLs',
+        directApiUrlsHint: 'Provide a JSON object mapping model IDs to official direct API URLs.',
+        directApiUrlsPlaceholder: "{\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n}",
+        tokenRequired: 'At least one Baidu Document AI token is required',
+        directApiUrlsInvalid: 'Direct API URLs must be valid JSON object text'
       },
       // OAuth flow
       oauth: {

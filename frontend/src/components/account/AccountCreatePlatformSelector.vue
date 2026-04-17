@@ -54,6 +54,11 @@ const platformOptions = computed<
     value: 'antigravity',
     label: t('admin.accounts.platforms.antigravity'),
     activeClass: 'text-purple-600 dark:text-purple-400'
+  },
+  {
+    value: 'baidu_document_ai',
+    label: t('admin.accounts.platforms.baidu_document_ai'),
+    activeClass: 'text-rose-600 dark:text-rose-400'
   }
 ])
 </script>

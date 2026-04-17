@@ -110,6 +110,17 @@ const protocolGatewayOptions = computed<TypeOption[]>(() => [
   }
 ])
 
+const baiduDocumentAIOptions = computed<TypeOption[]>(() => [
+  {
+    key: 'apikey',
+    title: 'API Key',
+    description: t('admin.accounts.types.baiduDocumentAIApikey'),
+    icon: 'key',
+    accent: 'rose',
+    active: true
+  }
+])
+
 const grokOptions = computed<TypeOption[]>(() => [
   {
     key: 'oauth-based',
@@ -249,6 +260,12 @@ function handleAntigravitySelect(key: string) {
         <p class="input-hint">{{ t('admin.accounts.protocolGateway.protocolHint') }}</p>
       </div>
     </div>
+
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'baidu_document_ai'"
+      :label="t('admin.accounts.accountType')"
+      :options="baiduDocumentAIOptions"
+    />
 
     <AccountGeminiAccountTypeEditor
       v-else-if="platform === 'gemini'"

@@ -115,7 +115,8 @@ const platformOptions = computed(() => [
   { value: 'openai', label: t('admin.accounts.platforms.openai') },
   { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
   { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
-  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') }
+  { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
+  { value: 'baidu_document_ai', label: t('admin.accounts.platforms.baidu_document_ai') }
 ])
 
 const timeRangeOptions = computed(() => [

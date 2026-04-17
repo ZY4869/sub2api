@@ -411,6 +411,72 @@ describe('AccountTestModal', () => {
     })
   })
 
+  it('limits baidu document ai accounts to health_check and always submits health_check', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'pp-ocrv5-server', display_name: 'PP-OCRv5 Server' }
+    ])
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 66,
+          name: 'Baidu Document AI',
+          platform: 'baidu_document_ai',
+          type: 'apikey',
+          status: 'active',
+          extra: {}
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div class="select-stub">
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="test-mode-real_forward"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="test-mode-health_check"]').exists()).toBe(true)
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model: 'pp-ocrv5-server',
+      model_id: 'pp-ocrv5-server',
+      target_model_id: 'pp-ocrv5-server',
+      test_mode: 'health_check',
+      prompt: ''
+    })
+  })
+
   it('allows closing while connecting, aborts the request, and does not render an error state', async () => {
     let aborted = false
     global.fetch = vi.fn().mockImplementation((_url: string, request?: RequestInit) => {

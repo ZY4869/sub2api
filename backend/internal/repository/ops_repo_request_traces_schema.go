@@ -6,6 +6,7 @@ type opsRequestTraceSchema struct {
 	HasGeminiSurface bool
 	HasBillingRuleID bool
 	HasProbeAction   bool
+	HasUpstreamPath  bool
 }
 
 func defaultOpsRequestTraceSchema() opsRequestTraceSchema {
@@ -13,6 +14,7 @@ func defaultOpsRequestTraceSchema() opsRequestTraceSchema {
 		HasGeminiSurface: true,
 		HasBillingRuleID: true,
 		HasProbeAction:   true,
+		HasUpstreamPath:  true,
 	}
 }
 
@@ -44,6 +46,9 @@ func (r *opsRepository) getOpsRequestTraceSchema(ctx context.Context) (opsReques
 		return opsRequestTraceSchema{}, err
 	}
 	if schema.HasProbeAction, err = columnExistsSQL(ctx, r.db, "ops_request_traces", "probe_action"); err != nil {
+		return opsRequestTraceSchema{}, err
+	}
+	if schema.HasUpstreamPath, err = columnExistsSQL(ctx, r.db, "ops_request_traces", "upstream_path"); err != nil {
 		return opsRequestTraceSchema{}, err
 	}
 

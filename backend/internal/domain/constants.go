@@ -26,6 +26,7 @@ const (
 	PlatformKiro            = "kiro"
 	PlatformCopilot         = "copilot"
 	PlatformGrok            = "grok"
+	PlatformBaiduDocumentAI = "baidu_document_ai"
 )
 
 // Account type constants.

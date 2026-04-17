@@ -350,8 +350,10 @@ describe("user UsageView tooltip", () => {
     expect(clickSpy).toHaveBeenCalled();
     expect(showSuccess).toHaveBeenCalled();
     const csvText = await exportedBlob!.text();
+    expect(csvText.charCodeAt(0)).toBe(0xfeff);
     expect(csvText).toContain("Thinking Mode");
     expect(csvText).toContain("Enabled");
+    expect(csvText).toContain("Billing Exempt Reason");
 
     window.URL.createObjectURL = originalCreateObjectURL;
     window.URL.revokeObjectURL = originalRevokeObjectURL;
@@ -460,6 +462,7 @@ describe("user UsageView tooltip", () => {
 
     expect(exportedBlob).not.toBeNull();
     const csvText = await exportedBlob!.text();
+    expect(csvText.charCodeAt(0)).toBe(0xfeff);
     expect(csvText).toContain("demo-key");
     expect(csvText).toContain("gpt-5.4");
     expect(csvText).toContain("OpenAI /v1/chat/completions Native");

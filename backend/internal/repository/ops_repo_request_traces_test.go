@@ -45,20 +45,21 @@ func TestOpsInsertRequestTraceArgsUsesEmptyStringsForRequiredTextColumns(t *test
 	require.Equal(t, "", args[17])
 	require.Equal(t, "", args[18])
 	require.Equal(t, "", args[19])
-	require.Equal(t, "", args[27])
+	require.Equal(t, "", args[20])
 	require.Equal(t, "", args[28])
-	require.Equal(t, "", args[33])
+	require.Equal(t, "", args[29])
 	require.Equal(t, "", args[34])
-	require.Equal(t, "", args[36])
+	require.Equal(t, "", args[35])
 	require.Equal(t, "", args[37])
 	require.Equal(t, "", args[38])
+	require.Equal(t, "", args[39])
 }
 
 func TestOpsInsertRequestTraceArgsUsesEmptyArrayForToolKinds(t *testing.T) {
 	t.Parallel()
 
 	args := opsInsertRequestTraceArgs(&service.OpsInsertRequestTraceInput{})
-	valuer, ok := args[31].(driver.Valuer)
+	valuer, ok := args[32].(driver.Valuer)
 	require.True(t, ok)
 
 	value, err := valuer.Value()

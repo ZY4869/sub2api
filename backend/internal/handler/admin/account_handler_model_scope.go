@@ -2,11 +2,15 @@ package admin
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 func (h *AccountHandler) prepareAccountModelScope(ctx context.Context, platform string, accountType string, credentials map[string]any, extra map[string]any) (map[string]any, map[string]any, error) {
+	if strings.TrimSpace(strings.ToLower(platform)) == service.PlatformBaiduDocumentAI {
+		return credentials, extra, nil
+	}
 	if h.modelRegistryService == nil {
 		return credentials, extra, nil
 	}

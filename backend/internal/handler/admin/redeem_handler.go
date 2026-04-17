@@ -354,7 +354,7 @@ func (h *RedeemHandler) Export(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=redeem_codes.csv")
-	c.Data(200, "text/csv", buf.Bytes())
+	c.Data(200, "text/csv; charset=utf-8", append([]byte{0xEF, 0xBB, 0xBF}, buf.Bytes()...))
 }

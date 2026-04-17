@@ -25,6 +25,7 @@ type UsageHandler struct {
 	apiKeyService  *service.APIKeyService
 	adminService   service.AdminService
 	cleanupService *service.UsageCleanupService
+	repairService  *service.UsageRepairService
 }
 
 // NewUsageHandler creates a new admin usage handler
@@ -33,12 +34,14 @@ func NewUsageHandler(
 	apiKeyService *service.APIKeyService,
 	adminService service.AdminService,
 	cleanupService *service.UsageCleanupService,
+	repairService *service.UsageRepairService,
 ) *UsageHandler {
 	return &UsageHandler{
 		usageService:   usageService,
 		apiKeyService:  apiKeyService,
 		adminService:   adminService,
 		cleanupService: cleanupService,
+		repairService:  repairService,
 	}
 }
 
@@ -55,6 +58,11 @@ type CreateUsageCleanupTaskRequest struct {
 	Stream      *bool   `json:"stream"`
 	BillingType *int8   `json:"billing_type"`
 	Timezone    string  `json:"timezone"`
+}
+
+type CreateUsageRepairTaskRequest struct {
+	Kind string `json:"kind"`
+	Days int    `json:"days"`
 }
 
 // List handles listing all usage records with filters
@@ -602,4 +610,99 @@ func (h *UsageHandler) CancelCleanupTask(c *gin.Context) {
 	}
 	logger.LegacyPrintf("handler.admin.usage", "[UsageCleanup] 清理任务已取消: task=%d operator=%d", taskID, subject.UserID)
 	response.Success(c, gin.H{"id": taskID, "status": service.UsageCleanupStatusCanceled})
+}
+
+// ListRepairTasks handles listing usage repair tasks.
+// GET /api/v1/admin/usage/repair-tasks
+func (h *UsageHandler) ListRepairTasks(c *gin.Context) {
+	if h.repairService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Usage repair service unavailable")
+		return
+	}
+	operator := int64(0)
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
+		operator = subject.UserID
+	}
+	page, pageSize := response.ParsePagination(c)
+	logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] list tasks requested: operator=%d page=%d page_size=%d", operator, page, pageSize)
+	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
+	tasks, result, err := h.repairService.ListTasks(c.Request.Context(), params)
+	if err != nil {
+		logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] list tasks failed: operator=%d err=%v", operator, err)
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]dto.UsageRepairTask, 0, len(tasks))
+	for i := range tasks {
+		out = append(out, *dto.UsageRepairTaskFromService(&tasks[i]))
+	}
+	logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] list tasks done: operator=%d total=%d items=%d", operator, result.Total, len(out))
+	response.Paginated(c, out, result.Total, page, pageSize)
+}
+
+// CreateRepairTask handles creating a usage repair task.
+// POST /api/v1/admin/usage/repair-tasks
+func (h *UsageHandler) CreateRepairTask(c *gin.Context) {
+	if h.repairService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Usage repair service unavailable")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "Unauthorized")
+		return
+	}
+
+	var req CreateUsageRepairTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	req.Kind = strings.TrimSpace(req.Kind)
+
+	idempotencyPayload := struct {
+		OperatorID int64                        `json:"operator_id"`
+		Body       CreateUsageRepairTaskRequest `json:"body"`
+	}{
+		OperatorID: subject.UserID,
+		Body:       req,
+	}
+	executeAdminIdempotentJSON(c, "admin.usage.repair_tasks.create", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] create task requested: operator=%d kind=%s days=%d", subject.UserID, req.Kind, req.Days)
+		task, err := h.repairService.CreateTask(ctx, req.Kind, req.Days, subject.UserID)
+		if err != nil {
+			logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] create task failed: operator=%d err=%v", subject.UserID, err)
+			return nil, err
+		}
+		logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] task created: task=%d operator=%d kind=%s days=%d status=%s", task.ID, subject.UserID, task.Kind, task.Days, task.Status)
+		return dto.UsageRepairTaskFromService(task), nil
+	})
+}
+
+// CancelRepairTask handles canceling a usage repair task.
+// POST /api/v1/admin/usage/repair-tasks/:id/cancel
+func (h *UsageHandler) CancelRepairTask(c *gin.Context) {
+	if h.repairService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Usage repair service unavailable")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "Unauthorized")
+		return
+	}
+	idStr := strings.TrimSpace(c.Param("id"))
+	taskID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || taskID <= 0 {
+		response.BadRequest(c, "Invalid task id")
+		return
+	}
+	logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] cancel task requested: task=%d operator=%d", taskID, subject.UserID)
+	if err := h.repairService.CancelTask(c.Request.Context(), taskID, subject.UserID); err != nil {
+		logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] cancel task failed: task=%d operator=%d err=%v", taskID, subject.UserID, err)
+		response.ErrorFrom(c, err)
+		return
+	}
+	logger.LegacyPrintf("handler.admin.usage", "[UsageRepair] cancel task done: task=%d operator=%d", taskID, subject.UserID)
+	response.Success(c, gin.H{"id": taskID, "status": service.UsageRepairStatusCanceled})
 }

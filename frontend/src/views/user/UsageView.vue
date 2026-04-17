@@ -1289,6 +1289,8 @@ const exportToCSV = async () => {
       "First Token (ms)",
       "Duration (ms)",
     ];
+    headers[20] = "Billing Exempt Reason";
+
     const rows = allLogs.map((log) =>
       [
         log.created_at,
@@ -1327,7 +1329,9 @@ const exportToCSV = async () => {
       ...rows.map((row) => row.join(",")),
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([`\uFEFF${csvContent}`], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

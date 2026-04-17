@@ -41,12 +41,11 @@ export interface User {
 }
 
 export interface AdminUser extends User {
-  // 缂備胶濯寸槐鏇㈠箖婵犲洤宸濇俊顖欒濡插灚绻涙径妯煎帨缂佽鲸鐟╁鏌ヮ敋閳ь剟鍩€椤掍焦鐨戦柡浣靛€濋獮瀣煥鐎ｎ亜顦查梺鍛婄懕缁茶偐绮径瀣氦闁哄倹瀵х粈鈧梺?
   notes: string;
   admin_free_billing: boolean;
-  // 闂佹椿娼块崝宥夊春濞戞瑧鈻旈柟鎯х－濞硷綁鏌涢幒鎴烆棤缂侇喖绉瑰畷鎰吋閸パ嗗У闂備焦婢樼粔鍫曟偪?(group_id -> rate_multiplier)
+  // Per-group rate multipliers keyed by group_id.
   group_rates?: Record<number, number>;
-  // 閻熸粎澧楅幐鍛婃櫠閻樿崵宓侀悹鍝勬惈缁叉椽鏌℃担绋跨盎缂佽鲸鐟︾粋鎺楀川椤栵絽鎮侀梺鑽ゅ仜濡骞夐幎钘夌婵°倕瀚ㄩ埀顒€鍟撮獮鎺楀Ψ閵夈儳绋夐柡澶嗘櫆閺屻劌煤閺嶎厽鏅?
+  // Current concurrency snapshot for admin views.
   current_concurrency?: number;
 }
 
@@ -371,7 +370,8 @@ export type GroupPlatform =
   | "copilot"
   | "grok"
   | "gemini"
-  | "antigravity";
+  | "antigravity"
+  | "baidu_document_ai";
 
 export type SubscriptionType = "standard" | "subscription";
 
@@ -388,15 +388,15 @@ export interface Group {
   daily_limit_usd: number | null;
   weekly_limit_usd: number | null;
   monthly_limit_usd: number | null;
-  // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厽鍋ㄩ柣鏃傤焾閻忓洭鎮规导顔哄€曢悗顓㈡⒑閺夎法肖闁汇倕妫濋弫宥夊醇濠婂懐鐓?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
+  // Image pricing is only used by antigravity groups.
   image_price_1k: number | null;
   image_price_2k: number | null;
   image_price_4k: number | null;
-  // Claude Code 闁诲骸绠嶉崹娲春濞戞氨鍗氭い鏍仦椤庢瑩鏌?
+  // Restrict the group to Claude Code clients only.
   claude_code_only: boolean;
   fallback_group_id: number | null;
   fallback_group_id_on_invalid_request: number | null;
-  // OpenAI Messages 闁荤姴顑呴崯顐も偓鐟板暱椤曪綁鍩€椤掑嫬绀傜紒娑樻贡缁€鍕煟椤剙濡介柛鈺傜⊕缁楃喕顦规繛鎾冲閹茬増鎷呯拠鈥冲Π闁诲孩绋掗〃鍡涱敊瀹€鍕闁靛牆妫欓悞浠嬫煛閸曢潧鐏犻柟顖欒兌娴狅箓寮撮悩顔荤驳 Claude Code 闂佽桨鐒﹂悷褔鍩㈡總鍛婃櫖?
+  // Toggle OpenAI Messages dispatch support for this group.
   allow_messages_dispatch?: boolean;
   gemini_mixed_protocol_enabled?: boolean;
   created_at: string;
@@ -404,26 +404,21 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
-  // 濠碘槅鍨埀顒€纾埀顒勵棑閹瑰嫰顢涘鍕闂備焦婢樼粔鍫曟偪閸℃稒鏅柛顐ｇ矌閻瞼绱掗悪鍛？闁诡喖锕畷銊ノ熼崫鍕唹闁荤喐鐟ょ欢銈囨濠靛绀冮柛娑欐綑閸斻儱菐閸ワ絽澧插ù鐓庢嚇閺?
+  // Optional routing map from requested model ids to account ids.
   model_routing: Record<string, number[]> | null;
   model_routing_enabled: boolean;
 
-  // MCP XML 闂佸憡顨呯换妤咁敊閸涱厸鏋栭柕濞垮劚瀵娊鏌ㄥ☉妯煎缂?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
   // MCP XML injection toggle for antigravity groups.
   mcp_xml_inject: boolean;
-
-  // 闂佽 鍋撴い鏍ㄧ☉閻︻噣鏌ｉ妸銉ヮ仾閼垛晠鏌涢妸銉剳闂侇喗鎸冲畷姘旂€ｎ剛顦╂繛?antigravity 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
+  // Optional model scope allowlist for antigravity groups.
   supported_model_scopes?: string[];
-
-  // 闂佸憡甯掑Λ娑氬垝瀹ュ棛鈻旈悗锝庡幖椤︹晠鏌涘▎鎾存暠闁哄棛鍠栭弻宀冪疀閵壯咁槱婵炲濮撮幊鎰邦敇閹间焦鍋犻柛鈩冾殕閸犲懘鏌涘▎妯虹仴妞ゎ偄妫濋弫?
+  // Aggregated account counters for admin list views.
   account_count?: number;
   active_account_count?: number;
   rate_limited_account_count?: number;
-
-  // OpenAI Messages 闁荤姴顑呴崯顐も偓瑙勫▕閺屽﹤顓奸崶鈺傜€梺鎸庣☉閻楀懐鍒?openai 濡ょ姷鍋涢崯鑳亹鐎涙ɑ濯撮悹鎭掑妽閺嗗繘鏌?
+  // Default mapped model for OpenAI Messages-compatible groups.
   default_mapped_model?: string;
-
-  // 闂佸憡甯掑Λ娑氬垝瀹ュ绠抽柟鐑樺灩绾?
+  // UI sort weight for admin lists.
   sort_order: number;
 }
 
@@ -527,7 +522,7 @@ export interface CreateGroupRequest {
   fallback_group_id_on_invalid_request?: number | null;
   mcp_xml_inject?: boolean;
   supported_model_scopes?: string[];
-  // 婵炲濮寸€涒晝鈧灚姘ㄩ埀顒冾潐閼归箖宕规惔锝囩＜闁告洦鍋掑Σ濠氭煕閹烘挸鍔跺璺哄瀹?
+  // Optional source groups to clone accounts from during group creation.
   copy_accounts_from_group_ids?: number[];
 }
 
@@ -565,7 +560,8 @@ export type AccountPlatform =
   | "grok"
   | "gemini"
   | "antigravity"
-  | "protocol_gateway";
+  | "protocol_gateway"
+  | "baidu_document_ai";
 export type AccountPlatformCountSortOrder = "count_asc" | "count_desc";
 export type GatewayProtocol = "openai" | "anthropic" | "gemini" | "mixed";
 export type GatewayAcceptedProtocol = "openai" | "anthropic" | "gemini";
@@ -804,37 +800,29 @@ export interface Account {
   session_window_start: string | null;
   session_window_end: string | null;
   session_window_status: "allowed" | "allowed_warning" | "rejected" | null;
-
-  // 5h缂備焦鍔栭〃鍛般亹濞戞碍瀚婚柛锔诲幗閺嗗繘鏌熺挩澶婂暙閻撴垿鏌ㄥ☉妯煎缂?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
+  // 5-hour window cost guardrails for Anthropic OAuth/SetupToken accounts.
   window_cost_limit?: number | null;
   window_cost_sticky_reserve?: number | null;
-
-  // 婵炴潙鍚嬫穱娲儊娴犲鏋佸ù鍏兼綑濞呫倝鏌熺挩澶婂暙閻撴垿鏌ㄥ☉妯煎缂?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
+  // Session cap settings for Anthropic OAuth/SetupToken accounts.
   max_sessions?: number | null;
   session_idle_timeout_minutes?: number | null;
-
-  // RPM 闂傚倸瀚崝鏇㈠春濡ゅ懏鏅柛顐ｇ矌閻?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
+  // RPM scheduling settings for Anthropic OAuth/SetupToken accounts.
   base_rpm?: number | null;
   rpm_strategy?: string | null;
   rpm_sticky_buffer?: number | null;
   user_msg_queue_mode?: string | null; // "serialize" | "throttle" | null
-
-  // TLS闂佸湱顭堝ú銊バуΔ浣割嚤妞ゅ繐娴傚Λ鍛存煥濞戞澧旂紒?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
+  // TLS fingerprinting settings for Anthropic OAuth/SetupToken accounts.
   enable_tls_fingerprint?: boolean | null;
   tls_fingerprint_profile_id?: number | null;
   claude_code_mimic_enabled?: boolean | null;
-
-  // 婵炴潙鍚嬫穱娲儊缁测偓D婵炲鈷堟禍锝壦夋繝鍥ㄦ櫖闁割偅绮庨惌?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
-  // 闂佸憡鍑归崹鎶藉极閵堝瑙﹂幖杈剧磿濞堟椽鏌?5闂佸憡甯掑Λ婵嬪箰閹捐绀冮柛娑卞幗缁佸ジ鎮?metadata.user_id 婵炴垶鎼╅崢鎯р枔?session ID
+  // Mask session ids inside metadata.user_id for Anthropic OAuth/SetupToken requests.
   session_id_masking_enabled?: boolean | null;
-
-  // 缂傚倸鍊归幐鎼佹偤?TTL 閻庢鍠栭幖顐﹀春濡ゅ懎鍗抽柟绋块鎼村﹪鏌ㄥ☉妯煎缂?Anthropic OAuth/SetupToken 闁荤姵鍔х粻鎴ｃ亹閸ф瀚夊璺侯儐濞呭繘鏌?
+  // Force cache creation billing into a specific TTL bucket for Anthropic OAuth/SetupToken accounts.
   cache_ttl_override_enabled?: boolean | null;
   cache_ttl_override_target?: string | null;
   custom_base_url_enabled?: boolean | null;
   custom_base_url?: string | null;
-
-  // API Key 闁荤姵鍔х粻鎴ｃ亹閸ф鐓€鐎广儱顦介弶娲⒒閸曨剙濮囬柛?
+  // API Key quota limits and usage snapshots.
   quota_limit?: number | null;
   quota_used?: number | null;
   quota_daily_limit?: number | null;
@@ -842,10 +830,10 @@ export interface Account {
   quota_weekly_limit?: number | null;
   quota_weekly_used?: number | null;
 
-  // 闁哄鏅滈崝姗€銆侀幋锕€绫嶉柛鎾茬绗戦梺璇″厸缁躲倗妲愬▎鎰浄闁告侗鍘剧粔濂告煕濮樼厧鐏ｉ柡浣靛€楅埀顒傛暩閹虫挾鑺遍弻銉︹挃闁归偊鍓欓悡鎴︽煛閸愨晛鍔剁紒缁樺灴瀹曞爼鎮滈崶鈺冾槴
-  current_window_cost?: number | null; // 閻熸粎澧楅幐鍛婃櫠閻樼數鐜绘俊銈傚亾鐟滅増绋撻幏褰掑捶椤撶喐娈?
-  active_sessions?: number | null; // 閻熸粎澧楅幐鍛婃櫠閻樿娲及韫囨洍鏀繛鏉戝悑娣囨椽鎯佹禒瀣瀬?
-  current_rpm?: number | null; // 閻熸粎澧楅幐鍛婃櫠閻樿绀嗛柛鈩冪⊕鐎?RPM 闁荤姳璁查崜婵嬪汲?
+  // Runtime snapshots captured for account-level usage widgets.
+  current_window_cost?: number | null; // Runtime snapshot of the current 5-hour window cost.
+  active_sessions?: number | null; // Runtime snapshot of active sessions.
+  current_rpm?: number | null; // Runtime snapshot of current requests per minute.
 }
 
 export interface AccountStatusSummary {
@@ -878,21 +866,21 @@ export interface AccountRuntimeSummary {
 export interface WindowStats {
   requests: number;
   tokens: number;
-  cost: number; // Account cost (account multiplier)
+  cost: number; // Standard cost before final billing adjustments.
   standard_cost?: number;
   user_cost?: number;
 }
 
 export interface UsageProgress {
-  utilization: number; // Percentage (0-100+, 100 = 100%)
+  utilization: number; // Utilization percentage in the range 0-100.
   resets_at: string | null;
   remaining_seconds: number;
-  window_stats?: WindowStats | null; // 缂備焦鍔栭〃鍛般亹濞戙垹瀚夐柣鏃囨閸╃娀鎮规担鍙夘潐缂佽鲸鐟︾粋鎺撴償閿濆洤鐐婇梺鍛婄懕缁茬晫妲愰幋鐐村弿閻庯綆浜滈悡鍌滄喐閻楀牊灏褏濞€閹啴宕熼鍕ㄦ瀼闂佹椿娼块崝鎴﹀闯濞差亝鏅?
+  window_stats?: WindowStats | null; // Optional stats snapshot for the active quota window.
   used_requests?: number;
   limit_requests?: number;
 }
 
-// Antigravity 闂佸憡顨嗗ú鎴︽煂濠婂吘鐔煎灳瀹曞洠鍋撻悜鑺ュ剭闁告洦鍨扮敮鍐参涢悧鍫㈢畱濞ｅ洤锕獮?
+// Color palette keys used for account usage rows.
 export type AccountUsageRowColor = "indigo" | "emerald" | "purple" | "amber";
 
 export interface AccountUsageResetRow {
@@ -936,8 +924,8 @@ export interface AccountUsagePresentation {
 }
 
 export interface AntigravityModelQuota {
-  utilization: number; // 婵炶揪缍€濞夋洟寮妶澶嬪仢?0-100
-  reset_time: string; // 闂備焦褰冪粔鍫曟偪閸℃稑绫嶉柛顐ｆ礃閿?ISO8601
+  utilization: number; // Utilization percentage in the range 0-100.
+  reset_time: string; // Next reset timestamp in ISO8601 format.
 }
 
 export interface AccountUsageInfo {
@@ -1243,8 +1231,7 @@ export interface UsageLog {
   simulated_client?: UsageLogSimulatedClient | null;
   operation_type?: string | null;
   charge_source?: string | null;
-
-  // 闂佹悶鍎辨晶鑺ユ櫠閺嶎厽鍋ㄩ柣鏃傤焾閻忓洭鎮楀☉娆樻畷妞?
+  // Image generation usage metrics.
   image_count: number;
   image_size: string | null;
   image_output_tokens?: number | null;
@@ -1282,13 +1269,11 @@ export interface UsageLogAccountSummary {
 }
 
 export interface AdminUsageLog extends UsageLog {
-  // 闁荤姵鍔х粻鎴ｃ亹鐠恒劍濯奸梽鍥垂閸岀偛纾圭€广儱娲ら懞鎶芥煥濞戞澧旂紒顔兼捣缁鏁嶉崟顒€鈧偤鏌涘☉娅亣銇愰懠顒佸枂濞撴艾锕︾粈?
+  // Account billing multiplier joined into admin usage rows.
   account_rate_multiplier?: number | null;
-
-  // 闂佹椿娼块崝宥夊春濞戞碍瀚氶梺鍨儑濠€?IP闂佹寧绋戦悧鍛垝鎼达絿涓嶉柨娑樺閸婄偤鏌涘☉娅亣銇愰懠顒佸枂濞撴艾锕︾粈?
+  // Best-effort client IP captured for admin review.
   ip_address?: string | null;
-
-  // 闂佸搫鐗冮崑鎾绘倶韫囨挾绠哄璺哄瀹曪綁鎽庨崒娆戠畾闂佽鍙庨崹鐣屾濞嗘劗顩烽柛娑卞灱閸氣偓闂佽崵鍋涘Λ妤呭箟閹惰棄绠抽柕澶堝劚缂嶆捇寮堕埡鍌涚叆婵炲弶鐗犻弫?
+  // Preloaded account summary for admin usage tables.
   account?: UsageLogAccountSummary;
 }
 
@@ -1330,18 +1315,18 @@ export interface RedeemCode {
   used_at: string | null;
   created_at: string;
   updated_at?: string;
-  group_id?: number | null; // 闁荤姳闄嶉崹钘壩ｉ崟顓犲暗閻犲洩灏欓埀顒勬敱缁嬪骞橀懜鍨
-  validity_days?: number; // 闁荤姳闄嶉崹钘壩ｉ崟顓犲暗閻犲洩灏欓埀顒勬敱缁嬪骞橀懜鍨
+  group_id?: number | null; // Subscription group bound to this redeem code.
+  validity_days?: number; // Subscription validity in days for subscription codes.
   user?: User;
-  group?: Group; // 闂佺绻愰悿鍥ㄧ閸儲鍎嶉柛鏇ㄥ亜閻庤崵绱?
+  group?: Group; // Preloaded group object when available.
 }
 
 export interface GenerateRedeemCodesRequest {
   count: number;
   type: RedeemCodeType;
   value: number;
-  group_id?: number | null; // 闁荤姳闄嶉崹钘壩ｉ崟顓犲暗閻犲洩灏欓埀顒勬敱缁嬪骞橀懜鍨
-  validity_days?: number; // 闁荤姳闄嶉崹钘壩ｉ崟顓犲暗閻犲洩灏欓埀顒勬敱缁嬪骞橀懜鍨
+  group_id?: number | null; // Subscription group bound to the generated codes.
+  validity_days?: number; // Subscription validity in days for subscription codes.
 }
 
 export interface RedeemCodeRequest {
@@ -1349,54 +1334,45 @@ export interface RedeemCodeRequest {
 }
 
 // ==================== Dashboard & Statistics ====================
-
 export interface DashboardStats {
-  // 闂佹椿娼块崝宥夊春濞戞氨纾奸柣鏃€妞块崥鈧?
+  // User counters.
   total_users: number;
-  today_new_users: number; // 婵炲濮撮敃銉ノ涢埡鍛闁哄顑欓弶濠氭煟椤剙濡介柛鈺傜洴瀵?
-  active_users: number; // 婵炲濮撮敃銉ノ涢埡鍛珘濠㈣泛瀵掗崵鐐存叏閻熸澘鈧鈻撻幋锔藉仺闁靛绠戦悡鏇㈡煛?
-  hourly_active_users: number; // 閻熸粎澧楅幐鍛婃櫠閻樺吀鐒婇煫鍥ㄦ⒐椤ρ勭箾閸欏顫楃紒宀婂墴閹粙濡搁敃鈧悡鏇㈡煛娴ｇ绨荤紒杈ㄢ攼TC闂?
-  stats_updated_at: string; // 缂傚倷鑳堕崰鏇㈩敇閹间礁鍗抽悗娑櫳戦悡鈧梺鍝勫暙閻栫厧螞閸ф鏅柛锔炬緭C RFC3339闂?
-  stats_stale: boolean; // 缂傚倷鑳堕崰鏇㈩敇閹间礁鍙婃い鏍ㄧ閸庡﹪寮堕埡浣瑰婵犫偓?
-
-  // API Key 缂傚倷鑳堕崰鏇㈩敇?
+  today_new_users: number; // Users created today.
+  active_users: number; // Daily active users.
+  hourly_active_users: number; // Hourly active users.
+  stats_updated_at: string; // Last dashboard snapshot update time in RFC3339.
+  stats_stale: boolean; // Whether the dashboard snapshot is stale.
+  // API key counters.
   total_api_keys: number;
-  active_api_keys: number; // 闂佺粯顭堥崺鏍焵椤戞寧顦烽悹?active 闂?API Key 闂?
-
-  // 闁荤姵鍔ч梽鍕春濞戞氨纾奸柣鏃€妞块崥鈧?
+  active_api_keys: number; // Active API keys.
+  // Account counters.
   total_accounts: number;
-  normal_accounts: number; // 濠殿喗绻愮徊浠嬫偉閸撲焦瀚婚柨鏃囨閻撴洟鏌?
-  error_accounts: number; // 閻庢鍠栭崐鎼佹偉閸撲焦瀚婚柨鏃囨閻撴洟鏌?
-  ratelimit_accounts: number; // 闂傚倸瀚崝鏍矈閿旂偓瀚婚柨鏃囨閻撴洟鏌?
-  overload_accounts: number; // 闁哄鏅涘ú鈺伱归崶鈺傚闁挎棁妫勯悡鏇㈡煛?
-
-  // 缂備線纭搁崹鐢割敇?Token 婵炶揪缍€濞夋洟寮妶鍥╃＜闁绘梹妞块崥鈧?
+  normal_accounts: number; // Accounts in normal state.
+  error_accounts: number; // Accounts in error state.
+  ratelimit_accounts: number; // Accounts currently rate limited.
+  overload_accounts: number; // Accounts currently overloaded.
+  // Lifetime request, token, and cost totals.
   total_requests: number;
   total_input_tokens: number;
   total_output_tokens: number;
   total_cache_creation_tokens: number;
   total_cache_read_tokens: number;
   total_tokens: number;
-  total_cost: number; // 缂備線纭搁崹鐢割敇閹间礁鍐€闁搞儜鍐╃彲闁荤姳绫嶉妶鍛偓?
-  total_actual_cost: number; // 缂備線纭搁崹鐢割敇閸濄儮鍋撻崷顓炰槐婵＄虎鍨堕獮宥夋晲婢跺褰?
-
-  // 婵炲濮撮敃銉ノ?Token 婵炶揪缍€濞夋洟寮妶鍥╃＜闁绘梹妞块崥鈧?
+  total_cost: number; // Standard cost before final billing adjustments.
+  total_actual_cost: number; // Actual billed cost.
+  // Today request, token, and cost totals.
   today_requests: number;
   today_input_tokens: number;
   today_output_tokens: number;
   today_cache_creation_tokens: number;
   today_cache_read_tokens: number;
   today_tokens: number;
-  today_cost: number; // 婵炲濮撮敃銉ノ涢埡鍛唨闁搞儜鍐╃彲闁荤姳绫嶉妶鍛偓?
-  today_actual_cost: number; // 婵炲濮撮敃銉ノ涢埡鍐ｅ亾閸︻厼浠辨俊缁㈠灦楠炲秹鏁愭径瀣綉
-
-  // 缂備緡鍨靛畷鐢靛垝閻戞ɑ浜ら柟閭﹀灱閺€鐣岀磽娴ｅ搫鏋欐い?
-  average_duration_ms: number; // 濡ょ姷鍋涢崯鍨焽鎼淬劌浼犵€广儱鎳愮€瑰鏌￠崘銊у煟婵?
-  uptime: number; // 缂備緡鍨靛畷鐢靛垝閻戞ɑ浜ら柟閭﹀灱閺€浠嬫煛閸愩劎鍩ｆ俊?缂?
-
-  // 闂佽鍎搁崱妤€骞嬮梺鍦焾濞诧箓鎮?
-  rpm: number; // 闁?闂佸憡甯掑Λ婵嬪箰閹捐崵宓侀柛鎰级缂嶅棙鎱ㄩ敐鍛闁搞劌閰ｉ弻锕傛偄濞茶娈插┑顔炬嚀閸婂綊寮?
-  tpm: number; // 闁?闂佸憡甯掑Λ婵嬪箰閹捐崵宓侀柛鎰级缂嶅棙鎱ㄩ敐鍛闁搞劌閰ｉ弻锕傛倻缁扁偓ken闂?
+  today_cost: number; // Standard cost before final billing adjustments.
+  today_actual_cost: number; // Actual billed cost.
+  average_duration_ms: number; // Average request duration in milliseconds.
+  uptime: number; // Service uptime in seconds.
+  rpm: number; // Requests per minute.
+  tpm: number; // Tokens per minute.
 }
 
 export interface UsageStatsResponse {
@@ -1424,8 +1400,8 @@ export interface TrendDataPoint {
   cache_creation_tokens: number;
   cache_read_tokens: number;
   total_tokens: number;
-  cost: number; // 闂佸搫绉村ú銈夊闯椤栨粍濯奸梽鍥垂?
-  actual_cost: number; // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
+  cost: number; // Standard cost before final billing adjustments.
+  actual_cost: number; // Actual billed cost.
 }
 
 export interface ModelStat {
@@ -1436,8 +1412,8 @@ export interface ModelStat {
   cache_creation_tokens: number;
   cache_read_tokens: number;
   total_tokens: number;
-  cost: number; // 闂佸搫绉村ú銈夊闯椤栨粍濯奸梽鍥垂?
-  actual_cost: number; // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
+  cost: number; // Standard cost before final billing adjustments.
+  actual_cost: number; // Actual billed cost.
 }
 
 export interface EndpointStat {
@@ -1453,8 +1429,8 @@ export interface GroupStat {
   group_name: string;
   requests: number;
   total_tokens: number;
-  cost: number; // 闂佸搫绉村ú銈夊闯椤栨粍濯奸梽鍥垂?
-  actual_cost: number; // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
+  cost: number; // Standard cost before final billing adjustments.
+  actual_cost: number; // Actual billed cost.
 }
 
 export interface UserBreakdownItem {
@@ -1473,8 +1449,8 @@ export interface UserUsageTrendPoint {
   username?: string;
   requests: number;
   tokens: number;
-  cost: number; // 闂佸搫绉村ú銈夊闯椤栨粍濯奸梽鍥垂?
-  actual_cost: number; // 闁诲骸婀遍崑銈咁瀶椤栫偛绠ラ柨婵嗩槹閻?
+  cost: number; // Standard cost before final billing adjustments.
+  actual_cost: number; // Actual billed cost.
 }
 
 export interface UserSpendingRankingItem {
@@ -1517,8 +1493,7 @@ export interface UpdateUserRequest {
   concurrency?: number;
   status?: "active" | "disabled";
   allowed_groups?: number[] | null;
-  // 闂佹椿娼块崝宥夊春濞戞瑧鈻旈柟鎯х－濞硷綁鏌涢幒鎴烆棤缂侇喖绉瑰畷鎰吋閸パ嗗У闂備焦婢樼粔鍫曟偪?(group_id -> rate_multiplier | null)
-  // null 闁荤偞绋忛崝搴ㄥΦ濮樿泛绀嗛柣妯肩帛閻濈喖鎮归崶銉ュ姎闁搞劌娴风槐鎺楀礋椤撶喓鏆犳繛鎴炴尰閹告悂鎯堝鈧畷鎰吋閸パ嗗У
+  // Per-group billing overrides keyed by group_id. Use null to clear an override.
   group_rates?: Record<number, number | null>;
 }
 
@@ -1613,19 +1588,19 @@ export interface AccountUsageHistory {
   requests: number;
   tokens: number;
   cost: number;
-  actual_cost: number; // Account cost (account multiplier)
-  user_cost: number; // User/API key billed cost (group multiplier)
+  actual_cost: number; // Actual billed cost.
+  user_cost: number; // Standard cost before final billing adjustments.
 }
 
 export interface AccountUsageSummary {
   days: number;
   actual_days_used: number;
-  total_cost: number; // Account cost (account multiplier)
+  total_cost: number; // Standard cost before final billing adjustments.
   total_user_cost: number;
   total_standard_cost: number;
   total_requests: number;
   total_tokens: number;
-  avg_daily_cost: number; // Account cost
+  avg_daily_cost: number; // Standard cost before final billing adjustments.
   avg_daily_user_cost: number;
   avg_daily_requests: number;
   avg_daily_tokens: number;

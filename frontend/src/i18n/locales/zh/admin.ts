@@ -1149,7 +1149,8 @@
         copilot: 'GitHub Copilot',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity'
+        antigravity: 'Antigravity',
+        baidu_document_ai: '百度文档智能'
       },
       saving: '保存中...',
       noGroups: '暂无分组',
@@ -1666,7 +1667,8 @@
         protocol_gateway: '协议网关',
         grok: 'Grok',
         gemini: 'Google',
-        antigravity: 'Antigravity'
+        antigravity: 'Antigravity',
+        baidu_document_ai: '百度文档智能'
       },
       types: {
         oauth: 'OAuth',
@@ -1677,6 +1679,7 @@
         codeAssist: 'Code Assist',
         antigravityOauth: 'Antigravity OAuth',
         antigravityApikey: '通过 Base URL + API Key 连接',
+        baiduDocumentAIApikey: '通过异步 Token 或直连 Token 连接',
         grokSso: 'SSO Token',
         grokSsoHint: '粘贴标准化后的 Grok SSO token，保存时会自动规范化 Bearer 前缀',
         upstream: '对接上游',
@@ -2411,6 +2414,21 @@
         apiKeyHint: '上游服务的 API Key',
         pleaseEnterBaseUrl: '请输入上游 Base URL',
         pleaseEnterApiKey: '请输入上游 API Key'
+      },
+      baiduDocumentAI: {
+        title: '百度文档智能凭据',
+        description: '配置 PaddleOCR 异步任务 Token，以及可选的模型直连端点。至少填写一个 Token。',
+        asyncBaseUrl: '异步 Base URL',
+        asyncBaseUrlHint: '百度 AI Studio PaddleOCR 异步任务接口的默认地址。',
+        asyncBearerToken: '异步 Bearer Token',
+        asyncBearerTokenHint: '用于异步 jobs 的提交、状态查询和结果轮询。',
+        directToken: '直连模型 Token',
+        directTokenHint: '可选，用于模型专属的直连解析接口。',
+        directApiUrls: '直连 API URLs',
+        directApiUrlsHint: '填写 JSON 对象，把模型 ID 映射到官方直连 API URL。',
+        directApiUrlsPlaceholder: "{\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n}",
+        tokenRequired: '请至少填写一个百度文档智能 Token',
+        directApiUrlsInvalid: '直连 API URLs 必须是合法的 JSON 对象文本'
       },
       // OAuth flow
       oauth: {

@@ -98,6 +98,7 @@ func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordReq
 		ProtocolOut:         strings.TrimSpace(input.Trace.Normalize.ProtocolOut),
 		Channel:             strings.TrimSpace(input.Trace.Normalize.Channel),
 		RoutePath:           strings.TrimSpace(input.Trace.Normalize.RoutePath),
+		UpstreamPath:        strings.TrimSpace(input.Trace.Normalize.UpstreamPath),
 		RequestType:         strings.TrimSpace(input.Trace.Normalize.RequestType),
 		RequestedModel:      strings.TrimSpace(input.Trace.Normalize.RequestedModel),
 		UpstreamModel:       strings.TrimSpace(input.Trace.Normalize.UpstreamModel),

@@ -12,7 +12,8 @@ vi.mock('vue-i18n', async () => {
     'admin.accounts.platforms.grok': 'Grok',
     'admin.accounts.platforms.protocol_gateway': 'Protocol Gateway',
     'admin.accounts.platforms.gemini': 'Google',
-    'admin.accounts.platforms.antigravity': 'Antigravity'
+    'admin.accounts.platforms.antigravity': 'Antigravity',
+    'admin.accounts.platforms.baidu_document_ai': 'Baidu Document AI'
   }
   return {
     ...actual,
@@ -52,7 +53,8 @@ describe('AccountCreatePlatformSelector', () => {
       'Grok',
       'Protocol Gateway',
       'Google',
-      'Antigravity'
+      'Antigravity',
+      'Baidu Document AI'
     ])
     expect(wrapper.findAll('button')[0].classes()).toContain('min-w-0')
     expect(wrapper.findAll('button')[0].classes()).toContain('whitespace-normal')

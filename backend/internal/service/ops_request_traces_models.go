@@ -86,6 +86,7 @@ type OpsInsertRequestTraceInput struct {
 	ProtocolOut           string
 	Channel               string
 	RoutePath             string
+	UpstreamPath          string
 	RequestType           string
 	RequestedModel        string
 	UpstreamModel         string
