@@ -256,7 +256,7 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIUsesUpstreamProjection(t *te
 	require.Equal(t, "gpt-4.1-mini", entries[0].PublicID)
 	require.Equal(t, "friendly-gpt", entries[0].AliasID)
 	require.Equal(t, "gpt-4.1-mini", entries[0].SourceID)
-	require.Equal(t, "GPT-4.1-mini", entries[0].DisplayName)
+	require.Equal(t, "GPT 4.1 Mini", entries[0].DisplayName)
 	require.Nil(t, upstream.lastReq)
 }
 
