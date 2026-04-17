@@ -71,7 +71,7 @@ type Model struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// DefaultModels Claude Code ????????????
+// DefaultModels Claude Code 客户端默认模型列表。
 var DefaultModels = defaultModelsFromSeed()
 
 func defaultModelsFromSeed() []Model {

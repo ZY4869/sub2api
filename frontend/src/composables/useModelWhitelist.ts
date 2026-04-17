@@ -191,6 +191,12 @@ const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
     modalities: { input: ["text", "image", "pdf"], output: ["text"] },
     options: { thinking: { budgetTokens: 24576, type: "enabled" } },
   },
+  "claude-opus-4-7": {
+    name: "Claude Opus 4.7",
+    limit: { context: 1000000, output: 128000 },
+    modalities: { input: ["text", "image", "pdf"], output: ["text"] },
+    options: { thinking: { budgetTokens: 24576, type: "enabled" } },
+  },
   "claude-sonnet-4.5": {
     name: "Claude Sonnet 4.5",
     limit: { context: 200000, output: 64000 },
