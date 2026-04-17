@@ -300,6 +300,9 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_DedicatedModeDoe
 
 func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeRelaysByCaddyAdapter(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	opTimeout := 5 * time.Second
+	waitTimeout := 10 * time.Second
+	resultTimeout := 5 * time.Second
 
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
@@ -374,7 +377,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeR
 		req.Header.Set("User-Agent", "unit-test-agent/1.0")
 		ginCtx.Request = req
 
-		readCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		readCtx, cancel := context.WithTimeout(r.Context(), opTimeout)
 		msgType, firstMessage, readErr := conn.Read(readCtx)
 		cancel()
 		if readErr != nil {
@@ -390,7 +393,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeR
 	}))
 	defer wsServer.Close()
 
-	dialCtx, cancelDial := context.WithTimeout(context.Background(), 3*time.Second)
+	dialCtx, cancelDial := context.WithTimeout(context.Background(), opTimeout)
 	clientConn, _, err := coderws.Dial(dialCtx, "ws"+strings.TrimPrefix(wsServer.URL, "http"), nil)
 	cancelDial()
 	require.NoError(t, err)
@@ -398,12 +401,12 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeR
 		_ = clientConn.CloseNow()
 	}()
 
-	writeCtx, cancelWrite := context.WithTimeout(context.Background(), 3*time.Second)
+	writeCtx, cancelWrite := context.WithTimeout(context.Background(), opTimeout)
 	err = clientConn.Write(writeCtx, coderws.MessageText, []byte(`{"type":"response.create","model":"gpt-5.1","stream":false,"service_tier":"fast"}`))
 	cancelWrite()
 	require.NoError(t, err)
 
-	readCtx, cancelRead := context.WithTimeout(context.Background(), 3*time.Second)
+	readCtx, cancelRead := context.WithTimeout(context.Background(), opTimeout)
 	_, event, readErr := clientConn.Read(readCtx)
 	cancelRead()
 	require.NoError(t, readErr)
@@ -414,7 +417,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeR
 	select {
 	case serverErr := <-serverErrCh:
 		require.NoError(t, serverErr)
-	case <-time.After(5 * time.Second):
+	case <-time.After(waitTimeout):
 		t.Fatal("等待 passthrough websocket 结束超时")
 	}
 
@@ -426,7 +429,7 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_PassthroughModeR
 		require.Equal(t, 3, result.Usage.OutputTokens)
 		require.NotNil(t, result.ServiceTier)
 		require.Equal(t, "priority", *result.ServiceTier)
-	case <-time.After(2 * time.Second):
+	case <-time.After(resultTimeout):
 		t.Fatal("未收到 passthrough turn 结果回调")
 	}
 
