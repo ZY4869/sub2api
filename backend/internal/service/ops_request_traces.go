@@ -453,6 +453,29 @@ func (s *OpsService) ExportRequestTracesCSV(ctx context.Context, writer io.Write
 	return totalWritten, nil
 }
 
+func (s *OpsService) GetUsageRequestPreviewForUsage(ctx context.Context, usage *UsageLog) (*UsageRequestPreview, error) {
+	if usage == nil {
+		return normalizeUsageRequestPreview(nil, ""), nil
+	}
+
+	fallback := newUnavailableUsageRequestPreview(usage.RequestID)
+	if s == nil || s.opsRepo == nil || !s.IsMonitoringEnabled(ctx) || !s.getOpsRequestTraceRuntimeConfig(ctx).Enabled {
+		return fallback, nil
+	}
+	if usage.UserID <= 0 || usage.APIKeyID <= 0 || strings.TrimSpace(usage.RequestID) == "" {
+		return fallback, nil
+	}
+
+	preview, err := s.opsRepo.GetUsageRequestPreview(ctx, usage.UserID, usage.APIKeyID, usage.RequestID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fallback, nil
+		}
+		return nil, infraerrors.InternalServer("OPS_REQUEST_TRACE_PREVIEW_FAILED", "Failed to load request detail preview").WithCause(err)
+	}
+	return normalizeUsageRequestPreview(preview, usage.RequestID), nil
+}
+
 func (s *OpsService) requireRequestTraceEnabled(ctx context.Context) error {
 	if err := s.RequireMonitoringEnabled(ctx); err != nil {
 		return err

@@ -8,6 +8,7 @@ const {
   query,
   getStatsByDateRange,
   listFilterApiKeys,
+  getRequestPreview,
   showError,
   showWarning,
   showSuccess,
@@ -16,6 +17,7 @@ const {
   query: vi.fn(),
   getStatsByDateRange: vi.fn(),
   listFilterApiKeys: vi.fn(),
+  getRequestPreview: vi.fn(),
   showError: vi.fn(),
   showWarning: vi.fn(),
   showSuccess: vi.fn(),
@@ -61,6 +63,40 @@ const messages: Record<string, string> = {
   "usage.time": "Time",
   "usage.userAgent": "User Agent",
   "usage.requestInfo": "Request Info",
+  "common.actions": "Actions",
+  "common.close": "Close",
+  "common.loading": "Loading...",
+  "common.refresh": "Refresh",
+  "usage.requestPreview.action": "Request Details",
+  "usage.requestPreview.title": "Request Details",
+  "usage.requestPreview.description":
+    "Review the captured preview for this usage request.",
+  "usage.requestPreview.metaRequestId": "Request ID",
+  "usage.requestPreview.metaCapturedAt": "Captured At",
+  "usage.requestPreview.previewReady": "Preview is ready",
+  "usage.requestPreview.empty": "No content available",
+  "usage.requestPreview.unavailableTitle": "No request details captured",
+  "usage.requestPreview.unavailableDescription":
+    "This request did not capture a preview. Request detail capture may have been unavailable for that request.",
+  "usage.requestPreview.failedToLoad": "Failed to load request details",
+  "usage.requestPreview.sections.inbound": "Inbound Request",
+  "usage.requestPreview.sections.normalized": "Normalized Request",
+  "usage.requestPreview.sections.upstreamRequest": "Upstream Request",
+  "usage.requestPreview.sections.upstreamResponse": "Upstream Response",
+  "usage.requestPreview.sections.gatewayResponse": "Gateway Response",
+  "usage.requestPreview.sections.tools": "Tools / Thinking",
+  "usage.requestPreview.emptyStates.inbound":
+    "No inbound request preview was captured for this request.",
+  "usage.requestPreview.emptyStates.normalized":
+    "No normalized request content is available for this request.",
+  "usage.requestPreview.emptyStates.upstreamRequest":
+    "No upstream request content is available for this request.",
+  "usage.requestPreview.emptyStates.upstreamResponse":
+    "No upstream response content is available for this request.",
+  "usage.requestPreview.emptyStates.gatewayResponse":
+    "No gateway response content is available for this request.",
+  "usage.requestPreview.emptyStates.tools":
+    "No tool or thinking trace was captured for this request.",
 };
 
 vi.mock("@/api", () => ({
@@ -68,6 +104,7 @@ vi.mock("@/api", () => ({
     query,
     getStatsByDateRange,
     listFilterApiKeys,
+    getRequestPreview,
   },
 }));
 
@@ -96,6 +133,7 @@ describe("user UsageView tooltip", () => {
     query.mockReset();
     getStatsByDateRange.mockReset();
     listFilterApiKeys.mockReset();
+    getRequestPreview.mockReset();
     showError.mockReset();
     showWarning.mockReset();
     showSuccess.mockReset();
@@ -122,6 +160,7 @@ describe("user UsageView tooltip", () => {
     query.mockResolvedValue({
       items: [
         {
+          id: 1,
           request_id: "req-user-1",
           model: "gpt-5.4",
           thinking_enabled: true,
@@ -218,6 +257,7 @@ describe("user UsageView tooltip", () => {
   it("exports csv with input and output unit price columns", async () => {
     const exportedLogs = [
       {
+        id: 2,
         request_id: "req-user-export",
         actual_cost: 0.092883,
         total_cost: 0.092883,
@@ -322,6 +362,7 @@ describe("user UsageView tooltip", () => {
   it("keeps rendering and exporting rows when cost fields are undefined, null, or NaN", async () => {
     const exportedLogs = [
       {
+        id: 3,
         request_id: "req-user-unpriced",
         actual_cost: undefined,
         total_cost: Number.NaN,
@@ -411,7 +452,9 @@ describe("user UsageView tooltip", () => {
 
     const setupState = (wrapper.vm as any).$?.setupState;
     const columns = setupState.columns.value ?? setupState.columns;
-    expect(columns.map((column: { key: string }) => column.key)).toContain("request_protocol");
+    expect(columns.map((column: { key: string }) => column.key)).toContain(
+      "request_protocol",
+    );
 
     await setupState.exportToCSV();
 
@@ -432,6 +475,7 @@ describe("user UsageView tooltip", () => {
     query.mockResolvedValue({
       items: [
         {
+          id: 4,
           request_id: "req-user-failed",
           model: "gpt-5.4",
           status: "failed",
@@ -494,15 +538,18 @@ describe("user UsageView tooltip", () => {
     expect(setupState.getStatusLabel("succeeded")).toBe("Succeeded");
     expect(setupState.getSimulatedClientLabel("codex")).toBe("Codex");
     expect(setupState.getSimulatedClientLabel("gemini_cli")).toBe("Gemini CLI");
-    expect(setupState.truncateUsageErrorMessage("  Rate limit exceeded for this account  ")).toBe(
-      "Rate limit exceeded for this account"
-    );
+    expect(
+      setupState.truncateUsageErrorMessage(
+        "  Rate limit exceeded for this account  ",
+      ),
+    ).toBe("Rate limit exceeded for this account");
   });
 
   it("renders usage rows when query data is returned", async () => {
     query.mockResolvedValue({
       items: [
         {
+          id: 5,
           request_id: "req-user-visible",
           model: "gpt-5.4",
           status: "succeeded",
@@ -539,7 +586,9 @@ describe("user UsageView tooltip", () => {
       total_cost: 0.01,
       avg_duration_ms: 40,
     });
-    listFilterApiKeys.mockResolvedValue([{ id: 1, name: "visible-key", deleted: false }]);
+    listFilterApiKeys.mockResolvedValue([
+      { id: 1, name: "visible-key", deleted: false },
+    ]);
 
     const wrapper = mount(UsageView, {
       global: {
@@ -560,8 +609,246 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.findAll('tbody tr[data-row-id]')).toHaveLength(1);
+    expect(wrapper.findAll("tbody tr[data-row-id]")).toHaveLength(1);
     expect(wrapper.text()).toContain("visible-key");
     expect(wrapper.text()).toContain("gpt-5.4");
+  });
+
+  it("opens request preview modal and renders captured panels", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 6,
+          request_id: "req-preview-visible",
+          model: "gpt-5.4",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.01,
+          total_cost: 0.01,
+          input_cost: 0.004,
+          output_cost: 0.006,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 20,
+          duration_ms: 40,
+          created_at: "2026-03-08T00:00:00Z",
+          api_key: { name: "preview-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 300,
+      total_cost: 0.01,
+      avg_duration_ms: 40,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+    getRequestPreview.mockResolvedValue({
+      available: true,
+      request_id: "req-preview-visible",
+      captured_at: "2026-03-08T00:00:10Z",
+      inbound_request_json: '{"messages":[{"role":"user","content":"hello"}]}',
+      normalized_request_json: '{"normalized":true}',
+      upstream_request_json: '{"target":"upstream"}',
+      upstream_response_json: '{"status":"ok"}',
+      gateway_response_json: '{"gateway":"ok"}',
+      tool_trace_json: '{"tools":["search"]}',
+    });
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const previewButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Request Details");
+    expect(previewButton).toBeDefined();
+
+    await previewButton!.trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(getRequestPreview).toHaveBeenCalledWith(6);
+    expect(wrapper.text()).toContain("Inbound Request");
+    expect(wrapper.text()).toContain("hello");
+    expect(wrapper.text()).toContain("Tools / Thinking");
+  });
+
+  it("shows a clear empty state when request preview is unavailable", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          request_id: "req-preview-missing",
+          model: "gpt-5.4",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.01,
+          total_cost: 0.01,
+          input_cost: 0.004,
+          output_cost: 0.006,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 20,
+          duration_ms: 40,
+          created_at: "2026-03-08T00:00:00Z",
+          api_key: { name: "preview-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 300,
+      total_cost: 0.01,
+      avg_duration_ms: 40,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+    getRequestPreview.mockResolvedValue({
+      available: false,
+      request_id: "req-preview-missing",
+      captured_at: null,
+      inbound_request_json: "",
+      normalized_request_json: "",
+      upstream_request_json: "",
+      upstream_response_json: "",
+      gateway_response_json: "",
+      tool_trace_json: "",
+    });
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const previewButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Request Details");
+    await previewButton!.trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain("No request details captured");
+  });
+
+  it("shows a friendly error when request preview loading fails", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 8,
+          request_id: "req-preview-error",
+          model: "gpt-5.4",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.01,
+          total_cost: 0.01,
+          input_cost: 0.004,
+          output_cost: 0.006,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 20,
+          duration_ms: 40,
+          created_at: "2026-03-08T00:00:00Z",
+          api_key: { name: "preview-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 300,
+      total_cost: 0.01,
+      avg_duration_ms: 40,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+    getRequestPreview.mockRejectedValue(new Error("network error"));
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const previewButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "Request Details");
+    await previewButton!.trigger("click");
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.text()).toContain("Failed to load request details");
   });
 });

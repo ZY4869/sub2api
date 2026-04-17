@@ -10,6 +10,7 @@ type opsRepoMock struct {
 	InsertErrorLogFn              func(ctx context.Context, input *OpsInsertErrorLogInput) (int64, error)
 	BatchInsertErrorLogsFn        func(ctx context.Context, inputs []*OpsInsertErrorLogInput) (int64, error)
 	InsertRequestTraceFn          func(ctx context.Context, input *OpsInsertRequestTraceInput) (int64, error)
+	GetUsageRequestPreviewFn      func(ctx context.Context, userID, apiKeyID int64, requestID string) (*UsageRequestPreview, error)
 	ListRequestTracesFn           func(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceList, error)
 	GetRequestTraceByIDFn         func(ctx context.Context, id int64) (*OpsRequestTraceDetail, error)
 	GetRequestTraceRawByIDFn      func(ctx context.Context, id int64) (*OpsRequestTraceRawDetail, error)
@@ -53,6 +54,13 @@ func (m *opsRepoMock) InsertRequestTrace(ctx context.Context, input *OpsInsertRe
 		return m.InsertRequestTraceFn(ctx, input)
 	}
 	return 0, nil
+}
+
+func (m *opsRepoMock) GetUsageRequestPreview(ctx context.Context, userID, apiKeyID int64, requestID string) (*UsageRequestPreview, error) {
+	if m.GetUsageRequestPreviewFn != nil {
+		return m.GetUsageRequestPreviewFn(ctx, userID, apiKeyID, requestID)
+	}
+	return nil, nil
 }
 
 func (m *opsRepoMock) ListRequestTraces(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceList, error) {

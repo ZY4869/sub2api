@@ -305,6 +305,53 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 	}, nil
 }
 
+func (r *opsRepository) GetUsageRequestPreview(ctx context.Context, userID, apiKeyID int64, requestID string) (*service.UsageRequestPreview, error) {
+	if r == nil || r.db == nil {
+		return nil, fmt.Errorf("nil ops repository")
+	}
+
+	query := `
+SELECT
+  COALESCE(t.request_id, ''),
+  t.created_at,
+  COALESCE(t.inbound_request, ''),
+  COALESCE(t.normalized_request, ''),
+  COALESCE(t.upstream_request, ''),
+  COALESCE(t.upstream_response, ''),
+  COALESCE(t.gateway_response, ''),
+  COALESCE(t.tool_trace, '')
+FROM ops_request_traces t
+WHERE t.user_id = $1
+  AND t.api_key_id = $2
+  AND COALESCE(t.request_id, '') = $3
+ORDER BY t.created_at DESC, t.id DESC
+LIMIT 1`
+
+	preview := &service.UsageRequestPreview{Available: true}
+	var capturedAt time.Time
+	err := r.db.QueryRowContext(
+		ctx,
+		query,
+		userID,
+		apiKeyID,
+		strings.TrimSpace(requestID),
+	).Scan(
+		&preview.RequestID,
+		&capturedAt,
+		&preview.InboundRequestJSON,
+		&preview.NormalizedRequestJSON,
+		&preview.UpstreamRequestJSON,
+		&preview.UpstreamResponseJSON,
+		&preview.GatewayResponseJSON,
+		&preview.ToolTraceJSON,
+	)
+	if err != nil {
+		return nil, err
+	}
+	preview.CapturedAt = &capturedAt
+	return preview, nil
+}
+
 func (r *opsRepository) GetRequestTraceByID(ctx context.Context, id int64) (*service.OpsRequestTraceDetail, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("nil ops repository")

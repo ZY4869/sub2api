@@ -11,6 +11,9 @@ export interface UsageEndpointDisplayLine {
 }
 
 function translate(key: string, fallback: string): string {
+  if (typeof i18n.global.te === "function" && !i18n.global.te(key)) {
+    return fallback;
+  }
   const message = i18n.global.t(key);
   return typeof message === "string" && message !== key ? message : fallback;
 }

@@ -58,6 +58,7 @@ type UsageService struct {
 	userRepo             UserRepository
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	requestPreviewReader UsageRequestPreviewReader
 }
 
 type usageLogAPIKeyFilterReader interface {

@@ -570,7 +570,9 @@ export type AccountPlatformCountSortOrder = "count_asc" | "count_desc";
 export type GatewayProtocol = "openai" | "anthropic" | "gemini" | "mixed";
 export type GatewayAcceptedProtocol = "openai" | "anthropic" | "gemini";
 export type GatewayClientProfile = "codex" | "gemini_cli";
-export type GatewayOpenAIRequestFormat = "/v1/chat/completions" | "/v1/responses";
+export type GatewayOpenAIRequestFormat =
+  | "/v1/chat/completions"
+  | "/v1/responses";
 export interface GatewayClientRoute {
   protocol: GatewayAcceptedProtocol;
   match_type: "exact" | "prefix";
@@ -678,7 +680,12 @@ export interface GeminiCredentials {
   // OAuth authentication
   access_token?: string;
   refresh_token?: string;
-  oauth_type?: "code_assist" | "google_one" | "ai_studio" | "vertex_ai" | string;
+  oauth_type?:
+    | "code_assist"
+    | "google_one"
+    | "ai_studio"
+    | "vertex_ai"
+    | string;
   tier_id?:
     | "google_one_free"
     | "google_ai_pro"
@@ -1257,6 +1264,18 @@ export interface UsageLog {
   subscription?: UserSubscription;
 }
 
+export interface UsageRequestPreviewResponse {
+  available: boolean;
+  request_id: string;
+  captured_at: string | null;
+  inbound_request_json: string;
+  normalized_request_json: string;
+  upstream_request_json: string;
+  upstream_response_json: string;
+  gateway_response_json: string;
+  tool_trace_json: string;
+}
+
 export interface UsageLogAccountSummary {
   id: number;
   name: string;
@@ -1439,12 +1458,12 @@ export interface GroupStat {
 }
 
 export interface UserBreakdownItem {
-  user_id: number
-  email: string
-  requests: number
-  total_tokens: number
-  cost: number
-  actual_cost: number
+  user_id: number;
+  email: string;
+  requests: number;
+  total_tokens: number;
+  cost: number;
+  actual_cost: number;
 }
 
 export interface UserUsageTrendPoint {

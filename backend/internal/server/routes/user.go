@@ -55,6 +55,7 @@ func RegisterUserRoutes(
 		{
 			usage.GET("", h.Usage.List)
 			usage.GET("/filter-api-keys", h.Usage.FilterAPIKeys)
+			usage.GET("/:id/request-preview", h.Usage.GetRequestPreview)
 			usage.GET("/:id", h.Usage.GetByID)
 			usage.GET("/stats", h.Usage.Stats)
 			usage.GET("/dashboard/stats", h.Usage.DashboardStats)

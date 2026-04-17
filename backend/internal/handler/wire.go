@@ -197,9 +197,13 @@ func ProvideHandlers(
 	grokGatewayHandler *GrokGatewayHandler,
 	settingHandler *SettingHandler,
 	totpHandler *TotpHandler,
+	opsService *service.OpsService,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
+	if usageHandler != nil && usageHandler.usageService != nil {
+		usageHandler.usageService.SetRequestPreviewReader(opsService)
+	}
 	return &Handlers{
 		Auth:          authHandler,
 		User:          userHandler,

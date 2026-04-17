@@ -32,6 +32,39 @@ export default {
     exportCancelled: "Export cancelled",
     exporting: "Exporting...",
     preparingExport: "Preparing export...",
+    requestPreview: {
+      action: "Request Details",
+      title: "Request Details",
+      description: "Review the captured preview for this usage request.",
+      metaRequestId: "Request ID",
+      metaCapturedAt: "Captured At",
+      previewReady: "Preview is ready",
+      empty: "No content available",
+      unavailableTitle: "No request details captured",
+      unavailableDescription:
+        "This request did not capture a preview. Request detail capture may have been unavailable for that request.",
+      failedToLoad: "Failed to load request details",
+      sections: {
+        inbound: "Inbound Request",
+        normalized: "Normalized Request",
+        upstreamRequest: "Upstream Request",
+        upstreamResponse: "Upstream Response",
+        gatewayResponse: "Gateway Response",
+        tools: "Tools / Thinking",
+      },
+      emptyStates: {
+        inbound: "No inbound request preview was captured for this request.",
+        normalized:
+          "No normalized request content is available for this request.",
+        upstreamRequest:
+          "No upstream request content is available for this request.",
+        upstreamResponse:
+          "No upstream response content is available for this request.",
+        gatewayResponse:
+          "No gateway response content is available for this request.",
+        tools: "No tool or thinking trace was captured for this request.",
+      },
+    },
     model: "Model",
     status: "Status",
     statusSucceeded: "Succeeded",

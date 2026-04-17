@@ -33,6 +33,42 @@ export default {
     exportCancelled: "\u5bfc\u51fa\u5df2\u53d6\u6d88",
     exporting: "\u5bfc\u51fa\u4e2d...",
     preparingExport: "\u6b63\u5728\u51c6\u5907\u5bfc\u51fa...",
+    requestPreview: {
+      action: "\u8bf7\u6c42\u8be6\u60c5",
+      title: "\u8bf7\u6c42\u8be6\u60c5",
+      description:
+        "\u67e5\u770b\u8fd9\u6761\u4f7f\u7528\u8bb0\u5f55\u6355\u83b7\u5230\u7684\u8131\u654f\u9884\u89c8\u5185\u5bb9\u3002",
+      metaRequestId: "\u8bf7\u6c42 ID",
+      metaCapturedAt: "\u6355\u83b7\u65f6\u95f4",
+      previewReady: "\u9884\u89c8\u5185\u5bb9\u5df2\u5c31\u7eea",
+      empty: "\u5f53\u524d\u6682\u65e0\u5185\u5bb9",
+      unavailableTitle: "\u672a\u6355\u83b7\u5230\u8bf7\u6c42\u8be6\u60c5",
+      unavailableDescription:
+        "\u8fd9\u6b21\u8bf7\u6c42\u6ca1\u6709\u6355\u83b7\u5230\u9884\u89c8\u5185\u5bb9\uff0c\u53ef\u80fd\u662f\u8be5\u6b21\u8bf7\u6c42\u5f53\u65f6\u672a\u542f\u7528\u8be6\u60c5\u91c7\u96c6\u3002",
+      failedToLoad: "\u52a0\u8f7d\u8bf7\u6c42\u8be6\u60c5\u5931\u8d25",
+      sections: {
+        inbound: "\u539f\u59cb\u8bf7\u6c42",
+        normalized: "\u6807\u51c6\u5316\u8bf7\u6c42",
+        upstreamRequest: "\u4e0a\u6e38\u8bf7\u6c42",
+        upstreamResponse: "\u4e0a\u6e38\u54cd\u5e94",
+        gatewayResponse: "\u7f51\u5173\u54cd\u5e94",
+        tools: "\u5de5\u5177 / Thinking",
+      },
+      emptyStates: {
+        inbound:
+          "\u5f53\u524d\u6ca1\u6709\u91c7\u96c6\u5230\u539f\u59cb\u8bf7\u6c42\u9884\u89c8\u3002",
+        normalized:
+          "\u5f53\u524d\u6ca1\u6709\u6807\u51c6\u5316\u8bf7\u6c42\u5185\u5bb9\u3002",
+        upstreamRequest:
+          "\u5f53\u524d\u6ca1\u6709\u4e0a\u6e38\u8bf7\u6c42\u5185\u5bb9\u3002",
+        upstreamResponse:
+          "\u5f53\u524d\u6ca1\u6709\u4e0a\u6e38\u54cd\u5e94\u5185\u5bb9\u3002",
+        gatewayResponse:
+          "\u5f53\u524d\u6ca1\u6709\u7f51\u5173\u54cd\u5e94\u5185\u5bb9\u3002",
+        tools:
+          "\u5f53\u524d\u6ca1\u6709\u5de5\u5177\u8c03\u7528\u6216 Thinking \u8f68\u8ff9\u3002",
+      },
+    },
     model: "\u6a21\u578b",
     status: "\u72b6\u6001",
     statusSucceeded: "\u6210\u529f",

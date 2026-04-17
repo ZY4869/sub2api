@@ -207,7 +207,9 @@
             <div class="flex items-start gap-2">
               <ModelIcon :model="row.model" size="16px" />
               <div class="min-w-0">
-                <div class="break-all font-medium text-gray-900 dark:text-white">
+                <div
+                  class="break-all font-medium text-gray-900 dark:text-white"
+                >
                   {{ row.model }}
                 </div>
                 <div
@@ -242,7 +244,9 @@
               >
                 <div class="flex flex-wrap gap-x-3 gap-y-1">
                   <span v-if="row.http_status != null">
-                    <span class="font-medium">{{ t("usage.httpStatus") }}:</span>
+                    <span class="font-medium"
+                      >{{ t("usage.httpStatus") }}:</span
+                    >
                     {{ row.http_status }}
                   </span>
                   <span v-if="row.error_code">
@@ -250,9 +254,17 @@
                     {{ row.error_code }}
                   </span>
                 </div>
-                <div v-if="row.error_message" :title="row.error_message" class="truncate">
-                  <span class="font-medium">{{ t("usage.errorMessage") }}:</span>
-                  <span class="ml-1">{{ truncateUsageErrorMessage(row.error_message) }}</span>
+                <div
+                  v-if="row.error_message"
+                  :title="row.error_message"
+                  class="truncate"
+                >
+                  <span class="font-medium"
+                    >{{ t("usage.errorMessage") }}:</span
+                  >
+                  <span class="ml-1">{{
+                    truncateUsageErrorMessage(row.error_message)
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -491,6 +503,17 @@
             >
           </template>
 
+          <template #cell-actions="{ row }">
+            <button
+              class="btn btn-secondary btn-sm"
+              type="button"
+              :disabled="!row.id"
+              @click="openRequestPreview(row)"
+            >
+              {{ t("usage.requestPreview.action") }}
+            </button>
+          </template>
+
           <template #empty>
             <EmptyState :message="t('usage.noRecords')" />
           </template>
@@ -509,6 +532,12 @@
       </template>
     </TablePageLayout>
   </AppLayout>
+
+  <UsageRequestPreviewModal
+    :show="requestPreviewOpen"
+    :usage-log="selectedPreviewUsage"
+    @close="closeRequestPreview"
+  />
 
   <!-- Token Tooltip Portal -->
   <Teleport to="body">
@@ -678,7 +707,9 @@
               {{ t("usage.costDetails") }}
             </div>
             <div
-              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.input_cost)"
+              v-if="
+                tooltipData && hasPositiveUsageAmount(tooltipData.input_cost)
+              "
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
@@ -689,7 +720,9 @@
               >
             </div>
             <div
-              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.output_cost)"
+              v-if="
+                tooltipData && hasPositiveUsageAmount(tooltipData.output_cost)
+              "
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
@@ -734,7 +767,10 @@
               >
             </div>
             <div
-              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.cache_creation_cost)"
+              v-if="
+                tooltipData &&
+                hasPositiveUsageAmount(tooltipData.cache_creation_cost)
+              "
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
@@ -745,7 +781,10 @@
               >
             </div>
             <div
-              v-if="tooltipData && hasPositiveUsageAmount(tooltipData.cache_read_cost)"
+              v-if="
+                tooltipData &&
+                hasPositiveUsageAmount(tooltipData.cache_read_cost)
+              "
               class="flex items-center justify-between gap-4"
             >
               <span class="text-gray-400">{{
@@ -821,11 +860,8 @@ import ModelIcon from "@/components/common/ModelIcon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
 import UsageProtocolCell from "@/components/common/UsageProtocolCell.vue";
 import Icon from "@/components/icons/Icon.vue";
-import type {
-  UsageLog,
-  UsageQueryParams,
-  UsageStatsResponse,
-} from "@/types";
+import UsageRequestPreviewModal from "@/components/user/usage/UsageRequestPreviewModal.vue";
+import type { UsageLog, UsageQueryParams, UsageStatsResponse } from "@/types";
 import type { UsageFilterApiKey } from "@/api/usage";
 import type { Column } from "@/components/common/types";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
@@ -883,7 +919,11 @@ const columns = computed<Column[]>(() => [
     label: t("usage.reasoningEffort"),
     sortable: false,
   },
-  { key: "request_protocol", label: t("usage.requestProtocol"), sortable: false },
+  {
+    key: "request_protocol",
+    label: t("usage.requestProtocol"),
+    sortable: false,
+  },
   { key: "endpoint", label: t("usage.endpoint"), sortable: false },
   { key: "stream", label: t("usage.type"), sortable: false },
   { key: "tokens", label: t("usage.tokens"), sortable: false },
@@ -892,12 +932,15 @@ const columns = computed<Column[]>(() => [
   { key: "duration", label: t("usage.duration"), sortable: false },
   { key: "created_at", label: t("usage.time"), sortable: true },
   { key: "user_agent", label: t("usage.userAgent"), sortable: false },
+  { key: "actions", label: t("common.actions"), sortable: false },
 ]);
 
 const usageLogs = ref<UsageLog[]>([]);
 const apiKeys = ref<UsageFilterApiKey[]>([]);
 const loading = ref(false);
 const exporting = ref(false);
+const requestPreviewOpen = ref(false);
+const selectedPreviewUsage = ref<UsageLog | null>(null);
 
 const apiKeyOptions = computed(() => {
   return [
@@ -1157,6 +1200,19 @@ const handlePageSizeChange = (pageSize: number) => {
   loadUsageLogs();
 };
 
+const openRequestPreview = (usageLog: UsageLog) => {
+  if (!usageLog.id) {
+    return;
+  }
+  selectedPreviewUsage.value = usageLog;
+  requestPreviewOpen.value = true;
+};
+
+const closeRequestPreview = () => {
+  requestPreviewOpen.value = false;
+  selectedPreviewUsage.value = null;
+};
+
 /**
  * Escape CSV value to prevent injection and handle special characters
  */
@@ -1239,10 +1295,15 @@ const exportToCSV = async () => {
         log.api_key?.name || "",
         log.model,
         getStatusLabel(log.status),
-        log.simulated_client ? getSimulatedClientLabel(log.simulated_client) : "",
+        log.simulated_client
+          ? getSimulatedClientLabel(log.simulated_client)
+          : "",
         formatThinkingEnabled(log.thinking_enabled),
         formatReasoningEffort(log.reasoning_effort),
-        formatUsageProtocolExportText(log.inbound_endpoint, log.upstream_endpoint),
+        formatUsageProtocolExportText(
+          log.inbound_endpoint,
+          log.upstream_endpoint,
+        ),
         log.inbound_endpoint || "",
         getRequestTypeExportText(log),
         log.http_status ?? "",

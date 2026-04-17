@@ -464,6 +464,18 @@ type AdminUsageLog struct {
 	Account *AccountSummary `json:"account,omitempty"`
 }
 
+type UsageRequestPreview struct {
+	Available             bool       `json:"available"`
+	RequestID             string     `json:"request_id"`
+	CapturedAt            *time.Time `json:"captured_at"`
+	InboundRequestJSON    string     `json:"inbound_request_json"`
+	NormalizedRequestJSON string     `json:"normalized_request_json"`
+	UpstreamRequestJSON   string     `json:"upstream_request_json"`
+	UpstreamResponseJSON  string     `json:"upstream_response_json"`
+	GatewayResponseJSON   string     `json:"gateway_response_json"`
+	ToolTraceJSON         string     `json:"tool_trace_json"`
+}
+
 type UsageCleanupFilters struct {
 	StartTime   time.Time `json:"start_time"`
 	EndTime     time.Time `json:"end_time"`

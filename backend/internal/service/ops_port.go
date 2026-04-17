@@ -12,6 +12,7 @@ type OpsRepository interface {
 	GetErrorLogByID(ctx context.Context, id int64) (*OpsErrorLogDetail, error)
 	ListRequestDetails(ctx context.Context, filter *OpsRequestDetailFilter) ([]*OpsRequestDetail, int64, error)
 	InsertRequestTrace(ctx context.Context, input *OpsInsertRequestTraceInput) (int64, error)
+	GetUsageRequestPreview(ctx context.Context, userID, apiKeyID int64, requestID string) (*UsageRequestPreview, error)
 	ListRequestTraces(ctx context.Context, filter *OpsRequestTraceFilter) (*OpsRequestTraceList, error)
 	GetRequestTraceByID(ctx context.Context, id int64) (*OpsRequestTraceDetail, error)
 	GetRequestTraceRawByID(ctx context.Context, id int64) (*OpsRequestTraceRawDetail, error)

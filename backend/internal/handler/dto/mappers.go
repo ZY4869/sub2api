@@ -737,6 +737,23 @@ func UsageLogFromServiceAdmin(l *service.UsageLog) *AdminUsageLog {
 	}
 }
 
+func UsageRequestPreviewFromService(preview *service.UsageRequestPreview) *UsageRequestPreview {
+	if preview == nil {
+		return nil
+	}
+	return &UsageRequestPreview{
+		Available:             preview.Available,
+		RequestID:             preview.RequestID,
+		CapturedAt:            preview.CapturedAt,
+		InboundRequestJSON:    preview.InboundRequestJSON,
+		NormalizedRequestJSON: preview.NormalizedRequestJSON,
+		UpstreamRequestJSON:   preview.UpstreamRequestJSON,
+		UpstreamResponseJSON:  preview.UpstreamResponseJSON,
+		GatewayResponseJSON:   preview.GatewayResponseJSON,
+		ToolTraceJSON:         preview.ToolTraceJSON,
+	}
+}
+
 func UsageCleanupTaskFromService(task *service.UsageCleanupTask) *UsageCleanupTask {
 	if task == nil {
 		return nil

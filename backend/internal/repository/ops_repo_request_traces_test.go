@@ -310,3 +310,43 @@ WHERE 1=1 AND t.created_at >= $1 AND t.created_at < $2 AND COALESCE(t.platform,'
 	require.NotNil(t, summary)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestOpsRepositoryGetUsageRequestPreviewReturnsLatestPreview(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newOpsSQLMock(t)
+	repo := &opsRepository{db: db}
+	capturedAt := time.Date(2026, 4, 17, 10, 15, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`(?s)SELECT\s+COALESCE\(t\.request_id, ''\),\s+t\.created_at,.*FROM ops_request_traces t\s+WHERE t\.user_id = \$1\s+AND t\.api_key_id = \$2\s+AND COALESCE\(t\.request_id, ''\) = \$3\s+ORDER BY t\.created_at DESC, t\.id DESC\s+LIMIT 1`).
+		WithArgs(int64(42), int64(8), "req-preview").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"request_id",
+			"created_at",
+			"inbound_request",
+			"normalized_request",
+			"upstream_request",
+			"upstream_response",
+			"gateway_response",
+			"tool_trace",
+		}).AddRow(
+			"req-preview",
+			capturedAt,
+			`{"messages":[{"role":"user"}]}`,
+			"",
+			`{"target":"upstream"}`,
+			"",
+			`{"status":"ok"}`,
+			"",
+		))
+
+	preview, err := repo.GetUsageRequestPreview(context.Background(), 42, 8, "req-preview")
+	require.NoError(t, err)
+	require.True(t, preview.Available)
+	require.NotNil(t, preview.CapturedAt)
+	require.Equal(t, capturedAt, *preview.CapturedAt)
+	require.Equal(t, "", preview.NormalizedRequestJSON)
+	require.Equal(t, "", preview.UpstreamResponseJSON)
+	require.Equal(t, "", preview.ToolTraceJSON)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
