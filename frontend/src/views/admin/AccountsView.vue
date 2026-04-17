@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <TablePageLayout prefer-page-scroll>
+  <TablePageLayout prefer-page-scroll>
       <template #filters>
         <AccountsViewToolbar
           :loading="loading"
@@ -166,7 +165,7 @@
         </div>
       </template>
     </TablePageLayout>
-    <AccountsViewDialogsHost
+  <AccountsViewDialogsHost
       v-model:include-proxy-on-export="includeProxyOnExport"
       :show-create="showCreate"
       :show-archive-selected="showArchiveSelected"
@@ -256,8 +255,7 @@
       @close-export="showExportDataDialog = false"
       @close-error-passthrough="showErrorPassthrough = false"
       @close-tls-fingerprint-profiles="showTLSFingerprintProfiles = false"
-    />
-  </AppLayout>
+  />
 </template>
 
 <script setup lang="ts">
@@ -278,7 +276,6 @@ import { useAccountsViewListPatching } from '@/composables/useAccountsViewListPa
 import { useTableLoader } from '@/composables/useTableLoader'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import AccountCardGrid from '@/components/admin/account/AccountCardGrid.vue'

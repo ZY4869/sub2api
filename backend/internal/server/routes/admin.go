@@ -29,6 +29,7 @@ func RegisterAdminRoutes(
 
 		// 账号管理
 		registerAccountRoutes(admin, h)
+		registerDocsRoutes(admin, h)
 
 		// 公告管理
 		registerAnnouncementRoutes(admin, h)
@@ -388,6 +389,15 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.POST("/exchange-setup-token-code", h.Admin.OAuth.ExchangeSetupTokenCode)
 		accounts.POST("/cookie-auth", h.Admin.OAuth.CookieAuth)
 		accounts.POST("/setup-token-cookie-auth", h.Admin.OAuth.SetupTokenCookieAuth)
+	}
+}
+
+func registerDocsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	docs := admin.Group("/docs")
+	{
+		docs.GET("/api", h.Admin.Docs.GetAPIReference)
+		docs.PUT("/api", h.Admin.Docs.UpdateAPIReference)
+		docs.DELETE("/api/override", h.Admin.Docs.ClearAPIReferenceOverride)
 	}
 }
 

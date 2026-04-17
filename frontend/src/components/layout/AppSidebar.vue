@@ -378,36 +378,6 @@ const GlobeIcon = {
     )
 }
 
-const NoSymbolIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M18.364 5.636A9 9 0 115.636 18.364M18.364 5.636L5.636 18.364'
-        })
-      ]
-    )
-}
-
-const ExclamationTriangleIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M12 9v3.75m9.303 3.376c-.866 1.5-2.474 2.374-4.205 2.374H6.902c-1.73 0-3.339-.874-4.205-2.374-.866-1.5-.866-3.349 0-4.849L7.795 2.63c.866-1.5 2.474-2.374 4.205-2.374 1.73 0 3.339.874 4.205 2.374l5.098 8.647c.866 1.5.866 3.349 0 4.849zM12 16.5h.008v.008H12V16.5z'
-        })
-      ]
-    )
-}
-
 const ServerIcon = {
   render: () =>
     h(
@@ -448,6 +418,21 @@ const TicketIcon = {
           'stroke-linecap': 'round',
           'stroke-linejoin': 'round',
           d: 'M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z'
+        })
+      ]
+    )
+}
+
+const DocumentTextIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M19.5 14.25v-8.25A2.25 2.25 0 0017.25 3.75H6.75A2.25 2.25 0 004.5 6v12A2.25 2.25 0 006.75 20.25h5.25M16.5 8.25h-9m9 3h-9m5.25 3h-5.25m9 6l3-3m0 0l-3-3m3 3H12'
         })
       ]
     )
@@ -538,6 +523,7 @@ const userNavItems = computed((): NavItem[] => {
   const items: NavItem[] = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+    { path: '/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     ...(appStore.cachedPublicSettings?.purchase_subscription_enabled
@@ -631,8 +617,7 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/channels', label: t('admin.channels.title', 'Channels'), icon: GlobeIcon, hideInSimpleMode: true },
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
-    { path: '/admin/accounts/limited', label: t('nav.limitedAccounts'), icon: ExclamationTriangleIcon },
-    { path: '/admin/accounts/blacklist', label: t('nav.blacklist'), icon: NoSymbolIcon },
+    { path: '/admin/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },

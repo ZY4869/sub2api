@@ -1,6 +1,5 @@
 <template>
-  <AppLayout>
-    <TablePageLayout prefer-page-scroll>
+  <TablePageLayout prefer-page-scroll>
       <template #filters>
         <div class="space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -103,14 +102,13 @@
         />
       </template>
     </TablePageLayout>
-    <BlacklistRetestModal
+  <BlacklistRetestModal
       :show="showRetestModal"
       :accounts="retestTargets"
       :submitting="submitting"
       @close="handleRetestModalClose"
       @confirm="handleRetestConfirm"
-    />
-  </AppLayout>
+  />
 </template>
 
 <script setup lang="ts">
@@ -124,7 +122,6 @@ import { useAppStore } from '@/stores/app'
 import { formatDateTime } from '@/utils/format'
 import type { Column } from '@/components/common/types'
 import type { Account, AdminGroup } from '@/types'
-import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import AccountGroupsCell from '@/components/account/AccountGroupsCell.vue'
 import DataTable from '@/components/common/DataTable.vue'

@@ -1258,10 +1258,50 @@ export default {
         "Are you sure you want to revoke the subscription for '{user}'? This action cannot be undone."
     },
 
+    apiDocs: {
+      title: 'API Docs',
+      description: 'Edit the protected in-product API documentation and keep the runtime override aligned with the repository baseline.',
+      eyebrow: 'Docs Governance',
+      protocolsTitle: 'Protocol Pages',
+      pageTocTitle: 'Current Page',
+      loading: 'Loading API docs...',
+      loadFailed: 'Failed to load API docs',
+      overrideActive: 'Runtime override enabled',
+      usingDefault: 'Using repository default template',
+      unsavedChanges: 'Unsaved changes',
+      editorTab: 'Editor',
+      previewTab: 'Preview',
+      editorEyebrow: 'Markdown Source',
+      editorTitle: 'Edit Markdown',
+      editorDescription: 'Save the full document as a runtime override. To go back to the code baseline, restore the default template instead of clearing sections manually.',
+      editorPlaceholder: '# API Docs\n',
+      previewEyebrow: 'Rendered Preview',
+      previewTitle: 'Live Preview',
+      previewDescription: 'The preview renders the current draft with the same Markdown pipeline used on the user-facing page.',
+      tocTitle: 'Preview',
+      save: 'Save Override',
+      saving: 'Saving...',
+      saveSuccess: 'API docs saved',
+      saveFailed: 'Failed to save API docs',
+      restoreDefault: 'Restore Default',
+      restoreConfirm: 'Clear the runtime override and restore the repository default template?',
+      restoreDraftConfirm: 'Replace the current draft with the repository default template?',
+      restoreSuccess: 'Default template restored',
+      restoreFailed: 'Failed to restore default template',
+      copy: 'Copy Markdown',
+      copySuccess: 'Markdown copied',
+      openUserPage: 'Open User Page'
+    },
+
     // Accounts
     accounts: {
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
+      subnav: {
+        all: 'All Accounts',
+        limited: 'Limited Accounts',
+        blacklist: 'Blacklist'
+      },
       createAccount: 'Create Account',
       autoRefresh: 'Auto Refresh',
       enableAutoRefresh: 'Enable auto refresh',

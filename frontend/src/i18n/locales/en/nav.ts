@@ -30,7 +30,8 @@ export default {
     github: 'GitHub',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
-    docs: 'Docs'
+    docs: 'Docs',
+    apiDocs: 'API Docs'
   },
 
   // Auth,

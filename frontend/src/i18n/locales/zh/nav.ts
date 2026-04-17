@@ -17,7 +17,7 @@ export default {
     proxies: 'IP 管理',
     redeemCodes: '兑换码',
     ops: '运维监控',
-    requestDetails: '请求详细',
+    requestDetails: '请求详情',
     promoCodes: '优惠码',
     dataManagement: '数据管理',
     settings: '系统设置',
@@ -30,6 +30,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: '我的订阅',
     buySubscription: '充值 / 订阅',
-    docs: '文档'
+    docs: '文档',
+    apiDocs: 'API 文档'
   },
 }

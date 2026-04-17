@@ -185,6 +185,21 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/api-docs',
+    redirect: '/api-docs/common'
+  },
+  {
+    path: '/api-docs/:pageId(common|openai|anthropic|gemini|grok|antigravity|vertex-batch)',
+    name: 'ApiDocs',
+    component: () => import('@/views/user/ApiDocsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'API Docs',
+      titleKey: 'ui.routeTitles.apiDocs'
+    }
+  },
+  {
     path: '/subscriptions',
     name: 'Subscriptions',
     component: () => import('@/views/user/SubscriptionsView.vue'),
@@ -430,38 +445,67 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/admin/accounts',
-    name: 'AdminAccounts',
-    component: () => import('@/views/admin/AccountsView.vue'),
+    component: () => import('@/views/admin/AccountsLayoutView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
       title: 'Account Management',
       titleKey: 'admin.accounts.title',
       descriptionKey: 'admin.accounts.description'
-    }
+    },
+    children: [
+      {
+        path: '',
+        name: 'AdminAccounts',
+        component: () => import('@/views/admin/AccountsView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Account Management',
+          titleKey: 'admin.accounts.title',
+          descriptionKey: 'admin.accounts.description'
+        }
+      },
+      {
+        path: 'limited',
+        name: 'AdminAccountsLimited',
+        component: () => import('@/views/admin/LimitedAccountsView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Limited Accounts',
+          titleKey: 'admin.accounts.limited.title',
+          descriptionKey: 'admin.accounts.limited.description'
+        }
+      },
+      {
+        path: 'blacklist',
+        name: 'AdminAccountsBlacklist',
+        component: () => import('@/views/admin/BlacklistedAccountsView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Blacklisted Accounts',
+          titleKey: 'admin.accounts.blacklist.title',
+          descriptionKey: 'admin.accounts.blacklist.description'
+        }
+      }
+    ]
   },
   {
-    path: '/admin/accounts/limited',
-    name: 'AdminAccountsLimited',
-    component: () => import('@/views/admin/LimitedAccountsView.vue'),
+    path: '/admin/api-docs',
+    redirect: '/admin/api-docs/common'
+  },
+  {
+    path: '/admin/api-docs/:pageId(common|openai|anthropic|gemini|grok|antigravity|vertex-batch)',
+    name: 'AdminApiDocs',
+    component: () => import('@/views/admin/AdminApiDocsView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
-      title: 'Limited Accounts',
-      titleKey: 'admin.accounts.limited.title',
-      descriptionKey: 'admin.accounts.limited.description'
-    }
-  },
-  {
-    path: '/admin/accounts/blacklist',
-    name: 'AdminAccountsBlacklist',
-    component: () => import('@/views/admin/BlacklistedAccountsView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: 'Blacklisted Accounts',
-      titleKey: 'admin.accounts.blacklist.title',
-      descriptionKey: 'admin.accounts.blacklist.description'
+      title: 'Admin API Docs',
+      titleKey: 'admin.apiDocs.title',
+      descriptionKey: 'admin.apiDocs.description'
     }
   },
   {

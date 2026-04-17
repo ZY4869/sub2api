@@ -104,6 +104,7 @@ backend/internal/web/dist/
 !backend/internal/web/dist/
 backend/internal/web/dist/*
 !backend/internal/web/dist/.keep
+backend/internal/service/docs/api_reference.html
 
 # 后端运行时缓存数据
 backend/data/

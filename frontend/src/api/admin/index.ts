@@ -12,6 +12,7 @@ import proxiesAPI from './proxies'
 import redeemAPI from './redeem'
 import promoAPI from './promo'
 import announcementsAPI from './announcements'
+import docsAPI from './docs'
 import settingsAPI from './settings'
 import systemAPI from './system'
 import subscriptionsAPI from './subscriptions'
@@ -38,6 +39,7 @@ export const adminAPI = {
   groups: groupsAPI,
   channels: channelsAPI,
   accounts: accountsAPI,
+  docs: docsAPI,
   proxies: proxiesAPI,
   redeem: redeemAPI,
   promo: promoAPI,
@@ -70,6 +72,7 @@ export {
   redeemAPI,
   promoAPI,
   announcementsAPI,
+  docsAPI,
   settingsAPI,
   systemAPI,
   subscriptionsAPI,

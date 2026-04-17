@@ -114,6 +114,7 @@ const (
 	SettingKeyContactInfo                 = "contact_info"
 	SettingKeyDocURL                      = "doc_url"
 	SettingKeyHomeContent                 = "home_content"
+	SettingKeyAPIDocsMarkdown             = "api_docs_markdown"
 	SettingKeyHideCcsImportButton         = "hide_ccs_import_button"
 	SettingKeyPurchaseSubscriptionEnabled = "purchase_subscription_enabled"
 	SettingKeyPurchaseSubscriptionURL     = "purchase_subscription_url"

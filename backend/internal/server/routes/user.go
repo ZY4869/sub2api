@@ -70,6 +70,11 @@ func RegisterUserRoutes(
 			announcements.POST("/:id/read", h.Announcement.MarkRead)
 		}
 
+		docs := authenticated.Group("/docs")
+		{
+			docs.GET("/api", h.Docs.GetAPIReference)
+		}
+
 		redeem := authenticated.Group("/redeem")
 		{
 			redeem.POST("", h.Redeem.Redeem)
