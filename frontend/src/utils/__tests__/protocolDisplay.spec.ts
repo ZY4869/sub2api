@@ -33,6 +33,7 @@ describe('protocolDisplay', () => {
     expect(display).not.toBeNull()
     expect(display?.badge.family).toBe('openai')
     expect(display?.badge.label).toBe('OpenAI')
+    expect(display?.iconPlatform).toBe('openai')
     expect(display?.requestPath).toBe('/v1/chat/completions')
     expect(display?.mode).toBe('native')
     expect(display?.modeLabel).toBe('Native')
@@ -44,6 +45,7 @@ describe('protocolDisplay', () => {
 
     expect(display?.badge.family).toBe('anthropic')
     expect(display?.badge.label).toBe('Anthropic')
+    expect(display?.iconPlatform).toBe('anthropic')
     expect(display?.mode).toBe('native')
   })
 
@@ -51,6 +53,7 @@ describe('protocolDisplay', () => {
     const display = resolveUsageProtocolDisplay('/v1beta/openai/chat/completions', '/v1beta/models')
 
     expect(display?.badge.family).toBe('gemini')
+    expect(display?.iconPlatform).toBe('protocol_gateway')
     expect(display?.mode).toBe('compatible')
     expect(display?.modeLabel).toBe('Compatible')
   })

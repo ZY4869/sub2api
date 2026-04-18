@@ -12,6 +12,7 @@ const mockState = vi.hoisted(() => ({
     siteVersion: '1.0.0',
     publicSettingsLoaded: true,
     backendModeEnabled: false,
+    publicModelCatalogEnabled: true,
     cachedPublicSettings: {
       purchase_subscription_enabled: false,
       custom_menu_items: [],
@@ -21,6 +22,7 @@ const mockState = vi.hoisted(() => ({
   },
   authStore: {
     isAdmin: false,
+    isAuthenticated: true,
     canReviewRequestDetails: false,
     isSimpleMode: false,
   },
@@ -75,9 +77,11 @@ describe('AppSidebar', () => {
   beforeEach(() => {
     mockState.routePath = '/dashboard'
     mockState.authStore.isAdmin = false
+    mockState.authStore.isAuthenticated = true
     mockState.authStore.canReviewRequestDetails = false
     mockState.authStore.isSimpleMode = false
     mockState.appStore.backendModeEnabled = false
+    mockState.appStore.publicModelCatalogEnabled = true
     mockState.adminSettingsStore.fetch.mockReset()
     mockState.onboardingStore.isCurrentStep.mockReset()
     mockState.onboardingStore.isCurrentStep.mockReturnValue(false)
@@ -123,6 +127,23 @@ describe('AppSidebar', () => {
 
     expect(wrapper.text()).toContain('nav.modelsCatalog')
     expect(wrapper.find('a[href="/models"]').classes()).toContain('sidebar-link-active')
+  })
+
+  it('hides the models catalog entry for guests when the public catalog is disabled', () => {
+    mockState.authStore.isAuthenticated = false
+    mockState.appStore.publicModelCatalogEnabled = false
+
+    const wrapper = mount(AppSidebar, {
+      global: {
+        stubs: {
+          'router-link': RouterLinkStub,
+          VersionBadge: { template: '<span data-test="version-badge" />' },
+        },
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('nav.modelsCatalog')
+    expect(wrapper.find('a[href="/models"]').exists()).toBe(false)
   })
 
   it('shows consolidated admin navigation and keeps the nested accounts items out of the top level', () => {

@@ -63,6 +63,18 @@ const createWrapper = (overrides: Record<string, unknown> = {}) =>
       stubs: {
         AccountGeminiAccountTypeEditor: geminiStub,
         AccountUpstreamSettingsEditor: upstreamStub,
+        PlatformLabel: {
+          props: ['platform', 'label', 'description'],
+          template: `
+            <div
+              data-testid="platform-label"
+              :data-platform="platform"
+            >
+              <span>{{ label }}</span>
+              <span v-if="description">{{ description }}</span>
+            </div>
+          `
+        },
         Select: {
           props: ['modelValue', 'options'],
           emits: ['update:modelValue'],
@@ -196,8 +208,18 @@ describe('AccountCreatePlatformTypeEditor', () => {
       gatewayProtocol: 'openai'
     })
 
+    expect(
+      wrapper.get('[data-testid="selected-option"] [data-testid="platform-label"]').attributes('data-platform')
+    ).toBe('openai')
     expect(wrapper.get('[data-testid="selected-option"]').text()).toContain('OpenAI')
     expect(wrapper.get('[data-testid="selected-option"]').text()).toContain('/v1/chat/completions')
+    const optionPlatforms = wrapper
+      .findAll('.select-option [data-testid="platform-label"]')
+      .map((node) => node.attributes('data-platform'))
+    expect(optionPlatforms).toContain('openai')
+    expect(optionPlatforms).toContain('anthropic')
+    expect(optionPlatforms).toContain('gemini')
+    expect(optionPlatforms).toContain('protocol_gateway')
     expect(wrapper.text()).toContain('/v1/responses')
     expect(wrapper.text()).toContain('/v1/messages')
     expect(wrapper.text()).toContain('/v1beta/models/{model}:streamGenerateContent')

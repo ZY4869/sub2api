@@ -518,3 +518,38 @@ func TestGatewayServiceRecordUsage_GeminiServiceTierUsesForwardResultMetadata(t 
 	require.Equal(t, BillingBatchModeRealtime, *usageRepo.lastLog.GeminiBatchMode)
 	require.InDelta(t, 0.001, usageRepo.lastLog.TotalCost, 1e-12)
 }
+
+func TestGatewayServiceRecordUsageWithLongContext_PersistsGeminiLiveVisibilityWithoutTokens(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	groupID := int64(88)
+	err := svc.RecordUsageWithLongContext(context.Background(), &RecordUsageLongContextInput{
+		Result: &ForwardResult{
+			RequestID: "gemini-live-zero-token",
+			Usage:     ClaudeUsage{},
+			Model:     "gemini-live-2.5-flash",
+			Stream:    true,
+			Duration:  2 * time.Second,
+		},
+		APIKey:                &APIKey{ID: 77, GroupID: &groupID, Group: &Group{RateMultiplier: 1}},
+		User:                  &User{ID: 66},
+		Account:               &Account{ID: 55},
+		InboundEndpoint:       "/v1beta/live",
+		UpstreamEndpoint:      EndpointGeminiLive,
+		RequestBody:           []byte(`{"model":"models/gemini-live-2.5-flash"}`),
+		LongContextThreshold:  200000,
+		LongContextMultiplier: 2,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, int64(66), usageRepo.lastLog.UserID)
+	require.Equal(t, int64(77), usageRepo.lastLog.APIKeyID)
+	require.NotNil(t, usageRepo.lastLog.InboundEndpoint)
+	require.Equal(t, "/v1beta/live", *usageRepo.lastLog.InboundEndpoint)
+	require.True(t, usageRepo.lastLog.Stream)
+	require.Zero(t, usageRepo.lastLog.TotalCost)
+	require.Zero(t, usageRepo.lastLog.ActualCost)
+}

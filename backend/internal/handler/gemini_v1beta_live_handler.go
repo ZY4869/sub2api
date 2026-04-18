@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
@@ -140,7 +141,16 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 	}
 
 	usage, mediaType, requestID, upstreamModel := usageState.snapshot()
-	if currentAPIKey.User != nil && usage.InputTokens+usage.OutputTokens+usage.CacheReadInputTokens > 0 {
+	inboundEndpoint := strings.TrimSpace(c.Request.URL.Path)
+	usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, firstMessage)
+	if !usageDecision.Persist {
+		reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
+		return
+	}
+	if currentAPIKey.User != nil {
+		if usage.InputTokens+usage.OutputTokens+usage.CacheReadInputTokens == 0 {
+			reqLog.Info("gemini.live_usage_recorded_without_token_metadata", zap.String("inbound_endpoint", inboundEndpoint), zap.Int64("account_id", account.ID), zap.String("model", requestedModel))
+		}
 		if requestID == "" {
 			requestID = handshakeHeaders.Get("x-request-id")
 		}
@@ -159,7 +169,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 				User:                  currentAPIKey.User,
 				Account:               account,
 				Subscription:          currentSubscription,
-				InboundEndpoint:       c.Request.URL.Path,
+				InboundEndpoint:       inboundEndpoint,
 				UpstreamEndpoint:      service.EndpointGeminiLive,
 				UserAgent:             userAgent,
 				IPAddress:             clientIP,

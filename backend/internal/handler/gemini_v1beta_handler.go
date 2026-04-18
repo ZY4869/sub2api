@@ -622,35 +622,40 @@ groupSelectionLoop:
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
 			upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
-			h.submitUsageRecordTask(func(ctx context.Context) {
-				ctx = reattachGatewayChannelState(ctx, channelState)
-				if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
-					Result:                result,
-					APIKey:                currentAPIKey,
-					User:                  currentAPIKey.User,
-					Account:               account,
-					Subscription:          currentSubscription,
-					InboundEndpoint:       inboundEndpoint,
-					UpstreamEndpoint:      upstreamEndpoint,
-					UserAgent:             userAgent,
-					IPAddress:             clientIP,
-					RequestBody:           body,
-					RequestPayloadHash:    requestPayloadHash,
-					LongContextThreshold:  200000,
-					LongContextMultiplier: 2.0,
-					ForceCacheBilling:     fs.ForceCacheBilling,
-					APIKeyService:         h.apiKeyService,
-				}); err != nil {
-					logger.L().With(
-						zap.String("component", "handler.gemini_v1beta.models"),
-						zap.Int64("user_id", authSubject.UserID),
-						zap.Int64("api_key_id", currentAPIKey.ID),
-						zap.Any("group_id", currentAPIKey.GroupID),
-						zap.String("model", modelName),
-						zap.Int64("account_id", account.ID),
-					).Error("gemini.record_usage_failed", zap.Error(err))
-				}
-			})
+			usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, body)
+			if !usageDecision.Persist {
+				reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
+			} else {
+				h.submitUsageRecordTask(func(ctx context.Context) {
+					ctx = reattachGatewayChannelState(ctx, channelState)
+					if err := h.gatewayService.RecordUsageWithLongContext(ctx, &service.RecordUsageLongContextInput{
+						Result:                result,
+						APIKey:                currentAPIKey,
+						User:                  currentAPIKey.User,
+						Account:               account,
+						Subscription:          currentSubscription,
+						InboundEndpoint:       inboundEndpoint,
+						UpstreamEndpoint:      upstreamEndpoint,
+						UserAgent:             userAgent,
+						IPAddress:             clientIP,
+						RequestBody:           body,
+						RequestPayloadHash:    requestPayloadHash,
+						LongContextThreshold:  200000,
+						LongContextMultiplier: 2.0,
+						ForceCacheBilling:     fs.ForceCacheBilling,
+						APIKeyService:         h.apiKeyService,
+					}); err != nil {
+						logger.L().With(
+							zap.String("component", "handler.gemini_v1beta.models"),
+							zap.Int64("user_id", authSubject.UserID),
+							zap.Int64("api_key_id", currentAPIKey.ID),
+							zap.Any("group_id", currentAPIKey.GroupID),
+							zap.String("model", modelName),
+							zap.Int64("account_id", account.ID),
+						).Error("gemini.record_usage_failed", zap.Error(err))
+					}
+				})
+			}
 			reqLog.Debug("gemini.request_completed",
 				zap.Int64("account_id", account.ID),
 				zap.Any("group_id", currentAPIKey.GroupID),

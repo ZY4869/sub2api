@@ -1301,6 +1301,20 @@
               </div>
               <Toggle v-model="form.hide_ccs_import_button" />
             </div>
+
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.site.publicModelCatalogEnabled')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.site.publicModelCatalogEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.public_model_catalog_enabled" />
+            </div>
           </div>
         </div>
 
@@ -1959,6 +1973,7 @@ const form = reactive<SettingsForm>({
   doc_url: '',
   home_content: '',
   hide_ccs_import_button: false,
+  public_model_catalog_enabled: true,
   purchase_subscription_enabled: false,
   purchase_subscription_url: '',
   backend_mode_enabled: false,
@@ -2240,6 +2255,7 @@ async function saveSettings() {
       doc_url: form.doc_url,
       home_content: form.home_content,
       hide_ccs_import_button: form.hide_ccs_import_button,
+      public_model_catalog_enabled: form.public_model_catalog_enabled,
       purchase_subscription_enabled: form.purchase_subscription_enabled,
       purchase_subscription_url: form.purchase_subscription_url,
       custom_menu_items: form.custom_menu_items,

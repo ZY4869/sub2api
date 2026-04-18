@@ -48,6 +48,9 @@ export const useAppStore = defineStore('app', () => {
 
   const hasActiveToasts = computed(() => toasts.value.length > 0)
   const backendModeEnabled = computed(() => cachedPublicSettings.value?.backend_mode_enabled ?? false)
+  const publicModelCatalogEnabled = computed(
+    () => cachedPublicSettings.value?.public_model_catalog_enabled ?? true
+  )
 
   const loadingCount = ref<number>(0)
 
@@ -345,6 +348,7 @@ export const useAppStore = defineStore('app', () => {
         doc_url: docUrl.value,
         home_content: '',
         hide_ccs_import_button: false,
+        public_model_catalog_enabled: true,
         purchase_subscription_enabled: false,
         purchase_subscription_url: '',
         custom_menu_items: [],
@@ -424,6 +428,7 @@ export const useAppStore = defineStore('app', () => {
     // Computed
     hasActiveToasts,
     backendModeEnabled,
+    publicModelCatalogEnabled,
 
     // Actions
     toggleSidebar,

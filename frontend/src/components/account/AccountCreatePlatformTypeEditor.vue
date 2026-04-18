@@ -12,6 +12,7 @@ import AccountCreateTypeCardGroup from './AccountCreateTypeCardGroup.vue'
 import AccountGeminiAccountTypeEditor from './AccountGeminiAccountTypeEditor.vue'
 import AccountUpstreamSettingsEditor from './AccountUpstreamSettingsEditor.vue'
 import Select from '@/components/common/Select.vue'
+import PlatformLabel from '@/components/common/PlatformLabel.vue'
 import type { GeminiAIStudioTier, GeminiOAuthType } from '@/utils/geminiAccount'
 
 type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
@@ -27,6 +28,13 @@ interface TypeOption {
   icon: 'sparkles' | 'key' | 'link' | 'cloud'
   accent: Accent
   active: boolean
+}
+
+interface GatewayProtocolOption extends Record<string, unknown> {
+  value: GatewayProtocol
+  label: string
+  requestFormatsText: string
+  iconPlatform: AccountPlatform
 }
 
 defineProps<{
@@ -140,13 +148,21 @@ const grokOptions = computed<TypeOption[]>(() => [
   }
 ])
 
-const gatewayProtocolOptions = computed(() =>
-  PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
-    value: id,
-    label: resolveGatewayProtocolDescriptor(id)?.displayName || id,
-    requestFormatsText: (resolveGatewayProtocolDescriptor(id)?.requestFormats || []).join(', ')
-  }))
+const gatewayProtocolOptions = computed<GatewayProtocolOption[]>(() =>
+  PROTOCOL_GATEWAY_PROTOCOLS.map((id) => {
+    const descriptor = resolveGatewayProtocolDescriptor(id)
+    return {
+      value: id,
+      label: descriptor?.displayName || id,
+      requestFormatsText: (descriptor?.requestFormats || []).join(', '),
+      iconPlatform: descriptor?.targetGroupPlatform || 'protocol_gateway'
+    }
+  })
 )
+
+function isGatewayProtocolOption(option: unknown): option is GatewayProtocolOption {
+  return typeof option === 'object' && option !== null && 'value' in option && 'label' in option
+}
 
 const antigravityOptions = computed<TypeOption[]>(() => [
   {
@@ -229,32 +245,21 @@ function handleAntigravitySelect(key: string) {
           label-key="label"
         >
           <template #selected="{ option }">
-            <div
-              v-if="option"
-              class="flex min-w-0 items-center gap-2 text-left"
-              :title="`${option.label} ${option.requestFormatsText}`"
-            >
-              <span class="shrink-0 font-medium text-gray-900 dark:text-white">
-                {{ option.label }}
-              </span>
-              <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
-                {{ option.requestFormatsText }}
-              </span>
-            </div>
+            <PlatformLabel
+              v-if="isGatewayProtocolOption(option)"
+              :platform="option.iconPlatform"
+              :label="option.label"
+              :description="option.requestFormatsText"
+            />
           </template>
 
           <template #option="{ option }">
-            <div
-              class="flex min-w-0 items-center gap-2"
-              :title="`${option.label} ${option.requestFormatsText}`"
-            >
-              <span class="shrink-0 font-medium text-gray-900 dark:text-white">
-                {{ option.label }}
-              </span>
-              <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
-                {{ option.requestFormatsText }}
-              </span>
-            </div>
+            <PlatformLabel
+              v-if="isGatewayProtocolOption(option)"
+              :platform="option.iconPlatform"
+              :label="option.label"
+              :description="option.requestFormatsText"
+            />
           </template>
         </Select>
         <p class="input-hint">{{ t('admin.accounts.protocolGateway.protocolHint') }}</p>

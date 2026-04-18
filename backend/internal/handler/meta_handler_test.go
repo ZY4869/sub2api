@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -116,6 +117,124 @@ func TestMetaHandler_ModelCatalogHonorsETag(t *testing.T) {
 	require.Equal(t, http.StatusNotModified, secondRec.Code)
 	require.Equal(t, etag, secondRec.Header().Get("ETag"))
 	require.Empty(t, strings.TrimSpace(secondRec.Body.String()))
+}
+
+func TestMetaHandler_ModelCatalogRequiresAuthWhenPublicCatalogDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{
+		service.SettingKeyPublicModelCatalogEnabled: "false",
+	}}
+	settingService := service.NewSettingService(repo, &config.Config{})
+	metaHandler := NewMetaHandler(nil)
+	metaHandler.SetSettingService(settingService)
+	metaHandler.SetAuthResolverForTest(func(*gin.Context) bool { return false })
+
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog", metaHandler.ModelCatalog)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestMetaHandler_ModelCatalogAuthMatrix(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	testCases := []struct {
+		name          string
+		publicEnabled bool
+		authenticated bool
+		wantStatus    int
+	}{
+		{name: "guest allowed when public catalog enabled", publicEnabled: true, authenticated: false, wantStatus: http.StatusOK},
+		{name: "authenticated allowed when public catalog enabled", publicEnabled: true, authenticated: true, wantStatus: http.StatusOK},
+		{name: "guest rejected when public catalog disabled", publicEnabled: false, authenticated: false, wantStatus: http.StatusUnauthorized},
+		{name: "authenticated allowed when public catalog disabled", publicEnabled: false, authenticated: true, wantStatus: http.StatusOK},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &metaSettingRepoStub{values: map[string]string{
+				service.SettingKeyPublicModelCatalogEnabled: strconv.FormatBool(tc.publicEnabled),
+				service.SettingKeyModelCatalogEntries: mustMetaJSON(t, []service.ModelCatalogEntry{
+					{
+						Model:                "gpt-5.4",
+						DisplayName:          "GPT-5.4",
+						Provider:             service.PlatformOpenAI,
+						Mode:                 "chat",
+						CanonicalModelID:     "gpt-5.4",
+						PricingLookupModelID: "gpt-5.4",
+					},
+				}),
+			}}
+
+			settingService := service.NewSettingService(repo, &config.Config{})
+			modelCatalogService := service.NewModelCatalogService(
+				repo,
+				nil,
+				service.NewBillingService(&config.Config{}, nil),
+				nil,
+				&config.Config{},
+			)
+			metaHandler := NewMetaHandler(modelCatalogService)
+			metaHandler.SetSettingService(settingService)
+			metaHandler.SetAuthResolverForTest(func(*gin.Context) bool { return tc.authenticated })
+
+			router := gin.New()
+			router.GET("/api/v1/meta/model-catalog", metaHandler.ModelCatalog)
+
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog", nil)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			require.Equal(t, tc.wantStatus, rec.Code)
+			if tc.wantStatus == http.StatusOK {
+				require.Contains(t, rec.Body.String(), "gpt-5.4")
+			}
+		})
+	}
+}
+
+func TestMetaHandler_ModelCatalogAllowsAuthenticatedRequestWhenPublicCatalogDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{
+		service.SettingKeyPublicModelCatalogEnabled: "false",
+		service.SettingKeyModelCatalogEntries: mustMetaJSON(t, []service.ModelCatalogEntry{
+			{
+				Model:                "gpt-5.4",
+				DisplayName:          "GPT-5.4",
+				Provider:             service.PlatformOpenAI,
+				Mode:                 "chat",
+				CanonicalModelID:     "gpt-5.4",
+				PricingLookupModelID: "gpt-5.4",
+			},
+		}),
+	}}
+	settingService := service.NewSettingService(repo, &config.Config{})
+	modelCatalogService := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{},
+	)
+	metaHandler := NewMetaHandler(modelCatalogService)
+	metaHandler.SetSettingService(settingService)
+	metaHandler.SetAuthResolverForTest(func(*gin.Context) bool { return true })
+
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog", metaHandler.ModelCatalog)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "gpt-5.4")
 }
 
 func mustMetaJSON(t *testing.T, value any) string {

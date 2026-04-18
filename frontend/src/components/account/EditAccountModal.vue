@@ -106,32 +106,21 @@
             label-key="label"
           >
             <template #selected="{ option }">
-              <div
-                v-if="option"
-                class="flex min-w-0 items-center gap-2 text-left"
-                :title="`${option.label} ${option.requestFormatsText}`"
-              >
-                <span class="shrink-0 font-medium text-gray-900 dark:text-white">
-                  {{ option.label }}
-                </span>
-                <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
-                  {{ option.requestFormatsText }}
-                </span>
-              </div>
+              <PlatformLabel
+                v-if="isGatewayProtocolOption(option)"
+                :platform="option.iconPlatform"
+                :label="option.label"
+                :description="option.requestFormatsText"
+              />
             </template>
 
             <template #option="{ option }">
-              <div
-                class="flex min-w-0 items-center gap-2"
-                :title="`${option.label} ${option.requestFormatsText}`"
-              >
-                <span class="shrink-0 font-medium text-gray-900 dark:text-white">
-                  {{ option.label }}
-                </span>
-                <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">
-                  {{ option.requestFormatsText }}
-                </span>
-              </div>
+              <PlatformLabel
+                v-if="isGatewayProtocolOption(option)"
+                :platform="option.iconPlatform"
+                :label="option.label"
+                :description="option.requestFormatsText"
+              />
             </template>
           </Select>
           <p class="input-hint">{{ t('admin.accounts.protocolGateway.protocolHint') }}</p>
@@ -500,9 +489,10 @@ import { useAnthropicQuotaControl } from '@/composables/useAnthropicQuotaControl
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { useAccountTempUnschedRules } from '@/composables/useAccountTempUnschedRules'
 import type { AccountManualModel } from '@/api/admin/accounts'
-import type { Account, Proxy, AdminGroup, GatewayProtocol, GroupPlatform } from '@/types'
+import type { Account, AccountPlatform, Proxy, AdminGroup, GatewayProtocol, GroupPlatform } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
+import PlatformLabel from '@/components/common/PlatformLabel.vue'
 import AccountApiKeyBasicSettingsEditor from '@/components/account/AccountApiKeyBasicSettingsEditor.vue'
 import AccountAntigravityModelMappingEditor from '@/components/account/AccountAntigravityModelMappingEditor.vue'
 import AccountApiKeyModelProbeEditor from '@/components/account/AccountApiKeyModelProbeEditor.vue'
@@ -638,6 +628,13 @@ interface Props {
   account: Account | null
   proxies: Proxy[]
   groups: AdminGroup[]
+}
+
+interface GatewayProtocolOption extends Record<string, unknown> {
+  value: GatewayProtocol
+  label: string
+  requestFormatsText: string
+  iconPlatform: AccountPlatform
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -980,13 +977,21 @@ const resolvedProtocolGatewayApiKey = computed(() => {
   const currentCredentials = (props.account?.credentials as Record<string, unknown>) || {}
   return typeof currentCredentials.api_key === 'string' ? currentCredentials.api_key : ''
 })
-const gatewayProtocolOptions = computed(() =>
-  PROTOCOL_GATEWAY_PROTOCOLS.map((id) => ({
-    value: id,
-    label: resolveGatewayProtocolDescriptor(id)?.displayName || id,
-    requestFormatsText: (resolveGatewayProtocolDescriptor(id)?.requestFormats || []).join(', ')
-  }))
+const gatewayProtocolOptions = computed<GatewayProtocolOption[]>(() =>
+  PROTOCOL_GATEWAY_PROTOCOLS.map((id) => {
+    const descriptor = resolveGatewayProtocolDescriptor(id)
+    return {
+      value: id,
+      label: descriptor?.displayName || id,
+      requestFormatsText: (descriptor?.requestFormats || []).join(', '),
+      iconPlatform: descriptor?.targetGroupPlatform || 'protocol_gateway'
+    }
+  })
 )
+
+function isGatewayProtocolOption(option: unknown): option is GatewayProtocolOption {
+  return typeof option === 'object' && option !== null && 'value' in option && 'label' in option
+}
 const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_OFF, label: t('admin.accounts.openai.wsModeOff') },
   { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },

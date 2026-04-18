@@ -123,6 +123,11 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	requestPayloadHash := service.HashUsageRequestPayload(body)
 	inboundEndpoint := strings.TrimSpace(c.Request.URL.Path)
 	upstreamEndpoint := strings.TrimSpace(c.Request.URL.Path)
+	usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, body)
+	if !usageDecision.Persist {
+		reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
+		return
+	}
 	userAgent := c.GetHeader("User-Agent")
 	clientIP := ip.GetClientIP(c)
 	h.submitUsageRecordTask(func(ctx context.Context) {

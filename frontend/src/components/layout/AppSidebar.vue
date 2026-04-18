@@ -518,11 +518,17 @@ const ChevronDoubleRightIcon = {
     )
 }
 
+const showPublicModelsEntry = computed(
+  () => authStore.isAuthenticated || appStore.publicModelCatalogEnabled
+)
+
 // User navigation items (for regular users)
 const userNavItems = computed((): NavItem[] => {
   const items: NavItem[] = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
-    { path: '/models', label: t('nav.modelsCatalog'), icon: DatabaseIcon },
+    ...(showPublicModelsEntry.value
+      ? [{ path: '/models', label: t('nav.modelsCatalog'), icon: DatabaseIcon }]
+      : []),
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
@@ -562,7 +568,9 @@ const reviewerBackendNavItems = computed((): NavItem[] => {
 // Personal navigation items (for admin's "My Account" section, without Dashboard)
 const personalNavItems = computed((): NavItem[] => {
   const items: NavItem[] = [
-    { path: '/models', label: t('nav.modelsCatalog'), icon: DatabaseIcon },
+    ...(showPublicModelsEntry.value
+      ? [{ path: '/models', label: t('nav.modelsCatalog'), icon: DatabaseIcon }]
+      : []),
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },

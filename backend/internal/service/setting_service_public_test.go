@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -19,11 +20,15 @@ func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, 
 }
 
 func (s *settingPublicRepoStub) GetValue(ctx context.Context, key string) (string, error) {
-	panic("unexpected GetValue call")
+	return s.values[key], nil
 }
 
 func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) error {
-	panic("unexpected Set call")
+	if s.values == nil {
+		s.values = map[string]string{}
+	}
+	s.values[key] = value
+	return nil
 }
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
@@ -37,7 +42,13 @@ func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) 
 }
 
 func (s *settingPublicRepoStub) SetMultiple(ctx context.Context, settings map[string]string) error {
-	panic("unexpected SetMultiple call")
+	if s.values == nil {
+		s.values = map[string]string{}
+	}
+	for key, value := range settings {
+		s.values[key] = value
+	}
+	return nil
 }
 
 func (s *settingPublicRepoStub) GetAll(ctx context.Context) (map[string]string, error) {
@@ -54,6 +65,7 @@ func TestSettingService_GetPublicSettings_ExposesRegistrationEmailSuffixWhitelis
 			SettingKeyRegistrationEnabled:              "true",
 			SettingKeyEmailVerifyEnabled:               "true",
 			SettingKeyRegistrationEmailSuffixWhitelist: `["@EXAMPLE.com"," @foo.bar ","@invalid_domain",""]`,
+			SettingKeyPublicModelCatalogEnabled:        "false",
 		},
 	}
 	svc := NewSettingService(repo, &config.Config{})
@@ -61,4 +73,54 @@ func TestSettingService_GetPublicSettings_ExposesRegistrationEmailSuffixWhitelis
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, []string{"@example.com", "@foo.bar"}, settings.RegistrationEmailSuffixWhitelist)
+	require.False(t, settings.PublicModelCatalogEnabled)
+}
+
+func TestSettingService_IsPublicModelCatalogEnabled_DefaultsTrue(t *testing.T) {
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	require.True(t, svc.IsPublicModelCatalogEnabled(context.Background()))
+}
+
+func TestSettingService_PublicModelCatalogEnabled_RoundTripsAcrossPublicSettings(t *testing.T) {
+	ctx := context.Background()
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	initial, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, initial.PublicModelCatalogEnabled)
+	require.True(t, svc.IsPublicModelCatalogEnabled(ctx))
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		PublicModelCatalogEnabled: false,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "false", repo.values[SettingKeyPublicModelCatalogEnabled])
+
+	updated, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.False(t, updated.PublicModelCatalogEnabled)
+	require.False(t, svc.IsPublicModelCatalogEnabled(ctx))
+
+	injected, err := svc.GetPublicSettingsForInjection(ctx)
+	require.NoError(t, err)
+	raw, err := json.Marshal(injected)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(raw, &payload))
+	require.Equal(t, false, payload["public_model_catalog_enabled"])
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		PublicModelCatalogEnabled: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.values[SettingKeyPublicModelCatalogEnabled])
+
+	restored, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, restored.PublicModelCatalogEnabled)
+	require.True(t, svc.IsPublicModelCatalogEnabled(ctx))
 }

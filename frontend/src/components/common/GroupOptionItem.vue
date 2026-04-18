@@ -56,7 +56,7 @@ import type { SubscriptionType, GroupPlatform } from '@/types'
 
 interface Props {
   name: string
-  platform: GroupPlatform
+  platform?: GroupPlatform
   subscriptionType?: SubscriptionType
   rateMultiplier?: number
   userRateMultiplier?: number | null

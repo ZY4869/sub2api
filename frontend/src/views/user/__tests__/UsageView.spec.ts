@@ -617,6 +617,96 @@ describe("user UsageView tooltip", () => {
     expect(wrapper.text()).toContain("gpt-5.4");
   });
 
+  it("retains the selected Gemini API key when date range refreshes remove it from the filter list", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 8,
+          request_id: "req-gemini-visible",
+          model: "gemini-2.5-pro",
+          status: "succeeded",
+          thinking_enabled: false,
+          reasoning_effort: null,
+          actual_cost: 0.02,
+          total_cost: 0.02,
+          input_cost: 0.01,
+          output_cost: 0.01,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 120,
+          output_tokens: 80,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: 15,
+          duration_ms: 30,
+          created_at: "2026-03-08T00:00:00Z",
+          inbound_endpoint: "/v1beta/models/gemini-2.5-pro:generateContent",
+          upstream_endpoint: "/v1beta/models/gemini-2.5-pro:generateContent",
+          api_key: { name: "gemini-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 200,
+      total_cost: 0.02,
+      avg_duration_ms: 30,
+    });
+    listFilterApiKeys
+      .mockResolvedValueOnce([{ id: 9, name: "gemini-key", deleted: false }])
+      .mockResolvedValueOnce([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    setupState.filters.api_key_id = 9;
+
+    await nextTick();
+
+    setupState.onDateRangeChange({
+      startDate: "2026-03-01",
+      endDate: "2026-03-03",
+      preset: null,
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    expect(setupState.filters.api_key_id).toBe(9);
+    expect(
+      setupState.apiKeys.map((key: { id: number }) => key.id),
+    ).toContain(9);
+    expect(listFilterApiKeys).toHaveBeenLastCalledWith({
+      start_date: "2026-03-01",
+      end_date: "2026-03-03",
+    });
+    expect(wrapper.text()).toContain("gemini-key");
+    expect(wrapper.text()).toContain("gemini-2.5-pro");
+  });
+
   it("opens request preview modal and renders captured panels", async () => {
     query.mockResolvedValue({
       items: [

@@ -1,4 +1,5 @@
 import { i18n } from '@/i18n'
+import type { AccountPlatform } from '@/types'
 
 export type ProtocolFamily = 'openai' | 'anthropic' | 'gemini' | 'unknown'
 export type ProtocolMode = 'native' | 'compatible'
@@ -12,6 +13,7 @@ export interface ProtocolBadgeMeta {
 
 export interface UsageProtocolDisplay {
   badge: ProtocolBadgeMeta
+  iconPlatform: AccountPlatform
   requestPath: string
   pathTitle: string
   mode: ProtocolMode
@@ -142,6 +144,25 @@ function formatProtocolTooltipSegment(path: string): string {
   return `${badge.label} ${path}`
 }
 
+function resolveUsageProtocolIconPlatform(
+  family: ProtocolFamily,
+  compatible: boolean
+): AccountPlatform {
+  if (compatible) {
+    return 'protocol_gateway'
+  }
+  switch (family) {
+    case 'openai':
+      return 'openai'
+    case 'anthropic':
+      return 'anthropic'
+    case 'gemini':
+      return 'gemini'
+    default:
+      return 'protocol_gateway'
+  }
+}
+
 export function resolveUsageProtocolDisplay(
   inboundPath: string | null | undefined,
   upstreamPath: string | null | undefined
@@ -170,6 +191,7 @@ export function resolveUsageProtocolDisplay(
 
   return {
     badge: primaryBadge,
+    iconPlatform: resolveUsageProtocolIconPlatform(primaryFamily, compatible),
     requestPath: primaryPath,
     pathTitle: primaryPath,
     mode: compatible ? 'compatible' : 'native',

@@ -38,6 +38,7 @@ export interface SystemSettings {
   doc_url: string
   home_content: string
   hide_ccs_import_button: boolean
+  public_model_catalog_enabled: boolean
   purchase_subscription_enabled: boolean
   purchase_subscription_url: string
   backend_mode_enabled: boolean
@@ -109,6 +110,7 @@ export interface UpdateSettingsRequest {
   doc_url?: string
   home_content?: string
   hide_ccs_import_button?: boolean
+  public_model_catalog_enabled?: boolean
   purchase_subscription_enabled?: boolean
   purchase_subscription_url?: string
   backend_mode_enabled?: boolean

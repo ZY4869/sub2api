@@ -127,9 +127,11 @@ func ProvideOpenAIOAuthHandler(
 	return handler
 }
 
-func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelRegistryService *service.ModelRegistryService) *MetaHandler {
+func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelRegistryService *service.ModelRegistryService, settingService *service.SettingService, authService *service.AuthService, userService *service.UserService) *MetaHandler {
 	handler := NewMetaHandler(modelCatalogService)
 	handler.SetModelRegistryService(modelRegistryService)
+	handler.SetSettingService(settingService)
+	handler.SetOptionalAuthServices(authService, userService)
 	return handler
 }
 

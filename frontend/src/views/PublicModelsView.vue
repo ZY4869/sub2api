@@ -34,8 +34,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import PublicModelCatalogContent from '@/components/models/PublicModelCatalogContent.vue'
 import { useAppStore } from '@/stores/app'
@@ -44,8 +45,32 @@ import { useAuthStore } from '@/stores/auth'
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const router = useRouter()
+const route = useRoute()
 
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const publicModelCatalogEnabled = computed(() => appStore.publicModelCatalogEnabled)
 const siteName = computed(() => appStore.siteName || 'Sub2API')
 const siteLogo = computed(() => appStore.siteLogo)
+
+watch(
+  [isAuthenticated, publicModelCatalogEnabled],
+  ([authenticated, enabled]) => {
+    if (!authenticated && enabled === false && route.path !== '/login') {
+      void router.replace({
+        path: '/login',
+        query: {
+          redirect: route.fullPath || '/models'
+        }
+      })
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  if (!appStore.publicSettingsLoaded) {
+    void appStore.fetchPublicSettings()
+  }
+})
 </script>

@@ -141,6 +141,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.HideCcsImportButton != after.HideCcsImportButton {
 		changed = append(changed, "hide_ccs_import_button")
 	}
+	if before.PublicModelCatalogEnabled != after.PublicModelCatalogEnabled {
+		changed = append(changed, "public_model_catalog_enabled")
+	}
 	if before.DefaultConcurrency != after.DefaultConcurrency {
 		changed = append(changed, "default_concurrency")
 	}
@@ -251,6 +254,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		DocURL:                               settings.DocURL,
 		HomeContent:                          settings.HomeContent,
 		HideCcsImportButton:                  settings.HideCcsImportButton,
+		PublicModelCatalogEnabled:            settings.PublicModelCatalogEnabled,
 		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                      customMenuItems,
