@@ -76,8 +76,8 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-const SelectStub = defineComponent({
-  name: 'Select',
+const BaseSelectStub = defineComponent({
+  name: 'BaseSelectStub',
   props: {
     modelValue: {
       type: [String, Number, Boolean, Object, null],
@@ -230,7 +230,7 @@ function mountView() {
         EmptyState: true,
         BaseDialog: BaseDialogStub,
         ConfirmDialog: true,
-        Select: SelectStub,
+        Select: BaseSelectStub,
         PlatformIcon: true,
         PlatformLabel: PlatformLabelStub,
         GroupBadge: GroupBadgeStub,

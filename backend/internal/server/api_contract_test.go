@@ -541,6 +541,7 @@ func TestAPIContracts(t *testing.T) {
 						"invitation_code_enabled": false,
 						"home_content": "",
 					"hide_ccs_import_button": false,
+					"public_model_catalog_enabled": true,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
 					"min_claude_code_version": "",
