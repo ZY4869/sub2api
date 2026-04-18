@@ -93,7 +93,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	billingService := service.NewBillingService(configConfig, pricingService)
 	modelRegistryService := service.ProvideModelRegistryService(settingRepository, accountRepository)
 	modelCatalogService := service.ProvideModelCatalogService(settingRepository, adminService, billingService, pricingService, modelRegistryService, configConfig)
-	metaHandler := handler.ProvideMetaHandler(modelCatalogService, modelRegistryService)
+	metaHandler := handler.ProvideMetaHandler(modelCatalogService, modelRegistryService, settingService, authService, userService)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageLogRepository := repository.NewUsageLogRepository(client, db)
 	usageService := service.NewUsageService(usageLogRepository, userRepository, client, apiKeyAuthCacheInvalidator)
