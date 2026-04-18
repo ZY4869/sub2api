@@ -4,6 +4,7 @@ import type { PaginatedResponse } from '@/types'
 export type BillingPricingCurrency = 'USD' | 'CNY'
 export type BillingPricingSortBy = 'display_name' | 'provider'
 export type BillingPricingSortOrder = 'asc' | 'desc'
+export type BillingPricingMultiplierMode = 'shared' | 'item'
 
 export interface BillingRuleMatchers {
   models?: string[]
@@ -26,6 +27,8 @@ export interface BillingRule {
   matchers: BillingRuleMatchers
   unit: string
   price: number
+  formula_source?: string
+  formula_multiplier?: number
   priority: number
   enabled: boolean
 }
@@ -86,9 +89,12 @@ export interface BillingSimulationLine {
   charge_slot: string
   unit: string
   units: number
+  base_price?: number
   price: number
   cost: number
   actual_cost: number
+  formula_source?: string
+  formula_multiplier?: number
   rule_id?: string
   rule_label?: string
 }
@@ -103,6 +109,8 @@ export interface BillingSimulationMatchedRule {
   batch_mode: string
   unit: string
   price: number
+  formula_source?: string
+  formula_multiplier?: number
   priority: number
   matchers: BillingRuleMatchers
 }
@@ -154,6 +162,10 @@ export interface BillingPricingLayerForm {
   tier_threshold_tokens?: number
   input_price_above_threshold?: number
   output_price_above_threshold?: number
+  multiplier_enabled: boolean
+  multiplier_mode?: BillingPricingMultiplierMode
+  shared_multiplier?: number
+  item_multipliers?: Record<string, number>
 }
 
 export interface BillingPricingCapabilities {

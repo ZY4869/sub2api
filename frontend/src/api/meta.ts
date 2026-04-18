@@ -16,6 +16,48 @@ export interface ModelRegistryFetchResult {
   data: ModelRegistrySnapshot | null
 }
 
+export interface PublicModelCatalogPriceEntry {
+  id: string
+  unit?: string
+  value: number
+}
+
+export interface PublicModelCatalogPriceDisplay {
+  primary: PublicModelCatalogPriceEntry[]
+  secondary?: PublicModelCatalogPriceEntry[]
+}
+
+export interface PublicModelCatalogMultiplierSummary {
+  enabled: boolean
+  kind: 'disabled' | 'uniform' | 'mixed'
+  mode?: 'shared' | 'item'
+  value?: number
+}
+
+export interface PublicModelCatalogItem {
+  model: string
+  display_name?: string
+  provider?: string
+  provider_icon_key?: string
+  request_protocols?: string[]
+  mode?: string
+  currency: string
+  price_display: PublicModelCatalogPriceDisplay
+  multiplier_summary: PublicModelCatalogMultiplierSummary
+}
+
+export interface PublicModelCatalogSnapshot {
+  etag: string
+  updated_at: string
+  items: PublicModelCatalogItem[]
+}
+
+export interface ModelCatalogFetchResult {
+  notModified: boolean
+  etag: string | null
+  data: PublicModelCatalogSnapshot | null
+}
+
 export async function getUSDCNYExchangeRate(force = false): Promise<ExchangeRateInfo> {
   const requestConfig = force ? { params: { force: true } } : undefined
   const { data } = await apiClient.get<ExchangeRateInfo>('/meta/exchange-rate/usd-cny', requestConfig)
@@ -49,9 +91,37 @@ export async function getModelRegistry(etag?: string | null): Promise<ModelRegis
   }
 }
 
+export async function getModelCatalog(etag?: string | null): Promise<ModelCatalogFetchResult> {
+  const headers: Record<string, string> = {}
+  if (etag) {
+    headers['If-None-Match'] = etag
+  }
+
+  const response = await apiClient.get<PublicModelCatalogSnapshot>('/meta/model-catalog', {
+    headers,
+    validateStatus: (status: number) => (status >= 200 && status < 300) || status === 304
+  })
+
+  const nextEtag = typeof response.headers?.etag === 'string' ? response.headers.etag : null
+  if (response.status === 304) {
+    return {
+      notModified: true,
+      etag: nextEtag || etag || null,
+      data: null
+    }
+  }
+
+  return {
+    notModified: false,
+    etag: nextEtag || response.data?.etag || null,
+    data: response.data
+  }
+}
+
 export const metaAPI = {
   getUSDCNYExchangeRate,
-  getModelRegistry
+  getModelRegistry,
+  getModelCatalog
 }
 
 export default metaAPI

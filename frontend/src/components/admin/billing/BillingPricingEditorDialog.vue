@@ -110,6 +110,7 @@
             :selected-ids="selectedSaleFieldIds"
             :disabled="currencySaveBlocked"
             selectable
+            show-multiplier-controls
             column-test-id="sale-column"
             @toggle-select="toggleSaleSelection"
             @update-form="updateForm('sale', $event)"

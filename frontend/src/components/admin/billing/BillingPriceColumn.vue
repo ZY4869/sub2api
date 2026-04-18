@@ -14,6 +14,19 @@
     </div>
 
     <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <BillingPricingMultiplierPanel
+        v-if="showMultiplierControls"
+        :enabled="form.multiplier_enabled"
+        :mode="multiplierMode"
+        :shared-multiplier="form.shared_multiplier"
+        :field-count="visibleMultiplierFieldIds.length"
+        :disabled="disabled"
+        @update:enabled="updateMultiplierEnabled"
+        @update:mode="updateMultiplierMode"
+        @update:shared-multiplier="updateSharedMultiplier"
+        @apply-shared="applySharedMultiplier"
+      />
+
       <article class="rounded-2xl border border-gray-200 bg-gray-50/80 p-4 dark:border-dark-700 dark:bg-dark-800">
         <div class="flex items-center justify-between gap-3">
           <h4 class="text-sm font-semibold text-gray-900 dark:text-white">基础区</h4>
@@ -33,7 +46,22 @@
             :disabled="disabled"
             @toggle-select="emit('toggle-select', field.id)"
             @update:value="updateRootNumber(field.field, $event)"
-          />
+          >
+            <template #detail>
+              <BillingPricingMultiplierInline
+                v-if="showMultiplierControls"
+                :field-id="field.id"
+                :multiplier-enabled="form.multiplier_enabled"
+                :multiplier-mode="multiplierMode"
+                :shared-multiplier="form.shared_multiplier"
+                :item-multiplier="resolveItemMultiplier(field.id)"
+                :display-base-value="field.value"
+                :display-effective-value="displayEffectiveValue(field.id)"
+                :disabled="disabled"
+                @update:item-multiplier="updateItemMultiplier(field.id, $event)"
+              />
+            </template>
+          </BillingPricingCompactFieldRow>
         </div>
       </article>
 
@@ -64,7 +92,22 @@
             :disabled="disabled"
             @toggle-select="emit('toggle-select', field.id)"
             @update:value="updateSpecialNumber(field.field, $event)"
-          />
+          >
+            <template #detail>
+              <BillingPricingMultiplierInline
+                v-if="showMultiplierControls"
+                :field-id="field.id"
+                :multiplier-enabled="form.multiplier_enabled"
+                :multiplier-mode="multiplierMode"
+                :shared-multiplier="form.shared_multiplier"
+                :item-multiplier="resolveItemMultiplier(field.id)"
+                :display-base-value="field.value"
+                :display-effective-value="displayEffectiveValue(field.id)"
+                :disabled="disabled"
+                @update:item-multiplier="updateItemMultiplier(field.id, $event)"
+              />
+            </template>
+          </BillingPricingCompactFieldRow>
         </div>
 
         <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">
@@ -124,7 +167,22 @@
             :disabled="disabled"
             @toggle-select="emit('toggle-select', field.id)"
             @update:value="updateRootNumber(field.field, $event)"
-          />
+          >
+            <template #detail>
+              <BillingPricingMultiplierInline
+                v-if="showMultiplierControls"
+                :field-id="field.id"
+                :multiplier-enabled="form.multiplier_enabled"
+                :multiplier-mode="multiplierMode"
+                :shared-multiplier="form.shared_multiplier"
+                :item-multiplier="resolveItemMultiplier(field.id)"
+                :display-base-value="field.value"
+                :display-effective-value="displayEffectiveValue(field.id)"
+                :disabled="disabled"
+                @update:item-multiplier="updateItemMultiplier(field.id, $event)"
+              />
+            </template>
+          </BillingPricingCompactFieldRow>
         </div>
 
         <p v-else class="mt-4 text-xs text-gray-500 dark:text-gray-400">
@@ -144,6 +202,8 @@ import type {
 } from '@/api/admin/billing'
 import Toggle from '@/components/common/Toggle.vue'
 import BillingPricingCompactFieldRow from './BillingPricingCompactFieldRow.vue'
+import BillingPricingMultiplierInline from './BillingPricingMultiplierInline.vue'
+import BillingPricingMultiplierPanel from './BillingPricingMultiplierPanel.vue'
 import {
   buildBillingPricingAlternateText,
   convertCanonicalUSDPriceToDisplayValue,
@@ -161,7 +221,10 @@ import {
 import {
   cloneBillingPricingLayerForm,
   createEmptyBillingPricingSpecial,
+  normalizeBillingPricingMultiplierMode,
   outputPriceLabel,
+  resolveBillingPricingFieldMultiplier,
+  resolveEffectiveBillingPricingFieldValue,
 } from './pricingOptions'
 
 interface BillingSpecialVisibility {
@@ -195,6 +258,7 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   columnTestId?: string
   specialVisibility?: BillingSpecialVisibility
+  showMultiplierControls?: boolean
 }>(), {
   description: '',
   usdToCnyRate: null,
@@ -205,6 +269,7 @@ const props = withDefaults(defineProps<{
   disabled: false,
   columnTestId: undefined,
   specialVisibility: () => ({}),
+  showMultiplierControls: false,
 })
 
 const emit = defineEmits<{
@@ -388,6 +453,13 @@ const tierFields = computed<PricingFieldDescriptor<'input_price_above_threshold'
   return fields
 })
 
+const multiplierMode = computed(() => normalizeBillingPricingMultiplierMode(props.form.multiplier_mode))
+const visibleMultiplierFieldIds = computed(() => [
+  ...baseFields.value,
+  ...specialFields.value,
+  ...tierFields.value,
+].filter((field) => field.value != null).map((field) => field.id))
+
 function emitForm(next: BillingPricingLayerForm) {
   emit('update-form', cloneBillingPricingLayerForm(next))
 }
@@ -443,6 +515,26 @@ function updateRootNumber(field: RootNumberField, raw: string) {
   emitForm(next)
 }
 
+function displayEffectiveValue(fieldId: BillingPricingFieldId): number | undefined {
+  const effectiveValue = resolveEffectiveBillingPricingFieldValue(props.form, fieldId)
+  if (effectiveValue == null) {
+    return undefined
+  }
+  return convertCanonicalUSDPriceToDisplayValue({
+    canonicalUSD: effectiveValue,
+    currency: props.currency,
+    unit: resolvePricingFieldUnit(fieldId, props.outputChargeSlot),
+    usdToCnyRate: props.usdToCnyRate,
+  })
+}
+
+function resolveItemMultiplier(fieldId: BillingPricingFieldId): number | undefined {
+  return resolveBillingPricingFieldMultiplier({
+    ...props.form,
+    multiplier_mode: 'item',
+  }, fieldId)
+}
+
 function updateSpecialNumber(field: SpecialNumberField, raw: string) {
   const next = cloneBillingPricingLayerForm(props.form)
   next.special = {
@@ -478,6 +570,68 @@ function toggleTieredEnabled(value: boolean) {
     next.input_price_above_threshold = undefined
     next.output_price_above_threshold = undefined
   }
+  emitForm(next)
+}
+
+function updateMultiplierEnabled(value: boolean) {
+  const next = cloneBillingPricingLayerForm(props.form)
+  next.multiplier_enabled = value
+  if (!value) {
+    next.multiplier_mode = undefined
+    next.shared_multiplier = undefined
+    next.item_multipliers = {}
+  } else {
+    next.multiplier_mode = normalizeBillingPricingMultiplierMode(next.multiplier_mode)
+    if (next.multiplier_mode === 'shared' && next.shared_multiplier == null) {
+      next.shared_multiplier = 1
+    }
+  }
+  emitForm(next)
+}
+
+function updateMultiplierMode(value: 'shared' | 'item') {
+  const next = cloneBillingPricingLayerForm(props.form)
+  next.multiplier_enabled = true
+  next.multiplier_mode = value
+  if (value === 'shared' && next.shared_multiplier == null) {
+    next.shared_multiplier = 1
+  }
+  emitForm(next)
+}
+
+function updateSharedMultiplier(value: number | undefined) {
+  const next = cloneBillingPricingLayerForm(props.form)
+  next.multiplier_enabled = true
+  next.multiplier_mode = 'shared'
+  next.shared_multiplier = value
+  emitForm(next)
+}
+
+function updateItemMultiplier(fieldId: BillingPricingFieldId, value: number | undefined) {
+  const next = cloneBillingPricingLayerForm(props.form)
+  next.multiplier_enabled = true
+  next.multiplier_mode = 'item'
+  next.item_multipliers = {
+    ...(next.item_multipliers || {}),
+  }
+  if (value == null) {
+    delete next.item_multipliers[fieldId]
+  } else {
+    next.item_multipliers[fieldId] = value
+  }
+  emitForm(next)
+}
+
+function applySharedMultiplier() {
+  if (props.form.shared_multiplier == null) {
+    return
+  }
+  const next = cloneBillingPricingLayerForm(props.form)
+  next.multiplier_enabled = true
+  next.multiplier_mode = 'item'
+  next.item_multipliers = Object.fromEntries(
+    visibleMultiplierFieldIds.value.map((fieldId) => [fieldId, props.form.shared_multiplier as number]),
+  )
   emitForm(next)
 }
 </script>

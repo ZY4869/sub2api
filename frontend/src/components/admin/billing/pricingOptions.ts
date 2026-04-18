@@ -1,4 +1,12 @@
-import type { BillingPricingLayerForm, BillingPricingSheetDetail, BillingPricingSimpleSpecial } from '@/api/admin/billing'
+import type {
+  BillingPricingFieldId,
+} from './pricingFieldPresentation'
+import type {
+  BillingPricingLayerForm,
+  BillingPricingMultiplierMode,
+  BillingPricingSheetDetail,
+  BillingPricingSimpleSpecial,
+} from '@/api/admin/billing'
 import { normalizeBillingPricingCurrency } from './pricingCurrency'
 
 export const BILLING_DISCOUNT_FIELD_IDS = {
@@ -34,6 +42,10 @@ export function createEmptyBillingPricingLayerForm(seed: Partial<BillingPricingL
     tier_threshold_tokens: seed.tier_threshold_tokens,
     input_price_above_threshold: seed.input_price_above_threshold,
     output_price_above_threshold: seed.output_price_above_threshold,
+    multiplier_enabled: seed.multiplier_enabled ?? false,
+    multiplier_mode: seed.multiplier_mode,
+    shared_multiplier: seed.shared_multiplier,
+    item_multipliers: seed.item_multipliers ? { ...seed.item_multipliers } : {},
   }
 }
 
@@ -101,4 +113,62 @@ export function countConfiguredBillingFields(form?: Partial<BillingPricingLayerF
   ]
 
   return [...rootValues, ...specialValues].filter((value) => value != null).length
+}
+
+export function normalizeBillingPricingMultiplierMode(
+  mode?: BillingPricingMultiplierMode,
+): BillingPricingMultiplierMode {
+  return mode === 'item' ? 'item' : 'shared'
+}
+
+export function resolveBillingPricingFieldValue(
+  form: Partial<BillingPricingLayerForm> | undefined,
+  fieldId: BillingPricingFieldId,
+): number | undefined {
+  if (!form) {
+    return undefined
+  }
+
+  switch (fieldId) {
+    case 'input_price':
+    case 'output_price':
+    case 'cache_price':
+      return form[fieldId]
+    case 'input_price_above_threshold':
+    case 'output_price_above_threshold':
+      return form.tiered_enabled ? form[fieldId] : undefined
+    default:
+      if (!form.special_enabled && !form.special?.[fieldId]) {
+        return undefined
+      }
+      return form.special?.[fieldId]
+  }
+}
+
+export function resolveBillingPricingFieldMultiplier(
+  form: Partial<BillingPricingLayerForm> | undefined,
+  fieldId: BillingPricingFieldId,
+): number | undefined {
+  if (!form?.multiplier_enabled) {
+    return undefined
+  }
+  if (normalizeBillingPricingMultiplierMode(form.multiplier_mode) === 'item') {
+    return form.item_multipliers?.[fieldId] ?? 1
+  }
+  return form.shared_multiplier ?? 1
+}
+
+export function resolveEffectiveBillingPricingFieldValue(
+  form: Partial<BillingPricingLayerForm> | undefined,
+  fieldId: BillingPricingFieldId,
+): number | undefined {
+  const baseValue = resolveBillingPricingFieldValue(form, fieldId)
+  if (baseValue == null) {
+    return undefined
+  }
+  const multiplier = resolveBillingPricingFieldMultiplier(form, fieldId)
+  if (multiplier == null) {
+    return baseValue
+  }
+  return baseValue * multiplier
 }

@@ -68,6 +68,8 @@ func normalizeBillingRule(rule BillingRule) BillingRule {
 	rule.ServiceTier = normalizeBillingServiceTier(rule.ServiceTier)
 	rule.BatchMode = normalizeBillingBatchMode(rule.BatchMode)
 	rule.Unit = normalizeBillingDimension(rule.Unit, "")
+	rule.FormulaSource = normalizeBillingDimension(rule.FormulaSource, "")
+	rule.FormulaMultiplier = cloneBillingFloat64(rule.FormulaMultiplier)
 	rule.Matchers.InputModality = normalizeBillingDimension(rule.Matchers.InputModality, "")
 	rule.Matchers.OutputModality = normalizeBillingDimension(rule.Matchers.OutputModality, "")
 	rule.Matchers.CachePhase = normalizeBillingDimension(rule.Matchers.CachePhase, "")

@@ -151,12 +151,13 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	case len(input.Items) > 0:
 		form = billingPricingLayerFormFromItemsWithMetadata(metadata, input.Items)
 	}
+	form = normalizeBillingPricingLayerFormForLayer(form, layer)
 	if err := validateBillingPricingLayerForm(form); err != nil {
 		return nil, err
 	}
 	items := billingPricingItemsFromForm(metadata, layer, form)
 
-	legacyPricing := flatPricingFromItems(items)
+	legacyPricing := effectiveFlatPricingFromForm(metadata, form)
 	if err := validateFlatPricingForSave(legacyPricing); err != nil {
 		return nil, err
 	}
@@ -214,6 +215,9 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 		zap.String("output_charge_slot", metadata.OutputChargeSlot),
 		zap.Bool("special_enabled", form.SpecialEnabled),
 		zap.Bool("tiered_enabled", form.TieredEnabled),
+		zap.Bool("multiplier_enabled", form.MultiplierEnabled),
+		zap.String("multiplier_mode", string(form.MultiplierMode)),
+		zap.Int("affected_item_count", len(editorItems)),
 	)
 
 	detail := billingPricingPersistedModelToDetail(snapshot.Models[index])
@@ -304,6 +308,12 @@ func (s *BillingCenterService) CopyPricingItemsOfficialToSale(ctx context.Contex
 	updated := make([]BillingPricingSheetDetail, 0, len(details))
 	for _, detail := range details {
 		form := cloneBillingPricingLayerForm(detail.OfficialForm)
+		if detail.SaleForm.MultiplierEnabled {
+			form.MultiplierEnabled = true
+			form.MultiplierMode = detail.SaleForm.MultiplierMode
+			form.SharedMultiplier = cloneBillingFloat64(detail.SaleForm.SharedMultiplier)
+			form.ItemMultipliers = cloneBillingMultiplierMap(detail.SaleForm.ItemMultipliers)
+		}
 		next, err := s.SavePricingLayer(ctx, actor, UpsertBillingPricingLayerInput{
 			Model: detail.Model,
 			Layer: BillingLayerSale,
@@ -427,6 +437,50 @@ func flatPricingFromItems(items []BillingPriceItem) *ModelCatalogPricing {
 	return pricing
 }
 
+func effectiveFlatPricingFromForm(metadata billingPricingFormMetadata, form BillingPricingLayerForm) *ModelCatalogPricing {
+	form = normalizeBillingPricingLayerFormForLayer(form, BillingLayerSale)
+	pricing := &ModelCatalogPricing{}
+
+	inputPrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldInputPrice)
+	outputPrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldOutputPrice)
+	cachePrice := billingPricingEffectiveFieldValue(form, billingDiscountFieldCachePrice)
+
+	if metadata.InputSupported {
+		pricing.InputCostPerToken = cloneBillingFloat64(inputPrice)
+	}
+	switch metadata.OutputChargeSlot {
+	case BillingChargeSlotImageOutput:
+		pricing.OutputCostPerImage = cloneBillingFloat64(outputPrice)
+	case BillingChargeSlotVideoRequest:
+		pricing.OutputCostPerVideoRequest = cloneBillingFloat64(outputPrice)
+	default:
+		pricing.OutputCostPerToken = cloneBillingFloat64(outputPrice)
+	}
+	if cachePrice != nil {
+		pricing.CacheCreationInputTokenCost = cloneBillingFloat64(cachePrice)
+		pricing.CacheReadInputTokenCost = cloneBillingFloat64(cachePrice)
+		pricing.CacheCreationInputTokenCostAbove1hr = cloneBillingFloat64(cachePrice)
+	}
+	if form.TieredEnabled && form.TierThresholdTokens != nil {
+		if metadata.InputSupported {
+			if above := billingPricingEffectiveFieldValue(form, billingDiscountFieldInputPriceAboveThreshold); above != nil {
+				pricing.InputTokenThreshold = cloneBillingInt(form.TierThresholdTokens)
+				pricing.InputCostPerTokenAboveThreshold = cloneBillingFloat64(above)
+			}
+		}
+		if metadata.OutputChargeSlot == BillingChargeSlotTextOutput {
+			if above := billingPricingEffectiveFieldValue(form, billingDiscountFieldOutputPriceAboveThreshold); above != nil {
+				pricing.OutputTokenThreshold = cloneBillingInt(form.TierThresholdTokens)
+				pricing.OutputCostPerTokenAboveThreshold = cloneBillingFloat64(above)
+			}
+		}
+	}
+	if pricingEmpty(pricing) {
+		return nil
+	}
+	return pricing
+}
+
 func validateFlatPricingForSave(pricing *ModelCatalogPricing) error {
 	if pricing == nil || pricingEmpty(pricing) {
 		return nil
@@ -509,10 +563,12 @@ func pricingRulesFromItems(record *modelCatalogRecord, layer string, items []Bil
 				GroundingKind:  item.GroundingKind,
 				ContextWindow:  item.ContextWindow,
 			},
-			Unit:     item.Unit,
-			Price:    item.Price,
-			Priority: 2500,
-			Enabled:  item.Enabled,
+			Unit:              item.Unit,
+			Price:             item.Price,
+			FormulaSource:     item.FormulaSource,
+			FormulaMultiplier: cloneBillingFloat64(item.FormulaMultiplier),
+			Priority:          2500,
+			Enabled:           item.Enabled,
 		})
 	}
 	return rules

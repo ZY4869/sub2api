@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type MetaHandler struct {
@@ -53,5 +55,36 @@ func (h *MetaHandler) ModelRegistry(c *gin.Context) {
 			return
 		}
 	}
+	response.Success(c, snapshot)
+}
+
+func (h *MetaHandler) ModelCatalog(c *gin.Context) {
+	snapshot, err := h.modelCatalogService.PublicModelCatalogSnapshot(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	etagHit := false
+	if snapshot.ETag != "" {
+		c.Header("ETag", snapshot.ETag)
+		c.Header("Vary", "If-None-Match")
+		if strings.TrimSpace(c.GetHeader("If-None-Match")) == snapshot.ETag {
+			etagHit = true
+			logger.FromContext(c.Request.Context()).Info(
+				"public model catalog responded from etag cache",
+				zap.String("component", "handler.meta"),
+				zap.Bool("etag_hit", true),
+				zap.Int("model_count", len(snapshot.Items)),
+			)
+			c.Status(http.StatusNotModified)
+			return
+		}
+	}
+	logger.FromContext(c.Request.Context()).Info(
+		"public model catalog responded",
+		zap.String("component", "handler.meta"),
+		zap.Bool("etag_hit", etagHit),
+		zap.Int("model_count", len(snapshot.Items)),
+	)
 	response.Success(c, snapshot)
 }

@@ -2,6 +2,7 @@ export default {
   nav: {
     dashboard: 'Dashboard',
     models: 'Models',
+    modelsCatalog: 'Models Catalog',
     billing: 'Billing Center',
     announcements: 'Announcements',
     apiKeys: 'API Keys',

@@ -2,6 +2,7 @@ export default {
   ui: {
     routeTitles: {
       home: 'Home',
+      models: 'Models Catalog',
       apiDocs: 'API Docs',
       oauthCallback: 'OAuth Callback',
       linuxDoOAuthCallback: 'LinuxDo OAuth Callback',
@@ -42,6 +43,44 @@ export default {
           value: 'Code Baseline + Runtime Override',
           description: 'The repository template stays versioned, while admin updates can override it at runtime.'
         }
+      }
+    },
+    modelCatalog: {
+      eyebrow: 'Public Models',
+      description: 'Browse the currently sellable and available models. Prices always reflect the sale layer and multiplier-adjusted effective price.',
+      modelCount: '{count} models',
+      refresh: 'Refresh Catalog',
+      refreshing: 'Refreshing...',
+      loadFailed: 'Failed to load the public models catalog',
+      empty: 'No models match the current filters.',
+      filters: {
+        provider: 'Provider',
+        protocol: 'Request Protocol',
+        multiplier: 'Multiplier',
+        all: 'All'
+      },
+      multiplier: {
+        disabled: 'Multiplier Off',
+        mixed: 'Mixed Multiplier'
+      },
+      priceFields: {
+        input: 'Input',
+        output: 'Output',
+        cache: 'Cache',
+        inputTier: 'Input Tier',
+        outputTier: 'Output Tier',
+        batchInput: 'Batch Input',
+        batchOutput: 'Batch Output',
+        batchCache: 'Batch Cache',
+        groundingSearch: 'Grounding Search',
+        groundingMaps: 'Grounding Maps',
+        embedding: 'Embedding',
+        retrieval: 'Retrieval'
+      },
+      units: {
+        perMillionTokens: '/ 1M Tokens',
+        perImage: '/ image',
+        perRequest: '/ request'
       }
     },
     usageWindow: {

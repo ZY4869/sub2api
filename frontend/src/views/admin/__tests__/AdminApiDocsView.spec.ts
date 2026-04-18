@@ -4,6 +4,7 @@ import AdminApiDocsView from '../AdminApiDocsView.vue'
 
 const routeState = vi.hoisted(() => ({
   pageId: 'gemini',
+  query: {} as Record<string, unknown>,
 }))
 
 const {
@@ -14,6 +15,7 @@ const {
   showSuccess,
   showError,
   resolve,
+  replace,
 } = vi.hoisted(() => ({
   getAPIDocs: vi.fn(),
   updateAPIDocs: vi.fn(),
@@ -22,6 +24,10 @@ const {
   showSuccess: vi.fn(),
   showError: vi.fn(),
   resolve: vi.fn(() => ({ href: '/api-docs/gemini' })),
+  replace: vi.fn((payload: { query?: Record<string, unknown> }) => {
+    routeState.query = payload.query || {}
+    return Promise.resolve()
+  }),
 }))
 
 vi.mock('@/api/admin/docs', () => ({
@@ -53,9 +59,11 @@ vi.mock('vue-router', async () => {
       params: {
         pageId: routeState.pageId,
       },
+      query: routeState.query,
     }),
     useRouter: () => ({
       resolve,
+      replace,
     }),
   }
 })
@@ -70,46 +78,16 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-const RouterLinkStub = {
-  props: ['to'],
-  template: '<a :href="to"><slot /></a>',
-}
-
 const initialDocument = {
-  effective_content: [
-    '# API 文档中心',
-    '## common',
-    '### 概览',
-    '通用说明。',
-    '## gemini',
-    '### 模型生成',
-    '这里是 Gemini 页面。',
-    '#### Python',
-    '```python',
-    'print("gemini py")',
-    '```',
-    '#### JavaScript',
-    '```javascript',
-    'console.log("gemini js")',
-    '```',
-    '#### REST',
-    '```bash',
-    'echo gemini-rest',
-    '```',
-  ].join('\n'),
-  default_content: '# API 文档中心\n\n## common\n### 概览\n默认模板\n',
+  effective_content: '# API Docs\n\n## gemini\n### Model Generation\nGemini page content',
+  default_content: '# API Docs\n\n## common\n### Overview\nDefault content\n',
   has_override: true,
-}
-
-const findButtonByText = (wrapper: ReturnType<typeof mount>, text: string) => {
-  const button = wrapper.findAll('button').find((item) => item.text().includes(text))
-  expect(button, `button ${text} should exist`).toBeTruthy()
-  return button!
 }
 
 describe('AdminApiDocsView', () => {
   beforeEach(() => {
     routeState.pageId = 'gemini'
+    routeState.query = {}
     getAPIDocs.mockReset()
     updateAPIDocs.mockReset()
     clearAPIDocsOverride.mockReset()
@@ -117,11 +95,12 @@ describe('AdminApiDocsView', () => {
     showSuccess.mockReset()
     showError.mockReset()
     resolve.mockReset()
+    replace.mockClear()
 
     getAPIDocs.mockResolvedValue(initialDocument)
     updateAPIDocs.mockResolvedValue({
       ...initialDocument,
-      effective_content: initialDocument.effective_content.replace('这里是 Gemini 页面。', '已保存的新 Gemini 页面。'),
+      effective_content: '# API Docs\n\n## gemini\n### Model Generation\nSaved content',
     })
     clearAPIDocsOverride.mockResolvedValue({
       effective_content: initialDocument.default_content,
@@ -147,79 +126,97 @@ describe('AdminApiDocsView', () => {
     vi.unstubAllGlobals()
   })
 
-  it('loads the document, renders the selected preview page, and saves the override', async () => {
-    const wrapper = mount(AdminApiDocsView, {
+  function mountView() {
+    return mount(AdminApiDocsView, {
       global: {
         stubs: {
-          AppLayout: { template: '<div data-test="app-layout"><slot /></div>' },
-          RouterLink: RouterLinkStub,
-          'router-link': RouterLinkStub,
+          AppLayout: { template: '<div><slot /></div>' },
+          DocsMarkdownContent: { template: '<div data-test="docs-markdown-stub" />' },
         },
       },
     })
+  }
 
+  it('defaults to preview tab and syncs tab query to the url', async () => {
+    const wrapper = mountView()
     await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({
+      query: expect.objectContaining({
+        tab: 'preview',
+      }),
+    }))
+    expect(wrapper.find('[data-test="api-docs-preview"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="api-docs-editor"]').exists()).toBe(false)
+  })
+
+  it('opens edit tab from query and lets admins save the markdown override', async () => {
+    routeState.query = { tab: 'edit' }
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="api-docs-editor"]').exists()).toBe(true)
 
     const textarea = wrapper.get('textarea')
-    expect((textarea.element as HTMLTextAreaElement).value).toContain('这里是 Gemini 页面。')
-    expect(wrapper.text()).toContain('Gemini 原生')
-    expect(wrapper.text()).toContain('模型生成')
-
-    await textarea.setValue(initialDocument.effective_content.replace('这里是 Gemini 页面。', '待保存的 Gemini 页面。'))
+    await textarea.setValue('new markdown')
     await flushPromises()
 
-    await findButtonByText(wrapper, 'admin.apiDocs.save').trigger('click')
+    await wrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.save'))!.trigger('click')
     await flushPromises()
 
-    expect(updateAPIDocs).toHaveBeenCalledWith(
-      initialDocument.effective_content.replace('这里是 Gemini 页面。', '待保存的 Gemini 页面。')
-    )
+    expect(updateAPIDocs).toHaveBeenCalledWith('new markdown')
     expect(showSuccess).toHaveBeenCalledWith('admin.apiDocs.saveSuccess')
   })
 
-  it('restores the default template from the runtime override', async () => {
-    const wrapper = mount(AdminApiDocsView, {
-      global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          RouterLink: RouterLinkStub,
-          'router-link': RouterLinkStub,
-        },
-      },
-    })
-
-    await flushPromises()
-    await findButtonByText(wrapper, 'admin.apiDocs.restoreDefault').trigger('click')
+  it('updates query when switching tabs and preserves copy/open actions', async () => {
+    routeState.query = { tab: 'preview' }
+    const wrapper = mountView()
     await flushPromises()
 
-    expect(confirm).toHaveBeenCalledWith('admin.apiDocs.restoreConfirm')
-    expect(clearAPIDocsOverride).toHaveBeenCalledTimes(1)
-    expect(showSuccess).toHaveBeenCalledWith('admin.apiDocs.restoreSuccess')
-    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe(initialDocument.default_content)
-  })
+    await wrapper.find('[data-test="api-docs-tab-edit"]').trigger('click')
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({
+      query: expect.objectContaining({
+        tab: 'edit',
+      }),
+    }))
 
-  it('copies markdown, opens the matching user page, and supports panel switching', async () => {
-    const wrapper = mount(AdminApiDocsView, {
-      global: {
-        stubs: {
-          AppLayout: { template: '<div><slot /></div>' },
-          RouterLink: RouterLinkStub,
-          'router-link': RouterLinkStub,
-        },
-      },
-    })
-
+    routeState.query = { tab: 'edit' }
+    const editWrapper = mountView()
     await flushPromises()
 
-    await findButtonByText(wrapper, 'admin.apiDocs.copy').trigger('click')
+    await editWrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.copy'))!.trigger('click')
     expect(copyToClipboard).toHaveBeenCalledWith(initialDocument.effective_content, 'admin.apiDocs.copySuccess')
 
-    await findButtonByText(wrapper, 'admin.apiDocs.openUserPage').trigger('click')
+    await editWrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.openUserPage'))!.trigger('click')
     expect(resolve).toHaveBeenCalledWith('/api-docs/gemini')
     expect(open).toHaveBeenCalledWith('/api-docs/gemini', '_blank', 'noopener')
+  })
 
-    await findButtonByText(wrapper, 'admin.apiDocs.previewTab').trigger('click')
-    expect(wrapper.get('[data-test="api-docs-editor"]').classes()).toContain('hidden')
-    expect(wrapper.get('[data-test="api-docs-preview"]').classes()).toContain('block')
+  it('normalizes invalid tab query values back to preview', async () => {
+    routeState.query = { tab: 'invalid' }
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith(expect.objectContaining({
+      query: expect.objectContaining({
+        tab: 'preview',
+      }),
+    }))
+    expect(wrapper.find('[data-test="api-docs-preview"]').exists()).toBe(true)
+  })
+
+  it('keeps a valid tab when reopening another docs page', async () => {
+    routeState.pageId = 'openai'
+    routeState.query = { tab: 'edit' }
+    resolve.mockReturnValue({ href: '/api-docs/openai' })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(replace).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="api-docs-editor"]').exists()).toBe(true)
+
+    await wrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.openUserPage'))!.trigger('click')
+    expect(resolve).toHaveBeenCalledWith('/api-docs/openai')
+    expect(open).toHaveBeenCalledWith('/api-docs/openai', '_blank', 'noopener')
   })
 })

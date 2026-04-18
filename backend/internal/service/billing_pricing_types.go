@@ -3,14 +3,17 @@ package service
 import "time"
 
 type BillingPriceItemMode string
+type BillingPricingMultiplierMode string
 
 const (
-	BillingPriceItemModeBase         BillingPriceItemMode = "base"
-	BillingPriceItemModeTiered       BillingPriceItemMode = "tiered"
-	BillingPriceItemModeBatch        BillingPriceItemMode = "batch"
-	BillingPriceItemModeServiceTier  BillingPriceItemMode = "service_tier"
-	BillingPriceItemModeProviderRule BillingPriceItemMode = "provider_special"
-	billingPricingRuleIDPrefix                            = "pricing_item"
+	BillingPriceItemModeBase         BillingPriceItemMode         = "base"
+	BillingPriceItemModeTiered       BillingPriceItemMode         = "tiered"
+	BillingPriceItemModeBatch        BillingPriceItemMode         = "batch"
+	BillingPriceItemModeServiceTier  BillingPriceItemMode         = "service_tier"
+	BillingPriceItemModeProviderRule BillingPriceItemMode         = "provider_special"
+	BillingPricingMultiplierShared   BillingPricingMultiplierMode = "shared"
+	BillingPricingMultiplierItem     BillingPricingMultiplierMode = "item"
+	billingPricingRuleIDPrefix                                    = "pricing_item"
 )
 
 type BillingPriceItem struct {
@@ -57,15 +60,19 @@ type BillingPricingSimpleSpecial struct {
 }
 
 type BillingPricingLayerForm struct {
-	InputPrice                *float64                    `json:"input_price,omitempty"`
-	OutputPrice               *float64                    `json:"output_price,omitempty"`
-	CachePrice                *float64                    `json:"cache_price,omitempty"`
-	SpecialEnabled            bool                        `json:"special_enabled"`
-	Special                   BillingPricingSimpleSpecial `json:"special"`
-	TieredEnabled             bool                        `json:"tiered_enabled"`
-	TierThresholdTokens       *int                        `json:"tier_threshold_tokens,omitempty"`
-	InputPriceAboveThreshold  *float64                    `json:"input_price_above_threshold,omitempty"`
-	OutputPriceAboveThreshold *float64                    `json:"output_price_above_threshold,omitempty"`
+	InputPrice                *float64                     `json:"input_price,omitempty"`
+	OutputPrice               *float64                     `json:"output_price,omitempty"`
+	CachePrice                *float64                     `json:"cache_price,omitempty"`
+	SpecialEnabled            bool                         `json:"special_enabled"`
+	Special                   BillingPricingSimpleSpecial  `json:"special"`
+	TieredEnabled             bool                         `json:"tiered_enabled"`
+	TierThresholdTokens       *int                         `json:"tier_threshold_tokens,omitempty"`
+	InputPriceAboveThreshold  *float64                     `json:"input_price_above_threshold,omitempty"`
+	OutputPriceAboveThreshold *float64                     `json:"output_price_above_threshold,omitempty"`
+	MultiplierEnabled         bool                         `json:"multiplier_enabled"`
+	MultiplierMode            BillingPricingMultiplierMode `json:"multiplier_mode,omitempty"`
+	SharedMultiplier          *float64                     `json:"shared_multiplier,omitempty"`
+	ItemMultipliers           map[string]float64           `json:"item_multipliers,omitempty"`
 }
 
 type BillingPricingCurrencyPreference struct {

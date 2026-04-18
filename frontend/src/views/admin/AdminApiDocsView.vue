@@ -28,23 +28,27 @@
         </div>
       </section>
 
-      <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm dark:border-dark-700 dark:bg-dark-900/80 lg:hidden">
-        <button
-          type="button"
-          class="flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
-          :class="activePanel === 'editor' ? 'bg-primary-600 text-white' : 'text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-dark-800'"
-          @click="activePanel = 'editor'"
-        >
-          {{ t('admin.apiDocs.editorTab') }}
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-xl px-4 py-2 text-sm font-medium transition-colors"
-          :class="activePanel === 'preview' ? 'bg-primary-600 text-white' : 'text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-dark-800'"
-          @click="activePanel = 'preview'"
-        >
-          {{ t('admin.apiDocs.previewTab') }}
-        </button>
+      <div class="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm dark:border-dark-700 dark:bg-dark-900/80">
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+            :class="activeTab === 'preview' ? activeTabClass : inactiveTabClass"
+            data-test="api-docs-tab-preview"
+            @click="setActiveTab('preview')"
+          >
+            {{ t('admin.apiDocs.previewTab') }}
+          </button>
+          <button
+            type="button"
+            class="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+            :class="activeTab === 'edit' ? activeTabClass : inactiveTabClass"
+            data-test="api-docs-tab-edit"
+            @click="setActiveTab('edit')"
+          >
+            {{ t('admin.apiDocs.editorTab') }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="rounded-3xl border border-slate-200 bg-white/90 px-6 py-16 text-center text-sm text-slate-800 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-100">
@@ -55,65 +59,67 @@
         {{ errorMessage }}
       </div>
 
-      <div v-else class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section data-test="api-docs-editor" :class="panelClass('editor')" class="rounded-[2rem] border border-slate-200 bg-white/90 shadow-sm dark:border-dark-700 dark:bg-dark-900/80">
-          <div class="flex flex-col gap-3 border-b border-slate-200 px-6 py-5 dark:border-dark-700">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-800 dark:text-slate-200">
-                  {{ t('admin.apiDocs.editorEyebrow') }}
-                </p>
-                <h2 class="mt-2 text-xl font-semibold text-slate-950 dark:text-white">
-                  {{ t('admin.apiDocs.editorTitle') }}
-                </h2>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary" :disabled="saving || !isDirty" @click="handleSave">
-                  {{ saving ? t('admin.apiDocs.saving') : t('admin.apiDocs.save') }}
-                </button>
-                <button type="button" class="btn btn-secondary" :disabled="saving" @click="handleReset">
-                  {{ t('admin.apiDocs.restoreDefault') }}
-                </button>
-                <button type="button" class="btn btn-secondary" @click="handleCopy">
-                  {{ t('admin.apiDocs.copy') }}
-                </button>
-                <button type="button" class="btn btn-secondary" @click="openUserPage">
-                  {{ t('admin.apiDocs.openUserPage') }}
-                </button>
-              </div>
+      <section v-else-if="activeTab === 'preview'" data-test="api-docs-preview" class="min-w-0">
+        <DocsMarkdownContent
+          :markdown="draft"
+          :page-id="routePageId"
+          base-path="/admin/api-docs"
+          :nav-title="t('admin.apiDocs.protocolsTitle')"
+          :toc-title="t('admin.apiDocs.pageTocTitle')"
+          preview-mode
+        />
+      </section>
+
+      <section
+        v-else
+        data-test="api-docs-editor"
+        class="rounded-[2rem] border border-slate-200 bg-white/90 shadow-sm dark:border-dark-700 dark:bg-dark-900/80"
+      >
+        <div class="flex flex-col gap-3 border-b border-slate-200 px-6 py-5 dark:border-dark-700">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-800 dark:text-slate-200">
+                {{ t('admin.apiDocs.editorEyebrow') }}
+              </p>
+              <h2 class="mt-2 text-xl font-semibold text-slate-950 dark:text-white">
+                {{ t('admin.apiDocs.editorTitle') }}
+              </h2>
             </div>
-            <p class="text-sm leading-6 text-slate-900 dark:text-slate-100">
-              {{ t('admin.apiDocs.editorDescription') }}
-            </p>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="btn btn-primary" :disabled="saving || !isDirty" @click="handleSave">
+                {{ saving ? t('admin.apiDocs.saving') : t('admin.apiDocs.save') }}
+              </button>
+              <button type="button" class="btn btn-secondary" :disabled="saving" @click="handleReset">
+                {{ t('admin.apiDocs.restoreDefault') }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="handleCopy">
+                {{ t('admin.apiDocs.copy') }}
+              </button>
+              <button type="button" class="btn btn-secondary" @click="openUserPage">
+                {{ t('admin.apiDocs.openUserPage') }}
+              </button>
+            </div>
           </div>
+          <p class="text-sm leading-6 text-slate-900 dark:text-slate-100">
+            {{ t('admin.apiDocs.editorDescription') }}
+          </p>
+        </div>
 
-          <div class="p-6">
-            <textarea
-              v-model="draft"
-              class="min-h-[520px] w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-sm leading-7 text-slate-900 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100 dark:border-dark-700 dark:bg-dark-950 dark:text-slate-100 dark:focus:ring-primary-900/40"
-              :placeholder="t('admin.apiDocs.editorPlaceholder')"
-              spellcheck="false"
-            />
-          </div>
-        </section>
-
-        <section data-test="api-docs-preview" :class="panelClass('preview')" class="min-w-0">
-          <DocsMarkdownContent
-            :markdown="draft"
-            :page-id="routePageId"
-            base-path="/admin/api-docs"
-            :nav-title="t('admin.apiDocs.protocolsTitle')"
-            :toc-title="t('admin.apiDocs.pageTocTitle')"
-            preview-mode
+        <div class="p-6">
+          <textarea
+            v-model="draft"
+            class="min-h-[560px] w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-sm leading-7 text-slate-900 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100 dark:border-dark-700 dark:bg-dark-950 dark:text-slate-100 dark:focus:ring-primary-900/40"
+            :placeholder="t('admin.apiDocs.editorPlaceholder')"
+            spellcheck="false"
           />
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -123,23 +129,66 @@ import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores/app'
 import { normalizeDocsPageId } from '@/utils/markdownDocs'
 
+type AdminDocsTab = 'preview' | 'edit'
+
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
 
+const activeTabClass = 'bg-primary-600 text-white'
+const inactiveTabClass = 'text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-dark-800'
+
 const loading = ref(true)
 const saving = ref(false)
 const errorMessage = ref('')
-const activePanel = ref<'editor' | 'preview'>('editor')
 const draft = ref('')
 const effectiveContent = ref('')
 const defaultContent = ref('')
 const hasOverride = ref(false)
 
 const routePageId = computed(() => normalizeDocsPageId(route.params.pageId as string | undefined))
+const activeTab = computed<AdminDocsTab>(() => (
+  normalizeAdminDocsTab(route.query.tab)
+))
 const isDirty = computed(() => draft.value !== effectiveContent.value)
+
+watch(
+  () => route.query.tab,
+  () => {
+    ensureValidTabQuery()
+  },
+)
+
+function normalizeAdminDocsTab(tab: unknown): AdminDocsTab {
+  return tab === 'edit' ? 'edit' : 'preview'
+}
+
+function ensureValidTabQuery() {
+  const current = route.query.tab
+  if (current === 'preview' || current === 'edit') {
+    return
+  }
+  router.replace({
+    query: {
+      ...route.query,
+      tab: 'preview',
+    },
+  })
+}
+
+function setActiveTab(tab: AdminDocsTab) {
+  if (activeTab.value === tab) {
+    return
+  }
+  router.replace({
+    query: {
+      ...route.query,
+      tab,
+    },
+  })
+}
 
 function applyDocument(document: {
   effective_content: string
@@ -150,10 +199,6 @@ function applyDocument(document: {
   defaultContent.value = document.default_content
   hasOverride.value = document.has_override
   draft.value = document.effective_content
-}
-
-function panelClass(panel: 'editor' | 'preview') {
-  return activePanel.value === panel ? 'block' : 'hidden xl:block'
 }
 
 async function loadDocument() {
@@ -217,6 +262,7 @@ function openUserPage() {
 }
 
 onMounted(() => {
+  ensureValidTabQuery()
   loadDocument().catch((error) => {
     console.error('Failed to load admin API docs:', error)
   })

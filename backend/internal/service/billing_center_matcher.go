@@ -119,6 +119,7 @@ func (s *BillingCenterService) evaluateSimulation(
 			continue
 		}
 		price := billingRuleEffectivePrice(rule, demand.context)
+		basePrice := rule.Price
 		cost := demand.count * price
 		lineActualCost := cost
 		if actualMultiplier > 0 {
@@ -127,29 +128,34 @@ func (s *BillingCenterService) evaluateSimulation(
 		totalCost += cost
 		actualCost += lineActualCost
 		lines = append(lines, BillingSimulationLine{
-			ChargeSlot: demand.chargeSlot,
-			Unit:       demand.unit,
-			Units:      demand.count,
-			Price:      price,
-			Cost:       cost,
-			ActualCost: lineActualCost,
-			RuleID:     rule.ID,
-			RuleLabel:  fmt.Sprintf("%s / %s / %s", rule.Surface, rule.OperationType, rule.Unit),
+			ChargeSlot:        demand.chargeSlot,
+			Unit:              demand.unit,
+			Units:             demand.count,
+			Price:             price,
+			Cost:              cost,
+			ActualCost:        lineActualCost,
+			RuleID:            rule.ID,
+			RuleLabel:         fmt.Sprintf("%s / %s / %s", rule.Surface, rule.OperationType, rule.Unit),
+			BasePrice:         &basePrice,
+			FormulaSource:     rule.FormulaSource,
+			FormulaMultiplier: cloneBillingFloat64(rule.FormulaMultiplier),
 		})
 		if !containsString(matchedRuleIDs, rule.ID) {
 			matchedRuleIDs = append(matchedRuleIDs, rule.ID)
 			matchedRules = append(matchedRules, BillingSimulationMatchedRule{
-				ID:            rule.ID,
-				Provider:      rule.Provider,
-				Layer:         rule.Layer,
-				Surface:       rule.Surface,
-				OperationType: rule.OperationType,
-				ServiceTier:   rule.ServiceTier,
-				BatchMode:     rule.BatchMode,
-				Unit:          rule.Unit,
-				Price:         rule.Price,
-				Priority:      rule.Priority,
-				Matchers:      rule.Matchers,
+				ID:                rule.ID,
+				Provider:          rule.Provider,
+				Layer:             rule.Layer,
+				Surface:           rule.Surface,
+				OperationType:     rule.OperationType,
+				ServiceTier:       rule.ServiceTier,
+				BatchMode:         rule.BatchMode,
+				Unit:              rule.Unit,
+				Price:             rule.Price,
+				FormulaSource:     rule.FormulaSource,
+				FormulaMultiplier: cloneBillingFloat64(rule.FormulaMultiplier),
+				Priority:          rule.Priority,
+				Matchers:          rule.Matchers,
 			})
 		}
 	}
@@ -589,6 +595,9 @@ func billingRuleEffectivePrice(rule *BillingRule, actual billingMatchContext) fl
 		return 0
 	}
 	price := rule.Price
+	if rule.FormulaMultiplier != nil {
+		price *= *rule.FormulaMultiplier
+	}
 	if normalizeBillingActualBatchMode(actual.BatchMode) == BillingBatchModeBatch &&
 		!billingRuleUsesExplicitValue(rule.BatchMode) {
 		price *= 0.5

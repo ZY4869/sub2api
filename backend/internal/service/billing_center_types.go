@@ -11,18 +11,20 @@ type BillingRuleMatchers struct {
 }
 
 type BillingRule struct {
-	ID            string              `json:"id"`
-	Provider      string              `json:"provider"`
-	Layer         string              `json:"layer"`
-	Surface       string              `json:"surface"`
-	OperationType string              `json:"operation_type"`
-	ServiceTier   string              `json:"service_tier"`
-	BatchMode     string              `json:"batch_mode"`
-	Matchers      BillingRuleMatchers `json:"matchers"`
-	Unit          string              `json:"unit"`
-	Price         float64             `json:"price"`
-	Priority      int                 `json:"priority"`
-	Enabled       bool                `json:"enabled"`
+	ID                string              `json:"id"`
+	Provider          string              `json:"provider"`
+	Layer             string              `json:"layer"`
+	Surface           string              `json:"surface"`
+	OperationType     string              `json:"operation_type"`
+	ServiceTier       string              `json:"service_tier"`
+	BatchMode         string              `json:"batch_mode"`
+	Matchers          BillingRuleMatchers `json:"matchers"`
+	Unit              string              `json:"unit"`
+	Price             float64             `json:"price"`
+	FormulaSource     string              `json:"formula_source,omitempty"`
+	FormulaMultiplier *float64            `json:"formula_multiplier,omitempty"`
+	Priority          int                 `json:"priority"`
+	Enabled           bool                `json:"enabled"`
 }
 
 type GeminiBillingMatrixCell struct {
@@ -112,28 +114,33 @@ type BillingSimulationInput struct {
 }
 
 type BillingSimulationMatchedRule struct {
-	ID            string              `json:"id"`
-	Provider      string              `json:"provider"`
-	Layer         string              `json:"layer"`
-	Surface       string              `json:"surface"`
-	OperationType string              `json:"operation_type"`
-	ServiceTier   string              `json:"service_tier"`
-	BatchMode     string              `json:"batch_mode"`
-	Unit          string              `json:"unit"`
-	Price         float64             `json:"price"`
-	Priority      int                 `json:"priority"`
-	Matchers      BillingRuleMatchers `json:"matchers"`
+	ID                string              `json:"id"`
+	Provider          string              `json:"provider"`
+	Layer             string              `json:"layer"`
+	Surface           string              `json:"surface"`
+	OperationType     string              `json:"operation_type"`
+	ServiceTier       string              `json:"service_tier"`
+	BatchMode         string              `json:"batch_mode"`
+	Unit              string              `json:"unit"`
+	Price             float64             `json:"price"`
+	FormulaSource     string              `json:"formula_source,omitempty"`
+	FormulaMultiplier *float64            `json:"formula_multiplier,omitempty"`
+	Priority          int                 `json:"priority"`
+	Matchers          BillingRuleMatchers `json:"matchers"`
 }
 
 type BillingSimulationLine struct {
-	ChargeSlot string  `json:"charge_slot"`
-	Unit       string  `json:"unit"`
-	Units      float64 `json:"units"`
-	Price      float64 `json:"price"`
-	Cost       float64 `json:"cost"`
-	ActualCost float64 `json:"actual_cost"`
-	RuleID     string  `json:"rule_id,omitempty"`
-	RuleLabel  string  `json:"rule_label,omitempty"`
+	ChargeSlot        string   `json:"charge_slot"`
+	Unit              string   `json:"unit"`
+	Units             float64  `json:"units"`
+	Price             float64  `json:"price"`
+	Cost              float64  `json:"cost"`
+	ActualCost        float64  `json:"actual_cost"`
+	RuleID            string   `json:"rule_id,omitempty"`
+	RuleLabel         string   `json:"rule_label,omitempty"`
+	BasePrice         *float64 `json:"base_price,omitempty"`
+	FormulaSource     string   `json:"formula_source,omitempty"`
+	FormulaMultiplier *float64 `json:"formula_multiplier,omitempty"`
 }
 
 type BillingSimulationUnmatchedDemand struct {

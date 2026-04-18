@@ -109,6 +109,22 @@ describe('AppSidebar', () => {
     expect(wrapper.find('a[href="/api-docs"]').classes()).toContain('sidebar-link-active')
   })
 
+  it('shows the models catalog entry for regular users', () => {
+    mockState.routePath = '/models'
+
+    const wrapper = mount(AppSidebar, {
+      global: {
+        stubs: {
+          'router-link': RouterLinkStub,
+          VersionBadge: { template: '<span data-test="version-badge" />' },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('nav.modelsCatalog')
+    expect(wrapper.find('a[href="/models"]').classes()).toContain('sidebar-link-active')
+  })
+
   it('shows consolidated admin navigation and keeps the nested accounts items out of the top level', () => {
     mockState.authStore.isAdmin = true
     mockState.routePath = '/admin/api-docs/gemini'

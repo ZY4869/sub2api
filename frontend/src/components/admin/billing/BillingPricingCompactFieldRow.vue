@@ -25,19 +25,22 @@
         </span>
       </div>
 
-      <input
-        class="input w-full sm:w-[220px] sm:min-w-[220px]"
-        type="text"
-        inputmode="decimal"
-        autocomplete="off"
-        :value="draft"
-        :disabled="disabled"
-        :data-testid="`pricing-field-${fieldId}`"
-        @focus="focused = true"
-        @input="handleInput"
-        @blur="handleBlur"
-        @keydown.enter="($event.target as HTMLInputElement).blur()"
-      />
+      <div class="flex w-full flex-col gap-2 sm:w-[220px] sm:min-w-[220px]">
+        <input
+          class="input w-full"
+          type="text"
+          inputmode="decimal"
+          autocomplete="off"
+          :value="draft"
+          :disabled="disabled"
+          :data-testid="`pricing-field-${fieldId}`"
+          @focus="focused = true"
+          @input="handleInput"
+          @blur="handleBlur"
+          @keydown.enter="($event.target as HTMLInputElement).blur()"
+        />
+        <slot name="detail" />
+      </div>
     </div>
 
     <p

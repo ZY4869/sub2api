@@ -2,6 +2,7 @@ export default {
   ui: {
     routeTitles: {
       home: '首页',
+      models: '模型库',
       apiDocs: 'API 文档',
       oauthCallback: '授权回调',
       linuxDoOAuthCallback: 'LinuxDo 授权回调',
@@ -15,12 +16,12 @@ export default {
     apiDocs: {
       eyebrow: '协议基线',
       title: 'API 文档',
-      description: '以标准 Markdown 展示当前网关的请求契约、兼容范围和接入规则，方便人类与 AI 共同阅读。',
+      description: '以标准 Markdown 展示当前网关的请求契约、兼容范围和接入规则，方便人工与 AI 协同阅读。',
       protocolsTitle: '支持协议',
       pageTocTitle: '本页内容',
       articleEyebrow: '标准 Markdown',
       articleTitle: '当前生效文档',
-      articleDescription: '这里渲染的是登录后文档接口返回的当前生效 Markdown 原文。',
+      articleDescription: '这里展示的是登录后文档接口返回的当前生效 Markdown 原文。',
       tocTitle: '目录',
       copy: '一键复制 Markdown',
       copySuccess: 'Markdown 已复制',
@@ -42,6 +43,44 @@ export default {
           value: '仓库基线 + 运行时覆盖',
           description: '仓库模板负责版本同步，管理员可以通过后台保存运行时覆盖内容。'
         }
+      }
+    },
+    modelCatalog: {
+      eyebrow: '公开模型库',
+      description: '浏览当前可对外售卖且可用的模型目录，价格统一按出售价格层与倍率后的有效售价展示。',
+      modelCount: '{count} 个模型',
+      refresh: '刷新目录',
+      refreshing: '刷新中...',
+      loadFailed: '加载公开模型目录失败',
+      empty: '当前筛选条件下没有可展示的模型。',
+      filters: {
+        provider: '供应商',
+        protocol: '请求协议',
+        multiplier: '倍率',
+        all: '全部'
+      },
+      multiplier: {
+        disabled: '未启用倍率',
+        mixed: '混合倍率'
+      },
+      priceFields: {
+        input: '输入',
+        output: '输出',
+        cache: '缓存',
+        inputTier: '输入阶梯',
+        outputTier: '输出阶梯',
+        batchInput: 'Batch 输入',
+        batchOutput: 'Batch 输出',
+        batchCache: 'Batch 缓存',
+        groundingSearch: 'Grounding Search',
+        groundingMaps: 'Grounding Maps',
+        embedding: 'Embedding',
+        retrieval: 'Retrieval'
+      },
+      units: {
+        perMillionTokens: '/ 1M Tokens',
+        perImage: '/ 张',
+        perRequest: '/ 次'
       }
     },
     usageWindow: {

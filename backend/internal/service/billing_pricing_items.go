@@ -156,23 +156,25 @@ func pricingItemsFromRules(record *modelCatalogRecord, layer string, rules []Bil
 			mode = BillingPriceItemModeServiceTier
 		}
 		items = append(items, BillingPriceItem{
-			ID:             rule.ID,
-			ChargeSlot:     slot,
-			Unit:           rule.Unit,
-			Layer:          rule.Layer,
-			Mode:           mode,
-			ServiceTier:    rule.ServiceTier,
-			BatchMode:      rule.BatchMode,
-			Surface:        rule.Surface,
-			OperationType:  rule.OperationType,
-			InputModality:  rule.Matchers.InputModality,
-			OutputModality: rule.Matchers.OutputModality,
-			CachePhase:     rule.Matchers.CachePhase,
-			GroundingKind:  rule.Matchers.GroundingKind,
-			ContextWindow:  rule.Matchers.ContextWindow,
-			Price:          rule.Price,
-			RuleID:         rule.ID,
-			Enabled:        rule.Enabled,
+			ID:                rule.ID,
+			ChargeSlot:        slot,
+			Unit:              rule.Unit,
+			Layer:             rule.Layer,
+			Mode:              mode,
+			ServiceTier:       rule.ServiceTier,
+			BatchMode:         rule.BatchMode,
+			Surface:           rule.Surface,
+			OperationType:     rule.OperationType,
+			InputModality:     rule.Matchers.InputModality,
+			OutputModality:    rule.Matchers.OutputModality,
+			CachePhase:        rule.Matchers.CachePhase,
+			GroundingKind:     rule.Matchers.GroundingKind,
+			ContextWindow:     rule.Matchers.ContextWindow,
+			Price:             rule.Price,
+			FormulaSource:     rule.FormulaSource,
+			FormulaMultiplier: cloneBillingFloat64(rule.FormulaMultiplier),
+			RuleID:            rule.ID,
+			Enabled:           rule.Enabled,
 		})
 	}
 	return items
@@ -366,6 +368,8 @@ func normalizeBillingPriceItem(item BillingPriceItem) BillingPriceItem {
 	item.CachePhase = normalizeBillingDimension(item.CachePhase, "")
 	item.GroundingKind = normalizeBillingDimension(item.GroundingKind, "")
 	item.ContextWindow = normalizeBillingDimension(item.ContextWindow, "")
+	item.FormulaSource = normalizeBillingDimension(item.FormulaSource, "")
+	item.FormulaMultiplier = cloneBillingFloat64(item.FormulaMultiplier)
 	if item.ID == "" {
 		item.ID = billingGeneratedRuleID(item)
 	}

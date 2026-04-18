@@ -42,6 +42,10 @@ function createForm(overrides: Partial<BillingPricingLayerForm> = {}): BillingPr
     tier_threshold_tokens: undefined,
     input_price_above_threshold: undefined,
     output_price_above_threshold: undefined,
+    multiplier_enabled: false,
+    multiplier_mode: undefined,
+    shared_multiplier: undefined,
+    item_multipliers: {},
     ...overrides,
   }
 }
@@ -246,6 +250,42 @@ describe('BillingPricingEditorDialog', () => {
           special_enabled: true,
           special: expect.objectContaining({
             grounding_search: 0.18,
+          }),
+        }),
+      },
+    ])
+  })
+
+  it('preserves sale multiplier config when saving edited item multipliers', async () => {
+    const wrapper = mountDialog([
+      createDetail({
+        sale_form: createForm({
+          input_price: 3e-7,
+          output_price: 8e-7,
+          multiplier_enabled: true,
+          multiplier_mode: 'item',
+          item_multipliers: {
+            input_price: 0.12,
+            output_price: 0.15,
+          },
+        }),
+      }),
+    ])
+
+    await wrapper.get('[data-testid="pricing-item-multiplier-input_price"]').setValue('0.2')
+    await wrapper.get('[data-testid="save-layer-sale"]').trigger('click')
+
+    expect(wrapper.emitted('save-layer')?.[0]).toEqual([
+      {
+        model: 'gpt-5.4',
+        layer: 'sale',
+        currency: 'USD',
+        form: expect.objectContaining({
+          multiplier_enabled: true,
+          multiplier_mode: 'item',
+          item_multipliers: expect.objectContaining({
+            input_price: 0.2,
+            output_price: 0.15,
           }),
         }),
       },

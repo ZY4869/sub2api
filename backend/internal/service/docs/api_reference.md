@@ -117,6 +117,17 @@ https://api.zyxai.de
 - 普通协议中间件：`Authorization: Bearer` -> `x-api-key` -> `x-goog-api-key` -> 允许时的 `?key=`
 - Google / Gemini 风格中间件：`x-goog-api-key` -> `Authorization: Bearer` -> `x-api-key` -> 允许时的 `?key=`
 
+### 公共模型库
+
+系统另外提供一个只读公共目录接口：
+
+- 路径：`GET /api/v1/meta/model-catalog`
+- 鉴权：无需登录，游客与已登录用户都可访问
+- 用途：返回前台 `/models` 页面使用的“可售卖可用模型目录”，包含供应商、请求协议族、最终对外有效售价，以及出售价格倍率摘要
+- 缓存：响应会返回 `ETag`，客户端可通过 `If-None-Match` 复用 304
+
+这个接口只暴露展示所需的公共目录数据，不替代具体协议页中的 `/v1/models`、`/v1beta/models` 等运行时模型枚举接口。
+
 下面的例子分别展示三种常用认证写法。
 
 #### Python

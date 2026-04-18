@@ -118,6 +118,16 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'keyUsage.title',
     }
   },
+  {
+    path: '/models',
+    name: 'PublicModels',
+    component: () => import('@/views/PublicModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Models',
+      titleKey: 'ui.routeTitles.models'
+    }
+  },
 
   // ==================== User Routes ====================
   {
@@ -618,7 +628,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models']
 const BACKEND_MODE_REVIEWER_ALLOWED_PATHS = ['/admin/request-details']
 
 function isAllowedPath(path: string, allowedPaths: string[]) {

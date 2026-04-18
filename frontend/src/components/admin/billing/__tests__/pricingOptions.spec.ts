@@ -32,6 +32,10 @@ describe('pricingOptions', () => {
       tier_threshold_tokens: 200000,
       input_price_above_threshold: undefined,
       output_price_above_threshold: undefined,
+      multiplier_enabled: false,
+      multiplier_mode: undefined,
+      shared_multiplier: undefined,
+      item_multipliers: {},
     })
 
     form.special.batch_input_price = 0.8

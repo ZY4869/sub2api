@@ -70,6 +70,8 @@ function createForm(overrides: Partial<BillingPricingLayerForm> = {}): BillingPr
       ...(overrides.special || {}),
     },
     tiered_enabled: false,
+    multiplier_enabled: false,
+    item_multipliers: {},
     ...overrides,
   }
 }
@@ -144,7 +146,9 @@ function mountView() {
                     cache_price: 0.3,
                     special_enabled: false,
                     special: {},
-                    tiered_enabled: false
+                    tiered_enabled: false,
+                    multiplier_enabled: false,
+                    item_multipliers: {}
                   }
                 })"
               >
@@ -229,7 +233,7 @@ describe('BillingPricingView', () => {
     }))
   })
 
-  it('persists page size changes and expands the selected provider in grid mode quick filters', async () => {
+  it('persists page size changes and opens provider worksets from grid cards', async () => {
     const wrapper = mountView()
     await flushPromises()
 
@@ -247,16 +251,15 @@ describe('BillingPricingView', () => {
 
     wrapper.getComponent(BillingPricingModeToggle).vm.$emit('update:modelValue', 'grid')
     await flushPromises()
-    await wrapper.get('[data-testid="provider-quick-filter-openai"]').trigger('click')
+    await wrapper.get('[data-testid="provider-grid-openai"]').trigger('click')
     await flushPromises()
 
-    const grid = wrapper.getComponent(BillingPricingProviderGrid)
-    expect(grid.props('expandedProvider')).toBe('openai')
     expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
       provider: 'openai',
       page: 1,
       page_size: 100,
     }))
+    expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['openai-model'])
   })
 
   it('loads pricing details when opening the editor from list mode', async () => {
@@ -307,7 +310,7 @@ describe('BillingPricingView', () => {
       'openai',
     ])
 
-    grid.vm.$emit('toggle-provider', 'anthropic')
+    grid.vm.$emit('open-provider', 'anthropic')
     await flushPromises()
 
     expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -336,6 +339,8 @@ describe('BillingPricingView', () => {
         special_enabled: false,
         special: {},
         tiered_enabled: false,
+        multiplier_enabled: false,
+        item_multipliers: {},
       },
       currency: 'CNY',
     })
