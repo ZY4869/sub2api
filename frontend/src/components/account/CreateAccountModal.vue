@@ -213,6 +213,7 @@
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="apiKeyBaseUrl"
           v-model:api-key="apiKeyValue"
+          v-model:actual-model-locked="actualModelLocked"
           v-model:model-scope-mode="modelRestrictionMode"
           v-model:allowed-models="allowedModels"
           v-model:gemini-tier-ai-studio="geminiTierAIStudio"
@@ -226,6 +227,7 @@
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
           :show-gemini-tier="shouldPersistGeminiTierId"
+          :show-actual-model-lock="true"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -292,7 +294,7 @@
 
         <AccountCustomErrorCodesEditor
           :state="customErrorCodesState"
-          :error-code-options="commonErrorCodes"
+          :error-code-options="commonErrorCodeOptions"
           :show-error="showFormError"
           :show-info="showFormInfo"
         />
@@ -378,6 +380,7 @@
 
       <AccountModelScopeEditor
         v-if="(accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity'"
+        v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
         :mode="modelRestrictionMode"
@@ -385,6 +388,7 @@
         :model-mappings="modelMappings"
         :preset-mappings="presetMappings"
         :get-mapping-key="getModelMappingKey"
+        :show-actual-model-lock="true"
         @update:mode="modelRestrictionMode = $event"
         @update:allowedModels="allowedModels = $event"
         @add-mapping="addModelMapping"
@@ -557,7 +561,7 @@ import { invalidateModelRegistry } from '@/stores/modelRegistry'
 import {
   getPresetMappingsByPlatform,
   getModelsByPlatform,
-  commonErrorCodes,
+  createCommonErrorCodeOptions,
   buildModelMappingObject,
   fetchAntigravityDefaultMappings
 } from '@/composables/useModelWhitelist'
@@ -805,6 +809,7 @@ const batchArchiveBillingMode = ref<GoogleBatchArchiveBillingMode>(defaultGoogle
 const batchArchiveDownloadPriceUSD = ref(defaultGoogleBatchArchiveState.downloadPriceUSD)
 const allowVertexBatchOverflow = ref(defaultGoogleBatchArchiveState.allowVertexBatchOverflow)
 const acceptAIStudioBatchOverflow = ref(defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow)
+const actualModelLocked = ref(true)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -1027,6 +1032,7 @@ const openaiResponsesWebSocketV2Mode = computed({
 const openAIWSModeConcurrencyHintKey = computed(() =>
   resolveOpenAIWSModeConcurrencyHintKey(openaiResponsesWebSocketV2Mode.value)
 )
+const commonErrorCodeOptions = computed(() => createCommonErrorCodeOptions(t))
 
 const isOpenAIModelRestrictionDisabled = computed(() =>
   effectivePlatform.value === 'openai' && openaiPassthroughEnabled.value
@@ -1236,6 +1242,7 @@ watch(
   () => form.platform,
   (newPlatform) => {
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
+    actualModelLocked.value = true
     allowedModels.value = []
     manualModels.value = []
     resolvedUpstream.value = null
@@ -1270,7 +1277,10 @@ watch(
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       autoImportModels.value = false
+      baiduDocumentAIAsyncBearerToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
+      baiduDocumentAIDirectToken.value = ''
+      baiduDocumentAIDirectApiUrlsText.value = ''
     } else {
       baiduDocumentAIAsyncBearerToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
@@ -1610,6 +1620,7 @@ const { resetForm } = useCreateAccountReset({
   batchArchiveDownloadPriceUSD,
   allowVertexBatchOverflow,
   acceptAIStudioBatchOverflow,
+  actualModelLocked,
   modelMappings,
   modelRestrictionMode,
   allowedModels,

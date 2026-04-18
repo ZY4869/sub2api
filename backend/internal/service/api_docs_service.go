@@ -13,6 +13,11 @@ var ErrAPIDocsEmptyContent = infraerrors.BadRequest(
 	"api docs markdown cannot be empty",
 )
 
+var ErrAPIDocsInvalidPage = infraerrors.BadRequest(
+	"API_DOCS_PAGE_INVALID",
+	"api docs page is invalid",
+)
+
 type APIDocsDocument struct {
 	EffectiveContent string
 	DefaultContent   string
@@ -32,33 +37,132 @@ func (s *APIDocsService) GetDefaultContent() string {
 }
 
 func (s *APIDocsService) GetEffectiveContent(ctx context.Context) (string, error) {
-	override, hasOverride, err := s.loadOverride(ctx)
+	document, err := s.GetDocument(ctx)
 	if err != nil {
 		return "", err
 	}
-	if hasOverride {
-		return override, nil
-	}
-	return s.GetDefaultContent(), nil
+	return document.EffectiveContent, nil
 }
 
 func (s *APIDocsService) GetDocument(ctx context.Context) (*APIDocsDocument, error) {
 	defaultContent := s.GetDefaultContent()
-	override, hasOverride, err := s.loadOverride(ctx)
+	defaultDoc := parseAPIDocsDocument(defaultContent)
+	legacyOverride, hasLegacyOverride, err := s.loadOverride(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	document := &APIDocsDocument{
-		DefaultContent: defaultContent,
-		HasOverride:    hasOverride,
+	pageOverrides, err := s.loadPageOverrides(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if hasOverride {
-		document.EffectiveContent = override
-	} else {
-		document.EffectiveContent = defaultContent
+
+	if len(pageOverrides) == 0 {
+		if hasLegacyOverride {
+			return &APIDocsDocument{
+				EffectiveContent: legacyOverride,
+				DefaultContent:   defaultContent,
+				HasOverride:      true,
+			}, nil
+		}
+		return &APIDocsDocument{
+			EffectiveContent: defaultContent,
+			DefaultContent:   defaultContent,
+			HasOverride:      false,
+		}, nil
 	}
-	return document, nil
+
+	legacyDoc := parseAPIDocsDocument(legacyOverride)
+	title := firstNonEmptyString(defaultDoc.Title, defaultAPIDocsTitleFallback)
+	if hasLegacyOverride && strings.TrimSpace(legacyDoc.Title) != "" {
+		title = legacyDoc.Title
+	}
+
+	pages := make(map[string]string, len(apiDocsPageOrder))
+	hasDiff := false
+	for _, pageID := range apiDocsPageOrder {
+		pageBody := defaultDoc.Pages[pageID]
+		if hasLegacyOverride {
+			if legacyBody, ok := legacyDoc.Pages[pageID]; ok {
+				pageBody = legacyBody
+			}
+		}
+		if overrideSection, ok := pageOverrides[pageID]; ok {
+			overrideDoc := parseAPIDocsDocument(overrideSection)
+			if overrideBody, exists := overrideDoc.Pages[pageID]; exists {
+				pageBody = overrideBody
+			}
+			if overrideTitle := strings.TrimSpace(overrideDoc.Title); overrideTitle != "" {
+				title = overrideTitle
+			}
+		}
+		pages[pageID] = pageBody
+		if pageBody != defaultDoc.Pages[pageID] {
+			hasDiff = true
+		}
+	}
+	if !hasDiff && title == defaultDoc.Title {
+		return &APIDocsDocument{
+			EffectiveContent: defaultContent,
+			DefaultContent:   defaultContent,
+			HasOverride:      false,
+		}, nil
+	}
+
+	return &APIDocsDocument{
+		EffectiveContent: buildAPIDocsDocument(title, pages),
+		DefaultContent:   defaultContent,
+		HasOverride:      hasDiff || title != defaultDoc.Title,
+	}, nil
+}
+
+func (s *APIDocsService) GetPageDocument(ctx context.Context, pageID string) (*APIDocsDocument, error) {
+	normalizedPageID := normalizeAPIDocsPageID(pageID)
+	if normalizedPageID == "" {
+		return nil, ErrAPIDocsInvalidPage
+	}
+
+	defaultDoc := parseAPIDocsDocument(s.GetDefaultContent())
+	defaultSection := buildAPIDocsPageSection(defaultDoc.Title, normalizedPageID, defaultDoc.Pages[normalizedPageID])
+
+	pageOverrides, err := s.loadPageOverrides(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if overrideSection, ok := pageOverrides[normalizedPageID]; ok {
+		effectiveSection := normalizeAPIDocsPageSectionContent(normalizedPageID, defaultDoc.Title, overrideSection)
+		if effectiveSection == "" {
+			effectiveSection = defaultSection
+		}
+		return &APIDocsDocument{
+			EffectiveContent: sectionOrDefault(effectiveSection, defaultSection),
+			DefaultContent:   defaultSection,
+			HasOverride:      effectiveSection != defaultSection,
+		}, nil
+	}
+
+	legacyOverride, hasLegacyOverride, err := s.loadOverride(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if hasLegacyOverride {
+		legacyDoc := parseAPIDocsDocument(legacyOverride)
+		if legacyBody, ok := legacyDoc.Pages[normalizedPageID]; ok {
+			effectiveSection := buildAPIDocsPageSection(legacyDoc.Title, normalizedPageID, legacyBody)
+			return &APIDocsDocument{
+				EffectiveContent: effectiveSection,
+				DefaultContent:   defaultSection,
+				HasOverride:      effectiveSection != defaultSection,
+			}, nil
+		}
+	}
+
+	return &APIDocsDocument{
+		EffectiveContent: defaultSection,
+		DefaultContent:   defaultSection,
+		HasOverride:      false,
+	}, nil
 }
 
 func (s *APIDocsService) SaveOverride(ctx context.Context, content string) error {
@@ -69,11 +173,39 @@ func (s *APIDocsService) SaveOverride(ctx context.Context, content string) error
 	return s.settingRepo.Set(ctx, SettingKeyAPIDocsMarkdown, normalized)
 }
 
+func (s *APIDocsService) SavePageOverride(ctx context.Context, pageID string, content string) error {
+	normalizedPageID := normalizeAPIDocsPageID(pageID)
+	if normalizedPageID == "" {
+		return ErrAPIDocsInvalidPage
+	}
+
+	defaultDoc := parseAPIDocsDocument(s.GetDefaultContent())
+	normalized := normalizeAPIDocsPageSectionContent(normalizedPageID, defaultDoc.Title, content)
+	if normalized == "" {
+		return ErrAPIDocsEmptyContent
+	}
+	return s.settingRepo.Set(ctx, apiDocsPageSettingKey(normalizedPageID), normalized)
+}
+
 func (s *APIDocsService) ClearOverride(ctx context.Context) error {
-	if err := s.settingRepo.Delete(ctx, SettingKeyAPIDocsMarkdown); err != nil && !errors.Is(err, ErrSettingNotFound) {
-		return err
+	keys := append([]string{SettingKeyAPIDocsMarkdown}, apiDocsPageKeys()...)
+	for _, key := range keys {
+		if err := s.settingRepo.Delete(ctx, key); err != nil && !errors.Is(err, ErrSettingNotFound) {
+			return err
+		}
 	}
 	return nil
+}
+
+func (s *APIDocsService) ClearPageOverride(ctx context.Context, pageID string) error {
+	normalizedPageID := normalizeAPIDocsPageID(pageID)
+	if normalizedPageID == "" {
+		return ErrAPIDocsInvalidPage
+	}
+
+	defaultDoc := parseAPIDocsDocument(s.GetDefaultContent())
+	defaultSection := buildAPIDocsPageSection(defaultDoc.Title, normalizedPageID, defaultDoc.Pages[normalizedPageID])
+	return s.settingRepo.Set(ctx, apiDocsPageSettingKey(normalizedPageID), defaultSection)
 }
 
 func (s *APIDocsService) loadOverride(ctx context.Context) (string, bool, error) {
@@ -92,6 +224,34 @@ func (s *APIDocsService) loadOverride(ctx context.Context) (string, bool, error)
 	return normalized, true, nil
 }
 
+func (s *APIDocsService) loadPageOverrides(ctx context.Context) (map[string]string, error) {
+	overrides := make(map[string]string, len(apiDocsPageOrder))
+	defaultDoc := parseAPIDocsDocument(s.GetDefaultContent())
+	for _, pageID := range apiDocsPageOrder {
+		value, err := s.settingRepo.GetValue(ctx, apiDocsPageSettingKey(pageID))
+		if err != nil {
+			if errors.Is(err, ErrSettingNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		normalized := normalizeAPIDocsPageSectionContent(pageID, defaultDoc.Title, value)
+		if normalized == "" {
+			continue
+		}
+		overrides[pageID] = normalized
+	}
+	return overrides, nil
+}
+
+func apiDocsPageKeys() []string {
+	keys := make([]string, 0, len(apiDocsPageOrder))
+	for _, pageID := range apiDocsPageOrder {
+		keys = append(keys, apiDocsPageSettingKey(pageID))
+	}
+	return keys
+}
+
 func normalizeAPIDocsContent(content string) string {
 	normalized := strings.ReplaceAll(content, "\r\n", "\n")
 	normalized = strings.TrimSpace(normalized)
@@ -99,4 +259,11 @@ func normalizeAPIDocsContent(content string) string {
 		return ""
 	}
 	return normalized + "\n"
+}
+
+func sectionOrDefault(content string, fallback string) string {
+	if strings.TrimSpace(content) == "" {
+		return fallback
+	}
+	return content
 }

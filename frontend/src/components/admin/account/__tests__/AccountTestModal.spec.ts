@@ -379,6 +379,34 @@ describe('AccountTestModal', () => {
     ]])
   })
 
+  it('surfaces TEST_MODEL_NOT_ALLOWED style errors for manual out-of-range models', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: {
+        get: vi.fn(() => 'application/json')
+      },
+      json: vi.fn().mockResolvedValue({
+        message: 'selected model is not allowed for this account'
+      })
+    }) as any
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    await wrapper.get('[data-test="model-input-mode-manual"]').trigger('click')
+    await wrapper.get('input[data-test="manual-model-id"]').setValue('outside-allowed-model')
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('selected model is not allowed for this account')
+  })
+
   it('persists the selected test mode and submits health_check when switched', async () => {
     const wrapper = mountModal()
     await wrapper.setProps({ show: true })

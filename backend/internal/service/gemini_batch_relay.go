@@ -399,8 +399,13 @@ func googleBatchAccountEligible(account *Account, target googleBatchTarget, sele
 			return false
 		}
 		if account.IsGeminiVertexAI() && selector != nil {
-			return strings.EqualFold(strings.TrimSpace(account.GetGeminiVertexProjectID()), strings.TrimSpace(selector.projectID)) &&
-				strings.EqualFold(normalizeVertexLocation(account.GetGeminiVertexLocation()), normalizeVertexLocation(selector.location))
+			if strings.TrimSpace(buildVertexBatchPredictionJobsPath(account)) == "" {
+				return false
+			}
+			if strings.TrimSpace(selector.projectID) != "" || strings.TrimSpace(selector.location) != "" {
+				return strings.EqualFold(strings.TrimSpace(account.GetGeminiVertexProjectID()), strings.TrimSpace(selector.projectID)) &&
+					strings.EqualFold(normalizeVertexLocation(account.GetGeminiVertexLocation()), normalizeVertexLocation(selector.location))
+			}
 		}
 		return true
 	default:

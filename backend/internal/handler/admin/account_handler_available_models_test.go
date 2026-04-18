@@ -44,7 +44,7 @@ func decodeAvailableModelsResponse(t *testing.T, rec *httptest.ResponseRecorder)
 	return resp.Data
 }
 
-func TestAccountHandlerGetAvailableModels_IgnoresAccountLevelMappingsAndScopes(t *testing.T) {
+func TestAccountHandlerGetAvailableModels_AppliesAccountLevelMappingsAndScopes(t *testing.T) {
 	repo := service.NewModelRegistryService(newTestSettingRepo())
 	_, err := repo.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
 		ID:          "custom-shared-b",
@@ -110,8 +110,10 @@ func TestAccountHandlerGetAvailableModels_IgnoresAccountLevelMappingsAndScopes(t
 
 	modelsA := decodeAvailableModelsResponse(t, recA)
 	modelsB := decodeAvailableModelsResponse(t, recB)
-	require.Equal(t, modelsA, modelsB)
-	require.Equal(t, []string{"custom-shared-a", "custom-shared-b"}, []string{modelsA[0].ID, modelsA[1].ID})
+	require.Len(t, modelsA, 1)
+	require.Len(t, modelsB, 1)
+	require.Equal(t, "custom-shared-a", modelsA[0].ID)
+	require.Equal(t, "custom-shared-b", modelsB[0].ID)
 }
 
 func TestAccountHandlerGetAvailableModels_DedupesCanonicalModelsAndSortsDeprecatedLast(t *testing.T) {

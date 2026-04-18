@@ -1,5 +1,38 @@
 <template>
   <div>
+    <div
+      v-if="showActualModelLock"
+      class="mb-3 flex items-center justify-between gap-3 rounded-lg border border-purple-200 bg-white/70 px-3 py-3 dark:border-purple-900/40 dark:bg-dark-800/60"
+    >
+      <div class="min-w-0">
+        <div class="text-sm font-medium text-purple-900 dark:text-purple-100">
+          {{ t('admin.accounts.actualModelLockLabel') }}
+        </div>
+        <p class="mt-1 text-xs text-purple-700 dark:text-purple-300">
+          {{
+            actualModelLocked
+              ? t('admin.accounts.actualModelLockHintLocked')
+              : t('admin.accounts.actualModelLockHintUnlocked')
+          }}
+        </p>
+      </div>
+      <button
+        type="button"
+        :class="[
+          'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+          actualModelLocked ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+        ]"
+        @click="actualModelLocked = !actualModelLocked"
+      >
+        <span
+          :class="[
+            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+            actualModelLocked ? 'translate-x-5' : 'translate-x-0'
+          ]"
+        />
+      </button>
+    </div>
+
     <div class="mb-3 rounded-lg bg-purple-50 p-3 dark:bg-purple-900/20">
       <p class="text-xs text-purple-700 dark:text-purple-400">
         {{ t('admin.accounts.mapRequestModels') }}
@@ -9,15 +42,22 @@
       </p>
       <div class="mt-2 flex flex-wrap gap-2">
         <code class="rounded bg-purple-100 px-2 py-1 text-[11px] text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
-          gpt-5* → gpt-5.4
+          gpt-5* -> gpt-5.4
         </code>
         <code class="rounded bg-purple-100 px-2 py-1 text-[11px] text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
-          claude-sonnet-4* → claude-sonnet-4.5
+          claude-sonnet-4* -> claude-sonnet-4.5
         </code>
         <code class="rounded bg-purple-100 px-2 py-1 text-[11px] text-purple-800 dark:bg-purple-900/30 dark:text-purple-200">
-          gemini-3* → gemini-3.1-flash
+          gemini-3* -> gemini-3.1-flash
         </code>
       </div>
+    </div>
+
+    <div
+      v-if="showActualModelLock && actualModelLocked && modelMappings.length === 0"
+      class="mb-3 rounded-lg border border-dashed border-purple-300 bg-purple-50/70 px-4 py-3 text-sm text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300"
+    >
+      {{ t('admin.accounts.modelMappingSelectionDrivenHint') }}
     </div>
 
     <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
@@ -43,12 +83,16 @@
             v-model="mapping.to"
             type="text"
             :class="[
-              'input flex-1',
+              actualModelLocked
+                ? 'input flex-1 cursor-not-allowed bg-gray-100/90 text-gray-500 dark:bg-dark-900/60 dark:text-gray-400'
+                : 'input flex-1',
               hasWildcardTargetError(mapping.to) ? 'border-red-500 dark:border-red-500' : ''
             ]"
             :placeholder="t('admin.accounts.actualModel')"
+            :readonly="actualModelLocked"
           />
           <button
+            v-if="!actualModelLocked"
             type="button"
             class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
             @click="emit('remove-mapping', index)"
@@ -74,6 +118,7 @@
     </div>
 
     <button
+      v-if="!actualModelLocked"
       type="button"
       class="mb-3 w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-2 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-dark-500 dark:text-gray-400 dark:hover:border-dark-400 dark:hover:text-gray-300"
       @click="emit('add-mapping')"
@@ -81,7 +126,7 @@
       + {{ t('admin.accounts.addMapping') }}
     </button>
 
-    <div class="flex flex-wrap gap-2">
+    <div v-if="!actualModelLocked" class="flex flex-wrap gap-2">
       <button
         v-for="preset in presetMappings"
         :key="`${preset.label}-${preset.from}-${preset.to}`"
@@ -106,19 +151,22 @@ interface Props {
   modelMappings: ModelMapping[]
   presetMappings: ModelRegistryPreset[]
   getMappingKey: (mapping: ModelMapping) => string
+  showActualModelLock?: boolean
 }
 
-defineProps<Props>()
+withDefaults(defineProps<Props>(), {
+  showActualModelLock: false
+})
 
 const emit = defineEmits<{
   'add-mapping': []
   'remove-mapping': [index: number]
   'add-preset': [payload: { from: string; to: string }]
 }>()
+const actualModelLocked = defineModel<boolean>('actualModelLocked', { default: true })
 
 const { t } = useI18n()
 
 const hasWildcardSourceError = (value: string) => Boolean(value.trim()) && !isValidWildcardPattern(value.trim())
 const hasWildcardTargetError = (value: string) => value.includes('*')
 </script>
-

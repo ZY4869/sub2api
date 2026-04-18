@@ -138,43 +138,11 @@
         </div>
 
         <div
-          v-if="isSelected(model.id)"
-          class="mt-3 space-y-2 rounded-xl border border-white/60 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5"
+          v-if="isSelected(model.id) && model.availability === 'uncallable'"
+          class="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
           @click.stop
         >
-          <div
-            v-if="model.availability === 'uncallable'"
-            class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
-          >
-            {{ t('admin.accounts.apiKeyProbe.selectedUncallableWarning') }}
-          </div>
-          <div class="grid gap-2 md:grid-cols-2">
-            <label class="space-y-1 text-left">
-              <span class="text-[11px] font-medium uppercase tracking-wide opacity-70">
-                {{ t('admin.accounts.requestModel') }}
-              </span>
-              <input
-                :value="currentAlias(model.id)"
-                type="text"
-                class="input h-10 bg-white/90 text-sm dark:bg-dark-900/60"
-                :placeholder="model.id"
-                @input="updateModelAlias(model, ($event.target as HTMLInputElement).value)"
-                @click.stop
-              />
-            </label>
-            <label class="space-y-1 text-left">
-              <span class="text-[11px] font-medium uppercase tracking-wide opacity-70">
-                {{ t('admin.accounts.actualModel') }}
-              </span>
-              <input
-                :value="model.id"
-                type="text"
-                class="input h-10 cursor-not-allowed bg-gray-100/90 text-sm text-gray-500 dark:bg-dark-900/60 dark:text-gray-400"
-                readonly
-                @click.stop
-              />
-            </label>
-          </div>
+          {{ t('admin.accounts.apiKeyProbe.selectedUncallableWarning') }}
         </div>
       </button>
     </div>
@@ -243,7 +211,6 @@ const appStore = useAppStore()
 const probing = ref(false)
 const probeSource = ref('')
 const probeNotice = ref('')
-const aliasDrafts = ref<Record<string, string>>({})
 const hasInitializedFromMappings = ref(false)
 const isVertexSource = () =>
   props.platform === 'gemini' && isGeminiVertexSourceCredentials(props.credentials)
@@ -256,14 +223,7 @@ watch(
   ([modelCount, mappingCount]) => {
     if (hasInitializedFromMappings.value || modelCount > 0 || mappingCount === 0) return
     hasInitializedFromMappings.value = true
-    const nextDrafts = { ...aliasDrafts.value }
     const seen = new Set<string>()
-    for (const row of modelMappings.value) {
-      const target = row.to.trim()
-      if (!target || Object.prototype.hasOwnProperty.call(nextDrafts, target)) continue
-      nextDrafts[target] = row.from
-    }
-    aliasDrafts.value = nextDrafts
     probedModels.value = modelMappings.value
       .map((row) => row.to.trim())
       .filter((target) => target && !seen.has(target) && (seen.add(target), true))
@@ -364,23 +324,16 @@ const resolveProviderLabel = (model: ProtocolGatewayProbeModel) => {
 const resolveDisplayName = (model: ProtocolGatewayProbeModel) =>
   String(model.display_name || '').trim() || formatModelDisplayName(model.id) || model.id
 
-const currentAlias = (modelId: string) => {
-  if (Object.prototype.hasOwnProperty.call(aliasDrafts.value, modelId)) {
-    return aliasDrafts.value[modelId]
-  }
-  return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? defaultAlias(modelId)
-}
-
 const collectAliasByTarget = () =>
   new Map(
     modelMappings.value
-      .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
+      .map((row) => [row.to.trim(), row.from] as const)
       .filter(([target]) => Boolean(target))
   )
 
 const buildMappingsForModelIds = (modelIds: string[], aliasByTarget = collectAliasByTarget()) =>
   modelIds.map((modelId) => ({
-    from: aliasByTarget.get(modelId) || currentAlias(modelId),
+    from: aliasByTarget.has(modelId) ? aliasByTarget.get(modelId) ?? '' : defaultAlias(modelId),
     to: modelId
   }))
 
@@ -388,18 +341,6 @@ const syncSelectedModels = (modelIds: string[], aliasByTarget = collectAliasByTa
   const nextAllowedModels = [...new Set(modelIds.map((item) => item.trim()).filter(Boolean))]
   allowedModels.value = nextAllowedModels
   modelMappings.value = buildMappingsForModelIds(nextAllowedModels, aliasByTarget)
-}
-
-const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
-  const index = modelMappings.value.findIndex((row) => row.to.trim() === model.id)
-  const alias = currentAlias(model.id)
-  if (index >= 0) {
-    const nextMappings = [...modelMappings.value]
-    nextMappings[index] = { from: alias, to: model.id }
-    modelMappings.value = nextMappings
-    return
-  }
-  modelMappings.value = [...modelMappings.value, { from: alias, to: model.id }]
 }
 
 const toggleModel = (model: ProtocolGatewayProbeModel) => {
@@ -411,14 +352,6 @@ const toggleModel = (model: ProtocolGatewayProbeModel) => {
   }
   syncSelectedModels(
     probedModels.value.filter((item) => nextSelected.has(item.id)).map((item) => item.id)
-  )
-}
-
-const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
-  aliasDrafts.value = { ...aliasDrafts.value, [model.id]: value }
-  ensureMappingForModel(model)
-  modelMappings.value = modelMappings.value.map((row) =>
-    row.to.trim() === model.id ? { from: value, to: model.id } : row
   )
 }
 

@@ -27,6 +27,9 @@ func (h *GatewayHandler) fetchGeminiUpstreamModelsList(
 	if h == nil || h.gatewayService == nil || h.geminiNativeService == nil || c == nil {
 		return nil, false
 	}
+	if geminiPublicEntriesRequireProjectedMetadata(visibleEntries) {
+		return nil, false
+	}
 	account, listTokenSafe, err := h.gatewayService.ResolveGeminiPublicModelMetadataAccount(c.Request.Context(), apiKey, effectivePlatform, "")
 	if err != nil || account == nil || !listTokenSafe {
 		return nil, false
@@ -124,6 +127,9 @@ func (h *GatewayHandler) fetchGeminiUpstreamModelDetail(
 	entry service.APIKeyPublicModelEntry,
 ) (*service.UpstreamHTTPResult, bool) {
 	if h == nil || h.gatewayService == nil || h.geminiNativeService == nil || c == nil {
+		return nil, false
+	}
+	if geminiPublicEntryRequiresProjectedMetadata(entry) {
 		return nil, false
 	}
 	modelID := strings.TrimSpace(firstNonEmptyString(entry.SourceID, entry.PublicID))

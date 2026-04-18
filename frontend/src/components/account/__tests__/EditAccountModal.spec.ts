@@ -80,6 +80,14 @@ const BaseDialogStub = defineComponent({
 const AccountApiKeyBasicSettingsEditorStub = defineComponent({
   name: 'AccountApiKeyBasicSettingsEditor',
   props: {
+    actualModelLocked: {
+      type: Boolean,
+      default: true
+    },
+    modelMappings: {
+      type: Array,
+      default: () => []
+    },
     allowedModels: {
       type: Array,
       default: () => []
@@ -92,6 +100,7 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
   emits: ['update:allowedModels'],
   template: `
     <div>
+      <span data-testid="actual-model-locked-prop">{{ actualModelLocked }}</span>
       <button
         type="button"
         data-testid="rewrite-to-snapshot"
@@ -102,7 +111,39 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       <span data-testid="model-whitelist-value">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
+      <span data-testid="model-mappings-prop">
+        {{ Array.isArray(modelMappings) ? JSON.stringify(modelMappings) : '' }}
+      </span>
       <span data-testid="show-gemini-tier-prop">{{ showGeminiTier }}</span>
+    </div>
+  `
+})
+
+const AccountApiKeyModelProbeEditorStub = defineComponent({
+  name: 'AccountApiKeyModelProbeEditor',
+  emits: ['update:allowedModels', 'update:modelMappings'],
+  template: `
+    <div>
+      <button
+        type="button"
+        data-testid="probe-select-models"
+        @click="
+          $emit('update:allowedModels', ['friendly-gpt']);
+          $emit('update:modelMappings', [{ from: 'friendly-gpt', to: 'gpt-5.4' }])
+        "
+      >
+        select models
+      </button>
+      <button
+        type="button"
+        data-testid="probe-clear-models"
+        @click="
+          $emit('update:allowedModels', []);
+          $emit('update:modelMappings', [])
+        "
+      >
+        clear models
+      </button>
     </div>
   `
 })
@@ -119,7 +160,14 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
       default: ''
     }
   },
-  emits: ['update:gatewayTestProvider', 'update:gatewayTestModelId', 'update:gateway-test-provider', 'update:gateway-test-model-id'],
+  emits: [
+    'update:allowedModels',
+    'update:modelMappings',
+    'update:gatewayTestProvider',
+    'update:gatewayTestModelId',
+    'update:gateway-test-provider',
+    'update:gateway-test-model-id'
+  ],
   template: `
     <div>
       <span data-testid="gateway-test-provider-prop">{{ gatewayTestProvider }}</span>
@@ -135,6 +183,20 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
         "
       >
         set defaults
+      </button>
+      <button
+        type="button"
+        data-testid="clear-gateway-selection-and-defaults"
+        @click="
+          $emit('update:allowedModels', []);
+          $emit('update:modelMappings', []);
+          $emit('update:gatewayTestProvider', '');
+          $emit('update:gateway-test-provider', '');
+          $emit('update:gatewayTestModelId', '');
+          $emit('update:gateway-test-model-id', '')
+        "
+      >
+        clear defaults
       </button>
     </div>
   `
@@ -158,6 +220,39 @@ const AccountProtocolGatewayOpenAIRequestFormatEditorStub = defineComponent({
         @click="$emit('update:value', '/v1/responses')"
       >
         set openai request format
+      </button>
+    </div>
+  `
+})
+
+const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
+  name: 'AccountBaiduDocumentAICredentialsEditor',
+  props: {
+    asyncBaseUrl: {
+      type: String,
+      default: ''
+    },
+    directApiUrlsText: {
+      type: String,
+      default: ''
+    }
+  },
+  emits: [
+    'update:async-bearer-token',
+    'update:async-base-url',
+    'update:direct-token',
+    'update:direct-api-urls-text'
+  ],
+  template: `
+    <div>
+      <span data-testid="baidu-async-base-url-prop">{{ asyncBaseUrl }}</span>
+      <span data-testid="baidu-direct-api-urls-prop">{{ directApiUrlsText }}</span>
+      <button
+        type="button"
+        data-testid="set-baidu-async-token"
+        @click="$emit('update:async-bearer-token', 'new-async-token')"
+      >
+        set baidu async token
       </button>
     </div>
   `
@@ -364,6 +459,33 @@ function buildProtocolGatewayOpenAIAccount() {
   } as any
 }
 
+function buildBaiduDocumentAIAccount() {
+  return {
+    id: 8,
+    name: 'Baidu OCR',
+    notes: '',
+    platform: 'baidu_document_ai',
+    type: 'apikey',
+    credentials: {
+      async_bearer_token: 'existing-async-token',
+      async_base_url: 'https://aistudio.baidu.com/async',
+      direct_token: 'existing-direct-token',
+      direct_api_urls: {
+        'pp-ocrv5-server': 'https://direct.baidu.com/ocr'
+      }
+    },
+    extra: {},
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function mountModal(account = buildAccount()) {
   return mount(EditAccountModal, {
     props: {
@@ -377,7 +499,8 @@ function mountModal(account = buildAccount()) {
       stubs: {
         BaseDialog: BaseDialogStub,
         AccountApiKeyBasicSettingsEditor: AccountApiKeyBasicSettingsEditorStub,
-        AccountApiKeyModelProbeEditor: true,
+        AccountApiKeyModelProbeEditor: AccountApiKeyModelProbeEditorStub,
+        AccountBaiduDocumentAICredentialsEditor: AccountBaiduDocumentAICredentialsEditorStub,
         AccountProtocolGatewayModelProbeEditor: AccountProtocolGatewayModelProbeEditorStub,
         AccountProtocolGatewayOpenAIRequestFormatEditor: AccountProtocolGatewayOpenAIRequestFormatEditorStub,
         AccountProtocolGatewayBatchEditor: true,
@@ -573,6 +696,32 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBe('gpt-5.4')
   })
 
+  it('drops gateway test defaults from edit payloads after the selected gateway models are cleared', async () => {
+    const account = buildProtocolGatewayGeminiAccount()
+    account.extra.gateway_test_provider = 'anthropic'
+    account.extra.gateway_test_model_id = 'claude-sonnet-4.5'
+
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="gateway-test-provider-prop"]').text()).toBe('anthropic')
+    expect(wrapper.get('[data-testid="gateway-test-model-prop"]').text()).toBe('claude-sonnet-4.5')
+
+    await wrapper.get('[data-testid="clear-gateway-selection-and-defaults"]').trigger('click')
+    expect(wrapper.get('[data-testid="gateway-test-provider-prop"]').text()).toBe('')
+    expect(wrapper.get('[data-testid="gateway-test-model-prop"]').text()).toBe('')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_provider).toBeUndefined()
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBeUndefined()
+  })
+
   it('rehydrates and persists the protocol gateway OpenAI request format', async () => {
     const account = buildProtocolGatewayOpenAIAccount()
     updateAccountMock.mockReset()
@@ -589,5 +738,67 @@ describe('EditAccountModal', () => {
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_openai_request_format).toBe('/v1/responses')
+  })
+
+  it('rehydrates baidu document ai editor fields and keeps existing tokens unless replaced', async () => {
+    const account = buildBaiduDocumentAIAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="baidu-async-base-url-prop"]').text()).toBe('https://aistudio.baidu.com/async')
+    expect(wrapper.get('[data-testid="baidu-direct-api-urls-prop"]').text()).toContain('pp-ocrv5-server')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials).toMatchObject({
+      async_bearer_token: 'existing-async-token',
+      async_base_url: 'https://aistudio.baidu.com/async',
+      direct_token: 'existing-direct-token',
+      direct_api_urls: {
+        'pp-ocrv5-server': 'https://direct.baidu.com/ocr'
+      }
+    })
+
+    updateAccountMock.mockReset()
+    await wrapper.get('[data-testid="set-baidu-async-token"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.async_bearer_token).toBe('new-async-token')
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.direct_token).toBe('existing-direct-token')
+  })
+
+  it('keeps mapping rows synchronized with probe selection changes for api key accounts', async () => {
+    const account = buildAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="model-whitelist-value"]').text()).toBe('gpt-5.2')
+    expect(wrapper.get('[data-testid="model-mappings-prop"]').text()).toBe('[]')
+
+    await wrapper.get('[data-testid="probe-select-models"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="model-whitelist-value"]').text()).toBe('friendly-gpt')
+    expect(wrapper.get('[data-testid="model-mappings-prop"]').text()).toContain('friendly-gpt')
+    expect(wrapper.get('[data-testid="actual-model-locked-prop"]').text()).toBe('true')
+
+    await wrapper.get('[data-testid="probe-clear-models"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="model-whitelist-value"]').text()).toBe('')
+    expect(wrapper.get('[data-testid="model-mappings-prop"]').text()).toBe('[]')
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toBeUndefined()
   })
 })

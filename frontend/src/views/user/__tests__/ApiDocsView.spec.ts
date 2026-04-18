@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ApiDocsView from '../ApiDocsView.vue'
 
 const routeState = vi.hoisted(() => ({
-  pageId: 'openai',
+  pageId: 'document-ai',
 }))
 
 const { getAPIDocs, copyToClipboard } = vi.hoisted(() => ({
@@ -55,26 +55,26 @@ const markdown = [
   '## common',
   '### 概览',
   '通用说明。',
-  '## openai',
-  '### Responses 规则',
-  '这里是 OpenAI 页面。',
+  '## document-ai',
+  '### 异步任务',
+  '这里是百度智能文档页面。',
   '#### Python',
   '```python',
-  'print("openai python")',
+  'print("document-ai python")',
   '```',
   '#### JavaScript',
   '```javascript',
-  'console.log("openai js")',
+  'console.log("document-ai js")',
   '```',
   '#### REST',
   '```bash',
-  'echo openai-rest',
+  'echo document-ai-rest',
   '```',
 ].join('\n')
 
 describe('ApiDocsView', () => {
   beforeEach(() => {
-    routeState.pageId = 'openai'
+    routeState.pageId = 'document-ai'
     getAPIDocs.mockReset()
     copyToClipboard.mockReset()
 
@@ -87,7 +87,7 @@ describe('ApiDocsView', () => {
         observe = vi.fn()
         disconnect = vi.fn()
         unobserve = vi.fn()
-      }
+      },
     )
   })
 
@@ -109,14 +109,16 @@ describe('ApiDocsView', () => {
     await flushPromises()
 
     expect(getAPIDocs).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('OpenAI 兼容')
-    expect(wrapper.text()).toContain('Responses 规则')
-    expect(wrapper.find('a[href="/api-docs/openai"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('百度智能文档')
+    expect(wrapper.text()).toContain('异步任务')
+    expect(wrapper.find('a[href="/api-docs/document-ai"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('ui.apiDocs.summary.languages.label')
+    expect(wrapper.text()).not.toContain('ui.apiDocs.summary.sync.label')
 
-    const jsTab = wrapper.findAll('button').find((button) => button.text() === 'Javascript')
+    const jsTab = wrapper.findAll('button').find((button) => button.text() === 'JavaScript')
     expect(jsTab).toBeTruthy()
     await jsTab!.trigger('click')
-    expect(wrapper.text()).toContain('console.log("openai js")')
+    expect(wrapper.findAll('.docs-code-line').length).toBeGreaterThan(0)
   })
 
   it('copies the effective markdown source', async () => {

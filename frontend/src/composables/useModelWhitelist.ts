@@ -13,6 +13,11 @@ export interface ModelOption {
   label: string;
 }
 
+export interface ErrorCodeOption {
+  value: number;
+  label: string;
+}
+
 export interface ModelPresetMapping {
   label: string;
   from: string;
@@ -216,7 +221,7 @@ const CAPABILITY_OVERRIDES: Record<string, ModelCapabilityDefinition> = {
   },
 };
 
-export const commonErrorCodes = [
+export const commonErrorCodes: ErrorCodeOption[] = [
   { value: 401, label: "Unauthorized" },
   { value: 403, label: "Forbidden" },
   { value: 429, label: "Rate Limit" },
@@ -225,6 +230,20 @@ export const commonErrorCodes = [
   { value: 503, label: "Unavailable" },
   { value: 529, label: "Overloaded" },
 ];
+
+export function createCommonErrorCodeOptions(
+  t: (key: string) => string,
+): ErrorCodeOption[] {
+  return [
+    { value: 401, label: t("admin.accounts.errorCodeLabels.unauthorized") },
+    { value: 403, label: t("admin.accounts.errorCodeLabels.forbidden") },
+    { value: 429, label: t("admin.accounts.errorCodeLabels.rateLimit") },
+    { value: 500, label: t("admin.accounts.errorCodeLabels.serverError") },
+    { value: 502, label: t("admin.accounts.errorCodeLabels.badGateway") },
+    { value: 503, label: t("admin.accounts.errorCodeLabels.unavailable") },
+    { value: 529, label: t("admin.accounts.errorCodeLabels.overloaded") },
+  ];
+}
 
 let antigravityDefaultMappingsCache: { from: string; to: string }[] | null =
   null;

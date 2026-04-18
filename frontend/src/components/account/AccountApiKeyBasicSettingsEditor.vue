@@ -27,10 +27,12 @@ const props = withDefaults(defineProps<{
   presetMappings: ModelRegistryPreset[]
   getMappingKey: (mapping: ModelMapping) => string
   showGeminiTier?: boolean
+  showActualModelLock?: boolean
 }>(), {
   modelScopeDisabled: false,
   skipModelScopeEditor: false,
   showGeminiTier: false,
+  showActualModelLock: false,
   gatewayProtocol: undefined,
   effectivePlatform: undefined
 })
@@ -46,6 +48,7 @@ const apiKey = defineModel<string>('apiKey', { required: true })
 const modelScopeMode = defineModel<'whitelist' | 'mapping'>('modelScopeMode', { required: true })
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
 const geminiTierAiStudio = defineModel<GeminiAIStudioTier>('geminiTierAiStudio')
+const actualModelLocked = defineModel<boolean>('actualModelLocked', { default: true })
 
 const { t } = useI18n()
 
@@ -139,6 +142,7 @@ const protocolGatewayBaseUrlWarning = computed(() => {
 
     <AccountModelScopeEditor
       v-if="showModelScopeEditor"
+      v-model:actual-model-locked="actualModelLocked"
       :disabled="modelScopeDisabled"
       :platform="resolvedEffectivePlatform"
       :mode="modelScopeMode"
@@ -146,6 +150,7 @@ const protocolGatewayBaseUrlWarning = computed(() => {
       :model-mappings="modelMappings"
       :preset-mappings="presetMappings"
       :get-mapping-key="getMappingKey"
+      :show-actual-model-lock="showActualModelLock"
       @update:mode="modelScopeMode = $event"
       @update:allowedModels="allowedModels = $event"
       @add-mapping="emit('add-mapping')"

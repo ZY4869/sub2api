@@ -145,7 +145,7 @@ describe('AccountApiKeyModelProbeEditor', () => {
     ])
   })
 
-  it('keeps only previously selected models after re-probing and preserves custom aliases', async () => {
+  it('keeps only previously selected models after re-probing and preserves custom aliases from existing mappings', async () => {
     probeModels
       .mockResolvedValueOnce({
         probe_source: 'vertex_express_catalog',
@@ -218,10 +218,13 @@ describe('AccountApiKeyModelProbeEditor', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('admin.accounts.apiKeyProbe.selectedUncallableWarning')
-
-    const aliasInput = wrapper.find('input[placeholder="gemini-2.0-flash"]')
-    expect(aliasInput.exists()).toBe(true)
-    await aliasInput.setValue('Flash Alias')
+    await wrapper.setProps({
+      allowedModels: ['gemini-2.0-flash', 'gemini-3.1-pro-preview'],
+      modelMappings: [
+        { from: 'Flash Alias', to: 'gemini-2.0-flash' },
+        { from: 'Vertex-gemini-3.1-pro-preview', to: 'gemini-3.1-pro-preview' }
+      ]
+    })
 
     await probeButton?.trigger('click')
     await flushPromises()
@@ -238,24 +241,20 @@ describe('AccountApiKeyModelProbeEditor', () => {
         { from: 'Vertex-gemini-3.1-pro-preview', to: 'gemini-3.1-pro-preview' }
       ]
     ])
+    expect(wrapper.find('input[placeholder="gemini-2.0-flash"]').exists()).toBe(false)
   })
 
-  it('keeps an empty alias blank instead of auto-filling the Vertex prefix', async () => {
+  it('hydrates probe cards from existing mappings without rendering inline alias inputs', async () => {
     const wrapper = createWrapper({
       allowedModels: ['gemini-2.0-flash'],
       modelMappings: [{ from: '', to: 'gemini-2.0-flash' }],
-      probedModels: [
-        {
-          id: 'gemini-2.0-flash',
-          display_name: 'Gemini 2.0 Flash',
-          registry_state: 'existing'
-        }
-      ]
+      probedModels: []
     })
 
-    const aliasInput = wrapper.find('input[placeholder="gemini-2.0-flash"]')
-    expect(aliasInput.exists()).toBe(true)
-    expect((aliasInput.element as HTMLInputElement).value).toBe('')
+    await flushPromises()
+
+    expect(wrapper.find('button[title="gemini-2.0-flash"]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="gemini-2.0-flash"]').exists()).toBe(false)
   })
 
   it('renders long model ids alongside source and status badges without truncating the text content', () => {

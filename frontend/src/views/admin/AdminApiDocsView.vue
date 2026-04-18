@@ -205,7 +205,7 @@ async function loadDocument() {
   loading.value = true
   errorMessage.value = ''
   try {
-    applyDocument(await adminDocsAPI.getAPIDocs())
+    applyDocument(await adminDocsAPI.getAPIDocs(routePageId.value))
   } catch (error: any) {
     errorMessage.value = error?.message || t('admin.apiDocs.loadFailed')
   } finally {
@@ -219,7 +219,7 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    applyDocument(await adminDocsAPI.updateAPIDocs(draft.value))
+    applyDocument(await adminDocsAPI.updateAPIDocs(draft.value, routePageId.value))
     appStore.showSuccess(t('admin.apiDocs.saveSuccess'))
   } catch (error: any) {
     appStore.showError(error?.message || t('admin.apiDocs.saveFailed'))
@@ -239,7 +239,7 @@ async function handleReset() {
   saving.value = true
   try {
     if (hasOverride.value) {
-      applyDocument(await adminDocsAPI.clearAPIDocsOverride())
+      applyDocument(await adminDocsAPI.clearAPIDocsOverride(routePageId.value))
     } else {
       draft.value = defaultContent.value
       effectiveContent.value = defaultContent.value
@@ -261,10 +261,17 @@ function openUserPage() {
   window.open(target, '_blank', 'noopener')
 }
 
+watch(
+  routePageId,
+  () => {
+    loadDocument().catch((error) => {
+      console.error('Failed to load admin API docs:', error)
+    })
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
   ensureValidTabQuery()
-  loadDocument().catch((error) => {
-    console.error('Failed to load admin API docs:', error)
-  })
 })
 </script>

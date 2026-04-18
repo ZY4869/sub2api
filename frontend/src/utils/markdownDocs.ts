@@ -1,5 +1,17 @@
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import {
+  buildCompletedCodeTabs,
+  inferStandaloneCodeLabel,
+  normalizeDocsTabLabel,
+  parseFenceMeta,
+  resolveDocsCodeLanguage,
+  type DocsCodeExampleGroup,
+  type DocsCodeExampleTab,
+  type DocsCodeLabel,
+} from './docsCodeExamples'
+
+export type { DocsCodeExampleGroup, DocsCodeExampleTab, DocsCodeLabel }
 
 export interface MarkdownHeading {
   id: string
@@ -14,28 +26,17 @@ export interface RenderedMarkdownDocument {
 
 export const DOCS_PAGE_ORDER = [
   'common',
+  'openai-native',
   'openai',
   'anthropic',
   'gemini',
   'grok',
   'antigravity',
   'vertex-batch',
+  'document-ai',
 ] as const
 
 export type DocsPageId = (typeof DOCS_PAGE_ORDER)[number]
-export type DocsCodeLabel = 'Python' | 'Javascript' | 'Rest'
-
-export interface DocsCodeExampleTab {
-  id: string
-  label: DocsCodeLabel
-  language: string
-  code: string
-}
-
-export interface DocsCodeExampleGroup {
-  id: string
-  tabs: DocsCodeExampleTab[]
-}
 
 export interface DocsMarkdownBlock {
   id: string
@@ -75,55 +76,64 @@ export interface ParsedDocsDocument {
 }
 
 export interface DocsPageMeta {
-  title: string
-  shortTitle: string
   description: string
+  shortTitle: string
+  title: string
 }
 
 export const DOCS_PAGE_META: Record<DocsPageId, DocsPageMeta> = {
   common: {
-    title: '通用接入',
+    description: '统一说明基础地址、认证优先级、错误格式、模型目录与接入建议。',
     shortTitle: '通用',
-    description: '统一说明基础地址、认证优先级、错误格式、限流语义与文档同步规则。'
+    title: '通用接入',
+  },
+  'openai-native': {
+    description: '聚焦 Responses、Responses 子资源、长连接建议与新项目优先使用的 OpenAI 原生入口。',
+    shortTitle: 'OpenAI 原生',
+    title: 'OpenAI 原生',
   },
   openai: {
+    description: '聚焦 chat/completions、历史别名路径，以及面向旧生态客户端的兼容接入建议。',
+    shortTitle: 'OpenAI 兼容',
     title: 'OpenAI 兼容',
-    shortTitle: 'OpenAI',
-    description: '聚焦 Responses、Chat Completions、图像与视频入口，以及兼容别名路径。'
   },
   anthropic: {
-    title: 'Anthropic / Claude',
+    description: '说明 Messages、count_tokens、保留请求头与 Claude 客户端约束。',
     shortTitle: 'Claude',
-    description: '说明 Messages、count_tokens、保留头透传，以及 Claude 风格客户端的接入约束。'
+    title: 'Anthropic / Claude',
   },
   gemini: {
-    title: 'Gemini 原生',
+    description: '集中展示 models、files、batches、live、authTokens 与 OpenAI compat。',
     shortTitle: 'Gemini',
-    description: '集中展示 models、files、upload/download、batches、live 与 OpenAI compat。'
+    title: 'Gemini 原生',
   },
   grok: {
-    title: 'Grok',
+    description: '整理 Grok 的 Responses、聊天、图像与视频能力。',
     shortTitle: 'Grok',
-    description: '整理聊天、responses、图像、视频等 Grok 专用或仅在 Grok 平台生效的能力。'
+    title: 'Grok',
   },
   antigravity: {
-    title: 'Antigravity',
+    description: '解释 Antigravity 强制前缀下的 Anthropic 与 Gemini 风格入口。',
     shortTitle: 'AG',
-    description: '解释 Antigravity 前缀下的 Anthropic 风格入口、Gemini 风格入口与能力边界。'
+    title: 'Antigravity',
   },
   'vertex-batch': {
-    title: 'Vertex / Batch',
+    description: '汇总 Vertex 模型动作、Batch Prediction Jobs 与 Google Batch Archive。',
     shortTitle: 'Vertex',
-    description: '汇总 Vertex Batch Prediction Jobs 与 Google Batch Archive 的特殊调用方式。'
-  }
+    title: 'Vertex / Batch',
+  },
+  'document-ai': {
+    description: '聚焦百度智能文档接口的模型能力、直连解析、异步任务与权限限制。',
+    shortTitle: '百度文档',
+    title: '百度智能文档',
+  },
 }
 
-const DOCS_TAB_LABELS: readonly DocsCodeLabel[] = ['Python', 'Javascript', 'Rest']
-const DOCS_EMPTY_PAGE_TEXT = '> 当前协议页尚未写入内容，请在管理页补齐对应章节。'
+const DOCS_EMPTY_PAGE_TEXT = '> 当前协议页尚未写入内容，请稍后查看或联系管理员补充。'
 
 marked.setOptions({
+  breaks: false,
   gfm: true,
-  breaks: false
 })
 
 export function renderMarkdownDocument(markdown: string): RenderedMarkdownDocument {
@@ -141,7 +151,7 @@ export function renderMarkdownDocument(markdown: string): RenderedMarkdownDocume
 
   return {
     headings,
-    html: DOMPurify.sanitize(doc.body.innerHTML)
+    html: DOMPurify.sanitize(doc.body.innerHTML),
   }
 }
 
@@ -153,7 +163,7 @@ export function parseDocsMarkdown(markdown: string): ParsedDocsDocument {
 
   return {
     title,
-    pages: DOCS_PAGE_ORDER.map((pageId) => buildDocsPage(pageId, pageSources.get(pageId) ?? []))
+    pages: DOCS_PAGE_ORDER.map((pageId) => buildDocsPage(pageId, pageSources.get(pageId) ?? [])),
   }
 }
 
@@ -166,12 +176,12 @@ export function extractMarkdownHeadings(markdown: string, maxLevel: number = 4):
     .filter((match): match is RegExpMatchArray => !!match)
     .map((match) => ({
       level: match[1].length,
-      text: normalizeHeadingText(match[2])
+      text: normalizeHeadingText(match[2]),
     }))
     .filter((heading) => heading.text.length > 0 && heading.level <= maxLevel)
     .map((heading) => ({
       ...heading,
-      id: createHeadingId(heading.text, counters)
+      id: createHeadingId(heading.text, counters),
     }))
 }
 
@@ -192,20 +202,22 @@ function buildDocsPage(pageId: DocsPageId, sourceLines: string[]): DocsPage {
   const counters = new Map<string, number>()
   const rawMarkdown = sourceLines.join('\n').trim()
   const { introLines, sections } = collectSections(sourceLines, counters, pageId)
+  const visibleSections = filterSectionsForPage(pageId, sections)
 
   return {
-    id: pageId,
-    title: meta.title,
-    shortTitle: meta.shortTitle,
     description: meta.description,
-    rawMarkdown,
+    id: pageId,
     introBlocks: parseContentBlocks(
       introLines.length > 0 ? introLines : [DOCS_EMPTY_PAGE_TEXT],
       `page-${pageId}`,
-      pageId
+      pageId,
+      false,
     ),
-    sections,
-    isMissing: rawMarkdown.length === 0
+    isMissing: rawMarkdown.length === 0,
+    rawMarkdown,
+    sections: visibleSections,
+    shortTitle: meta.shortTitle,
+    title: meta.title,
   }
 }
 
@@ -261,7 +273,7 @@ function collectPageSources(lines: string[]): Map<DocsPageId, string[]> {
 function collectSections(
   lines: string[],
   counters: Map<string, number>,
-  pageId: DocsPageId
+  pageId: DocsPageId,
 ): { introLines: string[]; sections: DocsSection[] } {
   const introLines: string[] = []
   const sections: DocsSection[] = []
@@ -277,14 +289,15 @@ function collectSections(
     }
 
     sections.push({
-      id: createHeadingId(currentTitle, counters),
-      title: currentTitle,
-      level: 3,
       contentBlocks: parseContentBlocks(
         currentLines,
         `section-${pageId}-${sections.length + 1}`,
-        pageId
-      )
+        pageId,
+        true,
+      ),
+      id: createHeadingId(currentTitle, counters),
+      level: 3,
+      title: currentTitle,
     })
   }
 
@@ -329,7 +342,8 @@ function collectSections(
 function parseContentBlocks(
   lines: string[],
   blockPrefix: string,
-  pageId?: DocsPageId
+  _pageId: DocsPageId,
+  completeTabs: boolean,
 ): DocsContentBlock[] {
   const blocks: DocsContentBlock[] = []
   const markdownBuffer: string[] = []
@@ -344,9 +358,9 @@ function parseContentBlocks(
     }
 
     blocks.push({
+      html: renderMarkdownFragment(markdown),
       id: `${blockPrefix}-markdown-${blockIndex + 1}`,
       kind: 'markdown',
-      html: renderMarkdownFragment(markdown)
     })
     blockIndex += 1
     markdownBuffer.length = 0
@@ -357,18 +371,30 @@ function parseContentBlocks(
       lines,
       cursor,
       `${blockPrefix}-code-${blockIndex + 1}`,
-      pageId
+      completeTabs,
     )
-
     if (codeGroup) {
       pushMarkdownBlock()
       blocks.push({
+        group: codeGroup.group,
         id: codeGroup.group.id,
         kind: 'code-group',
-        group: codeGroup.group
       })
       blockIndex += 1
       cursor = codeGroup.nextIndex
+      continue
+    }
+
+    const standaloneGroup = parseStandaloneCodeGroup(lines, cursor, `${blockPrefix}-code-${blockIndex + 1}`)
+    if (standaloneGroup) {
+      pushMarkdownBlock()
+      blocks.push({
+        group: standaloneGroup.group,
+        id: standaloneGroup.group.id,
+        kind: 'code-group',
+      })
+      blockIndex += 1
+      cursor = standaloneGroup.nextIndex
       continue
     }
 
@@ -384,7 +410,7 @@ function parseCodeExampleGroup(
   lines: string[],
   startIndex: number,
   blockId: string,
-  pageId?: DocsPageId
+  completeTabs: boolean,
 ): { group: DocsCodeExampleGroup; nextIndex: number } | null {
   const firstTab = parseCodeExampleTab(lines, startIndex, blockId, 0)
   if (!firstTab) {
@@ -405,26 +431,12 @@ function parseCodeExampleGroup(
     tabIndex += 1
   }
 
-  if (pageId) {
-    const missingLabels = DOCS_TAB_LABELS.filter((label) => !tabs.some((tab) => tab.label === label))
-    for (const label of missingLabels) {
-      tabs.push({
-        id: `${blockId}-${label.toLowerCase()}`,
-        label,
-        language: defaultLanguageForTab(label),
-        code: notApplicableExample(pageId, label)
-      })
-    }
-  }
-
-  tabs.sort((left, right) => DOCS_TAB_LABELS.indexOf(left.label) - DOCS_TAB_LABELS.indexOf(right.label))
-
   return {
     group: {
       id: blockId,
-      tabs
+      tabs: completeTabs ? buildCompletedCodeTabs(tabs, blockId) : tabs,
     },
-    nextIndex: cursor
+    nextIndex: cursor,
   }
 }
 
@@ -432,16 +444,19 @@ function parseCodeExampleTab(
   lines: string[],
   startIndex: number,
   blockId: string,
-  tabIndex: number
+  tabIndex: number,
 ): { tab: DocsCodeExampleTab; nextIndex: number } | null {
-  const heading = lines[startIndex]?.match(/^####\s+(Python|JavaScript|REST)\s*$/i)
+  const heading = lines[startIndex]?.match(/^####\s+(.+?)\s*$/)
   if (!heading) {
     return null
   }
 
-  const label = normalizeTabLabel(heading[1])
-  let cursor = startIndex + 1
+  const label = normalizeDocsTabLabel(heading[1])
+  if (!label) {
+    return null
+  }
 
+  let cursor = startIndex + 1
   while (cursor < lines.length && lines[cursor].trim() === '') {
     cursor += 1
   }
@@ -451,7 +466,7 @@ function parseCodeExampleTab(
     return null
   }
 
-  const infoString = extractFenceInfo(lines[cursor] ?? '')
+  const fenceMeta = parseFenceMeta(extractFenceInfoString(lines[cursor] ?? ''))
   cursor += 1
 
   const codeLines: string[] = []
@@ -470,65 +485,82 @@ function parseCodeExampleTab(
   }
 
   return {
+    nextIndex: cursor,
     tab: {
+      code: codeLines.join('\n').replace(/\n+$/g, ''),
+      focusLines: fenceMeta.focusLines,
       id: `${blockId}-tab-${tabIndex + 1}`,
       label,
-      language: infoString || defaultLanguageForTab(label),
-      code: codeLines.join('\n').replace(/\n+$/g, '')
+      language: resolveDocsCodeLanguage(label, fenceMeta.language),
     },
-    nextIndex: cursor
   }
 }
 
-function normalizeTabLabel(value: string): DocsCodeLabel {
-  const normalized = value.trim().toLowerCase()
-  if (normalized === 'javascript') {
-    return 'Javascript'
+function parseStandaloneCodeGroup(
+  lines: string[],
+  startIndex: number,
+  blockId: string,
+): { group: DocsCodeExampleGroup; nextIndex: number } | null {
+  const fence = parseFence(lines[startIndex] ?? '')
+  if (!fence) {
+    return null
   }
-  if (normalized === 'rest') {
-    return 'Rest'
-  }
-  return 'Python'
-}
 
-function defaultLanguageForTab(label: DocsCodeLabel): string {
-  switch (label) {
-    case 'Python':
-      return 'python'
-    case 'Javascript':
-      return 'javascript'
-    case 'Rest':
-      return 'bash'
+  const fenceMeta = parseFenceMeta(extractFenceInfoString(lines[startIndex] ?? ''))
+  const label = inferStandaloneCodeLabel(fenceMeta.language)
+  if (!label) {
+    return null
   }
-}
 
-function notApplicableExample(pageId: DocsPageId, label: DocsCodeLabel): string {
-  switch (label) {
-    case 'Javascript':
-      return [
-        `// ${DOCS_PAGE_META[pageId].title}`,
-        `// 当前协议暂不提供 ${label} 示例。`,
-        '// 如需补充，请同步更新仓库中的 api_reference.md 基线文档。'
-      ].join('\n')
-    case 'Rest':
-      return [
-        `# ${DOCS_PAGE_META[pageId].title}`,
-        `# 当前协议暂不提供 ${label} 示例。`,
-        '# 如需补充，请同步更新仓库中的 api_reference.md 基线文档。'
-      ].join('\n')
-    case 'Python':
-    default:
-      return [
-        `# ${DOCS_PAGE_META[pageId].title}`,
-        `# 当前协议暂不提供 ${label} 示例。`,
-        '# 如需补充，请同步更新仓库中的 api_reference.md 基线文档。'
-      ].join('\n')
+  let cursor = startIndex + 1
+  const codeLines: string[] = []
+  while (cursor < lines.length) {
+    const line = lines[cursor]
+    if (matchesFence(line, fence)) {
+      cursor += 1
+      break
+    }
+    codeLines.push(line)
+    cursor += 1
+  }
+
+  while (cursor < lines.length && lines[cursor].trim() === '') {
+    cursor += 1
+  }
+
+  return {
+    group: {
+      id: blockId,
+      tabs: [
+        {
+          code: codeLines.join('\n').replace(/\n+$/g, ''),
+          focusLines: fenceMeta.focusLines,
+          id: `${blockId}-tab-1`,
+          label,
+          language: resolveDocsCodeLanguage(label, fenceMeta.language),
+        },
+      ],
+    },
+    nextIndex: cursor,
   }
 }
 
 function normalizePageHeading(text: string): DocsPageId | null {
   const normalized = normalizeHeadingText(text).toLowerCase()
   return isDocsPageId(normalized) ? normalized : null
+}
+
+function filterSectionsForPage(pageId: DocsPageId, sections: DocsSection[]): DocsSection[] {
+  if (pageId !== 'common') {
+    return sections
+  }
+
+  return sections.filter((section) => {
+    if (section.title.includes('Document AI') || section.title.includes('百度智能文档')) {
+      return false
+    }
+    return !section.title.includes('文档同步说明')
+  })
 }
 
 function renderMarkdownFragment(markdown: string): string {
@@ -574,9 +606,9 @@ function matchesFence(line: string, fence: string): boolean {
   return new RegExp(`^\\s*${escapeForRegExp(fence)}\\s*$`).test(line)
 }
 
-function extractFenceInfo(line: string): string {
-  const match = line.match(/^\s*(```+|~~~+)\s*([^\s]+)?/)
-  return match?.[2]?.trim() || ''
+function extractFenceInfoString(line: string): string {
+  const match = line.match(/^\s*(?:```+|~~~+)\s*(.*)$/)
+  return match?.[1]?.trim() || ''
 }
 
 function escapeForRegExp(value: string): string {

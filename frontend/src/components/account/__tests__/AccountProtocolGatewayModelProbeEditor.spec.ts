@@ -245,6 +245,55 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     ])
   })
 
+  it('limits default test targets to the currently selected models and clears stale selections', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'mixed',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        allowedModels: ['gemini-2.5-pro'],
+        modelMappings: [{ from: 'friendly-gemini', to: 'gemini-2.5-pro' }],
+        probedModels: [
+          {
+            id: 'gpt-4.1',
+            display_name: 'GPT-4.1',
+            provider: 'openai',
+            source_protocol: 'openai',
+            registry_state: 'existing',
+            registry_model_id: 'gpt-4.1'
+          },
+          {
+            id: 'gemini-2.5-pro',
+            display_name: 'Gemini 2.5 Pro',
+            provider: 'gemini',
+            source_protocol: 'gemini',
+            registry_state: 'existing',
+            registry_model_id: 'gemini-2.5-pro'
+          }
+        ],
+        acceptedProtocols: ['openai', 'gemini'],
+        clientProfiles: [],
+        clientRoutes: [],
+        manualModels: [],
+        resolvedUpstream: null,
+        gatewayTestProvider: 'openai',
+        gatewayTestModelId: 'gpt-4.1'
+      },
+      global: {
+        stubs: iconStubs
+      }
+    })
+
+    await flushPromises()
+
+    const selects = wrapper.findAll('select')
+    expect(selects).toHaveLength(2)
+    const providerValues = selects[0].findAll('option').map((option) => option.attributes('value'))
+    expect(providerValues).toEqual(['', 'gemini'])
+    expect(wrapper.emitted('update:gatewayTestProvider')?.at(-1)?.[0]).toBe('')
+    expect(wrapper.emitted('update:gatewayTestModelId')?.at(-1)?.[0]).toBe('')
+  })
+
   it('supports editing request model aliases, keeps empty drafts, and removes mappings when deselected', async () => {
     const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
       props: {

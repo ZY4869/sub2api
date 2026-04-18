@@ -63,62 +63,119 @@ func newAdminDocsContext(method, path string, body []byte) (*gin.Context, *httpt
 	return ctx, recorder
 }
 
-func TestAdminDocsHandlerGetAPIReference_ReturnsDocumentState(t *testing.T) {
+func decodeAdminDocsResponse(t *testing.T, recorder *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+
+	var body response.Response
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Equal(t, 0, body.Code)
+
+	data, ok := body.Data.(map[string]any)
+	require.True(t, ok)
+	return data
+}
+
+func TestAdminDocsHandlerGetAPIReferenceReturnsFullDocumentState(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &adminDocsSettingRepoStub{
 		values: map[string]string{
-			service.SettingKeyAPIDocsMarkdown: "# 管理员覆盖文档\n",
+			service.SettingKeyAPIDocsMarkdown: "# Custom Docs\n\n## common\n### Intro\nHello\n",
 		},
 	}
-	docsService := service.NewAPIDocsService(repo)
-	handler := NewDocsHandler(docsService)
+	handler := NewDocsHandler(service.NewAPIDocsService(repo))
 
 	ctx, recorder := newAdminDocsContext(http.MethodGet, "/api/v1/admin/docs/api", nil)
 	handler.GetAPIReference(ctx)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
-
-	var body response.Response
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
-	require.Equal(t, 0, body.Code)
-
-	data, ok := body.Data.(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, "# 管理员覆盖文档\n", data["effective_content"])
-	require.Equal(t, docsService.GetDefaultContent(), data["default_content"])
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Equal(t, "# Custom Docs\n\n## common\n### Intro\nHello\n", data["effective_content"])
+	require.NotEmpty(t, data["default_content"])
 	require.Equal(t, true, data["has_override"])
 }
 
-func TestAdminDocsHandlerUpdateAPIReference_SavesOverrideAndReturnsDocument(t *testing.T) {
+func TestAdminDocsHandlerGetAPIReferenceSupportsPageID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &adminDocsSettingRepoStub{values: map[string]string{}}
-	docsService := service.NewAPIDocsService(repo)
-	handler := NewDocsHandler(docsService)
+	serviceInstance := service.NewAPIDocsService(repo)
+	require.NoError(t, serviceInstance.SavePageOverride(context.Background(), "document-ai", "# API Docs\n\n## document-ai\n### Runtime\nDocument AI page"))
+	handler := NewDocsHandler(serviceInstance)
+
+	ctx, recorder := newAdminDocsContext(http.MethodGet, "/api/v1/admin/docs/api?page_id=document-ai", nil)
+	handler.GetAPIReference(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Contains(t, data["effective_content"], "## document-ai")
+	require.Contains(t, data["effective_content"], "### Runtime")
+	require.Equal(t, true, data["has_override"])
+}
+
+func TestAdminDocsHandlerGetAPIReferenceSupportsOpenAINativePageID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &adminDocsSettingRepoStub{values: map[string]string{}}
+	serviceInstance := service.NewAPIDocsService(repo)
+	require.NoError(t, serviceInstance.SavePageOverride(context.Background(), "openai-native", "# API Docs\n\n## openai-native\n### Responses\nOpenAI Native page"))
+	handler := NewDocsHandler(serviceInstance)
+
+	ctx, recorder := newAdminDocsContext(http.MethodGet, "/api/v1/admin/docs/api?page_id=openai-native", nil)
+	handler.GetAPIReference(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Contains(t, data["effective_content"], "## openai-native")
+	require.Contains(t, data["effective_content"], "### Responses")
+	require.Equal(t, true, data["has_override"])
+}
+
+func TestAdminDocsHandlerUpdateAPIReferenceSavesFullOverride(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &adminDocsSettingRepoStub{values: map[string]string{}}
+	handler := NewDocsHandler(service.NewAPIDocsService(repo))
 
 	ctx, recorder := newAdminDocsContext(
 		http.MethodPut,
 		"/api/v1/admin/docs/api",
-		[]byte(`{"content":"# 新文档\n\n说明"}`),
+		[]byte(`{"content":"# New Docs\n\n## common\n### Intro\nUpdated"}`),
 	)
 
 	handler.UpdateAPIReference(ctx)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
-	require.Equal(t, "# 新文档\n\n说明\n", repo.values[service.SettingKeyAPIDocsMarkdown])
+	require.Equal(t, "# New Docs\n\n## common\n### Intro\nUpdated\n", repo.values[service.SettingKeyAPIDocsMarkdown])
 
-	var body response.Response
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
-	require.Equal(t, 0, body.Code)
-
-	data, ok := body.Data.(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, "# 新文档\n\n说明\n", data["effective_content"])
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Equal(t, "# New Docs\n\n## common\n### Intro\nUpdated\n", data["effective_content"])
 	require.Equal(t, true, data["has_override"])
 }
 
-func TestAdminDocsHandlerUpdateAPIReference_RejectsBlankContent(t *testing.T) {
+func TestAdminDocsHandlerUpdateAPIReferenceSavesPageOverride(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &adminDocsSettingRepoStub{values: map[string]string{}}
+	handler := NewDocsHandler(service.NewAPIDocsService(repo))
+
+	ctx, recorder := newAdminDocsContext(
+		http.MethodPut,
+		"/api/v1/admin/docs/api?page_id=gemini",
+		[]byte(`{"content":"# API Docs\n\n## gemini\n### Runtime\nUpdated gemini"}`),
+	)
+
+	handler.UpdateAPIReference(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Contains(t, repo.values[service.SettingKeyAPIDocsMarkdown+"_page_gemini"], "## gemini")
+
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Contains(t, data["effective_content"], "Updated gemini")
+	require.Equal(t, true, data["has_override"])
+}
+
+func TestAdminDocsHandlerRejectsBlankContent(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	handler := NewDocsHandler(service.NewAPIDocsService(&adminDocsSettingRepoStub{values: map[string]string{}}))
@@ -138,46 +195,69 @@ func TestAdminDocsHandlerUpdateAPIReference_RejectsBlankContent(t *testing.T) {
 	require.Equal(t, "API_DOCS_EMPTY", body.Reason)
 }
 
-func TestAdminDocsHandlerUpdateAPIReference_RejectsInvalidJSON(t *testing.T) {
+func TestAdminDocsHandlerRejectsInvalidPageID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	handler := NewDocsHandler(service.NewAPIDocsService(&adminDocsSettingRepoStub{values: map[string]string{}}))
-	ctx, recorder := newAdminDocsContext(
+
+	getCtx, getRecorder := newAdminDocsContext(http.MethodGet, "/api/v1/admin/docs/api?page_id=invalid", nil)
+	handler.GetAPIReference(getCtx)
+	require.Equal(t, http.StatusBadRequest, getRecorder.Code)
+
+	putCtx, putRecorder := newAdminDocsContext(
 		http.MethodPut,
-		"/api/v1/admin/docs/api",
-		[]byte(`{"content":`),
+		"/api/v1/admin/docs/api?page_id=invalid",
+		[]byte(`{"content":"# API Docs"}`),
 	)
+	handler.UpdateAPIReference(putCtx)
+	require.Equal(t, http.StatusBadRequest, putRecorder.Code)
 
-	handler.UpdateAPIReference(ctx)
-
-	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	deleteCtx, deleteRecorder := newAdminDocsContext(http.MethodDelete, "/api/v1/admin/docs/api/override?page_id=invalid", nil)
+	handler.ClearAPIReferenceOverride(deleteCtx)
+	require.Equal(t, http.StatusBadRequest, deleteRecorder.Code)
 }
 
-func TestAdminDocsHandlerClearAPIReferenceOverride_RestoresDefaultDocument(t *testing.T) {
+func TestAdminDocsHandlerClearAPIReferenceOverrideRestoresDefaultDocument(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &adminDocsSettingRepoStub{
 		values: map[string]string{
-			service.SettingKeyAPIDocsMarkdown: "# 覆盖文档\n",
+			service.SettingKeyAPIDocsMarkdown: "# Legacy Docs\n",
 		},
 	}
-	docsService := service.NewAPIDocsService(repo)
-	handler := NewDocsHandler(docsService)
+	serviceInstance := service.NewAPIDocsService(repo)
+	handler := NewDocsHandler(serviceInstance)
 
 	ctx, recorder := newAdminDocsContext(http.MethodDelete, "/api/v1/admin/docs/api/override", nil)
 	handler.ClearAPIReferenceOverride(ctx)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
-	_, exists := repo.values[service.SettingKeyAPIDocsMarkdown]
-	require.False(t, exists)
+	require.Empty(t, repo.values)
 
-	var body response.Response
-	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
-	require.Equal(t, 0, body.Code)
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Equal(t, serviceInstance.GetDefaultContent(), data["effective_content"])
+	require.Equal(t, serviceInstance.GetDefaultContent(), data["default_content"])
+	require.Equal(t, false, data["has_override"])
+}
 
-	data, ok := body.Data.(map[string]any)
-	require.True(t, ok)
-	require.Equal(t, docsService.GetDefaultContent(), data["effective_content"])
-	require.Equal(t, docsService.GetDefaultContent(), data["default_content"])
+func TestAdminDocsHandlerClearAPIReferenceOverrideRestoresDefaultPageSection(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &adminDocsSettingRepoStub{
+		values: map[string]string{
+			service.SettingKeyAPIDocsMarkdown: "# Legacy Docs\n\n## gemini\n### Legacy\nLegacy page\n",
+		},
+	}
+	serviceInstance := service.NewAPIDocsService(repo)
+	handler := NewDocsHandler(serviceInstance)
+
+	ctx, recorder := newAdminDocsContext(http.MethodDelete, "/api/v1/admin/docs/api/override?page_id=gemini", nil)
+	handler.ClearAPIReferenceOverride(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Contains(t, repo.values[service.SettingKeyAPIDocsMarkdown+"_page_gemini"], "## gemini")
+
+	data := decodeAdminDocsResponse(t, recorder)
+	require.Contains(t, data["effective_content"], "## gemini")
 	require.Equal(t, false, data["has_override"])
 }

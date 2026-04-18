@@ -47,6 +47,13 @@ func (s *GeminiNativeGatewayService) ForwardVertexBatchPredictionJobs(ctx contex
 	return s.GeminiMessagesCompatService.ForwardVertexBatchPredictionJobs(ctx, input)
 }
 
+func (s *GeminiNativeGatewayService) ForwardSimplifiedVertexBatchPredictionJobs(ctx context.Context, input GoogleBatchForwardInput) (GoogleBatchUpstreamResult, *Account, error) {
+	if s == nil || s.GeminiMessagesCompatService == nil {
+		return nil, nil, nil
+	}
+	return s.GeminiMessagesCompatService.ForwardSimplifiedVertexBatchPredictionJobs(ctx, input)
+}
+
 func (s *GeminiNativeGatewayService) ForwardGoogleArchiveBatch(ctx context.Context, input GoogleBatchForwardInput) (GoogleBatchUpstreamResult, *Account, error) {
 	if s == nil || s.GeminiMessagesCompatService == nil {
 		return nil, nil, nil

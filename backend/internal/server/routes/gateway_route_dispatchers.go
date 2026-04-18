@@ -175,9 +175,17 @@ func (d gatewayRouteDispatchers) GoogleBatchArchiveFileDownload(c *gin.Context) 
 }
 
 func (d gatewayRouteDispatchers) VertexModels(c *gin.Context) {
-	d.handlers.Gateway.GeminiV1BetaModels(c)
+	d.handlers.Gateway.VertexModels(c)
+}
+
+func (d gatewayRouteDispatchers) VertexModelsSimplified(c *gin.Context) {
+	d.handlers.Gateway.VertexModelsSimplified(c)
 }
 
 func (d gatewayRouteDispatchers) VertexBatchPredictionJobs(c *gin.Context) {
 	d.handlers.Gateway.VertexBatchPredictionJobs(c)
+}
+
+func (d gatewayRouteDispatchers) VertexBatchPredictionJobsSimplified(c *gin.Context) {
+	d.handlers.Gateway.VertexBatchPredictionJobsSimplified(c)
 }

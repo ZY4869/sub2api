@@ -467,8 +467,33 @@ func missingGatewayDefaultTargetModelError() error {
 	return infraerrors.BadRequest("TEST_TARGET_MODEL_REQUIRED", "selected target_provider does not have a default test model")
 }
 
+func testModelNotAllowedError() error {
+	return infraerrors.BadRequest("TEST_MODEL_NOT_ALLOWED", "selected model is not allowed for this account")
+}
+
 func ambiguousGatewayProbeResolutionError() error {
 	return infraerrors.BadRequest("TEST_PROBE_RESOLUTION_FAILED", "mixed protocol gateway test could not resolve a unique protocol")
+}
+
+func (s *AccountTestService) resolveRestrictedDefaultTestModel(ctx context.Context, account *Account) (string, string) {
+	if account == nil || !accountHasExplicitModelRestrictions(account) {
+		return "", ""
+	}
+	models := BuildAvailableTestModels(ctx, account, s.modelRegistryService)
+	if len(models) == 0 {
+		return "", ""
+	}
+	return strings.TrimSpace(models[0].ID), normalizeTestSourceProtocol(models[0].SourceProtocol)
+}
+
+func (s *AccountTestService) ensureAllowedTestModel(ctx context.Context, account *Account, modelID string) error {
+	if account == nil || strings.TrimSpace(modelID) == "" || !accountHasExplicitModelRestrictions(account) {
+		return nil
+	}
+	if isRequestedModelSupportedByAccount(ctx, s.modelRegistryService, account, modelID) {
+		return nil
+	}
+	return testModelNotAllowedError()
 }
 
 func (s *AccountTestService) resolveGatewayTestTarget(ctx context.Context, account *Account, modelID string, requested string, targetProvider string, targetModelID string) (resolvedGatewayTestTarget, error) {
@@ -725,6 +750,15 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.sendErrorAndEnd(c, "Account not found")
 	}
 
+	if !IsProtocolGatewayAccount(account) && strings.TrimSpace(modelID) == "" {
+		if defaultModelID, defaultSourceProtocol := s.resolveRestrictedDefaultTestModel(ctx, account); defaultModelID != "" {
+			modelID = defaultModelID
+			if strings.TrimSpace(sourceProtocol) == "" {
+				sourceProtocol = defaultSourceProtocol
+			}
+		}
+	}
+
 	resolvedTarget, err := s.resolveGatewayTestTarget(ctx, account, modelID, sourceProtocol, targetProvider, targetModelID)
 	if err != nil {
 		reason := infraerrors.Reason(err)
@@ -760,6 +794,18 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	}
 	if resolvedTarget.ModelID != "" {
 		modelID = resolvedTarget.ModelID
+	}
+	if err := s.ensureAllowedTestModel(ctx, account, modelID); err != nil {
+		slog.Warn(
+			"account_test_model_not_allowed",
+			"account_id", accountID,
+			"requested_model_id", strings.TrimSpace(modelID),
+			"source_protocol", normalizeTestSourceProtocol(resolvedTarget.SourceProtocol),
+			"target_provider", NormalizeModelProvider(resolvedTarget.TargetProvider),
+			"target_model_id", strings.TrimSpace(resolvedTarget.TargetModelID),
+			"error", err,
+		)
+		return err
 	}
 	if account != nil && account.IsOpenAI() {
 		modelID = resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)

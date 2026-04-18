@@ -41,6 +41,8 @@ const tokenPlaceholderKey = computed(() =>
         type="text"
         class="input"
         :placeholder="BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL"
+        data-testid="baidu-document-ai-async-base-url"
+        spellcheck="false"
       />
       <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.asyncBaseUrlHint') }}</p>
     </div>
@@ -52,6 +54,9 @@ const tokenPlaceholderKey = computed(() =>
         type="password"
         class="input font-mono"
         :placeholder="t(tokenPlaceholderKey)"
+        autocomplete="off"
+        data-testid="baidu-document-ai-async-bearer-token"
+        spellcheck="false"
       />
       <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.asyncBearerTokenHint') }}</p>
     </div>
@@ -63,6 +68,9 @@ const tokenPlaceholderKey = computed(() =>
         type="password"
         class="input font-mono"
         :placeholder="t(tokenPlaceholderKey)"
+        autocomplete="off"
+        data-testid="baidu-document-ai-direct-token"
+        spellcheck="false"
       />
       <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.directTokenHint') }}</p>
     </div>
@@ -74,6 +82,8 @@ const tokenPlaceholderKey = computed(() =>
         rows="6"
         class="input font-mono"
         :placeholder="t('admin.accounts.baiduDocumentAI.directApiUrlsPlaceholder')"
+        data-testid="baidu-document-ai-direct-api-urls"
+        spellcheck="false"
       />
       <p class="input-hint">{{ t('admin.accounts.baiduDocumentAI.directApiUrlsHint') }}</p>
     </div>

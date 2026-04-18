@@ -6,12 +6,12 @@ export default {
       apiDocs: 'API Docs',
       oauthCallback: 'OAuth Callback',
       linuxDoOAuthCallback: 'LinuxDo OAuth Callback',
-      notFound: '404 Not Found'
+      notFound: '404 Not Found',
     },
     oauthCallback: {
       title: 'OAuth Callback',
       description: 'Copy the code and state back to the admin authorization flow.',
-      copy: 'Copy'
+      copy: 'Copy',
     },
     apiDocs: {
       eyebrow: 'Protocol Reference',
@@ -24,26 +24,27 @@ export default {
       articleDescription: 'This page renders the effective Markdown exactly as the authenticated API exposes it.',
       tocTitle: 'Contents',
       copy: 'Copy Markdown',
+      copyCode: 'Copy Code',
       copySuccess: 'Markdown copied',
       loading: 'Loading API docs...',
       loadFailed: 'Failed to load API docs',
       summary: {
         protocols: {
           label: 'Protocols',
-          value: '7 protocol pages',
-          description: 'Browse common onboarding, OpenAI, Claude, Gemini, Grok, Antigravity, and Vertex / Batch separately.'
+          value: '9 protocol pages',
+          description: 'Browse common onboarding, OpenAI Native, OpenAI Compatible, Claude, Gemini, Grok, Antigravity, Vertex / Batch, and Baidu Document AI separately.',
         },
         auth: {
           label: 'Auth',
           value: 'Bearer + Google Headers',
-          description: 'Shows the exact authentication priority, deprecated query params, and client-specific guidance.'
+          description: 'Shows the exact authentication priority, deprecated query params, and client-specific guidance.',
         },
-        sync: {
-          label: 'Sync',
-          value: 'Code Baseline + Runtime Override',
-          description: 'The repository template stays versioned, while admin updates can override it at runtime.'
-        }
-      }
+        languages: {
+          label: 'Examples',
+          value: '8 code tabs',
+          description: 'Each example group offers Python, JavaScript, Go, Java, C#, PHP, Shell, and REST tabs.',
+        },
+      },
     },
     modelCatalog: {
       eyebrow: 'Public Models',
@@ -57,11 +58,11 @@ export default {
         provider: 'Provider',
         protocol: 'Request Protocol',
         multiplier: 'Multiplier',
-        all: 'All'
+        all: 'All',
       },
       multiplier: {
         disabled: 'Multiplier Off',
-        mixed: 'Mixed Multiplier'
+        mixed: 'Mixed Multiplier',
       },
       priceFields: {
         input: 'Input',
@@ -75,13 +76,13 @@ export default {
         groundingSearch: 'Grounding Search',
         groundingMaps: 'Grounding Maps',
         embedding: 'Embedding',
-        retrieval: 'Retrieval'
+        retrieval: 'Retrieval',
       },
       units: {
         perMillionTokens: '/ 1M Tokens',
         perImage: '/ image',
-        perRequest: '/ request'
-      }
+        perRequest: '/ request',
+      },
     },
     usageWindow: {
       fiveHour: '5H',
@@ -89,7 +90,7 @@ export default {
       weekly: '7D',
       total: 'Total',
       pro: 'Pro',
-      flash: 'Flash'
+      flash: 'Flash',
     },
     platformType: {
       oauth: 'OAuth',
@@ -98,12 +99,12 @@ export default {
       sso: 'SSO',
       aws: 'AWS',
       privacy: 'Privacy',
-      fail: 'Fail'
+      fail: 'Fail',
     },
     opsDimensions: {
       platform: 'Platform',
       groupId: 'Group ID',
-      region: 'Region'
-    }
-  }
+      region: 'Region',
+    },
+  },
 }

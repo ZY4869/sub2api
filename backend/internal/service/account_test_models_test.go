@@ -262,3 +262,68 @@ func TestBuildManualTestModelCandidates_PrefersManualProviderMetadata(t *testing
 	require.Equal(t, "grok", candidates[0].model.Provider)
 	require.Equal(t, "xAI-Grok", candidates[0].model.ProviderLabel)
 }
+
+func TestBuildAvailableTestModels_AppliesExplicitMappingRestrictions(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "custom-shared-a",
+		DisplayName: "Custom Shared A",
+		Platforms:   []string{"custom-tests"},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "custom-shared-b",
+		DisplayName: "Custom Shared B",
+		Platforms:   []string{"custom-tests"},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"custom-shared-a", "custom-shared-b"})
+	require.NoError(t, err)
+
+	account := &Account{
+		ID:       997,
+		Name:     "mapping-account",
+		Platform: "custom-tests",
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"friendly-a": "custom-shared-a",
+			},
+		},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
+	require.Len(t, models, 1)
+	require.Equal(t, "custom-shared-a", models[0].ID)
+}
+
+func TestBuildAvailableTestModels_UsesManualRowsAsExplicitAvailableModels(t *testing.T) {
+	account := &Account{
+		ID:       998,
+		Name:     "manual-only-account",
+		Platform: "custom-tests",
+		Type:     AccountTypeAPIKey,
+		Status:   StatusActive,
+		Extra: map[string]any{
+			"manual_models": []any{
+				map[string]any{
+					"model_id": "manual-allowed",
+				},
+				map[string]any{
+					"model_id": "manual-blocked",
+				},
+			},
+		},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, nil)
+	require.Len(t, models, 2)
+	require.Equal(t, "manual-allowed", models[0].ID)
+	require.Equal(t, "manual-blocked", models[1].ID)
+}

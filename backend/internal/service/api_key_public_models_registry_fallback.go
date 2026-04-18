@@ -264,15 +264,16 @@ func (s *GatewayService) registryFallbackPublicModelEntries(
 	modelPatterns []string,
 	mapping map[string]string,
 ) ([]APIKeyPublicModelEntry, error) {
-	entries, err := s.runtimeRegistryEntriesForPlatform(ctx, platform)
+	registryEntries, err := s.runtimeRegistryEntriesForPlatform(ctx, platform)
 	if err != nil {
 		return nil, err
 	}
-	summary := buildAccountModelProbeSummaryFromRegistryEntries(entries, platform, apiKeyPublicModelsSourceRegistryFallback)
+	summary := buildAccountModelProbeSummaryFromRegistryEntries(registryEntries, platform, apiKeyPublicModelsSourceRegistryFallback)
 	if summary == nil {
 		return nil, nil
 	}
 	recordPublicModelProjectionSource(apiKeyPublicModelsSourceRegistryFallback)
+	entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, summary, account)
 	slog.Info(
 		"api_key_public_models_registry_fallback",
 		"account_id", account.ID,
@@ -280,8 +281,9 @@ func (s *GatewayService) registryFallbackPublicModelEntries(
 		"source", apiKeyPublicModelsSourceRegistryFallback,
 		"explicit_restriction", accountHasExplicitModelRestrictions(account),
 		"count", len(summary.DetectedModels),
+		"alias_only_count", countAliasOnlyPublicEntries(entries),
 	)
-	return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, summary, account), nil
+	return entries, nil
 }
 
 func filterAPIKeyPublicEntriesByChannel(

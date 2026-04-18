@@ -28,6 +28,14 @@ func WithGeminiPublicProtocol(ctx context.Context, protocol string) context.Cont
 	return context.WithValue(ctx, ctxkey.GeminiPublicProtocol, normalized)
 }
 
+func WithGeminiPublicProtocolStrict(ctx context.Context, protocol string) context.Context {
+	ctx = WithGeminiPublicProtocol(ctx, protocol)
+	if ctx == nil {
+		return nil
+	}
+	return context.WithValue(ctx, ctxkey.GeminiPublicProtocolStrict, true)
+}
+
 func GeminiPublicProtocolFromContext(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -36,6 +44,14 @@ func GeminiPublicProtocolFromContext(ctx context.Context) string {
 		return normalizeGeminiPublicProtocol(value)
 	}
 	return ""
+}
+
+func geminiPublicProtocolStrictFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	value, _ := ctx.Value(ctxkey.GeminiPublicProtocolStrict).(bool)
+	return value
 }
 
 func normalizeGeminiPublicProtocol(value string) string {
@@ -81,10 +97,14 @@ func geminiPublicProtocolRank(ctx context.Context, account *Account) int {
 		return 0
 	}
 	allowMixed := geminiMixedProtocolEnabledFromContext(ctx)
+	strict := geminiPublicProtocolStrictFromContext(ctx)
 	switch publicProtocol {
 	case UpstreamProviderAIStudio:
 		if isGeminiAIStudioSourceAccount(account) {
 			return 0
+		}
+		if strict {
+			return geminiProtocolRankExcluded
 		}
 		if allowMixed && account.IsGeminiVertexAI() {
 			return 1
@@ -96,6 +116,9 @@ func geminiPublicProtocolRank(ctx context.Context, account *Account) int {
 		}
 		if account.IsGeminiVertexExpress() {
 			return 1
+		}
+		if strict {
+			return geminiProtocolRankExcluded
 		}
 		if allowMixed && isGeminiAIStudioSourceAccount(account) {
 			return 2

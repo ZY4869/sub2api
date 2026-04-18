@@ -233,3 +233,53 @@ func TestAccountModelDiagnosticsService_DiagnoseProbeFailedEmptyWithoutSavedMode
 	require.Empty(t, result.SavedModels)
 	require.Empty(t, result.PublicModelsPreview)
 }
+
+func TestAccountModelDiagnosticsService_DiagnoseUsesAliasOnlyPreviewForExplicitMappings(t *testing.T) {
+	service := newDiagnosticsServiceForTest(
+		Account{
+			ID:          5,
+			Name:        "openai-apikey",
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			GroupIDs:    []int64{10},
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{
+					"friendly-gpt": "gpt-4.1-mini",
+				},
+			},
+			Extra: map[string]any{
+				"model_probe_snapshot": map[string]any{
+					"models":       []string{"gpt-4.1-mini"},
+					"updated_at":   "2026-04-01T00:00:00Z",
+					"source":       AccountModelProbeSnapshotSourceManualProbe,
+					"probe_source": accountModelProbeSourceUpstream,
+				},
+			},
+		},
+		&Group{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive},
+		APIKey{
+			ID:               105,
+			Name:             "public-key",
+			ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+			GroupBindings: []APIKeyGroupBinding{
+				{
+					GroupID: 10,
+					Group:   &Group{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive},
+				},
+			},
+		},
+		nil,
+	)
+
+	result, err := service.Diagnose(context.Background(), 5, false)
+
+	require.NoError(t, err)
+	require.Len(t, result.PublicModelsPreview, 1)
+	require.Equal(t, "friendly-gpt", result.PublicModelsPreview[0].PublicID)
+	require.Equal(t, "friendly-gpt", result.PublicModelsPreview[0].DisplayName)
+	require.Equal(t, "gpt-4.1-mini", result.PublicModelsPreview[0].SourceID)
+	require.Len(t, result.GroupExposures, 1)
+	require.Equal(t, "friendly-gpt", result.GroupExposures[0].PublicModels[0].PublicID)
+}

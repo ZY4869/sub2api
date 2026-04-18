@@ -75,6 +75,7 @@ interface UseCreateAccountResetOptions {
   batchArchiveDownloadPriceUSD: Ref<number>
   allowVertexBatchOverflow: Ref<boolean>
   acceptAIStudioBatchOverflow: Ref<boolean>
+  actualModelLocked: Ref<boolean>
   modelMappings: Ref<ModelMapping[]>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
@@ -172,6 +173,7 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.batchArchiveDownloadPriceUSD.value = 0
     options.allowVertexBatchOverflow.value = false
     options.acceptAIStudioBatchOverflow.value = false
+    options.actualModelLocked.value = true
     options.modelMappings.value = []
     options.modelRestrictionMode.value = 'whitelist'
     options.allowedModels.value = [...getModelsByPlatform('anthropic', 'whitelist')]

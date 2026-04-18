@@ -51,6 +51,21 @@ func apiKeyPublicEntryToGeminiModelWithRegistry(
 	)
 }
 
+func geminiPublicEntryRequiresProjectedMetadata(entry service.APIKeyPublicModelEntry) bool {
+	publicID := strings.TrimSpace(entry.PublicID)
+	sourceID := strings.TrimSpace(entry.SourceID)
+	return publicID != "" && sourceID != "" && publicID != sourceID
+}
+
+func geminiPublicEntriesRequireProjectedMetadata(entries []service.APIKeyPublicModelEntry) bool {
+	for _, entry := range entries {
+		if geminiPublicEntryRequiresProjectedMetadata(entry) {
+			return true
+		}
+	}
+	return false
+}
+
 func supportedGenerationMethodsForPublicEntry(
 	entry service.APIKeyPublicModelEntry,
 	modelRegistryService *service.ModelRegistryService,

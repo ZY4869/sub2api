@@ -22,6 +22,7 @@ type apiKeyPublicProjectionCandidate struct {
 	SourceID    string
 	DisplayName string
 	Platform    string
+	ExposeAlias bool
 }
 
 func (s *GatewayService) GetAPIKeyPublicModels(
@@ -128,6 +129,7 @@ func (s *GatewayService) publicModelEntriesForAccount(
 	}
 
 	if savedSummary := AccountSavedModelProbeSummary(account); savedSummary != nil {
+		entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, savedSummary, account)
 		recordPublicModelProjectionSource(apiKeyPublicModelsSourceSavedProbe)
 		slog.Info(
 			"api_key_public_models_saved_probe",
@@ -136,8 +138,9 @@ func (s *GatewayService) publicModelEntriesForAccount(
 			"source", apiKeyPublicModelsSourceSavedProbe,
 			"explicit_restriction", accountHasExplicitModelRestrictions(account),
 			"count", len(savedSummary.DetectedModels),
+			"alias_only_count", countAliasOnlyPublicEntries(entries),
 		)
-		return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, savedSummary, account), nil
+		return entries, nil
 	}
 	if s.accountModelImportService == nil {
 		return s.registryFallbackPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
@@ -161,6 +164,7 @@ func (s *GatewayService) publicModelEntriesForAccount(
 			platform,
 			AccountModelProbeSnapshotSourcePublicModelsLive,
 		)
+		entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary, account)
 		recordPublicModelProjectionSource(apiKeyPublicModelsSourceLiveProbe)
 		slog.Info(
 			"api_key_public_models_live_probe_projection",
@@ -169,8 +173,9 @@ func (s *GatewayService) publicModelEntriesForAccount(
 			"source", apiKeyPublicModelsSourceLiveProbe,
 			"explicit_restriction", accountHasExplicitModelRestrictions(account),
 			"count", len(probeSummary.DetectedModels),
+			"alias_only_count", countAliasOnlyPublicEntries(entries),
 		)
-		return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary, account), nil
+		return entries, nil
 	}
 	return s.registryFallbackPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
 }
@@ -301,10 +306,8 @@ func projectProbeSummaryToPublicEntries(
 	}
 
 	projected := make(map[string]APIKeyPublicModelEntry)
+	hiddenSourceIDs := make(map[string]struct{})
 	for _, candidate := range candidates {
-		if _, matched := bindingMatchesModel(modelPatterns, candidate.MatchID); !matched {
-			continue
-		}
 		sourceID, detail, ok := resolveAPIKeyProjectionDetectedDetail(detectedSet, candidate.SourceID)
 		if !ok {
 			continue
@@ -319,15 +322,26 @@ func projectProbeSummaryToPublicEntries(
 		if publicID == "" {
 			publicID = projectedSourceID
 		}
+		if !bindingMatchesProjectionCandidate(modelPatterns, publicID, candidate) {
+			continue
+		}
+		if !candidate.ExposeAlias && publicID == projectedSourceID {
+			if _, hidden := hiddenSourceIDs[projectedSourceID]; hidden {
+				continue
+			}
+		}
 		if _, exists := projected[publicID]; exists {
 			continue
 		}
-		displayName := strings.TrimSpace(detail.DisplayName)
-		if displayName == "" {
-			displayName = strings.TrimSpace(candidate.DisplayName)
-		}
-		if displayName == "" {
-			displayName = FormatModelCatalogDisplayName(projectedSourceID)
+		displayName := strings.TrimSpace(candidate.AliasID)
+		if !candidate.ExposeAlias {
+			displayName = strings.TrimSpace(detail.DisplayName)
+			if displayName == "" {
+				displayName = strings.TrimSpace(candidate.DisplayName)
+			}
+			if displayName == "" {
+				displayName = FormatModelCatalogDisplayName(projectedSourceID)
+			}
 		}
 		projected[publicID] = APIKeyPublicModelEntry{
 			PublicID:    publicID,
@@ -335,6 +349,9 @@ func projectProbeSummaryToPublicEntries(
 			SourceID:    projectedSourceID,
 			DisplayName: displayName,
 			Platform:    platform,
+		}
+		if candidate.ExposeAlias && projectedSourceID != "" {
+			hiddenSourceIDs[projectedSourceID] = struct{}{}
 		}
 	}
 
@@ -419,15 +436,6 @@ func (s *GatewayService) vertexPublicModelEntries(
 	if summary == nil {
 		return nil, nil
 	}
-	recordPublicModelProjectionSource(apiKeyPublicModelsSourceVertexCatalog)
-	slog.Info(
-		"api_key_public_models_vertex_catalog_projection",
-		"account_id", account.ID,
-		"platform", platform,
-		"source", apiKeyPublicModelsSourceVertexCatalog,
-		"explicit_restriction", explicitRestrictions,
-		"count", len(summary.DetectedModels),
-	)
 	projectionMapping := mapping
 	if len(projectionMapping) == 0 {
 		projectionMapping = make(map[string]string, len(callableModels))
@@ -439,7 +447,18 @@ func (s *GatewayService) vertexPublicModelEntries(
 			projectionMapping[DefaultVertexPublicModelAlias(sourceID)] = sourceID
 		}
 	}
-	return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, projectionMapping, summary, account), nil
+	recordPublicModelProjectionSource(apiKeyPublicModelsSourceVertexCatalog)
+	entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, projectionMapping, summary, account)
+	slog.Info(
+		"api_key_public_models_vertex_catalog_projection",
+		"account_id", account.ID,
+		"platform", platform,
+		"source", apiKeyPublicModelsSourceVertexCatalog,
+		"explicit_restriction", explicitRestrictions,
+		"count", len(summary.DetectedModels),
+		"alias_only_count", countAliasOnlyPublicEntries(entries),
+	)
+	return entries, nil
 }
 
 func (s *GatewayService) FindAPIKeyPublicModel(
@@ -456,7 +475,7 @@ func (s *GatewayService) FindAPIKeyPublicModel(
 		return nil, false, err
 	}
 	for i := range entries {
-		if entries[i].PublicID == modelID {
+		if apiKeyPublicEntryMatchesID(entries[i], modelID) {
 			entry := entries[i]
 			return &entry, true, nil
 		}
@@ -519,17 +538,22 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 				if !ok {
 					continue
 				}
-				if _, matched := bindingMatchesModel(binding.ModelPatterns, candidate.MatchID); !matched {
+				publicID := apiKeyPublicProjectionPublicID(bindingPlatform, candidate, normalizeRegistryID(candidate.SourceID))
+				if publicID == "" {
+					publicID = normalizeRegistryID(candidate.SourceID)
+				}
+				if !bindingMatchesProjectionCandidate(binding.ModelPatterns, publicID, candidate) {
 					continue
 				}
-				if candidate.MatchID == modelID || candidate.AliasID == modelID || candidate.SourceID == modelID {
-					return &APIKeyPublicModelEntry{
-						PublicID:    normalizeRegistryID(candidate.SourceID),
-						AliasID:     candidate.AliasID,
-						SourceID:    normalizeRegistryID(candidate.SourceID),
-						DisplayName: candidate.DisplayName,
-						Platform:    bindingPlatform,
-					}, true
+				entry := APIKeyPublicModelEntry{
+					PublicID:    publicID,
+					AliasID:     candidate.AliasID,
+					SourceID:    normalizeRegistryID(candidate.SourceID),
+					DisplayName: candidate.DisplayName,
+					Platform:    bindingPlatform,
+				}
+				if apiKeyPublicEntryMatchesID(entry, modelID) {
+					return &entry, true
 				}
 			}
 		}
@@ -549,6 +573,18 @@ func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) 
 	if source == "" {
 		source = alias
 	}
+	explicitAlias := shouldExposePublicAlias(platform, alias, source)
+
+	if explicitAlias {
+		return apiKeyPublicProjectionCandidate{
+			MatchID:     alias,
+			AliasID:     alias,
+			SourceID:    source,
+			DisplayName: alias,
+			Platform:    platform,
+			ExposeAlias: true,
+		}, true
+	}
 
 	switch NormalizeAPIKeyModelDisplayMode(mode) {
 	case APIKeyModelDisplayModeSourceOnly:
@@ -558,6 +594,7 @@ func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) 
 			SourceID:    source,
 			DisplayName: source,
 			Platform:    platform,
+			ExposeAlias: false,
 		}, true
 	case APIKeyModelDisplayModeAliasAndSource:
 		return apiKeyPublicProjectionCandidate{
@@ -566,6 +603,7 @@ func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) 
 			SourceID:    source,
 			DisplayName: alias + " | " + source,
 			Platform:    platform,
+			ExposeAlias: false,
 		}, true
 	default:
 		return apiKeyPublicProjectionCandidate{
@@ -574,11 +612,20 @@ func buildAPIKeyPublicProjectionCandidate(mode, alias, source, platform string) 
 			SourceID:    source,
 			DisplayName: alias,
 			Platform:    platform,
+			ExposeAlias: false,
 		}, true
 	}
 }
 
 func apiKeyPublicProjectionPublicID(platform string, candidate apiKeyPublicProjectionCandidate, sourceID string) string {
+	if candidate.ExposeAlias {
+		if aliasID := normalizeRegistryID(candidate.AliasID); aliasID != "" {
+			return aliasID
+		}
+		if matchID := normalizeRegistryID(candidate.MatchID); matchID != "" {
+			return matchID
+		}
+	}
 	if !strings.EqualFold(platform, PlatformGrok) {
 		return sourceID
 	}
@@ -592,4 +639,63 @@ func apiKeyPublicProjectionPublicID(platform string, candidate apiKeyPublicProje
 		return publicID
 	}
 	return sourceID
+}
+
+func shouldExposePublicAlias(platform, alias, source string) bool {
+	alias = strings.TrimSpace(alias)
+	source = strings.TrimSpace(source)
+	if alias == "" || source == "" || alias == source {
+		return false
+	}
+	if strings.Contains(alias, "*") {
+		return false
+	}
+	if strings.EqualFold(platform, PlatformGemini) && alias == DefaultVertexPublicModelAlias(source) {
+		return false
+	}
+	return true
+}
+
+func apiKeyPublicEntryMatchesID(entry APIKeyPublicModelEntry, modelID string) bool {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return false
+	}
+	for _, candidate := range []string{entry.PublicID, entry.AliasID, entry.SourceID} {
+		if strings.TrimSpace(candidate) == modelID {
+			return true
+		}
+	}
+	return false
+}
+
+func bindingMatchesProjectionCandidate(
+	modelPatterns []string,
+	publicID string,
+	candidate apiKeyPublicProjectionCandidate,
+) bool {
+	for _, modelID := range []string{
+		publicID,
+		candidate.MatchID,
+		candidate.AliasID,
+		candidate.SourceID,
+	} {
+		if _, matched := bindingMatchesModel(modelPatterns, modelID); matched {
+			return true
+		}
+	}
+	return false
+}
+
+func countAliasOnlyPublicEntries(entries []APIKeyPublicModelEntry) int {
+	count := 0
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.PublicID) == "" {
+			continue
+		}
+		if strings.TrimSpace(entry.PublicID) != strings.TrimSpace(entry.SourceID) {
+			count++
+		}
+	}
+	return count
 }

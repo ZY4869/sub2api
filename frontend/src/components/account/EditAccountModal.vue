@@ -140,6 +140,7 @@
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="editBaseUrl"
           v-model:api-key="editApiKey"
+          v-model:actual-model-locked="actualModelLocked"
           v-model:model-scope-mode="modelRestrictionMode"
           v-model:allowed-models="allowedModels"
           v-model:gemini-tier-ai-studio="geminiTierAIStudio"
@@ -153,6 +154,7 @@
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
           :show-gemini-tier="shouldPersistGeminiTierId"
+          :show-actual-model-lock="true"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -184,7 +186,7 @@
 
         <AccountCustomErrorCodesEditor
           :state="customErrorCodesState"
-          :error-code-options="commonErrorCodes"
+          :error-code-options="commonErrorCodeOptions"
           :show-error="showFormError"
           :show-info="showFormInfo"
         />
@@ -207,6 +209,7 @@
 
       <AccountModelScopeEditor
         v-if="showStandaloneModelScopeEditor"
+        v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
         :mode="modelRestrictionMode"
@@ -214,6 +217,7 @@
         :model-mappings="modelMappings"
         :preset-mappings="presetMappings"
         :get-mapping-key="getModelMappingKey"
+        :show-actual-model-lock="true"
         @update:mode="modelRestrictionMode = $event"
         @update:allowedModels="allowedModels = $event"
         @add-mapping="addModelMapping"
@@ -551,7 +555,7 @@ import {
 } from '@/utils/openaiWsMode'
 import {
   getPresetMappingsByPlatform,
-  commonErrorCodes,
+  createCommonErrorCodeOptions,
   buildModelMappingObject
 } from '@/composables/useModelWhitelist'
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
@@ -660,6 +664,7 @@ const editApiKey = ref('')
 const editGrokSSOToken = ref('')
 const editGrokTier = ref<GrokTier>('basic')
 const modelMappings = ref<ModelMapping[]>([])
+const actualModelLocked = ref(true)
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const manualModels = ref<AccountManualModel[]>([])
@@ -1016,6 +1021,7 @@ const presetMappings = computed(() => getPresetMappingsByPlatform(effectivePlatf
 const defaultBaseUrl = computed(() => {
   return resolveAccountApiKeyDefaultBaseUrl(props.account?.platform || 'anthropic', gatewayProtocol.value)
 })
+const commonErrorCodeOptions = computed(() => createCommonErrorCodeOptions(t))
 
 function buildBaiduDocumentAICredentialsForUpdate(): Record<string, unknown> | null {
   const currentCredentials = (props.account?.credentials as Record<string, unknown> | undefined) || {}
@@ -1300,6 +1306,7 @@ watch(
   () => [props.show, props.account] as const,
   ([show, newAccount]) => {
     if (show && newAccount) {
+      actualModelLocked.value = true
       resetMixedChannelRisk()
       gatewayProtocol.value = resolveAccountGatewayProtocol(newAccount) || 'openai'
       gatewayAcceptedProtocols.value = normalizeGatewayAcceptedProtocols(
@@ -1600,6 +1607,7 @@ watch(
       }
       editApiKey.value = ''
     } else {
+      actualModelLocked.value = true
       resetMixedChannelRisk()
       resetTempUnschedRules()
       quotaControl.reset()

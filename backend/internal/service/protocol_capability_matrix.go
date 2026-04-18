@@ -658,9 +658,13 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 		HandlerFamily:     "vertex_models",
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodPost, Pattern: "/v1/projects/:project/locations/:location/publishers/google/models/*modelAction"},
+			{Method: http.MethodPost, Pattern: "/v1/vertex/models/*modelAction", RegisteredHandlerFamily: "vertex_models_simplified"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointVertexSyncModels, RequestFormat: EndpointVertexSyncModels, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointVertexSyncModels, RequestFormat: "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent", Action: ProtocolCapabilityActionGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointVertexSyncModels, RequestFormat: "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:streamGenerateContent", Action: ProtocolCapabilityActionStreamGenerateContent, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointVertexSyncModels, RequestFormat: "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:countTokens", Action: ProtocolCapabilityActionGeminiCountTokens, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{
@@ -673,6 +677,16 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 			{Method: http.MethodGet, Pattern: "/v1/projects/:project/locations/:location/batchPredictionJobs/*subpath"},
 			{Method: http.MethodPost, Pattern: "/v1/projects/:project/locations/:location/batchPredictionJobs/*subpath"},
 			{Method: http.MethodDelete, Pattern: "/v1/projects/:project/locations/:location/batchPredictionJobs/*subpath"},
+			{Method: http.MethodGet, Pattern: "/v1/vertex/batchPredictionJobs", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodPost, Pattern: "/v1/vertex/batchPredictionJobs", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodGet, Pattern: "/v1/vertex/batchPredictionJobs/*subpath", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodPost, Pattern: "/v1/vertex/batchPredictionJobs/*subpath", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodDelete, Pattern: "/v1/vertex/batchPredictionJobs/*subpath", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodGet, Pattern: "/vertex-batch/jobs", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodPost, Pattern: "/vertex-batch/jobs", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodGet, Pattern: "/vertex-batch/jobs/*subpath", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodPost, Pattern: "/vertex-batch/jobs/*subpath", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
+			{Method: http.MethodDelete, Pattern: "/vertex-batch/jobs/*subpath", RegisteredHandlerFamily: "vertex_batch_prediction_jobs_simplified"},
 		},
 		Capabilities: []PublicProtocolCapability{
 			{InboundEndpoint: EndpointVertexBatchJobs, RequestFormat: EndpointVertexBatchJobs, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformGemini, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},

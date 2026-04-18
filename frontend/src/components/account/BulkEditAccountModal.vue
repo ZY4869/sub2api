@@ -54,7 +54,7 @@
         v-model:enabled="enableCustomErrorCodes"
         v-model:selected-codes="selectedErrorCodes"
         v-model:input="customErrorCodeInput"
-        :error-code-options="commonErrorCodes"
+        :error-code-options="commonErrorCodeOptions"
       />
 
       <BulkEditAnthropicControlSection
@@ -165,7 +165,7 @@ import BulkEditStatusGroupSection from './BulkEditStatusGroupSection.vue'
 import { useBulkEditAccountForm } from '@/composables/useBulkEditAccountForm'
 import { useBulkEditAccountSubmit } from '@/composables/useBulkEditAccountSubmit'
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
-import { commonErrorCodes } from '@/composables/useModelWhitelist'
+import { createCommonErrorCodeOptions } from '@/composables/useModelWhitelist'
 import {
   OPENAI_WS_MODE_CTX_POOL,
   OPENAI_WS_MODE_OFF,
@@ -245,6 +245,7 @@ const openAIWSModeOptions = computed(() => [
   { value: OPENAI_WS_MODE_CTX_POOL, label: t('admin.accounts.openai.wsModeCtxPool') },
   { value: OPENAI_WS_MODE_PASSTHROUGH, label: t('admin.accounts.openai.wsModePassthrough') }
 ])
+const commonErrorCodeOptions = computed(() => createCommonErrorCodeOptions(t))
 
 const openAIWSModeConcurrencyHintKey = computed(() =>
   resolveOpenAIWSModeConcurrencyHintKey(openAIWSMode.value)

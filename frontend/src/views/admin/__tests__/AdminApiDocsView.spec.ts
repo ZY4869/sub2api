@@ -79,8 +79,8 @@ vi.mock('vue-i18n', async () => {
 })
 
 const initialDocument = {
-  effective_content: '# API Docs\n\n## gemini\n### Model Generation\nGemini page content',
-  default_content: '# API Docs\n\n## common\n### Overview\nDefault content\n',
+  effective_content: '# API Docs\n\n## gemini\n### Model Generation\nGemini page content\n',
+  default_content: '# API Docs\n\n## gemini\n### Model Generation\nDefault gemini content\n',
   has_override: true,
 }
 
@@ -141,6 +141,7 @@ describe('AdminApiDocsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    expect(getAPIDocs).toHaveBeenCalledWith('gemini')
     expect(replace).toHaveBeenCalledWith(expect.objectContaining({
       query: expect.objectContaining({
         tab: 'preview',
@@ -164,7 +165,7 @@ describe('AdminApiDocsView', () => {
     await wrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.save'))!.trigger('click')
     await flushPromises()
 
-    expect(updateAPIDocs).toHaveBeenCalledWith('new markdown')
+    expect(updateAPIDocs).toHaveBeenCalledWith('new markdown', 'gemini')
     expect(showSuccess).toHaveBeenCalledWith('admin.apiDocs.saveSuccess')
   })
 
@@ -212,11 +213,24 @@ describe('AdminApiDocsView', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    expect(getAPIDocs).toHaveBeenCalledWith('openai')
     expect(replace).not.toHaveBeenCalled()
     expect(wrapper.find('[data-test="api-docs-editor"]').exists()).toBe(true)
 
     await wrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.openUserPage'))!.trigger('click')
     expect(resolve).toHaveBeenCalledWith('/api-docs/openai')
     expect(open).toHaveBeenCalledWith('/api-docs/openai', '_blank', 'noopener')
+  })
+
+  it('restores only the current page override', async () => {
+    routeState.query = { tab: 'edit' }
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('button').find((node) => node.text().includes('admin.apiDocs.restoreDefault'))!.trigger('click')
+    await flushPromises()
+
+    expect(clearAPIDocsOverride).toHaveBeenCalledWith('gemini')
+    expect(showSuccess).toHaveBeenCalledWith('admin.apiDocs.restoreSuccess')
   })
 })

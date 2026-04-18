@@ -2457,18 +2457,18 @@
       },
       baiduDocumentAI: {
         title: '百度文档智能凭据',
-        description: '配置 PaddleOCR 异步任务 Token，以及可选的模型直连端点。至少填写一个 Token。',
-        asyncBaseUrl: '异步 Base URL',
-        asyncBaseUrlHint: '百度 AI Studio PaddleOCR 异步任务接口的默认地址。',
-        asyncBearerToken: '异步 Bearer Token',
-        asyncBearerTokenHint: '用于异步 jobs 的提交、状态查询和结果轮询。',
-        directToken: '直连模型 Token',
+        description: '配置百度文档智能异步任务访问令牌，以及可选的模型直连接口。至少填写一个访问令牌。',
+        asyncBaseUrl: '异步服务地址',
+        asyncBaseUrlHint: '百度文档智能异步任务接口地址，留空时使用默认官方地址。',
+        asyncBearerToken: '异步访问令牌',
+        asyncBearerTokenHint: '用于提交异步任务、查询状态和轮询结果。',
+        directToken: '直连访问令牌',
         directTokenHint: '可选，用于模型专属的直连解析接口。',
-        directApiUrls: '直连 API URLs',
-        directApiUrlsHint: '填写 JSON 对象，把模型 ID 映射到官方直连 API URL。',
+        directApiUrls: '直连接口地址映射',
+        directApiUrlsHint: '填写 JSON 对象，把模型 ID 映射到官方直连接口地址。',
         directApiUrlsPlaceholder: "{\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n}",
-        tokenRequired: '请至少填写一个百度文档智能 Token',
-        directApiUrlsInvalid: '直连 API URLs 必须是合法的 JSON 对象文本'
+        tokenRequired: '请至少填写一个百度文档智能访问令牌',
+        directApiUrlsInvalid: '直连接口地址映射必须是合法的 JSON 对象文本'
       },
       // OAuth flow
       oauth: {
@@ -2864,11 +2864,11 @@
       },
       apiKeyProbe: {
         title: '探测并选择模型',
-        hint: '读取上游可用模型后，可按需手动勾选并编辑映射名；探测结果默认不会自动选中，清空映射名时也不会自动回填。',
+        hint: '读取上游可用模型后，可按需手动勾选；模型映射名称统一在上方映射区编辑，探测结果默认不会自动选中。',
         action: '探测模型',
         failed: '探测模型失败',
         empty: '暂未探测到模型，点击上方按钮从当前凭据读取模型列表。',
-        selectionHint: '仅显式选中的模型会写入当前账号映射',
+        selectionHint: '仅显式选中的模型会写入当前账号映射与下游可见模型列表',
         selectedCount: '已选 {count} 个',
         selectCallableModels: '全选可调用模型',
         clearSelection: '清空选择',
@@ -2881,6 +2881,19 @@
         selectedUncallableWarning: '该模型当前探测为不可调用，导入后不会出现在外部 /v1beta/models 列表中，请确认风险后再保留。',
         registryExisting: '模型注册表已存在',
         registryMissing: '模型注册表待补充'
+      },
+      actualModelLockLabel: '锁定实际模型',
+      actualModelLockHintLocked: '开启后，右侧实际模型由当前已选模型驱动并保持只读，只允许编辑左侧请求名。',
+      actualModelLockHintUnlocked: '关闭后，可手动新增映射并同时编辑请求名与实际模型。',
+      modelMappingSelectionDrivenHint: '先在下方勾选允许暴露的模型，系统会自动生成映射行；随后只需在左侧填写下游请求名。',
+      errorCodeLabels: {
+        unauthorized: '未授权',
+        forbidden: '禁止访问',
+        rateLimit: '请求过快',
+        serverError: '服务异常',
+        badGateway: '上游网关错误',
+        unavailable: '服务暂不可用',
+        overloaded: '服务过载'
       },
       probeFinalize: {
         stepTitle: '收口确认',

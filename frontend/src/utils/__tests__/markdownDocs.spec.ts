@@ -13,35 +13,48 @@ const fixtureMarkdown = [
   '# API 文档中心',
   '## common',
   '### 概览',
-  '这是通用说明。',
+  '这里是通用说明。',
+  '## openai-native',
+  '### Responses',
+  '这里是 OpenAI 原生页面。',
+  '```python focus=1-2',
+  'print("responses")',
+  'print("native")',
+  '```',
+  '## document-ai',
+  '### 异步任务',
+  '这里是独立的百度智能文档页面。',
   '#### Python',
-  '```python',
-  'print("common")',
+  '```python focus=2-3',
+  'print("document-ai")',
+  'print("job")',
+  'print("result")',
   '```',
-  '#### JavaScript',
+  '#### Javascript',
   '```javascript',
-  'console.log("common")',
+  'console.log("document-ai")',
   '```',
-  '#### REST',
+  '#### Rest',
   '```bash',
-  'echo common',
+  'curl https://api.zyxai.de/document-ai/v1/models',
   '```',
   '## openai',
-  '### Responses 规则',
-  '这里是 OpenAI 页面。',
-  '#### Python',
-  '```python',
-  'print("openai")',
-  '```',
-  '#### JavaScript',
-  '```javascript',
-  'console.log("openai")',
-  '```',
-  '#### REST',
-  '```bash',
-  'echo openai',
-  '```',
+  '### Chat Completions',
+  '这里是 OpenAI 兼容页面。',
 ].join('\n')
+
+function readRepositoryDocsBaseline() {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../')
+  const docsRoot = path.join(repoRoot, 'backend/internal/service/docs')
+  const parts = [
+    readFileSync(path.join(docsRoot, 'index.md'), 'utf8').trimEnd(),
+    ...DOCS_PAGE_ORDER.map((pageId) =>
+      readFileSync(path.join(docsRoot, 'pages', `${pageId}.md`), 'utf8').trimEnd(),
+    ),
+  ]
+
+  return `${parts.join('\n\n')}\n`
+}
 
 describe('markdownDocs', () => {
   it('extracts headings with stable deduplicated ids', () => {
@@ -75,69 +88,67 @@ describe('markdownDocs', () => {
     expect(document.html).toContain('<h2 id="概览">概览</h2>')
   })
 
-  it('parses virtual protocol pages and groups code examples into tabs', () => {
+  it('parses openai-native and document-ai pages with aliases and focus metadata', () => {
     const document = parseDocsMarkdown(fixtureMarkdown)
-    const openaiPage = document.pages.find((page) => page.id === 'openai')
-    const section = openaiPage?.sections[0]
-    const codeGroup = section?.contentBlocks.find((block) => block.kind === 'code-group')
+    const openAINativePage = document.pages.find((page) => page.id === 'openai-native')
+    const documentAIPage = document.pages.find((page) => page.id === 'document-ai')
+    const asyncSection = documentAIPage?.sections[0]
+    const tabGroup = asyncSection?.contentBlocks.find((block) => block.kind === 'code-group')
 
     expect(document.pages.map((page) => page.id)).toEqual(DOCS_PAGE_ORDER)
-    expect(openaiPage?.title).toBe('OpenAI 兼容')
-    expect(section?.title).toBe('Responses 规则')
-    expect(codeGroup?.kind).toBe('code-group')
-    if (codeGroup?.kind === 'code-group') {
-      expect(codeGroup.group.tabs.map((tab) => tab.label)).toEqual(['Python', 'Javascript', 'Rest'])
-      expect(codeGroup.group.tabs[1]?.code).toContain('console.log("openai")')
+    expect(openAINativePage?.title).toBe('OpenAI 原生')
+    expect(documentAIPage?.title).toBe('百度智能文档')
+    expect(asyncSection?.title).toBe('异步任务')
+    expect(tabGroup?.kind).toBe('code-group')
+    if (tabGroup?.kind === 'code-group') {
+      expect(tabGroup.group.tabs.map((tab) => tab.label)).toEqual([
+        'Python',
+        'JavaScript',
+        'Go',
+        'Java',
+        'C#',
+        'PHP',
+        'Shell',
+        'REST',
+      ])
+      expect(tabGroup.group.tabs[0]?.focusLines).toEqual([2, 3])
+      expect(tabGroup.group.tabs[1]?.code).toContain('console.log("document-ai")')
+      expect(tabGroup.group.tabs[7]?.language).toBe('rest')
     }
   })
 
-  it('keeps malformed tab headings as regular markdown content', () => {
-    const document = parseDocsMarkdown([
-      '# API 文档中心',
-      '## common',
-      '### 异常结构',
-      '#### Python',
-      '这里只有普通文本，没有代码块。',
-    ].join('\n'))
+  it('uses a neutral empty-page placeholder without sync messaging', () => {
+    const document = parseDocsMarkdown('# API 文档中心\n\n## common\n### 概览\n只有通用页。')
+    const documentAIPage = document.pages.find((page) => page.id === 'document-ai')
+    const emptyIntro = documentAIPage?.introBlocks[0]
 
-    const section = document.pages.find((page) => page.id === 'common')?.sections[0]
-    expect(section?.contentBlocks).toHaveLength(1)
-    expect(section?.contentBlocks[0]?.kind).toBe('markdown')
+    expect(documentAIPage?.isMissing).toBe(true)
+    expect(emptyIntro?.kind).toBe('markdown')
+    if (emptyIntro?.kind === 'markdown') {
+      expect(emptyIntro.html).toContain('当前协议页尚未写入内容')
+      expect(emptyIntro.html).not.toContain('同步')
+    }
   })
 
-  it('keeps the repository baseline aligned with the required page set and example tabs', () => {
-    const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../')
-    const source = readFileSync(
-      path.join(repoRoot, 'backend/internal/service/docs/api_reference.md'),
-      'utf8'
-    )
-
+  it('keeps the repository baseline aligned with the 9-page set', () => {
+    const source = readRepositoryDocsBaseline()
     const document = parseDocsMarkdown(source)
     const commonPage = document.pages.find((page) => page.id === 'common')
+    const documentAIPage = document.pages.find((page) => page.id === 'document-ai')
+    const openAINativePage = document.pages.find((page) => page.id === 'openai-native')
 
     expect(document.pages.every((page) => !page.isMissing)).toBe(true)
     expect(document.pages.map((page) => page.id)).toEqual(DOCS_PAGE_ORDER)
-    expect(commonPage?.sections.map((section) => section.title)).toEqual([
-      '概览',
-      '快速接入',
-      '基础地址与认证',
-      '错误响应与限流',
-      '模型与路径兼容差异',
-      '接入最佳实践',
-      '文档同步说明',
-    ])
+    expect(commonPage?.sections.some((section) => section.title.includes('百度智能文档'))).toBe(false)
+    expect(commonPage?.sections.some((section) => section.title.includes('文档同步说明'))).toBe(false)
+    expect(documentAIPage?.title).toBe('百度智能文档')
+    expect(openAINativePage?.sections.length).toBeGreaterThan(0)
 
-    for (const page of document.pages) {
-      const hasTabbedExamples = page.sections.some((section) =>
-        section.contentBlocks.some(
-          (block) =>
-            block.kind === 'code-group'
-            && ['Python', 'Javascript', 'Rest'].every((label) =>
-              block.group.tabs.some((tab) => tab.label === label)
-            )
-        )
-      )
-      expect(hasTabbedExamples, `${page.id} should contain Python/Javascript/Rest tabs`).toBe(true)
-    }
+    const hasEightTabExample = documentAIPage?.sections.some((section) =>
+      section.contentBlocks.some(
+        (block) => block.kind === 'code-group' && block.group.tabs.length === 8,
+      ),
+    )
+    expect(hasEightTabExample).toBe(true)
   })
 })

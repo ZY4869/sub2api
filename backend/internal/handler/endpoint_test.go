@@ -62,6 +62,10 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1beta/interactions/sample", EndpointGeminiInteractions},
 		{"/v1beta/live/sample", EndpointGeminiLive},
 		{"/v1beta/embeddings", EndpointGeminiEmbeddings},
+		{"/v1/vertex/models/gemini-2.5-pro:generateContent", EndpointVertexSyncModels},
+		{"/v1/vertex/batchPredictionJobs", EndpointVertexBatchJobs},
+		{"/v1/vertex/batchPredictionJobs/job-1", EndpointVertexBatchJobs},
+		{"/vertex-batch/jobs/job-1:cancel", EndpointVertexBatchJobs},
 
 		// Prefixed paths (antigravity, openai).
 		{"/antigravity/v1/messages", EndpointMessages},

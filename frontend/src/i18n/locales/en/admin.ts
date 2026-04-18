@@ -2715,11 +2715,11 @@ export default {
       },
       apiKeyProbe: {
         title: 'Probe and Select Models',
-        hint: 'Load upstream models, then explicitly select the ones you want and edit alias names directly. Probe results stay unselected by default, and clearing an alias keeps it blank until submit.',
+        hint: 'Load upstream models and explicitly select the ones you want. Request aliases are edited only in the mapping editor above, and probe results stay unselected by default.',
         action: 'Probe Models',
         failed: 'Failed to probe models',
         empty: 'No probed models yet. Use the button above to read the model list from the current credentials.',
-        selectionHint: 'Only explicitly selected models will be saved into this account mapping',
+        selectionHint: 'Only explicitly selected models will be saved into this account mapping and downstream model surface',
         selectedCount: '{count} selected',
         selectCallableModels: 'Select Callable Models',
         clearSelection: 'Clear Selection',
@@ -2732,6 +2732,19 @@ export default {
         selectedUncallableWarning: 'This model is currently uncallable. It will not be exposed from external /v1beta/models after import, so keep it only if you understand the risk.',
         registryExisting: 'Already in registry',
         registryMissing: 'Missing from registry'
+      },
+      actualModelLockLabel: 'Lock actual model',
+      actualModelLockHintLocked: 'When enabled, actual models are driven by the selected model list and stay read-only. Only the request-facing alias can be edited.',
+      actualModelLockHintUnlocked: 'When disabled, you can add mappings manually and edit both the request-facing alias and the actual model.',
+      modelMappingSelectionDrivenHint: 'Select the models to expose below first. Mapping rows will be created automatically, then you only need to edit the request-facing alias on the left.',
+      errorCodeLabels: {
+        unauthorized: 'Unauthorized',
+        forbidden: 'Forbidden',
+        rateLimit: 'Rate Limit',
+        serverError: 'Server Error',
+        badGateway: 'Bad Gateway',
+        unavailable: 'Unavailable',
+        overloaded: 'Overloaded'
       },
       probeFinalize: {
         stepTitle: 'Finalize',

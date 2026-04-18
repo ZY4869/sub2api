@@ -463,9 +463,28 @@ const availableClientProfiles = computed<GatewayClientProfile[]>(() => {
   return [...new Set(values)]
 })
 const shouldShowProtocolGrouping = computed(() => props.gatewayProtocol === 'mixed')
+const selectedModelTargets = computed(() => {
+  const values = new Set<string>()
+  for (const modelId of allowedModels.value) {
+    const normalized = String(modelId || '').trim()
+    if (normalized) {
+      values.add(normalized)
+    }
+  }
+  for (const mapping of modelMappings.value) {
+    const normalized = String(mapping.to || '').trim()
+    if (normalized) {
+      values.add(normalized)
+    }
+  }
+  return values
+})
+const selectedProbedModels = computed(() =>
+  probedModels.value.filter((model) => selectedModelTargets.value.has(String(model.id || '').trim()))
+)
 const providerOptions = computed(() => {
   const seen = new Set<string>()
-  return [...probedModels.value]
+  return [...selectedProbedModels.value]
     .filter((model) => {
       const provider = normalizeProviderSlug(model.provider)
       if (!provider || seen.has(provider)) {
@@ -485,7 +504,7 @@ const testModelOptions = computed(() => {
   if (!provider) {
     return []
   }
-  return [...probedModels.value]
+  return [...selectedProbedModels.value]
     .filter((model) => normalizeProviderSlug(model.provider) === provider)
     .sort((left, right) => displayModelName(left).localeCompare(displayModelName(right)))
     .map((model) => ({

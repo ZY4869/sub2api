@@ -73,9 +73,9 @@ const summaryCards = computed(() => [
     description: t('ui.apiDocs.summary.auth.description')
   },
   {
-    label: t('ui.apiDocs.summary.sync.label'),
-    value: t('ui.apiDocs.summary.sync.value'),
-    description: t('ui.apiDocs.summary.sync.description')
+    label: t('ui.apiDocs.summary.languages.label'),
+    value: t('ui.apiDocs.summary.languages.value'),
+    description: t('ui.apiDocs.summary.languages.description')
   }
 ])
 

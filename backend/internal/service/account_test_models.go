@@ -51,7 +51,12 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 			resolutionEntries = sourceEntries
 		}
 	}
-	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
+	return filterAvailableTestModelsForAccount(
+		ctx,
+		account,
+		registry,
+		dedupeAndSortAvailableTestModels(candidates, resolutionEntries),
+	)
 }
 
 func MergeAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTestModel {
@@ -147,7 +152,12 @@ func IntersectAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTes
 
 func buildAvailableTestModelsForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) []AvailableTestModel {
 	candidates, resolutionEntries := buildAvailableTestModelCandidatesForSource(ctx, account, registry, sourceProtocol)
-	return dedupeAndSortAvailableTestModels(candidates, resolutionEntries)
+	return filterAvailableTestModelsForAccount(
+		ctx,
+		account,
+		registry,
+		dedupeAndSortAvailableTestModels(candidates, resolutionEntries),
+	)
 }
 
 func buildAvailableTestModelCandidatesForSource(ctx context.Context, account *Account, registry *ModelRegistryService, sourceProtocol string) ([]testModelCandidate, []modelregistry.ModelEntry) {
@@ -425,6 +435,39 @@ func dedupeAndSortAvailableTestModels(candidates []testModelCandidate, resolutio
 		return compareAvailableTestModels(deduped[i], deduped[j]) < 0
 	})
 	return deduped
+}
+
+func filterAvailableTestModelsForAccount(
+	ctx context.Context,
+	account *Account,
+	registry *ModelRegistryService,
+	models []AvailableTestModel,
+) []AvailableTestModel {
+	if len(models) == 0 || account == nil || !accountHasExplicitModelRestrictions(account) {
+		return models
+	}
+
+	filtered := make([]AvailableTestModel, 0, len(models))
+	for _, model := range models {
+		requestedIDs := []string{
+			strings.TrimSpace(model.ID),
+			strings.TrimSpace(model.CanonicalID),
+		}
+		allowed := false
+		for _, requestedID := range requestedIDs {
+			if requestedID == "" {
+				continue
+			}
+			if isRequestedModelSupportedByAccount(ctx, registry, account, requestedID) {
+				allowed = true
+				break
+			}
+		}
+		if allowed {
+			filtered = append(filtered, model)
+		}
+	}
+	return filtered
 }
 
 func compareTestModelCandidates(left testModelCandidate, right testModelCandidate) int {

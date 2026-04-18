@@ -28,15 +28,17 @@ describe('api docs routes', () => {
   })
 
   it('registers authenticated user and admin api docs protocol routes', () => {
-    const userRoute = router.resolve('/api-docs/openai')
-    const adminRoute = router.resolve('/admin/api-docs/gemini')
+    const userRoute = router.resolve('/api-docs/openai-native')
+    const adminRoute = router.resolve('/admin/api-docs/openai-native')
 
     expect(userRoute.name).toBe('ApiDocs')
+    expect(userRoute.params.pageId).toBe('openai-native')
     expect(userRoute.meta.requiresAuth).toBe(true)
     expect(userRoute.meta.requiresAdmin).toBe(false)
     expect(userRoute.meta.titleKey).toBe('ui.routeTitles.apiDocs')
 
     expect(adminRoute.name).toBe('AdminApiDocs')
+    expect(adminRoute.params.pageId).toBe('openai-native')
     expect(adminRoute.meta.requiresAuth).toBe(true)
     expect(adminRoute.meta.requiresAdmin).toBe(true)
     expect(adminRoute.meta.titleKey).toBe('admin.apiDocs.title')

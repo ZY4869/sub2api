@@ -118,8 +118,10 @@ defineProps<{
 }
 
 .docs-markdown :deep(table) {
-  display: block;
-  overflow-x: auto;
+  display: table;
+  width: 100%;
+  min-width: 100%;
+  table-layout: auto;
 }
 
 .docs-markdown :deep(th) {

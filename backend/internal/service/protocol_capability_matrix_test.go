@@ -40,6 +40,8 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "gemini live websocket supported", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointGeminiLive, action: ProtocolCapabilityActionWebSocket, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini auth tokens supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1alpha/authTokens", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini openai compat supported", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointGeminiOpenAICompat, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "vertex simplified generate content supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1/vertex/models/gemini-2.5-pro:generateContent", action: ProtocolCapabilityActionGenerateContent, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "vertex strict count tokens supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1/projects/demo/locations/us-central1/publishers/google/models/gemini-2.5-pro:countTokens", action: ProtocolCapabilityActionGeminiCountTokens, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini corpora supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/corpora/default-corpus", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini corpora operations supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/corpora/default-corpus/operations/op-1", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini corpora permissions supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/corpora/default-corpus/permissions/perm-1", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
@@ -84,6 +86,8 @@ func TestPublicEndpointRequestFormatForAction(t *testing.T) {
 	require.Equal(t, "/v1beta/tunedModels/{tunedModel}:asyncBatchEmbedContent", PublicEndpointRequestFormatForAction(EndpointGeminiTunedModels, ProtocolCapabilityActionGeminiAsyncEmbedding))
 	require.Equal(t, "/v1beta/tunedModels/{tunedModel}:transferOwnership", PublicEndpointRequestFormatForAction(EndpointGeminiTunedModels, ProtocolCapabilityActionTransferOwnership))
 	require.Equal(t, "/v1alpha/authTokens", PublicEndpointRequestFormatForAction(EndpointGeminiLiveAuthTokens, ProtocolCapabilityActionDefault))
+	require.Equal(t, "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent", PublicEndpointRequestFormatForAction(EndpointVertexSyncModels, ProtocolCapabilityActionGenerateContent))
+	require.Equal(t, "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:countTokens", PublicEndpointRequestFormatForAction(EndpointVertexSyncModels, ProtocolCapabilityActionGeminiCountTokens))
 	require.Equal(t, EndpointResponses, PublicEndpointRequestFormatForAction(EndpointResponses, ProtocolCapabilityActionWebSocket))
 }
 
@@ -119,6 +123,9 @@ func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/files/file_123"))
 	require.Equal(t, EndpointGeminiOpenAICompat, NormalizeInboundEndpoint("/v1beta/openai/batches/batch_123"))
 	require.Equal(t, EndpointGeminiInteractions, NormalizeInboundEndpoint("/v1beta/interactions/sample"))
+	require.Equal(t, EndpointVertexSyncModels, NormalizeInboundEndpoint("/v1/vertex/models/gemini-2.5-pro:generateContent"))
+	require.Equal(t, EndpointVertexBatchJobs, NormalizeInboundEndpoint("/v1/vertex/batchPredictionJobs/job-1"))
+	require.Equal(t, EndpointVertexBatchJobs, NormalizeInboundEndpoint("/vertex-batch/jobs/job-1:cancel"))
 }
 
 func TestDecideProtocolCapability_GeminiDeprecatedModelActionsRemainUnsupported(t *testing.T) {

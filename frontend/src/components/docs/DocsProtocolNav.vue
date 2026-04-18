@@ -93,20 +93,22 @@ const props = withDefaults(defineProps<{
   title?: string
 }>(), {
   compact: false,
-  title: '支持协议'
+  title: '支持协议',
 })
 
 const platformVisuals: Partial<Record<DocsPageId, AccountPlatform>> = {
-  openai: 'openai',
+  'openai-native': 'openai',
   anthropic: 'anthropic',
   gemini: 'gemini',
   grok: 'grok',
   antigravity: 'antigravity',
-  'vertex-batch': 'gemini'
+  'vertex-batch': 'gemini',
+  'document-ai': 'baidu_document_ai',
 }
 
-const genericVisuals: Partial<Record<DocsPageId, 'book'>> = {
-  common: 'book'
+const genericVisuals: Partial<Record<DocsPageId, 'book' | 'swap'>> = {
+  common: 'book',
+  openai: 'swap',
 }
 
 function buildPagePath(pageId: DocsPageId) {
@@ -117,7 +119,7 @@ function getPlatformVisual(pageId: DocsPageId) {
   return platformVisuals[pageId]
 }
 
-function getGenericIcon(pageId: DocsPageId): 'book' {
+function getGenericIcon(pageId: DocsPageId): 'book' | 'swap' {
   return genericVisuals[pageId] ?? 'book'
 }
 </script>

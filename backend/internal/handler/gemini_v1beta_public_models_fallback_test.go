@@ -216,6 +216,109 @@ func newGeminiPublicModelsFallbackHandler(t *testing.T) (*GatewayHandler, *servi
 	return handler, apiKey
 }
 
+func newGeminiPublicModelsAliasHandler(t *testing.T) (*GatewayHandler, *service.APIKey) {
+	t.Helper()
+
+	registryRepo := newGeminiPublicModelsSettingRepoStub()
+	registrySvc := service.NewModelRegistryService(registryRepo)
+	_, err := registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "gemini-2.0-flash",
+		DisplayName: "Gemini 2.0 Flash",
+		Provider:    service.PlatformGemini,
+		Platforms:   []string{service.PlatformGemini},
+		ExposedIn:   []string{"runtime"},
+		UIPriority:  1,
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gemini-2.0-flash"})
+	require.NoError(t, err)
+
+	groupID := int64(3101)
+	group := &service.Group{
+		ID:       groupID,
+		Name:     "gemini-public-alias",
+		Platform: service.PlatformGemini,
+		Status:   service.StatusActive,
+	}
+	apiKey := &service.APIKey{
+		ID:               4101,
+		UserID:           5101,
+		Key:              "sk-gemini-public-alias",
+		Status:           service.StatusActive,
+		ModelDisplayMode: service.APIKeyModelDisplayModeSourceOnly,
+		GroupID:          &groupID,
+		Group:            group,
+		GroupBindings: []service.APIKeyGroupBinding{
+			{
+				APIKeyID: 4101,
+				GroupID:  groupID,
+				Group:    group,
+			},
+		},
+		User: &service.User{ID: 5101, Status: service.StatusActive},
+	}
+
+	accountRepo := &geminiPublicModelsAccountRepoStub{
+		accounts: []service.Account{
+			{
+				ID:          6101,
+				Name:        "gemini-apikey",
+				Platform:    service.PlatformGemini,
+				Type:        service.AccountTypeAPIKey,
+				Status:      service.StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key": "gemini-key",
+					"model_mapping": map[string]any{
+						"friendly-flash": "gemini-2.0-flash",
+					},
+				},
+				Extra: map[string]any{
+					"model_probe_snapshot": map[string]any{
+						"models":       []string{"gemini-2.0-flash"},
+						"updated_at":   "2026-04-01T10:00:00Z",
+						"source":       "manual_probe",
+						"probe_source": "upstream",
+					},
+				},
+				AccountGroups: []service.AccountGroup{{AccountID: 6101, GroupID: groupID}},
+			},
+		},
+	}
+
+	gatewaySvc := service.NewGatewayService(
+		accountRepo,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&config.Config{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	gatewaySvc.SetModelRegistryService(registrySvc)
+
+	handler := &GatewayHandler{
+		gatewayService: gatewaySvc,
+	}
+	handler.SetModelRegistryService(registrySvc)
+	return handler, apiKey
+}
+
 func newGeminiPublicModelsContext(method, path string, apiKey *service.APIKey, params gin.Params) (*gin.Context, *httptest.ResponseRecorder) {
 	recorder := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(recorder)
@@ -276,4 +379,38 @@ func TestGeminiV1BetaGetModel_VertexCatalogFailureFallsBackToRegistry(t *testing
 	require.Contains(t, strings.ToLower(payload.DisplayName), "flash")
 	require.True(t, strings.Contains(payload.Description, "fallback entry"))
 	require.Contains(t, payload.SupportedGenerationMethods, "generateContent")
+}
+
+func TestGeminiV1BetaModelsListAndDetail_ExplicitAliasUsesProjectedMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler, apiKey := newGeminiPublicModelsAliasHandler(t)
+	listContext, listRecorder := newGeminiPublicModelsContext(http.MethodGet, "/v1beta/models", apiKey, nil)
+
+	handler.GeminiV1BetaListModels(listContext)
+
+	require.Equal(t, http.StatusOK, listRecorder.Code)
+
+	var listPayload gemini.ModelsListResponse
+	require.NoError(t, json.Unmarshal(listRecorder.Body.Bytes(), &listPayload))
+	require.Len(t, listPayload.Models, 1)
+	require.Equal(t, "models/friendly-flash", listPayload.Models[0].Name)
+	require.Equal(t, "friendly-flash", listPayload.Models[0].DisplayName)
+
+	detailContext, detailRecorder := newGeminiPublicModelsContext(
+		http.MethodGet,
+		"/v1beta/models/friendly-flash",
+		apiKey,
+		gin.Params{{Key: "model", Value: "friendly-flash"}},
+	)
+
+	handler.GeminiV1BetaGetModel(detailContext)
+
+	require.Equal(t, http.StatusOK, detailRecorder.Code)
+
+	var detailPayload gemini.Model
+	require.NoError(t, json.Unmarshal(detailRecorder.Body.Bytes(), &detailPayload))
+	require.Equal(t, "models/friendly-flash", detailPayload.Name)
+	require.Equal(t, "friendly-flash", detailPayload.DisplayName)
+	require.NotContains(t, detailRecorder.Body.String(), "models/gemini-2.0-flash")
 }

@@ -41,8 +41,17 @@ func (h *GatewayHandler) GeminiV1BetaBatches(c *gin.Context) {
 
 func (h *GatewayHandler) VertexBatchPredictionJobs(c *gin.Context) {
 	attachGeminiPublicProtocolContext(c)
+	attachVertexGeminiSurface(c, "vertex_strict")
 	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
 		return h.geminiNativeService.ForwardVertexBatchPredictionJobs(c.Request.Context(), input)
+	})
+}
+
+func (h *GatewayHandler) VertexBatchPredictionJobsSimplified(c *gin.Context) {
+	attachGeminiPublicProtocolContext(c)
+	attachVertexGeminiSurface(c, "vertex_simplified")
+	h.forwardGoogleBatch(c, func(input service.GoogleBatchForwardInput) (service.GoogleBatchUpstreamResult, *service.Account, error) {
+		return h.geminiNativeService.ForwardSimplifiedVertexBatchPredictionJobs(c.Request.Context(), input)
 	})
 }
 

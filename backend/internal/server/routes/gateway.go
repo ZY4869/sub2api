@@ -221,6 +221,39 @@ func RegisterGatewayRoutes(
 	}
 
 	// OpenAI Responses API（不带v1前缀的别名）
+	vertexSimplified := r.Group("/v1/vertex")
+	vertexSimplified.Use(bodyLimit)
+	vertexSimplified.Use(clientRequestID)
+	vertexSimplified.Use(opsErrorLogger)
+	vertexSimplified.Use(opsRequestTraceLogger)
+	vertexSimplified.Use(endpointNorm)
+	vertexSimplified.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	vertexSimplified.Use(requireGroupGoogle)
+	{
+		vertexSimplified.POST("/models/*modelAction", dispatchers.VertexModelsSimplified)
+		vertexSimplified.GET("/batchPredictionJobs", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexSimplified.POST("/batchPredictionJobs", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexSimplified.GET("/batchPredictionJobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexSimplified.POST("/batchPredictionJobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexSimplified.DELETE("/batchPredictionJobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
+	}
+
+	vertexBatchAlias := r.Group("/vertex-batch")
+	vertexBatchAlias.Use(bodyLimit)
+	vertexBatchAlias.Use(clientRequestID)
+	vertexBatchAlias.Use(opsErrorLogger)
+	vertexBatchAlias.Use(opsRequestTraceLogger)
+	vertexBatchAlias.Use(endpointNorm)
+	vertexBatchAlias.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	vertexBatchAlias.Use(requireGroupGoogle)
+	{
+		vertexBatchAlias.GET("/jobs", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexBatchAlias.POST("/jobs", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexBatchAlias.GET("/jobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexBatchAlias.POST("/jobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
+		vertexBatchAlias.DELETE("/jobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
+	}
+
 	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
 	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
 	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)

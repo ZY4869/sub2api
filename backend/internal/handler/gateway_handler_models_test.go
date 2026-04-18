@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
+	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -62,4 +65,55 @@ func TestAPIKeyPublicEntriesToGeminiModels_IncludesNextPageToken(t *testing.T) {
 	require.Zero(t, resp.Models[0].InputTokenLimit)
 	require.Zero(t, resp.Models[0].OutputTokenLimit)
 	require.Empty(t, resp.Models[0].SupportedGenerationMethods)
+}
+
+func TestGatewayModels_VertexCatalogFailureFallsBackToRegistry(t *testing.T) {
+	t.Parallel()
+
+	handler, apiKey := newGeminiPublicModelsFallbackHandler(t)
+	c, recorder := newGeminiPublicModelsContext(http.MethodGet, "/v1/models", apiKey, nil)
+
+	handler.Models(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var payload struct {
+		Object string         `json:"object"`
+		Data   []claude.Model `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Equal(t, "list", payload.Object)
+	require.NotEmpty(t, payload.Data)
+
+	found := false
+	for _, model := range payload.Data {
+		if model.ID != "gemini-2.0-flash" {
+			continue
+		}
+		found = true
+		require.NotEmpty(t, model.DisplayName)
+	}
+	require.True(t, found)
+}
+
+func TestGatewayModels_ExplicitAliasOnlySurfaceDoesNotLeakSourceModel(t *testing.T) {
+	t.Parallel()
+
+	handler, apiKey := newGeminiPublicModelsAliasHandler(t)
+	c, recorder := newGeminiPublicModelsContext(http.MethodGet, "/v1/models", apiKey, nil)
+
+	handler.Models(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var payload struct {
+		Object string         `json:"object"`
+		Data   []claude.Model `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.Equal(t, "list", payload.Object)
+	require.Len(t, payload.Data, 1)
+	require.Equal(t, "friendly-flash", payload.Data[0].ID)
+	require.Equal(t, "friendly-flash", payload.Data[0].DisplayName)
+	require.NotContains(t, recorder.Body.String(), "gemini-2.0-flash")
 }

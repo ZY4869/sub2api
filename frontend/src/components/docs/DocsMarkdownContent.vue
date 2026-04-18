@@ -118,10 +118,10 @@ const tocHeadings = computed<MarkdownHeading[]>(() =>
 )
 const gridClass = computed(() =>
   props.previewMode
-    ? 'grid gap-4 md:grid-cols-[220px,minmax(0,1fr)] lg:gap-5 lg:grid-cols-[250px,minmax(0,1fr)] xl:gap-6 xl:grid-cols-[290px,minmax(0,1fr)]'
+    ? 'grid gap-4 md:grid-cols-[200px,minmax(0,1fr),180px] lg:gap-5 lg:grid-cols-[240px,minmax(0,1fr),200px] xl:gap-6 xl:grid-cols-[290px,minmax(0,1fr),240px]'
     : 'grid gap-4 md:grid-cols-[200px,minmax(0,1fr),180px] lg:gap-5 lg:grid-cols-[240px,minmax(0,1fr),200px] xl:gap-6 xl:grid-cols-[290px,minmax(0,1fr),240px]'
 )
-const showDesktopToc = computed(() => !props.previewMode && tocHeadings.value.length > 0)
+const showDesktopToc = computed(() => tocHeadings.value.length > 0)
 
 let sectionObserver: IntersectionObserver | null = null
 

@@ -332,8 +332,12 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "google_batch_archive_files"
 	case strings.Contains(handlerName, ".VertexModels-fm"):
 		return "vertex_models"
+	case strings.Contains(handlerName, ".VertexModelsSimplified-fm"):
+		return "vertex_models_simplified"
 	case strings.Contains(handlerName, ".VertexBatchPredictionJobs-fm"):
 		return "vertex_batch_prediction_jobs"
+	case strings.Contains(handlerName, ".VertexBatchPredictionJobsSimplified-fm"):
+		return "vertex_batch_prediction_jobs_simplified"
 	default:
 		return ""
 	}
