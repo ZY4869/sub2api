@@ -64,12 +64,11 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	etagHit := false
+	etagHit := snapshot.ETag != "" && strings.TrimSpace(c.GetHeader("If-None-Match")) == snapshot.ETag
 	if snapshot.ETag != "" {
 		c.Header("ETag", snapshot.ETag)
 		c.Header("Vary", "If-None-Match")
-		if strings.TrimSpace(c.GetHeader("If-None-Match")) == snapshot.ETag {
-			etagHit = true
+		if etagHit {
 			logger.FromContext(c.Request.Context()).Info(
 				"public model catalog responded from etag cache",
 				zap.String("component", "handler.meta"),

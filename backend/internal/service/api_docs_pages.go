@@ -6,9 +6,9 @@ import (
 )
 
 var (
-	apiDocsFencePattern   = regexp.MustCompile(`^\s*(` + "```+" + `|~~~+)`)
-	apiDocsTitlePattern   = regexp.MustCompile(`^#\s+(.+)$`)
-	apiDocsPageIDPattern  = regexp.MustCompile(`^##\s+(.+)$`)
+	apiDocsFencePattern  = regexp.MustCompile(`^\s*(` + "```+" + `|~~~+)`)
+	apiDocsTitlePattern  = regexp.MustCompile(`^#\s+(.+)$`)
+	apiDocsPageIDPattern = regexp.MustCompile(`^##\s+(.+)$`)
 )
 
 var apiDocsPageOrder = []string{

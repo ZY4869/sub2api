@@ -55,6 +55,7 @@ func TestLocalizedReasonMessagesCoverMixedGatewayReasons(t *testing.T) {
 		"TEST_TARGET_PROVIDER_REQUIRED",
 		"TEST_TARGET_MODEL_INVALID",
 		"TEST_TARGET_MODEL_REQUIRED",
+		"TEST_MODEL_NOT_ALLOWED",
 		"TEST_PROBE_RESOLUTION_FAILED",
 	}
 

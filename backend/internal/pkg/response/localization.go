@@ -38,6 +38,10 @@ var localizedReasonMessages = map[string]localizedMessageMap{
 		"en": "selected target_provider does not have a default test model",
 		"zh": "所选测试厂商没有可用的默认测试模型，请手动指定模型后重试。",
 	},
+	"TEST_MODEL_NOT_ALLOWED": {
+		"en": "selected model is not allowed for this account",
+		"zh": "所选模型不在当前账号的允许范围内，请调整后重试。",
+	},
 	"TEST_PROBE_RESOLUTION_FAILED": {
 		"en": "mixed protocol gateway test could not resolve a unique protocol",
 		"zh": "Mixed 协议网关测试无法解析出唯一协议，请补充厂商、模型或 source_protocol。",
