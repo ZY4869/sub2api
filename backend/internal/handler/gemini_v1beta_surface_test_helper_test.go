@@ -82,16 +82,16 @@ func (r *geminiSurfaceHTTPUpstreamRecorder) DoWithTLS(req *http.Request, proxyUR
 
 type geminiSurfaceAccountRepoStub struct {
 	service.AccountRepository
-	accounts                      []service.Account
-	accountsByID                  map[int64]*service.Account
-	listByGroupAndPlatformCalls   int
-	listByGroupAndPlatformsCalls  int
-	listByPlatformsCalls          int
-	getByIDCalls                  int
-	setErrorCalls                 int
-	lastListGroupID               int64
-	lastListPlatform              string
-	lastListPlatforms             []string
+	accounts                     []service.Account
+	accountsByID                 map[int64]*service.Account
+	listByGroupAndPlatformCalls  int
+	listByGroupAndPlatformsCalls int
+	listByPlatformsCalls         int
+	getByIDCalls                 int
+	setErrorCalls                int
+	lastListGroupID              int64
+	lastListPlatform             string
+	lastListPlatforms            []string
 }
 
 func newGeminiSurfaceAccountRepoStub(accounts []service.Account) *geminiSurfaceAccountRepoStub {
@@ -268,18 +268,18 @@ func (s *geminiSurfaceConcurrencyCacheStub) CleanupStaleProcessSlots(context.Con
 }
 
 type geminiSurfaceFixture struct {
-	t                  *testing.T
-	cfg                *config.Config
-	handler            *GatewayHandler
-	group              *service.Group
-	apiKey             *service.APIKey
-	accountRepo        *geminiSurfaceAccountRepoStub
-	groupRepo          *geminiSurfaceGroupRepoStub
-	nativeRecorder     *geminiSurfaceHTTPUpstreamRecorder
-	compatRecorder     *geminiSurfaceHTTPUpstreamRecorder
-	liveRecorder       *geminiSurfaceHTTPUpstreamRecorder
+	t                    *testing.T
+	cfg                  *config.Config
+	handler              *GatewayHandler
+	group                *service.Group
+	apiKey               *service.APIKey
+	accountRepo          *geminiSurfaceAccountRepoStub
+	groupRepo            *geminiSurfaceGroupRepoStub
+	nativeRecorder       *geminiSurfaceHTTPUpstreamRecorder
+	compatRecorder       *geminiSurfaceHTTPUpstreamRecorder
+	liveRecorder         *geminiSurfaceHTTPUpstreamRecorder
 	interactionsRecorder *geminiSurfaceHTTPUpstreamRecorder
-	billingCache       *service.BillingCacheService
+	billingCache         *service.BillingCacheService
 }
 
 func newGeminiSurfaceFixture(t *testing.T) *geminiSurfaceFixture {

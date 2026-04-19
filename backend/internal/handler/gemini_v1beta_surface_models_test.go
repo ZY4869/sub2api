@@ -16,7 +16,7 @@ func TestGeminiV1BetaModels_UsesNativeSurfaceRecorder(t *testing.T) {
 	fixture := newGeminiSurfaceFixture(t)
 	fixture.nativeRecorder.response = geminiSurfaceHTTPResponse{
 		statusCode: http.StatusOK,
-		body: `{"responseId":"native-resp-1","candidates":[{"content":{"role":"model","parts":[{"text":"hello from native"}]}}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":5,"totalTokenCount":8}}`,
+		body:       `{"responseId":"native-resp-1","candidates":[{"content":{"role":"model","parts":[{"text":"hello from native"}]}}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":5,"totalTokenCount":8}}`,
 	}
 
 	c, recorder := fixture.newContext(

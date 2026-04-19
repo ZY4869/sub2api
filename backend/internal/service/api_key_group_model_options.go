@@ -15,12 +15,12 @@ type UserGroupModelOption struct {
 }
 
 type UserGroupModelOptionGroup struct {
-	GroupID   int64                  `json:"group_id"`
-	Name      string                 `json:"name"`
-	Platform  string                 `json:"platform"`
-	Priority  int                    `json:"priority"`
-	Models    []UserGroupModelOption `json:"models"`
-	ModelCount int                   `json:"model_count"`
+	GroupID    int64                  `json:"group_id"`
+	Name       string                 `json:"name"`
+	Platform   string                 `json:"platform"`
+	Priority   int                    `json:"priority"`
+	Models     []UserGroupModelOption `json:"models"`
+	ModelCount int                    `json:"model_count"`
 }
 
 func (s *APIKeyService) GetAvailableGroupModelOptions(
