@@ -501,7 +501,6 @@ func ProvideAPIKeyService(
 
 func ProvideModelCatalogService(
 	settingRepo SettingRepository,
-	adminService AdminService,
 	billingService *BillingService,
 	pricingService *PricingService,
 	docsService *APIDocsService,
@@ -511,7 +510,7 @@ func ProvideModelCatalogService(
 	if billingService != nil {
 		billingService.SetModelRegistryService(modelRegistryService)
 	}
-	svc := NewModelCatalogService(settingRepo, adminService, billingService, pricingService, cfg)
+	svc := NewModelCatalogService(settingRepo, nil, billingService, pricingService, cfg)
 	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetDocsService(docsService)
 	return svc
