@@ -317,6 +317,23 @@ func (h *APIKeyHandler) GetAvailableGroups(c *gin.Context) {
 	response.Success(c, out)
 }
 
+// GetGroupModelOptions 获取当前用户可绑定分组下的可选模型。
+// GET /api/v1/groups/model-options
+func (h *APIKeyHandler) GetGroupModelOptions(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	options, err := h.apiKeyService.GetAvailableGroupModelOptions(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, options)
+}
+
 // GetUserGroupRates 获取当前用户的专属分组倍率配置
 // GET /api/v1/groups/rates
 func (h *APIKeyHandler) GetUserGroupRates(c *gin.Context) {

@@ -484,11 +484,27 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthC
 	return apiKeyService
 }
 
+func ProvideAPIKeyService(
+	apiKeyRepo APIKeyRepository,
+	userRepo UserRepository,
+	groupRepo GroupRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache APIKeyCache,
+	modelCatalogService *ModelCatalogService,
+	cfg *config.Config,
+) *APIKeyService {
+	svc := NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, userGroupRateRepo, cache, cfg)
+	svc.SetModelCatalogService(modelCatalogService)
+	return svc
+}
+
 func ProvideModelCatalogService(
 	settingRepo SettingRepository,
 	adminService AdminService,
 	billingService *BillingService,
 	pricingService *PricingService,
+	docsService *APIDocsService,
 	modelRegistryService *ModelRegistryService,
 	cfg *config.Config,
 ) *ModelCatalogService {
@@ -497,6 +513,7 @@ func ProvideModelCatalogService(
 	}
 	svc := NewModelCatalogService(settingRepo, adminService, billingService, pricingService, cfg)
 	svc.SetModelRegistryService(modelRegistryService)
+	svc.SetDocsService(docsService)
 	return svc
 }
 
@@ -600,6 +617,8 @@ func ProvideGatewayService(
 	rpmCache RPMCache,
 	digestStore *DigestSessionStore,
 	settingService *SettingService,
+	modelCatalogService *ModelCatalogService,
+	apiKeyService *APIKeyService,
 	channelService *ChannelService,
 	vertexCatalogService *VertexUpstreamCatalogService,
 	tlsFingerprintProfileService *TLSFingerprintProfileService,
@@ -608,6 +627,12 @@ func ProvideGatewayService(
 	svc.SetChannelService(channelService)
 	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
+	if modelCatalogService != nil {
+		modelCatalogService.SetGatewayService(svc)
+	}
+	if apiKeyService != nil {
+		apiKeyService.SetGatewayService(svc)
+	}
 	return svc
 }
 
@@ -681,7 +706,7 @@ var ProviderSet = wire.NewSet(
 	// Core services
 	NewAuthService,
 	NewUserService,
-	NewAPIKeyService,
+	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
 	NewGroupService,
 	NewChannelService,

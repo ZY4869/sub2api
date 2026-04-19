@@ -9,6 +9,65 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type publicCatalogAccountRepoStub struct {
+	AccountRepository
+	accountsByGroup map[int64][]Account
+}
+
+func (s *publicCatalogAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID int64, platforms []string) ([]Account, error) {
+	allowed := make(map[string]struct{}, len(platforms))
+	for _, platform := range platforms {
+		allowed[platform] = struct{}{}
+	}
+	items := make([]Account, 0, len(s.accountsByGroup[groupID]))
+	for _, account := range s.accountsByGroup[groupID] {
+		if !account.IsSchedulable() {
+			continue
+		}
+		if len(allowed) > 0 {
+			if _, ok := allowed[account.Platform]; !ok {
+				continue
+			}
+		}
+		items = append(items, account)
+	}
+	return items, nil
+}
+
+type publicCatalogGroupRepoStub struct {
+	GroupRepository
+	groups []Group
+}
+
+func (s *publicCatalogGroupRepoStub) ListActive(context.Context) ([]Group, error) {
+	out := make([]Group, len(s.groups))
+	copy(out, s.groups)
+	return out, nil
+}
+
+type publicCatalogUserRepoStub struct {
+	UserRepository
+	user *User
+}
+
+func (s *publicCatalogUserRepoStub) GetByID(context.Context, int64) (*User, error) {
+	if s.user == nil {
+		return nil, ErrUserNotFound
+	}
+	return s.user, nil
+}
+
+type publicCatalogUserSubRepoStub struct {
+	userSubRepoNoop
+	active []UserSubscription
+}
+
+func (s publicCatalogUserSubRepoStub) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
+	out := make([]UserSubscription, len(s.active))
+	copy(out, s.active)
+	return out, nil
+}
+
 func TestModelCatalogService_PublicModelCatalogSnapshot_ClassifiesMultiplierSummaries(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	snapshot := &BillingPricingCatalogSnapshot{
@@ -191,6 +250,203 @@ func TestBillingCenterService_SavePricingLayer_PublicCatalogMatchesLegacyEffecti
 	require.NotNil(t, override.OutputCostPerToken)
 	require.InDelta(t, item.PriceDisplay.Primary[0].Value, *override.InputCostPerToken, 1e-12)
 	require.InDelta(t, item.PriceDisplay.Primary[1].Value, *override.OutputCostPerToken, 1e-12)
+}
+
+func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndSkipsUnpricedModels(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelCatalogEntries] = mustModelCatalogJSON(t, []ModelCatalogEntry{
+		{
+			Model:                "registry-openai-beta",
+			DisplayName:          "Registry OpenAI Beta",
+			Provider:             PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "registry-openai-beta",
+			PricingLookupModelID: "registry-openai-beta",
+		},
+		{
+			Model:                "registry-openai-gamma",
+			DisplayName:          "Registry OpenAI Gamma",
+			Provider:             PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "registry-openai-gamma",
+			PricingLookupModelID: "registry-openai-gamma",
+		},
+	})
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 19, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("registry-openai-beta", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	registrySvc := NewModelRegistryService(repo)
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-beta", "registry-openai-gamma"})
+	require.NoError(t, err)
+
+	groupRepo := &publicCatalogGroupRepoStub{
+		groups: []Group{
+			{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive},
+		},
+	}
+	accountRepo := &publicCatalogAccountRepoStub{
+		accountsByGroup: map[int64][]Account{
+			10: {
+				{
+					ID:          88,
+					Name:        "scoped-openai",
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"model_scope_v2": map[string]any{
+							"supported_models_by_provider": map[string]any{
+								PlatformOpenAI: []any{"registry-openai-beta"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	gatewaySvc := &GatewayService{
+		accountRepo:          accountRepo,
+		groupRepo:            groupRepo,
+		modelRegistryService: registrySvc,
+		cfg:                  &config.Config{},
+	}
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetGatewayService(gatewaySvc)
+
+	result, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, result.Items, 1)
+	require.Equal(t, "registry-openai-beta", result.Items[0].Model)
+}
+
+func TestBuildPublicModelCatalogItemFromProjection_PrefersActualProviderOverProjectionProtocol(t *testing.T) {
+	item, ok := buildPublicModelCatalogItemFromProjection(
+		PublicModelProjectionEntry{
+			PublicID:    "gateway-gpt-5.4",
+			DisplayName: "Gateway GPT-5.4",
+			Platform:    PlatformGemini,
+			SourceIDs:   []string{"gpt-5.4"},
+		},
+		nil,
+		&BillingPricingCatalogSnapshot{
+			Models: []BillingPricingPersistedModel{
+				newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+					InputPrice:     modelCatalogFloat64Ptr(1e-6),
+					OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+					Special:        BillingPricingSimpleSpecial{},
+					SpecialEnabled: false,
+				}),
+			},
+		},
+		nil,
+	)
+
+	require.True(t, ok)
+	require.Equal(t, PlatformOpenAI, item.Provider)
+	require.Equal(t, PlatformOpenAI, item.ProviderIconKey)
+}
+
+func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProjection(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelCatalogEntries] = mustModelCatalogJSON(t, []ModelCatalogEntry{
+		{
+			Model:                "registry-openai-beta",
+			DisplayName:          "Registry OpenAI Beta",
+			Provider:             PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "registry-openai-beta",
+			PricingLookupModelID: "registry-openai-beta",
+		},
+		{
+			Model:                "registry-openai-gamma",
+			DisplayName:          "Registry OpenAI Gamma",
+			Provider:             PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "registry-openai-gamma",
+			PricingLookupModelID: "registry-openai-gamma",
+		},
+	})
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 19, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("registry-openai-beta", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	registrySvc := NewModelRegistryService(repo)
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-beta", "registry-openai-gamma"})
+	require.NoError(t, err)
+
+	groupRepo := &publicCatalogGroupRepoStub{
+		groups: []Group{
+			{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive},
+		},
+	}
+	accountRepo := &publicCatalogAccountRepoStub{
+		accountsByGroup: map[int64][]Account{
+			10: {
+				{
+					ID:          99,
+					Name:        "scoped-openai",
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"model_scope_v2": map[string]any{
+							"supported_models_by_provider": map[string]any{
+								PlatformOpenAI: []any{"registry-openai-beta"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	gatewaySvc := &GatewayService{
+		accountRepo:          accountRepo,
+		groupRepo:            groupRepo,
+		modelRegistryService: registrySvc,
+		cfg:                  &config.Config{},
+	}
+
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	modelCatalogSvc.SetGatewayService(gatewaySvc)
+
+	apiKeySvc := NewAPIKeyService(
+		nil,
+		&publicCatalogUserRepoStub{user: &User{ID: 7, Role: RoleUser}},
+		groupRepo,
+		publicCatalogUserSubRepoStub{},
+		nil,
+		nil,
+		&config.Config{},
+	)
+	apiKeySvc.SetGatewayService(gatewaySvc)
+	apiKeySvc.SetModelCatalogService(modelCatalogSvc)
+
+	options, err := apiKeySvc.GetAvailableGroupModelOptions(context.Background(), 7)
+	require.NoError(t, err)
+	require.Len(t, options, 1)
+	require.Equal(t, int64(10), options[0].GroupID)
+	require.Len(t, options[0].Models, 1)
+	require.Equal(t, "registry-openai-beta", options[0].Models[0].PublicID)
 }
 
 func newPublicCatalogPersistedModel(

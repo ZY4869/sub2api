@@ -40,10 +40,20 @@ export interface PublicModelCatalogItem {
   provider?: string
   provider_icon_key?: string
   request_protocols?: string[]
+  source_ids?: string[]
   mode?: string
   currency: string
   price_display: PublicModelCatalogPriceDisplay
   multiplier_summary: PublicModelCatalogMultiplierSummary
+}
+
+export interface PublicModelCatalogDetailResponse {
+  item: PublicModelCatalogItem
+  example_source?: 'docs_section' | 'override_template'
+  example_protocol?: string
+  example_page_id?: string
+  example_markdown?: string
+  example_override_id?: string
 }
 
 export interface PublicModelCatalogSnapshot {
@@ -118,10 +128,16 @@ export async function getModelCatalog(etag?: string | null): Promise<ModelCatalo
   }
 }
 
+export async function getModelCatalogDetail(model: string): Promise<PublicModelCatalogDetailResponse> {
+  const { data } = await apiClient.get<PublicModelCatalogDetailResponse>(`/meta/model-catalog/${encodeURIComponent(model)}`)
+  return data
+}
+
 export const metaAPI = {
   getUSDCNYExchangeRate,
   getModelRegistry,
-  getModelCatalog
+  getModelCatalog,
+  getModelCatalogDetail
 }
 
 export default metaAPI

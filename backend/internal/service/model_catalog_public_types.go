@@ -12,6 +12,7 @@ type PublicModelCatalogItem struct {
 	Provider          string                              `json:"provider,omitempty"`
 	ProviderIconKey   string                              `json:"provider_icon_key,omitempty"`
 	RequestProtocols  []string                            `json:"request_protocols,omitempty"`
+	SourceIDs         []string                            `json:"source_ids,omitempty"`
 	Mode              string                              `json:"mode,omitempty"`
 	Currency          string                              `json:"currency"`
 	PriceDisplay      PublicModelCatalogPriceDisplay      `json:"price_display"`
@@ -34,4 +35,13 @@ type PublicModelCatalogMultiplierSummary struct {
 	Kind    string   `json:"kind"`
 	Mode    string   `json:"mode,omitempty"`
 	Value   *float64 `json:"value,omitempty"`
+}
+
+type PublicModelCatalogDetail struct {
+	Item              PublicModelCatalogItem `json:"item"`
+	ExampleSource     string                 `json:"example_source,omitempty"`
+	ExampleProtocol   string                 `json:"example_protocol,omitempty"`
+	ExamplePageID     string                 `json:"example_page_id,omitempty"`
+	ExampleMarkdown   string                 `json:"example_markdown,omitempty"`
+	ExampleOverrideID string                 `json:"example_override_id,omitempty"`
 }

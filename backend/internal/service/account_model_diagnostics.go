@@ -133,7 +133,7 @@ func (s *AccountModelDiagnosticsService) Diagnose(
 	warnings := make([]string, 0, 4+len(groupWarnings))
 	if liveErr != nil {
 		if len(savedModels) > 0 {
-			warnings = append(warnings, "live probe failed; using saved models fallback")
+			warnings = append(warnings, "live probe failed; current preview is showing the saved models snapshot")
 		} else {
 			warnings = append(warnings, "live probe failed and no saved models are available")
 		}
@@ -148,6 +148,7 @@ func (s *AccountModelDiagnosticsService) Diagnose(
 	warnings = uniqueSortedStrings(warnings)
 
 	status := resolveAccountModelDiagnosticsStatus(
+		account,
 		selectedSummary,
 		accountPreview,
 		groupExposures,
@@ -281,6 +282,7 @@ func (s *AccountModelDiagnosticsService) buildGroupExposures(
 }
 
 func resolveAccountModelDiagnosticsStatus(
+	account *Account,
 	summary *AccountModelProbeSummary,
 	accountPreview []AccountModelDiagnosticsPreview,
 	groupExposures []AccountModelDiagnosticsGroupExposure,
@@ -292,7 +294,7 @@ func resolveAccountModelDiagnosticsStatus(
 		if isFallbackOnlyProbeSource(probeSourceFromSummary(summary)) {
 			return AccountModelDiagnosticsStatusFallbackOnly
 		}
-		if liveErr != nil && len(savedModels) > 0 {
+		if liveErr != nil && len(savedModels) > 0 && !shouldTreatSavedDiagnosticsSnapshotAsOK(account) {
 			return AccountModelDiagnosticsStatusDegraded
 		}
 		return AccountModelDiagnosticsStatusOK
@@ -304,6 +306,10 @@ func resolveAccountModelDiagnosticsStatus(
 		return AccountModelDiagnosticsStatusProbeFailed
 	}
 	return AccountModelDiagnosticsStatusFilteredEmpty
+}
+
+func shouldTreatSavedDiagnosticsSnapshotAsOK(account *Account) bool {
+	return isGeminiAIStudioSourceAccount(account)
 }
 
 func diagnosticsPreviewEntries(

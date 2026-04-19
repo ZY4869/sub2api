@@ -31,11 +31,6 @@ var publicModelCatalogProtocolOrder = map[string]int{
 }
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
-	visibleModels, err := s.publicModelCatalogVisibleEntries(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
 		return nil, err
@@ -53,16 +48,30 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 		rules = s.billingCenterService.ListRules(ctx)
 	}
 
-	items := make([]PublicModelCatalogItem, 0, len(visibleModels))
+	var items []PublicModelCatalogItem
 	providerBuckets := map[string]struct{}{}
 	protocolBuckets := map[string]struct{}{}
 	multiplierBuckets := map[string]struct{}{}
-	for _, entry := range visibleModels {
-		item, ok := buildPublicModelCatalogItem(entry, records, pricingSnapshot, rules)
-		if !ok {
-			continue
+	if s != nil && s.gatewayService != nil {
+		items, err = s.buildPublicModelCatalogItemsFromProjection(ctx, records, pricingSnapshot, rules)
+		if err != nil {
+			return nil, err
 		}
-		items = append(items, item)
+	} else {
+		visibleModels, err := s.publicModelCatalogVisibleEntries(ctx)
+		if err != nil {
+			return nil, err
+		}
+		items = make([]PublicModelCatalogItem, 0, len(visibleModels))
+		for _, entry := range visibleModels {
+			item, ok := buildPublicModelCatalogItem(entry, records, pricingSnapshot, rules)
+			if !ok {
+				continue
+			}
+			items = append(items, item)
+		}
+	}
+	for _, item := range items {
 		if item.Provider != "" {
 			providerBuckets[item.Provider] = struct{}{}
 		}

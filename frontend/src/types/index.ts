@@ -473,6 +473,22 @@ export interface ApiKeyGroupBindingInput {
   model_patterns?: string[];
 }
 
+export interface UserGroupModelOption {
+  public_id: string;
+  display_name: string;
+  request_protocols?: string[];
+  source_ids?: string[];
+}
+
+export interface UserGroupModelOptionGroup {
+  group_id: number;
+  name: string;
+  platform: GroupPlatform;
+  priority: number;
+  models: UserGroupModelOption[];
+  model_count: number;
+}
+
 export interface CreateApiKeyRequest {
   name: string;
   group_id?: number | null;
@@ -908,6 +924,8 @@ export interface AccountUsagePresentationMeta {
   antigravityTierLabel?: string | null;
   antigravityTierClass?: string;
   hasIneligibleTiers?: boolean;
+  protocolGatewayBadgeLabel?: string | null;
+  protocolGatewayBadgeClass?: string;
   geminiAuthTypeLabel?: string | null;
   geminiTierClass?: string;
   geminiQuotaPolicyChannel?: string;

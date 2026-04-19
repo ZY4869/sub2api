@@ -18,6 +18,8 @@ type ModelCatalogService struct {
 	pricingService       *PricingService
 	exchangeRateService  *ModelCatalogExchangeRateService
 	modelRegistryService *ModelRegistryService
+	gatewayService       *GatewayService
+	docsService          *APIDocsService
 	cfg                  *config.Config
 }
 
@@ -47,6 +49,14 @@ func NewModelCatalogService(
 
 func (s *ModelCatalogService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
 	s.modelRegistryService = modelRegistryService
+}
+
+func (s *ModelCatalogService) SetGatewayService(gatewayService *GatewayService) {
+	s.gatewayService = gatewayService
+}
+
+func (s *ModelCatalogService) SetDocsService(docsService *APIDocsService) {
+	s.docsService = docsService
 }
 
 func (s *ModelCatalogService) ListModels(ctx context.Context, filter ModelCatalogListFilter) ([]ModelCatalogItem, int64, error) {

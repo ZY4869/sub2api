@@ -237,6 +237,58 @@ func TestMetaHandler_ModelCatalogAllowsAuthenticatedRequestWhenPublicCatalogDisa
 	require.Contains(t, rec.Body.String(), "gpt-5.4")
 }
 
+func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{}}
+	repo.values[service.SettingKeyModelCatalogEntries] = mustMetaJSON(t, []service.ModelCatalogEntry{
+		{
+			Model:                "gpt-5.4",
+			DisplayName:          "GPT-5.4",
+			Provider:             service.PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "gpt-5.4",
+			PricingLookupModelID: "gpt-5.4",
+		},
+	})
+	repo.values[service.SettingKeyModelOfficialPriceOverrides] = mustMetaJSON(t, map[string]*service.ModelPricingOverride{
+		"gpt-5.4": {
+			ModelCatalogPricing: service.ModelCatalogPricing{
+				InputCostPerToken:  float64Ptr(1e-6),
+				OutputCostPerToken: float64Ptr(2e-6),
+			},
+		},
+	})
+	repo.values[service.SettingKeyModelPriceOverrides] = mustMetaJSON(t, map[string]*service.ModelPricingOverride{
+		"gpt-5.4": {
+			ModelCatalogPricing: service.ModelCatalogPricing{
+				InputCostPerToken:  float64Ptr(1.2e-6),
+				OutputCostPerToken: float64Ptr(2.4e-6),
+			},
+		},
+	})
+
+	modelCatalogService := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{},
+	)
+
+	metaHandler := NewMetaHandler(modelCatalogService)
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog/:model", metaHandler.ModelCatalogDetail)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog/gpt-5.4", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
+	require.Contains(t, rec.Body.String(), "\"item\"")
+}
+
 func mustMetaJSON(t *testing.T, value any) string {
 	t.Helper()
 

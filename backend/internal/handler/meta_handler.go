@@ -163,3 +163,31 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 	)
 	response.Success(c, snapshot)
 }
+
+func (h *MetaHandler) ModelCatalogDetail(c *gin.Context) {
+	guestAllowed := h.isModelCatalogAccessibleToGuest(c)
+	authenticated := false
+	if !guestAllowed {
+		authenticated = h.isAuthenticatedModelCatalogRequest(c)
+		if !authenticated {
+			response.Unauthorized(c, "Authentication required")
+			return
+		}
+	}
+
+	modelID := strings.TrimSpace(c.Param("model"))
+	detail, err := h.modelCatalogService.PublicModelCatalogDetail(c.Request.Context(), modelID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	logger.FromContext(c.Request.Context()).Info(
+		"public model catalog detail responded",
+		zap.String("component", "handler.meta"),
+		zap.String("model", detail.Item.Model),
+		zap.Bool("guest_allowed", guestAllowed),
+		zap.Bool("authenticated_request", authenticated),
+		zap.String("example_source", detail.ExampleSource),
+	)
+	response.Success(c, detail)
+}

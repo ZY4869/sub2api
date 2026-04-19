@@ -133,10 +133,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     await flushPromises()
 
     expect(wrapper.emitted('update:allowedModels')?.at(-1)?.[0]).toEqual(['gpt-4.1', 'custom-upstream-model'])
-    expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toEqual([
-      { from: 'gpt-4.1', to: 'gpt-4.1' },
-      { from: 'custom-upstream-model', to: 'custom-upstream-model' }
-    ])
+    expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toEqual([])
   })
 
   it('disables probing when api key is missing', async () => {
@@ -146,7 +143,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         baseUrl: '',
         apiKey: '',
         allowedModels: [],
-        modelMappings: [],
+        modelMappings: [{ from: 'gpt-4.1', to: 'gpt-4.1' }],
         probedModels: [],
         manualModels: [],
         resolvedUpstream: null,
@@ -174,10 +171,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         baseUrl: 'https://gateway.example.com',
         apiKey: 'sk-test',
         allowedModels: ['gpt-4.1', 'gemini-2.5-pro'],
-        modelMappings: [
-          { from: 'gpt-4.1', to: 'gpt-4.1' },
-          { from: 'gemini-2.5-pro', to: 'gemini-2.5-pro' }
-        ],
+        modelMappings: [],
         manualModels: [],
         resolvedUpstream: null,
         probedModels: [
@@ -294,7 +288,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.emitted('update:gatewayTestModelId')?.at(-1)?.[0]).toBe('')
   })
 
-  it('supports editing request model aliases, keeps empty drafts, and removes mappings when deselected', async () => {
+  it('normalizes identity mappings into selected models without keeping fake manual rows', async () => {
     const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
       props: {
         gatewayProtocol: 'openai',
@@ -302,6 +296,38 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         apiKey: 'sk-test',
         allowedModels: ['gpt-4.1'],
         modelMappings: [{ from: 'gpt-4.1', to: 'gpt-4.1' }],
+        manualModels: [],
+        resolvedUpstream: null,
+        probedModels: [
+          {
+            id: 'gpt-4.1',
+            display_name: 'GPT-4.1',
+            registry_state: 'existing',
+            registry_model_id: 'gpt-4.1'
+          }
+        ],
+        acceptedProtocols: ['openai'],
+        clientProfiles: [],
+        clientRoutes: []
+      },
+      global: {
+        stubs: iconStubs
+      }
+    })
+
+    await flushPromises()
+
+    expect((wrapper.find('input[placeholder="gpt-4.1"]').element as HTMLInputElement).value).toBe('gpt-4.1')
+  })
+
+  it('supports editing request model aliases and removes mappings when the alias matches the target model', async () => {
+    const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
+      props: {
+        gatewayProtocol: 'openai',
+        baseUrl: 'https://gateway.example.com',
+        apiKey: 'sk-test',
+        allowedModels: ['gpt-4.1'],
+        modelMappings: [],
         manualModels: [],
         resolvedUpstream: null,
         probedModels: [
@@ -330,7 +356,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
 
     await aliasInput.setValue('')
     mappingEvents = wrapper.emitted('update:modelMappings') || []
-    expect(mappingEvents.at(-1)?.[0]).toEqual([{ from: '', to: 'gpt-4.1' }])
+    expect(mappingEvents.at(-1)?.[0]).toEqual([])
 
     const modelCard = wrapper.find('button[title="gpt-4.1"]')
     await modelCard.trigger('click')
@@ -350,7 +376,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         baseUrl: 'https://gateway.example.com',
         apiKey: 'sk-test',
         allowedModels: [longModelId],
-        modelMappings: [{ from: longModelId, to: longModelId }],
+        modelMappings: [],
         manualModels: [],
         resolvedUpstream: null,
         probedModels: [
@@ -383,10 +409,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         baseUrl: 'https://gateway.example.com',
         apiKey: 'sk-test',
         allowedModels: ['gpt-4.1', 'custom-upstream-model'],
-        modelMappings: [
-          { from: 'gpt-4.1', to: 'gpt-4.1' },
-          { from: 'custom-upstream-model', to: 'custom-upstream-model' }
-        ],
+        modelMappings: [],
         manualModels: [],
         resolvedUpstream: null,
         probedModels: [

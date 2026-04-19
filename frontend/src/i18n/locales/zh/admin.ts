@@ -2135,6 +2135,10 @@
         testProviderAutoOption: '不指定，按唯一匹配或账号默认处理',
         testModelLabel: '测试模型 ID（可选）',
         testModelAutoOption: '留空，运行时自动使用该厂商默认测试模型',
+        usageWindow: {
+          badge: 'Protocol Gateway · {protocol}',
+          tightestWindowNote: '当前按上游最紧张的日窗口展示。'
+        },
         protocols: {
           openai: {
             baseUrlHint: '填写兼容 OpenAI 协议的上游地址，留空使用官方 OpenAI API',

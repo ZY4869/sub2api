@@ -555,6 +555,8 @@
           <APIKeyGroupBindingsEditor
             v-model="formData.group_bindings"
             :groups="groups"
+            :group-model-options="groupModelOptions"
+            :group-model-options-loading="groupModelOptionsLoading"
             :admin-mode="isAdminMode"
           />
         </div>
@@ -1274,7 +1276,12 @@ import Icon from "@/components/icons/Icon.vue";
 import UseKeyModal from "@/components/keys/UseKeyModal.vue";
 import APIKeyGroupBindingsEditor from "@/components/keys/APIKeyGroupBindingsEditor.vue";
 import GroupBadge from "@/components/common/GroupBadge.vue";
-import type { ApiKey, Group, PublicSettings } from "@/types";
+import type {
+  ApiKey,
+  Group,
+  PublicSettings,
+  UserGroupModelOption,
+} from "@/types";
 import {
   buildApiKeyGroupBindingPayload,
   bindingToEditableDraft,
@@ -1321,6 +1328,8 @@ const now = ref(new Date());
 let resetTimer: ReturnType<typeof setInterval> | null = null;
 const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({});
 const userGroupRates = ref<Record<number, number>>({});
+const groupModelOptions = ref<Record<number, UserGroupModelOption[]>>({});
+const groupModelOptionsLoading = ref(false);
 const groupMap = computed(
   () => new Map(groups.value.map((group) => [group.id, group] as const)),
 );
@@ -1520,6 +1529,25 @@ const loadGroups = async () => {
       : await userGroupsAPI.getAvailable();
   } catch (error) {
     console.error("Failed to load groups:", error);
+  }
+};
+
+const loadGroupModelOptions = async () => {
+  if (isAdminMode.value) {
+    groupModelOptions.value = {};
+    return;
+  }
+  groupModelOptionsLoading.value = true;
+  try {
+    const response = await userGroupsAPI.getModelOptions();
+    groupModelOptions.value = Object.fromEntries(
+      response.map((group) => [group.group_id, group.models]),
+    );
+  } catch (error) {
+    groupModelOptions.value = {};
+    console.error("Failed to load group model options:", error);
+  } finally {
+    groupModelOptionsLoading.value = false;
   }
 };
 
@@ -1924,6 +1952,7 @@ function formatResetTime(resetAt: string | null): string {
 onMounted(() => {
   loadApiKeys();
   loadGroups();
+  loadGroupModelOptions();
   loadUserGroupRates();
   loadPublicSettings();
   resetTimer = setInterval(() => {

@@ -1094,17 +1094,13 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
       .filter((row) => row.from.length > 0 && row.to.length > 0)
     if (entries.length > 0) {
       modelRestrictionMode.value = 'mapping'
-      modelMappings.value = entries
       if (isProtocolGatewayAccount.value) {
         const selectedModels = [...new Set(entries.map(({ to }) => to))]
         allowedModels.value = selectedModels
-        protocolGatewayProbeModels.value = selectedModels.map((modelId) => ({
-          id: modelId,
-          display_name: formatModelDisplayName(modelId) || modelId,
-          registry_state: 'existing',
-          registry_model_id: modelId
-        }))
+        modelMappings.value = entries.filter(({ from, to }) => from !== to)
+        protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
       } else {
+        modelMappings.value = entries
         allowedModels.value = []
       }
       return true
@@ -1118,17 +1114,13 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
       .filter((row) => row.from.length > 0 && row.to.length > 0)
     if (entries.length > 0) {
       modelRestrictionMode.value = 'mapping'
-      modelMappings.value = entries
       if (isProtocolGatewayAccount.value) {
         const selectedModels = [...new Set(entries.map(({ to }) => to))]
         allowedModels.value = selectedModels
-        protocolGatewayProbeModels.value = selectedModels.map((modelId) => ({
-          id: modelId,
-          display_name: formatModelDisplayName(modelId) || modelId,
-          registry_state: 'existing',
-          registry_model_id: modelId
-        }))
+        modelMappings.value = entries.filter(({ from, to }) => from !== to)
+        protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
       } else {
+        modelMappings.value = entries
         allowedModels.value = []
       }
       return true
@@ -1147,13 +1139,8 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
       if (isProtocolGatewayAccount.value) {
         modelRestrictionMode.value = 'mapping'
         allowedModels.value = unique
-        modelMappings.value = unique.map((modelId) => ({ from: modelId, to: modelId }))
-        protocolGatewayProbeModels.value = unique.map((modelId) => ({
-          id: modelId,
-          display_name: formatModelDisplayName(modelId) || modelId,
-          registry_state: 'existing',
-          registry_model_id: modelId
-        }))
+        modelMappings.value = []
+        protocolGatewayProbeModels.value = createStaticProbeModels(unique)
       } else {
         modelRestrictionMode.value = 'whitelist'
         allowedModels.value = unique
@@ -1183,14 +1170,10 @@ function applyModelRestrictionFromRecord(value: unknown) {
 
   if (isProtocolGatewayAccount.value) {
     modelRestrictionMode.value = 'mapping'
-    modelMappings.value = entries
-    allowedModels.value = [...new Set(entries.map(({ to }) => to))]
-    protocolGatewayProbeModels.value = [...new Set(entries.map(({ to }) => to))].map((modelId) => ({
-      id: modelId,
-      display_name: formatModelDisplayName(modelId) || modelId,
-      registry_state: 'existing',
-      registry_model_id: modelId
-    }))
+    const selectedModels = [...new Set(entries.map(({ to }) => to))]
+    modelMappings.value = entries.filter(({ from, to }) => from !== to)
+    allowedModels.value = selectedModels
+    protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
     return
   }
 

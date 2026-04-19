@@ -9,6 +9,8 @@ export interface EditableApiKeyGroupBinding {
   group_id: number;
   quota: number | "" | null;
   model_patterns_text: string;
+  selected_models: string[];
+  model_selection_dirty: boolean;
 }
 
 export interface BindableGroup extends Pick<
@@ -26,6 +28,8 @@ export const createEmptyEditableBinding = (): EditableApiKeyGroupBinding => ({
   group_id: 0,
   quota: 0,
   model_patterns_text: "",
+  selected_models: [],
+  model_selection_dirty: false,
 });
 
 export const sortApiKeyGroups = (bindings: ApiKeyGroup[]): ApiKeyGroup[] => {
@@ -75,6 +79,8 @@ export const bindingToEditableDraft = (
   group_id: binding.group_id,
   quota: binding.quota ?? 0,
   model_patterns_text: (binding.model_patterns || []).join("\n"),
+  selected_models: [...(binding.model_patterns || [])],
+  model_selection_dirty: false,
 });
 
 export const parseModelPatterns = (value: string): string[] => {
@@ -105,15 +111,20 @@ export const buildApiKeyGroupBindingPayload = (
     }
     seen.add(groupId);
 
-    payload.push({
+    const selectedModels = binding.model_selection_dirty
+      ? Array.from(new Set(binding.selected_models.map((item) => item.trim()).filter(Boolean)))
+      : parseModelPatterns(binding.model_patterns_text);
+    const baseBinding: ApiKeyGroupBindingInput = {
       group_id: groupId,
-      ...(adminMode
-        ? {
-            quota: normalizeQuota(binding.quota),
-            model_patterns: parseModelPatterns(binding.model_patterns_text),
-          }
-        : {}),
-    });
+    };
+
+    if (adminMode) {
+      baseBinding.quota = normalizeQuota(binding.quota);
+    }
+    if (selectedModels.length > 0) {
+      baseBinding.model_patterns = selectedModels;
+    }
+    payload.push(baseBinding);
   }
 
   return payload;

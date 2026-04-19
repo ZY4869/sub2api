@@ -1,112 +1,187 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import PublicModelCatalogContent from '../PublicModelCatalogContent.vue'
+import { flushPromises, mount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import PublicModelCatalogContent from "../PublicModelCatalogContent.vue";
 
 const apiMocks = vi.hoisted(() => ({
   getModelCatalog: vi.fn(),
   getUSDCNYExchangeRate: vi.fn(),
-}))
+}));
 
-vi.mock('@/api/meta', () => ({
+const appStoreMocks = vi.hoisted(() => ({
+  showSuccess: vi.fn(),
+  showError: vi.fn(),
+}));
+
+const clipboardMocks = vi.hoisted(() => ({
+  writeText: vi.fn(),
+}));
+
+vi.mock("@/api/meta", () => ({
   getModelCatalog: apiMocks.getModelCatalog,
   getUSDCNYExchangeRate: apiMocks.getUSDCNYExchangeRate,
-}))
+}));
 
-vi.mock('vue-i18n', async () => {
-  const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+vi.mock("@/stores/app", () => ({
+  useAppStore: () => ({
+    showSuccess: appStoreMocks.showSuccess,
+    showError: appStoreMocks.showError,
+  }),
+}));
+
+vi.mock("vue-i18n", async () => {
+  const actual = await vi.importActual<typeof import("vue-i18n")>("vue-i18n");
   return {
     ...actual,
     useI18n: () => ({
       t: (key: string) => key,
     }),
-  }
-})
+  };
+});
 
-describe('PublicModelCatalogContent', () => {
+describe("PublicModelCatalogContent", () => {
   beforeEach(() => {
-    apiMocks.getModelCatalog.mockReset()
-    apiMocks.getUSDCNYExchangeRate.mockReset()
+    apiMocks.getModelCatalog.mockReset();
+    apiMocks.getUSDCNYExchangeRate.mockReset();
+    appStoreMocks.showSuccess.mockReset();
+    appStoreMocks.showError.mockReset();
+    clipboardMocks.writeText.mockReset();
+    localStorage.clear();
+
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: clipboardMocks.writeText,
+      },
+    });
+
     apiMocks.getModelCatalog.mockResolvedValue({
       notModified: false,
       etag: 'W/"catalog"',
       data: {
         etag: 'W/"catalog"',
-        updated_at: '2026-04-18T00:00:00Z',
+        updated_at: "2026-04-18T00:00:00Z",
         items: [
           {
-            model: 'gpt-5.4',
-            display_name: 'GPT-5.4',
-            provider: 'openai',
-            provider_icon_key: 'openai',
-            request_protocols: ['openai'],
-            mode: 'chat',
-            currency: 'USD',
+            model: "gpt-5.4",
+            display_name: "GPT-5.4",
+            provider: "openai",
+            provider_icon_key: "openai",
+            request_protocols: ["openai"],
+            source_ids: ["gpt-5.4-source"],
+            mode: "chat",
+            currency: "USD",
             price_display: {
-              primary: [{ id: 'input_price', unit: 'input_token', value: 0.000001 }],
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
             },
             multiplier_summary: {
               enabled: true,
-              kind: 'uniform',
-              mode: 'shared',
+              kind: "uniform",
+              mode: "shared",
               value: 0.12,
             },
           },
           {
-            model: 'claude-sonnet-4.5',
-            display_name: 'Claude Sonnet 4.5',
-            provider: 'anthropic',
-            provider_icon_key: 'anthropic',
-            request_protocols: ['anthropic'],
-            mode: 'chat',
-            currency: 'USD',
+            model: "claude-sonnet-4.5",
+            display_name: "Claude Sonnet 4.5",
+            provider: "anthropic",
+            provider_icon_key: "anthropic",
+            request_protocols: ["anthropic"],
+            source_ids: ["claude-source-id"],
+            mode: "chat",
+            currency: "USD",
             price_display: {
-              primary: [{ id: 'input_price', unit: 'input_token', value: 0.000002 }],
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000002 }],
             },
             multiplier_summary: {
               enabled: false,
-              kind: 'disabled',
+              kind: "disabled",
+            },
+          },
+          {
+            model: "gpt-5.4-compat",
+            display_name: "GPT 5.4 Compatible",
+            provider: "openai",
+            provider_icon_key: "openai",
+            request_protocols: ["gemini"],
+            source_ids: ["compat-source-id"],
+            mode: "chat",
+            currency: "USD",
+            price_display: {
+              primary: [{ id: "output_price", unit: "output_token", value: 0.000004 }],
+              secondary: [{ id: "cache_price", unit: "input_token", value: 0.000001 }],
+            },
+            multiplier_summary: {
+              enabled: true,
+              kind: "mixed",
             },
           },
         ],
       },
-    })
+    });
     apiMocks.getUSDCNYExchangeRate.mockResolvedValue({
-      base: 'USD',
-      quote: 'CNY',
+      base: "USD",
+      quote: "CNY",
       rate: 7.2,
-      date: '2026-04-18',
-      updated_at: '2026-04-18T00:00:00Z',
+      date: "2026-04-18",
+      updated_at: "2026-04-18T00:00:00Z",
       cached: true,
-    })
-  })
+    });
+  });
 
-  it('loads the catalog and filters by provider, protocol, and multiplier', async () => {
+  it("supports card filters, search, view persistence, copy, and detail actions", async () => {
+    localStorage.setItem("public-model-catalog:view-mode", "list");
+
     const wrapper = mount(PublicModelCatalogContent, {
       global: {
         stubs: {
-          ModelIcon: { template: '<span data-test="model-icon" />' },
-          ModelPlatformIcon: { template: '<span data-test="provider-icon" />' },
+          PublicModelCatalogDetailDialog: {
+            props: ["show", "model", "catalogItem"],
+            template: '<div v-if="show" data-testid="detail-dialog">{{ model }}</div>',
+          },
+          ModelIcon: { template: '<span data-testid="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-testid="provider-icon" />' },
         },
       },
-    })
+    });
 
-    await flushPromises()
+    await flushPromises();
 
-    expect(wrapper.text()).toContain('GPT-5.4')
-    expect(wrapper.text()).toContain('Claude Sonnet 4.5')
+    expect(wrapper.get('[data-testid="public-model-results"]').attributes("data-view-mode")).toBe("list");
+    expect(wrapper.text()).toContain("GPT-5.4");
+    expect(wrapper.text()).toContain("Claude Sonnet 4.5");
+    expect(wrapper.find('[data-testid="models-filter-provider-gemini"]').exists()).toBe(false);
 
-    await wrapper.get('[data-testid="models-filter-provider-openai"]').trigger('click')
-    expect(wrapper.text()).toContain('GPT-5.4')
-    expect(wrapper.text()).not.toContain('Claude Sonnet 4.5')
+    await wrapper.get('[data-testid="models-filter-provider-openai"]').trigger("click");
+    expect(wrapper.text()).toContain("GPT-5.4");
+    expect(wrapper.text()).toContain("GPT 5.4 Compatible");
+    expect(wrapper.text()).not.toContain("Claude Sonnet 4.5");
 
-    await wrapper.get('[data-testid="models-filter-provider-all"]').trigger('click')
-    await wrapper.get('[data-testid="models-filter-protocol-anthropic"]').trigger('click')
-    expect(wrapper.text()).toContain('Claude Sonnet 4.5')
-    expect(wrapper.text()).not.toContain('GPT-5.4')
+    await wrapper.get('[data-testid="models-filter-provider-all"]').trigger("click");
+    await wrapper.get('[data-testid="models-filter-protocol-gemini"]').trigger("click");
+    expect(wrapper.text()).toContain("GPT 5.4 Compatible");
+    expect(wrapper.text()).not.toContain("Claude Sonnet 4.5");
+    expect(wrapper.text()).not.toContain("GPT-5.4");
 
-    await wrapper.get('[data-testid="models-filter-protocol-all"]').trigger('click')
-    await wrapper.get('[data-testid="models-filter-multiplier-uniform:0.12"]').trigger('click')
-    expect(wrapper.text()).toContain('GPT-5.4')
-    expect(wrapper.text()).not.toContain('Claude Sonnet 4.5')
-  })
-})
+    await wrapper.get('[data-testid="public-models-search"]').setValue("compat-source-id");
+    expect(wrapper.text()).toContain("GPT 5.4 Compatible");
+
+    await wrapper.get('[data-testid="public-model-copy-gpt-5.4-compat"]').trigger("click");
+    expect(clipboardMocks.writeText).toHaveBeenCalledWith("gpt-5.4-compat");
+    expect(appStoreMocks.showSuccess).toHaveBeenCalledWith("ui.modelCatalog.copySuccess");
+    expect(wrapper.find('[data-testid="detail-dialog"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="public-model-detail-gpt-5.4-compat"]').trigger("click");
+    expect(wrapper.get('[data-testid="detail-dialog"]').text()).toContain("gpt-5.4-compat");
+
+    await wrapper.get('[data-testid="public-models-search"]').setValue("");
+    await wrapper.get('[data-testid="models-filter-protocol-all"]').trigger("click");
+    await wrapper.get('[data-testid="models-filter-multiplier-disabled"]').trigger("click");
+    expect(wrapper.text()).toContain("Claude Sonnet 4.5");
+    expect(wrapper.text()).not.toContain("GPT 5.4 Compatible");
+    expect(wrapper.text()).not.toContain("GPT-5.4");
+
+    await wrapper.get('[data-testid="public-models-view-grid"]').trigger("click");
+    expect(wrapper.get('[data-testid="public-model-results"]').attributes("data-view-mode")).toBe("grid");
+    expect(localStorage.getItem("public-model-catalog:view-mode")).toBe("grid");
+  });
+});

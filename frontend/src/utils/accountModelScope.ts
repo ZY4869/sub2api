@@ -25,28 +25,33 @@ export function buildAccountModelScopeExtra(
 
   void ensureModelRegistryFresh()
   const snapshot = getModelRegistrySnapshot()
+  const normalizedAllowedModels = [...new Set(
+    options.allowedModels
+      .map((item) => item.trim())
+      .filter(Boolean)
+  )]
   const manualMappings =
     options.mode === 'mapping'
       ? Object.fromEntries(
           options.modelMappings
             .map((item) => [item.from.trim(), item.to.trim()] as const)
-            .filter(([from, to]) => Boolean(from) && Boolean(to))
+            .filter(([from, to]) => Boolean(from) && Boolean(to) && from !== to)
         )
       : {}
   const manualMappingRows =
     options.mode === 'mapping'
       ? options.modelMappings
           .map((item) => ({ from: item.from.trim(), to: item.to.trim() }))
-          .filter((item) => Boolean(item.from) && Boolean(item.to))
+          .filter((item) => Boolean(item.from) && Boolean(item.to) && item.from !== item.to)
       : []
 
   const selectedModels =
     options.mode === 'whitelist'
-      ? options.allowedModels
-      : (options.allowedModels.length > 0
-          ? options.allowedModels
+      ? normalizedAllowedModels
+      : (normalizedAllowedModels.length > 0
+          ? normalizedAllowedModels
           : options.modelMappings
-              .map((item) => item.from.trim())
+              .map((item) => item.to.trim())
               .filter((value) => value && !value.includes('*')))
 
   const supportedModelsByProvider: Record<string, string[]> = {}

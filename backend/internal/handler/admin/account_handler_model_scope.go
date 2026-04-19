@@ -16,8 +16,17 @@ func (h *AccountHandler) prepareAccountModelScope(ctx context.Context, platform 
 	}
 	effectivePlatform := service.EffectiveProtocolFromValues(platform, extra)
 	mapping, selectedModels, hasScope, err := h.modelRegistryService.BuildModelMappingFromScopeV2(ctx, effectivePlatform, accountType, extra)
-	if err != nil || !hasScope {
+	if err != nil {
 		return credentials, extra, err
+	}
+	if !hasScope {
+		nextCredentials := cloneStringAnyMap(credentials)
+		if nextCredentials != nil && extra != nil {
+			if _, ok := extra["model_scope_v2"]; !ok {
+				delete(nextCredentials, "model_mapping")
+			}
+		}
+		return nextCredentials, cloneStringAnyMap(extra), nil
 	}
 	if len(selectedModels) > 0 {
 		if _, err := h.modelRegistryService.EnsureModelsAvailable(ctx, selectedModels); err != nil {

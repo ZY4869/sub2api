@@ -4,7 +4,7 @@
  */
 
 import { apiClient } from './client'
-import type { Group } from '@/types'
+import type { Group, UserGroupModelOptionGroup } from '@/types'
 
 /**
  * Get available groups that the current user can bind to API keys
@@ -27,8 +27,14 @@ export async function getUserGroupRates(): Promise<Record<number, number>> {
   return data || {}
 }
 
+export async function getModelOptions(): Promise<UserGroupModelOptionGroup[]> {
+  const { data } = await apiClient.get<UserGroupModelOptionGroup[]>('/groups/model-options')
+  return data
+}
+
 export const userGroupsAPI = {
   getAvailable,
+  getModelOptions,
   getUserGroupRates
 }
 

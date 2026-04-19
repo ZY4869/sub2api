@@ -14,7 +14,11 @@ import type {
   UsageProgress,
   WindowStats,
 } from '@/types'
-import { resolveEffectiveAccountPlatformFromAccount } from '@/utils/accountProtocolGateway'
+import {
+  resolveAccountGatewayProtocol,
+  resolveEffectiveAccountPlatformFromAccount,
+  resolveGatewayProtocolLabel,
+} from '@/utils/accountProtocolGateway'
 import { buildOpenAIUsageRefreshKey } from '@/utils/accountUsageRefresh'
 import { resolveCodexUsageWindow } from '@/utils/codexUsage'
 import { resolveGeminiChannel, resolveGeminiChannelDisplayName } from '@/utils/geminiAccount'
@@ -243,6 +247,24 @@ function buildProgressRow(
 
 function buildRows(...rows: Array<AccountUsagePresentationRow | null>): AccountUsagePresentationRow[] {
   return rows.filter((row): row is AccountUsagePresentationRow => row !== null)
+}
+
+function pickHighestUtilizationProgress(
+  progressEntries: Array<{ progress: UsageProgress | null | undefined; color: AccountUsageRowColor }>
+): { progress: UsageProgress; color: AccountUsageRowColor } | null {
+  let picked: { progress: UsageProgress; color: AccountUsageRowColor } | null = null
+
+  for (const entry of progressEntries) {
+    if (!entry.progress) continue
+    if (!picked || entry.progress.utilization > picked.progress.utilization) {
+      picked = {
+        progress: entry.progress,
+        color: entry.color,
+      }
+    }
+  }
+
+  return picked
 }
 
 function findRowByKey(
@@ -838,6 +860,55 @@ export function useAccountUsagePresentation(
     )
   })
 
+  const isProtocolGatewayGeminiAccount = computed(() => {
+    return account.value.platform === 'protocol_gateway' && getRuntimePlatform(account.value) === 'gemini'
+  })
+
+  const protocolGatewayBadgeLabel = computed(() => {
+    if (!isProtocolGatewayGeminiAccount.value) return null
+    const protocolLabel = resolveGatewayProtocolLabel(resolveAccountGatewayProtocol(account.value)) || 'Mixed'
+    return t('admin.accounts.protocolGateway.usageWindow.badge', {
+      protocol: protocolLabel,
+    })
+  })
+
+  const protocolGatewayBadgeClass = computed(() => {
+    if (!isProtocolGatewayGeminiAccount.value) return ''
+    return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+  })
+
+  const protocolGatewayRows = computed(() => {
+    if (!isProtocolGatewayGeminiAccount.value || !usageInfo.value) return []
+
+    if (usageInfo.value.gemini_shared_daily) {
+      return buildRows(
+        buildProgressRow(
+          'protocol-gateway-shared-daily',
+          resolveUsageWindowLabel('1d', t),
+          usageInfo.value.gemini_shared_daily,
+          'indigo',
+        ),
+      )
+    }
+
+    const tightestWindow = pickHighestUtilizationProgress([
+      { progress: usageInfo.value.gemini_pro_daily, color: 'indigo' },
+      { progress: usageInfo.value.gemini_flash_daily, color: 'emerald' },
+    ])
+    if (!tightestWindow) {
+      return []
+    }
+
+    return buildRows(
+      buildProgressRow(
+        'protocol-gateway-tightest-daily',
+        resolveUsageWindowLabel('1d', t),
+        tightestWindow.progress,
+        tightestWindow.color,
+      ),
+    )
+  })
+
   const geminiRows = computed(() => {
     if (getRuntimePlatform(account.value) !== 'gemini' || !usageInfo.value) return []
 
@@ -1089,6 +1160,23 @@ export function useAccountUsagePresentation(
       } else if (antigravityRows.value.length > 0) {
         state = 'bars'
         windowRows = antigravityRows.value
+      }
+    } else if (isProtocolGatewayGeminiAccount.value) {
+      meta.protocolGatewayBadgeLabel = protocolGatewayBadgeLabel.value
+      meta.protocolGatewayBadgeClass = protocolGatewayBadgeClass.value
+
+      if (currentState.loading) {
+        state = 'loading'
+      } else if (currentState.error) {
+        state = 'error'
+      } else if (protocolGatewayRows.value.length > 0) {
+        state = 'bars'
+        windowRows = protocolGatewayRows.value
+        if (!usageInfo.value?.gemini_shared_daily) {
+          meta.noteText = t('admin.accounts.protocolGateway.usageWindow.tightestWindowNote')
+        }
+      } else {
+        state = 'unlimited'
       }
     } else if (getRuntimePlatform(account.value) === 'gemini') {
       meta.geminiAuthTypeLabel = geminiAuthTypeLabel.value

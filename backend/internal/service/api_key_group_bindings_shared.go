@@ -15,6 +15,11 @@ var ErrAPIKeyGroupAdvancedFieldsForbidden = infraerrors.Forbidden(
 	"only administrators can set group quota or model patterns",
 )
 
+var ErrAPIKeyGroupQuotaForbidden = infraerrors.Forbidden(
+	"GROUP_BINDING_GROUP_QUOTA_FORBIDDEN",
+	"only administrators can set group quota",
+)
+
 type APIKeyGroupUpdateInput struct {
 	GroupID       int64
 	Quota         float64
@@ -90,8 +95,8 @@ func normalizeAPIKeyGroupUpdateInputs(inputs []APIKeyGroupUpdateInput, allowAdva
 			modelPatterns = append(modelPatterns, trimmed)
 		}
 
-		if !allowAdvancedFields && (input.Quota > 0 || len(modelPatterns) > 0) {
-			return nil, ErrAPIKeyGroupAdvancedFieldsForbidden
+		if !allowAdvancedFields && input.Quota > 0 {
+			return nil, ErrAPIKeyGroupQuotaForbidden
 		}
 
 		normalized = append(normalized, APIKeyGroupUpdateInput{

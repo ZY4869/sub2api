@@ -151,6 +151,14 @@ const AccountApiKeyModelProbeEditorStub = defineComponent({
 const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
   name: 'AccountProtocolGatewayModelProbeEditor',
   props: {
+    allowedModels: {
+      type: Array,
+      default: () => []
+    },
+    modelMappings: {
+      type: Array,
+      default: () => []
+    },
     gatewayTestProvider: {
       type: String,
       default: ''
@@ -170,8 +178,24 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
   ],
   template: `
     <div>
+      <span data-testid="gateway-allowed-models-prop">
+        {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
+      </span>
+      <span data-testid="gateway-model-mappings-prop">
+        {{ Array.isArray(modelMappings) ? JSON.stringify(modelMappings) : '' }}
+      </span>
       <span data-testid="gateway-test-provider-prop">{{ gatewayTestProvider }}</span>
       <span data-testid="gateway-test-model-prop">{{ gatewayTestModelId }}</span>
+      <button
+        type="button"
+        data-testid="set-gateway-selection"
+        @click="
+          $emit('update:allowedModels', ['gpt-5.4']);
+          $emit('update:modelMappings', [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }])
+        "
+      >
+        set gateway selection
+      </button>
       <button
         type="button"
         data-testid="set-gateway-test-defaults"
@@ -413,12 +437,31 @@ function buildProtocolGatewayGeminiAccount() {
     type: 'apikey',
     credentials: {
       api_key: 'gateway-key',
-      base_url: 'https://gateway.example.com'
+      base_url: 'https://gateway.example.com',
+      model_mapping: {
+        'friendly-gateway-model': 'gpt-5.4'
+      }
     },
     extra: {
       gateway_protocol: 'mixed',
       gateway_accepted_protocols: ['gemini'],
-      gateway_batch_enabled: true
+      gateway_batch_enabled: true,
+      model_scope_v2: {
+        supported_providers: ['gemini'],
+        supported_models_by_provider: {
+          gemini: ['gpt-5.4']
+        },
+        advanced_provider_override: false,
+        manual_mapping_rows: [
+          {
+            from: 'friendly-gateway-model',
+            to: 'gpt-5.4'
+          }
+        ],
+        manual_mappings: {
+          'friendly-gateway-model': 'gpt-5.4'
+        }
+      }
     },
     proxy_id: null,
     concurrency: 1,
@@ -673,6 +716,61 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.tier_id).toBeUndefined()
   })
 
+  it('rehydrates protocol gateway scope rows without fabricating identity mappings', async () => {
+    const account = buildProtocolGatewayGeminiAccount()
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="gateway-allowed-models-prop"]').text()).toBe('gpt-5.4')
+    expect(wrapper.get('[data-testid="gateway-model-mappings-prop"]').text()).toContain('friendly-gateway-model')
+  })
+
+  it('rehydrates protocol gateway whitelist-only scope without fabricating manual mapping rows', async () => {
+    const account = buildProtocolGatewayGeminiAccount()
+    delete account.credentials.model_mapping
+    account.extra.model_scope_v2 = {
+      supported_providers: ['gemini'],
+      supported_models_by_provider: {
+        gemini: ['gemini-2.5-pro']
+      },
+      advanced_provider_override: false,
+      manual_mapping_rows: [],
+      manual_mappings: {}
+    }
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="gateway-allowed-models-prop"]').text()).toBe('gemini-2.5-pro')
+    expect(wrapper.get('[data-testid="gateway-model-mappings-prop"]').text()).toBe('[]')
+  })
+
+  it('persists protocol gateway selected targets and explicit aliases on edit submit', async () => {
+    const account = buildProtocolGatewayGeminiAccount()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    await wrapper.get('[data-testid="set-gateway-selection"]').trigger('click')
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
+      'friendly-gateway-model': 'gpt-5.4'
+    })
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toMatchObject({
+      supported_models_by_provider: {
+        openai: ['gpt-5.4']
+      },
+      manual_mapping_rows: [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }],
+      manual_mappings: {
+        'friendly-gateway-model': 'gpt-5.4'
+      }
+    })
+  })
+
   it('rehydrates and persists gateway test provider/model defaults for protocol gateway accounts', async () => {
     const account = buildProtocolGatewayGeminiAccount()
     account.extra.gateway_test_provider = 'anthropic'
@@ -718,6 +816,8 @@ describe('EditAccountModal', () => {
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toBeUndefined()
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toBeUndefined()
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_provider).toBeUndefined()
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBeUndefined()
   })

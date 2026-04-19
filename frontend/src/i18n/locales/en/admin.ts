@@ -1971,6 +1971,10 @@ export default {
         testProviderAutoOption: 'Unspecified, resolve from defaults or a unique match',
         testModelLabel: 'Test Model ID (Optional)',
         testModelAutoOption: 'Leave empty to use the provider default test model at runtime',
+        usageWindow: {
+          badge: 'Protocol Gateway · {protocol}',
+          tightestWindowNote: 'Showing the tightest upstream daily window.'
+        },
         protocols: {
           openai: {
             baseUrlHint: 'Enter an OpenAI-compatible upstream URL, or leave default for official OpenAI API',

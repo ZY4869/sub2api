@@ -29,6 +29,17 @@
       </button>
     </div>
 
+    <div v-if="presentation.meta.protocolGatewayBadgeLabel" class="mb-1 flex items-center gap-1">
+      <span
+        :class="[
+          'inline-block rounded px-1.5 py-0.5 text-[10px] font-medium',
+          presentation.meta.protocolGatewayBadgeClass,
+        ]"
+      >
+        {{ presentation.meta.protocolGatewayBadgeLabel }}
+      </span>
+    </div>
+
     <div v-if="presentation.meta.geminiAuthTypeLabel" class="mb-1 flex items-center gap-1">
       <span
         :class="[

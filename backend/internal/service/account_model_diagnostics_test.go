@@ -149,6 +149,57 @@ func TestAccountModelDiagnosticsService_DiagnoseDegradedWhenLiveProbeFails(t *te
 	require.Empty(t, result.DetectedModels)
 }
 
+func TestAccountModelDiagnosticsService_DiagnoseAIStudioSavedSnapshotAsOK(t *testing.T) {
+	importSvc := NewAccountModelImportService(nil, nil, &accountModelImportHTTPUpstreamStub{
+		statusCode: http.StatusForbidden,
+		body:       `{"error":"forbidden"}`,
+	}, nil)
+	service := newDiagnosticsServiceForTest(
+		Account{
+			ID:          6,
+			Name:        "aistudio-apikey",
+			Platform:    PlatformGemini,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			GroupIDs:    []int64{10},
+			Credentials: map[string]any{
+				"api_key":            "sk-test",
+				"gemini_api_variant": GeminiAPIKeyVariantAIStudio,
+				"base_url":           "https://generativelanguage.googleapis.com",
+			},
+			Extra: map[string]any{
+				"model_probe_snapshot": map[string]any{
+					"models":       []string{"gemini-2.5-flash"},
+					"updated_at":   "2026-04-01T00:00:00Z",
+					"source":       AccountModelProbeSnapshotSourceManualProbe,
+					"probe_source": accountModelProbeSourceUpstream,
+				},
+			},
+		},
+		&Group{ID: 10, Name: "Gemini", Platform: PlatformGemini, Status: StatusActive},
+		APIKey{
+			ID:               106,
+			Name:             "public-key",
+			ModelDisplayMode: APIKeyModelDisplayModeAliasOnly,
+			GroupBindings: []APIKeyGroupBinding{
+				{
+					GroupID: 10,
+					Group:   &Group{ID: 10, Name: "Gemini", Platform: PlatformGemini, Status: StatusActive},
+				},
+			},
+		},
+		importSvc,
+	)
+
+	result, err := service.Diagnose(context.Background(), 6, true)
+
+	require.NoError(t, err)
+	require.Equal(t, AccountModelDiagnosticsStatusOK, result.Status)
+	require.Len(t, result.GroupExposures[0].PublicModels, 1)
+	require.Contains(t, result.Warnings, "live probe failed; current preview is showing the saved models snapshot")
+}
+
 func TestAccountModelDiagnosticsService_DiagnoseFilteredEmptyWhenBindingsFilterModels(t *testing.T) {
 	service := newDiagnosticsServiceForTest(
 		Account{

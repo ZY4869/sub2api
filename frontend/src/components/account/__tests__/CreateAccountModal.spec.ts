@@ -262,7 +262,7 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
         type="button"
         data-testid="gateway-probe-select-models"
         @click="
-          $emit('update:allowedModels', ['friendly-gateway-model']);
+          $emit('update:allowedModels', ['gpt-5.4']);
           $emit('update:modelMappings', [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }])
         "
       >
@@ -272,7 +272,7 @@ const AccountProtocolGatewayModelProbeEditorStub = defineComponent({
         type="button"
         data-testid="gateway-probe-select-models-with-defaults"
         @click="
-          $emit('update:allowedModels', ['friendly-gateway-model']);
+          $emit('update:allowedModels', ['gpt-5.4']);
           $emit('update:modelMappings', [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }]);
           $emit('update:gateway-test-provider', 'openai');
           $emit('update:gateway-test-model-id', 'gpt-5.4')
@@ -502,6 +502,44 @@ describe('CreateAccountModal', () => {
     })
   })
 
+  it('submits protocol gateway model scope with selected target models and explicit aliases only', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 14,
+      name: 'Gateway Scoped Account',
+      platform: 'protocol_gateway',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="gateway-probe-select-models"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Gateway Scoped Account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]?.credentials?.model_mapping).toEqual({
+      'friendly-gateway-model': 'gpt-5.4'
+    })
+    expect(createMock.mock.calls[0]?.[0]?.extra?.model_scope_v2).toMatchObject({
+      supported_models_by_provider: {
+        openai: ['gpt-5.4']
+      },
+      manual_mapping_rows: [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }],
+      manual_mappings: {
+        'friendly-gateway-model': 'gpt-5.4'
+      }
+    })
+  })
+
   it('persists the protocol gateway OpenAI request format selection', async () => {
     createMock.mockReset()
     checkMixedChannelRiskMock.mockReset()
@@ -608,7 +646,7 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
     await wrapper.get('[data-testid="gateway-probe-select-models"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="allowed-models-prop"]').text()).toBe('friendly-gateway-model')
+    expect(wrapper.get('[data-testid="allowed-models-prop"]').text()).toBe('gpt-5.4')
     expect(wrapper.get('[data-testid="model-mappings-prop"]').text()).toContain('friendly-gateway-model')
 
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
@@ -639,7 +677,7 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
     await wrapper.get('[data-testid="gateway-probe-select-models"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="allowed-models-prop"]').text()).toBe('friendly-gateway-model')
+    expect(wrapper.get('[data-testid="allowed-models-prop"]').text()).toBe('gpt-5.4')
     expect(wrapper.get('[data-testid="model-mappings-prop"]').text()).toContain('friendly-gateway-model')
 
     await wrapper.get('[data-testid="gateway-probe-clear-models"]').trigger('click')
@@ -679,6 +717,8 @@ describe('CreateAccountModal', () => {
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
 
     expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]?.credentials?.model_mapping).toBeUndefined()
+    expect(createMock.mock.calls[0]?.[0]?.extra?.model_scope_v2).toBeUndefined()
     expect(createMock.mock.calls[0]?.[0]?.extra?.gateway_test_provider).toBeUndefined()
     expect(createMock.mock.calls[0]?.[0]?.extra?.gateway_test_model_id).toBeUndefined()
   })

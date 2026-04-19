@@ -36,6 +36,8 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.gemini3Flash': 'G3F',
           'admin.accounts.usageWindow.claude': 'Claude',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
+          'admin.accounts.protocolGateway.usageWindow.badge': 'Protocol Gateway · {protocol}',
+          'admin.accounts.protocolGateway.usageWindow.tightestWindowNote': 'Showing the tightest upstream daily window.',
           'admin.accounts.ineligibleWarning': 'Ineligible warning',
           'admin.accounts.gemini.quotaPolicy.title': 'Quota policy',
           'admin.accounts.gemini.quotaPolicy.note': 'Quota note',
@@ -274,6 +276,67 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Gemini Image|70|2026-03-01T09:00:00Z')
+  })
+
+  it('renders protocol gateway gemini usage as a single gateway card without native gemini channel labels', async () => {
+    getUsage.mockResolvedValue({
+      gemini_pro_daily: {
+        utilization: 25,
+        resets_at: '2026-03-08T12:00:00Z',
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 3,
+          tokens: 300,
+          cost: 0.03,
+          standard_cost: 0.03,
+          user_cost: 0.03,
+        },
+      },
+      gemini_flash_daily: {
+        utilization: 70,
+        resets_at: '2026-03-08T14:00:00Z',
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 8,
+          tokens: 800,
+          cost: 0.08,
+          standard_cost: 0.08,
+          user_cost: 0.08,
+        },
+      },
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 1003,
+          platform: 'protocol_gateway',
+          gateway_protocol: 'gemini',
+          type: 'apikey',
+          credentials: {
+            tier_id: 'aistudio_tier_1',
+          },
+          extra: {
+            gateway_protocol: 'gemini',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Protocol Gateway · Gemini')
+    expect(wrapper.text()).toContain('|70|2026-03-08T14:00:00Z|7200|false|800')
+    expect(wrapper.text()).toContain('Showing the tightest upstream daily window.')
+    expect(wrapper.text()).not.toContain('AI Studio')
+    expect(wrapper.text()).not.toContain('Free')
+    expect(wrapper.text()).not.toContain('Tier 1')
+    expect(wrapper.text()).not.toContain('Flash')
   })
 
   it('renders total account quota with a localized label instead of the raw total value', async () => {

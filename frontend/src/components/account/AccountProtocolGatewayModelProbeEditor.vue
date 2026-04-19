@@ -442,6 +442,18 @@ const probeNotice = ref('')
 const aliasDrafts = ref<Record<string, string>>({})
 const hasInitializedFromMappings = ref(false)
 
+const normalizeModelID = (value: string) => String(value || '').trim()
+
+const normalizeExplicitMappingRows = (rows: ModelMapping[]) =>
+  rows
+    .map((row) => ({
+      from: normalizeModelID(row.from),
+      to: normalizeModelID(row.to)
+    }))
+    .filter((row) => Boolean(row.from) && Boolean(row.to) && row.from !== row.to)
+
+const serializeMappings = (rows: ModelMapping[]) => JSON.stringify(normalizeExplicitMappingRows(rows))
+
 const trimmedApiKey = computed(() => props.apiKey.trim())
 const acceptedProtocolOptions = computed(() =>
   ['openai', 'anthropic', 'gemini'].map((value) => {
@@ -605,8 +617,8 @@ watch(
   () => [allowedModels.value.join('\x00'), modelMappings.value.length] as const,
   () => {
     const selected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
-    const nextMappings = modelMappings.value.filter((row) => selected.has(row.to.trim()))
-    if (nextMappings.length !== modelMappings.value.length) {
+    const nextMappings = normalizeExplicitMappingRows(modelMappings.value).filter((row) => selected.has(row.to))
+    if (serializeMappings(nextMappings) !== serializeMappings(modelMappings.value)) {
       modelMappings.value = nextMappings
     }
     const nextRoutes = clientRoutes.value.filter((route) => selected.has(route.match_value.trim()))
@@ -618,24 +630,23 @@ watch(
 )
 
 watch(
-  () => [probedModels.value.length, modelMappings.value.length] as const,
-  ([modelCount, mappingCount]) => {
-    if (hasInitializedFromMappings.value || modelCount > 0 || mappingCount === 0) {
+  () => [probedModels.value.length, selectedModelTargets.value.size, modelMappings.value.length] as const,
+  ([modelCount, selectedCount, mappingCount]) => {
+    if (hasInitializedFromMappings.value || modelCount > 0 || (selectedCount === 0 && mappingCount === 0)) {
       return
     }
     hasInitializedFromMappings.value = true
     const seen = new Set<string>()
     const nextDrafts = { ...aliasDrafts.value }
-    for (const row of modelMappings.value) {
-      const targetModel = row.to.trim()
+    for (const row of normalizeExplicitMappingRows(modelMappings.value)) {
+      const targetModel = row.to
       if (!targetModel || Object.prototype.hasOwnProperty.call(nextDrafts, targetModel)) {
         continue
       }
       nextDrafts[targetModel] = row.from
     }
     aliasDrafts.value = nextDrafts
-    probedModels.value = modelMappings.value
-      .map((row) => row.to.trim())
+    probedModels.value = [...selectedModelTargets.value]
       .filter((modelId) => {
         if (!modelId || seen.has(modelId)) {
           return false
@@ -660,34 +671,7 @@ const isClientProfileSelected = (profile: GatewayClientProfile) =>
   clientProfiles.value.includes(profile)
 
 const findMappingIndexByTarget = (modelId: string) =>
-  modelMappings.value.findIndex((row) => row.to.trim() === modelId)
-
-const ensureMappingForModel = (model: ProtocolGatewayProbeModel) => {
-  const index = findMappingIndexByTarget(model.id)
-  if (index >= 0) {
-    const nextMappings = [...modelMappings.value]
-    const current = nextMappings[index]
-    const draftAlias = Object.prototype.hasOwnProperty.call(aliasDrafts.value, model.id)
-      ? aliasDrafts.value[model.id]
-      : current.from
-    nextMappings[index] = {
-      from: draftAlias,
-      to: model.id
-    }
-    modelMappings.value = nextMappings
-    return
-  }
-  const nextAlias = Object.prototype.hasOwnProperty.call(aliasDrafts.value, model.id)
-    ? aliasDrafts.value[model.id]
-    : model.id
-  modelMappings.value = [
-    ...modelMappings.value,
-    {
-      from: nextAlias,
-      to: model.id
-    }
-  ]
-}
+  modelMappings.value.findIndex((row) => normalizeModelID(row.to) === modelId)
 
 const toggleModel = (model: ProtocolGatewayProbeModel) => {
   const nextSelected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
@@ -810,21 +794,29 @@ const currentAlias = (modelId: string) => {
   if (Object.prototype.hasOwnProperty.call(aliasDrafts.value, modelId)) {
     return aliasDrafts.value[modelId]
   }
-  return modelMappings.value.find((row) => row.to.trim() === modelId)?.from ?? modelId
+  return normalizeExplicitMappingRows(modelMappings.value).find((row) => row.to === modelId)?.from ?? modelId
 }
 
 const collectAliasByTarget = () =>
   new Map(
-    modelMappings.value
-      .map((row) => [row.to.trim(), currentAlias(row.to.trim())] as const)
+    [...selectedModelTargets.value]
+      .map((modelId) => [modelId, currentAlias(modelId)] as const)
       .filter(([target]) => Boolean(target))
   )
 
 const buildMappingsForModelIds = (modelIds: string[], aliasByTarget = collectAliasByTarget()) =>
-  modelIds.map((modelId) => ({
-    from: aliasByTarget.get(modelId) || currentAlias(modelId),
-    to: modelId
-  }))
+  modelIds
+    .map((modelId) => {
+      const alias = (aliasByTarget.get(modelId) ?? currentAlias(modelId)).trim()
+      if (!alias || alias === modelId) {
+        return null
+      }
+      return {
+        from: alias,
+        to: modelId
+      }
+    })
+    .filter((row): row is ModelMapping => Boolean(row))
 
 const syncSelectedModels = (modelIds: string[], aliasByTarget = collectAliasByTarget()) => {
   const nextAllowedModels = [...new Set(modelIds.map((item) => item.trim()).filter(Boolean))]
@@ -833,19 +825,40 @@ const syncSelectedModels = (modelIds: string[], aliasByTarget = collectAliasByTa
 }
 
 const updateModelAlias = (model: ProtocolGatewayProbeModel, value: string) => {
+  const nextAlias = value.trim()
+  if (!nextAlias || nextAlias === model.id) {
+    const nextDrafts = { ...aliasDrafts.value }
+    delete nextDrafts[model.id]
+    aliasDrafts.value = nextDrafts
+    const mappingIndex = findMappingIndexByTarget(model.id)
+    if (mappingIndex >= 0) {
+      const nextMappings = [...modelMappings.value]
+      nextMappings.splice(mappingIndex, 1)
+      modelMappings.value = nextMappings
+    }
+    return
+  }
   aliasDrafts.value = {
     ...aliasDrafts.value,
-    [model.id]: value
+    [model.id]: nextAlias
   }
-  ensureMappingForModel(model)
-  modelMappings.value = modelMappings.value.map((row) =>
-    row.to.trim() === model.id
-      ? {
-          from: value,
-          to: model.id
-        }
-      : row
-  )
+  const mappingIndex = findMappingIndexByTarget(model.id)
+  if (mappingIndex >= 0) {
+    const nextMappings = [...modelMappings.value]
+    nextMappings[mappingIndex] = {
+      from: nextAlias,
+      to: model.id
+    }
+    modelMappings.value = nextMappings
+    return
+  }
+  modelMappings.value = [
+    ...modelMappings.value,
+    {
+      from: nextAlias,
+      to: model.id
+    }
+  ]
 }
 
 const availableProfilesForModel = (model: ProtocolGatewayProbeModel) => {

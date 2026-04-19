@@ -55,3 +55,33 @@ func TestPrepareAccountModelScopePrefersManualMappingRows(t *testing.T) {
 	require.NotNil(t, nextExtra)
 	require.Contains(t, nextExtra, "model_scope_v2")
 }
+
+func TestPrepareAccountModelScopeClearsLegacyModelMappingWhenScopeRemoved(t *testing.T) {
+	handler := &AccountHandler{
+		modelRegistryService: service.NewModelRegistryService(newTestSettingRepo()),
+	}
+
+	credentials := map[string]any{
+		"api_key": "sk-test",
+		"model_mapping": map[string]any{
+			"friendly-gpt": "gpt-5.4",
+		},
+	}
+	extra := map[string]any{
+		"gateway_protocol": "openai",
+	}
+
+	nextCredentials, nextExtra, err := handler.prepareAccountModelScope(
+		context.Background(),
+		service.PlatformProtocolGateway,
+		service.AccountTypeAPIKey,
+		credentials,
+		extra,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, nextCredentials)
+	_, exists := nextCredentials["model_mapping"]
+	require.False(t, exists)
+	require.Equal(t, "sk-test", nextCredentials["api_key"])
+	require.Equal(t, extra, nextExtra)
+}
