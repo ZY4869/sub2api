@@ -240,6 +240,7 @@ func shouldFailoverOpenAIPassthroughResponse(statusCode int) bool {
 
 func (s *OpenAIGatewayService) handleFailoverErrorResponsePassthrough(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, requestBody []byte) error {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	SetOpsTraceUpstreamResponse(c, "openai_passthrough_upstream_error_response", body, resp.Header.Get("Content-Type"), false)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 	upstreamDetail := ""
@@ -276,6 +277,7 @@ func (s *OpenAIGatewayService) handleFailoverErrorResponsePassthrough(ctx contex
 
 func (s *OpenAIGatewayService) handleErrorResponsePassthrough(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, requestBody []byte) error {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	SetOpsTraceUpstreamResponse(c, "openai_passthrough_upstream_error_response", body, resp.Header.Get("Content-Type"), false)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 	upstreamDetail := ""
@@ -294,6 +296,7 @@ func (s *OpenAIGatewayService) handleErrorResponsePassthrough(ctx context.Contex
 	if contentType == "" {
 		contentType = "application/json"
 	}
+	SetOpsTraceGatewayResponse(c, "openai_passthrough_gateway_response", body, contentType, false)
 	c.Data(resp.StatusCode, contentType, body)
 	if upstreamMsg == "" {
 		return fmt.Errorf("upstream error: %d", resp.StatusCode)
@@ -388,6 +391,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(_ context.C
 		}
 		return nil, err
 	}
+	SetOpsTraceUpstreamResponse(c, "openai_passthrough_upstream_response", body, resp.Header.Get("Content-Type"), false)
 	usage := &OpenAIUsage{}
 	usageParsed := false
 	if len(body) > 0 {
@@ -404,6 +408,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponsePassthrough(_ context.C
 	if contentType == "" {
 		contentType = "application/json"
 	}
+	SetOpsTraceGatewayResponse(c, "openai_passthrough_gateway_response", body, contentType, false)
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
 }

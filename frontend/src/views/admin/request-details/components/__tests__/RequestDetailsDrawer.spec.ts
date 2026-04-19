@@ -47,6 +47,14 @@ const translations: Record<string, string> = {
   'admin.requestDetails.drawer.auditOperator': 'Operator #{id}',
   'admin.requestDetails.drawer.payload.previewReady': 'Preview is ready',
   'admin.requestDetails.drawer.payload.empty': 'No content available',
+  'admin.requestDetails.drawer.payload.collectedEmpty': 'Captured, but empty',
+  'admin.requestDetails.drawer.payload.rawOnlyStatus': 'Only raw fallback content is available',
+  'admin.requestDetails.drawer.payload.rawOnlyEmpty': 'Only a raw fallback marker was recorded for this section.',
+  'admin.requestDetails.drawer.payload.rawOnlyNotice': 'This panel is showing raw fallback content because structured capture was unavailable.',
+  'admin.requestDetails.drawer.payload.truncatedNotice': 'This preview was truncated to the storage preview limit.',
+  'admin.requestDetails.drawer.payload.rawOnlyBadge': 'Raw fallback',
+  'admin.requestDetails.drawer.payload.truncatedBadge': 'Truncated',
+  'admin.requestDetails.drawer.payload.sourceLabel': 'Source: {source}',
   'admin.requestDetails.drawer.emptyStates.inbound': 'No inbound request preview was captured for this trace.',
   'admin.requestDetails.drawer.emptyStates.normalized': 'No normalized request content is available for this trace.',
   'admin.requestDetails.drawer.emptyStates.upstreamRequest': 'No upstream request content is available for this trace.',
@@ -295,5 +303,25 @@ describe('RequestDetailsDrawer', () => {
     expect(wrapper.emitted('loadRaw')).toBeUndefined()
     expect(wrapper.text()).toContain('Only the captured preview is available here. Raw full text is not accessible for this tab.')
     expect(wrapper.find('[data-test="request-details-full-dialog"]').text()).toContain('"preview": "only"')
+  })
+
+  it('renders envelope source and truncation metadata for normalized payloads', async () => {
+    const wrapper = createWrapper({
+      detail: {
+        ...detail,
+        normalized_request_json: JSON.stringify({
+          state: 'captured',
+          source: 'canonical_preview',
+          truncated: true,
+          payload: { normalized: true }
+        })
+      }
+    })
+
+    await wrapper.findAll('button').find((button) => button.text() === 'Normalized Request')?.trigger('click')
+
+    expect(wrapper.text()).toContain('Source: canonical_preview')
+    expect(wrapper.text()).toContain('Truncated')
+    expect(wrapper.find('[data-test="normalized-panel"]').text()).toContain('"normalized": true')
   })
 })

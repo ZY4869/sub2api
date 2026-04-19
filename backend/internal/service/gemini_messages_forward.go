@@ -281,6 +281,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 	}()
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+		SetOpsTraceUpstreamResponse(c, "gemini_upstream_error_response", respBody, resp.Header.Get("Content-Type"), false)
 		if s.rateLimitService != nil {
 			switch s.rateLimitService.CheckErrorPolicy(ctx, account, resp.StatusCode, respBody) {
 			case ErrorPolicySkipped:
@@ -367,6 +368,7 @@ func (s *GeminiCompatGatewayService) Forward(ctx context.Context, c *gin.Context
 				return nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream stream")
 			}
 			collectedBytes, _ := json.Marshal(collected)
+			SetOpsTraceUpstreamResponse(c, "gemini_upstream_response", collectedBytes, "application/json", false)
 			if candidate := extractGeminiResolvedServiceTierFromResponse(collectedBytes, resp.Header); candidate != nil {
 				resolvedServiceTier = candidate
 			}
@@ -657,6 +659,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 	isOAuth := account.Type == AccountTypeOAuth
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+		SetOpsTraceUpstreamResponse(c, "gemini_native_upstream_error_response", unwrapIfNeeded(isOAuth, respBody), resp.Header.Get("Content-Type"), false)
 		if action == "countTokens" {
 			s.handleGeminiUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
 			evBody := unwrapIfNeeded(isOAuth, respBody)
@@ -785,6 +788,7 @@ func (s *GeminiNativeGatewayService) ForwardNative(ctx context.Context, c *gin.C
 				return nil, s.writeGoogleError(c, http.StatusBadGateway, "Failed to read upstream stream")
 			}
 			collectedBytes, _ := json.Marshal(collected)
+			SetOpsTraceUpstreamResponse(c, "gemini_native_upstream_response", collectedBytes, "application/json", false)
 			if candidate := extractGeminiResolvedServiceTierFromResponse(collectedBytes, resp.Header); candidate != nil {
 				resolvedServiceTier = candidate
 			}

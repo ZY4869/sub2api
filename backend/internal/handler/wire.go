@@ -40,6 +40,9 @@ func ProvideAdminHandlers(
 	scheduledTestHandler *admin.ScheduledTestHandler,
 	tlsFingerprintProfileHandler *admin.TLSFingerprintProfileHandler,
 ) *AdminHandlers {
+	if opsHandler != nil {
+		opsHandler.BindUsageHandler(usageHandler)
+	}
 	return &AdminHandlers{
 		Dashboard:             dashboardHandler,
 		User:                  userHandler,

@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import ProtocolPairDisplay from '@/components/common/ProtocolPairDisplay.vue'
 import type { OpsRequestTraceDetail, OpsRequestTraceRawDetail } from '@/api/admin/ops'
+import { parseRequestPreviewContent } from '@/utils/requestPreview'
 import { formatDateTime, formatNumber } from '@/utils/format'
 import RequestDetailsContentDialog from './RequestDetailsContentDialog.vue'
 import RequestDetailsPayloadPanel from './RequestDetailsPayloadPanel.vue'
@@ -40,6 +41,9 @@ interface PayloadPanelState {
   emptyMessage: string
   notice: string
   canOpenFull: boolean
+  source: string
+  truncated: boolean
+  state: 'uncollected' | 'empty' | 'raw_only' | 'ready'
 }
 
 const payloadTabKeys: PayloadTabKey[] = [
@@ -145,73 +149,129 @@ const requestHeaders = computed(() => formatPrettyJSON(props.detail?.request_hea
 const responseHeaders = computed(() => formatPrettyJSON(props.detail?.response_headers_json))
 const rawBackedInboundAvailable = computed(() => Boolean(props.detail?.raw_access_allowed && props.detail?.raw_available))
 
-const jsonPanels = computed<Record<DialogPayloadKey, string>>(() => ({
-  inbound: formatPrettyJSON(props.detail?.inbound_request_json),
-  normalized: formatPrettyJSON(props.detail?.normalized_request_json),
-  upstreamRequest: formatPrettyJSON(props.detail?.upstream_request_json),
-  upstreamResponse: formatPrettyJSON(props.detail?.upstream_response_json),
-  gatewayResponse: formatPrettyJSON(props.detail?.gateway_response_json),
-  tools: formatPrettyJSON(props.detail?.tool_trace_json),
-  rawRequest: formatPrettyJSON(props.rawDetail?.raw_request),
-  rawResponse: formatPrettyJSON(props.rawDetail?.raw_response)
+const parsedPanels = computed(() => ({
+  inbound: parseRequestPreviewContent(props.detail?.inbound_request_json),
+  normalized: parseRequestPreviewContent(props.detail?.normalized_request_json),
+  upstreamRequest: parseRequestPreviewContent(props.detail?.upstream_request_json),
+  upstreamResponse: parseRequestPreviewContent(props.detail?.upstream_response_json),
+  gatewayResponse: parseRequestPreviewContent(props.detail?.gateway_response_json),
+  tools: parseRequestPreviewContent(props.detail?.tool_trace_json),
+  rawRequest: parseRequestPreviewContent(props.rawDetail?.raw_request),
+  rawResponse: parseRequestPreviewContent(props.rawDetail?.raw_response)
 }))
+
+function resolvePanelEmptyMessage(tab: DialogPayloadKey): string {
+  const state = parsedPanels.value[tab].renderState
+  if (state === 'empty') {
+    return t('admin.requestDetails.drawer.payload.collectedEmpty')
+  }
+  if (state === 'raw_only') {
+    return t('admin.requestDetails.drawer.payload.rawOnlyEmpty')
+  }
+  switch (tab) {
+    case 'inbound':
+      return t('admin.requestDetails.drawer.emptyStates.inbound')
+    case 'normalized':
+      return t('admin.requestDetails.drawer.emptyStates.normalized')
+    case 'upstreamRequest':
+      return t('admin.requestDetails.drawer.emptyStates.upstreamRequest')
+    case 'upstreamResponse':
+      return t('admin.requestDetails.drawer.emptyStates.upstreamResponse')
+    case 'gatewayResponse':
+      return t('admin.requestDetails.drawer.emptyStates.gatewayResponse')
+    case 'tools':
+      return t('admin.requestDetails.drawer.emptyStates.tools')
+    case 'rawRequest':
+      return t('admin.requestDetails.drawer.emptyStates.rawRequest')
+    case 'rawResponse':
+      return t('admin.requestDetails.drawer.emptyStates.rawResponse')
+    default:
+      return t('common.noData')
+  }
+}
 
 const payloadPanels = computed<Record<DialogPayloadKey, PayloadPanelState>>(() => ({
   inbound: {
     title: tabLabel('inbound'),
-    content: jsonPanels.value.inbound,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.inbound'),
-    notice: rawBackedInboundAvailable.value ? '' : t('admin.requestDetails.drawer.previewOnlyNotice'),
-    canOpenFull: rawBackedInboundAvailable.value || Boolean(jsonPanels.value.inbound)
+    content: parsedPanels.value.inbound.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('inbound'),
+    notice: parsedPanels.value.inbound.hasContent && !rawBackedInboundAvailable.value
+      ? t('admin.requestDetails.drawer.previewOnlyNotice')
+      : '',
+    canOpenFull: rawBackedInboundAvailable.value || parsedPanels.value.inbound.hasContent,
+    source: parsedPanels.value.inbound.source,
+    truncated: parsedPanels.value.inbound.truncated,
+    state: parsedPanels.value.inbound.renderState
   },
   normalized: {
     title: tabLabel('normalized'),
-    content: jsonPanels.value.normalized,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.normalized'),
+    content: parsedPanels.value.normalized.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('normalized'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.normalized)
+    canOpenFull: parsedPanels.value.normalized.hasContent,
+    source: parsedPanels.value.normalized.source,
+    truncated: parsedPanels.value.normalized.truncated,
+    state: parsedPanels.value.normalized.renderState
   },
   upstreamRequest: {
     title: tabLabel('upstreamRequest'),
-    content: jsonPanels.value.upstreamRequest,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.upstreamRequest'),
+    content: parsedPanels.value.upstreamRequest.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('upstreamRequest'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.upstreamRequest)
+    canOpenFull: parsedPanels.value.upstreamRequest.hasContent,
+    source: parsedPanels.value.upstreamRequest.source,
+    truncated: parsedPanels.value.upstreamRequest.truncated,
+    state: parsedPanels.value.upstreamRequest.renderState
   },
   upstreamResponse: {
     title: tabLabel('upstreamResponse'),
-    content: jsonPanels.value.upstreamResponse,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.upstreamResponse'),
+    content: parsedPanels.value.upstreamResponse.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('upstreamResponse'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.upstreamResponse)
+    canOpenFull: parsedPanels.value.upstreamResponse.hasContent,
+    source: parsedPanels.value.upstreamResponse.source,
+    truncated: parsedPanels.value.upstreamResponse.truncated,
+    state: parsedPanels.value.upstreamResponse.renderState
   },
   gatewayResponse: {
     title: tabLabel('gatewayResponse'),
-    content: jsonPanels.value.gatewayResponse,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.gatewayResponse'),
+    content: parsedPanels.value.gatewayResponse.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('gatewayResponse'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.gatewayResponse)
+    canOpenFull: parsedPanels.value.gatewayResponse.hasContent,
+    source: parsedPanels.value.gatewayResponse.source,
+    truncated: parsedPanels.value.gatewayResponse.truncated,
+    state: parsedPanels.value.gatewayResponse.renderState
   },
   tools: {
     title: tabLabel('tools'),
-    content: jsonPanels.value.tools,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.tools'),
+    content: parsedPanels.value.tools.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('tools'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.tools)
+    canOpenFull: parsedPanels.value.tools.hasContent,
+    source: parsedPanels.value.tools.source,
+    truncated: parsedPanels.value.tools.truncated,
+    state: parsedPanels.value.tools.renderState
   },
   rawRequest: {
     title: t('admin.requestDetails.presentation.labels.rawRequest'),
-    content: jsonPanels.value.rawRequest,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.rawRequest'),
+    content: parsedPanels.value.rawRequest.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('rawRequest'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.rawRequest)
+    canOpenFull: parsedPanels.value.rawRequest.hasContent,
+    source: parsedPanels.value.rawRequest.source,
+    truncated: parsedPanels.value.rawRequest.truncated,
+    state: parsedPanels.value.rawRequest.renderState
   },
   rawResponse: {
     title: t('admin.requestDetails.presentation.labels.rawResponse'),
-    content: jsonPanels.value.rawResponse,
-    emptyMessage: t('admin.requestDetails.drawer.emptyStates.rawResponse'),
+    content: parsedPanels.value.rawResponse.displayContent,
+    emptyMessage: resolvePanelEmptyMessage('rawResponse'),
     notice: '',
-    canOpenFull: Boolean(jsonPanels.value.rawResponse)
+    canOpenFull: parsedPanels.value.rawResponse.hasContent,
+    source: parsedPanels.value.rawResponse.source,
+    truncated: parsedPanels.value.rawResponse.truncated,
+    state: parsedPanels.value.rawResponse.renderState
   }
 }))
 
@@ -621,6 +681,9 @@ watch(
                 :content="payloadPanels.rawRequest.content"
                 :loading="rawLoading"
                 :empty-message="payloadPanels.rawRequest.emptyMessage"
+                :source="payloadPanels.rawRequest.source"
+                :truncated="payloadPanels.rawRequest.truncated"
+                :state="payloadPanels.rawRequest.state"
                 @open-full="handleOpenRawFull('rawRequest')"
               />
               <RequestDetailsPayloadPanel
@@ -629,6 +692,9 @@ watch(
                 :content="payloadPanels.rawResponse.content"
                 :loading="rawLoading"
                 :empty-message="payloadPanels.rawResponse.emptyMessage"
+                :source="payloadPanels.rawResponse.source"
+                :truncated="payloadPanels.rawResponse.truncated"
+                :state="payloadPanels.rawResponse.state"
                 @open-full="handleOpenRawFull('rawResponse')"
               />
             </div>
@@ -641,8 +707,11 @@ watch(
           :title="currentPayloadPanel.title"
           :content="currentPayloadPanel.content"
           :empty-message="currentPayloadPanel.emptyMessage"
-          :notice="currentPayloadPanel.notice && !currentPayloadPanel.content ? currentPayloadPanel.notice : ''"
+          :notice="currentPayloadPanel.notice"
           :can-open-full="currentPayloadPanel.canOpenFull"
+          :source="currentPayloadPanel.source"
+          :truncated="currentPayloadPanel.truncated"
+          :state="currentPayloadPanel.state"
           @open-full="handleOpenPayloadFull(activeTab as PayloadTabKey)"
         />
       </div>

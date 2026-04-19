@@ -11,6 +11,7 @@ import BillingPricingView from '../BillingPricingView.vue'
 const apiMocks = vi.hoisted(() => ({
   listBillingPricingProviders: vi.fn(),
   listBillingPricingModels: vi.fn(),
+  getBillingPricingAudit: vi.fn(),
   getBillingPricingDetails: vi.fn(),
   refreshBillingPricingCatalog: vi.fn(),
   updateBillingPricingLayer: vi.fn(),
@@ -26,6 +27,7 @@ const storeMocks = vi.hoisted(() => ({
 vi.mock('@/api/admin/billing', () => ({
   listBillingPricingProviders: apiMocks.listBillingPricingProviders,
   listBillingPricingModels: apiMocks.listBillingPricingModels,
+  getBillingPricingAudit: apiMocks.getBillingPricingAudit,
   getBillingPricingDetails: apiMocks.getBillingPricingDetails,
   refreshBillingPricingCatalog: apiMocks.refreshBillingPricingCatalog,
   updateBillingPricingLayer: apiMocks.updateBillingPricingLayer,
@@ -180,6 +182,16 @@ describe('BillingPricingView', () => {
       page: Number(params.page || 1),
       page_size: Number(params.page_size || 20),
     }))
+    apiMocks.getBillingPricingAudit.mockResolvedValue({
+      total_models: 12,
+      duplicate_model_ids: [],
+      aux_identifier_collisions: [{ source: 'aliases', identifier: 'gpt-5', models: ['gpt-5.4', 'gpt-5.4-mini'], count: 2 }],
+      missing_in_snapshot_count: 1,
+      missing_in_snapshot_models: ['gpt-5.4'],
+      snapshot_only_count: 0,
+      refresh_required: true,
+      snapshot_updated_at: '2026-04-16T00:00:00Z',
+    })
     apiMocks.getBillingPricingDetails.mockResolvedValue([createDetail()])
     apiMocks.refreshBillingPricingCatalog.mockResolvedValue({
       updated_at: '2026-04-16T00:00:00Z',
@@ -192,7 +204,7 @@ describe('BillingPricingView', () => {
   })
 
   it('loads providers and paginated list mode data on mount', async () => {
-    mountView()
+    const wrapper = mountView()
     await flushPromises()
 
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(1)
@@ -202,6 +214,10 @@ describe('BillingPricingView', () => {
       sort_by: 'display_name',
       sort_order: 'asc',
     }))
+    expect(apiMocks.getBillingPricingAudit).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('计费审计')
+    expect(wrapper.text()).toContain('辅助标识碰撞')
+    expect(wrapper.text()).toContain('1')
   })
 
   it('changes sort mode and reloads the model list with provider sorting', async () => {
@@ -284,6 +300,7 @@ describe('BillingPricingView', () => {
     await flushPromises()
 
     expect(apiMocks.refreshBillingPricingCatalog).toHaveBeenCalledTimes(1)
+    expect(apiMocks.getBillingPricingAudit).toHaveBeenCalledTimes(2)
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(2)
     expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
       provider: 'openai',

@@ -78,6 +78,15 @@ func (h *ModelCatalogHandler) RefreshBillingPricingCatalog(c *gin.Context) {
 	response.Success(c, result)
 }
 
+func (h *ModelCatalogHandler) GetBillingPricingAudit(c *gin.Context) {
+	audit, err := h.modelCatalogService.GetBillingPricingAudit(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, audit)
+}
+
 func (h *ModelCatalogHandler) CopyBillingPricingOfficialToSale(c *gin.Context) {
 	var req service.BillingCopyOfficialToSaleInput
 	if err := c.ShouldBindJSON(&req); err != nil {

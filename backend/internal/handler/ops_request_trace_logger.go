@@ -25,6 +25,7 @@ const (
 	opsRequestTraceQueueMax     = 4096
 	opsRequestTraceQueuePerWork = 64
 	opsRequestTraceBodyLimit    = 1024 * 1024
+	opsRequestTracePreviewLimit = 64 * 1024
 	opsRequestTraceSampleRate   = 0.1
 	opsRequestTraceSlowMs       = int64(3000)
 )
@@ -235,6 +236,56 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 
 	normalize, usage := buildOpsTraceNormalizeResult(c, apiKey, requestBody, responseBody)
 	statusCode := c.Writer.Status()
+	requestContentType := strings.TrimSpace(c.Request.Header.Get("Content-Type"))
+	if requestContentType == "" {
+		requestContentType = "application/json"
+	}
+	responseContentType := strings.TrimSpace(c.Writer.Header().Get("Content-Type"))
+	inboundRequestJSON := service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+		requestBody,
+		opsRequestTracePreviewLimit,
+		service.OpsTracePayloadStateCaptured,
+		"inbound_request_capture",
+		requestContentType,
+	)
+	normalizedRequestJSON := service.GetOpsTraceNormalizedRequestJSON(c)
+	if normalizedRequestJSON == nil {
+		normalizedRequestJSON = buildOpsTraceCanonicalNormalizedRequestJSON(normalize)
+	}
+	upstreamRequestJSON := service.GetOpsTraceUpstreamRequestJSON(c)
+	if upstreamRequestJSON == nil && len(requestBody) > 0 {
+		upstreamRequestJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+			requestBody,
+			opsRequestTracePreviewLimit,
+			service.OpsTracePayloadStateRawOnly,
+			"inbound_request_fallback",
+			requestContentType,
+		)
+	}
+	upstreamResponseJSON := service.GetOpsTraceUpstreamResponseJSON(c)
+	if upstreamResponseJSON == nil && len(responseBody) > 0 {
+		upstreamResponseJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+			responseBody,
+			opsRequestTracePreviewLimit,
+			service.OpsTracePayloadStateRawOnly,
+			"gateway_response_fallback",
+			responseContentType,
+		)
+	}
+	gatewayResponseJSON := service.GetOpsTraceGatewayResponseJSON(c)
+	if gatewayResponseJSON == nil && len(responseBody) > 0 {
+		gatewayResponseJSON = service.BuildOpsTracePayloadEnvelopeJSONFromBytes(
+			responseBody,
+			opsRequestTracePreviewLimit,
+			service.OpsTracePayloadStateCaptured,
+			"gateway_response_capture",
+			responseContentType,
+		)
+	}
+	toolTraceJSON := service.GetOpsTraceToolTraceJSON(c)
+	if toolTraceJSON == nil {
+		toolTraceJSON = buildOpsTraceToolSummaryJSON(normalize)
+	}
 	input := &service.OpsRecordRequestTraceInput{
 		RequestID:          strings.TrimSpace(firstNonEmptyString(c.Writer.Header().Get("X-Request-Id"), c.Writer.Header().Get("x-request-id"))),
 		ClientRequestID:    readContextString(c, ctxkey.ClientRequestID),
@@ -251,15 +302,48 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 		OutputTokens:       usage.outputTokens,
 		TotalTokens:        usage.totalTokens,
 		Trace: service.GatewayTraceContext{
-			Normalize:           normalize,
-			RequestHeadersJSON:  requestHeadersJSON,
-			ResponseHeadersJSON: responseHeadersJSON,
-			RawRequest:          requestBody,
-			RawResponse:         responseBody,
+			Normalize:             normalize,
+			InboundRequestJSON:    inboundRequestJSON,
+			NormalizedRequestJSON: normalizedRequestJSON,
+			UpstreamRequestJSON:   upstreamRequestJSON,
+			UpstreamResponseJSON:  upstreamResponseJSON,
+			GatewayResponseJSON:   gatewayResponseJSON,
+			ToolTraceJSON:         toolTraceJSON,
+			RequestHeadersJSON:    requestHeadersJSON,
+			ResponseHeadersJSON:   responseHeadersJSON,
+			RawRequest:            requestBody,
+			RawResponse:           responseBody,
 		},
 		CreatedAt: time.Now().UTC(),
 	}
 	return input
+}
+
+func buildOpsTraceCanonicalNormalizedRequestJSON(normalize service.ProtocolNormalizeResult) *string {
+	return service.BuildOpsTracePayloadEnvelopeJSON(
+		service.OpsTracePayloadStateCaptured,
+		"canonical_preview",
+		map[string]any{"normalize": normalize},
+		"application/json",
+		false,
+	)
+}
+
+func buildOpsTraceToolSummaryJSON(normalize service.ProtocolNormalizeResult) *string {
+	if !normalize.HasTools && len(normalize.ToolKinds) == 0 {
+		return nil
+	}
+	return service.BuildOpsTracePayloadEnvelopeJSON(
+		service.OpsTracePayloadStateCaptured,
+		"tool_summary_fallback",
+		map[string]any{
+			"has_tools":                             normalize.HasTools,
+			"tool_kinds":                            normalize.ToolKinds,
+			"include_server_side_tool_invocations": normalize.IncludeServerSideToolInvocations,
+		},
+		"application/json",
+		false,
+	)
 }
 
 type opsTraceUsage struct {

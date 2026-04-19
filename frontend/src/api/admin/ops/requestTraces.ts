@@ -5,6 +5,8 @@ import type {
   OpsRequestTraceFilter,
   OpsRequestTraceListResponse,
   OpsRequestTraceRawDetail,
+  OpsRequestSubjectInsights,
+  OpsRequestSubjectInsightsParams,
   OpsRequestTraceSummary
 } from './types'
 
@@ -45,6 +47,17 @@ export async function getRequestTraceRawDetail(
   options: OpsRequestOptions = {}
 ): Promise<OpsRequestTraceRawDetail> {
   const { data } = await apiClient.get<OpsRequestTraceRawDetail>(`/admin/ops/request-details/${id}/raw`, {
+    signal: options.signal
+  })
+  return data
+}
+
+export async function getSubjectInsights(
+  params: OpsRequestSubjectInsightsParams,
+  options: OpsRequestOptions = {}
+): Promise<OpsRequestSubjectInsights> {
+  const { data } = await apiClient.get<OpsRequestSubjectInsights>('/admin/ops/request-details/subjects/insights', {
+    params,
     signal: options.signal
   })
   return data

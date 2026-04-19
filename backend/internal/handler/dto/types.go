@@ -462,6 +462,7 @@ type AdminUsageLog struct {
 
 	// Account 最小账号信息（避免泄露敏感字段）
 	Account *AccountSummary `json:"account,omitempty"`
+	PreviewAvailable *bool `json:"preview_available,omitempty"`
 }
 
 type UsageRequestPreview struct {

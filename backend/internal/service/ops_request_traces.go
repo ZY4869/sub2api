@@ -674,53 +674,13 @@ func sanitizeTracePayloadForStorage(payload []byte, maxBytes int, contentType st
 	if len(payload) == 0 {
 		return nil
 	}
-	if sanitized, truncated, byteSize := sanitizeAndTrimRequestBody(payload, maxBytes); sanitized != "" {
-		if truncated || byteSize > len(sanitized) {
-			var parsed map[string]any
-			if err := json.Unmarshal([]byte(sanitized), &parsed); err == nil {
-				if truncated {
-					parsed["truncated"] = true
-				}
-				if byteSize > 0 {
-					parsed["bytes"] = byteSize
-				}
-				if contentType = strings.TrimSpace(contentType); contentType != "" {
-					parsed["content_type"] = contentType
-				}
-				if raw, err := json.Marshal(parsed); err == nil {
-					s := string(raw)
-					return &s
-				}
-			}
-		}
-		s := sanitized
-		return &s
-	}
-
-	text := strings.TrimSpace(string(payload))
-	if text == "" {
-		return nil
-	}
-	truncated := false
-	if maxBytes > 0 && len(text) > maxBytes {
-		text = truncateString(text, maxBytes)
-		truncated = true
-	}
-	body := map[string]any{
-		"text": text,
-	}
-	if strings.TrimSpace(contentType) != "" {
-		body["content_type"] = strings.TrimSpace(contentType)
-	}
-	if truncated {
-		body["truncated"] = true
-	}
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return nil
-	}
-	s := string(raw)
-	return &s
+	return BuildOpsTracePayloadEnvelopeJSONFromBytes(
+		payload,
+		maxBytes,
+		OpsTracePayloadStateCaptured,
+		"legacy_capture_fallback",
+		contentType,
+	)
 }
 
 func buildOpsRequestTraceSearchText(input *OpsInsertRequestTraceInput) string {

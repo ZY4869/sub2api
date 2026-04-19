@@ -25,6 +25,7 @@ func (s *GeminiMessagesCompatService) handleNonStreamingResponse(c *gin.Context,
 	if err != nil {
 		return nil, "", nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to read upstream response")
 	}
+	SetOpsTraceUpstreamResponse(c, "gemini_upstream_response", body, resp.Header.Get("Content-Type"), false)
 	unwrappedBody, err := unwrapGeminiResponse(body)
 	if err != nil {
 		return nil, "", nil, s.writeClaudeError(c, http.StatusBadGateway, "upstream_error", "Failed to parse upstream response")

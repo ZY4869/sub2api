@@ -814,6 +814,123 @@ export interface OpsRequestTraceSummary {
 
 export type OpsRequestTraceListResponse = PaginatedResponse<OpsRequestTraceListItem>
 
+export type OpsRequestSubjectType = 'account' | 'group' | 'api_key'
+
+export interface OpsRequestSubjectInsightsParams {
+  subject_type: OpsRequestSubjectType
+  subject_id: number
+  time_range?: OpsRequestTraceFilter['time_range']
+  start_time?: string
+  end_time?: string
+}
+
+export interface OpsRequestSubjectReference {
+  type: OpsRequestSubjectType
+  id: number
+  name: string
+  user_id?: number | null
+  user_email?: string
+  group_id?: number | null
+  group_name?: string
+}
+
+export interface OpsRequestSubjectSummaryDay {
+  date: string
+  account_cost: number
+  user_cost: number
+  standard_cost: number
+  requests: number
+  tokens: number
+}
+
+export interface OpsRequestSubjectSummaryCostDay {
+  date: string
+  label: string
+  account_cost: number
+  user_cost: number
+  standard_cost: number
+  requests: number
+}
+
+export interface OpsRequestSubjectSummaryRequestDay {
+  date: string
+  label: string
+  requests: number
+  account_cost: number
+  user_cost: number
+  standard_cost: number
+}
+
+export interface OpsRequestSubjectSummary {
+  total_account_cost: number
+  total_user_cost: number
+  total_standard_cost: number
+  total_requests: number
+  total_tokens: number
+  avg_daily_account_cost: number
+  avg_daily_user_cost: number
+  avg_daily_standard_cost: number
+  avg_daily_requests: number
+  avg_daily_tokens: number
+  avg_duration_ms: number
+  active_days: number
+  window_days: number
+  today?: OpsRequestSubjectSummaryDay | null
+  highest_cost_day?: OpsRequestSubjectSummaryCostDay | null
+  highest_request_day?: OpsRequestSubjectSummaryRequestDay | null
+}
+
+export interface OpsRequestPreviewCoverage {
+  total_requests: number
+  preview_available_count: number
+  preview_available_rate: number
+  normalized_count: number
+  upstream_request_count: number
+  upstream_response_count: number
+  gateway_response_count: number
+  tool_trace_count: number
+}
+
+export interface OpsRequestSubjectHistoryPoint {
+  date: string
+  label: string
+  requests: number
+  tokens: number
+  cost: number
+  actual_cost: number
+  user_cost: number
+}
+
+export interface OpsRequestSubjectModelStat {
+  model: string
+  requests: number
+  input_tokens: number
+  output_tokens: number
+  cache_creation_tokens: number
+  cache_read_tokens: number
+  total_tokens: number
+  cost: number
+  actual_cost: number
+}
+
+export interface OpsRequestSubjectEndpointStat {
+  endpoint: string
+  requests: number
+  total_tokens: number
+  cost: number
+  actual_cost: number
+}
+
+export interface OpsRequestSubjectInsights {
+  subject: OpsRequestSubjectReference
+  summary: OpsRequestSubjectSummary
+  history: OpsRequestSubjectHistoryPoint[]
+  models: OpsRequestSubjectModelStat[]
+  endpoints: OpsRequestSubjectEndpointStat[]
+  upstream_endpoints: OpsRequestSubjectEndpointStat[]
+  request_preview_coverage: OpsRequestPreviewCoverage
+}
+
 export interface OpsRuntimeLogConfig {
   level: 'debug' | 'info' | 'warn' | 'error'
   enable_sampling: boolean

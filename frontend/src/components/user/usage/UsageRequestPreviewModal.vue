@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { usageAPI } from "@/api";
-import type { UsageLog, UsageRequestPreviewResponse } from "@/types";
+import type { UsageRequestPreviewResponse } from "@/types";
 import { formatDateTime } from "@/utils/format";
 import UsageRequestPreviewPanel from "./UsageRequestPreviewPanel.vue";
 
+type UsagePreviewTarget = {
+  id: number;
+  request_id?: string | null;
+};
+
 const props = defineProps<{
   show: boolean;
-  usageLog: UsageLog | null;
+  usageLog: UsagePreviewTarget | null;
+  previewLoader?: (
+    id: number,
+    config?: { signal?: AbortSignal },
+  ) => Promise<UsageRequestPreviewResponse>;
 }>();
 
 const emit = defineEmits<{
@@ -21,6 +30,7 @@ const loading = ref(false);
 const loadFailed = ref(false);
 const preview = ref<UsageRequestPreviewResponse | null>(null);
 let currentLoadID = 0;
+let previewController: AbortController | null = null;
 
 const sections = computed(() => [
   {
@@ -77,17 +87,23 @@ const loadPreview = async () => {
   }
 
   const loadID = ++currentLoadID;
+  previewController?.abort();
+  previewController = new AbortController();
   loading.value = true;
   loadFailed.value = false;
   preview.value = null;
 
   try {
-    const response = await usageAPI.getRequestPreview(usageID);
+    const loader = props.previewLoader || usageAPI.getRequestPreview;
+    const response = await loader(usageID, { signal: previewController.signal });
     if (loadID !== currentLoadID) {
       return;
     }
     preview.value = response;
-  } catch {
+  } catch (error: any) {
+    if (error?.code === "ERR_CANCELED") {
+      return;
+    }
     if (loadID !== currentLoadID) {
       return;
     }
@@ -103,6 +119,7 @@ watch(
   () => [props.show, props.usageLog?.id] as const,
   ([show, usageID]) => {
     if (!show || !usageID) {
+      previewController?.abort();
       currentLoadID += 1;
       resetState();
       return;
@@ -111,6 +128,10 @@ watch(
   },
   { immediate: true },
 );
+
+onBeforeUnmount(() => {
+  previewController?.abort();
+});
 </script>
 
 <template>

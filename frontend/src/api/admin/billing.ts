@@ -229,6 +229,24 @@ export interface BillingPricingRefreshResult {
   provider_count: number
 }
 
+export interface BillingPricingIdentifierCollision {
+  source: string
+  identifier: string
+  models: string[]
+  count: number
+}
+
+export interface BillingPricingAudit {
+  total_models: number
+  duplicate_model_ids: string[]
+  aux_identifier_collisions: BillingPricingIdentifierCollision[]
+  missing_in_snapshot_count: number
+  missing_in_snapshot_models: string[]
+  snapshot_only_count: number
+  refresh_required: boolean
+  snapshot_updated_at?: string | null
+}
+
 export interface BillingSavePricingLayerPayload {
   form: BillingPricingLayerForm
   currency?: BillingPricingCurrency
@@ -267,6 +285,11 @@ export async function getBillingPricingDetails(models: string[]): Promise<Billin
 
 export async function refreshBillingPricingCatalog(): Promise<BillingPricingRefreshResult> {
   const { data } = await apiClient.post<BillingPricingRefreshResult>('/admin/billing/pricing/refresh')
+  return data
+}
+
+export async function getBillingPricingAudit(): Promise<BillingPricingAudit> {
+  const { data } = await apiClient.get<BillingPricingAudit>('/admin/billing/pricing/audit')
   return data
 }
 

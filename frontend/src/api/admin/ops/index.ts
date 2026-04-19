@@ -3,7 +3,7 @@ export * from './types'
 export { getConcurrencyStats, getUserConcurrencyStats, getAccountAvailabilityStats, getRealtimeTrafficSummary, subscribeQPS } from './concurrency'
 export { getDashboardOverview, getDashboardSnapshotV2, getThroughputTrend, getLatencyHistogram, getErrorTrend, getErrorDistribution, getOpenAITokenStats } from './dashboard'
 export { listErrorLogs, getErrorLogDetail, retryErrorRequest, listRetryAttempts, updateErrorResolved, listRequestErrors, listUpstreamErrors, getRequestErrorDetail, getUpstreamErrorDetail, retryRequestErrorClient, retryRequestErrorUpstreamEvent, retryUpstreamError, updateRequestErrorResolved, updateUpstreamErrorResolved, listRequestErrorUpstreamErrors, listRequestDetails } from './errors'
-export { listRequestTraces, getRequestTraceSummary, getRequestTraceDetail, getRequestTraceRawDetail, exportRequestTracesCSV } from './requestTraces'
+export { listRequestTraces, getRequestTraceSummary, getRequestTraceDetail, getRequestTraceRawDetail, getSubjectInsights, exportRequestTracesCSV } from './requestTraces'
 export { listAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, listAlertEvents, getAlertEvent, updateAlertEventStatus, createAlertSilence } from './alerts'
 export { getEmailNotificationConfig, updateEmailNotificationConfig, getAlertRuntimeSettings, updateAlertRuntimeSettings, getRuntimeLogConfig, updateRuntimeLogConfig, resetRuntimeLogConfig, getAdvancedSettings, updateAdvancedSettings, getMetricThresholds, updateMetricThresholds } from './settings'
 export { listSystemLogs, cleanupSystemLogs, getSystemLogSinkHealth } from './systemLogs'
@@ -11,7 +11,7 @@ export { listSystemLogs, cleanupSystemLogs, getSystemLogSinkHealth } from './sys
 import { getConcurrencyStats, getUserConcurrencyStats, getAccountAvailabilityStats, getRealtimeTrafficSummary, subscribeQPS } from './concurrency'
 import { getDashboardOverview, getDashboardSnapshotV2, getThroughputTrend, getLatencyHistogram, getErrorTrend, getErrorDistribution, getOpenAITokenStats } from './dashboard'
 import { listErrorLogs, getErrorLogDetail, retryErrorRequest, listRetryAttempts, updateErrorResolved, listRequestErrors, listUpstreamErrors, getRequestErrorDetail, getUpstreamErrorDetail, retryRequestErrorClient, retryRequestErrorUpstreamEvent, retryUpstreamError, updateRequestErrorResolved, updateUpstreamErrorResolved, listRequestErrorUpstreamErrors, listRequestDetails } from './errors'
-import { listRequestTraces, getRequestTraceSummary, getRequestTraceDetail, getRequestTraceRawDetail, exportRequestTracesCSV } from './requestTraces'
+import { listRequestTraces, getRequestTraceSummary, getRequestTraceDetail, getRequestTraceRawDetail, getSubjectInsights, exportRequestTracesCSV } from './requestTraces'
 import { listAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, listAlertEvents, getAlertEvent, updateAlertEventStatus, createAlertSilence } from './alerts'
 import { getEmailNotificationConfig, updateEmailNotificationConfig, getAlertRuntimeSettings, updateAlertRuntimeSettings, getRuntimeLogConfig, updateRuntimeLogConfig, resetRuntimeLogConfig, getAdvancedSettings, updateAdvancedSettings, getMetricThresholds, updateMetricThresholds } from './settings'
 import { listSystemLogs, cleanupSystemLogs, getSystemLogSinkHealth } from './systemLogs'
@@ -49,6 +49,7 @@ export const opsAPI = {
   getRequestTraceSummary,
   getRequestTraceDetail,
   getRequestTraceRawDetail,
+  getSubjectInsights,
   exportRequestTracesCSV,
   listAlertRules,
   createAlertRule,

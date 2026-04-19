@@ -1295,6 +1295,7 @@ export interface AdminUsageLog extends UsageLog {
   ip_address?: string | null;
   // Preloaded account summary for admin usage tables.
   account?: UsageLogAccountSummary;
+  preview_available?: boolean | null;
 }
 
 export interface UsageCleanupFilters {

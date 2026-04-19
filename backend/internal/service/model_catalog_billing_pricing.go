@@ -37,6 +37,13 @@ func (s *ModelCatalogService) RefreshBillingPricingCatalog(ctx context.Context) 
 	return s.billingCenterService.RefreshPricingCatalog(ctx)
 }
 
+func (s *ModelCatalogService) GetBillingPricingAudit(ctx context.Context) (*BillingPricingAudit, error) {
+	if s == nil || s.billingCenterService == nil {
+		return &BillingPricingAudit{}, nil
+	}
+	return s.billingCenterService.GetPricingAudit(ctx)
+}
+
 func (s *ModelCatalogService) CopyBillingPricingOfficialToSale(ctx context.Context, actor ModelCatalogActor, models []string) ([]BillingPricingSheetDetail, error) {
 	if s == nil || s.billingCenterService == nil {
 		return []BillingPricingSheetDetail{}, nil

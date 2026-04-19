@@ -4,7 +4,13 @@
  */
 
 import { apiClient } from '../client'
-import type { AdminUsageLog, UsageQueryParams, PaginatedResponse, UsageRequestType } from '@/types'
+import type {
+  AdminUsageLog,
+  UsageQueryParams,
+  PaginatedResponse,
+  UsageRequestPreviewResponse,
+  UsageRequestType,
+} from '@/types'
 import type { EndpointStat } from '@/types'
 
 // ==================== Types ====================
@@ -85,6 +91,7 @@ export interface CreateUsageCleanupTaskRequest {
 export interface AdminUsageQueryParams extends UsageQueryParams {
   user_id?: number
   exact_total?: boolean
+  include_preview_availability?: boolean
 }
 
 // ==================== API Functions ====================
@@ -199,6 +206,17 @@ export async function cancelCleanupTask(taskId: number): Promise<{ id: number; s
   return data
 }
 
+export async function getRequestPreview(
+  id: number,
+  config: { signal?: AbortSignal } = {},
+): Promise<UsageRequestPreviewResponse> {
+  const { data } = await apiClient.get<UsageRequestPreviewResponse>(
+    `/admin/usage/${id}/request-preview`,
+    config,
+  )
+  return data
+}
+
 export const adminUsageAPI = {
   list,
   getStats,
@@ -206,7 +224,8 @@ export const adminUsageAPI = {
   searchApiKeys,
   listCleanupTasks,
   createCleanupTask,
-  cancelCleanupTask
+  cancelCleanupTask,
+  getRequestPreview,
 }
 
 export default adminUsageAPI

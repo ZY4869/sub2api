@@ -5007,6 +5007,10 @@
     requestDetails: {
       title: '请求详细',
       description: '按请求链路查看网关的入站、标准化、上游与最终响应详情，并支持筛选排障。',
+      pageTabs: {
+        trace: '请求详情',
+        subject: '账号详细'
+      },
       actions: {
         exportMasked: '导出脱敏 CSV',
         exportRaw: '导出原文 CSV'
@@ -5122,7 +5126,15 @@
         auditOperator: '操作人 #{id}',
         payload: {
           previewReady: '预览内容已就绪',
-          empty: '当前暂无可展示内容'
+          empty: '当前未采集该段内容',
+          collectedEmpty: '已采集，但内容为空',
+          rawOnlyStatus: '仅原始回退内容可用',
+          rawOnlyEmpty: '仅记录了原始回退状态，没有可展示正文。',
+          rawOnlyNotice: '当前展示的是原始回退内容，标准化结构尚未采集到。',
+          truncatedNotice: '该段内容已按预览上限截断显示。',
+          rawOnlyBadge: '原始回退',
+          truncatedBadge: '已截断',
+          sourceLabel: '来源：{source}'
         },
         emptyStates: {
           inbound: '当前没有采集到原始请求预览内容。',
@@ -5152,6 +5164,68 @@
           tools: '工具 / Thinking',
           audits: '审计记录',
           raw: '原文'
+        }
+      },
+      subject: {
+        headerEyebrow: '账号台账',
+        emptyPrompt: '请输入账号、分组或 API Key ID 后查询详细台账。',
+        subjectType: '主体类型',
+        subjectId: '主体 ID',
+        userEmail: '所属用户',
+        groupName: '所属分组',
+        filters: {
+          subjectType: '对象类型',
+          subjectId: '对象 ID',
+          timeRange: '时间范围',
+          account: '账号',
+          group: '分组',
+          apiKey: 'API Key',
+          customRange: '自定义时间'
+        },
+        summary: {
+          totalAccountCost: '账号口径费用',
+          totalUserCost: '用户口径费用',
+          totalStandardCost: '标准费用',
+          totalRequests: '请求数',
+          totalTokens: '总 Tokens',
+          avgDurationMs: '平均耗时',
+          activeDays: '活跃天数'
+        },
+        trend: {
+          title: '请求与费用趋势',
+          description: '按日查看请求量、账号口径费用与用户口径费用走势。'
+        },
+        previewCoverage: {
+          title: '预览覆盖率',
+          availableRate: '可追溯率',
+          previewAvailableCount: '可预览请求数',
+          normalizedCount: '标准化请求数',
+          upstreamRequestCount: '上游请求数',
+          upstreamResponseCount: '上游响应数',
+          gatewayResponseCount: '网关响应数'
+        },
+        ledger: {
+          title: '全量请求台账',
+          description: '按 usage 全量台账列出请求，并支持逐条打开管理员预览追溯。',
+          empty: '当前条件下没有 usage 请求记录。',
+          columns: {
+            createdAt: '时间',
+            requestId: '请求 ID',
+            apiKeyId: 'API Key ID',
+            accountId: '账号 ID',
+            groupId: '分组 ID',
+            models: '请求 / 上游模型',
+            status: '状态',
+            totalTokens: '总 Tokens',
+            totalStandardCost: '标准费用',
+            totalUserCost: '用户费用',
+            durationMs: '耗时',
+            previewAvailable: '可追溯',
+            actions: '操作'
+          }
+        },
+        messages: {
+          loadFailed: '加载账号详细失败'
         }
       },
       presentation: {

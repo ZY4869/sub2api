@@ -70,6 +70,7 @@ type CreateUsageRepairTaskRequest struct {
 func (h *UsageHandler) List(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	exactTotal := false
+	includePreviewAvailability := false
 	if exactTotalRaw := strings.TrimSpace(c.Query("exact_total")); exactTotalRaw != "" {
 		parsed, err := strconv.ParseBool(exactTotalRaw)
 		if err != nil {
@@ -77,6 +78,14 @@ func (h *UsageHandler) List(c *gin.Context) {
 			return
 		}
 		exactTotal = parsed
+	}
+	if includePreviewRaw := strings.TrimSpace(c.Query("include_preview_availability")); includePreviewRaw != "" {
+		parsed, err := strconv.ParseBool(includePreviewRaw)
+		if err != nil {
+			response.BadRequest(c, "Invalid include_preview_availability value, use true or false")
+			return
+		}
+		includePreviewAvailability = parsed
 	}
 
 	// Parse filters
@@ -204,9 +213,46 @@ func (h *UsageHandler) List(c *gin.Context) {
 
 	out := make([]dto.AdminUsageLog, 0, len(records))
 	for i := range records {
-		out = append(out, *dto.UsageLogFromServiceAdmin(&records[i]))
+		item := dto.UsageLogFromServiceAdmin(&records[i])
+		if item == nil {
+			continue
+		}
+		if includePreviewAvailability {
+			available := false
+			preview, err := h.usageService.GetRequestPreview(c.Request.Context(), &records[i])
+			if err != nil {
+				logger.LegacyPrintf("handler.admin.usage", "[AdminUsageList] preview availability lookup failed: usage_id=%d err=%v", records[i].ID, err)
+			} else if preview != nil && preview.Available {
+				available = true
+			}
+			item.PreviewAvailable = &available
+		}
+		out = append(out, *item)
 	}
 	response.Paginated(c, out, result.Total, page, pageSize)
+}
+
+// GetRequestPreview handles getting a request preview for a single usage record.
+// GET /api/v1/admin/usage/:id/request-preview
+func (h *UsageHandler) GetRequestPreview(c *gin.Context) {
+	usageID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || usageID <= 0 {
+		response.BadRequest(c, "Invalid usage ID")
+		return
+	}
+
+	record, err := h.usageService.GetByID(c.Request.Context(), usageID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	preview, err := h.usageService.GetRequestPreview(c.Request.Context(), record)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, dto.UsageRequestPreviewFromService(preview))
 }
 
 // Stats handles getting usage statistics with filters

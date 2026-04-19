@@ -19,6 +19,7 @@ import (
 
 func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, requestBody []byte) (*OpenAIForwardResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	SetOpsTraceUpstreamResponse(c, "openai_upstream_error_response", body, resp.Header.Get("Content-Type"), false)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	upstreamMsg = sanitizeUpstreamErrorMessage(upstreamMsg)
 	upstreamDetail := ""
@@ -99,6 +100,7 @@ type compatErrorWriter func(c *gin.Context, statusCode int, errType, message, re
 
 func (s *OpenAIGatewayService) handleCompatErrorResponse(resp *http.Response, c *gin.Context, account *Account, writeError compatErrorWriter) (*OpenAIForwardResult, error) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	SetOpsTraceUpstreamResponse(c, "openai_compat_upstream_error_response", body, resp.Header.Get("Content-Type"), false)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
 	if upstreamMsg == "" {
 		upstreamMsg = fmt.Sprintf("Upstream error: %d", resp.StatusCode)
@@ -176,6 +178,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 		}
 		return nil, err
 	}
+	SetOpsTraceUpstreamResponse(c, "openai_upstream_response", body, resp.Header.Get("Content-Type"), false)
 	if account.Type == AccountTypeOAuth {
 		bodyLooksLikeSSE := bytes.Contains(body, []byte("data:")) || bytes.Contains(body, []byte("event:"))
 		if isEventStreamResponse(resp.Header) || bodyLooksLikeSSE {
@@ -197,6 +200,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 			contentType = upstreamType
 		}
 	}
+	SetOpsTraceGatewayResponse(c, "openai_gateway_response", body, contentType, false)
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
 }
@@ -207,6 +211,7 @@ func isEventStreamResponse(header http.Header) bool {
 }
 
 func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.Context, body []byte, originalModel, mappedModel string) (*OpenAIUsage, error) {
+	SetOpsTraceUpstreamResponse(c, "openai_oauth_upstream_response", body, resp.Header.Get("Content-Type"), false)
 	bodyText := string(body)
 	finalResponse, ok := extractCodexFinalResponse(bodyText)
 	usage := &OpenAIUsage{}
@@ -245,6 +250,7 @@ func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.
 			contentType = "text/event-stream"
 		}
 	}
+	SetOpsTraceGatewayResponse(c, "openai_gateway_response", body, contentType, false)
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
 }

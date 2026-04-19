@@ -120,6 +120,7 @@ func registerAdminBillingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		pricing := billing.Group("/pricing")
 		{
+			pricing.GET("/audit", h.Admin.ModelCatalog.GetBillingPricingAudit)
 			pricing.GET("/providers", h.Admin.ModelCatalog.ListBillingPricingProviders)
 			pricing.GET("/models", h.Admin.ModelCatalog.ListBillingPricingModels)
 			pricing.POST("/details", h.Admin.ModelCatalog.GetBillingPricingDetails)
@@ -239,6 +240,7 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		ops.GET("/requests", h.Admin.Ops.ListRequestDetails)
 		ops.GET("/request-details", h.Admin.Ops.ListRequestTraces)
 		ops.GET("/request-details/summary", h.Admin.Ops.GetRequestTraceSummary)
+		ops.GET("/request-details/subjects/insights", h.Admin.Ops.GetSubjectInsights)
 		ops.GET("/request-details/export.csv", h.Admin.Ops.ExportRequestTracesCSV)
 		ops.GET("/request-details/:id", h.Admin.Ops.GetRequestTraceByID)
 		ops.GET("/request-details/:id/raw", h.Admin.Ops.GetRequestTraceRawByID)
@@ -650,6 +652,7 @@ func registerUsageRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	usage := admin.Group("/usage")
 	{
 		usage.GET("", h.Admin.Usage.List)
+		usage.GET("/:id/request-preview", h.Admin.Usage.GetRequestPreview)
 		usage.GET("/stats", h.Admin.Usage.Stats)
 		usage.GET("/search-users", h.Admin.Usage.SearchUsers)
 		usage.GET("/search-api-keys", h.Admin.Usage.SearchAPIKeys)

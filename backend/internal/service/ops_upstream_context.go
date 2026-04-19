@@ -8,17 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Gin context keys used by Ops error logger for capturing upstream error details.
-// These keys are set by gateway services and consumed by handler/ops_error_logger.go.
+// Gin context keys used by ops logging for upstream request/response capture.
 const (
 	OpsUpstreamStatusCodeKey   = "ops_upstream_status_code"
 	OpsUpstreamErrorMessageKey = "ops_upstream_error_message"
 	OpsUpstreamErrorDetailKey  = "ops_upstream_error_detail"
 	OpsUpstreamErrorsKey       = "ops_upstream_errors"
 
-	// Best-effort capture of the current upstream request body so ops can
-	// retry the specific upstream attempt (not just the client request).
-	// This value is sanitized+trimmed before being persisted.
+	// Best-effort capture of the active upstream request body for retry and trace preview.
 	OpsUpstreamRequestBodyKey = "ops_upstream_request_body"
 
 	// Optional stage latencies (milliseconds) for troubleshooting and alerting.
@@ -27,14 +24,14 @@ const (
 	OpsUpstreamLatencyMsKey  = "ops_upstream_latency_ms"
 	OpsResponseLatencyMsKey  = "ops_response_latency_ms"
 	OpsTimeToFirstTokenMsKey = "ops_time_to_first_token_ms"
-	// OpenAI WS 关键观测字段
+
+	// OpenAI WS observability keys.
 	OpsOpenAIWSQueueWaitMsKey = "ops_openai_ws_queue_wait_ms"
 	OpsOpenAIWSConnPickMsKey  = "ops_openai_ws_conn_pick_ms"
 	OpsOpenAIWSConnReusedKey  = "ops_openai_ws_conn_reused"
 	OpsOpenAIWSConnIDKey      = "ops_openai_ws_conn_id"
 
-	// OpsSkipPassthroughKey 由 applyErrorPassthroughRule 在命中 skip_monitoring=true 的规则时设置。
-	// ops_error_logger 中间件检查此 key，为 true 时跳过错误记录。
+	// OpsSkipPassthroughKey marks the request so downstream ops loggers can skip it.
 	OpsSkipPassthroughKey = "ops_skip_passthrough"
 )
 
@@ -42,8 +39,8 @@ func setOpsUpstreamRequestBody(c *gin.Context, body []byte) {
 	if c == nil || len(body) == 0 {
 		return
 	}
-	// 热路径避免 string(body) 额外分配，按需在落库前再转换。
 	c.Set(OpsUpstreamRequestBodyKey, body)
+	SetOpsTraceUpstreamRequest(c, "gateway_upstream_request", body, "application/json", false)
 }
 
 func SetOpsLatencyMs(c *gin.Context, key string, value int64) {
@@ -53,9 +50,7 @@ func SetOpsLatencyMs(c *gin.Context, key string, value int64) {
 	c.Set(key, value)
 }
 
-// SetOpsUpstreamError is the exported wrapper for setOpsUpstreamError, used by
-// handler-layer code (e.g. failover-exhausted paths) that needs to record the
-// original upstream status code before mapping it to a client-facing code.
+// SetOpsUpstreamError records the original upstream status/message before any gateway remapping.
 func SetOpsUpstreamError(c *gin.Context, upstreamStatusCode int, upstreamMessage, upstreamDetail string) {
 	setOpsUpstreamError(c, upstreamStatusCode, upstreamMessage, upstreamDetail)
 }
@@ -75,35 +70,24 @@ func setOpsUpstreamError(c *gin.Context, upstreamStatusCode int, upstreamMessage
 	}
 }
 
-// OpsUpstreamErrorEvent describes one upstream error attempt during a single gateway request.
-// It is stored in ops_error_logs.upstream_errors as a JSON array.
+// OpsUpstreamErrorEvent describes one upstream failure observed during a gateway request.
 type OpsUpstreamErrorEvent struct {
 	AtUnixMs int64 `json:"at_unix_ms,omitempty"`
 
-	// Passthrough 表示本次请求是否命中“原样透传（仅替换认证）”分支。
-	// 该字段用于排障与灰度评估；存入 JSON，不涉及 DB schema 变更。
 	Passthrough bool `json:"passthrough,omitempty"`
 
-	// Context
 	Platform    string `json:"platform,omitempty"`
 	AccountID   int64  `json:"account_id,omitempty"`
 	AccountName string `json:"account_name,omitempty"`
 
-	// Outcome
 	UpstreamStatusCode int    `json:"upstream_status_code,omitempty"`
 	UpstreamRequestID  string `json:"upstream_request_id,omitempty"`
 	UpstreamURL        string `json:"upstream_url,omitempty"`
 
-	// Best-effort upstream request capture (sanitized+trimmed).
-	// Required for retrying a specific upstream attempt.
-	UpstreamRequestBody string `json:"upstream_request_body,omitempty"`
-
-	// Best-effort upstream response capture (sanitized+trimmed).
+	UpstreamRequestBody  string `json:"upstream_request_body,omitempty"`
 	UpstreamResponseBody string `json:"upstream_response_body,omitempty"`
 
-	// Kind: http_error | request_error | retry_exhausted | failover
-	Kind string `json:"kind,omitempty"`
-
+	Kind    string `json:"kind,omitempty"`
 	Message string `json:"message,omitempty"`
 	Detail  string `json:"detail,omitempty"`
 }
@@ -127,8 +111,6 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 		ev.Message = sanitizeUpstreamErrorMessage(ev.Message)
 	}
 
-	// If the caller didn't explicitly pass upstream request body but the gateway
-	// stored it on the context, attach it so ops can retry this specific attempt.
 	if ev.UpstreamRequestBody == "" {
 		if v, ok := c.Get(OpsUpstreamRequestBodyKey); ok {
 			switch raw := v.(type) {
@@ -138,6 +120,9 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 				ev.UpstreamRequestBody = strings.TrimSpace(string(raw))
 			}
 		}
+	}
+	if ev.UpstreamResponseBody != "" {
+		SetOpsTraceUpstreamResponse(c, "upstream_error_event", ev.UpstreamResponseBody, "application/json", false)
 	}
 
 	var existing []*OpsUpstreamErrorEvent
@@ -156,9 +141,7 @@ func appendOpsUpstreamError(c *gin.Context, ev OpsUpstreamErrorEvent) {
 
 // checkSkipMonitoringForUpstreamEvent checks whether the upstream error event
 // matches a passthrough rule with skip_monitoring=true and, if so, sets the
-// OpsSkipPassthroughKey on the context.  This ensures intermediate retry /
-// failover errors (which never go through the final applyErrorPassthroughRule
-// path) can still suppress ops_error_logs recording.
+// OpsSkipPassthroughKey on the context.
 func checkSkipMonitoringForUpstreamEvent(c *gin.Context, ev *OpsUpstreamErrorEvent) {
 	if ev.UpstreamStatusCode == 0 {
 		return
@@ -169,9 +152,6 @@ func checkSkipMonitoringForUpstreamEvent(c *gin.Context, ev *OpsUpstreamErrorEve
 		return
 	}
 
-	// Use the best available body representation for keyword matching.
-	// Even when body is empty, MatchRule can still match rules that only
-	// specify ErrorCodes (no Keywords), so we always call it.
 	body := ev.Detail
 	if body == "" {
 		body = ev.Message
@@ -187,7 +167,6 @@ func marshalOpsUpstreamErrors(events []*OpsUpstreamErrorEvent) *string {
 	if len(events) == 0 {
 		return nil
 	}
-	// Ensure we always store a valid JSON value.
 	raw, err := json.Marshal(events)
 	if err != nil || len(raw) == 0 {
 		return nil

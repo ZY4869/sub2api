@@ -4826,6 +4826,10 @@ export default {
     requestDetails: {
       title: 'Request Details',
       description: 'Inspect gateway traces across inbound, normalized, upstream, and response payloads with searchable diagnostics.',
+      pageTabs: {
+        trace: 'Request Details',
+        subject: 'Account Details'
+      },
       actions: {
         exportMasked: 'Export CSV',
         exportRaw: 'Export Raw CSV'
@@ -4941,7 +4945,15 @@ export default {
         auditOperator: 'Operator #{id}',
         payload: {
           previewReady: 'Preview is ready',
-          empty: 'No content available'
+          empty: 'This section was not captured',
+          collectedEmpty: 'Captured, but the content is empty',
+          rawOnlyStatus: 'Only raw fallback content is available',
+          rawOnlyEmpty: 'Only a raw fallback marker was recorded for this section.',
+          rawOnlyNotice: 'This panel is showing raw fallback content because structured capture was unavailable.',
+          truncatedNotice: 'This preview was truncated to the storage preview limit.',
+          rawOnlyBadge: 'Raw fallback',
+          truncatedBadge: 'Truncated',
+          sourceLabel: 'Source: {source}'
         },
         emptyStates: {
           inbound: 'No inbound request preview was captured for this trace.',
@@ -4971,6 +4983,68 @@ export default {
           tools: 'Tools / Thinking',
           audits: 'Audit Log',
           raw: 'Raw Payload'
+        }
+      },
+      subject: {
+        headerEyebrow: 'Usage Ledger',
+        emptyPrompt: 'Enter an account, group, or API key ID to inspect the full request ledger.',
+        subjectType: 'Subject Type',
+        subjectId: 'Subject ID',
+        userEmail: 'User',
+        groupName: 'Group',
+        filters: {
+          subjectType: 'Subject Type',
+          subjectId: 'Subject ID',
+          timeRange: 'Time Range',
+          account: 'Account',
+          group: 'Group',
+          apiKey: 'API Key',
+          customRange: 'Custom Range'
+        },
+        summary: {
+          totalAccountCost: 'Account Cost',
+          totalUserCost: 'User Cost',
+          totalStandardCost: 'Standard Cost',
+          totalRequests: 'Requests',
+          totalTokens: 'Total Tokens',
+          avgDurationMs: 'Avg Duration',
+          activeDays: 'Active Days'
+        },
+        trend: {
+          title: 'Request and Spend Trend',
+          description: 'Track request volume, account-billed cost, and user-billed cost over time.'
+        },
+        previewCoverage: {
+          title: 'Preview Coverage',
+          availableRate: 'Traceable Rate',
+          previewAvailableCount: 'Preview Available',
+          normalizedCount: 'Normalized Captured',
+          upstreamRequestCount: 'Upstream Request Captured',
+          upstreamResponseCount: 'Upstream Response Captured',
+          gatewayResponseCount: 'Gateway Response Captured'
+        },
+        ledger: {
+          title: 'Full Request Ledger',
+          description: 'List full usage-ledger rows and open admin request previews per request.',
+          empty: 'No usage rows matched the current filters.',
+          columns: {
+            createdAt: 'Time',
+            requestId: 'Request ID',
+            apiKeyId: 'API Key ID',
+            accountId: 'Account ID',
+            groupId: 'Group ID',
+            models: 'Requested / Upstream Model',
+            status: 'Status',
+            totalTokens: 'Total Tokens',
+            totalStandardCost: 'Standard Cost',
+            totalUserCost: 'User Cost',
+            durationMs: 'Duration',
+            previewAvailable: 'Traceable',
+            actions: 'Actions'
+          }
+        },
+        messages: {
+          loadFailed: 'Failed to load subject insights'
         }
       },
       presentation: {

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"strings"
@@ -115,113 +114,91 @@ func (r *usageLogRepository) ListByUserAndTimeRange(ctx context.Context, userID 
 type AccountUsageStatsResponse = usagestats.AccountUsageStatsResponse
 
 func (r *usageLogRepository) GetAccountUsageStats(ctx context.Context, accountID int64, startTime, endTime time.Time) (resp *AccountUsageStatsResponse, err error) {
-	daysCount := int(endTime.Sub(startTime).Hours()/24) + 1
-	if daysCount <= 0 {
-		daysCount = 30
-	}
-	query := `
-		SELECT
-			TO_CHAR(created_at, 'YYYY-MM-DD') as date,
-			COUNT(*) as requests,
-			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as tokens,
-			COALESCE(SUM(total_cost), 0) as cost,
-			COALESCE(SUM(total_cost * COALESCE(account_rate_multiplier, 1)), 0) as actual_cost,
-			COALESCE(SUM(actual_cost), 0) as user_cost
-		FROM usage_logs
-		WHERE account_id = $1 AND created_at >= $2 AND created_at < $3
-		GROUP BY date
-		ORDER BY date ASC
-	`
-	rows, err := r.sql.QueryContext(ctx, query, accountID, startTime, endTime)
+	aggregate, err := r.getUsageSubjectAggregate(ctx, usageSubjectScope{
+		subjectType: service.UsageSubjectTypeAccount,
+		column:      "account_id",
+	}, accountID, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil && err == nil {
-			err = closeErr
-			resp = nil
-		}
-	}()
-	history := make([]AccountUsageHistory, 0)
-	for rows.Next() {
-		var date string
-		var requests int64
-		var tokens int64
-		var cost float64
-		var actualCost float64
-		var userCost float64
-		if err = rows.Scan(&date, &requests, &tokens, &cost, &actualCost, &userCost); err != nil {
-			return nil, err
-		}
-		t, _ := time.Parse("2006-01-02", date)
-		history = append(history, AccountUsageHistory{Date: date, Label: t.Format("01/02"), Requests: requests, Tokens: tokens, Cost: cost, ActualCost: actualCost, UserCost: userCost})
+	models, err := r.GetModelStatsWithFilters(ctx, startTime, endTime, 0, 0, accountID, 0, 0, nil, nil, nil)
+	if err != nil {
+		models = []ModelStat{}
 	}
-	if err = rows.Err(); err != nil {
-		return nil, err
+	endpoints, err := r.GetEndpointStatsWithFilters(ctx, startTime, endTime, 0, 0, accountID, 0, "", nil, nil, nil)
+	if err != nil {
+		endpoints = []usagestats.EndpointStat{}
 	}
-	var totalAccountCost, totalUserCost, totalStandardCost float64
-	var totalRequests, totalTokens int64
-	var highestCostDay, highestRequestDay *AccountUsageHistory
-	for i := range history {
-		h := &history[i]
-		totalAccountCost += h.ActualCost
-		totalUserCost += h.UserCost
-		totalStandardCost += h.Cost
-		totalRequests += h.Requests
-		totalTokens += h.Tokens
-		if highestCostDay == nil || h.ActualCost > highestCostDay.ActualCost {
-			highestCostDay = h
-		}
-		if highestRequestDay == nil || h.Requests > highestRequestDay.Requests {
-			highestRequestDay = h
-		}
+	upstreamEndpoints, err := r.GetUpstreamEndpointStatsWithFilters(ctx, startTime, endTime, 0, 0, accountID, 0, "", nil, nil, nil)
+	if err != nil {
+		upstreamEndpoints = []usagestats.EndpointStat{}
 	}
-	actualDaysUsed := len(history)
-	if actualDaysUsed == 0 {
-		actualDaysUsed = 1
+	summary := AccountUsageSummary{
+		Days:              aggregate.summary.WindowDays,
+		ActualDaysUsed:    aggregate.summary.ActiveDays,
+		TotalCost:         aggregate.summary.TotalAccountCost,
+		TotalUserCost:     aggregate.summary.TotalUserCost,
+		TotalStandardCost: aggregate.summary.TotalStandardCost,
+		TotalRequests:     aggregate.summary.TotalRequests,
+		TotalTokens:       aggregate.summary.TotalTokens,
+		AvgDailyCost:      aggregate.summary.AvgDailyAccountCost,
+		AvgDailyUserCost:  aggregate.summary.AvgDailyUserCost,
+		AvgDailyRequests:  aggregate.summary.AvgDailyRequests,
+		AvgDailyTokens:    aggregate.summary.AvgDailyTokens,
+		AvgDurationMs:     aggregate.summary.AvgDurationMs,
 	}
-	avgQuery := "SELECT COALESCE(AVG(duration_ms) FILTER (WHERE status = 'succeeded'), 0) as avg_duration_ms FROM usage_logs WHERE account_id = $1 AND created_at >= $2 AND created_at < $3"
-	var avgDuration float64
-	if err := scanSingleRow(ctx, r.sql, avgQuery, []any{accountID, startTime, endTime}, &avgDuration); err != nil {
-		return nil, err
-	}
-	summary := AccountUsageSummary{Days: daysCount, ActualDaysUsed: actualDaysUsed, TotalCost: totalAccountCost, TotalUserCost: totalUserCost, TotalStandardCost: totalStandardCost, TotalRequests: totalRequests, TotalTokens: totalTokens, AvgDailyCost: totalAccountCost / float64(actualDaysUsed), AvgDailyUserCost: totalUserCost / float64(actualDaysUsed), AvgDailyRequests: float64(totalRequests) / float64(actualDaysUsed), AvgDailyTokens: float64(totalTokens) / float64(actualDaysUsed), AvgDurationMs: avgDuration}
-	todayStr := timezone.Now().Format("2006-01-02")
-	for i := range history {
-		if history[i].Date == todayStr {
-			summary.Today = &struct {
-				Date     string  `json:"date"`
-				Cost     float64 `json:"cost"`
-				UserCost float64 `json:"user_cost"`
-				Requests int64   `json:"requests"`
-				Tokens   int64   `json:"tokens"`
-			}{Date: history[i].Date, Cost: history[i].ActualCost, UserCost: history[i].UserCost, Requests: history[i].Requests, Tokens: history[i].Tokens}
-			break
+	if aggregate.summary.Today != nil {
+		summary.Today = &struct {
+			Date     string  `json:"date"`
+			Cost     float64 `json:"cost"`
+			UserCost float64 `json:"user_cost"`
+			Requests int64   `json:"requests"`
+			Tokens   int64   `json:"tokens"`
+		}{
+			Date:     aggregate.summary.Today.Date,
+			Cost:     aggregate.summary.Today.AccountCost,
+			UserCost: aggregate.summary.Today.UserCost,
+			Requests: aggregate.summary.Today.Requests,
+			Tokens:   aggregate.summary.Today.Tokens,
 		}
 	}
-	if highestCostDay != nil {
+	if aggregate.summary.HighestCostDay != nil {
 		summary.HighestCostDay = &struct {
 			Date     string  `json:"date"`
 			Label    string  `json:"label"`
 			Cost     float64 `json:"cost"`
 			UserCost float64 `json:"user_cost"`
 			Requests int64   `json:"requests"`
-		}{Date: highestCostDay.Date, Label: highestCostDay.Label, Cost: highestCostDay.ActualCost, UserCost: highestCostDay.UserCost, Requests: highestCostDay.Requests}
+		}{
+			Date:     aggregate.summary.HighestCostDay.Date,
+			Label:    aggregate.summary.HighestCostDay.Label,
+			Cost:     aggregate.summary.HighestCostDay.AccountCost,
+			UserCost: aggregate.summary.HighestCostDay.UserCost,
+			Requests: aggregate.summary.HighestCostDay.Requests,
+		}
 	}
-	if highestRequestDay != nil {
+	if aggregate.summary.HighestRequestDay != nil {
 		summary.HighestRequestDay = &struct {
 			Date     string  `json:"date"`
 			Label    string  `json:"label"`
 			Requests int64   `json:"requests"`
 			Cost     float64 `json:"cost"`
 			UserCost float64 `json:"user_cost"`
-		}{Date: highestRequestDay.Date, Label: highestRequestDay.Label, Requests: highestRequestDay.Requests, Cost: highestRequestDay.ActualCost, UserCost: highestRequestDay.UserCost}
+		}{
+			Date:     aggregate.summary.HighestRequestDay.Date,
+			Label:    aggregate.summary.HighestRequestDay.Label,
+			Requests: aggregate.summary.HighestRequestDay.Requests,
+			Cost:     aggregate.summary.HighestRequestDay.AccountCost,
+			UserCost: aggregate.summary.HighestRequestDay.UserCost,
+		}
 	}
-	models, err := r.GetModelStatsWithFilters(ctx, startTime, endTime, 0, 0, accountID, 0, 0, nil, nil, nil)
-	if err != nil {
-		models = []ModelStat{}
+	resp = &AccountUsageStatsResponse{
+		History:           aggregate.history,
+		Summary:           summary,
+		Models:            models,
+		Endpoints:         endpoints,
+		UpstreamEndpoints: upstreamEndpoints,
 	}
-	resp = &AccountUsageStatsResponse{History: history, Summary: summary, Models: models}
 	return resp, nil
 }
 
