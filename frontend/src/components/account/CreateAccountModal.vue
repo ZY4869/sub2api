@@ -1240,7 +1240,7 @@ watch(
 // Reset platform-specific settings when platform changes
 watch(
   () => form.platform,
-  (newPlatform) => {
+  (newPlatform, previousPlatform) => {
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     actualModelLocked.value = true
     allowedModels.value = []
@@ -1277,11 +1277,7 @@ watch(
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       autoImportModels.value = false
-      baiduDocumentAIAsyncBearerToken.value = ''
-      baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
-      baiduDocumentAIDirectToken.value = ''
-      baiduDocumentAIDirectApiUrlsText.value = ''
-    } else {
+    } else if (previousPlatform === 'baidu_document_ai') {
       baiduDocumentAIAsyncBearerToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
       baiduDocumentAIDirectToken.value = ''

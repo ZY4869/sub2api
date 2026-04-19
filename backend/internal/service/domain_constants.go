@@ -173,8 +173,14 @@ const (
 	SettingKeyAllowUngroupedKeyScheduling = "allow_ungrouped_key_scheduling"
 	SettingKeyMultiGroupRoutingEnabled    = "multi_group_routing_enabled"
 	SettingKeyBackendModeEnabled          = "backend_mode_enabled"
+	SettingKeyMaintenanceModeEnabled      = "maintenance_mode_enabled"
 	SettingKeyDocumentAIEnabled           = "document_ai_enabled"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys.
 const AdminAPIKeyPrefix = "admin-"
+
+const (
+	MaintenanceModeErrorCode = "MAINTENANCE_MODE_ACTIVE"
+	MaintenanceModeMessage   = "维护模式开启中，恢复时间请关注官网公告或官方频道"
+)

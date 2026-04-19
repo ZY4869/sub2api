@@ -10,6 +10,7 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
 import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { resolveDocumentTitle } from './title'
+import i18n from '@/i18n'
 
 /**
  * Route definitions with lazy loading
@@ -630,9 +631,14 @@ const navigationLoading = useNavigationLoadingState()
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models']
 const BACKEND_MODE_REVIEWER_ALLOWED_PATHS = ['/admin/request-details']
+const LOGIN_ENTRY_PATHS = ['/login', '/register']
 
 function isAllowedPath(path: string, allowedPaths: string[]) {
   return allowedPaths.some((allowedPath) => path === allowedPath || path.startsWith(`${allowedPath}/`))
+}
+
+function showMaintenanceRedirectNotice(appStore: ReturnType<typeof useAppStore>) {
+  appStore.showWarning(i18n.global.t('auth.maintenanceModeMessage'))
 }
 
 router.beforeEach((to, _from, next) => {
@@ -674,7 +680,11 @@ router.beforeEach((to, _from, next) => {
   // If route doesn't require auth, allow access
   if (!requiresAuth) {
     // If already authenticated and trying to access login/register, redirect to appropriate dashboard
-    if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+    if (authStore.isAuthenticated && LOGIN_ENTRY_PATHS.includes(to.path)) {
+      if (appStore.maintenanceModeEnabled && !authStore.isAdmin) {
+        next()
+        return
+      }
       if (appStore.backendModeEnabled) {
         if (authStore.isAdmin) {
           next('/admin/dashboard')
@@ -692,7 +702,7 @@ router.beforeEach((to, _from, next) => {
       return
     }
     // Backend mode: block public pages for unauthenticated users (except login, key-usage, setup)
-    if (appStore.backendModeEnabled && !authStore.isAuthenticated) {
+    if (!appStore.maintenanceModeEnabled && appStore.backendModeEnabled && !authStore.isAuthenticated) {
       const isAllowed = isAllowedPath(to.path, BACKEND_MODE_ALLOWED_PATHS)
       if (!isAllowed) {
         next('/login')
@@ -705,11 +715,20 @@ router.beforeEach((to, _from, next) => {
 
   // Route requires authentication
   if (!authStore.isAuthenticated) {
+    if (appStore.maintenanceModeEnabled) {
+      showMaintenanceRedirectNotice(appStore)
+    }
     // Not authenticated, redirect to login
     next({
       path: '/login',
       query: { redirect: to.fullPath } // Save intended destination
     })
+    return
+  }
+
+  if (appStore.maintenanceModeEnabled && !authStore.isAdmin) {
+    showMaintenanceRedirectNotice(appStore)
+    next('/login')
     return
   }
 

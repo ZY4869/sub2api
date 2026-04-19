@@ -57,10 +57,19 @@
     >
       <template #selected="{ option }">
         <div v-if="option" class="min-w-0">
-          <div class="flex items-center gap-2">
+          <div class="flex min-w-0 items-center gap-2">
+            <ModelIcon
+              :model="displayModelIconModel(option)"
+              :provider="displayModelProvider(option)"
+              :display-name="displayModelTitle(option)"
+              size="16px"
+            />
             <span class="truncate font-medium text-gray-900 dark:text-white">
               {{ displayModelTitle(option) }}
             </span>
+          </div>
+          <div class="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span class="truncate">{{ displayModelIdentifier(option) }}</span>
             <span
               v-if="option.source_protocol"
               class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
@@ -74,9 +83,6 @@
               {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
             </span>
           </div>
-          <div class="truncate text-xs text-gray-500 dark:text-gray-400">
-            {{ displayModelIdentifier(option) }}
-          </div>
         </div>
         <span v-else>
           {{ loadingModels ? `${t('common.loading')}...` : t('admin.accounts.selectTestModel') }}
@@ -86,10 +92,19 @@
       <template #option="{ option, selected }">
         <div class="flex min-w-0 flex-1 items-start justify-between gap-3">
           <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-2">
+            <div class="flex min-w-0 items-center gap-2">
+              <ModelIcon
+                :model="displayModelIconModel(option)"
+                :provider="displayModelProvider(option)"
+                :display-name="displayModelTitle(option)"
+                size="16px"
+              />
               <span class="truncate font-medium text-gray-900 dark:text-white">
                 {{ displayModelTitle(option) }}
               </span>
+            </div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span class="truncate">{{ displayModelIdentifier(option) }}</span>
               <span
                 v-if="option.source_protocol"
                 class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
@@ -102,9 +117,6 @@
               >
                 {{ t('admin.models.registry.lifecycleLabels.deprecated') }}
               </span>
-            </div>
-            <div class="truncate text-xs text-gray-500 dark:text-gray-400">
-              {{ displayModelIdentifier(option) }}
             </div>
             <div
               v-if="option.replaced_by"
@@ -169,11 +181,11 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
+import ModelIcon from '@/components/common/ModelIcon.vue'
 import { Icon } from '@/components/icons'
 import type { ClaudeModel } from '@/types'
 import { resolveGatewayProtocolLabel } from '@/utils/accountProtocolGateway'
 import { buildAccountTestModelOptionKeyFromModel } from '@/utils/accountTestModelOptions'
-import { buildProviderDisplayName } from '@/utils/providerLabels'
 
 type ManualSourceProtocol = 'openai' | 'anthropic' | 'gemini' | ''
 
@@ -215,7 +227,6 @@ type ModelDescriptor = {
   canonical_id?: unknown
   display_name?: unknown
   provider?: unknown
-  provider_label?: unknown
   status?: unknown
 }
 
@@ -231,12 +242,17 @@ const displayModelIdentifier = (model: ModelDescriptor | null | undefined) => {
 }
 
 const displayModelTitle = (model: ModelDescriptor | null | undefined) =>
-  buildProviderDisplayName({
-    provider: getModelStringField(model, 'provider'),
-    providerLabel: getModelStringField(model, 'provider_label'),
-    displayName: getModelStringField(model, 'display_name'),
-    fallbackId: getModelStringField(model, 'id')
-  })
+  getModelStringField(model, 'display_name') ||
+  getModelStringField(model, 'canonical_id') ||
+  getModelStringField(model, 'id')
+
+const displayModelIconModel = (model: ModelDescriptor | null | undefined) =>
+  getModelStringField(model, 'id') ||
+  getModelStringField(model, 'canonical_id') ||
+  displayModelTitle(model)
+
+const displayModelProvider = (model: ModelDescriptor | null | undefined) =>
+  getModelStringField(model, 'provider')
 
 const availableModelOptions = computed<AccountTestModelOption[]>(() =>
   props.availableModels.map((model) => ({

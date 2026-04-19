@@ -397,7 +397,7 @@
     "display_name": "Ernie-4.0-8k-latest",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-4.0-8k-latest"
@@ -420,7 +420,7 @@
     "display_name": "Ernie-4.0-8k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-4.0-8k"
@@ -443,7 +443,7 @@
     "display_name": "Ernie-4.0-turbo-8k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-4.0-turbo-8k"
@@ -466,7 +466,7 @@
     "display_name": "Ernie-3.5-8k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-3.5-8k"
@@ -489,7 +489,7 @@
     "display_name": "Ernie-3.5-128k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-3.5-128k"
@@ -512,7 +512,7 @@
     "display_name": "Ernie-speed-8k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-speed-8k"
@@ -535,7 +535,7 @@
     "display_name": "Ernie-speed-128k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-speed-128k"
@@ -558,7 +558,7 @@
     "display_name": "Ernie-speed-pro-128k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-speed-pro-128k"
@@ -581,7 +581,7 @@
     "display_name": "Ernie-lite-8k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-lite-8k"
@@ -604,7 +604,7 @@
     "display_name": "Ernie-lite-pro-128k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-lite-pro-128k"
@@ -627,7 +627,7 @@
     "display_name": "Ernie-tiny-8k",
     "provider": "baidu",
     "platforms": [
-      "baidu"
+      "baidu_document_ai"
     ],
     "protocol_ids": [
       "ernie-tiny-8k"

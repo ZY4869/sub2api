@@ -4468,6 +4468,15 @@ export default {
         allowUngroupedKey: 'Allow Ungrouped Key Scheduling',
         allowUngroupedKeyHint: 'When disabled, API Keys not assigned to any group cannot make requests (403 Forbidden). Keep disabled to ensure all Keys belong to a specific group.'
       },
+      maintenance: {
+        title: 'Maintenance Mode',
+        description: 'Control the global maintenance switch and access behavior during maintenance.',
+        enabled: 'Enable Maintenance Mode',
+        enabledHint:
+          'When enabled, only admin dashboard traffic and admin-owned API Key calls remain available. All other requests return the maintenance response.',
+        scopeHint:
+          'Public pages remain viewable, but end-user APIs, self-service auth flows, and regular API Key gateway calls will return the unified 503 maintenance response.'
+      },
       site: {
         title: 'Site Settings',
         description: 'Customize site branding',

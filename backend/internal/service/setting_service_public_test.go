@@ -124,3 +124,33 @@ func TestSettingService_PublicModelCatalogEnabled_RoundTripsAcrossPublicSettings
 	require.True(t, restored.PublicModelCatalogEnabled)
 	require.True(t, svc.IsPublicModelCatalogEnabled(ctx))
 }
+
+func TestSettingService_MaintenanceMode_RoundTripsAcrossPublicSettings(t *testing.T) {
+	ctx := context.Background()
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	initial, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.False(t, initial.MaintenanceModeEnabled)
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		MaintenanceModeEnabled: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.values[SettingKeyMaintenanceModeEnabled])
+
+	updated, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, updated.MaintenanceModeEnabled)
+	require.True(t, svc.IsMaintenanceModeEnabled(ctx))
+
+	injected, err := svc.GetPublicSettingsForInjection(ctx)
+	require.NoError(t, err)
+	raw, err := json.Marshal(injected)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(raw, &payload))
+	require.Equal(t, true, payload["maintenance_mode_enabled"])
+}

@@ -11,7 +11,7 @@ export interface GeneratedProtocolGatewayDescriptor {
   targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
-export const generatedProtocolGatewayBuiltAt = "2026-04-16T04:06:18Z"
+export const generatedProtocolGatewayBuiltAt = "2026-04-19T08:29:37Z"
 
 export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = {
   "anthropic": {
@@ -80,6 +80,9 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/google/batch/archive/v1beta/batches",
       "/google/batch/archive/v1beta/files",
       "/v1/projects/:project/locations/:location/publishers/google/models",
+      "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent",
+      "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:streamGenerateContent",
+      "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:countTokens",
       "/v1/projects/:project/locations/:location/batchPredictionJobs"
     ],
     "defaultBaseUrl": "https://generativelanguage.googleapis.com",
@@ -150,6 +153,9 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/google/batch/archive/v1beta/batches",
       "/google/batch/archive/v1beta/files",
       "/v1/projects/:project/locations/:location/publishers/google/models",
+      "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent",
+      "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:streamGenerateContent",
+      "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:countTokens",
       "/v1/projects/:project/locations/:location/batchPredictionJobs"
     ],
     "defaultBaseUrl": "",

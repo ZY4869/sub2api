@@ -52,6 +52,7 @@ interface MockAuthState {
   isAdmin: boolean
   isSimpleMode: boolean
   backendModeEnabled: boolean
+  maintenanceModeEnabled?: boolean
   canReviewRequestDetails?: boolean
 }
 
@@ -67,6 +68,7 @@ function simulateGuard(
   const requiresAdmin = toMeta.requiresAdmin === true
   const requiresRequestDetailsReview = toMeta.requiresRequestDetailsReview === true
   const canReviewRequestDetails = authState.isAdmin || authState.canReviewRequestDetails === true
+  const maintenanceModeEnabled = authState.maintenanceModeEnabled === true
 
   // 不需要认证的路由
   if (!requiresAuth) {
@@ -74,6 +76,9 @@ function simulateGuard(
       authState.isAuthenticated &&
       (toPath === '/login' || toPath === '/register')
     ) {
+      if (maintenanceModeEnabled && !authState.isAdmin) {
+        return null
+      }
       if (authState.backendModeEnabled) {
         if (authState.isAdmin) {
           return '/admin/dashboard'
@@ -85,7 +90,7 @@ function simulateGuard(
       }
       return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
     }
-    if (authState.backendModeEnabled && !authState.isAuthenticated) {
+    if (!maintenanceModeEnabled && authState.backendModeEnabled && !authState.isAuthenticated) {
       const allowed = ['/login', '/key-usage', '/setup', '/models']
       if (!allowed.some((path) => toPath === path || toPath.startsWith(path))) {
         return '/login'
@@ -96,6 +101,10 @@ function simulateGuard(
 
   // 需要认证但未登录
   if (!authState.isAuthenticated) {
+    return '/login'
+  }
+
+  if (maintenanceModeEnabled && !authState.isAdmin) {
     return '/login'
   }
 
@@ -466,6 +475,56 @@ describe('路由守卫逻辑', () => {
         { requiresAuth: true, requiresRequestDetailsReview: true },
         authState
       )
+      expect(redirect).toBeNull()
+    })
+  })
+
+  describe('Maintenance Mode', () => {
+    it('allows public pages for unauthenticated visitors during maintenance', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: false,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: true,
+        maintenanceModeEnabled: true,
+      }
+      const redirect = simulateGuard('/home', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('redirects authenticated non-admin protected routes to /login during maintenance', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: false,
+        maintenanceModeEnabled: true,
+      }
+      const redirect = simulateGuard('/dashboard', {}, authState)
+      expect(redirect).toBe('/login')
+    })
+
+    it('keeps /login accessible for authenticated non-admin users during maintenance', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: false,
+        isSimpleMode: false,
+        backendModeEnabled: false,
+        maintenanceModeEnabled: true,
+      }
+      const redirect = simulateGuard('/login', { requiresAuth: false }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('allows admin protected routes during maintenance', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: true,
+        isSimpleMode: false,
+        backendModeEnabled: false,
+        maintenanceModeEnabled: true,
+      }
+      const redirect = simulateGuard('/admin/dashboard', { requiresAdmin: true }, authState)
       expect(redirect).toBeNull()
     })
   })

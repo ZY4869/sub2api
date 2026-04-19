@@ -88,7 +88,8 @@ type SystemSettings struct {
 	AllowUngroupedKeyScheduling bool `json:"allow_ungrouped_key_scheduling"`
 
 	// Backend Mode
-	BackendModeEnabled bool `json:"backend_mode_enabled"`
+	BackendModeEnabled     bool `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled bool `json:"maintenance_mode_enabled"`
 }
 
 type DefaultSubscriptionSetting struct {
@@ -120,6 +121,7 @@ type PublicSettings struct {
 	CustomMenuItems                  []CustomMenuItem `json:"custom_menu_items"`
 	LinuxDoOAuthEnabled              bool             `json:"linuxdo_oauth_enabled"`
 	BackendModeEnabled               bool             `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled           bool             `json:"maintenance_mode_enabled"`
 	Version                          string           `json:"version"`
 }
 

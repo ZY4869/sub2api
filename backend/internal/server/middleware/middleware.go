@@ -2,10 +2,13 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -99,6 +102,74 @@ func GoogleErrorWriter(c *gin.Context, status int, message string) {
 			"status":  googleapi.HTTPStatusToGoogleStatus(status),
 		},
 	})
+}
+
+func OpenAIServiceUnavailableWriter(c *gin.Context, status int, message string) {
+	c.JSON(status, gin.H{
+		"error": gin.H{
+			"type":    "service_unavailable_error",
+			"message": message,
+		},
+	})
+}
+
+func AnthropicServiceUnavailableWriter(c *gin.Context, status int, message string) {
+	c.JSON(status, gin.H{
+		"type": "error",
+		"error": gin.H{
+			"type":    "api_error",
+			"message": message,
+		},
+	})
+}
+
+func CompatServiceUnavailableWriter(c *gin.Context, status int, message string) {
+	if isAnthropicStyleGatewayPath(c) {
+		AnthropicServiceUnavailableWriter(c, status, message)
+		return
+	}
+	OpenAIServiceUnavailableWriter(c, status, message)
+}
+
+func AbortWithMaintenanceJSON(c *gin.Context, authRole string, gatewayFamily string) {
+	logMaintenanceModeBlockedRequest(c, authRole, gatewayFamily)
+	response.ErrorWithDetails(c, http.StatusServiceUnavailable, service.MaintenanceModeMessage, service.MaintenanceModeErrorCode, nil)
+	c.Abort()
+}
+
+func JSONServiceUnavailableWriter(c *gin.Context, status int, message string) {
+	response.ErrorWithDetails(c, status, message, service.MaintenanceModeErrorCode, nil)
+}
+
+func AbortWithMaintenanceGateway(c *gin.Context, authRole string, gatewayFamily string, writeError GatewayErrorWriter) {
+	logMaintenanceModeBlockedRequest(c, authRole, gatewayFamily)
+	if writeError == nil {
+		writeError = OpenAIServiceUnavailableWriter
+	}
+	writeError(c, http.StatusServiceUnavailable, service.MaintenanceModeMessage)
+	c.Abort()
+}
+
+func isAnthropicStyleGatewayPath(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	path := strings.TrimRight(strings.ToLower(strings.TrimSpace(c.Request.URL.Path)), "/")
+	return strings.HasSuffix(path, "/messages") || strings.HasSuffix(path, "/messages/count_tokens")
+}
+
+func logMaintenanceModeBlockedRequest(c *gin.Context, authRole string, gatewayFamily string) {
+	requestPath := ""
+	if c != nil && c.Request != nil && c.Request.URL != nil {
+		requestPath = strings.TrimSpace(c.Request.URL.Path)
+	}
+	slog.Warn(
+		"maintenance_mode_request_blocked",
+		"maintenance_mode", true,
+		"request_path", requestPath,
+		"auth_role", strings.TrimSpace(authRole),
+		"gateway_family", strings.TrimSpace(gatewayFamily),
+	)
 }
 
 // RequireGroupAssignment 检查 API Key 是否已分配到分组，

@@ -4649,6 +4649,14 @@
         allowUngroupedKey: '允许未分组 Key 调度',
         allowUngroupedKeyHint: '关闭后，未分配到任何分组的 API Key 将无法发起请求（返回 403）。建议保持关闭以确保所有 Key 都归属明确的分组。'
       },
+      maintenance: {
+        title: '维护模式',
+        description: '控制全站维护开关与维护期间的访问策略。',
+        enabled: '开启维护模式',
+        enabledHint: '开启后，仅管理员后台与管理员 API Key 调用继续可用，其他请求统一返回维护提示。',
+        scopeHint:
+          '公开页面仍可浏览，但普通用户接口、自助认证流与普通 API Key 网关调用会统一返回 503 维护提示。'
+      },
       site: {
         title: '站点设置',
         description: '自定义站点品牌',

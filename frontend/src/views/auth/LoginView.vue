@@ -11,8 +11,13 @@
         </p>
       </div>
 
+      <AuthMaintenanceNotice v-if="maintenanceModeEnabled" show-admin-login-hint />
+
       <!-- LinuxDo Connect OAuth 登录 -->
-      <LinuxDoOAuthSection v-if="linuxdoOAuthEnabled && !backendModeEnabled" :disabled="isLoading" />
+      <LinuxDoOAuthSection
+        v-if="linuxdoOAuthEnabled && !backendModeEnabled && !maintenanceModeEnabled"
+        :disabled="isLoading"
+      />
 
       <!-- Login Form -->
       <form @submit.prevent="handleLogin" class="space-y-5">
@@ -78,7 +83,7 @@
             </p>
             <span v-else></span>
             <router-link
-              v-if="passwordResetEnabled && !backendModeEnabled"
+              v-if="passwordResetEnabled && !backendModeEnabled && !maintenanceModeEnabled"
               to="/forgot-password"
               class="text-sm font-medium text-primary-600 transition-colors hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
             >
@@ -151,7 +156,7 @@
     </div>
 
     <!-- Footer -->
-    <template v-if="!backendModeEnabled" #footer>
+    <template v-if="!backendModeEnabled && !maintenanceModeEnabled" #footer>
       <p class="text-gray-500 dark:text-dark-400">
         {{ t('auth.dontHaveAccount') }}
         <router-link
@@ -180,6 +185,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
+import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
 import LinuxDoOAuthSection from '@/components/auth/LinuxDoOAuthSection.vue'
 import TotpLoginModal from '@/components/auth/TotpLoginModal.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -207,6 +213,7 @@ const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const backendModeEnabled = ref<boolean>(false)
+const maintenanceModeEnabled = ref<boolean>(false)
 const passwordResetEnabled = ref<boolean>(false)
 
 // Turnstile
@@ -247,6 +254,7 @@ onMounted(async () => {
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     backendModeEnabled.value = settings.backend_mode_enabled
+    maintenanceModeEnabled.value = settings.maintenance_mode_enabled
     passwordResetEnabled.value = settings.password_reset_enabled
   } catch (error) {
     console.error('Failed to load public settings:', error)

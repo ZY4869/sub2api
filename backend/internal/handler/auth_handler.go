@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -176,6 +177,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	_ = token // token 由 authService.Login 返回但此处由 respondWithTokenPair 重新生成
+	if h.settingSvc.IsMaintenanceModeEnabled(c.Request.Context()) && !user.IsAdmin() {
+		response.ErrorWithDetails(c, http.StatusServiceUnavailable, service.MaintenanceModeMessage, service.MaintenanceModeErrorCode, nil)
+		return
+	}
 
 	// Check if TOTP 2FA is enabled for this user
 	if h.totpService != nil && h.settingSvc.IsTotpEnabled(c.Request.Context()) && user.TotpEnabled {
@@ -260,6 +265,10 @@ func (h *AuthHandler) Login2FA(c *gin.Context) {
 	user, err := h.userService.GetByID(c.Request.Context(), session.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
+		return
+	}
+	if h.settingSvc.IsMaintenanceModeEnabled(c.Request.Context()) && !user.IsAdmin() {
+		response.ErrorWithDetails(c, http.StatusServiceUnavailable, service.MaintenanceModeMessage, service.MaintenanceModeErrorCode, nil)
 		return
 	}
 
@@ -537,6 +546,10 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	result, err := h.authService.RefreshTokenPair(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		response.ErrorFrom(c, err)
+		return
+	}
+	if h.settingSvc.IsMaintenanceModeEnabled(c.Request.Context()) && result.UserRole != service.RoleAdmin {
+		response.ErrorWithDetails(c, http.StatusServiceUnavailable, service.MaintenanceModeMessage, service.MaintenanceModeErrorCode, nil)
 		return
 	}
 

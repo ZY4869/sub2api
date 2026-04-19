@@ -105,6 +105,9 @@ func defaultPlatformsForProvider(provider string) []string {
 	if provider == "" {
 		return nil
 	}
+	if provider == "baidu" {
+		return []string{PlatformBaiduDocumentAI}
+	}
 	return []string{provider}
 }
 
@@ -368,7 +371,7 @@ func providerOrPlatform(provider string, sourcePlatform string) string {
 
 func isRuntimeSupportedPlatform(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformCopilot, PlatformGrok:
+	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformCopilot, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
 		return true
 	default:
 		return false

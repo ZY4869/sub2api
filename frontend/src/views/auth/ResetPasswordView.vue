@@ -11,8 +11,10 @@
         </p>
       </div>
 
+      <AuthMaintenanceNotice v-if="maintenanceModeEnabled" show-admin-login-hint />
+
       <!-- Invalid Link State -->
-      <div v-if="isInvalidLink" class="space-y-6">
+      <div v-else-if="isInvalidLink" class="space-y-6">
         <div class="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-800/50 dark:bg-red-900/20">
           <div class="flex flex-col items-center gap-4 text-center">
             <div class="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-800/50">
@@ -227,9 +229,10 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
+import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores'
-import { resetPassword } from '@/api/auth'
+import { getPublicSettings, resetPassword } from '@/api/auth'
 
 const { t } = useI18n()
 
@@ -245,6 +248,7 @@ const isSuccess = ref<boolean>(false)
 const errorMessage = ref<string>('')
 const showPassword = ref<boolean>(false)
 const showConfirmPassword = ref<boolean>(false)
+const maintenanceModeEnabled = ref<boolean>(false)
 
 // URL parameters
 const email = ref<string>('')
@@ -265,10 +269,18 @@ const isInvalidLink = computed(() => !email.value || !token.value)
 
 // ==================== Lifecycle ====================
 
-onMounted(() => {
+onMounted(async () => {
   // Get email and token from URL query parameters
   email.value = (route.query.email as string) || ''
   token.value = (route.query.token as string) || ''
+  maintenanceModeEnabled.value = appStore.maintenanceModeEnabled
+
+  try {
+    const settings = await getPublicSettings()
+    maintenanceModeEnabled.value = settings.maintenance_mode_enabled
+  } catch (error) {
+    console.error('Failed to load public settings:', error)
+  }
 })
 
 // ==================== Validation ====================

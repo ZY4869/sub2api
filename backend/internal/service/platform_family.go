@@ -10,6 +10,8 @@ func NormalizePlatformFamily(platform string) string {
 		return PlatformAnthropic
 	case PlatformOpenAI, PlatformCopilot:
 		return PlatformOpenAI
+	case "baidu", PlatformBaiduDocumentAI:
+		return PlatformBaiduDocumentAI
 	default:
 		return strings.TrimSpace(strings.ToLower(platform))
 	}

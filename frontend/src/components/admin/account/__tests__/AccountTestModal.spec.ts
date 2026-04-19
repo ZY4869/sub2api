@@ -253,6 +253,27 @@ describe('AccountTestModal', () => {
     expect(text).not.toContain('claude-sonnet-4-5-20250929')
   })
 
+  it('renders the selector title as pure display_name without provider label prefixes', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      {
+        id: 'gpt-5.4-preview',
+        canonical_id: 'gpt-5.4',
+        provider: 'openai',
+        provider_label: 'OpenAI-GPT',
+        display_name: 'GPT-5.4'
+      }
+    ])
+
+    const wrapper = mountModal()
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('GPT-5.4')
+    expect(text).toContain('gpt-5.4')
+    expect(text).not.toContain('OpenAI-GPT GPT-5.4')
+  })
+
   it('prefills protocol gateway defaults and forwards catalog target fields', async () => {
     getAvailableModels.mockResolvedValueOnce([
       {

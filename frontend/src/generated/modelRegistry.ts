@@ -34,14 +34,15 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-17T04:29:04Z"
+export const generatedModelRegistryBuiltAt = "2026-04-19T08:29:37Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"cf66d08f965380c2e0427823c2d7e2e517db7fd3837d94fd799a82df2216e17e\"",
-  "updated_at": "2026-04-17T04:29:04Z",
+  "etag": "W/\"3ba5c0b86e6219d44143a2feab00cdc63c758e9daaf4add8f78181c35c467de3\"",
+  "updated_at": "2026-04-19T08:29:37Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
+    "baidu": "Baidu-Document-AI",
     "copilot": "GitHub-Copilot",
     "gemini": "Google-Gemini",
     "grok": "xAI-Grok",
@@ -179,7 +180,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-4.0-8k-latest",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-4.0-8k-latest"
@@ -614,7 +615,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-4.0-8k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-4.0-8k"
@@ -1054,7 +1055,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-4.0-turbo-8k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-4.0-turbo-8k"
@@ -1493,7 +1494,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-3.5-8k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-3.5-8k"
@@ -1890,7 +1891,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-3.5-128k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-3.5-128k"
@@ -2266,7 +2267,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-speed-8k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-speed-8k"
@@ -2647,7 +2648,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-speed-128k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-speed-128k"
@@ -3034,7 +3035,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-speed-pro-128k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-speed-pro-128k"
@@ -3351,7 +3352,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-lite-8k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-lite-8k"
@@ -3581,7 +3582,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-lite-pro-128k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-lite-pro-128k"
@@ -3862,7 +3863,7 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "display_name": "Ernie-tiny-8k",
       "provider": "baidu",
       "platforms": [
-        "baidu"
+        "baidu_document_ai"
       ],
       "protocol_ids": [
         "ernie-tiny-8k"

@@ -11,8 +11,10 @@
         </p>
       </div>
 
+      <AuthMaintenanceNotice v-if="maintenanceModeEnabled" show-admin-login-hint />
+
       <!-- Success State -->
-      <div v-if="isSubmitted" class="space-y-6">
+      <div v-else-if="isSubmitted" class="space-y-6">
         <div class="rounded-xl border border-green-200 bg-green-50 p-6 dark:border-green-800/50 dark:bg-green-900/20">
           <div class="flex flex-col items-center gap-4 text-center">
             <div class="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-800/50">
@@ -151,6 +153,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
+import AuthMaintenanceNotice from '@/components/auth/AuthMaintenanceNotice.vue'
 import Icon from '@/components/icons/Icon.vue'
 import TurnstileWidget from '@/components/TurnstileWidget.vue'
 import { useAppStore } from '@/stores'
@@ -171,6 +174,7 @@ const errorMessage = ref<string>('')
 // Public settings
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
+const maintenanceModeEnabled = ref<boolean>(false)
 
 // Turnstile
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
@@ -192,6 +196,7 @@ onMounted(async () => {
     const settings = await getPublicSettings()
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
+    maintenanceModeEnabled.value = settings.maintenance_mode_enabled
   } catch (error) {
     console.error('Failed to load public settings:', error)
   }

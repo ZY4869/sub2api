@@ -282,6 +282,8 @@ func isDirectPlatformTestModelAllowed(account *Account, entry modelregistry.Mode
 		return provider == PlatformGemini
 	case PlatformGrok:
 		return provider == PlatformGrok
+	case PlatformBaiduDocumentAI:
+		return provider == PlatformBaiduDocumentAI
 	case PlatformAntigravity:
 		return true
 	default:
@@ -294,6 +296,8 @@ func normalizedDirectTestModelProvider(provider string) string {
 	switch normalized {
 	case "claude":
 		return PlatformAnthropic
+	case "baidu":
+		return PlatformBaiduDocumentAI
 	default:
 		return normalized
 	}
@@ -706,6 +710,18 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 			})
 		}
 		return decorateDefaultTestModels(result, PlatformGrok)
+	case PlatformBaiduDocumentAI:
+		entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), PlatformBaiduDocumentAI)
+		result := make([]AvailableTestModel, 0, len(entries))
+		for _, entry := range entries {
+			result = append(result, AvailableTestModel{
+				ID:          entry.ID,
+				Type:        "model",
+				DisplayName: firstNonEmptyTestModelLabel(entry.DisplayName, FormatModelCatalogDisplayName(entry.ID), entry.ID),
+				Status:      "stable",
+			})
+		}
+		return decorateDefaultTestModels(result, ProviderForPlatform(RoutingPlatformForAccount(account)))
 	default:
 		result := make([]AvailableTestModel, 0, len(claude.DefaultModels))
 		for _, item := range claude.DefaultModels {

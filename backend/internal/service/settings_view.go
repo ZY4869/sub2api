@@ -77,7 +77,8 @@ type SystemSettings struct {
 	AllowUngroupedKeyScheduling bool
 
 	// Backend 模式：禁用用户注册和自助服务，仅管理员可登录
-	BackendModeEnabled bool
+	BackendModeEnabled     bool
+	MaintenanceModeEnabled bool
 }
 
 type DefaultSubscriptionSetting struct {
@@ -109,9 +110,10 @@ type PublicSettings struct {
 	PurchaseSubscriptionURL     string
 	CustomMenuItems             string // JSON array of custom menu items
 
-	LinuxDoOAuthEnabled bool
-	BackendModeEnabled  bool
-	Version             string
+	LinuxDoOAuthEnabled    bool
+	BackendModeEnabled     bool
+	MaintenanceModeEnabled bool
+	Version                string
 }
 
 type GoogleBatchGCSProfile struct {

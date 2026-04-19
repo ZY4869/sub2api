@@ -198,6 +198,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.BackendModeEnabled != after.BackendModeEnabled {
 		changed = append(changed, "backend_mode_enabled")
 	}
+	if before.MaintenanceModeEnabled != after.MaintenanceModeEnabled {
+		changed = append(changed, "maintenance_mode_enabled")
+	}
 	if before.PurchaseSubscriptionEnabled != after.PurchaseSubscriptionEnabled {
 		changed = append(changed, "purchase_subscription_enabled")
 	}
@@ -276,6 +279,7 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		MaxClaudeCodeVersion:                 settings.MaxClaudeCodeVersion,
 		AllowUngroupedKeyScheduling:          settings.AllowUngroupedKeyScheduling,
 		BackendModeEnabled:                   settings.BackendModeEnabled,
+		MaintenanceModeEnabled:               settings.MaintenanceModeEnabled,
 	}
 }
 func normalizeDefaultSubscriptions(input []dto.DefaultSubscriptionSetting) []dto.DefaultSubscriptionSetting {

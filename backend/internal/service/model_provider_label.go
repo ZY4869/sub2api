@@ -10,6 +10,7 @@ var providerLabelOverrides = map[string]string{
 	PlatformAntigravity: "Antigravity",
 	PlatformCopilot:     "GitHub-Copilot",
 	PlatformKiro:        "Kiro",
+	"baidu":             "Baidu-Document-AI",
 }
 
 func ProviderLabelCatalog() map[string]string {
@@ -36,6 +37,8 @@ func ProviderForPlatform(platform string) string {
 			return normalized
 		}
 		return PlatformAnthropic
+	case PlatformBaiduDocumentAI:
+		return "baidu"
 	default:
 		return NormalizeModelProvider(platform)
 	}

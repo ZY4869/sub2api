@@ -12,6 +12,10 @@ export default {
     rememberMe: 'Remember me',
     dontHaveAccount: "Don't have an account?",
     alreadyHaveAccount: 'Already have an account?',
+    maintenanceModeTitle: 'Maintenance Mode Active',
+    maintenanceModeMessage:
+      'Maintenance mode is active. Please follow the official website announcement or official channels for the recovery time.',
+    maintenanceModeAdminOnly: 'Only administrators can sign in right now. Other actions are temporarily unavailable.',
     registrationDisabled: 'Registration is currently disabled. Please contact the administrator.',
     emailLabel: 'Email',
     emailPlaceholder: 'Enter your email',

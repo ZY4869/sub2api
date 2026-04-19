@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { RouterView, useRouter, useRoute } from 'vue-router'
 import { onMounted, onBeforeUnmount, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import Toast from '@/components/common/Toast.vue'
 import NavigationProgress from '@/components/common/NavigationProgress.vue'
 import { resolveDocumentTitle } from '@/router/title'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
+import Icon from '@/components/icons/Icon.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const subscriptionStore = useSubscriptionStore()
@@ -113,6 +116,21 @@ onMounted(async () => {
 
 <template>
   <NavigationProgress />
+  <div
+    v-if="appStore.maintenanceModeEnabled"
+    class="border-b border-amber-200 bg-amber-50/95 backdrop-blur dark:border-amber-700/40 dark:bg-amber-950/80"
+  >
+    <div class="mx-auto flex max-w-7xl items-center gap-2 px-4 py-2 text-sm text-amber-900 dark:text-amber-100">
+      <Icon
+        name="exclamationTriangle"
+        size="sm"
+        class="shrink-0 text-amber-600 dark:text-amber-300"
+      />
+      <span class="font-medium">{{ t('auth.maintenanceModeTitle') }}</span>
+      <span class="hidden sm:inline">·</span>
+      <span class="text-xs sm:text-sm">{{ t('auth.maintenanceModeMessage') }}</span>
+    </div>
+  </div>
   <RouterView />
   <Toast />
   <AnnouncementPopup />

@@ -258,6 +258,7 @@ describe('useAppStore', () => {
         contact_info: 'test@test.com',
         api_base_url: 'https://api.test.com',
         doc_url: 'https://docs.test.com',
+        maintenance_mode_enabled: true,
       }
 
       const store = useAppStore()
@@ -267,6 +268,7 @@ describe('useAppStore', () => {
       expect(store.siteName).toBe('TestSite')
       expect(store.siteLogo).toBe('/logo.png')
       expect(store.siteVersion).toBe('1.0.0')
+      expect(store.maintenanceModeEnabled).toBe(true)
       expect(store.publicSettingsLoaded).toBe(true)
     })
 

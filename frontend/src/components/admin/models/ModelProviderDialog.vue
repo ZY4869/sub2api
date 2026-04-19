@@ -7,7 +7,7 @@
     @close="emit('close')"
   >
     <div class="flex flex-col gap-4 md:flex-row">
-      <div class="w-full md:w-72">
+      <div class="w-full md:sticky md:top-6 md:w-72 md:self-start">
         <div class="mb-3">
           <SearchInput
             :model-value="providerQuery"

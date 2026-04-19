@@ -96,6 +96,7 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyMaxClaudeCodeVersion] = settings.MaxClaudeCodeVersion
 	updates[SettingKeyAllowUngroupedKeyScheduling] = strconv.FormatBool(settings.AllowUngroupedKeyScheduling)
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
+	updates[SettingKeyMaintenanceModeEnabled] = strconv.FormatBool(settings.MaintenanceModeEnabled)
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
 		versionBoundsSF.Forget("version_bounds")
@@ -106,6 +107,8 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		})
 		backendModeSF.Forget("backend_mode_enabled")
 		backendModeCache.Store(&cachedBackendMode{value: settings.BackendModeEnabled, expiresAt: time.Now().Add(backendModeCacheTTL).UnixNano()})
+		maintenanceModeSF.Forget("maintenance_mode_enabled")
+		maintenanceModeCache.Store(&cachedMaintenanceMode{value: settings.MaintenanceModeEnabled, expiresAt: time.Now().Add(maintenanceModeCacheTTL).UnixNano()})
 		if s.onUpdate != nil {
 			s.onUpdate()
 		}

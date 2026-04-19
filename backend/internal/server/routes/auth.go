@@ -25,6 +25,7 @@ func RegisterAuthRoutes(
 
 	// 公开接口
 	auth := v1.Group("/auth")
+	auth.Use(servermiddleware.MaintenanceModeAuthGuard(settingService))
 	auth.Use(servermiddleware.BackendModeAuthGuard(settingService))
 	{
 		// 注册/登录/2FA/验证码发送均属于高风险入口，增加服务端兜底限流（Redis 故障时 fail-close）
@@ -81,6 +82,7 @@ func RegisterAuthRoutes(
 	// 需要认证的当前用户信息
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
+	authenticated.Use(servermiddleware.MaintenanceModeUserGuard(settingService))
 	authenticated.Use(servermiddleware.BackendModeUserGuard(settingService))
 	{
 		authenticated.GET("/auth/me", h.Auth.GetCurrentUser)

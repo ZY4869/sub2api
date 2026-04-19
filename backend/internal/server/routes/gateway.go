@@ -34,6 +34,9 @@ func RegisterGatewayRoutes(
 	// 未分组 Key 拦截中间件（按协议格式区分错误响应）
 	requireGroupAnthropic := middleware.RequireGroupAssignment(settingService, middleware.AnthropicErrorWriter)
 	requireGroupGoogle := middleware.RequireGroupAssignment(settingService, middleware.GoogleErrorWriter)
+	requireGatewayMaintenanceCompat := middleware.MaintenanceModeGatewayGuard(settingService, "compat", middleware.CompatServiceUnavailableWriter)
+	requireGatewayMaintenanceOpenAI := middleware.MaintenanceModeGatewayGuard(settingService, "openai", middleware.OpenAIServiceUnavailableWriter)
+	requireGatewayMaintenanceGoogle := middleware.MaintenanceModeGatewayGuard(settingService, "google", middleware.GoogleErrorWriter)
 	dispatchers := newGatewayRouteDispatchers(h)
 
 	// API网关（Claude API兼容）
@@ -44,6 +47,7 @@ func RegisterGatewayRoutes(
 	gateway.Use(opsRequestTraceLogger)
 	gateway.Use(endpointNorm)
 	gateway.Use(gin.HandlerFunc(apiKeyAuth))
+	gateway.Use(requireGatewayMaintenanceCompat)
 	gateway.Use(requireGroupAnthropic)
 	{
 		// /v1/messages: auto-route based on group platform
@@ -66,9 +70,9 @@ func RegisterGatewayRoutes(
 
 	// Gemini 原生 API 兼容层（Gemini SDK/CLI 直连）
 	gemini := r.Group("/v1beta")
-	r.GET("/v1/models", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GatewayV1ModelsList)
-	r.GET("/v1/models/:model", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GatewayV1ModelsGet)
-	r.POST("/v1/models/*modelAction", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GatewayV1ModelsAction)
+	r.GET("/v1/models", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGatewayMaintenanceGoogle, requireGroupGoogle, dispatchers.GatewayV1ModelsList)
+	r.GET("/v1/models/:model", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGatewayMaintenanceGoogle, requireGroupGoogle, dispatchers.GatewayV1ModelsGet)
+	r.POST("/v1/models/*modelAction", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGatewayMaintenanceGoogle, requireGroupGoogle, dispatchers.GatewayV1ModelsAction)
 
 	v1alpha := r.Group("/v1alpha")
 	grokV1 := r.Group("/grok/v1")
@@ -79,6 +83,7 @@ func RegisterGatewayRoutes(
 	grokV1.Use(endpointNorm)
 	grokV1.Use(middleware.ForcePlatform(service.PlatformGrok))
 	grokV1.Use(gin.HandlerFunc(apiKeyAuth))
+	grokV1.Use(requireGatewayMaintenanceOpenAI)
 	grokV1.Use(requireGroupAnthropic)
 	{
 		grokV1.GET("/models", h.Gateway.Models)
@@ -99,6 +104,7 @@ func RegisterGatewayRoutes(
 	gemini.Use(opsRequestTraceLogger)
 	gemini.Use(endpointNorm)
 	gemini.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	gemini.Use(requireGatewayMaintenanceGoogle)
 	gemini.Use(requireGroupGoogle)
 	{
 		gemini.GET("/models", h.Gateway.GeminiV1BetaListModels)
@@ -184,13 +190,14 @@ func RegisterGatewayRoutes(
 	v1alpha.Use(opsRequestTraceLogger)
 	v1alpha.Use(endpointNorm)
 	v1alpha.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	v1alpha.Use(requireGatewayMaintenanceGoogle)
 	v1alpha.Use(requireGroupGoogle)
 	{
 		v1alpha.POST("/authTokens", dispatchers.GeminiLiveAuthTokens)
 	}
-	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFilesUpload)
-	r.POST("/upload/v1beta/fileSearchStores/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFileSearchStores)
-	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGroupGoogle, dispatchers.GeminiFilesDownload)
+	r.POST("/upload/v1beta/files", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGatewayMaintenanceGoogle, requireGroupGoogle, dispatchers.GeminiFilesUpload)
+	r.POST("/upload/v1beta/fileSearchStores/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGatewayMaintenanceGoogle, requireGroupGoogle, dispatchers.GeminiFileSearchStores)
+	r.GET("/download/v1beta/files/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg), requireGatewayMaintenanceGoogle, requireGroupGoogle, dispatchers.GeminiFilesDownload)
 	googleBatchArchive := r.Group("/google/batch/archive/v1beta")
 	googleBatchArchive.Use(bodyLimit)
 	googleBatchArchive.Use(clientRequestID)
@@ -198,6 +205,7 @@ func RegisterGatewayRoutes(
 	googleBatchArchive.Use(opsRequestTraceLogger)
 	googleBatchArchive.Use(endpointNorm)
 	googleBatchArchive.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	googleBatchArchive.Use(requireGatewayMaintenanceGoogle)
 	googleBatchArchive.Use(requireGroupGoogle)
 	{
 		googleBatchArchive.GET("/batches/*subpath", dispatchers.GoogleBatchArchiveBatch)
@@ -210,6 +218,7 @@ func RegisterGatewayRoutes(
 	vertexBatch.Use(opsRequestTraceLogger)
 	vertexBatch.Use(endpointNorm)
 	vertexBatch.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	vertexBatch.Use(requireGatewayMaintenanceGoogle)
 	vertexBatch.Use(requireGroupGoogle)
 	{
 		vertexBatch.POST("/publishers/google/models/*modelAction", dispatchers.VertexModels)
@@ -228,6 +237,7 @@ func RegisterGatewayRoutes(
 	vertexSimplified.Use(opsRequestTraceLogger)
 	vertexSimplified.Use(endpointNorm)
 	vertexSimplified.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	vertexSimplified.Use(requireGatewayMaintenanceGoogle)
 	vertexSimplified.Use(requireGroupGoogle)
 	{
 		vertexSimplified.POST("/models/*modelAction", dispatchers.VertexModelsSimplified)
@@ -245,6 +255,7 @@ func RegisterGatewayRoutes(
 	vertexBatchAlias.Use(opsRequestTraceLogger)
 	vertexBatchAlias.Use(endpointNorm)
 	vertexBatchAlias.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	vertexBatchAlias.Use(requireGatewayMaintenanceGoogle)
 	vertexBatchAlias.Use(requireGroupGoogle)
 	{
 		vertexBatchAlias.GET("/jobs", dispatchers.VertexBatchPredictionJobsSimplified)
@@ -254,21 +265,21 @@ func RegisterGatewayRoutes(
 		vertexBatchAlias.DELETE("/jobs/*subpath", dispatchers.VertexBatchPredictionJobsSimplified)
 	}
 
-	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
-	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
-	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
-	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponses)
-	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIResponsesWebSocket)
+	r.POST("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.POST("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.GET("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.DELETE("/responses/*subpath", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponses)
+	r.GET("/responses", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIResponsesWebSocket)
 	// OpenAI Chat Completions API（不带v1前缀的别名）
-	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
-	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokImagesGeneration)
-	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokImagesEdits)
-	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokVideosGeneration)
-	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokVideosGeneration)
-	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, dispatchers.GrokVideosStatus)
+	r.POST("/chat/completions", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.OpenAIChatCompletions)
+	r.POST("/images/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokImagesGeneration)
+	r.POST("/images/edits", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokImagesEdits)
+	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)
+	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosGeneration)
+	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, opsRequestTraceLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceOpenAI, requireGroupAnthropic, dispatchers.GrokVideosStatus)
 
 	// Antigravity 模型列表
-	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
+	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGatewayMaintenanceCompat, requireGroupAnthropic, h.Gateway.AntigravityModels)
 
 	// Antigravity 专用路由（仅使用 antigravity 账户，不混合调度）
 	antigravityV1 := r.Group("/antigravity/v1")
@@ -279,6 +290,7 @@ func RegisterGatewayRoutes(
 	antigravityV1.Use(endpointNorm)
 	antigravityV1.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1.Use(gin.HandlerFunc(apiKeyAuth))
+	antigravityV1.Use(requireGatewayMaintenanceCompat)
 	antigravityV1.Use(requireGroupAnthropic)
 	{
 		antigravityV1.POST("/messages", dispatchers.AnthropicMessages)
@@ -295,6 +307,7 @@ func RegisterGatewayRoutes(
 	antigravityV1Beta.Use(endpointNorm)
 	antigravityV1Beta.Use(middleware.ForcePlatform(service.PlatformAntigravity))
 	antigravityV1Beta.Use(middleware.APIKeyAuthWithSubscriptionGoogle(apiKeyService, subscriptionService, cfg))
+	antigravityV1Beta.Use(requireGatewayMaintenanceGoogle)
 	antigravityV1Beta.Use(requireGroupGoogle)
 	{
 		antigravityV1Beta.GET("/models", h.Gateway.GeminiV1BetaListModels)
