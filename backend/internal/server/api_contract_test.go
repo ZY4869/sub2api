@@ -544,6 +544,7 @@ func TestAPIContracts(t *testing.T) {
 					"public_model_catalog_enabled": true,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"maintenance_mode_enabled": false,
 					"min_claude_code_version": "",
 					"max_claude_code_version": "",
 					"allow_ungrouped_key_scheduling": false,
