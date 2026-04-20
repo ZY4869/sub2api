@@ -24,7 +24,10 @@ const tokenPlaceholderKey = computed(() =>
 </script>
 
 <template>
-  <div class="space-y-4 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+  <div
+    data-testid="baidu-document-ai-credentials-editor"
+    class="space-y-4 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900/40 dark:bg-sky-950/20"
+  >
     <div>
       <div class="text-sm font-semibold text-sky-900 dark:text-sky-100">
         {{ t('admin.accounts.baiduDocumentAI.title') }}

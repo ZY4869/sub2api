@@ -113,7 +113,7 @@
         />
 
         <AccountBaiduDocumentAICredentialsEditor
-          v-if="form.platform === 'baidu_document_ai'"
+          v-show="form.platform === 'baidu_document_ai'"
           v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
           v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
           v-model:direct-token="baiduDocumentAIDirectToken"

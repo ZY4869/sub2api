@@ -356,7 +356,7 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
     'update:direct-api-urls-text'
   ],
   template: `
-    <div>
+    <div data-testid="baidu-document-ai-credentials-editor">
       <span data-testid="baidu-async-bearer-token-prop">{{ asyncBearerToken }}</span>
       <span data-testid="baidu-async-base-url-prop">{{ asyncBaseUrl }}</span>
       <span data-testid="baidu-direct-token-prop">{{ directToken }}</span>
@@ -669,6 +669,21 @@ describe('CreateAccountModal', () => {
     )
     expect(wrapper.get('[data-testid="baidu-direct-token-prop"]').text()).toBe('')
     expect(wrapper.get('[data-testid="baidu-direct-api-urls-prop"]').text()).toBe('')
+  })
+
+  it('keeps the baidu document ai credential editor mounted and toggles visibility with platform selection', async () => {
+    const wrapper = mountModal()
+    const editor = wrapper.get('[data-testid="baidu-document-ai-credentials-editor"]')
+
+    expect(editor.attributes('style')).toContain('display: none;')
+
+    await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
+
+    expect(editor.attributes('style') || '').not.toContain('display: none;')
+
+    await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
+
+    expect(editor.attributes('style')).toContain('display: none;')
   })
 
   it('keeps the top mapping state in sync when probe selections are added and removed', async () => {
