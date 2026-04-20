@@ -337,8 +337,8 @@ func buildOpsTraceToolSummaryJSON(normalize service.ProtocolNormalizeResult) *st
 		service.OpsTracePayloadStateCaptured,
 		"tool_summary_fallback",
 		map[string]any{
-			"has_tools":                             normalize.HasTools,
-			"tool_kinds":                            normalize.ToolKinds,
+			"has_tools":                            normalize.HasTools,
+			"tool_kinds":                           normalize.ToolKinds,
 			"include_server_side_tool_invocations": normalize.IncludeServerSideToolInvocations,
 		},
 		"application/json",

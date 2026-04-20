@@ -256,14 +256,14 @@ func (r *usageLogRepository) getUsageSubjectAggregate(ctx context.Context, scope
 	}
 
 	summary := service.UsageSubjectSummary{
-		TotalAccountCost:    totalAccountCost,
-		TotalUserCost:       totalUserCost,
-		TotalStandardCost:   totalStandardCost,
-		TotalRequests:       totalRequests,
-		TotalTokens:         totalTokens,
-		AvgDurationMs:       avgDurationMs,
-		ActiveDays:          activeDays,
-		WindowDays:          windowDays,
+		TotalAccountCost:  totalAccountCost,
+		TotalUserCost:     totalUserCost,
+		TotalStandardCost: totalStandardCost,
+		TotalRequests:     totalRequests,
+		TotalTokens:       totalTokens,
+		AvgDurationMs:     avgDurationMs,
+		ActiveDays:        activeDays,
+		WindowDays:        windowDays,
 	}
 	if activeDays > 0 {
 		days := float64(activeDays)

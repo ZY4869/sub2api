@@ -10,14 +10,14 @@ import (
 )
 
 type BillingPricingAudit struct {
-	TotalModels            int                               `json:"total_models"`
-	DuplicateModelIDs      []string                          `json:"duplicate_model_ids"`
+	TotalModels             int                                 `json:"total_models"`
+	DuplicateModelIDs       []string                            `json:"duplicate_model_ids"`
 	AuxIdentifierCollisions []BillingPricingIdentifierCollision `json:"aux_identifier_collisions"`
-	MissingInSnapshotCount int                               `json:"missing_in_snapshot_count"`
-	MissingInSnapshotModels []string                         `json:"missing_in_snapshot_models"`
-	SnapshotOnlyCount      int                               `json:"snapshot_only_count"`
-	RefreshRequired        bool                              `json:"refresh_required"`
-	SnapshotUpdatedAt      *time.Time                        `json:"snapshot_updated_at,omitempty"`
+	MissingInSnapshotCount  int                                 `json:"missing_in_snapshot_count"`
+	MissingInSnapshotModels []string                            `json:"missing_in_snapshot_models"`
+	SnapshotOnlyCount       int                                 `json:"snapshot_only_count"`
+	RefreshRequired         bool                                `json:"refresh_required"`
+	SnapshotUpdatedAt       *time.Time                          `json:"snapshot_updated_at,omitempty"`
 }
 
 type BillingPricingIdentifierCollision struct {
