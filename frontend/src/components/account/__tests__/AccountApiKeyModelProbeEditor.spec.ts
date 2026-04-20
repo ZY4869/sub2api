@@ -140,12 +140,10 @@ describe('AccountApiKeyModelProbeEditor', () => {
     await flushPromises()
 
     expect(allowedModelsUpdates.at(-1)).toEqual([['gemini-2.0-flash']])
-    expect(modelMappingsUpdates.at(-1)).toEqual([
-      [{ from: 'Vertex-gemini-2.0-flash', to: 'gemini-2.0-flash' }]
-    ])
+    expect(modelMappingsUpdates.at(-1)).toEqual([[]])
   })
 
-  it('keeps only previously selected models after re-probing and preserves custom aliases from existing mappings', async () => {
+  it('keeps only previously selected models after re-probing and preserves explicit aliases', async () => {
     probeModels
       .mockResolvedValueOnce({
         probe_source: 'vertex_express_catalog',
@@ -222,7 +220,7 @@ describe('AccountApiKeyModelProbeEditor', () => {
       allowedModels: ['gemini-2.0-flash', 'gemini-3.1-pro-preview'],
       modelMappings: [
         { from: 'Flash Alias', to: 'gemini-2.0-flash' },
-        { from: 'Vertex-gemini-3.1-pro-preview', to: 'gemini-3.1-pro-preview' }
+        { from: 'Preview Alias', to: 'gemini-3.1-pro-preview' }
       ]
     })
 
@@ -238,7 +236,7 @@ describe('AccountApiKeyModelProbeEditor', () => {
     expect(modelMappingsUpdates.at(-1)).toEqual([
       [
         { from: 'Flash Alias', to: 'gemini-2.0-flash' },
-        { from: 'Vertex-gemini-3.1-pro-preview', to: 'gemini-3.1-pro-preview' }
+        { from: 'Preview Alias', to: 'gemini-3.1-pro-preview' }
       ]
     ])
     expect(wrapper.find('input[placeholder="gemini-2.0-flash"]').exists()).toBe(false)
@@ -247,7 +245,7 @@ describe('AccountApiKeyModelProbeEditor', () => {
   it('hydrates probe cards from existing mappings without rendering inline alias inputs', async () => {
     const wrapper = createWrapper({
       allowedModels: ['gemini-2.0-flash'],
-      modelMappings: [{ from: '', to: 'gemini-2.0-flash' }],
+      modelMappings: [],
       probedModels: []
     })
 
@@ -261,7 +259,7 @@ describe('AccountApiKeyModelProbeEditor', () => {
     const longModelId = 'gemini-3.1-flash-image-preview-with-a-very-long-suffix-for-layout-testing'
     const wrapper = createWrapper({
       allowedModels: [longModelId],
-      modelMappings: [{ from: `Vertex-${longModelId}`, to: longModelId }],
+      modelMappings: [],
       probedModels: [
         {
           id: longModelId,

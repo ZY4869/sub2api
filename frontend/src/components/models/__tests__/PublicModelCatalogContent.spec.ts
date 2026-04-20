@@ -1,6 +1,8 @@
 import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PublicModelCatalogContent from "../PublicModelCatalogContent.vue";
+import { resetPublicModelCatalogStoreForTests } from '@/stores/publicModelCatalog'
 
 const apiMocks = vi.hoisted(() => ({
   getModelCatalog: vi.fn(),
@@ -40,6 +42,8 @@ vi.mock("vue-i18n", async () => {
 
 describe("PublicModelCatalogContent", () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
+    resetPublicModelCatalogStoreForTests()
     apiMocks.getModelCatalog.mockReset();
     apiMocks.getUSDCNYExchangeRate.mockReset();
     appStoreMocks.showSuccess.mockReset();
@@ -130,9 +134,11 @@ describe("PublicModelCatalogContent", () => {
 
   it("supports card filters, search, view persistence, copy, and detail actions", async () => {
     localStorage.setItem("public-model-catalog:view-mode", "list");
+    const pinia = createPinia()
 
     const wrapper = mount(PublicModelCatalogContent, {
       global: {
+        plugins: [pinia],
         stubs: {
           PublicModelCatalogDetailDialog: {
             props: ["show", "model", "catalogItem"],
@@ -183,5 +189,104 @@ describe("PublicModelCatalogContent", () => {
     await wrapper.get('[data-testid="public-models-view-grid"]').trigger("click");
     expect(wrapper.get('[data-testid="public-model-results"]').attributes("data-view-mode")).toBe("grid");
     expect(localStorage.getItem("public-model-catalog:view-mode")).toBe("grid");
+  });
+
+  it("restores a cached snapshot and shows a soft stale notice when revalidation fails", async () => {
+    localStorage.setItem(
+      "public-model-catalog:snapshot",
+      JSON.stringify({
+        snapshot: {
+          etag: 'W/"cached"',
+          updated_at: "2026-04-17T00:00:00Z",
+          items: [
+            {
+              model: "cached-model",
+              display_name: "Cached Model",
+              provider: "openai",
+              provider_icon_key: "openai",
+              request_protocols: ["openai"],
+              currency: "USD",
+              price_display: {
+                primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
+              },
+              multiplier_summary: {
+                enabled: false,
+                kind: "disabled",
+              },
+            },
+          ],
+        },
+        etag: 'W/"cached"',
+        loadedAt: 0,
+        usdToCnyRate: null,
+        exchangeRateLoadedAt: 0,
+      }),
+    );
+    apiMocks.getModelCatalog.mockRejectedValueOnce(new Error("Network error. Please check your connection."));
+    const pinia = createPinia()
+
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: { template: '<span data-testid="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-testid="provider-icon" />' },
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Cached Model");
+    expect(wrapper.text()).toContain("ui.modelCatalog.staleNotice");
+    expect(wrapper.text()).not.toContain("Network error. Please check your connection.");
+  });
+
+  it("keeps catalog content visible when exchange-rate loading fails", async () => {
+    apiMocks.getModelCatalog.mockResolvedValueOnce({
+      notModified: false,
+      etag: 'W/"catalog-cny"',
+      data: {
+        etag: 'W/"catalog-cny"',
+        updated_at: "2026-04-18T00:00:00Z",
+        items: [
+          {
+            model: "gemini-2.5-pro",
+            display_name: "Gemini 2.5 Pro",
+            provider: "gemini",
+            provider_icon_key: "gemini",
+            request_protocols: ["gemini"],
+            currency: "CNY",
+            price_display: {
+              primary: [{ id: "output_price", unit: "output_token", value: 0.000004 }],
+            },
+            multiplier_summary: {
+              enabled: false,
+              kind: "disabled",
+            },
+          },
+        ],
+      },
+    });
+    apiMocks.getUSDCNYExchangeRate.mockRejectedValueOnce(new Error("Network error. Please check your connection."));
+    const pinia = createPinia()
+
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: { template: '<span data-testid="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-testid="provider-icon" />' },
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Gemini 2.5 Pro");
+    expect(wrapper.text()).toContain("ui.modelCatalog.exchangeRateSoftWarning");
+    expect(wrapper.text()).not.toContain("Network error. Please check your connection.");
   });
 });

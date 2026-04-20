@@ -144,6 +144,7 @@
           :get-mapping-key="getModelMappingKey"
           :show-gemini-tier="shouldPersistGeminiTierId"
           :show-actual-model-lock="true"
+          @update:modelMappings="modelMappings = $event"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -209,6 +210,7 @@
         :show-actual-model-lock="true"
         @update:mode="modelRestrictionMode = $event"
         @update:allowedModels="allowedModels = $event"
+        @update:modelMappings="modelMappings = $event"
         @add-mapping="addModelMapping"
         @remove-mapping="removeModelMapping"
         @add-preset="addPresetMapping($event.from, $event.to)"
@@ -1094,14 +1096,11 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
       .filter((row) => row.from.length > 0 && row.to.length > 0)
     if (entries.length > 0) {
       modelRestrictionMode.value = 'mapping'
+      const selectedModels = [...new Set(entries.map(({ to }) => to))]
+      allowedModels.value = selectedModels
+      modelMappings.value = entries.filter(({ from, to }) => from !== to)
       if (isProtocolGatewayAccount.value) {
-        const selectedModels = [...new Set(entries.map(({ to }) => to))]
-        allowedModels.value = selectedModels
-        modelMappings.value = entries.filter(({ from, to }) => from !== to)
         protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
-      } else {
-        modelMappings.value = entries
-        allowedModels.value = []
       }
       return true
     }
@@ -1114,14 +1113,11 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
       .filter((row) => row.from.length > 0 && row.to.length > 0)
     if (entries.length > 0) {
       modelRestrictionMode.value = 'mapping'
+      const selectedModels = [...new Set(entries.map(({ to }) => to))]
+      allowedModels.value = selectedModels
+      modelMappings.value = entries.filter(({ from, to }) => from !== to)
       if (isProtocolGatewayAccount.value) {
-        const selectedModels = [...new Set(entries.map(({ to }) => to))]
-        allowedModels.value = selectedModels
-        modelMappings.value = entries.filter(({ from, to }) => from !== to)
         protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
-      } else {
-        modelMappings.value = entries
-        allowedModels.value = []
       }
       return true
     }
@@ -1186,8 +1182,8 @@ function applyModelRestrictionFromRecord(value: unknown) {
   }
 
   modelRestrictionMode.value = 'mapping'
-  modelMappings.value = entries
-  allowedModels.value = []
+  allowedModels.value = [...new Set(entries.map(({ to }) => to))]
+  modelMappings.value = entries.filter(({ from, to }) => from !== to)
 }
 
 function applyDefaultGrokCapabilityMapping() {

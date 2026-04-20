@@ -38,10 +38,13 @@
       <AccountModelScopeMappingEditor
         v-else
         v-model:actual-model-locked="actualModelLocked"
+        :allowed-models="allowedModels"
         :model-mappings="modelMappings"
         :preset-mappings="presetMappings"
         :get-mapping-key="getMappingKey"
         :show-actual-model-lock="showActualModelLock"
+        @update:allowedModels="emit('update:allowedModels', $event)"
+        @update:modelMappings="emit('update:modelMappings', $event)"
         @add-mapping="emit('add-mapping')"
         @remove-mapping="emit('remove-mapping', $event)"
         @add-preset="emit('add-preset', $event)"
@@ -75,6 +78,7 @@ withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   'update:mode': [value: 'whitelist' | 'mapping']
   'update:allowedModels': [value: string[]]
+  'update:modelMappings': [value: ModelMapping[]]
   'add-mapping': []
   'remove-mapping': [index: number]
   'add-preset': [payload: { from: string; to: string }]

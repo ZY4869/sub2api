@@ -38,6 +38,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
+  'update:modelMappings': [value: ModelMapping[]]
   'add-mapping': []
   'remove-mapping': [index: number]
   'add-preset': [payload: { from: string; to: string }]
@@ -153,6 +154,7 @@ const protocolGatewayBaseUrlWarning = computed(() => {
       :show-actual-model-lock="showActualModelLock"
       @update:mode="modelScopeMode = $event"
       @update:allowedModels="allowedModels = $event"
+      @update:modelMappings="emit('update:modelMappings', $event)"
       @add-mapping="emit('add-mapping')"
       @remove-mapping="emit('remove-mapping', $event)"
       @add-preset="emit('add-preset', $event)"

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -66,6 +67,36 @@ func (s publicCatalogUserSubRepoStub) ListActiveByUserID(context.Context, int64)
 	out := make([]UserSubscription, len(s.active))
 	copy(out, s.active)
 	return out, nil
+}
+
+type failingPublicCatalogSettingRepo struct{}
+
+func (f *failingPublicCatalogSettingRepo) Get(context.Context, string) (*Setting, error) {
+	return nil, errors.New("catalog unavailable")
+}
+
+func (f *failingPublicCatalogSettingRepo) GetValue(context.Context, string) (string, error) {
+	return "", errors.New("catalog unavailable")
+}
+
+func (f *failingPublicCatalogSettingRepo) Set(context.Context, string, string) error {
+	return errors.New("catalog unavailable")
+}
+
+func (f *failingPublicCatalogSettingRepo) GetMultiple(context.Context, []string) (map[string]string, error) {
+	return nil, errors.New("catalog unavailable")
+}
+
+func (f *failingPublicCatalogSettingRepo) SetMultiple(context.Context, map[string]string) error {
+	return errors.New("catalog unavailable")
+}
+
+func (f *failingPublicCatalogSettingRepo) GetAll(context.Context) (map[string]string, error) {
+	return nil, errors.New("catalog unavailable")
+}
+
+func (f *failingPublicCatalogSettingRepo) Delete(context.Context, string) error {
+	return errors.New("catalog unavailable")
 }
 
 func TestModelCatalogService_PublicModelCatalogSnapshot_ClassifiesMultiplierSummaries(t *testing.T) {
@@ -447,6 +478,91 @@ func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProject
 	require.Equal(t, int64(10), options[0].GroupID)
 	require.Len(t, options[0].Models, 1)
 	require.Equal(t, "registry-openai-beta", options[0].Models[0].PublicID)
+}
+
+func TestModelCatalogService_PublicModelCatalogSnapshot_CachesWithinTTLAndRefreshesAfterExpiry(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	first, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, first.Items, 1)
+
+	first.Items[0].Model = "mutated"
+
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 1, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+			newPublicCatalogPersistedModel("gpt-5.4-mini", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(5e-7),
+				OutputPrice:    modelCatalogFloat64Ptr(1e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	cached, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, cached.Items, 1)
+	require.Equal(t, "gpt-5.4", cached.Items[0].Model)
+
+	svc.publicCatalogCacheMu.Lock()
+	svc.publicCatalogBuiltAt = time.Now().Add(-2 * svc.publicModelCatalogTTL())
+	svc.publicCatalogCacheMu.Unlock()
+
+	refreshed, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, refreshed.Items, 2)
+}
+
+func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackToStaleCacheOnRebuildFailure(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	first, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, first.Items, 1)
+
+	failingRepo := &failingPublicCatalogSettingRepo{}
+	svc.settingRepo = failingRepo
+	svc.billingCenterService.settingRepo = failingRepo
+	svc.publicCatalogCacheMu.Lock()
+	svc.publicCatalogBuiltAt = time.Now().Add(-2 * svc.publicModelCatalogTTL())
+	svc.publicCatalogCacheMu.Unlock()
+
+	fallback, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Len(t, fallback.Items, 1)
+	require.Equal(t, "gpt-5.4", fallback.Items[0].Model)
 }
 
 func newPublicCatalogPersistedModel(

@@ -787,7 +787,12 @@ describe("user UsageView tooltip", () => {
     await flushPromises();
     await nextTick();
 
-    expect(getRequestPreview).toHaveBeenCalledWith(6);
+    expect(getRequestPreview).toHaveBeenCalledWith(
+      6,
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(wrapper.text()).toContain("Inbound Request");
     expect(wrapper.text()).toContain("hello");
     expect(wrapper.text()).toContain("Tools / Thinking");

@@ -13,6 +13,7 @@ export { useExchangeRateStore } from './exchangeRate'
 export { useModelRegistryStore } from './modelRegistry'
 export { useModelInventoryStore } from './modelInventory'
 export { useBillingPricingStore } from './billingPricing'
+export { usePublicModelCatalogStore } from './publicModelCatalog'
 
 // Re-export types for convenience
 export type { User, LoginRequest, RegisterRequest, AuthResponse } from '@/types'

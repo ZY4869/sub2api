@@ -188,7 +188,6 @@ import {
 } from '@/utils/accountProbeDraft'
 import { formatModelDisplayName } from '@/utils/modelDisplayName'
 import { formatProviderLabel, normalizeProviderSlug } from '@/utils/providerLabels'
-import { buildDefaultVertexAlias, isGeminiVertexSourceCredentials } from '@/utils/vertexAi'
 
 const props = defineProps<{
   platform: string
@@ -212,20 +211,28 @@ const probing = ref(false)
 const probeSource = ref('')
 const probeNotice = ref('')
 const hasInitializedFromMappings = ref(false)
-const isVertexSource = () =>
-  props.platform === 'gemini' && isGeminiVertexSourceCredentials(props.credentials)
+const normalizeModelID = (value: string) => String(value || '').trim()
+const normalizeExplicitMappingRows = (rows: ModelMapping[]) =>
+  rows
+    .map((row) => ({
+      from: normalizeModelID(row.from),
+      to: normalizeModelID(row.to)
+    }))
+    .filter((row) => Boolean(row.from) && Boolean(row.to) && row.from !== row.to)
 
-const defaultAlias = (modelId: string) =>
-  isVertexSource() ? buildDefaultVertexAlias(modelId) : modelId
+const serializeMappings = (rows: ModelMapping[]) => JSON.stringify(normalizeExplicitMappingRows(rows))
 
 watch(
-  () => [probedModels.value.length, modelMappings.value.length] as const,
-  ([modelCount, mappingCount]) => {
-    if (hasInitializedFromMappings.value || modelCount > 0 || mappingCount === 0) return
+  () => [probedModels.value.length, allowedModels.value.join('\x00'), modelMappings.value.length] as const,
+  ([modelCount, selectedModelsSerialized, mappingCount]) => {
+    if (hasInitializedFromMappings.value || modelCount > 0 || (!selectedModelsSerialized && mappingCount === 0)) return
     hasInitializedFromMappings.value = true
     const seen = new Set<string>()
-    probedModels.value = modelMappings.value
-      .map((row) => row.to.trim())
+    const selectedTargets = [
+      ...allowedModels.value.map((modelId) => modelId.trim()),
+      ...modelMappings.value.map((row) => row.to.trim())
+    ]
+    probedModels.value = selectedTargets
       .filter((target) => target && !seen.has(target) && (seen.add(target), true))
       .map((target) => ({
         id: target,
@@ -275,11 +282,11 @@ watch(
 )
 
 watch(
-  () => allowedModels.value.join('\x00'),
+  () => [allowedModels.value.join('\x00'), modelMappings.value.length] as const,
   () => {
     const selected = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
-    const nextMappings = modelMappings.value.filter((row) => selected.has(row.to.trim()))
-    if (nextMappings.length !== modelMappings.value.length) {
+    const nextMappings = normalizeExplicitMappingRows(modelMappings.value).filter((row) => selected.has(row.to))
+    if (serializeMappings(nextMappings) !== serializeMappings(modelMappings.value)) {
       modelMappings.value = nextMappings
     }
   },
@@ -324,23 +331,11 @@ const resolveProviderLabel = (model: ProtocolGatewayProbeModel) => {
 const resolveDisplayName = (model: ProtocolGatewayProbeModel) =>
   String(model.display_name || '').trim() || formatModelDisplayName(model.id) || model.id
 
-const collectAliasByTarget = () =>
-  new Map(
-    modelMappings.value
-      .map((row) => [row.to.trim(), row.from] as const)
-      .filter(([target]) => Boolean(target))
-  )
-
-const buildMappingsForModelIds = (modelIds: string[], aliasByTarget = collectAliasByTarget()) =>
-  modelIds.map((modelId) => ({
-    from: aliasByTarget.has(modelId) ? aliasByTarget.get(modelId) ?? '' : defaultAlias(modelId),
-    to: modelId
-  }))
-
-const syncSelectedModels = (modelIds: string[], aliasByTarget = collectAliasByTarget()) => {
+const syncSelectedModels = (modelIds: string[]) => {
   const nextAllowedModels = [...new Set(modelIds.map((item) => item.trim()).filter(Boolean))]
+  const selectedTargets = new Set(nextAllowedModels)
   allowedModels.value = nextAllowedModels
-  modelMappings.value = buildMappingsForModelIds(nextAllowedModels, aliasByTarget)
+  modelMappings.value = normalizeExplicitMappingRows(modelMappings.value).filter((row) => selectedTargets.has(row.to))
 }
 
 const toggleModel = (model: ProtocolGatewayProbeModel) => {
@@ -393,14 +388,13 @@ const handleProbe = async () => {
       manual_models: manualModels.value,
       proxy_id: props.proxyId ?? undefined
     })
-    const aliasByTarget = collectAliasByTarget()
     const probedAt = new Date().toISOString()
     const selectedTargets = new Set(allowedModels.value.map((item) => item.trim()).filter(Boolean))
     const nextAllowedModels = result.models
       .map((model) => model.id)
       .filter((modelId) => selectedTargets.has(modelId))
     probedModels.value = result.models
-    syncSelectedModels(nextAllowedModels, aliasByTarget)
+    syncSelectedModels(nextAllowedModels)
     probeSource.value = result.probe_source || ''
     probeNotice.value = resolveAccountModelImportProbeNoticeMessage(t, {
       imported_count: result.models.length,

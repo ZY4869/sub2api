@@ -228,6 +228,7 @@
           :get-mapping-key="getModelMappingKey"
           :show-gemini-tier="shouldPersistGeminiTierId"
           :show-actual-model-lock="true"
+          @update:modelMappings="modelMappings = $event"
           @add-mapping="addModelMapping"
           @remove-mapping="removeModelMapping"
           @add-preset="addPresetMapping($event.from, $event.to)"
@@ -379,7 +380,7 @@
       />
 
       <AccountModelScopeEditor
-        v-if="(accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity'"
+        v-if="((accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity') || form.platform === 'protocol_gateway'"
         v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
@@ -391,6 +392,7 @@
         :show-actual-model-lock="true"
         @update:mode="modelRestrictionMode = $event"
         @update:allowedModels="allowedModels = $event"
+        @update:modelMappings="modelMappings = $event"
         @add-mapping="addModelMapping"
         @remove-mapping="removeModelMapping"
         @add-preset="addPresetMapping($event.from, $event.to)"

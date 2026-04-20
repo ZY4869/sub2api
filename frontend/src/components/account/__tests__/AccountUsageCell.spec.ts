@@ -278,7 +278,7 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('Gemini Image|70|2026-03-01T09:00:00Z')
   })
 
-  it('renders protocol gateway gemini usage as a single gateway card without native gemini channel labels', async () => {
+  it('renders protocol gateway gemini accounts without fetching or showing account-level quota bars', async () => {
     getUsage.mockResolvedValue({
       gemini_pro_daily: {
         utilization: 25,
@@ -331,8 +331,10 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Protocol Gateway · Gemini')
-    expect(wrapper.text()).toContain('|70|2026-03-08T14:00:00Z|7200|false|800')
-    expect(wrapper.text()).toContain('Showing the tightest upstream daily window.')
+    expect(getUsage).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Unlimited')
+    expect(wrapper.text()).not.toContain('|70|2026-03-08T14:00:00Z|7200|false|800')
+    expect(wrapper.text()).not.toContain('Showing the tightest upstream daily window.')
     expect(wrapper.text()).not.toContain('AI Studio')
     expect(wrapper.text()).not.toContain('Free')
     expect(wrapper.text()).not.toContain('Tier 1')

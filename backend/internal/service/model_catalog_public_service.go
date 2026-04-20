@@ -31,6 +31,36 @@ var publicModelCatalogProtocolOrder = map[string]int{
 }
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+	if snapshot, age, ok := s.getFreshPublicModelCatalogSnapshot(); ok {
+		logger.FromContext(ctx).Info(
+			"public model catalog snapshot cache hit",
+			zap.String("component", "service.model_catalog"),
+			zap.Duration("cache_age", age),
+			zap.Int("model_count", len(snapshot.Items)),
+		)
+		return snapshot, nil
+	}
+
+	snapshot, err := s.buildPublicModelCatalogSnapshot(ctx)
+	if err != nil {
+		if fallback, age, ok := s.getAnyPublicModelCatalogSnapshot(); ok {
+			logger.FromContext(ctx).Warn(
+				"public model catalog snapshot stale fallback",
+				zap.String("component", "service.model_catalog"),
+				zap.Duration("cache_age", age),
+				zap.Int("model_count", len(fallback.Items)),
+				zap.Error(err),
+			)
+			return fallback, nil
+		}
+		return nil, err
+	}
+
+	s.storePublicModelCatalogSnapshot(snapshot)
+	return clonePublicModelCatalogSnapshot(snapshot), nil
+}
+
+func (s *ModelCatalogService) buildPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
 		return nil, err
@@ -92,7 +122,7 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 	}
 
 	logger.FromContext(ctx).Info(
-		"public model catalog snapshot built",
+		"public model catalog snapshot cache rebuild",
 		zap.String("component", "service.model_catalog"),
 		zap.Int("model_count", len(items)),
 		zap.Int("provider_count", len(providerBuckets)),
@@ -105,6 +135,51 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 		UpdatedAt: updatedAt.Format(time.RFC3339),
 		Items:     items,
 	}, nil
+}
+
+func (s *ModelCatalogService) publicModelCatalogTTL() time.Duration {
+	if s == nil || s.publicCatalogTTL <= 0 {
+		return 60 * time.Second
+	}
+	return s.publicCatalogTTL
+}
+
+func (s *ModelCatalogService) getFreshPublicModelCatalogSnapshot() (*PublicModelCatalogSnapshot, time.Duration, bool) {
+	if s == nil {
+		return nil, 0, false
+	}
+	s.publicCatalogCacheMu.RLock()
+	defer s.publicCatalogCacheMu.RUnlock()
+	if s.publicCatalogCache == nil || s.publicCatalogBuiltAt.IsZero() {
+		return nil, 0, false
+	}
+	age := time.Since(s.publicCatalogBuiltAt)
+	if age > s.publicModelCatalogTTL() {
+		return nil, age, false
+	}
+	return clonePublicModelCatalogSnapshot(s.publicCatalogCache), age, true
+}
+
+func (s *ModelCatalogService) getAnyPublicModelCatalogSnapshot() (*PublicModelCatalogSnapshot, time.Duration, bool) {
+	if s == nil {
+		return nil, 0, false
+	}
+	s.publicCatalogCacheMu.RLock()
+	defer s.publicCatalogCacheMu.RUnlock()
+	if s.publicCatalogCache == nil || s.publicCatalogBuiltAt.IsZero() {
+		return nil, 0, false
+	}
+	return clonePublicModelCatalogSnapshot(s.publicCatalogCache), time.Since(s.publicCatalogBuiltAt), true
+}
+
+func (s *ModelCatalogService) storePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) {
+	if s == nil || snapshot == nil {
+		return
+	}
+	s.publicCatalogCacheMu.Lock()
+	defer s.publicCatalogCacheMu.Unlock()
+	s.publicCatalogCache = clonePublicModelCatalogSnapshot(snapshot)
+	s.publicCatalogBuiltAt = time.Now().UTC()
 }
 
 func (s *ModelCatalogService) publicModelCatalogVisibleEntries(ctx context.Context) ([]modelregistry.ModelEntry, error) {
@@ -382,4 +457,53 @@ func computePublicModelCatalogETag(items []PublicModelCatalogItem) (string, erro
 	}
 	sum := sha256.Sum256(payload)
 	return "W/\"" + hex.EncodeToString(sum[:]) + "\"", nil
+}
+
+func clonePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) *PublicModelCatalogSnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	cloned := &PublicModelCatalogSnapshot{
+		ETag:      snapshot.ETag,
+		UpdatedAt: snapshot.UpdatedAt,
+		Items:     make([]PublicModelCatalogItem, 0, len(snapshot.Items)),
+	}
+	for _, item := range snapshot.Items {
+		cloned.Items = append(cloned.Items, clonePublicModelCatalogItem(item))
+	}
+	return cloned
+}
+
+func clonePublicModelCatalogItem(item PublicModelCatalogItem) PublicModelCatalogItem {
+	cloned := item
+	cloned.RequestProtocols = append([]string(nil), item.RequestProtocols...)
+	cloned.SourceIDs = append([]string(nil), item.SourceIDs...)
+	cloned.PriceDisplay = PublicModelCatalogPriceDisplay{
+		Primary:   clonePublicModelCatalogPriceEntries(item.PriceDisplay.Primary),
+		Secondary: clonePublicModelCatalogPriceEntries(item.PriceDisplay.Secondary),
+	}
+	cloned.MultiplierSummary = PublicModelCatalogMultiplierSummary{
+		Enabled: item.MultiplierSummary.Enabled,
+		Kind:    item.MultiplierSummary.Kind,
+		Mode:    item.MultiplierSummary.Mode,
+		Value:   modelCatalogFloat64PtrValue(item.MultiplierSummary.Value),
+	}
+	return cloned
+}
+
+func clonePublicModelCatalogPriceEntries(entries []PublicModelCatalogPriceEntry) []PublicModelCatalogPriceEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	cloned := make([]PublicModelCatalogPriceEntry, len(entries))
+	copy(cloned, entries)
+	return cloned
+}
+
+func modelCatalogFloat64PtrValue(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
 }

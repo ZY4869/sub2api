@@ -54,20 +54,32 @@
     </div>
 
     <div
-      v-if="showActualModelLock && actualModelLocked && modelMappings.length === 0"
+      v-if="showActualModelLock && actualModelLocked && lockedRows.length === 0"
       class="mb-3 rounded-lg border border-dashed border-purple-300 bg-purple-50/70 px-4 py-3 text-sm text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300"
     >
       {{ t('admin.accounts.modelMappingSelectionDrivenHint') }}
     </div>
 
-    <div v-if="modelMappings.length > 0" class="mb-3 space-y-2">
+    <div v-if="visibleRows.length > 0" class="mb-3 space-y-2">
       <div
-        v-for="(mapping, index) in modelMappings"
-        :key="getMappingKey(mapping)"
+        v-for="(mapping, index) in visibleRows"
+        :key="resolveRowKey(mapping, index)"
         class="space-y-1"
       >
         <div class="flex items-center gap-2">
           <input
+            v-if="actualModelLocked"
+            :value="mapping.from"
+            type="text"
+            :class="[
+              'input flex-1',
+              hasWildcardSourceError(mapping.from) ? 'border-red-500 dark:border-red-500' : ''
+            ]"
+            :placeholder="t('admin.accounts.requestModel')"
+            @input="updateLockedAlias(mapping.to, ($event.target as HTMLInputElement).value)"
+          />
+          <input
+            v-else
             v-model="mapping.from"
             type="text"
             :class="[
@@ -80,22 +92,30 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
           <input
-            v-model="mapping.to"
+            v-if="actualModelLocked"
+            :value="mapping.to"
             type="text"
             :class="[
-              actualModelLocked
-                ? 'input flex-1 cursor-not-allowed bg-gray-100/90 text-gray-500 dark:bg-dark-900/60 dark:text-gray-400'
-                : 'input flex-1',
+              'input flex-1 cursor-not-allowed bg-gray-100/90 text-gray-500 dark:bg-dark-900/60 dark:text-gray-400',
               hasWildcardTargetError(mapping.to) ? 'border-red-500 dark:border-red-500' : ''
             ]"
             :placeholder="t('admin.accounts.actualModel')"
-            :readonly="actualModelLocked"
+            readonly
+          />
+          <input
+            v-else
+            v-model="mapping.to"
+            type="text"
+            :class="[
+              'input flex-1',
+              hasWildcardTargetError(mapping.to) ? 'border-red-500 dark:border-red-500' : ''
+            ]"
+            :placeholder="t('admin.accounts.actualModel')"
           />
           <button
-            v-if="!actualModelLocked"
             type="button"
             class="rounded-lg p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-            @click="emit('remove-mapping', index)"
+            @click="actualModelLocked ? removeSelectedModel(mapping.to) : emit('remove-mapping', index)"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -142,19 +162,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelRegistryPreset } from '@/generated/modelRegistry'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import { isValidWildcardPattern } from '@/composables/useModelWhitelist'
 
 interface Props {
+  allowedModels: string[]
   modelMappings: ModelMapping[]
   presetMappings: ModelRegistryPreset[]
   getMappingKey: (mapping: ModelMapping) => string
   showActualModelLock?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   showActualModelLock: false
 })
 
@@ -162,11 +184,59 @@ const emit = defineEmits<{
   'add-mapping': []
   'remove-mapping': [index: number]
   'add-preset': [payload: { from: string; to: string }]
+  'update:modelMappings': [value: ModelMapping[]]
+  'update:allowedModels': [value: string[]]
 }>()
 const actualModelLocked = defineModel<boolean>('actualModelLocked', { default: true })
 
 const { t } = useI18n()
 
+const normalizeMappingRows = (rows: ModelMapping[]) =>
+  rows.map((row) => ({
+    from: row.from.trim(),
+    to: row.to.trim()
+  }))
+
+const explicitMappings = computed(() =>
+  normalizeMappingRows(props.modelMappings).filter((row) => Boolean(row.from) && Boolean(row.to) && row.from !== row.to)
+)
+
+const lockedRows = computed(() =>
+  props.allowedModels
+    .map((modelId) => modelId.trim())
+    .filter(Boolean)
+    .map((modelId) => ({
+      from: explicitMappings.value.find((row) => row.to === modelId)?.from ?? modelId,
+      to: modelId
+    }))
+)
+
+const visibleRows = computed(() => (actualModelLocked.value ? lockedRows.value : props.modelMappings))
+
 const hasWildcardSourceError = (value: string) => Boolean(value.trim()) && !isValidWildcardPattern(value.trim())
 const hasWildcardTargetError = (value: string) => value.includes('*')
+
+function resolveRowKey(mapping: ModelMapping, index: number) {
+  return actualModelLocked.value ? `selected-${mapping.to || index}` : props.getMappingKey(mapping)
+}
+
+function updateLockedAlias(targetModel: string, value: string) {
+  const nextAlias = value.trim()
+  const nextMappings = explicitMappings.value.filter((row) => row.to !== targetModel)
+  if (nextAlias && nextAlias !== targetModel) {
+    nextMappings.push({ from: nextAlias, to: targetModel })
+  }
+  emit('update:modelMappings', nextMappings)
+}
+
+function removeSelectedModel(targetModel: string) {
+  emit(
+    'update:allowedModels',
+    props.allowedModels.map((item) => item.trim()).filter((item) => item && item !== targetModel)
+  )
+  emit(
+    'update:modelMappings',
+    explicitMappings.value.filter((row) => row.to !== targetModel)
+  )
+}
 </script>

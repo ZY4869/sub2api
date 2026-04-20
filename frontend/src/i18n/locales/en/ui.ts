@@ -53,6 +53,8 @@ export default {
       refresh: 'Refresh Catalog',
       refreshing: 'Refreshing...',
       loadFailed: 'Failed to load the public models catalog',
+      staleNotice: 'Showing the last successful snapshot. Data may not be the latest.',
+      exchangeRateSoftWarning: 'Exchange-rate conversion is temporarily unavailable. Model pricing remains visible.',
       empty: 'No models match the current filters.',
       searchPlaceholder: 'Search display name, model ID, or source ID',
       copySuccess: 'Copied model ID',

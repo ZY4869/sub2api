@@ -53,6 +53,8 @@ export default {
       refresh: '刷新目录',
       refreshing: '刷新中...',
       loadFailed: '加载公开模型目录失败',
+      staleNotice: '当前展示的是最近一次成功快照，数据可能不是最新。',
+      exchangeRateSoftWarning: '汇率换算暂时不可用，模型定价信息仍可查看。',
       empty: '当前筛选条件下没有可展示的模型。',
       searchPlaceholder: '搜索模型名称、模型 ID 或来源 ID',
       copySuccess: '已复制模型 ID：{model}',

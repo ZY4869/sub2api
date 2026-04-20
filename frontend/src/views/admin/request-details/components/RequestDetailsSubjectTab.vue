@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+import { adminAPI } from '@/api/admin'
 import { adminUsageAPI, type AdminUsageQueryParams } from '@/api/admin/usage'
 import {
   opsAPI,
@@ -38,6 +39,12 @@ const usagePageSize = ref(20)
 const loadingInsights = ref(false)
 const loadingUsage = ref(false)
 const queryError = ref('')
+const subjectSearchRef = ref<HTMLElement | null>(null)
+const subjectKeyword = ref('')
+const subjectOptions = ref<Array<{ id: number; label: string }>>([])
+const loadingSubjectOptions = ref(false)
+const showSubjectDropdown = ref(false)
+const cachedGroups = ref<Array<{ id: number; name: string }>>([])
 
 const filters = ref<SubjectFilters>(createInitialFilters())
 
@@ -53,6 +60,18 @@ const timeRangeOptions = [
 ]
 
 const canQuery = computed(() => Number.parseInt(filters.value.subject_id, 10) > 0)
+const subjectPlaceholder = computed(() => {
+  if (filters.value.subject_type === 'group') {
+    return t('admin.groups.searchGroups')
+  }
+  if (filters.value.subject_type === 'api_key') {
+    return t('admin.usage.searchApiKeyPlaceholder')
+  }
+  return t('admin.usage.searchAccountPlaceholder')
+})
+const subjectEmptyMessage = computed(() =>
+  loadingSubjectOptions.value ? t('common.loading') : t('common.noData')
+)
 
 const summaryCards = computed(() => {
   if (!insights.value) return []
@@ -234,6 +253,8 @@ function resetFilters() {
   usageTotal.value = 0
   queryError.value = ''
   usagePage.value = 1
+  resetSubjectSelector()
+  void hydrateSubjectLabel()
 }
 
 async function handlePage(page: number) {
@@ -247,10 +268,164 @@ async function handlePageSize(pageSize: number) {
   await loadUsage()
 }
 
+function formatSubjectOptionLabel(option: { id: number; label: string }) {
+  return `${option.label} · #${option.id}`
+}
+
+function syncSubjectIDFromKeyword() {
+  const trimmed = subjectKeyword.value.trim()
+  filters.value.subject_id = /^\d+$/.test(trimmed) ? trimmed : ''
+}
+
+function resetSubjectSelector() {
+  subjectKeyword.value = ''
+  subjectOptions.value = []
+  showSubjectDropdown.value = false
+}
+
+async function ensureGroupsLoaded() {
+  if (cachedGroups.value.length > 0) {
+    return
+  }
+  const response = await adminAPI.groups.list(1, 1000)
+  cachedGroups.value = (response.items || []).map((group) => ({
+    id: Number(group.id),
+    name: String(group.name || '').trim() || `#${group.id}`
+  }))
+}
+
+async function loadSubjectOptions(keyword = '') {
+  loadingSubjectOptions.value = true
+  try {
+    const trimmed = keyword.trim()
+    if (filters.value.subject_type === 'account') {
+      const response = await adminAPI.accounts.list(1, 20, { search: trimmed })
+      subjectOptions.value = (response.items || []).map((account) => ({
+        id: Number(account.id),
+        label: String(account.name || '').trim() || `#${account.id}`
+      }))
+      return
+    }
+
+    if (filters.value.subject_type === 'group') {
+      await ensureGroupsLoaded()
+      const normalizedKeyword = trimmed.toLowerCase()
+      subjectOptions.value = cachedGroups.value
+        .filter((group) => {
+          if (!normalizedKeyword) {
+            return true
+          }
+          return (
+            group.name.toLowerCase().includes(normalizedKeyword) ||
+            String(group.id).includes(normalizedKeyword)
+          )
+        })
+        .slice(0, 30)
+        .map((group) => ({
+          id: group.id,
+          label: group.name
+        }))
+      return
+    }
+
+    const results = await adminAPI.usage.searchApiKeys(undefined, trimmed)
+    subjectOptions.value = results.map((item) => ({
+      id: Number(item.id),
+      label: String(item.name || '').trim() || `#${item.id}`
+    }))
+  } catch {
+    subjectOptions.value = []
+  } finally {
+    loadingSubjectOptions.value = false
+  }
+}
+
+async function hydrateSubjectLabel() {
+  const subjectID = Number(filters.value.subject_id)
+  if (!Number.isFinite(subjectID) || subjectID <= 0) {
+    subjectKeyword.value = ''
+    return
+  }
+
+  try {
+    if (filters.value.subject_type === 'account') {
+      const account = await adminAPI.accounts.getById(subjectID)
+      subjectKeyword.value = formatSubjectOptionLabel({
+        id: subjectID,
+        label: String(account.name || '').trim() || `#${subjectID}`
+      })
+      return
+    }
+    if (filters.value.subject_type === 'group') {
+      const group = await adminAPI.groups.getById(subjectID)
+      subjectKeyword.value = formatSubjectOptionLabel({
+        id: subjectID,
+        label: String(group.name || '').trim() || `#${subjectID}`
+      })
+      return
+    }
+  } catch {
+    // Fall back to raw IDs when the referenced subject cannot be resolved.
+  }
+
+  subjectKeyword.value = `#${subjectID}`
+}
+
+async function handleSubjectFocus() {
+  showSubjectDropdown.value = true
+  await loadSubjectOptions(subjectKeyword.value)
+}
+
+async function handleSubjectInput() {
+  showSubjectDropdown.value = true
+  syncSubjectIDFromKeyword()
+  await loadSubjectOptions(subjectKeyword.value)
+}
+
+async function selectSubjectOption(option: { id: number; label: string }) {
+  filters.value.subject_id = String(option.id)
+  subjectKeyword.value = formatSubjectOptionLabel(option)
+  showSubjectDropdown.value = false
+  await applyFilters()
+}
+
+function clearSubjectSelection() {
+  filters.value.subject_id = ''
+  subjectKeyword.value = ''
+  subjectOptions.value = []
+  showSubjectDropdown.value = false
+}
+
+function handleDocumentClick(event: MouseEvent) {
+  const target = event.target as Node | null
+  if (!target) {
+    return
+  }
+  if (!(subjectSearchRef.value?.contains(target) ?? false)) {
+    showSubjectDropdown.value = false
+  }
+}
+
+watch(
+  () => filters.value.subject_type,
+  () => {
+    filters.value.subject_id = ''
+    subjectKeyword.value = ''
+    subjectOptions.value = []
+    showSubjectDropdown.value = false
+  }
+)
+
 onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+  void hydrateSubjectLabel()
   if (canQuery.value) {
     void applyFilters()
   }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
 })
 </script>
 
@@ -268,11 +443,53 @@ onMounted(() => {
             <option value="api_key">{{ t('admin.requestDetails.subject.filters.apiKey') }}</option>
           </select>
         </div>
-        <div class="min-w-[180px] flex-1">
+        <div ref="subjectSearchRef" class="relative min-w-[220px] flex-1">
           <div class="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
             {{ t('admin.requestDetails.subject.filters.subjectId') }}
           </div>
-          <input v-model.trim="filters.subject_id" class="input w-full" type="number" min="1" />
+          <input
+            v-model.trim="subjectKeyword"
+            class="input w-full pr-10"
+            type="text"
+            :placeholder="subjectPlaceholder"
+            @focus="handleSubjectFocus"
+            @input="handleSubjectInput"
+          />
+          <button
+            v-if="subjectKeyword || filters.subject_id"
+            type="button"
+            class="absolute right-3 top-[2.55rem] text-sm text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-200"
+            @click="clearSubjectSelection"
+          >
+            ×
+          </button>
+          <div
+            v-if="showSubjectDropdown && (loadingSubjectOptions || subjectOptions.length > 0 || subjectKeyword)"
+            class="absolute z-40 mt-2 max-h-64 w-full overflow-auto rounded-2xl border border-gray-200 bg-white p-2 shadow-xl dark:border-dark-600 dark:bg-dark-800"
+          >
+            <div
+              v-if="loadingSubjectOptions"
+              class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400"
+            >
+              {{ subjectEmptyMessage }}
+            </div>
+            <button
+              v-for="option in subjectOptions"
+              :key="`${filters.subject_type}-${option.id}`"
+              type="button"
+              class="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-dark-700"
+              @click="selectSubjectOption(option)"
+            >
+              <span class="truncate">{{ option.label }}</span>
+              <span class="shrink-0 text-xs text-gray-400">#{{ option.id }}</span>
+            </button>
+            <div
+              v-if="!loadingSubjectOptions && subjectOptions.length === 0"
+              class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400"
+            >
+              {{ subjectEmptyMessage }}
+            </div>
+          </div>
         </div>
         <div class="min-w-[180px] flex-1">
           <div class="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">

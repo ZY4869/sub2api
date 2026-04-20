@@ -123,6 +123,9 @@ function shouldFallbackToActiveAnthropicUsage(
 }
 
 export function canAccountFetchUsage(account: Account): boolean {
+  if (account.platform === 'protocol_gateway') {
+    return false
+  }
   const runtimePlatform = getRuntimePlatform(account)
   if (runtimePlatform === 'anthropic' || runtimePlatform === 'kiro') {
     return account.type === 'oauth' || account.type === 'setup-token'
@@ -247,24 +250,6 @@ function buildProgressRow(
 
 function buildRows(...rows: Array<AccountUsagePresentationRow | null>): AccountUsagePresentationRow[] {
   return rows.filter((row): row is AccountUsagePresentationRow => row !== null)
-}
-
-function pickHighestUtilizationProgress(
-  progressEntries: Array<{ progress: UsageProgress | null | undefined; color: AccountUsageRowColor }>
-): { progress: UsageProgress; color: AccountUsageRowColor } | null {
-  let picked: { progress: UsageProgress; color: AccountUsageRowColor } | null = null
-
-  for (const entry of progressEntries) {
-    if (!entry.progress) continue
-    if (!picked || entry.progress.utilization > picked.progress.utilization) {
-      picked = {
-        progress: entry.progress,
-        color: entry.color,
-      }
-    }
-  }
-
-  return picked
 }
 
 function findRowByKey(
@@ -877,38 +862,6 @@ export function useAccountUsagePresentation(
     return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
   })
 
-  const protocolGatewayRows = computed(() => {
-    if (!isProtocolGatewayGeminiAccount.value || !usageInfo.value) return []
-
-    if (usageInfo.value.gemini_shared_daily) {
-      return buildRows(
-        buildProgressRow(
-          'protocol-gateway-shared-daily',
-          resolveUsageWindowLabel('1d', t),
-          usageInfo.value.gemini_shared_daily,
-          'indigo',
-        ),
-      )
-    }
-
-    const tightestWindow = pickHighestUtilizationProgress([
-      { progress: usageInfo.value.gemini_pro_daily, color: 'indigo' },
-      { progress: usageInfo.value.gemini_flash_daily, color: 'emerald' },
-    ])
-    if (!tightestWindow) {
-      return []
-    }
-
-    return buildRows(
-      buildProgressRow(
-        'protocol-gateway-tightest-daily',
-        resolveUsageWindowLabel('1d', t),
-        tightestWindow.progress,
-        tightestWindow.color,
-      ),
-    )
-  })
-
   const geminiRows = computed(() => {
     if (getRuntimePlatform(account.value) !== 'gemini' || !usageInfo.value) return []
 
@@ -1164,20 +1117,7 @@ export function useAccountUsagePresentation(
     } else if (isProtocolGatewayGeminiAccount.value) {
       meta.protocolGatewayBadgeLabel = protocolGatewayBadgeLabel.value
       meta.protocolGatewayBadgeClass = protocolGatewayBadgeClass.value
-
-      if (currentState.loading) {
-        state = 'loading'
-      } else if (currentState.error) {
-        state = 'error'
-      } else if (protocolGatewayRows.value.length > 0) {
-        state = 'bars'
-        windowRows = protocolGatewayRows.value
-        if (!usageInfo.value?.gemini_shared_daily) {
-          meta.noteText = t('admin.accounts.protocolGateway.usageWindow.tightestWindowNote')
-        }
-      } else {
-        state = 'unlimited'
-      }
+      state = 'unlimited'
     } else if (getRuntimePlatform(account.value) === 'gemini') {
       meta.geminiAuthTypeLabel = geminiAuthTypeLabel.value
       meta.geminiTierClass = geminiTierClass.value

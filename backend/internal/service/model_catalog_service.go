@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -20,6 +21,10 @@ type ModelCatalogService struct {
 	modelRegistryService *ModelRegistryService
 	gatewayService       *GatewayService
 	docsService          *APIDocsService
+	publicCatalogCacheMu sync.RWMutex
+	publicCatalogCache   *PublicModelCatalogSnapshot
+	publicCatalogBuiltAt time.Time
+	publicCatalogTTL     time.Duration
 	cfg                  *config.Config
 }
 
@@ -36,6 +41,7 @@ func NewModelCatalogService(
 		billingService:      billingService,
 		pricingService:      pricingService,
 		exchangeRateService: newModelCatalogExchangeRateService(nil),
+		publicCatalogTTL:    60 * time.Second,
 		cfg:                 cfg,
 	}
 	service.billingCenterService = NewBillingCenterService(settingRepo, billingService)

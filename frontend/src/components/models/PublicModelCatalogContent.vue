@@ -37,6 +37,20 @@
       {{ errorMessage }}
     </div>
 
+    <div
+      v-if="softNotice"
+      class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+    >
+      {{ softNotice }}
+    </div>
+
+    <div
+      v-if="exchangeRateNotice"
+      class="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
+    >
+      {{ exchangeRateNotice }}
+    </div>
+
     <section class="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/80">
       <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <label class="relative block w-full xl:max-w-xl">
@@ -399,20 +413,19 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { storeToRefs } from 'pinia'
 import { useI18n } from "vue-i18n";
 import {
-  getModelCatalog,
-  getUSDCNYExchangeRate,
   type PublicModelCatalogItem,
   type PublicModelCatalogMultiplierSummary,
   type PublicModelCatalogPriceEntry,
-  type PublicModelCatalogSnapshot,
 } from "@/api/meta";
 import ModelIcon from "@/components/common/ModelIcon.vue";
 import ModelPlatformIcon from "@/components/common/ModelPlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import PublicModelCatalogDetailDialog from "@/components/models/PublicModelCatalogDetailDialog.vue";
 import { useAppStore } from "@/stores/app";
+import { usePublicModelCatalogStore } from '@/stores/publicModelCatalog'
 import { formatProviderLabel, normalizeProviderSlug } from "@/utils/providerLabels";
 import {
   formatCatalogPrice as renderCatalogPrice,
@@ -441,6 +454,15 @@ const PUBLIC_MODEL_CATALOG_VIEW_MODE_KEY = "public-model-catalog:view-mode";
 
 const { t } = useI18n();
 const appStore = useAppStore();
+const catalogStore = usePublicModelCatalogStore()
+const {
+  snapshot: catalog,
+  loading,
+  hardError,
+  softStale,
+  exchangeRateWarning,
+  usdToCnyRate
+} = storeToRefs(catalogStore)
 
 const activeFilterClass =
   "border-primary-300 bg-primary-50 text-primary-900 shadow-sm ring-2 ring-primary-400/25 dark:border-primary-500/60 dark:bg-primary-500/10 dark:text-primary-100";
@@ -451,11 +473,6 @@ const activeToggleClass =
 const inactiveToggleClass =
   "text-slate-500 hover:text-primary-600 dark:text-slate-300 dark:hover:text-primary-200";
 
-const loading = ref(false);
-const errorMessage = ref("");
-const etag = ref<string | null>(null);
-const catalog = ref<PublicModelCatalogSnapshot | null>(null);
-const usdToCnyRate = ref<number | null>(null);
 const showDetailDialog = ref(false);
 const selectedItem = ref<PublicModelCatalogItem | null>(null);
 
@@ -468,6 +485,12 @@ const viewMode = ref<CatalogViewMode>("grid");
 const modelCountLabel = computed(() =>
   t("ui.modelCatalog.modelCount", { count: catalog.value?.items.length || 0 }),
 );
+
+const errorMessage = computed(() => hardError.value)
+const softNotice = computed(() => (softStale.value ? t('ui.modelCatalog.staleNotice') : ''))
+const exchangeRateNotice = computed(() =>
+  exchangeRateWarning.value ? t('ui.modelCatalog.exchangeRateSoftWarning') : ''
+)
 
 const providerOptions = computed<CatalogFilterOption[]>(() => {
   const seen = new Map<string, CatalogFilterOption>();
@@ -599,30 +622,15 @@ watch(viewMode, (nextMode) => {
 
 onMounted(() => {
   hydrateViewMode();
-  loadCatalog().catch(() => undefined);
+  void catalogStore.initialize();
 });
 
 async function loadCatalog(force = false) {
-  loading.value = true;
-  errorMessage.value = "";
-  try {
-    const response = await getModelCatalog(force ? null : etag.value);
-    if (!response.notModified && response.data) {
-      catalog.value = response.data;
-    }
-    etag.value = response.etag;
-    if ((catalog.value?.items || []).some((item) => item.currency === "CNY")) {
-      const rate = await getUSDCNYExchangeRate();
-      usdToCnyRate.value = rate.rate;
-    }
-  } catch (error) {
-    errorMessage.value = resolveErrorMessage(
-      error,
-      t("ui.modelCatalog.loadFailed"),
-    );
-  } finally {
-    loading.value = false;
+  if (force) {
+    await catalogStore.refresh()
+    return
   }
+  await catalogStore.fetchCatalog(false)
 }
 
 function hydrateViewMode() {
@@ -773,17 +781,6 @@ function formatNumber(value: number): string {
   }).format(value);
 }
 
-function resolveErrorMessage(error: unknown, fallback: string): string {
-  if (
-    typeof error === "object" &&
-    error &&
-    "message" in error &&
-    typeof (error as { message?: unknown }).message === "string"
-  ) {
-    return String((error as { message: string }).message);
-  }
-  return fallback;
-}
 </script>
 
 <style scoped>

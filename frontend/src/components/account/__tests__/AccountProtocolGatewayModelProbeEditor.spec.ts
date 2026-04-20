@@ -288,7 +288,7 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
     expect(wrapper.emitted('update:gatewayTestModelId')?.at(-1)?.[0]).toBe('')
   })
 
-  it('normalizes identity mappings into selected models without keeping fake manual rows', async () => {
+  it('normalizes identity mappings into selected models without rendering inline alias inputs', async () => {
     const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
       props: {
         gatewayProtocol: 'openai',
@@ -317,17 +317,19 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
 
     await flushPromises()
 
-    expect((wrapper.find('input[placeholder="gpt-4.1"]').element as HTMLInputElement).value).toBe('gpt-4.1')
+    expect(wrapper.find('input[placeholder="gpt-4.1"]').exists()).toBe(false)
+    expect(wrapper.find('button[title="gpt-4.1"]').exists()).toBe(true)
+    expect(wrapper.emitted('update:modelMappings')?.at(-1)?.[0]).toBeUndefined()
   })
 
-  it('supports editing request model aliases and removes mappings when the alias matches the target model', async () => {
+  it('removes selected models and explicit aliases together when a selected card is deselected', async () => {
     const wrapper = mount(AccountProtocolGatewayModelProbeEditor, {
       props: {
         gatewayProtocol: 'openai',
         baseUrl: 'https://gateway.example.com',
         apiKey: 'sk-test',
         allowedModels: ['gpt-4.1'],
-        modelMappings: [],
+        modelMappings: [{ from: 'friendly-gateway-model', to: 'gpt-4.1' }],
         manualModels: [],
         resolvedUpstream: null,
         probedModels: [
@@ -346,17 +348,6 @@ describe('AccountProtocolGatewayModelProbeEditor', () => {
         stubs: iconStubs
       }
     })
-
-    const aliasInput = wrapper.find('input[placeholder="gpt-4.1"]')
-    expect(aliasInput.exists()).toBe(true)
-
-    await aliasInput.setValue('中文别名')
-    let mappingEvents = wrapper.emitted('update:modelMappings') || []
-    expect(mappingEvents.at(-1)?.[0]).toEqual([{ from: '中文别名', to: 'gpt-4.1' }])
-
-    await aliasInput.setValue('')
-    mappingEvents = wrapper.emitted('update:modelMappings') || []
-    expect(mappingEvents.at(-1)?.[0]).toEqual([])
 
     const modelCard = wrapper.find('button[title="gpt-4.1"]')
     await modelCard.trigger('click')
