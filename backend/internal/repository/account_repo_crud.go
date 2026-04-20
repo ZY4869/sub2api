@@ -374,7 +374,7 @@ func (r *accountRepository) ListActive(ctx context.Context) ([]service.Account, 
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) ListByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate()).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platformFilterValues(platform)...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate()).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

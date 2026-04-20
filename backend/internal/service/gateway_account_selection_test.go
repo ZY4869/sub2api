@@ -31,6 +31,18 @@ func makeAccWithLoad(id int64, priority int, loadRate int, lastUsed *time.Time, 
 	}
 }
 
+func makePressureAccount(id int64, priority int, lastUsed *time.Time) *Account {
+	return &Account{
+		ID:          id,
+		Priority:    priority,
+		LastUsedAt:  lastUsed,
+		Type:        AccountTypeAPIKey,
+		Schedulable: true,
+		Status:      StatusActive,
+		Extra:       map[string]any{},
+	}
+}
+
 // --- sortAccountsByPriorityAndLastUsed ---
 
 func TestSortAccountsByPriorityAndLastUsed_ByPriority(t *testing.T) {
@@ -109,6 +121,78 @@ func TestSortAccountsByPriorityAndLastUsed_MixedPriorityAndTime(t *testing.T) {
 	// 优先级2排后：nil < time
 	require.Equal(t, int64(1), accounts[2].ID, "优先级2 + nil")
 	require.Equal(t, int64(4), accounts[3].ID, "优先级2 + 有时间")
+}
+
+func TestCompareAccountUsagePressure_Prefers5hOver7d(t *testing.T) {
+	now := time.Now()
+	fiveHourReset := now.Add(90 * time.Minute)
+	sevenDayReset := now.Add(24 * time.Hour)
+	left := makePressureAccount(1, 1, nil)
+	left.Extra["session_window_utilization"] = 0.62
+	left.SessionWindowEnd = &fiveHourReset
+	right := makePressureAccount(2, 1, nil)
+	right.Extra["passive_usage_7d_utilization"] = 0.98
+	right.Extra["passive_usage_7d_reset"] = float64(sevenDayReset.Unix())
+
+	require.Less(t, compareAccountUsagePressure(left, right, now), 0)
+	require.Greater(t, compareAccountUsagePressure(right, left, now), 0)
+}
+
+func TestCompareAccountUsagePressure_PrefersHigherUtilizationWithinSameWindow(t *testing.T) {
+	now := time.Now()
+	resetAt := now.Add(2 * time.Hour)
+	left := makePressureAccount(1, 1, nil)
+	left.Extra["session_window_utilization"] = 0.81
+	left.SessionWindowEnd = &resetAt
+	right := makePressureAccount(2, 1, nil)
+	right.Extra["session_window_utilization"] = 0.54
+	right.SessionWindowEnd = &resetAt
+
+	require.Less(t, compareAccountUsagePressure(left, right, now), 0)
+}
+
+func TestCompareAccountUsagePressure_PrefersNearerResetWhenUtilizationEqual(t *testing.T) {
+	now := time.Now()
+	earlierReset := now.Add(40 * time.Minute)
+	laterReset := now.Add(80 * time.Minute)
+	left := makePressureAccount(1, 1, nil)
+	left.Extra["session_window_utilization"] = 0.75
+	left.SessionWindowEnd = &earlierReset
+	right := makePressureAccount(2, 1, nil)
+	right.Extra["session_window_utilization"] = 0.75
+	right.SessionWindowEnd = &laterReset
+
+	require.Less(t, compareAccountUsagePressure(left, right, now), 0)
+}
+
+func TestCompareAccountUsagePressure_MissingSnapshotStaysTied(t *testing.T) {
+	now := time.Now()
+	resetAt := now.Add(2 * time.Hour)
+	left := makePressureAccount(1, 1, nil)
+	left.Extra["session_window_utilization"] = 0.9
+	left.SessionWindowEnd = &resetAt
+	right := makePressureAccount(2, 1, nil)
+
+	require.Equal(t, 0, compareAccountUsagePressure(left, right, now))
+	require.Equal(t, 0, compareAccountUsagePressure(right, left, now))
+}
+
+func TestSortAccountsByPriorityAndLastUsed_PrefersPressureBeforeLastUsed(t *testing.T) {
+	now := time.Now()
+	older := now.Add(-2 * time.Hour)
+	newer := now.Add(-10 * time.Minute)
+	fiveHourReset := now.Add(50 * time.Minute)
+	sevenDayReset := now.Add(48 * time.Hour)
+	fiveHour := makePressureAccount(1, 1, &newer)
+	fiveHour.Extra["session_window_utilization"] = 0.51
+	fiveHour.SessionWindowEnd = &fiveHourReset
+	sevenDay := makePressureAccount(2, 1, &older)
+	sevenDay.Extra["passive_usage_7d_utilization"] = 0.99
+	sevenDay.Extra["passive_usage_7d_reset"] = float64(sevenDayReset.Unix())
+
+	accounts := []*Account{sevenDay, fiveHour}
+	sortAccountsByPriorityAndLastUsed(accounts, false)
+	require.Equal(t, int64(1), accounts[0].ID)
 }
 
 // --- filterByMinPriority ---

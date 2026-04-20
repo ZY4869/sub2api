@@ -25,40 +25,11 @@
         </div>
       </div>
 
-      <div class="mt-5 rounded-3xl border border-gray-200 bg-gray-50/80 p-4 dark:border-dark-700 dark:bg-dark-900/60">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div class="text-sm font-semibold text-gray-900 dark:text-white">计费审计</div>
-            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              当前模型目录 {{ audit?.total_models || 0 }} 个模型，最近快照：{{ snapshotUpdatedAtLabel }}
-            </div>
-          </div>
-          <div
-            v-if="audit?.refresh_required"
-            class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-          >
-            需要刷新计费快照
-          </div>
-        </div>
-
-        <div v-if="auditLoading" class="mt-4 text-sm text-gray-500 dark:text-gray-400">
-          正在加载审计结果...
-        </div>
-        <div v-else class="mt-4 grid gap-3 md:grid-cols-4">
-          <div
-            v-for="stat in auditStats"
-            :key="stat.key"
-            class="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800"
-          >
-            <div class="text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-              {{ stat.label }}
-            </div>
-            <div class="mt-2 text-2xl font-semibold" :class="stat.tone">
-              {{ stat.value }}
-            </div>
-          </div>
-        </div>
-      </div>
+      <BillingPricingAuditPanel
+        :audit="audit"
+        :loading="auditLoading"
+        :snapshot-updated-at-label="snapshotUpdatedAtLabel"
+      />
 
       <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1.5fr)_220px_220px_220px]">
         <input
@@ -149,6 +120,7 @@ import {
   type BillingPricingSortOrder,
   type BillingPricingSheetDetail,
 } from '@/api/admin/billing'
+import BillingPricingAuditPanel from '@/components/admin/billing/BillingPricingAuditPanel.vue'
 import BillingPricingEditorDialog from '@/components/admin/billing/BillingPricingEditorDialog.vue'
 import BillingPricingModeToggle from '@/components/admin/billing/BillingPricingModeToggle.vue'
 import BillingPricingModelList from '@/components/admin/billing/BillingPricingModelList.vue'
@@ -221,36 +193,6 @@ onMounted(async () => {
   await guardedLoad(async () => {
     await Promise.all([billingPricingStore.loadProviders(), billingPricingStore.loadModels(), loadAudit()])
   })
-})
-
-const auditStats = computed(() => {
-  const current = audit.value
-  return [
-    {
-      key: 'duplicate',
-      label: '主 ID 重复',
-      value: current?.duplicate_model_ids.length || 0,
-      tone: (current?.duplicate_model_ids.length || 0) > 0 ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-600 dark:text-emerald-300',
-    },
-    {
-      key: 'collision',
-      label: '辅助标识碰撞',
-      value: current?.aux_identifier_collisions.length || 0,
-      tone: (current?.aux_identifier_collisions.length || 0) > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300',
-    },
-    {
-      key: 'gap',
-      label: '计费快照缺口',
-      value: current?.missing_in_snapshot_count || 0,
-      tone: (current?.missing_in_snapshot_count || 0) > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-300',
-    },
-    {
-      key: 'snapshot-only',
-      label: '仅快照模型',
-      value: current?.snapshot_only_count || 0,
-      tone: (current?.snapshot_only_count || 0) > 0 ? 'text-gray-700 dark:text-gray-200' : 'text-emerald-600 dark:text-emerald-300',
-    },
-  ]
 })
 
 const snapshotUpdatedAtLabel = computed(() => {

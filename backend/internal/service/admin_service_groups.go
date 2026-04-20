@@ -31,7 +31,7 @@ func (s *adminServiceImpl) GetGroupByName(ctx context.Context, name string) (*Gr
 	return s.groupRepo.GetByName(ctx, name)
 }
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
-	platform := input.Platform
+	platform := CanonicalizePlatformValue(input.Platform)
 	if platform == "" {
 		platform = PlatformAnthropic
 	}
@@ -173,6 +173,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	if err != nil {
 		return nil, err
 	}
+	group.Platform = CanonicalizePlatformValue(group.Platform)
 	if input.Name != "" {
 		group.Name = input.Name
 	}
@@ -180,7 +181,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		group.Description = input.Description
 	}
 	if input.Platform != "" {
-		group.Platform = input.Platform
+		group.Platform = CanonicalizePlatformValue(input.Platform)
 	}
 	if input.Priority != nil && *input.Priority > 0 {
 		group.Priority = *input.Priority

@@ -57,6 +57,8 @@ function createDetail(overrides: Partial<BillingPricingSheetDetail> = {}): Billi
     provider: 'openai',
     mode: 'chat',
     currency: 'USD',
+    pricing_status: 'ok',
+    pricing_warnings: [],
     input_supported: true,
     output_charge_slot: 'text_output',
     supports_prompt_caching: true,
@@ -305,6 +307,19 @@ describe('BillingPricingEditorDialog', () => {
     expect(wrapper.find('[data-testid="pricing-currency-alert"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="save-layer-official"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="save-layer-sale"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('shows conflict badges and audit warnings for non-ok models', () => {
+    const wrapper = mountDialog([
+      createDetail({
+        pricing_status: 'conflict',
+        pricing_warnings: ['aliases identifier "gpt-5.4" collides with 2 models'],
+      }),
+    ])
+
+    expect(wrapper.text()).toContain('冲突')
+    expect(wrapper.text()).toContain('当前模型定价审计存在提示')
+    expect(wrapper.text()).toContain('collides with 2 models')
   })
 
   it('emits workset discount payloads with selected sale field ids', async () => {

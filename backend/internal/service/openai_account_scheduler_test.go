@@ -665,15 +665,52 @@ func TestSelectTopKOpenAICandidates(t *testing.T) {
 
 	top2 := selectTopKOpenAICandidates(candidates, 2)
 	require.Len(t, top2, 2)
-	require.Equal(t, int64(13), top2[0].account.ID)
-	require.Equal(t, int64(11), top2[1].account.ID)
+	require.Equal(t, int64(14), top2[0].account.ID)
+	require.Equal(t, int64(13), top2[1].account.ID)
 
 	topAll := selectTopKOpenAICandidates(candidates, 8)
 	require.Len(t, topAll, len(candidates))
-	require.Equal(t, int64(13), topAll[0].account.ID)
-	require.Equal(t, int64(11), topAll[1].account.ID)
+	require.Equal(t, int64(14), topAll[0].account.ID)
+	require.Equal(t, int64(13), topAll[1].account.ID)
 	require.Equal(t, int64(12), topAll[2].account.ID)
-	require.Equal(t, int64(14), topAll[3].account.ID)
+	require.Equal(t, int64(11), topAll[3].account.ID)
+}
+
+func TestIsOpenAIAccountCandidateBetter_PrefersUsagePressureBeforeScore(t *testing.T) {
+	now := time.Now()
+	fiveHourReset := now.Add(45 * time.Minute)
+	sevenDayReset := now.Add(36 * time.Hour)
+	fiveHourAccount := &Account{
+		ID:       2001,
+		Priority: 0,
+		Extra: map[string]any{
+			"codex_5h_used_percent": 41.0,
+			"codex_5h_reset_at":     fiveHourReset.UTC().Format(time.RFC3339),
+		},
+	}
+	sevenDayAccount := &Account{
+		ID:       2002,
+		Priority: 0,
+		Extra: map[string]any{
+			"codex_7d_used_percent": 95.0,
+			"codex_7d_reset_at":     sevenDayReset.UTC().Format(time.RFC3339),
+		},
+	}
+
+	require.True(t, isOpenAIAccountCandidateBetter(
+		openAIAccountCandidateScore{
+			account:  fiveHourAccount,
+			loadInfo: &AccountLoadInfo{LoadRate: 80, WaitingCount: 2},
+			pressure: buildAccountUsagePressure(fiveHourAccount, now),
+			score:    0.2,
+		},
+		openAIAccountCandidateScore{
+			account:  sevenDayAccount,
+			loadInfo: &AccountLoadInfo{LoadRate: 5, WaitingCount: 0},
+			pressure: buildAccountUsagePressure(sevenDayAccount, now),
+			score:    0.9,
+		},
+	))
 }
 
 func TestBuildOpenAIWeightedSelectionOrder_DeterministicBySessionSeed(t *testing.T) {

@@ -51,6 +51,8 @@ function createListItem(overrides: Record<string, unknown> = {}) {
     price_item_count: 4,
     official_count: 2,
     sale_count: 1,
+    pricing_status: 'ok',
+    pricing_warnings: [],
     capabilities: {
       supports_tiered_pricing: true,
       supports_batch_pricing: true,
@@ -85,6 +87,8 @@ function createDetail() {
     provider: 'openai',
     mode: 'chat',
     currency: 'USD',
+    pricing_status: 'ok',
+    pricing_warnings: [],
     input_supported: true,
     output_charge_slot: 'text_output',
     supports_prompt_caching: true,
@@ -159,6 +163,7 @@ function mountView() {
             </div>
           `,
         },
+        ModelIcon: true,
         ModelPlatformIcon: true,
       },
     },
@@ -184,11 +189,43 @@ describe('BillingPricingView', () => {
     }))
     apiMocks.getBillingPricingAudit.mockResolvedValue({
       total_models: 12,
+      pricing_status_counts: {
+        ok: 8,
+        fallback: 1,
+        conflict: 1,
+        missing: 2,
+      },
       duplicate_model_ids: [],
       aux_identifier_collisions: [{ source: 'aliases', identifier: 'gpt-5', models: ['gpt-5.4', 'gpt-5.4-mini'], count: 2 }],
+      collision_counts_by_source: {
+        aliases: 1,
+        protocol_ids: 0,
+        pricing_lookup_ids: 2,
+      },
+      provider_issue_counts: [
+        { provider: 'openai', total: 2, fallback: 1, conflict: 1, missing: 0 },
+        { provider: 'gemini', total: 1, fallback: 0, conflict: 0, missing: 1 },
+      ],
+      pricing_issue_examples: [
+        {
+          model: 'gpt-5.4-mini',
+          display_name: 'GPT-5.4 Mini',
+          provider: 'openai',
+          pricing_status: 'conflict',
+          first_warning: 'aliases identifier "gpt-5" collides with 2 models',
+        },
+        {
+          model: 'gemini-3.1-flash-image',
+          display_name: 'Gemini 3.1 Flash Image',
+          provider: 'gemini',
+          pricing_status: 'missing',
+          first_warning: 'No stable upstream pricing source found.',
+        },
+      ],
       missing_in_snapshot_count: 1,
       missing_in_snapshot_models: ['gpt-5.4'],
       snapshot_only_count: 0,
+      snapshot_only_models: [],
       refresh_required: true,
       snapshot_updated_at: '2026-04-16T00:00:00Z',
     })
@@ -216,7 +253,10 @@ describe('BillingPricingView', () => {
     }))
     expect(apiMocks.getBillingPricingAudit).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('计费审计')
-    expect(wrapper.text()).toContain('辅助标识碰撞')
+    expect(wrapper.text()).toContain('状态分布')
+    expect(wrapper.text()).toContain('供应商问题榜')
+    expect(wrapper.text()).toContain('重点问题模型')
+    expect(wrapper.text()).toContain('GPT-5.4 Mini')
     expect(wrapper.text()).toContain('1')
   })
 
@@ -286,6 +326,26 @@ describe('BillingPricingView', () => {
     await flushPromises()
 
     expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['gpt-5.4'])
+  })
+
+  it('renders missing pricing badges and warnings in list mode', async () => {
+    apiMocks.listBillingPricingModels.mockResolvedValueOnce({
+      items: [
+        createListItem({
+          pricing_status: 'missing',
+          pricing_warnings: ['No stable upstream pricing source found.'],
+        }),
+      ],
+      total: 1,
+      page: 1,
+      page_size: 20,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('缺价')
+    expect(wrapper.text()).toContain('No stable upstream pricing source found.')
   })
 
   it('refreshes the persisted catalog and reloads the current filters', async () => {

@@ -4,6 +4,7 @@ import "time"
 
 type BillingPriceItemMode string
 type BillingPricingMultiplierMode string
+type BillingPricingStatus string
 
 const (
 	BillingPriceItemModeBase         BillingPriceItemMode         = "base"
@@ -13,6 +14,10 @@ const (
 	BillingPriceItemModeProviderRule BillingPriceItemMode         = "provider_special"
 	BillingPricingMultiplierShared   BillingPricingMultiplierMode = "shared"
 	BillingPricingMultiplierItem     BillingPricingMultiplierMode = "item"
+	BillingPricingStatusOK           BillingPricingStatus         = "ok"
+	BillingPricingStatusFallback     BillingPricingStatus         = "fallback"
+	BillingPricingStatusConflict     BillingPricingStatus         = "conflict"
+	BillingPricingStatusMissing      BillingPricingStatus         = "missing"
 	billingPricingRuleIDPrefix                                    = "pricing_item"
 )
 
@@ -90,6 +95,8 @@ type BillingPricingListItem struct {
 	PriceItemCount int                        `json:"price_item_count"`
 	OfficialCount  int                        `json:"official_count"`
 	SaleCount      int                        `json:"sale_count"`
+	PricingStatus  BillingPricingStatus       `json:"pricing_status"`
+	PricingWarnings []string                  `json:"pricing_warnings,omitempty"`
 	Capabilities   BillingPricingCapabilities `json:"capabilities"`
 }
 
@@ -114,6 +121,8 @@ type BillingPricingSheetDetail struct {
 	LongContextInputCostMultiplier  float64                    `json:"long_context_input_cost_multiplier,omitempty"`
 	LongContextOutputCostMultiplier float64                    `json:"long_context_output_cost_multiplier,omitempty"`
 	Currency                        string                     `json:"currency"`
+	PricingStatus                   BillingPricingStatus       `json:"pricing_status"`
+	PricingWarnings                 []string                   `json:"pricing_warnings,omitempty"`
 	Capabilities                    BillingPricingCapabilities `json:"capabilities"`
 	OfficialForm                    BillingPricingLayerForm    `json:"official_form"`
 	SaleForm                        BillingPricingLayerForm    `json:"sale_form"`

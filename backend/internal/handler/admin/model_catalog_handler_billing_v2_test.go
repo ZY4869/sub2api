@@ -23,6 +23,7 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	router.GET("/api/v1/admin/billing/pricing/models", handler.ListBillingPricingModels)
 	router.POST("/api/v1/admin/billing/pricing/details", handler.GetBillingPricingDetails)
 	router.POST("/api/v1/admin/billing/pricing/refresh", handler.RefreshBillingPricingCatalog)
+	router.GET("/api/v1/admin/billing/pricing/audit", handler.GetBillingPricingAudit)
 	router.PUT("/api/v1/admin/billing/pricing/models/:model/layers/:layer", handler.SaveBillingPricingLayer)
 	router.POST("/api/v1/admin/billing/pricing/sale/copy-from-official", handler.CopyBillingPricingOfficialToSale)
 	router.POST("/api/v1/admin/billing/pricing/sale/apply-discount", handler.ApplyBillingPricingSaleDiscount)
@@ -73,6 +74,22 @@ func TestModelCatalogHandler_BillingPricingV2Endpoints(t *testing.T) {
 	require.Zero(t, refreshResp.Code)
 	require.GreaterOrEqual(t, refreshResp.Data.TotalModels, 2)
 	require.GreaterOrEqual(t, refreshResp.Data.ProviderCount, 2)
+
+	auditRec := httptest.NewRecorder()
+	auditReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/billing/pricing/audit", nil)
+	router.ServeHTTP(auditRec, auditReq)
+	require.Equal(t, http.StatusOK, auditRec.Code)
+
+	var auditResp struct {
+		Code int                         `json:"code"`
+		Data service.BillingPricingAudit `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(auditRec.Body.Bytes(), &auditResp))
+	require.Zero(t, auditResp.Code)
+	require.Greater(t, auditResp.Data.TotalModels, 0)
+	require.Equal(t, auditResp.Data.TotalModels, auditResp.Data.PricingStatusCounts.OK+auditResp.Data.PricingStatusCounts.Fallback+auditResp.Data.PricingStatusCounts.Conflict+auditResp.Data.PricingStatusCounts.Missing)
+	require.NotNil(t, auditResp.Data.ProviderIssueCounts)
+	require.NotNil(t, auditResp.Data.PricingIssueExamples)
 
 	detailsRec := httptest.NewRecorder()
 	detailsReq := httptest.NewRequest(http.MethodPost, "/api/v1/admin/billing/pricing/details", mustJSONBody(t, map[string]any{

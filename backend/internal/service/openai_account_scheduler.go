@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"hash/fnv"
+	"log/slog"
 	"math"
 	"sort"
 	"strconv"
@@ -372,6 +373,7 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 type openAIAccountCandidateScore struct {
 	account   *Account
 	loadInfo  *AccountLoadInfo
+	pressure  *accountUsagePressure
 	score     float64
 	errorRate float64
 	ttft      float64
@@ -410,11 +412,14 @@ func (h *openAIAccountCandidateHeap) Pop() any {
 }
 
 func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right openAIAccountCandidateScore) bool {
-	if left.score != right.score {
-		return left.score > right.score
-	}
 	if left.account.Priority != right.account.Priority {
 		return left.account.Priority < right.account.Priority
+	}
+	if pressureCmp := compareResolvedAccountUsagePressure(left.pressure, right.pressure); pressureCmp != 0 {
+		return pressureCmp < 0
+	}
+	if left.score != right.score {
+		return left.score > right.score
 	}
 	if left.loadInfo.LoadRate != right.loadInfo.LoadRate {
 		return left.loadInfo.LoadRate < right.loadInfo.LoadRate
@@ -623,6 +628,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	loadRateSumSquares := 0.0
 	minTTFT, maxTTFT := 0.0, 0.0
 	hasTTFTSample := false
+	now := time.Now()
 	candidates := make([]openAIAccountCandidateScore, 0, len(filtered))
 	for _, account := range filtered {
 		loadInfo := loadMap[account.ID]
@@ -658,6 +664,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		candidates = append(candidates, openAIAccountCandidateScore{
 			account:   account,
 			loadInfo:  loadInfo,
+			pressure:  buildAccountUsagePressure(account, now),
 			errorRate: errorRate,
 			ttft:      ttft,
 			hasTTFT:   hasTTFT,
@@ -721,6 +728,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			return nil, len(candidates), topK, loadSkew, acquireErr
 		}
 		if result != nil && result.Acquired {
+			s.logLoadBalanceSelection("acquired", req, candidate, len(candidates), topK, loadSkew)
 			if req.SessionHash != "" {
 				_ = s.service.BindStickySession(ctx, req.GroupID, req.SessionHash, fresh.ID)
 			}
@@ -752,6 +760,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
 			continue
 		}
+		s.logLoadBalanceSelection("wait", req, candidate, len(candidates), topK, loadSkew)
 		return &AccountSelectionResult{
 			Account: fresh,
 			WaitPlan: &AccountWaitPlan{
@@ -764,6 +773,39 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	}
 
 	return nil, len(candidates), topK, loadSkew, ErrNoAvailableAccounts
+}
+
+func (s *defaultOpenAIAccountScheduler) logLoadBalanceSelection(
+	phase string,
+	req OpenAIAccountScheduleRequest,
+	candidate openAIAccountCandidateScore,
+	candidateCount int,
+	topK int,
+	loadSkew float64,
+) {
+	if candidate.account == nil {
+		return
+	}
+	window, utilization, resetAt := accountUsagePressureLogValues(candidate.pressure)
+	slog.Debug(
+		"openai_ws_account_scheduler_selection",
+		"phase", phase,
+		"group_id", derefGroupID(req.GroupID),
+		"model", req.RequestedModel,
+		"session", shortSessionHash(req.SessionHash),
+		"account_id", candidate.account.ID,
+		"account_type", candidate.account.Type,
+		"priority", candidate.account.Priority,
+		"candidate_count", candidateCount,
+		"top_k", topK,
+		"load_skew", loadSkew,
+		"score", candidate.score,
+		"load_rate", candidate.loadInfo.LoadRate,
+		"waiting_count", candidate.loadInfo.WaitingCount,
+		"pressure_window", window,
+		"pressure_utilization", utilization,
+		"pressure_reset_at", resetAt,
+	)
 }
 
 func (s *defaultOpenAIAccountScheduler) isAccountTransportCompatible(account *Account, requiredTransport OpenAIUpstreamTransport) bool {

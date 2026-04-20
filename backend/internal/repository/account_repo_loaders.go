@@ -164,7 +164,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		ID:                      m.ID,
 		Name:                    m.Name,
 		Notes:                   m.Notes,
-		Platform:                m.Platform,
+		Platform:                service.CanonicalizePlatformValue(m.Platform),
 		Type:                    m.Type,
 		Credentials:             copyJSONMap(m.Credentials),
 		Extra:                   copyJSONMap(m.Extra),

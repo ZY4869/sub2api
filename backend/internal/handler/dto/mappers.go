@@ -130,7 +130,7 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 			}
 			if binding.Group != nil {
 				dtoBinding.GroupName = binding.Group.Name
-				dtoBinding.Platform = binding.Group.Platform
+				dtoBinding.Platform = service.CanonicalizePlatformValue(binding.Group.Platform)
 				dtoBinding.Priority = binding.Group.Priority
 			}
 			out.Groups = append(out.Groups, dtoBinding)
@@ -199,7 +199,7 @@ func groupFromServiceBase(g *service.Group) Group {
 		ID:                              g.ID,
 		Name:                            g.Name,
 		Description:                     g.Description,
-		Platform:                        g.Platform,
+		Platform:                        service.CanonicalizePlatformValue(g.Platform),
 		Priority:                        g.Priority,
 		RateMultiplier:                  g.RateMultiplier,
 		IsExclusive:                     g.IsExclusive,
@@ -233,7 +233,7 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		ID:                      a.ID,
 		Name:                    a.Name,
 		Notes:                   a.Notes,
-		Platform:                a.Platform,
+		Platform:                service.CanonicalizePlatformValue(a.Platform),
 		GatewayProtocol:         service.GetAccountGatewayProtocol(a),
 		Type:                    a.Type,
 		Credentials:             credentials,

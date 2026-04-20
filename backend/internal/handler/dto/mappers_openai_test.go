@@ -77,3 +77,28 @@ func TestAccountFromServiceShallow_NormalizesPlanTypeWithoutMutatingSource(t *te
 	require.Equal(t, "pro", dtoAccount.Credentials["plan_type"])
 	require.Equal(t, "chatgptpro", account.Credentials["plan_type"])
 }
+
+func TestAccountFromServiceShallow_CanonicalizesBaiduPlatform(t *testing.T) {
+	account := &service.Account{
+		ID:       3,
+		Name:     "legacy-baidu",
+		Platform: "baidu",
+		Type:     service.AccountTypeAPIKey,
+	}
+
+	dtoAccount := AccountFromServiceShallow(account)
+	require.NotNil(t, dtoAccount)
+	require.Equal(t, service.PlatformBaiduDocumentAI, dtoAccount.Platform)
+}
+
+func TestGroupFromServiceShallow_CanonicalizesBaiduPlatform(t *testing.T) {
+	group := &service.Group{
+		ID:       4,
+		Name:     "legacy-baidu-group",
+		Platform: "baidu",
+	}
+
+	dtoGroup := GroupFromServiceShallow(group)
+	require.NotNil(t, dtoGroup)
+	require.Equal(t, service.PlatformBaiduDocumentAI, dtoGroup.Platform)
+}

@@ -97,6 +97,8 @@ func (s *BillingCenterService) ListSheets(ctx context.Context) ([]ModelBillingSh
 			Model:                           NormalizeModelCatalogModelID(record.model),
 			ModelFamily:                     inferBillingModelFamily(record.model),
 			DisplayName:                     record.displayName,
+			PricingStatus:                   billingPricingStatusForRecord(record),
+			PricingWarnings:                 billingPricingWarningsForRecord(record),
 			SupportsServiceTier:             record.supportsServiceTier,
 			LongContextInputTokenThreshold:  record.longContextInputTokenThreshold,
 			LongContextInputCostMultiplier:  record.longContextInputCostMultiplier,

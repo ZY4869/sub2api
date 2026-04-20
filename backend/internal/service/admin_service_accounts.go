@@ -52,6 +52,7 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 	return accounts, nil
 }
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
+	input.Platform = CanonicalizePlatformValue(input.Platform)
 	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		input.Extra = normalizeGrokExtraForStorageByType(input.Type, input.Extra)
 		credentials = normalizeGrokCredentialsForStorage(input.Type, credentials, ResolveGrokTier(input.Extra))
 	}
-	if strings.EqualFold(strings.TrimSpace(input.Platform), PlatformBaiduDocumentAI) {
+	if CanonicalizePlatformValue(input.Platform) == PlatformBaiduDocumentAI {
 		credentials = normalizeBaiduDocumentAICredentialsForStorage(credentials)
 	}
 	account := &Account{
@@ -174,6 +175,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	if err != nil {
 		return nil, err
 	}
+	account.Platform = CanonicalizePlatformValue(account.Platform)
 	if err := ensureBlacklistedAccountNotRestored(account, input.Status, nil); err != nil {
 		return nil, err
 	}
@@ -263,7 +265,7 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		account.Extra = normalizeGrokExtraForStorageByType(account.Type, account.Extra)
 		account.Credentials = normalizeGrokCredentialsForStorage(account.Type, account.Credentials, ResolveGrokTier(account.Extra))
 	}
-	if strings.EqualFold(strings.TrimSpace(account.Platform), PlatformBaiduDocumentAI) {
+	if CanonicalizePlatformValue(account.Platform) == PlatformBaiduDocumentAI {
 		account.Credentials = normalizeBaiduDocumentAICredentialsForStorage(account.Credentials)
 	}
 	if input.GroupIDs != nil {
@@ -509,7 +511,7 @@ func validateGrokAccountInput(platform string, accountType string, credentials m
 }
 
 func validateBaiduDocumentAIAccountInput(ctx context.Context, platform string, accountType string, credentials map[string]any) error {
-	if !strings.EqualFold(strings.TrimSpace(platform), PlatformBaiduDocumentAI) {
+	if CanonicalizePlatformValue(platform) != PlatformBaiduDocumentAI {
 		return nil
 	}
 	if strings.TrimSpace(strings.ToLower(accountType)) != AccountTypeAPIKey {

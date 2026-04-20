@@ -15,6 +15,8 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 const (
@@ -127,20 +129,86 @@ func (s *OpsService) RecordRequestTrace(ctx context.Context, input *OpsRecordReq
 		CreatedAt:           recordedAt,
 	}
 
-	insert.InboundRequestJSON = normalizeJSONStringPtr(input.Trace.InboundRequestJSON)
+	normalizationActions := make([]string, 0, 8)
+	normalizeJSONBField := func(field string, source string, contentType string, value *string) *string {
+		result := normalizeOpsTraceJSONBPayload(value, source, contentType)
+		if result.Action != "" {
+			normalizationActions = append(normalizationActions, field+":"+result.Action)
+		}
+		return result.Value
+	}
+
+	insert.InboundRequestJSON = normalizeJSONBField(
+		"inbound_request",
+		"ops_trace_inbound_request_jsonb",
+		"application/json",
+		input.Trace.InboundRequestJSON,
+	)
 	if insert.InboundRequestJSON == nil {
-		insert.InboundRequestJSON = sanitizeTracePayloadForStorage(input.Trace.RawRequest, opsRequestTraceInboundPreviewLimit, "application/json")
+		insert.InboundRequestJSON = normalizeJSONBField(
+			"inbound_request_fallback",
+			"ops_trace_inbound_request_jsonb_fallback",
+			"application/json",
+			sanitizeTracePayloadForStorage(input.Trace.RawRequest, opsRequestTraceInboundPreviewLimit, "application/json"),
+		)
 	}
-	insert.NormalizedRequestJSON = normalizeJSONStringPtr(input.Trace.NormalizedRequestJSON)
-	insert.UpstreamRequestJSON = normalizeJSONStringPtr(input.Trace.UpstreamRequestJSON)
-	insert.UpstreamResponseJSON = normalizeJSONStringPtr(input.Trace.UpstreamResponseJSON)
-	insert.GatewayResponseJSON = normalizeJSONStringPtr(input.Trace.GatewayResponseJSON)
+	insert.NormalizedRequestJSON = normalizeJSONBField(
+		"normalized_request",
+		"ops_trace_normalized_request_jsonb",
+		"application/json",
+		input.Trace.NormalizedRequestJSON,
+	)
+	insert.UpstreamRequestJSON = normalizeJSONBField(
+		"upstream_request",
+		"ops_trace_upstream_request_jsonb",
+		"application/json",
+		input.Trace.UpstreamRequestJSON,
+	)
+	insert.UpstreamResponseJSON = normalizeJSONBField(
+		"upstream_response",
+		"ops_trace_upstream_response_jsonb",
+		"application/json",
+		input.Trace.UpstreamResponseJSON,
+	)
+	insert.GatewayResponseJSON = normalizeJSONBField(
+		"gateway_response",
+		"ops_trace_gateway_response_jsonb",
+		"application/json",
+		input.Trace.GatewayResponseJSON,
+	)
 	if insert.GatewayResponseJSON == nil {
-		insert.GatewayResponseJSON = sanitizeTracePayloadForStorage(input.Trace.RawResponse, opsRequestTracePayloadJSONLimit, "")
+		insert.GatewayResponseJSON = normalizeJSONBField(
+			"gateway_response_fallback",
+			"ops_trace_gateway_response_jsonb_fallback",
+			"application/json",
+			sanitizeTracePayloadForStorage(input.Trace.RawResponse, opsRequestTracePayloadJSONLimit, ""),
+		)
 	}
-	insert.ToolTraceJSON = normalizeJSONStringPtr(input.Trace.ToolTraceJSON)
-	insert.RequestHeadersJSON = normalizeJSONStringPtr(input.Trace.RequestHeadersJSON)
-	insert.ResponseHeadersJSON = normalizeJSONStringPtr(input.Trace.ResponseHeadersJSON)
+	insert.ToolTraceJSON = normalizeJSONBField(
+		"tool_trace",
+		"ops_trace_tool_trace_jsonb",
+		"application/json",
+		input.Trace.ToolTraceJSON,
+	)
+	insert.RequestHeadersJSON = normalizeJSONBField(
+		"request_headers",
+		"ops_trace_request_headers_jsonb",
+		"application/json",
+		input.Trace.RequestHeadersJSON,
+	)
+	insert.ResponseHeadersJSON = normalizeJSONBField(
+		"response_headers",
+		"ops_trace_response_headers_jsonb",
+		"application/json",
+		input.Trace.ResponseHeadersJSON,
+	)
+	if len(normalizationActions) > 0 {
+		logger.FromContext(ctx).Debug(
+			"ops request trace jsonb payload normalized",
+			zap.String("request_id", insert.RequestID),
+			zap.Strings("actions", normalizationActions),
+		)
+	}
 
 	if decision.RawEnabled {
 		if ciphertext, size, truncated, err := buildEncryptedTracePayload(runtimeCfg.EncryptionKey, input.Trace.RawRequest, opsRequestTraceRawRequestLimit); err != nil {
@@ -738,18 +806,6 @@ func dedupeNonEmptyStrings(items []string) []string {
 		return []string{}
 	}
 	return out
-}
-
-func normalizeJSONStringPtr(value *string) *string {
-	if value == nil {
-		return nil
-	}
-	trimmed := strings.TrimSpace(*value)
-	if trimmed == "" || trimmed == "null" {
-		return nil
-	}
-	out := trimmed
-	return &out
 }
 
 func normalizeRequestTraceExportWindow(filter *OpsRequestTraceFilter) (time.Duration, error) {

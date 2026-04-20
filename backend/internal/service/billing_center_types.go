@@ -52,6 +52,8 @@ type ModelBillingSheet struct {
 	Model                           string               `json:"model"`
 	ModelFamily                     string               `json:"model_family,omitempty"`
 	DisplayName                     string               `json:"display_name,omitempty"`
+	PricingStatus                   BillingPricingStatus `json:"pricing_status"`
+	PricingWarnings                 []string             `json:"pricing_warnings,omitempty"`
 	OfficialPricing                 *ModelCatalogPricing `json:"official_pricing,omitempty"`
 	SalePricing                     *ModelCatalogPricing `json:"sale_pricing,omitempty"`
 	OfficialMatrix                  *GeminiBillingMatrix `json:"official_matrix,omitempty"`

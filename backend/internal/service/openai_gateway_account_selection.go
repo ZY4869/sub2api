@@ -7,6 +7,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -101,6 +102,7 @@ func (s *OpenAIGatewayService) selectAccountForModelWithExclusions(ctx context.C
 		}
 		return nil, errors.New("no available OpenAI accounts")
 	}
+	s.logSelectedAccountUsagePressure("standard_selected", groupID, sessionHash, requestedModel, selected)
 	if sessionHash != "" {
 		_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, selected.ID, openaiStickySessionTTL)
 	}
@@ -189,22 +191,7 @@ func copyAccountIDSet(src map[int64]struct{}) map[int64]struct{} {
 	return out
 }
 func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account) bool {
-	if candidate.Priority < current.Priority {
-		return true
-	}
-	if candidate.Priority > current.Priority {
-		return false
-	}
-	switch {
-	case candidate.LastUsedAt == nil && current.LastUsedAt != nil:
-		return true
-	case candidate.LastUsedAt != nil && current.LastUsedAt == nil:
-		return false
-	case candidate.LastUsedAt == nil && current.LastUsedAt == nil:
-		return false
-	default:
-		return candidate.LastUsedAt.Before(*current.LastUsedAt)
-	}
+	return compareAccountsByPriorityAndLastUsed(candidate, current, false, time.Now()) < 0
 }
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
 	cfg := s.schedulingConfig()
@@ -221,14 +208,17 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		}
 		result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
 		if err == nil && result.Acquired {
+			s.logSelectedAccountUsagePressure("local_acquired", groupID, sessionHash, requestedModel, account)
 			return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 		}
 		if stickyAccountID > 0 && stickyAccountID == account.ID && s.concurrencyService != nil {
 			waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, account.ID)
 			if waitingCount < cfg.StickySessionMaxWaiting {
+				s.logSelectedAccountUsagePressure("local_sticky_wait", groupID, sessionHash, requestedModel, account)
 				return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 			}
 		}
+		s.logSelectedAccountUsagePressure("local_wait", groupID, sessionHash, requestedModel, account)
 		return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
 	accounts, err := s.listSchedulableAccounts(ctx, groupID)
@@ -262,10 +252,12 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 						result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
 						if err == nil && result.Acquired {
 							_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
+							s.logSelectedAccountUsagePressure("sticky_acquired", groupID, sessionHash, requestedModel, account)
 							return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 						}
 						waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, accountID)
 						if waitingCount < cfg.StickySessionMaxWaiting {
+							s.logSelectedAccountUsagePressure("sticky_wait", groupID, sessionHash, requestedModel, account)
 							return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 						}
 					}
@@ -312,6 +304,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				if sessionHash != "" {
 					_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fresh.ID, openaiStickySessionTTL)
 				}
+				s.logSelectedAccountUsagePressure("legacy_acquired", groupID, sessionHash, requestedModel, fresh)
 				return &AccountSelectionResult{Account: fresh, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 			}
 		}
@@ -327,24 +320,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			}
 		}
 		if len(available) > 0 {
+			now := time.Now()
 			sort.SliceStable(available, func(i, j int) bool {
-				a, b := available[i], available[j]
-				if a.account.Priority != b.account.Priority {
-					return a.account.Priority < b.account.Priority
-				}
-				if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
-					return a.loadInfo.LoadRate < b.loadInfo.LoadRate
-				}
-				switch {
-				case a.account.LastUsedAt == nil && b.account.LastUsedAt != nil:
-					return true
-				case a.account.LastUsedAt != nil && b.account.LastUsedAt == nil:
-					return false
-				case a.account.LastUsedAt == nil && b.account.LastUsedAt == nil:
-					return false
-				default:
-					return a.account.LastUsedAt.Before(*b.account.LastUsedAt)
-				}
+				return compareAccountsWithLoad(available[i], available[j], false, now) < 0
 			})
 			shuffleWithinSortGroups(available)
 			for _, item := range available {
@@ -361,6 +339,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 					if sessionHash != "" {
 						_ = s.setStickySessionAccountID(ctx, groupID, sessionHash, fresh.ID, openaiStickySessionTTL)
 					}
+					s.logSelectedAccountUsagePressure("load_acquired", groupID, sessionHash, requestedModel, fresh)
 					return &AccountSelectionResult{Account: fresh, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 				}
 			}
@@ -376,6 +355,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		if fresh == nil {
 			continue
 		}
+		s.logSelectedAccountUsagePressure("load_wait", groupID, sessionHash, requestedModel, fresh)
 		return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: fresh.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
 	return nil, errors.New("no available accounts")
@@ -455,6 +435,32 @@ func (s *OpenAIGatewayService) schedulingConfig() config.GatewaySchedulingConfig
 		return s.cfg.Gateway.Scheduling
 	}
 	return config.GatewaySchedulingConfig{StickySessionMaxWaiting: 3, StickySessionWaitTimeout: 45 * time.Second, FallbackWaitTimeout: 30 * time.Second, FallbackMaxWaiting: 100, LoadBatchEnabled: true, SlotCleanupInterval: 30 * time.Second}
+}
+
+func (s *OpenAIGatewayService) logSelectedAccountUsagePressure(
+	phase string,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	account *Account,
+) {
+	if account == nil {
+		return
+	}
+	window, utilization, resetAt := accountUsagePressureLogValues(buildAccountUsagePressure(account, time.Now()))
+	slog.Debug(
+		"openai_account_selection_pressure",
+		"phase", phase,
+		"group_id", derefGroupID(groupID),
+		"model", requestedModel,
+		"session", shortSessionHash(sessionHash),
+		"account_id", account.ID,
+		"account_type", account.Type,
+		"priority", account.Priority,
+		"pressure_window", window,
+		"pressure_utilization", utilization,
+		"pressure_reset_at", resetAt,
+	)
 }
 func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Account) (string, string, error) {
 	switch account.Type {

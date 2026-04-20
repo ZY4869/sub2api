@@ -30,8 +30,24 @@
             class="border-t border-gray-100 dark:border-dark-700"
           >
             <td class="px-4 py-3">
-              <div class="font-medium text-gray-900 dark:text-white">{{ item.display_name || item.model }}</div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="font-medium text-gray-900 dark:text-white">{{ item.display_name || item.model }}</div>
+                <span
+                  v-if="item.pricing_status !== 'ok'"
+                  class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  :class="pricingStatusClass(item.pricing_status)"
+                >
+                  {{ pricingStatusLabel(item.pricing_status) }}
+                </span>
+              </div>
               <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.model }}</div>
+              <div
+                v-if="item.pricing_warnings?.length"
+                class="mt-1 text-xs"
+                :class="item.pricing_status === 'conflict' || item.pricing_status === 'missing' ? 'text-rose-600 dark:text-rose-300' : 'text-amber-600 dark:text-amber-300'"
+              >
+                {{ item.pricing_warnings[0] }}
+              </div>
             </td>
             <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ item.provider || '-' }}</td>
             <td class="px-4 py-3 text-gray-700 dark:text-gray-200">{{ item.mode || '-' }}</td>
@@ -103,5 +119,30 @@ function capabilityBadges(item: BillingPricingListItem): string[] {
   if (item.capabilities.supports_batch_pricing) badges.push('Batch')
   if (item.capabilities.supports_prompt_caching) badges.push('Caching')
   return badges
+}
+
+function pricingStatusLabel(status: BillingPricingListItem['pricing_status']): string {
+  switch (status) {
+    case 'conflict':
+      return '冲突'
+    case 'missing':
+      return '缺价'
+    case 'fallback':
+      return '回退'
+    default:
+      return '正常'
+  }
+}
+
+function pricingStatusClass(status: BillingPricingListItem['pricing_status']): string {
+  switch (status) {
+    case 'conflict':
+    case 'missing':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200'
+    case 'fallback':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200'
+    default:
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
+  }
 }
 </script>

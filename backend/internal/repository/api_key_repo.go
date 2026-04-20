@@ -783,7 +783,7 @@ func groupEntityToService(g *dbent.Group) *service.Group {
 		ID:                              g.ID,
 		Name:                            g.Name,
 		Description:                     derefString(g.Description),
-		Platform:                        g.Platform,
+		Platform:                        service.CanonicalizePlatformValue(g.Platform),
 		RateMultiplier:                  g.RateMultiplier,
 		IsExclusive:                     g.IsExclusive,
 		Status:                          g.Status,

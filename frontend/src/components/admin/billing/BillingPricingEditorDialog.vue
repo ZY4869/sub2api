@@ -39,6 +39,14 @@
               <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 {{ detail.provider || '-' }} / {{ detail.mode || '-' }} / {{ detail.currency }}
               </div>
+              <div v-if="detail.pricing_status !== 'ok'" class="mt-2">
+                <span
+                  class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  :class="pricingStatusClass(detail.pricing_status)"
+                >
+                  {{ pricingStatusLabel(detail.pricing_status) }}
+                </span>
+              </div>
               <div class="mt-3 flex flex-wrap gap-1 text-[11px]">
                 <span
                   class="inline-flex rounded-full px-2 py-1"
@@ -57,32 +65,57 @@
           </div>
         </aside>
 
-        <BillingPriceColumn
-          title="官方价格"
-          :description="officialDescription"
-          :form="currentOfficialForm"
-          :currency="currentCurrency"
-          :usd-to-cny-rate="usdToCnyRate"
-          :input-supported="currentDetail?.input_supported ?? true"
-          :output-charge-slot="currentDetail?.output_charge_slot || 'text_output'"
-          :supports-prompt-caching="currentDetail?.supports_prompt_caching ?? false"
-          :capabilities="currentCapabilities"
-          :disabled="currencySaveBlocked"
-          column-test-id="official-column"
-          @update-form="updateForm('official', $event)"
-        >
-          <template #actions>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm"
-              data-testid="save-layer-official"
-              :disabled="saveDisabled"
-              @click="saveLayer('official')"
-            >
-              保存官方价
-            </button>
-          </template>
-        </BillingPriceColumn>
+        <div class="space-y-4">
+          <div
+            v-if="currentDetail?.pricing_status !== 'ok'"
+            class="rounded-2xl border px-4 py-3"
+            :class="currentDetail?.pricing_status === 'conflict' || currentDetail?.pricing_status === 'missing'
+              ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200'
+              : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'"
+          >
+            <div class="flex flex-wrap items-center gap-2 text-sm font-medium">
+              <span
+                class="inline-flex rounded-full px-2 py-0.5 text-[11px]"
+                :class="pricingStatusClass(currentDetail?.pricing_status)"
+              >
+                {{ pricingStatusLabel(currentDetail?.pricing_status) }}
+              </span>
+              <span>当前模型定价审计存在提示</span>
+            </div>
+            <ul class="mt-2 space-y-1 text-xs">
+              <li v-for="warning in currentDetail?.pricing_warnings || []" :key="warning">
+                {{ warning }}
+              </li>
+            </ul>
+          </div>
+
+          <BillingPriceColumn
+            title="官方价格"
+            :description="officialDescription"
+            :form="currentOfficialForm"
+            :currency="currentCurrency"
+            :usd-to-cny-rate="usdToCnyRate"
+            :input-supported="currentDetail?.input_supported ?? true"
+            :output-charge-slot="currentDetail?.output_charge_slot || 'text_output'"
+            :supports-prompt-caching="currentDetail?.supports_prompt_caching ?? false"
+            :capabilities="currentCapabilities"
+            :disabled="currencySaveBlocked"
+            column-test-id="official-column"
+            @update-form="updateForm('official', $event)"
+          >
+            <template #actions>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                data-testid="save-layer-official"
+                :disabled="saveDisabled"
+                @click="saveLayer('official')"
+              >
+                保存官方价
+              </button>
+            </template>
+          </BillingPriceColumn>
+        </div>
 
         <div class="space-y-4">
           <BillingBulkDiscountPanel
@@ -290,6 +323,31 @@ const officialDescription = computed(() => {
 
   return `${detail.display_name || detail.model} / ${detail.provider || '-'} / ${detail.mode || '-'} / ${detail.currency}`
 })
+
+function pricingStatusLabel(status?: BillingPricingSheetDetail['pricing_status']): string {
+  switch (status) {
+    case 'conflict':
+      return '冲突'
+    case 'missing':
+      return '缺价'
+    case 'fallback':
+      return '回退'
+    default:
+      return '正常'
+  }
+}
+
+function pricingStatusClass(status?: BillingPricingSheetDetail['pricing_status']): string {
+  switch (status) {
+    case 'conflict':
+    case 'missing':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200'
+    case 'fallback':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200'
+    default:
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
+  }
+}
 
 function updateForm(layer: Layer, form: BillingPricingLayerForm) {
   if (!currentDetail.value) {

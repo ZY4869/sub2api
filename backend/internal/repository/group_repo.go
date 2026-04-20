@@ -220,7 +220,12 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 	q := r.client.Group.Query()
 
 	if platform != "" {
-		q = q.Where(group.PlatformEQ(platform))
+		values := platformFilterValues(platform)
+		if len(values) == 1 {
+			q = q.Where(group.PlatformEQ(values[0]))
+		} else if len(values) > 1 {
+			q = q.Where(group.PlatformIn(values...))
+		}
 	}
 	if status != "" {
 		q = q.Where(group.StatusEQ(status))
@@ -301,8 +306,9 @@ func (r *groupRepository) ListActive(ctx context.Context) ([]service.Group, erro
 }
 
 func (r *groupRepository) ListActiveByPlatform(ctx context.Context, platform string) ([]service.Group, error) {
+	values := platformFilterValues(platform)
 	groups, err := r.client.Group.Query().
-		Where(group.StatusEQ(service.StatusActive), group.PlatformEQ(platform)).
+		Where(group.StatusEQ(service.StatusActive), group.PlatformIn(values...)).
 		Order(dbent.Asc(group.FieldSortOrder), dbent.Asc(group.FieldID)).
 		All(ctx)
 	if err != nil {

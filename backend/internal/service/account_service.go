@@ -160,7 +160,7 @@ func (s *AccountService) Create(ctx context.Context, req CreateAccountRequest) (
 	account := &Account{
 		Name:           req.Name,
 		Notes:          normalizeAccountNotes(req.Notes),
-		Platform:       req.Platform,
+		Platform:       CanonicalizePlatformValue(req.Platform),
 		Type:           req.Type,
 		Credentials:    req.Credentials,
 		Extra:          req.Extra,
@@ -197,6 +197,7 @@ func (s *AccountService) GetByID(ctx context.Context, id int64) (*Account, error
 	if err != nil {
 		return nil, fmt.Errorf("get account: %w", err)
 	}
+	account.Platform = CanonicalizePlatformValue(account.Platform)
 	return account, nil
 }
 

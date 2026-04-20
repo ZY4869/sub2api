@@ -24,6 +24,8 @@ type BillingPricingPersistedModel struct {
 	Provider                        string                     `json:"provider,omitempty"`
 	Mode                            string                     `json:"mode,omitempty"`
 	Currency                        string                     `json:"currency"`
+	PricingStatus                   BillingPricingStatus       `json:"pricing_status"`
+	PricingWarnings                 []string                   `json:"pricing_warnings,omitempty"`
 	InputSupported                  bool                       `json:"input_supported"`
 	OutputChargeSlot                string                     `json:"output_charge_slot,omitempty"`
 	SupportsPromptCaching           bool                       `json:"supports_prompt_caching"`
@@ -68,6 +70,8 @@ func cloneBillingPricingPersistedModel(model BillingPricingPersistedModel) Billi
 	cloned.Provider = NormalizeModelProvider(model.Provider)
 	cloned.Mode = strings.TrimSpace(strings.ToLower(model.Mode))
 	cloned.Currency = defaultModelPricingCurrency(model.Currency)
+	cloned.PricingStatus = normalizeBillingPricingStatus(model.PricingStatus)
+	cloned.PricingWarnings = compactStrings(model.PricingWarnings)
 	cloned.OutputChargeSlot = billingDefaultOutputChargeSlot(defaultString(model.OutputChargeSlot, model.Mode))
 	cloned.OfficialForm = cloneBillingPricingLayerForm(model.OfficialForm)
 	cloned.SaleForm = cloneBillingPricingLayerForm(model.SaleForm)
@@ -131,6 +135,8 @@ func billingPricingPersistedModelFromRecord(record *modelCatalogRecord, rules []
 		Provider:                        record.provider,
 		Mode:                            record.mode,
 		Currency:                        defaultModelPricingCurrency(record.pricingCurrency),
+		PricingStatus:                   billingPricingStatusForRecord(record),
+		PricingWarnings:                 billingPricingWarningsForRecord(record),
 		InputSupported:                  metadata.InputSupported,
 		OutputChargeSlot:                metadata.OutputChargeSlot,
 		SupportsPromptCaching:           record.supportsPromptCaching,
@@ -168,6 +174,8 @@ func billingPricingPersistedModelToDetail(model BillingPricingPersistedModel) Bi
 		Provider:                        cloned.Provider,
 		Mode:                            cloned.Mode,
 		Currency:                        cloned.Currency,
+		PricingStatus:                   cloned.PricingStatus,
+		PricingWarnings:                 compactStrings(cloned.PricingWarnings),
 		InputSupported:                  cloned.InputSupported,
 		OutputChargeSlot:                cloned.OutputChargeSlot,
 		SupportsPromptCaching:           cloned.SupportsPromptCaching,
@@ -193,6 +201,8 @@ func billingPricingPersistedModelToListItem(model BillingPricingPersistedModel) 
 		PriceItemCount: cloned.OfficialCount + cloned.SaleCount,
 		OfficialCount:  cloned.OfficialCount,
 		SaleCount:      cloned.SaleCount,
+		PricingStatus:  cloned.PricingStatus,
+		PricingWarnings: compactStrings(cloned.PricingWarnings),
 		Capabilities:   cloned.Capabilities,
 	}
 }
@@ -305,6 +315,16 @@ func (s *BillingCenterService) buildBillingPricingCatalogSnapshot(ctx context.Co
 		models = append(models, billingPricingPersistedModelFromRecord(record, rules))
 	}
 	sortBillingPricingPersistedModels(models)
+	summary := summarizeBillingPricingStatuses(models)
+	logger.FromContext(ctx).Info(
+		"billing pricing catalog audit summary",
+		zap.String("component", "service.billing_center"),
+		zap.Int("model_count", len(models)),
+		zap.Int("pricing_ok_count", summary.ok),
+		zap.Int("pricing_fallback_count", summary.fallback),
+		zap.Int("pricing_conflict_count", summary.conflict),
+		zap.Int("pricing_missing_count", summary.missing),
+	)
 	return &BillingPricingCatalogSnapshot{
 		UpdatedAt: time.Now().UTC(),
 		Models:    models,
@@ -313,7 +333,23 @@ func (s *BillingCenterService) buildBillingPricingCatalogSnapshot(ctx context.Co
 
 func (s *BillingCenterService) ensureBillingPricingCatalogMigrated(ctx context.Context) (*BillingPricingCatalogSnapshot, error) {
 	if snapshot := s.loadBillingPricingCatalogSnapshot(ctx); snapshot != nil && len(snapshot.Models) > 0 {
-		return snapshot, nil
+		if !billingPricingSnapshotNeedsStatusMigration(snapshot) {
+			return snapshot, nil
+		}
+		log := logger.FromContext(ctx)
+		log.Info("billing pricing catalog snapshot status migration started", zap.String("component", "service.billing_center"))
+		baseline, err := s.buildBillingPricingCatalogSnapshot(ctx)
+		if err != nil {
+			log.Warn("billing pricing catalog snapshot status migration failed", zap.String("component", "service.billing_center"), zap.Error(err))
+			return nil, err
+		}
+		merged := mergeBillingPricingCatalogSnapshots(snapshot, baseline)
+		if err := s.persistBillingPricingCatalogSnapshot(ctx, merged); err != nil {
+			log.Warn("billing pricing catalog snapshot status persist failed", zap.String("component", "service.billing_center"), zap.Error(err))
+			return nil, err
+		}
+		log.Info("billing pricing catalog snapshot status migration completed", zap.String("component", "service.billing_center"), zap.Int("model_count", len(merged.Models)))
+		return merged, nil
 	}
 	log := logger.FromContext(ctx)
 	log.Info("billing pricing catalog snapshot migration started", zap.String("component", "service.billing_center"))

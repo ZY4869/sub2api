@@ -31,6 +31,8 @@ type modelCatalogRecord struct {
 	longContextInputTokenThreshold  int
 	longContextInputCostMultiplier  float64
 	longContextOutputCostMultiplier float64
+	pricingStatus                   BillingPricingStatus
+	pricingWarnings                 []string
 }
 
 func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[string]*modelCatalogRecord, error) {
@@ -121,6 +123,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		record.salePricing = applyPricingOverride(record.officialPricing, record.saleOverridePricing)
 	}
 	s.populateCatalogAccessSources(ctx, records)
+	applyBillingPricingStatus(details, records)
 	return records, nil
 }
 

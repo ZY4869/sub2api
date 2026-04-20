@@ -23,14 +23,15 @@ func (r *accountRepository) ListSchedulableByGroupID(ctx context.Context, groupI
 }
 func (r *accountRepository) ListSchedulableByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	platforms := platformFilterValues(platform)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return r.accountsToService(ctx, accounts)
 }
 func (r *accountRepository) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]service.Account, error) {
-	return r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, schedulable: true, platforms: []string{platform}, excludeBlacklisted: true})
+	return r.queryAccountsByGroup(ctx, groupID, accountGroupQueryOptions{status: service.StatusActive, schedulable: true, platforms: platformFilterValues(platform), excludeBlacklisted: true})
 }
 func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, platforms []string) ([]service.Account, error) {
 	if len(platforms) == 0 {
@@ -45,7 +46,8 @@ func (r *accountRepository) ListSchedulableByPlatforms(ctx context.Context, plat
 }
 func (r *accountRepository) ListSchedulableUngroupedByPlatform(ctx context.Context, platform string) ([]service.Account, error) {
 	now := time.Now()
-	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformEQ(platform), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), dbaccount.Not(dbaccount.HasAccountGroups()), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
+	platforms := platformFilterValues(platform)
+	accounts, err := r.client.Account.Query().Where(dbaccount.PlatformIn(platforms...), dbaccount.StatusEQ(service.StatusActive), nonBlacklistedLifecyclePredicate(), dbaccount.SchedulableEQ(true), dbaccount.Not(dbaccount.HasAccountGroups()), tempUnschedulablePredicate(), notExpiredPredicate(now), dbaccount.Or(dbaccount.OverloadUntilIsNil(), dbaccount.OverloadUntilLTE(now)), dbaccount.Or(dbaccount.RateLimitResetAtIsNil(), dbaccount.RateLimitResetAtLTE(now))).Order(dbent.Asc(dbaccount.FieldPriority)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

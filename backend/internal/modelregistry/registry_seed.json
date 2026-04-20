@@ -1472,14 +1472,11 @@
       "gemini"
     ],
     "protocol_ids": [
-      "gemini-3.1-flash-image-preview",
       "gemini-3.1-flash-image"
     ],
-    "aliases": [
-      "gemini-3.1-flash-image-preview"
-    ],
+    "aliases": [],
     "pricing_lookup_ids": [
-      "gemini-3.1-flash-image-preview"
+      "gemini-3.1-flash-image"
     ],
     "modalities": [
       "text",
@@ -1716,12 +1713,9 @@
       "antigravity"
     ],
     "protocol_ids": [
-      "gemini-3-flash-preview",
       "gemini-3-flash"
     ],
-    "aliases": [
-      "gemini-3-flash-preview"
-    ],
+    "aliases": [],
     "pricing_lookup_ids": [
       "gemini-3-flash-preview"
     ],

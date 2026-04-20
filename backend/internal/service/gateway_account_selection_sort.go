@@ -107,39 +107,90 @@ func selectByLRU(accounts []accountWithLoad, preferOAuth bool) *accountWithLoad 
 	selectedIdx := candidateIdxs[mathrand.Intn(len(candidateIdxs))]
 	return &accounts[selectedIdx]
 }
-func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
-	sort.SliceStable(accounts, func(i, j int) bool {
-		a, b := accounts[i], accounts[j]
-		if a.Priority != b.Priority {
-			return a.Priority < b.Priority
+
+func compareAccountsByPriorityAndLastUsed(left, right *Account, preferOAuth bool, now time.Time) int {
+	if left == nil || right == nil {
+		return 0
+	}
+	if left.Priority != right.Priority {
+		if left.Priority < right.Priority {
+			return -1
 		}
-		if aPenalty, bPenalty := geminiRegionalPenalty(a, preferOAuth), geminiRegionalPenalty(b, preferOAuth); aPenalty != bPenalty {
-			return aPenalty < bPenalty
+		return 1
+	}
+	if leftPenalty, rightPenalty := geminiRegionalPenalty(left, preferOAuth), geminiRegionalPenalty(right, preferOAuth); leftPenalty != rightPenalty {
+		if leftPenalty < rightPenalty {
+			return -1
 		}
-		switch {
-		case a.LastUsedAt == nil && b.LastUsedAt != nil:
-			return true
-		case a.LastUsedAt != nil && b.LastUsedAt == nil:
-			return false
-		case a.LastUsedAt == nil && b.LastUsedAt == nil:
-			if preferOAuth && a.Type != b.Type {
-				return a.Type == AccountTypeOAuth
+		return 1
+	}
+	if pressureCmp := compareAccountUsagePressure(left, right, now); pressureCmp != 0 {
+		return pressureCmp
+	}
+	switch {
+	case left.LastUsedAt == nil && right.LastUsedAt != nil:
+		return -1
+	case left.LastUsedAt != nil && right.LastUsedAt == nil:
+		return 1
+	case left.LastUsedAt == nil && right.LastUsedAt == nil:
+		if preferOAuth && left.Type != right.Type {
+			if left.Type == AccountTypeOAuth {
+				return -1
 			}
-			return false
-		default:
-			return a.LastUsedAt.Before(*b.LastUsedAt)
+			return 1
 		}
+		return 0
+	default:
+		if left.LastUsedAt.Before(*right.LastUsedAt) {
+			return -1
+		}
+		if right.LastUsedAt.Before(*left.LastUsedAt) {
+			return 1
+		}
+		return 0
+	}
+}
+
+func compareAccountsWithLoad(left, right accountWithLoad, preferOAuth bool, now time.Time) int {
+	if left.account == nil || right.account == nil {
+		return 0
+	}
+	if accountCmp := compareAccountsByPriorityAndLastUsed(left.account, right.account, preferOAuth, now); accountCmp != 0 {
+		if left.account.Priority != right.account.Priority {
+			return accountCmp
+		}
+		if geminiRegionalPenalty(left.account, preferOAuth) != geminiRegionalPenalty(right.account, preferOAuth) {
+			return accountCmp
+		}
+		if pressureCmp := compareAccountUsagePressure(left.account, right.account, now); pressureCmp != 0 {
+			return pressureCmp
+		}
+	}
+	if left.loadInfo.LoadRate != right.loadInfo.LoadRate {
+		if left.loadInfo.LoadRate < right.loadInfo.LoadRate {
+			return -1
+		}
+		return 1
+	}
+	return compareAccountsByPriorityAndLastUsed(left.account, right.account, preferOAuth, now)
+}
+
+func sortAccountsByPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
+	now := time.Now()
+	sort.SliceStable(accounts, func(i, j int) bool {
+		return compareAccountsByPriorityAndLastUsed(accounts[i], accounts[j], preferOAuth, now) < 0
 	})
-	shuffleWithinPriorityAndLastUsed(accounts, preferOAuth)
+	shuffleWithinPriorityAndLastUsed(accounts, preferOAuth, now)
 }
 func shuffleWithinSortGroups(accounts []accountWithLoad) {
 	if len(accounts) <= 1 {
 		return
 	}
+	now := time.Now()
 	i := 0
 	for i < len(accounts) {
 		j := i + 1
-		for j < len(accounts) && sameAccountWithLoadGroup(accounts[i], accounts[j]) {
+		for j < len(accounts) && sameAccountWithLoadGroupAtTime(accounts[i], accounts[j], now) {
 			j++
 		}
 		if j-i > 1 {
@@ -151,10 +202,17 @@ func shuffleWithinSortGroups(accounts []accountWithLoad) {
 	}
 }
 func sameAccountWithLoadGroup(a, b accountWithLoad) bool {
+	return sameAccountWithLoadGroupAtTime(a, b, time.Now())
+}
+
+func sameAccountWithLoadGroupAtTime(a, b accountWithLoad, now time.Time) bool {
 	if a.account.Priority != b.account.Priority {
 		return false
 	}
 	if geminiRegionalPenalty(a.account, true) != geminiRegionalPenalty(b.account, true) {
+		return false
+	}
+	if compareAccountUsagePressure(a.account, b.account, now) != 0 {
 		return false
 	}
 	if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
@@ -162,14 +220,14 @@ func sameAccountWithLoadGroup(a, b accountWithLoad) bool {
 	}
 	return sameLastUsedAt(a.account.LastUsedAt, b.account.LastUsedAt)
 }
-func shuffleWithinPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
+func shuffleWithinPriorityAndLastUsed(accounts []*Account, preferOAuth bool, now time.Time) {
 	if len(accounts) <= 1 {
 		return
 	}
 	i := 0
 	for i < len(accounts) {
 		j := i + 1
-		for j < len(accounts) && sameAccountGroup(accounts[i], accounts[j]) {
+		for j < len(accounts) && sameAccountGroupAtTime(accounts[i], accounts[j], now) {
 			j++
 		}
 		if j-i > 1 {
@@ -205,10 +263,17 @@ func shuffleWithinPriorityAndLastUsed(accounts []*Account, preferOAuth bool) {
 	}
 }
 func sameAccountGroup(a, b *Account) bool {
+	return sameAccountGroupAtTime(a, b, time.Now())
+}
+
+func sameAccountGroupAtTime(a, b *Account, now time.Time) bool {
 	if a.Priority != b.Priority {
 		return false
 	}
 	if geminiRegionalPenalty(a, true) != geminiRegionalPenalty(b, true) {
+		return false
+	}
+	if compareAccountUsagePressure(a, b, now) != 0 {
 		return false
 	}
 	return sameLastUsedAt(a.LastUsedAt, b.LastUsedAt)
@@ -232,18 +297,9 @@ func (s *GatewayService) sortCandidatesForFallback(accounts []*Account, preferOA
 	}
 }
 func sortAccountsByPriorityOnly(accounts []*Account, preferOAuth bool) {
+	now := time.Now()
 	sort.SliceStable(accounts, func(i, j int) bool {
-		a, b := accounts[i], accounts[j]
-		if a.Priority != b.Priority {
-			return a.Priority < b.Priority
-		}
-		if aPenalty, bPenalty := geminiRegionalPenalty(a, preferOAuth), geminiRegionalPenalty(b, preferOAuth); aPenalty != bPenalty {
-			return aPenalty < bPenalty
-		}
-		if preferOAuth && a.Type != b.Type {
-			return a.Type == AccountTypeOAuth
-		}
-		return false
+		return compareAccountsByPriorityAndLastUsed(accounts[i], accounts[j], preferOAuth, now) < 0
 	})
 }
 func shuffleWithinPriority(accounts []*Account) {
@@ -251,12 +307,16 @@ func shuffleWithinPriority(accounts []*Account) {
 		return
 	}
 	r := mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+	now := time.Now()
 	start := 0
 	for start < len(accounts) {
 		priority := accounts[start].Priority
 		penalty := geminiRegionalPenalty(accounts[start], true)
 		end := start + 1
-		for end < len(accounts) && accounts[end].Priority == priority && geminiRegionalPenalty(accounts[end], true) == penalty {
+		for end < len(accounts) &&
+			accounts[end].Priority == priority &&
+			geminiRegionalPenalty(accounts[end], true) == penalty &&
+			compareAccountUsagePressure(accounts[start], accounts[end], now) == 0 {
 			end++
 		}
 		if end-start > 1 {

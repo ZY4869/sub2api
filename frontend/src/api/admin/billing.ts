@@ -5,6 +5,7 @@ export type BillingPricingCurrency = 'USD' | 'CNY'
 export type BillingPricingSortBy = 'display_name' | 'provider'
 export type BillingPricingSortOrder = 'asc' | 'desc'
 export type BillingPricingMultiplierMode = 'shared' | 'item'
+export type BillingPricingStatus = 'ok' | 'fallback' | 'conflict' | 'missing'
 
 export interface BillingRuleMatchers {
   models?: string[]
@@ -192,6 +193,8 @@ export interface BillingPricingListItem {
   price_item_count: number
   official_count: number
   sale_count: number
+  pricing_status: BillingPricingStatus
+  pricing_warnings?: string[]
   capabilities: BillingPricingCapabilities
 }
 
@@ -201,6 +204,8 @@ export interface BillingPricingSheetDetail {
   provider?: string
   mode?: string
   currency: BillingPricingCurrency
+  pricing_status: BillingPricingStatus
+  pricing_warnings?: string[]
   input_supported: boolean
   output_charge_slot?: string
   supports_prompt_caching: boolean
@@ -236,13 +241,47 @@ export interface BillingPricingIdentifierCollision {
   count: number
 }
 
+export interface BillingPricingStatusCounts {
+  ok: number
+  fallback: number
+  conflict: number
+  missing: number
+}
+
+export interface BillingPricingCollisionCountsBySource {
+  aliases: number
+  protocol_ids: number
+  pricing_lookup_ids: number
+}
+
+export interface BillingPricingProviderIssueCount {
+  provider: string
+  total: number
+  fallback: number
+  conflict: number
+  missing: number
+}
+
+export interface BillingPricingIssueExample {
+  model: string
+  display_name?: string
+  provider?: string
+  pricing_status: BillingPricingStatus
+  first_warning?: string
+}
+
 export interface BillingPricingAudit {
   total_models: number
+  pricing_status_counts: BillingPricingStatusCounts
   duplicate_model_ids: string[]
   aux_identifier_collisions: BillingPricingIdentifierCollision[]
+  collision_counts_by_source: BillingPricingCollisionCountsBySource
+  provider_issue_counts: BillingPricingProviderIssueCount[]
+  pricing_issue_examples: BillingPricingIssueExample[]
   missing_in_snapshot_count: number
   missing_in_snapshot_models: string[]
   snapshot_only_count: number
+  snapshot_only_models: string[]
   refresh_required: boolean
   snapshot_updated_at?: string | null
 }

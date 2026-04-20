@@ -125,13 +125,14 @@ func TestShuffleWithinSortGroups_MixedGroups(t *testing.T) {
 // ============ shuffleWithinPriorityAndLastUsed 测试 ============
 
 func TestShuffleWithinPriorityAndLastUsed_Empty(t *testing.T) {
-	shuffleWithinPriorityAndLastUsed(nil, false)
-	shuffleWithinPriorityAndLastUsed([]*Account{}, false)
+	now := time.Now()
+	shuffleWithinPriorityAndLastUsed(nil, false, now)
+	shuffleWithinPriorityAndLastUsed([]*Account{}, false, now)
 }
 
 func TestShuffleWithinPriorityAndLastUsed_SingleElement(t *testing.T) {
 	accounts := []*Account{{ID: 1, Priority: 1}}
-	shuffleWithinPriorityAndLastUsed(accounts, false)
+	shuffleWithinPriorityAndLastUsed(accounts, false, time.Now())
 	require.Equal(t, int64(1), accounts[0].ID)
 }
 
@@ -146,7 +147,7 @@ func TestShuffleWithinPriorityAndLastUsed_SameGroup_Shuffled(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		cpy := make([]*Account, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinPriorityAndLastUsed(cpy, false)
+		shuffleWithinPriorityAndLastUsed(cpy, false, time.Now())
 		seen[cpy[0].ID] = true
 	}
 	require.GreaterOrEqual(t, len(seen), 2, "same group should be shuffled")
@@ -162,7 +163,7 @@ func TestShuffleWithinPriorityAndLastUsed_DifferentPriority_OrderPreserved(t *te
 	for i := 0; i < 20; i++ {
 		cpy := make([]*Account, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinPriorityAndLastUsed(cpy, false)
+		shuffleWithinPriorityAndLastUsed(cpy, false, time.Now())
 		require.Equal(t, int64(1), cpy[0].ID)
 		require.Equal(t, int64(2), cpy[1].ID)
 		require.Equal(t, int64(3), cpy[2].ID)
@@ -182,11 +183,61 @@ func TestShuffleWithinPriorityAndLastUsed_DifferentLastUsedAt_OrderPreserved(t *
 	for i := 0; i < 20; i++ {
 		cpy := make([]*Account, len(accounts))
 		copy(cpy, accounts)
-		shuffleWithinPriorityAndLastUsed(cpy, false)
+		shuffleWithinPriorityAndLastUsed(cpy, false, now)
 		require.Equal(t, int64(1), cpy[0].ID)
 		require.Equal(t, int64(2), cpy[1].ID)
 		require.Equal(t, int64(3), cpy[2].ID)
 	}
+}
+
+func TestSameAccountGroupAtTime_PressureSnapshotBreaksShuffleGroup(t *testing.T) {
+	now := time.Now()
+	resetAt5h := now.Add(45 * time.Minute)
+	resetAt7d := now.Add(48 * time.Hour)
+
+	withFiveHour := &Account{
+		ID:         1,
+		Priority:   1,
+		LastUsedAt: nil,
+		Extra: map[string]any{
+			"session_window_utilization": 0.72,
+		},
+		SessionWindowEnd: &resetAt5h,
+	}
+	withSevenDay := &Account{
+		ID:         2,
+		Priority:   1,
+		LastUsedAt: nil,
+		Extra: map[string]any{
+			"passive_usage_7d_utilization": 0.91,
+			"passive_usage_7d_reset":       float64(resetAt7d.Unix()),
+		},
+	}
+
+	require.False(t, sameAccountGroupAtTime(withFiveHour, withSevenDay, now))
+}
+
+func TestSameAccountGroupAtTime_MissingSnapshotKeepsShuffleGroup(t *testing.T) {
+	now := time.Now()
+	resetAt5h := now.Add(45 * time.Minute)
+
+	withSnapshot := &Account{
+		ID:         1,
+		Priority:   1,
+		LastUsedAt: nil,
+		Extra: map[string]any{
+			"session_window_utilization": 0.72,
+		},
+		SessionWindowEnd: &resetAt5h,
+	}
+	withoutSnapshot := &Account{
+		ID:         2,
+		Priority:   1,
+		LastUsedAt: nil,
+		Extra:      map[string]any{},
+	}
+
+	require.True(t, sameAccountGroupAtTime(withSnapshot, withoutSnapshot, now))
 }
 
 // ============ sameLastUsedAt 测试 ============

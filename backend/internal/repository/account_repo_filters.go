@@ -57,7 +57,12 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 		}
 	}
 	if filters.Platform != "" {
-		q = q.Where(dbaccount.PlatformEQ(filters.Platform))
+		values := platformFilterValues(filters.Platform)
+		if len(values) == 1 {
+			q = q.Where(dbaccount.PlatformEQ(values[0]))
+		} else if len(values) > 1 {
+			q = q.Where(dbaccount.PlatformIn(values...))
+		}
 	}
 	if filters.AccountType != "" {
 		q = q.Where(dbaccount.TypeEQ(filters.AccountType))
@@ -136,9 +141,16 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 		}
 	}
 	if includePlatform && filters.Platform != "" {
-		whereClauses = append(whereClauses, fmt.Sprintf("%s.platform = $%d", tableAlias, argIndex))
-		args = append(args, filters.Platform)
-		argIndex++
+		values := platformFilterValues(filters.Platform)
+		if len(values) == 1 {
+			whereClauses = append(whereClauses, fmt.Sprintf("%s.platform = $%d", tableAlias, argIndex))
+			args = append(args, values[0])
+			argIndex++
+		} else if len(values) > 1 {
+			whereClauses = append(whereClauses, fmt.Sprintf("%s.platform = ANY($%d)", tableAlias, argIndex))
+			args = append(args, pq.Array(values))
+			argIndex++
+		}
 	}
 	if filters.AccountType != "" {
 		whereClauses = append(whereClauses, fmt.Sprintf("%s.type = $%d", tableAlias, argIndex))

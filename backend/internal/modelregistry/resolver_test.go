@@ -72,6 +72,38 @@ func TestResolveToProtocolIDRouteSpecific(t *testing.T) {
 	require.Equal(t, "gemini-2.5-pro", geminiModel)
 }
 
+func TestResolveToPricingIDUsesIntendedSharedOrExactTargets(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "gemini 3 flash keeps shared preview pricing id",
+			input:    "gemini-3-flash",
+			expected: "gemini-3-flash-preview",
+		},
+		{
+			name:     "gemini 3.1 flash image keeps its own pricing id",
+			input:    "gemini-3.1-flash-image",
+			expected: "gemini-3.1-flash-image",
+		},
+		{
+			name:     "gpt 5.4 pro dated snapshot shares base pricing id",
+			input:    "gpt-5.4-pro-2026-03-05",
+			expected: "gpt-5.4-pro",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual, ok := ResolveToPricingID(test.input)
+			require.True(t, ok)
+			require.Equal(t, test.expected, actual)
+		})
+	}
+}
+
 func TestExplainSeedResolutionReportsDeprecatedReplacement(t *testing.T) {
 	resolution, ok := ExplainSeedResolution("gpt-5.3-codex")
 	require.True(t, ok)

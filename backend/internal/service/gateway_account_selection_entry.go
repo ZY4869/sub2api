@@ -83,6 +83,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					localExcluded[account.ID] = struct{}{}
 					continue
 				}
+				s.logSelectedAccountUsagePressure("local_acquired", groupID, sessionHash, requestedModel, account)
 				return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 			}
 			if !s.checkAndRegisterSession(ctx, account, sessionHash) {
@@ -92,9 +93,11 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			if stickyAccountID > 0 && stickyAccountID == account.ID && s.concurrencyService != nil {
 				waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, account.ID)
 				if waitingCount < cfg.StickySessionMaxWaiting {
+					s.logSelectedAccountUsagePressure("local_sticky_wait", groupID, sessionHash, requestedModel, account)
 					return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 				}
 			}
+			s.logSelectedAccountUsagePressure("local_wait", groupID, sessionHash, requestedModel, account)
 			return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 		}
 	}
@@ -210,6 +213,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 									if s.debugModelRoutingEnabled() {
 										logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routed sticky hit: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), stickyAccountID)
 									}
+									s.logSelectedAccountUsagePressure("routed_sticky_acquired", groupID, sessionHash, requestedModel, stickyAccount)
 									observeVertexSelection(stickyAccount, "routed_sticky_acquired")
 									return &AccountSelectionResult{Account: stickyAccount, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 								}
@@ -218,6 +222,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 							if waitingCount < cfg.StickySessionMaxWaiting {
 								if !s.checkAndRegisterSession(ctx, stickyAccount, sessionHash) {
 								} else {
+									s.logSelectedAccountUsagePressure("routed_sticky_wait", groupID, sessionHash, requestedModel, stickyAccount)
 									observeVertexSelection(stickyAccount, "routed_sticky_wait")
 									return &AccountSelectionResult{Account: stickyAccount, WaitPlan: &AccountWaitPlan{AccountID: stickyAccountID, MaxConcurrency: stickyAccount.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 								}
@@ -245,30 +250,13 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 			if len(routingAvailable) > 0 {
 				routingAvailable = filterByMinGeminiPublicProtocolRank(ctx, routingAvailable)
+				now := time.Now()
 				sort.SliceStable(routingAvailable, func(i, j int) bool {
 					a, b := routingAvailable[i], routingAvailable[j]
 					if aRank, bRank := geminiPublicProtocolRank(ctx, a.account), geminiPublicProtocolRank(ctx, b.account); aRank != bRank {
 						return aRank < bRank
 					}
-					if a.account.Priority != b.account.Priority {
-						return a.account.Priority < b.account.Priority
-					}
-					if aPenalty, bPenalty := geminiRegionalPenalty(a.account, preferOAuth), geminiRegionalPenalty(b.account, preferOAuth); aPenalty != bPenalty {
-						return aPenalty < bPenalty
-					}
-					if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
-						return a.loadInfo.LoadRate < b.loadInfo.LoadRate
-					}
-					switch {
-					case a.account.LastUsedAt == nil && b.account.LastUsedAt != nil:
-						return true
-					case a.account.LastUsedAt != nil && b.account.LastUsedAt == nil:
-						return false
-					case a.account.LastUsedAt == nil && b.account.LastUsedAt == nil:
-						return false
-					default:
-						return a.account.LastUsedAt.Before(*b.account.LastUsedAt)
-					}
+					return compareAccountsWithLoad(a, b, preferOAuth, now) < 0
 				})
 				shuffleWithinSortGroups(routingAvailable)
 				for _, item := range routingAvailable {
@@ -284,6 +272,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 						if s.debugModelRoutingEnabled() {
 							logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routed select: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), item.account.ID)
 						}
+						s.logSelectedAccountUsagePressure("routed_acquired", groupID, sessionHash, requestedModel, item.account)
 						observeVertexSelection(item.account, "routed_acquired")
 						return &AccountSelectionResult{Account: item.account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 					}
@@ -295,6 +284,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if s.debugModelRoutingEnabled() {
 						logger.LegacyPrintf("service.gateway", "[ModelRoutingDebug] routed wait: group_id=%v model=%s session=%s account=%d", derefGroupID(groupID), requestedModel, shortSessionHash(sessionHash), item.account.ID)
 					}
+					s.logSelectedAccountUsagePressure("routed_wait", groupID, sessionHash, requestedModel, item.account)
 					observeVertexSelection(item.account, "routed_wait")
 					return &AccountSelectionResult{Account: item.account, WaitPlan: &AccountWaitPlan{AccountID: item.account.ID, MaxConcurrency: item.account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 				}
@@ -317,6 +307,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 						if !s.checkAndRegisterSession(ctx, account, sessionHash) {
 							result.ReleaseFunc()
 						} else {
+							s.logSelectedAccountUsagePressure("sticky_acquired", groupID, sessionHash, requestedModel, account)
 							observeVertexSelection(account, "sticky_acquired")
 							return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 						}
@@ -325,6 +316,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if waitingCount < cfg.StickySessionMaxWaiting {
 						if !s.checkAndRegisterSession(ctx, account, sessionHash) {
 						} else {
+							s.logSelectedAccountUsagePressure("sticky_wait", groupID, sessionHash, requestedModel, account)
 							observeVertexSelection(account, "sticky_wait")
 							return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 						}
@@ -377,6 +369,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			if result.Acquired {
 				phase = "legacy_acquired"
 			}
+			s.logSelectedAccountUsagePressure(phase, groupID, sessionHash, requestedModel, result.Account)
 			observeVertexSelection(result.Account, phase)
 			return result, nil
 		}
@@ -392,9 +385,11 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			}
 		}
 		for len(available) > 0 {
+			now := time.Now()
 			candidates := filterByMinGeminiPublicProtocolRank(ctx, available)
 			candidates = filterByMinPriority(candidates)
 			candidates = filterByMinGeminiRegionalPenalty(candidates, preferOAuth)
+			candidates = filterByBestAccountUsagePressure(candidates, now)
 			candidates = filterByMinLoadRate(candidates)
 			selected := selectByLRU(candidates, preferOAuth)
 			if selected == nil {
@@ -408,6 +403,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 					if sessionHash != "" && s.cache != nil {
 						_ = s.cache.SetSessionAccountID(ctx, derefGroupID(groupID), sessionHash, selected.account.ID, stickySessionTTL)
 					}
+					s.logSelectedAccountUsagePressure("load_acquired", groupID, sessionHash, requestedModel, selected.account)
 					observeVertexSelection(selected.account, "load_acquired")
 					return &AccountSelectionResult{Account: selected.account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
 				}
@@ -428,6 +424,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 		if !s.checkAndRegisterSession(ctx, acc, sessionHash) {
 			continue
 		}
+		s.logSelectedAccountUsagePressure("load_wait", groupID, sessionHash, requestedModel, acc)
 		observeVertexSelection(acc, "load_wait")
 		return &AccountSelectionResult{Account: acc, WaitPlan: &AccountWaitPlan{AccountID: acc.ID, MaxConcurrency: acc.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
@@ -458,4 +455,45 @@ func (s *GatewayService) schedulingConfig() config.GatewaySchedulingConfig {
 		return s.cfg.Gateway.Scheduling
 	}
 	return config.GatewaySchedulingConfig{StickySessionMaxWaiting: 3, StickySessionWaitTimeout: 45 * time.Second, FallbackWaitTimeout: 30 * time.Second, FallbackMaxWaiting: 100, LoadBatchEnabled: true, SlotCleanupInterval: 30 * time.Second}
+}
+
+func (s *GatewayService) logSelectedAccountUsagePressure(
+	phase string,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	account *Account,
+) {
+	if account == nil {
+		return
+	}
+	now := time.Now()
+	window, utilization, resetAt := accountUsagePressureLogValues(buildAccountUsagePressure(account, now))
+	slog.Debug(
+		"gateway_account_selection_pressure",
+		"phase", phase,
+		"group_id", derefGroupID(groupID),
+		"model", requestedModel,
+		"session", shortSessionHash(sessionHash),
+		"account_id", account.ID,
+		"account_type", account.Type,
+		"priority", account.Priority,
+		"pressure_window", window,
+		"pressure_utilization", utilization,
+		"pressure_reset_at", resetAt,
+	)
+	if s.debugModelRoutingEnabled() && requestedModel != "" {
+		logger.LegacyPrintf(
+			"service.gateway",
+			"[ModelRoutingDebug] account selection: phase=%s group_id=%v model=%s session=%s account=%d pressure_window=%s pressure_utilization=%.2f pressure_reset_at=%s",
+			phase,
+			derefGroupID(groupID),
+			requestedModel,
+			shortSessionHash(sessionHash),
+			account.ID,
+			window,
+			utilization,
+			resetAt,
+		)
+	}
 }

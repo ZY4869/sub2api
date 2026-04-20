@@ -2,8 +2,17 @@ package service
 
 import "strings"
 
-func NormalizePlatformFamily(platform string) string {
+func CanonicalizePlatformValue(platform string) string {
 	switch strings.TrimSpace(strings.ToLower(platform)) {
+	case "baidu":
+		return PlatformBaiduDocumentAI
+	default:
+		return strings.TrimSpace(strings.ToLower(platform))
+	}
+}
+
+func NormalizePlatformFamily(platform string) string {
+	switch CanonicalizePlatformValue(platform) {
 	case PlatformProtocolGateway:
 		return PlatformProtocolGateway
 	case "claude", PlatformAnthropic, PlatformKiro:
@@ -26,7 +35,7 @@ func IsOpenAIFamily(platform string) bool {
 }
 
 func SupportsMixedChannelPlatform(platform string) bool {
-	switch strings.TrimSpace(strings.ToLower(platform)) {
+	switch CanonicalizePlatformValue(platform) {
 	case PlatformAnthropic, "claude", PlatformAntigravity, PlatformKiro, PlatformCopilot:
 		return true
 	default:
@@ -35,7 +44,7 @@ func SupportsMixedChannelPlatform(platform string) bool {
 }
 
 func DisplayPlatformName(platform string) string {
-	switch strings.TrimSpace(strings.ToLower(platform)) {
+	switch CanonicalizePlatformValue(platform) {
 	case PlatformAntigravity:
 		return "Antigravity"
 	case PlatformProtocolGateway:
@@ -56,5 +65,5 @@ func DisplayPlatformName(platform string) string {
 }
 
 func IsGrokPlatform(platform string) bool {
-	return strings.TrimSpace(strings.ToLower(platform)) == PlatformGrok
+	return CanonicalizePlatformValue(platform) == PlatformGrok
 }
