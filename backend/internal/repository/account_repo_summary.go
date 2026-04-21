@@ -31,7 +31,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 
 	baseWhere := []string{"a.deleted_at IS NULL"}
 	baseArgs := make([]any, 0, 6)
-	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 8, normalized, "a", true)
+	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 9, normalized, "a", true)
 	reasonExpr := accountRateLimitReasonSQL(accountLimitedSQLColumns{
 		Extra:            "f.extra",
 		RateLimitResetAt: "f.rate_limit_reset_at",
@@ -83,7 +83,8 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			COUNT(*) FILTER (WHERE rate_limit_reason <> '') AS limited_total,
 			COUNT(*) FILTER (WHERE rate_limit_reason = $5) AS limited_rate_429,
 			COUNT(*) FILTER (WHERE rate_limit_reason = $6) AS limited_usage_5h,
-			COUNT(*) FILTER (WHERE rate_limit_reason = $7) AS limited_usage_7d
+			COUNT(*) FILTER (WHERE rate_limit_reason = $7) AS limited_usage_7d,
+			COUNT(*) FILTER (WHERE rate_limit_reason = $8) AS limited_usage_7d_all
 		FROM classified
 	`
 	aggregateArgs := append([]any{
@@ -94,6 +95,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		service.AccountRateLimitReason429,
 		service.AccountRateLimitReasonUsage5h,
 		service.AccountRateLimitReasonUsage7d,
+		service.AccountRateLimitReasonUsage7dAll,
 	}, baseArgs...)
 	var activeCount int64
 	var inactiveCount int64
@@ -112,6 +114,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		&summary.LimitedBreakdown.Rate429,
 		&summary.LimitedBreakdown.Usage5h,
 		&summary.LimitedBreakdown.Usage7d,
+		&summary.LimitedBreakdown.Usage7dAll,
 	); err != nil {
 		return nil, err
 	}

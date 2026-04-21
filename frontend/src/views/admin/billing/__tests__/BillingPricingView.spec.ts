@@ -13,10 +13,12 @@ const apiMocks = vi.hoisted(() => ({
   listBillingPricingModels: vi.fn(),
   getBillingPricingAudit: vi.fn(),
   getBillingPricingDetails: vi.fn(),
+  getBillingPricingDetailsWithPreview: vi.fn(),
   refreshBillingPricingCatalog: vi.fn(),
   updateBillingPricingLayer: vi.fn(),
   copyBillingPricingOfficialToSale: vi.fn(),
   applyBillingPricingDiscount: vi.fn(),
+  getAllGroups: vi.fn(),
 }))
 
 const storeMocks = vi.hoisted(() => ({
@@ -29,10 +31,18 @@ vi.mock('@/api/admin/billing', () => ({
   listBillingPricingModels: apiMocks.listBillingPricingModels,
   getBillingPricingAudit: apiMocks.getBillingPricingAudit,
   getBillingPricingDetails: apiMocks.getBillingPricingDetails,
+  getBillingPricingDetailsWithPreview: apiMocks.getBillingPricingDetailsWithPreview,
   refreshBillingPricingCatalog: apiMocks.refreshBillingPricingCatalog,
   updateBillingPricingLayer: apiMocks.updateBillingPricingLayer,
   copyBillingPricingOfficialToSale: apiMocks.copyBillingPricingOfficialToSale,
   applyBillingPricingDiscount: apiMocks.applyBillingPricingDiscount,
+}))
+
+vi.mock('@/api/admin/groups', () => ({
+  getAll: apiMocks.getAllGroups,
+  default: {
+    getAll: apiMocks.getAllGroups,
+  },
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -119,6 +129,7 @@ function resetBillingPricingStore() {
   store.search = ''
   store.providerFilter = ''
   store.modeFilter = ''
+  store.groupPreviewId = null
   store.sortBy = 'display_name'
   store.sortOrder = 'asc'
   store.page = 1
@@ -230,6 +241,13 @@ describe('BillingPricingView', () => {
       snapshot_updated_at: '2026-04-16T00:00:00Z',
     })
     apiMocks.getBillingPricingDetails.mockResolvedValue([createDetail()])
+    apiMocks.getBillingPricingDetailsWithPreview.mockResolvedValue([
+      {
+        ...createDetail(),
+        preview_group_id: 9,
+        preview_rate_multiplier: 1.3,
+      },
+    ])
     apiMocks.refreshBillingPricingCatalog.mockResolvedValue({
       updated_at: '2026-04-16T00:00:00Z',
       total_models: 12,
@@ -238,6 +256,10 @@ describe('BillingPricingView', () => {
     apiMocks.updateBillingPricingLayer.mockResolvedValue(createDetail())
     apiMocks.copyBillingPricingOfficialToSale.mockResolvedValue([createDetail()])
     apiMocks.applyBillingPricingDiscount.mockResolvedValue([createDetail()])
+    apiMocks.getAllGroups.mockResolvedValue([
+      { id: 9, name: '图像增强组' },
+      { id: 11, name: '标准组' },
+    ])
   })
 
   it('loads providers and paginated list mode data on mount', async () => {
@@ -245,6 +267,7 @@ describe('BillingPricingView', () => {
     await flushPromises()
 
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(1)
+    expect(apiMocks.getAllGroups).toHaveBeenCalledTimes(1)
     expect(apiMocks.listBillingPricingModels).toHaveBeenCalledWith(expect.objectContaining({
       page: 1,
       page_size: 20,
@@ -326,6 +349,28 @@ describe('BillingPricingView', () => {
     await flushPromises()
 
     expect(apiMocks.getBillingPricingDetails).toHaveBeenCalledWith(['gpt-5.4'])
+  })
+
+  it('loads preview prices and preview details after selecting a group', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="billing-pricing-group-preview"]').setValue('9')
+    await flushPromises()
+
+    expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
+      group_id: 9,
+      page: 1,
+      page_size: 20,
+    }))
+
+    wrapper.getComponent(BillingPricingModelList).vm.$emit('open', 'gpt-5.4')
+    await flushPromises()
+
+    expect(apiMocks.getBillingPricingDetailsWithPreview).toHaveBeenCalledWith({
+      models: ['gpt-5.4'],
+      group_id: 9,
+    })
   })
 
   it('renders missing pricing badges and warnings in list mode', async () => {
@@ -420,6 +465,7 @@ describe('BillingPricingView', () => {
         item_multipliers: {},
       },
       currency: 'CNY',
+      group_id: null,
     })
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(2)
     expect(apiMocks.listBillingPricingModels).toHaveBeenCalledTimes(2)

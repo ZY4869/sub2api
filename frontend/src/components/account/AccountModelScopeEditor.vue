@@ -54,8 +54,10 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelRegistryPreset } from '@/generated/modelRegistry'
+import { ensureModelRegistryFresh } from '@/stores/modelRegistry'
 import type { ModelMapping } from '@/utils/accountFormShared'
 import AccountModelScopeWhitelistEditor from './AccountModelScopeWhitelistEditor.vue'
 import AccountModelScopeMappingEditor from './AccountModelScopeMappingEditor.vue'
@@ -86,6 +88,9 @@ const emit = defineEmits<{
 const actualModelLocked = defineModel<boolean>('actualModelLocked', { default: true })
 
 const { t } = useI18n()
+onMounted(() => {
+  void ensureModelRegistryFresh()
+})
 
 const inactiveModeClass = 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-600 dark:text-gray-400 dark:hover:bg-dark-500'
 

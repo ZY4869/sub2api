@@ -48,7 +48,7 @@ export default {
     },
     modelCatalog: {
       eyebrow: '公开模型库',
-      description: '浏览当前可对外售卖且可用的模型目录，价格统一按出售价格层与倍率后的有效售价展示。',
+      description: '浏览当前已发布的对外模型目录，价格默认展示发布时冻结的基础出售价格。',
       modelCount: '{count} 个模型',
       refresh: '刷新目录',
       refreshing: '刷新中...',
@@ -69,6 +69,13 @@ export default {
       viewModes: {
         grid: '九宫格',
         list: '列表',
+      },
+      pagination: {
+        summary: '显示第 {start}-{end} 条，共 {total} 条',
+        page: '第 {page} / {pages} 页',
+        prev: '上一页',
+        next: '下一页',
+        pageSize: '每页 {size} 条',
       },
       multiplier: {
         disabled: '未启用倍率',

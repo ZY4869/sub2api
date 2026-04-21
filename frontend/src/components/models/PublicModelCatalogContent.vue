@@ -17,6 +17,9 @@
           <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
             {{ modelCountLabel }}
           </span>
+          <span class="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-700 dark:border-dark-700 dark:bg-dark-900/80 dark:text-slate-200">
+            {{ t("ui.modelCatalog.pagination.pageSize", { size: pageSize }) }}
+          </span>
           <button
             type="button"
             class="btn btn-secondary"
@@ -71,7 +74,7 @@
 
         <div class="flex flex-wrap items-center justify-between gap-3 xl:justify-end">
           <span class="text-sm text-slate-500 dark:text-slate-400">
-            {{ filteredItems.length }} / {{ catalog?.items.length || 0 }}
+            {{ t("ui.modelCatalog.pagination.summary", pageSummaryParams) }}
           </span>
           <div class="inline-flex rounded-2xl border border-slate-200 bg-slate-50/90 p-1 dark:border-dark-700 dark:bg-dark-800/80">
             <button
@@ -266,7 +269,7 @@
           :data-view-mode="viewMode"
         >
           <article
-            v-for="item in filteredItems"
+            v-for="item in paginatedItems"
             :key="item.model"
             class="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-dark-700 dark:bg-dark-900/80"
             :class="viewMode === 'list' ? 'p-1' : ''"
@@ -294,14 +297,14 @@
                 :class="viewMode === 'grid' ? 'flex flex-col' : 'flex flex-col xl:flex-row xl:items-start xl:justify-between'"
               >
                 <div class="min-w-0 space-y-4">
-                  <div class="flex items-start gap-3">
+                  <div class="flex items-center justify-center gap-3 text-center">
                     <ModelIcon
                       :model="item.model"
                       :provider="item.provider"
                       :display-name="item.display_name"
                       size="24px"
                     />
-                    <div class="min-w-0">
+                    <div class="min-w-0 text-center">
                       <div class="break-words text-lg font-semibold text-slate-950 dark:text-white">
                         {{ item.display_name || item.model }}
                       </div>
@@ -397,6 +400,35 @@
           class="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
         >
           {{ t("ui.modelCatalog.empty") }}
+        </div>
+
+        <div
+          v-else-if="filteredItems.length > 0"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white/90 px-5 py-4 text-sm shadow-sm dark:border-dark-700 dark:bg-dark-900/80"
+        >
+          <span class="text-slate-500 dark:text-slate-400">
+            {{ t("ui.modelCatalog.pagination.page", { page: currentPage, pages: totalPages }) }}
+          </span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              :disabled="currentPage <= 1"
+              data-testid="public-models-page-prev"
+              @click="currentPage = Math.max(1, currentPage - 1)"
+            >
+              {{ t("ui.modelCatalog.pagination.prev") }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              :disabled="currentPage >= totalPages"
+              data-testid="public-models-page-next"
+              @click="currentPage = Math.min(totalPages, currentPage + 1)"
+            >
+              {{ t("ui.modelCatalog.pagination.next") }}
+            </button>
+          </div>
         </div>
       </section>
     </div>
@@ -580,6 +612,8 @@ const multiplierOptions = computed<MultiplierFilterOption[]>(() => {
 });
 
 const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
+const pageSize = computed(() => normalizePageSize(catalog.value?.page_size));
+const currentPage = ref(1);
 
 const filteredItems = computed(() =>
   (catalog.value?.items || []).filter((item) => {
@@ -612,6 +646,48 @@ const filteredItems = computed(() =>
     return true;
   }),
 );
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredItems.value.length / pageSize.value)),
+);
+
+const paginatedItems = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredItems.value.slice(start, start + pageSize.value);
+});
+
+const pageSummaryParams = computed(() => {
+  if (filteredItems.value.length === 0) {
+    return { start: 0, end: 0, total: 0 };
+  }
+  const start = (currentPage.value - 1) * pageSize.value + 1;
+  const end = Math.min(currentPage.value * pageSize.value, filteredItems.value.length);
+  return {
+    start,
+    end,
+    total: filteredItems.value.length,
+  };
+});
+
+watch(
+  () => [
+    selectedProvider.value,
+    selectedProtocol.value,
+    selectedMultiplier.value,
+    normalizedSearchQuery.value,
+    catalog.value?.etag,
+    pageSize.value,
+  ],
+  () => {
+    currentPage.value = 1;
+  },
+);
+
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) {
+    currentPage.value = pages;
+  }
+});
 
 watch(viewMode, (nextMode) => {
   if (typeof window === "undefined") {
@@ -779,6 +855,13 @@ function formatNumber(value: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: value >= 1 ? 3 : 6,
   }).format(value);
+}
+
+function normalizePageSize(value?: number): number {
+  if (!Number.isFinite(value) || Number(value) <= 0) {
+    return 10;
+  }
+  return Math.min(100, Math.max(1, Math.floor(Number(value))));
 }
 
 </script>

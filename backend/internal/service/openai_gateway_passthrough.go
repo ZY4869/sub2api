@@ -59,6 +59,10 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(ctx context.Context, c *
 			}
 		}
 	}
+	ctx = WithOpenAICodexRequestModel(ctx, reqModel)
+	if c != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
+	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, err

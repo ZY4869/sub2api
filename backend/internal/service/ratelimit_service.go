@@ -748,12 +748,28 @@ func (s *RateLimitService) handle429(ctx context.Context, account *Account, head
 	runtimePlatform := EffectiveProtocol(account)
 	// 1. OpenAI 平台：优先尝试解析 x-codex-* 响应头（用于 rate_limit_exceeded）
 	if runtimePlatform == PlatformOpenAI {
-		s.persistOpenAICodexSnapshot(ctx, account, headers)
+		if state := s.persistOpenAICodexSnapshot(ctx, account, headers); state != nil {
+			if state.AccountResetAt != nil {
+				slog.Info("openai_account_rate_limited", "account_id", account.ID, "reason", AccountRateLimitReasonUsage7dAll, "reset_at", *state.AccountResetAt)
+				return
+			}
+			if state.ScopeResetAt != nil {
+				slog.Info("openai_codex_scope_rate_limited", "account_id", account.ID, "scope", state.Scope, "reason", state.ScopeReason, "reset_at", *state.ScopeResetAt)
+				return
+			}
+		}
 		if resetAt := s.calculateOpenAI429ResetTime(headers); resetAt != nil {
-			if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, codexRateLimitReasonFromSnapshot(ParseCodexRateLimitHeaders(headers))); err != nil {
+			if err := setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, AccountRateLimitReason429); err != nil {
 				slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
 				return
 			}
+			now := time.Now()
+			account.RateLimitedAt = &now
+			account.RateLimitResetAt = resetAt
+			if account.Extra == nil {
+				account.Extra = map[string]any{}
+			}
+			account.Extra["rate_limit_reason"] = AccountRateLimitReason429
 			slog.Info("openai_account_rate_limited", "account_id", account.ID, "reset_at", *resetAt)
 			return
 		}
@@ -1020,21 +1036,23 @@ func pickSooner(a, b *time.Time) *time.Time {
 	}
 }
 
-func (s *RateLimitService) persistOpenAICodexSnapshot(ctx context.Context, account *Account, headers http.Header) {
+func (s *RateLimitService) persistOpenAICodexSnapshot(ctx context.Context, account *Account, headers http.Header) *openAICodexRateLimitState {
 	if s == nil || s.accountRepo == nil || account == nil || headers == nil {
-		return
+		return nil
 	}
 	snapshot := ParseCodexRateLimitHeaders(headers)
 	if snapshot == nil {
-		return
+		return nil
 	}
-	updates := buildCodexUsageExtraUpdates(snapshot, time.Now())
+	scope, ok := resolveOpenAICodexQuotaScopeFromContext(ctx, account)
+	if !ok {
+		return nil
+	}
+	updates := buildCodexUsageExtraUpdatesForScope(scope, snapshot, time.Now())
 	if len(updates) == 0 {
-		return
+		return nil
 	}
-	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
-		slog.Warn("openai_codex_snapshot_persist_failed", "account_id", account.ID, "error", err)
-	}
+	return syncOpenAICodexRateLimitState(ctx, s.accountRepo, account, updates, time.Now())
 }
 
 // parseOpenAIRateLimitResetTime 解析 OpenAI 格式的 429 响应，返回重置时间的 Unix 时间戳

@@ -189,7 +189,7 @@ const platformSuggestions = computed(() => {
 })
 
 onMounted(() => {
-  void loadList()
+  void Promise.allSettled([ensureModelRegistryFresh(), loadList()])
 })
 
 async function loadList() {

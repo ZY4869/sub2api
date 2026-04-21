@@ -1,6 +1,9 @@
 package admin
 
 import (
+	"errors"
+	"io"
+	"strconv"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -26,6 +29,7 @@ func (h *ModelCatalogHandler) ListBillingPricingModels(c *gin.Context) {
 		Search:    c.Query("search"),
 		Provider:  c.Query("provider"),
 		Mode:      c.Query("mode"),
+		GroupID:   parseOptionalInt64(c.Query("group_id")),
 		SortBy:    c.Query("sort_by"),
 		SortOrder: c.Query("sort_order"),
 		Page:      page,
@@ -39,13 +43,25 @@ func (h *ModelCatalogHandler) ListBillingPricingModels(c *gin.Context) {
 	response.Paginated(c, items, total, page, pageSize)
 }
 
+func parseOptionalInt64(value string) *int64 {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	parsed, err := strconv.ParseInt(trimmed, 10, 64)
+	if err != nil {
+		return nil
+	}
+	return &parsed
+}
+
 func (h *ModelCatalogHandler) GetBillingPricingDetails(c *gin.Context) {
 	var req service.BillingPricingDetailsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
-	items, err := h.modelCatalogService.GetBillingPricingDetails(c.Request.Context(), req.Models)
+	items, err := h.modelCatalogService.GetBillingPricingDetails(c.Request.Context(), req.Models, req.GroupID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -67,6 +83,59 @@ func (h *ModelCatalogHandler) SaveBillingPricingLayer(c *gin.Context) {
 		return
 	}
 	response.Success(c, detail)
+}
+
+func (h *ModelCatalogHandler) GetPublicModelCatalogDraft(c *gin.Context) {
+	payload, err := h.modelCatalogService.GetPublicModelCatalogDraftPayload(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, payload)
+}
+
+func (h *ModelCatalogHandler) SavePublicModelCatalogDraft(c *gin.Context) {
+	var draft service.PublicModelCatalogDraft
+	if err := c.ShouldBindJSON(&draft); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	result, err := h.modelCatalogService.SavePublicModelCatalogDraft(c.Request.Context(), draft)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *ModelCatalogHandler) PublishPublicModelCatalog(c *gin.Context) {
+	var draft *service.PublicModelCatalogDraft
+	if c.Request != nil && c.Request.Body != nil {
+		var payload service.PublicModelCatalogDraft
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			if !errors.Is(err, io.EOF) {
+				response.BadRequest(c, "Invalid request: "+err.Error())
+				return
+			}
+		} else {
+			draft = &payload
+		}
+	}
+	result, err := h.modelCatalogService.PublishPublicModelCatalog(c.Request.Context(), h.resolveActor(c), draft)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *ModelCatalogHandler) GetPublishedPublicModelCatalogSummary(c *gin.Context) {
+	result, err := h.modelCatalogService.GetPublishedPublicModelCatalogSummary(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
 }
 
 func (h *ModelCatalogHandler) RefreshBillingPricingCatalog(c *gin.Context) {

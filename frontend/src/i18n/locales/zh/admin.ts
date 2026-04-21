@@ -625,6 +625,11 @@
           title: '模型定价',
           description: '默认列表模式分页展示模型价格，并支持切换到供应商九宫格巡检。'
         },
+        publicCatalog: {
+          nav: '对外模型展示',
+          title: '对外模型展示',
+          description: '维护公开模型库的草稿配置，并手动推送发布快照。'
+        },
         rules: {
           nav: '规则与模拟',
           title: '规则与模拟',
@@ -1549,7 +1554,7 @@
       },
       limited: {
         title: '受限账号',
-        description: '集中查看当前受限账号，并区分 429、5 小时上限和 7 天上限。',
+        description: '集中查看当前受限账号，并区分 429、5 小时上限、7 天上限和双 7 天整号限流。',
         entry: '受限账号（{count}）',
         hideToggleOn: '始终隐藏限流账号：开',
         hideToggleOff: '始终隐藏限流账号：关',
@@ -1557,7 +1562,8 @@
           all: '全部受限',
           rate429: '429',
           usage5h: '5h 上限',
-          usage7d: '7d 上限'
+          usage7d: '7d 上限',
+          usage7dAll: '双 7d'
         }
       },
       groupView: {
@@ -1737,6 +1743,7 @@
         rateLimited: '限流中',
         usage5h: '5h 上限',
         usage7d: '7d 上限',
+        usage7dAll: '双 7d 上限',
         overloaded: '过载中',
         tempUnschedulable: '临时不可调度',
         rateLimitedUntil: '限流中，当前不参与调度，预计 {time} 自动恢复',
@@ -1745,6 +1752,8 @@
         usage7dUntil: '已到达 7 天上限，当前不参与调度，预计 {time} 自动恢复',
         usage5hAutoResume: '{time} 后自动恢复 5 小时额度',
         usage7dAutoResume: '{time} 后自动恢复 7 天额度',
+        usage7dAllUntil: '普通 Codex 与 Spark 的 7 天额度均已耗尽，当前不参与调度，预计 {time} 自动恢复',
+        usage7dAllAutoResume: '{time} 后自动恢复整号额度',
         modelRateLimitedUntil: '{model} 限流至 {time}',
         overloadedUntil: '负载过重，重置时间：{time}',
         viewTempUnschedDetails: '查看临时不可调度详情'
@@ -1802,6 +1811,8 @@
         statsTitleDaily: '每日用量统计',
         geminiProDaily: 'Pro',
         geminiFlashDaily: 'Flash',
+        spark5h: 'Spark 5h',
+        spark7d: 'Spark 7d',
         gemini3Pro: 'G3P',
         gemini3Flash: 'G3F',
         gemini3Image: 'GImage',
@@ -2028,6 +2039,10 @@
       baseUrl: 'Base URL',
       baseUrlHint: '留空使用官方 Anthropic API',
       apiKeyRequired: 'API Key *',
+      apiKeyVisibility: {
+        show: '显示',
+        hide: '隐藏'
+      },
       apiKeyPlaceholder: 'sk-ant-api03-...',
       apiKeyHint: '您的 Claude Console API Key',
       // OpenAI specific hints
@@ -3064,6 +3079,14 @@
       testModeLabel: '测试模式',
       testModeLine: '测试模式：{mode}',
       selectTestModel: '选择测试模型',
+      refreshTestModels: '手动刷新模型',
+      testModelQuickFilters: {
+        text: '文本',
+        image: '图片',
+        all: '全部',
+        textEmpty: '当前账号快照里没有文本模型，可切换到“全部”或手动刷新。',
+        imageEmpty: '当前账号快照里没有图片模型，可切换到“全部”或手动刷新。'
+      },
       testModel: '测试模型',
       testPrompt: '提示词："hi"',
       testModes: {

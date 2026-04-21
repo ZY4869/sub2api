@@ -22,6 +22,7 @@ const { t } = useI18n()
 
 const items = computed(() => [
   { to: '/admin/billing/pricing', label: t('admin.billing.pages.pricing.nav', '模型定价') },
+  { to: '/admin/billing/public-model-catalog', label: t('admin.billing.pages.publicCatalog.nav', '对外模型展示') },
   { to: '/admin/billing/rules', label: t('admin.billing.pages.rules.nav', '规则与模拟') },
 ])
 </script>

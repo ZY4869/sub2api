@@ -166,6 +166,7 @@ import { useBulkEditAccountForm } from '@/composables/useBulkEditAccountForm'
 import { useBulkEditAccountSubmit } from '@/composables/useBulkEditAccountSubmit'
 import { useAccountMixedChannelRisk } from '@/composables/useAccountMixedChannelRisk'
 import { createCommonErrorCodeOptions } from '@/composables/useModelWhitelist'
+import { ensureModelRegistryFresh } from '@/stores/modelRegistry'
 import {
   OPENAI_WS_MODE_CTX_POOL,
   OPENAI_WS_MODE_OFF,
@@ -325,6 +326,10 @@ const handleSubmit = async () => {
 watch(
   () => props.show,
   (newShow) => {
+    if (newShow) {
+      void ensureModelRegistryFresh()
+      return
+    }
     if (!newShow) {
       resetMixedChannelRisk()
       resetFormState()

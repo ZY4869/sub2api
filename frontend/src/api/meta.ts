@@ -59,6 +59,7 @@ export interface PublicModelCatalogDetailResponse {
 export interface PublicModelCatalogSnapshot {
   etag: string
   updated_at: string
+  page_size?: number
   items: PublicModelCatalogItem[]
 }
 

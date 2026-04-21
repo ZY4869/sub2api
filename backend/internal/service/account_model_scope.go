@@ -12,6 +12,7 @@ type AccountModelScopeV2 struct {
 	SupportedProviders        []string                            `json:"supported_providers"`
 	SupportedModelsByProvider map[string][]string                 `json:"supported_models_by_provider"`
 	AdvancedProviderOverride  bool                                `json:"advanced_provider_override"`
+	SelectedModelIDs          []string                            `json:"selected_model_ids,omitempty"`
 	ManualMappingRows         []AccountModelScopeManualMappingRow `json:"manual_mapping_rows,omitempty"`
 	ManualMappings            map[string]string                   `json:"manual_mappings"`
 }
@@ -37,10 +38,15 @@ func ExtractAccountModelScopeV2(extra map[string]any) (*AccountModelScopeV2, boo
 		SupportedProviders:        normalizeStringSliceAny(scopeMap["supported_providers"], normalizeRegistryPlatform),
 		SupportedModelsByProvider: normalizeStringSliceMapAny(scopeMap["supported_models_by_provider"], normalizeRegistryID),
 		AdvancedProviderOverride:  parseBoolAny(scopeMap["advanced_provider_override"]),
+		SelectedModelIDs:          normalizeStringSliceAny(scopeMap["selected_model_ids"], strings.TrimSpace),
 		ManualMappingRows:         normalizeManualMappingRowsAny(scopeMap["manual_mapping_rows"]),
 		ManualMappings:            normalizeStringMapAny(scopeMap["manual_mappings"], normalizeRegistryID, normalizeRegistryID),
 	}
-	if len(scope.SupportedProviders) == 0 && len(scope.SupportedModelsByProvider) == 0 && len(scope.ManualMappings) == 0 && len(scope.ManualMappingRows) == 0 {
+	if len(scope.SupportedProviders) == 0 &&
+		len(scope.SupportedModelsByProvider) == 0 &&
+		len(scope.SelectedModelIDs) == 0 &&
+		len(scope.ManualMappings) == 0 &&
+		len(scope.ManualMappingRows) == 0 {
 		return nil, false
 	}
 	return scope, true
@@ -70,37 +76,32 @@ func (s *ModelRegistryService) BuildModelMappingFromScopeV2(ctx context.Context,
 	selectedSet := map[string]struct{}{}
 	mapping := make(map[string]string)
 
-	for _, models := range scope.SupportedModelsByProvider {
-		for _, modelID := range models {
-			canonicalID, err := s.resolveCanonicalModelForAvailability(ctx, modelID)
-			if err != nil {
-				return nil, nil, false, err
-			}
-			if canonicalID == "" {
-				canonicalID = normalizeRegistryID(modelID)
-			}
-			if canonicalID == "" {
-				continue
-			}
-			if _, exists := selectedSet[canonicalID]; !exists {
-				selectedSet[canonicalID] = struct{}{}
-				selectedModels = append(selectedModels, canonicalID)
-			}
-			detail, ok := detailIndex[canonicalID]
-			if !ok {
-				mapping[canonicalID] = canonicalID
-				continue
-			}
-			targetModel := canonicalID
-			if resolved, ok := index.ResolveProtocolID(canonicalID, routeKey); ok && strings.TrimSpace(resolved) != "" {
-				targetModel = normalizeRegistryID(resolved)
-			}
-			requestKeys := compactRegistryStrings(canonicalID)
-			requestKeys = mergeRegistryStrings(requestKeys, detail.Aliases...)
-			requestKeys = mergeRegistryStrings(requestKeys, detail.ProtocolIDs...)
-			for _, key := range requestKeys {
-				mapping[key] = targetModel
-			}
+	for _, modelID := range scopeSelectedModels(scope) {
+		canonicalID, err := s.resolveCanonicalModelForAvailability(ctx, modelID)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		if canonicalID == "" {
+			canonicalID = normalizeRegistryID(modelID)
+		}
+		if canonicalID == "" {
+			continue
+		}
+		if _, exists := selectedSet[canonicalID]; !exists {
+			selectedSet[canonicalID] = struct{}{}
+			selectedModels = append(selectedModels, canonicalID)
+		}
+		detail, ok := detailIndex[canonicalID]
+		if !ok {
+			mapping[canonicalID] = canonicalID
+			continue
+		}
+		targetModel := canonicalID
+		if resolved, ok := index.ResolveProtocolID(canonicalID, routeKey); ok && strings.TrimSpace(resolved) != "" {
+			targetModel = normalizeRegistryID(resolved)
+		}
+		for _, key := range accountModelScopeRequestKeys(canonicalID, detail) {
+			mapping[key] = targetModel
 		}
 	}
 
@@ -148,10 +149,12 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 	scope := &AccountModelScopeV2{
 		SupportedProviders:        []string{},
 		SupportedModelsByProvider: map[string][]string{},
+		SelectedModelIDs:          []string{},
 		ManualMappingRows:         []AccountModelScopeManualMappingRow{},
 		ManualMappings:            map[string]string{},
 	}
 	providerSet := map[string]struct{}{}
+	selectedModelIDsByCanonical := map[string][]string{}
 
 	for from, to := range mapping {
 		canonicalID := ""
@@ -188,7 +191,25 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 		if resolved, ok := index.ResolveProtocolID(canonicalID, routeKey); ok && strings.TrimSpace(resolved) != "" {
 			expectedTarget = normalizeRegistryID(resolved)
 		}
-		if normalizeRegistryID(from) != canonicalID || normalizeRegistryID(to) != expectedTarget {
+
+		normalizedFrom := normalizeRegistryID(from)
+		normalizedTo := normalizeRegistryID(to)
+		requestKeySet := make(map[string]struct{})
+		for _, key := range accountModelScopeRequestKeys(canonicalID, detail) {
+			requestKeySet[key] = struct{}{}
+		}
+		_, isKnownRequestKey := requestKeySet[normalizedFrom]
+		if isKnownRequestKey && normalizedFrom == normalizedTo {
+			selectedModelIDsByCanonical[canonicalID] = mergeRegistryStrings(
+				selectedModelIDsByCanonical[canonicalID],
+				strings.TrimSpace(from),
+			)
+			continue
+		}
+		if isKnownRequestKey && normalizedTo == expectedTarget {
+			continue
+		}
+		if normalizedFrom != canonicalID || normalizedTo != expectedTarget {
 			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
 			scope.ManualMappings[from] = to
 		}
@@ -202,13 +223,27 @@ func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, pla
 		sort.Strings(models)
 		scope.SupportedModelsByProvider[provider] = models
 	}
+	for _, provider := range scope.SupportedProviders {
+		for _, modelID := range scope.SupportedModelsByProvider[provider] {
+			selectedIDs := append([]string(nil), selectedModelIDsByCanonical[modelID]...)
+			if len(selectedIDs) == 0 {
+				selectedIDs = []string{modelID}
+			} else {
+				sort.Strings(selectedIDs)
+			}
+			scope.SelectedModelIDs = mergeRegistryStrings(scope.SelectedModelIDs, selectedIDs...)
+		}
+	}
 	sort.Slice(scope.ManualMappingRows, func(i, j int) bool {
 		if scope.ManualMappingRows[i].From == scope.ManualMappingRows[j].From {
 			return scope.ManualMappingRows[i].To < scope.ManualMappingRows[j].To
 		}
 		return scope.ManualMappingRows[i].From < scope.ManualMappingRows[j].From
 	})
-	if len(scope.SupportedProviders) == 0 && len(scope.ManualMappings) == 0 && len(scope.ManualMappingRows) == 0 {
+	if len(scope.SupportedProviders) == 0 &&
+		len(scope.SelectedModelIDs) == 0 &&
+		len(scope.ManualMappings) == 0 &&
+		len(scope.ManualMappingRows) == 0 {
 		return nil
 	}
 	return scope
@@ -236,13 +271,43 @@ func (scope *AccountModelScopeV2) ToMap() map[string]any {
 			"to":   row.To,
 		})
 	}
-	return map[string]any{
+	result := map[string]any{
 		"supported_providers":          append([]string(nil), scope.SupportedProviders...),
 		"supported_models_by_provider": modelsByProvider,
 		"advanced_provider_override":   scope.AdvancedProviderOverride,
 		"manual_mapping_rows":          manualMappingRows,
 		"manual_mappings":              manualMappings,
 	}
+	if len(scope.SelectedModelIDs) > 0 {
+		result["selected_model_ids"] = append([]string(nil), scope.SelectedModelIDs...)
+	}
+	return result
+}
+
+func scopeSelectedModels(scope *AccountModelScopeV2) []string {
+	if scope == nil {
+		return nil
+	}
+	if len(scope.SupportedModelsByProvider) > 0 {
+		providers := make([]string, 0, len(scope.SupportedModelsByProvider))
+		for provider := range scope.SupportedModelsByProvider {
+			providers = append(providers, provider)
+		}
+		sort.Strings(providers)
+		models := make([]string, 0)
+		for _, provider := range providers {
+			models = append(models, scope.SupportedModelsByProvider[provider]...)
+		}
+		return models
+	}
+	return append([]string(nil), scope.SelectedModelIDs...)
+}
+
+func accountModelScopeRequestKeys(canonicalID string, detail modelregistry.AdminModelDetail) []string {
+	requestKeys := compactRegistryStrings(canonicalID)
+	requestKeys = mergeRegistryStrings(requestKeys, detail.Aliases...)
+	requestKeys = mergeRegistryStrings(requestKeys, detail.ProtocolIDs...)
+	return requestKeys
 }
 
 func accountModelScopeRouteKey(platform string, accountType string) string {

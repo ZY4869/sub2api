@@ -23,6 +23,10 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(ctx context.Context, c *gin.Con
 	if s == nil || account == nil {
 		return nil, wrapOpenAIWSFallback("invalid_state", errors.New("service or account is nil"))
 	}
+	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
+	if c != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
+	}
 	wsURL, err := s.buildOpenAIResponsesWSURL(account)
 	if err != nil {
 		return nil, wrapOpenAIWSFallback("build_ws_url", err)
@@ -526,6 +530,10 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(ctx context.Con
 	firstPayload, err := parseClientPayload(firstClientMessage)
 	if err != nil {
 		return err
+	}
+	ctx = WithOpenAICodexRequestModel(ctx, strings.TrimSpace(gjson.GetBytes(firstPayload.payloadRaw, "model").String()))
+	if c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
 	}
 	turnState := strings.TrimSpace(c.GetHeader(openAIWSTurnStateHeader))
 	stateStore := s.getOpenAIWSStateStore()

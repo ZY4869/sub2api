@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import type { PublicModelCatalogSnapshot } from '@/api/meta'
 import type { Group, UserGroupModelOptionGroup } from '@/types'
 
 /**
@@ -32,8 +33,16 @@ export async function getModelOptions(): Promise<UserGroupModelOptionGroup[]> {
   return data
 }
 
+export async function getModelCatalog(groupId: number): Promise<PublicModelCatalogSnapshot> {
+  const { data } = await apiClient.get<PublicModelCatalogSnapshot>('/groups/model-catalog', {
+    params: { group_id: groupId },
+  })
+  return data
+}
+
 export const userGroupsAPI = {
   getAvailable,
+  getModelCatalog,
   getModelOptions,
   getUserGroupRates
 }

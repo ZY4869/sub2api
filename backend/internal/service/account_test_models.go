@@ -18,6 +18,7 @@ type AvailableTestModel struct {
 	DisplayName    string `json:"display_name"`
 	CreatedAt      string `json:"created_at"`
 	CanonicalID    string `json:"canonical_id,omitempty"`
+	Mode           string `json:"mode,omitempty"`
 	Provider       string `json:"provider,omitempty"`
 	ProviderLabel  string `json:"provider_label,omitempty"`
 	SourceProtocol string `json:"source_protocol,omitempty"`
@@ -253,6 +254,7 @@ func buildRegistryTestModelCandidates(ctx context.Context, account *Account, reg
 					ID:             modelID,
 					Type:           "model",
 					DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
+					Mode:           inferAvailableTestModelMode(modelID, nil),
 					SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
 					Status:         "stable",
 				}, PlatformGrok),
@@ -392,6 +394,7 @@ func buildManualTestModelCandidates(account *Account, sourceProtocol string) []t
 				ID:             modelID,
 				Type:           "model",
 				DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(modelID), modelID),
+				Mode:           inferAvailableTestModelMode(modelID, nil),
 				SourceProtocol: manualProtocol,
 				Status:         "manual",
 			}, provider),
@@ -658,6 +661,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Type:        item.Type,
 				DisplayName: item.DisplayName,
 				CreatedAt:   item.CreatedAt,
+				Mode:        inferAvailableTestModelMode(item.ID, nil),
 				Status:      "stable",
 			})
 		}
@@ -670,6 +674,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Type:        item.Type,
 				DisplayName: item.DisplayName,
 				CreatedAt:   item.CreatedAt,
+				Mode:        inferAvailableTestModelMode(item.ID, nil),
 				Status:      "stable",
 			})
 		}
@@ -683,6 +688,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Type:        item.Type,
 				DisplayName: item.DisplayName,
 				CreatedAt:   item.CreatedAt,
+				Mode:        inferAvailableTestModelMode(item.ID, nil),
 				Status:      "stable",
 			})
 		}
@@ -694,6 +700,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				ID:          item.ID,
 				Type:        item.Type,
 				DisplayName: item.DisplayName,
+				Mode:        inferAvailableTestModelMode(item.ID, nil),
 				Status:      "stable",
 			})
 		}
@@ -706,6 +713,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				ID:          modelID,
 				Type:        "model",
 				DisplayName: modelID,
+				Mode:        inferAvailableTestModelMode(modelID, nil),
 				Status:      "stable",
 			})
 		}
@@ -718,6 +726,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				ID:          entry.ID,
 				Type:        "model",
 				DisplayName: firstNonEmptyTestModelLabel(entry.DisplayName, FormatModelCatalogDisplayName(entry.ID), entry.ID),
+				Mode:        inferAvailableTestModelMode(entry.ID, &entry),
 				Status:      "stable",
 			})
 		}
@@ -730,6 +739,7 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 				Type:        item.Type,
 				DisplayName: item.DisplayName,
 				CreatedAt:   item.CreatedAt,
+				Mode:        inferAvailableTestModelMode(item.ID, nil),
 				Status:      "stable",
 			})
 		}

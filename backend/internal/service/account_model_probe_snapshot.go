@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
 const (
@@ -176,6 +179,90 @@ func buildSavedAccountModelProbeSummary(modelIDs []string, probeSource string) *
 		Models:         details,
 		ProbeSource:    strings.TrimSpace(probeSource),
 	}
+}
+
+func AvailableTestModelsFromProbeSnapshot(
+	ctx context.Context,
+	account *Account,
+	registry *ModelRegistryService,
+	snapshot *AccountModelProbeSnapshot,
+) []AvailableTestModel {
+	if snapshot == nil || len(snapshot.Models) == 0 {
+		return []AvailableTestModel{}
+	}
+	sourceProtocols := protocolGatewayTestSourceProtocols(account)
+	if len(sourceProtocols) == 0 {
+		return buildAvailableTestModelsFromProbeSnapshotSource(ctx, registry, snapshot.Models, "")
+	}
+
+	groups := make([][]AvailableTestModel, 0, len(sourceProtocols))
+	for _, sourceProtocol := range sourceProtocols {
+		groups = append(groups, buildAvailableTestModelsFromProbeSnapshotSource(ctx, registry, snapshot.Models, sourceProtocol))
+	}
+	return MergeAvailableTestModels(groups...)
+}
+
+func buildAvailableTestModelsFromProbeSnapshotSource(
+	ctx context.Context,
+	registry *ModelRegistryService,
+	modelIDs []string,
+	sourceProtocol string,
+) []AvailableTestModel {
+	models := make([]AvailableTestModel, 0, len(modelIDs))
+	for _, modelID := range normalizeAccountModelProbeSnapshotModels(modelIDs) {
+		models = append(models, buildAvailableTestModelFromSnapshotModelID(ctx, registry, modelID, sourceProtocol))
+	}
+	sort.SliceStable(models, func(i, j int) bool {
+		return compareAvailableTestModels(models[i], models[j]) < 0
+	})
+	return models
+}
+
+func buildAvailableTestModelFromSnapshotModelID(
+	ctx context.Context,
+	registry *ModelRegistryService,
+	modelID string,
+	sourceProtocol string,
+) AvailableTestModel {
+	normalizedModelID := NormalizeModelCatalogModelID(modelID)
+	if normalizedModelID == "" {
+		normalizedModelID = normalizeRegistryID(modelID)
+	}
+	if registry != nil {
+		if detail, err := registry.GetDetail(ctx, normalizedModelID); err == nil && detail != nil {
+			model := buildAvailableTestModelFromRegistryDetail(*detail, sourceProtocol)
+			if model.CanonicalID == "" {
+				model.CanonicalID = normalizeRegistryID(detail.ID)
+			}
+			return model
+		}
+		if resolution, err := registry.ExplainResolution(ctx, normalizedModelID); err == nil && resolution != nil {
+			entry := resolution.Entry
+			if normalizeRegistryID(resolution.EffectiveID) != "" && resolution.ReplacementEntry != nil {
+				entry = *resolution.ReplacementEntry
+			}
+			model := applyAvailableTestModelProvider(AvailableTestModel{
+				ID:             normalizedModelID,
+				Type:           "model",
+				DisplayName:    firstNonEmptyTestModelLabel(entry.DisplayName, FormatModelCatalogDisplayName(normalizedModelID), normalizedModelID),
+				CanonicalID:    firstNonEmptyTrimmed(resolution.CanonicalID, normalizedModelID),
+				Mode:           inferAvailableTestModelMode(normalizedModelID, &entry),
+				SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
+				Status:         "stable",
+			}, entry.Provider)
+			return model
+		}
+	}
+
+	return applyAvailableTestModelProvider(AvailableTestModel{
+		ID:             normalizedModelID,
+		Type:           "model",
+		DisplayName:    firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(normalizedModelID), normalizedModelID),
+		CanonicalID:    normalizedModelID,
+		Mode:           inferAvailableTestModelMode(normalizedModelID, (*modelregistry.ModelEntry)(nil)),
+		SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
+		Status:         "stable",
+	}, inferModelProvider(normalizedModelID))
 }
 
 func normalizeAccountModelProbeSnapshotModels(models []string) []string {

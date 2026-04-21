@@ -183,6 +183,8 @@ type UsageInfo struct {
 	UpdatedAt          *time.Time     `json:"updated_at,omitempty"`           // 更新时间
 	FiveHour           *UsageProgress `json:"five_hour"`                      // 5小时窗口
 	SevenDay           *UsageProgress `json:"seven_day,omitempty"`            // 7天窗口
+	SparkFiveHour      *UsageProgress `json:"spark_five_hour,omitempty"`      // Spark 5小时窗口
+	SparkSevenDay      *UsageProgress `json:"spark_seven_day,omitempty"`      // Spark 7天窗口
 	SevenDaySonnet     *UsageProgress `json:"seven_day_sonnet,omitempty"`     // 7天Sonnet窗口
 	GeminiSharedDaily  *UsageProgress `json:"gemini_shared_daily,omitempty"`  // Gemini shared pool RPD (Google One / Code Assist)
 	GeminiProDaily     *UsageProgress `json:"gemini_pro_daily,omitempty"`     // Gemini Pro 日配额
@@ -528,6 +530,12 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	if progress := buildCodexUsageProgressFromExtra(account.Extra, "7d", now); progress != nil {
 		usage.SevenDay = progress
 	}
+	if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "5h", now); progress != nil {
+		usage.SparkFiveHour = progress
+	}
+	if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "7d", now); progress != nil {
+		usage.SparkSevenDay = progress
+	}
 
 	shouldProbe := force || shouldRefreshOpenAICodexSnapshot(account, usage, now)
 	if shouldProbe && (force || s.shouldProbeOpenAICodexSnapshot(account.ID, now)) {
@@ -548,6 +556,12 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 			}
 			if progress := buildCodexUsageProgressFromExtra(account.Extra, "7d", now); progress != nil {
 				usage.SevenDay = progress
+			}
+			if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "5h", now); progress != nil {
+				usage.SparkFiveHour = progress
+			}
+			if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "7d", now); progress != nil {
+				usage.SparkSevenDay = progress
 			}
 		}
 	}
@@ -637,6 +651,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 
 	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	reqCtx = WithOpenAICodexRequestModel(reqCtx, modelID)
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, chatgptCodexURL, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create openai probe request: %w", err)
@@ -676,44 +691,41 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	updates, resetAt, reason, err := extractOpenAICodexProbeSnapshot(resp)
+	updates, resetAt, _, err := extractOpenAICodexProbeSnapshotForScope(resp, resolveOpenAICodexQuotaScope(account, modelID))
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(updates) > 0 || resetAt != nil {
-		s.persistOpenAICodexProbeSnapshot(account.ID, updates, resetAt, reason)
+		state := s.persistOpenAICodexProbeSnapshot(reqCtx, account, updates)
+		if state != nil {
+			if state.AccountResetAt != nil {
+				return updates, state.AccountResetAt, nil
+			}
+			if state.ScopeResetAt != nil {
+				return updates, state.ScopeResetAt, nil
+			}
+		}
 		return updates, resetAt, nil
 	}
 	return nil, nil, nil
 }
 
-func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(accountID int64, updates map[string]any, resetAt *time.Time, reason string) {
-	if s == nil || s.accountRepo == nil || accountID <= 0 {
-		return
+func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(ctx context.Context, account *Account, updates map[string]any) *openAICodexRateLimitState {
+	if s == nil || s.accountRepo == nil || account == nil || account.ID <= 0 || len(updates) == 0 {
+		return nil
 	}
-	if len(updates) == 0 && resetAt == nil {
-		return
-	}
-
-	go func() {
-		updateCtx, updateCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer updateCancel()
-		if len(updates) > 0 {
-			_ = s.accountRepo.UpdateExtra(updateCtx, accountID, updates)
-		}
-		if resetAt != nil {
-			_ = setAccountRateLimited(updateCtx, s.accountRepo, accountID, *resetAt, reason)
-		}
-	}()
+	updateCtx, updateCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer updateCancel()
+	return syncOpenAICodexRateLimitState(updateCtx, s.accountRepo, account, updates, time.Now())
 }
 
-func extractOpenAICodexProbeSnapshot(resp *http.Response) (map[string]any, *time.Time, string, error) {
+func extractOpenAICodexProbeSnapshotForScope(resp *http.Response, scope string) (map[string]any, *time.Time, string, error) {
 	if resp == nil {
 		return nil, nil, "", nil
 	}
 	if snapshot := ParseCodexRateLimitHeaders(resp.Header); snapshot != nil {
 		baseTime := time.Now()
-		updates := buildCodexUsageExtraUpdates(snapshot, baseTime)
+		updates := buildCodexUsageExtraUpdatesForScope(scope, snapshot, baseTime)
 		resetAt := codexRateLimitResetAtFromSnapshot(snapshot, baseTime)
 		reason := codexRateLimitReasonFromSnapshot(snapshot)
 		if len(updates) > 0 {
@@ -725,6 +737,15 @@ func extractOpenAICodexProbeSnapshot(resp *http.Response) (map[string]any, *time
 		return nil, nil, "", fmt.Errorf("openai codex probe returned status %d", resp.StatusCode)
 	}
 	return nil, nil, "", nil
+}
+
+func extractOpenAICodexProbeSnapshot(resp *http.Response) (map[string]any, *time.Time, string, error) {
+	return extractOpenAICodexProbeSnapshotForScope(resp, openAICodexScopeNormal)
+}
+
+func extractOpenAICodexProbeUpdatesForScope(resp *http.Response, scope string) (map[string]any, error) {
+	updates, _, _, err := extractOpenAICodexProbeSnapshotForScope(resp, scope)
+	return updates, err
 }
 
 func extractOpenAICodexProbeUpdates(resp *http.Response) (map[string]any, error) {

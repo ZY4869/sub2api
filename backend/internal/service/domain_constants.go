@@ -132,6 +132,8 @@ const (
 	SettingKeyFallbackModelAntigravity                       = "fallback_model_antigravity"
 	SettingKeyModelCatalogEntries                            = "model_catalog_entries"
 	SettingKeyPublicModelCatalogEnabled                      = "public_model_catalog_enabled"
+	SettingKeyPublicModelCatalogDraft                        = "public_model_catalog_draft"
+	SettingKeyPublicModelCatalogPublishedSnapshot            = "public_model_catalog_published_snapshot"
 	SettingKeyModelPriceOverrides                            = "model_price_overrides"
 	SettingKeyModelOfficialPriceOverrides                    = "model_official_price_overrides"
 	SettingKeyModelPricingCurrencies                         = "model_pricing_currencies"

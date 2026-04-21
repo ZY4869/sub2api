@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import BulkEditAccountModal from '../BulkEditAccountModal.vue'
 import BulkEditOpenAIGatewaySection from '../BulkEditOpenAIGatewaySection.vue'
+import { generatedModelRegistrySnapshot } from '@/generated/modelRegistry'
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -22,6 +23,16 @@ vi.mock('@/api/admin', () => ({
 
 vi.mock('@/api/admin/accounts', () => ({
   getAntigravityDefaultModelMapping: vi.fn()
+}))
+
+vi.mock('@/stores/modelRegistry', () => ({
+  ensureModelRegistryFresh: vi.fn().mockResolvedValue({
+    etag: 'test-etag',
+    updated_at: '2026-04-08T00:00:00Z',
+    models: [],
+    presets: []
+  }),
+  getModelRegistrySnapshot: vi.fn(() => generatedModelRegistrySnapshot)
 }))
 
 vi.mock('vue-i18n', async () => {

@@ -550,6 +550,7 @@ import {
   createCommonErrorCodeOptions,
   buildModelMappingObject
 } from '@/composables/useModelWhitelist'
+import { ensureModelRegistryFresh } from '@/stores/modelRegistry'
 import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
 import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import {
@@ -613,6 +614,7 @@ import type {
 } from '@/types'
 import { formatModelDisplayName } from '@/utils/modelDisplayName'
 import {
+  buildLocalAccountModelProbeSnapshot,
   deriveConfiguredAccountModelIds,
   mergeAccountModelProbeSnapshotIntoExtra,
   mergeAccountManualModelsIntoExtra,
@@ -658,6 +660,7 @@ const antigravityPresetMappings = computed(() => getPresetMappingsByPlatform('an
 // State
 const submitting = ref(false)
 const gatewayProtocol = ref<GatewayProtocol>('openai')
+const isInitializingGatewayProtocol = ref(false)
 const editBaseUrl = ref(resolveAccountApiKeyDefaultBaseUrl('anthropic'))
 const editApiKey = ref('')
 const editGrokSSOToken = ref('')
@@ -1083,6 +1086,26 @@ function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
     return false
   }
   const scope = raw as Record<string, unknown>
+  const rawSelectedModelIDs = Array.isArray(scope.selected_model_ids)
+    ? scope.selected_model_ids
+        .map((item) => String(item || '').trim())
+        .filter((value) => value.length > 0)
+    : []
+  if (rawSelectedModelIDs.length > 0) {
+    const selectedModels = [...new Set(rawSelectedModelIDs)]
+    if (isProtocolGatewayAccount.value) {
+      modelRestrictionMode.value = 'mapping'
+      allowedModels.value = selectedModels
+      modelMappings.value = []
+      protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
+    } else {
+      modelRestrictionMode.value = 'whitelist'
+      allowedModels.value = selectedModels
+      modelMappings.value = []
+    }
+    return true
+  }
+
   const rawManualRows = scope.manual_mapping_rows
   if (Array.isArray(rawManualRows)) {
     const entries = rawManualRows
@@ -1290,6 +1313,8 @@ watch(
   () => [props.show, props.account] as const,
   ([show, newAccount]) => {
     if (show && newAccount) {
+      void ensureModelRegistryFresh()
+      isInitializingGatewayProtocol.value = true
       actualModelLocked.value = true
       resetMixedChannelRisk()
       gatewayProtocol.value = resolveAccountGatewayProtocol(newAccount) || 'openai'
@@ -1590,7 +1615,9 @@ watch(
         protocolGatewayProbeModels.value = createStaticProbeModels(initialProbeModelIDs)
       }
       editApiKey.value = ''
+      isInitializingGatewayProtocol.value = false
     } else {
+      isInitializingGatewayProtocol.value = false
       actualModelLocked.value = true
       resetMixedChannelRisk()
       resetTempUnschedRules()
@@ -1636,7 +1663,7 @@ watch(
 watch(
   gatewayProtocol,
   (newProtocol, oldProtocol) => {
-    if (!isProtocolGatewayAccount.value || newProtocol === oldProtocol) {
+    if (!isProtocolGatewayAccount.value || newProtocol === oldProtocol || isInitializingGatewayProtocol.value) {
       return
     }
     gatewayAcceptedProtocols.value = normalizeGatewayAcceptedProtocols(
@@ -2259,6 +2286,23 @@ const handleSubmit = async () => {
 
 const probeExtraForEditor = computed(() => buildProbeExtra())
 
+const resolveConfiguredModelProbeSnapshot = () =>
+  buildLocalAccountModelProbeSnapshot({
+    current: modelProbeSnapshot.value,
+    manualModels: manualModels.value,
+    allowSourceProtocol: isProtocolGatewayAccount.value,
+    modelRestrictionMode: effectivePlatform.value === 'antigravity'
+      ? antigravityModelRestrictionMode.value
+      : modelRestrictionMode.value,
+    allowedModels: effectivePlatform.value === 'antigravity'
+      ? antigravityWhitelistModels.value
+      : allowedModels.value,
+    modelMappings: effectivePlatform.value === 'antigravity'
+      ? antigravityModelMappings.value
+      : modelMappings.value,
+    source: 'model_scope_preview'
+  })
+
 function buildProbeExtra(base?: Record<string, unknown>) {
   return mergeResolvedUpstreamDraftIntoExtra(
     mergeAccountModelProbeSnapshotIntoExtra(
@@ -2267,7 +2311,7 @@ function buildProbeExtra(base?: Record<string, unknown>) {
         manualModels.value,
         isProtocolGatewayAccount.value
       ),
-      modelProbeSnapshot.value
+      resolveConfiguredModelProbeSnapshot()
     ),
     resolvedUpstream.value
   )

@@ -32,11 +32,7 @@ func (a *Account) isModelRateLimitedWithContext(ctx context.Context, requestedMo
 		return false
 	}
 
-	modelKey := a.GetMappedModel(requestedModel)
-	if a.Platform == PlatformAntigravity {
-		modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
-	}
-	modelKey = strings.TrimSpace(modelKey)
+	modelKey := strings.TrimSpace(a.resolveModelRateLimitKeyWithContext(ctx, requestedModel))
 	if modelKey == "" {
 		return false
 	}
@@ -54,15 +50,26 @@ func (a *Account) GetModelRateLimitRemainingTimeWithContext(ctx context.Context,
 		return 0
 	}
 
-	modelKey := a.GetMappedModel(requestedModel)
-	if a.Platform == PlatformAntigravity {
-		modelKey = resolveFinalAntigravityModelKey(ctx, a, requestedModel)
-	}
-	modelKey = strings.TrimSpace(modelKey)
+	modelKey := strings.TrimSpace(a.resolveModelRateLimitKeyWithContext(ctx, requestedModel))
 	if modelKey == "" {
 		return 0
 	}
 	return a.getRateLimitRemainingForKey(modelKey)
+}
+
+func (a *Account) resolveModelRateLimitKeyWithContext(ctx context.Context, requestedModel string) string {
+	if a == nil {
+		return ""
+	}
+	if a.Platform == PlatformAntigravity {
+		return resolveFinalAntigravityModelKey(ctx, a, requestedModel)
+	}
+	if a.IsOpenAI() {
+		if scope := resolveOpenAICodexQuotaScope(a, requestedModel); scope != "" {
+			return scope
+		}
+	}
+	return a.GetMappedModel(requestedModel)
 }
 
 func resolveFinalAntigravityModelKey(ctx context.Context, account *Account, requestedModel string) string {

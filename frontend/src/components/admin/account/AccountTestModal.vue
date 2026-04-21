@@ -72,6 +72,28 @@
       </div>
 
       <div class="space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('admin.accounts.selectTestModel') }}
+          </div>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            :disabled="loadingModels || status === 'connecting' || !account"
+            @click="loadAvailableModels(true)"
+          >
+            <Icon
+              v-if="loadingModels"
+              name="refresh"
+              size="sm"
+              class="animate-spin"
+              :stroke-width="2"
+            />
+            <Icon v-else name="refresh" size="sm" :stroke-width="2" />
+            <span>{{ t('admin.accounts.refreshTestModels') }}</span>
+          </button>
+        </div>
+
         <AccountTestModelSelectionFields
           v-model:model-input-mode="modelInputMode"
           v-model:selected-model-key="selectedModelKey"
@@ -650,13 +672,15 @@ watch([selectedModelKey, modelInputMode, manualModelId, manualSourceProtocol], (
   }
 })
 
-const loadAvailableModels = async () => {
+const loadAvailableModels = async (forceRefresh = false) => {
   if (!props.account) return
 
   loadingModels.value = true
   selectedModelKey.value = ''
   try {
-    const models = await adminAPI.accounts.getAvailableModels(props.account.id)
+    const models = await adminAPI.accounts.getAvailableModels(props.account.id, {
+      refresh: forceRefresh
+    })
     availableModels.value = models
     selectedModelKey.value = resolveGatewayTestSelectedModelKey(props.account ? [props.account] : [], models)
   } catch (error) {

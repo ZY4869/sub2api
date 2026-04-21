@@ -111,12 +111,24 @@
                 :checked="isModelSelected(binding, model.public_id)"
                 @change="toggleModelSelection(index, model.public_id)"
               />
-              <div class="min-w-0">
+              <ModelIcon
+                :model="model.public_id"
+                :provider="catalogItemForBinding(binding, model.public_id)?.provider"
+                :display-name="catalogItemForBinding(binding, model.public_id)?.display_name || model.display_name || model.public_id"
+                size="18px"
+              />
+              <div class="min-w-0 flex-1">
                 <div class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                  {{ model.display_name || model.public_id }}
+                  {{ catalogItemForBinding(binding, model.public_id)?.display_name || model.display_name || model.public_id }}
                 </div>
                 <div class="truncate text-xs text-gray-500 dark:text-gray-400">
                   {{ model.public_id }}
+                </div>
+                <div
+                  v-if="modelPriceSummary(binding, model.public_id)"
+                  class="mt-1 text-xs text-emerald-700 dark:text-emerald-300"
+                >
+                  {{ modelPriceSummary(binding, model.public_id) }}
                 </div>
               </div>
             </label>
@@ -157,11 +169,17 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import type { PublicModelCatalogItem } from "@/api/meta";
+import ModelIcon from "@/components/common/ModelIcon.vue";
 import type { UserGroupModelOption } from "@/types";
 import type {
   BindableGroup,
   EditableApiKeyGroupBinding,
 } from "./apiKeyGroupBindings";
+import {
+  formatCatalogPrice,
+  priceEntryLabel,
+} from "@/utils/publicModelCatalog";
 import {
   createEmptyEditableBinding,
   parseModelPatterns,
@@ -172,11 +190,13 @@ const props = withDefaults(
     modelValue: EditableApiKeyGroupBinding[];
     groups: BindableGroup[];
     groupModelOptions?: Record<number, UserGroupModelOption[]>;
+    groupModelCatalogItems?: Record<number, PublicModelCatalogItem[]>;
     groupModelOptionsLoading?: boolean;
     adminMode?: boolean;
   }>(),
   {
     adminMode: false,
+    groupModelCatalogItems: () => ({}),
     groupModelOptions: () => ({}),
     groupModelOptionsLoading: false,
   },
@@ -253,6 +273,32 @@ const modelsForBinding = (
   binding: EditableApiKeyGroupBinding,
 ): UserGroupModelOption[] => {
   return props.groupModelOptions?.[binding.group_id] || [];
+};
+
+const catalogItemsForBinding = (
+  binding: EditableApiKeyGroupBinding,
+): PublicModelCatalogItem[] => {
+  return props.groupModelCatalogItems?.[binding.group_id] || [];
+};
+
+const catalogItemForBinding = (
+  binding: EditableApiKeyGroupBinding,
+  modelID: string,
+): PublicModelCatalogItem | undefined => {
+  return catalogItemsForBinding(binding).find((item) => item.model === modelID);
+};
+
+const modelPriceSummary = (
+  binding: EditableApiKeyGroupBinding,
+  modelID: string,
+): string => {
+  const item = catalogItemForBinding(binding, modelID);
+  if (!item || !item.currency || !item.price_display?.primary?.length) {
+    return "";
+  }
+  return item.price_display.primary
+    .map((entry) => `${priceEntryLabel(t, entry.id)} ${formatCatalogPrice(t, entry, item.currency, null)}`)
+    .join(" · ");
 };
 
 const effectiveModelPatterns = (

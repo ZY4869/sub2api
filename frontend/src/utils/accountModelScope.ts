@@ -1,4 +1,4 @@
-import { ensureModelRegistryFresh, getModelRegistrySnapshot } from '@/stores/modelRegistry'
+import { getModelRegistrySnapshot } from '@/stores/modelRegistry'
 
 export interface AccountModelScopeMappingRow {
   from: string
@@ -23,7 +23,6 @@ export function buildAccountModelScopeExtra(
     return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
   }
 
-  void ensureModelRegistryFresh()
   const snapshot = getModelRegistrySnapshot()
   const normalizedAllowedModels = [...new Set(
     options.allowedModels
@@ -94,12 +93,16 @@ export function buildAccountModelScopeExtra(
     return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
   }
 
-  nextExtra.model_scope_v2 = {
+  const modelScopeV2: Record<string, unknown> = {
     supported_providers: supportedProviders,
     supported_models_by_provider: supportedModelsByProvider,
     advanced_provider_override: false,
     manual_mapping_rows: manualMappingRows,
     manual_mappings: manualMappings
   }
+  if (options.mode === 'whitelist' && normalizedAllowedModels.length > 0) {
+    modelScopeV2.selected_model_ids = normalizedAllowedModels
+  }
+  nextExtra.model_scope_v2 = modelScopeV2
   return nextExtra
 }

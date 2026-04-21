@@ -36,7 +36,8 @@ describe('admin accounts summary api', () => {
           total: 3,
           rate_429: 1,
           usage_5h: 1,
-          usage_7d: 1
+          usage_7d: 1,
+          usage_7d_all: 2
         }
       }
     })
@@ -65,7 +66,8 @@ describe('admin accounts summary api', () => {
         total: 3,
         rate_429: 1,
         usage_5h: 1,
-        usage_7d: 1
+        usage_7d: 1,
+        usage_7d_all: 2
       }
     })
   })
@@ -81,14 +83,14 @@ describe('admin accounts summary api', () => {
     await getStatusSummary({
       privacy_mode: 'private',
       limited_view: 'limited_only',
-      limited_reason: 'usage_7d'
+      limited_reason: 'usage_7d_all'
     })
 
     expect(getMock).toHaveBeenCalledWith('/admin/accounts/summary', {
       params: {
         privacy_mode: 'private',
         limited_view: 'limited_only',
-        limited_reason: 'usage_7d'
+        limited_reason: 'usage_7d_all'
       }
     })
   })

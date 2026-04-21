@@ -118,6 +118,24 @@
         </div>
 
         <div class="space-y-4">
+          <div
+            v-if="currentDetail?.preview_sale_form && previewGroupLabel"
+            class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
+          >
+            <div class="font-semibold">
+              {{ previewGroupLabel }} 有效售价预览
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+              <span
+                v-for="entry in previewSaleSummaryEntries"
+                :key="entry.id"
+                class="rounded-full bg-white/80 px-2.5 py-1 dark:bg-white/10"
+              >
+                {{ entry.label }}: {{ entry.value }}
+              </span>
+            </div>
+          </div>
+
           <BillingBulkDiscountPanel
             :discount-ratio="discountRatio"
             :scope="discountScope"
@@ -195,6 +213,7 @@ const props = defineProps<{
   details: BillingPricingSheetDetail[]
   activeModel: string
   busy?: boolean
+  previewGroupName?: string
 }>()
 
 const emit = defineEmits<{
@@ -313,6 +332,42 @@ const saleSpecialVisibility = computed(() => {
         officialForm.special.file_search_retrieval,
       ].some((value) => value != null),
   }
+})
+
+const previewGroupLabel = computed(() => {
+  const groupName = String(props.previewGroupName || '').trim()
+  const multiplier = currentDetail.value?.preview_rate_multiplier
+  if (!groupName) {
+    return ''
+  }
+  if (typeof multiplier === 'number' && Number.isFinite(multiplier)) {
+    return `${groupName} × ${multiplier}`
+  }
+  return groupName
+})
+
+const previewSaleSummaryEntries = computed(() => {
+  const previewForm = currentDetail.value?.preview_sale_form
+  if (!previewForm) {
+    return []
+  }
+  return [
+    { id: 'input_price', label: '输入', value: previewForm.input_price },
+    { id: 'output_price', label: '输出', value: previewForm.output_price },
+    { id: 'cache_price', label: '缓存', value: previewForm.cache_price },
+    { id: 'input_price_above_threshold', label: '输入阶梯', value: previewForm.input_price_above_threshold },
+    { id: 'output_price_above_threshold', label: '输出阶梯', value: previewForm.output_price_above_threshold },
+    { id: 'batch_input_price', label: 'Batch 输入', value: previewForm.special.batch_input_price },
+    { id: 'batch_output_price', label: 'Batch 输出', value: previewForm.special.batch_output_price },
+    { id: 'batch_cache_price', label: 'Batch 缓存', value: previewForm.special.batch_cache_price },
+  ]
+    .filter((entry) => typeof entry.value === 'number' && Number.isFinite(entry.value))
+    .map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      value: formatPreviewValue(Number(entry.value)),
+    }))
+    .slice(0, 6)
 })
 
 const officialDescription = computed(() => {
@@ -434,5 +489,13 @@ function applyDiscount(selectedOnly: boolean) {
 
 function normalizeModels(models: string[]): string[] {
   return Array.from(new Set(models.map((model) => model.trim()).filter(Boolean)))
+}
+
+function formatPreviewValue(value: number): string {
+  const symbol = currentCurrency.value === 'CNY' ? '¥' : '$'
+  return `${symbol}${new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: value >= 1 ? 4 : 8,
+  }).format(value)}`
 }
 </script>

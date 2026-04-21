@@ -202,3 +202,114 @@ func TestAccountHandlerGetAvailableModels_KiroFallsBackToBuiltinCatalog(t *testi
 	require.NotEmpty(t, models)
 	require.Equal(t, service.BuildAvailableTestModels(context.Background(), &account, registrySvc), models)
 }
+
+func TestAccountHandlerGetAvailableModels_PrefersSavedProbeSnapshotUntilManualRefresh(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	_, err := registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "saved-snapshot-model",
+		DisplayName: "Saved Snapshot Model",
+		Platforms:   []string{service.PlatformOpenAI},
+		UIPriority:  1,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:          "live-registry-model",
+		DisplayName: "Live Registry Model",
+		Platforms:   []string{service.PlatformOpenAI},
+		UIPriority:  2,
+		ExposedIn:   []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"saved-snapshot-model", "live-registry-model"})
+	require.NoError(t, err)
+
+	adminSvc := &availableModelsAdminService{
+		stubAdminService: newStubAdminService(),
+		accounts: map[int64]service.Account{
+			46: {
+				ID:       46,
+				Name:     "snapshot-account",
+				Platform: service.PlatformOpenAI,
+				Type:     service.AccountTypeAPIKey,
+				Status:   service.StatusActive,
+				Credentials: map[string]any{
+					"model_mapping": map[string]any{
+						"friendly-live": "live-registry-model",
+					},
+				},
+				Extra: map[string]any{
+					"model_probe_snapshot": map[string]any{
+						"models": []any{"saved-snapshot-model"},
+					},
+				},
+			},
+		},
+	}
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/46/models", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	models := decodeAvailableModelsResponse(t, rec)
+	require.Len(t, models, 1)
+	require.Equal(t, "saved-snapshot-model", models[0].ID)
+
+	refreshRec := httptest.NewRecorder()
+	refreshReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/46/models?refresh=true", nil)
+	router.ServeHTTP(refreshRec, refreshReq)
+	require.Equal(t, http.StatusOK, refreshRec.Code)
+
+	refreshedModels := decodeAvailableModelsResponse(t, refreshRec)
+	require.Len(t, refreshedModels, 1)
+	require.Equal(t, "live-registry-model", refreshedModels[0].ID)
+}
+
+func TestAccountHandlerGetAvailableModels_UsesSnapshotRegistryMetadata(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	_, err := registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
+		ID:           "snapshot-image-model",
+		DisplayName:  "Snapshot Image Model",
+		Platforms:    []string{service.PlatformOpenAI},
+		Provider:     service.PlatformOpenAI,
+		Modalities:   []string{"image"},
+		Capabilities: []string{"image_generation"},
+		UIPriority:   1,
+		ExposedIn:    []string{"test"},
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"snapshot-image-model"})
+	require.NoError(t, err)
+
+	adminSvc := &availableModelsAdminService{
+		stubAdminService: newStubAdminService(),
+		accounts: map[int64]service.Account{
+			47: {
+				ID:       47,
+				Name:     "snapshot-metadata-account",
+				Platform: service.PlatformOpenAI,
+				Type:     service.AccountTypeAPIKey,
+				Status:   service.StatusActive,
+				Extra: map[string]any{
+					"model_probe_snapshot": map[string]any{
+						"models": []any{"snapshot-image-model"},
+					},
+				},
+			},
+		},
+	}
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/47/models", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	models := decodeAvailableModelsResponse(t, rec)
+	require.Len(t, models, 1)
+	require.Equal(t, "snapshot-image-model", models[0].ID)
+	require.Equal(t, "Snapshot Image Model", models[0].DisplayName)
+	require.Equal(t, "image", models[0].Mode)
+}

@@ -35,6 +35,8 @@ vi.mock('vue-i18n', async () => {
           'admin.accounts.usageWindow.gemini3Pro': 'G3P',
           'admin.accounts.usageWindow.gemini3Flash': 'G3F',
           'admin.accounts.usageWindow.claude': 'Claude',
+          'admin.accounts.usageWindow.spark5h': 'Spark 5h',
+          'admin.accounts.usageWindow.spark7d': 'Spark 7d',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
           'admin.accounts.protocolGateway.usageWindow.badge': 'Protocol Gateway · {protocol}',
           'admin.accounts.protocolGateway.usageWindow.tightestWindowNote': 'Showing the tightest upstream daily window.',
@@ -615,6 +617,119 @@ describe('AccountUsageCell', () => {
     expect(getUsage).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
     expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
+  })
+
+  it('renders spark 5h and 7d usage rows for pro openai accounts', async () => {
+    getUsage.mockResolvedValue({
+      five_hour: {
+        utilization: 12,
+        resets_at: '2026-03-08T12:00:00Z',
+        remaining_seconds: 3600,
+        window_stats: {
+          requests: 1,
+          tokens: 120,
+          cost: 0.01,
+          standard_cost: 0.01,
+          user_cost: 0.01,
+        },
+      },
+      seven_day: {
+        utilization: 44,
+        resets_at: '2026-03-13T12:00:00Z',
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 4,
+          tokens: 440,
+          cost: 0.04,
+          standard_cost: 0.04,
+          user_cost: 0.04,
+        },
+      },
+      spark_five_hour: {
+        utilization: 55,
+        resets_at: '2026-03-08T14:00:00Z',
+        remaining_seconds: 7200,
+        window_stats: {
+          requests: 5,
+          tokens: 550,
+          cost: 0.05,
+          standard_cost: 0.05,
+          user_cost: 0.05,
+        },
+      },
+      spark_seven_day: {
+        utilization: 88,
+        resets_at: '2026-03-14T12:00:00Z',
+        remaining_seconds: 86400,
+        window_stats: {
+          requests: 8,
+          tokens: 880,
+          cost: 0.08,
+          standard_cost: 0.08,
+          user_cost: 0.08,
+        },
+      },
+    })
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2008,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'pro',
+          },
+          extra: {},
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).toHaveBeenCalledWith(2008, { force: undefined, source: undefined })
+    expect(wrapper.text()).toContain('Spark 5h|55|2026-03-08T14:00:00Z|7200|true|550')
+    expect(wrapper.text()).toContain('Spark 7d|88|2026-03-14T12:00:00Z|86400|true|880')
+  })
+
+  it('keeps non-pro openai accounts compatible when spark snapshots are absent', async () => {
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2009,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'plus',
+          },
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 12,
+            codex_5h_reset_at: '2099-03-07T12:00:00Z',
+            codex_7d_used_percent: 34,
+            codex_7d_reset_at: '2099-03-13T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(getUsage).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
+    expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
+    expect(wrapper.text()).not.toContain('Spark 5h')
+    expect(wrapper.text()).not.toContain('Spark 7d')
   })
 
   it('supplements missing openai 7d snapshots with fetched usage', async () => {

@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -146,23 +147,81 @@ func TestCalculateOpenAI429ResetTime_ReversedWindowOrder(t *testing.T) {
 
 type openAI429SnapshotRepo struct {
 	mockAccountRepoForGemini
-	rateLimitedID int64
-	updatedExtra  map[string]any
+	rateLimitedID       int64
+	rateLimitedAt       *time.Time
+	updatedExtra        map[string]any
+	updateExtraCalls    []map[string]any
+	modelScope          string
+	modelRateLimitCalls []struct {
+		scope   string
+		resetAt time.Time
+	}
+	clearRateLimitCalls int
 }
 
-func (r *openAI429SnapshotRepo) SetRateLimited(_ context.Context, id int64, _ time.Time) error {
+func (r *openAI429SnapshotRepo) SetRateLimited(_ context.Context, id int64, resetAt time.Time) error {
 	r.rateLimitedID = id
+	copyResetAt := resetAt
+	r.rateLimitedAt = &copyResetAt
+	return nil
+}
+
+func (r *openAI429SnapshotRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	r.modelScope = scope
+	r.modelRateLimitCalls = append(r.modelRateLimitCalls, struct {
+		scope   string
+		resetAt time.Time
+	}{scope: scope, resetAt: resetAt})
 	return nil
 }
 
 func (r *openAI429SnapshotRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+	copied := make(map[string]any, len(updates))
 	if r.updatedExtra == nil {
 		r.updatedExtra = map[string]any{}
 	}
 	for key, value := range updates {
+		copied[key] = value
 		r.updatedExtra[key] = value
 	}
+	r.updateExtraCalls = append(r.updateExtraCalls, copied)
 	return nil
+}
+
+func (r *openAI429SnapshotRepo) ClearRateLimit(_ context.Context, _ int64) error {
+	r.clearRateLimitCalls++
+	return nil
+}
+
+func buildCodexHeaders(used7d float64, reset7dSeconds int, used5h float64, reset5hSeconds int) http.Header {
+	headers := http.Header{}
+	headers.Set("x-codex-primary-used-percent", formatUsageTestFloat(used7d))
+	headers.Set("x-codex-primary-reset-after-seconds", formatUsageTestInt(reset7dSeconds))
+	headers.Set("x-codex-primary-window-minutes", "10080")
+	headers.Set("x-codex-secondary-used-percent", formatUsageTestFloat(used5h))
+	headers.Set("x-codex-secondary-reset-after-seconds", formatUsageTestInt(reset5hSeconds))
+	headers.Set("x-codex-secondary-window-minutes", "300")
+	return headers
+}
+
+func formatUsageTestFloat(value float64) string {
+	if value == float64(int64(value)) {
+		return formatUsageTestInt(int(value))
+	}
+	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func formatUsageTestInt(value int) string {
+	return strconv.Itoa(value)
+}
+
+func hasModelScopeCall(repo *openAI429SnapshotRepo, scope string) bool {
+	for _, call := range repo.modelRateLimitCalls {
+		if call.scope == scope {
+			return true
+		}
+	}
+	return false
 }
 
 func TestHandle429_OpenAIPersistsCodexSnapshotImmediately(t *testing.T) {
@@ -170,18 +229,15 @@ func TestHandle429_OpenAIPersistsCodexSnapshotImmediately(t *testing.T) {
 	svc := NewRateLimitService(repo, nil, nil, nil, nil)
 	account := &Account{ID: 123, Platform: PlatformOpenAI, Type: AccountTypeOAuth}
 
-	headers := http.Header{}
-	headers.Set("x-codex-primary-used-percent", "100")
-	headers.Set("x-codex-primary-reset-after-seconds", "604800")
-	headers.Set("x-codex-primary-window-minutes", "10080")
-	headers.Set("x-codex-secondary-used-percent", "100")
-	headers.Set("x-codex-secondary-reset-after-seconds", "18000")
-	headers.Set("x-codex-secondary-window-minutes", "300")
+	headers := buildCodexHeaders(100, 604800, 100, 18000)
 
 	svc.handle429(context.Background(), account, headers, nil)
 
-	if repo.rateLimitedID != account.ID {
-		t.Fatalf("rateLimitedID = %d, want %d", repo.rateLimitedID, account.ID)
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no account rate limit, got %d", repo.rateLimitedID)
+	}
+	if repo.modelScope != openAICodexScopeNormal {
+		t.Fatalf("modelScope = %q, want %q", repo.modelScope, openAICodexScopeNormal)
 	}
 	if len(repo.updatedExtra) == 0 {
 		t.Fatal("expected codex snapshot to be persisted on 429")
@@ -191,6 +247,289 @@ func TestHandle429_OpenAIPersistsCodexSnapshotImmediately(t *testing.T) {
 	}
 	if got := repo.updatedExtra["codex_7d_used_percent"]; got != 100.0 {
 		t.Fatalf("codex_7d_used_percent = %v, want 100", got)
+	}
+}
+
+func TestHandle429_OpenAISpark429ScopesToSparkModelLimit(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	account := &Account{
+		ID:       124,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+
+	headers := buildCodexHeaders(100, 604800, 44, 18000)
+	ctx := WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex-spark")
+
+	svc.handle429(ctx, account, headers, nil)
+
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no account rate limit, got %d", repo.rateLimitedID)
+	}
+	if repo.modelScope != openAICodexScopeSpark {
+		t.Fatalf("modelScope = %q, want %q", repo.modelScope, openAICodexScopeSpark)
+	}
+	if got := repo.updatedExtra[codexSpark5hUsedPercentKey]; got != 44.0 {
+		t.Fatalf("codex_spark_5h_used_percent = %v, want 44", got)
+	}
+	if got := repo.updatedExtra[codexSpark7dUsedPercentKey]; got != 100.0 {
+		t.Fatalf("codex_spark_7d_used_percent = %v, want 100", got)
+	}
+	if _, ok := repo.updatedExtra["codex_7d_used_percent"]; ok {
+		t.Fatal("expected spark 429 to avoid normal codex fields")
+	}
+}
+
+func TestSyncOpenAICodexRateLimitState_OnlyNormal7dLimitsNormalScope(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
+	resetAt := now.Add(7 * 24 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       201,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Extra:    map[string]any{},
+	}
+
+	state := syncOpenAICodexRateLimitState(
+		WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex"),
+		repo,
+		account,
+		map[string]any{
+			"codex_7d_used_percent": 100.0,
+			"codex_7d_reset_at":     resetAt.Format(time.RFC3339),
+		},
+		now,
+	)
+
+	if state == nil || state.ScopeResetAt == nil {
+		t.Fatal("expected normal scope reset state")
+	}
+	if state.AccountResetAt != nil {
+		t.Fatalf("expected no account reset, got %v", state.AccountResetAt)
+	}
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no account rate limit, got %d", repo.rateLimitedID)
+	}
+	if len(repo.modelRateLimitCalls) != 1 {
+		t.Fatalf("model rate limit calls = %d, want 1", len(repo.modelRateLimitCalls))
+	}
+	if repo.modelRateLimitCalls[0].scope != openAICodexScopeNormal {
+		t.Fatalf("scope = %q, want %q", repo.modelRateLimitCalls[0].scope, openAICodexScopeNormal)
+	}
+}
+
+func TestSyncOpenAICodexRateLimitState_OnlySpark7dLimitsSparkScope(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
+	resetAt := now.Add(7 * 24 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       202,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{},
+	}
+
+	state := syncOpenAICodexRateLimitState(
+		WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex-spark"),
+		repo,
+		account,
+		map[string]any{
+			codexSpark7dUsedPercentKey: 100.0,
+			codexSpark7dResetAtKey:     resetAt.Format(time.RFC3339),
+		},
+		now,
+	)
+
+	if state == nil || state.ScopeResetAt == nil {
+		t.Fatal("expected spark scope reset state")
+	}
+	if state.AccountResetAt != nil {
+		t.Fatalf("expected no account reset, got %v", state.AccountResetAt)
+	}
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no account rate limit, got %d", repo.rateLimitedID)
+	}
+	if len(repo.modelRateLimitCalls) != 1 {
+		t.Fatalf("model rate limit calls = %d, want 1", len(repo.modelRateLimitCalls))
+	}
+	if repo.modelRateLimitCalls[0].scope != openAICodexScopeSpark {
+		t.Fatalf("scope = %q, want %q", repo.modelRateLimitCalls[0].scope, openAICodexScopeSpark)
+	}
+}
+
+func TestSyncOpenAICodexRateLimitState_Both7dTriggersWholeAccountLimit(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
+	normalResetAt := now.Add(24 * time.Hour).UTC().Truncate(time.Second)
+	sparkResetAt := now.Add(48 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       203,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{},
+	}
+
+	state := syncOpenAICodexRateLimitState(
+		WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex"),
+		repo,
+		account,
+		map[string]any{
+			"codex_7d_used_percent":    100.0,
+			"codex_7d_reset_at":        normalResetAt.Format(time.RFC3339),
+			codexSpark7dUsedPercentKey: 100.0,
+			codexSpark7dResetAtKey:     sparkResetAt.Format(time.RFC3339),
+		},
+		now,
+	)
+
+	if state == nil || state.AccountResetAt == nil {
+		t.Fatal("expected account reset state")
+	}
+	if !state.AccountResetAt.Equal(sparkResetAt) {
+		t.Fatalf("account resetAt = %v, want %v", *state.AccountResetAt, sparkResetAt)
+	}
+	if repo.rateLimitedID != account.ID {
+		t.Fatalf("rateLimitedID = %d, want %d", repo.rateLimitedID, account.ID)
+	}
+	if repo.rateLimitedAt == nil || !repo.rateLimitedAt.Equal(sparkResetAt) {
+		t.Fatalf("rateLimitedAt = %v, want %v", repo.rateLimitedAt, sparkResetAt)
+	}
+	if reason := repo.updatedExtra["rate_limit_reason"]; reason != AccountRateLimitReasonUsage7dAll {
+		t.Fatalf("rate_limit_reason = %v, want %q", reason, AccountRateLimitReasonUsage7dAll)
+	}
+	if !hasModelScopeCall(repo, openAICodexScopeNormal) || !hasModelScopeCall(repo, openAICodexScopeSpark) {
+		t.Fatalf("expected both normal and spark model rate limits, got %+v", repo.modelRateLimitCalls)
+	}
+}
+
+func TestSyncOpenAICodexRateLimitState_Both5hDoesNotTriggerWholeAccountLimit(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
+	resetAt := now.Add(5 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       204,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{},
+	}
+
+	state := syncOpenAICodexRateLimitState(
+		WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex"),
+		repo,
+		account,
+		map[string]any{
+			"codex_5h_used_percent":    100.0,
+			"codex_5h_reset_at":        resetAt.Format(time.RFC3339),
+			codexSpark5hUsedPercentKey: 100.0,
+			codexSpark5hResetAtKey:     resetAt.Format(time.RFC3339),
+		},
+		now,
+	)
+
+	if state == nil {
+		t.Fatal("expected non-nil state")
+	}
+	if state.AccountResetAt != nil {
+		t.Fatalf("expected no account reset, got %v", *state.AccountResetAt)
+	}
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no account rate limit, got %d", repo.rateLimitedID)
+	}
+	if !hasModelScopeCall(repo, openAICodexScopeNormal) || !hasModelScopeCall(repo, openAICodexScopeSpark) {
+		t.Fatalf("expected both scope model limits, got %+v", repo.modelRateLimitCalls)
+	}
+}
+
+func TestSyncOpenAICodexRateLimitState_Mixed5hAnd7dDoesNotTriggerWholeAccountLimit(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
+	normalResetAt := now.Add(7 * 24 * time.Hour).UTC().Truncate(time.Second)
+	sparkResetAt := now.Add(5 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       205,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{},
+	}
+
+	state := syncOpenAICodexRateLimitState(
+		WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex"),
+		repo,
+		account,
+		map[string]any{
+			"codex_7d_used_percent":    100.0,
+			"codex_7d_reset_at":        normalResetAt.Format(time.RFC3339),
+			codexSpark5hUsedPercentKey: 100.0,
+			codexSpark5hResetAtKey:     sparkResetAt.Format(time.RFC3339),
+		},
+		now,
+	)
+
+	if state == nil {
+		t.Fatal("expected non-nil state")
+	}
+	if state.AccountResetAt != nil {
+		t.Fatalf("expected no account reset, got %v", *state.AccountResetAt)
+	}
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no account rate limit, got %d", repo.rateLimitedID)
+	}
+	if !hasModelScopeCall(repo, openAICodexScopeNormal) || !hasModelScopeCall(repo, openAICodexScopeSpark) {
+		t.Fatalf("expected both scope model limits, got %+v", repo.modelRateLimitCalls)
+	}
+}
+
+func TestSyncOpenAICodexRateLimitFromExtra_Usage7dAllWaitsForLaterReset(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)
+	accountResetAt := now.Add(24 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:               206,
+		Platform:         PlatformOpenAI,
+		Type:             AccountTypeOAuth,
+		RateLimitResetAt: &accountResetAt,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			"rate_limit_reason":           AccountRateLimitReasonUsage7dAll,
+			codexAccountAll7dExhaustedKey: true,
+			"codex_7d_used_percent":       100.0,
+			"codex_7d_reset_at":           now.Add(-time.Minute).Format(time.RFC3339),
+			codexSpark7dUsedPercentKey:    100.0,
+			codexSpark7dResetAtKey:        accountResetAt.Format(time.RFC3339),
+		},
+	}
+
+	state := syncOpenAICodexRateLimitFromExtra(context.Background(), repo, account, now)
+	if state == nil {
+		t.Fatal("expected non-nil state")
+	}
+	if state.AccountResetAt != nil {
+		t.Fatalf("expected account reset to stay persisted instead of recalculated, got %v", state.AccountResetAt)
+	}
+	if account.RateLimitResetAt == nil || !account.RateLimitResetAt.Equal(accountResetAt) {
+		t.Fatalf("account rate limit resetAt = %v, want %v", account.RateLimitResetAt, accountResetAt)
+	}
+	if repo.clearRateLimitCalls != 0 {
+		t.Fatalf("expected usage_7d_all not to clear early, got %d clear calls", repo.clearRateLimitCalls)
 	}
 }
 

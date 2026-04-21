@@ -767,7 +767,8 @@ function normalizeAccountStatusSummary(raw: any): AccountStatusSummary {
       total: Number(raw?.limited_breakdown?.total ?? raw?.LimitedBreakdown?.total ?? 0),
       rate_429: Number(raw?.limited_breakdown?.rate_429 ?? raw?.LimitedBreakdown?.rate_429 ?? 0),
       usage_5h: Number(raw?.limited_breakdown?.usage_5h ?? raw?.LimitedBreakdown?.usage_5h ?? 0),
-      usage_7d: Number(raw?.limited_breakdown?.usage_7d ?? raw?.LimitedBreakdown?.usage_7d ?? 0)
+      usage_7d: Number(raw?.limited_breakdown?.usage_7d ?? raw?.LimitedBreakdown?.usage_7d ?? 0),
+      usage_7d_all: Number(raw?.limited_breakdown?.usage_7d_all ?? raw?.LimitedBreakdown?.usage_7d_all ?? 0)
     }
   }
 }
@@ -1189,8 +1190,13 @@ export async function probeProtocolGatewayModels(payload: {
  * @param id - Account ID
  * @returns List of available models for this account
  */
-export async function getAvailableModels(id: number): Promise<ClaudeModel[]> {
-  const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`)
+export async function getAvailableModels(
+  id: number,
+  options?: { refresh?: boolean }
+): Promise<ClaudeModel[]> {
+  const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`, {
+    params: options?.refresh ? { refresh: true } : undefined
+  })
   return data
 }
 

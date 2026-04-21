@@ -31,7 +31,7 @@
         :snapshot-updated-at-label="snapshotUpdatedAtLabel"
       />
 
-      <div class="mt-5 grid gap-3 md:grid-cols-[minmax(0,1.5fr)_220px_220px_220px]">
+      <div class="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_220px_180px_220px_240px]">
         <input
           v-model.trim="search"
           type="text"
@@ -63,6 +63,25 @@
           <option value="provider:asc">供应商 A-Z</option>
           <option value="provider:desc">供应商 Z-A</option>
         </select>
+        <select
+          :value="groupPreviewId ?? ''"
+          class="input"
+          data-testid="billing-pricing-group-preview"
+          @change="handleGroupPreviewChange(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="">基础售价预览</option>
+          <option v-for="group in previewGroups" :key="group.id" :value="group.id">
+            {{ group.name }}
+          </option>
+        </select>
+      </div>
+
+      <div class="mt-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100">
+        {{
+          previewGroupName
+            ? `当前按分组「${previewGroupName}」倍率预览有效售价，保存时仍只写入基础 sale price。`
+            : '当前展示基础售价；选择分组后可预览该分组倍率作用后的有效售价。'
+        }}
       </div>
 
       <div class="mt-4">
@@ -80,6 +99,7 @@
       :total="total"
       :page="page"
       :page-size="pageSize"
+      :preview-group-name="previewGroupName"
       @open="openEditor"
       @update:page="updatePage"
       @update:page-size="updatePageSize"
@@ -96,6 +116,7 @@
       :details="editorDetails"
       :active-model="activeEditorModel"
       :busy="editorBusy"
+      :preview-group-name="previewGroupName"
       @close="editorOpen = false"
       @update:activeModel="activeEditorModel = $event"
       @save-layer="handleSaveLayer"
@@ -107,12 +128,13 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   applyBillingPricingDiscount,
   copyBillingPricingOfficialToSale,
   getBillingPricingAudit,
   getBillingPricingDetails,
+  getBillingPricingDetailsWithPreview,
   updateBillingPricingLayer,
   type BillingPricingAudit,
   type BillingPricingLayerForm,
@@ -120,6 +142,7 @@ import {
   type BillingPricingSortOrder,
   type BillingPricingSheetDetail,
 } from '@/api/admin/billing'
+import { getAll as getAllGroups } from '@/api/admin/groups'
 import BillingPricingAuditPanel from '@/components/admin/billing/BillingPricingAuditPanel.vue'
 import BillingPricingEditorDialog from '@/components/admin/billing/BillingPricingEditorDialog.vue'
 import BillingPricingModeToggle from '@/components/admin/billing/BillingPricingModeToggle.vue'
@@ -128,6 +151,7 @@ import BillingPricingProviderGrid from '@/components/admin/billing/BillingPricin
 import BillingPricingProviderQuickFilters from '@/components/admin/billing/BillingPricingProviderQuickFilters.vue'
 import { useBillingPricingStore } from '@/stores'
 import { useAppStore } from '@/stores/app'
+import type { AdminGroup } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
 const PAGE_SIZE_STORAGE_KEY = 'admin.billing.pricing.page_size'
@@ -140,6 +164,7 @@ const {
   search,
   providerFilter,
   modeFilter,
+  groupPreviewId,
   sortBy,
   sortOrder,
   page,
@@ -158,6 +183,7 @@ const auditLoading = ref(false)
 const activeEditorModel = ref('')
 const editorDetails = ref<BillingPricingSheetDetail[]>([])
 const audit = ref<BillingPricingAudit | null>(null)
+const previewGroups = ref<AdminGroup[]>([])
 
 const sortMode = computed({
   get: () => `${sortBy.value}:${sortOrder.value}`,
@@ -189,10 +215,26 @@ const visibleProviders = computed(() => {
   })
 })
 
+const previewGroupName = computed(() =>
+  previewGroups.value.find((group) => group.id === groupPreviewId.value)?.name || '',
+)
+
 onMounted(async () => {
   await guardedLoad(async () => {
-    await Promise.all([billingPricingStore.loadProviders(), billingPricingStore.loadModels(), loadAudit()])
+    await Promise.all([
+      billingPricingStore.loadProviders(),
+      billingPricingStore.loadModels(),
+      loadAudit(),
+      loadPreviewGroups(),
+    ])
   })
+})
+
+watch(groupPreviewId, async () => {
+  if (!editorOpen.value || editorDetails.value.length === 0) {
+    return
+  }
+  await refreshEditorWorkset()
 })
 
 const snapshotUpdatedAtLabel = computed(() => {
@@ -217,6 +259,10 @@ async function loadAudit() {
   } finally {
     auditLoading.value = false
   }
+}
+
+async function loadPreviewGroups() {
+  previewGroups.value = await getAllGroups()
 }
 
 async function applyFilters() {
@@ -244,6 +290,14 @@ async function updatePageSize(nextPageSize: number) {
   pageSize.value = nextPageSize
   page.value = 1
   localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(nextPageSize))
+  await guardedLoad(reloadModels)
+}
+
+async function handleGroupPreviewChange(value: string) {
+  const nextValue = value.trim()
+  const parsed = Number(nextValue)
+  groupPreviewId.value = nextValue && Number.isFinite(parsed) ? parsed : null
+  page.value = 1
   await guardedLoad(reloadModels)
 }
 
@@ -284,7 +338,7 @@ async function openWorkset(models: string[], activeModel: string) {
   editorBusy.value = true
   editorOpen.value = true
   try {
-    editorDetails.value = await getBillingPricingDetails(dedupeModels(models))
+    editorDetails.value = await loadWorksetDetails(dedupeModels(models))
     activeEditorModel.value = activeModel
   } catch (error) {
     editorOpen.value = false
@@ -305,6 +359,7 @@ async function handleSaveLayer(payload: {
     const detail = await updateBillingPricingLayer(payload.model, payload.layer, {
       form: payload.form,
       currency: payload.currency,
+      group_id: groupPreviewId.value,
     })
     mergeEditorDetail(detail)
     appStore.showSuccess(payload.layer === 'official' ? '官方价格已保存' : '出售价格已保存')
@@ -321,7 +376,11 @@ async function handleCopyOfficial(payload: { models: string[] }) {
   editorBusy.value = true
   try {
     const details = await copyBillingPricingOfficialToSale(payload)
-    details.forEach(mergeEditorDetail)
+    if (groupPreviewId.value) {
+      await refreshEditorWorkset(payload.models)
+    } else {
+      details.forEach(mergeEditorDetail)
+    }
     appStore.showSuccess('已将官方价格复制到出售价格')
     billingPricingStore.invalidate()
     await guardedLoad(() => reloadAfterMutation(true))
@@ -340,7 +399,11 @@ async function handleApplyDiscount(payload: { models: string[]; itemIds?: string
       item_ids: payload.itemIds,
       discount_ratio: payload.discountRatio,
     })
-    details.forEach(mergeEditorDetail)
+    if (groupPreviewId.value) {
+      await refreshEditorWorkset(payload.models)
+    } else {
+      details.forEach(mergeEditorDetail)
+    }
     appStore.showSuccess('出售价格折扣已应用')
     billingPricingStore.invalidate()
     await guardedLoad(() => reloadAfterMutation(true))
@@ -375,6 +438,35 @@ function mergeEditorDetail(detail: BillingPricingSheetDetail) {
     next.push(detail)
   }
   editorDetails.value = next
+}
+
+async function loadWorksetDetails(models: string[]): Promise<BillingPricingSheetDetail[]> {
+  const normalizedModels = dedupeModels(models)
+  if (!groupPreviewId.value) {
+    return getBillingPricingDetails(normalizedModels)
+  }
+  return getBillingPricingDetailsWithPreview({
+    models: normalizedModels,
+    group_id: groupPreviewId.value,
+  })
+}
+
+async function refreshEditorWorkset(models: string[] = editorDetails.value.map((detail) => detail.model)) {
+  const normalizedModels = dedupeModels(models)
+  if (normalizedModels.length === 0) {
+    return
+  }
+  editorBusy.value = true
+  try {
+    editorDetails.value = await loadWorksetDetails(normalizedModels)
+    if (!normalizedModels.includes(activeEditorModel.value)) {
+      activeEditorModel.value = normalizedModels[0] || ''
+    }
+  } catch (error) {
+    appStore.showError(resolveErrorMessage(error, '刷新倍率预览失败'))
+  } finally {
+    editorBusy.value = false
+  }
 }
 
 async function reloadAfterMutation(force = false) {

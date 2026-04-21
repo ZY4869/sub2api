@@ -44,10 +44,42 @@
       }}
     </label>
 
+    <div
+      v-if="modelInputMode === 'catalog' && (hasTextModels || hasImageModels)"
+      class="flex flex-wrap items-center gap-2"
+    >
+      <button
+        v-if="hasTextModels"
+        type="button"
+        class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+        :class="quickFilterClass('text')"
+        @click="activeQuickFilter = 'text'"
+      >
+        {{ t('admin.accounts.testModelQuickFilters.text') }}
+      </button>
+      <button
+        v-if="hasImageModels"
+        type="button"
+        class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+        :class="quickFilterClass('image')"
+        @click="activeQuickFilter = 'image'"
+      >
+        {{ t('admin.accounts.testModelQuickFilters.image') }}
+      </button>
+      <button
+        type="button"
+        class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+        :class="quickFilterClass('all')"
+        @click="activeQuickFilter = 'all'"
+      >
+        {{ t('admin.accounts.testModelQuickFilters.all') }}
+      </button>
+    </div>
+
     <Select
       v-if="modelInputMode === 'catalog'"
       :model-value="selectedModelKey"
-      :options="availableModelOptions"
+      :options="filteredAvailableModelOptions"
       :disabled="loadingModels || disabled"
       searchable
       value-key="key"
@@ -137,10 +169,10 @@
     </Select>
 
     <p
-      v-if="modelInputMode === 'catalog' && !loadingModels && availableModelOptions.length === 0 && emptyHint"
+      v-if="modelInputMode === 'catalog' && !loadingModels && filteredAvailableModelOptions.length === 0 && resolvedEmptyHint"
       class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300"
     >
-      {{ emptyHint }}
+      {{ resolvedEmptyHint }}
     </p>
 
     <div v-else-if="modelInputMode === 'manual'" class="grid gap-3 md:grid-cols-2">
@@ -178,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
@@ -194,6 +226,8 @@ type AccountTestModelOption = ClaudeModel & {
   description: string
   [key: string]: unknown
 }
+
+type AccountTestQuickFilter = 'text' | 'image' | 'all'
 
 const props = withDefaults(defineProps<{
   availableModels: ClaudeModel[]
@@ -254,6 +288,25 @@ const displayModelIconModel = (model: ModelDescriptor | null | undefined) =>
 const displayModelProvider = (model: ModelDescriptor | null | undefined) =>
   getModelStringField(model, 'provider')
 
+const activeQuickFilter = ref<AccountTestQuickFilter>('all')
+
+const normalizeTestModelMode = (model: Pick<ClaudeModel, 'mode'> | null | undefined) => {
+  const normalized = String(model?.mode || '').trim().toLowerCase()
+  if (normalized === 'image') {
+    return 'image'
+  }
+  if (normalized === 'video') {
+    return 'video'
+  }
+  if (normalized === 'embedding') {
+    return 'embedding'
+  }
+  if (normalized === 'other') {
+    return 'other'
+  }
+  return 'text'
+}
+
 const availableModelOptions = computed<AccountTestModelOption[]>(() =>
   props.availableModels.map((model) => ({
     ...model,
@@ -261,6 +314,36 @@ const availableModelOptions = computed<AccountTestModelOption[]>(() =>
     description: displayModelIdentifier(model)
   }))
 )
+
+const hasTextModels = computed(() =>
+  props.availableModels.some((model) => normalizeTestModelMode(model) === 'text')
+)
+
+const hasImageModels = computed(() =>
+  props.availableModels.some((model) => normalizeTestModelMode(model) === 'image')
+)
+
+const filteredAvailableModelOptions = computed<AccountTestModelOption[]>(() => {
+  if (activeQuickFilter.value === 'all') {
+    return availableModelOptions.value
+  }
+  return availableModelOptions.value.filter(
+    (model) => normalizeTestModelMode(model) === activeQuickFilter.value
+  )
+})
+
+const resolvedEmptyHint = computed(() => {
+  if (filteredAvailableModelOptions.value.length > 0) {
+    return props.emptyHint
+  }
+  if (activeQuickFilter.value === 'image') {
+    return t('admin.accounts.testModelQuickFilters.imageEmpty')
+  }
+  if (activeQuickFilter.value === 'text') {
+    return t('admin.accounts.testModelQuickFilters.textEmpty')
+  }
+  return props.emptyHint
+})
 
 const protocolSourceLabel = (sourceProtocol?: unknown) =>
   resolveGatewayProtocolLabel(sourceProtocol) || String(sourceProtocol || '').trim()
@@ -274,4 +357,43 @@ const buttonClass = (mode: 'catalog' | 'manual') => [
     : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300 dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200 dark:hover:border-primary-500/60',
   props.disabled ? 'cursor-not-allowed opacity-70' : ''
 ]
+
+const quickFilterClass = (mode: AccountTestQuickFilter) => [
+  activeQuickFilter.value === mode
+    ? 'bg-primary-500 text-white shadow-sm'
+    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-200 dark:hover:bg-dark-600',
+  props.disabled || props.loadingModels ? 'cursor-not-allowed opacity-70' : ''
+]
+
+watch(
+  () => props.availableModels,
+  (models) => {
+    const hasText = models.some((model) => normalizeTestModelMode(model) === 'text')
+    const hasImage = models.some((model) => normalizeTestModelMode(model) === 'image')
+    if (hasText) {
+      activeQuickFilter.value = 'text'
+      return
+    }
+    if (hasImage) {
+      activeQuickFilter.value = 'image'
+      return
+    }
+    activeQuickFilter.value = 'all'
+  },
+  { immediate: true }
+)
+
+watch(
+  [filteredAvailableModelOptions, () => props.modelInputMode],
+  ([options, modelInputMode]) => {
+    if (modelInputMode !== 'catalog') {
+      return
+    }
+    if (options.some((option) => option.key === props.selectedModelKey)) {
+      return
+    }
+    emit('update:selectedModelKey', options[0]?.key || '')
+  },
+  { immediate: true }
+)
 </script>

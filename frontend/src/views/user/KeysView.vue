@@ -555,6 +555,7 @@
           <APIKeyGroupBindingsEditor
             v-model="formData.group_bindings"
             :groups="groups"
+            :group-model-catalog-items="groupModelCatalogItems"
             :group-model-options="groupModelOptions"
             :group-model-options-loading="groupModelOptionsLoading"
             :admin-mode="isAdminMode"
@@ -1252,7 +1253,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";
 import { useAuthStore } from "@/stores/auth";
@@ -1276,6 +1277,7 @@ import Icon from "@/components/icons/Icon.vue";
 import UseKeyModal from "@/components/keys/UseKeyModal.vue";
 import APIKeyGroupBindingsEditor from "@/components/keys/APIKeyGroupBindingsEditor.vue";
 import GroupBadge from "@/components/common/GroupBadge.vue";
+import type { PublicModelCatalogItem } from "@/api/meta";
 import type {
   ApiKey,
   Group,
@@ -1329,6 +1331,7 @@ let resetTimer: ReturnType<typeof setInterval> | null = null;
 const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({});
 const userGroupRates = ref<Record<number, number>>({});
 const groupModelOptions = ref<Record<number, UserGroupModelOption[]>>({});
+const groupModelCatalogItems = ref<Record<number, PublicModelCatalogItem[]>>({});
 const groupModelOptionsLoading = ref(false);
 const groupMap = computed(
   () => new Map(groups.value.map((group) => [group.id, group] as const)),
@@ -1535,6 +1538,7 @@ const loadGroups = async () => {
 const loadGroupModelOptions = async () => {
   if (isAdminMode.value) {
     groupModelOptions.value = {};
+    groupModelCatalogItems.value = {};
     return;
   }
   groupModelOptionsLoading.value = true;
@@ -1548,6 +1552,25 @@ const loadGroupModelOptions = async () => {
     console.error("Failed to load group model options:", error);
   } finally {
     groupModelOptionsLoading.value = false;
+  }
+};
+
+const loadGroupModelCatalog = async (groupId: number) => {
+  if (isAdminMode.value || !groupId || groupModelCatalogItems.value[groupId]) {
+    return;
+  }
+  try {
+    const snapshot = await userGroupsAPI.getModelCatalog(groupId);
+    groupModelCatalogItems.value = {
+      ...groupModelCatalogItems.value,
+      [groupId]: snapshot.items || [],
+    };
+  } catch (error) {
+    groupModelCatalogItems.value = {
+      ...groupModelCatalogItems.value,
+      [groupId]: [],
+    };
+    console.error("Failed to load group model catalog:", error);
   }
 };
 
@@ -1794,6 +1817,7 @@ const closeModals = () => {
   showCreateModal.value = false;
   showEditModal.value = false;
   selectedKey.value = null;
+  groupModelCatalogItems.value = {};
   formData.value = {
     name: "",
     group_bindings: [createEmptyEditableBinding()],
@@ -1814,6 +1838,30 @@ const closeModals = () => {
     expiration_date: "",
   };
 };
+
+watch(
+  () => [
+    isAdminMode.value,
+    showCreateModal.value || showEditModal.value,
+    formData.value.group_bindings.map((binding) => binding.group_id).join(","),
+  ] as const,
+  ([adminMode, isDialogOpen]) => {
+    if (adminMode || !isDialogOpen) {
+      return;
+    }
+    const groupIDs = Array.from(
+      new Set(
+        formData.value.group_bindings
+          .map((binding) => Number(binding.group_id) || 0)
+          .filter((groupID) => groupID > 0),
+      ),
+    );
+    groupIDs.forEach((groupID) => {
+      void loadGroupModelCatalog(groupID);
+    });
+  },
+  { immediate: true },
+);
 
 // Show reset quota confirmation dialog
 const confirmResetQuota = () => {

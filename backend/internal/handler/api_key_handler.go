@@ -334,6 +334,29 @@ func (h *APIKeyHandler) GetGroupModelOptions(c *gin.Context) {
 	response.Success(c, options)
 }
 
+// GetGroupModelCatalog 获取当前用户在指定分组上下文下的公开模型价格快照。
+// GET /api/v1/groups/model-catalog?group_id=123
+func (h *APIKeyHandler) GetGroupModelCatalog(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	groupID, err := strconv.ParseInt(strings.TrimSpace(c.Query("group_id")), 10, 64)
+	if err != nil || groupID <= 0 {
+		response.BadRequest(c, "Invalid group_id")
+		return
+	}
+
+	snapshot, err := h.apiKeyService.GetGroupModelCatalogSnapshot(c.Request.Context(), subject.UserID, groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}
+
 // GetUserGroupRates 获取当前用户的专属分组倍率配置
 // GET /api/v1/groups/rates
 func (h *APIKeyHandler) GetUserGroupRates(c *gin.Context) {

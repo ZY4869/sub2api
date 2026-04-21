@@ -217,6 +217,8 @@ const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
 
 const formatScopeName = (scope: string): string => {
   const aliases: Record<string, string> = {
+    'gpt-5.3-codex': 'Codex',
+    'gpt-5.3-codex-spark': 'Spark',
     'claude-opus-4.1': 'COpus41',
     'claude-opus-4-1': 'COpus41',
     'claude-opus-4-1-20250805': 'COpus41',
@@ -295,6 +297,8 @@ const rateLimitResumeText = computed(() => {
       return t('admin.accounts.status.usage5hAutoResume', { time: rateLimitCountdown.value })
     case 'usage_7d':
       return t('admin.accounts.status.usage7dAutoResume', { time: rateLimitCountdown.value })
+    case 'usage_7d_all':
+      return t('admin.accounts.status.usage7dAllAutoResume', { time: rateLimitCountdown.value })
     default:
       return t('admin.accounts.status.rateLimitedAutoResume', { time: rateLimitCountdown.value })
   }
@@ -306,6 +310,8 @@ const rateLimitStatusLabel = computed(() => {
       return t('admin.accounts.status.usage5h')
     case 'usage_7d':
       return t('admin.accounts.status.usage7d')
+    case 'usage_7d_all':
+      return t('admin.accounts.status.usage7dAll')
     default:
       return t('admin.accounts.status.rateLimited')
   }
@@ -317,6 +323,8 @@ const rateLimitBadgeText = computed(() => {
       return '5h'
     case 'usage_7d':
       return '7d'
+    case 'usage_7d_all':
+      return '7d×2'
     default:
       return '429'
   }
@@ -329,6 +337,8 @@ const rateLimitTooltipText = computed(() => {
       return t('admin.accounts.status.usage5hUntil', { time })
     case 'usage_7d':
       return t('admin.accounts.status.usage7dUntil', { time })
+    case 'usage_7d_all':
+      return t('admin.accounts.status.usage7dAllUntil', { time })
     default:
       return t('admin.accounts.status.rateLimitedUntil', { time })
   }

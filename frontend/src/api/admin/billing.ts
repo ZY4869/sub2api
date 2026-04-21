@@ -1,5 +1,6 @@
 import { apiClient } from '../client'
 import type { PaginatedResponse } from '@/types'
+import type { PublicModelCatalogItem, PublicModelCatalogPriceDisplay } from '@/api/meta'
 
 export type BillingPricingCurrency = 'USD' | 'CNY'
 export type BillingPricingSortBy = 'display_name' | 'provider'
@@ -190,12 +191,16 @@ export interface BillingPricingListItem {
   display_name?: string
   provider?: string
   mode?: string
+  currency?: BillingPricingCurrency
   price_item_count: number
   official_count: number
   sale_count: number
   pricing_status: BillingPricingStatus
   pricing_warnings?: string[]
   capabilities: BillingPricingCapabilities
+  preview_group_id?: number | null
+  preview_rate_multiplier?: number | null
+  preview_price_display?: PublicModelCatalogPriceDisplay | null
 }
 
 export interface BillingPricingSheetDetail {
@@ -216,12 +221,16 @@ export interface BillingPricingSheetDetail {
   capabilities: BillingPricingCapabilities
   official_form: BillingPricingLayerForm
   sale_form: BillingPricingLayerForm
+  preview_group_id?: number | null
+  preview_rate_multiplier?: number | null
+  preview_sale_form?: BillingPricingLayerForm | null
 }
 
 export interface BillingPricingListParams {
   search?: string
   provider?: string
   mode?: string
+  group_id?: number
   sort_by?: BillingPricingSortBy
   sort_order?: BillingPricingSortOrder
   page?: number
@@ -289,6 +298,7 @@ export interface BillingPricingAudit {
 export interface BillingSavePricingLayerPayload {
   form: BillingPricingLayerForm
   currency?: BillingPricingCurrency
+  group_id?: number | null
 }
 
 export interface BillingCopyOfficialToSalePayload {
@@ -299,6 +309,30 @@ export interface BillingBulkDiscountPayload {
   models: string[]
   item_ids?: string[]
   discount_ratio: number
+}
+
+export interface BillingPricingDetailsPayload {
+  models: string[]
+  group_id?: number | null
+}
+
+export interface BillingPublicCatalogDraft {
+  selected_models: string[]
+  page_size: number
+  updated_at?: string
+}
+
+export interface BillingPublicCatalogPublishedSummary {
+  etag: string
+  updated_at: string
+  page_size: number
+  model_count: number
+}
+
+export interface BillingPublicCatalogDraftPayload {
+  draft: BillingPublicCatalogDraft
+  available_items: PublicModelCatalogItem[]
+  published?: BillingPublicCatalogPublishedSummary | null
 }
 
 export async function listBillingPricingProviders(): Promise<BillingPricingProviderGroup[]> {
@@ -316,9 +350,20 @@ export async function listBillingPricingModels(
 }
 
 export async function getBillingPricingDetails(models: string[]): Promise<BillingPricingSheetDetail[]> {
-  const { data } = await apiClient.post<BillingPricingSheetDetail[]>('/admin/billing/pricing/details', {
-    models,
-  })
+  const { data } = await apiClient.post<BillingPricingSheetDetail[]>(
+    '/admin/billing/pricing/details',
+    { models }
+  )
+  return data
+}
+
+export async function getBillingPricingDetailsWithPreview(
+  payload: BillingPricingDetailsPayload
+): Promise<BillingPricingSheetDetail[]> {
+  const { data } = await apiClient.post<BillingPricingSheetDetail[]>(
+    '/admin/billing/pricing/details',
+    payload
+  )
   return data
 }
 
@@ -357,6 +402,33 @@ export async function applyBillingPricingDiscount(
 
 export async function listBillingRules(): Promise<BillingRule[]> {
   const { data } = await apiClient.get<BillingRule[]>('/admin/billing/rules')
+  return data
+}
+
+export async function getBillingPublicCatalogDraft(): Promise<BillingPublicCatalogDraftPayload> {
+  const { data } = await apiClient.get<BillingPublicCatalogDraftPayload>('/admin/billing/public-model-catalog/draft')
+  return data
+}
+
+export async function saveBillingPublicCatalogDraft(
+  draft: BillingPublicCatalogDraft
+): Promise<BillingPublicCatalogDraft> {
+  const { data } = await apiClient.put<BillingPublicCatalogDraft>('/admin/billing/public-model-catalog/draft', draft)
+  return data
+}
+
+export async function publishBillingPublicCatalog(
+  draft?: BillingPublicCatalogDraft,
+): Promise<BillingPublicCatalogPublishedSummary> {
+  const { data } = await apiClient.post<BillingPublicCatalogPublishedSummary>(
+    '/admin/billing/public-model-catalog/publish',
+    draft,
+  )
+  return data
+}
+
+export async function getBillingPublicCatalogPublishedSummary(): Promise<BillingPublicCatalogPublishedSummary | null> {
+  const { data } = await apiClient.get<BillingPublicCatalogPublishedSummary | null>('/admin/billing/public-model-catalog/published')
   return data
 }
 

@@ -60,9 +60,19 @@ func (s *BillingCenterService) ListPricingModels(ctx context.Context, filter Bil
 	if err != nil {
 		return nil, 0, err
 	}
+	_, groupMultiplier, err := s.resolveBillingPreviewGroupMultiplier(ctx, filter.GroupID)
+	if err != nil {
+		return nil, 0, err
+	}
 	items := make([]BillingPricingListItem, 0, len(snapshot.Models))
 	for _, model := range snapshot.Models {
 		item := billingPricingPersistedModelToListItem(model)
+		if groupMultiplier != nil {
+			previewForm := scaleBillingPricingLayerForm(model.SaleForm, *groupMultiplier)
+			item.PreviewGroupID = filter.GroupID
+			item.PreviewRateMultiplier = cloneBillingFloat64(groupMultiplier)
+			item.PreviewPriceDisplay = billingPricingPreviewPriceDisplay(model, previewForm)
+		}
 		if matchesBillingPricingFilter(item, filter) {
 			items = append(items, item)
 		}
@@ -103,11 +113,19 @@ func matchesBillingPricingFilter(item BillingPricingListItem, filter BillingPric
 	return true
 }
 
-func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []string) ([]BillingPricingSheetDetail, error) {
+func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []string, groupID ...*int64) ([]BillingPricingSheetDetail, error) {
 	if s == nil || s.modelCatalogService == nil {
 		return []BillingPricingSheetDetail{}, nil
 	}
 	snapshot, err := s.ensureBillingPricingCatalogMigrated(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var previewGroupID *int64
+	if len(groupID) > 0 {
+		previewGroupID = groupID[0]
+	}
+	_, groupMultiplier, err := s.resolveBillingPreviewGroupMultiplier(ctx, previewGroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +135,14 @@ func (s *BillingCenterService) GetPricingDetails(ctx context.Context, models []s
 		if !ok {
 			return nil, infraerrors.NotFound("BILLING_MODEL_NOT_FOUND", "billing model not found")
 		}
-		items = append(items, billingPricingPersistedModelToDetail(persisted))
+		detail := billingPricingPersistedModelToDetail(persisted)
+		if groupMultiplier != nil {
+			previewForm := scaleBillingPricingLayerForm(persisted.SaleForm, *groupMultiplier)
+			detail.PreviewGroupID = previewGroupID
+			detail.PreviewRateMultiplier = cloneBillingFloat64(groupMultiplier)
+			detail.PreviewSaleForm = cloneBillingPricingLayerFormPtr(previewForm)
+		}
+		items = append(items, detail)
 	}
 	return items, nil
 }
@@ -221,6 +246,14 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	)
 
 	detail := billingPricingPersistedModelToDetail(snapshot.Models[index])
+	if input.GroupID != nil {
+		if _, groupMultiplier, previewErr := s.resolveBillingPreviewGroupMultiplier(ctx, input.GroupID); previewErr == nil && groupMultiplier != nil {
+			previewForm := scaleBillingPricingLayerForm(snapshot.Models[index].SaleForm, *groupMultiplier)
+			detail.PreviewGroupID = input.GroupID
+			detail.PreviewRateMultiplier = cloneBillingFloat64(groupMultiplier)
+			detail.PreviewSaleForm = cloneBillingPricingLayerFormPtr(previewForm)
+		}
+	}
 	return &detail, nil
 }
 
@@ -301,7 +334,7 @@ func billingPricingDisplaySortKey(item BillingPricingListItem) string {
 }
 
 func (s *BillingCenterService) CopyPricingItemsOfficialToSale(ctx context.Context, actor ModelCatalogActor, models []string) ([]BillingPricingSheetDetail, error) {
-	details, err := s.GetPricingDetails(ctx, models)
+	details, err := s.GetPricingDetails(ctx, models, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +370,7 @@ func (s *BillingCenterService) ApplySaleDiscount(ctx context.Context, actor Mode
 	if input.DiscountRatio <= 0 {
 		return nil, infraerrors.BadRequest("BILLING_DISCOUNT_RATIO_INVALID", "discount ratio must be greater than zero")
 	}
-	details, err := s.GetPricingDetails(ctx, input.Models)
+	details, err := s.GetPricingDetails(ctx, input.Models, nil)
 	if err != nil {
 		return nil, err
 	}

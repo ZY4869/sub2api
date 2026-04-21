@@ -186,6 +186,7 @@ func billingPricingPersistedModelToDetail(model BillingPricingPersistedModel) Bi
 		Capabilities:                    cloned.Capabilities,
 		OfficialForm:                    cloned.OfficialForm,
 		SaleForm:                        cloned.SaleForm,
+		PreviewSaleForm:                 nil,
 		OfficialItems:                   officialItems,
 		SaleItems:                       saleItems,
 	}
@@ -194,16 +195,17 @@ func billingPricingPersistedModelToDetail(model BillingPricingPersistedModel) Bi
 func billingPricingPersistedModelToListItem(model BillingPricingPersistedModel) BillingPricingListItem {
 	cloned := cloneBillingPricingPersistedModel(model)
 	return BillingPricingListItem{
-		Model:          cloned.Model,
-		DisplayName:    cloned.DisplayName,
-		Provider:       cloned.Provider,
-		Mode:           cloned.Mode,
-		PriceItemCount: cloned.OfficialCount + cloned.SaleCount,
-		OfficialCount:  cloned.OfficialCount,
-		SaleCount:      cloned.SaleCount,
-		PricingStatus:  cloned.PricingStatus,
+		Model:           cloned.Model,
+		DisplayName:     cloned.DisplayName,
+		Provider:        cloned.Provider,
+		Mode:            cloned.Mode,
+		Currency:        cloned.Currency,
+		PriceItemCount:  cloned.OfficialCount + cloned.SaleCount,
+		OfficialCount:   cloned.OfficialCount,
+		SaleCount:       cloned.SaleCount,
+		PricingStatus:   cloned.PricingStatus,
 		PricingWarnings: compactStrings(cloned.PricingWarnings),
-		Capabilities:   cloned.Capabilities,
+		Capabilities:    cloned.Capabilities,
 	}
 }
 

@@ -11,7 +11,12 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (key === 'common.time.countdown.minutes') {
+          return `${String(params?.count ?? '')}m`
+        }
+        return key
+      }
     })
   }
 })
@@ -80,6 +85,57 @@ describe('AccountStatusIndicator', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
+  })
+
+  it('renders the usage_7d_all badge, resume text, and tooltip copy', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          rate_limit_reset_at: '2026-03-13T12:02:00Z',
+          rate_limit_reason: 'usage_7d_all'
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.usage7dAll')
+    expect(wrapper.text()).toContain('admin.accounts.status.usage7dAllAutoResume')
+    expect(wrapper.text()).toContain('admin.accounts.status.usage7dAllUntil')
+    expect(wrapper.text()).toContain('7d×2')
+  })
+
+  it('shows spark model cooldown without marking the whole account as rate limited', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          extra: {
+            model_rate_limits: {
+              'gpt-5.3-codex-spark': {
+                rate_limited_at: '2026-03-15T00:00:00Z',
+                rate_limit_reset_at: '2099-03-15T00:00:00Z'
+              }
+            }
+          }
+        })
+      },
+      global: {
+        stubs: {
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('Spark')
+    expect(wrapper.text()).toContain('admin.accounts.status.modelRateLimitedUntil')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
+    expect(wrapper.text()).not.toContain('7d×2')
   })
 
   it('renders overage model tags without broken glyphs', () => {

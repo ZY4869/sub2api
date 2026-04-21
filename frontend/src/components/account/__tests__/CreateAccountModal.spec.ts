@@ -10,11 +10,54 @@ const source = readFileSync(
   'utf-8'
 )
 
-const { createMock, checkMixedChannelRiskMock, invalidateModelRegistryMock, invalidateInventoryMock } = vi.hoisted(() => ({
+const {
+  createMock,
+  checkMixedChannelRiskMock,
+  invalidateModelRegistryMock,
+  invalidateInventoryMock,
+  modelRegistrySnapshot
+} = vi.hoisted(() => ({
   createMock: vi.fn(),
   checkMixedChannelRiskMock: vi.fn(),
   invalidateModelRegistryMock: vi.fn(),
-  invalidateInventoryMock: vi.fn()
+  invalidateInventoryMock: vi.fn(),
+  modelRegistrySnapshot: {
+    etag: 'test-etag',
+    updated_at: '2026-04-08T00:00:00Z',
+    provider_labels: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI'
+    },
+    models: [
+      {
+        id: 'claude-sonnet-4.5',
+        provider: 'anthropic',
+        display_name: 'Claude Sonnet 4.5',
+        platforms: ['anthropic'],
+        protocol_ids: ['claude-sonnet-4-5-20250929'],
+        aliases: ['claude-sonnet-4-5-20250929'],
+        pricing_lookup_ids: [],
+        modalities: ['text'],
+        capabilities: ['text'],
+        exposed_in: ['runtime', 'test', 'whitelist'],
+        ui_priority: 1
+      },
+      {
+        id: 'gpt-5.4',
+        provider: 'openai',
+        display_name: 'GPT-5.4',
+        platforms: ['openai'],
+        protocol_ids: ['gpt-5.4'],
+        aliases: [],
+        pricing_lookup_ids: [],
+        modalities: ['text'],
+        capabilities: ['text'],
+        exposed_in: ['runtime', 'test', 'whitelist'],
+        ui_priority: 1
+      }
+    ],
+    presets: []
+  }
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -33,18 +76,8 @@ vi.mock('@/stores', () => ({
 }))
 
 vi.mock('@/stores/modelRegistry', () => ({
-  ensureModelRegistryFresh: vi.fn().mockResolvedValue({
-    etag: 'test-etag',
-    updated_at: '2026-04-08T00:00:00Z',
-    models: [],
-    presets: []
-  }),
-  getModelRegistrySnapshot: vi.fn(() => ({
-    etag: 'test-etag',
-    updated_at: '2026-04-08T00:00:00Z',
-    models: [],
-    presets: []
-  })),
+  ensureModelRegistryFresh: vi.fn().mockResolvedValue(modelRegistrySnapshot),
+  getModelRegistrySnapshot: vi.fn(() => modelRegistrySnapshot),
   invalidateModelRegistry: invalidateModelRegistryMock
 }))
 
@@ -114,6 +147,13 @@ const AccountCreatePlatformSelectorStub = defineComponent({
       >
         select baidu document ai
       </button>
+      <button
+        type="button"
+        data-testid="select-anthropic"
+        @click="$emit('update:platform', 'anthropic')"
+      >
+        select anthropic
+      </button>
     </div>
   `
 })
@@ -143,6 +183,13 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
       >
         set gemini gateway
       </button>
+      <button
+        type="button"
+        data-testid="set-apikey-mode"
+        @click="$emit('update:account-category', 'apikey')"
+      >
+        set apikey mode
+      </button>
     </div>
   `
 })
@@ -171,7 +218,7 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       default: false
     }
   },
-  emits: ['update:api-key', 'update:base-url'],
+  emits: ['update:api-key', 'update:base-url', 'update:allowedModels'],
   template: `
     <div>
       <span data-testid="actual-model-locked-prop">{{ actualModelLocked }}</span>
@@ -192,6 +239,13 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
         "
       >
         set api key
+      </button>
+      <button
+        type="button"
+        data-testid="set-whitelist-selection"
+        @click="$emit('update:allowedModels', ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5'])"
+      >
+        set whitelist selection
       </button>
     </div>
   `
@@ -536,6 +590,45 @@ describe('CreateAccountModal', () => {
       manual_mapping_rows: [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }],
       manual_mappings: {
         'friendly-gateway-model': 'gpt-5.4'
+      }
+    })
+  })
+
+  it('submits whitelist selected_model_ids alongside canonical supported models', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 15,
+      name: 'Anthropic Scoped Account',
+      platform: 'anthropic',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-anthropic"]').trigger('click')
+    await wrapper.get('[data-testid="set-apikey-mode"]').trigger('click')
+    await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="set-whitelist-selection"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Anthropic Scoped Account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      platform: 'anthropic',
+      type: 'apikey',
+      extra: {
+        model_scope_v2: {
+          supported_models_by_provider: {
+            anthropic: ['claude-sonnet-4.5']
+          },
+          selected_model_ids: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5']
+        }
       }
     })
   })

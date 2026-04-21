@@ -140,7 +140,8 @@ vi.mock('@/composables/useAccountStatusSummary', async () => {
             total: 5,
             rate_429: 2,
             usage_5h: 2,
-            usage_7d: 1
+            usage_7d: 1,
+            usage_7d_all: 0
           }
         }),
         loading: ref(false),

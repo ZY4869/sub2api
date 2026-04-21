@@ -31,6 +31,10 @@ var publicModelCatalogProtocolOrder = map[string]int{
 }
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
+		s.storePublicModelCatalogSnapshot(&published.Snapshot)
+		return clonePublicModelCatalogSnapshot(&published.Snapshot), nil
+	}
 	if snapshot, age, ok := s.getFreshPublicModelCatalogSnapshot(); ok {
 		logger.FromContext(ctx).Info(
 			"public model catalog snapshot cache hit",
@@ -41,7 +45,7 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 		return snapshot, nil
 	}
 
-	snapshot, err := s.buildPublicModelCatalogSnapshot(ctx)
+	snapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
 	if err != nil {
 		if fallback, age, ok := s.getAnyPublicModelCatalogSnapshot(); ok {
 			logger.FromContext(ctx).Warn(
@@ -60,7 +64,22 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 	return clonePublicModelCatalogSnapshot(snapshot), nil
 }
 
-func (s *ModelCatalogService) buildPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+func emptyPublishedPublicModelCatalogSnapshot() *PublicModelCatalogSnapshot {
+	return &PublicModelCatalogSnapshot{
+		PageSize: normalizePublicModelCatalogPageSize(defaultPublicModelCatalogPageSize),
+		Items:    []PublicModelCatalogItem{},
+	}
+}
+
+func (s *ModelCatalogService) PublishedPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
+	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
+		s.storePublicModelCatalogSnapshot(&published.Snapshot)
+		return clonePublicModelCatalogSnapshot(&published.Snapshot), nil
+	}
+	return emptyPublishedPublicModelCatalogSnapshot(), nil
+}
+
+func (s *ModelCatalogService) buildLivePublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
 		return nil, err
@@ -111,7 +130,8 @@ func (s *ModelCatalogService) buildPublicModelCatalogSnapshot(ctx context.Contex
 		multiplierBuckets[item.MultiplierSummary.Kind] = struct{}{}
 	}
 
-	etag, err := computePublicModelCatalogETag(items)
+	pageSize := normalizePublicModelCatalogPageSize(defaultPublicModelCatalogPageSize)
+	etag, err := computePublicModelCatalogETagWithPageSize(pageSize, items)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +153,7 @@ func (s *ModelCatalogService) buildPublicModelCatalogSnapshot(ctx context.Contex
 	return &PublicModelCatalogSnapshot{
 		ETag:      etag,
 		UpdatedAt: updatedAt.Format(time.RFC3339),
+		PageSize:  pageSize,
 		Items:     items,
 	}, nil
 }
@@ -451,7 +472,17 @@ func publicModelCatalogProtocolFamily(value string) string {
 }
 
 func computePublicModelCatalogETag(items []PublicModelCatalogItem) (string, error) {
-	payload, err := json.Marshal(items)
+	return computePublicModelCatalogETagWithPageSize(0, items)
+}
+
+func computePublicModelCatalogETagWithPageSize(pageSize int, items []PublicModelCatalogItem) (string, error) {
+	payload, err := json.Marshal(struct {
+		PageSize int                      `json:"page_size,omitempty"`
+		Items    []PublicModelCatalogItem `json:"items"`
+	}{
+		PageSize: pageSize,
+		Items:    items,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -466,6 +497,7 @@ func clonePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) *Publ
 	cloned := &PublicModelCatalogSnapshot{
 		ETag:      snapshot.ETag,
 		UpdatedAt: snapshot.UpdatedAt,
+		PageSize:  snapshot.PageSize,
 		Items:     make([]PublicModelCatalogItem, 0, len(snapshot.Items)),
 	}
 	for _, item := range snapshot.Items {

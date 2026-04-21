@@ -12,9 +12,10 @@ const (
 	AccountLimitedViewNormalOnly  = "normal_only"
 	AccountLimitedViewLimitedOnly = "limited_only"
 
-	AccountRateLimitReason429     = "rate_429"
-	AccountRateLimitReasonUsage5h = "usage_5h"
-	AccountRateLimitReasonUsage7d = "usage_7d"
+	AccountRateLimitReason429        = "rate_429"
+	AccountRateLimitReasonUsage5h    = "usage_5h"
+	AccountRateLimitReasonUsage7d    = "usage_7d"
+	AccountRateLimitReasonUsage7dAll = "usage_7d_all"
 )
 
 type accountLimitedFiltersContextKey struct{}
@@ -45,6 +46,8 @@ func NormalizeAccountRateLimitReasonInput(raw string) string {
 		return AccountRateLimitReasonUsage5h
 	case AccountRateLimitReasonUsage7d:
 		return AccountRateLimitReasonUsage7d
+	case AccountRateLimitReasonUsage7dAll:
+		return AccountRateLimitReasonUsage7dAll
 	default:
 		return ""
 	}
@@ -89,6 +92,9 @@ func AccountRateLimitReason(account *Account, now time.Time) string {
 func inferAccountRateLimitReason(account *Account, now time.Time) string {
 	if account == nil {
 		return ""
+	}
+	if resetAt, ok := codexAccountAll7dResetAtFromExtra(account, account.Extra, now); ok && resetAt != nil && now.Before(*resetAt) {
+		return AccountRateLimitReasonUsage7dAll
 	}
 	if progress := buildCodexUsageProgressFromExtra(account.Extra, "7d", now); progress != nil && progress.Utilization >= 100 {
 		return AccountRateLimitReasonUsage7d

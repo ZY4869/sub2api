@@ -2,9 +2,44 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"hash"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
+	"golang.org/x/sync/singleflight"
+)
+
+const (
+	accountModelSupportCacheTTL           = 10 * time.Minute
+	accountModelSupportRegistryVersionTTL = 5 * time.Second
+)
+
+type accountModelSupportSet struct {
+	explicitRestrictions bool
+	allowedVariants      map[string]struct{}
+}
+
+type accountModelSupportCacheEntry struct {
+	supportSet *accountModelSupportSet
+	expiresAt  time.Time
+}
+
+type accountModelSupportRegistryVersionEntry struct {
+	version   string
+	expiresAt time.Time
+}
+
+var (
+	accountModelSupportCacheMu         sync.RWMutex
+	accountModelSupportCache           = map[string]accountModelSupportCacheEntry{}
+	accountModelSupportCacheFlight     singleflight.Group
+	accountModelSupportRegistryVersion sync.Map
 )
 
 func resolveCanonicalRequestModelWithRegistry(ctx context.Context, registry *ModelRegistryService, requestedModel string) string {
@@ -196,6 +231,137 @@ func collectRequestedModelSupportVariants(ctx context.Context, registry *ModelRe
 	return set
 }
 
+func getCachedAccountModelSupportSet(ctx context.Context, registry *ModelRegistryService, account *Account) *accountModelSupportSet {
+	if account == nil {
+		return &accountModelSupportSet{}
+	}
+	cacheKey := buildAccountModelSupportCacheKey(ctx, registry, account)
+	if cacheKey == "" {
+		return buildAccountModelSupportSet(ctx, registry, account)
+	}
+	now := time.Now()
+	accountModelSupportCacheMu.RLock()
+	cached, ok := accountModelSupportCache[cacheKey]
+	accountModelSupportCacheMu.RUnlock()
+	if ok && now.Before(cached.expiresAt) && cached.supportSet != nil {
+		return cached.supportSet
+	}
+
+	result, _, _ := accountModelSupportCacheFlight.Do(cacheKey, func() (any, error) {
+		refreshedNow := time.Now()
+		accountModelSupportCacheMu.RLock()
+		cached, ok := accountModelSupportCache[cacheKey]
+		accountModelSupportCacheMu.RUnlock()
+		if ok && refreshedNow.Before(cached.expiresAt) && cached.supportSet != nil {
+			return cached.supportSet, nil
+		}
+		supportSet := buildAccountModelSupportSet(ctx, registry, account)
+		accountModelSupportCacheMu.Lock()
+		accountModelSupportCache[cacheKey] = accountModelSupportCacheEntry{
+			supportSet: supportSet,
+			expiresAt:  refreshedNow.Add(accountModelSupportCacheTTL),
+		}
+		accountModelSupportCacheMu.Unlock()
+		return supportSet, nil
+	})
+	if supportSet, ok := result.(*accountModelSupportSet); ok && supportSet != nil {
+		return supportSet
+	}
+	return buildAccountModelSupportSet(ctx, registry, account)
+}
+
+func buildAccountModelSupportSet(ctx context.Context, registry *ModelRegistryService, account *Account) *accountModelSupportSet {
+	supportSet := &accountModelSupportSet{
+		explicitRestrictions: accountHasExplicitModelRestrictions(account),
+		allowedVariants:      map[string]struct{}{},
+	}
+	if account == nil || !supportSet.explicitRestrictions {
+		return supportSet
+	}
+	explicitModelIDs := accountConfiguredSourceModelIDs(account, "")
+	if len(explicitModelIDs) == 0 {
+		return supportSet
+	}
+	route := registryRouteForAccount(account)
+	for _, modelID := range explicitModelIDs {
+		for candidate := range collectModelSupportVariants(ctx, registry, route, modelID) {
+			supportSet.allowedVariants[candidate] = struct{}{}
+		}
+	}
+	return supportSet
+}
+
+func buildAccountModelSupportCacheKey(ctx context.Context, registry *ModelRegistryService, account *Account) string {
+	if account == nil {
+		return ""
+	}
+	hash := sha256.New()
+	writeAccountModelSupportHashValue(hash, CanonicalizePlatformValue(account.Platform))
+	writeAccountModelSupportHashValue(hash, strings.TrimSpace(account.Type))
+	writeAccountModelSupportHashValue(hash, registryRouteForAccount(account))
+	writeAccountModelSupportHashValue(hash, resolveAccountModelSupportRegistryVersion(ctx, registry))
+
+	mapping := account.GetModelMapping()
+	if len(mapping) > 0 {
+		keys := make([]string, 0, len(mapping))
+		for key := range mapping {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			writeAccountModelSupportHashValue(hash, "map:"+normalizeRegistryID(key)+"=>"+normalizeRegistryID(mapping[key]))
+		}
+	}
+
+	for _, modelID := range accountConfiguredSourceModelIDs(account, "") {
+		writeAccountModelSupportHashValue(hash, "allow:"+normalizeRegistryID(modelID))
+	}
+
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func writeAccountModelSupportHashValue(hash hash.Hash, value string) {
+	_, _ = hash.Write([]byte(strings.TrimSpace(value)))
+	_, _ = hash.Write([]byte{'\n'})
+}
+
+func resolveAccountModelSupportRegistryVersion(ctx context.Context, registry *ModelRegistryService) string {
+	if registry == nil || registry.settingRepo == nil {
+		return "seed"
+	}
+	cacheKey := fmt.Sprintf("%p", registry.settingRepo)
+	if cached, ok := accountModelSupportRegistryVersion.Load(cacheKey); ok {
+		if entry, ok := cached.(accountModelSupportRegistryVersionEntry); ok && time.Now().Before(entry.expiresAt) && entry.version != "" {
+			return entry.version
+		}
+	}
+
+	hash := sha256.New()
+	for _, key := range []string{
+		SettingKeyModelRegistryEntries,
+		SettingKeyModelRegistryHiddenModels,
+		SettingKeyModelRegistryTombstones,
+		SettingKeyModelRegistryAvailableModels,
+	} {
+		value, _ := registry.settingRepo.GetValue(ctx, key)
+		writeAccountModelSupportHashValue(hash, key)
+		writeAccountModelSupportHashValue(hash, value)
+	}
+	version := hex.EncodeToString(hash.Sum(nil))
+	accountModelSupportRegistryVersion.Store(cacheKey, accountModelSupportRegistryVersionEntry{
+		version:   version,
+		expiresAt: time.Now().Add(accountModelSupportRegistryVersionTTL),
+	})
+	return version
+}
+
+func resetAccountModelSupportRuntimeCaches() {
+	accountModelSupportCacheMu.Lock()
+	accountModelSupportCache = map[string]accountModelSupportCacheEntry{}
+	accountModelSupportCacheMu.Unlock()
+	accountModelSupportRegistryVersion = sync.Map{}
+}
+
 func isRequestedModelSupportedByAccount(ctx context.Context, registry *ModelRegistryService, account *Account, requestedModel string) bool {
 	if account == nil {
 		return false
@@ -224,18 +390,13 @@ func isRequestedModelSupportedByAccount(ctx context.Context, registry *ModelRegi
 		}
 	}
 
-	explicitModelIDs := accountConfiguredSourceModelIDs(account, "")
-	if len(explicitModelIDs) == 0 {
-		return !accountHasExplicitModelRestrictions(account)
+	supportSet := getCachedAccountModelSupportSet(ctx, registry, account)
+	if supportSet == nil || !supportSet.explicitRestrictions {
+		return true
 	}
-
-	route := registryRouteForAccount(account)
-	for _, modelID := range explicitModelIDs {
-		allowedVariants := collectModelSupportVariants(ctx, registry, route, modelID)
-		for candidate := range allowedVariants {
-			if _, ok := requestedVariants[candidate]; ok {
-				return true
-			}
+	for candidate := range requestedVariants {
+		if _, ok := supportSet.allowedVariants[candidate]; ok {
+			return true
 		}
 	}
 	return false

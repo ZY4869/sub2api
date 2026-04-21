@@ -11,6 +11,10 @@ type accountUsageCodexProbeRepo struct {
 	stubOpenAIAccountRepo
 	updateExtraCh chan map[string]any
 	rateLimitCh   chan time.Time
+	modelLimitCh  chan struct {
+		scope   string
+		resetAt time.Time
+	}
 }
 
 func (r *accountUsageCodexProbeRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
@@ -27,6 +31,16 @@ func (r *accountUsageCodexProbeRepo) UpdateExtra(_ context.Context, _ int64, upd
 func (r *accountUsageCodexProbeRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
+	}
+	return nil
+}
+
+func (r *accountUsageCodexProbeRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	if r.modelLimitCh != nil {
+		r.modelLimitCh <- struct {
+			scope   string
+			resetAt time.Time
+		}{scope: scope, resetAt: resetAt}
 	}
 	return nil
 }
@@ -118,20 +132,74 @@ func TestExtractOpenAICodexProbeSnapshotAccepts429WithResetAt(t *testing.T) {
 	}
 }
 
-func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsRateLimit(t *testing.T) {
+func TestExtractOpenAICodexProbeSnapshotForScope_SparkWritesSparkFields(t *testing.T) {
+	t.Parallel()
+
+	headers := make(http.Header)
+	headers.Set("x-codex-primary-used-percent", "100")
+	headers.Set("x-codex-primary-reset-after-seconds", "604800")
+	headers.Set("x-codex-primary-window-minutes", "10080")
+	headers.Set("x-codex-secondary-used-percent", "35")
+	headers.Set("x-codex-secondary-reset-after-seconds", "18000")
+	headers.Set("x-codex-secondary-window-minutes", "300")
+
+	updates, resetAt, reason, err := extractOpenAICodexProbeSnapshotForScope(
+		&http.Response{StatusCode: http.StatusTooManyRequests, Header: headers},
+		openAICodexScopeSpark,
+	)
+	if err != nil {
+		t.Fatalf("extractOpenAICodexProbeSnapshotForScope() error = %v", err)
+	}
+	if len(updates) == 0 {
+		t.Fatal("expected spark codex probe updates from 429 headers")
+	}
+	if resetAt == nil {
+		t.Fatal("expected resetAt from exhausted spark codex headers")
+	}
+	if reason != AccountRateLimitReasonUsage7d {
+		t.Fatalf("reason = %q, want %q", reason, AccountRateLimitReasonUsage7d)
+	}
+	if got := updates[codexSpark5hUsedPercentKey]; got != 35.0 {
+		t.Fatalf("codex_spark_5h_used_percent = %v, want 35", got)
+	}
+	if got := updates[codexSpark7dUsedPercentKey]; got != 100.0 {
+		t.Fatalf("codex_spark_7d_used_percent = %v, want 100", got)
+	}
+	if _, ok := updates["codex_5h_used_percent"]; ok {
+		t.Fatal("expected spark snapshot to avoid normal codex 5h field")
+	}
+	if _, ok := updates["codex_7d_used_percent"]; ok {
+		t.Fatal("expected spark snapshot to avoid normal codex 7d field")
+	}
+}
+
+func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsScopedRateLimit(t *testing.T) {
 	t.Parallel()
 
 	repo := &accountUsageCodexProbeRepo{
 		updateExtraCh: make(chan map[string]any, 2),
 		rateLimitCh:   make(chan time.Time, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
 	}
 	svc := &AccountUsageService{accountRepo: repo}
 	resetAt := time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       321,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Extra:    map[string]any{},
+	}
 
-	svc.persistOpenAICodexProbeSnapshot(321, map[string]any{
+	state := svc.persistOpenAICodexProbeSnapshot(context.Background(), account, map[string]any{
 		"codex_7d_used_percent": 100.0,
 		"codex_7d_reset_at":     resetAt.Format(time.RFC3339),
-	}, &resetAt, AccountRateLimitReasonUsage7d)
+	})
+	if state == nil || state.ScopeResetAt == nil {
+		t.Fatal("expected scoped codex state to be returned")
+	}
 
 	select {
 	case updates := <-repo.updateExtraCh:
@@ -143,21 +211,21 @@ func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsRateLimit(t *tes
 	}
 
 	select {
-	case got := <-repo.rateLimitCh:
-		if got.Before(resetAt.Add(-time.Second)) || got.After(resetAt.Add(time.Second)) {
-			t.Fatalf("rate limit resetAt = %v, want around %v", got, resetAt)
+	case got := <-repo.modelLimitCh:
+		if got.scope != openAICodexScopeNormal {
+			t.Fatalf("scope = %q, want %q", got.scope, openAICodexScopeNormal)
+		}
+		if got.resetAt.Before(resetAt.Add(-time.Second)) || got.resetAt.After(resetAt.Add(time.Second)) {
+			t.Fatalf("model rate limit resetAt = %v, want around %v", got.resetAt, resetAt)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("waiting for codex probe rate limit persistence timed out")
+		t.Fatal("waiting for codex probe scoped rate-limit persistence timed out")
 	}
 
 	select {
-	case updates := <-repo.updateExtraCh:
-		if got := updates["rate_limit_reason"]; got != AccountRateLimitReasonUsage7d {
-			t.Fatalf("rate_limit_reason = %v, want %q", got, AccountRateLimitReasonUsage7d)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("waiting for codex probe rate-limit reason persistence timed out")
+	case got := <-repo.rateLimitCh:
+		t.Fatalf("unexpected account rate-limit persistence: %v", got)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 

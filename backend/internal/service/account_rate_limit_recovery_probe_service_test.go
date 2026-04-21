@@ -136,6 +136,47 @@ func TestAccountRateLimitRecoveryProbeService_RunOnceSuccess(t *testing.T) {
 	require.Equal(t, int64(1), snapshot.RecoveryProbeSuccessByReason["recover"])
 }
 
+func TestAccountRateLimitRecoveryProbeService_RunOnceSuccessForUsage7dAll(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	now := time.Date(2026, 4, 9, 10, 0, 0, 0, time.UTC)
+	resetAt := now.Add(-time.Minute)
+	repo := &accountAutoRecoveryProbeRepo{
+		activeAccounts: []Account{{
+			ID:               12,
+			Status:           StatusActive,
+			LifecycleState:   AccountLifecycleNormal,
+			RateLimitResetAt: &resetAt,
+			Extra: map[string]any{
+				"rate_limit_reason": AccountRateLimitReasonUsage7dAll,
+			},
+		}},
+	}
+	executor := &accountAutoRecoveryProbeExecutorStub{
+		result: &BackgroundAccountTestResult{Status: "success"},
+	}
+	recoverer := &accountAutoRecoveryProbeRecovererStub{}
+	svc := NewAccountRateLimitRecoveryProbeService(repo, executor, recoverer, time.Minute)
+	svc.now = func() time.Time { return now }
+
+	svc.runOnce(context.Background())
+
+	require.Equal(t, 1, executor.calls)
+	require.Equal(t, "test", executor.lastProbeAction)
+	require.Equal(t, 1, recoverer.calls)
+	require.Equal(t, "recover", recoverer.lastProbeAction)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountAutoRecoveryProbeStatusSuccess, repo.updateExtraCalls[0][accountAutoRecoveryProbeStatusKey])
+	require.Equal(t, false, repo.updateExtraCalls[0][accountAutoRecoveryProbeBlacklisted])
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.RecoveryProbeStartedTotal)
+	require.Equal(t, int64(1), snapshot.RecoveryProbeSuccessTotal)
+	require.Equal(t, int64(1), snapshot.RecoveryProbeStartedByReason[AccountRateLimitReasonUsage7dAll])
+	require.Equal(t, int64(1), snapshot.RecoveryProbeSuccessByReason["recover"])
+}
+
 func TestAccountRateLimitRecoveryProbeService_RunOnceSchedulesRetryOnTransientFailure(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)

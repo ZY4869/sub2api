@@ -54,6 +54,22 @@ func (r stubOpenAIAccountRepo) GetByID(ctx context.Context, id int64) (*Account,
 	return nil, errors.New("account not found")
 }
 
+func (r stubOpenAIAccountRepo) SetRateLimited(ctx context.Context, id int64, resetAt time.Time) error {
+	return nil
+}
+
+func (r stubOpenAIAccountRepo) SetModelRateLimit(ctx context.Context, id int64, scope string, resetAt time.Time) error {
+	return nil
+}
+
+func (r stubOpenAIAccountRepo) ClearRateLimit(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (r stubOpenAIAccountRepo) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
+	return nil
+}
+
 func (r stubOpenAIAccountRepo) ListSchedulableByGroupIDAndPlatform(ctx context.Context, groupID int64, platform string) ([]Account, error) {
 	var result []Account
 	for _, acc := range r.accounts {
@@ -304,6 +320,13 @@ func (c *stubGatewayCache) DeleteSessionAccountID(ctx context.Context, groupID i
 	return nil
 }
 
+func newModelRateLimitEntry(resetAt time.Time) map[string]any {
+	return map[string]any{
+		"rate_limited_at":     time.Now().UTC().Format(time.RFC3339),
+		"rate_limit_reset_at": resetAt.UTC().Format(time.RFC3339),
+	}
+}
+
 func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T) {
 	now := time.Now()
 	resetAt := now.Add(10 * time.Minute)
@@ -346,6 +369,105 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T)
 	}
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
+	}
+}
+
+func TestOpenAISelectAccountWithLoadAwareness_IgnoresSparkOnlyModelRateLimitForNormalRequests(t *testing.T) {
+	resetAt := time.Now().Add(10 * time.Minute)
+	account := Account{
+		ID:          31,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeSpark: newModelRateLimitEntry(resetAt),
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+	}
+
+	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.3-codex", nil)
+	if err != nil {
+		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
+	}
+	if selection == nil || selection.Account == nil || selection.Account.ID != account.ID {
+		t.Fatalf("expected normal codex request to ignore spark-only cooldown, got %+v", selection)
+	}
+}
+
+func TestOpenAISelectAccountWithLoadAwareness_IgnoresNormalOnlyModelRateLimitForSparkRequests(t *testing.T) {
+	resetAt := time.Now().Add(10 * time.Minute)
+	account := Account{
+		ID:          32,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(resetAt),
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+	}
+
+	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.3-codex-spark", nil)
+	if err != nil {
+		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
+	}
+	if selection == nil || selection.Account == nil || selection.Account.ID != account.ID {
+		t.Fatalf("expected spark request to ignore normal-only cooldown, got %+v", selection)
+	}
+}
+
+func TestOpenAISelectAccountWithLoadAwareness_Usage7dAllBlocksBothScopes(t *testing.T) {
+	resetAt := time.Now().Add(10 * time.Minute)
+	account := Account{
+		ID:               33,
+		Platform:         PlatformOpenAI,
+		Type:             AccountTypeOAuth,
+		Status:           StatusActive,
+		Schedulable:      true,
+		Concurrency:      1,
+		RateLimitResetAt: &resetAt,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			"rate_limit_reason": AccountRateLimitReasonUsage7dAll,
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+	}
+
+	for _, requestedModel := range []string{"gpt-5.3-codex", "gpt-5.3-codex-spark"} {
+		t.Run(requestedModel, func(t *testing.T) {
+			selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", requestedModel, nil)
+			if err == nil {
+				t.Fatalf("expected account-level usage_7d_all to block %s", requestedModel)
+			}
+			if selection != nil {
+				t.Fatalf("expected no selection for %s, got %+v", requestedModel, selection)
+			}
+		})
 	}
 }
 
@@ -1386,7 +1508,15 @@ func TestOpenAIValidateUpstreamBaseURLEnabledEnforcesAllowlist(t *testing.T) {
 }
 
 func TestOpenAIUpdateCodexUsageSnapshotFromHeaders(t *testing.T) {
-	repo := &snapshotUpdateAccountRepo{updateExtraCalls: make(chan map[string]any, 1)}
+	repo := &snapshotUpdateAccountRepo{
+		updateExtraCalls: make(chan map[string]any, 1),
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:       123,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra:    map[string]any{},
+		}}},
+	}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	headers := http.Header{}
 	headers.Set("x-codex-primary-used-percent", "12")

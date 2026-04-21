@@ -42,6 +42,22 @@ func TestAppendAdminLimitedWhereClauses(t *testing.T) {
 				service.AccountRateLimitReasonUsage7d,
 			},
 		},
+		{
+			name: "all 7d limited reason filter",
+			filters: adminAccountListFilters{
+				LimitedView:   service.AccountLimitedViewLimitedOnly,
+				LimitedReason: service.AccountRateLimitReasonUsage7dAll,
+			},
+			argIndex:    5,
+			wantClauses: 2,
+			wantArg:     service.AccountRateLimitReasonUsage7dAll,
+			wantSQL: []string{
+				"rate_limit_reset_at > NOW()",
+				"rate_limit_reason",
+				service.AccountRateLimitReasonUsage7dAll,
+				"codex_account_7d_all_exhausted",
+			},
+		},
 	}
 
 	for _, tt := range tests {

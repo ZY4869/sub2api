@@ -1367,30 +1367,31 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	probeCtx := WithOpenAICodexRequestModel(ctx, testModelID)
+	var codexState *openAICodexRateLimitState
 	if useChatGPTOAuth && s.accountRepo != nil {
-		if updates, err := extractOpenAICodexProbeUpdates(resp); err == nil && len(updates) > 0 {
-			_ = s.accountRepo.UpdateExtra(ctx, account.ID, updates)
-			mergeAccountExtra(account, updates)
+		probeScope := openAICodexScopeNormal
+		if resolvedScope, ok := resolveOpenAICodexQuotaScopeFromContext(probeCtx, account); ok && strings.TrimSpace(resolvedScope) != "" {
+			probeScope = resolvedScope
 		}
-		if snapshot := ParseCodexRateLimitHeaders(resp.Header); snapshot != nil {
-			if resetAt := codexRateLimitResetAtFromSnapshot(snapshot, time.Now()); resetAt != nil {
-				_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, codexRateLimitReasonFromSnapshot(snapshot))
-				account.RateLimitResetAt = resetAt
-			}
+		if updates, err := extractOpenAICodexProbeUpdatesForScope(resp, probeScope); err == nil && len(updates) > 0 {
+			codexState = syncOpenAICodexRateLimitState(probeCtx, s.accountRepo, account, updates, time.Now())
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		if useChatGPTOAuth && s.accountRepo != nil {
-			if resetAt := (&RateLimitService{}).calculateOpenAI429ResetTime(resp.Header); resetAt != nil {
-				_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, codexRateLimitReasonFromSnapshot(ParseCodexRateLimitHeaders(resp.Header)))
-				account.RateLimitResetAt = resetAt
+			if resp.StatusCode == http.StatusTooManyRequests && (codexState == nil || (codexState.AccountResetAt == nil && codexState.ScopeResetAt == nil)) {
+				if resetAt := (&RateLimitService{}).calculateOpenAI429ResetTime(resp.Header); resetAt != nil {
+					_ = setAccountRateLimited(ctx, s.accountRepo, account.ID, *resetAt, AccountRateLimitReason429)
+					account.RateLimitResetAt = resetAt
+				}
 			}
-		}
-		if resp.StatusCode == http.StatusUnauthorized && s.accountRepo != nil && isOpenAIPermanentUnauthorizedDetail(body) {
-			errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
-			_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+			if resp.StatusCode == http.StatusUnauthorized && isOpenAIPermanentUnauthorizedDetail(body) {
+				errMsg := fmt.Sprintf("Authentication failed (401): %s", string(body))
+				_ = s.accountRepo.SetError(ctx, account.ID, errMsg)
+			}
 		}
 		return s.sendFailedTestResponse(c, ctx, account, resp.StatusCode, body, "API returned")
 	}

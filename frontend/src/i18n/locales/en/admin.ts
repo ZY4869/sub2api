@@ -593,6 +593,11 @@ export default {
           title: 'Model Pricing',
           description: 'Browse model pricing in paginated list mode by default, with an optional provider grid for bulk inspection.'
         },
+        publicCatalog: {
+          nav: 'Public Catalog',
+          title: 'Public Model Catalog',
+          description: 'Manage the public model showcase draft and manually publish the external snapshot.'
+        },
         rules: {
           nav: 'Rules & Simulation',
           title: 'Rules & Simulation',
@@ -1449,7 +1454,7 @@ export default {
       },
       limited: {
         title: 'Limited Accounts',
-        description: 'Review currently limited accounts and split 429 from 5h and 7d caps.',
+        description: 'Review currently limited accounts and split 429 from 5h, 7d, and dual-7d account caps.',
         entry: 'Limited Accounts ({count})',
         hideToggleOn: 'Always Hide Limited: On',
         hideToggleOff: 'Always Hide Limited: Off',
@@ -1457,7 +1462,8 @@ export default {
           all: 'All Limited',
           rate429: '429',
           usage5h: '5h Cap',
-          usage7d: '7d Cap'
+          usage7d: '7d Cap',
+          usage7dAll: 'Dual 7d'
         }
       },
       groupView: {
@@ -1514,6 +1520,7 @@ export default {
         rateLimited: 'Rate Limited',
         usage5h: '5h Cap',
         usage7d: '7d Cap',
+        usage7dAll: 'Dual 7d Cap',
         overloaded: 'Overloaded',
         tempUnschedulable: 'Temp Unschedulable',
         rateLimitedUntil: 'Rate limited and removed from scheduling. Auto resumes at {time}',
@@ -1522,6 +1529,8 @@ export default {
         usage7dUntil: '7d cap reached and removed from scheduling. Auto resumes at {time}',
         usage5hAutoResume: '5h cap auto resumes in {time}',
         usage7dAutoResume: '7d cap auto resumes in {time}',
+        usage7dAllUntil: 'Both standard Codex and Spark 7d caps are exhausted. Auto resumes at {time}',
+        usage7dAllAutoResume: 'Whole-account capacity auto resumes in {time}',
         modelRateLimitedUntil: '{model} rate limited until {time}',
         overloadedUntil: 'Overloaded until {time}',
         viewTempUnschedDetails: 'View temp unschedulable details'
@@ -1861,6 +1870,10 @@ export default {
       baseUrl: 'Base URL',
       baseUrlHint: 'Leave default for official Anthropic API',
       apiKeyRequired: 'API Key *',
+      apiKeyVisibility: {
+        show: 'Show',
+        hide: 'Hide'
+      },
       apiKeyPlaceholder: 'sk-ant-api03-...',
       apiKeyHint: 'Your Claude Console API Key',
       // OpenAI specific hints
@@ -2917,6 +2930,14 @@ export default {
       testModeLabel: 'Test mode',
       testModeLine: 'Test mode: {mode}',
       selectTestModel: 'Select Test Model',
+      refreshTestModels: 'Refresh models',
+      testModelQuickFilters: {
+        text: 'Text',
+        image: 'Image',
+        all: 'All',
+        textEmpty: 'No text models are available in the current snapshot. Switch to All or refresh manually.',
+        imageEmpty: 'No image models are available in the current snapshot. Switch to All or refresh manually.'
+      },
       testModel: 'Test model',
       testPrompt: 'Prompt: "hi"',
       testModes: {
@@ -2988,6 +3009,8 @@ export default {
         statsTitleDaily: 'Daily Usage Statistics',
         geminiProDaily: 'Pro',
         geminiFlashDaily: 'Flash',
+        spark5h: 'Spark 5h',
+        spark7d: 'Spark 7d',
         gemini3Pro: 'G3P',
         gemini3Flash: 'G3F',
         gemini3Image: 'GImage',

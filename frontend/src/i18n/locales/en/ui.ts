@@ -48,7 +48,7 @@ export default {
     },
     modelCatalog: {
       eyebrow: 'Public Models',
-      description: 'Browse the currently sellable and available models. Prices always reflect the sale layer and multiplier-adjusted effective price.',
+      description: 'Browse the currently published external model catalog. Prices reflect the published base sale snapshot.',
       modelCount: '{count} models',
       refresh: 'Refresh Catalog',
       refreshing: 'Refreshing...',
@@ -69,6 +69,13 @@ export default {
       viewModes: {
         grid: 'Grid',
         list: 'List',
+      },
+      pagination: {
+        summary: 'Showing {start}-{end} of {total}',
+        page: 'Page {page} / {pages}',
+        prev: 'Previous',
+        next: 'Next',
+        pageSize: '{size} per page',
       },
       multiplier: {
         disabled: 'Multiplier Off',

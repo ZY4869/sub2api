@@ -33,11 +33,13 @@ func (s *APIKeyService) GetAvailableGroupModelOptions(
 	}
 
 	catalogItemsByModel := make(map[string]PublicModelCatalogItem)
+	publishedCatalogLoaded := false
 	if s != nil && s.modelCatalogService != nil {
-		snapshot, err := s.modelCatalogService.PublicModelCatalogSnapshot(ctx)
+		snapshot, err := s.modelCatalogService.PublishedPublicModelCatalogSnapshot(ctx)
 		if err != nil {
 			return nil, err
 		}
+		publishedCatalogLoaded = true
 		for _, item := range snapshot.Items {
 			catalogItemsByModel[item.Model] = item
 		}
@@ -54,7 +56,7 @@ func (s *APIKeyService) GetAvailableGroupModelOptions(
 			}
 			for _, entry := range projection {
 				catalogItem, ok := catalogItemsByModel[NormalizeModelCatalogModelID(entry.PublicID)]
-				if len(catalogItemsByModel) > 0 && !ok {
+				if publishedCatalogLoaded && !ok {
 					continue
 				}
 				displayName := strings.TrimSpace(entry.DisplayName)

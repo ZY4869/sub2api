@@ -76,6 +76,13 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 	if normalizedModel == "" {
 		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
 	}
+	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
+		if detail, ok := published.Details[normalizedModel]; ok {
+			cloned := clonePublicModelCatalogDetail(detail)
+			return &cloned, nil
+		}
+		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
 
 	records, err := s.buildCatalogRecords(ctx)
 	if err != nil {
@@ -141,6 +148,23 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 		ExampleMarkdown:   exampleMarkdown,
 		ExampleOverrideID: exampleOverrideID,
 	}, nil
+}
+
+func (s *ModelCatalogService) PublishedPublicModelCatalogDetail(ctx context.Context, model string) (*PublicModelCatalogDetail, error) {
+	normalizedModel := NormalizeModelCatalogModelID(model)
+	if normalizedModel == "" {
+		return nil, infraerrors.BadRequest("MODEL_REQUIRED", "model is required")
+	}
+	published := s.loadPublishedPublicModelCatalogSnapshot(ctx)
+	if published == nil {
+		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
+	detail, ok := published.Details[normalizedModel]
+	if !ok {
+		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
+	}
+	cloned := clonePublicModelCatalogDetail(detail)
+	return &cloned, nil
 }
 
 func buildPublicModelCatalogItemFromProjection(

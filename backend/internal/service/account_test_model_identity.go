@@ -23,6 +23,7 @@ func buildAvailableTestModelFromRegistryDetail(detail modelregistry.AdminModelDe
 		Type:           "model",
 		DisplayName:    displayName,
 		CreatedAt:      "",
+		Mode:           inferAvailableTestModelMode(publicID, &detail.ModelEntry),
 		SourceProtocol: normalizeTestSourceProtocol(sourceProtocol),
 		Status:         status,
 		DeprecatedAt:   deprecatedAt,
@@ -44,4 +45,39 @@ func normalizeAvailableTestModelPublicID(detail modelregistry.AdminModelDetail) 
 		return normalized, normalizeRegistryID(normalized) != normalizeRegistryID(rawID)
 	}
 	return rawID, false
+}
+
+func inferAvailableTestModelMode(modelID string, entry *modelregistry.ModelEntry) string {
+	if entry != nil {
+		for _, capability := range entry.Capabilities {
+			switch strings.TrimSpace(strings.ToLower(capability)) {
+			case "image_generation":
+				return "image"
+			case "video_generation":
+				return "video"
+			case "embedding":
+				return "embedding"
+			}
+		}
+		for _, modality := range entry.Modalities {
+			switch strings.TrimSpace(strings.ToLower(modality)) {
+			case "image":
+				return "image"
+			case "video":
+				return "video"
+			case "embedding":
+				return "embedding"
+			case "text":
+				return "text"
+			}
+		}
+	}
+	switch inferModelMode(modelID, "") {
+	case "image":
+		return "image"
+	case "video":
+		return "video"
+	default:
+		return "text"
+	}
 }

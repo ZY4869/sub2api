@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -370,40 +371,20 @@ func codexRateLimitReasonFromSnapshot(snapshot *OpenAICodexUsageSnapshot) string
 	return AccountRateLimitReason429
 }
 func codexRateLimitResetAtFromExtra(extra map[string]any, now time.Time) *time.Time {
-	if len(extra) == 0 {
-		return nil
-	}
-	if progress := buildCodexUsageProgressFromExtra(extra, "7d", now); progress != nil && codexUsagePercentExhausted(&progress.Utilization) && progress.ResetsAt != nil && now.Before(*progress.ResetsAt) {
-		resetAt := progress.ResetsAt.UTC()
-		return &resetAt
-	}
-	if progress := buildCodexUsageProgressFromExtra(extra, "5h", now); progress != nil && codexUsagePercentExhausted(&progress.Utilization) && progress.ResetsAt != nil && now.Before(*progress.ResetsAt) {
-		resetAt := progress.ResetsAt.UTC()
-		return &resetAt
-	}
-	return nil
+	return codexRateLimitResetAtFromExtraForScope(extra, openAICodexScopeNormal, now)
 }
-func applyOpenAICodexRateLimitFromExtra(account *Account, now time.Time) (*time.Time, bool) {
+func applyOpenAICodexRateLimitFromExtra(account *Account, now time.Time) (*openAICodexRateLimitState, bool) {
 	if account == nil || !account.IsOpenAI() {
 		return nil, false
 	}
-	resetAt := codexRateLimitResetAtFromExtra(account.Extra, now)
-	if resetAt == nil {
+	state := syncOpenAICodexRateLimitState(context.Background(), nil, account, nil, now)
+	if state == nil {
 		return nil, false
 	}
-	if account.RateLimitResetAt != nil && now.Before(*account.RateLimitResetAt) && !account.RateLimitResetAt.Before(*resetAt) {
-		return account.RateLimitResetAt, false
-	}
-	account.RateLimitResetAt = resetAt
-	return resetAt, true
+	return state, state.AccountResetAt != nil || state.ScopeResetAt != nil
 }
-func syncOpenAICodexRateLimitFromExtra(ctx context.Context, repo AccountRepository, account *Account, now time.Time) *time.Time {
-	resetAt, changed := applyOpenAICodexRateLimitFromExtra(account, now)
-	if !changed || resetAt == nil || repo == nil || account == nil || account.ID <= 0 {
-		return resetAt
-	}
-	_ = setAccountRateLimited(ctx, repo, account.ID, *resetAt, AccountRateLimitReason(account, now))
-	return resetAt
+func syncOpenAICodexRateLimitFromExtra(ctx context.Context, repo AccountRepository, account *Account, now time.Time) *openAICodexRateLimitState {
+	return syncOpenAICodexRateLimitState(ctx, repo, account, nil, now)
 }
 func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, accountID int64, snapshot *OpenAICodexUsageSnapshot) {
 	if snapshot == nil {
@@ -413,15 +394,6 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 		return
 	}
 	now := time.Now()
-	updates := buildCodexUsageExtraUpdates(snapshot, now)
-	resetAt := codexRateLimitResetAtFromSnapshot(snapshot, now)
-	if len(updates) == 0 && resetAt == nil {
-		return
-	}
-	shouldPersistUpdates := len(updates) > 0 && s.getCodexSnapshotThrottle().Allow(accountID, now)
-	if !shouldPersistUpdates && resetAt == nil {
-		return
-	}
 	updateParentCtx := ctx
 	if updateParentCtx == nil {
 		updateParentCtx = context.Background()
@@ -429,12 +401,24 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 	go func() {
 		updateCtx, cancel := context.WithTimeout(updateParentCtx, 5*time.Second)
 		defer cancel()
-		if shouldPersistUpdates {
-			_ = s.accountRepo.UpdateExtra(updateCtx, accountID, updates)
+		account, err := s.accountRepo.GetByID(updateCtx, accountID)
+		if err != nil || account == nil || !account.IsOpenAI() {
+			return
 		}
-		if resetAt != nil {
-			_ = setAccountRateLimited(updateCtx, s.accountRepo, accountID, *resetAt, codexRateLimitReasonFromSnapshot(snapshot))
+		scope, ok := resolveOpenAICodexQuotaScopeFromContext(updateCtx, account)
+		if !ok {
+			slog.Warn("openai_codex_snapshot_scope_missing", "account_id", accountID)
+			return
 		}
+		updates := buildCodexUsageExtraUpdatesForScope(scope, snapshot, now)
+		if len(updates) == 0 {
+			return
+		}
+		shouldPersistUpdates := s.getCodexSnapshotThrottle().Allow(accountID, now) || codexRateLimitResetAtFromSnapshot(snapshot, now) != nil
+		if !shouldPersistUpdates {
+			return
+		}
+		syncOpenAICodexRateLimitState(updateCtx, s.accountRepo, account, updates, now)
 	}()
 }
 func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.Context, accountID int64, headers http.Header) {

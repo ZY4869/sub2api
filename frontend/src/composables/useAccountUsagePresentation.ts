@@ -61,10 +61,25 @@ interface UseAccountUsagePresentationOptions {
   autoLoadEnabled?: MaybeRefOrGetter<boolean>
 }
 
+type OpenAIUsageScope = 'normal' | 'spark'
+
+type OpenAIUsageRowSpec = {
+  key: AccountUsagePresentationRow['key']
+  scope: OpenAIUsageScope
+  window: '5h' | '7d'
+  color: AccountUsageRowColor
+}
+
 const usageCache = new Map<number, UsageCacheEntry>()
 const EXPIRED_OPENAI_USAGE_REFRESH_COOLDOWN_MS = 60 * 1000
 const AUTO_USAGE_LOAD_CONCURRENCY = 3
 const autoUsageLoadLimiter = createAsyncTaskLimiter(AUTO_USAGE_LOAD_CONCURRENCY)
+const OPENAI_USAGE_ROW_SPECS: OpenAIUsageRowSpec[] = [
+  { key: 'openai-5h', scope: 'normal', window: '5h', color: 'indigo' },
+  { key: 'openai-7d', scope: 'normal', window: '7d', color: 'emerald' },
+  { key: 'openai-spark-5h', scope: 'spark', window: '5h', color: 'purple' },
+  { key: 'openai-spark-7d', scope: 'spark', window: '7d', color: 'amber' },
+]
 
 function createUsageCacheEntry(): UsageCacheEntry {
   return reactive({
@@ -259,13 +274,64 @@ function findRowByKey(
   return rows.find((row) => row.key === key) ?? null
 }
 
+function hasDefinedSnapshotValue(value: unknown): boolean {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim() !== ''
+  return true
+}
+
+function hasOpenAISparkSnapshot(extra: Record<string, unknown> | null | undefined): boolean {
+  if (!extra) return false
+
+  return [
+    extra.codex_spark_5h_used_percent,
+    extra.codex_spark_5h_reset_after_seconds,
+    extra.codex_spark_5h_reset_at,
+    extra.codex_spark_7d_used_percent,
+    extra.codex_spark_7d_reset_after_seconds,
+    extra.codex_spark_7d_reset_at,
+  ].some(hasDefinedSnapshotValue)
+}
+
+function isOpenAIProAccount(account: Account): boolean {
+  return String(account.credentials?.plan_type || '').trim().toLowerCase() === 'pro'
+}
+
+function resolveOpenAIUsageSpecs(includeSpark: boolean): OpenAIUsageRowSpec[] {
+  return includeSpark ? OPENAI_USAGE_ROW_SPECS : OPENAI_USAGE_ROW_SPECS.filter((spec) => spec.scope === 'normal')
+}
+
+function resolveOpenAIUsageLabel(
+  spec: OpenAIUsageRowSpec,
+  t: ReturnType<typeof useI18n>['t'],
+): string {
+  if (spec.scope === 'spark') {
+    return spec.window === '5h'
+      ? t('admin.accounts.usageWindow.spark5h')
+      : t('admin.accounts.usageWindow.spark7d')
+  }
+  return spec.window
+}
+
+function resolveOpenAIUsageProgress(
+  usage: AccountUsageInfo | null | undefined,
+  spec: OpenAIUsageRowSpec,
+): UsageProgress | null | undefined {
+  if (spec.scope === 'spark') {
+    return spec.window === '5h' ? usage?.spark_five_hour : usage?.spark_seven_day
+  }
+  return spec.window === '5h' ? usage?.five_hour : usage?.seven_day
+}
+
 function mergeOpenAIUsageRows(
   primaryRows: AccountUsagePresentationRow[],
   fallbackRows: AccountUsagePresentationRow[],
+  includeSpark: boolean,
 ): AccountUsagePresentationRow[] {
   return buildRows(
-    findRowByKey(primaryRows, 'openai-5h') ?? findRowByKey(fallbackRows, 'openai-5h'),
-    findRowByKey(primaryRows, 'openai-7d') ?? findRowByKey(fallbackRows, 'openai-7d'),
+    ...resolveOpenAIUsageSpecs(includeSpark).map(
+      (spec) => findRowByKey(primaryRows, spec.key) ?? findRowByKey(fallbackRows, spec.key),
+    ),
   )
 }
 
@@ -351,13 +417,19 @@ export function useAccountUsagePresentation(
   const autoLoadEnabled = computed(() => {
     return options.autoLoadEnabled == null ? true : Boolean(toValue(options.autoLoadEnabled))
   })
+  const shouldShowOpenAISparkUsage = computed(() => {
+    if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return false
+    if (isOpenAIProAccount(account.value)) return true
+    if (hasOpenAISparkSnapshot(account.value.extra as Record<string, unknown> | undefined)) return true
+    return Boolean(usageInfo.value?.spark_five_hour || usageInfo.value?.spark_seven_day)
+  })
 
   const loadingRows = computed(() => {
     const runtimePlatform = getRuntimePlatform(account.value)
     if (runtimePlatform === 'anthropic') {
       return account.value.type === 'oauth' ? 3 : 1
     }
-    if (runtimePlatform === 'openai') return 2
+    if (runtimePlatform === 'openai') return shouldShowOpenAISparkUsage.value ? 4 : 2
     return 1
   })
 
@@ -367,6 +439,8 @@ export function useAccountUsagePresentation(
 
   const codex5hWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '5h', nowDate.value))
   const codex7dWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '7d', nowDate.value))
+  const codexSpark5hWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '5h', nowDate.value, 'spark'))
+  const codexSpark7dWindow = computed(() => resolveCodexUsageWindow(account.value.extra, '7d', nowDate.value, 'spark'))
 
   const codexRows = computed(() =>
     buildRows(
@@ -380,16 +454,48 @@ export function useAccountUsagePresentation(
         : buildUsageRow('openai-7d', '7d', codex7dWindow.value.usedPercent, codex7dWindow.value.resetAt, 'emerald', {
             inlineRemaining: true,
           }),
+      !shouldShowOpenAISparkUsage.value || codexSpark5hWindow.value.usedPercent === null
+        ? null
+        : buildUsageRow(
+            'openai-spark-5h',
+            t('admin.accounts.usageWindow.spark5h'),
+            codexSpark5hWindow.value.usedPercent,
+            codexSpark5hWindow.value.resetAt,
+            'purple',
+            {
+              inlineRemaining: true,
+            },
+          ),
+      !shouldShowOpenAISparkUsage.value || codexSpark7dWindow.value.usedPercent === null
+        ? null
+        : buildUsageRow(
+            'openai-spark-7d',
+            t('admin.accounts.usageWindow.spark7d'),
+            codexSpark7dWindow.value.usedPercent,
+            codexSpark7dWindow.value.resetAt,
+            'amber',
+            {
+              inlineRemaining: true,
+            },
+          ),
     ),
   )
 
   const hasCodexUsage = computed(() => codexRows.value.length > 0)
-  const hasCompleteCodexUsage = computed(() => codexRows.value.length === 2)
+  const expectedOpenAICodexRowCount = computed(() => (shouldShowOpenAISparkUsage.value ? 4 : 2))
+  const hasCompleteCodexUsage = computed(() => codexRows.value.length === expectedOpenAICodexRowCount.value)
 
   const openAIFetchedRows = computed(() =>
     buildRows(
-      buildProgressRow('openai-5h', '5h', usageInfo.value?.five_hour, 'indigo', { inlineRemaining: true }),
-      buildProgressRow('openai-7d', '7d', usageInfo.value?.seven_day, 'emerald', { inlineRemaining: true }),
+      ...resolveOpenAIUsageSpecs(shouldShowOpenAISparkUsage.value).map((spec) =>
+        buildProgressRow(
+          spec.key,
+          resolveOpenAIUsageLabel(spec, t),
+          resolveOpenAIUsageProgress(usageInfo.value, spec),
+          spec.color,
+          { inlineRemaining: true },
+        ),
+      ),
     ),
   )
 
@@ -459,10 +565,10 @@ export function useAccountUsagePresentation(
     if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return []
 
     if (shouldUseFetchedOpenAIUsage.value) {
-      return mergeOpenAIUsageRows(openAIFetchedRows.value, codexRows.value)
+      return mergeOpenAIUsageRows(openAIFetchedRows.value, codexRows.value, shouldShowOpenAISparkUsage.value)
     }
 
-    return mergeOpenAIUsageRows(codexRows.value, openAIFetchedRows.value)
+    return mergeOpenAIUsageRows(codexRows.value, openAIFetchedRows.value, shouldShowOpenAISparkUsage.value)
   })
 
   const shouldPreferFetchedOpenAIMeta = computed(() => {

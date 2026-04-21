@@ -103,6 +103,37 @@ describe('AccountApiKeyBasicSettingsEditor', () => {
     expect(wrapper.emitted('add-preset')?.[0]).toEqual([{ from: 'a', to: 'b' }])
   })
 
+  it('toggles api key visibility without changing edit-mode keep semantics', async () => {
+    const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
+      props: {
+        platform: 'openai',
+        mode: 'edit',
+        baseUrl: 'https://api.openai.com',
+        apiKey: '',
+        modelScopeMode: 'whitelist',
+        allowedModels: [],
+        modelMappings: [],
+        presetMappings: [],
+        getMappingKey: () => 'mapping-1'
+      },
+      global: {
+        stubs: {
+          AccountModelScopeEditor: modelScopeStub
+        }
+      }
+    })
+
+    const apiKeyInput = wrapper.get('[data-testid="account-api-key-input"]')
+    expect(apiKeyInput.attributes('type')).toBe('password')
+    expect(wrapper.text()).toContain('admin.accounts.leaveEmptyToKeep')
+
+    await wrapper.get('[data-testid="account-api-key-visibility"]').trigger('click')
+    expect(wrapper.get('[data-testid="account-api-key-input"]').attributes('type')).toBe('text')
+
+    await wrapper.get('[data-testid="account-api-key-visibility"]').trigger('click')
+    expect(wrapper.get('[data-testid="account-api-key-input"]').attributes('type')).toBe('password')
+  })
+
   it('hides model scope editor when skipModelScopeEditor is enabled', () => {
     const wrapper = mount(AccountApiKeyBasicSettingsEditor, {
       props: {

@@ -134,6 +134,10 @@ func registerAdminBillingRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		billing.PUT("/rules", h.Admin.ModelCatalog.UpsertBillingRule)
 		billing.DELETE("/rules", h.Admin.ModelCatalog.DeleteBillingRule)
 		billing.POST("/rules/simulate", h.Admin.ModelCatalog.SimulateBilling)
+		billing.GET("/public-model-catalog/draft", h.Admin.ModelCatalog.GetPublicModelCatalogDraft)
+		billing.PUT("/public-model-catalog/draft", h.Admin.ModelCatalog.SavePublicModelCatalogDraft)
+		billing.POST("/public-model-catalog/publish", h.Admin.ModelCatalog.PublishPublicModelCatalog)
+		billing.GET("/public-model-catalog/published", h.Admin.ModelCatalog.GetPublishedPublicModelCatalogSummary)
 	}
 }
 

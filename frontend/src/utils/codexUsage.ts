@@ -6,6 +6,13 @@ export interface ResolvedCodexUsageWindow {
 }
 
 type WindowKind = '5h' | '7d'
+export type CodexUsageScope = 'normal' | 'spark'
+
+type CodexWindowKeys = {
+  usedPercent: string
+  resetAfterSeconds: string
+  resetAt: string
+}
 
 function asNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -88,34 +95,64 @@ function applyExpiredRule(window: ResolvedCodexUsageWindow, now: Date): Resolved
   return window
 }
 
+function resolveCanonicalKeys(window: WindowKind, scope: CodexUsageScope): CodexWindowKeys {
+  if (scope === 'spark') {
+    return window === '5h'
+      ? {
+          usedPercent: 'codex_spark_5h_used_percent',
+          resetAfterSeconds: 'codex_spark_5h_reset_after_seconds',
+          resetAt: 'codex_spark_5h_reset_at'
+        }
+      : {
+          usedPercent: 'codex_spark_7d_used_percent',
+          resetAfterSeconds: 'codex_spark_7d_reset_after_seconds',
+          resetAt: 'codex_spark_7d_reset_at'
+        }
+  }
+
+  return window === '5h'
+    ? {
+        usedPercent: 'codex_5h_used_percent',
+        resetAfterSeconds: 'codex_5h_reset_after_seconds',
+        resetAt: 'codex_5h_reset_at'
+      }
+    : {
+        usedPercent: 'codex_7d_used_percent',
+        resetAfterSeconds: 'codex_7d_reset_after_seconds',
+        resetAt: 'codex_7d_reset_at'
+      }
+}
+
 export function resolveCodexUsageWindow(
   snapshot: (CodexUsageSnapshot & Record<string, unknown>) | null | undefined,
   window: WindowKind,
-  now: Date = new Date()
+  now: Date = new Date(),
+  scope: CodexUsageScope = 'normal'
 ): ResolvedCodexUsageWindow {
   if (!snapshot) {
     return { usedPercent: null, resetAt: null }
   }
 
   const typedSnapshot = snapshot as Record<string, unknown>
+  const canonicalKeys = resolveCanonicalKeys(window, scope)
   let usedPercent: number | null
   let resetAfterSeconds: number | null
   let resetAt: string | null
 
   if (window === '5h') {
-    usedPercent = asNumber(typedSnapshot.codex_5h_used_percent)
-    resetAfterSeconds = asNumber(typedSnapshot.codex_5h_reset_after_seconds)
-    resetAt = asISOTime(typedSnapshot.codex_5h_reset_at)
-    if (usedPercent == null || (resetAfterSeconds == null && !resetAt)) {
+    usedPercent = asNumber(typedSnapshot[canonicalKeys.usedPercent])
+    resetAfterSeconds = asNumber(typedSnapshot[canonicalKeys.resetAfterSeconds])
+    resetAt = asISOTime(typedSnapshot[canonicalKeys.resetAt])
+    if (scope === 'normal' && (usedPercent == null || (resetAfterSeconds == null && !resetAt))) {
       const legacy = resolveLegacy5h(typedSnapshot)
       if (usedPercent == null) usedPercent = legacy.used
       if (resetAfterSeconds == null) resetAfterSeconds = legacy.resetAfterSeconds
     }
   } else {
-    usedPercent = asNumber(typedSnapshot.codex_7d_used_percent)
-    resetAfterSeconds = asNumber(typedSnapshot.codex_7d_reset_after_seconds)
-    resetAt = asISOTime(typedSnapshot.codex_7d_reset_at)
-    if (usedPercent == null || (resetAfterSeconds == null && !resetAt)) {
+    usedPercent = asNumber(typedSnapshot[canonicalKeys.usedPercent])
+    resetAfterSeconds = asNumber(typedSnapshot[canonicalKeys.resetAfterSeconds])
+    resetAt = asISOTime(typedSnapshot[canonicalKeys.resetAt])
+    if (scope === 'normal' && (usedPercent == null || (resetAfterSeconds == null && !resetAt))) {
       const legacy = resolveLegacy7d(typedSnapshot)
       if (usedPercent == null) usedPercent = legacy.used
       if (resetAfterSeconds == null) resetAfterSeconds = legacy.resetAfterSeconds

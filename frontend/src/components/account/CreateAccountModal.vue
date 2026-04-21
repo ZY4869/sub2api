@@ -559,7 +559,7 @@ import { ref, reactive, computed, toRef, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useModelInventoryStore } from '@/stores'
-import { invalidateModelRegistry } from '@/stores/modelRegistry'
+import { ensureModelRegistryFresh, invalidateModelRegistry } from '@/stores/modelRegistry'
 import {
   getPresetMappingsByPlatform,
   getModelsByPlatform,
@@ -653,6 +653,7 @@ import {
   type ModelMapping
 } from '@/utils/accountFormShared'
 import {
+  buildLocalAccountModelProbeSnapshot,
   createAccountModelProbeSnapshotDraft,
   createResolvedUpstreamDraft,
   mergeAccountModelProbeSnapshotIntoExtra,
@@ -839,6 +840,8 @@ const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OF
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
+const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
+const antigravityWhitelistModels = ref<string[]>([])
 const antigravityAccountType = ref<'oauth' | 'upstream'>('oauth') // For antigravity: oauth or upstream
 const upstreamBaseUrl = ref('') // For upstream type: base URL
 const upstreamApiKey = ref('') // For upstream type: API key
@@ -1173,6 +1176,7 @@ watch(
   () => props.show,
   (newVal) => {
     if (newVal) {
+      void ensureModelRegistryFresh()
       if (form.platform === 'protocol_gateway') {
         modelRestrictionMode.value = 'mapping'
       }
@@ -1677,6 +1681,23 @@ const { resetForm } = useCreateAccountReset({
   resetMixedChannelRisk
 })
 
+const resolveConfiguredModelProbeSnapshot = () =>
+  buildLocalAccountModelProbeSnapshot({
+    current: modelProbeSnapshot.value,
+    manualModels: manualModels.value,
+    allowSourceProtocol: isProtocolGatewayPlatform(form.platform),
+    modelRestrictionMode: effectivePlatform.value === 'antigravity'
+      ? antigravityModelRestrictionMode.value
+      : modelRestrictionMode.value,
+    allowedModels: effectivePlatform.value === 'antigravity'
+      ? antigravityWhitelistModels.value
+      : allowedModels.value,
+    modelMappings: effectivePlatform.value === 'antigravity'
+      ? antigravityModelMappings.value
+      : modelMappings.value,
+    source: 'model_scope_preview'
+  })
+
 const buildAccountExtra = (base?: Record<string, unknown>) => {
   const openaiExtra = buildOpenAIExtra({
     platform: effectivePlatform.value,
@@ -1740,7 +1761,7 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
         manualModels.value,
         isProtocolGatewayPlatform(form.platform)
       ),
-      modelProbeSnapshot.value
+      resolveConfiguredModelProbeSnapshot()
     ),
     resolvedUpstream.value
   )

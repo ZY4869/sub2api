@@ -57,12 +57,6 @@ function attachListeners() {
 }
 
 export function getModelRegistrySnapshot(): ModelRegistrySnapshot {
-  attachListeners()
-  if (loadedAtState.value === 0) {
-    void fetchModelRegistry()
-  } else if (Date.now() - loadedAtState.value > MODEL_REGISTRY_MAX_AGE_MS && !loadingState.value) {
-    void fetchModelRegistry()
-  }
   return snapshotState.value
 }
 
@@ -96,6 +90,7 @@ export async function fetchModelRegistry(force = false): Promise<ModelRegistrySn
 }
 
 export async function ensureModelRegistryFresh(force = false): Promise<ModelRegistrySnapshot> {
+  attachListeners()
   if (force || loadedAtState.value === 0 || Date.now() - loadedAtState.value > MODEL_REGISTRY_MAX_AGE_MS) {
     return fetchModelRegistry(force)
   }
@@ -104,6 +99,15 @@ export async function ensureModelRegistryFresh(force = false): Promise<ModelRegi
 
 export function invalidateModelRegistry(): void {
   loadedAtState.value = 0
+}
+
+export function resetModelRegistryStoreForTests(): void {
+  snapshotState.value = cloneSnapshot(generatedModelRegistrySnapshot)
+  etagState.value = generatedModelRegistrySnapshot.etag || null
+  loadedAtState.value = 0
+  loadingState.value = false
+  pendingRequest = null
+  listenersAttached = false
 }
 
 export const useModelRegistryStore = defineStore('modelRegistry', () => {

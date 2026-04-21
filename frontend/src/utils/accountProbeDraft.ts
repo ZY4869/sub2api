@@ -17,6 +17,10 @@ export interface AccountModelProbeSnapshotDraft {
   probe_source?: string
 }
 
+interface LocalAccountModelMappingLike {
+  to?: string | null
+}
+
 export function normalizeAccountManualModels(
   models: AccountManualModel[] | null | undefined,
   allowSourceProtocol: boolean
@@ -110,6 +114,63 @@ export function createAccountModelProbeSnapshotDraft(input?: {
   }
 }
 
+export function buildLocalAccountModelProbeSnapshot(input: {
+  current?: AccountModelProbeSnapshotDraft | null
+  manualModels?: AccountManualModel[] | null
+  allowSourceProtocol?: boolean
+  modelRestrictionMode?: 'whitelist' | 'mapping'
+  allowedModels?: string[] | null
+  modelMappings?: LocalAccountModelMappingLike[] | null
+  source?: string
+}): AccountModelProbeSnapshotDraft | null {
+  const orderedModels: string[] = []
+  const seen = new Set<string>()
+  const appendModel = (value: unknown) => {
+    const modelID = String(value || '').trim()
+    if (!modelID) {
+      return
+    }
+    const dedupeKey = modelID.toLowerCase()
+    if (seen.has(dedupeKey)) {
+      return
+    }
+    seen.add(dedupeKey)
+    orderedModels.push(modelID)
+  }
+
+  for (const manualModel of normalizeAccountManualModels(
+    input.manualModels,
+    input.allowSourceProtocol === true
+  )) {
+    appendModel(manualModel.model_id)
+  }
+
+  if (input.modelRestrictionMode === 'mapping') {
+    for (const mapping of input.modelMappings || []) {
+      appendModel(mapping?.to)
+    }
+  } else {
+    for (const modelID of input.allowedModels || []) {
+      appendModel(modelID)
+    }
+  }
+
+  const currentSnapshot = createAccountModelProbeSnapshotDraft(input.current)
+  if (orderedModels.length === 0) {
+    return currentSnapshot
+  }
+  if (currentSnapshot && areModelIdListsEqual(currentSnapshot.models, orderedModels)) {
+    return currentSnapshot
+  }
+  const source = String(input.source || 'model_scope_preview').trim() || 'model_scope_preview'
+  return createAccountModelProbeSnapshotDraft({
+    models: orderedModels,
+    updated_at: new Date().toISOString(),
+    source,
+    probe_source: source
+  })
+}
+
 export function mergeAccountModelProbeSnapshotIntoExtra(
   extra: Record<string, unknown> | null | undefined,
   snapshot: AccountModelProbeSnapshotDraft | null | undefined
@@ -154,13 +215,20 @@ export function deriveConfiguredAccountModelIds(
   const scope = extra?.model_scope_v2
   if (scope && typeof scope === 'object') {
     const scopeMap = scope as Record<string, unknown>
-    const supportedModelsByProvider = scopeMap.supported_models_by_provider
-    if (supportedModelsByProvider && typeof supportedModelsByProvider === 'object') {
-      const providerNames = Object.keys(supportedModelsByProvider as Record<string, unknown>).sort()
-      for (const provider of providerNames) {
-        const models = (supportedModelsByProvider as Record<string, unknown>)[provider]
-        for (const modelID of readStringArray(models)) {
-          appendModel(modelID)
+    const selectedModelIDs = readStringArray(scopeMap.selected_model_ids)
+    if (selectedModelIDs.length > 0) {
+      for (const modelID of selectedModelIDs) {
+        appendModel(modelID)
+      }
+    } else {
+      const supportedModelsByProvider = scopeMap.supported_models_by_provider
+      if (supportedModelsByProvider && typeof supportedModelsByProvider === 'object') {
+        const providerNames = Object.keys(supportedModelsByProvider as Record<string, unknown>).sort()
+        for (const provider of providerNames) {
+          const models = (supportedModelsByProvider as Record<string, unknown>)[provider]
+          for (const modelID of readStringArray(models)) {
+            appendModel(modelID)
+          }
         }
       }
     }
@@ -327,6 +395,13 @@ function normalizeModelIds(values: unknown[] | string[] | null | undefined): str
     normalized.push(modelID)
   }
   return normalized
+}
+
+function areModelIdListsEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+  return left.every((value, index) => value === right[index])
 }
 
 function assignIfPresent(target: Record<string, unknown>, key: string, value: string | undefined) {

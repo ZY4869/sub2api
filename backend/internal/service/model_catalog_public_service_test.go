@@ -459,6 +459,11 @@ func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProject
 
 	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 	modelCatalogSvc.SetGatewayService(gatewaySvc)
+	_, err = modelCatalogSvc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"registry-openai-beta"},
+		PageSize:       10,
+	})
+	require.NoError(t, err)
 
 	apiKeySvc := NewAPIKeyService(
 		nil,
@@ -478,6 +483,183 @@ func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProject
 	require.Equal(t, int64(10), options[0].GroupID)
 	require.Len(t, options[0].Models, 1)
 	require.Equal(t, "registry-openai-beta", options[0].Models[0].PublicID)
+}
+
+func TestModelCatalogService_PublishedPublicModelCatalogSnapshot_ReturnsEmptyWhenNotPublished(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	snapshot, err := svc.PublishedPublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, defaultPublicModelCatalogPageSize, snapshot.PageSize)
+	require.Empty(t, snapshot.ETag)
+	require.Empty(t, snapshot.UpdatedAt)
+	require.Empty(t, snapshot.Items)
+
+	_, err = svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.Error(t, err)
+}
+
+func TestModelCatalogService_SavePublicModelCatalogDraft_DoesNotChangePublishedSnapshot(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	draft, err := svc.SavePublicModelCatalogDraft(context.Background(), PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       25,
+	})
+	require.NoError(t, err)
+	require.Equal(t, 25, draft.PageSize)
+
+	published, err := svc.PublishedPublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, defaultPublicModelCatalogPageSize, published.PageSize)
+	require.Empty(t, published.Items)
+}
+
+func TestModelCatalogService_PublishPublicModelCatalog_ChangesETagWhenOnlyPageSizeChanges(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	first, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       10,
+	})
+	require.NoError(t, err)
+	waitForNextRFC3339Second()
+	second, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       20,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, 10, first.PageSize)
+	require.Equal(t, 20, second.PageSize)
+	require.NotEqual(t, first.ETag, second.ETag)
+	require.NotEqual(t, first.UpdatedAt, second.UpdatedAt)
+	savedDraft := svc.loadPublicModelCatalogDraft(context.Background())
+	require.NotNil(t, savedDraft)
+	require.Equal(t, 20, savedDraft.PageSize)
+}
+
+func TestModelCatalogService_PublishedPublicModelCatalogDetail_RemainsFrozenAfterDocsChange(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	svc.SetDocsService(NewAPIDocsService(repo))
+
+	_, err := svc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       10,
+	})
+	require.NoError(t, err)
+
+	frozenBefore, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.NoError(t, err)
+	require.Equal(t, publicModelCatalogExampleSourceDocs, frozenBefore.ExampleSource)
+	require.NotEmpty(t, frozenBefore.ExampleMarkdown)
+
+	repo.values[SettingKeyAPIDocsMarkdown+"_page_common"] = "# API Reference\n\n## common\n### Changed Example\n```bash\ncurl https://example.com/changed\n```\n"
+	publishedJSON := repo.values[SettingKeyPublicModelCatalogPublishedSnapshot]
+	delete(repo.values, SettingKeyPublicModelCatalogPublishedSnapshot)
+	liveDetail, err := svc.PublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.NoError(t, err)
+	require.NotEqual(t, frozenBefore.ExampleMarkdown, liveDetail.ExampleMarkdown)
+	repo.values[SettingKeyPublicModelCatalogPublishedSnapshot] = publishedJSON
+
+	frozenAfter, err := svc.PublishedPublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.NoError(t, err)
+	require.Equal(t, frozenBefore.ExampleMarkdown, frozenAfter.ExampleMarkdown)
+}
+
+func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesPublishedPrices(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	basePublished, err := modelCatalogSvc.PublishPublicModelCatalog(context.Background(), ModelCatalogActor{UserID: 1, Email: "catalog@test.com"}, &PublicModelCatalogDraft{
+		SelectedModels: []string{"gpt-5.4"},
+		PageSize:       10,
+	})
+	require.NoError(t, err)
+
+	groupRepo := &publicCatalogGroupRepoStub{
+		groups: []Group{
+			{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 1.5},
+		},
+	}
+	apiKeySvc := NewAPIKeyService(
+		nil,
+		&publicCatalogUserRepoStub{user: &User{ID: 7, Role: RoleUser}},
+		groupRepo,
+		publicCatalogUserSubRepoStub{},
+		nil,
+		nil,
+		&config.Config{},
+	)
+	apiKeySvc.SetModelCatalogService(modelCatalogSvc)
+
+	snapshot, err := apiKeySvc.GetGroupModelCatalogSnapshot(context.Background(), 7, 10)
+	require.NoError(t, err)
+	require.Len(t, snapshot.Items, 1)
+	require.NotEqual(t, basePublished.ETag, snapshot.ETag)
+	require.Equal(t, basePublished.UpdatedAt, snapshot.UpdatedAt)
+	require.InDelta(t, 1.5e-6, snapshot.Items[0].PriceDisplay.Primary[0].Value, 1e-12)
+	require.InDelta(t, 3e-6, snapshot.Items[0].PriceDisplay.Primary[1].Value, 1e-12)
 }
 
 func TestModelCatalogService_PublicModelCatalogSnapshot_CachesWithinTTLAndRefreshesAfterExpiry(t *testing.T) {
@@ -602,4 +784,11 @@ func publicCatalogPriceEntryIDs(entries []PublicModelCatalogPriceEntry) []string
 		ids = append(ids, entry.ID)
 	}
 	return ids
+}
+
+func waitForNextRFC3339Second() {
+	start := time.Now().UTC().Truncate(time.Second)
+	for time.Now().UTC().Truncate(time.Second).Equal(start) {
+		time.Sleep(25 * time.Millisecond)
+	}
 }

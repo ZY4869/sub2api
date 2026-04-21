@@ -127,8 +127,11 @@ https://api.zyxai.de
 - 路径：`GET /api/v1/meta/model-catalog`
 - 详情：`GET /api/v1/meta/model-catalog/:model`
 - 鉴权：无需登录，游客与已登录用户都可访问
-- 用途：返回前台 `/models` 页面使用的“可售卖可用模型目录”，包含供应商、请求协议族、最终对外有效售价，以及出售价格倍率摘要；详情接口会补充单模型的完整价格块与示例模板元数据
-- 缓存：响应会返回 `ETag`，客户端可通过 `If-None-Match` 复用 304
+- 用途：返回前台 `/models` 页面使用的“已发布公开模型快照”，包含供应商、请求协议族、发布时冻结的基础出售价格、倍率摘要，以及发布配置中的 `page_size`
+- 发布语义：这个接口不再按 TTL 自动重建；只有管理员在计费中心“对外模型展示”页执行“推送更新”后，列表内容、排序、分页大小与详情示例才会一起更新
+- 未发布语义：如果当前还没有任何已发布快照，`GET /api/v1/meta/model-catalog` 会显式返回空快照（`items=[]`，默认 `page_size=10`），`GET /api/v1/meta/model-catalog/:model` 会返回 `404`
+- 详情语义：`GET /api/v1/meta/model-catalog/:model` 会返回发布时固化的单模型价格块与调用示例元数据，不会在请求时实时重新拼装示例
+- 缓存：响应会返回 `ETag`，客户端可通过 `If-None-Match` 复用 `304 Not Modified`
 
 这个接口只暴露展示所需的公共目录数据，不替代具体协议页中的 `/v1/models`、`/v1beta/models` 等运行时模型枚举接口。
 
@@ -139,12 +142,84 @@ https://api.zyxai.de
 - 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名；`id` / `name` / `displayName` 不再暴露真实模型名，真实模型只保留在内部转发链路。
 - 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。
 
+`GET /api/v1/meta/model-catalog` 当前返回体额外包含：
+
+- `etag`：本次已发布快照的版本标识
+- `updated_at`：最近一次发布完成时间
+- `page_size`：公开模型库前台默认每页数量；如果管理员修改草稿但尚未推送，这个值不会变化
+- `items`：已发布模型数组，卡片标题应优先展示 `display_name`
+
+典型响应示例：
+
+```json
+{
+  "etag": "W/\"4b0c0d...\"",
+  "updated_at": "2026-04-21T10:05:00Z",
+  "page_size": 10,
+  "items": [
+    {
+      "model": "gpt-5.4",
+      "display_name": "GPT-5.4",
+      "provider": "openai",
+      "provider_icon_key": "openai",
+      "request_protocols": ["openai"],
+      "mode": "chat",
+      "currency": "USD",
+      "price_display": {
+        "primary": [
+          { "id": "input_price", "unit": "input_token", "value": 0.0000012 },
+          { "id": "output_price", "unit": "output_token", "value": 0.0000024 }
+        ]
+      },
+      "multiplier_summary": {
+        "enabled": false,
+        "kind": "disabled"
+      }
+    }
+  ]
+}
+```
+
+`GET /api/v1/meta/model-catalog/:model` 返回的 `example_*` 字段来自发布时冻结的详情快照，典型结构如下：
+
+```json
+{
+  "item": {
+    "model": "gpt-5.4",
+    "display_name": "GPT-5.4",
+    "provider": "openai",
+    "currency": "USD",
+    "price_display": {
+      "primary": [
+        { "id": "input_price", "unit": "input_token", "value": 0.0000012 },
+        { "id": "output_price", "unit": "output_token", "value": 0.0000024 }
+      ]
+    },
+    "multiplier_summary": {
+      "enabled": false,
+      "kind": "disabled"
+    }
+  },
+  "example_source": "docs_section",
+  "example_protocol": "openai",
+  "example_page_id": "common",
+  "example_markdown": "```bash\\ncurl https://api.zyxai.de/v1/responses ...\\n```"
+}
+```
+
 已登录用户另外还有一个仅用于 Key 编辑器的辅助接口：
 
 - 路径：`GET /api/v1/groups/model-options`
 - 鉴权：必须登录
 - 用途：返回当前用户可绑定分组下、且当前具备有效价格的公开模型列表；普通用户保存 Key 时会把结构化勾选结果写回 `groups[].model_patterns`
 - 语义：如果某个分组绑定没有提交 `model_patterns`，表示这个 Key 在该分组下可以调用全部公开模型；多个分组绑定的最终可调用模型集合取并集
+
+如果前台已经处在明确的分组上下文里，还可以使用倍率后的展示价接口：
+
+- 路径：`GET /api/v1/groups/model-catalog?group_id=<GROUP_ID>`
+- 鉴权：必须登录
+- 用途：返回“已发布公开模型快照 + 指定分组倍率换算后的 `price_display`”；结构与 `/api/v1/meta/model-catalog` 保持一致，只替换价格字段
+- 约束：这里只用于用户自己的分组上下文页面；匿名公共模型库仍然固定展示已发布基础售价
 
 下面的例子分别展示三种常用认证写法。
 

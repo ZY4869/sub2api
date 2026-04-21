@@ -28,6 +28,7 @@ const viewModeState = ref<'list' | 'grid'>('list')
 const searchState = ref('')
 const providerFilterState = ref('')
 const modeFilterState = ref('')
+const groupPreviewIdState = ref<number | null>(null)
 const sortByState = ref<BillingPricingSortBy>('display_name')
 const sortOrderState = ref<BillingPricingSortOrder>('asc')
 const pageState = ref(1)
@@ -48,6 +49,7 @@ function buildCurrentListParams(): BillingPricingListParams {
     search: searchState.value || undefined,
     provider: providerFilterState.value || undefined,
     mode: modeFilterState.value || undefined,
+    group_id: groupPreviewIdState.value || undefined,
     sort_by: sortByState.value,
     sort_order: sortOrderState.value,
     page: pageState.value,
@@ -60,6 +62,7 @@ function serializeListParams(params: BillingPricingListParams): string {
     search: params.search || '',
     provider: params.provider || '',
     mode: params.mode || '',
+    group_id: params.group_id || null,
     sort_by: params.sort_by || 'display_name',
     sort_order: params.sort_order || 'asc',
     page: params.page || 1,
@@ -71,6 +74,7 @@ function buildProviderModelScope(): string {
   return JSON.stringify({
     search: searchState.value || '',
     mode: modeFilterState.value || '',
+    group_id: groupPreviewIdState.value || null,
     sort_by: sortByState.value,
     sort_order: sortOrderState.value,
   })
@@ -108,6 +112,10 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
   const sortBy = computed({
     get: () => sortByState.value,
     set: (value: BillingPricingSortBy) => { sortByState.value = value },
+  })
+  const groupPreviewId = computed({
+    get: () => groupPreviewIdState.value,
+    set: (value: number | null) => { groupPreviewIdState.value = value },
   })
   const sortOrder = computed({
     get: () => sortOrderState.value,
@@ -174,6 +182,7 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
       search: searchState.value || undefined,
       provider: normalizedProvider,
       mode: modeFilterState.value || undefined,
+      group_id: groupPreviewIdState.value || undefined,
       sort_by: sortByState.value,
       sort_order: sortOrderState.value,
       page: 1,
@@ -218,6 +227,7 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
     providerFilter,
     modeFilter,
     sortBy,
+    groupPreviewId,
     sortOrder,
     page,
     pageSize,

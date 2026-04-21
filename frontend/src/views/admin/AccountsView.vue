@@ -566,7 +566,9 @@ const {
 const accountSummary = computed(() => accountSummaryState.value)
 const activeLimitedReason = computed<AccountRateLimitReason | ''>(() => {
   const value = String(params.limited_reason || '')
-  return value === 'rate_429' || value === 'usage_5h' || value === 'usage_7d' ? value : ''
+  return value === 'rate_429' || value === 'usage_5h' || value === 'usage_7d' || value === 'usage_7d_all'
+    ? value
+    : ''
 })
 
 const {

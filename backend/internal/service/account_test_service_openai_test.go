@@ -26,11 +26,15 @@ func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
 
 type openAIAccountTestRepo struct {
 	mockAccountRepoForGemini
-	updatedExtra     map[string]any
-	updateExtraCalls []map[string]any
-	rateLimitedID    int64
-	rateLimitedAt    *time.Time
-	setErrorCalls    []string
+	updatedExtra        map[string]any
+	updateExtraCalls    []map[string]any
+	rateLimitedID       int64
+	rateLimitedAt       *time.Time
+	modelRateLimitCalls []struct {
+		scope   string
+		resetAt time.Time
+	}
+	setErrorCalls []string
 }
 
 func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
@@ -42,6 +46,14 @@ func (r *openAIAccountTestRepo) UpdateExtra(_ context.Context, _ int64, updates 
 func (r *openAIAccountTestRepo) SetRateLimited(_ context.Context, id int64, resetAt time.Time) error {
 	r.rateLimitedID = id
 	r.rateLimitedAt = &resetAt
+	return nil
+}
+
+func (r *openAIAccountTestRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	r.modelRateLimitCalls = append(r.modelRateLimitCalls, struct {
+		scope   string
+		resetAt time.Time
+	}{scope: scope, resetAt: resetAt})
 	return nil
 }
 
@@ -109,17 +121,55 @@ func TestAccountTestService_OpenAI429PersistsSnapshotAndRateLimit(t *testing.T) 
 
 	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
 	require.Error(t, err)
-	require.Len(t, repo.updateExtraCalls, 3)
+	require.Len(t, repo.updateExtraCalls, 1)
 	require.Equal(t, 100.0, repo.updateExtraCalls[0]["codex_5h_used_percent"])
 	require.Equal(t, 100.0, repo.updateExtraCalls[0]["codex_7d_used_percent"])
-	require.Equal(t, AccountRateLimitReasonUsage7d, repo.updateExtraCalls[1]["rate_limit_reason"])
-	require.Equal(t, AccountRateLimitReasonUsage7d, repo.updateExtraCalls[2]["rate_limit_reason"])
-	require.Equal(t, int64(88), repo.rateLimitedID)
-	require.NotNil(t, repo.rateLimitedAt)
-	require.NotNil(t, account.RateLimitResetAt)
-	if account.RateLimitResetAt != nil && repo.rateLimitedAt != nil {
-		require.WithinDuration(t, *repo.rateLimitedAt, *account.RateLimitResetAt, time.Second)
+	require.Len(t, repo.modelRateLimitCalls, 1)
+	require.Equal(t, openAICodexScopeNormal, repo.modelRateLimitCalls[0].scope)
+	require.Zero(t, repo.rateLimitedID)
+	require.Nil(t, repo.rateLimitedAt)
+	require.Nil(t, account.RateLimitResetAt)
+	require.Nil(t, account.RateLimitedAt)
+}
+
+func TestAccountTestService_OpenAISpark429PersistsSparkScopeSnapshot(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+
+	resp := newJSONResponse(http.StatusTooManyRequests, `{"error":{"type":"usage_limit_reached","message":"spark limit reached"}}`)
+	resp.Header.Set("x-codex-primary-used-percent", "100")
+	resp.Header.Set("x-codex-primary-reset-after-seconds", "604800")
+	resp.Header.Set("x-codex-primary-window-minutes", "10080")
+	resp.Header.Set("x-codex-secondary-used-percent", "40")
+	resp.Header.Set("x-codex-secondary-reset-after-seconds", "18000")
+	resp.Header.Set("x-codex-secondary-window-minutes", "300")
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
+	account := &Account{
+		ID:          98,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "test-token",
+			"plan_type":    "pro",
+		},
 	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.3-codex-spark", "", "")
+	require.Error(t, err)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, 40.0, repo.updateExtraCalls[0][codexSpark5hUsedPercentKey])
+	require.Equal(t, 100.0, repo.updateExtraCalls[0][codexSpark7dUsedPercentKey])
+	_, hasNormal7d := repo.updateExtraCalls[0]["codex_7d_used_percent"]
+	require.False(t, hasNormal7d)
+	require.Len(t, repo.modelRateLimitCalls, 1)
+	require.Equal(t, openAICodexScopeSpark, repo.modelRateLimitCalls[0].scope)
+	require.Zero(t, repo.rateLimitedID)
+	require.Nil(t, repo.rateLimitedAt)
+	require.Nil(t, account.RateLimitResetAt)
 }
 
 func TestAccountTestService_OpenAIUnauthorizedDetailMarksAccountError(t *testing.T) {

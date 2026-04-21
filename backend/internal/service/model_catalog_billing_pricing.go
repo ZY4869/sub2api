@@ -16,11 +16,11 @@ func (s *ModelCatalogService) ListBillingPricingModels(ctx context.Context, filt
 	return s.billingCenterService.ListPricingModels(ctx, filter)
 }
 
-func (s *ModelCatalogService) GetBillingPricingDetails(ctx context.Context, models []string) ([]BillingPricingSheetDetail, error) {
+func (s *ModelCatalogService) GetBillingPricingDetails(ctx context.Context, models []string, groupID *int64) ([]BillingPricingSheetDetail, error) {
 	if s == nil || s.billingCenterService == nil {
 		return []BillingPricingSheetDetail{}, nil
 	}
-	return s.billingCenterService.GetPricingDetails(ctx, models)
+	return s.billingCenterService.GetPricingDetails(ctx, models, groupID)
 }
 
 func (s *ModelCatalogService) SaveBillingPricingLayer(ctx context.Context, actor ModelCatalogActor, input UpsertBillingPricingLayerInput) (*BillingPricingSheetDetail, error) {

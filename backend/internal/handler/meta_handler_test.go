@@ -60,32 +60,7 @@ func TestMetaHandler_ModelCatalogHonorsETag(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{}}
-	repo.values[service.SettingKeyModelCatalogEntries] = mustMetaJSON(t, []service.ModelCatalogEntry{
-		{
-			Model:                "gpt-5.4",
-			DisplayName:          "GPT-5.4",
-			Provider:             service.PlatformOpenAI,
-			Mode:                 "chat",
-			CanonicalModelID:     "gpt-5.4",
-			PricingLookupModelID: "gpt-5.4",
-		},
-	})
-	repo.values[service.SettingKeyModelOfficialPriceOverrides] = mustMetaJSON(t, map[string]*service.ModelPricingOverride{
-		"gpt-5.4": {
-			ModelCatalogPricing: service.ModelCatalogPricing{
-				InputCostPerToken:  float64Ptr(1e-6),
-				OutputCostPerToken: float64Ptr(2e-6),
-			},
-		},
-	})
-	repo.values[service.SettingKeyModelPriceOverrides] = mustMetaJSON(t, map[string]*service.ModelPricingOverride{
-		"gpt-5.4": {
-			ModelCatalogPricing: service.ModelCatalogPricing{
-				InputCostPerToken:  float64Ptr(1.2e-6),
-				OutputCostPerToken: float64Ptr(2.4e-6),
-			},
-		},
-	})
+	repo.values[service.SettingKeyPublicModelCatalogPublishedSnapshot] = mustMetaJSON(t, buildMetaPublishedSnapshot("W/\"published-etag\""))
 
 	modelCatalogService := service.NewModelCatalogService(
 		repo,
@@ -158,17 +133,8 @@ func TestMetaHandler_ModelCatalogAuthMatrix(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &metaSettingRepoStub{values: map[string]string{
-				service.SettingKeyPublicModelCatalogEnabled: strconv.FormatBool(tc.publicEnabled),
-				service.SettingKeyModelCatalogEntries: mustMetaJSON(t, []service.ModelCatalogEntry{
-					{
-						Model:                "gpt-5.4",
-						DisplayName:          "GPT-5.4",
-						Provider:             service.PlatformOpenAI,
-						Mode:                 "chat",
-						CanonicalModelID:     "gpt-5.4",
-						PricingLookupModelID: "gpt-5.4",
-					},
-				}),
+				service.SettingKeyPublicModelCatalogEnabled:           strconv.FormatBool(tc.publicEnabled),
+				service.SettingKeyPublicModelCatalogPublishedSnapshot: mustMetaJSON(t, buildMetaPublishedSnapshot("W/\"matrix-etag\"")),
 			}}
 
 			settingService := service.NewSettingService(repo, &config.Config{})
@@ -202,17 +168,8 @@ func TestMetaHandler_ModelCatalogAllowsAuthenticatedRequestWhenPublicCatalogDisa
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{
-		service.SettingKeyPublicModelCatalogEnabled: "false",
-		service.SettingKeyModelCatalogEntries: mustMetaJSON(t, []service.ModelCatalogEntry{
-			{
-				Model:                "gpt-5.4",
-				DisplayName:          "GPT-5.4",
-				Provider:             service.PlatformOpenAI,
-				Mode:                 "chat",
-				CanonicalModelID:     "gpt-5.4",
-				PricingLookupModelID: "gpt-5.4",
-			},
-		}),
+		service.SettingKeyPublicModelCatalogEnabled:           "false",
+		service.SettingKeyPublicModelCatalogPublishedSnapshot: mustMetaJSON(t, buildMetaPublishedSnapshot("W/\"auth-etag\"")),
 	}}
 	settingService := service.NewSettingService(repo, &config.Config{})
 	modelCatalogService := service.NewModelCatalogService(
@@ -241,32 +198,7 @@ func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{}}
-	repo.values[service.SettingKeyModelCatalogEntries] = mustMetaJSON(t, []service.ModelCatalogEntry{
-		{
-			Model:                "gpt-5.4",
-			DisplayName:          "GPT-5.4",
-			Provider:             service.PlatformOpenAI,
-			Mode:                 "chat",
-			CanonicalModelID:     "gpt-5.4",
-			PricingLookupModelID: "gpt-5.4",
-		},
-	})
-	repo.values[service.SettingKeyModelOfficialPriceOverrides] = mustMetaJSON(t, map[string]*service.ModelPricingOverride{
-		"gpt-5.4": {
-			ModelCatalogPricing: service.ModelCatalogPricing{
-				InputCostPerToken:  float64Ptr(1e-6),
-				OutputCostPerToken: float64Ptr(2e-6),
-			},
-		},
-	})
-	repo.values[service.SettingKeyModelPriceOverrides] = mustMetaJSON(t, map[string]*service.ModelPricingOverride{
-		"gpt-5.4": {
-			ModelCatalogPricing: service.ModelCatalogPricing{
-				InputCostPerToken:  float64Ptr(1.2e-6),
-				OutputCostPerToken: float64Ptr(2.4e-6),
-			},
-		},
-	})
+	repo.values[service.SettingKeyPublicModelCatalogPublishedSnapshot] = mustMetaJSON(t, buildMetaPublishedSnapshot("W/\"detail-etag\""))
 
 	modelCatalogService := service.NewModelCatalogService(
 		repo,
@@ -287,6 +219,55 @@ func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
 	require.Contains(t, rec.Body.String(), "\"item\"")
+	require.Contains(t, rec.Body.String(), "\"example_source\":\"docs_section\"")
+}
+
+func TestMetaHandler_ModelCatalogReturnsEmptySnapshotWhenNotPublished(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{}}
+	modelCatalogService := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{},
+	)
+
+	metaHandler := NewMetaHandler(modelCatalogService)
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog", metaHandler.ModelCatalog)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "\"items\":[]")
+	require.Contains(t, rec.Body.String(), "\"page_size\":10")
+}
+
+func TestMetaHandler_ModelCatalogDetailReturnsNotFoundWhenNotPublished(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := &metaSettingRepoStub{values: map[string]string{}}
+	modelCatalogService := service.NewModelCatalogService(
+		repo,
+		nil,
+		service.NewBillingService(&config.Config{}, nil),
+		nil,
+		&config.Config{},
+	)
+
+	metaHandler := NewMetaHandler(modelCatalogService)
+	router := gin.New()
+	router.GET("/api/v1/meta/model-catalog/:model", metaHandler.ModelCatalogDetail)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog/gpt-5.4", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusNotFound, rec.Code)
 }
 
 func mustMetaJSON(t *testing.T, value any) string {
@@ -299,4 +280,62 @@ func mustMetaJSON(t *testing.T, value any) string {
 
 func float64Ptr(value float64) *float64 {
 	return &value
+}
+
+func buildMetaPublishedSnapshot(etag string) service.PublicModelCatalogPublishedSnapshot {
+	return service.PublicModelCatalogPublishedSnapshot{
+		Snapshot: service.PublicModelCatalogSnapshot{
+			ETag:      etag,
+			UpdatedAt: "2026-04-20T10:00:00Z",
+			PageSize:  10,
+			Items: []service.PublicModelCatalogItem{
+				{
+					Model:            "gpt-5.4",
+					DisplayName:      "GPT-5.4",
+					Provider:         service.PlatformOpenAI,
+					ProviderIconKey:  service.PlatformOpenAI,
+					RequestProtocols: []string{service.PlatformOpenAI},
+					Mode:             "chat",
+					Currency:         "USD",
+					PriceDisplay: service.PublicModelCatalogPriceDisplay{
+						Primary: []service.PublicModelCatalogPriceEntry{
+							{ID: "input_price", Unit: service.BillingUnitInputToken, Value: 1e-6},
+							{ID: "output_price", Unit: service.BillingUnitOutputToken, Value: 2e-6},
+						},
+					},
+					MultiplierSummary: service.PublicModelCatalogMultiplierSummary{
+						Enabled: false,
+						Kind:    "disabled",
+					},
+				},
+			},
+		},
+		Details: map[string]service.PublicModelCatalogDetail{
+			"gpt-5.4": {
+				Item: service.PublicModelCatalogItem{
+					Model:            "gpt-5.4",
+					DisplayName:      "GPT-5.4",
+					Provider:         service.PlatformOpenAI,
+					ProviderIconKey:  service.PlatformOpenAI,
+					RequestProtocols: []string{service.PlatformOpenAI},
+					Mode:             "chat",
+					Currency:         "USD",
+					PriceDisplay: service.PublicModelCatalogPriceDisplay{
+						Primary: []service.PublicModelCatalogPriceEntry{
+							{ID: "input_price", Unit: service.BillingUnitInputToken, Value: 1e-6},
+							{ID: "output_price", Unit: service.BillingUnitOutputToken, Value: 2e-6},
+						},
+					},
+					MultiplierSummary: service.PublicModelCatalogMultiplierSummary{
+						Enabled: false,
+						Kind:    "disabled",
+					},
+				},
+				ExampleSource:   "docs_section",
+				ExampleProtocol: service.PlatformOpenAI,
+				ExamplePageID:   "common",
+				ExampleMarkdown: "```bash\ncurl https://example.com/v1/responses\n```",
+			},
+		},
+	}
 }

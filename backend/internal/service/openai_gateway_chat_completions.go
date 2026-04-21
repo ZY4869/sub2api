@@ -147,6 +147,10 @@ func (s *OpenAIGatewayService) ForwardAsChatCompletions(
 	}
 
 	// 5. Get access token
+	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
+	if c != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
+	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)

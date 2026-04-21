@@ -49,6 +49,10 @@ func (s *OpenAIGatewayService) ForwardNativeChatCompletions(
 		return nil, fmt.Errorf("marshal native chat completions request: %w", err)
 	}
 
+	ctx = WithOpenAICodexRequestModel(ctx, mappedModel)
+	if c != nil && c.Request != nil {
+		c.Request = c.Request.WithContext(ctx)
+	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)

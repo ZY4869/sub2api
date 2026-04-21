@@ -22,7 +22,8 @@ const createEmptySummary = (): AccountStatusSummary => ({
     total: 0,
     rate_429: 0,
     usage_5h: 0,
-    usage_7d: 0
+    usage_7d: 0,
+    usage_7d_all: 0
   }
 })
 

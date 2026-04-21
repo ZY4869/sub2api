@@ -133,7 +133,7 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 			return
 		}
 	}
-	snapshot, err := h.modelCatalogService.PublicModelCatalogSnapshot(c.Request.Context())
+	snapshot, err := h.modelCatalogService.PublishedPublicModelCatalogSnapshot(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -176,7 +176,7 @@ func (h *MetaHandler) ModelCatalogDetail(c *gin.Context) {
 	}
 
 	modelID := strings.TrimSpace(c.Param("model"))
-	detail, err := h.modelCatalogService.PublicModelCatalogDetail(c.Request.Context(), modelID)
+	detail, err := h.modelCatalogService.PublishedPublicModelCatalogDetail(c.Request.Context(), modelID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

@@ -258,6 +258,15 @@ func (h *AccountHandler) GetAvailableModels(c *gin.Context) {
 		response.NotFound(c, response.LocalizedMessage(c, "admin.account.not_found", "Account not found"))
 		return
 	}
+	forceRefresh := strings.EqualFold(strings.TrimSpace(c.Query("refresh")), "true")
+	if !forceRefresh {
+		if snapshot, ok := service.AccountModelProbeSnapshotFromExtra(account.Extra); ok && snapshot != nil {
+			if models := service.AvailableTestModelsFromProbeSnapshot(c.Request.Context(), account, h.modelRegistryService, snapshot); len(models) > 0 {
+				response.Success(c, models)
+				return
+			}
+		}
+	}
 	response.Success(c, service.BuildAvailableTestModels(c.Request.Context(), account, h.modelRegistryService))
 }
 

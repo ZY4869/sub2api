@@ -6,8 +6,6 @@ import {
   type PublicModelCatalogItem,
   type PublicModelCatalogSnapshot
 } from '@/api/meta'
-
-const PUBLIC_MODEL_CATALOG_MAX_AGE_MS = 60 * 1000
 const PUBLIC_MODEL_CATALOG_STORAGE_KEY = 'public-model-catalog:snapshot'
 
 interface PersistedPublicModelCatalogState {
@@ -30,7 +28,6 @@ const exchangeRateLoadedAtState = ref(0)
 
 let hydrated = false
 let pendingRequest: Promise<PublicModelCatalogSnapshot | null> | null = null
-let listenersAttached = false
 
 function cloneSnapshot(snapshot: PublicModelCatalogSnapshot | null): PublicModelCatalogSnapshot | null {
   if (!snapshot) {
@@ -39,6 +36,7 @@ function cloneSnapshot(snapshot: PublicModelCatalogSnapshot | null): PublicModel
   return {
     etag: snapshot.etag,
     updated_at: snapshot.updated_at,
+    page_size: snapshot.page_size,
     items: snapshot.items.map(cloneItem)
   }
 }
@@ -109,35 +107,6 @@ function persistToStorage() {
   }
 }
 
-function attachListeners() {
-  if (listenersAttached || typeof window === 'undefined') {
-    return
-  }
-  listenersAttached = true
-
-  const revalidate = () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-      return
-    }
-    if (!snapshotState.value || isCatalogStale()) {
-      void fetchPublicModelCatalog()
-      return
-    }
-    if (shouldLoadExchangeRate()) {
-      void loadExchangeRate()
-    }
-  }
-
-  window.addEventListener('focus', revalidate)
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', revalidate)
-  }
-}
-
-function isCatalogStale() {
-  return loadedAtState.value === 0 || Date.now() - loadedAtState.value > PUBLIC_MODEL_CATALOG_MAX_AGE_MS
-}
-
 function catalogHasCNYPricing() {
   return Boolean(snapshotState.value?.items.some((item) => item.currency === 'CNY'))
 }
@@ -149,11 +118,7 @@ function shouldLoadExchangeRate(force = false) {
   if (!catalogHasCNYPricing()) {
     return false
   }
-  return (
-    usdToCnyRateState.value == null ||
-    exchangeRateLoadedAtState.value === 0 ||
-    Date.now() - exchangeRateLoadedAtState.value > PUBLIC_MODEL_CATALOG_MAX_AGE_MS
-  )
+  return usdToCnyRateState.value == null
 }
 
 async function loadExchangeRate(force = false) {
@@ -179,7 +144,6 @@ async function loadExchangeRate(force = false) {
 
 export async function fetchPublicModelCatalog(force = false): Promise<PublicModelCatalogSnapshot | null> {
   hydrateFromStorage()
-  attachListeners()
   if (!force && loadingState.value && pendingRequest) {
     return pendingRequest
   }
@@ -188,7 +152,7 @@ export async function fetchPublicModelCatalog(force = false): Promise<PublicMode
     loadingState.value = true
     hardErrorState.value = ''
     try {
-      const result = await getModelCatalog(force ? null : etagState.value)
+      const result = await getModelCatalog(etagState.value)
       if (!result.notModified && result.data) {
         snapshotState.value = cloneSnapshot(result.data)
         etagState.value = result.etag || result.data.etag || null
@@ -228,18 +192,16 @@ export async function fetchPublicModelCatalog(force = false): Promise<PublicMode
 
 export async function ensurePublicModelCatalogReady(force = false): Promise<PublicModelCatalogSnapshot | null> {
   hydrateFromStorage()
-  attachListeners()
 
   if (force || !snapshotState.value) {
     return fetchPublicModelCatalog(force)
   }
 
   hardErrorState.value = ''
-  if (isCatalogStale()) {
-    void fetchPublicModelCatalog()
-  } else if (shouldLoadExchangeRate()) {
+  if (shouldLoadExchangeRate()) {
     void loadExchangeRate()
   }
+  void fetchPublicModelCatalog(false)
   return snapshotState.value
 }
 
@@ -271,7 +233,7 @@ export const usePublicModelCatalogStore = defineStore('publicModelCatalog', () =
   const exchangeRateWarning = computed(() => exchangeRateWarningState.value)
   const usdToCnyRate = computed(() => usdToCnyRateState.value)
   const hasSnapshot = computed(() => Boolean(snapshotState.value))
-  const hasFreshSnapshot = computed(() => Boolean(snapshotState.value) && !isCatalogStale())
+  const hasFreshSnapshot = computed(() => Boolean(snapshotState.value))
 
   async function initialize(force = false) {
     return ensurePublicModelCatalogReady(force)

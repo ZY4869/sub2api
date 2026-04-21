@@ -3,6 +3,7 @@ package service
 type PublicModelCatalogSnapshot struct {
 	ETag      string                   `json:"etag"`
 	UpdatedAt string                   `json:"updated_at"`
+	PageSize  int                      `json:"page_size,omitempty"`
 	Items     []PublicModelCatalogItem `json:"items"`
 }
 
@@ -44,4 +45,28 @@ type PublicModelCatalogDetail struct {
 	ExamplePageID     string                 `json:"example_page_id,omitempty"`
 	ExampleMarkdown   string                 `json:"example_markdown,omitempty"`
 	ExampleOverrideID string                 `json:"example_override_id,omitempty"`
+}
+
+type PublicModelCatalogDraft struct {
+	SelectedModels []string `json:"selected_models,omitempty"`
+	PageSize       int      `json:"page_size,omitempty"`
+	UpdatedAt      string   `json:"updated_at,omitempty"`
+}
+
+type PublicModelCatalogPublishedSnapshot struct {
+	Snapshot PublicModelCatalogSnapshot          `json:"snapshot"`
+	Details  map[string]PublicModelCatalogDetail `json:"details,omitempty"`
+}
+
+type PublicModelCatalogPublishedSummary struct {
+	ETag       string `json:"etag"`
+	UpdatedAt  string `json:"updated_at"`
+	PageSize   int    `json:"page_size"`
+	ModelCount int    `json:"model_count"`
+}
+
+type PublicModelCatalogDraftPayload struct {
+	Draft          PublicModelCatalogDraft             `json:"draft"`
+	AvailableItems []PublicModelCatalogItem            `json:"available_items"`
+	Published      *PublicModelCatalogPublishedSummary `json:"published,omitempty"`
 }

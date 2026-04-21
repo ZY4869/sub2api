@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ModelRegistryPreset } from '@/generated/modelRegistry'
 import type { AccountPlatform, GatewayProtocol } from '@/types'
@@ -90,6 +90,8 @@ const protocolGatewayBaseUrlWarning = computed(() => {
   }
   return ''
 })
+
+const showApiKey = ref(false)
 </script>
 
 <template>
@@ -108,6 +110,7 @@ const protocolGatewayBaseUrlWarning = computed(() => {
         type="text"
         class="input"
         :placeholder="baseUrlPlaceholder"
+        data-testid="account-base-url-input"
       />
       <p
         v-if="protocolGatewayBaseUrlWarning"
@@ -120,13 +123,24 @@ const protocolGatewayBaseUrlWarning = computed(() => {
 
     <div>
       <label class="input-label">{{ apiKeyLabel }}</label>
-      <input
-        v-model="apiKey"
-        type="password"
-        class="input font-mono"
-        :required="mode === 'create'"
-        :placeholder="apiKeyPlaceholder"
-      />
+      <div class="flex items-center gap-2">
+        <input
+          v-model="apiKey"
+          :type="showApiKey ? 'text' : 'password'"
+          class="input flex-1 font-mono"
+          :required="mode === 'create'"
+          :placeholder="apiKeyPlaceholder"
+          data-testid="account-api-key-input"
+        />
+        <button
+          type="button"
+          class="btn btn-secondary shrink-0"
+          data-testid="account-api-key-visibility"
+          @click="showApiKey = !showApiKey"
+        >
+          {{ showApiKey ? t('admin.accounts.apiKeyVisibility.hide') : t('admin.accounts.apiKeyVisibility.show') }}
+        </button>
+      </div>
       <p class="input-hint">{{ apiKeyHint }}</p>
     </div>
 

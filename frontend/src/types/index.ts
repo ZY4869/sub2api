@@ -603,7 +603,7 @@ export type AccountType =
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
 export type AccountLimitedView = "all" | "normal_only" | "limited_only";
 export type AccountRuntimeView = "all" | "in_use_only" | "available_only";
-export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d";
+export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d" | "usage_7d_all";
 export type AccountViewMode = "table" | "card";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
@@ -615,6 +615,7 @@ export interface ClaudeModel {
   display_name: string;
   created_at: string;
   canonical_id?: string;
+  mode?: "text" | "image" | "video" | "embedding" | "other";
   provider?: string;
   provider_label?: string;
   source_protocol?: "openai" | "anthropic" | "gemini";
@@ -873,6 +874,7 @@ export interface AccountStatusSummary {
     rate_429: number;
     usage_5h: number;
     usage_7d: number;
+    usage_7d_all: number;
   };
 }
 
@@ -953,6 +955,8 @@ export interface AccountUsageInfo {
   updated_at: string | null;
   five_hour: UsageProgress | null;
   seven_day: UsageProgress | null;
+  spark_five_hour?: UsageProgress | null;
+  spark_seven_day?: UsageProgress | null;
   seven_day_sonnet: UsageProgress | null;
   gemini_shared_daily?: UsageProgress | null;
   gemini_pro_daily?: UsageProgress | null;
@@ -998,6 +1002,15 @@ export interface CodexUsageSnapshot {
   codex_7d_reset_after_seconds?: number; // Seconds until 7d window reset
   codex_7d_reset_at?: string; // 7-day window absolute reset time (RFC3339)
   codex_7d_window_minutes?: number; // 7d window in minutes (should be ~10080)
+  codex_spark_5h_used_percent?: number; // Spark 5-hour window usage percentage
+  codex_spark_5h_reset_after_seconds?: number; // Seconds until Spark 5h window reset
+  codex_spark_5h_reset_at?: string; // Spark 5-hour window absolute reset time (RFC3339)
+  codex_spark_5h_window_minutes?: number; // Spark 5h window in minutes (should be ~300)
+  codex_spark_7d_used_percent?: number; // Spark 7-day window usage percentage
+  codex_spark_7d_reset_after_seconds?: number; // Seconds until Spark 7d window reset
+  codex_spark_7d_reset_at?: string; // Spark 7-day window absolute reset time (RFC3339)
+  codex_spark_7d_window_minutes?: number; // Spark 7d window in minutes (should be ~10080)
+  codex_account_7d_all_exhausted?: boolean; // Whether both Codex 7d windows are exhausted
 
   codex_usage_updated_at?: string; // Last update timestamp
   openai_known_models?: string[];

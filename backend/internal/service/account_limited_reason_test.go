@@ -52,10 +52,25 @@ func TestAccountRateLimitReasonInfersOpenAIFallback(t *testing.T) {
 	resetAt := now.Add(30 * time.Minute)
 
 	tests := []struct {
-		name  string
-		extra map[string]any
-		want  string
+		name        string
+		credentials map[string]any
+		extra       map[string]any
+		want        string
 	}{
+		{
+			name: "all 7d exhausted wins over single scope",
+			credentials: map[string]any{
+				"plan_type": "pro",
+			},
+			extra: map[string]any{
+				"codex_7d_used_percent":          100.0,
+				"codex_7d_reset_at":              resetAt.Format(time.RFC3339),
+				"codex_spark_7d_used_percent":    100.0,
+				"codex_spark_7d_reset_at":        resetAt.Format(time.RFC3339),
+				"codex_account_7d_all_exhausted": true,
+			},
+			want: AccountRateLimitReasonUsage7dAll,
+		},
 		{
 			name: "7d wins over 5h",
 			extra: map[string]any{
@@ -84,6 +99,7 @@ func TestAccountRateLimitReasonInfersOpenAIFallback(t *testing.T) {
 
 			account := &Account{
 				RateLimitResetAt: &resetAt,
+				Credentials:      tt.credentials,
 				Extra:            tt.extra,
 			}
 			if got := AccountRateLimitReason(account, now); got != tt.want {
@@ -150,13 +166,13 @@ func TestAccountRateLimitReasonInfersAnthropicFallback(t *testing.T) {
 func TestAccountLimitedFilterNormalization(t *testing.T) {
 	t.Parallel()
 
-	ctx := WithAccountLimitedFilters(context.Background(), "limited_only", "usage_7d")
+	ctx := WithAccountLimitedFilters(context.Background(), "limited_only", "usage_7d_all")
 	filters := AccountLimitedFiltersFromContext(ctx)
 	if filters.LimitedView != AccountLimitedViewLimitedOnly {
 		t.Fatalf("LimitedView = %q, want %q", filters.LimitedView, AccountLimitedViewLimitedOnly)
 	}
-	if filters.LimitedReason != AccountRateLimitReasonUsage7d {
-		t.Fatalf("LimitedReason = %q, want %q", filters.LimitedReason, AccountRateLimitReasonUsage7d)
+	if filters.LimitedReason != AccountRateLimitReasonUsage7dAll {
+		t.Fatalf("LimitedReason = %q, want %q", filters.LimitedReason, AccountRateLimitReasonUsage7dAll)
 	}
 
 	filters = AccountLimitedFiltersFromContext(WithAccountLimitedFilters(context.Background(), "???", "nope"))

@@ -368,6 +368,18 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'public-model-catalog',
+        name: 'AdminBillingPublicCatalog',
+        component: () => import('@/views/admin/billing/BillingPublicCatalogView.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Public Model Catalog',
+          titleKey: 'admin.billing.pages.publicCatalog.title',
+          descriptionKey: 'admin.billing.pages.publicCatalog.description'
+        }
+      },
+      {
         path: 'rules',
         name: 'AdminBillingRules',
         component: () => import('@/views/admin/billing/BillingRulesView.vue'),

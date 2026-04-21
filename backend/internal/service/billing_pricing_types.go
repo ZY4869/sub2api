@@ -88,16 +88,20 @@ type BillingPricingCurrencyPreference struct {
 }
 
 type BillingPricingListItem struct {
-	Model          string                     `json:"model"`
-	DisplayName    string                     `json:"display_name,omitempty"`
-	Provider       string                     `json:"provider,omitempty"`
-	Mode           string                     `json:"mode,omitempty"`
-	PriceItemCount int                        `json:"price_item_count"`
-	OfficialCount  int                        `json:"official_count"`
-	SaleCount      int                        `json:"sale_count"`
-	PricingStatus  BillingPricingStatus       `json:"pricing_status"`
-	PricingWarnings []string                  `json:"pricing_warnings,omitempty"`
-	Capabilities   BillingPricingCapabilities `json:"capabilities"`
+	Model                 string                          `json:"model"`
+	DisplayName           string                          `json:"display_name,omitempty"`
+	Provider              string                          `json:"provider,omitempty"`
+	Mode                  string                          `json:"mode,omitempty"`
+	Currency              string                          `json:"currency,omitempty"`
+	PriceItemCount        int                             `json:"price_item_count"`
+	OfficialCount         int                             `json:"official_count"`
+	SaleCount             int                             `json:"sale_count"`
+	PricingStatus         BillingPricingStatus            `json:"pricing_status"`
+	PricingWarnings       []string                        `json:"pricing_warnings,omitempty"`
+	Capabilities          BillingPricingCapabilities      `json:"capabilities"`
+	PreviewGroupID        *int64                          `json:"preview_group_id,omitempty"`
+	PreviewRateMultiplier *float64                        `json:"preview_rate_multiplier,omitempty"`
+	PreviewPriceDisplay   *PublicModelCatalogPriceDisplay `json:"preview_price_display,omitempty"`
 }
 
 type BillingPricingProviderGroup struct {
@@ -126,6 +130,9 @@ type BillingPricingSheetDetail struct {
 	Capabilities                    BillingPricingCapabilities `json:"capabilities"`
 	OfficialForm                    BillingPricingLayerForm    `json:"official_form"`
 	SaleForm                        BillingPricingLayerForm    `json:"sale_form"`
+	PreviewGroupID                  *int64                     `json:"preview_group_id,omitempty"`
+	PreviewRateMultiplier           *float64                   `json:"preview_rate_multiplier,omitempty"`
+	PreviewSaleForm                 *BillingPricingLayerForm   `json:"preview_sale_form,omitempty"`
 	OfficialItems                   []BillingPriceItem         `json:"-"`
 	SaleItems                       []BillingPriceItem         `json:"-"`
 }
@@ -134,6 +141,7 @@ type BillingPricingListFilter struct {
 	Search    string
 	Provider  string
 	Mode      string
+	GroupID   *int64
 	SortBy    string
 	SortOrder string
 	Page      int
@@ -141,7 +149,8 @@ type BillingPricingListFilter struct {
 }
 
 type BillingPricingDetailsRequest struct {
-	Models []string `json:"models"`
+	Models  []string `json:"models"`
+	GroupID *int64   `json:"group_id,omitempty"`
 }
 
 type UpsertBillingPricingLayerInput struct {
@@ -150,6 +159,7 @@ type UpsertBillingPricingLayerInput struct {
 	Currency string                   `json:"currency,omitempty"`
 	Form     *BillingPricingLayerForm `json:"form,omitempty"`
 	Items    []BillingPriceItem       `json:"items,omitempty"`
+	GroupID  *int64                   `json:"group_id,omitempty"`
 }
 
 type BillingCopyOfficialToSaleInput struct {

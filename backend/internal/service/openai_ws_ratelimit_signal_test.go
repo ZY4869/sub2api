@@ -19,24 +19,44 @@ import (
 
 type openAIWSRateLimitSignalRepo struct {
 	stubOpenAIAccountRepo
-	rateLimitCalls []time.Time
-	updateExtra    []map[string]any
+	rateLimitCalls  []time.Time
+	modelLimitCalls []struct {
+		scope   string
+		resetAt time.Time
+	}
+	updateExtra []map[string]any
 }
 
 type openAICodexSnapshotAsyncRepo struct {
 	stubOpenAIAccountRepo
 	updateExtraCh chan map[string]any
 	rateLimitCh   chan time.Time
+	modelLimitCh  chan struct {
+		scope   string
+		resetAt time.Time
+	}
 }
 
 type openAICodexExtraListRepo struct {
 	stubOpenAIAccountRepo
-	rateLimitCh chan time.Time
+	rateLimitCh  chan time.Time
+	modelLimitCh chan struct {
+		scope   string
+		resetAt time.Time
+	}
 	updateExtra []map[string]any
 }
 
 func (r *openAIWSRateLimitSignalRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
 	r.rateLimitCalls = append(r.rateLimitCalls, resetAt)
+	return nil
+}
+
+func (r *openAIWSRateLimitSignalRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	r.modelLimitCalls = append(r.modelLimitCalls, struct {
+		scope   string
+		resetAt time.Time
+	}{scope: scope, resetAt: resetAt})
 	return nil
 }
 
@@ -56,6 +76,16 @@ func (r *openAICodexSnapshotAsyncRepo) SetRateLimited(_ context.Context, _ int64
 	return nil
 }
 
+func (r *openAICodexSnapshotAsyncRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	if r.modelLimitCh != nil {
+		r.modelLimitCh <- struct {
+			scope   string
+			resetAt time.Time
+		}{scope: scope, resetAt: resetAt}
+	}
+	return nil
+}
+
 func (r *openAICodexSnapshotAsyncRepo) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
 	if r.updateExtraCh != nil {
 		copied := make(map[string]any, len(updates))
@@ -70,6 +100,16 @@ func (r *openAICodexSnapshotAsyncRepo) UpdateExtra(_ context.Context, _ int64, u
 func (r *openAICodexExtraListRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
+	}
+	return nil
+}
+
+func (r *openAICodexExtraListRepo) SetModelRateLimit(_ context.Context, _ int64, scope string, resetAt time.Time) error {
+	if r.modelLimitCh != nil {
+		r.modelLimitCh <- struct {
+			scope   string
+			resetAt time.Time
+		}{scope: scope, resetAt: resetAt}
 	}
 	return nil
 }
@@ -245,7 +285,9 @@ func TestOpenAIGatewayService_Forward_WSv2Handshake429PersistsRateLimit(t *testi
 	require.Nil(t, result)
 	require.Equal(t, http.StatusTooManyRequests, rec.Code)
 	require.Nil(t, upstream.lastReq, "WS 握手 429 不应回退到同账号 HTTP")
-	require.Len(t, repo.rateLimitCalls, 1)
+	require.Empty(t, repo.rateLimitCalls, "单边 Codex 429 不应直接写整号限流")
+	require.Len(t, repo.modelLimitCalls, 1)
+	require.Equal(t, openAICodexScopeNormal, repo.modelLimitCalls[0].scope)
 	require.NotEmpty(t, repo.updateExtra, "握手 429 的 x-codex 头应立即落库")
 	require.Contains(t, repo.updateExtra[0], "codex_usage_updated_at")
 }
@@ -356,10 +398,20 @@ func TestOpenAIGatewayService_ProxyResponsesWebSocketFromClient_ErrorEventUsageL
 	}
 }
 
-func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ExhaustedSnapshotSetsRateLimit(t *testing.T) {
+func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ExhaustedSnapshotSetsScopedRateLimit(t *testing.T) {
 	repo := &openAICodexSnapshotAsyncRepo{
 		updateExtraCh: make(chan map[string]any, 1),
 		rateLimitCh:   make(chan time.Time, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:       601,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra:    map[string]any{},
+		}}},
 	}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	snapshot := &OpenAICodexUsageSnapshot{
@@ -381,10 +433,17 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ExhaustedSnapshotSetsRate
 	}
 
 	select {
-	case resetAt := <-repo.rateLimitCh:
-		require.WithinDuration(t, before.Add(time.Hour), resetAt, 2*time.Second)
+	case got := <-repo.modelLimitCh:
+		require.Equal(t, openAICodexScopeNormal, got.scope)
+		require.WithinDuration(t, before.Add(time.Hour), got.resetAt, 2*time.Second)
 	case <-time.After(2 * time.Second):
-		t.Fatal("等待 codex 100% 自动切换限流超时")
+		t.Fatal("等待 codex scope 限流超时")
+	}
+
+	select {
+	case resetAt := <-repo.rateLimitCh:
+		t.Fatalf("unexpected account rate limit: %v", resetAt)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
@@ -392,6 +451,16 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_NonExhaustedSnapshotDoesN
 	repo := &openAICodexSnapshotAsyncRepo{
 		updateExtraCh: make(chan map[string]any, 1),
 		rateLimitCh:   make(chan time.Time, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:       602,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra:    map[string]any{},
+		}}},
 	}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 	snapshot := &OpenAICodexUsageSnapshot{
@@ -415,12 +484,28 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_NonExhaustedSnapshotDoesN
 		t.Fatalf("unexpected rate limit reset at: %v", resetAt)
 	case <-time.After(200 * time.Millisecond):
 	}
+
+	select {
+	case got := <-repo.modelLimitCh:
+		t.Fatalf("unexpected scoped rate limit: %+v", got)
+	case <-time.After(200 * time.Millisecond):
+	}
 }
 
 func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ThrottlesExtraWrites(t *testing.T) {
 	repo := &openAICodexSnapshotAsyncRepo{
 		updateExtraCh: make(chan map[string]any, 2),
 		rateLimitCh:   make(chan time.Time, 2),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 2),
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:       777,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Extra:    map[string]any{},
+		}}},
 	}
 	svc := &OpenAIGatewayService{
 		accountRepo:           repo,
@@ -468,19 +553,31 @@ func TestOpenAIGatewayService_GetSchedulableAccount_ExhaustedCodexExtraSetsRateL
 			"codex_7d_reset_at":     resetAt.UTC().Format(time.RFC3339),
 		},
 	}
-	repo := &openAICodexExtraListRepo{stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}}, rateLimitCh: make(chan time.Time, 1)}
+	repo := &openAICodexExtraListRepo{
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+		rateLimitCh:           make(chan time.Time, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
+	}
 	svc := &OpenAIGatewayService{accountRepo: repo}
 
 	fresh, err := svc.getSchedulableAccount(context.Background(), account.ID)
 	require.NoError(t, err)
 	require.NotNil(t, fresh)
-	require.NotNil(t, fresh.RateLimitResetAt)
-	require.WithinDuration(t, resetAt.UTC(), *fresh.RateLimitResetAt, time.Second)
+	require.Nil(t, fresh.RateLimitResetAt)
+	select {
+	case persisted := <-repo.modelLimitCh:
+		require.Equal(t, openAICodexScopeNormal, persisted.scope)
+		require.WithinDuration(t, resetAt.UTC(), persisted.resetAt, time.Second)
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待旧快照补写模型限流状态超时")
+	}
 	select {
 	case persisted := <-repo.rateLimitCh:
-		require.WithinDuration(t, resetAt.UTC(), persisted, time.Second)
-	case <-time.After(2 * time.Second):
-		t.Fatal("等待旧快照补写限流状态超时")
+		t.Fatalf("unexpected account rate limit persistence: %v", persisted)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 
@@ -500,6 +597,10 @@ func TestAdminService_ListAccounts_ExhaustedCodexExtraReturnsRateLimitedAccount(
 			},
 		}}},
 		rateLimitCh: make(chan time.Time, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
@@ -507,13 +608,18 @@ func TestAdminService_ListAccounts_ExhaustedCodexExtraReturnsRateLimitedAccount(
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
 	require.Len(t, accounts, 1)
-	require.NotNil(t, accounts[0].RateLimitResetAt)
-	require.WithinDuration(t, resetAt.UTC(), *accounts[0].RateLimitResetAt, time.Second)
+	require.Nil(t, accounts[0].RateLimitResetAt)
+	select {
+	case persisted := <-repo.modelLimitCh:
+		require.Equal(t, openAICodexScopeNormal, persisted.scope)
+		require.WithinDuration(t, resetAt.UTC(), persisted.resetAt, time.Second)
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待列表补写模型限流状态超时")
+	}
 	select {
 	case persisted := <-repo.rateLimitCh:
-		require.WithinDuration(t, resetAt.UTC(), persisted, time.Second)
-	case <-time.After(2 * time.Second):
-		t.Fatal("等待列表补写限流状态超时")
+		t.Fatalf("unexpected account rate limit persistence: %v", persisted)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 

@@ -1,8 +1,5 @@
 import { getAntigravityDefaultModelMapping } from "@/api/admin/accounts";
-import {
-  ensureModelRegistryFresh,
-  getModelRegistrySnapshot,
-} from "@/stores/modelRegistry";
+import { getModelRegistrySnapshot } from "@/stores/modelRegistry";
 import type {
   ModelRegistryEntry,
   ModelRegistryPreset,
@@ -293,7 +290,6 @@ function getRegistryEntriesByPlatform(
   platform: string,
   ...exposures: string[]
 ): ModelRegistryEntry[] {
-  void ensureModelRegistryFresh();
   const normalizedPlatform = normalizePlatform(platform);
   const targets = normalizeExposureTargets(exposures);
   const snapshot = getModelRegistrySnapshot();
@@ -373,7 +369,6 @@ function deriveFallbackCapability(
 
 export function getAllModelOptions(...exposures: string[]): ModelOption[] {
   const snapshot = getModelRegistrySnapshot();
-  void ensureModelRegistryFresh();
   const targets = normalizeExposureTargets(exposures);
   const ids = sortEntries(snapshot.models)
     .filter((entry) => matchesExposure(entry, ...targets))
@@ -416,7 +411,6 @@ export function getModelsByPlatform(
 export function getPresetMappingsByPlatform(
   platform: string,
 ): ModelRegistryPreset[] {
-  void ensureModelRegistryFresh();
   const normalizedPlatform = normalizePlatform(platform);
   const snapshot = getModelRegistrySnapshot();
   return snapshot.presets
@@ -427,7 +421,6 @@ export function getPresetMappingsByPlatform(
 }
 
 export function sortModelsForTest<T extends { id: string }>(models: T[]): T[] {
-  void ensureModelRegistryFresh();
   const snapshot = getModelRegistrySnapshot();
   const priorityMap = new Map(
     snapshot.models.map((entry) => [entry.id, entry.ui_priority]),
@@ -447,7 +440,6 @@ export function getModelCapabilities(
   modelId: string,
   _channel?: string,
 ): ModelCapabilityDefinition {
-  void ensureModelRegistryFresh();
   const normalizedId = modelId.trim();
   const entry = getRegistryEntry(normalizedId);
   const override = CAPABILITY_OVERRIDES[normalizedId];

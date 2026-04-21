@@ -1,10 +1,48 @@
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
+import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 
-const { updateAccountMock, checkMixedChannelRiskMock } = vi.hoisted(() => ({
+const { updateAccountMock, checkMixedChannelRiskMock, modelRegistrySnapshot } = vi.hoisted(() => ({
   updateAccountMock: vi.fn(),
-  checkMixedChannelRiskMock: vi.fn()
+  checkMixedChannelRiskMock: vi.fn(),
+  modelRegistrySnapshot: {
+    etag: 'test-etag',
+    updated_at: '2026-04-08T00:00:00Z',
+    provider_labels: {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI'
+    },
+    models: [
+      {
+        id: 'claude-sonnet-4.5',
+        provider: 'anthropic',
+        display_name: 'Claude Sonnet 4.5',
+        platforms: ['anthropic'],
+        protocol_ids: ['claude-sonnet-4-5-20250929'],
+        aliases: ['claude-sonnet-4-5-20250929'],
+        pricing_lookup_ids: [],
+        modalities: ['text'],
+        capabilities: ['text'],
+        exposed_in: ['runtime', 'test', 'whitelist'],
+        ui_priority: 1
+      },
+      {
+        id: 'gpt-5.4',
+        provider: 'openai',
+        display_name: 'GPT-5.4',
+        platforms: ['openai'],
+        protocol_ids: ['gpt-5.4'],
+        aliases: [],
+        pricing_lookup_ids: [],
+        modalities: ['text'],
+        capabilities: ['text'],
+        exposed_in: ['runtime', 'test', 'whitelist'],
+        ui_priority: 1
+      }
+    ],
+    presets: []
+  }
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -22,18 +60,8 @@ vi.mock('@/stores/auth', () => ({
 }))
 
 vi.mock('@/stores/modelRegistry', () => ({
-  ensureModelRegistryFresh: vi.fn().mockResolvedValue({
-    etag: 'test-etag',
-    updated_at: '2026-04-08T00:00:00Z',
-    models: [],
-    presets: []
-  }),
-  getModelRegistrySnapshot: vi.fn(() => ({
-    etag: 'test-etag',
-    updated_at: '2026-04-08T00:00:00Z',
-    models: [],
-    presets: []
-  })),
+  ensureModelRegistryFresh: vi.fn().mockResolvedValue(modelRegistrySnapshot),
+  getModelRegistrySnapshot: vi.fn(() => modelRegistrySnapshot),
   invalidateModelRegistry: vi.fn()
 }))
 
@@ -77,9 +105,52 @@ const BaseDialogStub = defineComponent({
   template: '<div v-if="show" :data-width="width"><slot /><slot name="footer" /></div>'
 })
 
+const SelectStub = defineComponent({
+  name: 'Select',
+  props: {
+    modelValue: {
+      type: [String, Number, Boolean, Object],
+      default: ''
+    },
+    options: {
+      type: Array,
+      default: () => []
+    },
+    valueKey: {
+      type: String,
+      default: 'value'
+    },
+    labelKey: {
+      type: String,
+      default: 'label'
+    }
+  },
+  emits: ['update:modelValue'],
+  template: `
+    <select
+      class="input"
+      data-testid="select-stub"
+      :value="String(modelValue ?? '')"
+      @change="$emit('update:modelValue', $event.target.value)"
+    >
+      <option
+        v-for="option in options"
+        :key="String(typeof option === 'object' ? option[valueKey] ?? option[labelKey] : option)"
+        :value="typeof option === 'object' ? option[valueKey] : option"
+      >
+        {{ typeof option === 'object' ? option[labelKey] : option }}
+      </option>
+    </select>
+  `
+})
+
 const AccountApiKeyBasicSettingsEditorStub = defineComponent({
   name: 'AccountApiKeyBasicSettingsEditor',
   props: {
+    baseUrl: {
+      type: String,
+      default: ''
+    },
     actualModelLocked: {
       type: Boolean,
       default: true
@@ -97,9 +168,15 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       default: false
     }
   },
-  emits: ['update:allowedModels'],
+  emits: ['update:allowedModels', 'update:baseUrl'],
   template: `
     <div>
+      <input
+        type="text"
+        data-testid="account-base-url-input"
+        :value="baseUrl"
+        @input="$emit('update:baseUrl', $event.target.value)"
+      />
       <span data-testid="actual-model-locked-prop">{{ actualModelLocked }}</span>
       <button
         type="button"
@@ -426,6 +503,40 @@ function buildVertexExpressAccount() {
   } as any
 }
 
+function buildAnthropicWhitelistAccountWithSelectedModelIDs() {
+  return {
+    id: 9,
+    name: 'Anthropic Key',
+    notes: '',
+    platform: 'anthropic',
+    type: 'apikey',
+    credentials: {
+      api_key: 'sk-anthropic',
+      base_url: 'https://api.anthropic.com'
+    },
+    extra: {
+      model_scope_v2: {
+        supported_providers: ['anthropic'],
+        supported_models_by_provider: {
+          anthropic: ['claude-sonnet-4.5']
+        },
+        selected_model_ids: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5'],
+        advanced_provider_override: false,
+        manual_mapping_rows: [],
+        manual_mappings: {}
+      }
+    },
+    proxy_id: null,
+    concurrency: 1,
+    priority: 1,
+    rate_multiplier: 1,
+    status: 'active',
+    group_ids: [],
+    expires_at: null,
+    auto_pause_on_expired: false
+  } as any
+}
+
 function buildProtocolGatewayGeminiAccount() {
   return {
     id: 4,
@@ -554,7 +665,7 @@ function mountModal(account = buildAccount()) {
         AccountGroupSettingsEditor: true,
         AccountAutoPauseToggle: true,
         QuotaLimitCard: true,
-        Select: true,
+        Select: SelectStub,
         Icon: true,
         ProxySelector: true,
         GroupSelector: true,
@@ -593,6 +704,30 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toEqual({
       'gpt-5.2': 'gpt-5.2'
+    })
+  })
+
+  it('rehydrates whitelist selected_model_ids before canonical ids and keeps them on submit', async () => {
+    const account = buildAnthropicWhitelistAccountWithSelectedModelIDs()
+    updateAccountMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    updateAccountMock.mockResolvedValue(account)
+
+    const wrapper = mountModal(account)
+
+    expect(wrapper.get('[data-testid="model-whitelist-value"]').text()).toBe(
+      'claude-sonnet-4-5-20250929,claude-sonnet-4.5'
+    )
+
+    await wrapper.get('form#edit-account-form').trigger('submit.prevent')
+
+    expect(updateAccountMock).toHaveBeenCalledTimes(1)
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toMatchObject({
+      supported_models_by_provider: {
+        anthropic: ['claude-sonnet-4.5']
+      },
+      selected_model_ids: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5']
     })
   })
 
@@ -652,7 +787,7 @@ describe('EditAccountModal', () => {
     })
   })
 
-  it('renders the unified model probe editor for OpenAI OAuth accounts and keeps snapshot extra on submit', async () => {
+  it('renders the unified model probe editor for OpenAI OAuth accounts and rebuilds snapshot extra from the current model scope on submit', async () => {
     const account = buildOpenAIOAuthAccount()
     updateAccountMock.mockReset()
     checkMixedChannelRiskMock.mockReset()
@@ -666,12 +801,12 @@ describe('EditAccountModal', () => {
     await wrapper.get('form#edit-account-form').trigger('submit.prevent')
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
-    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_probe_snapshot).toEqual({
-      models: ['gpt-5.4', 'gpt-4.1-mini'],
-      updated_at: '2026-04-01T10:00:00Z',
-      source: 'manual_probe',
-      probe_source: 'upstream'
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_probe_snapshot).toMatchObject({
+      models: ['gpt-5.4'],
+      source: 'model_scope_preview',
+      probe_source: 'model_scope_preview'
     })
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_probe_snapshot?.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   })
 
   it('keeps upstream quota fields when editing a vertex express account', async () => {
@@ -838,6 +973,24 @@ describe('EditAccountModal', () => {
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_openai_request_format).toBe('/v1/responses')
+  })
+
+  it('preserves a custom protocol gateway base_url on reopen and only resets it after a manual protocol switch', async () => {
+    const wrapper = mountModal(buildProtocolGatewayOpenAIAccount())
+
+    expect((wrapper.get('[data-testid="account-base-url-input"]').element as HTMLInputElement).value).toBe('https://gateway.example.com')
+
+    await wrapper.setProps({ show: false })
+    await wrapper.setProps({ show: true })
+
+    expect((wrapper.get('[data-testid="account-base-url-input"]').element as HTMLInputElement).value).toBe('https://gateway.example.com')
+
+    const selects = wrapper.findAll('[data-testid="select-stub"]')
+    await selects[0].setValue('gemini')
+
+    expect((wrapper.get('[data-testid="account-base-url-input"]').element as HTMLInputElement).value).toBe(
+      resolveAccountApiKeyDefaultBaseUrl('protocol_gateway', 'gemini')
+    )
   })
 
   it('rehydrates baidu document ai editor fields and keeps existing tokens unless replaced', async () => {

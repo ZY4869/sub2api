@@ -117,7 +117,8 @@ func shouldRunAccountAutoRecoveryProbe(account *Account, now time.Time) bool {
 	if NormalizeAccountLifecycleInput(account.LifecycleState) == AccountLifecycleBlacklisted {
 		return false
 	}
-	if NormalizeAccountRateLimitReasonInput(parseExtraString(account.Extra["rate_limit_reason"])) != AccountRateLimitReasonUsage7d {
+	reason := NormalizeAccountRateLimitReasonInput(parseExtraString(account.Extra["rate_limit_reason"]))
+	if reason != AccountRateLimitReasonUsage7d && reason != AccountRateLimitReasonUsage7dAll {
 		return false
 	}
 	if account.RateLimitResetAt.After(now) {

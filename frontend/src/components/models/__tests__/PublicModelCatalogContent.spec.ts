@@ -64,6 +64,7 @@ describe("PublicModelCatalogContent", () => {
       data: {
         etag: 'W/"catalog"',
         updated_at: "2026-04-18T00:00:00Z",
+        page_size: 10,
         items: [
           {
             model: "gpt-5.4",
@@ -189,6 +190,111 @@ describe("PublicModelCatalogContent", () => {
     await wrapper.get('[data-testid="public-models-view-grid"]').trigger("click");
     expect(wrapper.get('[data-testid="public-model-results"]').attributes("data-view-mode")).toBe("grid");
     expect(localStorage.getItem("public-model-catalog:view-mode")).toBe("grid");
+  });
+
+  it("does not auto-refresh on focus or visibility changes", async () => {
+    const pinia = createPinia()
+    mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: true,
+          ModelPlatformIcon: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    expect(apiMocks.getModelCatalog).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event("focus"));
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+
+    expect(apiMocks.getModelCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  it("paginates with the published page size", async () => {
+    apiMocks.getModelCatalog.mockResolvedValueOnce({
+      notModified: false,
+      etag: 'W/"paged"',
+      data: {
+        etag: 'W/"paged"',
+        updated_at: "2026-04-18T00:00:00Z",
+        page_size: 2,
+        items: [
+          {
+            model: "model-a",
+            display_name: "Model A",
+            provider: "openai",
+            provider_icon_key: "openai",
+            request_protocols: ["openai"],
+            currency: "USD",
+            price_display: {
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
+            },
+            multiplier_summary: {
+              enabled: false,
+              kind: "disabled",
+            },
+          },
+          {
+            model: "model-b",
+            display_name: "Model B",
+            provider: "openai",
+            provider_icon_key: "openai",
+            request_protocols: ["openai"],
+            currency: "USD",
+            price_display: {
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
+            },
+            multiplier_summary: {
+              enabled: false,
+              kind: "disabled",
+            },
+          },
+          {
+            model: "model-c",
+            display_name: "Model C",
+            provider: "openai",
+            provider_icon_key: "openai",
+            request_protocols: ["openai"],
+            currency: "USD",
+            price_display: {
+              primary: [{ id: "input_price", unit: "input_token", value: 0.000001 }],
+            },
+            multiplier_summary: {
+              enabled: false,
+              kind: "disabled",
+            },
+          },
+        ],
+      },
+    });
+
+    const pinia = createPinia()
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: true,
+          ModelPlatformIcon: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Model A");
+    expect(wrapper.text()).toContain("Model B");
+    expect(wrapper.text()).not.toContain("Model C");
+
+    await wrapper.get('[data-testid="public-models-page-next"]').trigger("click");
+
+    expect(wrapper.text()).toContain("Model C");
+    expect(wrapper.text()).not.toContain("Model A");
   });
 
   it("restores a cached snapshot and shows a soft stale notice when revalidation fails", async () => {
