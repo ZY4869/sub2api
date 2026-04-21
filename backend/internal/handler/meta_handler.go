@@ -133,7 +133,7 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 			return
 		}
 	}
-	snapshot, err := h.modelCatalogService.PublishedPublicModelCatalogSnapshot(c.Request.Context())
+	snapshot, err := h.modelCatalogService.PublicModelCatalogSnapshot(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -147,6 +147,7 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 				"public model catalog responded from etag cache",
 				zap.String("component", "handler.meta"),
 				zap.Bool("etag_hit", true),
+				zap.String("catalog_source", snapshot.CatalogSource),
 				zap.Int("model_count", len(snapshot.Items)),
 			)
 			c.Status(http.StatusNotModified)
@@ -159,6 +160,7 @@ func (h *MetaHandler) ModelCatalog(c *gin.Context) {
 		zap.Bool("etag_hit", etagHit),
 		zap.Bool("guest_allowed", guestAllowed),
 		zap.Bool("authenticated_request", authenticated),
+		zap.String("catalog_source", snapshot.CatalogSource),
 		zap.Int("model_count", len(snapshot.Items)),
 	)
 	response.Success(c, snapshot)
@@ -176,7 +178,7 @@ func (h *MetaHandler) ModelCatalogDetail(c *gin.Context) {
 	}
 
 	modelID := strings.TrimSpace(c.Param("model"))
-	detail, err := h.modelCatalogService.PublishedPublicModelCatalogDetail(c.Request.Context(), modelID)
+	detail, err := h.modelCatalogService.PublicModelCatalogDetail(c.Request.Context(), modelID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -187,6 +189,7 @@ func (h *MetaHandler) ModelCatalogDetail(c *gin.Context) {
 		zap.String("model", detail.Item.Model),
 		zap.Bool("guest_allowed", guestAllowed),
 		zap.Bool("authenticated_request", authenticated),
+		zap.String("catalog_source", detail.CatalogSource),
 		zap.String("example_source", detail.ExampleSource),
 	)
 	response.Success(c, detail)

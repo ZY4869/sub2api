@@ -16,6 +16,7 @@ const (
 	AccountModelProbeSnapshotSourceTestProbe         = "test_probe"
 	AccountModelProbeSnapshotSourceManualProbe       = "manual_probe"
 	AccountModelProbeSnapshotSourcePublicModelsLive  = "public_models_live_probe"
+	AccountModelProbeSnapshotSourcePolicyUpdate      = "policy_update"
 )
 
 type AccountModelProbeSnapshotEntry struct {

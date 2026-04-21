@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -219,13 +220,37 @@ func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
 	require.Contains(t, rec.Body.String(), "\"item\"")
+	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"published\"")
 	require.Contains(t, rec.Body.String(), "\"example_source\":\"docs_section\"")
 }
 
-func TestMetaHandler_ModelCatalogReturnsEmptySnapshotWhenNotPublished(t *testing.T) {
+func TestMetaHandler_ModelCatalogFallsBackToLiveSnapshotWhenNotPublished(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{}}
+	repo.values[service.SettingKeyBillingPricingCatalogSnapshot] = mustMetaJSON(t, service.BillingPricingCatalogSnapshot{
+		UpdatedAt: mustMetaTime(t, "2026-04-20T10:00:00Z"),
+		Models: []service.BillingPricingPersistedModel{
+			{
+				Model:            "gpt-5.4",
+				DisplayName:      "GPT-5.4",
+				Provider:         service.PlatformOpenAI,
+				Mode:             "chat",
+				Currency:         "USD",
+				InputSupported:   true,
+				OutputChargeSlot: service.BillingChargeSlotTextOutput,
+				SaleForm: service.BillingPricingLayerForm{
+					InputPrice:     float64Ptr(1e-6),
+					OutputPrice:    float64Ptr(2e-6),
+					Special:        service.BillingPricingSimpleSpecial{},
+					SpecialEnabled: false,
+				},
+				OfficialForm: service.BillingPricingLayerForm{
+					Special: service.BillingPricingSimpleSpecial{},
+				},
+			},
+		},
+	})
 	modelCatalogService := service.NewModelCatalogService(
 		repo,
 		nil,
@@ -243,14 +268,38 @@ func TestMetaHandler_ModelCatalogReturnsEmptySnapshotWhenNotPublished(t *testing
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Contains(t, rec.Body.String(), "\"items\":[]")
+	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"live_fallback\"")
+	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
 	require.Contains(t, rec.Body.String(), "\"page_size\":10")
 }
 
-func TestMetaHandler_ModelCatalogDetailReturnsNotFoundWhenNotPublished(t *testing.T) {
+func TestMetaHandler_ModelCatalogDetailFallsBackToLiveWhenNotPublished(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	repo := &metaSettingRepoStub{values: map[string]string{}}
+	repo.values[service.SettingKeyBillingPricingCatalogSnapshot] = mustMetaJSON(t, service.BillingPricingCatalogSnapshot{
+		UpdatedAt: mustMetaTime(t, "2026-04-20T10:00:00Z"),
+		Models: []service.BillingPricingPersistedModel{
+			{
+				Model:            "gpt-5.4",
+				DisplayName:      "GPT-5.4",
+				Provider:         service.PlatformOpenAI,
+				Mode:             "chat",
+				Currency:         "USD",
+				InputSupported:   true,
+				OutputChargeSlot: service.BillingChargeSlotTextOutput,
+				SaleForm: service.BillingPricingLayerForm{
+					InputPrice:     float64Ptr(1e-6),
+					OutputPrice:    float64Ptr(2e-6),
+					Special:        service.BillingPricingSimpleSpecial{},
+					SpecialEnabled: false,
+				},
+				OfficialForm: service.BillingPricingLayerForm{
+					Special: service.BillingPricingSimpleSpecial{},
+				},
+			},
+		},
+	})
 	modelCatalogService := service.NewModelCatalogService(
 		repo,
 		nil,
@@ -267,7 +316,9 @@ func TestMetaHandler_ModelCatalogDetailReturnsNotFoundWhenNotPublished(t *testin
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	require.Equal(t, http.StatusNotFound, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"live_fallback\"")
+	require.Contains(t, rec.Body.String(), "\"model\":\"gpt-5.4\"")
 }
 
 func mustMetaJSON(t *testing.T, value any) string {
@@ -334,4 +385,16 @@ func buildMetaPublishedSnapshot(etag string) service.PublicModelCatalogPublished
 			},
 		},
 	}
+}
+
+func float64Ptr(value float64) *float64 {
+	return &value
+}
+
+func mustMetaTime(t *testing.T, value string) time.Time {
+	t.Helper()
+
+	parsed, err := time.Parse(time.RFC3339, value)
+	require.NoError(t, err)
+	return parsed
 }

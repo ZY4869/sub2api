@@ -34,11 +34,11 @@ func (s *APIKeyService) GetGroupModelCatalogSnapshot(
 		return nil, ErrGroupNotAllowed
 	}
 
-	published, err := s.modelCatalogService.PublishedPublicModelCatalogSnapshot(ctx)
+	snapshot, err := s.modelCatalogService.PublicModelCatalogSnapshot(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return scalePublicModelCatalogSnapshot(published, normalizePublicModelCatalogGroupMultiplier(target.RateMultiplier))
+	return scalePublicModelCatalogSnapshot(snapshot, normalizePublicModelCatalogGroupMultiplier(target.RateMultiplier))
 }
 
 func normalizePublicModelCatalogGroupMultiplier(multiplier float64) float64 {
@@ -68,10 +68,11 @@ func scalePublicModelCatalogSnapshot(
 	}
 
 	return &PublicModelCatalogSnapshot{
-		ETag:      etag,
-		UpdatedAt: snapshot.UpdatedAt,
-		PageSize:  pageSize,
-		Items:     items,
+		ETag:          etag,
+		UpdatedAt:     snapshot.UpdatedAt,
+		PageSize:      pageSize,
+		CatalogSource: snapshot.CatalogSource,
+		Items:         items,
 	}, nil
 }
 

@@ -127,10 +127,10 @@ https://api.zyxai.de
 - 路径：`GET /api/v1/meta/model-catalog`
 - 详情：`GET /api/v1/meta/model-catalog/:model`
 - 鉴权：无需登录，游客与已登录用户都可访问
-- 用途：返回前台 `/models` 页面使用的“已发布公开模型快照”，包含供应商、请求协议族、发布时冻结的基础出售价格、倍率摘要，以及发布配置中的 `page_size`
-- 发布语义：这个接口不再按 TTL 自动重建；只有管理员在计费中心“对外模型展示”页执行“推送更新”后，列表内容、排序、分页大小与详情示例才会一起更新
-- 未发布语义：如果当前还没有任何已发布快照，`GET /api/v1/meta/model-catalog` 会显式返回空快照（`items=[]`，默认 `page_size=10`），`GET /api/v1/meta/model-catalog/:model` 会返回 `404`
-- 详情语义：`GET /api/v1/meta/model-catalog/:model` 会返回发布时固化的单模型价格块与调用示例元数据，不会在请求时实时重新拼装示例
+- 用途：返回前台 `/models` 页面使用的公开模型目录，包含供应商、请求协议族、基础出售价格、倍率摘要，以及目录配置中的 `page_size`
+- 发布语义：有已发布快照时，接口固定返回最近一次“推送更新”冻结下来的正式目录，列表内容、排序、分页大小与详情示例都会以该版本为准
+- 未发布语义：如果当前还没有任何已发布快照，接口会自动回退到实时目录构建结果，而不是返回空目录；详情接口也会同步回退到实时详情
+- 详情语义：`GET /api/v1/meta/model-catalog/:model` 在 `catalog_source=published` 时返回发布时固化的单模型价格块与调用示例元数据；在 `catalog_source=live_fallback` 时返回当前实时目录对应的详情结果
 - 缓存：响应会返回 `ETag`，客户端可通过 `If-None-Match` 复用 `304 Not Modified`
 
 这个接口只暴露展示所需的公共目录数据，不替代具体协议页中的 `/v1/models`、`/v1beta/models` 等运行时模型枚举接口。
@@ -146,9 +146,11 @@ https://api.zyxai.de
 `GET /api/v1/meta/model-catalog` 当前返回体额外包含：
 
 - `etag`：本次已发布快照的版本标识
-- `updated_at`：最近一次发布完成时间
-- `page_size`：公开模型库前台默认每页数量；如果管理员修改草稿但尚未推送，这个值不会变化
-- `items`：已发布模型数组，卡片标题应优先展示 `display_name`
+- `etag`：当前有效目录快照的版本标识
+- `updated_at`：当前目录快照的更新时间；若命中已发布版本则表示最近一次发布时间，若回退实时则表示实时目录构建时间
+- `page_size`：公开模型库前台默认每页数量；命中已发布版本时使用发布快照中的固定值，回退实时时使用当前默认页大小
+- `catalog_source`：目录来源，固定为 `published` 或 `live_fallback`
+- `items`：公开模型数组，卡片标题应优先展示 `display_name`
 
 典型响应示例：
 
@@ -157,6 +159,7 @@ https://api.zyxai.de
   "etag": "W/\"4b0c0d...\"",
   "updated_at": "2026-04-21T10:05:00Z",
   "page_size": 10,
+  "catalog_source": "published",
   "items": [
     {
       "model": "gpt-5.4",
@@ -201,6 +204,7 @@ https://api.zyxai.de
       "kind": "disabled"
     }
   },
+  "catalog_source": "published",
   "example_source": "docs_section",
   "example_protocol": "openai",
   "example_page_id": "common",
@@ -214,13 +218,14 @@ https://api.zyxai.de
 - 鉴权：必须登录
 - 用途：返回当前用户可绑定分组下、且当前具备有效价格的公开模型列表；普通用户保存 Key 时会把结构化勾选结果写回 `groups[].model_patterns`
 - 语义：如果某个分组绑定没有提交 `model_patterns`，表示这个 Key 在该分组下可以调用全部公开模型；多个分组绑定的最终可调用模型集合取并集
+- 回退语义：如果正式公开目录尚未发布，这个接口会和前台 `/models` 一样自动回退到实时目录，但仍会继续过滤掉没有有效售价的模型
 
 如果前台已经处在明确的分组上下文里，还可以使用倍率后的展示价接口：
 
 - 路径：`GET /api/v1/groups/model-catalog?group_id=<GROUP_ID>`
 - 鉴权：必须登录
-- 用途：返回“已发布公开模型快照 + 指定分组倍率换算后的 `price_display`”；结构与 `/api/v1/meta/model-catalog` 保持一致，只替换价格字段
-- 约束：这里只用于用户自己的分组上下文页面；匿名公共模型库仍然固定展示已发布基础售价
+- 用途：返回“当前有效公开模型目录 + 指定分组倍率换算后的 `price_display`”；结构与 `/api/v1/meta/model-catalog` 保持一致，只替换价格字段
+- 约束：这里只用于用户自己的分组上下文页面；如果存在已发布快照则优先使用已发布基础售价，没有已发布快照时才回退实时目录
 
 下面的例子分别展示三种常用认证写法。
 

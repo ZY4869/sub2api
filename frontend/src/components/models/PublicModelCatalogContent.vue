@@ -48,6 +48,13 @@
     </div>
 
     <div
+      v-if="sourceNotice"
+      class="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
+    >
+      {{ sourceNotice }}
+    </div>
+
+    <div
       v-if="exchangeRateNotice"
       class="rounded-3xl border border-sky-200 bg-sky-50 px-6 py-4 text-sm text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-100"
     >
@@ -399,7 +406,7 @@
           v-if="!loading && filteredItems.length === 0"
           class="rounded-3xl border border-dashed border-slate-300 bg-white/80 px-6 py-12 text-center text-sm text-slate-500 dark:border-dark-700 dark:bg-dark-900/70 dark:text-slate-400"
         >
-          {{ t("ui.modelCatalog.empty") }}
+          {{ emptyStateMessage }}
         </div>
 
         <div
@@ -520,6 +527,10 @@ const modelCountLabel = computed(() =>
 
 const errorMessage = computed(() => hardError.value)
 const softNotice = computed(() => (softStale.value ? t('ui.modelCatalog.staleNotice') : ''))
+const catalogSource = computed(() => catalog.value?.catalog_source || '')
+const sourceNotice = computed(() =>
+  catalogSource.value === 'live_fallback' ? t('ui.modelCatalog.liveFallbackNotice') : ''
+)
 const exchangeRateNotice = computed(() =>
   exchangeRateWarning.value ? t('ui.modelCatalog.exchangeRateSoftWarning') : ''
 )
@@ -614,6 +625,23 @@ const multiplierOptions = computed<MultiplierFilterOption[]>(() => {
 const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase());
 const pageSize = computed(() => normalizePageSize(catalog.value?.page_size));
 const currentPage = ref(1);
+const hasActiveFilters = computed(() =>
+  Boolean(
+    selectedProvider.value
+    || selectedProtocol.value
+    || selectedMultiplier.value
+    || normalizedSearchQuery.value,
+  ),
+)
+const emptyStateMessage = computed(() => {
+  if (hasActiveFilters.value) {
+    return t('ui.modelCatalog.empty')
+  }
+  if (catalogSource.value === 'live_fallback') {
+    return t('ui.modelCatalog.emptyLiveFallback')
+  }
+  return t('ui.modelCatalog.emptyPublished')
+})
 
 const filteredItems = computed(() =>
   (catalog.value?.items || []).filter((item) => {

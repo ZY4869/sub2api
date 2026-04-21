@@ -65,6 +65,7 @@ describe("PublicModelCatalogContent", () => {
         etag: 'W/"catalog"',
         updated_at: "2026-04-18T00:00:00Z",
         page_size: 10,
+        catalog_source: 'published',
         items: [
           {
             model: "gpt-5.4",
@@ -356,6 +357,7 @@ describe("PublicModelCatalogContent", () => {
       data: {
         etag: 'W/"catalog-cny"',
         updated_at: "2026-04-18T00:00:00Z",
+        catalog_source: 'published',
         items: [
           {
             model: "gemini-2.5-pro",
@@ -395,4 +397,35 @@ describe("PublicModelCatalogContent", () => {
     expect(wrapper.text()).toContain("ui.modelCatalog.exchangeRateSoftWarning");
     expect(wrapper.text()).not.toContain("Network error. Please check your connection.");
   });
+
+  it("shows a live fallback notice and empty-state copy when the catalog is unpublished", async () => {
+    apiMocks.getModelCatalog.mockResolvedValueOnce({
+      notModified: false,
+      etag: 'W/"live-fallback"',
+      data: {
+        etag: 'W/"live-fallback"',
+        updated_at: "2026-04-18T00:00:00Z",
+        page_size: 10,
+        catalog_source: 'live_fallback',
+        items: [],
+      },
+    });
+
+    const pinia = createPinia()
+    const wrapper = mount(PublicModelCatalogContent, {
+      global: {
+        plugins: [pinia],
+        stubs: {
+          PublicModelCatalogDetailDialog: true,
+          ModelIcon: true,
+          ModelPlatformIcon: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(wrapper.text()).toContain('ui.modelCatalog.liveFallbackNotice')
+    expect(wrapper.text()).toContain('ui.modelCatalog.emptyLiveFallback')
+  })
 });

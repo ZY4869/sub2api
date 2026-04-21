@@ -37,6 +37,7 @@ function cloneSnapshot(snapshot: PublicModelCatalogSnapshot | null): PublicModel
     etag: snapshot.etag,
     updated_at: snapshot.updated_at,
     page_size: snapshot.page_size,
+    catalog_source: snapshot.catalog_source,
     items: snapshot.items.map(cloneItem)
   }
 }

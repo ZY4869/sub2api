@@ -32,12 +32,14 @@ var publicModelCatalogProtocolOrder = map[string]int{
 
 func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
-		s.storePublicModelCatalogSnapshot(&published.Snapshot)
-		return clonePublicModelCatalogSnapshot(&published.Snapshot), nil
+		snapshot := clonePublicModelCatalogSnapshot(&published.Snapshot)
+		snapshot.CatalogSource = PublicModelCatalogSourcePublished
+		return snapshot, nil
 	}
 	if snapshot, age, ok := s.getFreshPublicModelCatalogSnapshot(); ok {
+		snapshot.CatalogSource = PublicModelCatalogSourceLiveFallback
 		logger.FromContext(ctx).Info(
-			"public model catalog snapshot cache hit",
+			"public model catalog live fallback cache hit",
 			zap.String("component", "service.model_catalog"),
 			zap.Duration("cache_age", age),
 			zap.Int("model_count", len(snapshot.Items)),
@@ -48,8 +50,9 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 	snapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
 	if err != nil {
 		if fallback, age, ok := s.getAnyPublicModelCatalogSnapshot(); ok {
+			fallback.CatalogSource = PublicModelCatalogSourceLiveFallback
 			logger.FromContext(ctx).Warn(
-				"public model catalog snapshot stale fallback",
+				"public model catalog live fallback stale cache",
 				zap.String("component", "service.model_catalog"),
 				zap.Duration("cache_age", age),
 				zap.Int("model_count", len(fallback.Items)),
@@ -61,7 +64,14 @@ func (s *ModelCatalogService) PublicModelCatalogSnapshot(ctx context.Context) (*
 	}
 
 	s.storePublicModelCatalogSnapshot(snapshot)
-	return clonePublicModelCatalogSnapshot(snapshot), nil
+	liveSnapshot := clonePublicModelCatalogSnapshot(snapshot)
+	liveSnapshot.CatalogSource = PublicModelCatalogSourceLiveFallback
+	logger.FromContext(ctx).Info(
+		"public model catalog live fallback rebuilt",
+		zap.String("component", "service.model_catalog"),
+		zap.Int("model_count", len(liveSnapshot.Items)),
+	)
+	return liveSnapshot, nil
 }
 
 func emptyPublishedPublicModelCatalogSnapshot() *PublicModelCatalogSnapshot {
@@ -73,7 +83,6 @@ func emptyPublishedPublicModelCatalogSnapshot() *PublicModelCatalogSnapshot {
 
 func (s *ModelCatalogService) PublishedPublicModelCatalogSnapshot(ctx context.Context) (*PublicModelCatalogSnapshot, error) {
 	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
-		s.storePublicModelCatalogSnapshot(&published.Snapshot)
 		return clonePublicModelCatalogSnapshot(&published.Snapshot), nil
 	}
 	return emptyPublishedPublicModelCatalogSnapshot(), nil
@@ -491,10 +500,11 @@ func clonePublicModelCatalogSnapshot(snapshot *PublicModelCatalogSnapshot) *Publ
 		return nil
 	}
 	cloned := &PublicModelCatalogSnapshot{
-		ETag:      snapshot.ETag,
-		UpdatedAt: snapshot.UpdatedAt,
-		PageSize:  snapshot.PageSize,
-		Items:     make([]PublicModelCatalogItem, 0, len(snapshot.Items)),
+		ETag:          snapshot.ETag,
+		UpdatedAt:     snapshot.UpdatedAt,
+		PageSize:      snapshot.PageSize,
+		CatalogSource: snapshot.CatalogSource,
+		Items:         make([]PublicModelCatalogItem, 0, len(snapshot.Items)),
 	}
 	for _, item := range snapshot.Items {
 		cloned.Items = append(cloned.Items, clonePublicModelCatalogItem(item))

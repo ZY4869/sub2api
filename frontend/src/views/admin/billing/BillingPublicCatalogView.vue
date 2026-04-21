@@ -8,7 +8,7 @@
           </div>
           <h2 class="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">对外模型展示</h2>
           <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-            先在这里维护草稿，再手动“推送更新”生成对外发布快照。公开模型库只会读取已发布版本，未推送前前台不会变化。
+            先在这里维护草稿，再手动“推送更新”生成正式对外快照。系统会优先展示已发布版本；如果还没有发布过，也会自动回退到实时目录供前台与内部选择器预览。
           </p>
         </div>
 
@@ -53,7 +53,7 @@
         <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 dark:border-sky-900/60 dark:bg-sky-950/20">
           <div class="text-xs font-medium uppercase tracking-[0.18em] text-sky-700 dark:text-sky-200">发布语义</div>
           <div class="mt-2 text-sm leading-6 text-sky-800 dark:text-sky-100">
-            推送时会同时冻结列表排序、展示名称、分页大小与模型详情调用示例。公开模型库不会再按 TTL 自动重建。
+            推送时会同时冻结列表排序、展示名称、分页大小与模型详情调用示例。已发布版本始终优先；未发布时才会回退到实时目录，不会再把未发布状态表现成空白加载。
           </div>
         </div>
       </div>

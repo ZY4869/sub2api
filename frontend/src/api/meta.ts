@@ -47,8 +47,11 @@ export interface PublicModelCatalogItem {
   multiplier_summary: PublicModelCatalogMultiplierSummary
 }
 
+export type PublicModelCatalogSource = 'published' | 'live_fallback'
+
 export interface PublicModelCatalogDetailResponse {
   item: PublicModelCatalogItem
+  catalog_source?: PublicModelCatalogSource
   example_source?: 'docs_section' | 'override_template'
   example_protocol?: string
   example_page_id?: string
@@ -60,6 +63,7 @@ export interface PublicModelCatalogSnapshot {
   etag: string
   updated_at: string
   page_size?: number
+  catalog_source?: PublicModelCatalogSource
   items: PublicModelCatalogItem[]
 }
 

@@ -514,6 +514,8 @@ func (s *stubAdminService) UnarchiveAccounts(ctx context.Context, input *service
 }
 
 func (s *stubAdminService) GetAccount(ctx context.Context, id int64) (*service.Account, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for i := range s.accounts {
 		if s.accounts[i].ID == id {
 			account := s.accounts[i]
@@ -548,7 +550,7 @@ func (s *stubAdminService) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.CreateAccountInput) (*service.Account, error) {
 	s.mu.Lock()
 	s.createdAccounts = append(s.createdAccounts, input)
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 	if s.createAccountErr != nil {
 		return nil, s.createAccountErr
 	}
@@ -556,7 +558,33 @@ func (s *stubAdminService) CreateAccount(ctx context.Context, input *service.Cre
 	if status == "" {
 		status = service.StatusActive
 	}
-	account := service.Account{ID: 300, Name: input.Name, Status: status}
+	now := time.Now().UTC()
+	account := service.Account{
+		ID:          300,
+		Name:        input.Name,
+		Notes:       input.Notes,
+		Platform:    input.Platform,
+		Type:        input.Type,
+		Credentials: cloneStringAnyMap(input.Credentials),
+		Extra:       cloneStringAnyMap(input.Extra),
+		ProxyID:     input.ProxyID,
+		Concurrency: input.Concurrency,
+		Priority:    input.Priority,
+		Status:      status,
+		GroupIDs:    append([]int64(nil), input.GroupIDs...),
+		Schedulable: status == service.StatusActive,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	if input.RateMultiplier != nil {
+		value := *input.RateMultiplier
+		account.RateMultiplier = &value
+	}
+	if input.LoadFactor != nil {
+		value := *input.LoadFactor
+		account.LoadFactor = &value
+	}
+	upsertStubAccount(&s.accounts, account)
 	return &account, nil
 }
 
@@ -564,11 +592,58 @@ func (s *stubAdminService) UpdateAccount(ctx context.Context, id int64, input *s
 	s.mu.Lock()
 	s.updatedAccountIDs = append(s.updatedAccountIDs, id)
 	s.updatedAccounts = append(s.updatedAccounts, input)
-	s.mu.Unlock()
+	defer s.mu.Unlock()
 	if s.updateAccountErr != nil {
 		return nil, s.updateAccountErr
 	}
-	account := service.Account{ID: id, Name: input.Name, Status: service.StatusActive}
+	account := service.Account{ID: id, Name: "account", Status: service.StatusActive, Schedulable: true}
+	for i := range s.accounts {
+		if s.accounts[i].ID == id {
+			account = s.accounts[i]
+			break
+		}
+	}
+	if input.Name != "" {
+		account.Name = input.Name
+	}
+	if input.Notes != nil {
+		account.Notes = input.Notes
+	}
+	if input.Type != "" {
+		account.Type = input.Type
+	}
+	if len(input.Credentials) > 0 {
+		account.Credentials = cloneStringAnyMap(input.Credentials)
+	}
+	if len(input.Extra) > 0 {
+		account.Extra = cloneStringAnyMap(input.Extra)
+	}
+	if input.ProxyID != nil {
+		account.ProxyID = input.ProxyID
+	}
+	if input.Concurrency != nil {
+		account.Concurrency = *input.Concurrency
+	}
+	if input.Priority != nil {
+		account.Priority = *input.Priority
+	}
+	if input.RateMultiplier != nil {
+		value := *input.RateMultiplier
+		account.RateMultiplier = &value
+	}
+	if input.LoadFactor != nil {
+		value := *input.LoadFactor
+		account.LoadFactor = &value
+	}
+	if input.Status != "" {
+		account.Status = input.Status
+		account.Schedulable = input.Status == service.StatusActive
+	}
+	if input.GroupIDs != nil {
+		account.GroupIDs = append([]int64(nil), (*input.GroupIDs)...)
+	}
+	account.UpdatedAt = time.Now().UTC()
+	upsertStubAccount(&s.accounts, account)
 	return &account, nil
 }
 
@@ -947,6 +1022,19 @@ func (s *stubAdminService) ForceOpenAIPrivacy(ctx context.Context, account *serv
 
 func (s *stubAdminService) ReplaceUserGroup(ctx context.Context, userID, oldGroupID, newGroupID int64) (*service.ReplaceUserGroupResult, error) {
 	return &service.ReplaceUserGroupResult{MigratedKeys: 0}, nil
+}
+
+func upsertStubAccount(accounts *[]service.Account, account service.Account) {
+	if accounts == nil {
+		return
+	}
+	for i := range *accounts {
+		if (*accounts)[i].ID == account.ID {
+			(*accounts)[i] = account
+			return
+		}
+	}
+	*accounts = append(*accounts, account)
 }
 
 // Ensure stub implements interface.

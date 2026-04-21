@@ -322,7 +322,6 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 	if err := s.persistPublishedPublicModelCatalogSnapshot(ctx, published); err != nil {
 		return nil, err
 	}
-	s.storePublicModelCatalogSnapshot(&published.Snapshot)
 	summary := publicModelCatalogPublishedSummary(published)
 	logger.FromContext(ctx).Info(
 		"public model catalog published",

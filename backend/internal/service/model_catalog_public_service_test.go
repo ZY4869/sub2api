@@ -511,6 +511,33 @@ func TestModelCatalogService_PublishedPublicModelCatalogSnapshot_ReturnsEmptyWhe
 	require.Error(t, err)
 }
 
+func TestModelCatalogService_PublicModelCatalogSnapshot_FallsBackToLiveWhenNotPublished(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	snapshot, err := svc.PublicModelCatalogSnapshot(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, PublicModelCatalogSourceLiveFallback, snapshot.CatalogSource)
+	require.Len(t, snapshot.Items, 1)
+	require.Equal(t, "gpt-5.4", snapshot.Items[0].Model)
+
+	detail, err := svc.PublicModelCatalogDetail(context.Background(), "gpt-5.4")
+	require.NoError(t, err)
+	require.Equal(t, PublicModelCatalogSourceLiveFallback, detail.CatalogSource)
+	require.Equal(t, "gpt-5.4", detail.Item.Model)
+}
+
 func TestModelCatalogService_SavePublicModelCatalogDraft_DoesNotChangePublishedSnapshot(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
@@ -656,10 +683,141 @@ func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesPublishedPrices(t *tes
 	snapshot, err := apiKeySvc.GetGroupModelCatalogSnapshot(context.Background(), 7, 10)
 	require.NoError(t, err)
 	require.Len(t, snapshot.Items, 1)
+	require.Equal(t, PublicModelCatalogSourcePublished, snapshot.CatalogSource)
 	require.NotEqual(t, basePublished.ETag, snapshot.ETag)
 	require.Equal(t, basePublished.UpdatedAt, snapshot.UpdatedAt)
 	require.InDelta(t, 1.5e-6, snapshot.Items[0].PriceDisplay.Primary[0].Value, 1e-12)
 	require.InDelta(t, 3e-6, snapshot.Items[0].PriceDisplay.Primary[1].Value, 1e-12)
+}
+
+func TestAPIKeyService_GetGroupModelCatalogSnapshot_ScalesLiveFallbackPrices(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 20, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	groupRepo := &publicCatalogGroupRepoStub{
+		groups: []Group{
+			{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 1.5},
+		},
+	}
+	apiKeySvc := NewAPIKeyService(
+		nil,
+		&publicCatalogUserRepoStub{user: &User{ID: 7, Role: RoleUser}},
+		groupRepo,
+		publicCatalogUserSubRepoStub{},
+		nil,
+		nil,
+		&config.Config{},
+	)
+	apiKeySvc.SetModelCatalogService(modelCatalogSvc)
+
+	snapshot, err := apiKeySvc.GetGroupModelCatalogSnapshot(context.Background(), 7, 10)
+	require.NoError(t, err)
+	require.Len(t, snapshot.Items, 1)
+	require.Equal(t, PublicModelCatalogSourceLiveFallback, snapshot.CatalogSource)
+	require.NotEmpty(t, snapshot.ETag)
+	require.InDelta(t, 1.5e-6, snapshot.Items[0].PriceDisplay.Primary[0].Value, 1e-12)
+	require.InDelta(t, 3e-6, snapshot.Items[0].PriceDisplay.Primary[1].Value, 1e-12)
+}
+
+func TestAPIKeyService_GetAvailableGroupModelOptions_LiveFallbackUsesEffectiveCatalog(t *testing.T) {
+	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
+	repo.values[SettingKeyModelCatalogEntries] = mustModelCatalogJSON(t, []ModelCatalogEntry{
+		{
+			Model:                "registry-openai-beta",
+			DisplayName:          "Registry OpenAI Beta",
+			Provider:             PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "registry-openai-beta",
+			PricingLookupModelID: "registry-openai-beta",
+		},
+		{
+			Model:                "registry-openai-gamma",
+			DisplayName:          "Registry OpenAI Gamma",
+			Provider:             PlatformOpenAI,
+			Mode:                 "chat",
+			CanonicalModelID:     "registry-openai-gamma",
+			PricingLookupModelID: "registry-openai-gamma",
+		},
+	})
+	require.NoError(t, persistBillingPricingCatalogSnapshotBySetting(context.Background(), repo, SettingKeyBillingPricingCatalogSnapshot, &BillingPricingCatalogSnapshot{
+		UpdatedAt: time.Date(2026, time.April, 19, 0, 0, 0, 0, time.UTC),
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("registry-openai-beta", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}))
+
+	registrySvc := NewModelRegistryService(repo)
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-beta", "registry-openai-gamma"})
+	require.NoError(t, err)
+
+	groupRepo := &publicCatalogGroupRepoStub{
+		groups: []Group{
+			{ID: 10, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive},
+		},
+	}
+	accountRepo := &publicCatalogAccountRepoStub{
+		accountsByGroup: map[int64][]Account{
+			10: {
+				{
+					ID:          99,
+					Name:        "scoped-openai",
+					Platform:    PlatformOpenAI,
+					Type:        AccountTypeAPIKey,
+					Status:      StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"model_scope_v2": map[string]any{
+							"supported_models_by_provider": map[string]any{
+								PlatformOpenAI: []any{"registry-openai-beta"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	gatewaySvc := &GatewayService{
+		accountRepo:          accountRepo,
+		groupRepo:            groupRepo,
+		modelRegistryService: registrySvc,
+		cfg:                  &config.Config{},
+	}
+
+	modelCatalogSvc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
+	modelCatalogSvc.SetGatewayService(gatewaySvc)
+	apiKeySvc := NewAPIKeyService(
+		nil,
+		&publicCatalogUserRepoStub{user: &User{ID: 7, Role: RoleUser}},
+		groupRepo,
+		publicCatalogUserSubRepoStub{},
+		nil,
+		nil,
+		&config.Config{},
+	)
+	apiKeySvc.SetGatewayService(gatewaySvc)
+	apiKeySvc.SetModelCatalogService(modelCatalogSvc)
+
+	options, err := apiKeySvc.GetAvailableGroupModelOptions(context.Background(), 7)
+	require.NoError(t, err)
+	require.Len(t, options, 1)
+	require.Len(t, options[0].Models, 1)
+	require.Equal(t, "registry-openai-beta", options[0].Models[0].PublicID)
 }
 
 func TestModelCatalogService_PublicModelCatalogSnapshot_CachesWithinTTLAndRefreshesAfterExpiry(t *testing.T) {

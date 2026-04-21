@@ -79,6 +79,7 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 	if published := s.loadPublishedPublicModelCatalogSnapshot(ctx); published != nil {
 		if detail, ok := published.Details[normalizedModel]; ok {
 			cloned := clonePublicModelCatalogDetail(detail)
+			cloned.CatalogSource = PublicModelCatalogSourcePublished
 			return &cloned, nil
 		}
 		return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
@@ -142,6 +143,7 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 	}
 	return &PublicModelCatalogDetail{
 		Item:              item,
+		CatalogSource:     PublicModelCatalogSourceLiveFallback,
 		ExampleSource:     exampleSource,
 		ExampleProtocol:   exampleProtocol,
 		ExamplePageID:     examplePageID,

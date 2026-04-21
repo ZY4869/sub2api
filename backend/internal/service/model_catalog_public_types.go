@@ -1,10 +1,16 @@
 package service
 
+const (
+	PublicModelCatalogSourcePublished    = "published"
+	PublicModelCatalogSourceLiveFallback = "live_fallback"
+)
+
 type PublicModelCatalogSnapshot struct {
-	ETag      string                   `json:"etag"`
-	UpdatedAt string                   `json:"updated_at"`
-	PageSize  int                      `json:"page_size,omitempty"`
-	Items     []PublicModelCatalogItem `json:"items"`
+	ETag          string                   `json:"etag"`
+	UpdatedAt     string                   `json:"updated_at"`
+	PageSize      int                      `json:"page_size,omitempty"`
+	CatalogSource string                   `json:"catalog_source,omitempty"`
+	Items         []PublicModelCatalogItem `json:"items"`
 }
 
 type PublicModelCatalogItem struct {
@@ -40,6 +46,7 @@ type PublicModelCatalogMultiplierSummary struct {
 
 type PublicModelCatalogDetail struct {
 	Item              PublicModelCatalogItem `json:"item"`
+	CatalogSource     string                 `json:"catalog_source,omitempty"`
 	ExampleSource     string                 `json:"example_source,omitempty"`
 	ExampleProtocol   string                 `json:"example_protocol,omitempty"`
 	ExamplePageID     string                 `json:"example_page_id,omitempty"`
