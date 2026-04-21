@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOpenAIGatewayService_IsModelSupportedByAccount_UsesMappedSourceAndAlias(t *testing.T) {
+func TestOpenAIGatewayService_IsModelSupportedByAccount_UsesDisplayModelIDOnly(t *testing.T) {
 	svc := &OpenAIGatewayService{}
 	account := &Account{
 		Platform: PlatformOpenAI,
@@ -19,6 +19,6 @@ func TestOpenAIGatewayService_IsModelSupportedByAccount_UsesMappedSourceAndAlias
 	}
 
 	require.True(t, svc.isModelSupportedByAccount(account, "friendly-gpt"))
-	require.True(t, svc.isModelSupportedByAccount(account, "gpt-4.1-mini"))
+	require.False(t, svc.isModelSupportedByAccount(account, "gpt-4.1-mini"))
 	require.False(t, svc.isModelSupportedByAccount(account, "gpt-4o"))
 }

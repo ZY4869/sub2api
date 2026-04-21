@@ -13,6 +13,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/stretchr/testify/require"
 )
 
 // =====================
@@ -52,7 +53,7 @@ func TestGeminiOAuthService_GenerateAuthURL_RedirectURIStrategy(t *testing.T) {
 			wantProjectID: "",
 		},
 		{
-			name: "google_one always forces built-in client even when custom client configured",
+			name: "google_one uses custom client and drive scope when configured",
 			cfg: &config.Config{
 				Gemini: config.GeminiConfig{
 					OAuth: config.GeminiOAuthConfig{
@@ -62,9 +63,9 @@ func TestGeminiOAuthService_GenerateAuthURL_RedirectURIStrategy(t *testing.T) {
 				},
 			},
 			oauthType:     "google_one",
-			wantClientID:  geminicli.GeminiCLIOAuthClientID,
-			wantRedirect:  geminicli.GeminiCLIRedirectURI,
-			wantScope:     geminicli.DefaultCodeAssistScopes,
+			wantClientID:  "custom-client-id",
+			wantRedirect:  geminicli.AIStudioOAuthRedirectURI,
+			wantScope:     geminicli.DefaultGoogleOneScopes,
 			wantProjectID: "",
 		},
 		{
@@ -139,6 +140,66 @@ func TestGeminiOAuthService_GenerateAuthURL_RedirectURIStrategy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGeminiOAuthService_ExchangeCode_GoogleOneCustomClientUsesSessionRedirect(t *testing.T) {
+	t.Parallel()
+
+	var gotRedirectURI string
+	client := &mockGeminiOAuthClient{
+		exchangeCodeFunc: func(ctx context.Context, oauthType, code, codeVerifier, redirectURI, proxyURL string) (*geminicli.TokenResponse, error) {
+			gotRedirectURI = redirectURI
+			return &geminicli.TokenResponse{
+				AccessToken:  "access-token",
+				RefreshToken: "refresh-token",
+				TokenType:    "Bearer",
+				ExpiresIn:    3600,
+				Scope:        geminicli.DefaultGoogleOneScopes,
+			}, nil
+		},
+	}
+	codeAssist := &mockGeminiCodeAssistClient{
+		loadCodeAssistFunc: func(ctx context.Context, accessToken, proxyURL string, req *geminicli.LoadCodeAssistRequest) (*geminicli.LoadCodeAssistResponse, error) {
+			return &geminicli.LoadCodeAssistResponse{
+				CloudAICompanionProject: "project-123",
+				AllowedTiers:            []geminicli.AllowedTier{{ID: "google_one_free", IsDefault: true}},
+			}, nil
+		},
+	}
+	drive := &mockDriveClient{
+		getStorageQuotaFunc: func(ctx context.Context, accessToken, proxyURL string) (*geminicli.DriveStorageInfo, error) {
+			return &geminicli.DriveStorageInfo{Limit: StorageTierBasic, Usage: 10 * GB}, nil
+		},
+	}
+	cfg := &config.Config{
+		Gemini: config.GeminiConfig{
+			OAuth: config.GeminiOAuthConfig{
+				ClientID:     "custom-client-id",
+				ClientSecret: "custom-client-secret",
+			},
+		},
+	}
+
+	svc := NewGeminiOAuthService(nil, client, codeAssist, drive, cfg)
+	defer svc.Stop()
+	svc.sessionStore.Set("google-one-custom", &geminicli.OAuthSession{
+		State:        "state-1",
+		CodeVerifier: "verifier-1",
+		RedirectURI:  geminicli.AIStudioOAuthRedirectURI,
+		OAuthType:    "google_one",
+		CreatedAt:    time.Now(),
+	})
+
+	info, err := svc.ExchangeCode(context.Background(), &GeminiExchangeCodeInput{
+		SessionID: "google-one-custom",
+		State:     "state-1",
+		Code:      "auth-code",
+	})
+	require.NoError(t, err)
+	require.Equal(t, geminicli.AIStudioOAuthRedirectURI, gotRedirectURI)
+	require.Equal(t, GeminiTierGoogleOneFree, info.TierID)
+	require.Equal(t, "project-123", info.ProjectID)
+	require.NotNil(t, info.Extra)
 }
 
 // =====================
@@ -1290,6 +1351,81 @@ func TestGeminiOAuthService_RefreshAccountToken_GoogleOne_NoTierID_DefaultsFree(
 	if info.TierID != GeminiTierGoogleOneFree {
 		t.Fatalf("TierID 应为默认 free: got=%q", info.TierID)
 	}
+}
+
+func TestGeminiOAuthService_RefreshAccountToken_GoogleOne_NoDriveScopeSkipsProbe(t *testing.T) {
+	t.Parallel()
+
+	driveCalls := 0
+	client := &mockGeminiOAuthClient{
+		refreshTokenFunc: func(ctx context.Context, oauthType, refreshToken, proxyURL string) (*geminicli.TokenResponse, error) {
+			return &geminicli.TokenResponse{
+				AccessToken: "at",
+				ExpiresIn:   3600,
+				Scope:       geminicli.DefaultCodeAssistScopes,
+			}, nil
+		},
+	}
+	drive := &mockDriveClient{
+		getStorageQuotaFunc: func(ctx context.Context, accessToken, proxyURL string) (*geminicli.DriveStorageInfo, error) {
+			driveCalls++
+			return &geminicli.DriveStorageInfo{Limit: StorageTierBasic, Usage: 5 * GB}, nil
+		},
+	}
+
+	svc := NewGeminiOAuthService(&mockGeminiProxyRepo{}, client, nil, drive, &config.Config{})
+	defer svc.Stop()
+
+	account := &Account{
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"refresh_token": "rt",
+			"oauth_type":    "google_one",
+			"project_id":    "proj",
+		},
+	}
+
+	info, err := svc.RefreshAccountToken(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, 0, driveCalls)
+	require.Equal(t, GeminiTierGoogleOneFree, info.TierID)
+}
+
+func TestGeminiOAuthService_RefreshAccountGoogleOneTier_NoDriveScopeSkipsProbe(t *testing.T) {
+	t.Parallel()
+
+	driveCalls := 0
+	drive := &mockDriveClient{
+		getStorageQuotaFunc: func(ctx context.Context, accessToken, proxyURL string) (*geminicli.DriveStorageInfo, error) {
+			driveCalls++
+			return &geminicli.DriveStorageInfo{Limit: StorageTierBasic, Usage: 5 * GB}, nil
+		},
+	}
+
+	svc := NewGeminiOAuthService(&mockGeminiProxyRepo{}, nil, nil, drive, &config.Config{})
+	defer svc.Stop()
+
+	account := &Account{
+		Platform: PlatformGemini,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "at",
+			"oauth_type":   "google_one",
+			"scope":        geminicli.DefaultCodeAssistScopes,
+			"tier_id":      GeminiTierGoogleAIPro,
+		},
+		Extra: map[string]any{
+			"existing": true,
+		},
+	}
+
+	tierID, extra, credentials, err := svc.RefreshAccountGoogleOneTier(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, 0, driveCalls)
+	require.Equal(t, GeminiTierGoogleAIPro, tierID)
+	require.Equal(t, true, extra["existing"])
+	require.Equal(t, GeminiTierGoogleAIPro, credentials["tier_id"])
 }
 
 func TestGeminiOAuthService_RefreshAccountToken_UnauthorizedClient_Fallback(t *testing.T) {

@@ -211,7 +211,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { AccountTestMode, BatchAccountTestRequestPayload, BatchAccountTestResult } from '@/api/admin/accounts'
-import type { Account, ClaudeModel } from '@/types'
+import type { Account, AdminAccountModelOption } from '@/types'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import TextArea from '@/components/common/TextArea.vue'
@@ -243,7 +243,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const appStore = useAppStore()
 
-const availableModels = ref<ClaudeModel[]>([])
+const availableModels = ref<AdminAccountModelOption[]>([])
 const results = ref<BatchAccountTestResult[]>([])
 const loadingModels = ref(false)
 const running = ref(false)

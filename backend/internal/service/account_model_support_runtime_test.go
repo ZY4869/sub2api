@@ -100,13 +100,15 @@ func TestIsRequestedModelSupportedByAccount_ReusesCachedExplicitSupportSet(t *te
 		},
 	}
 
-	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "cached-shared-model"))
+	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "friendly-model"))
+	require.False(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "cached-shared-model"))
 	accountModelSupportCacheMu.RLock()
 	firstCacheSize := len(accountModelSupportCache)
 	accountModelSupportCacheMu.RUnlock()
 	require.Equal(t, 1, firstCacheSize)
 
-	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "cached-shared-model"))
+	require.True(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "friendly-model"))
+	require.False(t, isRequestedModelSupportedByAccount(context.Background(), registrySvc, account, "cached-shared-model"))
 	accountModelSupportCacheMu.RLock()
 	secondCacheSize := len(accountModelSupportCache)
 	accountModelSupportCacheMu.RUnlock()

@@ -2008,12 +2008,17 @@ export default {
         }
       },
       modelRestriction: 'Model Restriction (Optional)',
+      modelRestrictionEnableLabel: 'Enable Explicit Restriction',
+      modelRestrictionDisabledHint:
+        'When explicit restriction is off, the account exposes the default model library; probe results only annotate status and never expand the model set.',
       modelWhitelist: 'Model Whitelist',
       modelMapping: 'Model Mapping',
-      selectAllowedModels: 'Select allowed models. Leave empty to support all models.',
+      selectAllowedModels:
+        'Select the models that can be displayed and called externally. Leaving this empty keeps the current whitelist empty.',
       mapRequestModels:
         'Map request models to actual models. Left is the requested model, right is the actual model sent to API.',
       selectedModels: 'Selected {count} model(s)',
+      noModelsSelected: '(no models selected)',
       supportsAllModels: '(supports all models)',
       requestModel: 'Request model',
       actualModel: 'Actual model',
@@ -2931,6 +2936,17 @@ export default {
       testModeLine: 'Test mode: {mode}',
       selectTestModel: 'Select Test Model',
       refreshTestModels: 'Refresh models',
+      testModelTargetRelation: '-> {target}',
+      testModelAvailability: {
+        verified: 'Verified',
+        unavailable: 'Unavailable',
+        unknown: 'Unknown'
+      },
+      testModelStale: {
+        fresh: 'Fresh',
+        stale: 'Stale',
+        unverified: 'Unverified'
+      },
       testModelQuickFilters: {
         text: 'Text',
         image: 'Image',

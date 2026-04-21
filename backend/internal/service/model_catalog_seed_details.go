@@ -56,7 +56,7 @@ func appendBundledModelCatalogSeedDetails(base []modelregistry.AdminModelDetail)
 			DisplayName:      entry.DisplayName,
 			Provider:         entry.Provider,
 			Platforms:        defaultPlatformsForProvider(entry.Provider),
-			ProtocolIDs:      compactRegistryStrings(entry.CanonicalModelID, entry.Model),
+			ProtocolIDs:      compactRegistryStrings(entry.Model),
 			Aliases:          []string{},
 			PricingLookupIDs: compactRegistryStrings(entry.PricingLookupModelID, entry.CanonicalModelID, entry.Model),
 			Modalities:       defaultModalitiesForMode(inferModelMode(entry.Model, entry.Mode)),

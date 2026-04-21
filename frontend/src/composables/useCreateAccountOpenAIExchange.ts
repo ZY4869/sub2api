@@ -39,6 +39,7 @@ interface UseCreateAccountOpenAIExchangeOptions {
   autoPauseOnExpired: Ref<boolean>
   applyTempUnschedConfig: (credentials: Record<string, unknown>) => boolean
   isOpenAIModelRestrictionDisabled: ComputedRef<boolean>
+  modelRestrictionEnabled: Ref<boolean>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
@@ -79,7 +80,10 @@ export function useCreateAccountOpenAIExchange(options: UseCreateAccountOpenAIEx
       const oauthExtra = oauthClient.buildExtraInfo(tokenInfo)
       const extra = options.buildAccountExtra(oauthExtra)
 
-      if (!options.isOpenAIModelRestrictionDisabled.value) {
+      if (
+        options.modelRestrictionEnabled.value &&
+        !options.isOpenAIModelRestrictionDisabled.value
+      ) {
         const modelMapping = buildModelMappingObject(
           options.modelRestrictionMode.value,
           options.allowedModels.value,

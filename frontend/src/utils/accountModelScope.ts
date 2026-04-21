@@ -13,6 +13,13 @@ export interface BuildAccountModelScopeOptions {
   modelMappings: AccountModelScopeMappingRow[]
 }
 
+export interface LoadedAccountModelScopeDraft {
+  enabled: boolean
+  mode: 'whitelist' | 'mapping'
+  allowedModels: string[]
+  modelMappings: AccountModelScopeMappingRow[]
+}
+
 export function buildAccountModelScopeExtra(
   baseExtra: Record<string, unknown> | undefined,
   options: BuildAccountModelScopeOptions
@@ -24,85 +31,242 @@ export function buildAccountModelScopeExtra(
   }
 
   const snapshot = getModelRegistrySnapshot()
-  const normalizedAllowedModels = [...new Set(
-    options.allowedModels
-      .map((item) => item.trim())
-      .filter(Boolean)
-  )]
-  const manualMappings =
+  const normalizedAllowedModels = uniqueStrings(options.allowedModels)
+  const normalizedMappings = uniqueMappingRows(options.modelMappings)
+  const entries =
     options.mode === 'mapping'
-      ? Object.fromEntries(
-          options.modelMappings
-            .map((item) => [item.from.trim(), item.to.trim()] as const)
-            .filter(([from, to]) => Boolean(from) && Boolean(to) && from !== to)
+      ? buildMappingEntries(snapshot.models, options.platform, normalizedAllowedModels, normalizedMappings)
+      : normalizedAllowedModels.map((modelID) =>
+          buildScopeEntry(snapshot.models, options.platform, modelID, modelID)
         )
-      : {}
-  const manualMappingRows =
-    options.mode === 'mapping'
-      ? options.modelMappings
-          .map((item) => ({ from: item.from.trim(), to: item.to.trim() }))
-          .filter((item) => Boolean(item.from) && Boolean(item.to) && item.from !== item.to)
-      : []
 
-  const selectedModels =
-    options.mode === 'whitelist'
-      ? normalizedAllowedModels
-      : (normalizedAllowedModels.length > 0
-          ? normalizedAllowedModels
-          : options.modelMappings
-              .map((item) => item.to.trim())
-              .filter((value) => value && !value.includes('*')))
-
-  const supportedModelsByProvider: Record<string, string[]> = {}
-
-  for (const modelId of selectedModels) {
-    const entry = snapshot.models.find(
-      (item) =>
-        item.id === modelId ||
-        item.aliases.includes(modelId) ||
-        item.protocol_ids.includes(modelId)
-    )
-    if (!entry) {
-      const fallbackProvider = (options.platform || '').trim().toLowerCase()
-      if (!fallbackProvider) {
-        continue
-      }
-      const current = supportedModelsByProvider[fallbackProvider] || []
-      if (!current.includes(modelId)) {
-        supportedModelsByProvider[fallbackProvider] = [...current, modelId]
-      }
-      continue
-    }
-    const provider = (entry.provider || options.platform || '').trim().toLowerCase()
-    if (!provider) {
-      continue
-    }
-    const current = supportedModelsByProvider[provider] || []
-    if (!current.includes(entry.id)) {
-      supportedModelsByProvider[provider] = [...current, entry.id]
-    }
+  nextExtra.model_scope_v2 = {
+    policy_mode: options.mode === 'mapping' ? 'mapping' : 'whitelist',
+    entries
   }
-
-  const supportedProviders = Object.keys(supportedModelsByProvider).sort()
-  for (const provider of supportedProviders) {
-    supportedModelsByProvider[provider] = [...supportedModelsByProvider[provider]].sort()
-  }
-
-  if (supportedProviders.length === 0 && Object.keys(manualMappings).length === 0 && manualMappingRows.length === 0) {
-    delete nextExtra.model_scope_v2
-    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
-  }
-
-  const modelScopeV2: Record<string, unknown> = {
-    supported_providers: supportedProviders,
-    supported_models_by_provider: supportedModelsByProvider,
-    advanced_provider_override: false,
-    manual_mapping_rows: manualMappingRows,
-    manual_mappings: manualMappings
-  }
-  if (options.mode === 'whitelist' && normalizedAllowedModels.length > 0) {
-    modelScopeV2.selected_model_ids = normalizedAllowedModels
-  }
-  nextExtra.model_scope_v2 = modelScopeV2
   return nextExtra
+}
+
+export function loadAccountModelScopeDraft(
+  extra: Record<string, unknown> | undefined | null
+): LoadedAccountModelScopeDraft | null {
+  const raw = extra?.model_scope_v2
+  if (!raw || typeof raw !== 'object') {
+    return null
+  }
+
+  const scope = raw as Record<string, unknown>
+  const policyMode = String(scope.policy_mode || '').trim().toLowerCase() === 'mapping'
+    ? 'mapping'
+    : 'whitelist'
+  const rawEntries = Array.isArray(scope.entries) ? scope.entries : []
+  const entries = rawEntries
+    .map((item) => {
+      const entry = item as Record<string, unknown>
+      const displayModelID = String(entry.display_model_id || '').trim()
+      const targetModelID = String(entry.target_model_id || displayModelID).trim()
+      return {
+        displayModelID,
+        targetModelID
+      }
+    })
+    .filter((entry) => entry.displayModelID.length > 0 && entry.targetModelID.length > 0)
+
+  if (entries.length > 0) {
+    const mappingRows = entries
+      .filter((entry) => entry.displayModelID !== entry.targetModelID)
+      .map((entry) => ({ from: entry.displayModelID, to: entry.targetModelID }))
+    if (mappingRows.length > 0) {
+      return {
+        enabled: true,
+        mode: policyMode,
+        allowedModels: uniqueStrings(entries.map((entry) => entry.targetModelID)),
+        modelMappings: mappingRows
+      }
+    }
+    return {
+      enabled: true,
+      mode: policyMode,
+      allowedModels: uniqueStrings(entries.map((entry) => entry.displayModelID)),
+      modelMappings: []
+    }
+  }
+
+  const selectedModelIDs = uniqueStrings(scope.selected_model_ids)
+  if (selectedModelIDs.length > 0) {
+    return {
+      enabled: true,
+      mode: 'whitelist',
+      allowedModels: selectedModelIDs,
+      modelMappings: []
+    }
+  }
+
+  const manualMappingRows = Array.isArray(scope.manual_mapping_rows)
+    ? uniqueMappingRows(
+        scope.manual_mapping_rows.map((item) => {
+          const row = item as Record<string, unknown>
+          return {
+            from: String(row.from || '').trim(),
+            to: String(row.to || '').trim()
+          }
+        })
+      )
+    : []
+  if (manualMappingRows.length > 0) {
+    return {
+      enabled: true,
+      mode: 'mapping',
+      allowedModels: uniqueStrings(manualMappingRows.map((item) => item.to)),
+      modelMappings: manualMappingRows
+    }
+  }
+
+  if (scope.manual_mappings && typeof scope.manual_mappings === 'object') {
+    const manualMappings = uniqueMappingRows(
+      Object.entries(scope.manual_mappings as Record<string, unknown>).map(([from, to]) => ({
+        from: String(from || '').trim(),
+        to: String(to || '').trim()
+      }))
+    )
+    if (manualMappings.length > 0) {
+      return {
+        enabled: true,
+        mode: 'mapping',
+        allowedModels: uniqueStrings(manualMappings.map((item) => item.to)),
+        modelMappings: manualMappings
+      }
+    }
+  }
+
+  if (scope.supported_models_by_provider && typeof scope.supported_models_by_provider === 'object') {
+    const allowedModels = uniqueStrings(
+      Object.values(scope.supported_models_by_provider as Record<string, unknown>).flatMap((value) =>
+        Array.isArray(value) ? value : []
+      )
+    )
+    if (allowedModels.length > 0) {
+      return {
+        enabled: true,
+        mode: 'whitelist',
+        allowedModels,
+        modelMappings: []
+      }
+    }
+  }
+
+  return {
+    enabled: true,
+    mode: policyMode,
+    allowedModels: [],
+    modelMappings: []
+  }
+}
+
+function buildMappingEntries(
+  registryModels: Array<{
+    id: string
+    provider: string
+    aliases: string[]
+    protocol_ids: string[]
+  }>,
+  platform: string,
+  allowedModels: string[],
+  modelMappings: AccountModelScopeMappingRow[]
+) {
+  const normalizedTargets = uniqueStrings([
+    ...allowedModels,
+    ...modelMappings.map((item) => item.to)
+  ])
+  const aliasesByTarget = new Map<string, AccountModelScopeMappingRow[]>()
+  for (const row of modelMappings) {
+    const current = aliasesByTarget.get(row.to) || []
+    current.push(row)
+    aliasesByTarget.set(row.to, current)
+  }
+
+  const entries: Array<Record<string, unknown>> = []
+  for (const targetModelID of normalizedTargets) {
+    const aliases = (aliasesByTarget.get(targetModelID) || []).filter(
+      (item) => item.from !== item.to
+    )
+    if (aliases.length > 0) {
+      for (const alias of aliases) {
+        entries.push(buildScopeEntry(registryModels, platform, alias.from, targetModelID))
+      }
+      continue
+    }
+    entries.push(buildScopeEntry(registryModels, platform, targetModelID, targetModelID))
+  }
+  return entries
+}
+
+function buildScopeEntry(
+  registryModels: Array<{
+    id: string
+    provider: string
+    aliases: string[]
+    protocol_ids: string[]
+  }>,
+  platform: string,
+  displayModelID: string,
+  targetModelID: string
+) {
+  const normalizedDisplayModelID = String(displayModelID || '').trim()
+  const normalizedTargetModelID = String(targetModelID || normalizedDisplayModelID).trim()
+  const registryEntry = registryModels.find(
+    (item) =>
+      item.id === normalizedTargetModelID ||
+      item.aliases.includes(normalizedTargetModelID) ||
+      item.protocol_ids.includes(normalizedTargetModelID)
+  )
+  const entry: Record<string, unknown> = {
+    display_model_id: normalizedDisplayModelID,
+    target_model_id: normalizedTargetModelID,
+    visibility_mode:
+      normalizedDisplayModelID === normalizedTargetModelID ? 'direct' : 'alias'
+  }
+  const provider = (registryEntry?.provider || platform || '').trim().toLowerCase()
+  if (provider) {
+    entry.provider = provider
+  }
+  const sourceProtocol = normalizeSourceProtocol(platform || registryEntry?.provider)
+  if (sourceProtocol) {
+    entry.source_protocol = sourceProtocol
+  }
+  return entry
+}
+
+function uniqueStrings(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return []
+  }
+  return [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))]
+}
+
+function uniqueMappingRows(rows: AccountModelScopeMappingRow[]): AccountModelScopeMappingRow[] {
+  const normalized: AccountModelScopeMappingRow[] = []
+  const seen = new Set<string>()
+  for (const row of rows) {
+    const from = String(row?.from || '').trim()
+    const to = String(row?.to || '').trim()
+    if (!from || !to) {
+      continue
+    }
+    const dedupeKey = `${from}::${to}`.toLowerCase()
+    if (seen.has(dedupeKey)) {
+      continue
+    }
+    seen.add(dedupeKey)
+    normalized.push({ from, to })
+  }
+  return normalized
+}
+
+function normalizeSourceProtocol(value: unknown): string {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'openai' || normalized === 'anthropic' || normalized === 'gemini') {
+    return normalized
+  }
+  return ''
 }

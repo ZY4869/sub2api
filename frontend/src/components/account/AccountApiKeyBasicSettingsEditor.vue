@@ -46,6 +46,7 @@ const emit = defineEmits<{
 
 const baseUrl = defineModel<string>('baseUrl', { required: true })
 const apiKey = defineModel<string>('apiKey', { required: true })
+const modelScopeEnabled = defineModel<boolean>('modelScopeEnabled', { default: true })
 const modelScopeMode = defineModel<'whitelist' | 'mapping'>('modelScopeMode', { required: true })
 const allowedModels = defineModel<string[]>('allowedModels', { required: true })
 const geminiTierAiStudio = defineModel<GeminiAIStudioTier>('geminiTierAiStudio')
@@ -157,6 +158,7 @@ const showApiKey = ref(false)
 
     <AccountModelScopeEditor
       v-if="showModelScopeEditor"
+      v-model:enabled="modelScopeEnabled"
       v-model:actual-model-locked="actualModelLocked"
       :disabled="modelScopeDisabled"
       :platform="resolvedEffectivePlatform"

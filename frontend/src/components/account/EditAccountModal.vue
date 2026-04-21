@@ -129,6 +129,7 @@
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="editBaseUrl"
           v-model:api-key="editApiKey"
+          v-model:model-scope-enabled="modelRestrictionEnabled"
           v-model:actual-model-locked="actualModelLocked"
           v-model:model-scope-mode="modelRestrictionMode"
           v-model:allowed-models="allowedModels"
@@ -199,6 +200,7 @@
 
       <AccountModelScopeEditor
         v-if="showStandaloneModelScopeEditor"
+        v-model:enabled="modelRestrictionEnabled"
         v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
@@ -551,7 +553,7 @@ import {
   buildModelMappingObject
 } from '@/composables/useModelWhitelist'
 import { ensureModelRegistryFresh } from '@/stores/modelRegistry'
-import { buildAccountModelScopeExtra } from '@/utils/accountModelScope'
+import { buildAccountModelScopeExtra, loadAccountModelScopeDraft } from '@/utils/accountModelScope'
 import type { ProtocolGatewayProbeModel } from '@/api/admin/accounts'
 import {
   GEMINI_API_KEY_VARIANT_VERTEX_EXPRESS,
@@ -667,6 +669,7 @@ const editGrokSSOToken = ref('')
 const editGrokTier = ref<GrokTier>('basic')
 const modelMappings = ref<ModelMapping[]>([])
 const actualModelLocked = ref(true)
+const modelRestrictionEnabled = ref(false)
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
 const manualModels = ref<AccountManualModel[]>([])
@@ -1081,95 +1084,21 @@ function buildBaiduDocumentAICredentialsForUpdate(): Record<string, unknown> | n
 }
 
 function loadModelScopeFromExtra(extra?: Record<string, unknown>): boolean {
-  const raw = extra?.model_scope_v2
-  if (!raw || typeof raw !== 'object') {
+  const draft = loadAccountModelScopeDraft(extra)
+  if (!draft) {
     return false
   }
-  const scope = raw as Record<string, unknown>
-  const rawSelectedModelIDs = Array.isArray(scope.selected_model_ids)
-    ? scope.selected_model_ids
-        .map((item) => String(item || '').trim())
-        .filter((value) => value.length > 0)
-    : []
-  if (rawSelectedModelIDs.length > 0) {
-    const selectedModels = [...new Set(rawSelectedModelIDs)]
-    if (isProtocolGatewayAccount.value) {
-      modelRestrictionMode.value = 'mapping'
-      allowedModels.value = selectedModels
-      modelMappings.value = []
-      protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
-    } else {
-      modelRestrictionMode.value = 'whitelist'
-      allowedModels.value = selectedModels
-      modelMappings.value = []
-    }
-    return true
-  }
 
-  const rawManualRows = scope.manual_mapping_rows
-  if (Array.isArray(rawManualRows)) {
-    const entries = rawManualRows
-      .map((item) => {
-        const row = item as Record<string, unknown>
-        return {
-          from: String(row?.from || '').trim(),
-          to: String(row?.to || '').trim()
-        }
-      })
-      .filter((row) => row.from.length > 0 && row.to.length > 0)
-    if (entries.length > 0) {
-      modelRestrictionMode.value = 'mapping'
-      const selectedModels = [...new Set(entries.map(({ to }) => to))]
-      allowedModels.value = selectedModels
-      modelMappings.value = entries.filter(({ from, to }) => from !== to)
-      if (isProtocolGatewayAccount.value) {
-        protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
-      }
-      return true
-    }
+  modelRestrictionEnabled.value = draft.enabled
+  modelRestrictionMode.value = isProtocolGatewayAccount.value ? 'mapping' : draft.mode
+  allowedModels.value = [...draft.allowedModels]
+  modelMappings.value = draft.modelMappings.map((item) => ({ ...item }))
+  if (isProtocolGatewayAccount.value) {
+    protocolGatewayProbeModels.value = draft.enabled
+      ? createStaticProbeModels(draft.allowedModels)
+      : []
   }
-
-  const rawManualMappings = scope.manual_mappings
-  if (rawManualMappings && typeof rawManualMappings === 'object') {
-    const entries = Object.entries(rawManualMappings as Record<string, unknown>)
-      .map(([from, to]) => ({ from: String(from || '').trim(), to: String(to || '').trim() }))
-      .filter((row) => row.from.length > 0 && row.to.length > 0)
-    if (entries.length > 0) {
-      modelRestrictionMode.value = 'mapping'
-      const selectedModels = [...new Set(entries.map(({ to }) => to))]
-      allowedModels.value = selectedModels
-      modelMappings.value = entries.filter(({ from, to }) => from !== to)
-      if (isProtocolGatewayAccount.value) {
-        protocolGatewayProbeModels.value = createStaticProbeModels(selectedModels)
-      }
-      return true
-    }
-  }
-
-  const rawModelsByProvider = scope.supported_models_by_provider
-  if (rawModelsByProvider && typeof rawModelsByProvider === 'object') {
-    const values: string[] = []
-    for (const models of Object.values(rawModelsByProvider as Record<string, unknown>)) {
-      if (!Array.isArray(models)) continue
-      values.push(...models.map((v) => String(v || '').trim()).filter((v) => v.length > 0))
-    }
-    const unique = [...new Set(values)].sort()
-    if (unique.length > 0) {
-      if (isProtocolGatewayAccount.value) {
-        modelRestrictionMode.value = 'mapping'
-        allowedModels.value = unique
-        modelMappings.value = []
-        protocolGatewayProbeModels.value = createStaticProbeModels(unique)
-      } else {
-        modelRestrictionMode.value = 'whitelist'
-        allowedModels.value = unique
-        modelMappings.value = []
-      }
-      return true
-    }
-  }
-
-  return false
+  return true
 }
 
 function applyModelRestrictionFromRecord(value: unknown) {
@@ -1178,6 +1107,7 @@ function applyModelRestrictionFromRecord(value: unknown) {
     .filter((row) => row.from.length > 0 && row.to.length > 0)
 
   if (entries.length === 0) {
+    modelRestrictionEnabled.value = false
     modelRestrictionMode.value = 'whitelist'
     allowedModels.value = []
     modelMappings.value = []
@@ -1187,6 +1117,7 @@ function applyModelRestrictionFromRecord(value: unknown) {
     return
   }
 
+  modelRestrictionEnabled.value = true
   if (isProtocolGatewayAccount.value) {
     modelRestrictionMode.value = 'mapping'
     const selectedModels = [...new Set(entries.map(({ to }) => to))]
@@ -1207,6 +1138,17 @@ function applyModelRestrictionFromRecord(value: unknown) {
   modelRestrictionMode.value = 'mapping'
   allowedModels.value = [...new Set(entries.map(({ to }) => to))]
   modelMappings.value = entries.filter(({ from, to }) => from !== to)
+}
+
+function buildScopedModelMapping(
+  mode: 'whitelist' | 'mapping' = modelRestrictionMode.value,
+  allowed: string[] = allowedModels.value,
+  mappings: ModelMapping[] = modelMappings.value
+) {
+  if (!modelRestrictionEnabled.value) {
+    return null
+  }
+  return buildModelMappingObject(mode, allowed, mappings)
 }
 
 function applyDefaultGrokCapabilityMapping() {
@@ -1542,9 +1484,10 @@ watch(
       loadTempUnschedRules(credentials)
 
       // Initialize API Key fields for apikey type
-      if (newAccount.type === 'apikey' && newAccount.credentials) {
-        const credentials = newAccount.credentials as Record<string, unknown>
-        if (newAccount.platform === 'baidu_document_ai') {
+        if (newAccount.type === 'apikey' && newAccount.credentials) {
+          const credentials = newAccount.credentials as Record<string, unknown>
+          if (newAccount.platform === 'baidu_document_ai') {
+          modelRestrictionEnabled.value = false
           baiduDocumentAIAsyncBearerToken.value = ''
           baiduDocumentAIAsyncBaseUrl.value =
             String(credentials.async_base_url || '').trim() ||
@@ -1589,24 +1532,22 @@ watch(
         }
         resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
         resetAccountCustomErrorCodesState(customErrorCodesState)
-      } else {
-        const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
-        editBaseUrl.value = platformDefaultUrl
+        } else {
+          const platformDefaultUrl = resolveAccountApiKeyDefaultBaseUrl(newAccount.platform, gatewayProtocol.value)
+          editBaseUrl.value = platformDefaultUrl
 
-        const loadedFromScope = loadModelScopeFromExtra(extra)
+          const loadedFromScope = loadModelScopeFromExtra(extra)
 
-        // Backward-compatible: some legacy OpenAI OAuth accounts may store model mappings in credentials.
-        if (!loadedFromScope && runtimePlatform === 'openai' && newAccount.credentials) {
-          const oauthCredentials = newAccount.credentials as Record<string, unknown>
-          applyModelRestrictionFromRecord(oauthCredentials.model_mapping)
-        } else if (!loadedFromScope) {
-          modelRestrictionMode.value = 'whitelist'
-          modelMappings.value = []
-          allowedModels.value = []
+          // Backward-compatible: some legacy OpenAI OAuth accounts may store model mappings in credentials.
+          if (!loadedFromScope && runtimePlatform === 'openai' && newAccount.credentials) {
+            const oauthCredentials = newAccount.credentials as Record<string, unknown>
+            applyModelRestrictionFromRecord(oauthCredentials.model_mapping)
+          } else if (!loadedFromScope) {
+            applyModelRestrictionFromRecord(undefined)
+          }
+          resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
+          resetAccountCustomErrorCodesState(customErrorCodesState)
         }
-        resetAccountPoolModeState(poolModeState, DEFAULT_POOL_MODE_RETRY_COUNT)
-        resetAccountCustomErrorCodesState(customErrorCodesState)
-      }
       const initialProbeModelIDs =
         modelProbeSnapshot.value?.models && modelProbeSnapshot.value.models.length > 0
           ? [...modelProbeSnapshot.value.models]
@@ -1814,7 +1755,7 @@ const handleSubmit = async () => {
     if (isGeminiVertexAccount.value) {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
-      const modelMapping = buildModelMappingObject('mapping', [], modelMappings.value)
+      const modelMapping = buildScopedModelMapping('mapping', [], modelMappings.value)
       updatePayload.type = geminiVertexAuthMode.value === 'express_api_key' ? 'apikey' : 'oauth'
 
       if (geminiVertexAuthMode.value === 'express_api_key') {
@@ -1925,15 +1866,15 @@ const handleSubmit = async () => {
         return
       }
 
-      if (shouldApplyModelMapping) {
-        const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
+      if (shouldApplyModelMapping && modelRestrictionEnabled.value) {
+        const modelMapping = buildScopedModelMapping()
         if (modelMapping) {
           newCredentials.model_mapping = modelMapping
         } else {
           delete newCredentials.model_mapping
         }
-      } else if (currentCredentials.model_mapping) {
-        newCredentials.model_mapping = currentCredentials.model_mapping
+      } else {
+        delete newCredentials.model_mapping
       }
 
       applyAccountPoolModeStateToCredentials(newCredentials, poolModeState)
@@ -1955,6 +1896,13 @@ const handleSubmit = async () => {
         newCredentials.api_key = editApiKey.value.trim()
       }
 
+      const modelMapping = buildScopedModelMapping()
+      if (modelMapping) {
+        newCredentials.model_mapping = modelMapping
+      } else {
+        delete newCredentials.model_mapping
+      }
+
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       if (!applyTempUnschedConfig(newCredentials)) {
         return
@@ -1964,6 +1912,13 @@ const handleSubmit = async () => {
     } else {
       const currentCredentials = (props.account.credentials as Record<string, unknown>) || {}
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
+
+      const modelMapping = buildScopedModelMapping()
+      if (modelMapping) {
+        newCredentials.model_mapping = modelMapping
+      } else {
+        delete newCredentials.model_mapping
+      }
 
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       if (!applyTempUnschedConfig(newCredentials)) {
@@ -1979,15 +1934,15 @@ const handleSubmit = async () => {
       const newCredentials: Record<string, unknown> = { ...currentCredentials }
       const shouldApplyModelMapping = !openaiPassthroughEnabled.value
 
-      if (shouldApplyModelMapping) {
-        const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
+      if (shouldApplyModelMapping && modelRestrictionEnabled.value) {
+        const modelMapping = buildScopedModelMapping()
         if (modelMapping) {
           newCredentials.model_mapping = modelMapping
         } else {
           delete newCredentials.model_mapping
         }
-      } else if (currentCredentials.model_mapping) {
-        newCredentials.model_mapping = currentCredentials.model_mapping
+      } else {
+        delete newCredentials.model_mapping
       }
 
       updatePayload.credentials = newCredentials
@@ -2000,7 +1955,7 @@ const handleSubmit = async () => {
       if (editGrokSSOToken.value.trim()) {
         newCredentials.sso_token = editGrokSSOToken.value.trim()
       }
-      const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
+      const modelMapping = buildScopedModelMapping()
       if (modelMapping) {
         newCredentials.model_mapping = modelMapping
       } else {
@@ -2252,7 +2207,8 @@ const handleSubmit = async () => {
             platform: runtimePlatform,
             enabled: runtimePlatform === 'antigravity'
               ? true
-              : !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
+              : modelRestrictionEnabled.value &&
+                !(runtimePlatform === 'openai' && openaiPassthroughEnabled.value),
             mode: runtimePlatform === 'antigravity' ? 'mapping' : modelRestrictionMode.value,
             allowedModels: allowedModels.value,
             modelMappings: runtimePlatform === 'antigravity'
@@ -2289,8 +2245,10 @@ const probeExtraForEditor = computed(() => buildProbeExtra())
 const resolveConfiguredModelProbeSnapshot = () =>
   buildLocalAccountModelProbeSnapshot({
     current: modelProbeSnapshot.value,
-    manualModels: manualModels.value,
-    allowSourceProtocol: isProtocolGatewayAccount.value,
+    enabled: effectivePlatform.value === 'antigravity'
+      ? true
+      : modelRestrictionEnabled.value &&
+        !(effectivePlatform.value === 'openai' && openaiPassthroughEnabled.value),
     modelRestrictionMode: effectivePlatform.value === 'antigravity'
       ? antigravityModelRestrictionMode.value
       : modelRestrictionMode.value,

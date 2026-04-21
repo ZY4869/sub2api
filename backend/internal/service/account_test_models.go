@@ -13,18 +13,23 @@ import (
 )
 
 type AvailableTestModel struct {
-	ID             string `json:"id"`
-	Type           string `json:"type"`
-	DisplayName    string `json:"display_name"`
-	CreatedAt      string `json:"created_at"`
-	CanonicalID    string `json:"canonical_id,omitempty"`
-	Mode           string `json:"mode,omitempty"`
-	Provider       string `json:"provider,omitempty"`
-	ProviderLabel  string `json:"provider_label,omitempty"`
-	SourceProtocol string `json:"source_protocol,omitempty"`
-	Status         string `json:"status,omitempty"`
-	DeprecatedAt   string `json:"deprecated_at,omitempty"`
-	ReplacedBy     string `json:"replaced_by,omitempty"`
+	ID                string `json:"id"`
+	Type              string `json:"type"`
+	DisplayName       string `json:"display_name"`
+	CreatedAt         string `json:"created_at"`
+	CanonicalID       string `json:"canonical_id,omitempty"`
+	TargetModelID     string `json:"target_model_id,omitempty"`
+	Mode              string `json:"mode,omitempty"`
+	Provider          string `json:"provider,omitempty"`
+	ProviderLabel     string `json:"provider_label,omitempty"`
+	SourceProtocol    string `json:"source_protocol,omitempty"`
+	VisibilityMode    string `json:"visibility_mode,omitempty"`
+	AvailabilityState string `json:"availability_state,omitempty"`
+	StaleState        string `json:"stale_state,omitempty"`
+	ExposureSource    string `json:"exposure_source,omitempty"`
+	Status            string `json:"status,omitempty"`
+	DeprecatedAt      string `json:"deprecated_at,omitempty"`
+	ReplacedBy        string `json:"replaced_by,omitempty"`
 }
 
 type testModelCandidate struct {
@@ -35,6 +40,12 @@ type testModelCandidate struct {
 
 func BuildAvailableTestModels(ctx context.Context, account *Account, registry *ModelRegistryService) []AvailableTestModel {
 	if account == nil {
+		return []AvailableTestModel{}
+	}
+	if projected := buildAvailableTestModelsFromProjection(ctx, account, registry); len(projected) > 0 {
+		return projected
+	}
+	if registry == nil && !supportsDefaultAccountModelLibrary(RoutingPlatformForAccount(account)) {
 		return []AvailableTestModel{}
 	}
 	sourceProtocols := protocolGatewayTestSourceProtocols(account)
@@ -58,6 +69,47 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 		registry,
 		dedupeAndSortAvailableTestModels(candidates, resolutionEntries),
 	)
+}
+
+func buildAvailableTestModelsFromProjection(ctx context.Context, account *Account, registry *ModelRegistryService) []AvailableTestModel {
+	projection := BuildAccountModelProjection(ctx, account, registry)
+	if projection == nil || len(projection.Entries) == 0 {
+		return nil
+	}
+
+	models := make([]AvailableTestModel, 0, len(projection.Entries))
+	for _, entry := range projection.Entries {
+		displayModelID := strings.TrimSpace(entry.DisplayModelID)
+		if displayModelID == "" {
+			continue
+		}
+		displayName := strings.TrimSpace(entry.DisplayName)
+		if displayName == "" {
+			displayName = firstNonEmptyTestModelLabel(FormatModelCatalogDisplayName(displayModelID), displayModelID)
+		}
+		models = append(models, AvailableTestModel{
+			ID:                displayModelID,
+			Type:              "model",
+			DisplayName:       displayName,
+			CanonicalID:       firstNonEmptyTrimmed(entry.CanonicalID, normalizeRegistryID(entry.TargetModelID), normalizeRegistryID(displayModelID)),
+			TargetModelID:     firstNonEmptyTrimmed(entry.TargetModelID, entry.RouteModelID),
+			Mode:              entry.Mode,
+			Provider:          entry.Provider,
+			ProviderLabel:     entry.ProviderLabel,
+			SourceProtocol:    normalizeTestSourceProtocol(entry.SourceProtocol),
+			VisibilityMode:    entry.VisibilityMode,
+			AvailabilityState: entry.AvailabilityState,
+			StaleState:        entry.StaleState,
+			ExposureSource:    entry.ExposureSource,
+			Status:            firstNonEmptyTrimmed(entry.Status, "stable"),
+			DeprecatedAt:      entry.DeprecatedAt,
+			ReplacedBy:        entry.ReplacedBy,
+		})
+	}
+	sort.SliceStable(models, func(i, j int) bool {
+		return compareAvailableTestModels(models[i], models[j]) < 0
+	})
+	return models
 }
 
 func MergeAvailableTestModels(groups ...[]AvailableTestModel) []AvailableTestModel {

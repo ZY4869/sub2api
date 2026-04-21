@@ -616,6 +616,7 @@ func ProvideGatewayService(
 	rpmCache RPMCache,
 	digestStore *DigestSessionStore,
 	settingService *SettingService,
+	modelRegistryService *ModelRegistryService,
 	modelCatalogService *ModelCatalogService,
 	apiKeyService *APIKeyService,
 	channelService *ChannelService,
@@ -624,6 +625,7 @@ func ProvideGatewayService(
 ) *GatewayService {
 	svc := NewGatewayService(accountRepo, groupRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, identityService, httpUpstream, deferredService, claudeTokenProvider, sessionLimitCache, rpmCache, digestStore, settingService)
 	svc.SetChannelService(channelService)
+	svc.SetModelRegistryService(modelRegistryService)
 	svc.SetVertexCatalogService(vertexCatalogService)
 	svc.SetTLSFingerprintProfileService(tlsFingerprintProfileService)
 	if modelCatalogService != nil {
@@ -652,10 +654,12 @@ func ProvideOpenAIGatewayService(
 	httpUpstream HTTPUpstream,
 	deferredService *DeferredService,
 	openAITokenProvider *OpenAITokenProvider,
+	modelRegistryService *ModelRegistryService,
 	channelService *ChannelService,
 ) *OpenAIGatewayService {
 	svc := NewOpenAIGatewayService(accountRepo, usageLogRepo, usageBillingRepo, userRepo, userSubRepo, userGroupRateRepo, cache, cfg, schedulerSnapshot, concurrencyService, billingService, rateLimitService, billingCacheService, httpUpstream, deferredService, openAITokenProvider)
 	svc.SetChannelService(channelService)
+	svc.SetModelRegistryService(modelRegistryService)
 	return svc
 }
 

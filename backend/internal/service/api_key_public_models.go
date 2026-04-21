@@ -25,6 +25,8 @@ type apiKeyPublicProjectionCandidate struct {
 	ExposeAlias bool
 }
 
+const apiKeyPublicModelsSourcePolicyProjection = "policy_projection"
+
 func (s *GatewayService) GetAPIKeyPublicModels(
 	ctx context.Context,
 	apiKey *APIKey,
@@ -116,68 +118,91 @@ func (s *GatewayService) publicModelEntriesForAccount(
 	if account == nil {
 		return nil, nil
 	}
-	if account.IsGeminiVertexSource() && strings.EqualFold(platform, PlatformGemini) {
-		return s.vertexPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
+	_ = mode
+	_ = mapping
+
+	projection := BuildAccountModelProjection(ctx, account, s.modelRegistryService)
+	entries := projectAccountModelProjectionToPublicEntries(platform, modelPatterns, projection)
+	recordPublicModelProjectionSource(apiKeyPublicModelsSourcePolicyProjection)
+	slog.Info(
+		"api_key_public_models_policy_projection",
+		"account_id", account.ID,
+		"platform", platform,
+		"source", apiKeyPublicModelsSourcePolicyProjection,
+		"policy_mode", firstNonEmptyString(projectionPolicyMode(projection), AccountModelPolicyModeWhitelist),
+		"projection_source", projectionSource(projection),
+		"count", len(entries),
+		"alias_only_count", countAliasOnlyPublicEntries(entries),
+	)
+	return entries, nil
+}
+
+func projectAccountModelProjectionToPublicEntries(
+	platform string,
+	modelPatterns []string,
+	projection *AccountModelProjection,
+) []APIKeyPublicModelEntry {
+	if projection == nil || len(projection.Entries) == 0 {
+		return nil
 	}
-	if restrictedSummary, restricted, err := s.restrictedPublicModelSummary(ctx, account, platform); err != nil {
-		return nil, err
-	} else if restricted {
-		if restrictedSummary == nil {
-			return nil, nil
+
+	projected := make(map[string]APIKeyPublicModelEntry, len(projection.Entries))
+	for _, candidate := range projection.Entries {
+		publicID := normalizeRegistryID(candidate.DisplayModelID)
+		if publicID == "" {
+			continue
 		}
-		return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, restrictedSummary, account), nil
+		targetID := normalizeRegistryID(firstNonEmptyString(candidate.TargetModelID, candidate.RouteModelID))
+		if !bindingAllowsProjectedPublicModel(modelPatterns, publicID, targetID) {
+			continue
+		}
+		if _, exists := projected[publicID]; exists {
+			continue
+		}
+		displayName := strings.TrimSpace(candidate.DisplayModelID)
+		if candidate.VisibilityMode != AccountModelVisibilityModeAlias {
+			displayName = firstNonEmptyString(strings.TrimSpace(candidate.DisplayName), displayName)
+		}
+		projected[publicID] = APIKeyPublicModelEntry{
+			PublicID:    publicID,
+			AliasID:     publicID,
+			SourceID:    targetID,
+			DisplayName: displayName,
+			Platform:    platform,
+		}
 	}
 
-	if savedSummary := AccountSavedModelProbeSummary(account); savedSummary != nil {
-		entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, savedSummary, account)
-		recordPublicModelProjectionSource(apiKeyPublicModelsSourceSavedProbe)
-		slog.Info(
-			"api_key_public_models_saved_probe",
-			"account_id", account.ID,
-			"platform", platform,
-			"source", apiKeyPublicModelsSourceSavedProbe,
-			"explicit_restriction", accountHasExplicitModelRestrictions(account),
-			"count", len(savedSummary.DetectedModels),
-			"alias_only_count", countAliasOnlyPublicEntries(entries),
-		)
-		return entries, nil
+	result := make([]APIKeyPublicModelEntry, 0, len(projected))
+	for _, entry := range projected {
+		result = append(result, entry)
 	}
-	if s.accountModelImportService == nil {
-		return s.registryFallbackPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
-	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].PublicID < result[j].PublicID
+	})
+	return result
+}
 
-	probeSummary, err := s.accountModelImportService.ListAccountModels(ctx, account, false)
-	if err != nil {
-		slog.Info(
-			"api_key_public_models_live_probe_degraded",
-			"account_id", account.ID,
-			"platform", platform,
-			"error", err,
-		)
-		return s.registryFallbackPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
+func bindingAllowsProjectedPublicModel(modelPatterns []string, publicID string, targetID string) bool {
+	for _, candidate := range []string{publicID, targetID} {
+		if _, matched := bindingMatchesModel(modelPatterns, candidate); matched {
+			return true
+		}
 	}
-	if probeSummary != nil {
-		s.bestEffortPersistAccountModelProbeSnapshot(
-			ctx,
-			account,
-			probeSummary,
-			platform,
-			AccountModelProbeSnapshotSourcePublicModelsLive,
-		)
-		entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, probeSummary, account)
-		recordPublicModelProjectionSource(apiKeyPublicModelsSourceLiveProbe)
-		slog.Info(
-			"api_key_public_models_live_probe_projection",
-			"account_id", account.ID,
-			"platform", platform,
-			"source", apiKeyPublicModelsSourceLiveProbe,
-			"explicit_restriction", accountHasExplicitModelRestrictions(account),
-			"count", len(probeSummary.DetectedModels),
-			"alias_only_count", countAliasOnlyPublicEntries(entries),
-		)
-		return entries, nil
+	return false
+}
+
+func projectionPolicyMode(projection *AccountModelProjection) string {
+	if projection == nil {
+		return ""
 	}
-	return s.registryFallbackPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
+	return strings.TrimSpace(projection.PolicyMode)
+}
+
+func projectionSource(projection *AccountModelProjection) string {
+	if projection == nil {
+		return ""
+	}
+	return strings.TrimSpace(projection.Source)
 }
 
 func (s *GatewayService) bestEffortPersistAccountModelProbeSnapshot(
@@ -196,7 +221,8 @@ func (s *GatewayService) bestEffortPersistAccountModelProbeSnapshot(
 	}
 
 	updatedAt := time.Now().UTC()
-	updates := BuildAccountModelProbeSnapshotExtra(
+	updates := BuildAccountModelAvailabilitySnapshotExtra(
+		BuildAccountModelProjection(ctx, account, s.modelRegistryService),
 		models,
 		updatedAt,
 		source,
@@ -489,10 +515,10 @@ func (s *GatewayService) ResolveAPIKeySelectionModel(ctx context.Context, apiKey
 		return ""
 	}
 	entry, ok := s.findConfiguredAPIKeyModelByAnyID(ctx, apiKey, platform, modelID)
-	if !ok || strings.TrimSpace(entry.AliasID) == "" {
+	if !ok || strings.TrimSpace(entry.PublicID) == "" {
 		return modelID
 	}
-	return entry.AliasID
+	return entry.PublicID
 }
 
 func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
@@ -532,26 +558,11 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 			if account == nil || !account.IsSchedulable() {
 				continue
 			}
-			mapping := account.GetModelMapping()
-			for alias, source := range mapping {
-				candidate, ok := buildAPIKeyPublicProjectionCandidate(mode, alias, source, bindingPlatform)
-				if !ok {
-					continue
-				}
-				publicID := apiKeyPublicProjectionPublicID(bindingPlatform, candidate, normalizeRegistryID(candidate.SourceID))
-				if publicID == "" {
-					publicID = normalizeRegistryID(candidate.SourceID)
-				}
-				if !bindingMatchesProjectionCandidate(binding.ModelPatterns, publicID, candidate) {
-					continue
-				}
-				entry := APIKeyPublicModelEntry{
-					PublicID:    publicID,
-					AliasID:     candidate.AliasID,
-					SourceID:    normalizeRegistryID(candidate.SourceID),
-					DisplayName: candidate.DisplayName,
-					Platform:    bindingPlatform,
-				}
+			entries, err := s.publicModelEntriesForAccount(ctx, account, mode, bindingPlatform, binding.ModelPatterns, account.GetModelMapping())
+			if err != nil {
+				continue
+			}
+			for _, entry := range entries {
 				if apiKeyPublicEntryMatchesID(entry, modelID) {
 					return &entry, true
 				}
@@ -661,7 +672,7 @@ func apiKeyPublicEntryMatchesID(entry APIKeyPublicModelEntry, modelID string) bo
 	if modelID == "" {
 		return false
 	}
-	for _, candidate := range []string{entry.PublicID, entry.AliasID, entry.SourceID} {
+	for _, candidate := range []string{entry.PublicID, entry.AliasID} {
 		if strings.TrimSpace(candidate) == modelID {
 			return true
 		}

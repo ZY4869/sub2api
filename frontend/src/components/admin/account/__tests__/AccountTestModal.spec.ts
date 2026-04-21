@@ -26,12 +26,21 @@ vi.mock('@/composables/useClipboard', () => ({
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
-    'admin.accounts.geminiImagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.'
+    'admin.accounts.geminiImagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
+    'admin.accounts.testModelAvailability.verified': 'verified',
+    'admin.accounts.testModelAvailability.unavailable': 'unavailable',
+    'admin.accounts.testModelAvailability.unknown': 'unknown',
+    'admin.accounts.testModelStale.fresh': 'fresh',
+    'admin.accounts.testModelStale.stale': 'stale',
+    'admin.accounts.testModelStale.unverified': 'unverified'
   }
   return {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, string | number>) => {
+        if (key === 'admin.accounts.testModelTargetRelation' && params?.target) {
+          return `-> ${params.target}`
+        }
         if (key === 'admin.accounts.geminiImageReceived' && params?.count) {
           return `received-${params.count}`
         }
@@ -234,12 +243,14 @@ describe('AccountTestModal', () => {
     expect(text).toContain('replaced-by-claude-sonnet-4.5')
   })
 
-  it('prefers canonical_id when rendering the model identifier in the selector', async () => {
+  it('shows alias display id and target relation when the admin model carries target_model_id', async () => {
     getAvailableModels.mockResolvedValueOnce([
       {
-        id: 'claude-sonnet-4-5-20250929',
-        canonical_id: 'claude-sonnet-4.5',
-        display_name: 'Claude Sonnet 4.5'
+        id: 'friendly-sonnet',
+        display_name: 'Friendly Sonnet',
+        target_model_id: 'claude-sonnet-4.5',
+        availability_state: 'verified',
+        stale_state: 'fresh'
       }
     ])
 
@@ -248,9 +259,11 @@ describe('AccountTestModal', () => {
     await flushPromises()
 
     const text = wrapper.text()
-    expect(text).toContain('Claude Sonnet 4.5')
-    expect(text).toContain('claude-sonnet-4.5')
-    expect(text).not.toContain('claude-sonnet-4-5-20250929')
+    expect(text).toContain('Friendly Sonnet')
+    expect(text).toContain('friendly-sonnet')
+    expect(text).toContain('-> claude-sonnet-4.5')
+    expect(text).toContain('verified')
+    expect(text).toContain('fresh')
   })
 
   it('renders the selector title as pure display_name without provider label prefixes', async () => {
@@ -277,17 +290,17 @@ describe('AccountTestModal', () => {
   it('prefills protocol gateway defaults and forwards catalog target fields', async () => {
     getAvailableModels.mockResolvedValueOnce([
       {
-        id: 'gpt-5.4-preview',
-        canonical_id: 'gpt-5.4',
+        id: 'friendly-gpt',
         provider: 'openai',
         source_protocol: 'openai',
+        target_model_id: 'gpt-5.4',
         display_name: 'GPT-5.4'
       },
       {
-        id: 'claude-sonnet-4-5-20250929',
-        canonical_id: 'claude-sonnet-4.5',
+        id: 'friendly-sonnet',
         provider: 'anthropic',
         source_protocol: 'anthropic',
+        target_model_id: 'claude-sonnet-4.5',
         display_name: 'Claude Sonnet 4.5'
       }
     ])
@@ -343,8 +356,8 @@ describe('AccountTestModal', () => {
 
     const [, request] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(request.body)).toEqual({
-      model: 'claude-sonnet-4-5-20250929',
-      model_id: 'claude-sonnet-4-5-20250929',
+      model: 'friendly-sonnet',
+      model_id: 'friendly-sonnet',
       source_protocol: 'anthropic',
       target_provider: 'anthropic',
       target_model_id: 'claude-sonnet-4.5',
@@ -567,9 +580,10 @@ describe('AccountTestModal', () => {
   it('submits source_protocol for protocol gateway models and renders runtime context', async () => {
     getAvailableModels.mockResolvedValueOnce([
       {
-        id: 'claude-sonnet-4-5',
+        id: 'friendly-sonnet',
         display_name: 'Claude Sonnet 4.5',
-        source_protocol: 'anthropic'
+        source_protocol: 'anthropic',
+        target_model_id: 'claude-sonnet-4.5'
       }
     ])
     global.fetch = vi.fn().mockResolvedValue(
@@ -634,11 +648,11 @@ describe('AccountTestModal', () => {
 
     const [, request] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(request.body)).toEqual({
-      model: 'claude-sonnet-4-5',
-      model_id: 'claude-sonnet-4-5',
+      model: 'friendly-sonnet',
+      model_id: 'friendly-sonnet',
       test_mode: 'real_forward',
       source_protocol: 'anthropic',
-      target_model_id: 'claude-sonnet-4-5',
+      target_model_id: 'claude-sonnet-4.5',
       prompt: ''
     })
     expect(wrapper.text()).toContain('admin.accounts.testRuntimeContextTitle')

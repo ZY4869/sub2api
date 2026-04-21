@@ -30,6 +30,7 @@ interface UseCreateAccountSubmitOptions {
     onConfirm: () => Promise<unknown> | unknown
   }) => void
   isOpenAIModelRestrictionDisabled: ComputedRef<boolean>
+  modelRestrictionEnabled: Ref<boolean>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
@@ -88,7 +89,8 @@ export function useCreateAccountSubmit(options: UseCreateAccountSubmitOptions) {
         enabled:
           runtimePlatform === 'antigravity'
             ? true
-            : !(runtimePlatform === 'openai' && options.isOpenAIModelRestrictionDisabled.value),
+            : options.modelRestrictionEnabled.value &&
+              !(runtimePlatform === 'openai' && options.isOpenAIModelRestrictionDisabled.value),
         mode: runtimePlatform === 'antigravity' ? 'mapping' : options.modelRestrictionMode.value,
         allowedModels: options.allowedModels.value,
         modelMappings:

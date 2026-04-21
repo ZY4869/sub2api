@@ -34,6 +34,9 @@ type stubAdminService struct {
 	unarchiveErr         error
 	blacklistErr         error
 	batchDeleteErr       error
+	backfillErr          error
+	backfillRepo         service.AccountModelPolicyBackfillRepository
+	lastBackfillPageSize int
 	strictAccountLookup  bool
 	checkMixedErr        error
 	lastUnarchiveInput   *service.UnarchiveAccountsInput
@@ -567,6 +570,21 @@ func (s *stubAdminService) UpdateAccount(ctx context.Context, id int64, input *s
 	}
 	account := service.Account{ID: id, Name: input.Name, Status: service.StatusActive}
 	return &account, nil
+}
+
+func (s *stubAdminService) BackfillAccountModelPolicies(
+	ctx context.Context,
+	registry *service.ModelRegistryService,
+	pageSize int,
+) (*service.AccountModelPolicyBackfillResult, error) {
+	s.lastBackfillPageSize = pageSize
+	if s.backfillErr != nil {
+		return nil, s.backfillErr
+	}
+	if s.backfillRepo != nil {
+		return service.BackfillAccountModelPolicies(ctx, s.backfillRepo, registry, pageSize)
+	}
+	return &service.AccountModelPolicyBackfillResult{}, nil
 }
 
 func (s *stubAdminService) DeleteAccount(ctx context.Context, id int64) error {

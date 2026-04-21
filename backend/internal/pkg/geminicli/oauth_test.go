@@ -460,7 +460,7 @@ func TestEffectiveOAuthConfig_GoogleOne(t *testing.T) {
 			},
 			oauthType:    "google_one",
 			wantClientID: "custom-client-id",
-			wantScopes:   DefaultCodeAssistScopes,
+			wantScopes:   DefaultGoogleOneScopes,
 			wantErr:      false,
 		},
 		{

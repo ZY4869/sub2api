@@ -16,7 +16,7 @@ import type {
   PaginatedResponse,
   AccountUsageInfo,
   WindowStats,
-  ClaudeModel,
+  AdminAccountModelOption,
   AccountUsageStatsResponse,
   TempUnschedulableStatus,
   AdminDataPayload,
@@ -862,15 +862,15 @@ export async function retestBlacklistedAccounts(
   return data
 }
 
-export async function getBlacklistRetestModels(accountIds: number[]): Promise<ClaudeModel[]> {
-  const { data } = await apiClient.post<ClaudeModel[]>('/admin/accounts/blacklist/retest-models', {
+export async function getBlacklistRetestModels(accountIds: number[]): Promise<AdminAccountModelOption[]> {
+  const { data } = await apiClient.post<AdminAccountModelOption[]>('/admin/accounts/blacklist/retest-models', {
     account_ids: accountIds
   })
   return Array.isArray(data) ? data : []
 }
 
-export async function getBatchTestModels(accountIds: number[]): Promise<ClaudeModel[]> {
-  const { data } = await apiClient.post<ClaudeModel[]>('/admin/accounts/batch-test-models', {
+export async function getBatchTestModels(accountIds: number[]): Promise<AdminAccountModelOption[]> {
+  const { data } = await apiClient.post<AdminAccountModelOption[]>('/admin/accounts/batch-test-models', {
     account_ids: accountIds
   })
   return Array.isArray(data) ? data : []
@@ -1193,8 +1193,8 @@ export async function probeProtocolGatewayModels(payload: {
 export async function getAvailableModels(
   id: number,
   options?: { refresh?: boolean }
-): Promise<ClaudeModel[]> {
-  const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`, {
+): Promise<AdminAccountModelOption[]> {
+  const { data } = await apiClient.get<AdminAccountModelOption[]>(`/admin/accounts/${id}/models`, {
     params: options?.refresh ? { refresh: true } : undefined
   })
   return data

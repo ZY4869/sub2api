@@ -14,6 +14,13 @@ export interface AccountGatewayCatalogTarget {
   targetModelId?: string
 }
 
+type AccountGatewaySelectableModel = Pick<
+  ClaudeModel,
+  'id' | 'canonical_id' | 'provider' | 'source_protocol'
+> & {
+  target_model_id?: string
+}
+
 export function ensureOpenAIOAuthGatewayTestDefaults(
   extra?: Record<string, unknown> | null
 ): Record<string, unknown> {
@@ -37,7 +44,10 @@ function getStoredDefault(account?: Pick<Account, 'extra'> | null): AccountGatew
   }
 }
 
-function modelMatchesStoredDefault(model: ClaudeModel | null | undefined, stored: AccountGatewayStoredDefault): boolean {
+function modelMatchesStoredDefault(
+  model: AccountGatewaySelectableModel | null | undefined,
+  stored: AccountGatewayStoredDefault
+): boolean {
   if (!model || !stored.modelId) {
     return false
   }
@@ -50,18 +60,22 @@ function modelMatchesStoredDefault(model: ClaudeModel | null | undefined, stored
   const targetModelID = normalizeModelID(stored.modelId)
   return [
     normalizeModelID(model.id),
-    normalizeModelID(model.canonical_id)
+    normalizeModelID(model.canonical_id),
+    normalizeModelID(model.target_model_id)
   ].includes(targetModelID)
 }
 
-function findMatchingModel(models: ClaudeModel[], stored: AccountGatewayStoredDefault): ClaudeModel | null {
+function findMatchingModel<T extends AccountGatewaySelectableModel>(
+  models: T[],
+  stored: AccountGatewayStoredDefault
+): T | null {
   return models.find((model) => modelMatchesStoredDefault(model, stored)) || null
 }
 
 export function findDefaultGatewayTestModel(
   accounts: Array<Pick<Account, 'extra'>>,
-  models: ClaudeModel[]
-): ClaudeModel | null {
+  models: AccountGatewaySelectableModel[]
+): AccountGatewaySelectableModel | null {
   if (accounts.length === 0 || models.length === 0) {
     return null
   }
@@ -84,7 +98,7 @@ export function findDefaultGatewayTestModel(
 
 export function resolveGatewayTestSelectedModelKey(
   accounts: Array<Pick<Account, 'extra'>>,
-  models: ClaudeModel[],
+  models: AccountGatewaySelectableModel[],
   fallbackToFirst = true
 ): string {
   const defaultModel = findDefaultGatewayTestModel(accounts, models)
@@ -97,14 +111,16 @@ export function resolveGatewayTestSelectedModelKey(
   return ''
 }
 
-export function resolveCatalogTargetFromModel(model?: ClaudeModel | null): AccountGatewayCatalogTarget {
+export function resolveCatalogTargetFromModel(
+  model?: AccountGatewaySelectableModel | null
+): AccountGatewayCatalogTarget {
   if (!model) {
     return {}
   }
 
   const sourceProtocol = normalizeGatewayAcceptedProtocol(model.source_protocol)
   const targetProvider = normalizeProviderSlug(model.provider)
-  const targetModelId = String(model.canonical_id || model.id || '').trim()
+  const targetModelId = String(model.target_model_id || model.canonical_id || model.id || '').trim()
 
   return {
     sourceProtocol: sourceProtocol || undefined,

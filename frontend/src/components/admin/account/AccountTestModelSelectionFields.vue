@@ -101,7 +101,28 @@
             </span>
           </div>
           <div class="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-            <span class="truncate">{{ displayModelIdentifier(option) }}</span>
+            <span class="truncate" data-test="model-display-id">{{ displayModelIdentifier(option) }}</span>
+            <span
+              v-if="displayModelTargetRelation(option)"
+              data-test="model-target-relation"
+              class="truncate text-gray-500 dark:text-gray-400"
+            >
+              {{ displayModelTargetRelation(option) }}
+            </span>
+            <span
+              v-if="availabilityBadgeLabel(option)"
+              data-test="model-availability-badge"
+              :class="stateBadgeClass('availability', option.availability_state)"
+            >
+              {{ availabilityBadgeLabel(option) }}
+            </span>
+            <span
+              v-if="staleBadgeLabel(option)"
+              data-test="model-stale-badge"
+              :class="stateBadgeClass('stale', option.stale_state)"
+            >
+              {{ staleBadgeLabel(option) }}
+            </span>
             <span
               v-if="option.source_protocol"
               class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
@@ -136,7 +157,28 @@
               </span>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-              <span class="truncate">{{ displayModelIdentifier(option) }}</span>
+              <span class="truncate" data-test="model-display-id">{{ displayModelIdentifier(option) }}</span>
+              <span
+                v-if="displayModelTargetRelation(option)"
+                data-test="model-target-relation"
+                class="truncate text-gray-500 dark:text-gray-400"
+              >
+                {{ displayModelTargetRelation(option) }}
+              </span>
+              <span
+                v-if="availabilityBadgeLabel(option)"
+                data-test="model-availability-badge"
+                :class="stateBadgeClass('availability', option.availability_state)"
+              >
+                {{ availabilityBadgeLabel(option) }}
+              </span>
+              <span
+                v-if="staleBadgeLabel(option)"
+                data-test="model-stale-badge"
+                :class="stateBadgeClass('stale', option.stale_state)"
+              >
+                {{ staleBadgeLabel(option) }}
+              </span>
               <span
                 v-if="option.source_protocol"
                 class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
@@ -215,13 +257,13 @@ import { useI18n } from 'vue-i18n'
 import Select from '@/components/common/Select.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import { Icon } from '@/components/icons'
-import type { ClaudeModel } from '@/types'
+import type { AdminAccountModelOption } from '@/types'
 import { resolveGatewayProtocolLabel } from '@/utils/accountProtocolGateway'
 import { buildAccountTestModelOptionKeyFromModel } from '@/utils/accountTestModelOptions'
 
 type ManualSourceProtocol = 'openai' | 'anthropic' | 'gemini' | ''
 
-type AccountTestModelOption = ClaudeModel & {
+type AccountTestModelOption = AdminAccountModelOption & {
   key: string
   description: string
   [key: string]: unknown
@@ -230,7 +272,7 @@ type AccountTestModelOption = ClaudeModel & {
 type AccountTestQuickFilter = 'text' | 'image' | 'all'
 
 const props = withDefaults(defineProps<{
-  availableModels: ClaudeModel[]
+  availableModels: AdminAccountModelOption[]
   loadingModels?: boolean
   disabled?: boolean
   modelInputMode: 'catalog' | 'manual'
@@ -259,28 +301,34 @@ const { t } = useI18n()
 type ModelDescriptor = {
   id?: unknown
   canonical_id?: unknown
+  target_model_id?: unknown
   display_name?: unknown
   provider?: unknown
+  source_protocol?: unknown
+  availability_state?: unknown
+  stale_state?: unknown
   status?: unknown
+  replaced_by?: unknown
+  mode?: unknown
 }
 
 const getModelStringField = (model: ModelDescriptor | null | undefined, key: keyof ModelDescriptor) =>
   typeof model?.[key] === 'string' ? model[key].trim() : ''
 
 const displayModelIdentifier = (model: ModelDescriptor | null | undefined) => {
-  const canonicalID = getModelStringField(model, 'canonical_id')
-  if (canonicalID) {
-    return canonicalID
-  }
-  return getModelStringField(model, 'id')
+  return getModelStringField(model, 'id') ||
+    getModelStringField(model, 'target_model_id') ||
+    getModelStringField(model, 'canonical_id')
 }
 
 const displayModelTitle = (model: ModelDescriptor | null | undefined) =>
   getModelStringField(model, 'display_name') ||
-  getModelStringField(model, 'canonical_id') ||
-  getModelStringField(model, 'id')
+  getModelStringField(model, 'id') ||
+  getModelStringField(model, 'target_model_id') ||
+  getModelStringField(model, 'canonical_id')
 
 const displayModelIconModel = (model: ModelDescriptor | null | undefined) =>
+  getModelStringField(model, 'target_model_id') ||
   getModelStringField(model, 'id') ||
   getModelStringField(model, 'canonical_id') ||
   displayModelTitle(model)
@@ -288,9 +336,66 @@ const displayModelIconModel = (model: ModelDescriptor | null | undefined) =>
 const displayModelProvider = (model: ModelDescriptor | null | undefined) =>
   getModelStringField(model, 'provider')
 
+const displayModelTargetRelation = (model: ModelDescriptor | null | undefined) => {
+  const displayID = getModelStringField(model, 'id')
+  const targetModelID = getModelStringField(model, 'target_model_id')
+  if (!displayID || !targetModelID || displayID === targetModelID) {
+    return ''
+  }
+  return t('admin.accounts.testModelTargetRelation', { target: targetModelID })
+}
+
+const availabilityBadgeLabel = (model: ModelDescriptor | null | undefined) => {
+  switch (getModelStringField(model, 'availability_state')) {
+    case 'verified':
+      return t('admin.accounts.testModelAvailability.verified')
+    case 'unavailable':
+      return t('admin.accounts.testModelAvailability.unavailable')
+    case 'unknown':
+      return t('admin.accounts.testModelAvailability.unknown')
+    default:
+      return ''
+  }
+}
+
+const staleBadgeLabel = (model: ModelDescriptor | null | undefined) => {
+  switch (getModelStringField(model, 'stale_state')) {
+    case 'fresh':
+      return t('admin.accounts.testModelStale.fresh')
+    case 'stale':
+      return t('admin.accounts.testModelStale.stale')
+    case 'unverified':
+      return t('admin.accounts.testModelStale.unverified')
+    default:
+      return ''
+  }
+}
+
+const stateBadgeClass = (kind: 'availability' | 'stale', value?: unknown) => {
+  const normalized = String(value || '').trim()
+  if (kind === 'availability') {
+    switch (normalized) {
+      case 'verified':
+        return 'inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+      case 'unavailable':
+        return 'inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+      default:
+        return 'inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-500/15 dark:text-slate-300'
+    }
+  }
+  switch (normalized) {
+    case 'fresh':
+      return 'inline-flex rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-medium text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300'
+    case 'stale':
+      return 'inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+    default:
+      return 'inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-500/15 dark:text-slate-300'
+  }
+}
+
 const activeQuickFilter = ref<AccountTestQuickFilter>('all')
 
-const normalizeTestModelMode = (model: Pick<ClaudeModel, 'mode'> | null | undefined) => {
+const normalizeTestModelMode = (model: Pick<AdminAccountModelOption, 'mode'> | null | undefined) => {
   const normalized = String(model?.mode || '').trim().toLowerCase()
   if (normalized === 'image') {
     return 'image'

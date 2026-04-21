@@ -351,7 +351,7 @@ import type {
   BlacklistAdvicePayload,
   BlacklistFeedbackPayload
 } from '@/api/admin/accounts'
-import type { Account, ClaudeModel } from '@/types'
+import type { Account, AdminAccountModelOption } from '@/types'
 import {
   DEFAULT_ACCOUNT_TEST_MODE,
   type AccountTestMode,
@@ -403,7 +403,7 @@ const status = ref<'idle' | 'connecting' | 'success' | 'error'>('idle')
 const outputLines = ref<OutputLine[]>([])
 const streamingContent = ref('')
 const errorMessage = ref('')
-const availableModels = ref<ClaudeModel[]>([])
+const availableModels = ref<AdminAccountModelOption[]>([])
 const selectedModelKey = ref('')
 const modelInputMode = ref<'catalog' | 'manual'>('catalog')
 const manualModelId = ref('')

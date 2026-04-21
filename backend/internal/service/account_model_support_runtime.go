@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -21,8 +20,9 @@ const (
 )
 
 type accountModelSupportSet struct {
-	explicitRestrictions bool
-	allowedVariants      map[string]struct{}
+	policySource      string
+	hasPolicy         bool
+	allowedDisplayIDs map[string]struct{}
 }
 
 type accountModelSupportCacheEntry struct {
@@ -132,10 +132,13 @@ func accountHasExplicitModelRestrictions(account *Account) bool {
 	if account.Type == AccountTypeBedrock || account.Platform == PlatformAntigravity {
 		return true
 	}
+	if scope, ok := ExtractAccountModelScopeV2(account.Extra); ok && scope != nil {
+		return true
+	}
 	if len(account.GetModelMapping()) > 0 {
 		return true
 	}
-	return len(accountConfiguredSourceModelIDs(account, "")) > 0
+	return false
 }
 
 func collectModelSupportVariants(ctx context.Context, registry *ModelRegistryService, route string, modelID string) map[string]struct{} {
@@ -272,20 +275,25 @@ func getCachedAccountModelSupportSet(ctx context.Context, registry *ModelRegistr
 
 func buildAccountModelSupportSet(ctx context.Context, registry *ModelRegistryService, account *Account) *accountModelSupportSet {
 	supportSet := &accountModelSupportSet{
-		explicitRestrictions: accountHasExplicitModelRestrictions(account),
-		allowedVariants:      map[string]struct{}{},
+		allowedDisplayIDs: map[string]struct{}{},
 	}
-	if account == nil || !supportSet.explicitRestrictions {
+	if account == nil {
 		return supportSet
 	}
-	explicitModelIDs := accountConfiguredSourceModelIDs(account, "")
-	if len(explicitModelIDs) == 0 {
+
+	projection := BuildAccountModelProjection(ctx, account, registry)
+	if projection == nil {
 		return supportSet
 	}
-	route := registryRouteForAccount(account)
-	for _, modelID := range explicitModelIDs {
-		for candidate := range collectModelSupportVariants(ctx, registry, route, modelID) {
-			supportSet.allowedVariants[candidate] = struct{}{}
+
+	supportSet.policySource = strings.TrimSpace(projection.Source)
+	supportSet.hasPolicy = projection.Explicit || len(projection.Entries) > 0
+	if len(projection.Entries) == 0 {
+		return supportSet
+	}
+	for _, entry := range projection.Entries {
+		for _, candidate := range accountModelRequestedDisplayCandidates(entry.DisplayModelID) {
+			supportSet.allowedDisplayIDs[candidate] = struct{}{}
 		}
 	}
 	return supportSet
@@ -301,20 +309,22 @@ func buildAccountModelSupportCacheKey(ctx context.Context, registry *ModelRegist
 	writeAccountModelSupportHashValue(hash, registryRouteForAccount(account))
 	writeAccountModelSupportHashValue(hash, resolveAccountModelSupportRegistryVersion(ctx, registry))
 
-	mapping := account.GetModelMapping()
-	if len(mapping) > 0 {
-		keys := make([]string, 0, len(mapping))
-		for key := range mapping {
-			keys = append(keys, key)
+	if projection := BuildAccountModelProjection(ctx, account, registry); projection != nil {
+		writeAccountModelSupportHashValue(hash, "policy_mode:"+strings.TrimSpace(projection.PolicyMode))
+		writeAccountModelSupportHashValue(hash, "policy_source:"+strings.TrimSpace(projection.Source))
+		if projection.Explicit {
+			writeAccountModelSupportHashValue(hash, "policy_explicit:true")
+		} else {
+			writeAccountModelSupportHashValue(hash, "policy_explicit:false")
 		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			writeAccountModelSupportHashValue(hash, "map:"+normalizeRegistryID(key)+"=>"+normalizeRegistryID(mapping[key]))
+		for _, entry := range projection.Entries {
+			writeAccountModelSupportHashValue(hash, "display:"+normalizeRegistryID(entry.DisplayModelID))
+			writeAccountModelSupportHashValue(hash, "target:"+normalizeRegistryID(entry.TargetModelID))
+			writeAccountModelSupportHashValue(hash, "route:"+normalizeRegistryID(entry.RouteModelID))
+			writeAccountModelSupportHashValue(hash, "source_protocol:"+NormalizeGatewayProtocol(entry.SourceProtocol))
+			writeAccountModelSupportHashValue(hash, "visibility:"+strings.TrimSpace(entry.VisibilityMode))
 		}
-	}
-
-	for _, modelID := range accountConfiguredSourceModelIDs(account, "") {
-		writeAccountModelSupportHashValue(hash, "allow:"+normalizeRegistryID(modelID))
+		return hex.EncodeToString(hash.Sum(nil))
 	}
 
 	return hex.EncodeToString(hash.Sum(nil))
@@ -377,27 +387,40 @@ func isRequestedModelSupportedByAccount(ctx context.Context, registry *ModelRegi
 		return mapAntigravityModel(account, requestedModel) != ""
 	}
 
-	requestedVariants := collectRequestedModelSupportVariants(ctx, registry, account, requestedModel)
-	if len(requestedVariants) == 0 {
-		return account.IsModelSupported(requestedModel)
-	}
-
-	if len(account.GetModelMapping()) > 0 {
-		for candidate := range requestedVariants {
-			if account.IsModelSupported(candidate) {
-				return true
-			}
-		}
-	}
-
 	supportSet := getCachedAccountModelSupportSet(ctx, registry, account)
-	if supportSet == nil || !supportSet.explicitRestrictions {
+	if supportSet == nil || !supportSet.hasPolicy {
 		return true
 	}
-	for candidate := range requestedVariants {
-		if _, ok := supportSet.allowedVariants[candidate]; ok {
+	for _, candidate := range accountModelRequestedDisplayCandidates(requestedModel) {
+		if _, ok := supportSet.allowedDisplayIDs[candidate]; ok {
 			return true
 		}
 	}
 	return false
+}
+
+func accountModelRequestedDisplayCandidates(modelID string) []string {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return nil
+	}
+
+	ordered := make([]string, 0, 3)
+	seen := map[string]struct{}{}
+	appendCandidate := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if _, exists := seen[value]; exists {
+			return
+		}
+		seen[value] = struct{}{}
+		ordered = append(ordered, value)
+	}
+
+	appendCandidate(modelID)
+	appendCandidate(normalizeRegistryID(modelID))
+	appendCandidate(NormalizeModelCatalogModelID(modelID))
+	return ordered
 }

@@ -148,10 +148,7 @@
     <p class="text-xs text-gray-500 dark:text-gray-400">
       {{ t("admin.accounts.selectedModels", { count: allowedModels.length }) }}
       <span v-if="allowedModels.length === 0">
-        {{ t("admin.accounts.supportsAllModels") }}
-        <span class="ml-1">{{
-          t("admin.accounts.autoPickLatestTestModelHint")
-        }}</span>
+        {{ t("admin.accounts.noModelsSelected") }}
       </span>
     </p>
   </div>

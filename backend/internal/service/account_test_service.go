@@ -216,7 +216,8 @@ func (s *AccountTestService) refreshOpenAIKnownModelsSnapshot(account *Account) 
 			updatedAt,
 			OpenAIKnownModelsSourceTestProbe,
 		),
-		BuildAccountModelProbeSnapshotExtra(
+		BuildAccountModelAvailabilitySnapshotExtra(
+			BuildAccountModelProjection(ctx, account, s.modelRegistryService),
 			probeResult.DetectedModels,
 			updatedAt,
 			AccountModelProbeSnapshotSourceTestProbe,

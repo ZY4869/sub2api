@@ -304,7 +304,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				return
 			}
 			if account.Type == service.AccountTypeOAuth {
-				h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(ctx, account.ID, result.ResponseHeaders)
+				snapshotCtx := ctx
+				if c.Request != nil {
+					snapshotCtx = c.Request.Context()
+				}
+				h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(snapshotCtx, account.ID, result.ResponseHeaders, result.UpstreamModel, result.Model)
 			}
 			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, true, result.FirstTokenMs)
 			h.submitUsageRecordTask(func(taskCtx context.Context) {

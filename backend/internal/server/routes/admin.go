@@ -342,6 +342,7 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		accounts.GET("/summary", h.Admin.Account.GetStatusSummary)
 		accounts.GET("/runtime-summary", h.Admin.Account.GetRuntimeSummary)
 		accounts.GET("/archived-groups", h.Admin.Account.ListArchivedGroups)
+		accounts.POST("/model-policy/backfill", h.Admin.Account.BackfillModelPolicies)
 		accounts.GET("/:id", h.Admin.Account.GetByID)
 		accounts.POST("", h.Admin.Account.Create)
 		accounts.POST("/check-mixed-channel", h.Admin.Account.CheckMixedChannel)

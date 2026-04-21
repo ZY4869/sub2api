@@ -2174,11 +2174,14 @@
         }
       },
       modelRestriction: '模型限制（可选）',
+      modelRestrictionEnableLabel: '启用显式限制',
+      modelRestrictionDisabledHint: '未启用显式限制时，该账号将暴露默认模型库；探测结果只补充状态，不会扩展模型集合。',
       modelWhitelist: '模型白名单',
       modelMapping: '模型映射',
-      selectAllowedModels: '选择允许的模型。留空则支持所有模型。',
+      selectAllowedModels: '选择允许对外展示和调用的模型；留空表示当前白名单为空。',
       mapRequestModels: '将请求模型映射到实际模型。左边是请求的模型，右边是发送到 API 的实际模型。',
       selectedModels: '已选择 {count} 个模型',
+      noModelsSelected: '（当前未选择任何模型）',
       supportsAllModels: '（支持所有模型）',
       requestModel: '请求模型',
       actualModel: '实际模型',
@@ -3080,6 +3083,17 @@
       testModeLine: '测试模式：{mode}',
       selectTestModel: '选择测试模型',
       refreshTestModels: '手动刷新模型',
+      testModelTargetRelation: '-> {target}',
+      testModelAvailability: {
+        verified: '已验证',
+        unavailable: '不可用',
+        unknown: '未知'
+      },
+      testModelStale: {
+        fresh: '最新',
+        stale: '过期',
+        unverified: '未校验'
+      },
       testModelQuickFilters: {
         text: '文本',
         image: '图片',

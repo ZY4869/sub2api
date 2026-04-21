@@ -37,12 +37,20 @@ func (h *AccountHandler) prepareAccountModelScope(ctx context.Context, platform 
 	if nextCredentials == nil {
 		nextCredentials = map[string]any{}
 	}
+	nextExtra := cloneStringAnyMap(extra)
+	if scope, ok := service.ExtractAccountModelScopeV2(nextExtra); ok && scope != nil {
+		if nextExtra == nil {
+			nextExtra = map[string]any{}
+		}
+		nextExtra["model_scope_v2"] = scope.ToMap()
+		nextExtra = service.MergeStringAnyMap(nextExtra, service.BuildAccountModelScopePreviewSnapshotExtra(scope))
+	}
 	if len(mapping) == 0 {
 		delete(nextCredentials, "model_mapping")
-		return nextCredentials, cloneStringAnyMap(extra), nil
+		return nextCredentials, nextExtra, nil
 	}
 	nextCredentials["model_mapping"] = stringifyModelMapping(mapping)
-	return nextCredentials, cloneStringAnyMap(extra), nil
+	return nextCredentials, nextExtra, nil
 }
 
 func (h *AccountHandler) enrichAccountExtraWithModelScope(ctx context.Context, account *service.Account, current map[string]any) map[string]any {

@@ -63,23 +63,35 @@ func TestGatewayService_ResolveAPIKeySelectionModel_SourceOnlyUsesAlias(t *testi
 
 	entry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformAnthropic, "claude-sonnet-4-20250514")
 	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, "friendly-sonnet", entry.AliasID)
-	require.Equal(t, "friendly-sonnet", entry.PublicID)
-	require.Equal(t, "claude-sonnet-4-20250514", entry.SourceID)
+	require.False(t, ok)
+	require.Nil(t, entry)
 
 	aliasEntry, aliasOK, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformAnthropic, "friendly-sonnet")
 	require.NoError(t, err)
 	require.True(t, aliasOK)
 	require.Equal(t, "friendly-sonnet", aliasEntry.PublicID)
+	require.Equal(t, "claude-sonnet-4-20250514", aliasEntry.SourceID)
 
 	got := svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformAnthropic, "claude-sonnet-4-20250514")
-	require.Equal(t, "friendly-sonnet", got)
+	require.Equal(t, "claude-sonnet-4-20250514", got)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefix(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)
+
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gemini-2.0-flash",
+		DisplayName: "Gemini 2.0 Flash",
+		Provider:    PlatformGemini,
+		Platforms:   []string{PlatformGemini},
+		ExposedIn:   []string{"runtime", "whitelist"},
+		UIPriority:  1,
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gemini-2.0-flash"})
+	require.NoError(t, err)
 
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
@@ -98,7 +110,8 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefi
 		},
 	}
 	svc := &GatewayService{
-		accountRepo: repo,
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
 		vertexCatalogService: newTestVertexCatalogProvider(&VertexCatalogResult{
 			CallableUnion: []VertexCatalogModel{
 				{ID: "gemini-2.0-flash", DisplayName: "Gemini 2.0 Flash"},
@@ -111,6 +124,9 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefi
 		GroupBindings: []APIKeyGroupBinding{
 			{
 				GroupID: 21,
+				ModelPatterns: []string{
+					"gemini-2.0-flash",
+				},
 				Group: &Group{
 					ID:       21,
 					Name:     "gemini-group",
@@ -125,27 +141,23 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressUsesDefaultAliasPrefi
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	require.Equal(t, "gemini-2.0-flash", entries[0].PublicID)
-	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entries[0].AliasID)
+	require.Equal(t, "gemini-2.0-flash", entries[0].AliasID)
 	require.Equal(t, "gemini-2.0-flash", entries[0].SourceID)
 
 	entry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, "gemini-2.0-flash", entry.PublicID)
-	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), entry.AliasID)
+	require.Equal(t, "gemini-2.0-flash", entry.AliasID)
 	require.Equal(t, "gemini-2.0-flash", entry.SourceID)
 	aliasEntry, aliasVisible, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash"))
 	require.NoError(t, err)
-	require.True(t, aliasVisible)
-	require.Equal(t, "gemini-2.0-flash", aliasEntry.PublicID)
-	require.Equal(
-		t,
-		DefaultVertexPublicModelAlias("gemini-2.0-flash"),
-		svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash")),
-	)
+	require.False(t, aliasVisible)
+	require.Nil(t, aliasEntry)
+	require.Equal(t, DefaultVertexPublicModelAlias("gemini-2.0-flash"), svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformGemini, DefaultVertexPublicModelAlias("gemini-2.0-flash")))
 
 	snapshot := protocolruntime.Snapshot()
-	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceVertexCatalog], int64(2))
+	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourcePolicyProjection], int64(2))
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertexPrefix(t *testing.T) {
@@ -195,20 +207,23 @@ func TestGatewayService_GetAPIKeyPublicModels_VertexExpressSourceOnlyHidesVertex
 
 	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformGemini)
 	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	require.Equal(t, "friendly-flash", entries[0].PublicID)
-	require.Equal(t, "friendly-flash", entries[0].AliasID)
-	require.Equal(t, "gemini-2.0-flash", entries[0].SourceID)
+	require.Len(t, entries, 2)
+	require.ElementsMatch(t, []string{"friendly-flash", "friendly-pro"}, []string{entries[0].PublicID, entries[1].PublicID})
+	entriesByID := make(map[string]APIKeyPublicModelEntry, len(entries))
+	for _, candidate := range entries {
+		entriesByID[candidate.PublicID] = candidate
+	}
+	require.Equal(t, "friendly-flash", entriesByID["friendly-flash"].AliasID)
+	require.Equal(t, "gemini-2.0-flash", entriesByID["friendly-flash"].SourceID)
 
 	entry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-2.0-flash")
 	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, "friendly-flash", entry.PublicID)
-	require.Equal(t, "friendly-flash", entry.AliasID)
-	require.Equal(t, "gemini-2.0-flash", entry.SourceID)
-	_, missing, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "gemini-3.1-pro-preview")
+	require.False(t, ok)
+	require.Nil(t, entry)
+	proEntry, proVisible, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformGemini, "friendly-pro")
 	require.NoError(t, err)
-	require.False(t, missing)
+	require.True(t, proVisible)
+	require.Equal(t, "gemini-3.1-pro-preview", proEntry.SourceID)
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_OpenAIUsesUpstreamProjection(t *testing.T) {
@@ -266,7 +281,7 @@ func TestGatewayService_GetAPIKeyPublicModels_OpenAIUsesUpstreamProjection(t *te
 	require.Nil(t, upstream.lastReq)
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_ExplicitAliasHidesSourceRowButKeepsSourceLookup(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_ExplicitAliasHidesSourceRowAndSourceLookup(t *testing.T) {
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -319,15 +334,15 @@ func TestGatewayService_GetAPIKeyPublicModels_ExplicitAliasHidesSourceRowButKeep
 
 	sourceEntry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "gpt-4.1-mini")
 	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, "friendly-gpt", sourceEntry.PublicID)
+	require.False(t, ok)
+	require.Nil(t, sourceEntry)
 
 	aliasEntry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "friendly-gpt")
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, "friendly-gpt", aliasEntry.PublicID)
 
-	require.Equal(t, "friendly-gpt", svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformOpenAI, "gpt-4.1-mini"))
+	require.Equal(t, "gpt-4.1-mini", svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformOpenAI, "gpt-4.1-mini"))
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_OpenAIGroupIncludesProtocolGatewayAccounts(t *testing.T) {
@@ -453,14 +468,28 @@ func TestGatewayService_GetAPIKeyPublicModels_LiveProbeFailureFallsBackToRegistr
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	require.Equal(t, "registry-openai-fallback", entries[0].PublicID)
+	require.Nil(t, upstream.lastReq)
 
 	snapshot := protocolruntime.Snapshot()
-	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceRegistryFallback])
+	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourcePolicyProjection])
 }
 
 func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)
+
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
+		ID:          "gpt-4.1-mini",
+		DisplayName: "GPT-4.1 Mini",
+		Provider:    PlatformOpenAI,
+		Platforms:   []string{PlatformOpenAI},
+		ExposedIn:   []string{"runtime", "whitelist"},
+		UIPriority:  1,
+	})
+	require.NoError(t, err)
+	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-4.1-mini"})
+	require.NoError(t, err)
 
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
@@ -493,6 +522,7 @@ func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t
 	svc := &GatewayService{
 		accountRepo:               repo,
 		accountModelImportService: NewAccountModelImportService(nil, nil, upstream, nil),
+		modelRegistryService:      registrySvc,
 	}
 	apiKey := &APIKey{
 		ID:               15,
@@ -500,6 +530,9 @@ func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t
 		GroupBindings: []APIKeyGroupBinding{
 			{
 				GroupID: 25,
+				ModelPatterns: []string{
+					"gpt-4.1-mini",
+				},
 				Group: &Group{
 					ID:       25,
 					Name:     "openai-group",
@@ -518,10 +551,35 @@ func TestGatewayService_GetAPIKeyPublicModels_UsesSavedSnapshotBeforeLiveProbe(t
 	require.Len(t, repo.updateExtraCalls, 0)
 
 	snapshot := protocolruntime.Snapshot()
-	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceSavedProbe])
+	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourcePolicyProjection])
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_WithoutRestrictionsReturnsCompleteSavedSnapshot(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_WithoutRestrictionsReturnsCompleteDefaultLibraryProjection(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	for _, entry := range []UpsertModelRegistryEntryInput{
+		{
+			ID:          "registry-openai-alpha",
+			DisplayName: "Registry OpenAI Alpha",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime", "whitelist"},
+			UIPriority:  1,
+		},
+		{
+			ID:          "registry-openai-beta",
+			DisplayName: "Registry OpenAI Beta",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime", "whitelist"},
+			UIPriority:  2,
+		},
+	} {
+		_, err := registrySvc.UpsertEntry(context.Background(), entry)
+		require.NoError(t, err)
+	}
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-alpha", "registry-openai-beta"})
+	require.NoError(t, err)
+
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -546,13 +604,19 @@ func TestGatewayService_GetAPIKeyPublicModels_WithoutRestrictionsReturnsComplete
 			},
 		},
 	}
-	svc := &GatewayService{accountRepo: repo}
+	svc := &GatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+	}
 	apiKey := &APIKey{
 		ID:               160,
 		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
 		GroupBindings: []APIKeyGroupBinding{
 			{
 				GroupID: 260,
+				ModelPatterns: []string{
+					"registry-openai-*",
+				},
 				Group: &Group{
 					ID:       260,
 					Name:     "openai-group",
@@ -566,10 +630,35 @@ func TestGatewayService_GetAPIKeyPublicModels_WithoutRestrictionsReturnsComplete
 	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
-	require.ElementsMatch(t, []string{"gpt-4.1-mini", "gpt-4o"}, []string{entries[0].PublicID, entries[1].PublicID})
+	require.ElementsMatch(t, []string{"registry-openai-alpha", "registry-openai-beta"}, []string{entries[0].PublicID, entries[1].PublicID})
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_ReadPathDoesNotBackfillSnapshot(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	for _, entry := range []UpsertModelRegistryEntryInput{
+		{
+			ID:          "registry-openai-alpha",
+			DisplayName: "Registry OpenAI Alpha",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime", "whitelist"},
+			UIPriority:  1,
+		},
+		{
+			ID:          "registry-openai-beta",
+			DisplayName: "Registry OpenAI Beta",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			ExposedIn:   []string{"runtime", "whitelist"},
+			UIPriority:  2,
+		},
+	} {
+		_, err := registrySvc.UpsertEntry(context.Background(), entry)
+		require.NoError(t, err)
+	}
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"registry-openai-alpha", "registry-openai-beta"})
+	require.NoError(t, err)
+
 	repo := &mockAccountRepoForPlatform{
 		accounts: []Account{
 			{
@@ -592,6 +681,7 @@ func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t 
 	svc := &GatewayService{
 		accountRepo:               repo,
 		accountModelImportService: NewAccountModelImportService(nil, nil, upstream, nil),
+		modelRegistryService:      registrySvc,
 	}
 	apiKey := &APIKey{
 		ID:               16,
@@ -599,6 +689,9 @@ func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t 
 		GroupBindings: []APIKeyGroupBinding{
 			{
 				GroupID: 26,
+				ModelPatterns: []string{
+					"registry-openai-*",
+				},
 				Group: &Group{
 					ID:       26,
 					Name:     "openai-group",
@@ -612,17 +705,12 @@ func TestGatewayService_GetAPIKeyPublicModels_BackfillsSnapshotAfterLiveProbe(t 
 	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
-	require.Len(t, repo.updateExtraCalls, 1)
-	require.Equal(t, int64(7), repo.updateExtraCalls[0].id)
-	require.NotNil(t, repo.updateExtraCalls[0].updates["model_probe_snapshot"])
-	require.Equal(
-		t,
-		AccountModelProbeSnapshotSourcePublicModelsLive,
-		repo.updateExtraCalls[0].updates["openai_known_models_source"],
-	)
+	require.ElementsMatch(t, []string{"registry-openai-alpha", "registry-openai-beta"}, []string{entries[0].PublicID, entries[1].PublicID})
+	require.Nil(t, upstream.lastReq)
+	require.Len(t, repo.updateExtraCalls, 0)
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_RestrictedFallbackStillRespectsScopeAndChannel(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_RestrictedProjectionStillRespectsScopeAndChannel(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)
 
@@ -720,12 +808,10 @@ func TestGatewayService_GetAPIKeyPublicModels_RestrictedFallbackStillRespectsSco
 	require.NotEmpty(t, entries[0].DisplayName)
 
 	snapshot := protocolruntime.Snapshot()
-	require.Equal(t, int64(1), snapshot.PublicModelRestrictionHitTotal)
-	require.Equal(t, int64(1), snapshot.PublicModelRestrictionByReason["account_scope"])
-	require.Equal(t, int64(1), snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceRestrictedFallback])
+	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourcePolicyProjection], int64(1))
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_RestrictedFallbackKeepsManualModelsAlongsideMapping(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_ManualModelsDoNotExpandProjection(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 	for _, entry := range []UpsertModelRegistryEntryInput{
 		{
@@ -800,11 +886,11 @@ func TestGatewayService_GetAPIKeyPublicModels_RestrictedFallbackKeepsManualModel
 
 	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
 	require.NoError(t, err)
-	require.Len(t, entries, 2)
-	require.ElementsMatch(t, []string{"registry-openai-alpha", "friendly-beta"}, []string{entries[0].PublicID, entries[1].PublicID})
+	require.Len(t, entries, 1)
+	require.Equal(t, "friendly-beta", entries[0].PublicID)
 }
 
-func TestGatewayService_GetAPIKeyPublicModels_RestrictedScopeKeepsAliasLookupForWhitelistedTarget(t *testing.T) {
+func TestGatewayService_GetAPIKeyPublicModels_RestrictedScopePrefersAliasForWhitelistedTarget(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 	for _, entry := range []UpsertModelRegistryEntryInput{
 		{
@@ -887,8 +973,8 @@ func TestGatewayService_GetAPIKeyPublicModels_RestrictedScopeKeepsAliasLookupFor
 
 	sourceEntry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "registry-openai-beta")
 	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, "friendly-beta", sourceEntry.PublicID)
+	require.False(t, ok)
+	require.Nil(t, sourceEntry)
 
 	aliasEntry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "friendly-beta")
 	require.NoError(t, err)
@@ -966,7 +1052,7 @@ func TestGatewayService_FindAPIKeyPublicModel_VertexCatalogFailureFallsBackToReg
 	require.Equal(t, int64(30), account.ID)
 
 	snapshot := protocolruntime.Snapshot()
-	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourceRegistryFallback], int64(1))
+	require.GreaterOrEqual(t, snapshot.PublicModelProjectionBySource[apiKeyPublicModelsSourcePolicyProjection], int64(1))
 }
 
 type apiKeyPublicModelsChannelRepoStub struct {

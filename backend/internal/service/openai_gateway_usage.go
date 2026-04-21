@@ -421,11 +421,12 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 		syncOpenAICodexRateLimitState(updateCtx, s.accountRepo, account, updates, now)
 	}()
 }
-func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.Context, accountID int64, headers http.Header) {
+func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.Context, accountID int64, headers http.Header, fallbackModels ...string) {
 	if accountID <= 0 || headers == nil {
 		return
 	}
 	if snapshot := ParseCodexRateLimitHeaders(headers); snapshot != nil {
+		ctx = withOpenAICodexRequestModelFallback(ctx, fallbackModels...)
 		s.updateCodexUsageSnapshot(ctx, accountID, snapshot)
 	}
 }

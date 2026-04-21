@@ -198,9 +198,12 @@ func EffectiveOAuthConfig(cfg OAuthConfig, oauthType string) (OAuthConfig, error
 				effective.Scopes = DefaultAIStudioScopes
 			}
 		case "google_one":
-			// Google One always uses built-in Gemini CLI client (same as code_assist)
-			// Built-in client can't request restricted scopes like generative-language.retriever or drive.readonly
-			effective.Scopes = DefaultCodeAssistScopes
+			if isBuiltinClient {
+				// Built-in client can't request restricted scopes like generative-language.retriever or drive.readonly.
+				effective.Scopes = DefaultCodeAssistScopes
+			} else {
+				effective.Scopes = DefaultGoogleOneScopes
+			}
 		default:
 			// Default to Code Assist scopes
 			effective.Scopes = DefaultCodeAssistScopes

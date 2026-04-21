@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -112,7 +113,8 @@ func TestAccountHandlerGetAvailableModels_AppliesAccountLevelMappingsAndScopes(t
 	modelsB := decodeAvailableModelsResponse(t, recB)
 	require.Len(t, modelsA, 1)
 	require.Len(t, modelsB, 1)
-	require.Equal(t, "custom-shared-a", modelsA[0].ID)
+	require.Equal(t, "only-this-model", modelsA[0].ID)
+	require.Equal(t, "custom-shared-a", modelsA[0].TargetModelID)
 	require.Equal(t, "custom-shared-b", modelsB[0].ID)
 }
 
@@ -203,7 +205,7 @@ func TestAccountHandlerGetAvailableModels_KiroFallsBackToBuiltinCatalog(t *testi
 	require.Equal(t, service.BuildAvailableTestModels(context.Background(), &account, registrySvc), models)
 }
 
-func TestAccountHandlerGetAvailableModels_PrefersSavedProbeSnapshotUntilManualRefresh(t *testing.T) {
+func TestAccountHandlerGetAvailableModels_ReadPathUsesProjectedPolicyInsteadOfProbeSnapshot(t *testing.T) {
 	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
 	_, err := registrySvc.UpsertEntry(context.Background(), service.UpsertModelRegistryEntryInput{
 		ID:          "saved-snapshot-model",
@@ -255,7 +257,8 @@ func TestAccountHandlerGetAvailableModels_PrefersSavedProbeSnapshotUntilManualRe
 
 	models := decodeAvailableModelsResponse(t, rec)
 	require.Len(t, models, 1)
-	require.Equal(t, "saved-snapshot-model", models[0].ID)
+	require.Equal(t, "friendly-live", models[0].ID)
+	require.Equal(t, "live-registry-model", models[0].TargetModelID)
 
 	refreshRec := httptest.NewRecorder()
 	refreshReq := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/46/models?refresh=true", nil)
@@ -264,7 +267,8 @@ func TestAccountHandlerGetAvailableModels_PrefersSavedProbeSnapshotUntilManualRe
 
 	refreshedModels := decodeAvailableModelsResponse(t, refreshRec)
 	require.Len(t, refreshedModels, 1)
-	require.Equal(t, "live-registry-model", refreshedModels[0].ID)
+	require.Equal(t, "friendly-live", refreshedModels[0].ID)
+	require.Equal(t, "live-registry-model", refreshedModels[0].TargetModelID)
 }
 
 func TestAccountHandlerGetAvailableModels_UsesSnapshotRegistryMetadata(t *testing.T) {
@@ -293,6 +297,17 @@ func TestAccountHandlerGetAvailableModels_UsesSnapshotRegistryMetadata(t *testin
 				Type:     service.AccountTypeAPIKey,
 				Status:   service.StatusActive,
 				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"policy_mode": "whitelist",
+						"entries": []any{
+							map[string]any{
+								"display_model_id": "snapshot-image-model",
+								"target_model_id":  "snapshot-image-model",
+								"provider":         service.PlatformOpenAI,
+								"visibility_mode":  service.AccountModelVisibilityModeDirect,
+							},
+						},
+					},
 					"model_probe_snapshot": map[string]any{
 						"models": []any{"snapshot-image-model"},
 					},
@@ -310,6 +325,7 @@ func TestAccountHandlerGetAvailableModels_UsesSnapshotRegistryMetadata(t *testin
 	models := decodeAvailableModelsResponse(t, rec)
 	require.Len(t, models, 1)
 	require.Equal(t, "snapshot-image-model", models[0].ID)
-	require.Equal(t, "Snapshot Image Model", models[0].DisplayName)
+	require.Equal(t, strings.ToLower(service.FormatModelCatalogDisplayName("snapshot-image-model")), strings.ToLower(models[0].DisplayName))
 	require.Equal(t, "image", models[0].Mode)
+	require.Equal(t, "verified", models[0].AvailabilityState)
 }

@@ -1,6 +1,17 @@
 <template>
   <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
-    <label class="input-label">{{ t('admin.accounts.modelRestriction') }}</label>
+    <div class="mb-3 flex items-center justify-between gap-3">
+      <label class="input-label mb-0">{{ t('admin.accounts.modelRestriction') }}</label>
+      <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+        <input
+          v-model="enabled"
+          type="checkbox"
+          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          :disabled="disabled"
+        />
+        <span>{{ t('admin.accounts.modelRestrictionEnableLabel') }}</span>
+      </label>
+    </div>
 
     <div v-if="disabled" class="mb-3 rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
       <p class="text-xs text-amber-700 dark:text-amber-400">
@@ -8,7 +19,7 @@
       </p>
     </div>
 
-    <template v-else>
+    <template v-else-if="enabled">
       <div class="mb-4 flex gap-2">
         <button
           type="button"
@@ -50,6 +61,10 @@
         @add-preset="emit('add-preset', $event)"
       />
     </template>
+
+    <div v-else class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-dark-600 dark:bg-dark-800/60 dark:text-gray-300">
+      {{ t('admin.accounts.modelRestrictionDisabledHint') }}
+    </div>
   </div>
 </template>
 
@@ -85,6 +100,7 @@ const emit = defineEmits<{
   'remove-mapping': [index: number]
   'add-preset': [payload: { from: string; to: string }]
 }>()
+const enabled = defineModel<boolean>('enabled', { default: true })
 const actualModelLocked = defineModel<boolean>('actualModelLocked', { default: true })
 
 const { t } = useI18n()

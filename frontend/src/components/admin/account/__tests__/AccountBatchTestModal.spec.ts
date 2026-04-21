@@ -112,15 +112,16 @@ describe('AccountBatchTestModal', () => {
   it('uses a single-account stored default when loading specified catalog models', async () => {
     getBatchTestModels.mockResolvedValueOnce([
       {
-        id: 'gpt-5.4',
+        id: 'friendly-gpt',
         display_name: 'GPT-5.4',
+        target_model_id: 'gpt-5.4',
         provider: 'openai',
         source_protocol: 'openai'
       },
       {
-        id: 'claude-sonnet-4-5-20250929',
-        canonical_id: 'claude-sonnet-4.5',
+        id: 'friendly-sonnet',
         display_name: 'Claude Sonnet 4.5',
+        target_model_id: 'claude-sonnet-4.5',
         provider: 'anthropic',
         source_protocol: 'anthropic'
       }
@@ -163,7 +164,7 @@ describe('AccountBatchTestModal', () => {
 
     expect(batchTestAccounts).toHaveBeenCalledWith({
       account_ids: [101],
-      model_id: 'claude-sonnet-4-5-20250929',
+      model_id: 'friendly-sonnet',
       model_input_mode: 'catalog',
       source_protocol: 'anthropic',
       target_provider: 'anthropic',
@@ -175,15 +176,16 @@ describe('AccountBatchTestModal', () => {
   it('falls back to the first catalog model when multi-account defaults are not shared', async () => {
     getBatchTestModels.mockResolvedValueOnce([
       {
-        id: 'gpt-5.4',
+        id: 'friendly-gpt',
         display_name: 'GPT-5.4',
+        target_model_id: 'gpt-5.4',
         provider: 'openai',
         source_protocol: 'openai'
       },
       {
-        id: 'claude-sonnet-4-5-20250929',
-        canonical_id: 'claude-sonnet-4.5',
+        id: 'friendly-sonnet',
         display_name: 'Claude Sonnet 4.5',
+        target_model_id: 'claude-sonnet-4.5',
         provider: 'anthropic',
         source_protocol: 'anthropic'
       }
@@ -224,7 +226,7 @@ describe('AccountBatchTestModal', () => {
 
     expect(batchTestAccounts).toHaveBeenCalledWith({
       account_ids: [101, 102],
-      model_id: 'gpt-5.4',
+      model_id: 'friendly-gpt',
       model_input_mode: 'catalog',
       source_protocol: 'openai',
       target_provider: 'openai',

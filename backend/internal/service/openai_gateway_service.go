@@ -76,6 +76,7 @@ type OpenAIGatewayService struct {
 	userSubRepo                   UserSubscriptionRepository
 	cache                         GatewayCache
 	cfg                           *config.Config
+	modelRegistryService          *ModelRegistryService
 	codexDetector                 CodexClientRestrictionDetector
 	schedulerSnapshot             *SchedulerSnapshotService
 	concurrencyService            *ConcurrencyService
@@ -151,6 +152,10 @@ func (s *OpenAIGatewayService) billingDeps() *billingDeps {
 
 func (s *OpenAIGatewayService) SetChannelService(channelService *ChannelService) {
 	s.channelService = channelService
+}
+
+func (s *OpenAIGatewayService) SetModelRegistryService(modelRegistryService *ModelRegistryService) {
+	s.modelRegistryService = modelRegistryService
 }
 
 func (s *OpenAIGatewayService) CloseOpenAIWSPool() {

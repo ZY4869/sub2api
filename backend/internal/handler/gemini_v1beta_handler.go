@@ -64,19 +64,6 @@ func (h *GatewayHandler) GeminiV1BetaListModels(c *gin.Context) {
 		c.JSON(http.StatusOK, gemini.ModelsListResponse{Models: []gemini.Model{}})
 		return
 	}
-	pageSize, err := parseGeminiModelsPageSize(c.Query("pageSize"))
-	if err != nil {
-		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.invalid_pagination", "Invalid Gemini models pagination parameters")
-		return
-	}
-	if !geminiPublicEntriesRequireProjectedMetadata(publicEntries) {
-		if upstreamResult, ok := h.fetchGeminiUpstreamModelsList(c, apiKey, effectivePlatform, publicEntries, pageSize, c.Query("pageToken")); ok {
-			applyGeminiModelMetadataSource(c, geminiModelMetadataSourceUpstream)
-			applyGeminiPublicPathMetadata(c, "/v1beta/models")
-			writeUpstreamResponse(c, upstreamResult)
-			return
-		}
-	}
 	pagedEntries, nextPageToken, err := paginateGeminiPublicModels(publicEntries, c.Query("pageSize"), c.Query("pageToken"))
 	if err != nil {
 		googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.invalid_pagination", "Invalid Gemini models pagination parameters")
@@ -123,14 +110,6 @@ func (h *GatewayHandler) GeminiV1BetaGetModel(c *gin.Context) {
 		return
 	}
 	if ok {
-		if !geminiPublicEntryRequiresProjectedMetadata(*publicEntry) {
-			if upstreamResult, ok := h.fetchGeminiUpstreamModelDetail(c, apiKey, effectivePlatform, *publicEntry); ok {
-				applyGeminiModelMetadataSource(c, geminiModelMetadataSourceUpstream)
-				applyGeminiPublicPathMetadata(c, "/v1beta/models/"+modelName)
-				writeUpstreamResponse(c, upstreamResult)
-				return
-			}
-		}
 		applyGeminiModelMetadataSource(c, geminiModelMetadataSourceProjectedEmpty)
 		c.JSON(http.StatusOK, apiKeyPublicEntryToGeminiModelWithRegistry(*publicEntry, h.modelRegistryService))
 		return

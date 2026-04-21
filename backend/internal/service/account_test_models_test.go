@@ -63,7 +63,7 @@ func TestBuildAvailableTestModels_PrefersReplacementIDForDeprecatedRegistryAlias
 	}
 }
 
-func TestBuildAvailableTestModels_FiltersCrossPlatformProviderForDirectOpenAIAccounts(t *testing.T) {
+func TestBuildAvailableTestModels_UnscopedOpenAIAccountsUseDefaultLibraryProjection(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 
 	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
@@ -101,37 +101,24 @@ func TestBuildAvailableTestModels_FiltersCrossPlatformProviderForDirectOpenAIAcc
 		ids = append(ids, model.ID)
 	}
 
-	require.Contains(t, ids, "openai-native-test")
+	require.NotEmpty(t, ids)
+	require.NotContains(t, ids, "openai-native-test")
 	require.NotContains(t, ids, "grok-disguised-openai")
 }
 
-func TestBuildAvailableTestModels_FiltersChatGPTOpenAIModelsByKnownSnapshot(t *testing.T) {
+func TestBuildAvailableTestModels_OpenAIOAuthKnownModelsAreAdvisoryOnly(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 
-	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:          "gpt-5.4",
-		DisplayName: "GPT-5.4",
-		Provider:    PlatformOpenAI,
-		Platforms:   []string{PlatformOpenAI},
-		UIPriority:  1,
-		ExposedIn:   []string{"test"},
-	})
-	require.NoError(t, err)
-	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:          "gpt-5.1-codex-mini",
-		DisplayName: "GPT-5.1 Codex Mini",
-		Provider:    PlatformOpenAI,
-		Platforms:   []string{PlatformOpenAI},
-		UIPriority:  2,
-		ExposedIn:   []string{"test"},
-	})
-	require.NoError(t, err)
-	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-5.4", "gpt-5.1-codex-mini"})
-	require.NoError(t, err)
-
-	account := &Account{
+	base := &Account{
 		ID:       993,
 		Name:     "openai-chatgpt-oauth",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+	}
+	withKnown := &Account{
+		ID:       994,
+		Name:     "openai-chatgpt-oauth-known",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeOAuth,
 		Status:   StatusActive,
@@ -140,87 +127,24 @@ func TestBuildAvailableTestModels_FiltersChatGPTOpenAIModelsByKnownSnapshot(t *t
 		},
 	}
 
-	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
-	ids := make([]string, 0, len(models))
-	for _, model := range models {
-		ids = append(ids, model.ID)
-	}
-
-	require.Len(t, ids, 2)
-	require.Contains(t, ids, "gpt-5.4")
-	require.Contains(t, ids, "gpt-4.1-mini")
-	require.NotContains(t, ids, "gpt-5.1-codex-mini")
+	baseModels := BuildAvailableTestModels(context.Background(), base, registrySvc)
+	withKnownModels := BuildAvailableTestModels(context.Background(), withKnown, registrySvc)
+	require.Equal(t, baseModels, withKnownModels)
 }
 
-func TestBuildAvailableTestModels_FiltersKnownUnsupportedChatGPTModelsWithoutSnapshot(t *testing.T) {
+func TestBuildAvailableTestModels_OpenAIAPIKeyKnownModelsAreAdvisoryOnly(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 
-	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:          "gpt-5.4",
-		DisplayName: "GPT-5.4",
-		Provider:    PlatformOpenAI,
-		Platforms:   []string{PlatformOpenAI},
-		UIPriority:  1,
-		ExposedIn:   []string{"test"},
-	})
-	require.NoError(t, err)
-	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:          "gpt-5.1-codex-mini",
-		DisplayName: "GPT-5.1 Codex Mini",
-		Provider:    PlatformOpenAI,
-		Platforms:   []string{PlatformOpenAI},
-		UIPriority:  2,
-		ExposedIn:   []string{"test"},
-	})
-	require.NoError(t, err)
-	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-5.4", "gpt-5.1-codex-mini"})
-	require.NoError(t, err)
-
-	account := &Account{
+	base := &Account{
 		ID:       995,
-		Name:     "openai-chatgpt-oauth-no-snapshot",
+		Name:     "openai-apikey",
 		Platform: PlatformOpenAI,
-		Type:     AccountTypeOAuth,
+		Type:     AccountTypeAPIKey,
 		Status:   StatusActive,
 	}
-
-	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
-	ids := make([]string, 0, len(models))
-	for _, model := range models {
-		ids = append(ids, model.ID)
-	}
-
-	require.Contains(t, ids, "gpt-5.4")
-	require.NotContains(t, ids, "gpt-5.1-codex-mini")
-}
-
-func TestBuildAvailableTestModels_DoesNotRestrictOpenAIAPIKeyModelsByKnownSnapshot(t *testing.T) {
-	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
-
-	_, err := registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:          "gpt-5.4",
-		DisplayName: "GPT-5.4",
-		Provider:    PlatformOpenAI,
-		Platforms:   []string{PlatformOpenAI},
-		UIPriority:  1,
-		ExposedIn:   []string{"test"},
-	})
-	require.NoError(t, err)
-	_, err = registrySvc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
-		ID:          "gpt-5.1-codex-mini",
-		DisplayName: "GPT-5.1 Codex Mini",
-		Provider:    PlatformOpenAI,
-		Platforms:   []string{PlatformOpenAI},
-		UIPriority:  2,
-		ExposedIn:   []string{"test"},
-	})
-	require.NoError(t, err)
-	_, err = registrySvc.ActivateModels(context.Background(), []string{"gpt-5.4", "gpt-5.1-codex-mini"})
-	require.NoError(t, err)
-
-	account := &Account{
-		ID:       994,
-		Name:     "openai-apikey",
+	withKnown := &Account{
+		ID:       996,
+		Name:     "openai-apikey-known",
 		Platform: PlatformOpenAI,
 		Type:     AccountTypeAPIKey,
 		Status:   StatusActive,
@@ -229,14 +153,9 @@ func TestBuildAvailableTestModels_DoesNotRestrictOpenAIAPIKeyModelsByKnownSnapsh
 		},
 	}
 
-	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
-	ids := make([]string, 0, len(models))
-	for _, model := range models {
-		ids = append(ids, model.ID)
-	}
-
-	require.Contains(t, ids, "gpt-5.4")
-	require.Contains(t, ids, "gpt-5.1-codex-mini")
+	baseModels := BuildAvailableTestModels(context.Background(), base, registrySvc)
+	withKnownModels := BuildAvailableTestModels(context.Background(), withKnown, registrySvc)
+	require.Equal(t, baseModels, withKnownModels)
 }
 
 func TestBuildManualTestModelCandidates_PrefersManualProviderMetadata(t *testing.T) {
@@ -300,10 +219,12 @@ func TestBuildAvailableTestModels_AppliesExplicitMappingRestrictions(t *testing.
 
 	models := BuildAvailableTestModels(context.Background(), account, registrySvc)
 	require.Len(t, models, 1)
-	require.Equal(t, "custom-shared-a", models[0].ID)
+	require.Equal(t, "friendly-a", models[0].ID)
+	require.Equal(t, "custom-shared-a", models[0].TargetModelID)
+	require.Equal(t, AccountModelVisibilityModeAlias, models[0].VisibilityMode)
 }
 
-func TestBuildAvailableTestModels_UsesManualRowsAsExplicitAvailableModels(t *testing.T) {
+func TestBuildAvailableTestModels_ManualRowsDoNotDefineVisibleModelsWithoutPolicy(t *testing.T) {
 	account := &Account{
 		ID:       998,
 		Name:     "manual-only-account",
@@ -323,7 +244,5 @@ func TestBuildAvailableTestModels_UsesManualRowsAsExplicitAvailableModels(t *tes
 	}
 
 	models := BuildAvailableTestModels(context.Background(), account, nil)
-	require.Len(t, models, 2)
-	require.Equal(t, "manual-allowed", models[0].ID)
-	require.Equal(t, "manual-blocked", models[1].ID)
+	require.Empty(t, models)
 }

@@ -14,6 +14,9 @@ export function buildAccountTestModelOptionKeyFromModel(
   return buildAccountTestModelOptionKey(model.id, model.source_protocol)
 }
 
-export function findAccountTestModelByKey(models: ClaudeModel[], key: string): ClaudeModel | null {
+export function findAccountTestModelByKey<T extends Pick<ClaudeModel, 'id' | 'source_protocol'>>(
+  models: T[],
+  key: string
+): T | null {
   return models.find((model) => buildAccountTestModelOptionKeyFromModel(model) === key) || null
 }

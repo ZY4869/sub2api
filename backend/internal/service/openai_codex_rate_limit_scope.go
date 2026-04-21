@@ -42,6 +42,20 @@ func WithOpenAICodexRequestModel(ctx context.Context, model string) context.Cont
 	return context.WithValue(ctx, openAICodexRequestModelContextKey{}, model)
 }
 
+func withOpenAICodexRequestModelFallback(ctx context.Context, models ...string) context.Context {
+	for _, model := range models {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			continue
+		}
+		return WithOpenAICodexRequestModel(ctx, model)
+	}
+	if strings.TrimSpace(openAICodexRequestModelFromContext(ctx)) != "" {
+		return ctx
+	}
+	return ctx
+}
+
 func openAICodexRequestModelFromContext(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -275,6 +289,18 @@ func syncOpenAICodexRateLimitState(ctx context.Context, repo AccountRepository, 
 		}
 		updatesToPersist[codexAccountAll7dExhaustedKey] = state.All7dExhausted
 	}
+
+	modelLimitsChanged := syncScopedOpenAICodexModelRateLimit(ctx, repo, account, openAICodexScopeNormal, mergedExtra, now)
+	if isOpenAIProPlan(account) && syncScopedOpenAICodexModelRateLimit(ctx, repo, account, openAICodexScopeSpark, mergedExtra, now) {
+		modelLimitsChanged = true
+	}
+	if modelLimitsChanged {
+		if updatesToPersist == nil {
+			updatesToPersist = map[string]any{}
+		}
+		updatesToPersist[modelRateLimitsKey] = cloneLocalOpenAICodexModelRateLimits(account)
+	}
+
 	if len(updatesToPersist) > 0 {
 		mergeAccountExtra(account, updatesToPersist)
 		if repo != nil && account.ID > 0 {
@@ -282,11 +308,6 @@ func syncOpenAICodexRateLimitState(ctx context.Context, repo AccountRepository, 
 				slog.Warn("openai_codex_snapshot_update_failed", "account_id", account.ID, "error", err)
 			}
 		}
-	}
-
-	syncScopedOpenAICodexModelRateLimit(ctx, repo, account, openAICodexScopeNormal, mergedExtra, now)
-	if isOpenAIProPlan(account) {
-		syncScopedOpenAICodexModelRateLimit(ctx, repo, account, openAICodexScopeSpark, mergedExtra, now)
 	}
 
 	if state.AccountResetAt != nil {
@@ -324,22 +345,23 @@ func syncOpenAICodexRateLimitState(ctx context.Context, repo AccountRepository, 
 	return state
 }
 
-func syncScopedOpenAICodexModelRateLimit(ctx context.Context, repo AccountRepository, account *Account, scope string, extra map[string]any, now time.Time) {
+func syncScopedOpenAICodexModelRateLimit(ctx context.Context, repo AccountRepository, account *Account, scope string, extra map[string]any, now time.Time) bool {
 	resetAt := codexRateLimitResetAtFromExtraForScope(extra, scope, now)
 	if resetAt == nil {
-		return
+		return clearLocalOpenAICodexModelRateLimit(account, scope)
 	}
 	reason := codexRateLimitReasonFromExtraForScope(extra, scope, now)
 	current := account.modelRateLimitResetAt(scope)
 	applyLocalOpenAICodexModelRateLimit(account, scope, *resetAt, now)
 	if repo == nil || account == nil || account.ID <= 0 || !shouldPersistOpenAICodexModelRateLimit(current, *resetAt, now) {
-		return
+		return false
 	}
 	if err := repo.SetModelRateLimit(ctx, account.ID, scope, *resetAt); err != nil {
 		slog.Warn("openai_codex_model_limit_failed", "account_id", account.ID, "scope", scope, "reason", reason, "reset_at", *resetAt, "error", err)
-		return
+		return false
 	}
 	slog.Info("openai_codex_model_limited", "account_id", account.ID, "scope", scope, "reason", reason, "reset_at", *resetAt)
+	return false
 }
 
 func applyLocalOpenAICodexModelRateLimit(account *Account, scope string, resetAt time.Time, now time.Time) {
@@ -364,6 +386,33 @@ func applyLocalOpenAICodexModelRateLimit(account *Account, scope string, resetAt
 	}
 }
 
+func clearLocalOpenAICodexModelRateLimit(account *Account, scope string) bool {
+	if account == nil || account.Extra == nil || scope == "" {
+		return false
+	}
+	limits, ok := account.Extra[modelRateLimitsKey].(map[string]any)
+	if !ok || limits == nil {
+		return false
+	}
+	if _, exists := limits[scope]; !exists {
+		return false
+	}
+	delete(limits, scope)
+	account.Extra[modelRateLimitsKey] = limits
+	return true
+}
+
+func cloneLocalOpenAICodexModelRateLimits(account *Account) map[string]any {
+	if account == nil || account.Extra == nil {
+		return map[string]any{}
+	}
+	limits, ok := account.Extra[modelRateLimitsKey].(map[string]any)
+	if !ok || limits == nil {
+		return map[string]any{}
+	}
+	return cloneStringAnyMap(limits)
+}
+
 func shouldPersistOpenAICodexModelRateLimit(current *time.Time, resetAt time.Time, now time.Time) bool {
 	if current == nil || !now.Before(*current) {
 		return true
@@ -384,8 +433,9 @@ func shouldClearOpenAICodexAccountRateLimit(account *Account, now time.Time) boo
 	}
 	reason := NormalizeAccountRateLimitReasonInput(parseExtraString(account.Extra["rate_limit_reason"]))
 	switch reason {
-	// usage_7d_all must stay at the account scope until the persisted account
-	// reset time elapses, even if one side recovers earlier than the other.
+	case AccountRateLimitReasonUsage7dAll:
+		resetAt, ok := codexAccountAll7dResetAtFromExtra(account, account.Extra, now)
+		return !ok || resetAt == nil || !now.Before(*resetAt)
 	case AccountRateLimitReasonUsage5h, AccountRateLimitReasonUsage7d:
 		return true
 	default:

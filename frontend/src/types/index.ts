@@ -624,6 +624,12 @@ export interface ClaudeModel {
   replaced_by?: string;
 }
 
+export interface AdminAccountModelOption extends ClaudeModel {
+  target_model_id?: string;
+  availability_state?: "verified" | "unavailable" | "unknown";
+  stale_state?: "fresh" | "stale" | "unverified";
+}
+
 export interface Proxy {
   id: number;
   name: string;

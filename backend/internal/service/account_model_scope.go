@@ -8,13 +8,34 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/modelregistry"
 )
 
+const (
+	AccountModelPolicyModeWhitelist = "whitelist"
+	AccountModelPolicyModeMapping   = "mapping"
+
+	AccountModelVisibilityModeAlias   = "alias"
+	AccountModelVisibilityModeDirect  = "direct"
+	AccountModelVisibilityModeDefault = "default_library"
+)
+
 type AccountModelScopeV2 struct {
-	SupportedProviders        []string                            `json:"supported_providers"`
-	SupportedModelsByProvider map[string][]string                 `json:"supported_models_by_provider"`
-	AdvancedProviderOverride  bool                                `json:"advanced_provider_override"`
+	PolicyMode string                 `json:"policy_mode,omitempty"`
+	Entries    []AccountModelScopeEntry `json:"entries,omitempty"`
+
+	// Legacy fields kept for compatibility reads only.
+	SupportedProviders        []string                            `json:"supported_providers,omitempty"`
+	SupportedModelsByProvider map[string][]string                 `json:"supported_models_by_provider,omitempty"`
+	AdvancedProviderOverride  bool                                `json:"advanced_provider_override,omitempty"`
 	SelectedModelIDs          []string                            `json:"selected_model_ids,omitempty"`
 	ManualMappingRows         []AccountModelScopeManualMappingRow `json:"manual_mapping_rows,omitempty"`
-	ManualMappings            map[string]string                   `json:"manual_mappings"`
+	ManualMappings            map[string]string                   `json:"manual_mappings,omitempty"`
+}
+
+type AccountModelScopeEntry struct {
+	DisplayModelID string `json:"display_model_id"`
+	TargetModelID  string `json:"target_model_id"`
+	Provider       string `json:"provider,omitempty"`
+	SourceProtocol string `json:"source_protocol,omitempty"`
+	VisibilityMode string `json:"visibility_mode,omitempty"`
 }
 
 type AccountModelScopeManualMappingRow struct {
@@ -35,18 +56,26 @@ func ExtractAccountModelScopeV2(extra map[string]any) (*AccountModelScopeV2, boo
 		return nil, false
 	}
 	scope := &AccountModelScopeV2{
+		PolicyMode:                normalizeAccountModelPolicyMode(scopeMap["policy_mode"]),
+		Entries:                   normalizeAccountModelScopeEntriesAny(scopeMap["entries"]),
 		SupportedProviders:        normalizeStringSliceAny(scopeMap["supported_providers"], normalizeRegistryPlatform),
 		SupportedModelsByProvider: normalizeStringSliceMapAny(scopeMap["supported_models_by_provider"], normalizeRegistryID),
 		AdvancedProviderOverride:  parseBoolAny(scopeMap["advanced_provider_override"]),
 		SelectedModelIDs:          normalizeStringSliceAny(scopeMap["selected_model_ids"], strings.TrimSpace),
 		ManualMappingRows:         normalizeManualMappingRowsAny(scopeMap["manual_mapping_rows"]),
-		ManualMappings:            normalizeStringMapAny(scopeMap["manual_mappings"], normalizeRegistryID, normalizeRegistryID),
+		ManualMappings:            normalizeStringMapAny(scopeMap["manual_mappings"], strings.TrimSpace, strings.TrimSpace),
 	}
-	if len(scope.SupportedProviders) == 0 &&
+	scope.normalize()
+	_, hasStructuredPolicyMode := scopeMap["policy_mode"]
+	_, hasStructuredEntries := scopeMap["entries"]
+	if len(scope.Entries) == 0 &&
+		len(scope.SupportedProviders) == 0 &&
 		len(scope.SupportedModelsByProvider) == 0 &&
 		len(scope.SelectedModelIDs) == 0 &&
 		len(scope.ManualMappings) == 0 &&
-		len(scope.ManualMappingRows) == 0 {
+		len(scope.ManualMappingRows) == 0 &&
+		!hasStructuredPolicyMode &&
+		!hasStructuredEntries {
 		return nil, false
 	}
 	return scope, true
@@ -57,193 +86,113 @@ func (s *ModelRegistryService) BuildModelMappingFromScopeV2(ctx context.Context,
 	if !ok || scope == nil {
 		return nil, nil, false, nil
 	}
+	if len(scope.Entries) == 0 {
+		return nil, nil, true, nil
+	}
+
 	entries, err := s.pricingEntries(ctx)
 	if err != nil {
 		return nil, nil, false, err
 	}
 	index := modelregistry.BuildIndex(entries)
 	routeKey := accountModelScopeRouteKey(platform, accountType)
-	details, err := s.adminDetails(ctx)
-	if err != nil {
-		return nil, nil, false, err
-	}
-	detailIndex := make(map[string]modelregistry.AdminModelDetail, len(details))
-	for _, detail := range details {
-		detailIndex[detail.ID] = detail
-	}
 
 	selectedModels := make([]string, 0)
 	selectedSet := map[string]struct{}{}
-	mapping := make(map[string]string)
+	mapping := make(map[string]string, len(scope.Entries))
 
-	for _, modelID := range scopeSelectedModels(scope) {
-		canonicalID, err := s.resolveCanonicalModelForAvailability(ctx, modelID)
-		if err != nil {
-			return nil, nil, false, err
-		}
-		if canonicalID == "" {
-			canonicalID = normalizeRegistryID(modelID)
-		}
-		if canonicalID == "" {
+	for _, entry := range scope.Entries {
+		displayModelID := strings.TrimSpace(entry.DisplayModelID)
+		targetModelID := strings.TrimSpace(entry.TargetModelID)
+		if displayModelID == "" {
 			continue
 		}
-		if _, exists := selectedSet[canonicalID]; !exists {
-			selectedSet[canonicalID] = struct{}{}
-			selectedModels = append(selectedModels, canonicalID)
+		if targetModelID == "" {
+			targetModelID = displayModelID
 		}
-		detail, ok := detailIndex[canonicalID]
-		if !ok {
-			mapping[canonicalID] = canonicalID
-			continue
+
+		canonicalTarget := targetModelID
+		if resolved, resolveErr := s.resolveCanonicalModelForAvailability(ctx, targetModelID); resolveErr != nil {
+			return nil, nil, false, resolveErr
+		} else if strings.TrimSpace(resolved) != "" {
+			canonicalTarget = normalizeRegistryID(resolved)
 		}
-		targetModel := canonicalID
-		if resolved, ok := index.ResolveProtocolID(canonicalID, routeKey); ok && strings.TrimSpace(resolved) != "" {
-			targetModel = normalizeRegistryID(resolved)
+
+		routeTarget := canonicalTarget
+		if routeTarget == "" {
+			routeTarget = targetModelID
 		}
-		for _, key := range accountModelScopeRequestKeys(canonicalID, detail) {
-			mapping[key] = targetModel
+		if normalizedCanonical := normalizeRegistryID(canonicalTarget); normalizedCanonical != "" {
+			if resolved, ok := index.ResolveProtocolID(normalizedCanonical, routeKey); ok && strings.TrimSpace(resolved) != "" {
+				routeTarget = strings.TrimSpace(resolved)
+			}
+			if _, exists := selectedSet[normalizedCanonical]; !exists {
+				selectedSet[normalizedCanonical] = struct{}{}
+				selectedModels = append(selectedModels, normalizedCanonical)
+			}
 		}
+
+		mapping[displayModelID] = routeTarget
 	}
 
-	if len(scope.ManualMappingRows) > 0 {
-		for _, row := range scope.ManualMappingRows {
-			from := strings.TrimSpace(row.From)
-			to := strings.TrimSpace(row.To)
-			if from == "" || to == "" {
-				continue
-			}
-			mapping[from] = to
-		}
-	} else {
-		for from, to := range scope.ManualMappings {
-			if from == "" || to == "" {
-				continue
-			}
-			mapping[from] = to
-		}
+	if len(mapping) == 0 {
+		return nil, selectedModels, true, nil
 	}
 
 	sort.Strings(selectedModels)
 	return mapping, selectedModels, true, nil
 }
 
-func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, platform string, accountType string, mapping map[string]string) *AccountModelScopeV2 {
+func (s *ModelRegistryService) InferAccountModelScopeV2(ctx context.Context, platform string, _ string, mapping map[string]string) *AccountModelScopeV2 {
 	if len(mapping) == 0 {
 		return nil
 	}
-	entries, err := s.pricingEntries(ctx)
-	if err != nil {
-		return nil
-	}
-	index := modelregistry.BuildIndex(entries)
-	details, err := s.adminDetails(ctx)
-	if err != nil {
-		return nil
-	}
-	detailIndex := make(map[string]modelregistry.AdminModelDetail, len(details))
-	for _, detail := range details {
-		detailIndex[detail.ID] = detail
-	}
 
-	routeKey := accountModelScopeRouteKey(platform, accountType)
 	scope := &AccountModelScopeV2{
-		SupportedProviders:        []string{},
-		SupportedModelsByProvider: map[string][]string{},
-		SelectedModelIDs:          []string{},
-		ManualMappingRows:         []AccountModelScopeManualMappingRow{},
-		ManualMappings:            map[string]string{},
+		PolicyMode: AccountModelPolicyModeWhitelist,
+		Entries:    make([]AccountModelScopeEntry, 0, len(mapping)),
 	}
-	providerSet := map[string]struct{}{}
-	selectedModelIDsByCanonical := map[string][]string{}
 
-	for from, to := range mapping {
-		canonicalID := ""
-		if resolved, ok := index.ResolveCanonicalID(from); ok && resolved != "" {
-			canonicalID = resolved
-		} else if resolved, ok := index.ResolveCanonicalID(to); ok && resolved != "" {
-			canonicalID = resolved
+	keys := make([]string, 0, len(mapping))
+	for from := range mapping {
+		keys = append(keys, from)
+	}
+	sort.Strings(keys)
+
+	for _, from := range keys {
+		displayModelID := strings.TrimSpace(from)
+		targetModelID := strings.TrimSpace(mapping[from])
+		if displayModelID == "" || targetModelID == "" {
+			continue
+		}
+		entry := AccountModelScopeEntry{
+			DisplayModelID: displayModelID,
+			TargetModelID:  targetModelID,
+			Provider:       buildScopeEntryProvider(platform, targetModelID),
+		}
+		if displayModelID == targetModelID {
+			entry.VisibilityMode = AccountModelVisibilityModeDirect
 		} else {
-			canonicalID = normalizeRegistryID(from)
+			entry.VisibilityMode = AccountModelVisibilityModeAlias
+			scope.PolicyMode = AccountModelPolicyModeMapping
 		}
-		if canonicalID == "" {
-			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
-			scope.ManualMappings[from] = to
-			continue
-		}
-		detail, ok := detailIndex[canonicalID]
-		if !ok {
-			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
-			scope.ManualMappings[from] = to
-			continue
-		}
-		provider := normalizeRegistryPlatform(detail.Provider)
-		if provider == "" {
-			provider = inferModelProvider(canonicalID)
-		}
-		if provider == "" {
-			provider = normalizeRegistryPlatform(platform)
-		}
-		if provider != "" {
-			providerSet[provider] = struct{}{}
-			scope.SupportedModelsByProvider[provider] = mergeRegistryStrings(scope.SupportedModelsByProvider[provider], canonicalID)
-		}
-		expectedTarget := canonicalID
-		if resolved, ok := index.ResolveProtocolID(canonicalID, routeKey); ok && strings.TrimSpace(resolved) != "" {
-			expectedTarget = normalizeRegistryID(resolved)
-		}
-
-		normalizedFrom := normalizeRegistryID(from)
-		normalizedTo := normalizeRegistryID(to)
-		requestKeySet := make(map[string]struct{})
-		for _, key := range accountModelScopeRequestKeys(canonicalID, detail) {
-			requestKeySet[key] = struct{}{}
-		}
-		_, isKnownRequestKey := requestKeySet[normalizedFrom]
-		if isKnownRequestKey && normalizedFrom == normalizedTo {
-			selectedModelIDsByCanonical[canonicalID] = mergeRegistryStrings(
-				selectedModelIDsByCanonical[canonicalID],
-				strings.TrimSpace(from),
-			)
-			continue
-		}
-		if isKnownRequestKey && normalizedTo == expectedTarget {
-			continue
-		}
-		if normalizedFrom != canonicalID || normalizedTo != expectedTarget {
-			scope.ManualMappingRows = append(scope.ManualMappingRows, AccountModelScopeManualMappingRow{From: from, To: to})
-			scope.ManualMappings[from] = to
-		}
-	}
-
-	for provider := range providerSet {
-		scope.SupportedProviders = append(scope.SupportedProviders, provider)
-	}
-	sort.Strings(scope.SupportedProviders)
-	for provider, models := range scope.SupportedModelsByProvider {
-		sort.Strings(models)
-		scope.SupportedModelsByProvider[provider] = models
-	}
-	for _, provider := range scope.SupportedProviders {
-		for _, modelID := range scope.SupportedModelsByProvider[provider] {
-			selectedIDs := append([]string(nil), selectedModelIDsByCanonical[modelID]...)
-			if len(selectedIDs) == 0 {
-				selectedIDs = []string{modelID}
-			} else {
-				sort.Strings(selectedIDs)
+		if s != nil {
+			if resolved, err := s.resolveCanonicalModelForAvailability(ctx, targetModelID); err == nil && strings.TrimSpace(resolved) != "" {
+				entry.TargetModelID = normalizeRegistryID(resolved)
+				if entry.Provider == "" {
+					entry.Provider = buildScopeEntryProvider(platform, entry.TargetModelID)
+				}
 			}
-			scope.SelectedModelIDs = mergeRegistryStrings(scope.SelectedModelIDs, selectedIDs...)
 		}
+		entry.VisibilityMode = normalizeAccountModelVisibilityMode("", entry.DisplayModelID, entry.TargetModelID)
+		if entry.VisibilityMode == AccountModelVisibilityModeAlias {
+			scope.PolicyMode = AccountModelPolicyModeMapping
+		}
+		scope.Entries = append(scope.Entries, entry)
 	}
-	sort.Slice(scope.ManualMappingRows, func(i, j int) bool {
-		if scope.ManualMappingRows[i].From == scope.ManualMappingRows[j].From {
-			return scope.ManualMappingRows[i].To < scope.ManualMappingRows[j].To
-		}
-		return scope.ManualMappingRows[i].From < scope.ManualMappingRows[j].From
-	})
-	if len(scope.SupportedProviders) == 0 &&
-		len(scope.SelectedModelIDs) == 0 &&
-		len(scope.ManualMappings) == 0 &&
-		len(scope.ManualMappingRows) == 0 {
+
+	scope.normalize()
+	if len(scope.Entries) == 0 {
 		return nil
 	}
 	return scope
@@ -253,40 +202,69 @@ func (scope *AccountModelScopeV2) ToMap() map[string]any {
 	if scope == nil {
 		return nil
 	}
-	modelsByProvider := make(map[string]any, len(scope.SupportedModelsByProvider))
-	for provider, models := range scope.SupportedModelsByProvider {
-		modelsByProvider[provider] = append([]string(nil), models...)
-	}
-	manualMappings := make(map[string]any, len(scope.ManualMappings))
-	for from, to := range scope.ManualMappings {
-		manualMappings[from] = to
-	}
-	manualMappingRows := make([]map[string]any, 0, len(scope.ManualMappingRows))
-	for _, row := range scope.ManualMappingRows {
-		if strings.TrimSpace(row.From) == "" || strings.TrimSpace(row.To) == "" {
+	scope.normalize()
+	entries := make([]map[string]any, 0, len(scope.Entries))
+	for _, entry := range scope.Entries {
+		displayModelID := strings.TrimSpace(entry.DisplayModelID)
+		targetModelID := strings.TrimSpace(entry.TargetModelID)
+		if displayModelID == "" {
 			continue
 		}
-		manualMappingRows = append(manualMappingRows, map[string]any{
-			"from": row.From,
-			"to":   row.To,
-		})
+		if targetModelID == "" {
+			targetModelID = displayModelID
+		}
+		item := map[string]any{
+			"display_model_id": displayModelID,
+			"target_model_id":  targetModelID,
+		}
+		if provider := NormalizeModelProvider(entry.Provider); provider != "" {
+			item["provider"] = provider
+		}
+		if sourceProtocol := NormalizeGatewayProtocol(entry.SourceProtocol); sourceProtocol != "" {
+			item["source_protocol"] = sourceProtocol
+		}
+		if visibilityMode := normalizeAccountModelVisibilityMode(entry.VisibilityMode, displayModelID, targetModelID); visibilityMode != "" {
+			item["visibility_mode"] = visibilityMode
+		}
+		entries = append(entries, item)
 	}
-	result := map[string]any{
-		"supported_providers":          append([]string(nil), scope.SupportedProviders...),
-		"supported_models_by_provider": modelsByProvider,
-		"advanced_provider_override":   scope.AdvancedProviderOverride,
-		"manual_mapping_rows":          manualMappingRows,
-		"manual_mappings":              manualMappings,
+	return map[string]any{
+		"policy_mode": normalizeAccountModelPolicyMode(scope.PolicyMode),
+		"entries":     entries,
 	}
-	if len(scope.SelectedModelIDs) > 0 {
-		result["selected_model_ids"] = append([]string(nil), scope.SelectedModelIDs...)
+}
+
+func (scope *AccountModelScopeV2) normalize() {
+	if scope == nil {
+		return
 	}
-	return result
+	if len(scope.Entries) == 0 {
+		scope.Entries = legacyAccountModelScopeEntries(scope)
+	}
+	scope.Entries = normalizeAccountModelScopeEntries(scope.Entries)
+	if scope.PolicyMode == "" {
+		scope.PolicyMode = inferAccountModelPolicyMode(scope.Entries)
+	}
 }
 
 func scopeSelectedModels(scope *AccountModelScopeV2) []string {
 	if scope == nil {
 		return nil
+	}
+	scope.normalize()
+	if len(scope.Entries) > 0 {
+		models := make([]string, 0, len(scope.Entries))
+		for _, entry := range scope.Entries {
+			targetModelID := strings.TrimSpace(entry.TargetModelID)
+			if targetModelID == "" {
+				targetModelID = strings.TrimSpace(entry.DisplayModelID)
+			}
+			if targetModelID == "" {
+				continue
+			}
+			models = append(models, targetModelID)
+		}
+		return compactRegistryStrings(models...)
 	}
 	if len(scope.SupportedModelsByProvider) > 0 {
 		providers := make([]string, 0, len(scope.SupportedModelsByProvider))
@@ -301,13 +279,6 @@ func scopeSelectedModels(scope *AccountModelScopeV2) []string {
 		return models
 	}
 	return append([]string(nil), scope.SelectedModelIDs...)
-}
-
-func accountModelScopeRequestKeys(canonicalID string, detail modelregistry.AdminModelDetail) []string {
-	requestKeys := compactRegistryStrings(canonicalID)
-	requestKeys = mergeRegistryStrings(requestKeys, detail.Aliases...)
-	requestKeys = mergeRegistryStrings(requestKeys, detail.ProtocolIDs...)
-	return requestKeys
 }
 
 func accountModelScopeRouteKey(platform string, accountType string) string {
@@ -333,6 +304,226 @@ func accountModelScopeRouteKey(platform string, accountType string) string {
 	default:
 		return normalizedPlatform
 	}
+}
+
+func legacyAccountModelScopeEntries(scope *AccountModelScopeV2) []AccountModelScopeEntry {
+	if scope == nil {
+		return nil
+	}
+
+	ordered := make([]AccountModelScopeEntry, 0)
+	appendEntry := func(entry AccountModelScopeEntry) {
+		ordered = append(ordered, entry)
+	}
+
+	if len(scope.ManualMappingRows) > 0 {
+		for _, row := range scope.ManualMappingRows {
+			displayModelID := strings.TrimSpace(row.From)
+			targetModelID := strings.TrimSpace(row.To)
+			if displayModelID == "" || targetModelID == "" {
+				continue
+			}
+			appendEntry(AccountModelScopeEntry{
+				DisplayModelID: displayModelID,
+				TargetModelID:  targetModelID,
+				Provider:       buildScopeEntryProvider("", targetModelID),
+				VisibilityMode: normalizeAccountModelVisibilityMode("", displayModelID, targetModelID),
+			})
+		}
+		return ordered
+	}
+
+	if len(scope.ManualMappings) > 0 {
+		keys := make([]string, 0, len(scope.ManualMappings))
+		for from := range scope.ManualMappings {
+			keys = append(keys, from)
+		}
+		sort.Strings(keys)
+		for _, from := range keys {
+			displayModelID := strings.TrimSpace(from)
+			targetModelID := strings.TrimSpace(scope.ManualMappings[from])
+			if displayModelID == "" || targetModelID == "" {
+				continue
+			}
+			appendEntry(AccountModelScopeEntry{
+				DisplayModelID: displayModelID,
+				TargetModelID:  targetModelID,
+				Provider:       buildScopeEntryProvider("", targetModelID),
+				VisibilityMode: normalizeAccountModelVisibilityMode("", displayModelID, targetModelID),
+			})
+		}
+		return ordered
+	}
+
+	if len(scope.SelectedModelIDs) > 0 {
+		for _, modelID := range scope.SelectedModelIDs {
+			displayModelID := strings.TrimSpace(modelID)
+			if displayModelID == "" {
+				continue
+			}
+			appendEntry(AccountModelScopeEntry{
+				DisplayModelID: displayModelID,
+				TargetModelID:  displayModelID,
+				Provider:       buildScopeEntryProvider("", displayModelID),
+				VisibilityMode: AccountModelVisibilityModeDirect,
+			})
+		}
+		return ordered
+	}
+
+	if len(scope.SupportedModelsByProvider) == 0 {
+		return nil
+	}
+	providers := make([]string, 0, len(scope.SupportedModelsByProvider))
+	for provider := range scope.SupportedModelsByProvider {
+		providers = append(providers, provider)
+	}
+	sort.Strings(providers)
+	for _, provider := range providers {
+		for _, modelID := range scope.SupportedModelsByProvider[provider] {
+			displayModelID := strings.TrimSpace(modelID)
+			if displayModelID == "" {
+				continue
+			}
+			appendEntry(AccountModelScopeEntry{
+				DisplayModelID: displayModelID,
+				TargetModelID:  displayModelID,
+				Provider:       normalizeRegistryPlatform(provider),
+				VisibilityMode: AccountModelVisibilityModeDirect,
+			})
+		}
+	}
+	return ordered
+}
+
+func normalizeAccountModelPolicyMode(raw any) string {
+	switch strings.TrimSpace(strings.ToLower(stringValueFromAny(raw))) {
+	case AccountModelPolicyModeMapping:
+		return AccountModelPolicyModeMapping
+	case AccountModelPolicyModeWhitelist:
+		return AccountModelPolicyModeWhitelist
+	default:
+		return ""
+	}
+}
+
+func inferAccountModelPolicyMode(entries []AccountModelScopeEntry) string {
+	for _, entry := range entries {
+		displayModelID := strings.TrimSpace(entry.DisplayModelID)
+		targetModelID := strings.TrimSpace(entry.TargetModelID)
+		if targetModelID == "" {
+			targetModelID = displayModelID
+		}
+		if normalizeAccountModelVisibilityMode(entry.VisibilityMode, displayModelID, targetModelID) == AccountModelVisibilityModeAlias {
+			return AccountModelPolicyModeMapping
+		}
+	}
+	return AccountModelPolicyModeWhitelist
+}
+
+func normalizeAccountModelVisibilityMode(raw string, displayModelID string, targetModelID string) string {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case AccountModelVisibilityModeAlias:
+		return AccountModelVisibilityModeAlias
+	case AccountModelVisibilityModeDefault:
+		return AccountModelVisibilityModeDefault
+	case AccountModelVisibilityModeDirect:
+		return AccountModelVisibilityModeDirect
+	}
+	if strings.TrimSpace(displayModelID) != strings.TrimSpace(targetModelID) {
+		return AccountModelVisibilityModeAlias
+	}
+	return AccountModelVisibilityModeDirect
+}
+
+func normalizeAccountModelScopeEntriesAny(raw any) []AccountModelScopeEntry {
+	values, ok := raw.([]any)
+	if !ok {
+		if typed, ok := raw.([]map[string]any); ok {
+			values = make([]any, 0, len(typed))
+			for _, item := range typed {
+				values = append(values, item)
+			}
+		} else {
+			return nil
+		}
+	}
+	entries := make([]AccountModelScopeEntry, 0, len(values))
+	for _, item := range values {
+		entry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		displayModelID := strings.TrimSpace(stringValueFromAny(entry["display_model_id"]))
+		targetModelID := strings.TrimSpace(stringValueFromAny(entry["target_model_id"]))
+		if displayModelID == "" {
+			continue
+		}
+		if targetModelID == "" {
+			targetModelID = displayModelID
+		}
+		entries = append(entries, AccountModelScopeEntry{
+			DisplayModelID: displayModelID,
+			TargetModelID:  targetModelID,
+			Provider:       NormalizeModelProvider(stringValueFromAny(entry["provider"])),
+			SourceProtocol: NormalizeGatewayProtocol(stringValueFromAny(entry["source_protocol"])),
+			VisibilityMode: normalizeAccountModelVisibilityMode(stringValueFromAny(entry["visibility_mode"]), displayModelID, targetModelID),
+		})
+	}
+	return normalizeAccountModelScopeEntries(entries)
+}
+
+func normalizeAccountModelScopeEntries(entries []AccountModelScopeEntry) []AccountModelScopeEntry {
+	if len(entries) == 0 {
+		return nil
+	}
+	normalized := make([]AccountModelScopeEntry, 0, len(entries))
+	seen := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		displayModelID := strings.TrimSpace(entry.DisplayModelID)
+		targetModelID := strings.TrimSpace(entry.TargetModelID)
+		if displayModelID == "" {
+			continue
+		}
+		if targetModelID == "" {
+			targetModelID = displayModelID
+		}
+		provider := NormalizeModelProvider(entry.Provider)
+		if provider == "" {
+			provider = buildScopeEntryProvider("", targetModelID)
+		}
+		sourceProtocol := NormalizeGatewayProtocol(entry.SourceProtocol)
+		visibilityMode := normalizeAccountModelVisibilityMode(entry.VisibilityMode, displayModelID, targetModelID)
+		key := displayModelID + "\x00" + targetModelID + "\x00" + sourceProtocol
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, AccountModelScopeEntry{
+			DisplayModelID: displayModelID,
+			TargetModelID:  targetModelID,
+			Provider:       provider,
+			SourceProtocol: sourceProtocol,
+			VisibilityMode: visibilityMode,
+		})
+	}
+	sort.SliceStable(normalized, func(i, j int) bool {
+		if normalized[i].DisplayModelID == normalized[j].DisplayModelID {
+			if normalized[i].TargetModelID == normalized[j].TargetModelID {
+				return normalized[i].SourceProtocol < normalized[j].SourceProtocol
+			}
+			return normalized[i].TargetModelID < normalized[j].TargetModelID
+		}
+		return normalized[i].DisplayModelID < normalized[j].DisplayModelID
+	})
+	return normalized
+}
+
+func buildScopeEntryProvider(platform string, modelID string) string {
+	if provider := NormalizeModelProvider(platform); provider != "" {
+		return provider
+	}
+	return NormalizeModelProvider(inferModelProvider(modelID))
 }
 
 func normalizeStringSliceAny(raw any, normalize func(string) string) []string {

@@ -38,6 +38,11 @@ Gemini / Google 风格中间件的优先级是：
   - `/upload/v1beta/fileSearchStores...`
 - `/v1/projects/:project/locations/:location/...` 和 `/google/batch/archive/...` 不在白名单里，请用请求头
 
+服务端如果使用 Gemini OAuth 账号作为上游运行身份，还要注意一条接入约束：
+
+- `google_one` 账号只有在服务端配置了自定义 OAuth client 时，才会申请 `drive.readonly` 并启用 Drive quota-based tier detection。
+- 如果仍使用内置 Gemini CLI OAuth client，Google One 会继续走兼容模式，不要求重授权，也不会依赖 Drive scope。
+
 #### Python
 ```python focus=1-12
 import requests
@@ -87,8 +92,9 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key"
 - 在 Gemini 平台下这些动作按原生协议直通。
 - 在 Antigravity 平台下，`generateContent`、`streamGenerateContent`、`countTokens` 可以兼容翻译。
 - `batchGenerateContent` 在 Antigravity 平台下当前明确拒绝。
-- `GET /v1/models`、`GET /v1beta/models`、`GET /v1beta/models/:model` 都会先经过账号级白名单 / 模型映射投影。
-- 如果账号把 `gemini-2.0-flash` 映射成 `friendly-flash`，那么列表与详情只会返回 `models/friendly-flash`；真实模型名不会再出现在返回体里。
+- `GET /v1/models`、`GET /v1beta/models`、`GET /v1/models/:model`、`GET /v1beta/models/:model` 都会先经过账号级白名单 / 模型映射投影，只暴露 display ID。
+- 如果账号把 `gemini-2.0-flash` 映射成 `friendly-flash`，那么列表与详情只会返回 `models/friendly-flash`；真实模型名不会再出现在返回体里，也不能再当作公开模型 ID 查询详情。
+- 这些 `models` 读路径只读取本地策略投影和本地 availability snapshot，不会在请求时同步触发 Vertex / Gemini 上游探测来扩充列表。
 
 #### Python
 ```python focus=1-12

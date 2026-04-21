@@ -66,6 +66,8 @@ type GeminiOAuthCapabilities struct {
 	RequiredRedirectURIs []string `json:"required_redirect_uris"`
 }
 
+var errGeminiDriveScopeUnavailable = errors.New("gemini_drive_scope_unavailable")
+
 func NewGeminiOAuthService(
 	proxyRepo ProxyRepository,
 	oauthClient GeminiOAuthClient,
@@ -85,14 +87,63 @@ func NewGeminiOAuthService(
 
 func (s *GeminiOAuthService) GetOAuthConfig() *GeminiOAuthCapabilities {
 	// AI Studio OAuth is only enabled when the operator configures a custom OAuth client.
-	clientID := strings.TrimSpace(s.cfg.Gemini.OAuth.ClientID)
-	clientSecret := strings.TrimSpace(s.cfg.Gemini.OAuth.ClientSecret)
-	enabled := clientID != "" && clientSecret != "" && clientID != geminicli.GeminiCLIOAuthClientID
+	enabled := hasGeminiCustomOAuthClient(s.cfg)
 
 	return &GeminiOAuthCapabilities{
 		AIStudioOAuthEnabled: enabled,
 		RequiredRedirectURIs: []string{geminicli.AIStudioOAuthRedirectURI},
 	}
+}
+
+func hasGeminiCustomOAuthClient(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	clientID := strings.TrimSpace(cfg.Gemini.OAuth.ClientID)
+	clientSecret := strings.TrimSpace(cfg.Gemini.OAuth.ClientSecret)
+	return clientID != "" && clientSecret != "" && clientID != geminicli.GeminiCLIOAuthClientID
+}
+
+func buildGeminiOAuthConfigInput(cfg *config.Config, oauthType string) geminicli.OAuthConfig {
+	var oauthCfg geminicli.OAuthConfig
+	if cfg != nil {
+		oauthCfg = geminicli.OAuthConfig{
+			ClientID:     cfg.Gemini.OAuth.ClientID,
+			ClientSecret: cfg.Gemini.OAuth.ClientSecret,
+			Scopes:       cfg.Gemini.OAuth.Scopes,
+		}
+	}
+	if oauthType == "code_assist" {
+		oauthCfg.ClientID = ""
+		oauthCfg.ClientSecret = ""
+	}
+	return oauthCfg
+}
+
+func geminiScopeContains(scope string, prefixes ...string) bool {
+	for _, item := range strings.Fields(scope) {
+		for _, prefix := range prefixes {
+			if prefix != "" && strings.HasPrefix(item, prefix) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func googleOneDriveProbeScope(scope string, fallback string) string {
+	scope = strings.TrimSpace(scope)
+	if scope != "" {
+		return scope
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func canProbeGoogleOneDriveTier(scope string) bool {
+	return geminiScopeContains(scope,
+		"https://www.googleapis.com/auth/drive.readonly",
+		"https://www.googleapis.com/auth/drive",
+	)
 }
 
 type GeminiAuthURLResult struct {
@@ -126,18 +177,9 @@ func (s *GeminiOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 
 	// OAuth client selection:
 	// - code_assist: always use built-in Gemini CLI OAuth client (public)
-	// - google_one: always use built-in Gemini CLI OAuth client (public)
+	// - google_one: use custom client when configured, otherwise fall back to built-in Gemini CLI OAuth client
 	// - ai_studio: requires a user-provided OAuth client
-	oauthCfg := geminicli.OAuthConfig{
-		ClientID:     s.cfg.Gemini.OAuth.ClientID,
-		ClientSecret: s.cfg.Gemini.OAuth.ClientSecret,
-		Scopes:       s.cfg.Gemini.OAuth.Scopes,
-	}
-	if oauthType == "code_assist" || oauthType == "google_one" {
-		// Force use of built-in Gemini CLI OAuth client
-		oauthCfg.ClientID = ""
-		oauthCfg.ClientSecret = ""
-	}
+	oauthCfg := buildGeminiOAuthConfigInput(s.cfg, oauthType)
 
 	session := &geminicli.OAuthSession{
 		State:        state,
@@ -379,8 +421,8 @@ func (s *GeminiOAuthService) FetchGoogleOneTier(ctx context.Context, accessToken
 	if err != nil {
 		// Check if it's a 403 (scope not granted)
 		if strings.Contains(err.Error(), "status 403") {
-			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Drive API scope not available (403): %v", err)
-			return GeminiTierGoogleOneUnknown, nil, err
+			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Drive API returned 403; treating Google One tier as unavailable for this token")
+			return GeminiTierGoogleOneUnknown, nil, fmt.Errorf("%w: status 403", errGeminiDriveScopeUnavailable)
 		}
 		// Other errors
 		logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Failed to fetch Drive storage: %v", err)
@@ -418,10 +460,31 @@ func (s *GeminiOAuthService) RefreshAccountGoogleOneTier(
 		return "", nil, nil, fmt.Errorf("missing access_token")
 	}
 
+	existingTierID := canonicalGeminiTierIDForOAuthType(oauthType, account.GetCredential("tier_id"))
+
 	// 获取 proxy URL
 	var proxyURL string
 	if account.ProxyID != nil && account.Proxy != nil {
 		proxyURL = account.Proxy.URL()
+	}
+
+	scope := strings.TrimSpace(account.GetCredential("scope"))
+	if !canProbeGoogleOneDriveTier(scope) {
+		tierID = existingTierID
+		if tierID == "" {
+			tierID = GeminiTierGoogleOneFree
+		}
+		extra = make(map[string]any)
+		for k, v := range account.Extra {
+			extra[k] = v
+		}
+		credentials = make(map[string]any)
+		for k, v := range account.Credentials {
+			credentials[k] = v
+		}
+		credentials["tier_id"] = tierID
+		logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Skipping manual Google One Drive tier refresh because drive scope is not present on this account")
+		return tierID, extra, credentials, nil
 	}
 
 	// 调用 Drive API
@@ -486,11 +549,7 @@ func (s *GeminiOAuthService) ExchangeCode(ctx context.Context, input *GeminiExch
 
 	// If the session was created for AI Studio OAuth, ensure a custom OAuth client is configured.
 	if oauthType == "ai_studio" {
-		effectiveCfg, err := geminicli.EffectiveOAuthConfig(geminicli.OAuthConfig{
-			ClientID:     s.cfg.Gemini.OAuth.ClientID,
-			ClientSecret: s.cfg.Gemini.OAuth.ClientSecret,
-			Scopes:       s.cfg.Gemini.OAuth.Scopes,
-		}, "ai_studio")
+		effectiveCfg, err := geminicli.EffectiveOAuthConfig(buildGeminiOAuthConfigInput(s.cfg, "ai_studio"), "ai_studio")
 		if err != nil {
 			return nil, err
 		}
@@ -500,8 +559,14 @@ func (s *GeminiOAuthService) ExchangeCode(ctx context.Context, input *GeminiExch
 		}
 	}
 
-	// code_assist/google_one always uses the built-in client and its fixed redirect URI.
-	if oauthType == "code_assist" || oauthType == "google_one" {
+	effectiveCfg, err := geminicli.EffectiveOAuthConfig(buildGeminiOAuthConfigInput(s.cfg, oauthType), oauthType)
+	if err != nil {
+		return nil, err
+	}
+	isBuiltinClient := effectiveCfg.ClientID == geminicli.GeminiCLIOAuthClientID
+
+	// code_assist always uses the built-in client and its fixed redirect URI.
+	if oauthType == "code_assist" || isBuiltinClient {
 		redirectURI = geminicli.GeminiCLIRedirectURI
 	}
 
@@ -599,22 +664,31 @@ func (s *GeminiOAuthService) ExchangeCode(ctx context.Context, input *GeminiExch
 			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Successfully fetched project_id: %s", projectID)
 		}
 
-		logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Attempting to fetch Google One tier from Drive API...")
-		// Attempt to fetch Drive storage tier
+		probeScope := googleOneDriveProbeScope(tokenResp.Scope, effectiveCfg.Scopes)
 		var storageInfo *geminicli.DriveStorageInfo
-		var err error
-		tierID, storageInfo, err = s.FetchGoogleOneTier(ctx, tokenResp.AccessToken, proxyURL)
-		if err != nil {
-			// Log warning but don't block - use fallback
-			fmt.Printf("[GeminiOAuth] Warning: Failed to fetch Drive tier: %v\n", err)
-			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] WARNING: Failed to fetch Drive tier: %v", err)
-			tierID = ""
+		if !canProbeGoogleOneDriveTier(probeScope) {
+			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Skipping Drive tier probe because drive scope is not granted for this Google One token")
 		} else {
-			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Successfully fetched Drive tier: %s", tierID)
-			if storageInfo != nil {
-				logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Drive storage - Limit: %d bytes (%.2f TB), Usage: %d bytes (%.2f GB)",
-					storageInfo.Limit, float64(storageInfo.Limit)/float64(TB),
-					storageInfo.Usage, float64(storageInfo.Usage)/float64(GB))
+			logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Attempting to fetch Google One tier from Drive API...")
+			// Attempt to fetch Drive storage tier
+			var err error
+			tierID, storageInfo, err = s.FetchGoogleOneTier(ctx, tokenResp.AccessToken, proxyURL)
+			if err != nil {
+				if errors.Is(err, errGeminiDriveScopeUnavailable) {
+					logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Drive scope unavailable during tier probe; falling back to cached or default Google One tier")
+				} else {
+					// Log warning but don't block - use fallback
+					fmt.Printf("[GeminiOAuth] Warning: Failed to fetch Drive tier: %v\n", err)
+					logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] WARNING: Failed to fetch Drive tier: %v", err)
+				}
+				tierID = ""
+			} else {
+				logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Successfully fetched Drive tier: %s", tierID)
+				if storageInfo != nil {
+					logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Drive storage - Limit: %d bytes (%.2f TB), Usage: %d bytes (%.2f GB)",
+						storageInfo.Limit, float64(storageInfo.Limit)/float64(TB),
+						storageInfo.Usage, float64(storageInfo.Usage)/float64(GB))
+				}
 			}
 		}
 		tierID = canonicalGeminiTierIDForOAuthType(oauthType, tierID)
@@ -839,6 +913,10 @@ func (s *GeminiOAuthService) RefreshAccountToken(ctx context.Context, account *A
 		}
 	case "google_one":
 		canonicalExistingTier := canonicalGeminiTierIDForOAuthType(oauthType, existingTierID)
+		effectiveScope := strings.TrimSpace(tokenInfo.Scope)
+		if effectiveScope == "" {
+			effectiveScope = strings.TrimSpace(account.GetCredential("scope"))
+		}
 		// Check if tier cache is stale (> 24 hours)
 		needsRefresh := true
 		if account.Extra != nil {
@@ -858,17 +936,23 @@ func (s *GeminiOAuthService) RefreshAccountToken(ctx context.Context, account *A
 		}
 
 		if needsRefresh {
-			tierID, storageInfo, err := s.FetchGoogleOneTier(ctx, tokenInfo.AccessToken, proxyURL)
-			if err == nil {
-				if canonical := canonicalGeminiTierIDForOAuthType(oauthType, tierID); canonical != "" && canonical != GeminiTierGoogleOneUnknown {
-					tokenInfo.TierID = canonical
-				}
-				if storageInfo != nil {
-					tokenInfo.Extra = map[string]any{
-						"drive_storage_limit":   storageInfo.Limit,
-						"drive_storage_usage":   storageInfo.Usage,
-						"drive_tier_updated_at": time.Now().Format(time.RFC3339),
+			if !canProbeGoogleOneDriveTier(effectiveScope) {
+				logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Skipping Drive tier refresh because drive scope is not present on the current Google One token")
+			} else {
+				tierID, storageInfo, err := s.FetchGoogleOneTier(ctx, tokenInfo.AccessToken, proxyURL)
+				if err == nil {
+					if canonical := canonicalGeminiTierIDForOAuthType(oauthType, tierID); canonical != "" && canonical != GeminiTierGoogleOneUnknown {
+						tokenInfo.TierID = canonical
 					}
+					if storageInfo != nil {
+						tokenInfo.Extra = map[string]any{
+							"drive_storage_limit":   storageInfo.Limit,
+							"drive_storage_usage":   storageInfo.Usage,
+							"drive_tier_updated_at": time.Now().Format(time.RFC3339),
+						}
+					}
+				} else if errors.Is(err, errGeminiDriveScopeUnavailable) {
+					logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] Drive scope unavailable during refresh; reusing cached or default Google One tier")
 				}
 			}
 		}

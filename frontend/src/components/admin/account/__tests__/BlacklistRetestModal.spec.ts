@@ -80,10 +80,11 @@ describe('BlacklistRetestModal', () => {
   it('loads retest models on open and defaults to the first catalog model', async () => {
     getBlacklistRetestModels.mockResolvedValueOnce([
       {
-        id: 'gpt-5.4',
+        id: 'friendly-gpt',
         type: 'model',
         display_name: 'GPT-5.4',
         created_at: '',
+        target_model_id: 'gpt-5.4',
         provider: 'openai',
         source_protocol: 'openai'
       },
@@ -107,7 +108,7 @@ describe('BlacklistRetestModal', () => {
       {
         account_ids: [101],
         model_input_mode: 'catalog',
-        model_id: 'gpt-5.4',
+        model_id: 'friendly-gpt',
         source_protocol: 'openai',
         target_provider: 'openai',
         target_model_id: 'gpt-5.4'
@@ -118,20 +119,20 @@ describe('BlacklistRetestModal', () => {
   it('uses shared gateway defaults for multi-account blacklist retests', async () => {
     getBlacklistRetestModels.mockResolvedValueOnce([
       {
-        id: 'gpt-5.4-preview',
-        canonical_id: 'gpt-5.4',
+        id: 'friendly-gpt',
         type: 'model',
         display_name: 'GPT-5.4',
         created_at: '',
+        target_model_id: 'gpt-5.4',
         provider: 'openai',
         source_protocol: 'openai'
       },
       {
-        id: 'claude-sonnet-4-5-20250929',
-        canonical_id: 'claude-sonnet-4.5',
+        id: 'friendly-sonnet',
         type: 'model',
         display_name: 'Claude Sonnet 4.5',
         created_at: '',
+        target_model_id: 'claude-sonnet-4.5',
         provider: 'anthropic',
         source_protocol: 'anthropic'
       }
@@ -171,7 +172,7 @@ describe('BlacklistRetestModal', () => {
       {
         account_ids: [201, 202],
         model_input_mode: 'catalog',
-        model_id: 'claude-sonnet-4-5-20250929',
+        model_id: 'friendly-sonnet',
         source_protocol: 'anthropic',
         target_provider: 'anthropic',
         target_model_id: 'claude-sonnet-4.5'

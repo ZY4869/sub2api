@@ -213,6 +213,7 @@
         <AccountApiKeyBasicSettingsEditor
           v-model:base-url="apiKeyBaseUrl"
           v-model:api-key="apiKeyValue"
+          v-model:model-scope-enabled="modelRestrictionEnabled"
           v-model:actual-model-locked="actualModelLocked"
           v-model:model-scope-mode="modelRestrictionMode"
           v-model:allowed-models="allowedModels"
@@ -381,6 +382,7 @@
 
       <AccountModelScopeEditor
         v-if="((accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity') || form.platform === 'protocol_gateway'"
+        v-model:enabled="modelRestrictionEnabled"
         v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
         :platform="effectivePlatform"
@@ -562,7 +564,6 @@ import { useModelInventoryStore } from '@/stores'
 import { ensureModelRegistryFresh, invalidateModelRegistry } from '@/stores/modelRegistry'
 import {
   getPresetMappingsByPlatform,
-  getModelsByPlatform,
   createCommonErrorCodeOptions,
   buildModelMappingObject,
   fetchAntigravityDefaultMappings
@@ -813,6 +814,7 @@ const batchArchiveDownloadPriceUSD = ref(defaultGoogleBatchArchiveState.download
 const allowVertexBatchOverflow = ref(defaultGoogleBatchArchiveState.allowVertexBatchOverflow)
 const acceptAIStudioBatchOverflow = ref(defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow)
 const actualModelLocked = ref(true)
+const modelRestrictionEnabled = ref(false)
 const modelMappings = ref<ModelMapping[]>([])
 const modelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const allowedModels = ref<string[]>([])
@@ -1180,12 +1182,8 @@ watch(
       if (form.platform === 'protocol_gateway') {
         modelRestrictionMode.value = 'mapping'
       }
-      allowedModels.value =
-        form.platform === 'protocol_gateway'
-          ? []
-          : accountCategory.value === 'apikey'
-            ? [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
-            : []
+      modelRestrictionEnabled.value = false
+      allowedModels.value = []
       protocolGatewayProbeModels.value = []
       manualModels.value = []
       resolvedUpstream.value = null
@@ -1249,6 +1247,7 @@ watch(
   (newPlatform, previousPlatform) => {
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     actualModelLocked.value = true
+    modelRestrictionEnabled.value = false
     allowedModels.value = []
     manualModels.value = []
     resolvedUpstream.value = null
@@ -1371,9 +1370,6 @@ watch(
       anthropicPassthroughEnabled.value = false
       interceptWarmupRequests.value = false
     }
-    if (modelRestrictionMode.value === 'whitelist') {
-      allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
-    }
   }
 )
 
@@ -1436,19 +1432,6 @@ watch(
     }
   },
   { immediate: true }
-)
-
-// Auto-fill related models when switching to whitelist mode or changing platform
-watch(
-  [modelRestrictionMode, effectivePlatform],
-  ([newMode]) => {
-    if (form.platform === 'protocol_gateway') {
-      return
-    }
-    if (newMode === 'whitelist') {
-      allowedModels.value = [...getModelsByPlatform(effectivePlatform.value, 'whitelist')]
-    }
-  }
 )
 
 // Model mapping helpers
@@ -1684,8 +1667,7 @@ const { resetForm } = useCreateAccountReset({
 const resolveConfiguredModelProbeSnapshot = () =>
   buildLocalAccountModelProbeSnapshot({
     current: modelProbeSnapshot.value,
-    manualModels: manualModels.value,
-    allowSourceProtocol: isProtocolGatewayPlatform(form.platform),
+    enabled: effectivePlatform.value === 'antigravity' ? true : modelRestrictionEnabled.value,
     modelRestrictionMode: effectivePlatform.value === 'antigravity'
       ? antigravityModelRestrictionMode.value
       : modelRestrictionMode.value,
@@ -1808,6 +1790,7 @@ const { submitting, createAccountAndFinish } = useCreateAccountSubmit({
   requiresMixedChannelCheck,
   openMixedChannelDialog,
   isOpenAIModelRestrictionDisabled,
+  modelRestrictionEnabled,
   modelRestrictionMode,
   allowedModels,
   modelMappings,
@@ -1872,6 +1855,7 @@ const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
   autoPauseOnExpired,
   applyTempUnschedConfig,
   isOpenAIModelRestrictionDisabled,
+  modelRestrictionEnabled,
   modelRestrictionMode,
   allowedModels,
   modelMappings,
@@ -1886,6 +1870,7 @@ const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation(
   form,
   autoPauseOnExpired,
   isOpenAIModelRestrictionDisabled,
+  modelRestrictionEnabled,
   modelRestrictionMode,
   allowedModels,
   modelMappings,
@@ -2030,7 +2015,7 @@ const handleSubmit = async () => {
     const credentials: Record<string, unknown> = {
       sso_token: grokSSOToken.value.trim()
     }
-    if (!isOpenAIModelRestrictionDisabled.value) {
+    if (!isOpenAIModelRestrictionDisabled.value && modelRestrictionEnabled.value) {
       const modelMapping = buildModelMappingObject(
         modelRestrictionMode.value,
         allowedModels.value,
@@ -2066,7 +2051,9 @@ const handleSubmit = async () => {
         api_key: geminiVertexApiKey.value.trim(),
         base_url: geminiVertexBaseUrl.value.trim() || resolveVertexAuthBaseUrl('express_api_key', '')
       }
-      const modelMapping = buildModelMappingObject('mapping', [], modelMappings.value)
+      const modelMapping = modelRestrictionEnabled.value
+        ? buildModelMappingObject('mapping', [], modelMappings.value)
+        : null
       if (modelMapping) {
         credentials.model_mapping = modelMapping
       }
@@ -2094,7 +2081,9 @@ const handleSubmit = async () => {
       vertex_service_account_json: geminiVertexServiceAccountJson.value.trim()
     }
     credentials.base_url = geminiVertexBaseUrl.value.trim() || resolveVertexBaseUrl(geminiVertexLocation.value)
-    const modelMapping = buildModelMappingObject('mapping', [], modelMappings.value)
+    const modelMapping = modelRestrictionEnabled.value
+      ? buildModelMappingObject('mapping', [], modelMappings.value)
+      : null
     if (modelMapping) {
       credentials.model_mapping = modelMapping
     }
@@ -2136,7 +2125,7 @@ const handleSubmit = async () => {
     credentials.tier_id = normalizeGeminiAIStudioTier(geminiTierAIStudio.value)
   }
 
-  if (!isOpenAIModelRestrictionDisabled.value) {
+  if (!isOpenAIModelRestrictionDisabled.value && modelRestrictionEnabled.value) {
     const modelMapping = buildModelMappingObject(modelRestrictionMode.value, allowedModels.value, modelMappings.value)
     if (modelMapping) {
       credentials.model_mapping = modelMapping

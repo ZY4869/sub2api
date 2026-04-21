@@ -90,10 +90,10 @@ func TestResolveGatewayTestTarget(t *testing.T) {
 			},
 		},
 		{
-			name:          "ambiguous target model requires provider",
+			name:          "manual target model outside projection is rejected as invalid",
 			account:       testAccount([]string{PlatformOpenAI, PlatformAnthropic}, nil, []AccountManualModel{{ModelID: "shared-model", SourceProtocol: PlatformOpenAI}, {ModelID: "shared-model", SourceProtocol: PlatformAnthropic}}),
 			targetModelID: "shared-model",
-			wantReason:    "TEST_TARGET_PROVIDER_REQUIRED",
+			wantReason:    "TEST_TARGET_MODEL_INVALID",
 		},
 		{
 			name:           "source protocol and provider compatibility is enforced",
@@ -147,10 +147,10 @@ func newGatewayResolutionTestRegistry(t *testing.T) *ModelRegistryService {
 
 	svc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 	inputs := []UpsertModelRegistryEntryInput{
-		{ID: "openai-default", Provider: PlatformOpenAI, Platforms: []string{PlatformOpenAI}, ExposedIn: []string{"test"}},
-		{ID: "anthropic-default", Provider: PlatformAnthropic, Platforms: []string{PlatformAnthropic}, ExposedIn: []string{"test"}},
-		{ID: "anthropic-only", Provider: PlatformAnthropic, Platforms: []string{PlatformAnthropic}, ExposedIn: []string{"test"}},
-		{ID: "gemini-default", Provider: PlatformGemini, Platforms: []string{PlatformGemini}, ExposedIn: []string{"test"}},
+		{ID: "openai-default", Provider: PlatformOpenAI, Platforms: []string{PlatformOpenAI}, ExposedIn: []string{"runtime", "test"}},
+		{ID: "anthropic-default", Provider: PlatformAnthropic, Platforms: []string{PlatformAnthropic}, ExposedIn: []string{"runtime", "test"}},
+		{ID: "anthropic-only", Provider: PlatformAnthropic, Platforms: []string{PlatformAnthropic}, ExposedIn: []string{"runtime", "test"}},
+		{ID: "gemini-default", Provider: PlatformGemini, Platforms: []string{PlatformGemini}, ExposedIn: []string{"runtime", "test"}},
 	}
 
 	activate := make([]string, 0, len(inputs))

@@ -216,13 +216,18 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
     showGeminiTier: {
       type: Boolean,
       default: false
+    },
+    modelScopeEnabled: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['update:api-key', 'update:base-url', 'update:allowedModels'],
+  emits: ['update:api-key', 'update:base-url', 'update:allowedModels', 'update:modelScopeEnabled'],
   template: `
     <div>
       <span data-testid="actual-model-locked-prop">{{ actualModelLocked }}</span>
       <span data-testid="model-scope-mode-prop">{{ modelScopeMode }}</span>
+      <span data-testid="model-scope-enabled-prop">{{ modelScopeEnabled }}</span>
       <span data-testid="allowed-models-prop">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
@@ -239,6 +244,13 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
         "
       >
         set api key
+      </button>
+      <button
+        type="button"
+        data-testid="enable-model-restriction"
+        @click="$emit('update:modelScopeEnabled', true)"
+      >
+        enable restriction
       </button>
       <button
         type="button"
@@ -575,6 +587,7 @@ describe('CreateAccountModal', () => {
 
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
     await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="enable-model-restriction"]').trigger('click')
     await wrapper.get('[data-testid="gateway-probe-select-models"]').trigger('click')
     await wrapper.get('input[data-tour="account-form-name"]').setValue('Gateway Scoped Account')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
@@ -584,13 +597,14 @@ describe('CreateAccountModal', () => {
       'friendly-gateway-model': 'gpt-5.4'
     })
     expect(createMock.mock.calls[0]?.[0]?.extra?.model_scope_v2).toMatchObject({
-      supported_models_by_provider: {
-        openai: ['gpt-5.4']
-      },
-      manual_mapping_rows: [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }],
-      manual_mappings: {
-        'friendly-gateway-model': 'gpt-5.4'
-      }
+      policy_mode: 'mapping',
+      entries: [{
+        display_model_id: 'friendly-gateway-model',
+        target_model_id: 'gpt-5.4',
+        provider: 'openai',
+        source_protocol: 'openai',
+        visibility_mode: 'alias'
+      }]
     })
   })
 
@@ -614,6 +628,7 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-anthropic"]').trigger('click')
     await wrapper.get('[data-testid="set-apikey-mode"]').trigger('click')
     await wrapper.get('[data-testid="set-api-key"]').trigger('click')
+    await wrapper.get('[data-testid="enable-model-restriction"]').trigger('click')
     await wrapper.get('[data-testid="set-whitelist-selection"]').trigger('click')
     await wrapper.get('input[data-tour="account-form-name"]').setValue('Anthropic Scoped Account')
     await wrapper.get('form#create-account-form').trigger('submit.prevent')
@@ -624,10 +639,23 @@ describe('CreateAccountModal', () => {
       type: 'apikey',
       extra: {
         model_scope_v2: {
-          supported_models_by_provider: {
-            anthropic: ['claude-sonnet-4.5']
-          },
-          selected_model_ids: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5']
+          policy_mode: 'whitelist',
+          entries: [
+            {
+              display_model_id: 'claude-sonnet-4-5-20250929',
+              target_model_id: 'claude-sonnet-4-5-20250929',
+              provider: 'anthropic',
+              source_protocol: 'anthropic',
+              visibility_mode: 'direct'
+            },
+            {
+              display_model_id: 'claude-sonnet-4.5',
+              target_model_id: 'claude-sonnet-4.5',
+              provider: 'anthropic',
+              source_protocol: 'anthropic',
+              visibility_mode: 'direct'
+            }
+          ]
         }
       }
     })

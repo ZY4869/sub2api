@@ -724,10 +724,23 @@ describe('EditAccountModal', () => {
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toMatchObject({
-      supported_models_by_provider: {
-        anthropic: ['claude-sonnet-4.5']
-      },
-      selected_model_ids: ['claude-sonnet-4-5-20250929', 'claude-sonnet-4.5']
+      policy_mode: 'whitelist',
+      entries: [
+        {
+          display_model_id: 'claude-sonnet-4-5-20250929',
+          target_model_id: 'claude-sonnet-4-5-20250929',
+          provider: 'anthropic',
+          source_protocol: 'anthropic',
+          visibility_mode: 'direct'
+        },
+        {
+          display_model_id: 'claude-sonnet-4.5',
+          target_model_id: 'claude-sonnet-4.5',
+          provider: 'anthropic',
+          source_protocol: 'anthropic',
+          visibility_mode: 'direct'
+        }
+      ]
     })
   })
 
@@ -896,13 +909,14 @@ describe('EditAccountModal', () => {
       'friendly-gateway-model': 'gpt-5.4'
     })
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toMatchObject({
-      supported_models_by_provider: {
-        openai: ['gpt-5.4']
-      },
-      manual_mapping_rows: [{ from: 'friendly-gateway-model', to: 'gpt-5.4' }],
-      manual_mappings: {
-        'friendly-gateway-model': 'gpt-5.4'
-      }
+      policy_mode: 'mapping',
+      entries: [{
+        display_model_id: 'friendly-gateway-model',
+        target_model_id: 'gpt-5.4',
+        provider: 'openai',
+        source_protocol: 'openai',
+        visibility_mode: 'alias'
+      }]
     })
   })
 
@@ -952,7 +966,10 @@ describe('EditAccountModal', () => {
 
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.model_mapping).toBeUndefined()
-    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toBeUndefined()
+    expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.model_scope_v2).toEqual({
+      policy_mode: 'mapping',
+      entries: []
+    })
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_provider).toBeUndefined()
     expect(updateAccountMock.mock.calls[0]?.[1]?.extra?.gateway_test_model_id).toBeUndefined()
   })

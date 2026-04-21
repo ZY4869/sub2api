@@ -97,7 +97,7 @@ func publicModelEntriesContainID(entries []APIKeyPublicModelEntry, modelID strin
 		return false
 	}
 	for _, entry := range entries {
-		for _, candidate := range []string{entry.PublicID, entry.SourceID, entry.AliasID} {
+		for _, candidate := range []string{entry.PublicID, entry.AliasID} {
 			if strings.TrimSpace(candidate) == modelID {
 				return true
 			}

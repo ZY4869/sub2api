@@ -165,5 +165,5 @@ func BuildOpenAIKnownModelsExtra(models []string, updatedAt time.Time, source st
 		out["openai_known_models_source"] = trimmedSource
 	}
 
-	return mergeStringAnyMap(out, BuildAccountModelProbeSnapshotExtra(models, updatedAt, source, ""))
+	return out
 }

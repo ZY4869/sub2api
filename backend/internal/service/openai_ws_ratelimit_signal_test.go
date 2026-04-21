@@ -29,9 +29,10 @@ type openAIWSRateLimitSignalRepo struct {
 
 type openAICodexSnapshotAsyncRepo struct {
 	stubOpenAIAccountRepo
-	updateExtraCh chan map[string]any
-	rateLimitCh   chan time.Time
-	modelLimitCh  chan struct {
+	updateExtraCh    chan map[string]any
+	rateLimitCh      chan time.Time
+	clearRateLimitCh chan struct{}
+	modelLimitCh     chan struct {
 		scope   string
 		resetAt time.Time
 	}
@@ -72,6 +73,13 @@ func (r *openAIWSRateLimitSignalRepo) UpdateExtra(_ context.Context, _ int64, up
 func (r *openAICodexSnapshotAsyncRepo) SetRateLimited(_ context.Context, _ int64, resetAt time.Time) error {
 	if r.rateLimitCh != nil {
 		r.rateLimitCh <- resetAt
+	}
+	return nil
+}
+
+func (r *openAICodexSnapshotAsyncRepo) ClearRateLimit(_ context.Context, _ int64) error {
+	if r.clearRateLimitCh != nil {
+		r.clearRateLimitCh <- struct{}{}
 	}
 	return nil
 }
@@ -492,6 +500,85 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_NonExhaustedSnapshotDoesN
 	}
 }
 
+func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_RecoversWholeAccountLimitWhenSparkRecovers(t *testing.T) {
+	repo := &openAICodexSnapshotAsyncRepo{
+		updateExtraCh:    make(chan map[string]any, 2),
+		rateLimitCh:      make(chan time.Time, 1),
+		clearRateLimitCh: make(chan struct{}, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 2),
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:               603,
+			Platform:         PlatformOpenAI,
+			Type:             AccountTypeOAuth,
+			RateLimitResetAt: ptrTimeWS(time.Now().Add(6 * time.Hour)),
+			Credentials: map[string]any{
+				"plan_type": "pro",
+			},
+			Extra: map[string]any{
+				"rate_limit_reason":           AccountRateLimitReasonUsage7dAll,
+				codexAccountAll7dExhaustedKey: true,
+				"codex_7d_used_percent":       100.0,
+				"codex_7d_reset_at":           time.Now().Add(6 * time.Hour).UTC().Format(time.RFC3339),
+				codexSpark7dUsedPercentKey:    100.0,
+				codexSpark7dResetAtKey:        time.Now().Add(6 * time.Hour).UTC().Format(time.RFC3339),
+				modelRateLimitsKey: map[string]any{
+					openAICodexScopeNormal: map[string]any{
+						"rate_limited_at":     time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339),
+						"rate_limit_reset_at": time.Now().Add(6 * time.Hour).UTC().Format(time.RFC3339),
+					},
+					openAICodexScopeSpark: map[string]any{
+						"rate_limited_at":     time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339),
+						"rate_limit_reset_at": time.Now().Add(6 * time.Hour).UTC().Format(time.RFC3339),
+					},
+				},
+			},
+		}}},
+	}
+	svc := &OpenAIGatewayService{accountRepo: repo}
+	headers := http.Header{}
+	headers.Set("x-codex-primary-used-percent", "12")
+	headers.Set("x-codex-primary-reset-after-seconds", "1200")
+	headers.Set("x-codex-primary-window-minutes", "300")
+	headers.Set("x-codex-secondary-used-percent", "34")
+	headers.Set("x-codex-secondary-reset-after-seconds", "86400")
+	headers.Set("x-codex-secondary-window-minutes", "10080")
+
+	svc.UpdateCodexUsageSnapshotFromHeaders(context.Background(), 603, headers, "gpt-5.3-codex-spark")
+
+	select {
+	case updates := <-repo.updateExtraCh:
+		require.Equal(t, false, updates[codexAccountAll7dExhaustedKey])
+		rawModelLimits, ok := updates[modelRateLimitsKey].(map[string]any)
+		require.True(t, ok)
+		require.Contains(t, rawModelLimits, openAICodexScopeNormal)
+		require.NotContains(t, rawModelLimits, openAICodexScopeSpark)
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待恢复后的 codex 快照落库超时")
+	}
+
+	select {
+	case <-repo.clearRateLimitCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待 usage_7d_all 清理超时")
+	}
+
+	select {
+	case persisted := <-repo.modelLimitCh:
+		require.Equal(t, openAICodexScopeSpark, persisted.scope)
+		t.Fatalf("unexpected spark model limit persistence after recovery: %+v", persisted)
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	select {
+	case persisted := <-repo.rateLimitCh:
+		t.Fatalf("unexpected whole-account rate limit persistence: %v", persisted)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
 func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ThrottlesExtraWrites(t *testing.T) {
 	repo := &openAICodexSnapshotAsyncRepo{
 		updateExtraCh: make(chan map[string]any, 2),
@@ -536,8 +623,9 @@ func TestOpenAIGatewayService_UpdateCodexUsageSnapshot_ThrottlesExtraWrites(t *t
 	}
 }
 
-func ptrFloat64WS(v float64) *float64 { return &v }
-func ptrIntWS(v int) *int             { return &v }
+func ptrFloat64WS(v float64) *float64  { return &v }
+func ptrIntWS(v int) *int              { return &v }
+func ptrTimeWS(v time.Time) *time.Time { return &v }
 
 func TestOpenAIGatewayService_GetSchedulableAccount_ExhaustedCodexExtraSetsRateLimit(t *testing.T) {
 	resetAt := time.Now().Add(6 * 24 * time.Hour)

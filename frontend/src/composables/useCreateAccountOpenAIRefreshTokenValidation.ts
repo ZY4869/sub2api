@@ -30,6 +30,7 @@ interface UseCreateAccountOpenAIRefreshTokenValidationOptions {
   }
   autoPauseOnExpired: Ref<boolean>
   isOpenAIModelRestrictionDisabled: ComputedRef<boolean>
+  modelRestrictionEnabled: Ref<boolean>
   modelRestrictionMode: Ref<'whitelist' | 'mapping'>
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
@@ -82,7 +83,10 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
           const oauthExtra = oauthClient.buildExtraInfo(tokenInfo)
           const extra = options.buildAccountExtra(oauthExtra)
 
-          if (!options.isOpenAIModelRestrictionDisabled.value) {
+          if (
+            options.modelRestrictionEnabled.value &&
+            !options.isOpenAIModelRestrictionDisabled.value
+          ) {
             const modelMapping = buildModelMappingObject(
               options.modelRestrictionMode.value,
               options.allowedModels.value,
