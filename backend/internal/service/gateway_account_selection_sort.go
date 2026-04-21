@@ -201,10 +201,6 @@ func shuffleWithinSortGroups(accounts []accountWithLoad) {
 		i = j
 	}
 }
-func sameAccountWithLoadGroup(a, b accountWithLoad) bool {
-	return sameAccountWithLoadGroupAtTime(a, b, time.Now())
-}
-
 func sameAccountWithLoadGroupAtTime(a, b accountWithLoad, now time.Time) bool {
 	if a.account.Priority != b.account.Priority {
 		return false
@@ -262,10 +258,6 @@ func shuffleWithinPriorityAndLastUsed(accounts []*Account, preferOAuth bool, now
 		i = j
 	}
 }
-func sameAccountGroup(a, b *Account) bool {
-	return sameAccountGroupAtTime(a, b, time.Now())
-}
-
 func sameAccountGroupAtTime(a, b *Account, now time.Time) bool {
 	if a.Priority != b.Priority {
 		return false

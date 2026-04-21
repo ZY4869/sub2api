@@ -278,10 +278,6 @@ func mustMetaJSON(t *testing.T, value any) string {
 	return string(payload)
 }
 
-func float64Ptr(value float64) *float64 {
-	return &value
-}
-
 func buildMetaPublishedSnapshot(etag string) service.PublicModelCatalogPublishedSnapshot {
 	return service.PublicModelCatalogPublishedSnapshot{
 		Snapshot: service.PublicModelCatalogSnapshot{

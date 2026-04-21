@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
-	"time"
 )
 
 type APIKeyPublicModelEntry struct {
@@ -205,51 +204,6 @@ func projectionSource(projection *AccountModelProjection) string {
 	return strings.TrimSpace(projection.Source)
 }
 
-func (s *GatewayService) bestEffortPersistAccountModelProbeSnapshot(
-	ctx context.Context,
-	account *Account,
-	probeSummary *AccountModelProbeSummary,
-	platform string,
-	source string,
-) {
-	if s == nil || s.accountRepo == nil || account == nil || probeSummary == nil {
-		return
-	}
-	models := normalizeAccountModelProbeSnapshotModels(probeSummary.DetectedModels)
-	if len(models) == 0 {
-		return
-	}
-
-	updatedAt := time.Now().UTC()
-	updates := BuildAccountModelAvailabilitySnapshotExtra(
-		BuildAccountModelProjection(ctx, account, s.modelRegistryService),
-		models,
-		updatedAt,
-		source,
-		probeSummary.ProbeSource,
-	)
-	if account.IsOpenAI() {
-		updates = MergeStringAnyMap(
-			BuildOpenAIKnownModelsExtra(models, updatedAt, source),
-			updates,
-		)
-	}
-	if len(updates) == 0 {
-		return
-	}
-	if err := s.accountRepo.UpdateExtra(ctx, account.ID, updates); err != nil {
-		slog.Warn(
-			"api_key_public_models_snapshot_backfill_failed",
-			"account_id", account.ID,
-			"platform", platform,
-			"source", source,
-			"error", err,
-		)
-		return
-	}
-	mergeAccountExtra(account, updates)
-}
-
 func projectProbeSummaryToPublicEntries(
 	mode string,
 	platform string,
@@ -415,76 +369,6 @@ func resolveAPIKeyProjectionDetectedDetail(
 		}
 	}
 	return "", AccountModelProbeModel{}, false
-}
-
-func (s *GatewayService) vertexPublicModelEntries(
-	ctx context.Context,
-	account *Account,
-	mode string,
-	platform string,
-	modelPatterns []string,
-	mapping map[string]string,
-) ([]APIKeyPublicModelEntry, error) {
-	if s == nil || s.vertexCatalogService == nil || account == nil {
-		return nil, nil
-	}
-	catalog, err := s.vertexCatalogService.GetCatalog(ctx, account, false)
-	if err != nil || catalog == nil {
-		slog.Info(
-			"api_key_public_models_vertex_catalog_degraded",
-			"account_id", account.ID,
-			"platform", platform,
-			"error", err,
-		)
-		if restrictedSummary, restricted, restrictedErr := s.restrictedPublicModelSummary(ctx, account, platform); restrictedErr != nil {
-			return nil, restrictedErr
-		} else if restricted {
-			if restrictedSummary == nil {
-				return nil, nil
-			}
-			return projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, mapping, restrictedSummary, account), nil
-		}
-		return s.registryFallbackPublicModelEntries(ctx, account, mode, platform, modelPatterns, mapping)
-	}
-
-	callableModels := make([]VertexCatalogModel, 0, len(catalog.CallableUnion))
-	explicitRestrictions := accountHasExplicitModelRestrictions(account)
-	if explicitRestrictions {
-		recordPublicModelRestrictionHit(account)
-	}
-	for _, model := range catalog.CallableUnion {
-		if explicitRestrictions && !isRequestedModelSupportedByAccount(ctx, s.modelRegistryService, account, model.ID) {
-			continue
-		}
-		callableModels = append(callableModels, model)
-	}
-	summary := buildAccountModelProbeSummaryFromVertexCatalog(callableModels, platform)
-	if summary == nil {
-		return nil, nil
-	}
-	projectionMapping := mapping
-	if len(projectionMapping) == 0 {
-		projectionMapping = make(map[string]string, len(callableModels))
-		for _, model := range callableModels {
-			sourceID := normalizeRegistryID(model.ID)
-			if sourceID == "" {
-				continue
-			}
-			projectionMapping[DefaultVertexPublicModelAlias(sourceID)] = sourceID
-		}
-	}
-	recordPublicModelProjectionSource(apiKeyPublicModelsSourceVertexCatalog)
-	entries := projectProbeSummaryToPublicEntries(mode, platform, modelPatterns, projectionMapping, summary, account)
-	slog.Info(
-		"api_key_public_models_vertex_catalog_projection",
-		"account_id", account.ID,
-		"platform", platform,
-		"source", apiKeyPublicModelsSourceVertexCatalog,
-		"explicit_restriction", explicitRestrictions,
-		"count", len(summary.DetectedModels),
-		"alias_only_count", countAliasOnlyPublicEntries(entries),
-	)
-	return entries, nil
 }
 
 func (s *GatewayService) FindAPIKeyPublicModel(

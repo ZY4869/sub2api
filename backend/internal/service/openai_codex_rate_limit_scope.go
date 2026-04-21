@@ -22,6 +22,7 @@ const (
 )
 
 type openAICodexRequestModelContextKey struct{}
+type openAICodexSuccessfulSnapshotContextKey struct{}
 
 type openAICodexRateLimitState struct {
 	Scope          string
@@ -40,6 +41,21 @@ func WithOpenAICodexRequestModel(ctx context.Context, model string) context.Cont
 		return ctx
 	}
 	return context.WithValue(ctx, openAICodexRequestModelContextKey{}, model)
+}
+
+func withOpenAICodexSuccessfulSnapshot(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, openAICodexSuccessfulSnapshotContextKey{}, true)
+}
+
+func openAICodexSuccessfulSnapshotFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	ok, _ := ctx.Value(openAICodexSuccessfulSnapshotContextKey{}).(bool)
+	return ok
 }
 
 func withOpenAICodexRequestModelFallback(ctx context.Context, models ...string) context.Context {
@@ -329,7 +345,7 @@ func syncOpenAICodexRateLimitState(ctx context.Context, repo AccountRepository, 
 		return state
 	}
 
-	if shouldClearOpenAICodexAccountRateLimit(account, now) {
+	if shouldClearOpenAICodexAccountRateLimit(account, now, openAICodexSuccessfulSnapshotFromContext(ctx)) {
 		account.RateLimitedAt = nil
 		account.RateLimitResetAt = nil
 		delete(account.Extra, "rate_limit_reason")
@@ -427,13 +443,16 @@ func shouldPersistOpenAICodexAccountRateLimit(current *time.Time, currentReason 
 	return true
 }
 
-func shouldClearOpenAICodexAccountRateLimit(account *Account, now time.Time) bool {
+func shouldClearOpenAICodexAccountRateLimit(account *Account, now time.Time, allowUsage7dAllRecovery bool) bool {
 	if account == nil || account.RateLimitResetAt == nil || !now.Before(*account.RateLimitResetAt) {
 		return false
 	}
 	reason := NormalizeAccountRateLimitReasonInput(parseExtraString(account.Extra["rate_limit_reason"]))
 	switch reason {
 	case AccountRateLimitReasonUsage7dAll:
+		if !allowUsage7dAllRecovery {
+			return false
+		}
 		resetAt, ok := codexAccountAll7dResetAtFromExtra(account, account.Extra, now)
 		return !ok || resetAt == nil || !now.Before(*resetAt)
 	case AccountRateLimitReasonUsage5h, AccountRateLimitReasonUsage7d:

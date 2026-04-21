@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	accountModelProbeSnapshotExtraKey               = "model_probe_snapshot"
+	accountModelProbeSnapshotExtraKey                = "model_probe_snapshot"
 	AccountModelProbeSnapshotSourceImportModels      = "import_models"
 	AccountModelProbeSnapshotSourceModelScopePreview = "model_scope_preview"
 	AccountModelProbeSnapshotSourceTestProbe         = "test_probe"
@@ -28,11 +28,11 @@ type AccountModelProbeSnapshotEntry struct {
 }
 
 type AccountModelProbeSnapshot struct {
-	Models      []string                        `json:"models,omitempty"`
+	Models      []string                         `json:"models,omitempty"`
 	Entries     []AccountModelProbeSnapshotEntry `json:"entries,omitempty"`
-	UpdatedAt   string                          `json:"updated_at,omitempty"`
-	Source      string                          `json:"source,omitempty"`
-	ProbeSource string                          `json:"probe_source,omitempty"`
+	UpdatedAt   string                           `json:"updated_at,omitempty"`
+	Source      string                           `json:"source,omitempty"`
+	ProbeSource string                           `json:"probe_source,omitempty"`
 }
 
 func BuildAccountModelProbeSnapshotExtra(models []string, updatedAt time.Time, source string, probeSource string) map[string]any {
@@ -54,7 +54,7 @@ func BuildAccountModelProbeSnapshotExtra(models []string, updatedAt time.Time, s
 	}
 
 	snapshot := map[string]any{
-		"models": normalizedModels,
+		"models":  normalizedModels,
 		"entries": accountModelProbeSnapshotEntriesToAny(entries),
 	}
 	if !updatedAt.IsZero() {

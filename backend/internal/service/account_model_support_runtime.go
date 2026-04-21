@@ -42,89 +42,6 @@ var (
 	accountModelSupportRegistryVersion sync.Map
 )
 
-func resolveCanonicalRequestModelWithRegistry(ctx context.Context, registry *ModelRegistryService, requestedModel string) string {
-	requestedModel = strings.TrimSpace(requestedModel)
-	if requestedModel == "" {
-		return ""
-	}
-	if registry != nil {
-		if resolved, ok, err := registry.ResolveModel(ctx, requestedModel); err == nil && ok && resolved != "" {
-			return resolved
-		}
-	}
-	if resolved, ok := modelregistry.ResolveToCanonicalID(requestedModel); ok {
-		return resolved
-	}
-	return normalizeRegistryID(requestedModel)
-}
-
-func resolveUpstreamModelIDWithRegistry(ctx context.Context, registry *ModelRegistryService, account *Account, requestedModel string) string {
-	requestedModel = resolveCanonicalRequestModelWithRegistry(ctx, registry, requestedModel)
-	if requestedModel == "" || account == nil {
-		return requestedModel
-	}
-	route := registryRouteForAccount(account)
-	if registry != nil {
-		if resolved, ok, err := registry.ResolveProtocolModel(ctx, requestedModel, route); err == nil && ok && resolved != "" {
-			return resolved
-		}
-	}
-	if resolved, ok := modelregistry.ResolveToProtocolID(requestedModel, route); ok {
-		return resolved
-	}
-	return requestedModel
-}
-
-func accountConfiguredSourceModelIDs(account *Account, sourceProtocol string) []string {
-	if account == nil {
-		return nil
-	}
-	normalizedSourceProtocol := NormalizeGatewayProtocol(sourceProtocol)
-	seen := map[string]struct{}{}
-	ordered := make([]string, 0)
-	appendModel := func(modelID string) {
-		normalized := normalizeRegistryID(modelID)
-		if normalized == "" {
-			return
-		}
-		if _, exists := seen[normalized]; exists {
-			return
-		}
-		seen[normalized] = struct{}{}
-		ordered = append(ordered, normalized)
-	}
-
-	for _, model := range AccountManualModelsFromExtra(account.Extra, IsProtocolGatewayAccount(account)) {
-		if normalizedSourceProtocol != "" {
-			manualProtocol := NormalizeGatewayProtocol(model.SourceProtocol)
-			if manualProtocol != "" && manualProtocol != normalizedSourceProtocol {
-				continue
-			}
-		}
-		appendModel(model.ModelID)
-	}
-
-	if scope, ok := ExtractAccountModelScopeV2(account.Extra); ok && scope != nil {
-		for _, models := range scope.SupportedModelsByProvider {
-			for _, modelID := range models {
-				appendModel(modelID)
-			}
-		}
-		for _, row := range scope.ManualMappingRows {
-			appendModel(row.To)
-		}
-		for _, modelID := range scope.ManualMappings {
-			appendModel(modelID)
-		}
-	}
-
-	for _, modelID := range account.GetModelMapping() {
-		appendModel(modelID)
-	}
-
-	return ordered
-}
-
 func accountHasExplicitModelRestrictions(account *Account) bool {
 	if account == nil {
 		return false
@@ -214,26 +131,6 @@ func collectModelSupportVariants(ctx context.Context, registry *ModelRegistrySer
 	return set
 }
 
-func collectRequestedModelSupportVariants(ctx context.Context, registry *ModelRegistryService, account *Account, requestedModel string) map[string]struct{} {
-	set := map[string]struct{}{}
-	addAll := func(values map[string]struct{}) {
-		for value := range values {
-			set[value] = struct{}{}
-		}
-	}
-
-	route := registryRouteForAccount(account)
-	addAll(collectModelSupportVariants(ctx, registry, route, requestedModel))
-
-	if canonical := resolveCanonicalRequestModelWithRegistry(ctx, registry, requestedModel); canonical != "" {
-		addAll(collectModelSupportVariants(ctx, registry, route, canonical))
-	}
-	if upstream := resolveUpstreamModelIDWithRegistry(ctx, registry, account, requestedModel); upstream != "" {
-		addAll(collectModelSupportVariants(ctx, registry, route, upstream))
-	}
-	return set
-}
-
 func getCachedAccountModelSupportSet(ctx context.Context, registry *ModelRegistryService, account *Account) *accountModelSupportSet {
 	if account == nil {
 		return &accountModelSupportSet{}
@@ -287,7 +184,9 @@ func buildAccountModelSupportSet(ctx context.Context, registry *ModelRegistrySer
 	}
 
 	supportSet.policySource = strings.TrimSpace(projection.Source)
-	supportSet.hasPolicy = projection.Explicit || len(projection.Entries) > 0
+	// Default library projections are availability hints only; they must not turn
+	// unrestricted accounts into implicit allowlists during scheduling checks.
+	supportSet.hasPolicy = projection.Explicit
 	if len(projection.Entries) == 0 {
 		return supportSet
 	}

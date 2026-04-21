@@ -370,19 +370,6 @@ func codexRateLimitReasonFromSnapshot(snapshot *OpenAICodexUsageSnapshot) string
 	}
 	return AccountRateLimitReason429
 }
-func codexRateLimitResetAtFromExtra(extra map[string]any, now time.Time) *time.Time {
-	return codexRateLimitResetAtFromExtraForScope(extra, openAICodexScopeNormal, now)
-}
-func applyOpenAICodexRateLimitFromExtra(account *Account, now time.Time) (*openAICodexRateLimitState, bool) {
-	if account == nil || !account.IsOpenAI() {
-		return nil, false
-	}
-	state := syncOpenAICodexRateLimitState(context.Background(), nil, account, nil, now)
-	if state == nil {
-		return nil, false
-	}
-	return state, state.AccountResetAt != nil || state.ScopeResetAt != nil
-}
 func syncOpenAICodexRateLimitFromExtra(ctx context.Context, repo AccountRepository, account *Account, now time.Time) *openAICodexRateLimitState {
 	return syncOpenAICodexRateLimitState(ctx, repo, account, nil, now)
 }
@@ -427,6 +414,7 @@ func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.C
 	}
 	if snapshot := ParseCodexRateLimitHeaders(headers); snapshot != nil {
 		ctx = withOpenAICodexRequestModelFallback(ctx, fallbackModels...)
+		ctx = withOpenAICodexSuccessfulSnapshot(ctx)
 		s.updateCodexUsageSnapshot(ctx, accountID, snapshot)
 	}
 }

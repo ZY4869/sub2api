@@ -18,7 +18,7 @@ const (
 )
 
 type AccountModelScopeV2 struct {
-	PolicyMode string                 `json:"policy_mode,omitempty"`
+	PolicyMode string                   `json:"policy_mode,omitempty"`
 	Entries    []AccountModelScopeEntry `json:"entries,omitempty"`
 
 	// Legacy fields kept for compatibility reads only.
@@ -245,40 +245,6 @@ func (scope *AccountModelScopeV2) normalize() {
 	if scope.PolicyMode == "" {
 		scope.PolicyMode = inferAccountModelPolicyMode(scope.Entries)
 	}
-}
-
-func scopeSelectedModels(scope *AccountModelScopeV2) []string {
-	if scope == nil {
-		return nil
-	}
-	scope.normalize()
-	if len(scope.Entries) > 0 {
-		models := make([]string, 0, len(scope.Entries))
-		for _, entry := range scope.Entries {
-			targetModelID := strings.TrimSpace(entry.TargetModelID)
-			if targetModelID == "" {
-				targetModelID = strings.TrimSpace(entry.DisplayModelID)
-			}
-			if targetModelID == "" {
-				continue
-			}
-			models = append(models, targetModelID)
-		}
-		return compactRegistryStrings(models...)
-	}
-	if len(scope.SupportedModelsByProvider) > 0 {
-		providers := make([]string, 0, len(scope.SupportedModelsByProvider))
-		for provider := range scope.SupportedModelsByProvider {
-			providers = append(providers, provider)
-		}
-		sort.Strings(providers)
-		models := make([]string, 0)
-		for _, provider := range providers {
-			models = append(models, scope.SupportedModelsByProvider[provider]...)
-		}
-		return models
-	}
-	return append([]string(nil), scope.SelectedModelIDs...)
 }
 
 func accountModelScopeRouteKey(platform string, accountType string) string {

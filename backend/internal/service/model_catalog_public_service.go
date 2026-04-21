@@ -471,10 +471,6 @@ func publicModelCatalogProtocolFamily(value string) string {
 	}
 }
 
-func computePublicModelCatalogETag(items []PublicModelCatalogItem) (string, error) {
-	return computePublicModelCatalogETagWithPageSize(0, items)
-}
-
 func computePublicModelCatalogETagWithPageSize(pageSize int, items []PublicModelCatalogItem) (string, error) {
 	payload, err := json.Marshal(struct {
 		PageSize int                      `json:"page_size,omitempty"`

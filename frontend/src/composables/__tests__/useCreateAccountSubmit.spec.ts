@@ -65,6 +65,7 @@ describe('useCreateAccountSubmit', () => {
       requiresMixedChannelCheck: ref(false),
       openMixedChannelDialog: vi.fn(),
       isOpenAIModelRestrictionDisabled: computed(() => true),
+      modelRestrictionEnabled: ref(false),
       modelRestrictionMode: ref<'whitelist' | 'mapping'>('mapping'),
       allowedModels: ref([]),
       modelMappings: ref([]),
