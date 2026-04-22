@@ -68,6 +68,17 @@ func BuildAccountAutoRecoveryProbeExtra(
 	return out
 }
 
+func BuildClearAccountAutoRecoveryProbeExtra() map[string]any {
+	return map[string]any{
+		accountAutoRecoveryProbeCheckedAtKey: nil,
+		accountAutoRecoveryProbeStatusKey:    nil,
+		accountAutoRecoveryProbeSummaryKey:   nil,
+		accountAutoRecoveryProbeBlacklisted:  false,
+		accountAutoRecoveryProbeNextRetryKey: nil,
+		accountAutoRecoveryProbeErrorCodeKey: nil,
+	}
+}
+
 func parseAccountAutoRecoveryProbeTime(extra map[string]any, key string) *time.Time {
 	value := strings.TrimSpace(stringValueFromAny(extra[key]))
 	if value == "" {

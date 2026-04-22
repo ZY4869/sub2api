@@ -27,6 +27,9 @@ func DetectHardBannedAccount(statusCode int, responseBody []byte) *HardBanMatch 
 	if bodyText == "" {
 		return nil
 	}
+	if statusCode >= 500 {
+		return nil
+	}
 
 	candidate := strings.ToLower(bodyText)
 	envelope := hardBanErrorEnvelope{}
@@ -61,7 +64,7 @@ func DetectHardBannedAccount(statusCode int, responseBody []byte) *HardBanMatch 
 		return &HardBanMatch{ReasonCode: "account_deactivated", ReasonMessage: bodyText}
 	}
 
-	if (statusCode == 401 || statusCode == 403 || statusCode == 503) &&
+	if (statusCode == 401 || statusCode == 403) &&
 		strings.Contains(candidate, "help.openai.com") &&
 		(strings.Contains(candidate, "deactivated") || strings.Contains(candidate, "suspended") || strings.Contains(candidate, "banned")) {
 		return &HardBanMatch{ReasonCode: "account_hard_banned", ReasonMessage: bodyText}

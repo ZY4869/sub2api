@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center gap-2">
+  <div class="flex flex-wrap items-center gap-2">
     <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
       <span class="badge text-xs badge-warning">{{ rateLimitStatusLabel }}</span>
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ rateLimitResumeText }}</span>
@@ -57,94 +57,48 @@
       </Teleport>
     </div>
 
-    <div v-if="isRateLimited" class="group relative">
-      <span
-        class="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-      >
-        <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        {{ rateLimitBadgeText }}
-      </span>
-      <div
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-      >
-        {{ rateLimitTooltipText }}
-        <div
-          class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
-        ></div>
-      </div>
+    <div
+      v-if="isRateLimited && accountRateLimitBadges.length > 0"
+      :class="accountRateLimitBadges.length > 1 ? 'flex flex-wrap gap-1' : ''"
+    >
+      <AccountStatusLimitBadge
+        v-for="item in accountRateLimitBadges"
+        :key="item.key"
+        :tone="item.tone"
+        :label="item.label"
+        :countdown="item.countdown"
+        :tooltip="item.tooltip"
+        :model="item.model"
+        :model-display-name="item.modelDisplayName"
+      />
     </div>
 
     <div
-      v-if="activeModelStatuses.length > 0"
-      :class="[
-        activeModelStatuses.length <= 4
-          ? 'flex flex-col gap-1'
-          : activeModelStatuses.length <= 8
-            ? 'columns-2 gap-x-2'
-            : 'columns-3 gap-x-2'
-      ]"
+      v-if="activeModelBadges.length > 0"
+      :class="activeModelBadgeLayoutClass"
     >
       <div
-        v-for="item in activeModelStatuses"
-        :key="`${item.kind}-${item.model}`"
-        class="group relative mb-1 break-inside-avoid"
+        v-for="item in activeModelBadges"
+        :key="item.key"
+        class="mb-1 break-inside-avoid"
       >
-        <span
-          v-if="item.kind === 'credits_exhausted'"
-          class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
-        >
-          <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-          {{ t('admin.accounts.status.creditsExhausted') }}
-          <span class="text-[10px] opacity-70">{{ formatModelResetTime(item.reset_at) }}</span>
-        </span>
-        <span
-          v-else-if="item.kind === 'credits_active'"
-          class="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-        >
-          <Icon name="sparkles" size="xs" :stroke-width="2" />
-          {{ formatScopeName(item.model) }}
-          <span class="text-[10px] opacity-70">{{ formatModelResetTime(item.reset_at) }}</span>
-        </span>
-        <span
-          v-else
-          class="inline-flex items-center gap-1 rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-        >
-          <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-          {{ formatScopeName(item.model) }}
-          <span class="text-[10px] opacity-70">{{ formatModelResetTime(item.reset_at) }}</span>
-        </span>
-        <div
-          class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-        >
-          {{
-            item.kind === 'credits_exhausted'
-              ? t('admin.accounts.status.creditsExhaustedUntil', { time: formatTime(item.reset_at) })
-              : item.kind === 'credits_active'
-                ? t('admin.accounts.status.modelCreditOveragesUntil', { model: formatScopeName(item.model), time: formatTime(item.reset_at) })
-                : t('admin.accounts.status.modelRateLimitedUntil', { model: formatScopeName(item.model), time: formatTime(item.reset_at) })
-          }}
-          <div
-            class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
-          ></div>
-        </div>
+        <AccountStatusLimitBadge
+          :tone="item.tone"
+          :label="item.label"
+          :countdown="item.countdown"
+          :tooltip="item.tooltip"
+          :model="item.model"
+          :model-display-name="item.modelDisplayName"
+        />
       </div>
     </div>
 
-    <div v-if="isOverloaded" class="group relative">
-      <span
-        class="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400"
-      >
-        <Icon name="exclamationTriangle" size="xs" :stroke-width="2" />
-        529
-      </span>
-      <div
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 whitespace-normal rounded bg-gray-900 px-3 py-2 text-center text-xs leading-relaxed text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-gray-700"
-      >
-        {{ t('admin.accounts.status.overloadedUntil', { time: formatTime(account.overload_until) }) }}
-        <div
-          class="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
-        ></div>
-      </div>
+    <div v-if="isOverloaded">
+      <AccountStatusLimitBadge
+        tone="red"
+        label="529"
+        :tooltip="t('admin.accounts.status.overloadedUntil', { time: formatTime(account.overload_until) })"
+      />
     </div>
   </div>
 </template>
@@ -152,6 +106,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AccountStatusLimitBadge from '@/components/account/AccountStatusLimitBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useUiNow } from '@/composables/useUiNow'
 import type { Account } from '@/types'
@@ -172,6 +127,16 @@ type AccountModelStatusItem = {
   kind: 'rate_limit' | 'credits_exhausted' | 'credits_active'
   model: string
   reset_at: string
+}
+
+type AccountStatusLimitBadgeItem = {
+  key: string
+  tone: 'purple' | 'amber' | 'red'
+  label: string
+  countdown?: string
+  tooltip: string
+  model?: string
+  modelDisplayName?: string
 }
 
 const errorTooltipVisible = ref(false)
@@ -213,6 +178,12 @@ const activeModelStatuses = computed<AccountModelStatusItem[]>(() => {
   }
 
   return items
+})
+
+const activeModelBadgeLayoutClass = computed(() => {
+  if (activeModelBadges.value.length <= 4) return 'flex flex-col gap-1'
+  if (activeModelBadges.value.length <= 8) return 'columns-2 gap-x-2'
+  return 'columns-3 gap-x-2'
 })
 
 const formatScopeName = (scope: string): string => {
@@ -257,18 +228,63 @@ const formatScopeName = (scope: string): string => {
   return aliases[scope] || scope
 }
 
-const formatModelResetTime = (resetAt: string): string => {
+const normalizeResetAt = (value: unknown): string | null => {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
+const resolvePreferredResetAt = (...values: Array<unknown>): string | null => {
+  const normalized = values
+    .map((value) => normalizeResetAt(value))
+    .filter((value): value is string => value !== null)
+
+  if (normalized.length === 0) return null
+
+  return normalized.find((value) => new Date(value).getTime() > nowMs.value) ?? normalized[0]
+}
+
+const formatBadgeCountdown = (resetAt: string | null | undefined): string => {
+  if (!resetAt) return ''
   const date = new Date(resetAt)
   const diffMs = date.getTime() - nowMs.value
   if (diffMs <= 0) return ''
   const totalSecs = Math.floor(diffMs / 1000)
-  const hours = Math.floor(totalSecs / 3600)
+  const totalHours = Math.floor(totalSecs / 3600)
   const minutes = Math.floor((totalSecs % 3600) / 60)
   const seconds = totalSecs % 60
-  if (hours > 0) return `${hours}h${minutes}m`
-  if (minutes > 0) return `${minutes}m${seconds}s`
+  if (totalHours > 0) return `${totalHours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m ${seconds}s`
   return `${seconds}s`
 }
+
+const activeModelBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
+  return activeModelStatuses.value.map((item) => {
+    if (item.kind === 'credits_exhausted') {
+      return {
+        key: `credits-${item.model}`,
+        tone: 'red',
+        label: t('admin.accounts.status.creditsExhausted'),
+        countdown: formatBadgeCountdown(item.reset_at),
+        tooltip: t('admin.accounts.status.creditsExhaustedUntil', { time: formatTime(item.reset_at) }),
+      }
+    }
+
+    const modelDisplayName = formatScopeName(item.model)
+    return {
+      key: `${item.kind}-${item.model}`,
+      tone: item.kind === 'credits_active' ? 'amber' : 'purple',
+      label: modelDisplayName,
+      countdown: formatBadgeCountdown(item.reset_at),
+      tooltip: item.kind === 'credits_active'
+        ? t('admin.accounts.status.modelCreditOveragesUntil', { model: modelDisplayName, time: formatTime(item.reset_at) })
+        : t('admin.accounts.status.modelRateLimitedUntil', { model: modelDisplayName, time: formatTime(item.reset_at) }),
+      model: item.model,
+      modelDisplayName,
+    }
+  })
+})
 
 const isOverloaded = computed(() => {
   if (!props.account.overload_until) return false
@@ -317,19 +333,6 @@ const rateLimitStatusLabel = computed(() => {
   }
 })
 
-const rateLimitBadgeText = computed(() => {
-  switch (props.account.rate_limit_reason) {
-    case 'usage_5h':
-      return '5h'
-    case 'usage_7d':
-      return '7d'
-    case 'usage_7d_all':
-      return '7d×2'
-    default:
-      return '429'
-  }
-})
-
 const rateLimitTooltipText = computed(() => {
   const time = formatDateTime(props.account.rate_limit_reset_at)
   switch (props.account.rate_limit_reason) {
@@ -342,6 +345,56 @@ const rateLimitTooltipText = computed(() => {
     default:
       return t('admin.accounts.status.rateLimitedUntil', { time })
   }
+})
+
+const accountRateLimitBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
+  if (!isRateLimited.value) return []
+
+  const fallbackTooltip = rateLimitTooltipText.value
+  const extra = props.account.extra as Record<string, unknown> | undefined
+
+  if (props.account.rate_limit_reason === 'usage_7d_all') {
+    const codexLabel = 'Codex 7d'
+    const sparkLabel = 'Spark 7d'
+    const codexResetAt = resolvePreferredResetAt(extra?.codex_7d_reset_at, props.account.rate_limit_reset_at)
+    const sparkResetAt = resolvePreferredResetAt(extra?.codex_spark_7d_reset_at, props.account.rate_limit_reset_at)
+
+    return [
+      {
+        key: 'account-codex-7d',
+        tone: 'amber',
+        label: codexLabel,
+        countdown: formatBadgeCountdown(codexResetAt),
+        tooltip: codexResetAt
+          ? t('admin.accounts.status.modelRateLimitedUntil', { model: codexLabel, time: formatTime(codexResetAt) })
+          : fallbackTooltip,
+        model: 'gpt-5.3-codex',
+        modelDisplayName: codexLabel,
+      },
+      {
+        key: 'account-spark-7d',
+        tone: 'amber',
+        label: sparkLabel,
+        countdown: formatBadgeCountdown(sparkResetAt),
+        tooltip: sparkResetAt
+          ? t('admin.accounts.status.modelRateLimitedUntil', { model: sparkLabel, time: formatTime(sparkResetAt) })
+          : fallbackTooltip,
+        model: 'gpt-5.3-codex-spark',
+        modelDisplayName: sparkLabel,
+      },
+    ]
+  }
+
+  return [{
+    key: `account-${props.account.rate_limit_reason || '429'}`,
+    tone: 'amber',
+    label: props.account.rate_limit_reason === 'usage_5h'
+      ? '5h'
+      : props.account.rate_limit_reason === 'usage_7d'
+        ? '7d'
+        : '429',
+    tooltip: fallbackTooltip,
+  }]
 })
 
 const overloadCountdown = computed(() => {

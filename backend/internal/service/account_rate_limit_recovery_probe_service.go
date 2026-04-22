@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -242,16 +243,45 @@ func classifyAccountAutoRecoveryProbeFailure(result *BackgroundAccountTestResult
 
 func isTransientAccountAutoRecoveryProbeError(message string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(message))
+	if statusCode := extractAccountAutoRecoveryProbeStatusCode(normalized); statusCode == 408 ||
+		statusCode == 425 ||
+		statusCode == 429 ||
+		statusCode == 500 ||
+		statusCode == 502 ||
+		statusCode == 503 ||
+		statusCode == 504 ||
+		statusCode == 529 {
+		return true
+	}
 	for _, keyword := range []string{
 		"timeout", "timed out", "deadline exceeded", "temporarily unavailable",
 		"connection reset", "connection refused", "eof", "tls", "dial tcp",
 		"gateway", "bad gateway", "service unavailable", "no such host", "proxyconnect",
+		"upstream request failed", "upstream_error",
 	} {
 		if strings.Contains(normalized, keyword) {
 			return true
 		}
 	}
 	return false
+}
+
+func extractAccountAutoRecoveryProbeStatusCode(message string) int {
+	if !strings.Contains(message, "api returned") {
+		return 0
+	}
+	parts := strings.Fields(message)
+	for index := 0; index < len(parts)-2; index++ {
+		if parts[index] != "api" || parts[index+1] != "returned" {
+			continue
+		}
+		codeText := strings.Trim(parts[index+2], ":,.;")
+		statusCode, err := strconv.Atoi(codeText)
+		if err == nil {
+			return statusCode
+		}
+	}
+	return 0
 }
 
 func recoveryProbeTimePtr(value time.Time) *time.Time {

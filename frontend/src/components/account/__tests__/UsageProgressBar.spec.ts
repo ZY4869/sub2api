@@ -130,4 +130,19 @@ describe("UsageProgressBar", () => {
     expect(wrapper.text()).toContain("A $15.72");
     expect(wrapper.text()).toContain("U $15.72");
   });
+
+  it("hides inline remaining text when a placeholder row has no reset time", () => {
+    const wrapper = mount(UsageProgressBar, {
+      props: {
+        label: "Spark 5h",
+        utilization: 0,
+        color: "purple",
+        inlineReset: true,
+      },
+    });
+
+    expect(wrapper.text()).toContain("Spark 5h");
+    expect(wrapper.text()).toContain("0%");
+    expect(wrapper.text()).not.toContain("Remaining");
+  });
 });

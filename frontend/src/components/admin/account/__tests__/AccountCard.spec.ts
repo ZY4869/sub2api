@@ -19,7 +19,7 @@ vi.mock('@/utils/format', () => ({
   formatDateTime: () => '2026/04/09 00:00:00'
 }))
 
-function mountCard(autoRecoveryProbe: Record<string, unknown>) {
+function mountCard(autoRecoveryProbe: Record<string, unknown>, accountOverrides: Record<string, unknown> = {}) {
   return mount(AccountCard, {
     props: {
       account: {
@@ -31,7 +31,8 @@ function mountCard(autoRecoveryProbe: Record<string, unknown>) {
         schedulable: true,
         extra: {},
         auto_recovery_probe: autoRecoveryProbe,
-        last_used_at: '2026-04-09T00:00:00Z'
+        last_used_at: '2026-04-09T00:00:00Z',
+        ...accountOverrides
       },
       selected: false,
       togglingSchedulable: null,
@@ -81,5 +82,22 @@ describe('AccountCard', () => {
 
     expect(wrapper.text()).toContain('Temporary gateway error')
     expect(wrapper.text()).toContain('admin.accounts.autoRecoveryProbe.headline')
+  })
+
+  it('hides stale blacklisted recovery notices after the account is restored', () => {
+    const wrapper = mountCard(
+      {
+        status: 'blacklisted',
+        blacklisted: true,
+        summary: 'API returned 502',
+        error_code: 'auto_recovery_probe_failed',
+      },
+      {
+        lifecycle_state: 'normal',
+      },
+    )
+
+    expect(wrapper.text()).not.toContain('API returned 502')
+    expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
   })
 })

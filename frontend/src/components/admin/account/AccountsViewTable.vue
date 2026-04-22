@@ -53,6 +53,7 @@
         <AccountAutoRecoveryProbeNotice
           v-if="row.auto_recovery_probe"
           :summary="row.auto_recovery_probe"
+          :lifecycle-state="row.lifecycle_state"
         />
       </div>
     </template>

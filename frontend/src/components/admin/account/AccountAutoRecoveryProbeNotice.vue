@@ -37,11 +37,22 @@ import { formatDateTime } from '@/utils/format'
 
 const props = defineProps<{
   summary?: AccountAutoRecoveryProbeSummary | null
+  lifecycleState?: string | null
 }>()
 
 const { t } = useI18n()
+const hasRestoredFromBlacklisted = computed(() => {
+  const lifecycleState = String(props.lifecycleState || '').trim().toLowerCase()
+  if (!lifecycleState || lifecycleState === 'blacklisted') {
+    return false
+  }
+  return props.summary?.blacklisted || props.summary?.status === 'blacklisted'
+})
+
 const visibleSummary = computed(() =>
-  props.summary && props.summary.status !== 'success' ? props.summary : null
+  props.summary && props.summary.status !== 'success' && !hasRestoredFromBlacklisted.value
+    ? props.summary
+    : null
 )
 
 const statusKey = computed(() => {

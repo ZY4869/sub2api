@@ -21,6 +21,16 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
+const modelIconStub = {
+  props: ['model'],
+  template: '<span data-test="model-icon">{{ model }}</span>'
+}
+
+const componentStubs = {
+  Icon: true,
+  ModelIcon: modelIconStub
+}
+
 function makeAccount(overrides: Partial<Account> = {}): Account {
   return {
     id: 1,
@@ -73,9 +83,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: componentStubs
       }
     })
 
@@ -95,20 +103,70 @@ describe('AccountStatusIndicator', () => {
       props: {
         account: makeAccount({
           rate_limit_reset_at: '2026-03-13T12:02:00Z',
-          rate_limit_reason: 'usage_7d_all'
+          rate_limit_reason: 'usage_7d_all',
+          extra: {
+            codex_7d_reset_at: '2026-03-13T12:03:00Z',
+            codex_spark_7d_reset_at: '2026-03-13T12:04:00Z',
+          },
         })
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: componentStubs
       }
     })
 
     expect(wrapper.text()).toContain('admin.accounts.status.usage7dAll')
     expect(wrapper.text()).toContain('admin.accounts.status.usage7dAllAutoResume')
-    expect(wrapper.text()).toContain('admin.accounts.status.usage7dAllUntil')
-    expect(wrapper.text()).toContain('7d×2')
+    expect(wrapper.text()).toContain('Codex 7d')
+    expect(wrapper.text()).toContain('Spark 7d')
+    expect(wrapper.text()).not.toContain('7d×2')
+  })
+
+  it('formats model cooldown countdowns with spaced units', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          extra: {
+            model_rate_limits: {
+              'gpt-5.3-codex': {
+                rate_limited_at: '2026-03-13T11:59:00Z',
+                rate_limit_reset_at: '2026-03-13T14:03:00Z'
+              }
+            }
+          }
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.text()).toContain('Codex')
+    expect(wrapper.text()).toContain('2h 3m')
+    expect(wrapper.text()).not.toContain('2h3m')
+  })
+
+  it('keeps account-level default rate limits on the 429 badge text', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          rate_limit_reset_at: '2026-03-13T12:02:00Z',
+          rate_limit_reason: 'rate_429'
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.text()).toContain('429')
+    expect(wrapper.text()).not.toContain('5h')
   })
 
   it('shows spark model cooldown without marking the whole account as rate limited', () => {
@@ -126,13 +184,12 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: componentStubs
       }
     })
 
     expect(wrapper.text()).toContain('Spark')
+    expect(wrapper.find('[data-test="model-icon"]').text()).toContain('gpt-5.3-codex-spark')
     expect(wrapper.text()).toContain('admin.accounts.status.modelRateLimitedUntil')
     expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
     expect(wrapper.text()).not.toContain('7d×2')
@@ -154,13 +211,12 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: componentStubs
       }
     })
 
     expect(wrapper.text()).toContain('CSon45')
+    expect(wrapper.find('[data-test="model-icon"]').text()).toContain('claude-sonnet-4-5')
     expect(wrapper.text()).not.toContain('鉁')
   })
 
@@ -174,9 +230,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: componentStubs
       }
     })
 
@@ -243,9 +297,7 @@ describe('AccountStatusIndicator', () => {
         })
       },
       global: {
-        stubs: {
-          Icon: true
-        }
+        stubs: componentStubs
       }
     })
 

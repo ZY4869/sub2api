@@ -65,6 +65,7 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
           type: 'apikey',
           status: 'active',
           schedulable: true,
+          lifecycle_state: 'normal',
           extra: {},
           auto_recovery_probe: {
             status: 'retry_scheduled',
@@ -157,6 +158,21 @@ describe('AccountsViewTable', () => {
       'admin.accounts.autoRecoveryProbe.successIndicator'
     )
     expect(wrapper.text()).not.toContain('Recovered')
+    expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
+  })
+
+  it('hides stale blacklisted recovery notices after the account is restored', () => {
+    const wrapper = mountTable({
+      lifecycle_state: 'normal',
+      auto_recovery_probe: {
+        status: 'blacklisted',
+        blacklisted: true,
+        summary: 'API returned 502',
+        error_code: 'auto_recovery_probe_failed',
+      }
+    })
+
+    expect(wrapper.text()).not.toContain('API returned 502')
     expect(wrapper.text()).not.toContain('admin.accounts.autoRecoveryProbe.headline')
   })
 })

@@ -220,6 +220,47 @@ func TestAccountRateLimitRecoveryProbeService_RunOnceSchedulesRetryOnTransientFa
 	require.Equal(t, int64(1), snapshot.RecoveryProbeRetryByReason["transient_error"])
 }
 
+func TestAccountRateLimitRecoveryProbeService_RunOnceSchedulesRetryOnUpstream5xxFailure(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	now := time.Date(2026, 4, 9, 10, 0, 0, 0, time.UTC)
+	resetAt := now.Add(-time.Minute)
+	repo := &accountAutoRecoveryProbeRepo{
+		activeAccounts: []Account{{
+			ID:               13,
+			Status:           StatusActive,
+			LifecycleState:   AccountLifecycleNormal,
+			RateLimitResetAt: &resetAt,
+			Extra: map[string]any{
+				"rate_limit_reason": AccountRateLimitReasonUsage7d,
+			},
+		}},
+	}
+	executor := &accountAutoRecoveryProbeExecutorStub{
+		result: &BackgroundAccountTestResult{
+			Status:       "failed",
+			ErrorMessage: `API returned 502: {"error":{"message":"Upstream request failed","type":"upstream_error"}}`,
+		},
+	}
+	recoverer := &accountAutoRecoveryProbeRecovererStub{}
+	svc := NewAccountRateLimitRecoveryProbeService(repo, executor, recoverer, time.Minute)
+	svc.now = func() time.Time { return now }
+
+	svc.runOnce(context.Background())
+
+	require.Equal(t, 1, executor.calls)
+	require.Equal(t, 0, recoverer.calls)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountAutoRecoveryProbeStatusRetryScheduled, repo.updateExtraCalls[0][accountAutoRecoveryProbeStatusKey])
+	require.Empty(t, repo.markBlacklistedArgs)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.RecoveryProbeRetryTotal)
+	require.Equal(t, int64(0), snapshot.RecoveryProbeBlacklistedTotal)
+	require.Equal(t, int64(1), snapshot.RecoveryProbeRetryByReason["transient_error"])
+}
+
 func TestAccountRateLimitRecoveryProbeService_RunOnceBlacklistsExplicitFailure(t *testing.T) {
 	protocolruntime.ResetForTest()
 	t.Cleanup(protocolruntime.ResetForTest)

@@ -32,6 +32,11 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
       viewMode: 'table',
       groupViewEnabled: false,
       platformCountSortOrder: 'count_asc',
+      actualUsageRefreshSummary: {
+        total: 6,
+        live: 4,
+        fallback: 2
+      },
       toggleableColumns: [
         { key: 'proxy', label: 'Proxy', visible: true },
         { key: 'notes', label: 'Notes', visible: false }
@@ -77,20 +82,21 @@ function mountToolbar(overrides: Record<string, unknown> = {}) {
 describe('AccountsViewToolbar', () => {
   it('forwards filter, search and toolbar actions', async () => {
     const wrapper = mountToolbar()
+    const refreshUsageButton = wrapper.get('[data-actual-usage-button="true"]')
 
     await wrapper.get('.view-mode-toggle').trigger('click')
     await wrapper.get('.filters-update').trigger('click')
     await wrapper.get('.filters-search').trigger('click')
     await wrapper.get('.filters-change').trigger('click')
     await wrapper.get('.refresh').trigger('click')
-    await wrapper.findAll('button').find((button) =>
-      button.text().includes('admin.accounts.refreshActualUsage')
-    )?.trigger('click')
+    await refreshUsageButton.trigger('click')
     await wrapper.get('.sync').trigger('click')
     await wrapper.get('.create').trigger('click')
 
     expect(wrapper.text()).not.toContain('admin.accounts.viewArchived')
     expect(wrapper.text()).not.toContain('admin.accounts.batchCreate')
+    expect(refreshUsageButton.attributes('title')).toBe('admin.accounts.refreshActualUsageTitle')
+    expect(wrapper.find('[data-actual-usage-help="true"]').exists()).toBe(true)
     expect(wrapper.emitted('update:view-mode')).toEqual([['card']])
     expect(wrapper.emitted('update:filters')).toEqual([[{ platform: 'openai' }]])
     expect(wrapper.emitted('update:searchQuery')).toEqual([['claude']])

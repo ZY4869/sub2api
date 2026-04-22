@@ -55,6 +55,7 @@
         v-if="account.auto_recovery_probe"
         class="mt-4"
         :summary="account.auto_recovery_probe"
+        :lifecycle-state="account.lifecycle_state"
       />
 
       <div class="mt-4 grid gap-3 sm:grid-cols-2">

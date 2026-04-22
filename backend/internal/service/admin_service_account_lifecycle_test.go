@@ -12,12 +12,14 @@ import (
 
 type blacklistAccountRepoStub struct {
 	AccountRepository
-	account         *Account
-	markBlacklisted int
-	lastReasonCode  string
-	lastReasonMsg   string
-	lastBlacklisted time.Time
-	lastPurgeAt     time.Time
+	account          *Account
+	markBlacklisted  int
+	restoreCalls     int
+	lastReasonCode   string
+	lastReasonMsg    string
+	lastBlacklisted  time.Time
+	lastPurgeAt      time.Time
+	updateExtraCalls []map[string]any
 }
 
 func (s *blacklistAccountRepoStub) GetByID(_ context.Context, id int64) (*Account, error) {
@@ -41,6 +43,26 @@ func (s *blacklistAccountRepoStub) MarkBlacklisted(_ context.Context, id int64, 
 	s.account.BlacklistPurgeAt = &purgeAt
 	s.account.Status = StatusDisabled
 	s.account.Schedulable = false
+	return nil
+}
+
+func (s *blacklistAccountRepoStub) RestoreBlacklisted(_ context.Context, id int64) error {
+	s.restoreCalls++
+	s.account.ID = id
+	s.account.LifecycleState = AccountLifecycleNormal
+	s.account.LifecycleReasonCode = ""
+	s.account.LifecycleReasonMessage = ""
+	s.account.BlacklistedAt = nil
+	s.account.BlacklistPurgeAt = nil
+	s.account.Status = StatusActive
+	s.account.Schedulable = true
+	s.account.ErrorMessage = ""
+	return nil
+}
+
+func (s *blacklistAccountRepoStub) UpdateExtra(_ context.Context, _ int64, updates map[string]any) error {
+	s.updateExtraCalls = append(s.updateExtraCalls, MergeStringAnyMap(nil, updates))
+	s.account.Extra = MergeStringAnyMap(s.account.Extra, updates)
 	return nil
 }
 
@@ -195,4 +217,33 @@ func TestAdminServiceBlacklistAccountRecordsFeedbackCandidate(t *testing.T) {
 	require.Equal(t, "openai", settings.Rules[0].Platform)
 	require.Equal(t, "invalid_api_key", settings.Rules[0].ErrorCode)
 	require.Equal(t, "blacklist", settings.Rules[0].AdminAction)
+}
+
+func TestAdminServiceRestoreBlacklistedAccountClearsAutoRecoveryProbeState(t *testing.T) {
+	repo := &blacklistAccountRepoStub{
+		account: &Account{
+			ID:             101,
+			Name:           "openai-101",
+			Status:         StatusDisabled,
+			Schedulable:    false,
+			LifecycleState: AccountLifecycleBlacklisted,
+			Extra: map[string]any{
+				accountAutoRecoveryProbeCheckedAtKey: "2026-04-21T11:31:03Z",
+				accountAutoRecoveryProbeStatusKey:    AccountAutoRecoveryProbeStatusBlacklisted,
+				accountAutoRecoveryProbeSummaryKey:   "API returned 502: {\"error\":{\"message\":\"Upstream request failed\"}}",
+				accountAutoRecoveryProbeBlacklisted:  true,
+				accountAutoRecoveryProbeErrorCodeKey: accountRateLimitRecoveryProbeReasonCode,
+			},
+		},
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	account, err := svc.RestoreBlacklistedAccount(context.Background(), 101)
+	require.NoError(t, err)
+	require.NotNil(t, account)
+	require.Equal(t, 1, repo.restoreCalls)
+	require.Len(t, repo.updateExtraCalls, 1)
+	require.Equal(t, AccountLifecycleNormal, account.LifecycleState)
+	require.Equal(t, StatusActive, account.Status)
+	require.Nil(t, AccountAutoRecoveryProbeSummaryFromExtra(account.Extra))
 }

@@ -64,7 +64,7 @@
         {{ displayPercent }}
       </span>
 
-      <span v-if="inlineReset" :class="remainingTextClass">
+      <span v-if="inlineReset && effectiveResetAt" :class="remainingTextClass">
         {{ t("admin.accounts.usageWindow.remainingLabel") }}
         {{ resetCountdownText }}
       </span>

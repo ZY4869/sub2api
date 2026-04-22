@@ -20,6 +20,7 @@
           :show-limited-controls="!limitedMode"
           :hide-limited-accounts="hideLimitedAccounts"
           :limited-accounts-count="limitedAccountsCount"
+          :actual-usage-refresh-summary="actualUsageRefreshSummary"
           @update:filters="handleFilterUpdate"
           @update:search-query="handleSearchQueryUpdate"
           @update:view-mode="viewMode = $event"
@@ -317,6 +318,12 @@ import type {
   AdminGroup,
   ClaudeModel
 } from '@/types'
+
+type ActualUsageRefreshSummary = {
+  total: number
+  live: number
+  fallback: number
+}
 
 const props = withDefaults(defineProps<{
   limitedMode?: boolean
@@ -748,6 +755,18 @@ const displayAccounts = computed<Account[]>(() => {
     })
     .map((item) => item.account)
 })
+const actualUsageRefreshSummary = computed<ActualUsageRefreshSummary>(() => {
+  const refreshableAccounts = accounts.value.filter(canAccountFetchUsage)
+  const live = refreshableAccounts.reduce((count, account) => {
+    return resolveActualUsageRefreshLoadOptions(account).source === 'active' ? count + 1 : count
+  }, 0)
+
+  return {
+    total: refreshableAccounts.length,
+    live,
+    fallback: Math.max(refreshableAccounts.length - live, 0)
+  }
+})
 const limitedAccountsCount = computed(() => accountSummary.value.limited_breakdown.total)
 
 watch(isLiveSyncBlocked, (blocked, wasBlocked) => {
@@ -1036,6 +1055,7 @@ const handleRefreshActualUsage = async () => {
   if (usageRefreshing.value) return
 
   const visibleAccounts = accounts.value.filter(canAccountFetchUsage)
+  const refreshSummary = actualUsageRefreshSummary.value
   if (visibleAccounts.length === 0) {
     appStore.showWarning(t('admin.accounts.refreshActualUsageNoAccounts'))
     return
@@ -1055,7 +1075,9 @@ const handleRefreshActualUsage = async () => {
       appStore.showWarning(
         t('admin.accounts.refreshActualUsagePartial', {
           success: result.success,
-          failed: result.failed
+          failed: result.failed,
+          live: refreshSummary.live,
+          fallback: refreshSummary.fallback
         })
       )
       return
@@ -1072,7 +1094,9 @@ const handleRefreshActualUsage = async () => {
 
     appStore.showSuccess(
       t('admin.accounts.refreshActualUsageSuccess', {
-        count: result.success
+        count: result.success,
+        live: refreshSummary.live,
+        fallback: refreshSummary.fallback
       })
     )
   } catch (error: any) {

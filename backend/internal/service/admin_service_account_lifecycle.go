@@ -86,5 +86,8 @@ func (s *adminServiceImpl) RestoreBlacklistedAccount(ctx context.Context, id int
 	if err := s.accountRepo.RestoreBlacklisted(ctx, id); err != nil {
 		return nil, err
 	}
+	if err := s.accountRepo.UpdateExtra(ctx, id, BuildClearAccountAutoRecoveryProbeExtra()); err != nil {
+		return nil, err
+	}
 	return s.accountRepo.GetByID(ctx, id)
 }

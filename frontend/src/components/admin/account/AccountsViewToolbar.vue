@@ -68,7 +68,9 @@
           <button
             type="button"
             class="btn btn-secondary"
-            :title="t('admin.accounts.refreshActualUsage')"
+            data-actual-usage-button="true"
+            :title="t('admin.accounts.refreshActualUsageTitle')"
+            :aria-label="t('admin.accounts.refreshActualUsageTitle')"
             :disabled="loading || usageRefreshing"
             @click="emit('refresh-usage')"
           >
@@ -77,6 +79,30 @@
               {{ usageRefreshing ? t('admin.accounts.refreshingActualUsage') : t('admin.accounts.refreshActualUsage') }}
             </span>
           </button>
+          <HelpTooltip>
+            <template #trigger>
+              <span
+                data-actual-usage-help="true"
+                class="inline-flex h-8 w-8 cursor-help items-center justify-center rounded-full border border-gray-200 text-xs font-semibold text-gray-500 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-gray-700 dark:text-gray-400 dark:hover:border-primary-400 dark:hover:text-primary-300"
+              >
+                ?
+              </span>
+            </template>
+            <div class="space-y-1.5">
+              <p class="font-medium">{{ t('admin.accounts.refreshActualUsageTooltipTitle') }}</p>
+              <p>{{ t('admin.accounts.refreshActualUsageTooltipLive') }}</p>
+              <p>{{ t('admin.accounts.refreshActualUsageTooltipFallback') }}</p>
+              <p>
+                {{
+                  t('admin.accounts.refreshActualUsageTooltipScope', {
+                    total: actualUsageRefreshSummary.total,
+                    live: actualUsageRefreshSummary.live,
+                    fallback: actualUsageRefreshSummary.fallback
+                  })
+                }}
+              </p>
+            </div>
+          </HelpTooltip>
 
           <div class="relative" ref="autoRefreshDropdownRef">
             <button
@@ -226,6 +252,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AdminGroup, AccountPlatformCountSortOrder, AccountViewMode } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import AccountViewModeToggle from './AccountViewModeToggle.vue'
 import AccountTableActions from './AccountTableActions.vue'
 import AccountTableFilters from './AccountTableFilters.vue'
@@ -234,6 +261,12 @@ interface ToggleableColumn {
   key: string
   label: string
   visible: boolean
+}
+
+interface ActualUsageRefreshSummary {
+  total: number
+  live: number
+  fallback: number
 }
 
 const props = defineProps<{
@@ -255,6 +288,7 @@ const props = defineProps<{
   showLimitedControls?: boolean
   hideLimitedAccounts?: boolean
   limitedAccountsCount?: number
+  actualUsageRefreshSummary: ActualUsageRefreshSummary
 }>()
 
 const emit = defineEmits<{

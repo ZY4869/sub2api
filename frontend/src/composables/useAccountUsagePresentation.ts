@@ -129,6 +129,10 @@ function supportsActiveAnthropicUsage(account: Account): boolean {
   return getRuntimePlatform(account) === 'anthropic' && account.type === 'oauth'
 }
 
+function supportsActiveOpenAIUsage(account: Account): boolean {
+  return getRuntimePlatform(account) === 'openai' && account.type === 'oauth'
+}
+
 function shouldFallbackToActiveAnthropicUsage(
   account: Account,
   source: LoadUsageOptions['source'] | undefined,
@@ -327,10 +331,24 @@ function mergeOpenAIUsageRows(
   primaryRows: AccountUsagePresentationRow[],
   fallbackRows: AccountUsagePresentationRow[],
   includeSpark: boolean,
+  fillMissingRows: boolean,
+  t: ReturnType<typeof useI18n>['t'],
 ): AccountUsagePresentationRow[] {
+  const specs = resolveOpenAIUsageSpecs(includeSpark)
+  const hasResolvedRows = specs.some((spec) => {
+    return findRowByKey(primaryRows, spec.key) !== null || findRowByKey(fallbackRows, spec.key) !== null
+  })
+
   return buildRows(
-    ...resolveOpenAIUsageSpecs(includeSpark).map(
-      (spec) => findRowByKey(primaryRows, spec.key) ?? findRowByKey(fallbackRows, spec.key),
+    ...specs.map(
+      (spec) =>
+        findRowByKey(primaryRows, spec.key) ??
+        findRowByKey(fallbackRows, spec.key) ??
+        (fillMissingRows && hasResolvedRows
+          ? buildUsageRow(spec.key, resolveOpenAIUsageLabel(spec, t), 0, null, spec.color, {
+              inlineRemaining: true,
+            })
+          : null),
     ),
   )
 }
@@ -354,7 +372,7 @@ export function invalidateAccountUsagePresentationCache(accountIDs: number[]): v
 }
 
 export function resolveActualUsageRefreshLoadOptions(account: Account): LoadUsageOptions {
-  if (supportsActiveAnthropicUsage(account)) {
+  if (supportsActiveAnthropicUsage(account) || supportsActiveOpenAIUsage(account)) {
     return { source: 'active' }
   }
 
@@ -564,11 +582,25 @@ export function useAccountUsagePresentation(
   const openAIResolvedRows = computed(() => {
     if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return []
 
+    const fillMissingRows = isOpenAIProAccount(account.value)
+
     if (shouldUseFetchedOpenAIUsage.value) {
-      return mergeOpenAIUsageRows(openAIFetchedRows.value, codexRows.value, shouldShowOpenAISparkUsage.value)
+      return mergeOpenAIUsageRows(
+        openAIFetchedRows.value,
+        codexRows.value,
+        shouldShowOpenAISparkUsage.value,
+        fillMissingRows,
+        t,
+      )
     }
 
-    return mergeOpenAIUsageRows(codexRows.value, openAIFetchedRows.value, shouldShowOpenAISparkUsage.value)
+    return mergeOpenAIUsageRows(
+      codexRows.value,
+      openAIFetchedRows.value,
+      shouldShowOpenAISparkUsage.value,
+      fillMissingRows,
+      t,
+    )
   })
 
   const shouldPreferFetchedOpenAIMeta = computed(() => {

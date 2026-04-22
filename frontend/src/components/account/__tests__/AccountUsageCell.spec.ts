@@ -693,8 +693,50 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(getUsage).toHaveBeenCalledWith(2008, { force: undefined, source: undefined })
+    expect(wrapper.findAll('.usage-bar')).toHaveLength(4)
+    expect(wrapper.text()).toContain('5h|12|2026-03-08T12:00:00Z|3600|true|120')
+    expect(wrapper.text()).toContain('7d|44|2026-03-13T12:00:00Z|7200|true|440')
     expect(wrapper.text()).toContain('Spark 5h|55|2026-03-08T14:00:00Z|7200|true|550')
     expect(wrapper.text()).toContain('Spark 7d|88|2026-03-14T12:00:00Z|86400|true|880')
+  })
+
+  it('keeps pro openai accounts on four usage rows when spark data is temporarily missing', async () => {
+    getUsage.mockResolvedValue({})
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2010,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'pro',
+          },
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 12,
+            codex_5h_reset_at: '2099-03-07T12:00:00Z',
+            codex_7d_used_percent: 34,
+            codex_7d_reset_at: '2099-03-13T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    const usageRows = wrapper.findAll('.usage-bar').map((row) => row.text())
+    expect(getUsage).toHaveBeenCalledWith(2010, { force: undefined, source: undefined })
+    expect(usageRows).toHaveLength(4)
+    expect(usageRows.some((row) => row.startsWith('5h|12|2099-03-07T12:00:00.000Z|'))).toBe(true)
+    expect(usageRows.some((row) => row.startsWith('7d|34|2099-03-13T12:00:00.000Z|'))).toBe(true)
+    expect(usageRows.some((row) => row.startsWith('Spark 5h|0|'))).toBe(true)
+    expect(usageRows.some((row) => row.startsWith('Spark 7d|0|'))).toBe(true)
   })
 
   it('keeps non-pro openai accounts compatible when spark snapshots are absent', async () => {
@@ -726,6 +768,7 @@ describe('AccountUsageCell', () => {
     await flushPromises()
 
     expect(getUsage).not.toHaveBeenCalled()
+    expect(wrapper.findAll('.usage-bar')).toHaveLength(2)
     expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
     expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
     expect(wrapper.text()).not.toContain('Spark 5h')
@@ -1133,7 +1176,7 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).not.toContain('5h|0|')
   })
 
-  it('forces active source only for manual claudecloud oauth refresh', async () => {
+  it('forces active source for manual actual usage refresh when the platform supports live usage', async () => {
     const anthropicOauthAccount = {
       id: 3100,
       platform: 'anthropic',
@@ -1173,6 +1216,6 @@ describe('AccountUsageCell', () => {
     expect(result).toEqual({ total: 3, success: 3, failed: 0 })
     expect(getUsage).toHaveBeenNthCalledWith(1, 3100, { force: true, source: 'active' })
     expect(getUsage).toHaveBeenNthCalledWith(2, 3101, { force: true, source: 'passive' })
-    expect(getUsage).toHaveBeenNthCalledWith(3, 3102, { force: true, source: undefined })
+    expect(getUsage).toHaveBeenNthCalledWith(3, 3102, { force: true, source: 'active' })
   })
 })
