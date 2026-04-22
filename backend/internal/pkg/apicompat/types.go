@@ -193,9 +193,9 @@ type ResponsesInputItem struct {
 
 // ResponsesContentPart is a typed content part in a Responses message.
 type ResponsesContentPart struct {
-	Type     string      `json:"type"` // "input_text" | "output_text" | "input_image"
+	Type     string      `json:"type"` // "input_text" | "output_text" | "input_image" | "output_image"
 	Text     string      `json:"text,omitempty"`
-	ImageURL string      `json:"image_url,omitempty"` // data URI for input_image
+	ImageURL string      `json:"image_url,omitempty"` // URL or data URI for input/output image parts
 	Video    *MediaVideo `json:"video,omitempty"`
 }
 
@@ -325,12 +325,15 @@ type ResponsesStreamEvent struct {
 	Item *ResponsesOutput `json:"item,omitempty"`
 
 	// response.output_text.delta / response.output_text.done
-	OutputIndex  int         `json:"output_index,omitempty"`
-	ContentIndex int         `json:"content_index,omitempty"`
-	Delta        string      `json:"delta,omitempty"`
-	Text         string      `json:"text,omitempty"`
-	ItemID       string      `json:"item_id,omitempty"`
-	Video        *MediaVideo `json:"video,omitempty"`
+	OutputIndex     int         `json:"output_index,omitempty"`
+	ContentIndex    int         `json:"content_index,omitempty"`
+	Delta           string      `json:"delta,omitempty"`
+	Text            string      `json:"text,omitempty"`
+	ItemID          string      `json:"item_id,omitempty"`
+	Video           *MediaVideo `json:"video,omitempty"`
+	OutputFormat    string      `json:"output_format,omitempty"`
+	Background      string      `json:"background,omitempty"`
+	PartialImageB64 string      `json:"partial_image_b64,omitempty"`
 
 	// response.function_call_arguments.delta / done
 	CallID    string `json:"call_id,omitempty"`

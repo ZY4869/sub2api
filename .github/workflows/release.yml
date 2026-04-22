@@ -114,13 +114,13 @@ jobs:
           node-version: "24"
           cache: "pnpm"
           cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: Run release preflight
-        run: bash scripts/verify-ci.sh release-preflight
-      - name: Upload release preflight diagnostics
+      - name: Run release gate checks
+        run: bash scripts/verify-ci.sh release-gate
+      - name: Upload release gate diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: release-preflight-diagnostics
+          name: release-gate-diagnostics
           path: .cache/verify-ci
           if-no-files-found: ignore
 

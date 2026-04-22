@@ -2116,6 +2116,37 @@ func TestHandleOAuthSSEToJSON_ReconstructsOutputFromDeltaWhenTerminalOutputEmpty
 	require.NotContains(t, rec.Body.String(), `"output":[]`)
 }
 
+func TestHandleOAuthSSEToJSON_ReconstructsImageOutputFromPartialImageWhenTerminalOutputEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+
+	svc := &OpenAIGatewayService{cfg: &config.Config{}}
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+	}
+	body := []byte(strings.Join([]string{
+		`data: {"type":"response.output_item.added","item":{"id":"ig_1","type":"image_generation_call","status":"in_progress"},"output_index":0}`,
+		`data: {"type":"response.image_generation_call.partial_image","item_id":"ig_1","output_index":0,"output_format":"png","background":"opaque","partial_image_b64":"ZmFrZS1pbWFnZQ=="}`,
+		`data: {"type":"response.completed","response":{"id":"resp_image","model":"gpt-5.4","output":[],"tool_usage":{"image_gen":{"input_tokens":10,"output_tokens":20,"total_tokens":30}},"tools":[{"type":"image_generation","model":"gpt-image-2"}],"usage":{"input_tokens":4,"output_tokens":2,"input_tokens_details":{"cached_tokens":1}}}}`,
+		`data: [DONE]`,
+	}, "\n"))
+
+	usage, err := svc.handleOAuthSSEToJSON(resp, c, body, "gpt-5.4", "gpt-5.4")
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+	require.Equal(t, 4, usage.InputTokens)
+	require.Equal(t, 2, usage.OutputTokens)
+	require.Equal(t, 1, usage.CacheReadInputTokens)
+	require.Contains(t, rec.Body.String(), `"output_image"`)
+	require.Contains(t, rec.Body.String(), `data:image/png;base64,ZmFrZS1pbWFnZQ==`)
+	require.Contains(t, rec.Body.String(), `"tool_usage"`)
+	require.Contains(t, rec.Body.String(), `"gpt-image-2"`)
+	require.NotContains(t, rec.Body.String(), `"output":[]`)
+}
+
 func TestHandleOAuthSSEToJSON_NoFinalResponseKeepsSSEBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()

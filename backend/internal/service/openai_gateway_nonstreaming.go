@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func (s *OpenAIGatewayService) handleErrorResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, requestBody []byte) (*OpenAIForwardResult, error) {
@@ -260,11 +261,6 @@ func supplementOpenAIResponseOutputFromSSE(finalResponse []byte, bodyText string
 		return nil, false
 	}
 
-	var response apicompat.ResponsesResponse
-	if err := json.Unmarshal(finalResponse, &response); err != nil {
-		return nil, false
-	}
-
 	acc := apicompat.NewBufferedResponseAccumulator()
 	for _, line := range strings.Split(bodyText, "\n") {
 		data, ok := extractOpenAISSEDataLine(line)
@@ -281,12 +277,11 @@ func supplementOpenAIResponseOutputFromSSE(finalResponse []byte, bodyText string
 		return nil, false
 	}
 
-	acc.SupplementResponseOutput(&response)
-	if len(response.Output) == 0 {
+	outputJSON, err := json.Marshal(acc.BuildOutput())
+	if err != nil {
 		return nil, false
 	}
-
-	supplemented, err := json.Marshal(response)
+	supplemented, err := sjson.SetRawBytes(finalResponse, "output", outputJSON)
 	if err != nil {
 		return nil, false
 	}

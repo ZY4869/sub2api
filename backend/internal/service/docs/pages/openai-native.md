@@ -98,6 +98,7 @@ curl https://api.zyxai.de/v1/responses \
 - `GET /v1/responses` 由专门的 Responses WebSocket / 长连接处理链路接管。
 - 当运行平台为 OpenAI 或 Copilot 时，Responses 能力是原生直通。
 - 当运行平台为 Grok 时，普通 `POST /grok/v1/responses` 可用，但 WebSocket 动作在能力矩阵中被拒绝。
+- 如果你在 `POST /v1/responses` 里使用 `image_generation` tool，而上游返回的是 compact SSE 且终态 `response.completed.response.output` 为空，网关会根据 `response.image_generation_call.partial_image` 自动回填 `output[].content[].type = "output_image"`，`image_url` 为 data URI，方便非流式客户端直接消费。
 - 如果上游账号是 OpenAI Pro，运行时额度会拆成两侧：`gpt-5.3-codex-spark*` 只占用 `Spark` 侧，其它 OpenAI 模型统一占用 `普通` 侧；一侧冷却不会连带阻断另一侧。
 - 当 `POST /v1/responses` 的目标模型在所有可路由账号上都只因为对应额度侧冷却而不可服务时，接口会返回 `429 rate_limit_error`；如果是账号忙、上游故障或其它选路失败，仍然保持原来的 `503` / `502` 语义。
 - `/v1/models`、`/v1beta/models` 和对应 detail 读路径会按当前运行时可服务性临时隐藏受限侧模型；这不代表模型被永久删除，也不会把这类临时隐藏改成 `404`。
@@ -157,5 +158,5 @@ curl https://api.zyxai.de/v1/responses/resp_123 \
 
 - 如果你的客户端本来就支持 `responses`，不要再退回 `chat/completions`。
 - 如果你只是为了历史兼容而使用旧参数结构，请切到 `openai` 兼容页。
-- 如果你要做图像或视频能力，不要在本页继续扩展，直接转到 `grok` 页查看媒体入口。
+- 如果你要走 `/v1/images/*` 或视频专用入口，请转到 `grok` 页查看媒体入口；如果你是在 `/v1/responses` 内通过 `image_generation` tool 生图，仍以本页规则为准。
 - 新项目围绕 `responses` 设计，比继续叠加 `chat/completions` 特性债务更稳妥。

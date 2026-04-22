@@ -578,6 +578,31 @@ func TestResponsesToChatCompletions_OutputVideo(t *testing.T) {
 	assert.Equal(t, "https://cdn.example.com/video.mp4", content)
 }
 
+func TestResponsesToChatCompletions_OutputImageFallsBackToDataURIContent(t *testing.T) {
+	resp := &ResponsesResponse{
+		ID:     "resp_image",
+		Status: "completed",
+		Output: []ResponsesOutput{
+			{
+				Type: "message",
+				Content: []ResponsesContentPart{
+					{
+						Type:     "output_image",
+						ImageURL: "data:image/png;base64,ZmFrZS1pbWFnZQ==",
+					},
+				},
+			},
+		},
+	}
+
+	chat := ResponsesToChatCompletions(resp, "gpt-5.4")
+	require.Len(t, chat.Choices, 1)
+
+	var content string
+	require.NoError(t, json.Unmarshal(chat.Choices[0].Message.Content, &content))
+	assert.Equal(t, "data:image/png;base64,ZmFrZS1pbWFnZQ==", content)
+}
+
 // ---------------------------------------------------------------------------
 // Streaming: ResponsesEventToChatChunks tests
 // ---------------------------------------------------------------------------
@@ -1056,6 +1081,24 @@ func TestBufferedResponseAccumulator_Mixed(t *testing.T) {
 	assert.Equal(t, "function_call", output[2].Type)
 	assert.Equal(t, "The answer is 42.", output[1].Content[0].Text)
 	assert.Equal(t, "verify", output[2].Name)
+}
+
+func TestBufferedResponseAccumulator_ImagePartial(t *testing.T) {
+	acc := NewBufferedResponseAccumulator()
+	acc.ProcessEvent(&ResponsesStreamEvent{
+		Type:            "response.image_generation_call.partial_image",
+		OutputFormat:    "png",
+		PartialImageB64: "ZmFrZS1pbWFnZQ==",
+	})
+
+	assert.True(t, acc.HasContent())
+
+	output := acc.BuildOutput()
+	require.Len(t, output, 1)
+	assert.Equal(t, "message", output[0].Type)
+	require.Len(t, output[0].Content, 1)
+	assert.Equal(t, "output_image", output[0].Content[0].Type)
+	assert.Equal(t, "data:image/png;base64,ZmFrZS1pbWFnZQ==", output[0].Content[0].ImageURL)
 }
 
 func TestBufferedResponseAccumulator_SupplementEmptyOutput(t *testing.T) {

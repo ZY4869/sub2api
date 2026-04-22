@@ -34,6 +34,7 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 	var toolCalls []ChatToolCall
 	var media []ChatMedia
 	var primaryVideo *MediaVideo
+	var primaryImageURL string
 
 	for _, item := range resp.Output {
 		switch item.Type {
@@ -41,6 +42,9 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 			for _, part := range item.Content {
 				if part.Type == "output_text" && part.Text != "" {
 					contentText += part.Text
+				}
+				if (part.Type == "output_image" || part.Type == "") && part.ImageURL != "" && primaryImageURL == "" {
+					primaryImageURL = part.ImageURL
 				}
 				if part.Type == "output_video" && part.Video != nil {
 					if primaryVideo == nil {
@@ -79,6 +83,9 @@ func ResponsesToChatCompletions(resp *ResponsesResponse, model string) *ChatComp
 	}
 	if contentText == "" && primaryVideo != nil && primaryVideo.URL != "" {
 		contentText = primaryVideo.URL
+	}
+	if contentText == "" && primaryImageURL != "" {
+		contentText = primaryImageURL
 	}
 	if contentText != "" {
 		raw, _ := json.Marshal(contentText)
@@ -431,6 +438,7 @@ type BufferedResponseAccumulator struct {
 	reasoning            strings.Builder
 	funcCalls            []bufferedFuncCall
 	outputIndexToFuncIdx map[int]int
+	imageDataURI         string
 }
 
 // NewBufferedResponseAccumulator returns an initialised accumulator.
@@ -468,12 +476,16 @@ func (a *BufferedResponseAccumulator) ProcessEvent(event *ResponsesStreamEvent) 
 		if event.Delta != "" {
 			_, _ = a.reasoning.WriteString(event.Delta)
 		}
+	case "response.image_generation_call.partial_image":
+		if event.PartialImageB64 != "" {
+			a.imageDataURI = buildResponsesImageDataURI(event.OutputFormat, event.PartialImageB64)
+		}
 	}
 }
 
 // HasContent reports whether any content has been accumulated.
 func (a *BufferedResponseAccumulator) HasContent() bool {
-	return a.text.Len() > 0 || len(a.funcCalls) > 0 || a.reasoning.Len() > 0
+	return a.text.Len() > 0 || len(a.funcCalls) > 0 || a.reasoning.Len() > 0 || a.imageDataURI != ""
 }
 
 // BuildOutput constructs a []ResponsesOutput from the accumulated delta
@@ -492,14 +504,24 @@ func (a *BufferedResponseAccumulator) BuildOutput() []ResponsesOutput {
 		})
 	}
 
-	if a.text.Len() > 0 {
-		out = append(out, ResponsesOutput{
-			Type: "message",
-			Role: "assistant",
-			Content: []ResponsesContentPart{{
+	if a.text.Len() > 0 || a.imageDataURI != "" {
+		content := make([]ResponsesContentPart, 0, 2)
+		if a.text.Len() > 0 {
+			content = append(content, ResponsesContentPart{
 				Type: "output_text",
 				Text: a.text.String(),
-			}},
+			})
+		}
+		if a.imageDataURI != "" {
+			content = append(content, ResponsesContentPart{
+				Type:     "output_image",
+				ImageURL: a.imageDataURI,
+			})
+		}
+		out = append(out, ResponsesOutput{
+			Type:    "message",
+			Role:    "assistant",
+			Content: content,
 		})
 	}
 
@@ -526,4 +548,15 @@ func (a *BufferedResponseAccumulator) SupplementResponseOutput(resp *ResponsesRe
 		return
 	}
 	resp.Output = a.BuildOutput()
+}
+
+func buildResponsesImageDataURI(format string, b64 string) string {
+	format = strings.TrimSpace(strings.ToLower(format))
+	if format == "" {
+		format = "png"
+	}
+	if strings.Contains(format, "/") {
+		return fmt.Sprintf("data:%s;base64,%s", format, b64)
+	}
+	return fmt.Sprintf("data:image/%s;base64,%s", format, b64)
 }

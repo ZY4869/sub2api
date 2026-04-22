@@ -75,20 +75,6 @@ func openAIAdminQuotaCooldownMessage(status openAIRuntimeQuotaStatus) string {
 	}
 }
 
-func openAIExternalQuotaCooldownMessage(status openAIRuntimeQuotaStatus) string {
-	if status.AccountResetAt != nil {
-		return "Requested model is temporarily unavailable because this OpenAI Pro account is cooling down"
-	}
-	switch strings.TrimSpace(status.Scope) {
-	case openAICodexScopeSpark:
-		return "Requested model is temporarily unavailable because the Spark quota is cooling down"
-	case openAICodexScopeNormal:
-		return "Requested model is temporarily unavailable because the standard quota is cooling down"
-	default:
-		return "Requested model is temporarily unavailable because the account quota is cooling down"
-	}
-}
-
 func (s *OpenAIGatewayService) IsModelUnavailableDueToRuntimeQuota(
 	ctx context.Context,
 	groupID *int64,

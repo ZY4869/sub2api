@@ -15,7 +15,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(os.environ.get("SUB2API_VERIFY_REPO_ROOT", DEFAULT_REPO_ROOT)).resolve()
 BACKEND_DIR = REPO_ROOT / "backend"
 FRONTEND_DIR = REPO_ROOT / "frontend"
 CACHE_BIN_DIR = REPO_ROOT / ".cache" / "verify-ci" / "bin"
@@ -646,6 +647,18 @@ def release_preflight() -> None:
     docker_smoke()
 
 
+def release_gate() -> None:
+    info("release gate runs the full release verification stack before publishing artifacts")
+    backend_unit()
+    backend_integration()
+    backend_lint()
+    backend_build()
+    frontend_build()
+    frontend_test()
+    frontend_lint()
+    docker_smoke()
+
+
 MODES: dict[str, callable] = {
     "backend-unit": backend_unit,
     "backend-integration": backend_integration,
@@ -657,6 +670,7 @@ MODES: dict[str, callable] = {
     "security": security,
     "docker-smoke": docker_smoke,
     "full": full,
+    "release-gate": release_gate,
     "release-preflight": release_preflight,
 }
 
