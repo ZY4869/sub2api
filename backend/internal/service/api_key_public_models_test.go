@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/model"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -980,6 +981,161 @@ func TestGatewayService_GetAPIKeyPublicModels_RestrictedScopePrefersAliasForWhit
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, "friendly-beta", aliasEntry.PublicID)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_OpenAIProRuntimeQuotaHidesLimitedSide(t *testing.T) {
+	groupID := int64(2701)
+	group := &Group{
+		ID:       groupID,
+		Name:     "openai-pro-runtime-hide",
+		Platform: PlatformOpenAI,
+		Status:   StatusActive,
+	}
+	apiKey := &APIKey{
+		ID:               2701,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: groupID,
+				Group:   group,
+			},
+		},
+	}
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          2702,
+				Name:        "openai-pro-blocked-normal",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"policy_mode": AccountModelPolicyModeWhitelist,
+						"entries": []any{
+							map[string]any{
+								"display_model_id": "gpt-5.4",
+								"target_model_id":  "gpt-5.4",
+								"provider":         PlatformOpenAI,
+								"visibility_mode":  AccountModelVisibilityModeDirect,
+							},
+							map[string]any{
+								"display_model_id": "friendly-spark",
+								"target_model_id":  "gpt-5.3-codex-spark-high",
+								"provider":         PlatformOpenAI,
+								"visibility_mode":  AccountModelVisibilityModeAlias,
+							},
+						},
+					},
+					modelRateLimitsKey: map[string]any{
+						openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+					},
+				},
+				AccountGroups: []AccountGroup{{AccountID: 2702, GroupID: groupID}},
+			},
+		},
+	}
+
+	svc := &GatewayService{accountRepo: repo}
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "friendly-spark", entries[0].PublicID)
+
+	hiddenEntry, hiddenOK, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "gpt-5.4")
+	require.NoError(t, err)
+	require.False(t, hiddenOK)
+	require.Nil(t, hiddenEntry)
+
+	sparkEntry, sparkOK, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "friendly-spark")
+	require.NoError(t, err)
+	require.True(t, sparkOK)
+	require.Equal(t, "friendly-spark", sparkEntry.PublicID)
+}
+
+func TestGatewayService_GetAPIKeyPublicModels_OpenAIProRuntimeQuotaKeepsModelWhenAnotherAccountCanServe(t *testing.T) {
+	groupID := int64(2801)
+	group := &Group{
+		ID:       groupID,
+		Name:     "openai-pro-runtime-multi",
+		Platform: PlatformOpenAI,
+		Status:   StatusActive,
+	}
+	apiKey := &APIKey{
+		ID:               2801,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID: groupID,
+				Group:   group,
+			},
+		},
+	}
+
+	baseExtra := map[string]any{
+		"model_scope_v2": map[string]any{
+			"policy_mode": AccountModelPolicyModeWhitelist,
+			"entries": []any{
+				map[string]any{
+					"display_model_id": "gpt-5.4",
+					"target_model_id":  "gpt-5.4",
+					"provider":         PlatformOpenAI,
+					"visibility_mode":  AccountModelVisibilityModeDirect,
+				},
+			},
+		},
+	}
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          2802,
+				Name:        "openai-pro-blocked-normal",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra: map[string]any{
+					"model_scope_v2": baseExtra["model_scope_v2"],
+					modelRateLimitsKey: map[string]any{
+						openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+					},
+				},
+				AccountGroups: []AccountGroup{{AccountID: 2802, GroupID: groupID}},
+			},
+			{
+				ID:          2803,
+				Name:        "openai-pro-available",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra:         baseExtra,
+				AccountGroups: []AccountGroup{{AccountID: 2803, GroupID: groupID}},
+			},
+		},
+	}
+
+	svc := &GatewayService{accountRepo: repo}
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "gpt-5.4", entries[0].PublicID)
+
+	entry, ok, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "gpt-5.4")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "gpt-5.4", entry.PublicID)
 }
 
 func TestGatewayService_FindAPIKeyPublicModel_VertexCatalogFailureFallsBackToRegistry(t *testing.T) {

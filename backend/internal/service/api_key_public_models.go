@@ -81,6 +81,7 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 				continue
 			}
 			entries = s.filterPublicEntriesByActiveChannel(ctx, binding.GroupID, bindingPlatform, entries)
+			entries = filterOpenAIAPIKeyPublicEntriesForRuntimeQuota(account, entries)
 			for _, entry := range entries {
 				if _, exists := entriesByID[entry.PublicID]; exists {
 					continue
@@ -593,4 +594,19 @@ func countAliasOnlyPublicEntries(entries []APIKeyPublicModelEntry) int {
 		}
 	}
 	return count
+}
+
+func filterOpenAIAPIKeyPublicEntriesForRuntimeQuota(account *Account, entries []APIKeyPublicModelEntry) []APIKeyPublicModelEntry {
+	if len(entries) == 0 || account == nil || !account.IsOpenAI() || !isOpenAIProPlan(account) {
+		return entries
+	}
+
+	filtered := make([]APIKeyPublicModelEntry, 0, len(entries))
+	for _, entry := range entries {
+		if shouldHideOpenAIModelForRuntimeQuota(account, apiKeyPublicModelRuntimeQuotaCandidates(account, entry)...) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
 }

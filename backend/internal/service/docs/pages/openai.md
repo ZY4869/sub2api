@@ -22,6 +22,10 @@
 - `POST /v1/chat/completions` 对 OpenAI / Copilot / Grok 平台可直通。
 - 对于仍然使用 `messages` 数组的旧应用，这是最省心的入口。
 - 如果是全新项目，仍然建议优先改用 `responses`。
+- 如果上游账号是 OpenAI Pro，运行时额度会拆成两侧：`gpt-5.3-codex-spark*` 只占用 `Spark` 侧，其它 OpenAI 模型统一占用 `普通` 侧；一侧冷却不会连带阻断另一侧。
+- 当 `POST /v1/chat/completions` 的目标模型在所有可路由账号上都只因为对应额度侧冷却而不可服务时，接口会返回 `429 rate_limit_error`；如果是其它 no-account、上游失败或平台不支持，仍然保持现有 `503` / `502` / `400` 语义。
+- `/v1/models`、`/v1beta/models` 和对应 detail 读路径会按当前运行时可服务性临时隐藏受限侧模型；这类临时隐藏不会改写账号白名单，也不会把真实调用改成 `404`。
+- 管理后台单账号测试 `POST /api/v1/admin/accounts/:id/test` 会在发起上游请求前先做本地预检；命中受限侧时直接返回 `400`，提示 `Spark 冷却中`、`普通额度冷却中` 或整号冷却。
 
 选择 `chat/completions` 的典型场景：
 
@@ -51,6 +55,8 @@ response = requests.post(
 )
 
 print(response.json())
+if response.status_code == 429:
+    print("当前模型可能因为对应的 OpenAI Pro 额度侧冷却而暂时不可用。")
 ```
 
 #### JavaScript
@@ -68,6 +74,9 @@ const response = await fetch("https://api.zyxai.de/v1/chat/completions", {
 });
 
 console.log(await response.json());
+if (response.status === 429) {
+  console.log("当前模型可能因为对应的 OpenAI Pro 额度侧冷却而暂时不可用。");
+}
 ```
 
 #### REST
@@ -81,6 +90,8 @@ curl https://api.zyxai.de/v1/chat/completions \
       { "role": "user", "content": "解释什么时候还应该使用 chat/completions。" }
     ]
   }'
+# 如果命中的模型在所有可路由 OpenAI Pro 账号上都只因对应额度侧冷却而不可服务，
+# 这里会返回 429 rate_limit_error，而不是 404。
 ```
 
 ### 历史别名与兼容迁移
@@ -131,3 +142,4 @@ curl https://api.zyxai.de/chat/completions
 - 媒体能力已经在 `grok` 页单独展开，不要继续把图像 / 视频示例堆在兼容页。
 - 如果你同时维护新旧两套客户端，建议把新接入统一放到 `openai-native`，旧客户端单独留在本页。
 - 对需要长期维护的系统，应该优先围绕 `responses` 设计，而不是继续叠加 `chat/completions` 特性债务。
+- 如果是 OpenAI Pro，看到 `429 rate_limit_error` 时要额外考虑“相关额度侧正在冷却”；这时同账号上的另一侧模型通常仍然可以继续调用。

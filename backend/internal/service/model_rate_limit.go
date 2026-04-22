@@ -65,7 +65,7 @@ func (a *Account) resolveModelRateLimitKeyWithContext(ctx context.Context, reque
 		return resolveFinalAntigravityModelKey(ctx, a, requestedModel)
 	}
 	if a.IsOpenAI() {
-		if scope := resolveOpenAICodexQuotaScope(a, requestedModel); scope != "" {
+		if scope := resolveOpenAICodexQuotaScopeWithCandidates(a, openAIRuntimeQuotaModelCandidates(a, requestedModel)...); scope != "" {
 			return scope
 		}
 	}

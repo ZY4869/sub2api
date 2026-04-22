@@ -196,6 +196,73 @@ func TestAccountTestService_OpenAIUnauthorizedDetailMarksAccountError(t *testing
 	require.Contains(t, repo.setErrorCalls[0], `Authentication failed (401): {"detail":"Unauthorized"}`)
 }
 
+func TestAccountTestService_OpenAIRuntimeQuotaPrecheckBlocksBeforeSSE(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	repo := &openAIAccountTestRepo{}
+	upstream := &queuedHTTPUpstream{}
+	svc := &AccountTestService{accountRepo: repo, httpUpstream: upstream}
+	account := &Account{
+		ID:          870,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "test-token",
+			"plan_type":    "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+			},
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.4", "", "")
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "普通额度冷却中")
+	require.Zero(t, upstream.callCount)
+	require.Empty(t, recorder.Body.String())
+}
+
+func TestAccountTestService_OpenAIRuntimeQuotaPrecheckAllowsOtherScope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader(`data: {"type":"response.completed"}
+
+`))
+
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	svc := &AccountTestService{accountRepo: &openAIAccountTestRepo{}, httpUpstream: upstream}
+	account := &Account{
+		ID:          871,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "test-token",
+			"plan_type":    "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+			},
+		},
+	}
+
+	err := svc.testOpenAIAccountConnection(ctx, account, "gpt-5.3-codex-spark", "", "")
+
+	require.NoError(t, err)
+	require.Equal(t, 1, upstream.callCount)
+	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
 func TestAccountTestService_OpenAISuccessProbesKnownModelsInBackground(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctx, recorder := newGatewayTestContext()
@@ -423,4 +490,48 @@ func TestAccountTestService_RunTestBackgroundDetailed_InheritsGatewayOpenAIReque
 	require.Equal(t, "success", result.Status)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
+}
+
+func TestAccountTestService_RunTestBackgroundDetailed_RuntimeQuotaPrecheckReturnsFriendlyMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	account := &Account{
+		ID:          872,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"access_token": "test-token",
+			"plan_type":    "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+			},
+		},
+	}
+	repo := &openAIAccountTestRepo{
+		mockAccountRepoForGemini: mockAccountRepoForGemini{
+			accountsByID: map[int64]*Account{
+				account.ID: account,
+			},
+		},
+	}
+	upstream := &queuedHTTPUpstream{}
+	svc := &AccountTestService{
+		accountRepo:  repo,
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.RunTestBackgroundDetailed(context.Background(), ScheduledTestExecutionInput{
+		AccountID: account.ID,
+		ModelID:   "gpt-5.4",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "failed", result.Status)
+	require.Equal(t, "普通额度冷却中，请等待额度恢复后再测试", result.ErrorMessage)
+	require.Zero(t, upstream.callCount)
 }

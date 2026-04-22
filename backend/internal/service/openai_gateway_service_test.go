@@ -471,6 +471,84 @@ func TestOpenAISelectAccountWithLoadAwareness_Usage7dAllBlocksBothScopes(t *test
 	}
 }
 
+func TestOpenAISelectAccountWithLoadAwareness_ProNormalCooldownBlocksGPT54ButAllowsSpark(t *testing.T) {
+	resetAt := time.Now().Add(10 * time.Minute)
+	account := Account{
+		ID:          331,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(resetAt),
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
+	}
+
+	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.4", nil)
+	require.Error(t, err)
+	require.Nil(t, selection)
+
+	selection, err = svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.3-codex-spark", nil)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, account.ID, selection.Account.ID)
+}
+
+func TestOpenAIGatewayService_IsModelUnavailableDueToRuntimeQuota(t *testing.T) {
+	ctx := WithOpenAIPlatform(context.Background(), PlatformOpenAI)
+	resetAt := time.Now().Add(10 * time.Minute)
+
+	blocked := Account{
+		ID:          341,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(resetAt),
+			},
+		},
+	}
+	available := Account{
+		ID:          342,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+
+	blockedOnlySvc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{blocked}},
+	}
+	require.True(t, blockedOnlySvc.IsModelUnavailableDueToRuntimeQuota(ctx, nil, "gpt-5.4", nil))
+	require.False(t, blockedOnlySvc.IsModelUnavailableDueToRuntimeQuota(ctx, nil, "gpt-5.3-codex-spark", nil))
+
+	mixedSvc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{blocked, available}},
+	}
+	require.False(t, mixedSvc.IsModelUnavailableDueToRuntimeQuota(ctx, nil, "gpt-5.4", nil))
+}
+
 func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulableWhenNoConcurrencyService(t *testing.T) {
 	now := time.Now()
 	resetAt := now.Add(10 * time.Minute)

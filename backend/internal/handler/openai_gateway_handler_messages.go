@@ -114,6 +114,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 	excludedGroupIDs := make(map[int64]struct{})
 	maxAccountSwitches := h.maxAccountSwitches
+	sawQuotaOnlyGroupFailure := false
+	sawNonQuotaGroupFailure := false
 
 	for {
 		if isRequestCanceled(c.Request.Context(), nil) {
@@ -180,16 +182,27 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				if isRequestCanceled(c.Request.Context(), err) {
 					return
 				}
+				quotaOnlyGroupFailure := h.isOpenAIRuntimeQuotaOnlySelectionFailure(
+					c.Request.Context(),
+					currentAPIKey.GroupID,
+					runtimeSelectionModel,
+				)
+				if quotaOnlyGroupFailure {
+					sawQuotaOnlyGroupFailure = true
+				} else {
+					sawNonQuotaGroupFailure = true
+				}
 				reqLog.Warn("openai_messages.account_select_failed",
 					zap.Error(err),
 					zap.Int("excluded_account_count", len(failedAccountIDs)),
+					zap.Bool("quota_only_group_failure", quotaOnlyGroupFailure),
 				)
 				if len(failedAccountIDs) == 0 {
 					defaultModel := ""
 					if channelState == nil && currentAPIKey.Group != nil {
 						defaultModel = currentAPIKey.Group.DefaultMappedModel
 					}
-					if defaultModel != "" && defaultModel != runtimeSelectionModel {
+					if !quotaOnlyGroupFailure && defaultModel != "" && defaultModel != runtimeSelectionModel {
 						reqLog.Info("openai_messages.fallback_to_default_model",
 							zap.String("default_mapped_model", defaultModel),
 						)
@@ -213,6 +226,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 							break
 						}
+						if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+							h.handleAnthropicOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+							return
+						}
 						h.anthropicStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 						return
 					}
@@ -229,8 +246,22 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				}
 			}
 			if selection == nil || selection.Account == nil {
+				quotaOnlyGroupFailure := h.isOpenAIRuntimeQuotaOnlySelectionFailure(
+					c.Request.Context(),
+					currentAPIKey.GroupID,
+					runtimeSelectionModel,
+				)
+				if quotaOnlyGroupFailure {
+					sawQuotaOnlyGroupFailure = true
+				} else {
+					sawNonQuotaGroupFailure = true
+				}
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 					break
+				}
+				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+					h.handleAnthropicOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+					return
 				}
 				h.anthropicStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 				return

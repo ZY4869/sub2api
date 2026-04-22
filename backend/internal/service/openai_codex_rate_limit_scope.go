@@ -87,40 +87,151 @@ func isOpenAIProPlan(account *Account) bool {
 	return normalizeOpenAIPlanType(account.GetCredential("plan_type")) == "pro"
 }
 
-func normalizeOpenAICodexQuotaScope(model string) string {
+func normalizeOpenAIRuntimeQuotaCandidate(model string) string {
 	normalized := strings.ToLower(strings.TrimSpace(model))
 	if normalized == "" {
 		return ""
 	}
-	if strings.Contains(normalized, "gpt-5.3-codex-spark") || strings.Contains(normalized, "gpt 5.3 codex spark") {
+	normalized = strings.TrimPrefix(normalized, "models/")
+	replacer := strings.NewReplacer("_", "-", " ", "-", "/", "-")
+	normalized = replacer.Replace(normalized)
+	for strings.Contains(normalized, "--") {
+		normalized = strings.ReplaceAll(normalized, "--", "-")
+	}
+	return strings.Trim(normalized, "-")
+}
+
+func openAIRuntimeQuotaCandidateVariants(model string) []string {
+	values := []string{
+		model,
+		normalizeRegistryID(model),
+		NormalizeModelCatalogModelID(model),
+	}
+	result := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		normalized := normalizeOpenAIRuntimeQuotaCandidate(value)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, normalized)
+	}
+	return result
+}
+
+func normalizeOpenAICodexQuotaScope(model string) string {
+	normalized := normalizeOpenAIRuntimeQuotaCandidate(model)
+	if normalized == "" {
+		return ""
+	}
+	if strings.HasPrefix(normalized, "gpt-5.3-codex-spark") {
 		return openAICodexScopeSpark
 	}
-	if strings.Contains(normalized, "gpt-5.3-codex") || strings.Contains(normalized, "gpt 5.3 codex") {
+	if strings.HasPrefix(normalized, "gpt-5.3-codex") {
 		return openAICodexScopeNormal
 	}
-	if strings.Contains(normalized, "gpt-5.3") || strings.Contains(normalized, "gpt 5.3") {
+	if strings.HasPrefix(normalized, "gpt-5.3") {
 		return openAICodexScopeNormal
 	}
 	return ""
 }
 
-func resolveOpenAICodexQuotaScope(account *Account, model string) string {
-	scope := normalizeOpenAICodexQuotaScope(model)
-	if scope == openAICodexScopeSpark && !isOpenAIProPlan(account) {
+func resolveOpenAICodexQuotaScopeWithCandidates(account *Account, candidates ...string) string {
+	var (
+		hasCandidate bool
+		hasNormal    bool
+		hasSpark     bool
+	)
+	for _, candidate := range candidates {
+		for _, variant := range openAIRuntimeQuotaCandidateVariants(candidate) {
+			hasCandidate = true
+			switch normalizeOpenAICodexQuotaScope(variant) {
+			case openAICodexScopeSpark:
+				hasSpark = true
+			case openAICodexScopeNormal:
+				hasNormal = true
+			}
+		}
+	}
+	if isOpenAIProPlan(account) {
+		if hasSpark {
+			return openAICodexScopeSpark
+		}
+		if hasCandidate {
+			return openAICodexScopeNormal
+		}
+		return ""
+	}
+	if hasSpark || hasNormal {
 		return openAICodexScopeNormal
 	}
-	return scope
+	return ""
+}
+
+func openAIRuntimeQuotaModelCandidates(account *Account, requestedModel string, extras ...string) []string {
+	result := make([]string, 0, len(extras)+2)
+	seen := make(map[string]struct{}, len(extras)+2)
+	appendCandidate := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		if _, exists := seen[value]; exists {
+			return
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+
+	appendCandidate(requestedModel)
+	if account != nil {
+		appendCandidate(account.GetMappedModel(requestedModel))
+	}
+	for _, candidate := range extras {
+		appendCandidate(candidate)
+	}
+	return result
+}
+
+func resolveOpenAICodexQuotaScope(account *Account, model string) string {
+	return resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, model)...)
 }
 
 func resolveOpenAICodexQuotaScopeFromContext(ctx context.Context, account *Account) (string, bool) {
 	if !isOpenAIProPlan(account) {
 		return openAICodexScopeNormal, true
 	}
-	scope := resolveOpenAICodexQuotaScope(account, openAICodexRequestModelFromContext(ctx))
+	scope := resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, openAICodexRequestModelFromContext(ctx))...)
 	if scope == "" {
 		return "", false
 	}
 	return scope, true
+}
+
+func openAIQuotaScopeRateLimitRemaining(account *Account, candidates ...string) (string, time.Duration) {
+	if account == nil {
+		return "", 0
+	}
+	scope := resolveOpenAICodexQuotaScopeWithCandidates(account, candidates...)
+	if scope == "" {
+		return "", 0
+	}
+	return scope, account.getRateLimitRemainingForKey(scope)
+}
+
+func openAIAccountAll7dRateLimited(account *Account, now time.Time) (*time.Time, bool) {
+	if account == nil || account.RateLimitResetAt == nil || !now.Before(*account.RateLimitResetAt) {
+		return nil, false
+	}
+	if AccountRateLimitReason(account, now) != AccountRateLimitReasonUsage7dAll {
+		return nil, false
+	}
+	resetAt := account.RateLimitResetAt.UTC()
+	return &resetAt, true
 }
 
 func buildCodexUsageExtraUpdatesForScope(scope string, snapshot *OpenAICodexUsageSnapshot, fallbackNow time.Time) map[string]any {

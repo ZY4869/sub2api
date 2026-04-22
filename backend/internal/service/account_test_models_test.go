@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -245,4 +246,72 @@ func TestBuildAvailableTestModels_ManualRowsDoNotDefineVisibleModelsWithoutPolic
 
 	models := BuildAvailableTestModels(context.Background(), account, nil)
 	require.Empty(t, models)
+}
+
+func TestBuildAvailableTestModels_OpenAIProRuntimeQuotaHidesOnlyLimitedScope(t *testing.T) {
+	newAccount := func() *Account {
+		return &Account{
+			ID:       999,
+			Name:     "openai-pro-runtime-hide",
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Status:   StatusActive,
+			Credentials: map[string]any{
+				"plan_type": "pro",
+			},
+			Extra: map[string]any{
+				"model_scope_v2": map[string]any{
+					"policy_mode": AccountModelPolicyModeWhitelist,
+					"entries": []any{
+						map[string]any{
+							"display_model_id": "friendly-normal",
+							"target_model_id":  "gpt-5.4",
+							"provider":         PlatformOpenAI,
+							"visibility_mode":  AccountModelVisibilityModeAlias,
+						},
+						map[string]any{
+							"display_model_id": "friendly-spark",
+							"target_model_id":  "gpt-5.3-codex-spark-high",
+							"provider":         PlatformOpenAI,
+							"visibility_mode":  AccountModelVisibilityModeAlias,
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("spark cooldown only hides spark models", func(t *testing.T) {
+		account := newAccount()
+		account.Extra[modelRateLimitsKey] = map[string]any{
+			openAICodexScopeSpark: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+		}
+
+		models := BuildAvailableTestModels(context.Background(), account, nil)
+		require.Len(t, models, 1)
+		require.Equal(t, "friendly-normal", models[0].ID)
+		require.Equal(t, "gpt-5.4", models[0].TargetModelID)
+	})
+
+	t.Run("normal cooldown hides aliased normal models but keeps spark", func(t *testing.T) {
+		account := newAccount()
+		account.Extra[modelRateLimitsKey] = map[string]any{
+			openAICodexScopeNormal: newModelRateLimitEntry(time.Now().Add(10 * time.Minute)),
+		}
+
+		models := BuildAvailableTestModels(context.Background(), account, nil)
+		require.Len(t, models, 1)
+		require.Equal(t, "friendly-spark", models[0].ID)
+		require.Equal(t, "gpt-5.3-codex-spark-high", models[0].TargetModelID)
+	})
+
+	t.Run("usage_7d_all hides both scopes", func(t *testing.T) {
+		account := newAccount()
+		resetAt := time.Now().Add(10 * time.Minute)
+		account.RateLimitResetAt = &resetAt
+		account.Extra["rate_limit_reason"] = AccountRateLimitReasonUsage7dAll
+
+		models := BuildAvailableTestModels(context.Background(), account, nil)
+		require.Empty(t, models)
+	})
 }

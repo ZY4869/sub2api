@@ -46,6 +46,10 @@ var localizedReasonMessages = map[string]localizedMessageMap{
 		"en": "mixed protocol gateway test could not resolve a unique protocol",
 		"zh": "Mixed 协议网关测试无法解析出唯一协议，请补充厂商、模型或 source_protocol。",
 	},
+	"TEST_OPENAI_RUNTIME_QUOTA_COOLDOWN": {
+		"en": "the selected OpenAI Pro runtime quota is cooling down",
+		"zh": "所选 OpenAI Pro 额度侧正在冷却中，请等待额度恢复后再重试。",
+	},
 	"ACCOUNT_PROTOCOL_GATEWAY_APIKEY_REQUIRED": {
 		"en": "protocol_gateway accounts only support apikey type",
 		"zh": "protocol_gateway 账号仅支持 apikey 类型。",

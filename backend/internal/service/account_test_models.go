@@ -43,7 +43,7 @@ func BuildAvailableTestModels(ctx context.Context, account *Account, registry *M
 		return []AvailableTestModel{}
 	}
 	if projected := buildAvailableTestModelsFromProjection(ctx, account, registry); len(projected) > 0 {
-		return projected
+		return filterAvailableTestModelsForAccount(ctx, account, registry, projected)
 	}
 	if registry == nil && !supportsDefaultAccountModelLibrary(RoutingPlatformForAccount(account)) {
 		return []AvailableTestModel{}
@@ -502,31 +502,46 @@ func filterAvailableTestModelsForAccount(
 	registry *ModelRegistryService,
 	models []AvailableTestModel,
 ) []AvailableTestModel {
-	if len(models) == 0 || account == nil || !accountHasExplicitModelRestrictions(account) {
+	if len(models) == 0 || account == nil {
 		return models
 	}
 
-	filtered := make([]AvailableTestModel, 0, len(models))
-	for _, model := range models {
-		requestedIDs := []string{
-			strings.TrimSpace(model.ID),
-			strings.TrimSpace(model.CanonicalID),
-		}
-		allowed := false
-		for _, requestedID := range requestedIDs {
-			if requestedID == "" {
-				continue
+	filtered := models
+	if accountHasExplicitModelRestrictions(account) {
+		filtered = make([]AvailableTestModel, 0, len(models))
+		for _, model := range models {
+			requestedIDs := []string{
+				strings.TrimSpace(model.ID),
+				strings.TrimSpace(model.CanonicalID),
 			}
-			if isRequestedModelSupportedByAccount(ctx, registry, account, requestedID) {
-				allowed = true
-				break
+			allowed := false
+			for _, requestedID := range requestedIDs {
+				if requestedID == "" {
+					continue
+				}
+				if isRequestedModelSupportedByAccount(ctx, registry, account, requestedID) {
+					allowed = true
+					break
+				}
 			}
-		}
-		if allowed {
-			filtered = append(filtered, model)
+			if allowed {
+				filtered = append(filtered, model)
+			}
 		}
 	}
-	return filtered
+
+	if !account.IsOpenAI() || !isOpenAIProPlan(account) || len(filtered) == 0 {
+		return filtered
+	}
+
+	runtimeFiltered := make([]AvailableTestModel, 0, len(filtered))
+	for _, model := range filtered {
+		if shouldHideOpenAIModelForRuntimeQuota(account, availableTestModelRuntimeQuotaCandidates(account, model)...) {
+			continue
+		}
+		runtimeFiltered = append(runtimeFiltered, model)
+	}
+	return runtimeFiltered
 }
 
 func compareTestModelCandidates(left testModelCandidate, right testModelCandidate) int {

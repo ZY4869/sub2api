@@ -142,6 +142,9 @@ https://api.zyxai.de
 - 如果某个账号把真实模型配置成了自定义映射名，那么 downstream `models list` 与 `models detail` 只返回映射名这个 display ID；`target model` 只保留在内部转发链路和后台诊断里。
 - 模型列表读路径只读取本地策略投影和本地 availability snapshot。即使 snapshot 缺失或过期，也只会返回现有投影并标记状态，不会在读请求里同步触发实时探测。
 - 没有有效售价的模型不会出现在公共目录里，也不会出现在用户创建 / 编辑 Key 时的模型选择器里。
+- `/v1/models`、`/v1beta/models` 以及复用同一公共模型读路径的详情接口，都是“运行时可服务视图”，不是永久静态目录；如果当前所有可路由账号都因为同一类运行时额度冷却而暂时无法服务某个模型，该模型会临时从列表和详情里隐藏，额度恢复后会自动重新出现。
+- 这类运行时隐藏不会反写账号白名单、`model_scope_v2`、probe snapshot 或 manual whitelist；它只是读路径上的临时过滤。
+- 对 OpenAI Pro 来说，运行时额度侧是分开的：`gpt-5.3-codex-spark*` 只看 `Spark` 侧，其它 OpenAI 模型统一看 `普通` 侧，所以某一侧冷却时通常只会临时隐藏对应那一侧的模型。
 
 `GET /api/v1/meta/model-catalog` 当前返回体额外包含：
 
@@ -319,9 +322,11 @@ Gemini / Google 风格常见于：
 
 - API Key 自身限制：已过期、额度耗尽、IP 白名单 / 黑名单、用户状态异常。
 - 分组 / 订阅限制：按日、按周、按月窗口限制，或订阅不存在、余额不足。
+- OpenAI Pro 运行时额度侧限制：如果某个 OpenAI 模型在当前所有可路由账号上都只因为对应的 `Spark` / `普通` 额度侧冷却而不可服务，`/v1/responses`、`/v1/chat/completions`、`/v1/messages` 会返回 `429 rate_limit_error`，而不是把它视为永久不存在。
 - 维护模式限制：管理员后台、管理员 JWT、管理员用户名下 API Key 调用继续放行；普通用户接口、自助认证流、普通 API Key / 百度智能文档 Key 调用统一返回 `503`。
 - 维护模式文案固定为：`维护模式开启中，恢复时间请关注官网公告或官方频道`。
 - 普通 JSON 接口会继续使用现有统一错误结构，并附带错误码 `MAINTENANCE_MODE_ACTIVE`；Google / Gemini 风格接口保持 Google 风格错误体，`status` 为 `UNAVAILABLE`。
+- 对于上面这种 OpenAI Pro 运行时冷却，模型枚举读路径会临时隐藏对应模型，但真实调用失败仍然返回 `429`，不会返回 `404`。
 
 下面的例子展示如何在三种环境中读取错误体，而不是只看 HTTP 状态码。
 

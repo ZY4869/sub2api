@@ -907,6 +907,23 @@ func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, ac
 	return s.testClaudeAccountConnection(c, account, modelID, resolvedSourceProtocol, simulatedClient)
 }
 
+func precheckOpenAIAccountTestRuntimeQuota(account *Account, candidates ...string) error {
+	status := openAIRuntimeQuotaStatusForCandidates(account, candidates...)
+	if !status.Limited() {
+		return nil
+	}
+	message := openAIAdminQuotaCooldownMessage(status)
+	slog.Info(
+		"openai_account_test_runtime_quota_blocked",
+		"account_id", account.ID,
+		"scope", status.Scope,
+		"scope_remaining_seconds", int(status.ScopeRemaining.Seconds()),
+		"account_reset_at", status.AccountResetAt,
+		"candidates", candidates,
+	)
+	return infraerrors.BadRequest("TEST_OPENAI_RUNTIME_QUOTA_COOLDOWN", message)
+}
+
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
 func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string, sourceProtocol string, simulatedClient string) error {
 	if account != nil && RoutingPlatformForAccount(account) == PlatformKiro {
@@ -1260,6 +1277,10 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 				testModelID = mappedModel
 			}
 		}
+	}
+
+	if err := precheckOpenAIAccountTestRuntimeQuota(account, openAIRuntimeQuotaModelCandidates(account, testModelID, modelID)...); err != nil {
+		return err
 	}
 
 	// Determine authentication method and API URL
@@ -2155,7 +2176,10 @@ func (s *AccountTestService) RunTestBackgroundDetailed(ctx context.Context, inpu
 	if testErr != nil || errMsg != "" {
 		status = "failed"
 		if errMsg == "" && testErr != nil {
-			errMsg = testErr.Error()
+			errMsg = infraerrors.Message(testErr)
+			if strings.TrimSpace(errMsg) == "" {
+				errMsg = testErr.Error()
+			}
 		}
 	}
 

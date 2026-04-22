@@ -137,6 +137,10 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
 		return nil
 	}
+	if !account.IsSchedulableForModelWithContext(ctx, requestedModel) {
+		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
+		return nil
+	}
 	account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
 	if account == nil {
 		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
@@ -244,7 +248,11 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				if clearSticky {
 					_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 				}
-				if !clearSticky && account.IsSchedulable() && account.IsOpenAI() && (requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) {
+				if !clearSticky &&
+					account.IsSchedulable() &&
+					account.IsOpenAI() &&
+					(requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) &&
+					account.IsSchedulableForModelWithContext(ctx, requestedModel) {
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
 					if account == nil {
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
@@ -275,6 +283,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			continue
 		}
 		if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, acc, requestedModel) {
+			continue
+		}
+		if !acc.IsSchedulableForModelWithContext(ctx, requestedModel) {
 			continue
 		}
 		candidates = append(candidates, acc)
@@ -410,6 +421,9 @@ func (s *OpenAIGatewayService) resolveFreshSchedulableOpenAIAccount(ctx context.
 		return nil
 	}
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, fresh, requestedModel) {
+		return nil
+	}
+	if !fresh.IsSchedulableForModelWithContext(ctx, requestedModel) {
 		return nil
 	}
 	return fresh

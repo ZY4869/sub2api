@@ -388,6 +388,94 @@ func TestOpenAIResponses_MissingDependencies_ReturnsServiceUnavailable(t *testin
 	assert.Equal(t, "Service temporarily unavailable", errorObj["message"])
 }
 
+func TestOpenAIResponses_RuntimeQuotaOnlySelectionFailureReturns429(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	resetAt := time.Now().Add(10 * time.Minute)
+	accountRepo := &openAIRuntimeQuotaAccountRepoStub{
+		accounts: []service.Account{
+			{
+				ID:          2001,
+				Name:        "openai-pro-blocked-normal",
+				Platform:    service.PlatformOpenAI,
+				Type:        service.AccountTypeOAuth,
+				Status:      service.StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra: map[string]any{
+					"model_rate_limits": map[string]any{
+						"gpt-5.3-codex": map[string]any{
+							"rate_limited_at":     time.Now().UTC().Format(time.RFC3339),
+							"rate_limit_reset_at": resetAt.UTC().Format(time.RFC3339),
+						},
+					},
+				},
+			},
+		},
+	}
+	cache := &concurrencyCacheMock{
+		acquireUserSlotFn: func(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
+			return true, nil
+		},
+	}
+	concurrencySvc := service.NewConcurrencyService(cache)
+	gatewaySvc := service.NewOpenAIGatewayService(
+		accountRepo,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		concurrencySvc,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	h := &OpenAIGatewayHandler{
+		gatewayService:      gatewaySvc,
+		billingCacheService: &service.BillingCacheService{},
+		apiKeyService:       &service.APIKeyService{},
+		concurrencyHelper:   NewConcurrencyHelper(concurrencySvc, SSEPingFormatNone, time.Second),
+		maxAccountSwitches:  1,
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", strings.NewReader(`{"model":"gpt-5.4","stream":false}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
+		ID:    3001,
+		Group: &service.Group{ID: 4001, Platform: service.PlatformOpenAI, Status: service.StatusActive},
+		User:  &service.User{ID: 1},
+	})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      1,
+		Concurrency: 1,
+	})
+
+	h.Responses(c)
+
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
+
+	var parsed map[string]any
+	err := json.Unmarshal(w.Body.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	errorObj, ok := parsed["error"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "rate_limit_error", errorObj["type"])
+	require.Equal(t, openAIRuntimeQuotaCooldownMessage, errorObj["message"])
+}
+
 func TestOpenAIResponses_SetsClientTransportHTTP(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -674,4 +762,62 @@ func newOpenAIWSHandlerTestServer(t *testing.T, h *OpenAIGatewayHandler, subject
 	})
 	router.GET("/openai/v1/responses", h.ResponsesWebSocket)
 	return httptest.NewServer(router)
+}
+
+type openAIRuntimeQuotaAccountRepoStub struct {
+	service.AccountRepository
+	accounts []service.Account
+}
+
+func (s *openAIRuntimeQuotaAccountRepoStub) GetByID(_ context.Context, id int64) (*service.Account, error) {
+	for i := range s.accounts {
+		if s.accounts[i].ID == id {
+			account := s.accounts[i]
+			return &account, nil
+		}
+	}
+	return nil, service.ErrAccountNotFound
+}
+
+func (s *openAIRuntimeQuotaAccountRepoStub) ListSchedulableByPlatforms(_ context.Context, platforms []string) ([]service.Account, error) {
+	return s.filterAccounts(nil, platforms), nil
+}
+
+func (s *openAIRuntimeQuotaAccountRepoStub) ListSchedulableUngroupedByPlatforms(_ context.Context, platforms []string) ([]service.Account, error) {
+	return s.filterAccounts(nil, platforms), nil
+}
+
+func (s *openAIRuntimeQuotaAccountRepoStub) ListSchedulableByGroupIDAndPlatforms(_ context.Context, groupID int64, platforms []string) ([]service.Account, error) {
+	return s.filterAccounts(&groupID, platforms), nil
+}
+
+func (s *openAIRuntimeQuotaAccountRepoStub) filterAccounts(groupID *int64, platforms []string) []service.Account {
+	allowed := make(map[string]struct{}, len(platforms))
+	for _, platform := range platforms {
+		allowed[platform] = struct{}{}
+	}
+
+	result := make([]service.Account, 0, len(s.accounts))
+	for _, account := range s.accounts {
+		if !account.IsSchedulable() {
+			continue
+		}
+		if _, ok := allowed[account.Platform]; !ok {
+			continue
+		}
+		if groupID != nil {
+			inGroup := false
+			for _, binding := range account.AccountGroups {
+				if binding.GroupID == *groupID {
+					inGroup = true
+					break
+				}
+			}
+			if !inGroup {
+				continue
+			}
+		}
+		result = append(result, account)
+	}
+	return result
 }

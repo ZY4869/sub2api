@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsModelRateLimited(t *testing.T) {
@@ -196,6 +197,73 @@ func TestIsModelRateLimited_Antigravity_ThinkingAffectsModelKey(t *testing.T) {
 	if !account.isModelRateLimitedWithContext(ctx, "claude-sonnet-4-5") {
 		t.Errorf("expected model to be rate limited")
 	}
+}
+
+func TestResolveOpenAICodexQuotaScopeWithCandidates_OpenAIProSeparatesSparkAndNormal(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+			"model_mapping": map[string]any{
+				"friendly-spark":   "gpt-5.3-codex-spark-high",
+				"friendly-normal":  "gpt-5.4",
+				"friendly-mini":    "gpt-4.1-mini",
+				"friendly-codex53": "gpt-5.3-codex",
+			},
+		},
+	}
+
+	require.Equal(t, openAICodexScopeSpark, resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "friendly-spark")...))
+	require.Equal(t, openAICodexScopeNormal, resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "friendly-normal")...))
+	require.Equal(t, openAICodexScopeNormal, resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "friendly-mini")...))
+	require.Equal(t, openAICodexScopeNormal, resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "friendly-codex53")...))
+}
+
+func TestResolveOpenAICodexQuotaScopeWithCandidates_NonProDoesNotExpandGPT54(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+	}
+
+	require.Equal(t, "", resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "gpt-5.4")...))
+	require.Equal(t, openAICodexScopeNormal, resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "gpt-5.3-codex-spark")...))
+}
+
+func TestGetModelRateLimitRemainingTime_OpenAIProRuntimeScopesUseMappedTargets(t *testing.T) {
+	now := time.Now()
+	futureSpark := now.Add(10 * time.Minute).Format(time.RFC3339)
+	futureNormal := now.Add(5 * time.Minute).Format(time.RFC3339)
+
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+			"model_mapping": map[string]any{
+				"friendly-spark":  "gpt-5.3-codex-spark-high",
+				"friendly-normal": "gpt-5.4",
+			},
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeSpark: map[string]any{
+					"rate_limit_reset_at": futureSpark,
+				},
+				openAICodexScopeNormal: map[string]any{
+					"rate_limit_reset_at": futureNormal,
+				},
+			},
+		},
+	}
+
+	sparkRemaining := account.GetModelRateLimitRemainingTimeWithContext(context.Background(), "friendly-spark")
+	require.Greater(t, sparkRemaining, 9*time.Minute)
+	require.Less(t, sparkRemaining, 11*time.Minute)
+
+	normalRemaining := account.GetModelRateLimitRemainingTimeWithContext(context.Background(), "friendly-normal")
+	require.Greater(t, normalRemaining, 4*time.Minute)
+	require.Less(t, normalRemaining, 6*time.Minute)
 }
 
 func TestGetModelRateLimitRemainingTime(t *testing.T) {

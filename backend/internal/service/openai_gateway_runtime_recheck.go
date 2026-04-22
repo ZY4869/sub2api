@@ -24,5 +24,8 @@ func (s *OpenAIGatewayService) recheckSelectedOpenAIAccountFromDB(ctx context.Co
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, latest, requestedModel) {
 		return nil
 	}
+	if !latest.IsSchedulableForModelWithContext(ctx, requestedModel) {
+		return nil
+	}
 	return latest
 }

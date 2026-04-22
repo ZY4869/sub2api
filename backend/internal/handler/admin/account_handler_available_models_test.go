@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -328,4 +329,59 @@ func TestAccountHandlerGetAvailableModels_UsesSnapshotRegistryMetadata(t *testin
 	require.Equal(t, strings.ToLower(service.FormatModelCatalogDisplayName("snapshot-image-model")), strings.ToLower(models[0].DisplayName))
 	require.Equal(t, "image", models[0].Mode)
 	require.Equal(t, "verified", models[0].AvailabilityState)
+}
+
+func TestAccountHandlerGetAvailableModels_OpenAIProRuntimeQuotaHidesLimitedSide(t *testing.T) {
+	registrySvc := service.NewModelRegistryService(newTestSettingRepo())
+	adminSvc := &availableModelsAdminService{
+		stubAdminService: newStubAdminService(),
+		accounts: map[int64]service.Account{
+			48: {
+				ID:       48,
+				Name:     "openai-pro-runtime-hide",
+				Platform: service.PlatformOpenAI,
+				Type:     service.AccountTypeOAuth,
+				Status:   service.StatusActive,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra: map[string]any{
+					"model_scope_v2": map[string]any{
+						"policy_mode": service.AccountModelPolicyModeWhitelist,
+						"entries": []any{
+							map[string]any{
+								"display_model_id": "friendly-normal",
+								"target_model_id":  "gpt-5.4",
+								"provider":         service.PlatformOpenAI,
+								"visibility_mode":  service.AccountModelVisibilityModeAlias,
+							},
+							map[string]any{
+								"display_model_id": "friendly-spark",
+								"target_model_id":  "gpt-5.3-codex-spark-high",
+								"provider":         service.PlatformOpenAI,
+								"visibility_mode":  service.AccountModelVisibilityModeAlias,
+							},
+						},
+					},
+					"model_rate_limits": map[string]any{
+						"gpt-5.3-codex": map[string]any{
+							"rate_limited_at":     time.Now().UTC().Format(time.RFC3339),
+							"rate_limit_reset_at": time.Now().Add(10 * time.Minute).UTC().Format(time.RFC3339),
+						},
+					},
+				},
+			},
+		},
+	}
+	router := setupAvailableModelsRouter(adminSvc, registrySvc)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts/48/models", nil)
+	router.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	models := decodeAvailableModelsResponse(t, rec)
+	require.Len(t, models, 1)
+	require.Equal(t, "friendly-spark", models[0].ID)
+	require.Equal(t, "gpt-5.3-codex-spark-high", models[0].TargetModelID)
 }

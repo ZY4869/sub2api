@@ -48,6 +48,8 @@ response = requests.post(
 )
 
 print(response.json())
+if response.status_code == 429:
+    print("当前模型可能因为对应的 OpenAI Pro 额度侧冷却而暂时不可用。")
 ```
 
 #### JavaScript
@@ -68,6 +70,9 @@ const response = await fetch(`${baseUrl}/v1/responses`, {
 });
 
 console.log(await response.json());
+if (response.status === 429) {
+  console.log("当前模型可能因为对应的 OpenAI Pro 额度侧冷却而暂时不可用。");
+}
 ```
 
 #### REST
@@ -79,6 +84,8 @@ curl https://api.zyxai.de/v1/responses \
     "model": "gpt-5.4",
     "input": "请总结 OpenAI 原生入口的推荐用法。"
   }'
+# 如果命中的模型在所有可路由 OpenAI Pro 账号上都只因对应额度侧冷却而不可服务，
+# 这里会返回 429 rate_limit_error，而不是 404。
 ```
 
 ### Responses 子资源与流式建议
@@ -91,12 +98,17 @@ curl https://api.zyxai.de/v1/responses \
 - `GET /v1/responses` 由专门的 Responses WebSocket / 长连接处理链路接管。
 - 当运行平台为 OpenAI 或 Copilot 时，Responses 能力是原生直通。
 - 当运行平台为 Grok 时，普通 `POST /grok/v1/responses` 可用，但 WebSocket 动作在能力矩阵中被拒绝。
+- 如果上游账号是 OpenAI Pro，运行时额度会拆成两侧：`gpt-5.3-codex-spark*` 只占用 `Spark` 侧，其它 OpenAI 模型统一占用 `普通` 侧；一侧冷却不会连带阻断另一侧。
+- 当 `POST /v1/responses` 的目标模型在所有可路由账号上都只因为对应额度侧冷却而不可服务时，接口会返回 `429 rate_limit_error`；如果是账号忙、上游故障或其它选路失败，仍然保持原来的 `503` / `502` 语义。
+- `/v1/models`、`/v1beta/models` 和对应 detail 读路径会按当前运行时可服务性临时隐藏受限侧模型；这不代表模型被永久删除，也不会把这类临时隐藏改成 `404`。
+- 管理后台单账号测试 `POST /api/v1/admin/accounts/:id/test` 会在发起上游请求前先做本地预检；命中受限侧时直接返回 `400`，提示 `Spark 冷却中`、`普通额度冷却中` 或整号冷却。
 
 排错建议：
 
 - 普通文本生成失败时，先确认你用的是 `POST` 而不是 `GET`。
 - 看到 `404` 时，不要只怀疑路径拼写，还要看当前分组平台是否真的支持该动作。
 - 如果你依赖持续连接或多轮状态链路，请优先在 OpenAI / Copilot 平台验证。
+- 如果是 OpenAI Pro，`429 rate_limit_error` 现在还可能表示“相关额度侧正在冷却”，这时另一侧模型通常仍可继续调用。
 
 #### Python
 ```python focus=2-11

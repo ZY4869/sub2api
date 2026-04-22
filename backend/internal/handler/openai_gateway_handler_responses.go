@@ -159,6 +159,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	sessionHash := h.gatewayService.GenerateSessionHash(c, sessionHashBody)
 	excludedGroupIDs := make(map[int64]struct{})
 	maxAccountSwitches := h.maxAccountSwitches
+	sawQuotaOnlyGroupFailure := false
+	sawNonQuotaGroupFailure := false
 
 	for {
 		if isRequestCanceled(c.Request.Context(), nil) {
@@ -221,13 +223,28 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				if isRequestCanceled(c.Request.Context(), err) {
 					return
 				}
+				quotaOnlyGroupFailure := h.isOpenAIRuntimeQuotaOnlySelectionFailure(
+					c.Request.Context(),
+					currentAPIKey.GroupID,
+					runtimeSelectionModel,
+				)
+				if quotaOnlyGroupFailure {
+					sawQuotaOnlyGroupFailure = true
+				} else {
+					sawNonQuotaGroupFailure = true
+				}
 				reqLog.Warn("openai.account_select_failed",
 					zap.Error(err),
 					zap.Int("excluded_account_count", len(failedAccountIDs)),
+					zap.Bool("quota_only_group_failure", quotaOnlyGroupFailure),
 				)
 				if len(failedAccountIDs) == 0 {
 					if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 						break
+					}
+					if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+						h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+						return
 					}
 					h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "Service temporarily unavailable", streamStarted)
 					return
@@ -246,8 +263,22 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 			if selection == nil || selection.Account == nil {
+				quotaOnlyGroupFailure := h.isOpenAIRuntimeQuotaOnlySelectionFailure(
+					c.Request.Context(),
+					currentAPIKey.GroupID,
+					runtimeSelectionModel,
+				)
+				if quotaOnlyGroupFailure {
+					sawQuotaOnlyGroupFailure = true
+				} else {
+					sawNonQuotaGroupFailure = true
+				}
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 					break
+				}
+				if sawQuotaOnlyGroupFailure && !sawNonQuotaGroupFailure {
+					h.handleOpenAIRuntimeQuotaUnavailable(c, streamStarted)
+					return
 				}
 				h.handleStreamingAwareError(c, http.StatusServiceUnavailable, "api_error", "No available accounts", streamStarted)
 				return
