@@ -86,12 +86,17 @@ func DeriveUpstreamEndpoint(inbound, rawRequestPath, platform string) string {
 
 	switch platform {
 	case service.PlatformOpenAI, service.PlatformCopilot:
-		// OpenAI forwards everything to the Responses API.
-		// Preserve subresource suffix (e.g. /v1/responses/compact).
-		if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
-			return EndpointResponses + suffix
+		switch inbound {
+		case EndpointImagesGen, EndpointImagesEdits:
+			return inbound
+		default:
+			// OpenAI forwards text surfaces to the Responses API.
+			// Preserve subresource suffix (e.g. /v1/responses/compact).
+			if suffix := responsesSubpathSuffix(rawRequestPath); suffix != "" {
+				return EndpointResponses + suffix
+			}
+			return EndpointResponses
 		}
-		return EndpointResponses
 
 	case service.PlatformAnthropic, service.PlatformKiro:
 		return EndpointMessages
@@ -163,8 +168,6 @@ func gatewayProtocolHintForInboundEndpoint(inbound string) string {
 		return service.PlatformAnthropic
 	case EndpointChatCompletions,
 		EndpointResponses,
-		EndpointImagesGen,
-		EndpointImagesEdits,
 		EndpointVideosCreate,
 		EndpointVideosGen,
 		EndpointVideosStatus:

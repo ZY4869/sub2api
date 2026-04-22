@@ -352,6 +352,11 @@ Gemini 还暴露了一套专用 OpenAI compat 路径：
 
 这套入口适合“客户端只会说 OpenAI，但你又明确要把它落到 Gemini 资源面”的场景。它不是普通 `/v1/chat/completions` 的等价替代，而是 Gemini 自己的兼容层。
 
+对图片能力要额外记住两条：
+
+- 公共 `POST /v1/images/generations` 现在也可以命中 Gemini 图片模型；网关内部会把它转到 Gemini 的 `/v1beta/openai/images/generations` 兼容链路。
+- `POST /v1/images/edits` 目前不会对 Gemini 开放；如果模型最终解析到 Gemini provider，会直接返回该动作不支持。
+
 #### Python
 ```python focus=1-12
 import requests
@@ -370,6 +375,17 @@ response = requests.post(
 )
 
 print(response.json())
+```
+
+#### REST
+```bash focus=1-7
+curl https://api.zyxai.de/v1beta/openai/images/generations \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini-2.5-flash-image",
+    "prompt": "生成一张简洁的 SaaS 首页插图。"
+  }'
 ```
 
 #### JavaScript

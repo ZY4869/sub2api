@@ -34,11 +34,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-19T08:29:37Z"
+export const generatedModelRegistryBuiltAt = "2026-04-22T09:29:20Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"3ba5c0b86e6219d44143a2feab00cdc63c758e9daaf4add8f78181c35c467de3\"",
-  "updated_at": "2026-04-19T08:29:37Z",
+  "etag": "W/\"db0bbf79987fd7ca6fadbf487fd2349d424ff5c0803b116ebc78e5785eb36f73\"",
+  "updated_at": "2026-04-22T09:29:20Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -207,14 +207,11 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "gemini"
       ],
       "protocol_ids": [
-        "gemini-3.1-flash-image-preview",
         "gemini-3.1-flash-image"
       ],
-      "aliases": [
-        "gemini-3.1-flash-image-preview"
-      ],
+      "aliases": [],
       "pricing_lookup_ids": [
-        "gemini-3.1-flash-image-preview"
+        "gemini-3.1-flash-image"
       ],
       "modalities": [
         "text",
@@ -3608,12 +3605,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "antigravity"
       ],
       "protocol_ids": [
-        "gemini-3-flash-preview",
         "gemini-3-flash"
       ],
-      "aliases": [
-        "gemini-3-flash-preview"
-      ],
+      "aliases": [],
       "pricing_lookup_ids": [
         "gemini-3-flash-preview"
       ],
@@ -5907,7 +5901,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation_tool"
+      ],
       "ui_priority": 48,
       "exposed_in": [
         "runtime",
@@ -5932,7 +5928,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation_tool"
+      ],
       "ui_priority": 49,
       "exposed_in": [
         "whitelist"
@@ -5955,7 +5953,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation_tool"
+      ],
       "ui_priority": 49,
       "exposed_in": [
         "runtime",
@@ -6034,7 +6034,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation_tool"
+      ],
       "ui_priority": 50,
       "exposed_in": [
         "runtime",
@@ -6059,7 +6061,9 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "image_generation_tool"
+      ],
       "ui_priority": 51,
       "exposed_in": [
         "whitelist"
@@ -6086,6 +6090,35 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "ui_priority": 52,
       "exposed_in": [
         "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-image-2",
+      "display_name": "GPT Image 2",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-image-2"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-image-2"
+      ],
+      "modalities": [
+        "text",
+        "image"
+      ],
+      "capabilities": [
+        "image_generation"
+      ],
+      "ui_priority": 52,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist",
+        "use_key"
       ]
     },
     {

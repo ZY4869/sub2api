@@ -243,7 +243,8 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 		}
 	}
 
-	isLimited := account.RateLimitResetAt != nil && account.RateLimitResetAt.After(now)
+	displayRateLimit := service.AccountDisplayRateLimitState(account, now)
+	isLimited := displayRateLimit.Limited
 	switch service.NormalizeAccountLimitedViewInput(filters.LimitedView) {
 	case service.AccountLimitedViewNormalOnly:
 		if isLimited {
@@ -255,7 +256,7 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 		}
 	}
 	if reason := service.NormalizeAccountRateLimitReasonInput(filters.LimitedReason); reason != "" {
-		if !isLimited || service.AccountRateLimitReason(account, now) != reason {
+		if !isLimited || displayRateLimit.Reason != reason {
 			return false
 		}
 	}

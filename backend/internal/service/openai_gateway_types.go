@@ -102,6 +102,9 @@ type OpenAIForwardResult struct {
 	Stream          bool
 	OpenAIWSMode    bool
 	ResponseHeaders http.Header
+	ImageCount      int
+	ImageSize       string
+	MediaType       string
 	Duration        time.Duration
 	FirstTokenMs    *int
 }

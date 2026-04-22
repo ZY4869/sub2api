@@ -81,3 +81,39 @@ func TestAccountHandlerGetRuntimeSummaryAvailableOnlyReturnsZeroInUse(t *testing
 	require.Equal(t, 0, resp.Code)
 	require.Equal(t, int64(0), resp.Data.InUse)
 }
+
+func TestAccountMatchesRuntimeSummaryFilters_UsesDisplayRateLimitProjection(t *testing.T) {
+	now := time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC)
+	resetAt := now.Add(6 * time.Hour).UTC().Truncate(time.Second)
+
+	nonProLimited := &service.Account{
+		ID:          1,
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Extra: map[string]any{
+			"codex_7d_used_percent": 100.0,
+			"codex_7d_reset_at":     resetAt.Format(time.RFC3339),
+		},
+	}
+	require.True(t, accountMatchesRuntimeSummaryFilters(nonProLimited, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewLimitedOnly}, now))
+	require.False(t, accountMatchesRuntimeSummaryFilters(nonProLimited, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewNormalOnly}, now))
+
+	proPartial := &service.Account{
+		ID:          2,
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			"codex_7d_used_percent": 100.0,
+			"codex_7d_reset_at":     resetAt.Format(time.RFC3339),
+		},
+	}
+	require.False(t, accountMatchesRuntimeSummaryFilters(proPartial, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewLimitedOnly}, now))
+	require.True(t, accountMatchesRuntimeSummaryFilters(proPartial, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewNormalOnly}, now))
+}

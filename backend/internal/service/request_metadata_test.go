@@ -146,3 +146,47 @@ func TestRequestMetadataGeminiPublicFields(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "/v1alpha/authTokens", upstreamPath)
 }
+
+func TestRequestMetadataImageRouteFields(t *testing.T) {
+	ctx := EnsureRequestMetadata(context.Background())
+	SetImageRouteFamilyMetadata(ctx, PublicImageRouteFamily)
+	SetImageActionMetadata(ctx, "generations")
+	SetImageResolvedProviderMetadata(ctx, PlatformOpenAI)
+	SetImageDisplayModelIDMetadata(ctx, "gpt-image-2")
+	SetImageTargetModelIDMetadata(ctx, "gpt-image-2")
+	SetImageUpstreamEndpointMetadata(ctx, EndpointImagesGen)
+	SetImageRequestFormatMetadata(ctx, "application/json")
+	SetImageRouteReasonMetadata(ctx, PublicImageRouteReasonModelProvider)
+
+	routeFamily, ok := ImageRouteFamilyMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, PublicImageRouteFamily, routeFamily)
+
+	action, ok := ImageActionMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "generations", action)
+
+	provider, ok := ImageResolvedProviderMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, PlatformOpenAI, provider)
+
+	displayModelID, ok := ImageDisplayModelIDMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "gpt-image-2", displayModelID)
+
+	targetModelID, ok := ImageTargetModelIDMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "gpt-image-2", targetModelID)
+
+	upstreamEndpoint, ok := ImageUpstreamEndpointMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, EndpointImagesGen, upstreamEndpoint)
+
+	requestFormat, ok := ImageRequestFormatMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "application/json", requestFormat)
+
+	routeReason, ok := ImageRouteReasonMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, PublicImageRouteReasonModelProvider, routeReason)
+}

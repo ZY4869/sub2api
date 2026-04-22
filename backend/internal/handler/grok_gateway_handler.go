@@ -123,6 +123,8 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 	var err error
 	reqModel := ""
 	reqStream := false
+	imageToolModel := ""
+	hasImageTool := false
 	if action != grokActionVideoStatus {
 		body, err = pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 		if err != nil {
@@ -139,12 +141,26 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 		}
 		reqModel = strings.TrimSpace(gjson.GetBytes(body, "model").String())
 		reqStream = gjson.GetBytes(body, "stream").Bool()
+		if action == grokActionResponses {
+			imageToolModel, hasImageTool = detectResponsesImageToolRequest(body)
+		}
 		setOpsRequestContext(c, reqModel, reqStream, body)
 	} else {
 		reqModel = strings.TrimSpace(c.Param("request_id"))
 		setOpsRequestContext(c, reqModel, false, nil)
 	}
 	reqLog = reqLog.With(zap.String("model", reqModel), zap.Bool("stream", reqStream))
+	if hasImageTool {
+		applyResponsesImageToolTraceMetadata(
+			c,
+			service.PlatformGrok,
+			reqModel,
+			imageToolModel,
+			service.PublicImageToolRouteReasonRejected,
+		)
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", responsesImageToolUnsupportedPlatformMessage())
+		return
+	}
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())

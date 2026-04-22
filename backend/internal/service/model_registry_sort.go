@@ -57,7 +57,7 @@ func modelRegistryDetailCategory(detail modelregistry.AdminModelDetail) modelReg
 	if containsAnyRegistryValue(detail.Capabilities, "audio_generation", "audio_understanding") {
 		return modelRegistryCategoryAudio
 	}
-	if containsAnyRegistryValue(detail.Capabilities, "image_generation", "vision") || containsAnyRegistryValue(detail.Modalities, "image") {
+	if containsAnyRegistryValue(detail.Capabilities, "image_generation", "image_generation_tool", "vision") || containsAnyRegistryValue(detail.Modalities, "image") {
 		return modelRegistryCategoryImage
 	}
 	if containsAnyRegistryValue(detail.Capabilities, "text") {

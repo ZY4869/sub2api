@@ -50,6 +50,14 @@ type ProtocolNormalizeResult struct {
 	GeminiBillingFallbackReason      string   `json:"gemini_billing_fallback_reason,omitempty"`
 	BillingRuleID                    string   `json:"billing_rule_id,omitempty"`
 	ProbeAction                      string   `json:"probe_action,omitempty"`
+	ImageRouteFamily                 string   `json:"image_route_family,omitempty"`
+	ImageAction                      string   `json:"image_action,omitempty"`
+	ImageResolvedProvider            string   `json:"image_resolved_provider,omitempty"`
+	ImageDisplayModelID              string   `json:"image_display_model_id,omitempty"`
+	ImageTargetModelID               string   `json:"image_target_model_id,omitempty"`
+	ImageUpstreamEndpoint            string   `json:"image_upstream_endpoint,omitempty"`
+	ImageRequestFormat               string   `json:"image_request_format,omitempty"`
+	ImageRouteReason                 string   `json:"image_route_reason,omitempty"`
 	IncludeServerSideToolInvocations bool     `json:"include_server_side_tool_invocations"`
 	HasTools                         bool     `json:"has_tools"`
 	HasThinking                      bool     `json:"has_thinking"`

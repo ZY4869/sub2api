@@ -26,7 +26,7 @@ func (s *ModelCatalogService) buildPublicModelCatalogDetailExample(
 	ctx context.Context,
 	item PublicModelCatalogItem,
 ) (string, string, string, string, string) {
-	spec := selectPublicModelCatalogExampleSpec(item)
+	spec := selectPublicModelCatalogExampleSpec(item, s.publicModelCatalogExampleCapability(ctx, item))
 	if spec.OverrideID != "" {
 		return publicModelCatalogExampleSourceOverride, spec.Protocol, spec.PageID, "", spec.OverrideID
 	}
@@ -46,12 +46,18 @@ func (s *ModelCatalogService) buildPublicModelCatalogDetailExample(
 	return publicModelCatalogExampleSourceDocs, spec.Protocol, spec.PageID, selected, ""
 }
 
-func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem) publicModelCatalogExampleSpec {
+func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem, capability string) publicModelCatalogExampleSpec {
 	protocol := pickPublicModelCatalogExampleProtocol(item)
 	modelID := strings.ToLower(strings.TrimSpace(item.Model))
 	mode := strings.ToLower(strings.TrimSpace(item.Mode))
 
 	switch {
+	case capability == "image_generation_tool":
+		return publicModelCatalogExampleSpec{
+			OverrideID: "image-generation-tool",
+			PageID:     "openai-native",
+			Protocol:   firstNonEmptyTrimmed(protocol, PlatformOpenAI),
+		}
 	case strings.Contains(modelID, "embedding") || strings.Contains(modelID, "embed"):
 		return publicModelCatalogExampleSpec{
 			OverrideID: "embeddings",
@@ -62,7 +68,7 @@ func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem) publicMode
 			OverrideID: "tts",
 			Protocol:   firstNonEmptyTrimmed(protocol, PlatformOpenAI),
 		}
-	case mode == "image" || strings.Contains(modelID, "imagen") || strings.Contains(modelID, "-image"):
+	case capability == "image_generation" || mode == "image" || strings.Contains(modelID, "imagen") || strings.Contains(modelID, "-image"):
 		return publicModelCatalogExampleSpec{
 			OverrideID: "image-generation",
 			Protocol:   firstNonEmptyTrimmed(protocol, PlatformOpenAI),
@@ -111,6 +117,28 @@ func selectPublicModelCatalogExampleSpec(item PublicModelCatalogItem) publicMode
 			Protocol: firstNonEmptyTrimmed(protocol, PlatformOpenAI),
 			Keywords: []string{"/v1/responses"},
 		}
+	}
+}
+
+func (s *ModelCatalogService) publicModelCatalogExampleCapability(ctx context.Context, item PublicModelCatalogItem) string {
+	if s == nil || s.modelRegistryService == nil {
+		return ""
+	}
+	modelID := NormalizeModelCatalogModelID(item.Model)
+	if modelID == "" {
+		return ""
+	}
+	detail, err := s.modelRegistryService.GetDetail(ctx, modelID)
+	if err != nil || detail == nil {
+		return ""
+	}
+	switch {
+	case containsAnyRegistryValue(detail.Capabilities, "image_generation_tool"):
+		return "image_generation_tool"
+	case containsAnyRegistryValue(detail.Capabilities, "image_generation"):
+		return "image_generation"
+	default:
+		return ""
 	}
 }
 

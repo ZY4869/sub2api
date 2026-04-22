@@ -15,6 +15,7 @@ const (
 	copilotDefaultOpenAIIntent       = "conversation-panel"
 	copilotGitHubAPIVersion          = "2025-10-01"
 	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
+	openaiPlatformImagesURL          = "https://api.openai.com/v1/images"
 )
 
 func isChatGPTOpenAIOAuthAccount(account *Account) bool {
@@ -77,6 +78,25 @@ func resolveOpenAITargetURLForRequestFormat(account *Account, requestFormat stri
 	}
 }
 
+func resolveOpenAIImagesTargetURL(account *Account, validateBaseURL func(string) (string, error), action string) (string, error) {
+	if account == nil {
+		return buildOpenAIImagesURLForPlatform("", PlatformOpenAI, action), nil
+	}
+
+	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+	if baseURL == "" && account.Platform != PlatformCopilot {
+		return buildOpenAIImagesURLForPlatform("", account.Platform, action), nil
+	}
+	if validateBaseURL != nil && baseURL != "" {
+		validatedURL, err := validateBaseURL(baseURL)
+		if err != nil {
+			return "", err
+		}
+		baseURL = validatedURL
+	}
+	return buildOpenAIImagesURLForPlatform(baseURL, account.Platform, action), nil
+}
+
 func buildOpenAIResponsesURLForPlatform(baseURL string, platform string) string {
 	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if normalized == "" {
@@ -127,6 +147,42 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 		return normalized + "/chat/completions"
 	}
 	return normalized + "/v1/chat/completions"
+}
+
+func buildOpenAIImagesURLForPlatform(baseURL string, platform string, action string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	action = strings.Trim(strings.TrimSpace(action), "/")
+	if action == "" {
+		action = "generations"
+	}
+	if normalized == "" {
+		if platform == PlatformCopilot {
+			return "https://api.githubcopilot.com/images/" + action
+		}
+		return openaiPlatformImagesURL + "/" + action
+	}
+	if strings.HasSuffix(normalized, "/images/"+action) {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/v1/images/"+action) {
+		return normalized
+	}
+	if strings.HasSuffix(normalized, "/images") {
+		return normalized + "/" + action
+	}
+	if strings.HasSuffix(normalized, "/v1/images") {
+		return normalized + "/" + action
+	}
+	if platform == PlatformCopilot {
+		if strings.HasSuffix(normalized, "/v1") {
+			return normalized + "/images/" + action
+		}
+		return normalized + "/images/" + action
+	}
+	if strings.HasSuffix(normalized, "/v1") {
+		return normalized + "/images/" + action
+	}
+	return normalized + "/v1/images/" + action
 }
 
 func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {

@@ -52,4 +52,24 @@ describe('UseKeyModal', () => {
     expect(text).toContain('review_model = "gpt-5.4-mini"')
     expect(text).not.toContain('review_model = "gpt-5.4"')
   })
+
+  it('keeps the explicit Grok image example path for Grok keys', () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-test',
+        baseUrl: 'https://example.com/v1',
+        platform: 'grok',
+        allowMessagesDispatch: false
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('/grok/v1/images/generations')
+  })
 })

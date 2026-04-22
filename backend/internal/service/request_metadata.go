@@ -32,6 +32,14 @@ type RequestMetadata struct {
 	GeminiBillingFallbackReason *string
 	BillingRuleID               *string
 	ProbeAction                 *string
+	ImageRouteFamily            *string
+	ImageAction                 *string
+	ImageResolvedProvider       *string
+	ImageDisplayModelID         *string
+	ImageTargetModelID          *string
+	ImageUpstreamEndpoint       *string
+	ImageRequestFormat          *string
+	ImageRouteReason            *string
 }
 
 var (
@@ -465,6 +473,119 @@ func SetProbeActionMetadata(ctx context.Context, value string) {
 func ProbeActionMetadataFromContext(ctx context.Context) (string, bool) {
 	if md := metadataFromContext(ctx); md != nil && md.ProbeAction != nil {
 		return strings.TrimSpace(*md.ProbeAction), true
+	}
+	return "", false
+}
+
+func setTrimmedMetadataField(target **string, value string) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		*target = nil
+		return
+	}
+	*target = &trimmed
+}
+
+func SetImageRouteFamilyMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageRouteFamily, value)
+	}
+}
+
+func ImageRouteFamilyMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageRouteFamily != nil {
+		return strings.TrimSpace(*md.ImageRouteFamily), true
+	}
+	return "", false
+}
+
+func SetImageActionMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageAction, value)
+	}
+}
+
+func ImageActionMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageAction != nil {
+		return strings.TrimSpace(*md.ImageAction), true
+	}
+	return "", false
+}
+
+func SetImageResolvedProviderMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageResolvedProvider, value)
+	}
+}
+
+func ImageResolvedProviderMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageResolvedProvider != nil {
+		return strings.TrimSpace(*md.ImageResolvedProvider), true
+	}
+	return "", false
+}
+
+func SetImageDisplayModelIDMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageDisplayModelID, value)
+	}
+}
+
+func ImageDisplayModelIDMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageDisplayModelID != nil {
+		return strings.TrimSpace(*md.ImageDisplayModelID), true
+	}
+	return "", false
+}
+
+func SetImageTargetModelIDMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageTargetModelID, value)
+	}
+}
+
+func ImageTargetModelIDMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageTargetModelID != nil {
+		return strings.TrimSpace(*md.ImageTargetModelID), true
+	}
+	return "", false
+}
+
+func SetImageUpstreamEndpointMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageUpstreamEndpoint, value)
+	}
+}
+
+func ImageUpstreamEndpointMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageUpstreamEndpoint != nil {
+		return strings.TrimSpace(*md.ImageUpstreamEndpoint), true
+	}
+	return "", false
+}
+
+func SetImageRequestFormatMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageRequestFormat, value)
+	}
+}
+
+func ImageRequestFormatMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageRequestFormat != nil {
+		return strings.TrimSpace(*md.ImageRequestFormat), true
+	}
+	return "", false
+}
+
+func SetImageRouteReasonMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageRouteReason, value)
+	}
+}
+
+func ImageRouteReasonMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageRouteReason != nil {
+		return strings.TrimSpace(*md.ImageRouteReason), true
 	}
 	return "", false
 }

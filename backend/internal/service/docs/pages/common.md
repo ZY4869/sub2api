@@ -371,6 +371,8 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 | 你要做的事 | 优先入口 | 说明 |
 | --- | --- | --- |
 | 通用文本生成 | `/v1/responses` | 新项目优先 |
+| OpenAI / Grok / Gemini 原生图片生成 | `/v1/images/generations` | 公共智能入口，按模型策略与 provider 元数据分流 |
+| OpenAI / Codex tool 生图 | `/v1/responses` + `tools:[{type:"image_generation"}]` | `gpt-5.4`、`gpt-5.4-mini` 这类主模型优先用这个模式 |
 | 旧 OpenAI 客户端兼容 | `/v1/chat/completions` | 旧生态广泛支持 |
 | Claude 风格接入 | `/v1/messages` | 原生 Anthropic / Claude 最稳 |
 | Gemini 原生生成 | `/v1beta/models/{model}:generateContent` | 原生 Google 风格 |
@@ -385,6 +387,9 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `/v1/messages` 在 OpenAI / Copilot 平台下可能被翻译到 Responses。
 - `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功。
 - `/v1/responses` 在 Grok 平台可以工作，但 Responses 的 WebSocket / 长连接模式不应对 Grok 做乐观假设。
+- `/v1/images/generations`、`/v1/images/edits` 现在是公共智能图片入口：会先按当前 Key 的本地模型策略与 provider 元数据判断要落到 OpenAI、Grok 还是 Gemini。
+- `/grok/v1/images/*` 与 `/v1beta/openai/images/generations` 仍然保留为显式专用路径；它们更利于排障，也不会被公共智能路由覆盖。
+- `image_generation` tool 型主模型不应该直接拿去打 `/v1/images/*`；这类请求应继续走 `/v1/responses`。
 - `/antigravity/v1beta/models/{model}:batchGenerateContent` 已注册，但当前能力矩阵明确拒绝。
 
 ### 接入最佳实践

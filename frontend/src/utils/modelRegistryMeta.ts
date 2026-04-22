@@ -15,6 +15,7 @@ export type ModelRegistryCapability =
   | 'text'
   | 'vision'
   | 'image_generation'
+  | 'image_generation_tool'
   | 'web_search'
   | 'audio_understanding'
   | 'video_understanding'
@@ -37,6 +38,7 @@ export const MODEL_REGISTRY_CAPABILITY_OPTIONS: readonly ModelRegistryCapability
   { value: 'text', label: '文本', icon: 'chatBubble' },
   { value: 'vision', label: '识图', icon: 'eye' },
   { value: 'image_generation', label: '生图', icon: 'photo' },
+  { value: 'image_generation_tool', label: '工具生图', icon: 'photo' },
   { value: 'web_search', label: '联网', icon: 'globe' },
   { value: 'audio_understanding', label: '识别音频', icon: 'speakerWave' },
   { value: 'video_understanding', label: '识别视频', icon: 'videoCamera' },

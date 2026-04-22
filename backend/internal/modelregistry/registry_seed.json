@@ -4097,7 +4097,9 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "image_generation_tool"
+    ],
     "ui_priority": 48,
     "exposed_in": [
       "runtime",
@@ -4122,7 +4124,9 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "image_generation_tool"
+    ],
     "ui_priority": 49,
     "exposed_in": [
       "runtime",
@@ -4174,7 +4178,9 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "image_generation_tool"
+    ],
     "ui_priority": 49,
     "exposed_in": [
       "whitelist"
@@ -4197,7 +4203,9 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "image_generation_tool"
+    ],
     "ui_priority": 50,
     "exposed_in": [
       "runtime",
@@ -4222,10 +4230,41 @@
     "modalities": [
       "text"
     ],
-    "capabilities": [],
+    "capabilities": [
+      "image_generation_tool"
+    ],
     "ui_priority": 51,
     "exposed_in": [
       "whitelist"
+    ]
+  },
+  {
+    "id": "gpt-image-2",
+    "display_name": "GPT Image 2",
+    "provider": "openai",
+    "platforms": [
+      "openai"
+    ],
+    "protocol_ids": [
+      "gpt-image-2"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "gpt-image-2"
+    ],
+    "modalities": [
+      "text",
+      "image"
+    ],
+    "capabilities": [
+      "image_generation"
+    ],
+    "ui_priority": 52,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist",
+      "use_key"
     ]
   },
   {

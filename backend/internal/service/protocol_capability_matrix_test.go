@@ -60,7 +60,9 @@ func TestLookupProtocolCapability(t *testing.T) {
 		{name: "gemini tuned model permissions supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/tunedModels/tuned-1/permissions/perm-1", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "gemini tuned model operations supported", runtimePlatform: PlatformGemini, inboundEndpoint: "/v1beta/tunedModels/tuned-1/operations/op-1", wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
 		{name: "antigravity batch alias rejected", runtimePlatform: PlatformAntigravity, inboundEndpoint: "/antigravity/v1beta/models/gemini-2.5-pro:batchGenerateContent", action: ProtocolCapabilityActionBatchGenerateContent, wantMode: ProtocolCapabilityReject, wantOK: true},
-		{name: "openai images fall back to reject", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityReject, wantOK: true},
+		{name: "openai images native passthrough", runtimePlatform: PlatformOpenAI, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "gemini images generations native passthrough", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointImagesGen, wantMode: ProtocolCapabilityNativePassthrough, wantOK: true},
+		{name: "gemini images edits rejected", runtimePlatform: PlatformGemini, inboundEndpoint: EndpointImagesEdits, wantMode: ProtocolCapabilityReject, wantOK: true},
 		{name: "unknown endpoint stays unknown", runtimePlatform: PlatformOpenAI, inboundEndpoint: "/v1/embeddings", wantOK: false},
 	}
 
@@ -89,6 +91,8 @@ func TestPublicEndpointRequestFormatForAction(t *testing.T) {
 	require.Equal(t, "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent", PublicEndpointRequestFormatForAction(EndpointVertexSyncModels, ProtocolCapabilityActionGenerateContent))
 	require.Equal(t, "/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:countTokens", PublicEndpointRequestFormatForAction(EndpointVertexSyncModels, ProtocolCapabilityActionGeminiCountTokens))
 	require.Equal(t, EndpointResponses, PublicEndpointRequestFormatForAction(EndpointResponses, ProtocolCapabilityActionWebSocket))
+	require.Equal(t, EndpointImagesGen, PublicEndpointRequestFormatForAction(EndpointImagesGen, ProtocolCapabilityActionDefault))
+	require.Equal(t, EndpointImagesEdits, PublicEndpointRequestFormatForAction(EndpointImagesEdits, ProtocolCapabilityActionDefault))
 }
 
 func TestNormalizeInboundEndpoint_DerivesOpenAIAliasFromRegistry(t *testing.T) {

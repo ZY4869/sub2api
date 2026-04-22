@@ -94,6 +94,9 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		Layer:           BillingLayerSale,
 		InboundEndpoint: input.InboundEndpoint,
 		Tokens:          tokens,
+		ImageCount:      result.ImageCount,
+		ImageSize:       result.ImageSize,
+		MediaType:       result.MediaType,
 		ServiceTier:     serviceTier,
 		RateMultiplier:  multiplier,
 	})
@@ -109,7 +112,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if channelResolution != nil {
 		channelPricing = channelResolution.Pricing
 	}
-	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, 0)
+	cost, imageOutputTokens, imageOutputCost := applyChannelPricingOverride(cost, channelPricing, tokens, multiplier, result.ImageCount)
 
 	// Determine billing type.
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
@@ -155,7 +158,15 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		OpenAIWSMode:          result.OpenAIWSMode,
 		DurationMs:            &durationMs,
 		FirstTokenMs:          result.FirstTokenMs,
+		ImageCount:            result.ImageCount,
 		CreatedAt:             time.Now(),
+	}
+	if result.ImageSize != "" {
+		imageSize := result.ImageSize
+		usageLog.ImageSize = &imageSize
+	}
+	if mediaType := strings.TrimSpace(result.MediaType); mediaType != "" {
+		usageLog.MediaType = &mediaType
 	}
 
 	if input.UserAgent != "" {

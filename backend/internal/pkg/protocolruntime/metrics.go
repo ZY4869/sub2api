@@ -25,6 +25,10 @@ type MetricsSnapshot struct {
 	GeminiBillingFallbackMissTotal    int64            `json:"gemini_billing_fallback_miss_total"`
 	PublicModelProjectionTotal        int64            `json:"public_model_projection_total"`
 	PublicModelRestrictionHitTotal    int64            `json:"public_model_restriction_hit_total"`
+	ImageRouteTotal                   int64            `json:"image_route_total"`
+	ImageRouteSuccessTotal            int64            `json:"image_route_success_total"`
+	ImageRouteFailureTotal            int64            `json:"image_route_failure_total"`
+	ImageRouteLatencyMsTotal          int64            `json:"image_route_latency_ms_total"`
 	RouteMismatchByKind               map[string]int64 `json:"route_mismatch_by_kind"`
 	UnsupportedActionByReason         map[string]int64 `json:"unsupported_action_by_reason"`
 	LocalizationFallbackByKind        map[string]int64 `json:"localization_fallback_by_kind"`
@@ -42,6 +46,14 @@ type MetricsSnapshot struct {
 	GeminiBillingFallbackMissByReason map[string]int64 `json:"gemini_billing_fallback_miss_by_reason"`
 	PublicModelProjectionBySource     map[string]int64 `json:"public_model_projection_by_source"`
 	PublicModelRestrictionByReason    map[string]int64 `json:"public_model_restriction_by_reason"`
+	ImageRouteByFamily                map[string]int64 `json:"image_route_by_family"`
+	ImageRouteByProvider              map[string]int64 `json:"image_route_by_provider"`
+	ImageRouteSuccessByFamily         map[string]int64 `json:"image_route_success_by_family"`
+	ImageRouteSuccessByProvider       map[string]int64 `json:"image_route_success_by_provider"`
+	ImageRouteFailureByFamily         map[string]int64 `json:"image_route_failure_by_family"`
+	ImageRouteFailureByProvider       map[string]int64 `json:"image_route_failure_by_provider"`
+	ImageRouteLatencyMsByFamily       map[string]int64 `json:"image_route_latency_ms_by_family"`
+	ImageRouteLatencyMsByProvider     map[string]int64 `json:"image_route_latency_ms_by_provider"`
 }
 
 type metrics struct {
@@ -62,6 +74,10 @@ type metrics struct {
 	geminiBillingFallbackMissTotal    atomic.Int64
 	publicModelProjectionTotal        atomic.Int64
 	publicModelRestrictionHitTotal    atomic.Int64
+	imageRouteTotal                   atomic.Int64
+	imageRouteSuccessTotal            atomic.Int64
+	imageRouteFailureTotal            atomic.Int64
+	imageRouteLatencyMsTotal          atomic.Int64
 
 	routeMismatchByKind               sync.Map
 	unsupportedActionByReason         sync.Map
@@ -80,6 +96,14 @@ type metrics struct {
 	geminiBillingFallbackMissByReason sync.Map
 	publicModelProjectionBySource     sync.Map
 	publicModelRestrictionByReason    sync.Map
+	imageRouteByFamily                sync.Map
+	imageRouteByProvider              sync.Map
+	imageRouteSuccessByFamily         sync.Map
+	imageRouteSuccessByProvider       sync.Map
+	imageRouteFailureByFamily         sync.Map
+	imageRouteFailureByProvider       sync.Map
+	imageRouteLatencyMsByFamily       sync.Map
+	imageRouteLatencyMsByProvider     sync.Map
 }
 
 var defaultMetrics metrics
@@ -103,6 +127,10 @@ func Snapshot() MetricsSnapshot {
 		GeminiBillingFallbackMissTotal:    defaultMetrics.geminiBillingFallbackMissTotal.Load(),
 		PublicModelProjectionTotal:        defaultMetrics.publicModelProjectionTotal.Load(),
 		PublicModelRestrictionHitTotal:    defaultMetrics.publicModelRestrictionHitTotal.Load(),
+		ImageRouteTotal:                   defaultMetrics.imageRouteTotal.Load(),
+		ImageRouteSuccessTotal:            defaultMetrics.imageRouteSuccessTotal.Load(),
+		ImageRouteFailureTotal:            defaultMetrics.imageRouteFailureTotal.Load(),
+		ImageRouteLatencyMsTotal:          defaultMetrics.imageRouteLatencyMsTotal.Load(),
 		RouteMismatchByKind:               snapshotCounterMap(&defaultMetrics.routeMismatchByKind),
 		UnsupportedActionByReason:         snapshotCounterMap(&defaultMetrics.unsupportedActionByReason),
 		LocalizationFallbackByKind:        snapshotCounterMap(&defaultMetrics.localizationFallbackByKind),
@@ -120,6 +148,14 @@ func Snapshot() MetricsSnapshot {
 		GeminiBillingFallbackMissByReason: snapshotCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason),
 		PublicModelProjectionBySource:     snapshotCounterMap(&defaultMetrics.publicModelProjectionBySource),
 		PublicModelRestrictionByReason:    snapshotCounterMap(&defaultMetrics.publicModelRestrictionByReason),
+		ImageRouteByFamily:                snapshotCounterMap(&defaultMetrics.imageRouteByFamily),
+		ImageRouteByProvider:              snapshotCounterMap(&defaultMetrics.imageRouteByProvider),
+		ImageRouteSuccessByFamily:         snapshotCounterMap(&defaultMetrics.imageRouteSuccessByFamily),
+		ImageRouteSuccessByProvider:       snapshotCounterMap(&defaultMetrics.imageRouteSuccessByProvider),
+		ImageRouteFailureByFamily:         snapshotCounterMap(&defaultMetrics.imageRouteFailureByFamily),
+		ImageRouteFailureByProvider:       snapshotCounterMap(&defaultMetrics.imageRouteFailureByProvider),
+		ImageRouteLatencyMsByFamily:       snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByFamily),
+		ImageRouteLatencyMsByProvider:     snapshotCounterMap(&defaultMetrics.imageRouteLatencyMsByProvider),
 	}
 }
 
@@ -208,6 +244,29 @@ func RecordPublicModelRestrictionHit(reason string) {
 	incrementCounterMap(&defaultMetrics.publicModelRestrictionByReason, reason)
 }
 
+func RecordImageRoute(family string, provider string, success bool, latencyMs int64) {
+	defaultMetrics.imageRouteTotal.Add(1)
+	incrementCounterMap(&defaultMetrics.imageRouteByFamily, family)
+	incrementCounterMap(&defaultMetrics.imageRouteByProvider, provider)
+
+	if success {
+		defaultMetrics.imageRouteSuccessTotal.Add(1)
+		incrementCounterMap(&defaultMetrics.imageRouteSuccessByFamily, family)
+		incrementCounterMap(&defaultMetrics.imageRouteSuccessByProvider, provider)
+	} else {
+		defaultMetrics.imageRouteFailureTotal.Add(1)
+		incrementCounterMap(&defaultMetrics.imageRouteFailureByFamily, family)
+		incrementCounterMap(&defaultMetrics.imageRouteFailureByProvider, provider)
+	}
+
+	if latencyMs < 0 {
+		latencyMs = 0
+	}
+	defaultMetrics.imageRouteLatencyMsTotal.Add(latencyMs)
+	addCounterMap(&defaultMetrics.imageRouteLatencyMsByFamily, family, latencyMs)
+	addCounterMap(&defaultMetrics.imageRouteLatencyMsByProvider, provider, latencyMs)
+}
+
 func ResetForTest() {
 	defaultMetrics.routeMismatchTotal.Store(0)
 	defaultMetrics.unsupportedActionTotal.Store(0)
@@ -226,6 +285,10 @@ func ResetForTest() {
 	defaultMetrics.geminiBillingFallbackMissTotal.Store(0)
 	defaultMetrics.publicModelProjectionTotal.Store(0)
 	defaultMetrics.publicModelRestrictionHitTotal.Store(0)
+	defaultMetrics.imageRouteTotal.Store(0)
+	defaultMetrics.imageRouteSuccessTotal.Store(0)
+	defaultMetrics.imageRouteFailureTotal.Store(0)
+	defaultMetrics.imageRouteLatencyMsTotal.Store(0)
 	resetCounterMap(&defaultMetrics.routeMismatchByKind)
 	resetCounterMap(&defaultMetrics.unsupportedActionByReason)
 	resetCounterMap(&defaultMetrics.localizationFallbackByKind)
@@ -243,9 +306,24 @@ func ResetForTest() {
 	resetCounterMap(&defaultMetrics.geminiBillingFallbackMissByReason)
 	resetCounterMap(&defaultMetrics.publicModelProjectionBySource)
 	resetCounterMap(&defaultMetrics.publicModelRestrictionByReason)
+	resetCounterMap(&defaultMetrics.imageRouteByFamily)
+	resetCounterMap(&defaultMetrics.imageRouteByProvider)
+	resetCounterMap(&defaultMetrics.imageRouteSuccessByFamily)
+	resetCounterMap(&defaultMetrics.imageRouteSuccessByProvider)
+	resetCounterMap(&defaultMetrics.imageRouteFailureByFamily)
+	resetCounterMap(&defaultMetrics.imageRouteFailureByProvider)
+	resetCounterMap(&defaultMetrics.imageRouteLatencyMsByFamily)
+	resetCounterMap(&defaultMetrics.imageRouteLatencyMsByProvider)
 }
 
 func incrementCounterMap(target *sync.Map, key string) {
+	addCounterMap(target, key, 1)
+}
+
+func addCounterMap(target *sync.Map, key string, delta int64) {
+	if delta == 0 {
+		return
+	}
 	normalized := strings.TrimSpace(key)
 	if normalized == "" {
 		normalized = "unknown"
@@ -255,7 +333,7 @@ func incrementCounterMap(target *sync.Map, key string) {
 	if !ok {
 		return
 	}
-	incrementAtomicCounter(typedCounter)
+	typedCounter.Add(delta)
 }
 
 func snapshotCounterMap(source *sync.Map) map[string]int64 {
@@ -287,13 +365,4 @@ func resetCounterMap(source *sync.Map) {
 		source.Delete(key)
 		return true
 	})
-}
-
-func incrementAtomicCounter(counter *atomic.Int64) {
-	for {
-		current := counter.Load()
-		if counter.CompareAndSwap(current, current+1) {
-			return
-		}
-	}
 }

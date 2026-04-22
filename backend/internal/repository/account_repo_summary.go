@@ -33,6 +33,15 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 	baseArgs := make([]any, 0, 6)
 	baseWhere, baseArgs, _ = appendAdminAccountFilterWhereClauses(baseWhere, baseArgs, 9, normalized, "a", true)
 	reasonExpr := accountRateLimitReasonSQL(accountLimitedSQLColumns{
+		Platform:         "f.platform",
+		Credentials:      "f.credentials",
+		Extra:            "f.extra",
+		RateLimitResetAt: "f.rate_limit_reset_at",
+		SessionWindowEnd: "f.session_window_end",
+	})
+	displayLimitedExpr := accountDisplayRateLimitSQL(accountLimitedSQLColumns{
+		Platform:         "f.platform",
+		Credentials:      "f.credentials",
 		Extra:            "f.extra",
 		RateLimitResetAt: "f.rate_limit_reset_at",
 		SessionWindowEnd: "f.session_window_end",
@@ -41,6 +50,7 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		WITH filtered AS (
 			SELECT
 				a.id,
+				a.credentials,
 				a.platform,
 				a.status,
 				a.schedulable,
@@ -55,12 +65,14 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 		classified AS (
 			SELECT
 				f.id,
+				f.credentials,
 				f.platform,
 				f.status,
 				f.schedulable,
 				f.rate_limit_reset_at,
 				f.temp_unschedulable_until,
 				f.overload_until,
+				` + displayLimitedExpr + ` AS display_rate_limited,
 				` + reasonExpr + ` AS rate_limit_reason
 			FROM filtered f
 		)
@@ -72,11 +84,11 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			COUNT(*) FILTER (
 				WHERE status = $1
 					AND schedulable = TRUE
-					AND (rate_limit_reset_at IS NULL OR rate_limit_reset_at <= NOW())
+					AND display_rate_limited = FALSE
 					AND (temp_unschedulable_until IS NULL OR temp_unschedulable_until <= NOW())
 					AND (overload_until IS NULL OR overload_until <= NOW())
 			) AS dispatchable_count,
-			COUNT(*) FILTER (WHERE rate_limit_reset_at IS NOT NULL AND rate_limit_reset_at > NOW()) AS rate_limited_count,
+			COUNT(*) FILTER (WHERE display_rate_limited = TRUE) AS rate_limited_count,
 			COUNT(*) FILTER (WHERE temp_unschedulable_until IS NOT NULL AND temp_unschedulable_until > NOW()) AS temp_unschedulable_count,
 			COUNT(*) FILTER (WHERE overload_until IS NOT NULL AND overload_until > NOW()) AS overloaded_count,
 			COUNT(*) FILTER (WHERE schedulable = FALSE) AS paused_count,

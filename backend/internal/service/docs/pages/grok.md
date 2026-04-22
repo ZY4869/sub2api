@@ -93,6 +93,11 @@ Grok 是当前媒体能力最明确的一组运行平台。可用路径包括：
 
 如果你走的是公共 `/v1/images/...`、`/v1/videos...` 路径，也必须保证当前分组平台最终落到 Grok；否则会拿到能力不支持错误。
 
+当前程序也已经支持把公共 `/v1/images/generations`、`/v1/images/edits` 智能分流到 Grok，但文档仍优先推荐显式 `/grok/v1/images/*`：
+
+- 显式前缀不会被其它 provider 覆盖，排障最直接。
+- 公共入口更适合兼容型客户端；当同一个 Key 同时可路由到多个图片 provider 时，最好显式写 Grok 前缀，避免模型策略歧义。
+
 #### Python
 ```python focus=1-12
 import requests

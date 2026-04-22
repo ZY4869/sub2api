@@ -258,6 +258,10 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "openai_chat_completions"
 	case strings.Contains(handlerName, ".OpenAIResponses-fm"), strings.Contains(handlerName, ".OpenAIResponsesWebSocket-fm"):
 		return "openai_responses"
+	case strings.Contains(handlerName, ".PublicImagesGeneration-fm"):
+		return "public_images_generation"
+	case strings.Contains(handlerName, ".PublicImagesEdits-fm"):
+		return "public_images_edits"
 	case strings.Contains(handlerName, ".GrokImagesGeneration-fm"):
 		return "grok_images_generation"
 	case strings.Contains(handlerName, ".GrokImagesEdits-fm"):

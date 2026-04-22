@@ -129,6 +129,7 @@ var modelRegistryCapabilityOrder = []string{
 	"text",
 	"vision",
 	"image_generation",
+	"image_generation_tool",
 	"web_search",
 	"audio_understanding",
 	"video_understanding",

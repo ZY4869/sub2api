@@ -58,6 +58,14 @@ func (d gatewayRouteDispatchers) GrokImagesEdits(c *gin.Context) {
 	dispatchGrokOnlyRoute(c, service.EndpointImagesEdits, d.handlers.GrokGateway.ImagesEdits)
 }
 
+func (d gatewayRouteDispatchers) PublicImagesGeneration(c *gin.Context) {
+	d.handlers.DispatchPublicImagesGeneration(c)
+}
+
+func (d gatewayRouteDispatchers) PublicImagesEdits(c *gin.Context) {
+	d.handlers.DispatchPublicImagesEdits(c)
+}
+
 func (d gatewayRouteDispatchers) GrokVideosGeneration(c *gin.Context) {
 	dispatchGrokOnlyRoute(c, service.EndpointVideosCreate, d.handlers.GrokGateway.VideosGeneration)
 }

@@ -271,6 +271,50 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			},
 		},
 		{
+			name: "filter_by_status_active_excludes_codex_display_limited_non_pro",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive})
+				mustCreateAccount(s.T(), client, &service.Account{
+					Name:        "codex-display-limited",
+					Platform:    service.PlatformOpenAI,
+					Type:        service.AccountTypeOAuth,
+					Status:      service.StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"codex_7d_used_percent": 100.0,
+						"codex_7d_reset_at":     time.Now().Add(10 * time.Minute).UTC().Format(time.RFC3339),
+					},
+				})
+			},
+			status:    service.StatusActive,
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("active-normal", accounts[0].Name)
+			},
+		},
+		{
+			name: "filter_by_status_rate_limited_includes_codex_display_limited_non_pro",
+			setup: func(client *dbent.Client) {
+				mustCreateAccount(s.T(), client, &service.Account{Name: "active-normal", Status: service.StatusActive})
+				mustCreateAccount(s.T(), client, &service.Account{
+					Name:        "codex-display-limited",
+					Platform:    service.PlatformOpenAI,
+					Type:        service.AccountTypeOAuth,
+					Status:      service.StatusActive,
+					Schedulable: true,
+					Extra: map[string]any{
+						"codex_7d_used_percent": 100.0,
+						"codex_7d_reset_at":     time.Now().Add(10 * time.Minute).UTC().Format(time.RFC3339),
+					},
+				})
+			},
+			status:    "rate_limited",
+			wantCount: 1,
+			validate: func(accounts []service.Account) {
+				s.Require().Equal("codex-display-limited", accounts[0].Name)
+			},
+		},
+		{
 			name: "filter_by_search",
 			setup: func(client *dbent.Client) {
 				mustCreateAccount(s.T(), client, &service.Account{Name: "alpha-account"})
@@ -317,6 +361,62 @@ func (s *AccountRepoSuite) TestListWithFilters() {
 			}
 		})
 	}
+}
+
+func (s *AccountRepoSuite) TestGetStatusSummary_CountsCodexDisplayRateLimits() {
+	normalReset := time.Now().Add(12 * time.Hour).UTC().Truncate(time.Second)
+	laterReset := time.Now().Add(24 * time.Hour).UTC().Truncate(time.Second)
+
+	mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "non-pro-limited",
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Extra: map[string]any{
+			"codex_7d_used_percent": 100.0,
+			"codex_7d_reset_at":     normalReset.Format(time.RFC3339),
+		},
+	})
+	mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "pro-partial",
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			"codex_7d_used_percent": 100.0,
+			"codex_7d_reset_at":     normalReset.Format(time.RFC3339),
+		},
+	})
+	mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "pro-all-limited",
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			"codex_7d_used_percent":       100.0,
+			"codex_7d_reset_at":           normalReset.Format(time.RFC3339),
+			"codex_spark_7d_used_percent": 100.0,
+			"codex_spark_7d_reset_at":     laterReset.Format(time.RFC3339),
+		},
+	})
+
+	summary, err := s.repo.GetStatusSummary(s.ctx, service.AccountStatusSummaryFilters{})
+	s.Require().NoError(err)
+	s.Require().Equal(int64(3), summary.Total)
+	s.Require().Equal(int64(2), summary.RateLimited)
+	s.Require().Equal(int64(1), summary.DispatchableCount)
+	s.Require().Equal(int64(2), summary.LimitedBreakdown.Total)
+	s.Require().Equal(int64(1), summary.LimitedBreakdown.Usage7d)
+	s.Require().Equal(int64(1), summary.LimitedBreakdown.Usage7dAll)
 }
 
 // --- ListByGroup / ListActive / ListByPlatform ---

@@ -122,6 +122,28 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).not.toContain('7d×2')
   })
 
+  it('renders projected non-pro codex quota limits as account-level usage_7d', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          rate_limit_reset_at: '2026-03-13T18:00:00Z',
+          rate_limit_reason: 'usage_7d'
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.status.usage7d')
+    expect(wrapper.text()).toContain('admin.accounts.status.usage7dAutoResume')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
+  })
+
   it('formats model cooldown countdowns with spaced units', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))

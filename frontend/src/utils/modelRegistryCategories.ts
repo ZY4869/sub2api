@@ -14,7 +14,7 @@ export function getModelRegistryCategory(model: Pick<ModelRegistryDetail, 'capab
   if (capabilities.includes('audio_generation') || capabilities.includes('audio_understanding')) {
     return 'audio'
   }
-  if (capabilities.includes('image_generation') || capabilities.includes('vision') || modalities.includes('image')) {
+  if (capabilities.includes('image_generation') || capabilities.includes('image_generation_tool') || capabilities.includes('vision') || modalities.includes('image')) {
     return 'image'
   }
   if (capabilities.includes('text')) {

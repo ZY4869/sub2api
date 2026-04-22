@@ -183,29 +183,35 @@ var publicEndpointRegistry = []PublicEndpointRegistryEntry{
 	{
 		CanonicalEndpoint: EndpointImagesGen,
 		SourceProtocol:    PlatformOpenAI,
-		HandlerFamily:     "grok_images_generation",
+		HandlerFamily:     "public_images_generation",
 		NormalizePrefixes: []string{"/openai"},
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodPost, Pattern: "/v1/images/generations"},
 			{Method: http.MethodPost, Pattern: "/images/generations"},
-			{Method: http.MethodPost, Pattern: "/grok/v1/images/generations"},
+			{Method: http.MethodPost, Pattern: "/grok/v1/images/generations", RegisteredHandlerFamily: "grok_images_generation"},
 		},
 		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointImagesGen, RequestFormat: EndpointImagesGen, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityNativePassthrough},
 		},
 	},
 	{
 		CanonicalEndpoint: EndpointImagesEdits,
 		SourceProtocol:    PlatformOpenAI,
-		HandlerFamily:     "grok_images_edits",
+		HandlerFamily:     "public_images_edits",
 		NormalizePrefixes: []string{"/openai"},
 		Routes: []PublicEndpointRoute{
 			{Method: http.MethodPost, Pattern: "/v1/images/edits"},
 			{Method: http.MethodPost, Pattern: "/images/edits"},
-			{Method: http.MethodPost, Pattern: "/grok/v1/images/edits"},
+			{Method: http.MethodPost, Pattern: "/grok/v1/images/edits", RegisteredHandlerFamily: "grok_images_edits"},
 		},
 		Capabilities: []PublicProtocolCapability{
+			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformOpenAI, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformCopilot, Mode: ProtocolCapabilityNativePassthrough},
 			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGrok, Mode: ProtocolCapabilityNativePassthrough},
+			{InboundEndpoint: EndpointImagesEdits, RequestFormat: EndpointImagesEdits, Action: ProtocolCapabilityActionDefault, SourceProtocol: PlatformOpenAI, RuntimePlatform: PlatformGemini, Mode: ProtocolCapabilityReject},
 		},
 	},
 	{

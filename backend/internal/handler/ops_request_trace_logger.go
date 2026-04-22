@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -316,6 +317,7 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 		},
 		CreatedAt: time.Now().UTC(),
 	}
+	recordImageRouteRuntimeMetrics(normalize, statusCode, input.DurationMs)
 	return input
 }
 
@@ -441,6 +443,30 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 	}
 	if probeAction, ok := service.ProbeActionMetadataFromContext(c.Request.Context()); ok {
 		result.ProbeAction = probeAction
+	}
+	if imageRouteFamily, ok := service.ImageRouteFamilyMetadataFromContext(c.Request.Context()); ok {
+		result.ImageRouteFamily = imageRouteFamily
+	}
+	if imageAction, ok := service.ImageActionMetadataFromContext(c.Request.Context()); ok {
+		result.ImageAction = imageAction
+	}
+	if imageResolvedProvider, ok := service.ImageResolvedProviderMetadataFromContext(c.Request.Context()); ok {
+		result.ImageResolvedProvider = imageResolvedProvider
+	}
+	if imageDisplayModelID, ok := service.ImageDisplayModelIDMetadataFromContext(c.Request.Context()); ok {
+		result.ImageDisplayModelID = imageDisplayModelID
+	}
+	if imageTargetModelID, ok := service.ImageTargetModelIDMetadataFromContext(c.Request.Context()); ok {
+		result.ImageTargetModelID = imageTargetModelID
+	}
+	if imageUpstreamEndpoint, ok := service.ImageUpstreamEndpointMetadataFromContext(c.Request.Context()); ok {
+		result.ImageUpstreamEndpoint = imageUpstreamEndpoint
+	}
+	if imageRequestFormat, ok := service.ImageRequestFormatMetadataFromContext(c.Request.Context()); ok {
+		result.ImageRequestFormat = imageRequestFormat
+	}
+	if imageRouteReason, ok := service.ImageRouteReasonMetadataFromContext(c.Request.Context()); ok {
+		result.ImageRouteReason = imageRouteReason
 	}
 	if headerValue := strings.TrimSpace(c.Writer.Header().Get("X-Sub2api-CountTokens-Source")); headerValue != "" {
 		result.CountTokensSource = headerValue
@@ -962,6 +988,18 @@ func dedupeTraceStrings(items []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+func recordImageRouteRuntimeMetrics(normalize service.ProtocolNormalizeResult, statusCode int, durationMs int64) {
+	if strings.TrimSpace(normalize.ImageRouteFamily) == "" {
+		return
+	}
+	protocolruntime.RecordImageRoute(
+		normalize.ImageRouteFamily,
+		normalize.ImageResolvedProvider,
+		statusCode > 0 && statusCode < 400,
+		durationMs,
+	)
 }
 
 func stringValueFromMap(payload map[string]any, key string) string {

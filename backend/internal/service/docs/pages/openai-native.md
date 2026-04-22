@@ -154,9 +154,50 @@ curl https://api.zyxai.de/v1/responses/resp_123 \
   -H "Authorization: Bearer sk-你的站内Key"
 ```
 
+### OpenAI / Codex 生图
+
+OpenAI 侧现在建议明确区分两类能力：
+
+- `gpt-image-2` 这类原生图片模型，走 `/v1/images/generations` 或 `/v1/images/edits`。
+- `gpt-5.4`、`gpt-5.4-mini`、`gpt-5.4-pro` 这类主模型，如果要生图，优先走 `/v1/responses` + `tools:[{type:"image_generation"}]`。
+- 网关不会解析 `$imagegen ...` 这类文本前缀本身；如果你的客户端或 Codex 最终发出来的是 Responses tool 请求，网关会按标准 `image_generation` tool 语义处理。
+
+#### Python
+```python focus=3-16
+import requests
+
+response = requests.post(
+    "https://api.zyxai.de/v1/responses",
+    headers={
+        "Authorization": "Bearer sk-你的站内Key",
+        "Content-Type": "application/json",
+    },
+    json={
+        "model": "gpt-5.4-mini",
+        "input": "生成一张适合产品页首屏的海报图。",
+        "tools": [{"type": "image_generation", "model": "gpt-image-2"}],
+    },
+    timeout=120,
+)
+
+print(response.json())
+```
+
+#### REST
+```bash focus=1-8
+curl https://api.zyxai.de/v1/images/generations \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-image-2",
+    "prompt": "生成一张适合产品页首屏的海报图。"
+  }'
+```
+
 ### 迁移与边界
 
 - 如果你的客户端本来就支持 `responses`，不要再退回 `chat/completions`。
 - 如果你只是为了历史兼容而使用旧参数结构，请切到 `openai` 兼容页。
-- 如果你要走 `/v1/images/*` 或视频专用入口，请转到 `grok` 页查看媒体入口；如果你是在 `/v1/responses` 内通过 `image_generation` tool 生图，仍以本页规则为准。
+- 如果你要走 `/v1/images/*`，请先确认目标模型到底是原生图片模型还是 tool 生图主模型；原生图片模型走 `/v1/images/*`，tool 生图主模型继续走 `/v1/responses`。
+- 如果你要看 Grok 显式媒体入口，请转到 `grok` 页；如果你是在 `/v1/responses` 内通过 `image_generation` tool 生图，仍以本页规则为准。
 - 新项目围绕 `responses` 设计，比继续叠加 `chat/completions` 特性债务更稳妥。

@@ -3,7 +3,6 @@ package repository
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqljson"
@@ -70,15 +69,28 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 	if filters.Status != "" {
 		switch filters.Status {
 		case service.StatusActive:
-			q = q.Where(
-				dbaccount.StatusEQ(filters.Status),
-				dbaccount.Or(
-					dbaccount.RateLimitResetAtIsNil(),
-					dbaccount.RateLimitResetAtLTE(time.Now()),
-				),
-			)
+			q = q.Where(dbaccount.StatusEQ(filters.Status))
+			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+				cols := accountLimitedSQLColumns{
+					Platform:         s.C("platform"),
+					Credentials:      s.C("credentials"),
+					Extra:            s.C("extra"),
+					RateLimitResetAt: s.C("rate_limit_reset_at"),
+					SessionWindowEnd: s.C("session_window_end"),
+				}
+				s.Where(entsql.ExprP(fmt.Sprintf("NOT (%s)", accountDisplayRateLimitSQL(cols))))
+			}))
 		case "rate_limited":
-			q = q.Where(dbaccount.RateLimitResetAtGT(time.Now()))
+			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+				cols := accountLimitedSQLColumns{
+					Platform:         s.C("platform"),
+					Credentials:      s.C("credentials"),
+					Extra:            s.C("extra"),
+					RateLimitResetAt: s.C("rate_limit_reset_at"),
+					SessionWindowEnd: s.C("session_window_end"),
+				}
+				s.Where(entsql.ExprP(accountDisplayRateLimitSQL(cols)))
+			}))
 		case "temp_unschedulable":
 			q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
 				col := s.C("temp_unschedulable_until")
@@ -158,9 +170,16 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 		argIndex++
 	}
 	if filters.Status == service.StatusActive {
+		cols := accountLimitedSQLColumns{
+			Platform:         tableAlias + ".platform",
+			Credentials:      tableAlias + ".credentials",
+			Extra:            tableAlias + ".extra",
+			RateLimitResetAt: tableAlias + ".rate_limit_reset_at",
+			SessionWindowEnd: tableAlias + ".session_window_end",
+		}
 		whereClauses = append(whereClauses,
 			fmt.Sprintf("%s.status = $%d", tableAlias, argIndex),
-			fmt.Sprintf("(%s.rate_limit_reset_at IS NULL OR %s.rate_limit_reset_at <= NOW())", tableAlias, tableAlias),
+			fmt.Sprintf("NOT (%s)", accountDisplayRateLimitSQL(cols)),
 		)
 		args = append(args, filters.Status)
 		argIndex++
@@ -197,13 +216,19 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 
 func dispatchableAccountPredicate() dbpredicate.Account {
 	return dbpredicate.Account(func(s *entsql.Selector) {
-		rateLimitResetAt := s.C("rate_limit_reset_at")
 		tempUnschedulableUntil := s.C("temp_unschedulable_until")
 		overloadUntil := s.C("overload_until")
+		cols := accountLimitedSQLColumns{
+			Platform:         s.C("platform"),
+			Credentials:      s.C("credentials"),
+			Extra:            s.C("extra"),
+			RateLimitResetAt: s.C("rate_limit_reset_at"),
+			SessionWindowEnd: s.C("session_window_end"),
+		}
 		s.Where(entsql.And(
 			entsql.EQ(s.C("status"), service.StatusActive),
 			entsql.EQ(s.C("schedulable"), true),
-			entsql.Or(entsql.IsNull(rateLimitResetAt), entsql.LTE(rateLimitResetAt, entsql.Expr("NOW()"))),
+			entsql.ExprP(fmt.Sprintf("NOT (%s)", accountDisplayRateLimitSQL(cols))),
 			entsql.Or(entsql.IsNull(tempUnschedulableUntil), entsql.LTE(tempUnschedulableUntil, entsql.Expr("NOW()"))),
 			entsql.Or(entsql.IsNull(overloadUntil), entsql.LTE(overloadUntil, entsql.Expr("NOW()"))),
 		))
@@ -211,10 +236,17 @@ func dispatchableAccountPredicate() dbpredicate.Account {
 }
 
 func appendDispatchableAccountWhereClauses(whereClauses []string, tableAlias string) []string {
+	cols := accountLimitedSQLColumns{
+		Platform:         tableAlias + ".platform",
+		Credentials:      tableAlias + ".credentials",
+		Extra:            tableAlias + ".extra",
+		RateLimitResetAt: tableAlias + ".rate_limit_reset_at",
+		SessionWindowEnd: tableAlias + ".session_window_end",
+	}
 	whereClauses = append(whereClauses,
 		fmt.Sprintf("%s.status = '%s'", tableAlias, service.StatusActive),
 		fmt.Sprintf("%s.schedulable = TRUE", tableAlias),
-		fmt.Sprintf("(%s.rate_limit_reset_at IS NULL OR %s.rate_limit_reset_at <= NOW())", tableAlias, tableAlias),
+		fmt.Sprintf("NOT (%s)", accountDisplayRateLimitSQL(cols)),
 		fmt.Sprintf("(%s.temp_unschedulable_until IS NULL OR %s.temp_unschedulable_until <= NOW())", tableAlias, tableAlias),
 		fmt.Sprintf("(%s.overload_until IS NULL OR %s.overload_until <= NOW())", tableAlias, tableAlias),
 	)

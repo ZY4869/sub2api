@@ -364,11 +364,11 @@ func TestModelRegistryService_UpsertEntry_NormalizesLegacyCapabilities(t *testin
 	entry, err := svc.UpsertEntry(context.Background(), UpsertModelRegistryEntryInput{
 		ID:           "gpt-test-capability",
 		Platforms:    []string{PlatformOpenAI},
-		Capabilities: []string{"video", "reasoning", "image", "video"},
+		Capabilities: []string{"video", "reasoning", "image", "image_generation_tool", "video"},
 		ExposedIn:    []string{"runtime"},
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{"text", "image_generation", "video_generation"}, entry.Capabilities)
+	require.Equal(t, []string{"text", "image_generation", "image_generation_tool", "video_generation"}, entry.Capabilities)
 }
 
 func TestModelRegistryService_UpsertEntry_RejectsUnknownCapabilities(t *testing.T) {

@@ -696,13 +696,60 @@ func TestAdminService_ListAccounts_ExhaustedCodexExtraReturnsRateLimitedAccount(
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
 	require.Len(t, accounts, 1)
-	require.Nil(t, accounts[0].RateLimitResetAt)
+	require.NotNil(t, accounts[0].RateLimitResetAt)
+	require.WithinDuration(t, resetAt.UTC(), *accounts[0].RateLimitResetAt, time.Second)
+	require.Equal(t, AccountRateLimitReasonUsage7d, AccountRateLimitReason(&accounts[0], time.Now()))
 	select {
 	case persisted := <-repo.modelLimitCh:
 		require.Equal(t, openAICodexScopeNormal, persisted.scope)
 		require.WithinDuration(t, resetAt.UTC(), persisted.resetAt, time.Second)
 	case <-time.After(2 * time.Second):
 		t.Fatal("等待列表补写模型限流状态超时")
+	}
+	select {
+	case persisted := <-repo.rateLimitCh:
+		t.Fatalf("unexpected account rate limit persistence: %v", persisted)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+func TestAdminService_ListAccounts_ProPartialCodexLimitStaysPartiallyAvailable(t *testing.T) {
+	resetAt := time.Now().Add(4 * 24 * time.Hour)
+	repo := &openAICodexExtraListRepo{
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:          703,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeOAuth,
+			Status:      StatusActive,
+			Schedulable: true,
+			Concurrency: 1,
+			Credentials: map[string]any{
+				"plan_type": "pro",
+			},
+			Extra: map[string]any{
+				codexSpark7dUsedPercentKey: 100.0,
+				codexSpark7dResetAtKey:     resetAt.UTC().Format(time.RFC3339),
+			},
+		}}},
+		rateLimitCh: make(chan time.Time, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	accounts, total, err := svc.ListAccounts(context.Background(), 1, 20, PlatformOpenAI, AccountTypeOAuth, "", "", 0, AccountLifecycleNormal, "")
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, accounts, 1)
+	require.Nil(t, accounts[0].RateLimitResetAt)
+	select {
+	case persisted := <-repo.modelLimitCh:
+		require.Equal(t, openAICodexScopeSpark, persisted.scope)
+		require.WithinDuration(t, resetAt.UTC(), persisted.resetAt, time.Second)
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待列表补写 spark 模型限流状态超时")
 	}
 	select {
 	case persisted := <-repo.rateLimitCh:

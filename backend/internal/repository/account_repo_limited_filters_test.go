@@ -11,12 +11,12 @@ func TestAppendAdminLimitedWhereClauses(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		filters     adminAccountListFilters
-		argIndex    int
-		wantClauses int
-		wantArg     any
-		wantSQL     []string
+		name               string
+		filters            adminAccountListFilters
+		argIndex           int
+		wantClauses        int
+		wantArg            any
+		wantClauseContains [][]string
 	}{
 		{
 			name: "normal only",
@@ -25,7 +25,9 @@ func TestAppendAdminLimitedWhereClauses(t *testing.T) {
 			},
 			argIndex:    1,
 			wantClauses: 1,
-			wantSQL:     []string{"rate_limit_reset_at IS NULL", "rate_limit_reset_at <= NOW()"},
+			wantClauseContains: [][]string{
+				{"NOT (", "rate_limit_reset_at > NOW()", "codex_7d_used_percent", "credentials->>'plan_type'"},
+			},
 		},
 		{
 			name: "limited reason filter",
@@ -36,10 +38,9 @@ func TestAppendAdminLimitedWhereClauses(t *testing.T) {
 			argIndex:    3,
 			wantClauses: 2,
 			wantArg:     service.AccountRateLimitReasonUsage7d,
-			wantSQL: []string{
-				"rate_limit_reset_at > NOW()",
-				"rate_limit_reason",
-				service.AccountRateLimitReasonUsage7d,
+			wantClauseContains: [][]string{
+				{"rate_limit_reset_at > NOW()", "codex_7d_used_percent", "codex_spark_7d_used_percent"},
+				{"CASE", "extra->>'rate_limit_reason'", service.AccountRateLimitReasonUsage7d},
 			},
 		},
 		{
@@ -51,11 +52,9 @@ func TestAppendAdminLimitedWhereClauses(t *testing.T) {
 			argIndex:    5,
 			wantClauses: 2,
 			wantArg:     service.AccountRateLimitReasonUsage7dAll,
-			wantSQL: []string{
-				"rate_limit_reset_at > NOW()",
-				"rate_limit_reason",
-				service.AccountRateLimitReasonUsage7dAll,
-				"codex_account_7d_all_exhausted",
+			wantClauseContains: [][]string{
+				{"rate_limit_reset_at > NOW()", "codex_7d_used_percent", "codex_spark_7d_used_percent"},
+				{"CASE", service.AccountRateLimitReasonUsage7dAll, "credentials->>'plan_type'", "codex_spark_7d_used_percent"},
 			},
 		},
 	}
@@ -68,16 +67,14 @@ func TestAppendAdminLimitedWhereClauses(t *testing.T) {
 			if len(clauses) != tt.wantClauses {
 				t.Fatalf("len(clauses) = %d, want %d", len(clauses), tt.wantClauses)
 			}
-			for _, fragment := range tt.wantSQL {
-				found := false
-				for _, clause := range clauses {
-					if strings.Contains(clause, fragment) {
-						found = true
-						break
-					}
+			for clauseIndex, fragments := range tt.wantClauseContains {
+				if clauseIndex >= len(clauses) {
+					t.Fatalf("missing clause %d in %#v", clauseIndex, clauses)
 				}
-				if !found {
-					t.Fatalf("clauses %v do not contain fragment %q", clauses, fragment)
+				for _, fragment := range fragments {
+					if !strings.Contains(clauses[clauseIndex], fragment) {
+						t.Fatalf("clause %d (%s) does not contain fragment %q", clauseIndex, clauses[clauseIndex], fragment)
+					}
 				}
 			}
 			if tt.wantArg != nil {

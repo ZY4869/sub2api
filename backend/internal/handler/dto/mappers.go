@@ -225,9 +225,24 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	if a == nil {
 		return nil
 	}
+	now := time.Now()
+	displayRateLimit := service.AccountDisplayRateLimitState(a, now)
 	credentials := a.Credentials
 	if enriched, changed := service.EnrichOpenAIOAuthCredentials(a.Platform, a.Type, a.Credentials); changed {
 		credentials = enriched
+	}
+	rateLimitedAt := a.RateLimitedAt
+	rateLimitResetAt := a.RateLimitResetAt
+	rateLimitReason := service.AccountRateLimitReason(a, now)
+	if displayRateLimit.Limited {
+		rateLimitResetAt = displayRateLimit.ResetAt
+		if strings.TrimSpace(displayRateLimit.Reason) != "" {
+			rateLimitReason = displayRateLimit.Reason
+		}
+		if rateLimitedAt == nil {
+			projected := now.UTC()
+			rateLimitedAt = &projected
+		}
 	}
 	out := &Account{
 		ID:                      a.ID,
@@ -256,9 +271,9 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 		BlacklistedAt:           a.BlacklistedAt,
 		BlacklistPurgeAt:        a.BlacklistPurgeAt,
 		Schedulable:             a.Schedulable,
-		RateLimitedAt:           a.RateLimitedAt,
-		RateLimitResetAt:        a.RateLimitResetAt,
-		RateLimitReason:         service.AccountRateLimitReason(a, time.Now()),
+		RateLimitedAt:           rateLimitedAt,
+		RateLimitResetAt:        rateLimitResetAt,
+		RateLimitReason:         rateLimitReason,
 		OverloadUntil:           a.OverloadUntil,
 		TempUnschedulableUntil:  a.TempUnschedulableUntil,
 		TempUnschedulableReason: a.TempUnschedulableReason,

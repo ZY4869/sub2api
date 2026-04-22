@@ -51,7 +51,7 @@ func inferAvailableTestModelMode(modelID string, entry *modelregistry.ModelEntry
 	if entry != nil {
 		for _, capability := range entry.Capabilities {
 			switch strings.TrimSpace(strings.ToLower(capability)) {
-			case "image_generation":
+			case "image_generation", "image_generation_tool":
 				return "image"
 			case "video_generation":
 				return "video"

@@ -55,7 +55,8 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			isTempUnsched = true
 		}
 
-		isRateLimited := acc.RateLimitResetAt != nil && now.Before(*acc.RateLimitResetAt)
+		displayRateLimit := AccountDisplayRateLimitState(&acc, now)
+		isRateLimited := displayRateLimit.Limited
 		isOverloaded := acc.OverloadUntil != nil && now.Before(*acc.OverloadUntil)
 		hasError := acc.Status == StatusError
 
@@ -133,9 +134,9 @@ func (s *OpsService) GetAccountAvailabilityStats(ctx context.Context, platformFi
 			ErrorMessage: acc.ErrorMessage,
 		}
 
-		if isRateLimited && acc.RateLimitResetAt != nil {
-			item.RateLimitResetAt = acc.RateLimitResetAt
-			remainingSec := int64(time.Until(*acc.RateLimitResetAt).Seconds())
+		if isRateLimited && displayRateLimit.ResetAt != nil {
+			item.RateLimitResetAt = displayRateLimit.ResetAt
+			remainingSec := int64(time.Until(*displayRateLimit.ResetAt).Seconds())
 			if remainingSec > 0 {
 				item.RateLimitRemainingSec = &remainingSec
 			}

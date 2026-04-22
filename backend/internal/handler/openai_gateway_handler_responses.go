@@ -103,6 +103,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	imageToolModel, hasImageTool := detectResponsesImageToolRequest(body)
 
 	streamResult := gjson.GetBytes(body, "stream")
 	if streamResult.Exists() && streamResult.Type != gjson.True && streamResult.Type != gjson.False {
@@ -129,6 +130,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	}
 
 	setOpsRequestContext(c, reqModel, reqStream, body)
+	if hasImageTool {
+		applyResponsesImageToolTraceMetadata(c, service.PlatformOpenAI, reqModel, imageToolModel, service.PublicImageToolRouteReason)
+	}
 
 	// 提前校验 function_call_output 是否具备可关联上下文，避免上游 400。
 	if !h.validateFunctionCallOutputRequest(c, body, reqLog) {
@@ -296,6 +300,23 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				zap.Float64("load_skew", scheduleDecision.LoadSkew),
 			)
 			account := selection.Account
+			if hasImageTool && !supportsResponsesImageToolPlatform(account.Platform) {
+				applyResponsesImageToolTraceMetadata(
+					c,
+					account.Platform,
+					reqModel,
+					imageToolModel,
+					service.PublicImageToolRouteReasonRejected,
+				)
+				reqLog.Warn(
+					"openai.responses_image_tool_platform_rejected",
+					zap.String("account_platform", account.Platform),
+					zap.String("requested_model", reqModel),
+					zap.String("tool_model", imageToolModel),
+				)
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", responsesImageToolUnsupportedPlatformMessage())
+				return
+			}
 			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 			reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			setOpsSelectedAccountDetails(c, account)
