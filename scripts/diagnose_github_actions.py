@@ -67,9 +67,6 @@ def choose_run(repo: str, token: str | None, workflow: str | None, branch: str |
 def recommended_command(job_name: str, failed_steps: list[str]) -> str:
     context = f"{job_name} {' '.join(failed_steps)}"
     text = context.lower()
-    tag_match = re.search(r"\bv\d+\.\d+\.\d+\b", context)
-    if tag_match and ("verify" in text or "tag health" in text):
-        return f"python scripts/tag_health.py verify --tag {tag_match.group(0)} --profile compile"
     if "validate-release-source" in text:
         return "go mod tidy -C backend && git diff --exit-code -- backend/cmd/server/VERSION frontend/package.json backend/go.mod backend/go.sum"
     if "release-preflight" in text or "release" in text:
