@@ -1,7 +1,7 @@
 {
   "name": "sub2api-frontend",
   "private": true,
-  "version": "0.1.267",
+  "version": "0.1.268",
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",

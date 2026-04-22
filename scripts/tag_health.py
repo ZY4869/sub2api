@@ -35,7 +35,7 @@ PROFILES = {
 
 
 def info(message: str) -> None:
-    print(f"[tag-health] {message}", flush=True)
+    print(f"[tag-health] {message}", file=sys.stderr, flush=True)
 
 
 def run(
