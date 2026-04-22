@@ -121,6 +121,21 @@
       />
     </template>
 
+    <template #header-usage="{ column }">
+      <div class="flex items-center gap-2">
+        <span>{{ column.label }}</span>
+        <button
+          type="button"
+          class="rounded-full border border-gray-300 px-2 py-0.5 text-[10px] font-semibold tracking-normal text-gray-600 transition hover:border-primary-400 hover:text-primary-600 dark:border-dark-500 dark:text-dark-300 dark:hover:border-primary-500 dark:hover:text-primary-300"
+          data-testid="usage-display-mode-toggle"
+          :title="usageDisplayModeTitle"
+          @click.stop="toggleAccountUsageDisplayMode"
+        >
+          {{ usageDisplayModeLabel }}
+        </button>
+      </div>
+    </template>
+
     <template #cell-groups="{ row }">
       <AccountGroupsCell :groups="row.groups" :max-display="4" />
     </template>
@@ -207,6 +222,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Column } from '@/components/common/types'
 import type { Account, WindowStats } from '@/types'
@@ -221,6 +237,7 @@ import AccountUsageCell from '@/components/account/AccountUsageCell.vue'
 import AccountUsageResetCell from '@/components/account/AccountUsageResetCell.vue'
 import { formatDateTime, formatRelativeTime } from '@/utils/format'
 import { formatCountryLabel } from '@/utils/displayLabels'
+import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 import AccountAutoRecoveryProbeNotice from './AccountAutoRecoveryProbeNotice.vue'
 import AccountsViewRowActions from './AccountsViewRowActions.vue'
 
@@ -261,6 +278,17 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
+const { accountUsageDisplayMode, toggleAccountUsageDisplayMode } = useAccountUsageDisplayMode()
+
+const usageDisplayModeLabel = computed(() => {
+  return accountUsageDisplayMode.value === 'remaining'
+    ? t('admin.accounts.usageWindow.displayMode.remaining')
+    : t('admin.accounts.usageWindow.displayMode.used')
+})
+
+const usageDisplayModeTitle = computed(() => {
+  return t('admin.accounts.usageWindow.displayMode.toggle')
+})
 
 const handleToggleSelectAllVisible = (event: Event) => {
   emit('toggle-select-all-visible', (event.target as HTMLInputElement).checked)

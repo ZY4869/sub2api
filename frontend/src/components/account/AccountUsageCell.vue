@@ -95,6 +95,7 @@
         :window-stats="row.windowStats"
         :color="row.color"
         :inline-reset="row.inlineRemaining"
+        :display-mode="accountUsageDisplayMode"
       />
       <p
         v-if="presentation.meta.snapshotUpdatedAtText"
@@ -182,6 +183,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Account, WindowStats } from '@/types'
 import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
+import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 import { useFloatingTooltip } from '@/composables/useFloatingTooltip'
 import { useViewportAutoLoadGate } from '@/composables/useViewportAutoLoadGate'
 import UsageProgressBar from './UsageProgressBar.vue'
@@ -202,6 +204,7 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const { rootRef, autoLoadEnabled } = useViewportAutoLoadGate()
+const { accountUsageDisplayMode } = useAccountUsageDisplayMode()
 const { presentation, requestAutoLoad, shouldFetchUsage } = useAccountUsagePresentation(() => props.account, {
   autoLoadEnabled,
 })

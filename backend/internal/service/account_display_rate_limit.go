@@ -34,9 +34,6 @@ func AccountDisplayRateLimitState(account *Account, now time.Time) AccountDispla
 		if normal.Limited {
 			return normal
 		}
-		if spark.Limited {
-			return spark
-		}
 		return AccountDisplayRateLimitProjection{}
 	}
 	if !normal.Limited || !spark.Limited {

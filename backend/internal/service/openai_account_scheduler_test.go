@@ -713,6 +713,25 @@ func TestIsOpenAIAccountCandidateBetter_PrefersUsagePressureBeforeScore(t *testi
 	))
 }
 
+func TestIsOpenAIAccountCandidateBetter_PrefersPlanRankBeforeScore(t *testing.T) {
+	require.True(t, isOpenAIAccountCandidateBetter(
+		openAIAccountCandidateScore{
+			account:  &Account{ID: 2101, Priority: 0},
+			loadInfo: &AccountLoadInfo{LoadRate: 90, WaitingCount: 3},
+			planType: "pro",
+			planRank: 0,
+			score:    0.1,
+		},
+		openAIAccountCandidateScore{
+			account:  &Account{ID: 2102, Priority: 0},
+			loadInfo: &AccountLoadInfo{LoadRate: 1, WaitingCount: 0},
+			planType: "free",
+			planRank: 3,
+			score:    0.9,
+		},
+	))
+}
+
 func TestBuildOpenAIWeightedSelectionOrder_DeterministicBySessionSeed(t *testing.T) {
 	candidates := []openAIAccountCandidateScore{
 		{
@@ -744,6 +763,91 @@ func TestBuildOpenAIWeightedSelectionOrder_DeterministicBySessionSeed(t *testing
 	for i := range first {
 		require.Equal(t, first[i].account.ID, second[i].account.ID)
 	}
+}
+
+func TestBuildOpenAIWeightedSelectionOrder_KeepsHigherPlanRankAheadOfLowerTier(t *testing.T) {
+	req := OpenAIAccountScheduleRequest{
+		SessionHash:    "plan-rank-order",
+		RequestedModel: "gpt-5.4",
+	}
+	candidates := []openAIAccountCandidateScore{
+		{
+			account:  &Account{ID: 301, Priority: 0},
+			loadInfo: &AccountLoadInfo{LoadRate: 50, WaitingCount: 1},
+			planType: "pro",
+			planRank: 0,
+			score:    0.1,
+		},
+		{
+			account:  &Account{ID: 302, Priority: 0},
+			loadInfo: &AccountLoadInfo{LoadRate: 0, WaitingCount: 0},
+			planType: "free",
+			planRank: 3,
+			score:    0.9,
+		},
+	}
+
+	for i := 0; i < 5; i++ {
+		order := buildOpenAIWeightedSelectionOrder(candidates, req)
+		require.Len(t, order, 2)
+		require.Equal(t, int64(301), order[0].account.ID)
+	}
+}
+
+func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyKeepsLowerPlanRank(t *testing.T) {
+	ctx := context.Background()
+	groupID := int64(10113)
+	free := Account{
+		ID:          35001,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "free",
+		},
+	}
+	pro := Account{
+		ID:          35002,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+	cache := &stubGatewayCache{
+		sessionBindings: map[string]int64{
+			"openai:session_hash_plan_rank": free.ID,
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo:        stubOpenAIAccountRepo{accounts: []Account{free, pro}},
+		cache:              cache,
+		cfg:                &config.Config{},
+		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
+	}
+
+	selection, decision, err := svc.SelectAccountWithScheduler(
+		ctx,
+		&groupID,
+		"",
+		"session_hash_plan_rank",
+		"gpt-5.4",
+		nil,
+		OpenAIUpstreamTransportAny,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, free.ID, selection.Account.ID)
+	require.Equal(t, openAIAccountScheduleLayerSessionSticky, decision.Layer)
 }
 
 func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceDistributesAcrossSessions(t *testing.T) {

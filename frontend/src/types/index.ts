@@ -605,6 +605,7 @@ export type AccountLimitedView = "all" | "normal_only" | "limited_only";
 export type AccountRuntimeView = "all" | "in_use_only" | "available_only";
 export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d" | "usage_7d_all";
 export type AccountViewMode = "table" | "card";
+export type AccountUsageDisplayMode = "used" | "remaining";
 export type OAuthAddMethod = "oauth" | "setup-token";
 export type ProxyProtocol = "http" | "https" | "socks5" | "socks5h";
 

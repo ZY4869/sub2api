@@ -1829,6 +1829,11 @@
         passiveSampled: '当前展示的是被动采样快照，可能与实时用量存在短暂延迟。',
         sampledBadge: '采样',
         activeQuery: '当前展示的是主动查询结果。',
+        displayMode: {
+          used: '已用',
+          remaining: '余量',
+          toggle: '切换用量条显示方式'
+        },
         notProbed: '未探测',
         customMapping: '自定义映射(*)'
       },

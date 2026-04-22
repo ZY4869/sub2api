@@ -7,6 +7,7 @@ import {
   resolveActualUsageRefreshLoadOptions,
   resetAccountUsagePresentationCache
 } from '@/composables/useAccountUsagePresentation'
+import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 import { resetUiNowForTests } from '@/composables/useUiNow'
 
 const { getUsage } = vi.hoisted(() => ({
@@ -67,9 +68,9 @@ vi.mock('vue-i18n', async () => {
 })
 
 const usageBarStub = {
-  props: ['label', 'utilization', 'resetsAt', 'remainingSeconds', 'windowStats', 'inlineReset', 'color'],
+  props: ['label', 'utilization', 'resetsAt', 'remainingSeconds', 'windowStats', 'inlineReset', 'color', 'displayMode'],
   template:
-    '<div class="usage-bar">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ inlineReset }}|{{ windowStats?.tokens }}</div>',
+    '<div class="usage-bar" :data-display-mode="displayMode">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ inlineReset }}|{{ windowStats?.tokens }}</div>',
 }
 
 const passiveUsageResponse = {
@@ -119,6 +120,8 @@ describe('AccountUsageCell', () => {
   beforeEach(() => {
     getUsage.mockReset()
     getUsage.mockResolvedValue({})
+    localStorage.clear()
+    useAccountUsageDisplayMode().setAccountUsageDisplayMode('used')
     resetAccountUsagePresentationCache()
     resetUiNowForTests()
   })
@@ -773,6 +776,75 @@ describe('AccountUsageCell', () => {
     expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
     expect(wrapper.text()).not.toContain('Spark 5h')
     expect(wrapper.text()).not.toContain('Spark 7d')
+  })
+
+  it('keeps non-pro openai accounts on two rows even if stale spark snapshots still exist', async () => {
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2011,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'plus',
+          },
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 12,
+            codex_5h_reset_at: '2099-03-07T12:00:00Z',
+            codex_7d_used_percent: 34,
+            codex_7d_reset_at: '2099-03-13T12:00:00Z',
+            codex_spark_5h_used_percent: 88,
+            codex_spark_5h_reset_at: '2099-03-08T12:00:00Z',
+            codex_spark_7d_used_percent: 91,
+            codex_spark_7d_reset_at: '2099-03-14T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.findAll('.usage-bar')).toHaveLength(2)
+    expect(wrapper.text()).toContain('5h|12|2099-03-07T12:00:00.000Z||true')
+    expect(wrapper.text()).toContain('7d|34|2099-03-13T12:00:00.000Z||true')
+    expect(wrapper.text()).not.toContain('Spark 5h')
+    expect(wrapper.text()).not.toContain('Spark 7d')
+  })
+
+  it('passes the shared usage display mode down to progress bars', async () => {
+    useAccountUsageDisplayMode().setAccountUsageDisplayMode('remaining')
+
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2012,
+          platform: 'openai',
+          type: 'oauth',
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 12,
+            codex_5h_reset_at: '2099-03-07T12:00:00Z',
+            codex_7d_used_percent: 34,
+            codex_7d_reset_at: '2099-03-13T12:00:00Z',
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('.usage-bar').attributes('data-display-mode')).toBe('remaining')
   })
 
   it('supplements missing openai 7d snapshots with fetched usage', async () => {

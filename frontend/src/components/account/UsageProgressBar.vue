@@ -23,6 +23,7 @@
           class="h-1.5 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"
         >
           <div
+            data-testid="usage-progress-fill"
             :class="['h-full transition-all duration-300', barClass]"
             :style="{ width: barWidth }"
           ></div>
@@ -99,7 +100,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiNow } from "@/composables/useUiNow";
 import { useTokenDisplayMode } from "@/composables/useTokenDisplayMode";
-import type { WindowStats } from "@/types";
+import type { AccountUsageDisplayMode, WindowStats } from "@/types";
 import {
   formatLocalAbsoluteTime,
   formatLocalTimestamp,
@@ -107,7 +108,7 @@ import {
   parseEffectiveResetAt,
 } from "@/utils/usageResetTime";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   label: string;
   utilization: number;
   resetsAt?: string | null;
@@ -116,7 +117,10 @@ const props = defineProps<{
   windowStats?: WindowStats | null;
   detailedReset?: boolean;
   inlineReset?: boolean;
-}>();
+  displayMode?: AccountUsageDisplayMode;
+}>(), {
+  displayMode: "used",
+});
 
 const { t } = useI18n();
 const { nowDate } = useUiNow();
@@ -153,7 +157,12 @@ const remainingTextClass = computed(() => {
   return "shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-300";
 });
 
-const barWidth = computed(() => `${Math.min(props.utilization, 100)}%`);
+const resolvedBarPercent = computed(() => {
+  const usedPercent = Math.max(0, Math.min(props.utilization, 100));
+  return props.displayMode === "remaining" ? 100 - usedPercent : usedPercent;
+});
+
+const barWidth = computed(() => `${resolvedBarPercent.value}%`);
 
 const displayPercent = computed(() => {
   const percent = Math.round(props.utilization);

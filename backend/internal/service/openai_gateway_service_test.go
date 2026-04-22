@@ -404,6 +404,83 @@ func TestOpenAISelectAccountWithLoadAwareness_IgnoresSparkOnlyModelRateLimitForN
 	}
 }
 
+func TestOpenAISelectAccountForModelWithExclusions_PrefersHigherPlanRankWithinSamePriority(t *testing.T) {
+	pro := Account{
+		ID:          311,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+	free := Account{
+		ID:          312,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "free",
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{free, pro}},
+	}
+
+	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "gpt-5.4", nil)
+	require.NoError(t, err)
+	require.NotNil(t, account)
+	require.Equal(t, pro.ID, account.ID)
+}
+
+func TestOpenAISelectAccountForModelWithExclusions_StickyHitKeepsLowerPlanRank(t *testing.T) {
+	sessionHash := "sticky-plan-rank"
+	free := Account{
+		ID:          321,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "free",
+		},
+	}
+	pro := Account{
+		ID:          322,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+
+	cache := &stubGatewayCache{
+		sessionBindings: map[string]int64{"openai:" + sessionHash: free.ID},
+	}
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{free, pro}},
+		cache:       cache,
+	}
+
+	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, sessionHash, "gpt-5.4", nil)
+	require.NoError(t, err)
+	require.NotNil(t, account)
+	require.Equal(t, free.ID, account.ID)
+}
+
 func TestOpenAISelectAccountWithLoadAwareness_IgnoresNormalOnlyModelRateLimitForSparkRequests(t *testing.T) {
 	resetAt := time.Now().Add(10 * time.Minute)
 	account := Account{

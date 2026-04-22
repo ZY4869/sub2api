@@ -49,6 +49,18 @@ func TestAccountDisplayRateLimitState(t *testing.T) {
 			wantReset:  &sevenDayReset,
 		},
 		{
+			name: "non pro spark snapshot does not trigger double limit",
+			account: &Account{
+				Platform: PlatformOpenAI,
+				Type:     AccountTypeOAuth,
+				Extra: map[string]any{
+					codexSpark7dUsedPercentKey: 100.0,
+					codexSpark7dResetAtKey:     sevenDayReset.Format(time.RFC3339),
+				},
+			},
+			wantLimit: false,
+		},
+		{
 			name: "pro normal only does not become whole account limit",
 			account: &Account{
 				Platform: PlatformOpenAI,

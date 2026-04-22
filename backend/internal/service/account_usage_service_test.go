@@ -229,6 +229,65 @@ func TestAccountUsageService_PersistOpenAICodexProbeSnapshotSetsScopedRateLimit(
 	}
 }
 
+func TestAccountUsageService_GetOpenAIUsage_IgnoresSparkWindowsForNonPro(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	extra := map[string]any{
+		"codex_5h_used_percent":       12.0,
+		"codex_5h_reset_at":           now.Add(2 * time.Hour).Format(time.RFC3339),
+		"codex_7d_used_percent":       34.0,
+		"codex_7d_reset_at":           now.Add(24 * time.Hour).Format(time.RFC3339),
+		codexSpark5hUsedPercentKey:    56.0,
+		codexSpark5hResetAtKey:        now.Add(3 * time.Hour).Format(time.RFC3339),
+		codexSpark7dUsedPercentKey:    78.0,
+		codexSpark7dResetAtKey:        now.Add(48 * time.Hour).Format(time.RFC3339),
+		"codex_usage_updated_at":      now.Format(time.RFC3339),
+		"rate_limit_reason":           AccountRateLimitReasonUsage5h,
+		codexAccountAll7dExhaustedKey: false,
+	}
+
+	svc := &AccountUsageService{}
+	plusUsage, err := svc.getOpenAIUsage(context.Background(), &Account{
+		ID:          4001,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Schedulable: true,
+		Status:      StatusActive,
+		Credentials: map[string]any{
+			"plan_type": "plus",
+		},
+		Extra: cloneStringAnyMap(extra),
+	}, false)
+	if err != nil {
+		t.Fatalf("getOpenAIUsage() error = %v", err)
+	}
+	if plusUsage.FiveHour == nil || plusUsage.SevenDay == nil {
+		t.Fatal("expected normal openai usage windows for non-pro account")
+	}
+	if plusUsage.SparkFiveHour != nil || plusUsage.SparkSevenDay != nil {
+		t.Fatalf("expected non-pro account to ignore spark windows, got %+v", plusUsage)
+	}
+
+	proUsage, err := svc.getOpenAIUsage(context.Background(), &Account{
+		ID:          4002,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Schedulable: true,
+		Status:      StatusActive,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: cloneStringAnyMap(extra),
+	}, false)
+	if err != nil {
+		t.Fatalf("getOpenAIUsage() error = %v", err)
+	}
+	if proUsage.SparkFiveHour == nil || proUsage.SparkSevenDay == nil {
+		t.Fatalf("expected pro account to retain spark windows, got %+v", proUsage)
+	}
+}
+
 func TestBuildCodexUsageProgressFromExtra_ZerosExpiredWindow(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 3, 16, 12, 0, 0, 0, time.UTC)

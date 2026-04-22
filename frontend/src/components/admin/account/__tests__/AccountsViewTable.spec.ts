@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import AccountsViewTable from '../AccountsViewTable.vue'
+import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
@@ -20,6 +21,7 @@ const DataTableStub = defineComponent({
   template: `
     <div>
       <div class="header-select"><slot name="header-select" /></div>
+      <div class="header-usage"><slot name="header-usage" :column="{ key: 'usage', label: 'Usage Windows' }" /></div>
       <div class="cell-name"><slot name="cell-name" :row="data[0]" :value="data[0].name" /></div>
       <div class="cell-select"><slot name="cell-select" :row="data[0]" /></div>
       <div class="cell-status"><slot name="cell-status" :row="data[0]" /></div>
@@ -111,6 +113,22 @@ function mountTable(accountOverrides: Record<string, unknown> = {}) {
 }
 
 describe('AccountsViewTable', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useAccountUsageDisplayMode().setAccountUsageDisplayMode('used')
+  })
+
+  it('toggles and persists the shared usage display mode from the usage header', async () => {
+    const wrapper = mountTable()
+
+    expect(localStorage.getItem('account-usage-display-mode')).toBe('used')
+
+    await wrapper.get('[data-testid="usage-display-mode-toggle"]').trigger('click')
+
+    expect(useAccountUsageDisplayMode().accountUsageDisplayMode.value).toBe('remaining')
+    expect(localStorage.getItem('account-usage-display-mode')).toBe('remaining')
+  })
+
   it('emits selection, row action and pagination events', async () => {
     const wrapper = mountTable()
 

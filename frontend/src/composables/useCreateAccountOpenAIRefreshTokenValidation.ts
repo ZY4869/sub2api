@@ -5,6 +5,7 @@ import { adminAPI } from '@/api/admin'
 import { buildModelMappingObject } from '@/composables/useModelWhitelist'
 import type { Account } from '@/types'
 import type { ModelMapping } from '@/utils/accountFormShared'
+import { getOpenAIDefaultWhitelist, shouldAutoReplaceOpenAIWhitelist } from '@/utils/openaiAccountDefaults'
 
 interface OpenAIOAuthClient {
   loading: Ref<boolean>
@@ -77,6 +78,10 @@ export function useCreateAccountOpenAIRefreshTokenValidation(
             errors.push(`#${i + 1}: ${oauthClient.error.value || 'Validation failed'}`)
             oauthClient.error.value = ''
             continue
+          }
+
+          if (shouldAutoReplaceOpenAIWhitelist(options.allowedModels.value)) {
+            options.allowedModels.value = getOpenAIDefaultWhitelist(String(tokenInfo.plan_type || ''))
           }
 
           const credentials = oauthClient.buildCredentials(tokenInfo)

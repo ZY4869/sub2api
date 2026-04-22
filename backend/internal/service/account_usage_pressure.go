@@ -8,6 +8,7 @@ const (
 )
 
 type accountUsagePressure struct {
+	scope       string
 	window      string
 	windowRank  int
 	utilization float64

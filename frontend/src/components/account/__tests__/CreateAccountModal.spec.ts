@@ -149,6 +149,13 @@ const AccountCreatePlatformSelectorStub = defineComponent({
       </button>
       <button
         type="button"
+        data-testid="select-openai"
+        @click="$emit('update:platform', 'openai')"
+      >
+        select openai
+      </button>
+      <button
+        type="button"
         data-testid="select-anthropic"
         @click="$emit('update:platform', 'anthropic')"
       >
@@ -395,6 +402,31 @@ const AccountProtocolGatewayOpenAIRequestFormatEditorStub = defineComponent({
   `
 })
 
+const AccountModelScopeEditorStub = defineComponent({
+  name: 'AccountModelScopeEditor',
+  props: {
+    allowedModels: {
+      type: Array,
+      default: () => []
+    }
+  },
+  emits: ['update:allowedModels'],
+  template: `
+    <div>
+      <span data-testid="oauth-allowed-models-prop">
+        {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
+      </span>
+      <button
+        type="button"
+        data-testid="set-openai-custom-whitelist"
+        @click="$emit('update:allowedModels', ['gpt-5.4'])"
+      >
+        set openai custom whitelist
+      </button>
+    </div>
+  `
+})
+
 const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   name: 'AccountBaiduDocumentAICredentialsEditor',
   props: {
@@ -474,7 +506,7 @@ function mountModal() {
         AccountGroupSettingsEditor: true,
         AccountKiroAuthPanel: true,
         AccountMixedChannelWarningDialog: true,
-        AccountModelScopeEditor: true,
+        AccountModelScopeEditor: AccountModelScopeEditorStub,
         AccountPoolModeEditor: true,
         AccountProtocolGatewayClaudeMimicEditor: true,
         AccountProtocolGatewayBatchEditor: true,
@@ -659,6 +691,16 @@ describe('CreateAccountModal', () => {
         }
       }
     })
+  })
+
+  it('prefills the openai login flow with the base default whitelist', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="oauth-allowed-models-prop"]').text()).toBe(
+      'gpt-5.2,gpt-5.4,gpt-5.4-mini'
+    )
   })
 
   it('persists the protocol gateway OpenAI request format selection', async () => {

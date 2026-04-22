@@ -97,6 +97,23 @@ func TestOpsServiceGetAccountAvailabilityStats_UsesDisplayRateLimitProjection(t 
 				},
 				Groups: []*Group{group},
 			},
+			{
+				ID:          4,
+				Name:        "non-pro-stale-spark",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Status:      StatusActive,
+				Schedulable: true,
+				Concurrency: 1,
+				Credentials: map[string]any{
+					"plan_type": "plus",
+				},
+				Extra: map[string]any{
+					"codex_spark_5h_used_percent": 100.0,
+					"codex_spark_5h_reset_at":     now.Add(90 * time.Minute).Format(time.RFC3339),
+				},
+				Groups: []*Group{group},
+			},
 		},
 	}
 	svc := &OpsService{accountRepo: repo}
@@ -107,14 +124,14 @@ func TestOpsServiceGetAccountAvailabilityStats_UsesDisplayRateLimitProjection(t 
 
 	openAIStats := platformStats[PlatformOpenAI]
 	require.NotNil(t, openAIStats)
-	require.EqualValues(t, 3, openAIStats.TotalAccounts)
-	require.EqualValues(t, 1, openAIStats.AvailableCount)
+	require.EqualValues(t, 4, openAIStats.TotalAccounts)
+	require.EqualValues(t, 2, openAIStats.AvailableCount)
 	require.EqualValues(t, 2, openAIStats.RateLimitCount)
 
 	groupAvailability := groupStats[group.ID]
 	require.NotNil(t, groupAvailability)
-	require.EqualValues(t, 3, groupAvailability.TotalAccounts)
-	require.EqualValues(t, 1, groupAvailability.AvailableCount)
+	require.EqualValues(t, 4, groupAvailability.TotalAccounts)
+	require.EqualValues(t, 2, groupAvailability.AvailableCount)
 	require.EqualValues(t, 2, groupAvailability.RateLimitCount)
 
 	require.True(t, accountStats[1].IsRateLimited)
@@ -124,4 +141,6 @@ func TestOpsServiceGetAccountAvailabilityStats_UsesDisplayRateLimitProjection(t 
 	require.True(t, accountStats[3].IsRateLimited)
 	require.False(t, accountStats[3].IsAvailable)
 	require.NotNil(t, accountStats[3].RateLimitResetAt)
+	require.False(t, accountStats[4].IsRateLimited)
+	require.True(t, accountStats[4].IsAvailable)
 }

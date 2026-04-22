@@ -278,25 +278,6 @@ function findRowByKey(
   return rows.find((row) => row.key === key) ?? null
 }
 
-function hasDefinedSnapshotValue(value: unknown): boolean {
-  if (value == null) return false
-  if (typeof value === 'string') return value.trim() !== ''
-  return true
-}
-
-function hasOpenAISparkSnapshot(extra: Record<string, unknown> | null | undefined): boolean {
-  if (!extra) return false
-
-  return [
-    extra.codex_spark_5h_used_percent,
-    extra.codex_spark_5h_reset_after_seconds,
-    extra.codex_spark_5h_reset_at,
-    extra.codex_spark_7d_used_percent,
-    extra.codex_spark_7d_reset_after_seconds,
-    extra.codex_spark_7d_reset_at,
-  ].some(hasDefinedSnapshotValue)
-}
-
 function isOpenAIProAccount(account: Account): boolean {
   return String(account.credentials?.plan_type || '').trim().toLowerCase() === 'pro'
 }
@@ -437,9 +418,7 @@ export function useAccountUsagePresentation(
   })
   const shouldShowOpenAISparkUsage = computed(() => {
     if (getRuntimePlatform(account.value) !== 'openai' || account.value.type !== 'oauth') return false
-    if (isOpenAIProAccount(account.value)) return true
-    if (hasOpenAISparkSnapshot(account.value.extra as Record<string, unknown> | undefined)) return true
-    return Boolean(usageInfo.value?.spark_five_hour || usageInfo.value?.spark_seven_day)
+    return isOpenAIProAccount(account.value)
   })
 
   const loadingRows = computed(() => {

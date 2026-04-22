@@ -375,13 +375,16 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 }
 
 type openAIAccountCandidateScore struct {
-	account   *Account
-	loadInfo  *AccountLoadInfo
-	pressure  *accountUsagePressure
-	score     float64
-	errorRate float64
-	ttft      float64
-	hasTTFT   bool
+	account       *Account
+	loadInfo      *AccountLoadInfo
+	pressure      *accountUsagePressure
+	pressureScope string
+	planType      string
+	planRank      int
+	score         float64
+	errorRate     float64
+	ttft          float64
+	hasTTFT       bool
 }
 
 type openAIAccountCandidateHeap []openAIAccountCandidateScore
@@ -419,6 +422,9 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 	if left.account.Priority != right.account.Priority {
 		return left.account.Priority < right.account.Priority
 	}
+	if planCmp := compareOpenAIAccountCandidatePlanRank(left, right); planCmp != 0 {
+		return planCmp < 0
+	}
 	if pressureCmp := compareResolvedAccountUsagePressure(left.pressure, right.pressure); pressureCmp != 0 {
 		return pressureCmp < 0
 	}
@@ -432,6 +438,13 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 		return left.loadInfo.WaitingCount < right.loadInfo.WaitingCount
 	}
 	return left.account.ID < right.account.ID
+}
+
+func compareOpenAIAccountCandidatePlanRank(left, right openAIAccountCandidateScore) int {
+	if strings.TrimSpace(left.planType) == "" || strings.TrimSpace(right.planType) == "" {
+		return 0
+	}
+	return compareOpenAIAccountPlanRankValues(left.planRank, right.planRank)
 }
 
 func selectTopKOpenAICandidates(candidates []openAIAccountCandidateScore, topK int) []openAIAccountCandidateScore {
@@ -532,6 +545,41 @@ func buildOpenAIWeightedSelectionOrder(
 		return append([]openAIAccountCandidateScore(nil), candidates...)
 	}
 
+	order := make([]openAIAccountCandidateScore, 0, len(candidates))
+	rng := newOpenAISelectionRNG(deriveOpenAISelectionSeed(req))
+	start := 0
+	for start < len(candidates) {
+		end := start + 1
+		for end < len(candidates) && sameOpenAIWeightedSelectionGroup(candidates[start], candidates[end]) {
+			end++
+		}
+		order = append(order, buildOpenAIWeightedSelectionGroupOrder(candidates[start:end], &rng)...)
+		start = end
+	}
+	return order
+}
+
+func sameOpenAIWeightedSelectionGroup(left, right openAIAccountCandidateScore) bool {
+	if left.account == nil || right.account == nil {
+		return false
+	}
+	if left.account.Priority != right.account.Priority {
+		return false
+	}
+	if compareOpenAIAccountCandidatePlanRank(left, right) != 0 {
+		return false
+	}
+	return compareResolvedAccountUsagePressure(left.pressure, right.pressure) == 0
+}
+
+func buildOpenAIWeightedSelectionGroupOrder(
+	candidates []openAIAccountCandidateScore,
+	rng *openAISelectionRNG,
+) []openAIAccountCandidateScore {
+	if len(candidates) <= 1 {
+		return append([]openAIAccountCandidateScore(nil), candidates...)
+	}
+
 	pool := append([]openAIAccountCandidateScore(nil), candidates...)
 	weights := make([]float64, len(pool))
 	minScore := pool[0].score
@@ -541,7 +589,6 @@ func buildOpenAIWeightedSelectionOrder(
 		}
 	}
 	for i := range pool {
-		// 将 top-K 分值平移到正区间，避免“单一最高分账号”长期垄断。
 		weight := (pool[i].score - minScore) + 1.0
 		if math.IsNaN(weight) || math.IsInf(weight, 0) || weight <= 0 {
 			weight = 1.0
@@ -550,19 +597,18 @@ func buildOpenAIWeightedSelectionOrder(
 	}
 
 	order := make([]openAIAccountCandidateScore, 0, len(pool))
-	rng := newOpenAISelectionRNG(deriveOpenAISelectionSeed(req))
 	for len(pool) > 0 {
 		total := 0.0
-		for _, w := range weights {
-			total += w
+		for _, weight := range weights {
+			total += weight
 		}
 
 		selectedIdx := 0
 		if total > 0 {
 			r := rng.nextFloat64() * total
 			acc := 0.0
-			for i, w := range weights {
-				acc += w
+			for i, weight := range weights {
+				acc += weight
 				if r <= acc {
 					selectedIdx = i
 					break
@@ -668,14 +714,21 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		loadRate := float64(loadInfo.LoadRate)
 		loadRateSum += loadRate
 		loadRateSumSquares += loadRate * loadRate
+		pressure := buildOpenAIAccountUsagePressure(account, req.RequestedModel, now)
 		candidates = append(candidates, openAIAccountCandidateScore{
-			account:   account,
-			loadInfo:  loadInfo,
-			pressure:  buildAccountUsagePressure(account, now),
-			errorRate: errorRate,
-			ttft:      ttft,
-			hasTTFT:   hasTTFT,
+			account:       account,
+			loadInfo:      loadInfo,
+			pressure:      pressure,
+			pressureScope: resolveOpenAIAccountUsagePressureScope(account, req.RequestedModel),
+			planType:      openAIAccountPlanType(account),
+			planRank:      resolveOpenAIAccountPlanRankForLog(account),
+			errorRate:     errorRate,
+			ttft:          ttft,
+			hasTTFT:       hasTTFT,
 		})
+		if pressure != nil && strings.TrimSpace(pressure.scope) != "" {
+			candidates[len(candidates)-1].pressureScope = pressure.scope
+		}
 	}
 	loadSkew := calcLoadSkewByMoments(loadRateSum, loadRateSumSquares, len(candidates))
 
@@ -803,12 +856,15 @@ func (s *defaultOpenAIAccountScheduler) logLoadBalanceSelection(
 		"account_id", candidate.account.ID,
 		"account_type", candidate.account.Type,
 		"priority", candidate.account.Priority,
+		"plan_type", candidate.planType,
+		"plan_rank", candidate.planRank,
 		"candidate_count", candidateCount,
 		"top_k", topK,
 		"load_skew", loadSkew,
 		"score", candidate.score,
 		"load_rate", candidate.loadInfo.LoadRate,
 		"waiting_count", candidate.loadInfo.WaitingCount,
+		"pressure_scope", candidate.pressureScope,
 		"pressure_window", window,
 		"pressure_utilization", utilization,
 		"pressure_reset_at", resetAt,

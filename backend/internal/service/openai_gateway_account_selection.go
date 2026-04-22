@@ -166,7 +166,7 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, accounts [
 				selected = fresh
 				continue
 			}
-			if s.isBetterAccount(fresh, selected) {
+			if s.isBetterAccount(fresh, selected, requestedModel) {
 				selected = fresh
 			}
 		}
@@ -194,8 +194,8 @@ func copyAccountIDSet(src map[int64]struct{}) map[int64]struct{} {
 	}
 	return out
 }
-func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account) bool {
-	return compareAccountsByPriorityAndLastUsed(candidate, current, false, time.Now()) < 0
+func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account, requestedModel string) bool {
+	return compareOpenAIAccountsForSelection(candidate, current, requestedModel, time.Now()) < 0
 }
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
 	cfg := s.schedulingConfig()
@@ -299,9 +299,17 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	}
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
-		ordered := append([]*Account(nil), candidates...)
-		sortAccountsByPriorityAndLastUsed(ordered, false)
-		for _, acc := range ordered {
+		remaining := append([]*Account(nil), candidates...)
+		now := time.Now()
+		for len(remaining) > 0 {
+			bestIndex := 0
+			for i := 1; i < len(remaining); i++ {
+				if compareOpenAIAccountsForSelection(remaining[i], remaining[bestIndex], requestedModel, now) < 0 {
+					bestIndex = i
+				}
+			}
+			acc := remaining[bestIndex]
+			remaining = append(remaining[:bestIndex], remaining[bestIndex+1:]...)
 			fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
 			if fresh == nil {
 				continue
@@ -333,9 +341,8 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		if len(available) > 0 {
 			now := time.Now()
 			sort.SliceStable(available, func(i, j int) bool {
-				return compareAccountsWithLoad(available[i], available[j], false, now) < 0
+				return compareOpenAIAccountsWithLoad(available[i], available[j], requestedModel, now) < 0
 			})
-			shuffleWithinSortGroups(available)
 			for _, item := range available {
 				fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, item.account, requestedModel)
 				if fresh == nil {
@@ -356,8 +363,17 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			}
 		}
 	}
-	sortAccountsByPriorityAndLastUsed(candidates, false)
-	for _, acc := range candidates {
+	remaining := append([]*Account(nil), candidates...)
+	now := time.Now()
+	for len(remaining) > 0 {
+		bestIndex := 0
+		for i := 1; i < len(remaining); i++ {
+			if compareOpenAIAccountsForSelection(remaining[i], remaining[bestIndex], requestedModel, now) < 0 {
+				bestIndex = i
+			}
+		}
+		acc := remaining[bestIndex]
+		remaining = append(remaining[:bestIndex], remaining[bestIndex+1:]...)
 		fresh := s.resolveFreshSchedulableOpenAIAccount(ctx, acc, requestedModel)
 		if fresh == nil {
 			continue
@@ -461,7 +477,12 @@ func (s *OpenAIGatewayService) logSelectedAccountUsagePressure(
 	if account == nil {
 		return
 	}
-	window, utilization, resetAt := accountUsagePressureLogValues(buildAccountUsagePressure(account, time.Now()))
+	pressure := buildOpenAIAccountUsagePressure(account, requestedModel, time.Now())
+	window, utilization, resetAt := accountUsagePressureLogValues(pressure)
+	pressureScope := resolveOpenAIAccountUsagePressureScope(account, requestedModel)
+	if pressure != nil && strings.TrimSpace(pressure.scope) != "" {
+		pressureScope = pressure.scope
+	}
 	slog.Debug(
 		"openai_account_selection_pressure",
 		"phase", phase,
@@ -471,6 +492,9 @@ func (s *OpenAIGatewayService) logSelectedAccountUsagePressure(
 		"account_id", account.ID,
 		"account_type", account.Type,
 		"priority", account.Priority,
+		"plan_type", openAIAccountPlanType(account),
+		"plan_rank", resolveOpenAIAccountPlanRankForLog(account),
+		"pressure_scope", pressureScope,
 		"pressure_window", window,
 		"pressure_utilization", utilization,
 		"pressure_reset_at", resetAt,

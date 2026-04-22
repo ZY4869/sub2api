@@ -523,19 +523,8 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 		return usage, nil
 	}
 	syncOpenAICodexRateLimitFromExtra(ctx, s.accountRepo, account, now)
-
-	if progress := buildCodexUsageProgressFromExtra(account.Extra, "5h", now); progress != nil {
-		usage.FiveHour = progress
-	}
-	if progress := buildCodexUsageProgressFromExtra(account.Extra, "7d", now); progress != nil {
-		usage.SevenDay = progress
-	}
-	if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "5h", now); progress != nil {
-		usage.SparkFiveHour = progress
-	}
-	if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "7d", now); progress != nil {
-		usage.SparkSevenDay = progress
-	}
+	isPro := isOpenAIProPlan(account)
+	applyOpenAIUsageProgressFromExtra(usage, account.Extra, now, isPro)
 
 	shouldProbe := force || shouldRefreshOpenAICodexSnapshot(account, usage, now)
 	if shouldProbe && (force || s.shouldProbeOpenAICodexSnapshot(account.ID, now)) {
@@ -551,18 +540,7 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 			if usage.UpdatedAt == nil {
 				usage.UpdatedAt = &now
 			}
-			if progress := buildCodexUsageProgressFromExtra(account.Extra, "5h", now); progress != nil {
-				usage.FiveHour = progress
-			}
-			if progress := buildCodexUsageProgressFromExtra(account.Extra, "7d", now); progress != nil {
-				usage.SevenDay = progress
-			}
-			if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "5h", now); progress != nil {
-				usage.SparkFiveHour = progress
-			}
-			if progress := buildScopedCodexUsageProgressFromExtra(account.Extra, openAICodexScopeSpark, "7d", now); progress != nil {
-				usage.SparkSevenDay = progress
-			}
+			applyOpenAIUsageProgressFromExtra(usage, account.Extra, now, isPro)
 		}
 	}
 
@@ -585,6 +563,21 @@ func (s *AccountUsageService) getOpenAIUsage(ctx context.Context, account *Accou
 	}
 
 	return usage, nil
+}
+
+func applyOpenAIUsageProgressFromExtra(usage *UsageInfo, extra map[string]any, now time.Time, includeSpark bool) {
+	if usage == nil {
+		return
+	}
+	usage.FiveHour = buildCodexUsageProgressFromExtra(extra, "5h", now)
+	usage.SevenDay = buildCodexUsageProgressFromExtra(extra, "7d", now)
+	usage.SparkFiveHour = nil
+	usage.SparkSevenDay = nil
+	if !includeSpark {
+		return
+	}
+	usage.SparkFiveHour = buildScopedCodexUsageProgressFromExtra(extra, openAICodexScopeSpark, "5h", now)
+	usage.SparkSevenDay = buildScopedCodexUsageProgressFromExtra(extra, openAICodexScopeSpark, "7d", now)
 }
 
 func shouldRefreshOpenAICodexSnapshot(account *Account, usage *UsageInfo, now time.Time) bool {

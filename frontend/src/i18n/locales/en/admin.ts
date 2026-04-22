@@ -3043,6 +3043,11 @@ export default {
         passiveSampled: 'This view is based on passive sampling snapshots and may lag behind real-time usage briefly.',
         sampledBadge: 'Sampled',
         activeQuery: 'This view reflects an active live query.',
+        displayMode: {
+          used: 'Used',
+          remaining: 'Left',
+          toggle: 'Toggle usage bar display mode'
+        },
         notProbed: 'Not probed',
         customMapping: 'Custom mapping(*)'
       },

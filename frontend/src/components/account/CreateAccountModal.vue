@@ -669,6 +669,7 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
+import { getOpenAIDefaultWhitelist } from '@/utils/openaiAccountDefaults'
 import {
   DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT,
   applyProtocolGatewayOpenAIRequestFormatExtra,
@@ -1173,6 +1174,10 @@ const resetProtocolGatewayClaudeMimicState = () => {
   claudeSessionIDMaskingEnabled.value = false
 }
 
+const applyOpenAIBaseDefaultWhitelist = () => {
+  allowedModels.value = getOpenAIDefaultWhitelist()
+}
+
 // Watchers
 watch(
   () => props.show,
@@ -1183,7 +1188,11 @@ watch(
         modelRestrictionMode.value = 'mapping'
       }
       modelRestrictionEnabled.value = false
-      allowedModels.value = []
+      if (form.platform === 'openai') {
+        applyOpenAIBaseDefaultWhitelist()
+      } else {
+        allowedModels.value = []
+      }
       protocolGatewayProbeModels.value = []
       manualModels.value = []
       resolvedUpstream.value = null
@@ -1248,7 +1257,7 @@ watch(
     apiKeyBaseUrl.value = resolveAccountApiKeyDefaultBaseUrl(newPlatform, gatewayProtocol.value)
     actualModelLocked.value = true
     modelRestrictionEnabled.value = false
-    allowedModels.value = []
+    allowedModels.value = newPlatform === 'openai' ? getOpenAIDefaultWhitelist() : []
     manualModels.value = []
     resolvedUpstream.value = null
     oauthDraftCredentials.value = {}

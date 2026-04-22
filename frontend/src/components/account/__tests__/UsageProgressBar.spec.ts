@@ -145,4 +145,32 @@ describe("UsageProgressBar", () => {
     expect(wrapper.text()).toContain("0%");
     expect(wrapper.text()).not.toContain("Remaining");
   });
+
+  it("keeps the default used mode width unchanged", () => {
+    const wrapper = mount(UsageProgressBar, {
+      props: {
+        label: "5h",
+        utilization: 32,
+        color: "indigo",
+        displayMode: "used",
+      },
+    });
+
+    expect(wrapper.get('[data-testid="usage-progress-fill"]').attributes("style")).toContain("width: 32%;");
+    expect(wrapper.text()).toContain("32%");
+  });
+
+  it("reverses only the bar width in remaining mode", () => {
+    const wrapper = mount(UsageProgressBar, {
+      props: {
+        label: "7d",
+        utilization: 32,
+        color: "emerald",
+        displayMode: "remaining",
+      },
+    });
+
+    expect(wrapper.get('[data-testid="usage-progress-fill"]').attributes("style")).toContain("width: 68%;");
+    expect(wrapper.text()).toContain("32%");
+  });
 });
