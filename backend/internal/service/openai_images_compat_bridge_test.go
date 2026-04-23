@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 func TestForwardCompatImages_StreamGenerationBridgesResponsesSSE(t *testing.T) {
@@ -55,6 +56,9 @@ func TestForwardCompatImages_StreamGenerationBridgesResponsesSSE(t *testing.T) {
 	require.Contains(t, rec.Body.String(), `"total_tokens":100`)
 	require.Equal(t, 1, result.ImageCount)
 	require.Equal(t, OpenAIImageSizeTier1K, result.ImageSize)
+	require.Equal(t, OpenAICompatImageHostModel, strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "model").String()))
+	require.Equal(t, "image_generation", strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "tools.0.type").String()))
+	require.Equal(t, OpenAICompatImageTargetModel, strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "tools.0.model").String()))
 }
 
 func TestForwardCompatImages_StreamEditBridgesResponsesSSE(t *testing.T) {
@@ -97,6 +101,9 @@ func TestForwardCompatImages_StreamEditBridgesResponsesSSE(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "event: image_edit.completed")
 	require.Contains(t, rec.Body.String(), `"b64_json":"ZWQtZmluYWw="`)
 	require.Equal(t, 1, result.ImageCount)
+	require.Equal(t, OpenAICompatImageHostModel, strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "model").String()))
+	require.Equal(t, "image_generation", strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "tools.0.type").String()))
+	require.Equal(t, OpenAICompatImageTargetModel, strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "tools.0.model").String()))
 }
 
 func ioNopCloserString(value string) *readCloserString {

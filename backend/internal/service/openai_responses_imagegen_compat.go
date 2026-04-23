@@ -23,9 +23,10 @@ import (
 const (
 	openAIResponsesImagegenPrefix = "$imagegen "
 
-	OpenAIResponsesImagegenCompatSourceJSONShorthand = "json_shorthand"
-	OpenAIResponsesImagegenCompatSourceStructured    = "structured_json"
-	OpenAIResponsesImagegenCompatSourceMultipart     = "multipart"
+	OpenAIResponsesImagegenCompatSourceJSONShorthand  = "json_shorthand"
+	OpenAIResponsesImagegenCompatSourceModelShorthand = "model_shorthand"
+	OpenAIResponsesImagegenCompatSourceStructured     = "structured_json"
+	OpenAIResponsesImagegenCompatSourceMultipart      = "multipart"
 
 	openAIResponsesReferenceImageUploadLimitBytes      = 20 * 1024 * 1024
 	openAIResponsesReferenceImageUploadTotalLimitBytes = 40 * 1024 * 1024
@@ -163,6 +164,7 @@ func NormalizeOpenAIResponsesImageGenCompat(body []byte, contentType string) (*O
 }
 
 func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAIResponsesCompatResult, *OpenAIResponsesCompatError) {
+	isModelShorthand := isOpenAIResponsesImagegenModelShorthand(reqBody)
 	imageGeneration, hasImageGeneration, compatErr := parseResponsesCompatImageGenerationField(reqBody)
 	if compatErr != nil {
 		return nil, compatErr
@@ -176,11 +178,17 @@ func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAI
 		return nil, compatErr
 	}
 	hasCompatFields := hasImageGeneration || hasReferenceImages || hasMaskImage
-	if hasExplicitResponsesCompatTools(reqBody) && hasCompatFields {
+	hasToolsField := hasExplicitResponsesCompatTools(reqBody)
+	if hasToolsField && hasCompatFields && !isModelShorthand {
 		return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_conflict", "explicit tools cannot be combined with image_generation, reference_images, or mask fields")
 	}
-	if hasExplicitResponsesCompatTools(reqBody) {
+	if hasToolsField && !isModelShorthand {
 		return nil, nil
+	}
+	if isModelShorthand {
+		if compatErr := validateOpenAIResponsesImagegenModelShorthandToolChoice(reqBody); compatErr != nil {
+			return nil, compatErr
+		}
 	}
 	if hasMaskImage {
 		if imageGeneration == nil {
@@ -193,6 +201,9 @@ func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAI
 
 	inputValue, hasInput := reqBody["input"]
 	if !hasInput {
+		if isModelShorthand {
+			return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "input is required")
+		}
 		if hasCompatFields {
 			return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_requires_prefix", "image_generation, reference_images, or mask fields require an input starting with $imagegen ")
 		}
@@ -203,17 +214,50 @@ func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAI
 	source := ""
 	switch input := inputValue.(type) {
 	case string:
-		if strings.HasPrefix(input, openAIResponsesImagegenPrefix) {
-			reqBody["input"] = buildResponsesCompatInputMessage(strings.TrimPrefix(input, openAIResponsesImagegenPrefix), referenceImages)
+		prompt := input
+		if strings.HasPrefix(prompt, openAIResponsesImagegenPrefix) {
+			prompt = strings.TrimPrefix(prompt, openAIResponsesImagegenPrefix)
+			reqBody["input"] = buildResponsesCompatInputMessage(prompt, referenceImages)
 			triggered = true
-			source = OpenAIResponsesImagegenCompatSourceJSONShorthand
+			if isModelShorthand {
+				source = OpenAIResponsesImagegenCompatSourceModelShorthand
+			} else {
+				source = OpenAIResponsesImagegenCompatSourceJSONShorthand
+			}
+			break
+		}
+		if isModelShorthand {
+			if len(referenceImages) > 0 {
+				reqBody["input"] = buildResponsesCompatInputMessage(prompt, referenceImages)
+			}
+			triggered = true
+			source = OpenAIResponsesImagegenCompatSourceModelShorthand
 		}
 	case []any:
 		nextInput, changed := rewriteResponsesCompatInputItems(input, referenceImages)
 		if changed {
 			reqBody["input"] = nextInput
 			triggered = true
-			source = OpenAIResponsesImagegenCompatSourceStructured
+			if isModelShorthand {
+				source = OpenAIResponsesImagegenCompatSourceModelShorthand
+			} else {
+				source = OpenAIResponsesImagegenCompatSourceStructured
+			}
+			break
+		}
+		if isModelShorthand {
+			if len(referenceImages) > 0 {
+				nextInput, changed = appendResponsesCompatReferenceImagesToInputItems(input, referenceImages)
+				if changed {
+					reqBody["input"] = nextInput
+				}
+			}
+			triggered = true
+			source = OpenAIResponsesImagegenCompatSourceModelShorthand
+		}
+	default:
+		if isModelShorthand {
+			return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "input must be a string or array")
 		}
 	}
 
@@ -224,7 +268,54 @@ func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAI
 		return nil, nil
 	}
 
-	reqBody["tools"] = []any{buildResponsesCompatImageGenerationTool(imageGeneration)}
+	targetModel := ""
+	if isModelShorthand {
+		targetModel = OpenAICompatImageTargetModel
+	}
+	imageTool := buildResponsesCompatImageGenerationTool(imageGeneration)
+	if targetModel != "" {
+		imageTool["model"] = targetModel
+	}
+
+	if hasToolsField {
+		tools, ok := reqBody["tools"].([]any)
+		if !ok {
+			return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "tools must be an array")
+		}
+		found := false
+		for idx, rawTool := range tools {
+			toolMap, ok := rawTool.(map[string]any)
+			if !ok || strings.TrimSpace(scalarString(toolMap["type"])) != "image_generation" {
+				continue
+			}
+			found = true
+			if targetModel != "" {
+				existingToolModel := scalarString(toolMap["model"])
+				if existingToolModel != "" && !strings.EqualFold(existingToolModel, targetModel) {
+					return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_tool_model_conflict", "image_generation tool model must match request model")
+				}
+				if existingToolModel == "" {
+					toolMap["model"] = targetModel
+				}
+			}
+			for _, key := range openAIResponsesImagegenToolOptionKeys {
+				if _, exists := toolMap[key]; exists {
+					continue
+				}
+				if value, exists := imageGeneration[key]; exists && value != nil {
+					toolMap[key] = value
+				}
+			}
+			tools[idx] = toolMap
+			break
+		}
+		if !found {
+			tools = append(tools, imageTool)
+		}
+		reqBody["tools"] = tools
+	} else {
+		reqBody["tools"] = []any{imageTool}
+	}
 	reqBody["tool_choice"] = map[string]any{"type": "image_generation"}
 	delete(reqBody, "image_generation")
 	delete(reqBody, "reference_images")
@@ -877,6 +968,76 @@ func guessOpenAIResponsesCompatJSONSource(reqBody map[string]any) string {
 	default:
 		return OpenAIResponsesImagegenCompatSourceJSONShorthand
 	}
+}
+
+func isOpenAIResponsesImagegenModelShorthand(reqBody map[string]any) bool {
+	if reqBody == nil {
+		return false
+	}
+	return strings.EqualFold(scalarString(reqBody["model"]), OpenAICompatImageTargetModel)
+}
+
+func validateOpenAIResponsesImagegenModelShorthandToolChoice(reqBody map[string]any) *OpenAIResponsesCompatError {
+	if reqBody == nil {
+		return nil
+	}
+	raw, exists := reqBody["tool_choice"]
+	if !exists || raw == nil {
+		return nil
+	}
+	switch typed := raw.(type) {
+	case string:
+		choice := strings.TrimSpace(typed)
+		if choice == "" || strings.EqualFold(choice, "image_generation") {
+			return nil
+		}
+	case map[string]any:
+		if len(typed) == 0 || strings.EqualFold(scalarString(typed["type"]), "image_generation") {
+			return nil
+		}
+	default:
+	}
+	return newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_tool_choice_conflict", "tool_choice must be image_generation when model is gpt-image-2")
+}
+
+func appendResponsesCompatReferenceImagesToInputItems(items []any, referenceImages []string) ([]any, bool) {
+	if len(referenceImages) == 0 {
+		return items, false
+	}
+	for index, item := range items {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		itemType := strings.TrimSpace(scalarString(itemMap["type"]))
+		role := strings.TrimSpace(scalarString(itemMap["role"]))
+		if role != "user" && !(itemType == "message" && role == "user") {
+			continue
+		}
+		content, ok := itemMap["content"].([]any)
+		if !ok {
+			continue
+		}
+		nextContent := append([]any(nil), content...)
+		for _, imageURL := range referenceImages {
+			nextContent = append(nextContent, map[string]any{
+				"type":      "input_image",
+				"image_url": imageURL,
+			})
+		}
+		itemMap["content"] = nextContent
+		nextItems := append([]any(nil), items...)
+		nextItems[index] = itemMap
+		return nextItems, true
+	}
+	nextItems := append([]any(nil), items...)
+	for _, imageURL := range referenceImages {
+		nextItems = append(nextItems, map[string]any{
+			"type":      "input_image",
+			"image_url": imageURL,
+		})
+	}
+	return nextItems, true
 }
 
 func countOpenAIResponsesCompatReferenceImageCandidates(reqBody map[string]any) int {

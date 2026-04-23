@@ -18,6 +18,7 @@ const (
 	gatewayOpenAIImageProtocolModeExtraKey = "gateway_openai_image_protocol_mode"
 
 	OpenAICompatImageTargetModel = "gpt-image-2"
+	OpenAICompatImageHostModel   = "gpt-5.4-mini"
 )
 
 var recognizedOpenAIPaidPlans = map[string]struct{}{

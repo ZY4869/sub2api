@@ -53,6 +53,102 @@ func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthand(t *testing.T) {
 	require.Equal(t, "data:image/png;base64,AAAA", content[2]["image_url"])
 }
 
+func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandInjectsTool(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-image-2",
+		"input": "a poster",
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Metadata.Enabled)
+	require.Equal(t, OpenAIResponsesImagegenCompatSourceModelShorthand, result.Metadata.Source)
+
+	tool := firstCompatTool(t, result.ParsedBody)
+	require.Equal(t, "image_generation", tool["type"])
+	require.Equal(t, OpenAICompatImageTargetModel, tool["model"])
+	require.Equal(t, map[string]any{"type": "image_generation"}, result.ParsedBody["tool_choice"])
+	require.Equal(t, "a poster", result.ParsedBody["input"])
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandAcceptsCompatFieldsWithoutPrefix(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-image-2",
+		"input": "a poster",
+		"image_generation": map[string]any{
+			"size": "1536x1024",
+		},
+		"reference_images": []any{
+			map[string]any{"image_url": "https://example.com/reference.png"},
+		},
+		"mask": map[string]any{
+			"image_url": "data:image/png;base64,AAAA",
+		},
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Metadata.Enabled)
+	require.Equal(t, OpenAIResponsesImagegenCompatSourceModelShorthand, result.Metadata.Source)
+	require.Equal(t, 1, result.Metadata.ReferenceImageCount)
+	require.Equal(t, "1536x1024", result.Metadata.ImageGenerationSize)
+
+	tool := firstCompatTool(t, result.ParsedBody)
+	require.Equal(t, "image_generation", tool["type"])
+	require.Equal(t, OpenAICompatImageTargetModel, tool["model"])
+	require.Equal(t, "1536x1024", tool["size"])
+	require.Equal(t, "data:image/png;base64,AAAA", tool["input_image_mask"])
+
+	content := firstCompatMessageContent(t, result.ParsedBody)
+	require.Len(t, content, 2)
+	require.Equal(t, "a poster", content[0]["text"])
+	require.Equal(t, "https://example.com/reference.png", content[1]["image_url"])
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandRejectsToolChoiceConflict(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model":       "gpt-image-2",
+		"input":       "a poster",
+		"tool_choice": "auto",
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.Nil(t, result)
+	var compatErr *OpenAIResponsesCompatError
+	require.ErrorAs(t, err, &compatErr)
+	require.Equal(t, "imagegen_compat_tool_choice_conflict", compatErr.Code)
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandAddsImageToolWhenOtherToolsPresent(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-image-2",
+		"input": "a poster",
+		"tools": []any{
+			map[string]any{"type": "function", "name": "lookup"},
+		},
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Metadata.Enabled)
+	require.Equal(t, OpenAIResponsesImagegenCompatSourceModelShorthand, result.Metadata.Source)
+
+	tool := findCompatToolByType(t, result.ParsedBody, "image_generation")
+	require.Equal(t, OpenAICompatImageTargetModel, tool["model"])
+	require.Equal(t, map[string]any{"type": "image_generation"}, result.ParsedBody["tool_choice"])
+}
+
 func TestNormalizeOpenAIResponsesImageGenCompat_StructuredInputText(t *testing.T) {
 	t.Parallel()
 
@@ -569,6 +665,25 @@ func firstCompatTool(t *testing.T, parsedBody map[string]any) map[string]any {
 	tool, ok := rawTools[0].(map[string]any)
 	require.True(t, ok)
 	return tool
+}
+
+func findCompatToolByType(t *testing.T, parsedBody map[string]any, toolType string) map[string]any {
+	t.Helper()
+
+	rawTools, ok := parsedBody["tools"].([]any)
+	require.True(t, ok)
+	require.NotEmpty(t, rawTools)
+
+	for _, rawTool := range rawTools {
+		tool, ok := rawTool.(map[string]any)
+		require.True(t, ok)
+		if strings.TrimSpace(fmt.Sprint(tool["type"])) == toolType {
+			return tool
+		}
+	}
+
+	t.Fatalf("missing tool type %q", toolType)
+	return nil
 }
 
 func firstCompatMessageContent(t *testing.T, parsedBody map[string]any) []map[string]any {

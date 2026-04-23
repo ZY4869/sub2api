@@ -34,6 +34,13 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	if routingModel == "" {
 		routingModel = reqModel
 	}
+	forceImageHostRouting := false
+	if strings.EqualFold(strings.TrimSpace(originalModel), OpenAICompatImageTargetModel) {
+		if _, hasImageTool := DetectOpenAIResponsesImageGenerationToolModel(body); hasImageTool {
+			routingModel = OpenAICompatImageHostModel
+			forceImageHostRouting = true
+		}
+	}
 	isCodexCLI := openai.IsCodexOfficialClientByHeaders(c.GetHeader("User-Agent"), c.GetHeader("originator")) || (s.cfg != nil && s.cfg.Gateway.ForceCodexCLI)
 	simulatedClient := ""
 	resolveSimulatedClient := func(model string) string {
@@ -89,6 +96,9 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if routingModel == "" {
 			routingModel = reqModel
 		}
+	}
+	if forceImageHostRouting {
+		routingModel = OpenAICompatImageHostModel
 	}
 	if v, ok := reqBody["stream"].(bool); ok {
 		reqStream = v

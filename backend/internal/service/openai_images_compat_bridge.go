@@ -51,7 +51,7 @@ func (s *OpenAIGatewayService) ForwardCompatImages(
 	}
 	SetOpenAIImageNormalizedTracePayload(c, "openai_compat_images_normalized_request", normalizedRequest, capabilityProfile.ID)
 
-	responsesBody, err := BuildOpenAIImageCompatResponsesBody(normalizedRequest, OpenAICompatImageTargetModel, normalizedRequest.TargetModelID)
+	responsesBody, err := BuildOpenAIImageCompatResponsesBody(normalizedRequest, OpenAICompatImageHostModel, normalizedRequest.TargetModelID)
 	if err != nil {
 		return nil, err
 	}
