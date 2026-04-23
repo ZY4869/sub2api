@@ -1009,9 +1009,8 @@ func appendResponsesCompatReferenceImagesToInputItems(items []any, referenceImag
 		if !ok {
 			continue
 		}
-		itemType := strings.TrimSpace(scalarString(itemMap["type"]))
 		role := strings.TrimSpace(scalarString(itemMap["role"]))
-		if role != "user" && !(itemType == "message" && role == "user") {
+		if role != "user" {
 			continue
 		}
 		content, ok := itemMap["content"].([]any)
