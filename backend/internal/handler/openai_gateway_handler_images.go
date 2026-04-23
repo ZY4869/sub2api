@@ -219,7 +219,8 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 				}
 				return
 			}
-			if !h.ensureForwardErrorResponse(c, false) {
+			wroteFallback := h.ensureForwardErrorResponse(c, false)
+			if !wroteFallback && !c.Writer.Written() {
 				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 			}
 			return

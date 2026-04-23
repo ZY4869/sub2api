@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -54,6 +53,12 @@ func (s *OpenAIGatewayService) ForwardCompatImages(
 	responsesBody, err := BuildOpenAIImageCompatResponsesBody(normalizedRequest, OpenAICompatImageHostModel, normalizedRequest.TargetModelID)
 	if err != nil {
 		return nil, err
+	}
+	if isChatGPTOpenAIOAuthAccount(account) {
+		responsesBody, err = applyCodexOAuthTransformToJSON(responsesBody, false, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	setOpsUpstreamRequestBody(c, responsesBody)
 	if normalizedRequest.Stream {
@@ -123,7 +128,7 @@ func (s *OpenAIGatewayService) ForwardCompatImages(
 }
 
 func finalizeOpenAICompatImageResponseBody(body []byte, contentType string) ([]byte, OpenAIUsage, error) {
-	if isEventStreamResponse(http.Header{"Content-Type": []string{contentType}}) || bytes.Contains(body, []byte("data:")) {
+	if isEventStreamResponse(http.Header{"Content-Type": []string{contentType}}) || looksLikeEventStreamBody(body) {
 		bodyText := string(body)
 		finalResponse, ok := extractCodexFinalResponse(bodyText)
 		if !ok {

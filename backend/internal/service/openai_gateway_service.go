@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -186,12 +187,24 @@ func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, re
 }
 
 func (s *OpenAIGatewayService) replaceModelInResponseBody(body []byte, fromModel, toModel string) []byte {
-	if m := gjson.GetBytes(body, "model"); m.Exists() && m.Str == fromModel {
-		newBody, err := sjson.SetBytes(body, "model", toModel)
-		if err != nil {
-			return body
+	m := gjson.GetBytes(body, "model")
+	if !m.Exists() {
+		return body
+	}
+
+	shouldReplace := m.Str == fromModel
+	if !shouldReplace {
+		// Compat 图片 host 模型可能返回带版本后缀的 model，例如：
+		// "gpt-5.4-mini-2026-03-17"。对 `gpt-image-2` 简写路由场景，
+		// 需要把对外的 model 固定回 `gpt-image-2`。
+		shouldReplace = fromModel == OpenAICompatImageHostModel &&
+			toModel == OpenAICompatImageTargetModel &&
+			strings.HasPrefix(m.Str, fromModel+"-")
+	}
+	if shouldReplace {
+		if newBody, err := sjson.SetBytes(body, "model", toModel); err == nil {
+			return newBody
 		}
-		return newBody
 	}
 	return body
 }

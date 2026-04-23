@@ -12,6 +12,54 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+func TestForwardCompatImages_OAuthCodexTransformInjectsInstructions(t *testing.T) {
+	t.Parallel()
+	gin.SetMode(gin.TestMode)
+
+	upstream := &httpUpstreamRecorder{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": []string{"application/json"},
+				"x-request-id": []string{"req-image-oauth"},
+			},
+			Body: ioNopCloserString(`{"id":"resp_1","status":"completed","model":"gpt-5.4-mini","output":[{"type":"message","role":"assistant","content":[{"type":"output_image","image_url":"data:image/png;base64,ZmLuYWw="}]}],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}`),
+		},
+	}
+	svc := &OpenAIGatewayService{httpUpstream: upstream, toolCorrector: NewCodexToolCorrector()}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	body := []byte(`{"model":"gpt-image-2","prompt":"A poster","size":"1024x1024"}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req.WithContext(EnsureRequestMetadata(req.Context()))
+
+	result, err := svc.ForwardCompatImages(c.Request.Context(), c, &Account{
+		ID:          13,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Credentials: map[string]any{"access_token": "oauth-test"},
+	}, body, "application/json", "generation", "gpt-image-2")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Equal(t, OpenAICompatImageHostModel, strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "model").String()))
+	streamValue := gjson.GetBytes(upstream.lastBody, "stream")
+	require.True(t, streamValue.Exists())
+	require.True(t, streamValue.Bool())
+
+	storeValue := gjson.GetBytes(upstream.lastBody, "store")
+	require.True(t, storeValue.Exists())
+	require.False(t, storeValue.Bool())
+
+	instructionsValue := gjson.GetBytes(upstream.lastBody, "instructions")
+	require.True(t, instructionsValue.Exists())
+	require.Equal(t, "You are a helpful coding assistant.", instructionsValue.String())
+	require.Equal(t, "image_generation", strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "tools.0.type").String()))
+	require.Equal(t, OpenAICompatImageTargetModel, strings.TrimSpace(gjson.GetBytes(upstream.lastBody, "tools.0.model").String()))
+}
+
 func TestForwardCompatImages_StreamGenerationBridgesResponsesSSE(t *testing.T) {
 	t.Parallel()
 	gin.SetMode(gin.TestMode)

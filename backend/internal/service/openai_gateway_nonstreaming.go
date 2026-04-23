@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -181,7 +180,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 	}
 	SetOpsTraceUpstreamResponse(c, "openai_upstream_response", body, resp.Header.Get("Content-Type"), false)
 	if account.Type == AccountTypeOAuth {
-		bodyLooksLikeSSE := bytes.Contains(body, []byte("data:")) || bytes.Contains(body, []byte("event:"))
+		bodyLooksLikeSSE := looksLikeEventStreamBody(body)
 		if isEventStreamResponse(resp.Header) || bodyLooksLikeSSE {
 			return s.handleOAuthSSEToJSON(resp, c, body, originalModel, mappedModel)
 		}
