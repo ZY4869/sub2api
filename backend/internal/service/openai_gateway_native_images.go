@@ -81,6 +81,9 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 	if err != nil {
 		return nil, fmt.Errorf("build native image request: %w", err)
 	}
+	if normalizedRequest.Stream {
+		upstreamReq.Header.Set("accept", "text/event-stream")
+	}
 
 	proxyURL := ""
 	if account.Proxy != nil {
@@ -130,6 +133,19 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 			}
 		}
 		return s.handleNativeImagesErrorResponse(resp, c, account)
+	}
+
+	if normalizedRequest.Stream {
+		return s.forwardNativeImagesStream(
+			ctx,
+			resp,
+			c,
+			account,
+			startTime,
+			originalModel,
+			mappedModel,
+			firstNonEmptyString(strings.TrimSpace(normalizedRequest.Size), strings.TrimSpace(imageSize)),
+		)
 	}
 
 	result, err := s.handleNativeImagesNonStreamingResponse(resp, c, originalModel, mappedModel, imageSize)

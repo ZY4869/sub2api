@@ -26,7 +26,7 @@ vi.mock('@/composables/useClipboard', () => ({
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, string> = {
-    'admin.accounts.geminiImagePromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
+    'admin.accounts.imageTestPromptDefault': 'Generate a cute orange cat astronaut sticker on a clean pastel background.',
     'admin.accounts.testModelAvailability.verified': 'verified',
     'admin.accounts.testModelAvailability.unavailable': 'unavailable',
     'admin.accounts.testModelAvailability.unknown': 'unknown',
@@ -41,7 +41,7 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.testModelTargetRelation' && params?.target) {
           return `-> ${params.target}`
         }
-        if (key === 'admin.accounts.geminiImageReceived' && params?.count) {
+        if (key === 'admin.accounts.imageTestReceived' && params?.count) {
           return `received-${params.count}`
         }
         if (key === 'admin.models.registry.replacedByHint' && params?.model) {
@@ -181,7 +181,88 @@ describe('AccountTestModal', () => {
       prompt: 'draw a tiny orange cat astronaut'
     })
 
-    const preview = wrapper.find('img[alt="gemini-test-image-1"]')
+    const preview = wrapper.find('img[alt="account-test-image-1"]')
+    expect(preview.exists()).toBe(true)
+    expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('openai gpt-image-2 图片模型测试会携带提示词并渲染图片预览', async () => {
+    getAvailableModels.mockResolvedValueOnce([
+      { id: 'gpt-image-2', display_name: 'GPT Image 2', mode: 'image' }
+    ])
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"gpt-image-2"}\n',
+        'data: {"type":"image","image_url":"data:image/png;base64,QUJD","mime_type":"image/png"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 99,
+          name: 'OpenAI Image Test',
+          platform: 'openai',
+          type: 'oauth',
+          status: 'active',
+          extra: {}
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div class="select-stub">
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" class="select-option-stub">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template:
+              '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('draw a tiny orange cat astronaut')
+
+    const buttons = wrapper.findAll('button')
+    const startButton = buttons.find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model: 'gpt-image-2',
+      model_id: 'gpt-image-2',
+      target_model_id: 'gpt-image-2',
+      test_mode: 'real_forward',
+      prompt: 'draw a tiny orange cat astronaut'
+    })
+
+    const preview = wrapper.find('img[alt="account-test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
   })

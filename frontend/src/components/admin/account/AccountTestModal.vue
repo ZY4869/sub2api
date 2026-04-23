@@ -131,12 +131,12 @@
         {{ t(grokTestHintKey) }}
       </div>
 
-      <div v-if="supportsGeminiImageTest" class="space-y-1.5">
+      <div v-if="supportsImageTest" class="space-y-1.5">
         <TextArea
           v-model="testPrompt"
-          :label="t('admin.accounts.geminiImagePromptLabel')"
-          :placeholder="t('admin.accounts.geminiImagePromptPlaceholder')"
-          :hint="t('admin.accounts.geminiImageTestHint')"
+          :label="t('admin.accounts.imageTestPromptLabel')"
+          :placeholder="t('admin.accounts.imageTestPromptPlaceholder')"
+          :hint="t('admin.accounts.imageTestHint')"
           :disabled="status === 'connecting'"
           rows="3"
         />
@@ -198,7 +198,7 @@
 
       <div v-if="generatedImages.length > 0" class="space-y-2">
         <div class="text-xs font-medium text-gray-600 dark:text-gray-300">
-          {{ t('admin.accounts.geminiImagePreview') }}
+          {{ t('admin.accounts.imageTestPreview') }}
         </div>
         <div class="grid gap-3 sm:grid-cols-2">
           <a
@@ -209,7 +209,7 @@
             rel="noopener noreferrer"
             class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-primary-300 hover:shadow-md dark:border-dark-500 dark:bg-dark-700"
           >
-            <img :src="image.url" :alt="`gemini-test-image-${index + 1}`" class="h-48 w-full object-cover" />
+            <img :src="image.url" :alt="`account-test-image-${index + 1}`" class="h-48 w-full object-cover" />
             <div class="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-dark-500 dark:text-gray-300">
               {{ image.mimeType || 'image/*' }}
             </div>
@@ -269,8 +269,8 @@
         <span class="flex items-center gap-1">
           <Icon name="chat" size="sm" :stroke-width="2" />
           {{
-            supportsGeminiImageTest
-              ? t('admin.accounts.geminiImageTestMode')
+            supportsImageTest
+              ? t('admin.accounts.imageTestMode')
               : t('admin.accounts.testPrompt')
           }}
         </span>
@@ -475,11 +475,27 @@ const testModeOptions = computed(() =>
 const effectiveTestPlatform = computed(() =>
   effectiveSelectedSourceProtocol.value || runtimePlatform.value
 )
-const supportsGeminiImageTest = computed(() => {
-  const modelID = effectiveSelectedModelId.value.toLowerCase()
-  if (!modelID.startsWith('gemini-') || !modelID.includes('-image')) return false
+const supportsImageTest = computed(() => {
+  if (isGrokAccount.value || isBaiduDocumentAIAccount.value) {
+    return false
+  }
 
-  return effectiveTestPlatform.value === 'gemini' || (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+  const optionMode = String(selectedModelOption.value?.mode || '').trim()
+  const modelID = effectiveSelectedModelId.value.trim().toLowerCase()
+  const inferredByID =
+    modelID === 'chatgpt-image-latest' ||
+    modelID.startsWith('gpt-image-') ||
+    (modelID.startsWith('gemini-') && modelID.includes('-image'))
+  const isImageModel = optionMode === 'image' || (optionMode === '' && inferredByID)
+  if (!isImageModel) {
+    return false
+  }
+
+  return (
+    effectiveTestPlatform.value === 'openai' ||
+    effectiveTestPlatform.value === 'gemini' ||
+    (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
+  )
 })
 const runtimeContextItems = computed(() => {
   const items: Array<{ key: string; label: string }> = []
@@ -658,8 +674,8 @@ watch(
 )
 
 watch([effectiveSelectedModelId, effectiveTestPlatform], () => {
-  if (supportsGeminiImageTest.value && !testPrompt.value.trim()) {
-    testPrompt.value = t('admin.accounts.geminiImagePromptDefault')
+  if (supportsImageTest.value && !testPrompt.value.trim()) {
+    testPrompt.value = t('admin.accounts.imageTestPromptDefault')
   }
 })
 
@@ -771,7 +787,7 @@ const resolveTestRequestBody = () => {
       request_alias: manualRequestAlias.value.trim() || undefined,
       test_mode: effectiveTestMode.value,
       source_protocol: effectiveSelectedSourceProtocol.value || undefined,
-      prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
+      prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
     }
   }
   const catalogTarget = resolveCatalogTargetFromModel(selectedModelOption.value)
@@ -791,7 +807,7 @@ const resolveTestRequestBody = () => {
     source_protocol: catalogTarget.sourceProtocol || effectiveSelectedSourceProtocol.value || undefined,
     target_provider: catalogTarget.targetProvider,
     target_model_id: catalogTarget.targetModelId,
-    prompt: supportsGeminiImageTest.value ? testPrompt.value.trim() : ''
+    prompt: supportsImageTest.value ? testPrompt.value.trim() : ''
   }
 }
 
@@ -976,8 +992,8 @@ const handleEvent = (event: {
         addLine(t('admin.accounts.usingModel', { model: event.model }), 'text-cyan-400')
       }
       addLine(
-        supportsGeminiImageTest.value
-          ? t('admin.accounts.sendingGeminiImageRequest')
+        supportsImageTest.value
+          ? t('admin.accounts.sendingImageTestRequest')
           : t('admin.accounts.sendingTestMessage'),
         'text-gray-400'
       )
@@ -1034,7 +1050,7 @@ const handleEvent = (event: {
           url: event.image_url,
           mimeType: event.mime_type
         })
-        addLine(t('admin.accounts.geminiImageReceived', { count: generatedImages.value.length }), 'text-purple-300')
+        addLine(t('admin.accounts.imageTestReceived', { count: generatedImages.value.length }), 'text-purple-300')
       }
       break
 

@@ -50,6 +50,35 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 	}
 	usage := &OpenAIUsage{}
 	var firstTokenMs *int
+	shouldCountImageOutputs := false
+	if surface, ok := ImageRequestSurfaceMetadataFromContext(ctx); ok && surface == "responses_tool" {
+		shouldCountImageOutputs = true
+	}
+	seenOutputIndex := map[int64]struct{}{}
+	fallbackImageCount := 0
+	if shouldCountImageOutputs {
+		seenOutputIndex = make(map[int64]struct{}, 4)
+	}
+	finalizeImageOutputCount := func() {
+		if !shouldCountImageOutputs {
+			return
+		}
+		outputCount := len(seenOutputIndex)
+		if outputCount == 0 {
+			outputCount = fallbackImageCount
+		}
+		if outputCount <= 0 {
+			return
+		}
+		if c != nil && c.Request != nil {
+			mdCtx := EnsureRequestMetadata(c.Request.Context())
+			SetImageOutputCountMetadata(mdCtx, outputCount)
+			c.Request = c.Request.WithContext(mdCtx)
+			return
+		}
+		SetImageOutputCountMetadata(ctx, outputCount)
+	}
+	defer finalizeImageOutputCount()
 	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
 	if s.cfg != nil && s.cfg.Gateway.MaxLineSize > 0 {
@@ -148,6 +177,18 @@ func (s *OpenAIGatewayService) handleStreamingResponse(ctx context.Context, resp
 				dataBytes = correctedData
 				data = string(correctedData)
 				line = "data: " + data
+			}
+			if shouldCountImageOutputs {
+				switch strings.TrimSpace(gjson.GetBytes(dataBytes, "type").String()) {
+				case "response.image_generation_call.partial_image":
+					if idx := gjson.GetBytes(dataBytes, "output_index"); idx.Exists() {
+						seenOutputIndex[idx.Int()] = struct{}{}
+					}
+				case "response.completed", "response.done":
+					if len(seenOutputIndex) == 0 && fallbackImageCount == 0 {
+						fallbackImageCount = countOpenAIResponsesOutputImagesFromTerminalEvent(dataBytes)
+					}
+				}
 			}
 			if !clientDisconnected {
 				shouldFlush := queueDrained
@@ -345,4 +386,26 @@ func (s *OpenAIGatewayService) parseSSEUsageBytes(data []byte, usage *OpenAIUsag
 	usage.InputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens").Int())
 	usage.OutputTokens = int(gjson.GetBytes(data, "response.usage.output_tokens").Int())
 	usage.CacheReadInputTokens = int(gjson.GetBytes(data, "response.usage.input_tokens_details.cached_tokens").Int())
+}
+
+func countOpenAIResponsesOutputImagesFromTerminalEvent(data []byte) int {
+	if len(data) == 0 || !gjson.ValidBytes(data) {
+		return 0
+	}
+	count := 0
+	for _, output := range gjson.GetBytes(data, "response.output").Array() {
+		if strings.TrimSpace(output.Get("type").String()) != "message" {
+			continue
+		}
+		for _, content := range output.Get("content").Array() {
+			if strings.TrimSpace(content.Get("type").String()) != "output_image" {
+				continue
+			}
+			if strings.TrimSpace(content.Get("image_url").String()) == "" {
+				continue
+			}
+			count++
+		}
+	}
+	return count
 }

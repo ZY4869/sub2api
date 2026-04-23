@@ -3328,8 +3328,7 @@ export default {
       connectedToApi: "Connected to API",
       usingModel: "Using model: {model}",
       sendingTestMessage: 'Sending test message: "hi"',
-      sendingGeminiImageRequest:
-        "Sending Gemini image generation test request...",
+      sendingImageTestRequest: "Sending image generation test request...",
       response: "Response:",
       startTest: "Start Test",
       testing: "Testing...",
@@ -3373,16 +3372,16 @@ export default {
         healthCheckHint:
           "Use a lighter request to quickly validate credentials, connectivity, and baseline availability.",
       },
-      geminiImagePromptLabel: "Image prompt",
-      geminiImagePromptPlaceholder:
+      imageTestPromptLabel: "Image prompt",
+      imageTestPromptPlaceholder:
         "Example: Generate an orange cat astronaut sticker in pixel-art style on a solid background.",
-      geminiImagePromptDefault:
+      imageTestPromptDefault:
         "Generate a cute orange cat astronaut sticker on a clean pastel background.",
-      geminiImageTestHint:
-        "When a Gemini image model is selected, this test sends a real image-generation request and previews the returned image below.",
-      geminiImageTestMode: "Mode: Gemini image generation test",
-      geminiImagePreview: "Generated images:",
-      geminiImageReceived: "Received test image #{count}",
+      imageTestHint:
+        "When an image model is selected, this test sends a real image-generation request and previews the returned image below.",
+      imageTestMode: "Mode: Image generation test",
+      imageTestPreview: "Generated images:",
+      imageTestReceived: "Received test image #{count}",
       testRuntimeContextTitle: "Test runtime context",
       testRuntimeContextMode: "Mode: {mode}",
       testRuntimeContextPlatform: "Platform: {platform}",

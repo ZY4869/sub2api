@@ -115,9 +115,40 @@ func TestAccountTestService_OpenAIRealForwardUsesGatewayChatPreference(t *testin
 		},
 	}
 
-	err := svc.testOpenAIRealForwardConnection(ctx, account, "gpt-5.4", "")
+	err := svc.testOpenAIRealForwardConnection(ctx, account, "gpt-5.4", "", "")
 	require.NoError(t, err)
 	require.Len(t, upstream.requests, 1)
 	require.Equal(t, "/v1/chat/completions", upstream.requests[0].URL.Path)
 	require.Contains(t, recorder.Body.String(), "test_complete")
+}
+
+func TestAccountTestService_OpenAIRealForwardImageModelEmitsImageEvent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, recorder := newGatewayTestContext()
+
+	resp := newJSONResponse(http.StatusOK, `{"created":123,"data":[{"b64_json":"QUJD"}],"output_format":"png"}`)
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	gatewaySvc := &OpenAIGatewayService{
+		httpUpstream: upstream,
+		cfg:          &config.Config{},
+	}
+	svc := &AccountTestService{openAIGatewayService: gatewaySvc}
+	account := &Account{
+		ID:          12,
+		Platform:    PlatformProtocolGateway,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{"api_key": "test-token", "base_url": "https://api.openai.com"},
+		Extra: map[string]any{
+			"gateway_protocol": GatewayProtocolOpenAI,
+		},
+	}
+
+	err := svc.testOpenAIRealForwardConnection(ctx, account, "gpt-image-2", "draw a tiny orange cat astronaut", "")
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	require.Equal(t, "/v1/images/generations", upstream.requests[0].URL.Path)
+	require.Contains(t, recorder.Body.String(), `"type":"image"`)
+	require.Contains(t, recorder.Body.String(), `"image_url":"data:image/png;base64,QUJD"`)
+	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
 }

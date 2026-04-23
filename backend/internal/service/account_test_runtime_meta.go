@@ -25,7 +25,7 @@ func buildAccountTestRuntimeMeta(
 ) accountTestRuntimeMeta {
 	runtimePlatform := strings.TrimSpace(RoutingPlatformForAccount(account))
 	normalizedSourceProtocol := inferAccountTestSourceProtocol(runtimePlatform, sourceProtocol, resolvedModelID)
-	inboundEndpoint, action := accountTestCapabilityLookupTarget(account, normalizedSourceProtocol)
+	inboundEndpoint, action := accountTestCapabilityLookupTarget(account, normalizedSourceProtocol, resolvedModelID)
 
 	return accountTestRuntimeMeta{
 		Mode:            mode,
@@ -62,9 +62,12 @@ func inferAccountTestSourceProtocol(runtimePlatform string, sourceProtocol strin
 	}
 }
 
-func accountTestCapabilityLookupTarget(account *Account, sourceProtocol string) (string, string) {
+func accountTestCapabilityLookupTarget(account *Account, sourceProtocol string, resolvedModelID string) (string, string) {
 	switch normalizeTestSourceProtocol(sourceProtocol) {
 	case PlatformOpenAI:
+		if isOpenAIGPTImageProfileModelID(resolvedModelID) {
+			return EndpointImagesGen, ProtocolCapabilityActionDefault
+		}
 		return ResolveOpenAITextRequestFormatForAccount(account, ""), ProtocolCapabilityActionDefault
 	case PlatformAnthropic:
 		return EndpointMessages, ProtocolCapabilityActionDefault

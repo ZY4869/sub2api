@@ -3341,7 +3341,7 @@
       connectedToApi: "已连接到 API",
       usingModel: "使用模型：{model}",
       sendingTestMessage: '发送测试消息："hi"',
-      sendingGeminiImageRequest: "发送 Gemini 生图测试请求...",
+      sendingImageTestRequest: "发送生图测试请求...",
       response: "响应：",
       startTest: "开始测试",
       retry: "重试",
@@ -3381,16 +3381,16 @@
           "尽量复用真实请求准备链路，测试结果更接近真实请求是否能成功。",
         healthCheckHint: "使用更轻量的请求快速验证凭证、连通性和基础可用性。",
       },
-      geminiImagePromptLabel: "生图提示词",
-      geminiImagePromptPlaceholder:
+      imageTestPromptLabel: "生图提示词",
+      imageTestPromptPlaceholder:
         "例如：生成一只戴宇航员头盔的橘猫，像素插画风格，纯色背景。",
-      geminiImagePromptDefault:
+      imageTestPromptDefault:
         "Generate a cute orange cat astronaut sticker on a clean pastel background.",
-      geminiImageTestHint:
-        "选择 Gemini 图片模型后，这里会直接发起生图测试，并在下方展示返回图片。",
-      geminiImageTestMode: "模式：Gemini 生图测试",
-      geminiImagePreview: "生成结果：",
-      geminiImageReceived: "已收到第 {count} 张测试图片",
+      imageTestHint:
+        "选择图片模型后，这里会直接发起生图测试，并在下方展示返回图片。",
+      imageTestMode: "模式：生图测试",
+      imageTestPreview: "生成结果：",
+      imageTestReceived: "已收到第 {count} 张测试图片",
       testRuntimeContextTitle: "本次测试上下文",
       testRuntimeContextMode: "测试模式：{mode}",
       testRuntimeContextPlatform: "实际平台：{platform}",

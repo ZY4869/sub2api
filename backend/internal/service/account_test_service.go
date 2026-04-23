@@ -808,7 +808,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		)
 		return err
 	}
-	if account != nil && account.IsOpenAI() {
+	if account != nil && account.IsOpenAI() && !isOpenAIGPTImageProfileModelID(modelID) {
 		modelID = resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)
 	}
 	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedTarget.SourceProtocol, modelID)
@@ -889,6 +889,9 @@ func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, ac
 	}
 
 	if account.IsOpenAI() {
+		if isOpenAIGPTImageProfileModelID(modelID) {
+			return s.testOpenAIImageAccountConnection(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
+		}
 		return s.testOpenAIAccountConnection(c, account, modelID, resolvedSourceProtocol, simulatedClient)
 	}
 

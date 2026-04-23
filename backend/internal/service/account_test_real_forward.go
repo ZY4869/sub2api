@@ -248,7 +248,7 @@ func (s *AccountTestService) testAccountConnectionRealForward(c *gin.Context, ac
 	}
 
 	if account.IsOpenAI() {
-		return s.testOpenAIRealForwardConnection(c, account, modelID, simulatedClient)
+		return s.testOpenAIRealForwardConnection(c, account, modelID, prompt, simulatedClient)
 	}
 
 	if account.IsGemini() {
@@ -296,9 +296,19 @@ func (s *AccountTestService) testClaudeRealForwardConnection(c *gin.Context, acc
 	return s.relayForwardRecorderStream(c, account, recorder, forwardErr, s.processClaudeStream)
 }
 
-func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, account *Account, modelID string, simulatedClient string) error {
+func (s *AccountTestService) testOpenAIRealForwardConnection(c *gin.Context, account *Account, modelID string, prompt string, simulatedClient string) error {
 	if s.openAIGatewayService == nil {
+		if isOpenAIGPTImageProfileModelID(modelID) {
+			return s.testOpenAIImageAccountConnection(c, account, modelID, prompt, "", simulatedClient)
+		}
 		return s.testOpenAIAccountConnection(c, account, modelID, "", simulatedClient)
+	}
+
+	if isOpenAIGPTImageProfileModelID(modelID) {
+		s.prepareTestStream(c)
+		s.sendEvent(c, TestEvent{Type: "test_start", Model: modelID})
+		s.sendResolvedTestRuntimeMetaEvents(c)
+		return s.forwardOpenAIImageTestAndSendEvents(c, account, modelID, prompt)
 	}
 
 	requestFormat := ResolveOpenAITextRequestFormatForAccount(account, "")
