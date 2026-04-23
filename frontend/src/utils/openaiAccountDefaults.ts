@@ -1,5 +1,8 @@
+import type { OpenAIImageProtocolMode } from '@/types'
+
 const OPENAI_BASE_DEFAULT_WHITELIST = ['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini'] as const
 const OPENAI_PRO_DEFAULT_WHITELIST = [...OPENAI_BASE_DEFAULT_WHITELIST, 'gpt-5.3-codex-spark'] as const
+const OPENAI_IMAGE_COMPAT_ALLOWED_PLANS = new Set(['plus', 'team', 'pro', 'business', 'enterprise', 'edu'])
 
 function normalizeOpenAIWhitelist(models: readonly string[] | null | undefined): string[] {
   if (!Array.isArray(models)) {
@@ -74,4 +77,62 @@ export function shouldAutoReplaceOpenAIWhitelist(currentModels: string[] | null 
     isSameOpenAIWhitelist(current, OPENAI_BASE_DEFAULT_WHITELIST) ||
     isSameOpenAIWhitelist(current, OPENAI_PRO_DEFAULT_WHITELIST)
   )
+}
+
+export function normalizeOpenAIImageProtocolMode(
+  raw: string | null | undefined
+): OpenAIImageProtocolMode | '' {
+  const normalized = String(raw || '').trim().toLowerCase()
+  if (normalized === 'compat') {
+    return 'compat'
+  }
+  if (normalized === 'native') {
+    return 'native'
+  }
+  return ''
+}
+
+export function isOpenAIImageCompatAllowedPlan(planType?: string | null): boolean {
+  const normalizedPlanType = normalizeOpenAIPlanType(planType)
+  if (normalizedPlanType === 'free') {
+    return false
+  }
+  if (!normalizedPlanType) {
+    return true
+  }
+  if (OPENAI_IMAGE_COMPAT_ALLOWED_PLANS.has(normalizedPlanType)) {
+    return true
+  }
+  return true
+}
+
+export function getDefaultOpenAIImageProtocolMode(planType?: string | null): OpenAIImageProtocolMode {
+  return isOpenAIImageCompatAllowedPlan(planType) ? 'compat' : 'native'
+}
+
+export function resolveOpenAIImageProtocolState(options: {
+  accountCategory: 'oauth-based' | 'apikey' | 'vertex_ai'
+  planType?: string | null
+  storedMode?: string | null
+  storedCompatAllowed?: unknown
+}): {
+  compatAllowed: boolean
+  mode: OpenAIImageProtocolMode
+} {
+  const compatAllowed = typeof options.storedCompatAllowed === 'boolean'
+    ? options.storedCompatAllowed
+    : options.accountCategory !== 'oauth-based'
+      ? true
+      : isOpenAIImageCompatAllowedPlan(options.planType)
+
+  const defaultMode = options.accountCategory === 'oauth-based'
+    ? getDefaultOpenAIImageProtocolMode(options.planType)
+    : 'native'
+  const normalizedStoredMode = normalizeOpenAIImageProtocolMode(options.storedMode)
+  const mode = normalizedStoredMode || defaultMode
+
+  return {
+    compatAllowed,
+    mode: compatAllowed || mode !== 'compat' ? mode : 'native'
+  }
 }

@@ -85,6 +85,21 @@ func TestBuildOpsTraceNormalizeResult_OpsRequestTraceResponsesImageToolMetadata(
 		"gpt-image-2",
 		service.PublicImageToolRouteReason,
 	)
+	ctx := service.EnsureRequestMetadata(c.Request.Context())
+	service.SetImageProtocolModeMetadata(ctx, service.OpenAIImageProtocolModeCompat)
+	service.SetImageRequestSurfaceMetadata(ctx, "responses_tool")
+	service.SetImageSizeTierMetadata(ctx, service.OpenAIImageSizeTier2K)
+	service.SetImageCapabilityProfileMetadata(ctx, "openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on")
+	service.SetOpenAIResponsesImageGenCompatMetadata(ctx, service.OpenAIResponsesCompatMetadata{
+		Enabled:                   true,
+		Source:                    service.OpenAIResponsesImagegenCompatSourceMultipart,
+		ReferenceImageCount:       2,
+		ReferenceImageBytesBefore: 4096,
+		ReferenceImageBytesAfter:  2048,
+		ReferenceImagesNormalized: true,
+		ImageGenerationSize:       "1536x1024",
+	})
+	c.Request = c.Request.WithContext(ctx)
 
 	normalize, _ := buildOpsTraceNormalizeResult(
 		c,
@@ -101,6 +116,18 @@ func TestBuildOpsTraceNormalizeResult_OpsRequestTraceResponsesImageToolMetadata(
 	require.Equal(t, service.EndpointResponses, normalize.ImageUpstreamEndpoint)
 	require.Equal(t, service.EndpointResponses, normalize.ImageRequestFormat)
 	require.Equal(t, service.PublicImageToolRouteReason, normalize.ImageRouteReason)
+	require.Equal(t, service.OpenAIImageProtocolModeCompat, normalize.ImageProtocolMode)
+	require.Equal(t, "responses_tool", normalize.ImageRequestSurface)
+	require.Equal(t, service.OpenAIImageSizeTier2K, normalize.ImageSizeTier)
+	require.Equal(t, "openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on", normalize.ImageCapabilityProfile)
+	require.True(t, normalize.ImagegenCompat)
+	require.False(t, normalize.ImagegenCompatRejected)
+	require.Equal(t, service.OpenAIResponsesImagegenCompatSourceMultipart, normalize.ImagegenCompatSource)
+	require.Equal(t, 2, normalize.ImagegenCompatReferenceImageCount)
+	require.Equal(t, int64(4096), normalize.ImagegenCompatReferenceImageBytesBefore)
+	require.Equal(t, int64(2048), normalize.ImagegenCompatReferenceImageBytesAfter)
+	require.True(t, normalize.ImagegenCompatNormalized)
+	require.Equal(t, "1536x1024", normalize.ImagegenCompatImageGenerationSize)
 }
 
 func TestBuildOpsRequestTraceInput_OpsRequestTraceImageRouteMetricsCoexist(t *testing.T) {
@@ -174,6 +201,71 @@ func TestBuildOpsRequestTraceInput_OpsRequestTraceImageRouteMetricsCoexist(t *te
 	require.GreaterOrEqual(t, snapshot.ImageRouteLatencyMsTotal, int64(65))
 	require.GreaterOrEqual(t, snapshot.ImageRouteLatencyMsByFamily[service.PublicImageToolRouteFamily], int64(45))
 	require.GreaterOrEqual(t, snapshot.ImageRouteLatencyMsByFamily[service.PublicImageRouteFamily], int64(20))
+}
+
+func TestBuildOpsTraceNormalizeResult_OpsRequestTraceResponsesImageToolRejectMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	c.Set(ctxKeyInboundEndpoint, EndpointResponses)
+	setOpsEndpointContext(c, "gpt-5.4-mini", service.RequestTypeSync)
+	ctx := service.EnsureRequestMetadata(c.Request.Context())
+	service.SetOpenAIResponsesImageGenCompatMetadata(ctx, service.OpenAIResponsesCompatMetadata{
+		Rejected:            true,
+		RejectCode:          "multipart_stream_unsupported",
+		SourceGuess:         service.OpenAIResponsesImagegenCompatSourceMultipart,
+		ReferenceImageCount: 1,
+	})
+	c.Request = c.Request.WithContext(ctx)
+
+	normalize, _ := buildOpsTraceNormalizeResult(
+		c,
+		nil,
+		[]byte(`{"model":"gpt-5.4-mini","input":"$imagegen hidden prompt","reference_images":[{"image_url":"data:image/png;base64,AAAA"}]}`),
+		[]byte(`{"error":{"code":"multipart_stream_unsupported"}}`),
+	)
+
+	require.False(t, normalize.ImagegenCompat)
+	require.True(t, normalize.ImagegenCompatRejected)
+	require.Equal(t, "multipart_stream_unsupported", normalize.ImagegenCompatRejectCode)
+	require.Equal(t, service.OpenAIResponsesImagegenCompatSourceMultipart, normalize.ImagegenCompatSourceGuess)
+	require.Equal(t, 1, normalize.ImagegenCompatReferenceImageCount)
+	require.False(t, normalize.ImagegenCompatNormalized)
+}
+
+func TestRecordImageRouteRuntimeMetrics_RecordsResponsesImageToolFailure(t *testing.T) {
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	status := http.StatusBadGateway
+	recordImageRouteRuntimeMetrics(
+		service.ProtocolNormalizeResult{
+			ImageRouteFamily:       service.PublicImageToolRouteFamily,
+			ImageResolvedProvider:  service.PlatformOpenAI,
+			ImageProtocolMode:      service.OpenAIImageProtocolModeCompat,
+			ImageAction:            "edit",
+			ImageSizeTier:          service.OpenAIImageSizeTier4K,
+			ImageCapabilityProfile: "openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on",
+		},
+		status,
+		&status,
+		120,
+	)
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.ResponsesImageToolFailureTotal)
+	require.Equal(t, int64(1), snapshot.ResponsesImageToolFailureByProvider[service.PlatformOpenAI])
+	require.Equal(t, int64(1), snapshot.ImageRouteByProtocolMode[service.OpenAIImageProtocolModeCompat])
+	require.Equal(t, int64(1), snapshot.ImageRouteFailureByProtocolMode[service.OpenAIImageProtocolModeCompat])
+	require.Equal(t, int64(1), snapshot.ImageRouteByAction["edit"])
+	require.Equal(t, int64(1), snapshot.ImageRouteFailureByAction["edit"])
+	require.Equal(t, int64(1), snapshot.ImageRouteBySizeTier[service.OpenAIImageSizeTier4K])
+	require.Equal(t, int64(1), snapshot.ImageRouteFailureBySizeTier[service.OpenAIImageSizeTier4K])
+	require.Equal(t, int64(1), snapshot.ImageRouteByCapabilityProfile["openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on"])
+	require.Equal(t, int64(1), snapshot.ImageRouteFailureByCapabilityProfile["openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on"])
+	require.Equal(t, int64(1), snapshot.ImageRouteFailureByUpstreamStatus["502"])
 }
 
 func buildOpsTraceInputForTest(

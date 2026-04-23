@@ -60,6 +60,7 @@ type APIKeyAuthGroupSnapshot struct {
 	ImagePrice1K                    *float64 `json:"image_price_1k,omitempty"`
 	ImagePrice2K                    *float64 `json:"image_price_2k,omitempty"`
 	ImagePrice4K                    *float64 `json:"image_price_4k,omitempty"`
+	ImageProtocolMode               string   `json:"image_protocol_mode,omitempty"`
 	ClaudeCodeOnly                  bool     `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id,omitempty"`
 	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request,omitempty"`

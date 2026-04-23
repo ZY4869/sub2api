@@ -1,16 +1,20 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	coderws "github.com/coder/websocket"
@@ -519,6 +523,122 @@ func TestOpenAIResponses_RejectsMessageIDAsPreviousResponseID(t *testing.T) {
 	require.Contains(t, w.Body.String(), "previous_response_id must be a response.id")
 }
 
+func TestOpenAIResponses_MultipartCompatNormalization_RewritesContentTypeAndRecordsMetrics(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	body, contentType := buildResponsesCompatMultipartBody(t, func(writer *multipart.Writer) {
+		require.NoError(t, writer.WriteField("model", "gpt-5.4-mini"))
+		require.NoError(t, writer.WriteField("input", "$imagegen matte poster"))
+		require.NoError(t, writer.WriteField("size", "1536x1024"))
+		require.NoError(t, writer.WriteField("reference_image_url", "https://example.com/reference.png"))
+		require.NoError(t, writer.WriteField("previous_response_id", "msg_123456"))
+	})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/openai/v1/responses", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", contentType)
+
+	groupID := int64(2)
+	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
+		ID:      101,
+		GroupID: &groupID,
+		User:    &service.User{ID: 1},
+	})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      1,
+		Concurrency: 1,
+	})
+
+	h := newOpenAIHandlerForPreviousResponseIDValidation(t, nil)
+	h.Responses(c)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, "application/json", c.Request.Header.Get("Content-Type"))
+	require.Contains(t, w.Body.String(), "previous_response_id must be a response.id")
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.ResponsesImagegenCompatTotal)
+	require.Equal(t, int64(1), snapshot.ResponsesImagegenCompatBySource[service.OpenAIResponsesImagegenCompatSourceMultipart])
+
+	normalizedRequestJSON := service.GetOpsTraceNormalizedRequestJSON(c)
+	require.NotNil(t, normalizedRequestJSON)
+	require.NotContains(t, *normalizedRequestJSON, "matte poster")
+	require.NotContains(t, *normalizedRequestJSON, "reference.png")
+}
+
+func TestOpenAIResponses_MultipartCompatRejectSetsMetadataAndLogs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	protocolruntime.ResetForTest()
+	t.Cleanup(protocolruntime.ResetForTest)
+
+	logSink, restore := captureHandlerStructuredLog(t)
+	defer restore()
+
+	body, contentType := buildResponsesCompatMultipartBody(t, func(writer *multipart.Writer) {
+		require.NoError(t, writer.WriteField("model", "gpt-5.4-mini"))
+		require.NoError(t, writer.WriteField("input", "$imagegen hidden prompt"))
+		require.NoError(t, writer.WriteField("stream", "true"))
+	})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	req := httptest.NewRequest(http.MethodPost, "/openai/v1/responses", bytes.NewReader(body))
+	req.Header.Set("Content-Type", contentType)
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.RequestID, "req-compat"))
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.ClientRequestID, "corr-compat"))
+	c.Request = req
+
+	groupID := int64(2)
+	c.Set(string(middleware.ContextKeyAPIKey), &service.APIKey{
+		ID:      101,
+		GroupID: &groupID,
+		User:    &service.User{ID: 1},
+	})
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      1,
+		Concurrency: 1,
+	})
+
+	h := newOpenAIHandlerForPreviousResponseIDValidation(t, nil)
+	h.Responses(c)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &parsed))
+	errorObj, ok := parsed["error"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "multipart_stream_unsupported", errorObj["code"])
+
+	compatMetadata, ok := service.OpenAIResponsesImageGenCompatMetadataFromContext(c.Request.Context())
+	require.True(t, ok)
+	require.False(t, compatMetadata.Enabled)
+	require.True(t, compatMetadata.Rejected)
+	require.Equal(t, "multipart_stream_unsupported", compatMetadata.RejectCode)
+	require.Equal(t, service.OpenAIResponsesImagegenCompatSourceMultipart, compatMetadata.SourceGuess)
+	require.Equal(t, 0, compatMetadata.ReferenceImageCount)
+	require.False(t, compatMetadata.ReferenceImagesNormalized)
+
+	normalizedRequestJSON := service.GetOpsTraceNormalizedRequestJSON(c)
+	require.NotNil(t, normalizedRequestJSON)
+	require.Contains(t, *normalizedRequestJSON, "multipart_stream_unsupported")
+	require.NotContains(t, *normalizedRequestJSON, "hidden prompt")
+	require.NotContains(t, *normalizedRequestJSON, "$imagegen")
+
+	snapshot := protocolruntime.Snapshot()
+	require.Equal(t, int64(1), snapshot.ResponsesImagegenRejectTotal)
+	require.Equal(t, int64(1), snapshot.ResponsesImagegenRejectByCode["multipart_stream_unsupported"])
+
+	require.True(t, logSink.ContainsMessageAtLevel("openai.responses_imagegen_compat_rejected", "warn"))
+	require.True(t, logSink.ContainsFieldValue("request_id", "req-compat"))
+	require.True(t, logSink.ContainsFieldValue("correlation_id", "corr-compat"))
+	require.True(t, logSink.ContainsFieldValue("code", "multipart_stream_unsupported"))
+	require.True(t, logSink.ContainsFieldValue("source", service.OpenAIResponsesImagegenCompatSourceMultipart))
+	require.True(t, logSink.ContainsFieldValue("model", "gpt-5.4-mini"))
+}
+
 func TestOpenAIResponsesWebSocket_SetsClientTransportWSWhenUpgradeValid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -820,4 +940,14 @@ func (s *openAIRuntimeQuotaAccountRepoStub) filterAccounts(groupID *int64, platf
 		result = append(result, account)
 	}
 	return result
+}
+
+func buildResponsesCompatMultipartBody(t *testing.T, writeFields func(writer *multipart.Writer)) ([]byte, string) {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	writeFields(writer)
+	require.NoError(t, writer.Close())
+	return body.Bytes(), writer.FormDataContentType()
 }

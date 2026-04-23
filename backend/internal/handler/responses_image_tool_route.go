@@ -55,5 +55,36 @@ func applyResponsesImageToolTraceMetadata(
 	service.SetImageUpstreamEndpointMetadata(ctx, service.EndpointResponses)
 	service.SetImageRequestFormatMetadata(ctx, service.EndpointResponses)
 	service.SetImageRouteReasonMetadata(ctx, routeReason)
+	service.SetImageRequestSurfaceMetadata(ctx, "responses_tool")
+	c.Request = c.Request.WithContext(ctx)
+}
+
+func applyResponsesImageToolRuntimeMetadata(
+	c *gin.Context,
+	platform string,
+	requestedModel string,
+	toolModel string,
+	protocolMode string,
+	imageAction string,
+	imageSizeTier string,
+	imageCapabilityProfile string,
+) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	applyResponsesImageToolTraceMetadata(c, platform, requestedModel, toolModel, service.PublicImageToolRouteReason)
+	ctx := service.EnsureRequestMetadata(c.Request.Context())
+	if action := strings.TrimSpace(strings.ToLower(imageAction)); action != "" {
+		service.SetImageActionMetadata(ctx, action)
+	}
+	if mode := strings.TrimSpace(strings.ToLower(protocolMode)); mode != "" {
+		service.SetImageProtocolModeMetadata(ctx, mode)
+	}
+	if tier := strings.TrimSpace(imageSizeTier); tier != "" {
+		service.SetImageSizeTierMetadata(ctx, tier)
+	}
+	if profile := strings.TrimSpace(imageCapabilityProfile); profile != "" {
+		service.SetImageCapabilityProfileMetadata(ctx, profile)
+	}
 	c.Request = c.Request.WithContext(ctx)
 }

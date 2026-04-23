@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
+import type { OpenAIImageProtocolMode } from '@/types'
 import type { OpenAIWSMode } from '@/utils/openaiWsMode'
 
-defineProps<{
+const props = defineProps<{
   showOpenAiPassthrough: boolean
   openAiPassthroughEnabled: boolean
+  showOpenAiImageProtocolMode: boolean
+  openAiImageProtocolMode: OpenAIImageProtocolMode
+  openAiImageProtocolCompatAllowed: boolean
   showOpenAiWsMode: boolean
   openAiWsMode: OpenAIWSMode
   openAiWsModeOptions: SelectOption[]
@@ -18,15 +23,55 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:openAiPassthroughEnabled': [value: boolean]
+  'update:openAiImageProtocolMode': [value: OpenAIImageProtocolMode]
   'update:openAiWsMode': [value: OpenAIWSMode]
   'update:anthropicPassthroughEnabled': [value: boolean]
   'update:codexCliOnlyEnabled': [value: boolean]
 }>()
 
 const { t } = useI18n()
+
+const openAIImageProtocolOptions = computed<SelectOption[]>(() => [
+  {
+    value: 'native',
+    label: t('admin.accounts.openai.imageProtocol.options.native')
+  },
+  {
+    value: 'compat',
+    label: t('admin.accounts.openai.imageProtocol.options.compat'),
+    disabled: !props.openAiImageProtocolCompatAllowed
+  }
+])
 </script>
 
 <template>
+  <div
+    v-if="showOpenAiImageProtocolMode"
+    class="border-t border-gray-200 pt-4 dark:border-dark-600"
+  >
+    <div class="flex items-center justify-between gap-4">
+      <div class="min-w-0 flex-1">
+        <label class="input-label mb-0">{{ t('admin.accounts.openai.imageProtocol.label') }}</label>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('admin.accounts.openai.imageProtocol.description') }}
+        </p>
+        <p
+          v-if="!openAiImageProtocolCompatAllowed"
+          class="mt-1 text-xs text-amber-600 dark:text-amber-300"
+        >
+          {{ t('admin.accounts.openai.imageProtocol.compatUnavailableHint') }}
+        </p>
+      </div>
+      <div class="w-52">
+        <Select
+          :model-value="openAiImageProtocolMode"
+          :options="openAIImageProtocolOptions"
+          @update:model-value="emit('update:openAiImageProtocolMode', $event as OpenAIImageProtocolMode)"
+        />
+      </div>
+    </div>
+  </div>
+
   <div
     v-if="showOpenAiPassthrough"
     class="border-t border-gray-200 pt-4 dark:border-dark-600"

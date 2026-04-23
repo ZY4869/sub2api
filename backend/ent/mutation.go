@@ -9377,6 +9377,7 @@ type GroupMutation struct {
 	addimage_price_2k                       *float64
 	image_price_4k                          *float64
 	addimage_price_4k                       *float64
+	image_protocol_mode                     *string
 	claude_code_only                        *bool
 	fallback_group_id                       *int64
 	addfallback_group_id                    *int64
@@ -10401,6 +10402,42 @@ func (m *GroupMutation) ResetImagePrice4k() {
 	delete(m.clearedFields, group.FieldImagePrice4k)
 }
 
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (m *GroupMutation) SetImageProtocolMode(s string) {
+	m.image_protocol_mode = &s
+}
+
+// ImageProtocolMode returns the value of the "image_protocol_mode" field in the mutation.
+func (m *GroupMutation) ImageProtocolMode() (r string, exists bool) {
+	v := m.image_protocol_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageProtocolMode returns the old "image_protocol_mode" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldImageProtocolMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageProtocolMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageProtocolMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageProtocolMode: %w", err)
+	}
+	return oldValue.ImageProtocolMode, nil
+}
+
+// ResetImageProtocolMode resets all changes to the "image_protocol_mode" field.
+func (m *GroupMutation) ResetImageProtocolMode() {
+	m.image_protocol_mode = nil
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (m *GroupMutation) SetClaudeCodeOnly(b bool) {
 	m.claude_code_only = &b
@@ -11381,7 +11418,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 30)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -11432,6 +11469,9 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.image_price_4k != nil {
 		fields = append(fields, group.FieldImagePrice4k)
+	}
+	if m.image_protocol_mode != nil {
+		fields = append(fields, group.FieldImageProtocolMode)
 	}
 	if m.claude_code_only != nil {
 		fields = append(fields, group.FieldClaudeCodeOnly)
@@ -11511,6 +11551,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ImagePrice2k()
 	case group.FieldImagePrice4k:
 		return m.ImagePrice4k()
+	case group.FieldImageProtocolMode:
+		return m.ImageProtocolMode()
 	case group.FieldClaudeCodeOnly:
 		return m.ClaudeCodeOnly()
 	case group.FieldFallbackGroupID:
@@ -11578,6 +11620,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldImagePrice2k(ctx)
 	case group.FieldImagePrice4k:
 		return m.OldImagePrice4k(ctx)
+	case group.FieldImageProtocolMode:
+		return m.OldImageProtocolMode(ctx)
 	case group.FieldClaudeCodeOnly:
 		return m.OldClaudeCodeOnly(ctx)
 	case group.FieldFallbackGroupID:
@@ -11729,6 +11773,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetImagePrice4k(v)
+		return nil
+	case group.FieldImageProtocolMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageProtocolMode(v)
 		return nil
 	case group.FieldClaudeCodeOnly:
 		v, ok := value.(bool)
@@ -12129,6 +12180,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldImagePrice4k:
 		m.ResetImagePrice4k()
+		return nil
+	case group.FieldImageProtocolMode:
+		m.ResetImageProtocolMode()
 		return nil
 	case group.FieldClaudeCodeOnly:
 		m.ResetClaudeCodeOnly()

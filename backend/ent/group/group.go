@@ -49,6 +49,8 @@ const (
 	FieldImagePrice2k = "image_price_2k"
 	// FieldImagePrice4k holds the string denoting the image_price_4k field in the database.
 	FieldImagePrice4k = "image_price_4k"
+	// FieldImageProtocolMode holds the string denoting the image_protocol_mode field in the database.
+	FieldImageProtocolMode = "image_protocol_mode"
 	// FieldClaudeCodeOnly holds the string denoting the claude_code_only field in the database.
 	FieldClaudeCodeOnly = "claude_code_only"
 	// FieldFallbackGroupID holds the string denoting the fallback_group_id field in the database.
@@ -181,6 +183,7 @@ var Columns = []string{
 	FieldImagePrice1k,
 	FieldImagePrice2k,
 	FieldImagePrice4k,
+	FieldImageProtocolMode,
 	FieldClaudeCodeOnly,
 	FieldFallbackGroupID,
 	FieldFallbackGroupIDOnInvalidRequest,
@@ -251,6 +254,10 @@ var (
 	SubscriptionTypeValidator func(string) error
 	// DefaultDefaultValidityDays holds the default value on creation for the "default_validity_days" field.
 	DefaultDefaultValidityDays int
+	// DefaultImageProtocolMode holds the default value on creation for the "image_protocol_mode" field.
+	DefaultImageProtocolMode string
+	// ImageProtocolModeValidator is a validator for the "image_protocol_mode" field. It is called by the builders before save.
+	ImageProtocolModeValidator func(string) error
 	// DefaultClaudeCodeOnly holds the default value on creation for the "claude_code_only" field.
 	DefaultClaudeCodeOnly bool
 	// DefaultModelRoutingEnabled holds the default value on creation for the "model_routing_enabled" field.
@@ -364,6 +371,11 @@ func ByImagePrice2k(opts ...sql.OrderTermOption) OrderOption {
 // ByImagePrice4k orders the results by the image_price_4k field.
 func ByImagePrice4k(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldImagePrice4k, opts...).ToFunc()
+}
+
+// ByImageProtocolMode orders the results by the image_protocol_mode field.
+func ByImageProtocolMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageProtocolMode, opts...).ToFunc()
 }
 
 // ByClaudeCodeOnly orders the results by the claude_code_only field.

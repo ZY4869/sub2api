@@ -258,6 +258,20 @@ func (_c *GroupCreate) SetNillableImagePrice4k(v *float64) *GroupCreate {
 	return _c
 }
 
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (_c *GroupCreate) SetImageProtocolMode(v string) *GroupCreate {
+	_c.mutation.SetImageProtocolMode(v)
+	return _c
+}
+
+// SetNillableImageProtocolMode sets the "image_protocol_mode" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableImageProtocolMode(v *string) *GroupCreate {
+	if v != nil {
+		_c.SetImageProtocolMode(*v)
+	}
+	return _c
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (_c *GroupCreate) SetClaudeCodeOnly(v bool) *GroupCreate {
 	_c.mutation.SetClaudeCodeOnly(v)
@@ -590,6 +604,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultDefaultValidityDays
 		_c.mutation.SetDefaultValidityDays(v)
 	}
+	if _, ok := _c.mutation.ImageProtocolMode(); !ok {
+		v := group.DefaultImageProtocolMode
+		_c.mutation.SetImageProtocolMode(v)
+	}
 	if _, ok := _c.mutation.ClaudeCodeOnly(); !ok {
 		v := group.DefaultClaudeCodeOnly
 		_c.mutation.SetClaudeCodeOnly(v)
@@ -677,6 +695,14 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.DefaultValidityDays(); !ok {
 		return &ValidationError{Name: "default_validity_days", err: errors.New(`ent: missing required field "Group.default_validity_days"`)}
+	}
+	if _, ok := _c.mutation.ImageProtocolMode(); !ok {
+		return &ValidationError{Name: "image_protocol_mode", err: errors.New(`ent: missing required field "Group.image_protocol_mode"`)}
+	}
+	if v, ok := _c.mutation.ImageProtocolMode(); ok {
+		if err := group.ImageProtocolModeValidator(v); err != nil {
+			return &ValidationError{Name: "image_protocol_mode", err: fmt.Errorf(`ent: validator failed for field "Group.image_protocol_mode": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.ClaudeCodeOnly(); !ok {
 		return &ValidationError{Name: "claude_code_only", err: errors.New(`ent: missing required field "Group.claude_code_only"`)}
@@ -804,6 +830,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ImagePrice4k(); ok {
 		_spec.SetField(group.FieldImagePrice4k, field.TypeFloat64, value)
 		_node.ImagePrice4k = &value
+	}
+	if value, ok := _c.mutation.ImageProtocolMode(); ok {
+		_spec.SetField(group.FieldImageProtocolMode, field.TypeString, value)
+		_node.ImageProtocolMode = value
 	}
 	if value, ok := _c.mutation.ClaudeCodeOnly(); ok {
 		_spec.SetField(group.FieldClaudeCodeOnly, field.TypeBool, value)
@@ -1314,6 +1344,18 @@ func (u *GroupUpsert) AddImagePrice4k(v float64) *GroupUpsert {
 // ClearImagePrice4k clears the value of the "image_price_4k" field.
 func (u *GroupUpsert) ClearImagePrice4k() *GroupUpsert {
 	u.SetNull(group.FieldImagePrice4k)
+	return u
+}
+
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (u *GroupUpsert) SetImageProtocolMode(v string) *GroupUpsert {
+	u.Set(group.FieldImageProtocolMode, v)
+	return u
+}
+
+// UpdateImageProtocolMode sets the "image_protocol_mode" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateImageProtocolMode() *GroupUpsert {
+	u.SetExcluded(group.FieldImageProtocolMode)
 	return u
 }
 
@@ -1881,6 +1923,20 @@ func (u *GroupUpsertOne) UpdateImagePrice4k() *GroupUpsertOne {
 func (u *GroupUpsertOne) ClearImagePrice4k() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearImagePrice4k()
+	})
+}
+
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (u *GroupUpsertOne) SetImageProtocolMode(v string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageProtocolMode(v)
+	})
+}
+
+// UpdateImageProtocolMode sets the "image_protocol_mode" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateImageProtocolMode() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageProtocolMode()
 	})
 }
 
@@ -2645,6 +2701,20 @@ func (u *GroupUpsertBulk) UpdateImagePrice4k() *GroupUpsertBulk {
 func (u *GroupUpsertBulk) ClearImagePrice4k() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.ClearImagePrice4k()
+	})
+}
+
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (u *GroupUpsertBulk) SetImageProtocolMode(v string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetImageProtocolMode(v)
+	})
+}
+
+// UpdateImageProtocolMode sets the "image_protocol_mode" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateImageProtocolMode() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateImageProtocolMode()
 	})
 }
 

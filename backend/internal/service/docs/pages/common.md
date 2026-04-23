@@ -387,7 +387,13 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `/v1/messages` 在 OpenAI / Copilot 平台下可能被翻译到 Responses。
 - `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功。
 - `/v1/responses` 在 Grok 平台可以工作，但 Responses 的 WebSocket / 长连接模式不应对 Grok 做乐观假设。
+- `/v1/responses` 额外支持一组“网关兼容扩展”的生图写法：`$imagegen ...` 简写、`image_generation` / `reference_images` 扩展字段，以及 `multipart/form-data` 直传 `reference_image`；标准官方 Responses JSON 仍然原样可用。
 - `/v1/images/generations`、`/v1/images/edits` 现在是公共智能图片入口：会先按当前 Key 的本地模型策略与 provider 元数据判断要落到 OpenAI、Grok 还是 Gemini。
+- 对 OpenAI 来说，图片协议不再靠 `model=gpt-image-2` 猜测，而是由账号 / Protocol Gateway / 分组三层配置共同决定；优先级是“分组强制模式 > 账号模式 > 默认策略”。
+- OpenAI OAuth `free` 计划默认只开原生图片链路，不开放 compat 图片链路；如果分组强制 compat 但账号没有 compat 权限，接口会直接返回 `403 forbidden_error`，错误码 `image_compat_not_allowed`。
+- 当 OpenAI 图片模式是 `compat` 时，`/v1/images/generations`、`/v1/images/edits` 会桥接到兼容执行链；`/v1/responses` 的 `image_generation` tool 也会统一改写为 `gpt-image-2` 目标图片模型，但顶层文本模型（例如 `gpt-5.4-mini`）仍保持原样。
+- OpenAI 图片请求在进上游前还会统一套用能力矩阵：当前实现会先按 `image_protocol_mode + 目标图片模型` 判定 `generate/edit`、`stream`、`partial_images`、多图、`mask`、背景、输出格式 / 压缩率，再校验尺寸，并在 trace 里记录 `image_capability_profile`。
+- 对 GPT image profile（版本化 `gpt-image-*`，例如 `gpt-image-1.5`、`gpt-image-2`，以及 `chatgpt-image-latest`）来说，native / compat 两条链都会放开 `stream`、多图、`mask`、`background=transparent` 与 `3840px` 以内自定义尺寸；如果账号把上游 target model 映射成自定义名字，网关也会按请求里的 display model 归并到这个 profile。未知或旧模型保持保守拒绝路径。
 - `/grok/v1/images/*` 与 `/v1beta/openai/images/generations` 仍然保留为显式专用路径；它们更利于排障，也不会被公共智能路由覆盖。
 - `image_generation` tool 型主模型不应该直接拿去打 `/v1/images/*`；这类请求应继续走 `/v1/responses`。
 - `/antigravity/v1beta/models/{model}:batchGenerateContent` 已注册，但当前能力矩阵明确拒绝。

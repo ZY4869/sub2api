@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
+
+	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 )
 
 type accountUsageCodexProbeRepo struct {
@@ -337,4 +340,118 @@ func TestBuildCodexUsageProgressFromExtra_ZerosExpiredWindow(t *testing.T) {
 			t.Fatalf("expected Utilization=0 for expired 7d window, got %v", progress.Utilization)
 		}
 	})
+}
+
+func TestAccountUsageService_GetOpenAIUsage_ForceRefreshProbesNormalAndSpark(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	probedModels := make([]string, 0, 2)
+	svc := &AccountUsageService{
+		openAICodexScopeProbe: func(_ context.Context, _ *Account, modelID string) (map[string]any, *time.Time, error) {
+			probedModels = append(probedModels, modelID)
+			switch modelID {
+			case openaipkg.DefaultTestModel:
+				resetAt := now.Add(24 * time.Hour)
+				return map[string]any{
+					"codex_usage_updated_at": now.Format(time.RFC3339),
+					"codex_5h_used_percent":  12.0,
+					"codex_5h_reset_at":      now.Add(2 * time.Hour).Format(time.RFC3339),
+					"codex_7d_used_percent":  34.0,
+					"codex_7d_reset_at":      resetAt.Format(time.RFC3339),
+				}, &resetAt, nil
+			case openAICodexScopeSpark:
+				resetAt := now.Add(48 * time.Hour)
+				return map[string]any{
+					"codex_usage_updated_at":   now.Format(time.RFC3339),
+					codexSpark5hUsedPercentKey: 56.0,
+					codexSpark5hResetAtKey:     now.Add(3 * time.Hour).Format(time.RFC3339),
+					codexSpark7dUsedPercentKey: 78.0,
+					codexSpark7dResetAtKey:     resetAt.Format(time.RFC3339),
+				}, &resetAt, nil
+			default:
+				return nil, nil, fmt.Errorf("unexpected model %q", modelID)
+			}
+		},
+	}
+
+	usage, err := svc.getOpenAIUsage(context.Background(), &Account{
+		ID:       5001,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "token",
+			"plan_type":    "pro",
+		},
+		Extra: map[string]any{},
+	}, true)
+	if err != nil {
+		t.Fatalf("getOpenAIUsage() error = %v", err)
+	}
+	if len(probedModels) != 2 {
+		t.Fatalf("expected 2 probe models, got %v", probedModels)
+	}
+	if probedModels[0] != openaipkg.DefaultTestModel || probedModels[1] != openAICodexScopeSpark {
+		t.Fatalf("probe order = %v, want [%q %q]", probedModels, openaipkg.DefaultTestModel, openAICodexScopeSpark)
+	}
+	if usage.FiveHour == nil || usage.SevenDay == nil {
+		t.Fatalf("expected normal openai windows, got %+v", usage)
+	}
+	if usage.SparkFiveHour == nil || usage.SparkSevenDay == nil {
+		t.Fatalf("expected spark openai windows, got %+v", usage)
+	}
+	if usage.FiveHour.Utilization != 12.0 || usage.SevenDay.Utilization != 34.0 {
+		t.Fatalf("unexpected normal usage windows: %+v", usage)
+	}
+	if usage.SparkFiveHour.Utilization != 56.0 || usage.SparkSevenDay.Utilization != 78.0 {
+		t.Fatalf("unexpected spark usage windows: %+v", usage)
+	}
+}
+
+func TestAccountUsageService_ProbeOpenAICodexSnapshot_ProKeepsPartialSuccess(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	probedModels := make([]string, 0, 2)
+	svc := &AccountUsageService{
+		openAICodexScopeProbe: func(_ context.Context, _ *Account, modelID string) (map[string]any, *time.Time, error) {
+			probedModels = append(probedModels, modelID)
+			if modelID == openAICodexScopeSpark {
+				return nil, nil, fmt.Errorf("spark probe failed")
+			}
+			resetAt := now.Add(24 * time.Hour)
+			return map[string]any{
+				"codex_usage_updated_at": now.Format(time.RFC3339),
+				"codex_5h_used_percent":  20.0,
+				"codex_5h_reset_at":      now.Add(2 * time.Hour).Format(time.RFC3339),
+				"codex_7d_used_percent":  40.0,
+				"codex_7d_reset_at":      resetAt.Format(time.RFC3339),
+			}, &resetAt, nil
+		},
+	}
+
+	updates, resetAt, err := svc.probeOpenAICodexSnapshot(context.Background(), &Account{
+		ID:       5002,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"access_token": "token",
+			"plan_type":    "pro",
+		},
+	})
+	if err != nil {
+		t.Fatalf("probeOpenAICodexSnapshot() error = %v", err)
+	}
+	if len(probedModels) != 2 {
+		t.Fatalf("expected both normal and spark probes, got %v", probedModels)
+	}
+	if updates["codex_5h_used_percent"] != 20.0 {
+		t.Fatalf("codex_5h_used_percent = %v, want 20", updates["codex_5h_used_percent"])
+	}
+	if _, ok := updates[codexSpark5hUsedPercentKey]; ok {
+		t.Fatalf("did not expect spark updates on failed spark probe: %+v", updates)
+	}
+	if resetAt == nil {
+		t.Fatal("expected resetAt from successful normal probe")
+	}
 }

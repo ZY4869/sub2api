@@ -20,7 +20,7 @@
             'pointer-events-auto min-w-[320px] max-w-xl overflow-hidden rounded-lg shadow-lg',
             'bg-white dark:bg-dark-800',
             'border-l-4',
-            getBorderColor(toast.type)
+            getBorderColor(toast.type),
           ]"
         >
           <div class="p-4">
@@ -35,7 +35,10 @@
               </div>
 
               <div class="min-w-0 flex-1">
-                <p v-if="toast.title" class="text-sm font-semibold text-gray-900 dark:text-white">
+                <p
+                  v-if="toast.title"
+                  class="text-sm font-semibold text-gray-900 dark:text-white"
+                >
                   {{ toast.title }}
                 </p>
                 <p
@@ -43,21 +46,30 @@
                     'text-sm leading-relaxed',
                     toast.title
                       ? 'mt-1 text-gray-600 dark:text-gray-300'
-                      : 'text-gray-900 dark:text-white'
+                      : 'text-gray-900 dark:text-white',
                   ]"
                 >
                   {{ toast.message }}
                 </p>
                 <ul
                   v-if="toast.details?.length"
-                  class="mt-3 space-y-1 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-dark-700 dark:text-gray-300"
+                  class="mt-3 space-y-1 rounded-md bg-gray-50 px-3 py-2 text-xs dark:bg-dark-700"
                 >
                   <li
                     v-for="(detail, index) in toast.details"
                     :key="`${toast.id}-${index}`"
-                    class="break-words"
+                    :class="[
+                      'flex items-start gap-2 break-words rounded px-2 py-1.5',
+                      getDetailToneContainerClass(detail.tone),
+                    ]"
                   >
-                    {{ detail }}
+                    <span
+                      :class="[
+                        'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
+                        getDetailToneDotClass(detail.tone),
+                      ]"
+                    ></span>
+                    <span class="min-w-0">{{ detail.text }}</span>
                   </li>
                 </ul>
                 <div v-if="toast.copyText" class="mt-3 flex items-center gap-2">
@@ -66,7 +78,7 @@
                     class="btn btn-secondary btn-xs"
                     @click="copyToastDetails(toast.copyText)"
                   >
-                    {{ t('admin.accounts.modelImportCopyDetails') }}
+                    {{ t("admin.accounts.modelImportCopyDetails") }}
                   </button>
                 </div>
               </div>
@@ -83,7 +95,10 @@
 
           <div v-if="toast.duration" class="h-1 bg-gray-100 dark:bg-dark-700">
             <div
-              :class="['h-full toast-progress', getProgressBarColor(toast.type)]"
+              :class="[
+                'h-full toast-progress',
+                getProgressBarColor(toast.type),
+              ]"
               :style="{ animationDuration: `${toast.duration}ms` }"
             ></div>
           </div>
@@ -94,88 +109,115 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-import Icon from '@/components/icons/Icon.vue'
-import { useAppStore } from '@/stores/app'
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+import Icon from "@/components/icons/Icon.vue";
+import { useAppStore } from "@/stores/app";
 
-const appStore = useAppStore()
-const { t } = useI18n()
-const toasts = computed(() => appStore.toasts)
+const appStore = useAppStore();
+const { t } = useI18n();
+const toasts = computed(() => appStore.toasts);
 
-const getToastIconName = (type: string): 'checkCircle' | 'xCircle' | 'exclamationTriangle' | 'infoCircle' => {
+const getToastIconName = (
+  type: string,
+): "checkCircle" | "xCircle" | "exclamationTriangle" | "infoCircle" => {
   switch (type) {
-    case 'success':
-      return 'checkCircle'
-    case 'error':
-      return 'xCircle'
-    case 'warning':
-      return 'exclamationTriangle'
-    case 'info':
+    case "success":
+      return "checkCircle";
+    case "error":
+      return "xCircle";
+    case "warning":
+      return "exclamationTriangle";
+    case "info":
     default:
-      return 'infoCircle'
+      return "infoCircle";
   }
-}
+};
 
 const getIconColor = (type: string): string => {
   const colors: Record<string, string> = {
-    success: 'text-green-500',
-    error: 'text-red-500',
-    warning: 'text-yellow-500',
-    info: 'text-blue-500'
-  }
-  return colors[type] || colors.info
-}
+    success: "text-green-500",
+    error: "text-red-500",
+    warning: "text-yellow-500",
+    info: "text-blue-500",
+  };
+  return colors[type] || colors.info;
+};
 
 const getBorderColor = (type: string): string => {
   const colors: Record<string, string> = {
-    success: 'border-green-500',
-    error: 'border-red-500',
-    warning: 'border-yellow-500',
-    info: 'border-blue-500'
-  }
-  return colors[type] || colors.info
-}
+    success: "border-green-500",
+    error: "border-red-500",
+    warning: "border-yellow-500",
+    info: "border-blue-500",
+  };
+  return colors[type] || colors.info;
+};
 
 const getProgressBarColor = (type: string): string => {
   const colors: Record<string, string> = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    warning: 'bg-yellow-500',
-    info: 'bg-blue-500'
-  }
-  return colors[type] || colors.info
-}
+    success: "bg-green-500",
+    error: "bg-red-500",
+    warning: "bg-yellow-500",
+    info: "bg-blue-500",
+  };
+  return colors[type] || colors.info;
+};
+
+const getDetailToneContainerClass = (tone?: string): string => {
+  const colors: Record<string, string> = {
+    success:
+      "bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-200",
+    error: "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-200",
+    warning:
+      "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-200",
+    info: "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200",
+  };
+  return (
+    colors[tone || ""] ||
+    "bg-white/70 text-gray-600 dark:bg-dark-600/60 dark:text-gray-300"
+  );
+};
+
+const getDetailToneDotClass = (tone?: string): string => {
+  const colors: Record<string, string> = {
+    success: "bg-green-500",
+    error: "bg-red-500",
+    warning: "bg-amber-500",
+    info: "bg-blue-500",
+  };
+  return colors[tone || ""] || "bg-gray-400 dark:bg-gray-500";
+};
 
 async function copyToastDetails(copyText: string) {
   try {
     if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(copyText)
-      appStore.showSuccess(t('common.copiedToClipboard'), 2000)
-      return
+      await navigator.clipboard.writeText(copyText);
+      appStore.showSuccess(t("common.copiedToClipboard"), 2000);
+      return;
     }
   } catch {
     // use fallback below
   }
 
   try {
-    const textarea = document.createElement('textarea')
-    textarea.value = copyText
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    document.body.appendChild(textarea)
-    textarea.focus()
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
-    appStore.showSuccess(t('common.copiedToClipboard'), 2000)
+    const textarea = document.createElement("textarea");
+    textarea.value = copyText;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    appStore.showSuccess(t("common.copiedToClipboard"), 2000);
   } catch {
-    appStore.showWarning(t('common.copyFailed'))
+    appStore.showWarning(t("common.copyFailed"));
   }
 }
 
 function removeToast(id: string) {
-  appStore.hideToast(id)
+  appStore.hideToast(id);
 }
 </script>
 

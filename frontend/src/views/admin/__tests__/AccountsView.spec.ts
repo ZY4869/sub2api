@@ -276,6 +276,12 @@ vi.mock('@/utils/accountModelImport', () => ({
 }))
 
 import AccountsView from '../AccountsView.vue'
+import {
+  canAccountFetchUsage,
+  invalidateAccountUsagePresentationCache,
+  refreshAccountUsagePresentation,
+  resolveActualUsageRefreshLoadOptions
+} from '@/composables/useAccountUsagePresentation'
 
 const SummaryBarStub = defineComponent({
   name: 'AccountStatusSummaryBar',
@@ -300,10 +306,11 @@ const SummaryBarStub = defineComponent({
 const ToolbarStub = defineComponent({
   name: 'AccountsViewToolbar',
   props: ['platformCountSortOrder'],
-  emits: ['update:platform-count-sort-order'],
+  emits: ['refresh-usage', 'update:platform-count-sort-order'],
   template: `
     <div>
       <div class="toolbar-platform-sort">{{ platformCountSortOrder }}</div>
+      <button class="toolbar-refresh-usage" @click="$emit('refresh-usage')" />
       <button
         class="toolbar-platform-sort-toggle"
         @click="$emit('update:platform-count-sort-order', 'count_desc')"
@@ -424,6 +431,10 @@ describe('AccountsView', () => {
     mockState.getAllGroups.mockReset().mockResolvedValue([])
     mockState.getAllProxies.mockReset().mockResolvedValue([])
     mockState.getById.mockReset()
+    vi.mocked(canAccountFetchUsage).mockImplementation(() => false)
+    vi.mocked(invalidateAccountUsagePresentationCache).mockReset()
+    vi.mocked(refreshAccountUsagePresentation).mockReset()
+    vi.mocked(resolveActualUsageRefreshLoadOptions).mockImplementation(() => ({}))
   })
 
   it('keeps global summary counts independent from runtime_view and merges in-use separately', async () => {
@@ -621,6 +632,106 @@ describe('AccountsView', () => {
     expect(wrapper.get('.toolbar-platform-sort').text()).toBe('count_desc')
     expect(wrapper.get('.table-account-order').text()).toBe('OpenAI-1,OpenAI-2,Gateway-1,Gemini-1')
     expect(localStorage.getItem('account-platform-count-sort-order')).toBe('count_desc')
+
+    wrapper.unmount()
+  })
+
+  it('shows success toast details for actual usage refresh when all accounts succeed', async () => {
+    vi.mocked(canAccountFetchUsage).mockReturnValue(true)
+    vi.mocked(refreshAccountUsagePresentation).mockResolvedValue({
+      total: 4,
+      success: 4,
+      activeSuccess: 3,
+      fallbackSuccess: 1,
+      failed: 0
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.toolbar-refresh-usage').trigger('click')
+    await flushPromises()
+
+    expect(invalidateAccountUsagePresentationCache).toHaveBeenCalledWith([1, 2, 3, 4])
+    expect(refreshAccountUsagePresentation).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        force: true,
+        concurrency: 4,
+        resolveLoadOptions: expect.any(Function)
+      })
+    )
+    expect(mockState.showSuccess).toHaveBeenCalledWith(
+      'admin.accounts.refreshActualUsageSuccess',
+      expect.objectContaining({
+        details: [
+          { text: 'admin.accounts.refreshActualUsageDetailActive', tone: 'success' },
+          { text: 'admin.accounts.refreshActualUsageDetailFallback', tone: 'warning' }
+        ]
+      })
+    )
+    expect(mockState.showWarning).not.toHaveBeenCalled()
+    expect(mockState.showError).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('shows warning toast details for partial actual usage refresh failures', async () => {
+    vi.mocked(canAccountFetchUsage).mockReturnValue(true)
+    vi.mocked(refreshAccountUsagePresentation).mockResolvedValue({
+      total: 4,
+      success: 3,
+      activeSuccess: 2,
+      fallbackSuccess: 1,
+      failed: 1
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.toolbar-refresh-usage').trigger('click')
+    await flushPromises()
+
+    expect(mockState.showWarning).toHaveBeenCalledWith(
+      'admin.accounts.refreshActualUsagePartial',
+      expect.objectContaining({
+        details: [
+          { text: 'admin.accounts.refreshActualUsageDetailActive', tone: 'success' },
+          { text: 'admin.accounts.refreshActualUsageDetailFallback', tone: 'warning' },
+          { text: 'admin.accounts.refreshActualUsageDetailFailed', tone: 'error' }
+        ]
+      })
+    )
+    expect(mockState.showSuccess).not.toHaveBeenCalled()
+    expect(mockState.showError).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('shows error toast details when actual usage refresh fully fails', async () => {
+    vi.mocked(canAccountFetchUsage).mockReturnValue(true)
+    vi.mocked(refreshAccountUsagePresentation).mockResolvedValue({
+      total: 4,
+      success: 0,
+      activeSuccess: 0,
+      fallbackSuccess: 0,
+      failed: 4
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.toolbar-refresh-usage').trigger('click')
+    await flushPromises()
+
+    expect(mockState.showError).toHaveBeenCalledWith(
+      'admin.accounts.refreshActualUsageFailedCount',
+      expect.objectContaining({
+        details: [{ text: 'admin.accounts.refreshActualUsageDetailFailed', tone: 'error' }]
+      })
+    )
+    expect(mockState.showSuccess).not.toHaveBeenCalled()
+    expect(mockState.showWarning).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })

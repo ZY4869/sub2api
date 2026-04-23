@@ -157,6 +157,11 @@ func TestRequestMetadataImageRouteFields(t *testing.T) {
 	SetImageUpstreamEndpointMetadata(ctx, EndpointImagesGen)
 	SetImageRequestFormatMetadata(ctx, "application/json")
 	SetImageRouteReasonMetadata(ctx, PublicImageRouteReasonModelProvider)
+	SetImageProtocolModeMetadata(ctx, OpenAIImageProtocolModeCompat)
+	SetImageRequestSurfaceMetadata(ctx, "images_bridge")
+	SetImageSizeTierMetadata(ctx, OpenAIImageSizeTier2K)
+	SetImageCapabilityProfileMetadata(ctx, "openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on")
+	SetImageOutputCountMetadata(ctx, 2)
 
 	routeFamily, ok := ImageRouteFamilyMetadataFromContext(ctx)
 	require.True(t, ok)
@@ -189,4 +194,53 @@ func TestRequestMetadataImageRouteFields(t *testing.T) {
 	routeReason, ok := ImageRouteReasonMetadataFromContext(ctx)
 	require.True(t, ok)
 	require.Equal(t, PublicImageRouteReasonModelProvider, routeReason)
+
+	protocolMode, ok := ImageProtocolModeMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, OpenAIImageProtocolModeCompat, protocolMode)
+
+	requestSurface, ok := ImageRequestSurfaceMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "images_bridge", requestSurface)
+
+	sizeTier, ok := ImageSizeTierMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, OpenAIImageSizeTier2K, sizeTier)
+
+	capabilityProfile, ok := ImageCapabilityProfileMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, "openai_image.compat.gpt-image-2.transparent_on.custom_resolution_on", capabilityProfile)
+
+	outputCount, ok := ImageOutputCountMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.Equal(t, 2, outputCount)
+}
+
+func TestRequestMetadataOpenAIResponsesImagegenCompatFields(t *testing.T) {
+	ctx := EnsureRequestMetadata(context.Background())
+	SetOpenAIResponsesImageGenCompatMetadata(ctx, OpenAIResponsesCompatMetadata{
+		Enabled:                   true,
+		Rejected:                  true,
+		RejectCode:                "multipart_stream_unsupported",
+		SourceGuess:               OpenAIResponsesImagegenCompatSourceMultipart,
+		Source:                    OpenAIResponsesImagegenCompatSourceMultipart,
+		ReferenceImageCount:       2,
+		ReferenceImageBytesBefore: 4096,
+		ReferenceImageBytesAfter:  2048,
+		ReferenceImagesNormalized: true,
+		ImageGenerationSize:       "1536x1024",
+	})
+
+	metadata, ok := OpenAIResponsesImageGenCompatMetadataFromContext(ctx)
+	require.True(t, ok)
+	require.True(t, metadata.Enabled)
+	require.True(t, metadata.Rejected)
+	require.Equal(t, "multipart_stream_unsupported", metadata.RejectCode)
+	require.Equal(t, OpenAIResponsesImagegenCompatSourceMultipart, metadata.SourceGuess)
+	require.Equal(t, OpenAIResponsesImagegenCompatSourceMultipart, metadata.Source)
+	require.Equal(t, 2, metadata.ReferenceImageCount)
+	require.Equal(t, int64(4096), metadata.ReferenceImageBytesBefore)
+	require.Equal(t, int64(2048), metadata.ReferenceImageBytesAfter)
+	require.True(t, metadata.ReferenceImagesNormalized)
+	require.Equal(t, "1536x1024", metadata.ImageGenerationSize)
 }

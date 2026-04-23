@@ -140,6 +140,11 @@ func ImagePrice4k(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldImagePrice4k, v))
 }
 
+// ImageProtocolMode applies equality check predicate on the "image_protocol_mode" field. It's identical to ImageProtocolModeEQ.
+func ImageProtocolMode(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldImageProtocolMode, v))
+}
+
 // ClaudeCodeOnly applies equality check predicate on the "claude_code_only" field. It's identical to ClaudeCodeOnlyEQ.
 func ClaudeCodeOnly(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldClaudeCodeOnly, v))
@@ -1043,6 +1048,71 @@ func ImagePrice4kIsNil() predicate.Group {
 // ImagePrice4kNotNil applies the NotNil predicate on the "image_price_4k" field.
 func ImagePrice4kNotNil() predicate.Group {
 	return predicate.Group(sql.FieldNotNull(FieldImagePrice4k))
+}
+
+// ImageProtocolModeEQ applies the EQ predicate on the "image_protocol_mode" field.
+func ImageProtocolModeEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeNEQ applies the NEQ predicate on the "image_protocol_mode" field.
+func ImageProtocolModeNEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeIn applies the In predicate on the "image_protocol_mode" field.
+func ImageProtocolModeIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldImageProtocolMode, vs...))
+}
+
+// ImageProtocolModeNotIn applies the NotIn predicate on the "image_protocol_mode" field.
+func ImageProtocolModeNotIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldImageProtocolMode, vs...))
+}
+
+// ImageProtocolModeGT applies the GT predicate on the "image_protocol_mode" field.
+func ImageProtocolModeGT(v string) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeGTE applies the GTE predicate on the "image_protocol_mode" field.
+func ImageProtocolModeGTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeLT applies the LT predicate on the "image_protocol_mode" field.
+func ImageProtocolModeLT(v string) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeLTE applies the LTE predicate on the "image_protocol_mode" field.
+func ImageProtocolModeLTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeContains applies the Contains predicate on the "image_protocol_mode" field.
+func ImageProtocolModeContains(v string) predicate.Group {
+	return predicate.Group(sql.FieldContains(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeHasPrefix applies the HasPrefix predicate on the "image_protocol_mode" field.
+func ImageProtocolModeHasPrefix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasPrefix(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeHasSuffix applies the HasSuffix predicate on the "image_protocol_mode" field.
+func ImageProtocolModeHasSuffix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasSuffix(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeEqualFold applies the EqualFold predicate on the "image_protocol_mode" field.
+func ImageProtocolModeEqualFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldEqualFold(FieldImageProtocolMode, v))
+}
+
+// ImageProtocolModeContainsFold applies the ContainsFold predicate on the "image_protocol_mode" field.
+func ImageProtocolModeContainsFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldContainsFold(FieldImageProtocolMode, v))
 }
 
 // ClaudeCodeOnlyEQ applies the EQ predicate on the "claude_code_only" field.

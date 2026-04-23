@@ -1,9 +1,10 @@
 <template>
   <div :class="detailedReset ? 'space-y-0.5' : ''">
-    <div class="flex items-center gap-1">
+    <div class="flex min-w-0 items-center gap-1">
       <span
         :class="[
-          'w-[32px] shrink-0 rounded px-1 text-center text-[10px] font-medium',
+          'shrink-0 rounded text-center text-[10px] font-medium',
+          labelWidthClass,
           labelClass,
         ]"
       >
@@ -65,7 +66,10 @@
         {{ displayPercent }}
       </span>
 
-      <span v-if="inlineReset && effectiveResetAt" :class="remainingTextClass">
+      <span
+        v-if="inlineReset && !detailedReset && effectiveResetAt"
+        :class="remainingTextClass"
+      >
         {{ t("admin.accounts.usageWindow.remainingLabel") }}
         {{ resetCountdownText }}
       </span>
@@ -80,7 +84,10 @@
 
     <div
       v-if="detailedReset"
-      class="pl-[37px] flex items-center gap-1 text-[10px] text-gray-400"
+      :class="[
+        detailPaddingClass,
+        'flex items-center gap-1 text-[10px] text-gray-400',
+      ]"
       :title="resetTooltip || undefined"
     >
       <span
@@ -108,19 +115,22 @@ import {
   parseEffectiveResetAt,
 } from "@/utils/usageResetTime";
 
-const props = withDefaults(defineProps<{
-  label: string;
-  utilization: number;
-  resetsAt?: string | null;
-  remainingSeconds?: number | null;
-  color: "indigo" | "emerald" | "purple" | "amber";
-  windowStats?: WindowStats | null;
-  detailedReset?: boolean;
-  inlineReset?: boolean;
-  displayMode?: AccountUsageDisplayMode;
-}>(), {
-  displayMode: "used",
-});
+const props = withDefaults(
+  defineProps<{
+    label: string;
+    utilization: number;
+    resetsAt?: string | null;
+    remainingSeconds?: number | null;
+    color: "indigo" | "emerald" | "purple" | "amber";
+    windowStats?: WindowStats | null;
+    detailedReset?: boolean;
+    inlineReset?: boolean;
+    displayMode?: AccountUsageDisplayMode;
+  }>(),
+  {
+    displayMode: "used",
+  },
+);
 
 const { t } = useI18n();
 const { nowDate } = useUiNow();
@@ -139,6 +149,16 @@ const labelClass = computed(() => {
       "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   };
   return colors[props.color];
+});
+
+const labelWidthClass = computed(() => {
+  return props.detailedReset
+    ? "min-w-[56px] px-1.5 py-0.5"
+    : "w-[32px] px-1 py-0";
+});
+
+const detailPaddingClass = computed(() => {
+  return props.detailedReset ? "pl-[61px]" : "pl-[37px]";
 });
 
 const barClass = computed(() => {

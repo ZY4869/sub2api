@@ -770,7 +770,16 @@
         <div v-if="createForm.platform === 'openai'" class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4">
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('admin.groups.openaiMessages.title') }}</h4>
 
-          <div class="flex items-center justify-between">
+          <div>
+            <label class="input-label">{{ t('admin.groups.imageProtocol.label') }}</label>
+            <Select
+              v-model="createForm.image_protocol_mode"
+              :options="openAIGroupImageProtocolModeOptions"
+            />
+            <p class="input-hint">{{ t('admin.groups.imageProtocol.hint') }}</p>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between">
             <label class="text-sm text-gray-600 dark:text-gray-400">{{ t('admin.groups.openaiMessages.allowDispatch') }}</label>
             <button
               type="button"
@@ -1502,7 +1511,16 @@
         <div v-if="editForm.platform === 'openai'" class="border-t border-gray-200 dark:border-dark-400 pt-4 mt-4">
           <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{{ t('admin.groups.openaiMessages.title') }}</h4>
 
-          <div class="flex items-center justify-between">
+          <div>
+            <label class="input-label">{{ t('admin.groups.imageProtocol.label') }}</label>
+            <Select
+              v-model="editForm.image_protocol_mode"
+              :options="openAIGroupImageProtocolModeOptions"
+            />
+            <p class="input-hint">{{ t('admin.groups.imageProtocol.hint') }}</p>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between">
             <label class="text-sm text-gray-600 dark:text-gray-400">{{ t('admin.groups.openaiMessages.allowDispatch') }}</label>
             <button
               type="button"
@@ -1861,7 +1879,12 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useOnboardingStore } from '@/stores/onboarding'
 import { adminAPI } from '@/api/admin'
-import type { AdminGroup, GroupPlatform, SubscriptionType } from '@/types'
+import type {
+  AdminGroup,
+  GroupPlatform,
+  OpenAIGroupImageProtocolMode,
+  SubscriptionType
+} from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1915,6 +1938,14 @@ interface GroupSelectOption {
   platform?: GroupPlatform
   description?: string
   [key: string]: unknown
+}
+
+function normalizeOpenAIGroupImageProtocolMode(value: unknown): OpenAIGroupImageProtocolMode {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'native' || normalized === 'compat') {
+    return normalized
+  }
+  return 'inherit'
 }
 
 function buildPlatformSelectOption(platform: GroupPlatform): PlatformSelectOption {
@@ -1998,6 +2029,12 @@ const editStatusOptions = computed(() => [
 const subscriptionTypeOptions = computed(() => [
   { value: 'standard', label: t('admin.groups.subscription.standard') },
   { value: 'subscription', label: t('admin.groups.subscription.subscription') }
+])
+
+const openAIGroupImageProtocolModeOptions = computed(() => [
+  { value: 'inherit', label: t('admin.groups.imageProtocol.options.inherit') },
+  { value: 'native', label: t('admin.groups.imageProtocol.options.native') },
+  { value: 'compat', label: t('admin.groups.imageProtocol.options.compat') }
 ])
 
 const fallbackGroupOptions = computed<GroupSelectOption[]>(() => {
@@ -2130,6 +2167,7 @@ const createForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
+  image_protocol_mode: 'inherit' as OpenAIGroupImageProtocolMode,
   claude_code_only: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
@@ -2349,6 +2387,7 @@ const editForm = reactive({
   image_price_1k: null as number | null,
   image_price_2k: null as number | null,
   image_price_4k: null as number | null,
+  image_protocol_mode: 'inherit' as OpenAIGroupImageProtocolMode,
   claude_code_only: false,
   fallback_group_id: null as number | null,
   fallback_group_id_on_invalid_request: null as number | null,
@@ -2523,6 +2562,7 @@ const closeCreateModal = () => {
   createForm.image_price_1k = null
   createForm.image_price_2k = null
   createForm.image_price_4k = null
+  createForm.image_protocol_mode = 'inherit'
   createForm.claude_code_only = false
   createForm.fallback_group_id = null
   createForm.fallback_group_id_on_invalid_request = null
@@ -2607,6 +2647,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.image_price_1k = group.image_price_1k
   editForm.image_price_2k = group.image_price_2k
   editForm.image_price_4k = group.image_price_4k
+  editForm.image_protocol_mode = normalizeOpenAIGroupImageProtocolMode(group.image_protocol_mode)
   editForm.claude_code_only = group.claude_code_only || false
   editForm.fallback_group_id = group.fallback_group_id
   editForm.fallback_group_id_on_invalid_request = group.fallback_group_id_on_invalid_request
@@ -2632,6 +2673,7 @@ const closeEditModal = () => {
   editForm.copy_accounts_from_group_ids = []
   editCopyAccountsSelection.value = null
   editForm.gemini_mixed_protocol_enabled = false
+  editForm.image_protocol_mode = 'inherit'
 }
 
 const handleUpdateGroup = async () => {
@@ -2719,6 +2761,7 @@ watch(
       createForm.fallback_group_id_on_invalid_request = null
     }
     if (newVal !== 'openai') {
+      createForm.image_protocol_mode = 'inherit'
       createForm.allow_messages_dispatch = false
       createForm.default_mapped_model = ''
     }
@@ -2730,6 +2773,11 @@ watch(
   (newVal) => {
     if (newVal !== 'gemini') {
       editForm.gemini_mixed_protocol_enabled = false
+    }
+    if (newVal !== 'openai') {
+      editForm.image_protocol_mode = 'inherit'
+      editForm.allow_messages_dispatch = false
+      editForm.default_mapped_model = ''
     }
   }
 )

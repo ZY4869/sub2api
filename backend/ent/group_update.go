@@ -355,6 +355,20 @@ func (_u *GroupUpdate) ClearImagePrice4k() *GroupUpdate {
 	return _u
 }
 
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (_u *GroupUpdate) SetImageProtocolMode(v string) *GroupUpdate {
+	_u.mutation.SetImageProtocolMode(v)
+	return _u
+}
+
+// SetNillableImageProtocolMode sets the "image_protocol_mode" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableImageProtocolMode(v *string) *GroupUpdate {
+	if v != nil {
+		_u.SetImageProtocolMode(*v)
+	}
+	return _u
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (_u *GroupUpdate) SetClaudeCodeOnly(v bool) *GroupUpdate {
 	_u.mutation.SetClaudeCodeOnly(v)
@@ -880,6 +894,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ImageProtocolMode(); ok {
+		if err := group.ImageProtocolModeValidator(v); err != nil {
+			return &ValidationError{Name: "image_protocol_mode", err: fmt.Errorf(`ent: validator failed for field "Group.image_protocol_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -995,6 +1014,9 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ImagePrice4kCleared() {
 		_spec.ClearField(group.FieldImagePrice4k, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.ImageProtocolMode(); ok {
+		_spec.SetField(group.FieldImageProtocolMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ClaudeCodeOnly(); ok {
 		_spec.SetField(group.FieldClaudeCodeOnly, field.TypeBool, value)
@@ -1749,6 +1771,20 @@ func (_u *GroupUpdateOne) ClearImagePrice4k() *GroupUpdateOne {
 	return _u
 }
 
+// SetImageProtocolMode sets the "image_protocol_mode" field.
+func (_u *GroupUpdateOne) SetImageProtocolMode(v string) *GroupUpdateOne {
+	_u.mutation.SetImageProtocolMode(v)
+	return _u
+}
+
+// SetNillableImageProtocolMode sets the "image_protocol_mode" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableImageProtocolMode(v *string) *GroupUpdateOne {
+	if v != nil {
+		_u.SetImageProtocolMode(*v)
+	}
+	return _u
+}
+
 // SetClaudeCodeOnly sets the "claude_code_only" field.
 func (_u *GroupUpdateOne) SetClaudeCodeOnly(v bool) *GroupUpdateOne {
 	_u.mutation.SetClaudeCodeOnly(v)
@@ -2287,6 +2323,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "subscription_type", err: fmt.Errorf(`ent: validator failed for field "Group.subscription_type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ImageProtocolMode(); ok {
+		if err := group.ImageProtocolModeValidator(v); err != nil {
+			return &ValidationError{Name: "image_protocol_mode", err: fmt.Errorf(`ent: validator failed for field "Group.image_protocol_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DefaultMappedModel(); ok {
 		if err := group.DefaultMappedModelValidator(v); err != nil {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
@@ -2419,6 +2460,9 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if _u.mutation.ImagePrice4kCleared() {
 		_spec.ClearField(group.FieldImagePrice4k, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.ImageProtocolMode(); ok {
+		_spec.SetField(group.FieldImageProtocolMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ClaudeCodeOnly(); ok {
 		_spec.SetField(group.FieldClaudeCodeOnly, field.TypeBool, value)

@@ -26,6 +26,9 @@ type Group struct {
 	ImagePrice2K *float64
 	ImagePrice4K *float64
 
+	// OpenAI 图片协议模式（仅 openai 平台使用）
+	ImageProtocolMode string
+
 	// Claude Code 客户端限制
 	ClaudeCodeOnly  bool
 	FallbackGroupID *int64

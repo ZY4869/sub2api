@@ -113,7 +113,13 @@ describe('AccountUsageCell Kiro usage handling', () => {
       resolveLoadOptions: resolveActualUsageRefreshLoadOptions,
     })
 
-    expect(result).toEqual({ total: 1, success: 1, failed: 0 })
+    expect(result).toEqual({
+      total: 1,
+      success: 1,
+      activeSuccess: 0,
+      fallbackSuccess: 1,
+      failed: 0
+    })
     expect(getUsage).toHaveBeenCalledTimes(1)
     expect(getUsage).toHaveBeenCalledWith(4101, { force: true, source: 'passive' })
   })

@@ -55,6 +55,22 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 		return nil, fmt.Errorf("rewrite image request model: %w", err)
 	}
 	imageSize := DetectOpenAIImageRequestSize(requestBody, rewrittenContentType)
+	normalizedRequest, err := NormalizeOpenAIImageRequest(requestBody, rewrittenContentType, action)
+	if err != nil {
+		return nil, newOpenAIImageRequestError("image_request_invalid", err.Error())
+	}
+	normalizedRequest.DisplayModelID = originalModel
+	normalizedRequest.TargetModelID = mappedModel
+	capabilityProfile, err := ValidateOpenAIImageCapabilities(normalizedRequest, OpenAIImageProtocolModeNative, mappedModel)
+	if err != nil {
+		return nil, err
+	}
+	if c != nil && c.Request != nil {
+		ctx := EnsureRequestMetadata(c.Request.Context())
+		SetImageCapabilityProfileMetadata(ctx, capabilityProfile.ID)
+		c.Request = c.Request.WithContext(ctx)
+	}
+	SetOpenAIImageNormalizedTracePayload(c, "openai_native_images_normalized_request", normalizedRequest, capabilityProfile.ID)
 
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
@@ -199,7 +215,7 @@ func (s *OpenAIGatewayService) handleNativeImagesNonStreamingResponse(
 		BillingModel:  mappedModel,
 		UpstreamModel: mappedModel,
 		ImageCount:    CountOpenAIImageResponse(body),
-		ImageSize:     strings.TrimSpace(imageSize),
+		ImageSize:     ResolveOpenAIImageSizeTier(imageSize),
 		MediaType:     "image",
 	}, nil
 }

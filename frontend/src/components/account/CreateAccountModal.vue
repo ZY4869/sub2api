@@ -245,6 +245,7 @@
         <AccountProtocolGatewayOpenAIRequestFormatEditor
           v-if="showProtocolGatewayOpenAIRequestFormatEditor"
           v-model:value="gatewayOpenAIRequestFormat"
+          v-model:image-protocol-mode="gatewayOpenAIImageProtocolMode"
         />
 
         <AccountProtocolGatewayBatchEditor
@@ -462,6 +463,9 @@
       <AccountGatewaySettingsEditor
         :show-open-ai-passthrough="effectivePlatform === 'openai'"
         :open-ai-passthrough-enabled="openaiPassthroughEnabled"
+        :show-open-ai-image-protocol-mode="form.platform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
+        :open-ai-image-protocol-mode="openAIImageProtocolMode"
+        :open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed"
         :show-open-ai-ws-mode="effectivePlatform === 'openai' && (accountCategory === 'oauth-based' || accountCategory === 'apikey')"
         :open-ai-ws-mode="openaiResponsesWebSocketV2Mode"
         :open-ai-ws-mode-options="openAIWSModeOptions"
@@ -471,6 +475,7 @@
         :show-codex-cli-only="effectivePlatform === 'openai' && accountCategory === 'oauth-based'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
+        @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
@@ -602,6 +607,7 @@ import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
+  OpenAIImageProtocolMode,
   GatewayOpenAIRequestFormat,
   GatewayProtocol,
   GroupPlatform
@@ -669,9 +675,14 @@ import {
 } from '@/utils/accountApiKeyAdvancedSettingsForm'
 import { resolveAccountApiKeyDefaultBaseUrl } from '@/utils/accountApiKeyBasicSettings'
 import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtras'
-import { getOpenAIDefaultWhitelist } from '@/utils/openaiAccountDefaults'
 import {
+  getOpenAIDefaultWhitelist,
+  resolveOpenAIImageProtocolState
+} from '@/utils/openaiAccountDefaults'
+import {
+  DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE,
   DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT,
+  applyProtocolGatewayOpenAIImageProtocolModeExtra,
   applyProtocolGatewayOpenAIRequestFormatExtra,
   applyProtocolGatewayGeminiBatchExtra,
   applyProtocolGatewayClaudeClientMimicExtra,
@@ -838,10 +849,14 @@ const customErrorCodesState = reactive(createDefaultAccountCustomErrorCodesState
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(true)
 const openaiPassthroughEnabled = ref(false)
+const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
+const openAIImageCompatAllowed = ref(true)
+const openAIImageProtocolTouched = ref(false)
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
+const gatewayOpenAIImageProtocolMode = ref<OpenAIImageProtocolMode>(DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE)
 const mixedScheduling = ref(false) // For antigravity accounts: enable mixed scheduling
 const antigravityModelRestrictionMode = ref<'whitelist' | 'mapping'>('whitelist')
 const antigravityWhitelistModels = ref<string[]>([])
@@ -1178,6 +1193,37 @@ const applyOpenAIBaseDefaultWhitelist = () => {
   allowedModels.value = getOpenAIDefaultWhitelist()
 }
 
+const applyOpenAIImageProtocolDefaults = (planType?: string | null, force = false) => {
+  if (form.platform !== 'openai') {
+    openAIImageProtocolTouched.value = false
+    openAIImageProtocolMode.value = 'native'
+    openAIImageCompatAllowed.value = true
+    return
+  }
+
+  const nextState = resolveOpenAIImageProtocolState({
+    accountCategory: accountCategory.value,
+    planType
+  })
+  openAIImageCompatAllowed.value = nextState.compatAllowed
+  if (!nextState.compatAllowed) {
+    openAIImageProtocolMode.value = 'native'
+    return
+  }
+  if (force || !openAIImageProtocolTouched.value) {
+    openAIImageProtocolMode.value = nextState.mode
+  }
+}
+
+const handleOpenAIImageProtocolModeChange = (value: OpenAIImageProtocolMode) => {
+  openAIImageProtocolTouched.value = true
+  if (!openAIImageCompatAllowed.value && value === 'compat') {
+    openAIImageProtocolMode.value = 'native'
+    return
+  }
+  openAIImageProtocolMode.value = value
+}
+
 // Watchers
 watch(
   () => props.show,
@@ -1204,6 +1250,7 @@ watch(
       gatewayTestProvider.value = ''
       gatewayTestModelId.value = ''
       gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+      gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
       gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       if (form.platform === 'antigravity') {
@@ -1211,6 +1258,8 @@ watch(
       } else {
         antigravityModelMappings.value = []
       }
+      openAIImageProtocolTouched.value = false
+      applyOpenAIImageProtocolDefaults(undefined, true)
     } else {
       resetForm()
     }
@@ -1268,9 +1317,11 @@ watch(
     gatewayTestProvider.value = ''
     gatewayTestModelId.value = ''
     gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+    gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
     gatewayBatchEnabled.value = false
     resetProtocolGatewayClaudeMimicState()
     modelMappings.value = []
+    openAIImageProtocolTouched.value = false
     if (newPlatform !== 'anthropic') {
       addMethod.value = 'oauth'
     }
@@ -1333,9 +1384,13 @@ watch(
     }
     if (effectivePlatform.value !== 'openai') {
       openaiPassthroughEnabled.value = false
+      openAIImageProtocolMode.value = 'native'
+      openAIImageCompatAllowed.value = true
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
+    } else {
+      applyOpenAIImageProtocolDefaults(undefined, true)
     }
     if (effectivePlatform.value !== 'anthropic') {
       anthropicPassthroughEnabled.value = false
@@ -1368,6 +1423,7 @@ watch(
     gatewayTestProvider.value = ''
     gatewayTestModelId.value = ''
     gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+    gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
     gatewayBatchEnabled.value = false
     if (oldProtocol === 'openai' && newProtocol !== 'openai') {
       openaiPassthroughEnabled.value = false
@@ -1383,10 +1439,21 @@ watch(
 )
 
 watch(
+  accountCategory,
+  () => {
+    if (form.platform === 'openai') {
+      openAIImageProtocolTouched.value = false
+      applyOpenAIImageProtocolDefaults(undefined, true)
+    }
+  }
+)
+
+watch(
   showProtocolGatewayOpenAIRequestFormatEditor,
   (supported) => {
     if (!supported) {
       gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+      gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
     }
   }
 )
@@ -1638,6 +1705,9 @@ const { resetForm } = useCreateAccountReset({
   interceptWarmupRequests,
   autoPauseOnExpired,
   openaiPassthroughEnabled,
+  openAIImageProtocolMode,
+  openAIImageCompatAllowed,
+  gatewayOpenAIImageProtocolMode,
   openaiOAuthResponsesWebSocketV2Mode,
   openaiAPIKeyResponsesWebSocketV2Mode,
   codexCLIOnlyEnabled,
@@ -1697,7 +1767,10 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
     openaiOAuthResponsesWebSocketV2Mode: openaiOAuthResponsesWebSocketV2Mode.value,
     openaiAPIKeyResponsesWebSocketV2Mode: openaiAPIKeyResponsesWebSocketV2Mode.value,
     openaiPassthroughEnabled: openaiPassthroughEnabled.value,
-    codexCLIOnlyEnabled: codexCLIOnlyEnabled.value
+    codexCLIOnlyEnabled: codexCLIOnlyEnabled.value,
+    openAIImageProtocolMode: openAIImageProtocolMode.value,
+    openAIImageCompatAllowed: openAIImageCompatAllowed.value,
+    includeOpenAIImageProtocolMode: !isProtocolGatewayPlatform(form.platform)
   })
 
   const anthropicExtra = buildAnthropicExtra({
@@ -1710,30 +1783,39 @@ const buildAccountExtra = (base?: Record<string, unknown>) => {
   const extraWithProtocolGateway = !isProtocolGatewayPlatform(form.platform)
     ? anthropicExtra
     : applyProtocolGatewayGeminiBatchExtra(
-      applyProtocolGatewayOpenAIRequestFormatExtra(
-        applyProtocolGatewayClaudeClientMimicExtra({
-          ...(anthropicExtra || {}),
-          gateway_protocol: gatewayProtocol.value,
-          gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
-          gateway_client_profiles: [...gatewayClientProfiles.value],
-          gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
-          gateway_test_provider: gatewayTestProvider.value || undefined,
-          gateway_test_model_id: gatewayTestModelId.value || undefined
-        }, {
-          platform: form.platform,
-          type: form.type,
-          gatewayProtocol: gatewayProtocol.value,
-          acceptedProtocols: gatewayAcceptedProtocols.value,
-          claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
-          enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
-          sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
-        }),
+      applyProtocolGatewayOpenAIImageProtocolModeExtra(
+        applyProtocolGatewayOpenAIRequestFormatExtra(
+          applyProtocolGatewayClaudeClientMimicExtra({
+            ...(anthropicExtra || {}),
+            gateway_protocol: gatewayProtocol.value,
+            gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+            gateway_client_profiles: [...gatewayClientProfiles.value],
+            gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
+            gateway_test_provider: gatewayTestProvider.value || undefined,
+            gateway_test_model_id: gatewayTestModelId.value || undefined
+          }, {
+            platform: form.platform,
+            type: form.type,
+            gatewayProtocol: gatewayProtocol.value,
+            acceptedProtocols: gatewayAcceptedProtocols.value,
+            claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+            enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+            sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+          }),
+          {
+            platform: form.platform,
+            type: form.type,
+            gatewayProtocol: gatewayProtocol.value,
+            acceptedProtocols: gatewayAcceptedProtocols.value,
+            gatewayOpenAIRequestFormat: gatewayOpenAIRequestFormat.value
+          }
+        ),
         {
           platform: form.platform,
           type: form.type,
           gatewayProtocol: gatewayProtocol.value,
           acceptedProtocols: gatewayAcceptedProtocols.value,
-          gatewayOpenAIRequestFormat: gatewayOpenAIRequestFormat.value
+          gatewayOpenAIImageProtocolMode: gatewayOpenAIImageProtocolMode.value
         }
       ),
       {
@@ -1869,6 +1951,7 @@ const { handleOpenAIExchange } = useCreateAccountOpenAIExchange({
   allowedModels,
   modelMappings,
   buildAccountExtra,
+  applyOpenAIImageProtocolDefaults: (planType) => applyOpenAIImageProtocolDefaults(planType),
   afterCreateImportModels: maybeImportCreatedAccounts,
   emitCreated: () => emit('created'),
   onClose: handleClose
@@ -1884,6 +1967,7 @@ const { handleOpenAIValidateRT } = useCreateAccountOpenAIRefreshTokenValidation(
   allowedModels,
   modelMappings,
   buildAccountExtra,
+  applyOpenAIImageProtocolDefaults: (planType) => applyOpenAIImageProtocolDefaults(planType),
   afterCreateImportModels: maybeImportCreatedAccounts,
   emitCreated: () => emit('created'),
   onClose: handleClose

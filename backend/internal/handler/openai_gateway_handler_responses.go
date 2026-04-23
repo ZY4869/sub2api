@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/protocolruntime"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -74,8 +76,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 
+	contentType := strings.TrimSpace(c.GetHeader("Content-Type"))
 	setOpsRequestContext(c, "", false, body)
-	sessionHashBody := body
+	var sessionHashBody []byte
 	if service.IsOpenAIResponsesCompactPathForTest(c) {
 		if compactSeed := strings.TrimSpace(gjson.GetBytes(body, "prompt_cache_key").String()); compactSeed != "" {
 			c.Set(service.OpenAICompactSessionSeedKeyForTest(), compactSeed)
@@ -89,6 +92,74 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			body = normalizedCompactBody
 		}
 	}
+	sessionHashBody = body
+
+	compatResult, compatErr := service.NormalizeOpenAIResponsesImageGenCompat(body, contentType)
+	if compatErr != nil {
+		var requestErr *service.OpenAIResponsesCompatError
+		if errors.As(compatErr, &requestErr) {
+			compatMetadata := requestErr.Metadata
+			compatMetadata.Enabled = false
+			compatMetadata.Rejected = true
+			if strings.TrimSpace(compatMetadata.RejectCode) == "" {
+				compatMetadata.RejectCode = strings.TrimSpace(requestErr.Code)
+			}
+			if strings.TrimSpace(compatMetadata.SourceGuess) == "" {
+				compatMetadata.SourceGuess = detectOpenAIResponsesCompatSourceGuess(body, contentType)
+			}
+			if c.Request != nil {
+				ctx := service.EnsureRequestMetadata(c.Request.Context())
+				service.SetOpenAIResponsesImageGenCompatMetadata(ctx, compatMetadata)
+				c.Request = c.Request.WithContext(ctx)
+			}
+			protocolruntime.RecordResponsesImagegenReject(compatMetadata.RejectCode)
+			requestModel := detectOpenAIResponsesCompatRequestModel(body, contentType)
+			setResponsesImagegenCompatTracePayload(c, requestModel, contentType, compatMetadata, nil)
+			reqLog.Warn(
+				"openai.responses_imagegen_compat_rejected",
+				zap.String("request_id", openAIResponsesCompatRequestID(c)),
+				zap.String("correlation_id", openAIResponsesCompatCorrelationID(c)),
+				zap.String("code", compatMetadata.RejectCode),
+				zap.String("source", compatMetadata.SourceGuess),
+				zap.String("model", requestModel),
+				zap.String("content_type", contentType),
+				zap.Int("reference_image_count", compatMetadata.ReferenceImageCount),
+			)
+			h.errorResponseWithCode(c, requestErr.Status, requestErr.Type, requestErr.Code, requestErr.Message)
+			return
+		}
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize responses image generation request")
+		return
+	}
+	if compatResult != nil {
+		body = compatResult.Body
+		sessionHashBody = body
+		if strings.TrimSpace(compatResult.ContentType) != "" && c.Request != nil {
+			c.Request.Header.Set("Content-Type", compatResult.ContentType)
+		}
+		if compatResult.ParsedBody != nil {
+			c.Set(service.OpenAIParsedRequestBodyKey, compatResult.ParsedBody)
+		}
+		if compatResult.Metadata.Enabled {
+			if c.Request != nil {
+				ctx := service.EnsureRequestMetadata(c.Request.Context())
+				service.SetOpenAIResponsesImageGenCompatMetadata(ctx, compatResult.Metadata)
+				c.Request = c.Request.WithContext(ctx)
+			}
+			protocolruntime.RecordResponsesImagegenCompat(compatResult.Metadata.Source)
+			if compatResult.Metadata.ReferenceImagesNormalized {
+				protocolruntime.RecordResponsesImagegenNormalized(compatResult.Metadata.Source)
+			}
+			setResponsesImagegenCompatTracePayload(
+				c,
+				detectOpenAIResponsesCompatRequestModel(body, compatResult.ContentType),
+				compatResult.ContentType,
+				compatResult.Metadata,
+				compatResult.TraceTool,
+			)
+		}
+	}
+	setOpsRequestContext(c, "", false, body)
 
 	// 校验请求体 JSON 合法性
 	if !gjson.ValidBytes(body) {
@@ -317,6 +388,53 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", responsesImageToolUnsupportedPlatformMessage())
 				return
 			}
+			if hasImageTool {
+				imageProtocolMode := service.ResolveEffectiveOpenAIImageProtocolMode(currentAPIKey.Group, account)
+				if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !service.IsOpenAIImageCompatAllowed(account) {
+					h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "image_compat_not_allowed", "This account does not allow compat image generation")
+					return
+				}
+				normalizedImageToolRequest, normalizeErr := service.NormalizeOpenAIResponsesImageToolRequest(body)
+				if normalizeErr != nil {
+					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+					return
+				}
+				if imageProtocolMode == service.OpenAIImageProtocolModeCompat {
+					normalizedImageToolRequest.TargetModelID = service.OpenAICompatImageTargetModel
+				}
+				capabilityProfile, capabilityErr := service.ValidateOpenAIImageCapabilities(normalizedImageToolRequest, imageProtocolMode, normalizedImageToolRequest.TargetModelID)
+				if capabilityErr != nil {
+					var imageRequestErr *service.OpenAIImageRequestError
+					if errors.As(capabilityErr, &imageRequestErr) {
+						h.errorResponseWithCode(c, imageRequestErr.Status, imageRequestErr.Type, imageRequestErr.Code, imageRequestErr.Message)
+						return
+					}
+					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", capabilityErr.Error())
+					return
+				}
+				if compatResult == nil || !compatResult.Metadata.Enabled {
+					service.SetOpenAIImageNormalizedTracePayload(c, "openai_responses_image_tool", normalizedImageToolRequest, capabilityProfile.ID)
+				}
+				if imageProtocolMode == service.OpenAIImageProtocolModeCompat {
+					body, err = service.ForceOpenAIResponsesImageToolModel(body, service.OpenAICompatImageTargetModel)
+					if err != nil {
+						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+						return
+					}
+					imageToolModel = service.OpenAICompatImageTargetModel
+					setOpsRequestContext(c, reqModel, reqStream, body)
+				}
+				applyResponsesImageToolRuntimeMetadata(
+					c,
+					account.Platform,
+					reqModel,
+					imageToolModel,
+					imageProtocolMode,
+					service.ResolveOpenAIResponsesImageToolAction(body),
+					service.ResolveOpenAIResponsesImageToolSizeTier(body),
+					capabilityProfile.ID,
+				)
+			}
 			sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 			reqLog.Debug("openai.account_selected", zap.Int64("account_id", account.ID), zap.String("account_name", account.Name))
 			setOpsSelectedAccountDetails(c, account)
@@ -425,6 +543,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 			if result != nil {
+				if hasImageTool {
+					if imageCount, ok := service.ImageOutputCountMetadataFromContext(c.Request.Context()); ok && imageCount > 0 {
+						result.ImageCount = imageCount
+						result.MediaType = "image"
+					}
+					if sizeTier, ok := service.ImageSizeTierMetadataFromContext(c.Request.Context()); ok && strings.TrimSpace(sizeTier) != "" {
+						result.ImageSize = sizeTier
+					}
+					if targetModel, ok := service.ImageTargetModelIDMetadataFromContext(c.Request.Context()); ok && strings.TrimSpace(targetModel) != "" {
+						result.BillingModel = targetModel
+					}
+				}
 				if account.Type == service.AccountTypeOAuth {
 					h.gatewayService.UpdateCodexUsageSnapshotFromHeaders(c.Request.Context(), account.ID, result.ResponseHeaders, result.UpstreamModel, result.Model)
 				}
@@ -667,6 +797,79 @@ func getContextInt64(c *gin.Context, key string) (int64, bool) {
 	default:
 		return 0, false
 	}
+}
+
+func setResponsesImagegenCompatTracePayload(
+	c *gin.Context,
+	model string,
+	contentType string,
+	metadata service.OpenAIResponsesCompatMetadata,
+	tool map[string]any,
+) {
+	if c == nil {
+		return
+	}
+	compatPayload := map[string]any{
+		"model":        strings.TrimSpace(model),
+		"content_type": strings.TrimSpace(contentType),
+		"compat": map[string]any{
+			"enabled":               metadata.Enabled,
+			"rejected":              metadata.Rejected,
+			"source":                strings.TrimSpace(metadata.Source),
+			"source_guess":          strings.TrimSpace(metadata.SourceGuess),
+			"reject_code":           strings.TrimSpace(metadata.RejectCode),
+			"reference_image_count": metadata.ReferenceImageCount,
+			"normalized":            metadata.ReferenceImagesNormalized,
+			"size":                  strings.TrimSpace(metadata.ImageGenerationSize),
+		},
+	}
+	if len(tool) > 0 {
+		compatPayload["tools"] = []any{tool}
+		compatPayload["tool_choice"] = map[string]any{"type": "image_generation"}
+	}
+	service.SetOpsTraceNormalizedRequest(c, "openai_responses_imagegen_compat", compatPayload)
+}
+
+func detectOpenAIResponsesCompatRequestModel(body []byte, contentType string) string {
+	model, err := service.DetectOpenAIImageRequestModel(body, contentType)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(model)
+}
+
+func detectOpenAIResponsesCompatSourceGuess(body []byte, contentType string) string {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "multipart/form-data") {
+		return service.OpenAIResponsesImagegenCompatSourceMultipart
+	}
+	if !gjson.ValidBytes(body) {
+		return service.OpenAIResponsesImagegenCompatSourceJSONShorthand
+	}
+	input := gjson.GetBytes(body, "input")
+	if input.IsArray() {
+		return service.OpenAIResponsesImagegenCompatSourceStructured
+	}
+	return service.OpenAIResponsesImagegenCompatSourceJSONShorthand
+}
+
+func openAIResponsesCompatRequestID(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	if requestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string); strings.TrimSpace(requestID) != "" {
+		return strings.TrimSpace(requestID)
+	}
+	return strings.TrimSpace(c.GetHeader("X-Request-ID"))
+}
+
+func openAIResponsesCompatCorrelationID(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	if correlationID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(correlationID) != "" {
+		return strings.TrimSpace(correlationID)
+	}
+	return ""
 }
 
 func ensureOpenAIPoolModeSessionHash(sessionHash string, account *service.Account) string {

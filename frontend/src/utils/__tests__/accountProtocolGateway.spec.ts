@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { generatedProtocolGatewayDescriptors } from '@/generated/protocolGateway'
 
 import {
+  applyProtocolGatewayOpenAIImageProtocolModeExtra,
+  DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE,
+  resolveGatewayOpenAIImageProtocolMode,
   resolveGatewayProtocolDescriptor,
   resolveProtocolGatewayBatchRequestFormats
 } from '../accountProtocolGateway'
@@ -46,5 +49,35 @@ describe('accountProtocolGateway', () => {
         acceptedProtocols: ['openai', 'gemini']
       })
     ).toEqual(expectedBatchFormats)
+  })
+
+  it('defaults the protocol gateway openai image mode to native and respects compat overrides', () => {
+    expect(
+      resolveGatewayOpenAIImageProtocolMode({
+        gatewayProtocol: 'openai'
+      })
+    ).toBe(DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE)
+
+    expect(
+      resolveGatewayOpenAIImageProtocolMode({
+        gatewayProtocol: 'mixed',
+        acceptedProtocols: ['openai', 'anthropic'],
+        value: 'compat'
+      })
+    ).toBe('compat')
+  })
+
+  it('removes gateway openai image mode when openai traffic is not accepted', () => {
+    expect(
+      applyProtocolGatewayOpenAIImageProtocolModeExtra(
+        { gateway_openai_image_protocol_mode: 'compat' },
+        {
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          gatewayProtocol: 'gemini',
+          acceptedProtocols: ['gemini']
+        }
+      )
+    ).toBeUndefined()
   })
 })

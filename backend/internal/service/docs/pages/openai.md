@@ -136,6 +136,17 @@ curl https://api.zyxai.de/chat/completions
 # 新项目再进一步迁到 /v1/responses
 ```
 
+### 图片双协议补充
+
+兼容页还需要额外记住三条图片规则：
+
+- `chat/completions` 仍然只定位为文本兼容入口；如果你的请求意图是生图或编辑图，请改走 `openai-native` 页里的 `/v1/responses` 或 `/v1/images/*`。
+- OpenAI 图片链路现在统一受 `image_protocol_mode` 控制：账号 / Protocol Gateway 可以设置默认值，OpenAI 分组还能用 `inherit | native | compat` 再做覆盖；不再根据 `gpt-image-2` 模型名猜链路。
+- 当当前模式是 `compat` 时，`/v1/images/generations`、`/v1/images/edits` 会桥接到 compat 图片执行链；如果当前账号没有 compat 图片权限，会返回 `403 forbidden_error`，错误码 `image_compat_not_allowed`。
+- Compat 图片桥接现在已经补齐 `stream=true`：`/v1/images/generations` 会输出 `image_generation.partial_image` / `image_generation.completed`，`/v1/images/edits` 会输出 `image_edit.partial_image` / `image_edit.completed`。
+- Compat 执行链内部固定把目标图片模型归一到 `gpt-image-2`，并在真正请求上游前按能力矩阵校验 `size`、`background`、`output_format`、`output_compression`、`partial_images`、`mask` 与多图输入；`input_fidelity` 仍保留在网关内部 trace，但不会继续向 `gpt-image-2` 上游透传。
+- 对 GPT image profile（版本化 `gpt-image-*`，例如 `gpt-image-1.5`、`gpt-image-2`，以及 `chatgpt-image-latest`）来说，native / compat 两条链都会放开 `stream`、多图、`mask`、`background=transparent` 与最大边 `3840px` 的自定义尺寸；未知或旧模型保持保守拒绝。
+
 ### 常见兼容坑
 
 - 兼容入口能跑通，不代表它仍然是最佳长期方案。

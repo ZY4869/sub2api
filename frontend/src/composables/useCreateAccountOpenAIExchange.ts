@@ -45,6 +45,7 @@ interface UseCreateAccountOpenAIExchangeOptions {
   allowedModels: Ref<string[]>
   modelMappings: Ref<ModelMapping[]>
   buildAccountExtra: (base?: Record<string, unknown>) => Record<string, unknown> | undefined
+  applyOpenAIImageProtocolDefaults?: (planType?: string | null) => void
   afterCreateImportModels: (accounts: Account[]) => Promise<void>
   emitCreated: () => void
   onClose: () => void
@@ -80,6 +81,7 @@ export function useCreateAccountOpenAIExchange(options: UseCreateAccountOpenAIEx
       if (shouldAutoReplaceOpenAIWhitelist(options.allowedModels.value)) {
         options.allowedModels.value = getOpenAIDefaultWhitelist(String(tokenInfo.plan_type || ''))
       }
+      options.applyOpenAIImageProtocolDefaults?.(String(tokenInfo.plan_type || ''))
 
       const credentials = oauthClient.buildCredentials(tokenInfo)
       const oauthExtra = oauthClient.buildExtraInfo(tokenInfo)

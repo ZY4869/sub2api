@@ -112,6 +112,7 @@ type CreateGroupInput struct {
 	ImagePrice1K                    *float64
 	ImagePrice2K                    *float64
 	ImagePrice4K                    *float64
+	ImageProtocolMode               string
 	ClaudeCodeOnly                  bool
 	FallbackGroupID                 *int64
 	FallbackGroupIDOnInvalidRequest *int64
@@ -139,6 +140,7 @@ type UpdateGroupInput struct {
 	ImagePrice1K                    *float64
 	ImagePrice2K                    *float64
 	ImagePrice4K                    *float64
+	ImageProtocolMode               string
 	ClaudeCodeOnly                  *bool
 	FallbackGroupID                 *int64
 	FallbackGroupIDOnInvalidRequest *int64

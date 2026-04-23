@@ -488,7 +488,7 @@ func syncScopedOpenAICodexModelRateLimit(ctx context.Context, repo AccountReposi
 		return false
 	}
 	slog.Info("openai_codex_model_limited", "account_id", account.ID, "scope", scope, "reason", reason, "reset_at", *resetAt)
-	return false
+	return true
 }
 
 func applyLocalOpenAICodexModelRateLimit(account *Account, scope string, resetAt time.Time, now time.Time) {

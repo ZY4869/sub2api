@@ -7,6 +7,7 @@ import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
+  OpenAIImageProtocolMode,
   GatewayOpenAIRequestFormat,
   GatewayProtocol
 } from '@/types'
@@ -99,6 +100,9 @@ interface UseCreateAccountResetOptions {
   interceptWarmupRequests: Ref<boolean>
   autoPauseOnExpired: Ref<boolean>
   openaiPassthroughEnabled: Ref<boolean>
+  openAIImageProtocolMode: Ref<OpenAIImageProtocolMode>
+  openAIImageCompatAllowed: Ref<boolean>
+  gatewayOpenAIImageProtocolMode: Ref<OpenAIImageProtocolMode>
   openaiOAuthResponsesWebSocketV2Mode: Ref<OpenAIWSMode>
   openaiAPIKeyResponsesWebSocketV2Mode: Ref<OpenAIWSMode>
   codexCLIOnlyEnabled: Ref<boolean>
@@ -198,6 +202,9 @@ export function useCreateAccountReset(options: UseCreateAccountResetOptions) {
     options.interceptWarmupRequests.value = false
     options.autoPauseOnExpired.value = true
     options.openaiPassthroughEnabled.value = false
+    options.openAIImageProtocolMode.value = 'native'
+    options.openAIImageCompatAllowed.value = true
+    options.gatewayOpenAIImageProtocolMode.value = 'native'
     options.openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
     options.openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
     options.codexCLIOnlyEnabled.value = false

@@ -54,6 +54,7 @@ func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([
 }
 func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error) {
 	input.Platform = CanonicalizePlatformValue(input.Platform)
+	input.Extra = normalizeAccountExtraForStorage(input.Platform, input.Type, input.Credentials, input.Extra)
 	if err := validateProtocolGatewayAccountInput(input.Platform, input.Type, input.Extra); err != nil {
 		return nil, err
 	}
@@ -207,7 +208,12 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 				input.Extra[key] = v
 			}
 		}
-		account.Extra = input.Extra
+		account.Extra = normalizeAccountExtraForStorage(account.Platform, account.Type, account.Credentials, input.Extra)
+		if account.Extra == nil && len(input.Extra) == 0 {
+			account.Extra = map[string]any{}
+		}
+	} else {
+		account.Extra = normalizeAccountExtraForStorage(account.Platform, account.Type, account.Credentials, account.Extra)
 	}
 	sanitizeAntigravityOveragesExtra(account.Platform, account.Extra)
 	if err := validateProtocolGatewayAccountInput(account.Platform, account.Type, account.Extra); err != nil {
@@ -639,6 +645,15 @@ func normalizeGrokExtraForStorageByType(accountType string, extra map[string]any
 	normalized["grok_tier"] = tier
 	normalized["grok_capabilities"] = ResolveGrokCapabilities(normalized).ToMap()
 	return normalized
+}
+
+func normalizeAccountExtraForStorage(platform string, accountType string, credentials map[string]any, extra map[string]any) map[string]any {
+	normalizedPlatform := CanonicalizePlatformValue(platform)
+	nextExtra := extra
+	if IsProtocolGatewayPlatform(normalizedPlatform) {
+		nextExtra = NormalizeProtocolGatewayExtra(normalizedPlatform, nextExtra, ResolveAccountGatewayProtocol(normalizedPlatform, nextExtra), "")
+	}
+	return NormalizeOpenAIAccountImageExtra(normalizedPlatform, accountType, credentials, nextExtra)
 }
 
 func normalizeGrokTier(extra map[string]any) string {

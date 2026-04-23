@@ -1,0 +1,905 @@
+package service
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/http"
+	"net/url"
+	"strings"
+
+	xdraw "golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
+)
+
+const (
+	openAIResponsesImagegenPrefix = "$imagegen "
+
+	OpenAIResponsesImagegenCompatSourceJSONShorthand = "json_shorthand"
+	OpenAIResponsesImagegenCompatSourceStructured    = "structured_json"
+	OpenAIResponsesImagegenCompatSourceMultipart     = "multipart"
+
+	openAIResponsesReferenceImageUploadLimitBytes      = 20 * 1024 * 1024
+	openAIResponsesReferenceImageUploadTotalLimitBytes = 40 * 1024 * 1024
+	openAIResponsesReferenceImageNormalizedLimitBytes  = 8 * 1024 * 1024
+	openAIResponsesReferenceImageUploadLimitCount      = 4
+	openAIResponsesReferenceImageMaxDimension          = 2048
+)
+
+var openAIResponsesImagegenToolOptionKeys = []string{
+	"action",
+	"size",
+	"quality",
+	"background",
+	"output_format",
+	"output_compression",
+	"partial_images",
+	"moderation",
+	"input_image_mask",
+	"n",
+}
+
+var openAIResponsesImagegenAcceptedOptionKeys = []string{
+	"action",
+	"size",
+	"quality",
+	"background",
+	"output_format",
+	"output_compression",
+	"partial_images",
+	"moderation",
+	"input_fidelity",
+	"input_image_mask",
+	"n",
+}
+
+type OpenAIResponsesCompatMetadata struct {
+	Enabled                   bool
+	Source                    string
+	SourceGuess               string
+	Rejected                  bool
+	RejectCode                string
+	ReferenceImageCount       int
+	ReferenceImageBytesBefore int64
+	ReferenceImageBytesAfter  int64
+	ReferenceImagesNormalized bool
+	ImageGenerationSize       string
+}
+
+type OpenAIResponsesCompatResult struct {
+	Body        []byte
+	ContentType string
+	ParsedBody  map[string]any
+	Metadata    OpenAIResponsesCompatMetadata
+	TraceTool   map[string]any
+}
+
+type OpenAIResponsesCompatError struct {
+	Status   int
+	Type     string
+	Code     string
+	Message  string
+	Metadata OpenAIResponsesCompatMetadata
+}
+
+func (e *OpenAIResponsesCompatError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return e.Message
+}
+
+func NormalizeOpenAIResponsesImageGenCompat(body []byte, contentType string) (*OpenAIResponsesCompatResult, error) {
+	result := &OpenAIResponsesCompatResult{
+		Body:        body,
+		ContentType: strings.TrimSpace(contentType),
+	}
+
+	mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(contentType))
+	if err != nil {
+		mediaType = strings.TrimSpace(contentType)
+	}
+	if strings.HasPrefix(strings.ToLower(mediaType), "multipart/form-data") {
+		boundary := strings.TrimSpace(params["boundary"])
+		if boundary == "" {
+			return nil, newOpenAIResponsesCompatErrorWithMetadata(
+				http.StatusBadRequest,
+				"invalid_request_error",
+				"",
+				"missing multipart boundary",
+				OpenAIResponsesCompatMetadata{
+					Rejected:    true,
+					SourceGuess: OpenAIResponsesImagegenCompatSourceMultipart,
+				},
+			)
+		}
+		return normalizeOpenAIResponsesMultipartImagegenCompat(body, boundary)
+	}
+
+	if len(body) == 0 || !json.Valid(body) {
+		return result, nil
+	}
+
+	var reqBody map[string]any
+	if err := json.Unmarshal(body, &reqBody); err != nil {
+		return result, nil
+	}
+	if reqBody == nil {
+		return result, nil
+	}
+
+	normalized, compatErr := normalizeOpenAIResponsesJSONImagegenCompat(reqBody)
+	if compatErr != nil {
+		enrichOpenAIResponsesCompatRejectMetadata(
+			compatErr,
+			OpenAIResponsesCompatMetadata{
+				Rejected:            true,
+				SourceGuess:         guessOpenAIResponsesCompatJSONSource(reqBody),
+				ReferenceImageCount: countOpenAIResponsesCompatReferenceImageCandidates(reqBody),
+			},
+		)
+		return nil, compatErr
+	}
+	if normalized == nil {
+		result.ParsedBody = reqBody
+		return result, nil
+	}
+
+	encoded, err := json.Marshal(normalized.ParsedBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal responses compat body: %w", err)
+	}
+	normalized.Body = encoded
+	normalized.ContentType = "application/json"
+	return normalized, nil
+}
+
+func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAIResponsesCompatResult, *OpenAIResponsesCompatError) {
+	imageGeneration, hasImageGeneration, compatErr := parseResponsesCompatImageGenerationField(reqBody)
+	if compatErr != nil {
+		return nil, compatErr
+	}
+	referenceImages, hasReferenceImages, compatErr := parseResponsesCompatReferenceImagesField(reqBody)
+	if compatErr != nil {
+		return nil, compatErr
+	}
+	maskImage, hasMaskImage, compatErr := parseResponsesCompatImageMaskField(reqBody)
+	if compatErr != nil {
+		return nil, compatErr
+	}
+	hasCompatFields := hasImageGeneration || hasReferenceImages || hasMaskImage
+	if hasExplicitResponsesCompatTools(reqBody) && hasCompatFields {
+		return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_conflict", "explicit tools cannot be combined with image_generation, reference_images, or mask fields")
+	}
+	if hasExplicitResponsesCompatTools(reqBody) {
+		return nil, nil
+	}
+	if hasMaskImage {
+		if imageGeneration == nil {
+			imageGeneration = map[string]any{}
+		}
+		if scalarString(imageGeneration["input_image_mask"]) == "" {
+			imageGeneration["input_image_mask"] = maskImage
+		}
+	}
+
+	inputValue, hasInput := reqBody["input"]
+	if !hasInput {
+		if hasCompatFields {
+			return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_requires_prefix", "image_generation, reference_images, or mask fields require an input starting with $imagegen ")
+		}
+		return nil, nil
+	}
+
+	triggered := false
+	source := ""
+	switch input := inputValue.(type) {
+	case string:
+		if strings.HasPrefix(input, openAIResponsesImagegenPrefix) {
+			reqBody["input"] = buildResponsesCompatInputMessage(strings.TrimPrefix(input, openAIResponsesImagegenPrefix), referenceImages)
+			triggered = true
+			source = OpenAIResponsesImagegenCompatSourceJSONShorthand
+		}
+	case []any:
+		nextInput, changed := rewriteResponsesCompatInputItems(input, referenceImages)
+		if changed {
+			reqBody["input"] = nextInput
+			triggered = true
+			source = OpenAIResponsesImagegenCompatSourceStructured
+		}
+	}
+
+	if !triggered {
+		if hasCompatFields {
+			return nil, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_requires_prefix", "image_generation, reference_images, or mask fields require an input starting with $imagegen ")
+		}
+		return nil, nil
+	}
+
+	reqBody["tools"] = []any{buildResponsesCompatImageGenerationTool(imageGeneration)}
+	reqBody["tool_choice"] = map[string]any{"type": "image_generation"}
+	delete(reqBody, "image_generation")
+	delete(reqBody, "reference_images")
+	delete(reqBody, "mask")
+	delete(reqBody, "input_image_mask")
+
+	return &OpenAIResponsesCompatResult{
+		ParsedBody: reqBody,
+		TraceTool:  buildResponsesCompatTraceImageGenerationTool(imageGeneration),
+		Metadata: OpenAIResponsesCompatMetadata{
+			Enabled:             true,
+			Source:              source,
+			ReferenceImageCount: len(referenceImages),
+			ImageGenerationSize: scalarString(imageGeneration["size"]),
+		},
+	}, nil
+}
+
+func normalizeOpenAIResponsesMultipartImagegenCompat(body []byte, boundary string) (*OpenAIResponsesCompatResult, error) {
+	reader := multipart.NewReader(bytes.NewReader(body), boundary)
+
+	fields := make(map[string]any)
+	imageGeneration := make(map[string]any)
+	referenceImages := make([]string, 0, 4)
+	fileCount := 0
+	metadata := OpenAIResponsesCompatMetadata{
+		Enabled:     true,
+		Source:      OpenAIResponsesImagegenCompatSourceMultipart,
+		SourceGuess: OpenAIResponsesImagegenCompatSourceMultipart,
+	}
+	rejectError := func(status int, errType string, code string, message string) error {
+		rejectMetadata := metadata
+		rejectMetadata.Enabled = false
+		rejectMetadata.Rejected = true
+		rejectMetadata.RejectCode = strings.TrimSpace(code)
+		rejectMetadata.ReferenceImagesNormalized = false
+		rejectMetadata.ReferenceImageCount = maxOpenAIResponsesCompatReferenceImageCount(len(referenceImages), fileCount)
+		return newOpenAIResponsesCompatErrorWithMetadata(status, errType, code, message, rejectMetadata)
+	}
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read responses multipart body: %w", err)
+		}
+
+		name := strings.TrimSpace(part.FormName())
+		if name == "" {
+			_ = part.Close()
+			continue
+		}
+
+		if part.FileName() != "" {
+			if name != "reference_image" && name != "mask" {
+				_ = part.Close()
+				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "", fmt.Sprintf("unsupported multipart file field %q", name))
+			}
+			if name == "reference_image" {
+				fileCount++
+			}
+			rawBytes, readErr := io.ReadAll(part)
+			_ = part.Close()
+			if readErr != nil {
+				return nil, fmt.Errorf("read multipart reference image: %w", readErr)
+			}
+			if int64(len(rawBytes)) > openAIResponsesReferenceImageUploadLimitBytes {
+				if name == "mask" {
+					return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "input_image_mask_too_large", fmt.Sprintf("mask image %q exceeds the 20MB upload limit", part.FileName()))
+				}
+				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "reference_image_too_large", fmt.Sprintf("reference image %q exceeds the 20MB upload limit", part.FileName()))
+			}
+			if name == "reference_image" && fileCount > openAIResponsesReferenceImageUploadLimitCount {
+				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "reference_image_count_exceeded", fmt.Sprintf("reference_image accepts at most %d files", openAIResponsesReferenceImageUploadLimitCount))
+			}
+			if name == "reference_image" {
+				metadata.ReferenceImageBytesBefore += int64(len(rawBytes))
+				if metadata.ReferenceImageBytesBefore > openAIResponsesReferenceImageUploadTotalLimitBytes {
+					return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "reference_image_total_too_large", "total reference image upload size exceeds 40MB")
+				}
+			}
+			dataURI, normalizedBytes, normalizeErr := normalizeResponsesCompatReferenceImage(rawBytes)
+			if normalizeErr != nil {
+				return nil, withOpenAIResponsesCompatRejectMetadata(normalizeErr, metadata, maxOpenAIResponsesCompatReferenceImageCount(len(referenceImages), fileCount))
+			}
+			if name == "mask" {
+				imageGeneration["input_image_mask"] = dataURI
+				continue
+			}
+			if len(referenceImages)+1 > openAIResponsesReferenceImageUploadLimitCount {
+				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "reference_image_count_exceeded", fmt.Sprintf("reference images accept at most %d items", openAIResponsesReferenceImageUploadLimitCount))
+			}
+			metadata.ReferenceImageBytesAfter += normalizedBytes
+			metadata.ReferenceImagesNormalized = true
+			referenceImages = append(referenceImages, dataURI)
+			continue
+		}
+
+		valueBytes, readErr := io.ReadAll(part)
+		_ = part.Close()
+		if readErr != nil {
+			return nil, fmt.Errorf("read multipart field %q: %w", name, readErr)
+		}
+		value := strings.TrimSpace(string(valueBytes))
+
+		switch name {
+		case "image_generation":
+			if value == "" {
+				continue
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal([]byte(value), &parsed); err != nil || parsed == nil {
+				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "", "image_generation must be a valid JSON object")
+			}
+			imageGeneration = mergeResponsesCompatToolOptions(imageGeneration, parsed)
+		case "reference_image_url":
+			if value == "" {
+				continue
+			}
+			validated, err := validateResponsesCompatReferenceImageURL(value)
+			if err != nil {
+				return nil, withOpenAIResponsesCompatRejectMetadata(err, metadata, len(referenceImages))
+			}
+			if len(referenceImages)+1 > openAIResponsesReferenceImageUploadLimitCount {
+				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "reference_image_count_exceeded", fmt.Sprintf("reference images accept at most %d items", openAIResponsesReferenceImageUploadLimitCount))
+			}
+			referenceImages = append(referenceImages, validated)
+		case "size", "quality", "background", "output_format", "output_compression", "partial_images", "action", "moderation", "input_fidelity", "n":
+			if value == "" {
+				continue
+			}
+			if _, exists := imageGeneration[name]; !exists {
+				imageGeneration[name] = parseResponsesMultipartFieldValue(value)
+			}
+		case "mask", "mask_image_url", "input_image_mask":
+			if value == "" {
+				continue
+			}
+			if _, exists := imageGeneration["input_image_mask"]; exists {
+				continue
+			}
+			validated, err := validateResponsesCompatReferenceImageURL(value)
+			if err != nil {
+				return nil, withOpenAIResponsesCompatRejectMetadata(err, metadata, len(referenceImages))
+			}
+			imageGeneration["input_image_mask"] = validated
+		default:
+			fields[name] = parseResponsesMultipartFieldValue(value)
+		}
+	}
+
+	if hasExplicitResponsesCompatTools(fields) {
+		return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_conflict", "explicit tools cannot be combined with multipart imagegen compatibility fields")
+	}
+
+	modelValue, ok := fields["model"]
+	if !ok || strings.TrimSpace(scalarString(modelValue)) == "" {
+		return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "", "model is required")
+	}
+	inputValue, ok := fields["input"]
+	if !ok || strings.TrimSpace(scalarString(inputValue)) == "" {
+		return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "", "input is required")
+	}
+
+	if streamRaw, exists := fields["stream"]; exists {
+		if streamValue, ok := streamRaw.(bool); ok && streamValue {
+			return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "multipart_stream_unsupported", "multipart responses image generation does not support stream=true")
+		}
+	}
+
+	inputText := scalarString(inputValue)
+	if !strings.HasPrefix(inputText, openAIResponsesImagegenPrefix) {
+		return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_requires_prefix", "multipart image generation requires input starting with $imagegen ")
+	}
+	fields["input"] = buildResponsesCompatInputMessage(strings.TrimPrefix(inputText, openAIResponsesImagegenPrefix), referenceImages)
+	fields["tools"] = []any{buildResponsesCompatImageGenerationTool(imageGeneration)}
+	fields["tool_choice"] = map[string]any{"type": "image_generation"}
+
+	metadata.ReferenceImageCount = len(referenceImages)
+	metadata.ImageGenerationSize = scalarString(imageGeneration["size"])
+
+	return &OpenAIResponsesCompatResult{
+		Body:        mustMarshalResponsesCompatBody(fields),
+		ContentType: "application/json",
+		ParsedBody:  fields,
+		Metadata:    metadata,
+		TraceTool:   buildResponsesCompatTraceImageGenerationTool(imageGeneration),
+	}, nil
+}
+
+func parseResponsesCompatImageGenerationField(reqBody map[string]any) (map[string]any, bool, *OpenAIResponsesCompatError) {
+	raw, exists := reqBody["image_generation"]
+	if !exists || raw == nil {
+		return nil, false, nil
+	}
+	parsed, ok := raw.(map[string]any)
+	if !ok || parsed == nil {
+		return nil, false, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "image_generation must be a JSON object")
+	}
+	return mergeResponsesCompatToolOptions(nil, parsed), true, nil
+}
+
+func parseResponsesCompatReferenceImagesField(reqBody map[string]any) ([]string, bool, *OpenAIResponsesCompatError) {
+	raw, exists := reqBody["reference_images"]
+	if !exists || raw == nil {
+		return nil, false, nil
+	}
+	items, ok := raw.([]any)
+	if !ok {
+		return nil, false, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "reference_images must be an array of {image_url} objects")
+	}
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			return nil, false, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "reference_images must be an array of {image_url} objects")
+		}
+		imageURL := scalarString(itemMap["image_url"])
+		validated, err := validateResponsesCompatReferenceImageURL(imageURL)
+		if err != nil {
+			return nil, false, err
+		}
+		result = append(result, validated)
+	}
+	return result, true, nil
+}
+
+func parseResponsesCompatImageMaskField(reqBody map[string]any) (string, bool, *OpenAIResponsesCompatError) {
+	for _, key := range []string{"input_image_mask", "mask"} {
+		raw, exists := reqBody[key]
+		if !exists || raw == nil {
+			continue
+		}
+		value, err := parseResponsesCompatSingleImageSource(raw)
+		if err != nil {
+			return "", false, err
+		}
+		return value, true, nil
+	}
+	return "", false, nil
+}
+
+func buildResponsesCompatInputMessage(prompt string, referenceImages []string) []any {
+	content := make([]any, 0, 1+len(referenceImages))
+	content = append(content, map[string]any{
+		"type": "input_text",
+		"text": prompt,
+	})
+	for _, imageURL := range referenceImages {
+		content = append(content, map[string]any{
+			"type":      "input_image",
+			"image_url": imageURL,
+		})
+	}
+	return []any{
+		map[string]any{
+			"type":    "message",
+			"role":    "user",
+			"content": content,
+		},
+	}
+}
+
+func rewriteResponsesCompatInputItems(items []any, referenceImages []string) ([]any, bool) {
+	for index, item := range items {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		itemType := strings.TrimSpace(scalarString(itemMap["type"]))
+		role := strings.TrimSpace(scalarString(itemMap["role"]))
+		switch {
+		case role == "user" || (itemType == "message" && role == "user"):
+			content, ok := itemMap["content"].([]any)
+			if !ok {
+				continue
+			}
+			nextContent, changed := rewriteResponsesCompatInputTextSlice(content, referenceImages)
+			if !changed {
+				continue
+			}
+			itemMap["content"] = nextContent
+			nextItems := append([]any(nil), items...)
+			nextItems[index] = itemMap
+			return nextItems, true
+		case itemType == "input_text":
+			text := scalarString(itemMap["text"])
+			if !strings.HasPrefix(text, openAIResponsesImagegenPrefix) {
+				continue
+			}
+			itemMap["text"] = strings.TrimPrefix(text, openAIResponsesImagegenPrefix)
+			nextItems := make([]any, 0, len(items)+len(referenceImages))
+			nextItems = append(nextItems, items[:index]...)
+			nextItems = append(nextItems, itemMap)
+			for _, imageURL := range referenceImages {
+				nextItems = append(nextItems, map[string]any{
+					"type":      "input_image",
+					"image_url": imageURL,
+				})
+			}
+			nextItems = append(nextItems, items[index+1:]...)
+			return nextItems, true
+		}
+	}
+	return items, false
+}
+
+func rewriteResponsesCompatInputTextSlice(parts []any, referenceImages []string) ([]any, bool) {
+	for index, part := range parts {
+		partMap, ok := part.(map[string]any)
+		if !ok || strings.TrimSpace(scalarString(partMap["type"])) != "input_text" {
+			continue
+		}
+		text := scalarString(partMap["text"])
+		if !strings.HasPrefix(text, openAIResponsesImagegenPrefix) {
+			continue
+		}
+		partMap["text"] = strings.TrimPrefix(text, openAIResponsesImagegenPrefix)
+		nextParts := make([]any, 0, len(parts)+len(referenceImages))
+		nextParts = append(nextParts, parts[:index]...)
+		nextParts = append(nextParts, partMap)
+		for _, imageURL := range referenceImages {
+			nextParts = append(nextParts, map[string]any{
+				"type":      "input_image",
+				"image_url": imageURL,
+			})
+		}
+		nextParts = append(nextParts, parts[index+1:]...)
+		return nextParts, true
+	}
+	return parts, false
+}
+
+func buildResponsesCompatImageGenerationTool(imageGeneration map[string]any) map[string]any {
+	tool := map[string]any{"type": "image_generation"}
+	for _, key := range openAIResponsesImagegenToolOptionKeys {
+		if value, exists := imageGeneration[key]; exists && value != nil {
+			tool[key] = value
+		}
+	}
+	return tool
+}
+
+func mergeResponsesCompatToolOptions(base map[string]any, updates map[string]any) map[string]any {
+	if base == nil {
+		base = make(map[string]any)
+	}
+	for _, key := range openAIResponsesImagegenAcceptedOptionKeys {
+		if value, exists := updates[key]; exists && value != nil {
+			base[key] = value
+		}
+	}
+	return base
+}
+
+func buildResponsesCompatTraceImageGenerationTool(imageGeneration map[string]any) map[string]any {
+	tool := map[string]any{"type": "image_generation"}
+	for _, key := range openAIResponsesImagegenAcceptedOptionKeys {
+		if value, exists := imageGeneration[key]; exists && value != nil {
+			tool[key] = value
+		}
+	}
+	return tool
+}
+
+func parseResponsesCompatSingleImageSource(raw any) (string, *OpenAIResponsesCompatError) {
+	switch typed := raw.(type) {
+	case string:
+		return validateResponsesCompatReferenceImageURL(typed)
+	case map[string]any:
+		for _, key := range []string{"image_url", "input_image_mask", "mask"} {
+			if value := scalarString(typed[key]); value != "" {
+				return validateResponsesCompatReferenceImageURL(value)
+			}
+		}
+		return "", newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "mask must be a valid image_url object")
+	default:
+		return "", newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "mask must be a string or {image_url} object")
+	}
+}
+
+func validateResponsesCompatReferenceImageURL(raw string) (string, *OpenAIResponsesCompatError) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "reference image_url must not be empty")
+	}
+	lowerValue := strings.ToLower(value)
+	if strings.HasPrefix(lowerValue, "data:image/") {
+		if strings.Contains(lowerValue, ",") {
+			return value, nil
+		}
+		return "", newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "reference image data URI is invalid")
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed == nil || parsed.Host == "" {
+		return "", newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "reference image_url must be an http(s) URL or data URI")
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https":
+		return value, nil
+	default:
+		return "", newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "reference image_url must be an http(s) URL or data URI")
+	}
+}
+
+func normalizeResponsesCompatReferenceImage(rawBytes []byte) (string, int64, *OpenAIResponsesCompatError) {
+	mediaType := strings.ToLower(strings.TrimSpace(http.DetectContentType(rawBytes)))
+	switch mediaType {
+	case "image/jpeg", "image/png", "image/webp":
+	default:
+		return "", 0, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "unsupported_reference_image_type", "reference_image only supports JPEG, PNG, or WebP uploads")
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(rawBytes))
+	if err != nil {
+		return "", 0, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "unsupported_reference_image_type", "reference_image could not be decoded as JPEG, PNG, or WebP")
+	}
+
+	bounds := img.Bounds()
+	targetWidth, targetHeight := fitResponsesCompatImageSize(bounds.Dx(), bounds.Dy(), openAIResponsesReferenceImageMaxDimension)
+	resized := img
+	if targetWidth != bounds.Dx() || targetHeight != bounds.Dy() {
+		if imageHasTransparentPixels(img) {
+			dst := image.NewNRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+			xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, bounds, xdraw.Over, nil)
+			resized = dst
+		} else {
+			dst := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+			xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, bounds, xdraw.Src, nil)
+			resized = dst
+		}
+	}
+
+	var (
+		buffer     bytes.Buffer
+		outputType string
+		encodeErr  error
+		hasAlpha   = imageHasTransparentPixels(resized)
+	)
+	if hasAlpha {
+		outputType = "image/png"
+		encodeErr = png.Encode(&buffer, resized)
+	} else {
+		outputType = "image/jpeg"
+		encodeErr = jpeg.Encode(&buffer, resized, &jpeg.Options{Quality: 82})
+	}
+	if encodeErr != nil {
+		return "", 0, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "", "failed to normalize reference_image")
+	}
+	if int64(buffer.Len()) > openAIResponsesReferenceImageNormalizedLimitBytes {
+		return "", 0, newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", "reference_image_too_large_after_normalization", "reference_image is still larger than 8MB after normalization")
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(buffer.Bytes())
+	return "data:" + outputType + ";base64," + encoded, int64(buffer.Len()), nil
+}
+
+func fitResponsesCompatImageSize(width int, height int, maxDimension int) (int, int) {
+	if width <= 0 || height <= 0 || maxDimension <= 0 {
+		return width, height
+	}
+	if width <= maxDimension && height <= maxDimension {
+		return width, height
+	}
+	if width >= height {
+		nextWidth := maxDimension
+		nextHeight := int(float64(height) * (float64(maxDimension) / float64(width)))
+		if nextHeight < 1 {
+			nextHeight = 1
+		}
+		return nextWidth, nextHeight
+	}
+	nextHeight := maxDimension
+	nextWidth := int(float64(width) * (float64(maxDimension) / float64(height)))
+	if nextWidth < 1 {
+		nextWidth = 1
+	}
+	return nextWidth, nextHeight
+}
+
+func imageHasTransparentPixels(img image.Image) bool {
+	if img == nil {
+		return false
+	}
+	bounds := img.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, alpha := img.At(x, y).RGBA()
+			if alpha != 0xffff {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasExplicitResponsesCompatTools(reqBody map[string]any) bool {
+	if reqBody == nil {
+		return false
+	}
+	raw, exists := reqBody["tools"]
+	return exists && raw != nil
+}
+
+func parseResponsesMultipartFieldValue(raw string) any {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	var parsed any
+	if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
+		return parsed
+	}
+	return raw
+}
+
+func scalarString(value any) string {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case json.Number:
+		return strings.TrimSpace(v.String())
+	case float64:
+		return strings.TrimSpace(strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.6f", v), "0"), "."))
+	case float32:
+		return strings.TrimSpace(strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.6f", v), "0"), "."))
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int8:
+		return fmt.Sprintf("%d", v)
+	case int16:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case uint:
+		return fmt.Sprintf("%d", v)
+	case uint8:
+		return fmt.Sprintf("%d", v)
+	case uint16:
+		return fmt.Sprintf("%d", v)
+	case uint32:
+		return fmt.Sprintf("%d", v)
+	case uint64:
+		return fmt.Sprintf("%d", v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	default:
+		return ""
+	}
+}
+
+func mustMarshalResponsesCompatBody(reqBody map[string]any) []byte {
+	encoded, err := json.Marshal(reqBody)
+	if err != nil {
+		return []byte(`{}`)
+	}
+	return encoded
+}
+
+func newOpenAIResponsesCompatError(status int, errType string, code string, message string) *OpenAIResponsesCompatError {
+	return newOpenAIResponsesCompatErrorWithMetadata(status, errType, code, message, OpenAIResponsesCompatMetadata{})
+}
+
+func newOpenAIResponsesCompatErrorWithMetadata(status int, errType string, code string, message string, metadata OpenAIResponsesCompatMetadata) *OpenAIResponsesCompatError {
+	if metadata.Rejected {
+		metadata.Enabled = false
+		if strings.TrimSpace(metadata.RejectCode) == "" {
+			metadata.RejectCode = strings.TrimSpace(code)
+		}
+	}
+	return &OpenAIResponsesCompatError{
+		Status:   status,
+		Type:     strings.TrimSpace(errType),
+		Code:     strings.TrimSpace(code),
+		Message:  strings.TrimSpace(message),
+		Metadata: metadata,
+	}
+}
+
+func enrichOpenAIResponsesCompatRejectMetadata(target *OpenAIResponsesCompatError, metadata OpenAIResponsesCompatMetadata) {
+	if target == nil {
+		return
+	}
+	target.Metadata = mergeOpenAIResponsesCompatMetadata(target.Metadata, metadata)
+	if target.Metadata.Rejected && strings.TrimSpace(target.Metadata.RejectCode) == "" {
+		target.Metadata.RejectCode = strings.TrimSpace(target.Code)
+	}
+}
+
+func withOpenAIResponsesCompatRejectMetadata(err error, metadata OpenAIResponsesCompatMetadata, referenceImageCount int) error {
+	var compatErr *OpenAIResponsesCompatError
+	if !errors.As(err, &compatErr) {
+		return err
+	}
+	metadata.Rejected = true
+	metadata.Enabled = false
+	metadata.ReferenceImagesNormalized = false
+	if referenceImageCount > metadata.ReferenceImageCount {
+		metadata.ReferenceImageCount = referenceImageCount
+	}
+	enrichOpenAIResponsesCompatRejectMetadata(compatErr, metadata)
+	return compatErr
+}
+
+func mergeOpenAIResponsesCompatMetadata(current OpenAIResponsesCompatMetadata, updates OpenAIResponsesCompatMetadata) OpenAIResponsesCompatMetadata {
+	if current.Source == "" {
+		current.Source = strings.TrimSpace(updates.Source)
+	}
+	if current.SourceGuess == "" {
+		current.SourceGuess = strings.TrimSpace(updates.SourceGuess)
+	}
+	if updates.Rejected {
+		current.Rejected = true
+	}
+	if current.RejectCode == "" {
+		current.RejectCode = strings.TrimSpace(updates.RejectCode)
+	}
+	if updates.ReferenceImageCount > current.ReferenceImageCount {
+		current.ReferenceImageCount = updates.ReferenceImageCount
+	}
+	if updates.ReferenceImageBytesBefore > current.ReferenceImageBytesBefore {
+		current.ReferenceImageBytesBefore = updates.ReferenceImageBytesBefore
+	}
+	if updates.ReferenceImageBytesAfter > current.ReferenceImageBytesAfter {
+		current.ReferenceImageBytesAfter = updates.ReferenceImageBytesAfter
+	}
+	if updates.ReferenceImagesNormalized {
+		current.ReferenceImagesNormalized = true
+	}
+	if current.ImageGenerationSize == "" {
+		current.ImageGenerationSize = strings.TrimSpace(updates.ImageGenerationSize)
+	}
+	return current
+}
+
+func guessOpenAIResponsesCompatJSONSource(reqBody map[string]any) string {
+	if reqBody == nil {
+		return OpenAIResponsesImagegenCompatSourceJSONShorthand
+	}
+	switch reqBody["input"].(type) {
+	case []any:
+		return OpenAIResponsesImagegenCompatSourceStructured
+	default:
+		return OpenAIResponsesImagegenCompatSourceJSONShorthand
+	}
+}
+
+func countOpenAIResponsesCompatReferenceImageCandidates(reqBody map[string]any) int {
+	if reqBody == nil {
+		return 0
+	}
+	raw, ok := reqBody["reference_images"]
+	if !ok || raw == nil {
+		return 0
+	}
+	items, ok := raw.([]any)
+	if !ok {
+		return 0
+	}
+	return len(items)
+}
+
+func maxOpenAIResponsesCompatReferenceImageCount(values ...int) int {
+	maxValue := 0
+	for _, value := range values {
+		if value > maxValue {
+			maxValue = value
+		}
+	}
+	return maxValue
+}

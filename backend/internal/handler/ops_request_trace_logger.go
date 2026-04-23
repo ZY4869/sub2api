@@ -317,7 +317,7 @@ func buildOpsRequestTraceInput(c *gin.Context, writer *opsRequestTraceCaptureWri
 		},
 		CreatedAt: time.Now().UTC(),
 	}
-	recordImageRouteRuntimeMetrics(normalize, statusCode, input.DurationMs)
+	recordImageRouteRuntimeMetrics(normalize, statusCode, input.UpstreamStatusCode, input.DurationMs)
 	return input
 }
 
@@ -467,6 +467,30 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 	}
 	if imageRouteReason, ok := service.ImageRouteReasonMetadataFromContext(c.Request.Context()); ok {
 		result.ImageRouteReason = imageRouteReason
+	}
+	if imageProtocolMode, ok := service.ImageProtocolModeMetadataFromContext(c.Request.Context()); ok {
+		result.ImageProtocolMode = imageProtocolMode
+	}
+	if imageRequestSurface, ok := service.ImageRequestSurfaceMetadataFromContext(c.Request.Context()); ok {
+		result.ImageRequestSurface = imageRequestSurface
+	}
+	if imageSizeTier, ok := service.ImageSizeTierMetadataFromContext(c.Request.Context()); ok {
+		result.ImageSizeTier = imageSizeTier
+	}
+	if imageCapabilityProfile, ok := service.ImageCapabilityProfileMetadataFromContext(c.Request.Context()); ok {
+		result.ImageCapabilityProfile = imageCapabilityProfile
+	}
+	if compatMetadata, ok := service.OpenAIResponsesImageGenCompatMetadataFromContext(c.Request.Context()); ok {
+		result.ImagegenCompat = compatMetadata.Enabled
+		result.ImagegenCompatRejected = compatMetadata.Rejected
+		result.ImagegenCompatRejectCode = compatMetadata.RejectCode
+		result.ImagegenCompatSourceGuess = compatMetadata.SourceGuess
+		result.ImagegenCompatSource = compatMetadata.Source
+		result.ImagegenCompatReferenceImageCount = compatMetadata.ReferenceImageCount
+		result.ImagegenCompatReferenceImageBytesBefore = compatMetadata.ReferenceImageBytesBefore
+		result.ImagegenCompatReferenceImageBytesAfter = compatMetadata.ReferenceImageBytesAfter
+		result.ImagegenCompatNormalized = compatMetadata.ReferenceImagesNormalized
+		result.ImagegenCompatImageGenerationSize = compatMetadata.ImageGenerationSize
 	}
 	if headerValue := strings.TrimSpace(c.Writer.Header().Get("X-Sub2api-CountTokens-Source")); headerValue != "" {
 		result.CountTokensSource = headerValue
@@ -990,16 +1014,31 @@ func dedupeTraceStrings(items []string) []string {
 	return out
 }
 
-func recordImageRouteRuntimeMetrics(normalize service.ProtocolNormalizeResult, statusCode int, durationMs int64) {
+func recordImageRouteRuntimeMetrics(normalize service.ProtocolNormalizeResult, statusCode int, upstreamStatusCode *int, durationMs int64) {
 	if strings.TrimSpace(normalize.ImageRouteFamily) == "" {
 		return
+	}
+	failureStatus := statusCode
+	if upstreamStatusCode != nil && *upstreamStatusCode > 0 {
+		failureStatus = *upstreamStatusCode
 	}
 	protocolruntime.RecordImageRoute(
 		normalize.ImageRouteFamily,
 		normalize.ImageResolvedProvider,
+		normalize.ImageProtocolMode,
+		normalize.ImageAction,
+		normalize.ImageSizeTier,
+		normalize.ImageCapabilityProfile,
 		statusCode > 0 && statusCode < 400,
 		durationMs,
+		failureStatus,
 	)
+	if strings.TrimSpace(normalize.ImageRouteFamily) != service.PublicImageToolRouteFamily {
+		return
+	}
+	if failureStatus >= 400 {
+		protocolruntime.RecordResponsesImageToolFailure(normalize.ImageResolvedProvider)
+	}
 }
 
 func stringValueFromMap(payload map[string]any, key string) string {

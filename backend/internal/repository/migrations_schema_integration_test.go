@@ -5,6 +5,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -93,6 +94,17 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	// user_allowed_groups: created_at should be timestamptz
 	requireColumn(t, tx, "user_allowed_groups", "created_at", "timestamp with time zone", 0, false)
 
+	// groups: OpenAI image protocol mode should exist with inherit default.
+	requireColumn(t, tx, "groups", "image_protocol_mode", "character varying", 20, false)
+	requireColumnDefaultContains(t, tx, "groups", "image_protocol_mode", "inherit")
+	var imageProtocolMode string
+	require.NoError(t, tx.QueryRowContext(
+		context.Background(),
+		"INSERT INTO groups (name) VALUES ($1) RETURNING image_protocol_mode",
+		"migration-image-protocol-mode-default",
+	).Scan(&imageProtocolMode))
+	require.Equal(t, "inherit", imageProtocolMode)
+
 	// ops_request_traces: request detail queries depend on Gemini/ billing metadata columns and indexes
 	requireColumn(t, tx, "ops_request_traces", "gemini_surface", "character varying", 64, false)
 	requireColumn(t, tx, "ops_request_traces", "billing_rule_id", "character varying", 128, false)
@@ -151,4 +163,20 @@ WHERE table_schema = 'public'
 	} else {
 		require.Equal(t, "NO", row.Nullable, "nullable mismatch for %s.%s", table, column)
 	}
+}
+
+func requireColumnDefaultContains(t *testing.T, tx *sql.Tx, table, column, fragment string) {
+	t.Helper()
+
+	var columnDefault sql.NullString
+	err := tx.QueryRowContext(context.Background(), `
+SELECT column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = $1
+  AND column_name = $2
+`, table, column).Scan(&columnDefault)
+	require.NoError(t, err, "query default for %s.%s", table, column)
+	require.True(t, columnDefault.Valid, "expected default for %s.%s", table, column)
+	require.Contains(t, strings.ToLower(columnDefault.String), strings.ToLower(fragment), "default mismatch for %s.%s", table, column)
 }

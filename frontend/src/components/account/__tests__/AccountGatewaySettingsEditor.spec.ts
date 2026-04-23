@@ -18,6 +18,9 @@ describe('AccountGatewaySettingsEditor', () => {
       props: {
         showOpenAiPassthrough: true,
         openAiPassthroughEnabled: false,
+        showOpenAiImageProtocolMode: true,
+        openAiImageProtocolMode: 'native',
+        openAiImageProtocolCompatAllowed: true,
         showOpenAiWsMode: true,
         openAiWsMode: 'off',
         openAiWsModeOptions: [
@@ -34,23 +37,29 @@ describe('AccountGatewaySettingsEditor', () => {
         stubs: {
           Select: {
             props: ['modelValue', 'options'],
-            template: '<button data-test="ws-mode" @click="$emit(\'update:modelValue\', \'passthrough\')">select</button>'
+            template:
+              '<button data-test="select" @click="$emit(\'update:modelValue\', options?.[1]?.value ?? modelValue)">select</button>'
           }
         }
       }
     })
 
-    const buttons = wrapper.findAll('button')
+    const buttons = wrapper.findAll('button[type="button"]')
+    const selects = wrapper.findAll('[data-test="select"]')
+
+    await selects[0]?.trigger('click')
+    expect(wrapper.emitted('update:openAiImageProtocolMode')?.[0]).toEqual(['compat'])
+
     await buttons[0]?.trigger('click')
     expect(wrapper.emitted('update:openAiPassthroughEnabled')?.[0]).toEqual([true])
 
-    await wrapper.get('[data-test="ws-mode"]').trigger('click')
+    await selects[1]?.trigger('click')
     expect(wrapper.emitted('update:openAiWsMode')?.[0]).toEqual(['passthrough'])
 
-    await buttons[2]?.trigger('click')
+    await buttons[1]?.trigger('click')
     expect(wrapper.emitted('update:anthropicPassthroughEnabled')?.[0]).toEqual([true])
 
-    await buttons[3]?.trigger('click')
+    await buttons[2]?.trigger('click')
     expect(wrapper.emitted('update:codexCliOnlyEnabled')?.[0]).toEqual([true])
   })
 })

@@ -23,6 +23,7 @@ const (
 	gatewayExtraTestProviderKey        = "gateway_test_provider"
 	gatewayExtraTestModelIDKey         = "gateway_test_model_id"
 	gatewayExtraOpenAIRequestFormatKey = "gateway_openai_request_format"
+	gatewayExtraOpenAIImageProtocolKey = gatewayOpenAIImageProtocolModeExtraKey
 	claudeCodeMimicEnabledKey          = "claude_code_mimic_enabled"
 	enableTLSFingerprintKey            = "enable_tls_fingerprint"
 	sessionIDMaskingEnabledKey         = "session_id_masking_enabled"
@@ -783,6 +784,7 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		delete(nextExtra, gatewayExtraTestProviderKey)
 		delete(nextExtra, gatewayExtraTestModelIDKey)
 		delete(nextExtra, gatewayExtraOpenAIRequestFormatKey)
+		delete(nextExtra, gatewayExtraOpenAIImageProtocolKey)
 		return nextExtra
 	}
 	nextExtra[gatewayExtraProtocolKey] = protocol
@@ -828,6 +830,11 @@ func NormalizeProtocolGatewayExtra(platform string, extra map[string]any, gatewa
 		nextExtra[gatewayExtraOpenAIRequestFormatKey] = requestFormat
 	} else {
 		delete(nextExtra, gatewayExtraOpenAIRequestFormatKey)
+	}
+	if imageProtocolMode := ResolveGatewayOpenAIImageProtocolMode(platform, nextExtra); imageProtocolMode != "" {
+		nextExtra[gatewayExtraOpenAIImageProtocolKey] = imageProtocolMode
+	} else {
+		delete(nextExtra, gatewayExtraOpenAIImageProtocolKey)
 	}
 	return nextExtra
 }

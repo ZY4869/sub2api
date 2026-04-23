@@ -69,6 +69,7 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 	}
 	setOpsRequestContext(c, reqModel, false, body)
 	reqLog = reqLog.With(zap.String("model", reqModel))
+	imageSizeTier := service.ResolveOpenAIImageSizeTier(service.DetectOpenAIImageRequestSize(body, c.GetHeader("Content-Type")))
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
@@ -106,7 +107,11 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
 		}
-		runtimeSelectionModel, _, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
+		selectionModel := reqModel
+		if currentAPIKey.Group != nil && service.NormalizeOpenAIGroupImageProtocolMode(currentAPIKey.Group.ImageProtocolMode) == service.OpenAIImageProtocolModeCompat {
+			selectionModel = service.OpenAICompatImageTargetModel
+		}
+		runtimeSelectionModel, _, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, selectionModel)
 		if err != nil {
 			if errors.Is(err, service.ErrChannelModelNotAllowed) {
 				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel")
@@ -134,6 +139,20 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		}
 
 		account := selection.Account
+		imageProtocolMode := service.ResolveEffectiveOpenAIImageProtocolMode(currentAPIKey.Group, account)
+		if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !service.IsOpenAIImageCompatAllowed(account) {
+			h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "image_compat_not_allowed", "This account does not allow compat image generation")
+			return
+		}
+		setOpenAIImageTraceMetadata(
+			c,
+			action,
+			imageProtocolMode,
+			reqModel,
+			reqModel,
+			imageSizeTier,
+			c.GetHeader("Content-Type"),
+		)
 		setOpsSelectedAccountDetails(c, account)
 		setOpsEndpointContext(c, account.GetMappedModel(runtimeSelectionModel), service.RequestTypeSync)
 		accountReleaseFunc, acquired := h.acquireResponsesAccountSlot(c, currentAPIKey.GroupID, sessionHash, selection, false, &streamStarted, reqLog)
@@ -143,17 +162,31 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		service.SetOpsLatencyMs(c, service.OpsRoutingLatencyMsKey, time.Since(routingStart).Milliseconds())
 
 		var result *service.OpenAIForwardResult
-		switch action {
-		case "edits":
-			result, err = h.gatewayService.ForwardNativeImagesEdits(c.Request.Context(), c, account, body)
+		switch imageProtocolMode {
+		case service.OpenAIImageProtocolModeCompat:
+			result, err = h.gatewayService.ForwardCompatImages(
+				c.Request.Context(),
+				c,
+				account,
+				body,
+				strings.TrimSpace(c.GetHeader("Content-Type")),
+				action,
+				reqModel,
+			)
 		default:
-			result, err = h.gatewayService.ForwardNativeImagesGeneration(c.Request.Context(), c, account, body)
+			switch action {
+			case "edits":
+				result, err = h.gatewayService.ForwardNativeImagesEdits(c.Request.Context(), c, account, body)
+			default:
+				result, err = h.gatewayService.ForwardNativeImagesGeneration(c.Request.Context(), c, account, body)
+			}
 		}
 		if accountReleaseFunc != nil {
 			accountReleaseFunc()
 		}
 		if err != nil {
 			var failoverErr *service.UpstreamFailoverError
+			var requestErr *service.OpenAIImageRequestError
 			if errors.As(err, &failoverErr) {
 				if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
 					continue
@@ -171,6 +204,19 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 					err,
 				)
 				h.handleFailoverExhausted(c, failoverErr, false)
+				return
+			}
+			if errors.As(err, &requestErr) {
+				h.errorResponseWithCode(c, requestErr.Status, requestErr.Type, requestErr.Code, requestErr.Message)
+				return
+			}
+			if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !c.Writer.Written() {
+				errMessage := strings.TrimSpace(err.Error())
+				if strings.HasPrefix(errMessage, "upstream request failed:") {
+					h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
+				} else {
+					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", errMessage)
+				}
 				return
 			}
 			if !h.ensureForwardErrorResponse(c, false) {
@@ -201,4 +247,41 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 		}
 		return
 	}
+}
+
+func setOpenAIImageTraceMetadata(
+	c *gin.Context,
+	action string,
+	protocolMode string,
+	displayModel string,
+	targetModel string,
+	sizeTier string,
+	contentType string,
+) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	ctx := service.EnsureRequestMetadata(c.Request.Context())
+	service.SetImageRouteFamilyMetadata(ctx, service.PublicImageRouteFamily)
+	if strings.TrimSpace(strings.ToLower(action)) == "edits" {
+		service.SetImageActionMetadata(ctx, "edit")
+		service.SetImageUpstreamEndpointMetadata(ctx, service.EndpointImagesEdits)
+	} else {
+		service.SetImageActionMetadata(ctx, "generate")
+		service.SetImageUpstreamEndpointMetadata(ctx, service.EndpointImagesGen)
+	}
+	service.SetImageResolvedProviderMetadata(ctx, service.PlatformOpenAI)
+	service.SetImageDisplayModelIDMetadata(ctx, displayModel)
+	service.SetImageTargetModelIDMetadata(ctx, targetModel)
+	service.SetImageRequestFormatMetadata(ctx, strings.TrimSpace(contentType))
+	service.SetImageProtocolModeMetadata(ctx, protocolMode)
+	if protocolMode == service.OpenAIImageProtocolModeCompat {
+		service.SetImageRequestSurfaceMetadata(ctx, "images_bridge")
+		service.SetImageTargetModelIDMetadata(ctx, service.OpenAICompatImageTargetModel)
+		service.SetImageUpstreamEndpointMetadata(ctx, service.EndpointResponses)
+	} else {
+		service.SetImageRequestSurfaceMetadata(ctx, "images_api")
+	}
+	service.SetImageSizeTierMetadata(ctx, sizeTier)
+	c.Request = c.Request.WithContext(ctx)
 }

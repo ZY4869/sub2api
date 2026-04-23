@@ -79,6 +79,10 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
+		field.String("image_protocol_mode").
+			MaxLen(20).
+			Default("inherit").
+			Comment("OpenAI image protocol mode: inherit/native/compat"),
 		field.Bool("claude_code_only").
 			Default(false).
 			Comment("Whether only Claude Code clients are allowed"),

@@ -1,6 +1,7 @@
 import type {
   Account,
   AccountPlatform,
+  OpenAIImageProtocolMode,
   AccountType,
   GatewayAcceptedProtocol,
   GatewayClientProfile,
@@ -9,6 +10,7 @@ import type {
   GatewayProtocol
 } from '@/types'
 import { generatedProtocolGatewayDescriptors } from '@/generated/protocolGateway'
+import { normalizeOpenAIImageProtocolMode } from '@/utils/openaiAccountDefaults'
 
 export interface ProtocolGatewayDescriptor {
   id: GatewayProtocol
@@ -30,6 +32,7 @@ export const PROTOCOL_GATEWAY_ACCEPTED_PROTOCOLS = ['openai', 'anthropic', 'gemi
 export const PROTOCOL_GATEWAY_CLIENT_PROFILES = ['codex', 'gemini_cli'] as const
 export const PROTOCOL_GATEWAY_OPENAI_REQUEST_FORMATS = ['/v1/chat/completions', '/v1/responses'] as const
 export const DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT = '/v1/chat/completions' as const
+export const DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE = 'native' as const
 
 const PROTOCOL_GATEWAY_HINT_KEYS: Record<
   GatewayProtocol,
@@ -359,6 +362,21 @@ export function resolveGatewayOpenAIRequestFormat(options: {
   return normalizeGatewayOpenAIRequestFormat(options.value)
 }
 
+export function resolveGatewayOpenAIImageProtocolMode(options: {
+  gatewayProtocol?: unknown
+  acceptedProtocols?: unknown
+  value?: unknown
+}): OpenAIImageProtocolMode {
+  const acceptedProtocols = normalizeGatewayAcceptedProtocols(
+    normalizeGatewayProtocol(options.gatewayProtocol) || 'mixed',
+    options.acceptedProtocols
+  )
+  if (!acceptedProtocols.includes('openai')) {
+    return DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
+  }
+  return normalizeOpenAIImageProtocolMode(String(options.value || '')) || DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
+}
+
 export function resolveAccountGatewayOpenAIRequestFormat(
   account?: Pick<Account, 'platform' | 'type' | 'gateway_protocol' | 'extra'> | null
 ): GatewayOpenAIRequestFormat {
@@ -369,6 +387,19 @@ export function resolveAccountGatewayOpenAIRequestFormat(
     gatewayProtocol: account.gateway_protocol ?? account.extra?.gateway_protocol,
     acceptedProtocols: account.extra?.gateway_accepted_protocols,
     value: account.extra?.gateway_openai_request_format
+  })
+}
+
+export function resolveAccountGatewayOpenAIImageProtocolMode(
+  account?: Pick<Account, 'platform' | 'type' | 'gateway_protocol' | 'extra'> | null
+): OpenAIImageProtocolMode {
+  if (!account) {
+    return DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
+  }
+  return resolveGatewayOpenAIImageProtocolMode({
+    gatewayProtocol: account.gateway_protocol ?? account.extra?.gateway_protocol,
+    acceptedProtocols: account.extra?.gateway_accepted_protocols,
+    value: account.extra?.gateway_openai_image_protocol_mode
   })
 }
 
@@ -394,6 +425,32 @@ export function applyProtocolGatewayOpenAIRequestFormatExtra(
     gatewayProtocol: options.gatewayProtocol,
     acceptedProtocols: options.acceptedProtocols,
     value: options.gatewayOpenAIRequestFormat
+  })
+  return nextExtra
+}
+
+export function applyProtocolGatewayOpenAIImageProtocolModeExtra(
+  base: Record<string, unknown> | undefined,
+  options: {
+    platform?: AccountPlatform | string | null
+    type?: AccountType | string | null
+    gatewayProtocol?: unknown
+    acceptedProtocols?: unknown
+    gatewayOpenAIImageProtocolMode?: unknown
+  }
+): Record<string, unknown> | undefined {
+  const nextExtra: Record<string, unknown> = { ...(base || {}) }
+  const supported = supportsProtocolGatewayOpenAIRequestFormat(options)
+
+  if (!supported) {
+    delete nextExtra.gateway_openai_image_protocol_mode
+    return Object.keys(nextExtra).length > 0 ? nextExtra : undefined
+  }
+
+  nextExtra.gateway_openai_image_protocol_mode = resolveGatewayOpenAIImageProtocolMode({
+    gatewayProtocol: options.gatewayProtocol,
+    acceptedProtocols: options.acceptedProtocols,
+    value: options.gatewayOpenAIImageProtocolMode
   })
   return nextExtra
 }

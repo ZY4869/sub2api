@@ -1,6 +1,9 @@
 <template>
   <div ref="rootRef">
-    <div v-if="presentation.meta.antigravityTierLabel" class="mb-1 flex items-center gap-1">
+    <div
+      v-if="presentation.meta.antigravityTierLabel"
+      class="mb-1 flex items-center gap-1"
+    >
       <span
         :class="[
           'inline-block rounded px-1.5 py-0.5 text-[10px] font-medium',
@@ -19,7 +22,11 @@
         @focusout="handleTriggerFocusOut"
         @keydown.esc.prevent="hideTooltip"
       >
-        <svg class="h-3.5 w-3.5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+        <svg
+          class="h-3.5 w-3.5 text-red-500"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
           <path
             fill-rule="evenodd"
             d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
@@ -29,7 +36,10 @@
       </button>
     </div>
 
-    <div v-if="presentation.meta.protocolGatewayBadgeLabel" class="mb-1 flex items-center gap-1">
+    <div
+      v-if="presentation.meta.protocolGatewayBadgeLabel"
+      class="mb-1 flex items-center gap-1"
+    >
       <span
         :class="[
           'inline-block rounded px-1.5 py-0.5 text-[10px] font-medium',
@@ -40,7 +50,10 @@
       </span>
     </div>
 
-    <div v-if="presentation.meta.geminiAuthTypeLabel" class="mb-1 flex items-center gap-1">
+    <div
+      v-if="presentation.meta.geminiAuthTypeLabel"
+      class="mb-1 flex items-center gap-1"
+    >
       <span
         :class="[
           'inline-block rounded px-1.5 py-0.5 text-[10px] font-medium',
@@ -73,14 +86,27 @@
     </div>
 
     <div v-if="presentation.state === 'loading'" class="space-y-1.5">
-      <div v-for="index in skeletonRows" :key="index" class="flex items-center gap-1">
-        <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-        <div class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"></div>
-        <div class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+      <div
+        v-for="index in skeletonRows"
+        :key="index"
+        class="flex items-center gap-1"
+      >
+        <div
+          class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+        ></div>
+        <div
+          class="h-1.5 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700"
+        ></div>
+        <div
+          class="h-3 w-[32px] animate-pulse rounded bg-gray-200 dark:bg-gray-700"
+        ></div>
       </div>
     </div>
 
-    <div v-else-if="presentation.state === 'error'" class="text-xs text-red-500">
+    <div
+      v-else-if="presentation.state === 'error'"
+      class="text-xs text-red-500"
+    >
       {{ presentation.error }}
     </div>
 
@@ -95,6 +121,7 @@
         :window-stats="row.windowStats"
         :color="row.color"
         :inline-reset="row.inlineRemaining"
+        :detailed-reset="row.detailedReset"
         :display-mode="accountUsageDisplayMode"
       />
       <p
@@ -102,7 +129,11 @@
         class="text-[9px] leading-tight text-gray-400 dark:text-gray-500"
         :title="presentation.meta.snapshotUpdatedAtTooltip || undefined"
       >
-        {{ t('admin.accounts.usageWindow.snapshotUpdatedAt', { time: presentation.meta.snapshotUpdatedAtText }) }}
+        {{
+          t("admin.accounts.usageWindow.snapshotUpdatedAt", {
+            time: presentation.meta.snapshotUpdatedAtText,
+          })
+        }}
       </p>
       <div v-if="presentation.meta.sampledBadgeLabel" class="mt-1">
         <button
@@ -117,13 +148,19 @@
           {{ presentation.meta.sampledBadgeLabel }}
         </button>
       </div>
-      <p v-if="presentation.meta.noteText" class="mt-1 text-[9px] italic leading-tight text-gray-400 dark:text-gray-500">
+      <p
+        v-if="presentation.meta.noteText"
+        class="mt-1 text-[9px] italic leading-tight text-gray-400 dark:text-gray-500"
+      >
         * {{ presentation.meta.noteText }}
       </p>
     </div>
 
-    <div v-else-if="presentation.state === 'unlimited'" class="text-xs text-gray-400">
-      {{ t('admin.accounts.gemini.rateLimit.unlimited') }}
+    <div
+      v-else-if="presentation.state === 'unlimited'"
+      class="text-xs text-gray-400"
+    >
+      {{ t("admin.accounts.gemini.rateLimit.unlimited") }}
     </div>
 
     <div v-else class="text-xs text-gray-400">-</div>
@@ -148,7 +185,7 @@
       ></div>
 
       <template v-if="activeTooltipKey === 'ineligible'">
-        {{ t('admin.accounts.ineligibleWarning') }}
+        {{ t("admin.accounts.ineligibleWarning") }}
       </template>
 
       <template v-else-if="activeTooltipKey === 'sampled'">
@@ -157,10 +194,16 @@
 
       <template v-else-if="activeTooltipKey === 'gemini-policy'">
         <div class="space-y-2 whitespace-normal break-words">
-          <div class="font-semibold">{{ t('admin.accounts.gemini.quotaPolicy.title') }}</div>
-          <div class="text-gray-200 dark:text-gray-300">{{ t('admin.accounts.gemini.quotaPolicy.note') }}</div>
+          <div class="font-semibold">
+            {{ t("admin.accounts.gemini.quotaPolicy.title") }}
+          </div>
+          <div class="text-gray-200 dark:text-gray-300">
+            {{ t("admin.accounts.gemini.quotaPolicy.note") }}
+          </div>
           <div class="space-y-1">
-            <div class="font-medium">{{ presentation.meta.geminiQuotaPolicyChannel }}</div>
+            <div class="font-medium">
+              {{ presentation.meta.geminiQuotaPolicyChannel }}
+            </div>
             <div>{{ presentation.meta.geminiQuotaPolicyLimits }}</div>
           </div>
           <a
@@ -170,7 +213,7 @@
             rel="noopener noreferrer"
             class="inline-flex items-center text-blue-300 underline underline-offset-2 hover:text-blue-200"
           >
-            {{ t('admin.accounts.gemini.quotaPolicy.columns.docs') }}
+            {{ t("admin.accounts.gemini.quotaPolicy.columns.docs") }}
           </a>
         </div>
       </template>
@@ -179,35 +222,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import type { Account, WindowStats } from '@/types'
-import { useAccountUsagePresentation } from '@/composables/useAccountUsagePresentation'
-import { useAccountUsageDisplayMode } from '@/composables/useAccountUsageDisplayMode'
-import { useFloatingTooltip } from '@/composables/useFloatingTooltip'
-import { useViewportAutoLoadGate } from '@/composables/useViewportAutoLoadGate'
-import UsageProgressBar from './UsageProgressBar.vue'
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import type { Account, WindowStats } from "@/types";
+import { useAccountUsagePresentation } from "@/composables/useAccountUsagePresentation";
+import { useAccountUsageDisplayMode } from "@/composables/useAccountUsageDisplayMode";
+import { useFloatingTooltip } from "@/composables/useFloatingTooltip";
+import { useViewportAutoLoadGate } from "@/composables/useViewportAutoLoadGate";
+import UsageProgressBar from "./UsageProgressBar.vue";
 
 const props = withDefaults(
   defineProps<{
-    account: Account
-    todayStats?: WindowStats | null
-    todayStatsLoading?: boolean
-    manualRefreshToken?: number
+    account: Account;
+    todayStats?: WindowStats | null;
+    todayStatsLoading?: boolean;
+    manualRefreshToken?: number;
   }>(),
   {
     todayStats: null,
     todayStatsLoading: false,
-    manualRefreshToken: 0
-  }
-)
+    manualRefreshToken: 0,
+  },
+);
 
-const { t } = useI18n()
-const { rootRef, autoLoadEnabled } = useViewportAutoLoadGate()
-const { accountUsageDisplayMode } = useAccountUsageDisplayMode()
-const { presentation, requestAutoLoad, shouldFetchUsage } = useAccountUsagePresentation(() => props.account, {
-  autoLoadEnabled,
-})
+const { t } = useI18n();
+const { rootRef, autoLoadEnabled } = useViewportAutoLoadGate();
+const { accountUsageDisplayMode } = useAccountUsageDisplayMode();
+const { presentation, requestAutoLoad, shouldFetchUsage } =
+  useAccountUsagePresentation(() => props.account, {
+    autoLoadEnabled,
+  });
 const {
   tooltipVisible,
   tooltipRef,
@@ -215,69 +259,74 @@ const {
   tooltipStyle,
   showFloatingTooltip,
   hideFloatingTooltip,
-} = useFloatingTooltip()
-const activeTooltipKey = ref<'ineligible' | 'gemini-policy' | 'sampled' | null>(null)
-let hideTooltipTimer: number | null = null
+} = useFloatingTooltip();
+const activeTooltipKey = ref<"ineligible" | "gemini-policy" | "sampled" | null>(
+  null,
+);
+let hideTooltipTimer: number | null = null;
 
 const skeletonRows = computed(() => {
-  return Array.from({ length: presentation.value.meta.loadingRows }, (_, index) => index + 1)
-})
+  return Array.from(
+    { length: presentation.value.meta.loadingRows },
+    (_, index) => index + 1,
+  );
+});
 
 const cancelTooltipHide = () => {
   if (hideTooltipTimer) {
-    window.clearTimeout(hideTooltipTimer)
-    hideTooltipTimer = null
+    window.clearTimeout(hideTooltipTimer);
+    hideTooltipTimer = null;
   }
-}
+};
 
 const hideTooltip = () => {
-  cancelTooltipHide()
-  activeTooltipKey.value = null
-  hideFloatingTooltip()
-}
+  cancelTooltipHide();
+  activeTooltipKey.value = null;
+  hideFloatingTooltip();
+};
 
 const scheduleTooltipHide = () => {
-  cancelTooltipHide()
+  cancelTooltipHide();
   hideTooltipTimer = window.setTimeout(() => {
-    hideTooltip()
-  }, 80)
-}
+    hideTooltip();
+  }, 80);
+};
 
 const handleTooltipEnter = async (
-  key: 'ineligible' | 'gemini-policy' | 'sampled',
+  key: "ineligible" | "gemini-policy" | "sampled",
   event: MouseEvent | FocusEvent,
 ) => {
-  const triggerEl = event.currentTarget as HTMLElement | null
-  if (!triggerEl) return
+  const triggerEl = event.currentTarget as HTMLElement | null;
+  if (!triggerEl) return;
 
-  cancelTooltipHide()
-  activeTooltipKey.value = key
-  await showFloatingTooltip(triggerEl)
-}
+  cancelTooltipHide();
+  activeTooltipKey.value = key;
+  await showFloatingTooltip(triggerEl);
+};
 
 const handleTriggerFocusOut = (event: FocusEvent) => {
-  const nextTarget = event.relatedTarget as Node | null
-  if (tooltipRef.value?.contains(nextTarget)) return
-  scheduleTooltipHide()
-}
+  const nextTarget = event.relatedTarget as Node | null;
+  if (tooltipRef.value?.contains(nextTarget)) return;
+  scheduleTooltipHide();
+};
 
 const handleTooltipFocusOut = (event: FocusEvent) => {
-  const nextTarget = event.relatedTarget as Node | null
-  if (tooltipRef.value?.contains(nextTarget)) return
-  scheduleTooltipHide()
-}
+  const nextTarget = event.relatedTarget as Node | null;
+  if (tooltipRef.value?.contains(nextTarget)) return;
+  scheduleTooltipHide();
+};
 
 watch(
   () => props.manualRefreshToken,
   (nextToken, prevToken) => {
-    if (nextToken === prevToken) return
-    if (!shouldFetchUsage.value) return
+    if (nextToken === prevToken) return;
+    if (!shouldFetchUsage.value) return;
 
-    requestAutoLoad()
-  }
-)
+    requestAutoLoad();
+  },
+);
 
 onBeforeUnmount(() => {
-  cancelTooltipHide()
-})
+  cancelTooltipHide();
+});
 </script>

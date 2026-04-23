@@ -161,6 +161,7 @@
         <AccountProtocolGatewayOpenAIRequestFormatEditor
           v-if="showProtocolGatewayOpenAIRequestFormatEditor"
           v-model:value="gatewayOpenAIRequestFormat"
+          v-model:image-protocol-mode="gatewayOpenAIImageProtocolMode"
         />
 
         <AccountProtocolGatewayBatchEditor
@@ -329,6 +330,9 @@
       <AccountGatewaySettingsEditor
         :show-open-ai-passthrough="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-passthrough-enabled="openaiPassthroughEnabled"
+        :show-open-ai-image-protocol-mode="account?.platform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
+        :open-ai-image-protocol-mode="openAIImageProtocolMode"
+        :open-ai-image-protocol-compat-allowed="openAIImageCompatAllowed"
         :show-open-ai-ws-mode="effectivePlatform === 'openai' && (account?.type === 'oauth' || account?.type === 'apikey')"
         :open-ai-ws-mode="openaiResponsesWebSocketV2Mode"
         :open-ai-ws-mode-options="openAIWSModeOptions"
@@ -338,6 +342,7 @@
         :show-codex-cli-only="effectivePlatform === 'openai' && account?.type === 'oauth'"
         :codex-cli-only-enabled="codexCLIOnlyEnabled"
         @update:open-ai-passthrough-enabled="openaiPassthroughEnabled = $event"
+        @update:open-ai-image-protocol-mode="handleOpenAIImageProtocolModeChange"
         @update:open-ai-ws-mode="openaiResponsesWebSocketV2Mode = $event"
         @update:anthropic-passthrough-enabled="anthropicPassthroughEnabled = $event"
         @update:codex-cli-only-enabled="codexCLIOnlyEnabled = $event"
@@ -569,7 +574,9 @@ import {
   type GrokTier
 } from '@/utils/grokAccount'
 import {
+  DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE,
   DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT,
+  applyProtocolGatewayOpenAIImageProtocolModeExtra,
   applyProtocolGatewayOpenAIRequestFormatExtra,
   applyProtocolGatewayGeminiBatchExtra,
   applyProtocolGatewayClaudeClientMimicExtra,
@@ -580,6 +587,7 @@ import {
   normalizeGatewayClientProfile,
   normalizeGatewayClientRoutes,
   resolveAccountGatewayOpenAIRequestFormat,
+  resolveAccountGatewayOpenAIImageProtocolMode,
   resolveProtocolGatewayBatchRequestFormats,
   resolveAccountGatewayProtocol,
   resolveEffectiveAccountPlatform,
@@ -596,6 +604,7 @@ import {
   type GeminiAIStudioTier,
   type GeminiOAuthType
 } from '@/utils/geminiAccount'
+import { resolveOpenAIImageProtocolState } from '@/utils/openaiAccountDefaults'
 import {
   applyGoogleBatchArchiveExtra,
   createDefaultGoogleBatchArchiveFormState,
@@ -612,6 +621,7 @@ import type {
   GatewayAcceptedProtocol,
   GatewayClientProfile,
   GatewayClientRoute,
+  OpenAIImageProtocolMode,
   GatewayOpenAIRequestFormat
 } from '@/types'
 import { formatModelDisplayName } from '@/utils/modelDisplayName'
@@ -701,10 +711,13 @@ const quotaControlState = quotaControl.state
 const umqModeOptions = quotaControl.umqModeOptions
 
 const openaiPassthroughEnabled = ref(false)
+const openAIImageProtocolMode = ref<OpenAIImageProtocolMode>('native')
+const openAIImageCompatAllowed = ref(true)
 const openaiOAuthResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const openaiAPIKeyResponsesWebSocketV2Mode = ref<OpenAIWSMode>(OPENAI_WS_MODE_OFF)
 const codexCLIOnlyEnabled = ref(false)
 const anthropicPassthroughEnabled = ref(false)
+const gatewayOpenAIImageProtocolMode = ref<OpenAIImageProtocolMode>(DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE)
 const editQuotaLimit = ref<number | null>(null)
 const editQuotaDailyLimit = ref<number | null>(null)
 const editQuotaWeeklyLimit = ref<number | null>(null)
@@ -1250,6 +1263,14 @@ const resetProtocolGatewayClaudeMimicState = () => {
   claudeSessionIDMaskingEnabled.value = false
 }
 
+const handleOpenAIImageProtocolModeChange = (value: OpenAIImageProtocolMode) => {
+  if (!openAIImageCompatAllowed.value && value === 'compat') {
+    openAIImageProtocolMode.value = 'native'
+    return
+  }
+  openAIImageProtocolMode.value = value
+}
+
 // Watchers
 watch(
   () => [props.show, props.account] as const,
@@ -1275,6 +1296,7 @@ watch(
       gatewayTestProvider.value = String(newAccount.extra?.gateway_test_provider || '').trim().toLowerCase()
       gatewayTestModelId.value = String(newAccount.extra?.gateway_test_model_id || '').trim()
       gatewayOpenAIRequestFormat.value = resolveAccountGatewayOpenAIRequestFormat(newAccount)
+      gatewayOpenAIImageProtocolMode.value = resolveAccountGatewayOpenAIImageProtocolMode(newAccount)
       gatewayBatchEnabled.value = normalizeGatewayBatchEnabled(
         newAccount.gateway_batch_enabled ?? newAccount.extra?.gateway_batch_enabled
       )
@@ -1322,12 +1344,22 @@ watch(
 
       // Load OpenAI passthrough toggle (OpenAI OAuth/API Key)
       openaiPassthroughEnabled.value = false
+      openAIImageProtocolMode.value = 'native'
+      openAIImageCompatAllowed.value = true
       openaiOAuthResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       openaiAPIKeyResponsesWebSocketV2Mode.value = OPENAI_WS_MODE_OFF
       codexCLIOnlyEnabled.value = false
       anthropicPassthroughEnabled.value = false
       if (runtimePlatform === 'openai' && (newAccount.type === 'oauth' || newAccount.type === 'apikey')) {
+        const openAIImageState = resolveOpenAIImageProtocolState({
+          accountCategory: newAccount.type === 'oauth' ? 'oauth-based' : 'apikey',
+          planType: String(credentials?.plan_type || ''),
+          storedMode: String(extra?.image_protocol_mode || ''),
+          storedCompatAllowed: extra?.image_compat_allowed
+        })
         openaiPassthroughEnabled.value = extra?.openai_passthrough === true || extra?.openai_oauth_passthrough === true
+        openAIImageProtocolMode.value = openAIImageState.mode
+        openAIImageCompatAllowed.value = openAIImageState.compatAllowed
         openaiOAuthResponsesWebSocketV2Mode.value = resolveOpenAIWSModeFromExtra(extra, {
           modeKey: 'openai_oauth_responses_websockets_v2_mode',
           enabledKey: 'openai_oauth_responses_websockets_v2_enabled',
@@ -1569,6 +1601,7 @@ watch(
       gatewayTestProvider.value = ''
       gatewayTestModelId.value = ''
       gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+      gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
       gatewayBatchEnabled.value = false
       resetProtocolGatewayClaudeMimicState()
       protocolGatewayProbeModels.value = []
@@ -1583,6 +1616,8 @@ watch(
       allowVertexBatchOverflow.value = defaultGoogleBatchArchiveState.allowVertexBatchOverflow
       acceptAIStudioBatchOverflow.value = defaultGoogleBatchArchiveState.acceptAIStudioBatchOverflow
       modelMappings.value = []
+      openAIImageProtocolMode.value = 'native'
+      openAIImageCompatAllowed.value = true
       geminiOAuthType.value = 'code_assist'
       geminiVertexAuthMode.value = 'service_account'
       geminiVertexProjectId.value = ''
@@ -1616,6 +1651,7 @@ watch(
     gatewayTestProvider.value = ''
     gatewayTestModelId.value = ''
     gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+    gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
     gatewayBatchEnabled.value = false
     protocolGatewayProbeModels.value = []
     allowedModels.value = []
@@ -1632,6 +1668,7 @@ watch(
   (supported) => {
     if (!supported) {
       gatewayOpenAIRequestFormat.value = DEFAULT_GATEWAY_OPENAI_REQUEST_FORMAT
+      gatewayOpenAIImageProtocolMode.value = DEFAULT_GATEWAY_OPENAI_IMAGE_PROTOCOL_MODE
     }
   }
 )
@@ -2043,6 +2080,14 @@ const handleSubmit = async () => {
         delete newExtra.openai_passthrough
         delete newExtra.openai_oauth_passthrough
       }
+      newExtra.image_protocol_mode = openAIImageCompatAllowed.value
+        ? openAIImageProtocolMode.value
+        : 'native'
+      if (props.account.type === 'oauth') {
+        newExtra.image_compat_allowed = openAIImageCompatAllowed.value
+      } else {
+        delete newExtra.image_compat_allowed
+      }
 
       if (props.account.type === 'oauth') {
         if (codexCLIOnlyEnabled.value) {
@@ -2062,30 +2107,39 @@ const handleSubmit = async () => {
         (props.account.extra as Record<string, unknown>) || {}
       updatePayload.gateway_protocol = gatewayProtocol.value
       updatePayload.extra = applyProtocolGatewayGeminiBatchExtra(
-        applyProtocolGatewayOpenAIRequestFormatExtra(
-          applyProtocolGatewayClaudeClientMimicExtra({
-            ...currentExtra,
-            gateway_protocol: gatewayProtocol.value,
-            gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
-            gateway_client_profiles: [...gatewayClientProfiles.value],
-            gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
-            gateway_test_provider: gatewayTestProvider.value || undefined,
-            gateway_test_model_id: gatewayTestModelId.value || undefined
-          }, {
-            platform: props.account.platform,
-            type: props.account.type,
-            gatewayProtocol: gatewayProtocol.value,
-            acceptedProtocols: gatewayAcceptedProtocols.value,
-            claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
-            enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
-            sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
-          }),
+        applyProtocolGatewayOpenAIImageProtocolModeExtra(
+          applyProtocolGatewayOpenAIRequestFormatExtra(
+            applyProtocolGatewayClaudeClientMimicExtra({
+              ...currentExtra,
+              gateway_protocol: gatewayProtocol.value,
+              gateway_accepted_protocols: [...gatewayAcceptedProtocols.value],
+              gateway_client_profiles: [...gatewayClientProfiles.value],
+              gateway_client_routes: gatewayClientRoutes.value.map((route) => ({ ...route })),
+              gateway_test_provider: gatewayTestProvider.value || undefined,
+              gateway_test_model_id: gatewayTestModelId.value || undefined
+            }, {
+              platform: props.account.platform,
+              type: props.account.type,
+              gatewayProtocol: gatewayProtocol.value,
+              acceptedProtocols: gatewayAcceptedProtocols.value,
+              claudeCodeMimicEnabled: claudeCodeMimicEnabled.value,
+              enableTLSFingerprint: claudeTLSFingerprintEnabled.value,
+              sessionIDMaskingEnabled: claudeSessionIDMaskingEnabled.value
+            }),
+            {
+              platform: props.account.platform,
+              type: props.account.type,
+              gatewayProtocol: gatewayProtocol.value,
+              acceptedProtocols: gatewayAcceptedProtocols.value,
+              gatewayOpenAIRequestFormat: gatewayOpenAIRequestFormat.value
+            }
+          ),
           {
             platform: props.account.platform,
             type: props.account.type,
             gatewayProtocol: gatewayProtocol.value,
             acceptedProtocols: gatewayAcceptedProtocols.value,
-            gatewayOpenAIRequestFormat: gatewayOpenAIRequestFormat.value
+            gatewayOpenAIImageProtocolMode: gatewayOpenAIImageProtocolMode.value
           }
         ),
         {
@@ -2107,6 +2161,8 @@ const handleSubmit = async () => {
       if (runtimePlatform !== 'openai') {
         delete normalizedExtra.openai_passthrough
         delete normalizedExtra.openai_oauth_passthrough
+        delete normalizedExtra.image_protocol_mode
+        delete normalizedExtra.image_compat_allowed
         delete normalizedExtra.codex_cli_only
         delete normalizedExtra.openai_oauth_responses_websockets_v2_mode
         delete normalizedExtra.openai_apikey_responses_websockets_v2_mode
@@ -2114,9 +2170,15 @@ const handleSubmit = async () => {
         delete normalizedExtra.openai_apikey_responses_websockets_v2_enabled
         delete normalizedExtra.responses_websockets_v2_enabled
         delete normalizedExtra.openai_ws_enabled
+      } else if (isProtocolGatewayAccount.value) {
+        delete normalizedExtra.image_protocol_mode
+        delete normalizedExtra.image_compat_allowed
       }
       if (runtimePlatform !== 'anthropic') {
         delete normalizedExtra.anthropic_passthrough
+      }
+      if (!isProtocolGatewayAccount.value) {
+        delete normalizedExtra.gateway_openai_image_protocol_mode
       }
       updatePayload.extra =
         Object.keys(normalizedExtra).length > 0 ? normalizedExtra : undefined

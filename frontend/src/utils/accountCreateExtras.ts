@@ -1,4 +1,4 @@
-import type { AccountPlatform } from '@/types'
+import type { AccountPlatform, OpenAIImageProtocolMode } from '@/types'
 import { isOpenAIWSModeEnabled, type OpenAIWSMode } from '@/utils/openaiWsMode'
 
 export type AccountCategory = 'oauth-based' | 'apikey' | 'vertex_ai'
@@ -11,6 +11,9 @@ export function buildOpenAIExtra(options: {
   openaiAPIKeyResponsesWebSocketV2Mode: OpenAIWSMode
   openaiPassthroughEnabled: boolean
   codexCLIOnlyEnabled: boolean
+  openAIImageProtocolMode: OpenAIImageProtocolMode
+  openAIImageCompatAllowed: boolean
+  includeOpenAIImageProtocolMode?: boolean
 }): Record<string, unknown> | undefined {
   if (options.platform !== 'openai' && options.platform !== 'copilot') {
     return options.base
@@ -43,6 +46,18 @@ export function buildOpenAIExtra(options: {
     extra.codex_cli_only = true
   } else {
     delete extra.codex_cli_only
+  }
+
+  if (options.includeOpenAIImageProtocolMode !== false) {
+    extra.image_protocol_mode = options.openAIImageProtocolMode
+    if (options.accountCategory === 'oauth-based') {
+      extra.image_compat_allowed = options.openAIImageCompatAllowed
+    } else {
+      delete extra.image_compat_allowed
+    }
+  } else {
+    delete extra.image_protocol_mode
+    delete extra.image_compat_allowed
   }
 
   return Object.keys(extra).length > 0 ? extra : undefined

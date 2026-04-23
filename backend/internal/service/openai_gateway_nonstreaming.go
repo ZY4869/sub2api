@@ -194,6 +194,7 @@ func (s *OpenAIGatewayService) handleNonStreamingResponse(_ context.Context, res
 	if originalModel != mappedModel {
 		body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
 	}
+	setOpenAIResponsesImageOutputCount(c, body)
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	contentType := "application/json"
 	if s.cfg != nil && !s.cfg.Security.ResponseHeaders.Enabled {
@@ -228,6 +229,7 @@ func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.
 			body = s.replaceModelInResponseBody(body, mappedModel, originalModel)
 		}
 		body = s.correctToolCallsInResponseBody(body)
+		setOpenAIResponsesImageOutputCount(c, body)
 	} else {
 		terminalType, terminalPayload, terminalOK := extractOpenAISSETerminalEvent(bodyText)
 		if terminalOK && terminalType == "response.failed" {
@@ -254,6 +256,19 @@ func (s *OpenAIGatewayService) handleOAuthSSEToJSON(resp *http.Response, c *gin.
 	SetOpsTraceGatewayResponse(c, "openai_gateway_response", body, contentType, false)
 	c.Data(resp.StatusCode, contentType, body)
 	return usage, nil
+}
+
+func setOpenAIResponsesImageOutputCount(c *gin.Context, body []byte) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	imageCount := len(extractOpenAIResponsesOutputImages(body))
+	if imageCount <= 0 {
+		return
+	}
+	ctx := EnsureRequestMetadata(c.Request.Context())
+	SetImageOutputCountMetadata(ctx, imageCount)
+	c.Request = c.Request.WithContext(ctx)
 }
 
 func supplementOpenAIResponseOutputFromSSE(finalResponse []byte, bodyText string) ([]byte, bool) {

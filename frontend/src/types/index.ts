@@ -318,19 +318,32 @@ export interface PaginatedResponse<T> {
 // ==================== UI State Types ====================
 
 export type ToastType = "success" | "error" | "info" | "warning";
+export type ToastDetailTone = "success" | "error" | "info" | "warning";
+
+export interface ToastDetailItem {
+  text: string;
+  tone?: ToastDetailTone;
+}
+
+export type ToastDetailInput = string | ToastDetailItem;
 
 export interface ToastOptions {
   title?: string;
-  details?: string[];
+  details?: ToastDetailInput[];
   copyText?: string;
   persistent?: boolean;
   duration?: number;
 }
 
-export interface Toast extends ToastOptions {
+export interface Toast {
   id: string;
   type: ToastType;
   message: string;
+  title?: string;
+  details?: ToastDetailItem[];
+  copyText?: string;
+  persistent?: boolean;
+  duration?: number;
   startTime?: number; // timestamp when toast was created, for progress bar
 }
 
@@ -376,6 +389,10 @@ export type GroupPlatform =
   | "baidu_document_ai";
 
 export type SubscriptionType = "standard" | "subscription";
+export type OpenAIImageProtocolMode = "native" | "compat";
+export type OpenAIGroupImageProtocolMode =
+  | "inherit"
+  | OpenAIImageProtocolMode;
 
 export interface Group {
   id: number;
@@ -396,6 +413,7 @@ export interface Group {
   image_price_4k: number | null;
   // Restrict the group to Claude Code clients only.
   claude_code_only: boolean;
+  image_protocol_mode: OpenAIGroupImageProtocolMode;
   fallback_group_id: number | null;
   fallback_group_id_on_invalid_request: number | null;
   // Toggle OpenAI Messages dispatch support for this group.
@@ -535,6 +553,7 @@ export interface CreateGroupRequest {
   image_price_1k?: number | null;
   image_price_2k?: number | null;
   image_price_4k?: number | null;
+  image_protocol_mode?: OpenAIGroupImageProtocolMode;
   claude_code_only?: boolean;
   fallback_group_id?: number | null;
   fallback_group_id_on_invalid_request?: number | null;
@@ -560,6 +579,7 @@ export interface UpdateGroupRequest {
   image_price_1k?: number | null;
   image_price_2k?: number | null;
   image_price_4k?: number | null;
+  image_protocol_mode?: OpenAIGroupImageProtocolMode;
   claude_code_only?: boolean;
   fallback_group_id?: number | null;
   fallback_group_id_on_invalid_request?: number | null;
@@ -603,7 +623,11 @@ export type AccountType =
 export type AccountLifecycleState = "normal" | "archived" | "blacklisted";
 export type AccountLimitedView = "all" | "normal_only" | "limited_only";
 export type AccountRuntimeView = "all" | "in_use_only" | "available_only";
-export type AccountRateLimitReason = "rate_429" | "usage_5h" | "usage_7d" | "usage_7d_all";
+export type AccountRateLimitReason =
+  | "rate_429"
+  | "usage_5h"
+  | "usage_7d"
+  | "usage_7d_all";
 export type AccountViewMode = "table" | "card";
 export type AccountUsageDisplayMode = "used" | "remaining";
 export type OAuthAddMethod = "oauth" | "setup-token";
@@ -791,9 +815,12 @@ export interface Account {
       string,
       { rate_limited_at: string; rate_limit_reset_at: string }
     >;
+    image_protocol_mode?: OpenAIImageProtocolMode;
+    image_compat_allowed?: boolean;
     gateway_protocol?: GatewayProtocol;
     gateway_accepted_protocols?: GatewayAcceptedProtocol[];
     gateway_openai_request_format?: GatewayOpenAIRequestFormat;
+    gateway_openai_image_protocol_mode?: OpenAIImageProtocolMode;
   } & Record<string, unknown>;
   proxy_id: number | null;
   concurrency: number;
@@ -922,6 +949,7 @@ export interface AccountUsagePresentationRow extends AccountUsageResetRow {
   windowStats?: WindowStats | null;
   color: AccountUsageRowColor;
   inlineRemaining?: boolean;
+  detailedReset?: boolean;
 }
 
 export interface AccountUsagePresentationMeta {

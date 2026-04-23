@@ -158,12 +158,23 @@ curl https://api.zyxai.de/v1/responses/resp_123 \
 
 OpenAI 侧现在建议明确区分两类能力：
 
+- 图片链路现在统一由显式 `image_protocol_mode` 决定，不再根据 `model=gpt-image-2` 去猜“原生图片请求”还是 “compat / Codex 图片请求”。
+- 生效优先级固定为：OpenAI 分组强制模式（`inherit | native | compat`）> 账号模式 > 默认策略；其中 OpenAI OAuth `free` 默认 `native` 且 `compat` 被禁用，其它已识别付费计划默认 `compat`。
 - `gpt-image-2` 这类原生图片模型，走 `/v1/images/generations` 或 `/v1/images/edits`。
-- `gpt-5.4`、`gpt-5.4-mini`、`gpt-5.4-pro` 这类主模型，如果要生图，优先走 `/v1/responses` + `tools:[{type:"image_generation"}]`。
-- 网关不会解析 `$imagegen ...` 这类文本前缀本身；如果你的客户端或 Codex 最终发出来的是 Responses tool 请求，网关会按标准 `image_generation` tool 语义处理。
+- `gpt-5.4`、`gpt-5.4-mini`、`gpt-5.4-pro` 这类主模型，如果要生图，主路径是 `/v1/responses` + `tools:[{type:"image_generation"}]`；顶层 `model` 继续保持主模型本身，不需要改成 `gpt-image-2`。
+- `/v1/images/generations`、`/v1/images/edits` 在 `native` 下直连原生 Images 链路，在 `compat` 下会桥接到兼容执行链；Compat 链路内部统一使用 `gpt-image-2` 作为目标图片模型。
+- 网关现在会解析 `$imagegen ...` 兼容前缀，并自动改写成标准 Responses tool 请求；这是“网关兼容扩展”，不是 OpenAI 官方标准字段。
+- 兼容扩展只在命中 `$imagegen` 时生效：JSON 下可额外携带 `image_generation`、`reference_images`；`multipart/form-data` 下可额外使用 `reference_image`、`reference_image_url`。
+- `multipart/form-data` 仍然只作为网关扩展，不承诺官方 SDK 兼容；其中 `/v1/images/*` 的 native / compat 两条链路都支持 `stream=true`，但 `/v1/responses` 的 multipart `$imagegen` 扩展当前仍要求 `stream=false`。
+- 直传参考图只接受 JPEG / PNG / WebP，最多 4 张；网关会把最长边归一到 `2048px` 以内，再转成标准 `input_image` data URI。URL / data URI 参考图只做格式校验，不做服务端重采样。
+- 原生与 compat 两条图片链路都会统一归一化 `generate | edit`、`images[]`、`mask`、`size`、`quality`、`background`、`output_format`、`output_compression`、`partial_images`、`n`、`moderation`、`input_fidelity`；其中 `input_fidelity` 会保留在网关内部 DTO 和 trace，但当前不会继续向 compat 内部固定目标 `gpt-image-2` 的上游 payload 透传。
+- 图片能力矩阵现在以单一 GPT image profile 为准：版本化 `gpt-image-*`（例如 `gpt-image-1.5`、`gpt-image-2`）和 `chatgpt-image-latest`，无论 native 还是 compat，都会放开 `generate`、`edit`、`stream`、多图、`mask`、`background=transparent`，以及最大边 `3840px` 的自定义尺寸；未知或旧模型保持保守拒绝路径。
+- 能力校验顺序固定在上游请求前完成：`operation` -> `stream/partial_images` -> `mask/multi-image` -> `background/output_format/output_compression` -> `size/custom-resolution`。命中的能力档会写入 `image_capability_profile`，便于观察 `transparent` / `4K` 放量。
+
+标准 Responses 写法与兼容写法都最终会归一成同一类 `image_generation` tool 请求。
 
 #### Python
-```python focus=3-16
+```python focus=3-18
 import requests
 
 response = requests.post(
@@ -175,7 +186,8 @@ response = requests.post(
     json={
         "model": "gpt-5.4-mini",
         "input": "生成一张适合产品页首屏的海报图。",
-        "tools": [{"type": "image_generation", "model": "gpt-image-2"}],
+        "tools": [{"type": "image_generation", "size": "1536x1024"}],
+        "tool_choice": {"type": "image_generation"},
     },
     timeout=120,
 )
@@ -183,21 +195,76 @@ response = requests.post(
 print(response.json())
 ```
 
+#### JavaScript
+```javascript focus=1-16
+const response = await fetch("https://api.zyxai.de/v1/responses", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer sk-你的站内Key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "gpt-5.4-mini",
+    input: "$imagegen 生成一张带晨雾的山间木屋海报",
+    image_generation: { size: "1536x1024", background: "opaque" },
+    reference_images: [
+      { image_url: "https://example.com/reference.png" },
+    ],
+  }),
+});
+
+console.log(await response.json());
+```
+
 #### REST
 ```bash focus=1-8
-curl https://api.zyxai.de/v1/images/generations \
+curl https://api.zyxai.de/v1/responses \
   -H "Authorization: Bearer sk-你的站内Key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-image-2",
-    "prompt": "生成一张适合产品页首屏的海报图。"
-  }'
+  -F 'model=gpt-5.4-mini' \
+  -F 'input=$imagegen 生成一张适合产品页首屏的海报图。' \
+  -F 'size=1536x1024' \
+  -F 'reference_image=@./hero.png' \
+  -F 'reference_image_url=https://example.com/reference.png'
 ```
+
+#### REST
+```bash focus=1-9
+curl https://api.zyxai.de/v1/images/edits \
+  -H "Authorization: Bearer sk-你的站内Key" \
+  -F 'model=gpt-image-2' \
+  -F 'prompt=把天空替换成日落，并保留前景人物' \
+  -F 'image[]=@./source.png' \
+  -F 'image[]=@./style.png' \
+  -F 'mask=@./mask.png' \
+  -F 'size=2048x1152' \
+  -F 'output_format=png'
+```
+
+兼容扩展的固定规则如下：
+
+- JSON 简写：`input` 是以 `$imagegen ` 开头的字符串，或首个 user `input_text` 以 `$imagegen ` 开头。
+- JSON 扩展字段：`image_generation` 支持 `action`、`size`、`quality`、`background`、`output_format`、`output_compression`、`partial_images`、`moderation`、`input_fidelity`、`input_image_mask`、`n`；`reference_images` 只接受 `{image_url}` 数组，`mask` / `input_image_mask` 可写成字符串或 `{image_url}`。
+- multipart 字段：`model`、`input`、可选 `image_generation` JSON 字符串、可重复 `reference_image`、可重复 `reference_image_url`，以及 `action` / `size` / `quality` / `background` / `output_format` / `output_compression` / `partial_images` / `moderation` / `input_fidelity` / `n` 便捷别名；`mask` 支持文件上传，也支持 `mask_image_url` / `input_image_mask`。
+- 如果你已经显式传了 `tools`，网关不会再自动注入 `image_generation`，也不会剥离 `$imagegen` 前缀。
+
+兼容扩展常见错误码：
+
+- `image_compat_not_allowed`
+- `imagegen_compat_requires_prefix`
+- `imagegen_compat_conflict`
+- `multipart_stream_unsupported`
+  只适用于 `/v1/responses` 的 multipart `$imagegen` 扩展；`/v1/images/generations`、`/v1/images/edits` 在 native / compat 下都已经支持流式返回。
+- `unsupported_reference_image_type`
+- `reference_image_count_exceeded`
+- `reference_image_too_large`
+- `reference_image_total_too_large`
+- `reference_image_too_large_after_normalization`
 
 ### 迁移与边界
 
 - 如果你的客户端本来就支持 `responses`，不要再退回 `chat/completions`。
 - 如果你只是为了历史兼容而使用旧参数结构，请切到 `openai` 兼容页。
-- 如果你要走 `/v1/images/*`，请先确认目标模型到底是原生图片模型还是 tool 生图主模型；原生图片模型走 `/v1/images/*`，tool 生图主模型继续走 `/v1/responses`。
+- 如果你要走 `/v1/images/*`，请先确认当前账号 / 分组的 `image_protocol_mode`；同一条 `/v1/images/*` 路径在 `native` 和 `compat` 下会落到不同执行链，但参数语义会保持一致。
+- `gpt-5.4-mini` 这类主模型不再承担“也许是生图”的歧义判断；只有当请求意图是图片生成 / 编辑时，才会进入图片路由。
 - 如果你要看 Grok 显式媒体入口，请转到 `grok` 页；如果你是在 `/v1/responses` 内通过 `image_generation` tool 生图，仍以本页规则为准。
 - 新项目围绕 `responses` 设计，比继续叠加 `chat/completions` 特性债务更稳妥。

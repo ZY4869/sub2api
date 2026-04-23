@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -119,4 +120,15 @@ func (h *OpenAIGatewayHandler) errorResponse(c *gin.Context, status int, errType
 			"message": message,
 		},
 	})
+}
+
+func (h *OpenAIGatewayHandler) errorResponseWithCode(c *gin.Context, status int, errType, code, message string) {
+	errorPayload := gin.H{
+		"type":    errType,
+		"message": message,
+	}
+	if code = strings.TrimSpace(code); code != "" {
+		errorPayload["code"] = code
+	}
+	c.JSON(status, gin.H{"error": errorPayload})
 }

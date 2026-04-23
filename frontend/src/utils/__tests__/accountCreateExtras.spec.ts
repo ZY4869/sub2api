@@ -4,6 +4,12 @@ import { buildAnthropicExtra, buildOpenAIExtra } from '@/utils/accountCreateExtr
 
 describe('accountCreateExtras', () => {
   describe('buildOpenAIExtra', () => {
+    const baseOpenAIOptions = {
+      openAIImageProtocolMode: 'native' as const,
+      openAIImageCompatAllowed: true,
+      includeOpenAIImageProtocolMode: true
+    }
+
     it('keeps base untouched for non-openai platform', () => {
       const base = { foo: 1 }
       const out = buildOpenAIExtra({
@@ -13,7 +19,8 @@ describe('accountCreateExtras', () => {
         openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
         openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
         openaiPassthroughEnabled: false,
-        codexCLIOnlyEnabled: false
+        codexCLIOnlyEnabled: false,
+        ...baseOpenAIOptions
       })
       expect(out).toBe(base)
     })
@@ -26,13 +33,16 @@ describe('accountCreateExtras', () => {
         openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_PASSTHROUGH,
         openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
         openaiPassthroughEnabled: false,
-        codexCLIOnlyEnabled: true
+        codexCLIOnlyEnabled: true,
+        ...baseOpenAIOptions
       })
 
       expect(out).toMatchObject({
         openai_oauth_responses_websockets_v2_mode: OPENAI_WS_MODE_PASSTHROUGH,
         openai_oauth_responses_websockets_v2_enabled: true,
-        codex_cli_only: true
+        codex_cli_only: true,
+        image_protocol_mode: 'native',
+        image_compat_allowed: true
       })
       expect(out).not.toHaveProperty('responses_websockets_v2_enabled')
       expect(out).not.toHaveProperty('openai_ws_enabled')
@@ -46,7 +56,8 @@ describe('accountCreateExtras', () => {
         openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_PASSTHROUGH,
         openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
         openaiPassthroughEnabled: false,
-        codexCLIOnlyEnabled: true
+        codexCLIOnlyEnabled: true,
+        ...baseOpenAIOptions
       })
 
       expect(out).toMatchObject({
@@ -64,10 +75,29 @@ describe('accountCreateExtras', () => {
         openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
         openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
         openaiPassthroughEnabled: true,
-        codexCLIOnlyEnabled: false
+        codexCLIOnlyEnabled: false,
+        ...baseOpenAIOptions
       })
 
       expect(out).toMatchObject({ openai_passthrough: true })
+    })
+
+    it('can skip direct image protocol keys for protocol-gateway flows', () => {
+      const out = buildOpenAIExtra({
+        platform: 'openai',
+        accountCategory: 'apikey',
+        base: {},
+        openaiOAuthResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiAPIKeyResponsesWebSocketV2Mode: OPENAI_WS_MODE_OFF,
+        openaiPassthroughEnabled: false,
+        codexCLIOnlyEnabled: false,
+        openAIImageProtocolMode: 'compat',
+        openAIImageCompatAllowed: true,
+        includeOpenAIImageProtocolMode: false
+      })
+
+      expect(out).not.toHaveProperty('image_protocol_mode')
+      expect(out).not.toHaveProperty('image_compat_allowed')
     })
   })
 

@@ -67,6 +67,7 @@ describe("UsageProgressBar", () => {
 
     expect(wrapper.text()).toContain("Remaining 30m");
     expect(wrapper.text()).toContain("Reset at Today 08:30");
+    expect(wrapper.text().match(/Remaining/g)?.length).toBe(1);
     expect(wrapper.find('[title="2026-03-13 08:30:00"]').exists()).toBe(true);
 
     vi.advanceTimersByTime(60_000);
@@ -156,7 +157,9 @@ describe("UsageProgressBar", () => {
       },
     });
 
-    expect(wrapper.get('[data-testid="usage-progress-fill"]').attributes("style")).toContain("width: 32%;");
+    expect(
+      wrapper.get('[data-testid="usage-progress-fill"]').attributes("style"),
+    ).toContain("width: 32%;");
     expect(wrapper.text()).toContain("32%");
   });
 
@@ -170,7 +173,9 @@ describe("UsageProgressBar", () => {
       },
     });
 
-    expect(wrapper.get('[data-testid="usage-progress-fill"]').attributes("style")).toContain("width: 68%;");
+    expect(
+      wrapper.get('[data-testid="usage-progress-fill"]').attributes("style"),
+    ).toContain("width: 68%;");
     expect(wrapper.text()).toContain("32%");
   });
 });

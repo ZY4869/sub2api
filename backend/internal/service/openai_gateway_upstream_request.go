@@ -92,6 +92,13 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 }
 
 func (s *OpenAIGatewayService) validateUpstreamBaseURL(raw string) (string, error) {
+	if s == nil || s.cfg == nil {
+		normalized, err := urlvalidator.ValidateURLFormat(raw, false)
+		if err != nil {
+			return "", fmt.Errorf("invalid base_url: %w", err)
+		}
+		return normalized, nil
+	}
 	if s.cfg != nil && !s.cfg.Security.URLAllowlist.Enabled {
 		normalized, err := urlvalidator.ValidateURLFormat(raw, s.cfg.Security.URLAllowlist.AllowInsecureHTTP)
 		if err != nil {

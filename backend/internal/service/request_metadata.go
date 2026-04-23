@@ -40,6 +40,21 @@ type RequestMetadata struct {
 	ImageUpstreamEndpoint       *string
 	ImageRequestFormat          *string
 	ImageRouteReason            *string
+	ImageProtocolMode           *string
+	ImageRequestSurface         *string
+	ImageSizeTier               *string
+	ImageCapabilityProfile      *string
+	ImageOutputCount            *int
+	ImagegenCompat              *bool
+	ImagegenCompatRejected      *bool
+	ImagegenCompatRejectCode    *string
+	ImagegenCompatSourceGuess   *string
+	ImagegenCompatSource        *string
+	ImagegenCompatRefCount      *int
+	ImagegenCompatBytesBefore   *int64
+	ImagegenCompatBytesAfter    *int64
+	ImagegenCompatNormalized    *bool
+	ImagegenCompatSize          *string
 }
 
 var (
@@ -486,6 +501,21 @@ func setTrimmedMetadataField(target **string, value string) {
 	*target = &trimmed
 }
 
+func setBoolMetadataField(target **bool, value bool) {
+	v := value
+	*target = &v
+}
+
+func setIntMetadataField(target **int, value int) {
+	v := value
+	*target = &v
+}
+
+func setInt64MetadataField(target **int64, value int64) {
+	v := value
+	*target = &v
+}
+
 func SetImageRouteFamilyMetadata(ctx context.Context, value string) {
 	if md := metadataFromContext(ctx); md != nil {
 		setTrimmedMetadataField(&md.ImageRouteFamily, value)
@@ -588,4 +618,122 @@ func ImageRouteReasonMetadataFromContext(ctx context.Context) (string, bool) {
 		return strings.TrimSpace(*md.ImageRouteReason), true
 	}
 	return "", false
+}
+
+func SetImageProtocolModeMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageProtocolMode, value)
+	}
+}
+
+func ImageProtocolModeMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageProtocolMode != nil {
+		return strings.TrimSpace(*md.ImageProtocolMode), true
+	}
+	return "", false
+}
+
+func SetImageRequestSurfaceMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageRequestSurface, value)
+	}
+}
+
+func ImageRequestSurfaceMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageRequestSurface != nil {
+		return strings.TrimSpace(*md.ImageRequestSurface), true
+	}
+	return "", false
+}
+
+func SetImageSizeTierMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageSizeTier, value)
+	}
+}
+
+func ImageSizeTierMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageSizeTier != nil {
+		return strings.TrimSpace(*md.ImageSizeTier), true
+	}
+	return "", false
+}
+
+func SetImageCapabilityProfileMetadata(ctx context.Context, value string) {
+	if md := metadataFromContext(ctx); md != nil {
+		setTrimmedMetadataField(&md.ImageCapabilityProfile, value)
+	}
+}
+
+func ImageCapabilityProfileMetadataFromContext(ctx context.Context) (string, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageCapabilityProfile != nil {
+		return strings.TrimSpace(*md.ImageCapabilityProfile), true
+	}
+	return "", false
+}
+
+func SetImageOutputCountMetadata(ctx context.Context, value int) {
+	if md := metadataFromContext(ctx); md != nil {
+		setIntMetadataField(&md.ImageOutputCount, value)
+	}
+}
+
+func ImageOutputCountMetadataFromContext(ctx context.Context) (int, bool) {
+	if md := metadataFromContext(ctx); md != nil && md.ImageOutputCount != nil {
+		return *md.ImageOutputCount, true
+	}
+	return 0, false
+}
+
+func SetOpenAIResponsesImageGenCompatMetadata(ctx context.Context, value OpenAIResponsesCompatMetadata) {
+	if md := metadataFromContext(ctx); md != nil {
+		setBoolMetadataField(&md.ImagegenCompat, value.Enabled)
+		setBoolMetadataField(&md.ImagegenCompatRejected, value.Rejected)
+		setTrimmedMetadataField(&md.ImagegenCompatRejectCode, value.RejectCode)
+		setTrimmedMetadataField(&md.ImagegenCompatSourceGuess, value.SourceGuess)
+		setTrimmedMetadataField(&md.ImagegenCompatSource, value.Source)
+		setIntMetadataField(&md.ImagegenCompatRefCount, value.ReferenceImageCount)
+		setInt64MetadataField(&md.ImagegenCompatBytesBefore, value.ReferenceImageBytesBefore)
+		setInt64MetadataField(&md.ImagegenCompatBytesAfter, value.ReferenceImageBytesAfter)
+		setBoolMetadataField(&md.ImagegenCompatNormalized, value.ReferenceImagesNormalized)
+		setTrimmedMetadataField(&md.ImagegenCompatSize, value.ImageGenerationSize)
+	}
+}
+
+func OpenAIResponsesImageGenCompatMetadataFromContext(ctx context.Context) (OpenAIResponsesCompatMetadata, bool) {
+	md := metadataFromContext(ctx)
+	if md == nil || md.ImagegenCompat == nil {
+		return OpenAIResponsesCompatMetadata{}, false
+	}
+	result := OpenAIResponsesCompatMetadata{
+		Enabled: *md.ImagegenCompat,
+	}
+	if md.ImagegenCompatRejected != nil {
+		result.Rejected = *md.ImagegenCompatRejected
+	}
+	if md.ImagegenCompatRejectCode != nil {
+		result.RejectCode = strings.TrimSpace(*md.ImagegenCompatRejectCode)
+	}
+	if md.ImagegenCompatSourceGuess != nil {
+		result.SourceGuess = strings.TrimSpace(*md.ImagegenCompatSourceGuess)
+	}
+	if md.ImagegenCompatSource != nil {
+		result.Source = strings.TrimSpace(*md.ImagegenCompatSource)
+	}
+	if md.ImagegenCompatRefCount != nil {
+		result.ReferenceImageCount = *md.ImagegenCompatRefCount
+	}
+	if md.ImagegenCompatBytesBefore != nil {
+		result.ReferenceImageBytesBefore = *md.ImagegenCompatBytesBefore
+	}
+	if md.ImagegenCompatBytesAfter != nil {
+		result.ReferenceImageBytesAfter = *md.ImagegenCompatBytesAfter
+	}
+	if md.ImagegenCompatNormalized != nil {
+		result.ReferenceImagesNormalized = *md.ImagegenCompatNormalized
+	}
+	if md.ImagegenCompatSize != nil {
+		result.ImageGenerationSize = strings.TrimSpace(*md.ImagegenCompatSize)
+	}
+	return result, true
 }
