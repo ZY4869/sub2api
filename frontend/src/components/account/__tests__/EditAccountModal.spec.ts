@@ -613,12 +613,12 @@ function buildProtocolGatewayOpenAIAccount() {
   } as any
 }
 
-function buildBaiduDocumentAIAccount() {
+function buildBaiduDocumentAIAccount(platform: string = 'baidu_document_ai') {
   return {
     id: 8,
     name: 'Baidu OCR',
     notes: '',
-    platform: 'baidu_document_ai',
+    platform,
     type: 'apikey',
     credentials: {
       async_bearer_token: 'existing-async-token',
@@ -1041,6 +1041,11 @@ describe('EditAccountModal', () => {
     expect(updateAccountMock).toHaveBeenCalledTimes(1)
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.async_bearer_token).toBe('new-async-token')
     expect(updateAccountMock.mock.calls[0]?.[1]?.credentials?.direct_token).toBe('existing-direct-token')
+  })
+
+  it('renders the baidu document ai editor for legacy baidu platform values', async () => {
+    const wrapper = mountModal(buildBaiduDocumentAIAccount('baidu'))
+    expect(wrapper.find('[data-testid=\"baidu-async-base-url-prop\"]').exists()).toBe(true)
   })
 
   it('keeps mapping rows synchronized with probe selection changes for api key accounts', async () => {

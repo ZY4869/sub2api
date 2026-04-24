@@ -28,6 +28,7 @@ vi.mock('vue-i18n', async () => {
           'dates.tomorrow': 'Tomorrow',
           'common.error': 'Error',
           'admin.accounts.usageWindow.snapshotUpdatedAt': 'Snapshot updated {time}',
+          'admin.accounts.usageWindow.now': 'Now',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
         }
         return dict[key] ?? key
@@ -79,8 +80,11 @@ describe('AccountUsageResetCell', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('5h')
+    expect(wrapper.text()).toContain('2h 53m')
+    expect(wrapper.text()).toContain('·')
     expect(wrapper.text()).toContain('Today 15:22')
     expect(wrapper.text()).toContain('7d')
+    expect(wrapper.text()).toContain('6d 13h')
     expect(wrapper.text()).toContain('03-20 01:09')
 
   })
@@ -106,11 +110,13 @@ describe('AccountUsageResetCell', () => {
     })
 
     await flushPromises()
+    expect(wrapper.text()).toContain('2m')
     expect(wrapper.text()).toContain('Tomorrow 00:01')
 
     vi.advanceTimersByTime(2 * 60 * 1000)
     await flushPromises()
 
+    expect(wrapper.text()).toContain('Now')
     expect(wrapper.text()).toContain('Today 00:01')
   })
 

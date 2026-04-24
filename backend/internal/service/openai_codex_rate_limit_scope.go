@@ -59,15 +59,15 @@ func openAICodexSuccessfulSnapshotFromContext(ctx context.Context) bool {
 }
 
 func withOpenAICodexRequestModelFallback(ctx context.Context, models ...string) context.Context {
+	if strings.TrimSpace(openAICodexRequestModelFromContext(ctx)) != "" {
+		return ctx
+	}
 	for _, model := range models {
 		model = strings.TrimSpace(model)
 		if model == "" {
 			continue
 		}
 		return WithOpenAICodexRequestModel(ctx, model)
-	}
-	if strings.TrimSpace(openAICodexRequestModelFromContext(ctx)) != "" {
-		return ctx
 	}
 	return ctx
 }

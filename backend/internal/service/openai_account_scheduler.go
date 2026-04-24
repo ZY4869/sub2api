@@ -431,6 +431,11 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 	if left.score != right.score {
 		return left.score > right.score
 	}
+	leftUtil := clamp01(calcConcurrencyUtilization(left.loadInfo.CurrentConcurrency, left.account.Concurrency))
+	rightUtil := clamp01(calcConcurrencyUtilization(right.loadInfo.CurrentConcurrency, right.account.Concurrency))
+	if leftUtil != rightUtil {
+		return leftUtil < rightUtil
+	}
 	if left.loadInfo.LoadRate != right.loadInfo.LoadRate {
 		return left.loadInfo.LoadRate < right.loadInfo.LoadRate
 	}
@@ -739,7 +744,7 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		if maxPriority > minPriority {
 			priorityFactor = 1 - float64(item.account.Priority-minPriority)/float64(maxPriority-minPriority)
 		}
-		loadFactor := 1 - clamp01(float64(item.loadInfo.LoadRate)/100.0)
+		loadFactor := 1 - clamp01(calcConcurrencyUtilization(item.loadInfo.CurrentConcurrency, item.account.Concurrency))
 		queueFactor := 1 - clamp01(float64(item.loadInfo.WaitingCount)/float64(maxWaiting))
 		errorFactor := 1 - clamp01(item.errorRate)
 		ttftFactor := 0.5
@@ -847,6 +852,7 @@ func (s *defaultOpenAIAccountScheduler) logLoadBalanceSelection(
 		return
 	}
 	window, utilization, resetAt := accountUsagePressureLogValues(candidate.pressure)
+	concurrencyUtil := clamp01(calcConcurrencyUtilization(candidate.loadInfo.CurrentConcurrency, candidate.account.Concurrency))
 	slog.Debug(
 		"openai_ws_account_scheduler_selection",
 		"phase", phase,
@@ -863,6 +869,9 @@ func (s *defaultOpenAIAccountScheduler) logLoadBalanceSelection(
 		"load_skew", loadSkew,
 		"score", candidate.score,
 		"load_rate", candidate.loadInfo.LoadRate,
+		"current_concurrency", candidate.loadInfo.CurrentConcurrency,
+		"max_concurrency", candidate.account.Concurrency,
+		"concurrency_utilization", concurrencyUtil,
 		"waiting_count", candidate.loadInfo.WaitingCount,
 		"pressure_scope", candidate.pressureScope,
 		"pressure_window", window,
@@ -1050,6 +1059,16 @@ func clamp01(value float64) float64 {
 	default:
 		return value
 	}
+}
+
+func calcConcurrencyUtilization(currentConcurrency int, maxConcurrency int) float64 {
+	if maxConcurrency <= 0 {
+		return 0
+	}
+	if currentConcurrency <= 0 {
+		return 0
+	}
+	return float64(currentConcurrency) / float64(maxConcurrency)
 }
 
 func calcLoadSkewByMoments(sum float64, sumSquares float64, count int) float64 {

@@ -149,6 +149,13 @@ const AccountCreatePlatformSelectorStub = defineComponent({
       </button>
       <button
         type="button"
+        data-testid="select-baidu-legacy"
+        @click="$emit('update:platform', 'baidu')"
+      >
+        select baidu legacy
+      </button>
+      <button
+        type="button"
         data-testid="select-openai"
         @click="$emit('update:platform', 'openai')"
       >
@@ -535,7 +542,7 @@ describe('CreateAccountModal', () => {
     expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
     expect(source).toContain(":skip-model-scope-editor=\"form.platform === 'protocol_gateway'\"")
     expect(source).toContain(
-      ":show-auto-import=\"form.platform !== 'protocol_gateway' && form.platform !== 'baidu_document_ai'\""
+      ":show-auto-import=\"form.platform !== 'protocol_gateway' && !isBaiduDocumentAIPlatform(form.platform)\""
     )
   })
 
@@ -847,6 +854,17 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
 
     expect(editor.attributes('style')).toContain('display: none;')
+  })
+
+  it('shows the baidu document ai credential editor for legacy baidu platform values', async () => {
+    const wrapper = mountModal()
+    const editor = wrapper.get('[data-testid="baidu-document-ai-credentials-editor"]')
+
+    expect(editor.attributes('style')).toContain('display: none;')
+
+    await wrapper.get('[data-testid="select-baidu-legacy"]').trigger('click')
+
+    expect(editor.attributes('style') || '').not.toContain('display: none;')
   })
 
   it('keeps the top mapping state in sync when probe selections are added and removed', async () => {

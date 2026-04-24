@@ -614,6 +614,7 @@ import {
 } from '@/utils/accountGoogleBatchArchive'
 import {
   BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL,
+  isBaiduDocumentAIPlatform,
   parseBaiduDocumentAIDirectApiUrlsInput,
   stringifyBaiduDocumentAIDirectApiUrls
 } from '@/utils/baiduDocumentAI'
@@ -849,9 +850,7 @@ const effectiveGroupPlatforms = computed<GroupPlatform[] | undefined>(() => {
 const isProtocolGatewayAccount = computed(() =>
   isProtocolGatewayPlatform(props.account?.platform)
 )
-const isBaiduDocumentAIAccount = computed(() =>
-  props.account?.platform === 'baidu_document_ai'
-)
+const isBaiduDocumentAIAccount = computed(() => isBaiduDocumentAIPlatform(props.account?.platform))
 const isGrokSSOAccount = computed(() => props.account?.platform === 'grok' && props.account?.type === 'sso')
 const isGeminiVertexAccount = computed(() =>
   effectivePlatform.value === 'gemini' &&
@@ -878,7 +877,7 @@ const supportsUnifiedModelEditor = computed(() => {
   if (!props.account) {
     return false
   }
-  if (props.account.platform === 'antigravity' || props.account.platform === 'baidu_document_ai') {
+  if (props.account.platform === 'antigravity' || isBaiduDocumentAIAccount.value) {
     return false
   }
   if (isProtocolGatewayAccount.value || isGeminiVertexAccount.value || props.account.type === 'upstream') {
@@ -1518,7 +1517,7 @@ watch(
       // Initialize API Key fields for apikey type
         if (newAccount.type === 'apikey' && newAccount.credentials) {
           const credentials = newAccount.credentials as Record<string, unknown>
-          if (newAccount.platform === 'baidu_document_ai') {
+          if (isBaiduDocumentAIPlatform(newAccount.platform)) {
           modelRestrictionEnabled.value = false
           baiduDocumentAIAsyncBearerToken.value = ''
           baiduDocumentAIAsyncBaseUrl.value =
@@ -1870,7 +1869,7 @@ const handleSubmit = async () => {
       }
 
       updatePayload.credentials = newCredentials
-    } else if (props.account.platform === 'baidu_document_ai' && props.account.type === 'apikey') {
+    } else if (isBaiduDocumentAIAccount.value && props.account.type === 'apikey') {
       const newCredentials = buildBaiduDocumentAICredentialsForUpdate()
       if (!newCredentials) {
         return
@@ -2257,7 +2256,7 @@ const handleSubmit = async () => {
     )
 
     updatePayload.extra = buildProbeExtra(
-      runtimePlatform === 'baidu_document_ai'
+      isBaiduDocumentAIPlatform(runtimePlatform)
         ? (((updatePayload.extra as Record<string, unknown>) ||
             (props.account.extra as Record<string, unknown>) ||
             undefined))

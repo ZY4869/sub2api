@@ -116,12 +116,8 @@
         :key="row.key"
         :label="row.label"
         :utilization="row.utilization"
-        :resets-at="row.resetsAt"
-        :remaining-seconds="row.remainingSeconds"
         :window-stats="row.windowStats"
         :color="row.color"
-        :inline-reset="row.inlineRemaining"
-        :detailed-reset="row.detailedReset"
         :display-mode="accountUsageDisplayMode"
       />
       <p

@@ -53,6 +53,101 @@ func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthand(t *testing.T) {
 	require.Equal(t, "data:image/png;base64,AAAA", content[2]["image_url"])
 }
 
+func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthandNormalizesIntOptions(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-5.4-mini",
+		"input": "$imagegen test",
+		"image_generation": map[string]any{
+			"n":                 "2",
+			"partial_images":     "1",
+			"output_compression": "80",
+		},
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Metadata.Enabled)
+
+	tool := firstCompatTool(t, result.ParsedBody)
+	require.Equal(t, 2, tool["n"])
+	require.Equal(t, 1, tool["partial_images"])
+	require.Equal(t, 80, tool["output_compression"])
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthandRejectsInvalidIntOptions(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-5.4-mini",
+		"input": "$imagegen test",
+		"image_generation": map[string]any{
+			"n": "abc",
+		},
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.Nil(t, result)
+	var compatErr *OpenAIResponsesCompatError
+	require.ErrorAs(t, err, &compatErr)
+	require.Equal(t, 400, compatErr.Status)
+	require.Equal(t, "invalid_request_error", compatErr.Type)
+	require.Contains(t, compatErr.Message, "image_generation.n")
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandNormalizesIntOptionsInExistingTool(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-image-2",
+		"input": "$imagegen test",
+		"tools": []any{
+			map[string]any{
+				"type":               "image_generation",
+				"n":                  "2",
+				"partial_images":     "1",
+				"output_compression": "80",
+			},
+		},
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.True(t, result.Metadata.Enabled)
+	require.Equal(t, OpenAIResponsesImagegenCompatSourceModelShorthand, result.Metadata.Source)
+
+	tool := firstCompatTool(t, result.ParsedBody)
+	require.Equal(t, 2, tool["n"])
+	require.Equal(t, 1, tool["partial_images"])
+	require.Equal(t, 80, tool["output_compression"])
+}
+
+func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandRejectsInvalidIntOptionsInExistingTool(t *testing.T) {
+	t.Parallel()
+
+	body := mustMarshalCompatJSON(t, map[string]any{
+		"model": "gpt-image-2",
+		"input": "$imagegen test",
+		"tools": []any{
+			map[string]any{
+				"type": "image_generation",
+				"n":    "abc",
+			},
+		},
+	})
+
+	result, err := NormalizeOpenAIResponsesImageGenCompat(body, "application/json")
+	require.Nil(t, result)
+	var compatErr *OpenAIResponsesCompatError
+	require.ErrorAs(t, err, &compatErr)
+	require.Equal(t, 400, compatErr.Status)
+	require.Equal(t, "invalid_request_error", compatErr.Type)
+	require.Contains(t, compatErr.Message, "image_generation.n")
+}
+
 func TestNormalizeOpenAIResponsesImageGenCompat_ModelShorthandInjectsTool(t *testing.T) {
 	t.Parallel()
 

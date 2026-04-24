@@ -10,10 +10,12 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	xdraw "golang.org/x/image/draw"
@@ -272,6 +274,9 @@ func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAI
 	if isModelShorthand {
 		targetModel = OpenAICompatImageTargetModel
 	}
+	if compatErr := normalizeResponsesCompatImageGenerationOptions(imageGeneration); compatErr != nil {
+		return nil, compatErr
+	}
 	imageTool := buildResponsesCompatImageGenerationTool(imageGeneration)
 	if targetModel != "" {
 		imageTool["model"] = targetModel
@@ -289,6 +294,9 @@ func normalizeOpenAIResponsesJSONImagegenCompat(reqBody map[string]any) (*OpenAI
 				continue
 			}
 			found = true
+			if compatErr := normalizeResponsesCompatImageGenerationOptions(toolMap); compatErr != nil {
+				return nil, compatErr
+			}
 			if targetModel != "" {
 				existingToolModel := scalarString(toolMap["model"])
 				if existingToolModel != "" && !strings.EqualFold(existingToolModel, targetModel) {
@@ -492,6 +500,9 @@ func normalizeOpenAIResponsesMultipartImagegenCompat(body []byte, boundary strin
 		return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "imagegen_compat_requires_prefix", "multipart image generation requires input starting with $imagegen ")
 	}
 	fields["input"] = buildResponsesCompatInputMessage(strings.TrimPrefix(inputText, openAIResponsesImagegenPrefix), referenceImages)
+	if compatErr := normalizeResponsesCompatImageGenerationOptions(imageGeneration); compatErr != nil {
+		return nil, withOpenAIResponsesCompatRejectMetadata(compatErr, metadata, metadata.ReferenceImageCount)
+	}
 	fields["tools"] = []any{buildResponsesCompatImageGenerationTool(imageGeneration)}
 	fields["tool_choice"] = map[string]any{"type": "image_generation"}
 
@@ -671,6 +682,118 @@ func mergeResponsesCompatToolOptions(base map[string]any, updates map[string]any
 		}
 	}
 	return base
+}
+
+func normalizeResponsesCompatImageGenerationOptions(imageGeneration map[string]any) *OpenAIResponsesCompatError {
+	if imageGeneration == nil {
+		return nil
+	}
+
+	intOptions := []struct {
+		key string
+		min int
+		max int
+	}{
+		{key: "n", min: 1, max: 10},
+		{key: "output_compression", min: 0, max: 100},
+		{key: "partial_images", min: 0, max: 3},
+	}
+
+	for _, option := range intOptions {
+		raw, exists := imageGeneration[option.key]
+		if !exists || raw == nil {
+			continue
+		}
+
+		normalized, err := normalizeResponsesCompatIntOption(option.key, raw, option.min, option.max)
+		if err != nil {
+			return err
+		}
+		imageGeneration[option.key] = normalized
+	}
+
+	return nil
+}
+
+func normalizeResponsesCompatIntOption(key string, raw any, min int, max int) (int, *OpenAIResponsesCompatError) {
+	value, ok := coerceResponsesCompatInt(raw)
+	if !ok {
+		return 0, newOpenAIResponsesCompatError(
+			http.StatusBadRequest,
+			"invalid_request_error",
+			"imagegen_compat_invalid_"+key,
+			fmt.Sprintf("image_generation.%s must be an integer", key),
+		)
+	}
+	if value < min || value > max {
+		return 0, newOpenAIResponsesCompatError(
+			http.StatusBadRequest,
+			"invalid_request_error",
+			"imagegen_compat_invalid_"+key,
+			fmt.Sprintf("image_generation.%s must be between %d and %d", key, min, max),
+		)
+	}
+	return value, nil
+}
+
+func coerceResponsesCompatInt(raw any) (int, bool) {
+	switch v := raw.(type) {
+	case int:
+		return v, true
+	case int8:
+		return int(v), true
+	case int16:
+		return int(v), true
+	case int32:
+		return int(v), true
+	case int64:
+		return int(v), true
+	case uint:
+		return int(v), true
+	case uint8:
+		return int(v), true
+	case uint16:
+		return int(v), true
+	case uint32:
+		return int(v), true
+	case uint64:
+		return int(v), true
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return 0, false
+		}
+		if v != math.Trunc(v) {
+			return 0, false
+		}
+		return int(v), true
+	case float32:
+		value := float64(v)
+		if math.IsNaN(value) || math.IsInf(value, 0) {
+			return 0, false
+		}
+		if value != math.Trunc(value) {
+			return 0, false
+		}
+		return int(value), true
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return int(parsed), true
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		parsed, err := strconv.Atoi(trimmed)
+		if err != nil {
+			return 0, false
+		}
+		return parsed, true
+	default:
+		return 0, false
+	}
 }
 
 func buildResponsesCompatTraceImageGenerationTool(imageGeneration map[string]any) map[string]any {

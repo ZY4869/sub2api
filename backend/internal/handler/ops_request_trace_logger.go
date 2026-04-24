@@ -491,6 +491,9 @@ func buildOpsTraceNormalizeResult(c *gin.Context, apiKey *service.APIKey, reques
 		result.ImagegenCompatReferenceImageBytesAfter = compatMetadata.ReferenceImageBytesAfter
 		result.ImagegenCompatNormalized = compatMetadata.ReferenceImagesNormalized
 		result.ImagegenCompatImageGenerationSize = compatMetadata.ImageGenerationSize
+		if result.MediaResolution == "" && strings.TrimSpace(compatMetadata.ImageGenerationSize) != "" {
+			result.MediaResolution = strings.TrimSpace(compatMetadata.ImageGenerationSize)
+		}
 	}
 	if headerValue := strings.TrimSpace(c.Writer.Header().Get("X-Sub2api-CountTokens-Source")); headerValue != "" {
 		result.CountTokensSource = headerValue

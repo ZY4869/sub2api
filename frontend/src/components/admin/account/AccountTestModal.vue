@@ -371,6 +371,7 @@ import {
   resolveCatalogTargetFromModel,
   resolveGatewayTestSelectedModelKey
 } from '@/utils/accountGatewayTestDefaults'
+import { isBaiduDocumentAIPlatform } from '@/utils/baiduDocumentAI'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -433,7 +434,7 @@ const effectiveSelectedSourceProtocol = computed(() =>
     : selectedSourceProtocol.value
 )
 const isGrokAccount = computed(() => props.account?.platform === 'grok')
-const isBaiduDocumentAIAccount = computed(() => props.account?.platform === 'baidu_document_ai')
+const isBaiduDocumentAIAccount = computed(() => isBaiduDocumentAIPlatform(props.account?.platform))
 const isKiroAccount = computed(() => props.account?.platform === 'kiro')
 const isProtocolGatewayAccount = computed(() => props.account?.platform === 'protocol_gateway')
 const supportsTestModes = computed(() => !isGrokAccount.value)

@@ -113,7 +113,7 @@
         />
 
         <AccountBaiduDocumentAICredentialsEditor
-          v-show="form.platform === 'baidu_document_ai'"
+          v-show="isBaiduDocumentAIPlatform(form.platform)"
           v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
           v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
           v-model:direct-token="baiduDocumentAIDirectToken"
@@ -543,7 +543,7 @@
         :is-manual-input-method="isManualInputMethod"
         :current-o-auth-loading="currentOAuthLoading"
         :can-exchange-code="canExchangeCode"
-        :show-auto-import="form.platform !== 'protocol_gateway' && form.platform !== 'baidu_document_ai'"
+        :show-auto-import="form.platform !== 'protocol_gateway' && !isBaiduDocumentAIPlatform(form.platform)"
         @close="handleClose"
         @back="goBackToBasicInfo"
         @exchange-code="handleExchangeCode"
@@ -721,6 +721,7 @@ import {
 } from '@/utils/openaiWsMode'
 import {
   BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL,
+  isBaiduDocumentAIPlatform,
   parseBaiduDocumentAIDirectApiUrlsInput
 } from '@/utils/baiduDocumentAI'
 import type { OAuthFlowExposed } from './oauthFlow.types'
@@ -933,7 +934,7 @@ const isVertexProbeReady = computed(() => {
 const showCommonApiKeySection = computed(() =>
   form.type === 'apikey' &&
   form.platform !== 'antigravity' &&
-  form.platform !== 'baidu_document_ai' &&
+  !isBaiduDocumentAIPlatform(form.platform) &&
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
 const showQuotaLimitSection = computed(() => true)
@@ -1274,7 +1275,7 @@ watch(
       form.type = 'apikey'
       return
     }
-    if (form.platform === 'baidu_document_ai') {
+    if (isBaiduDocumentAIPlatform(form.platform)) {
       form.type = 'apikey'
       return
     }
@@ -1338,11 +1339,11 @@ watch(
       geminiVertexExpiresAtInput.value = ''
       geminiVertexBaseUrl.value = ''
     }
-    if (newPlatform === 'baidu_document_ai') {
+    if (isBaiduDocumentAIPlatform(newPlatform)) {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       autoImportModels.value = false
-    } else if (previousPlatform === 'baidu_document_ai') {
+    } else if (isBaiduDocumentAIPlatform(previousPlatform)) {
       baiduDocumentAIAsyncBearerToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL
       baiduDocumentAIDirectToken.value = ''
@@ -2185,7 +2186,7 @@ const handleSubmit = async () => {
     return
   }
 
-  if (form.platform === 'baidu_document_ai') {
+  if (isBaiduDocumentAIPlatform(form.platform)) {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
       return

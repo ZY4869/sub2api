@@ -128,6 +128,7 @@ func TestBuildOpsTraceNormalizeResult_OpsRequestTraceResponsesImageToolMetadata(
 	require.Equal(t, int64(2048), normalize.ImagegenCompatReferenceImageBytesAfter)
 	require.True(t, normalize.ImagegenCompatNormalized)
 	require.Equal(t, "1536x1024", normalize.ImagegenCompatImageGenerationSize)
+	require.Equal(t, "1536x1024", normalize.MediaResolution)
 }
 
 func TestBuildOpsRequestTraceInput_OpsRequestTraceImageRouteMetricsCoexist(t *testing.T) {

@@ -215,6 +215,67 @@ func TestFilterByMinPriority_SelectsMinPriority(t *testing.T) {
 	require.Equal(t, int64(3), result[1].account.ID)
 }
 
+// --- filterByMinConcurrencyUtilization ---
+
+func TestFilterByMinConcurrencyUtilization_Empty(t *testing.T) {
+	result := filterByMinConcurrencyUtilization(nil)
+	require.Nil(t, result)
+}
+
+func TestFilterByMinConcurrencyUtilization_SelectsLowestUtilization(t *testing.T) {
+	accounts := []accountWithLoad{
+		{
+			account: &Account{ID: 1, Concurrency: 4, Priority: 1, Type: AccountTypeAPIKey, Schedulable: true, Status: StatusActive},
+			loadInfo: &AccountLoadInfo{
+				AccountID:          1,
+				CurrentConcurrency: 3,
+			},
+		},
+		{
+			account: &Account{ID: 2, Concurrency: 4, Priority: 1, Type: AccountTypeAPIKey, Schedulable: true, Status: StatusActive},
+			loadInfo: &AccountLoadInfo{
+				AccountID:          2,
+				CurrentConcurrency: 1,
+			},
+		},
+		{
+			account: &Account{ID: 3, Concurrency: 4, Priority: 1, Type: AccountTypeAPIKey, Schedulable: true, Status: StatusActive},
+			loadInfo: &AccountLoadInfo{
+				AccountID:          3,
+				CurrentConcurrency: 1,
+			},
+		},
+	}
+
+	result := filterByMinConcurrencyUtilization(accounts)
+	require.Len(t, result, 2)
+	require.Equal(t, int64(2), result[0].account.ID)
+	require.Equal(t, int64(3), result[1].account.ID)
+}
+
+func TestFilterByMinConcurrencyUtilization_TreatsUnlimitedAsZero(t *testing.T) {
+	accounts := []accountWithLoad{
+		{
+			account: &Account{ID: 1, Concurrency: 0, Priority: 1, Type: AccountTypeAPIKey, Schedulable: true, Status: StatusActive},
+			loadInfo: &AccountLoadInfo{
+				AccountID:          1,
+				CurrentConcurrency: 99,
+			},
+		},
+		{
+			account: &Account{ID: 2, Concurrency: 4, Priority: 1, Type: AccountTypeAPIKey, Schedulable: true, Status: StatusActive},
+			loadInfo: &AccountLoadInfo{
+				AccountID:          2,
+				CurrentConcurrency: 1,
+			},
+		},
+	}
+
+	result := filterByMinConcurrencyUtilization(accounts)
+	require.Len(t, result, 1)
+	require.Equal(t, int64(1), result[0].account.ID)
+}
+
 // --- filterByMinLoadRate ---
 
 func TestFilterByMinLoadRate_Empty(t *testing.T) {

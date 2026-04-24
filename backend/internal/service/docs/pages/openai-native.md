@@ -260,6 +260,7 @@ curl https://api.zyxai.de/v1/images/edits \
 - JSON 简写：`input` 是以 `$imagegen ` 开头的字符串，或首个 user `input_text` 以 `$imagegen ` 开头。
 - JSON `model` 简写：当 `model=gpt-image-2` 时，即使 `input` 不以 `$imagegen ` 开头，也会触发生图归一；并允许 `image_generation` / `reference_images` / `mask` 在无前缀时生效。
 - JSON 扩展字段：`image_generation` 支持 `action`、`size`、`quality`、`background`、`output_format`、`output_compression`、`partial_images`、`moderation`、`input_fidelity`、`input_image_mask`、`n`；`reference_images` 只接受 `{image_url}` 数组，`mask` / `input_image_mask` 可写成字符串或 `{image_url}`。
+- 类型与范围校验：`image_generation.n` / `output_compression` / `partial_images` 会在网关侧做类型归一与范围校验；支持字符串数字（例如 `"2"`），非法值会返回 `400 invalid_request_error`，错误码 `imagegen_compat_invalid_*`（避免透传到上游触发 `tools[0].n` 等类型错误）。
 - multipart 字段：`model`、`input`、可选 `image_generation` JSON 字符串、可重复 `reference_image`、可重复 `reference_image_url`，以及 `action` / `size` / `quality` / `background` / `output_format` / `output_compression` / `partial_images` / `moderation` / `input_fidelity` / `n` 便捷别名；`mask` 支持文件上传，也支持 `mask_image_url` / `input_image_mask`。
 - 如果你已经显式传了 `tools`，网关默认不会再自动注入 `image_generation`，也不会剥离 `$imagegen` 前缀；但当你使用 `model=gpt-image-2` 简写时，为保证语义一致会补齐 `image_generation` 并强制 `tool_choice` 为 `image_generation`。
 
@@ -269,6 +270,9 @@ curl https://api.zyxai.de/v1/images/edits \
 - `imagegen_compat_requires_prefix`
 - `imagegen_compat_conflict`
 - `imagegen_compat_tool_choice_conflict`
+- `imagegen_compat_invalid_n`
+- `imagegen_compat_invalid_output_compression`
+- `imagegen_compat_invalid_partial_images`
 - `multipart_stream_unsupported`
   只适用于 `/v1/responses` 的 multipart `$imagegen` 扩展；`/v1/images/generations`、`/v1/images/edits` 在 native / compat 下都已经支持流式返回。
 - `unsupported_reference_image_type`

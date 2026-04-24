@@ -390,6 +390,7 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 			candidates = filterByMinPriority(candidates)
 			candidates = filterByMinGeminiRegionalPenalty(candidates, preferOAuth)
 			candidates = filterByBestAccountUsagePressure(candidates, now)
+			candidates = filterByMinConcurrencyUtilization(candidates)
 			candidates = filterByMinLoadRate(candidates)
 			selected := selectByLRU(candidates, preferOAuth)
 			if selected == nil {

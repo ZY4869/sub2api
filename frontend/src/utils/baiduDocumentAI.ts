@@ -1,6 +1,11 @@
 export const BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL =
   'https://paddleocr.aistudio-app.com/api/v2/ocr'
 
+export function isBaiduDocumentAIPlatform(platform: unknown): boolean {
+  const normalized = String(platform || '').trim().toLowerCase()
+  return normalized === 'baidu_document_ai' || normalized === 'baidu'
+}
+
 export function parseBaiduDocumentAIDirectApiUrlsInput(
   raw: string
 ): Record<string, string> {

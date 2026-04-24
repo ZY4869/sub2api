@@ -1729,6 +1729,42 @@ func TestOpenAIUpdateCodexUsageSnapshotFromHeaders_UsesFallbackRequestModel(t *t
 	}
 }
 
+func TestOpenAIUpdateCodexUsageSnapshotFromHeaders_DoesNotOverrideRequestModel(t *testing.T) {
+	repo := &snapshotUpdateAccountRepo{
+		updateExtraCalls: make(chan map[string]any, 1),
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:       125,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeOAuth,
+			Credentials: map[string]any{
+				"plan_type": "pro",
+			},
+			Extra: map[string]any{},
+		}}},
+	}
+	svc := &OpenAIGatewayService{accountRepo: repo}
+	headers := http.Header{}
+	headers.Set("x-codex-primary-used-percent", "12")
+	headers.Set("x-codex-secondary-used-percent", "34")
+	headers.Set("x-codex-primary-window-minutes", "300")
+	headers.Set("x-codex-secondary-window-minutes", "10080")
+	headers.Set("x-codex-primary-reset-after-seconds", "600")
+	headers.Set("x-codex-secondary-reset-after-seconds", "86400")
+
+	ctx := WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex-spark")
+	svc.UpdateCodexUsageSnapshotFromHeaders(ctx, 125, headers, "gpt-5.3-codex")
+
+	select {
+	case updates := <-repo.updateExtraCalls:
+		require.Equal(t, 12.0, updates[codexSpark5hUsedPercentKey])
+		require.Equal(t, 34.0, updates[codexSpark7dUsedPercentKey])
+		_, hasNormal5h := updates["codex_5h_used_percent"]
+		require.False(t, hasNormal5h)
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected UpdateExtra to be called for spark scope")
+	}
+}
+
 func TestOpenAIResponsesRequestPathSuffix(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()

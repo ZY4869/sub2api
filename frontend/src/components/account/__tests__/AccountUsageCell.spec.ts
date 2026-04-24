@@ -74,16 +74,16 @@ const usageBarStub = {
   props: [
     "label",
     "utilization",
-    "resetsAt",
-    "remainingSeconds",
     "windowStats",
-    "inlineReset",
-    "detailedReset",
     "color",
     "displayMode",
+    "resetsAt",
+    "remainingSeconds",
+    "inlineReset",
+    "detailedReset",
   ],
   template:
-    '<div class="usage-bar" :data-display-mode="displayMode" :data-detailed-reset="String(detailedReset)">{{ label }}|{{ utilization }}|{{ resetsAt }}|{{ remainingSeconds }}|{{ inlineReset }}|{{ windowStats?.tokens }}</div>',
+    '<div class="usage-bar" :data-display-mode="displayMode" :data-detailed-reset="String(!!detailedReset)" :data-has-reset="String(!!resetsAt || remainingSeconds != null)">{{ label }}|{{ utilization }}|{{ windowStats?.tokens }}</div>',
 };
 
 const passiveUsageResponse = {
@@ -209,7 +209,7 @@ describe("AccountUsageCell", () => {
         source: "passive",
       });
       expect(wrapper.text()).toContain(
-        "5h|21|2026-03-08T12:00:00Z|3600|false|200",
+        "5h|21|200",
       );
     } finally {
       window.matchMedia = originalMatchMedia;
@@ -301,7 +301,7 @@ describe("AccountUsageCell", () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain("Gemini Image|70|2026-03-01T09:00:00Z");
+    expect(wrapper.text()).toContain("Gemini Image|70|");
   });
 
   it("renders protocol gateway gemini accounts without fetching or showing account-level quota bars", async () => {
@@ -360,7 +360,7 @@ describe("AccountUsageCell", () => {
     expect(getUsage).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("Unlimited");
     expect(wrapper.text()).not.toContain(
-      "|70|2026-03-08T14:00:00Z|7200|false|800",
+      "G3F|70|800",
     );
     expect(wrapper.text()).not.toContain(
       "Showing the tightest upstream daily window.",
@@ -471,10 +471,10 @@ describe("AccountUsageCell", () => {
       source: "active",
     });
     expect(wrapper.text()).toContain(
-      "5h|22|2026-03-08T12:00:00Z|3600|false|220",
+      "5h|22|220",
     );
     expect(wrapper.text()).toContain(
-      "7d|63|2026-03-13T12:00:00Z|7200|false|630",
+      "7d|63|630",
     );
   });
 
@@ -627,10 +627,10 @@ describe("AccountUsageCell", () => {
       source: undefined,
     });
     expect(wrapper.text()).toContain(
-      "5h|15|2026-03-08T12:00:00Z|3600|true|300",
+      "5h|15|300",
     );
     expect(wrapper.text()).toContain(
-      "7d|77|2026-03-13T12:00:00Z|3600|true|300",
+      "7d|77|300",
     );
   });
 
@@ -660,8 +660,8 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5h|12|2099-03-07T12:00:00.000Z||true");
-    expect(wrapper.text()).toContain("7d|34|2099-03-13T12:00:00.000Z||true");
+    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("7d|34|");
   });
 
   it("renders spark 5h and 7d usage rows for pro openai accounts", async () => {
@@ -743,16 +743,16 @@ describe("AccountUsageCell", () => {
     });
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
     expect(wrapper.text()).toContain(
-      "5h|12|2026-03-08T12:00:00Z|3600|true|120",
+      "5h|12|120",
     );
     expect(wrapper.text()).toContain(
-      "7d|44|2026-03-13T12:00:00Z|7200|true|440",
+      "7d|44|440",
     );
     expect(wrapper.text()).toContain(
-      "Spark 5h|55|2026-03-08T14:00:00Z|7200|true|550",
+      "Spark 5h|55|550",
     );
     expect(wrapper.text()).toContain(
-      "Spark 7d|88|2026-03-14T12:00:00Z|86400|true|880",
+      "Spark 7d|88|880",
     );
   });
 
@@ -794,12 +794,12 @@ describe("AccountUsageCell", () => {
     expect(usageRows).toHaveLength(4);
     expect(
       usageRows.some((row) =>
-        row.startsWith("5h|12|2099-03-07T12:00:00.000Z|"),
+        row.startsWith("5h|12|"),
       ),
     ).toBe(true);
     expect(
       usageRows.some((row) =>
-        row.startsWith("7d|34|2099-03-13T12:00:00.000Z|"),
+        row.startsWith("7d|34|"),
       ),
     ).toBe(true);
     expect(usageRows.some((row) => row.startsWith("Spark 5h|0|"))).toBe(true);
@@ -836,8 +836,8 @@ describe("AccountUsageCell", () => {
 
     expect(getUsage).not.toHaveBeenCalled();
     expect(wrapper.findAll(".usage-bar")).toHaveLength(2);
-    expect(wrapper.text()).toContain("5h|12|2099-03-07T12:00:00.000Z||true");
-    expect(wrapper.text()).toContain("7d|34|2099-03-13T12:00:00.000Z||true");
+    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("7d|34|");
     expect(wrapper.text()).not.toContain("Spark 5h");
     expect(wrapper.text()).not.toContain("Spark 7d");
   });
@@ -875,8 +875,8 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(wrapper.findAll(".usage-bar")).toHaveLength(2);
-    expect(wrapper.text()).toContain("5h|12|2099-03-07T12:00:00.000Z||true");
-    expect(wrapper.text()).toContain("7d|34|2099-03-13T12:00:00.000Z||true");
+    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("7d|34|");
     expect(wrapper.text()).not.toContain("Spark 5h");
     expect(wrapper.text()).not.toContain("Spark 7d");
   });
@@ -968,9 +968,9 @@ describe("AccountUsageCell", () => {
       force: undefined,
       source: undefined,
     });
-    expect(wrapper.text()).toContain("5h|12|2099-03-07T12:00:00.000Z||true");
+    expect(wrapper.text()).toContain("5h|12|");
     expect(wrapper.text()).toContain(
-      "7d|66|2026-03-13T12:00:00Z|7200|true|900",
+      "7d|66|900",
     );
   });
 
@@ -1000,7 +1000,7 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5h|12|2099-03-07T12:00:00.000Z||true");
+    expect(wrapper.text()).toContain("5h|12|");
 
     getUsage.mockResolvedValueOnce({
       five_hour: {
@@ -1045,10 +1045,10 @@ describe("AccountUsageCell", () => {
     });
     expect(getUsage).toHaveBeenCalledWith(2010, { force: true });
     expect(wrapper.text()).toContain(
-      "5h|88|2026-03-08T12:00:00Z|3600|true|800",
+      "5h|88|800",
     );
     expect(wrapper.text()).toContain(
-      "7d|66|2026-03-13T12:00:00Z|7200|true|900",
+      "7d|66|900",
     );
   });
 
@@ -1086,14 +1086,10 @@ describe("AccountUsageCell", () => {
 
     expect(getUsage).not.toHaveBeenCalled();
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
-    expect(wrapper.text()).toContain("5h|12|2099-03-07T12:00:00.000Z||true");
-    expect(wrapper.text()).toContain("7d|34|2099-03-13T12:00:00.000Z||true");
-    expect(wrapper.text()).toContain(
-      "Spark 5h|56|2099-03-08T12:00:00.000Z||true",
-    );
-    expect(wrapper.text()).toContain(
-      "Spark 7d|78|2099-03-14T12:00:00.000Z||true",
-    );
+    expect(wrapper.text()).toContain("5h|12|");
+    expect(wrapper.text()).toContain("7d|34|");
+    expect(wrapper.text()).toContain("Spark 5h|56|");
+    expect(wrapper.text()).toContain("Spark 7d|78|");
 
     getUsage.mockResolvedValueOnce({
       updated_at: "2026-03-07T11:00:00Z",
@@ -1151,18 +1147,10 @@ describe("AccountUsageCell", () => {
     });
     expect(getUsage).toHaveBeenCalledWith(2014, { force: true });
     expect(wrapper.findAll(".usage-bar")).toHaveLength(4);
-    expect(wrapper.text()).toContain(
-      "5h|88|2026-03-08T12:00:00Z|3600|true|800",
-    );
-    expect(wrapper.text()).toContain(
-      "7d|66|2026-03-13T12:00:00Z|7200|true|900",
-    );
-    expect(wrapper.text()).toContain(
-      "Spark 5h|44|2026-03-08T14:00:00Z|5400|true|640",
-    );
-    expect(wrapper.text()).toContain(
-      "Spark 7d|78|2099-03-14T12:00:00.000Z||true",
-    );
+    expect(wrapper.text()).toContain("5h|88|800");
+    expect(wrapper.text()).toContain("7d|66|900");
+    expect(wrapper.text()).toContain("Spark 5h|44|640");
+    expect(wrapper.text()).toContain("Spark 7d|78|");
   });
 
   it("hides openai identity and model summaries but keeps snapshot update text", async () => {
@@ -1256,8 +1244,8 @@ describe("AccountUsageCell", () => {
       force: undefined,
       source: undefined,
     });
-    expect(wrapper.text()).toContain("5h|0||0|true|27700");
-    expect(wrapper.text()).toContain("7d|0||0|true|27700");
+    expect(wrapper.text()).toContain("5h|0|27700");
+    expect(wrapper.text()).toContain("7d|0|27700");
   });
 
   it("reloads openai usage when the row refresh key changes without a codex snapshot", async () => {
@@ -1311,7 +1299,7 @@ describe("AccountUsageCell", () => {
     });
 
     await flushPromises();
-    expect(wrapper.text()).toContain("5h|0||0|true|100");
+    expect(wrapper.text()).toContain("5h|0|100");
     expect(getUsage).toHaveBeenCalledTimes(1);
 
     await wrapper.setProps({
@@ -1327,7 +1315,7 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).toHaveBeenCalledTimes(2);
-    expect(wrapper.text()).toContain("5h|0||0|true|200");
+    expect(wrapper.text()).toContain("5h|0|200");
   });
 
   it("reloads openai usage after a local codex window reaches its reset time", async () => {
@@ -1386,7 +1374,7 @@ describe("AccountUsageCell", () => {
     await flushPromises();
 
     expect(getUsage).not.toHaveBeenCalled();
-    expect(wrapper.text()).toContain("5h|12|2026-03-13T12:01:00.000Z||true");
+    expect(wrapper.text()).toContain("5h|12|");
 
     vi.advanceTimersByTime(65_000);
     await flushPromises();
@@ -1396,12 +1384,8 @@ describe("AccountUsageCell", () => {
       force: undefined,
       source: undefined,
     });
-    expect(wrapper.text()).toContain(
-      "5h|44|2026-03-13T17:00:00Z|18000|true|500",
-    );
-    expect(wrapper.text()).toContain(
-      "7d|12|2026-03-20T12:00:00Z|604800|true|900",
-    );
+    expect(wrapper.text()).toContain("5h|44|500");
+    expect(wrapper.text()).toContain("7d|12|900");
   });
 
   it("prefers fetched openai usage when the account is actively rate limited", async () => {
@@ -1459,10 +1443,10 @@ describe("AccountUsageCell", () => {
       source: undefined,
     });
     expect(wrapper.text()).toContain(
-      "5h|100|2026-03-07T12:00:00Z|3600|true|106540000",
+      "5h|100|106540000",
     );
     expect(wrapper.text()).toContain(
-      "7d|100|2026-03-13T12:00:00Z|3600|true|106540000",
+      "7d|100|106540000",
     );
     expect(wrapper.text()).not.toContain("5h|0|");
   });
@@ -1602,7 +1586,12 @@ describe("AccountUsageCell", () => {
     expect(
       wrapper
         .findAll(".usage-bar")
-        .every((row) => row.attributes("data-detailed-reset") === "true"),
+        .every((row) => row.attributes("data-detailed-reset") === "false"),
+    ).toBe(true);
+    expect(
+      wrapper
+        .findAll(".usage-bar")
+        .every((row) => row.attributes("data-has-reset") === "false"),
     ).toBe(true);
   });
 });

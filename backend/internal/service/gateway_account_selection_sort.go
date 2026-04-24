@@ -42,6 +42,41 @@ func filterByMinGeminiRegionalPenalty(accounts []accountWithLoad, preferOAuth bo
 	}
 	return result
 }
+
+func filterByMinConcurrencyUtilization(accounts []accountWithLoad) []accountWithLoad {
+	if len(accounts) == 0 {
+		return accounts
+	}
+	minNum, minDen := concurrencyUtilizationFraction(accounts[0])
+	for _, acc := range accounts[1:] {
+		num, den := concurrencyUtilizationFraction(acc)
+		if num*minDen < minNum*den {
+			minNum, minDen = num, den
+		}
+	}
+	result := make([]accountWithLoad, 0, len(accounts))
+	for _, acc := range accounts {
+		num, den := concurrencyUtilizationFraction(acc)
+		if num*minDen == minNum*den {
+			result = append(result, acc)
+		}
+	}
+	return result
+}
+
+func concurrencyUtilizationFraction(acc accountWithLoad) (int64, int64) {
+	if acc.account == nil || acc.account.Concurrency <= 0 {
+		return 0, 1
+	}
+	current := 0
+	if acc.loadInfo != nil {
+		current = acc.loadInfo.CurrentConcurrency
+	}
+	if current <= 0 {
+		return 0, int64(acc.account.Concurrency)
+	}
+	return int64(current), int64(acc.account.Concurrency)
+}
 func filterByMinLoadRate(accounts []accountWithLoad) []accountWithLoad {
 	if len(accounts) == 0 {
 		return accounts
