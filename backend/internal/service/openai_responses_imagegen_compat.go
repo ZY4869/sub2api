@@ -47,11 +47,12 @@ var openAIResponsesImagegenToolOptionKeys = []string{
 	"partial_images",
 	"moderation",
 	"input_image_mask",
-	"n",
 }
 
 var openAIResponsesImagegenAcceptedOptionKeys = []string{
 	"action",
+	"aspect_ratio",
+	"image_size",
 	"size",
 	"quality",
 	"background",
@@ -452,7 +453,7 @@ func normalizeOpenAIResponsesMultipartImagegenCompat(body []byte, boundary strin
 				return nil, rejectError(http.StatusBadRequest, "invalid_request_error", "reference_image_count_exceeded", fmt.Sprintf("reference images accept at most %d items", openAIResponsesReferenceImageUploadLimitCount))
 			}
 			referenceImages = append(referenceImages, validated)
-		case "size", "quality", "background", "output_format", "output_compression", "partial_images", "action", "moderation", "input_fidelity", "n":
+		case "size", "image_size", "aspect_ratio", "quality", "background", "output_format", "output_compression", "partial_images", "action", "moderation", "input_fidelity", "n":
 			if value == "" {
 				continue
 			}
@@ -689,12 +690,52 @@ func normalizeResponsesCompatImageGenerationOptions(imageGeneration map[string]a
 		return nil
 	}
 
+	if normalizedSize, _, errCode, errMessage := normalizeOpenAIImageSizeWithAspect(
+		scalarString(imageGeneration["size"]),
+		scalarString(imageGeneration["image_size"]),
+		scalarString(imageGeneration["aspect_ratio"]),
+	); errCode != "" {
+		return newOpenAIResponsesCompatError(http.StatusBadRequest, "invalid_request_error", errCode, errMessage)
+	} else if strings.TrimSpace(normalizedSize) != "" {
+		imageGeneration["size"] = normalizedSize
+	}
+	delete(imageGeneration, "image_size")
+	delete(imageGeneration, "aspect_ratio")
+
+	if rawN, exists := imageGeneration["n"]; exists && rawN != nil {
+		normalized, ok := coerceResponsesCompatInt(rawN)
+		if !ok {
+			return newOpenAIResponsesCompatError(
+				http.StatusBadRequest,
+				"invalid_request_error",
+				"imagegen_compat_invalid_n",
+				"image_generation.n must be an integer",
+			)
+		}
+		if normalized < 1 {
+			return newOpenAIResponsesCompatError(
+				http.StatusBadRequest,
+				"invalid_request_error",
+				"imagegen_compat_invalid_n",
+				"image_generation.n must be at least 1",
+			)
+		}
+		if normalized != 1 {
+			return newOpenAIResponsesCompatError(
+				http.StatusBadRequest,
+				"invalid_request_error",
+				"image_n_not_supported",
+				"image_generation.n is not supported; remove it or set it to 1",
+			)
+		}
+		delete(imageGeneration, "n")
+	}
+
 	intOptions := []struct {
 		key string
 		min int
 		max int
 	}{
-		{key: "n", min: 1, max: 10},
 		{key: "output_compression", min: 0, max: 100},
 		{key: "partial_images", min: 0, max: 3},
 	}

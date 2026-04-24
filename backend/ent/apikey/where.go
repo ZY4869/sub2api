@@ -105,6 +105,26 @@ func LastUsedAt(v time.Time) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldLastUsedAt, v))
 }
 
+// ImageOnlyEnabled applies equality check predicate on the "image_only_enabled" field. It's identical to ImageOnlyEnabledEQ.
+func ImageOnlyEnabled(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageOnlyEnabled, v))
+}
+
+// ImageCountBillingEnabled applies equality check predicate on the "image_count_billing_enabled" field. It's identical to ImageCountBillingEnabledEQ.
+func ImageCountBillingEnabled(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageCountBillingEnabled, v))
+}
+
+// ImageMaxCount applies equality check predicate on the "image_max_count" field. It's identical to ImageMaxCountEQ.
+func ImageMaxCount(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageMaxCount, v))
+}
+
+// ImageCountUsed applies equality check predicate on the "image_count_used" field. It's identical to ImageCountUsedEQ.
+func ImageCountUsed(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageCountUsed, v))
+}
+
 // Quota applies equality check predicate on the "quota" field. It's identical to QuotaEQ.
 func Quota(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldQuota, v))
@@ -673,6 +693,106 @@ func IPBlacklistIsNil() predicate.APIKey {
 // IPBlacklistNotNil applies the NotNil predicate on the "ip_blacklist" field.
 func IPBlacklistNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldIPBlacklist))
+}
+
+// ImageOnlyEnabledEQ applies the EQ predicate on the "image_only_enabled" field.
+func ImageOnlyEnabledEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageOnlyEnabled, v))
+}
+
+// ImageOnlyEnabledNEQ applies the NEQ predicate on the "image_only_enabled" field.
+func ImageOnlyEnabledNEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldImageOnlyEnabled, v))
+}
+
+// ImageCountBillingEnabledEQ applies the EQ predicate on the "image_count_billing_enabled" field.
+func ImageCountBillingEnabledEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageCountBillingEnabled, v))
+}
+
+// ImageCountBillingEnabledNEQ applies the NEQ predicate on the "image_count_billing_enabled" field.
+func ImageCountBillingEnabledNEQ(v bool) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldImageCountBillingEnabled, v))
+}
+
+// ImageMaxCountEQ applies the EQ predicate on the "image_max_count" field.
+func ImageMaxCountEQ(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageMaxCount, v))
+}
+
+// ImageMaxCountNEQ applies the NEQ predicate on the "image_max_count" field.
+func ImageMaxCountNEQ(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldImageMaxCount, v))
+}
+
+// ImageMaxCountIn applies the In predicate on the "image_max_count" field.
+func ImageMaxCountIn(vs ...int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldImageMaxCount, vs...))
+}
+
+// ImageMaxCountNotIn applies the NotIn predicate on the "image_max_count" field.
+func ImageMaxCountNotIn(vs ...int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldImageMaxCount, vs...))
+}
+
+// ImageMaxCountGT applies the GT predicate on the "image_max_count" field.
+func ImageMaxCountGT(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldImageMaxCount, v))
+}
+
+// ImageMaxCountGTE applies the GTE predicate on the "image_max_count" field.
+func ImageMaxCountGTE(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldImageMaxCount, v))
+}
+
+// ImageMaxCountLT applies the LT predicate on the "image_max_count" field.
+func ImageMaxCountLT(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldImageMaxCount, v))
+}
+
+// ImageMaxCountLTE applies the LTE predicate on the "image_max_count" field.
+func ImageMaxCountLTE(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldImageMaxCount, v))
+}
+
+// ImageCountUsedEQ applies the EQ predicate on the "image_count_used" field.
+func ImageCountUsedEQ(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldEQ(FieldImageCountUsed, v))
+}
+
+// ImageCountUsedNEQ applies the NEQ predicate on the "image_count_used" field.
+func ImageCountUsedNEQ(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNEQ(FieldImageCountUsed, v))
+}
+
+// ImageCountUsedIn applies the In predicate on the "image_count_used" field.
+func ImageCountUsedIn(vs ...int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldIn(FieldImageCountUsed, vs...))
+}
+
+// ImageCountUsedNotIn applies the NotIn predicate on the "image_count_used" field.
+func ImageCountUsedNotIn(vs ...int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotIn(FieldImageCountUsed, vs...))
+}
+
+// ImageCountUsedGT applies the GT predicate on the "image_count_used" field.
+func ImageCountUsedGT(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGT(FieldImageCountUsed, v))
+}
+
+// ImageCountUsedGTE applies the GTE predicate on the "image_count_used" field.
+func ImageCountUsedGTE(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldGTE(FieldImageCountUsed, v))
+}
+
+// ImageCountUsedLT applies the LT predicate on the "image_count_used" field.
+func ImageCountUsedLT(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLT(FieldImageCountUsed, v))
+}
+
+// ImageCountUsedLTE applies the LTE predicate on the "image_count_used" field.
+func ImageCountUsedLTE(v int) predicate.APIKey {
+	return predicate.APIKey(sql.FieldLTE(FieldImageCountUsed, v))
 }
 
 // QuotaEQ applies the EQ predicate on the "quota" field.

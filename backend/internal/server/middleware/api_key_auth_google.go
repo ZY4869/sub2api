@@ -55,6 +55,22 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			return
 		}
 
+		// 生图专用 Key：限制可访问的入口（Google/Gemini 风格错误体）。
+		if apiKey.ImageOnlyEnabled {
+			method := ""
+			path := ""
+			if c.Request != nil {
+				method = c.Request.Method
+				if c.Request.URL != nil {
+					path = c.Request.URL.Path
+				}
+			}
+			if !isImageOnlyAllowedGatewayRequest(method, path) {
+				abortWithGoogleError(c, 403, "生图专用 Key 仅允许调用图片生成接口")
+				return
+			}
+		}
+
 		// 简易模式：跳过余额和订阅检查
 		if cfg.RunMode == config.RunModeSimple {
 			c.Set(string(ContextKeyAPIKey), apiKey)

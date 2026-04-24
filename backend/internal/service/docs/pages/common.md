@@ -398,6 +398,52 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - `image_generation` tool 型主模型不应该直接拿去打 `/v1/images/*`；这类请求应继续走 `/v1/responses`。
 - `/antigravity/v1beta/models/{model}:batchGenerateContent` 已注册，但当前能力矩阵明确拒绝。
 
+### 生图专用 Key（Image-only）与图片数量额度
+
+站内创建 / 编辑 API Key 时可以开启 **生图专用**（image-only）。开启后：
+
+- 这个 Key 只能 **拉取** 与 **调用** 图片模型：`GET /v1/models` 会仅返回图片模型；非图片模型请求会被拒绝。
+- 允许的主要写入入口：
+  - `POST /v1/images/generations`
+  - `POST /v1/images/edits`
+  - `POST /v1/responses`（仅当顶层 `model` 为原生图片模型，例如 `gpt-image-2` / `chatgpt-image-latest`）
+- 典型拒绝：
+  - 非图片端点（例如 `/v1/chat/completions`、`/v1/messages`）→ `403`，错误码 `IMAGE_ONLY_KEY_ENDPOINT_NOT_ALLOWED`
+  - `/v1/responses` 顶层 `model` 不是原生图片模型 → `403`，错误码 `IMAGE_ONLY_KEY_MODEL_NOT_ALLOWED`
+
+如果同时开启 **按数量计费** 并设置 **最大生图数量**（`> 0`）：
+
+- 网关会在转发上游前做并发安全的额度预占：本次请求期望生成 `n` 张图时，如果 `used + n > max` 直接返回 `429`，错误码 `IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED`。
+- **只在成功生图时计数**；上游失败与上游 `429` 不计数，并会自动回滚预占额度。
+- 失败仍会写入 failed usage log 供排查（不计数但可查询）。
+
+`n` 的解析规则：
+
+- `/v1/images/*`：读取请求体里的 `n`（缺省为 1）
+- `/v1/responses`：默认按 1 计；若使用 `tools:[{type:\"image_generation\", n: ...}]` 则使用该 `n`
+
+典型错误体（OpenAI 风格）示例：
+
+```json
+{
+  "error": {
+    "type": "forbidden_error",
+    "message": "生图专用 Key 仅允许调用图片模型",
+    "code": "IMAGE_ONLY_KEY_MODEL_NOT_ALLOWED"
+  }
+}
+```
+
+```json
+{
+  "error": {
+    "type": "rate_limit_error",
+    "message": "图片数量额度已用完",
+    "code": "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED"
+  }
+}
+```
+
 ### 接入最佳实践
 
 - 先选协议，再选模型，再调优参数。

@@ -39,6 +39,14 @@ const (
 	FieldIPWhitelist = "ip_whitelist"
 	// FieldIPBlacklist holds the string denoting the ip_blacklist field in the database.
 	FieldIPBlacklist = "ip_blacklist"
+	// FieldImageOnlyEnabled holds the string denoting the image_only_enabled field in the database.
+	FieldImageOnlyEnabled = "image_only_enabled"
+	// FieldImageCountBillingEnabled holds the string denoting the image_count_billing_enabled field in the database.
+	FieldImageCountBillingEnabled = "image_count_billing_enabled"
+	// FieldImageMaxCount holds the string denoting the image_max_count field in the database.
+	FieldImageMaxCount = "image_max_count"
+	// FieldImageCountUsed holds the string denoting the image_count_used field in the database.
+	FieldImageCountUsed = "image_count_used"
 	// FieldQuota holds the string denoting the quota field in the database.
 	FieldQuota = "quota"
 	// FieldQuotaUsed holds the string denoting the quota_used field in the database.
@@ -125,6 +133,10 @@ var Columns = []string{
 	FieldLastUsedAt,
 	FieldIPWhitelist,
 	FieldIPBlacklist,
+	FieldImageOnlyEnabled,
+	FieldImageCountBillingEnabled,
+	FieldImageMaxCount,
+	FieldImageCountUsed,
 	FieldQuota,
 	FieldQuotaUsed,
 	FieldExpiresAt,
@@ -181,6 +193,14 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// DefaultImageOnlyEnabled holds the default value on creation for the "image_only_enabled" field.
+	DefaultImageOnlyEnabled bool
+	// DefaultImageCountBillingEnabled holds the default value on creation for the "image_count_billing_enabled" field.
+	DefaultImageCountBillingEnabled bool
+	// DefaultImageMaxCount holds the default value on creation for the "image_max_count" field.
+	DefaultImageMaxCount int
+	// DefaultImageCountUsed holds the default value on creation for the "image_count_used" field.
+	DefaultImageCountUsed int
 	// DefaultQuota holds the default value on creation for the "quota" field.
 	DefaultQuota float64
 	// DefaultQuotaUsed holds the default value on creation for the "quota_used" field.
@@ -255,6 +275,26 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByLastUsedAt orders the results by the last_used_at field.
 func ByLastUsedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastUsedAt, opts...).ToFunc()
+}
+
+// ByImageOnlyEnabled orders the results by the image_only_enabled field.
+func ByImageOnlyEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageOnlyEnabled, opts...).ToFunc()
+}
+
+// ByImageCountBillingEnabled orders the results by the image_count_billing_enabled field.
+func ByImageCountBillingEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageCountBillingEnabled, opts...).ToFunc()
+}
+
+// ByImageMaxCount orders the results by the image_max_count field.
+func ByImageMaxCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageMaxCount, opts...).ToFunc()
+}
+
+// ByImageCountUsed orders the results by the image_count_used field.
+func ByImageCountUsed(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldImageCountUsed, opts...).ToFunc()
 }
 
 // ByQuota orders the results by the quota field.

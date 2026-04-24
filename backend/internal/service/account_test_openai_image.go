@@ -171,7 +171,6 @@ func buildOpenAIImageTestRequestBody(modelID string, prompt string) []byte {
 	payload := map[string]any{
 		"model":         strings.TrimSpace(modelID),
 		"prompt":        normalizeOpenAIImageTestPrompt(prompt),
-		"n":             1,
 		"size":          defaultOpenAIImageTestSize,
 		"output_format": defaultOpenAIImageTestOutputFormat,
 	}

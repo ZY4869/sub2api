@@ -153,6 +153,62 @@ func (_c *APIKeyCreate) SetIPBlacklist(v []string) *APIKeyCreate {
 	return _c
 }
 
+// SetImageOnlyEnabled sets the "image_only_enabled" field.
+func (_c *APIKeyCreate) SetImageOnlyEnabled(v bool) *APIKeyCreate {
+	_c.mutation.SetImageOnlyEnabled(v)
+	return _c
+}
+
+// SetNillableImageOnlyEnabled sets the "image_only_enabled" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableImageOnlyEnabled(v *bool) *APIKeyCreate {
+	if v != nil {
+		_c.SetImageOnlyEnabled(*v)
+	}
+	return _c
+}
+
+// SetImageCountBillingEnabled sets the "image_count_billing_enabled" field.
+func (_c *APIKeyCreate) SetImageCountBillingEnabled(v bool) *APIKeyCreate {
+	_c.mutation.SetImageCountBillingEnabled(v)
+	return _c
+}
+
+// SetNillableImageCountBillingEnabled sets the "image_count_billing_enabled" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableImageCountBillingEnabled(v *bool) *APIKeyCreate {
+	if v != nil {
+		_c.SetImageCountBillingEnabled(*v)
+	}
+	return _c
+}
+
+// SetImageMaxCount sets the "image_max_count" field.
+func (_c *APIKeyCreate) SetImageMaxCount(v int) *APIKeyCreate {
+	_c.mutation.SetImageMaxCount(v)
+	return _c
+}
+
+// SetNillableImageMaxCount sets the "image_max_count" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableImageMaxCount(v *int) *APIKeyCreate {
+	if v != nil {
+		_c.SetImageMaxCount(*v)
+	}
+	return _c
+}
+
+// SetImageCountUsed sets the "image_count_used" field.
+func (_c *APIKeyCreate) SetImageCountUsed(v int) *APIKeyCreate {
+	_c.mutation.SetImageCountUsed(v)
+	return _c
+}
+
+// SetNillableImageCountUsed sets the "image_count_used" field if the given value is not nil.
+func (_c *APIKeyCreate) SetNillableImageCountUsed(v *int) *APIKeyCreate {
+	if v != nil {
+		_c.SetImageCountUsed(*v)
+	}
+	return _c
+}
+
 // SetQuota sets the "quota" field.
 func (_c *APIKeyCreate) SetQuota(v float64) *APIKeyCreate {
 	_c.mutation.SetQuota(v)
@@ -420,6 +476,22 @@ func (_c *APIKeyCreate) defaults() error {
 		v := apikey.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.ImageOnlyEnabled(); !ok {
+		v := apikey.DefaultImageOnlyEnabled
+		_c.mutation.SetImageOnlyEnabled(v)
+	}
+	if _, ok := _c.mutation.ImageCountBillingEnabled(); !ok {
+		v := apikey.DefaultImageCountBillingEnabled
+		_c.mutation.SetImageCountBillingEnabled(v)
+	}
+	if _, ok := _c.mutation.ImageMaxCount(); !ok {
+		v := apikey.DefaultImageMaxCount
+		_c.mutation.SetImageMaxCount(v)
+	}
+	if _, ok := _c.mutation.ImageCountUsed(); !ok {
+		v := apikey.DefaultImageCountUsed
+		_c.mutation.SetImageCountUsed(v)
+	}
 	if _, ok := _c.mutation.Quota(); !ok {
 		v := apikey.DefaultQuota
 		_c.mutation.SetQuota(v)
@@ -497,6 +569,18 @@ func (_c *APIKeyCreate) check() error {
 		if err := apikey.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "APIKey.status": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ImageOnlyEnabled(); !ok {
+		return &ValidationError{Name: "image_only_enabled", err: errors.New(`ent: missing required field "APIKey.image_only_enabled"`)}
+	}
+	if _, ok := _c.mutation.ImageCountBillingEnabled(); !ok {
+		return &ValidationError{Name: "image_count_billing_enabled", err: errors.New(`ent: missing required field "APIKey.image_count_billing_enabled"`)}
+	}
+	if _, ok := _c.mutation.ImageMaxCount(); !ok {
+		return &ValidationError{Name: "image_max_count", err: errors.New(`ent: missing required field "APIKey.image_max_count"`)}
+	}
+	if _, ok := _c.mutation.ImageCountUsed(); !ok {
+		return &ValidationError{Name: "image_count_used", err: errors.New(`ent: missing required field "APIKey.image_count_used"`)}
 	}
 	if _, ok := _c.mutation.Quota(); !ok {
 		return &ValidationError{Name: "quota", err: errors.New(`ent: missing required field "APIKey.quota"`)}
@@ -591,6 +675,22 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IPBlacklist(); ok {
 		_spec.SetField(apikey.FieldIPBlacklist, field.TypeJSON, value)
 		_node.IPBlacklist = value
+	}
+	if value, ok := _c.mutation.ImageOnlyEnabled(); ok {
+		_spec.SetField(apikey.FieldImageOnlyEnabled, field.TypeBool, value)
+		_node.ImageOnlyEnabled = value
+	}
+	if value, ok := _c.mutation.ImageCountBillingEnabled(); ok {
+		_spec.SetField(apikey.FieldImageCountBillingEnabled, field.TypeBool, value)
+		_node.ImageCountBillingEnabled = value
+	}
+	if value, ok := _c.mutation.ImageMaxCount(); ok {
+		_spec.SetField(apikey.FieldImageMaxCount, field.TypeInt, value)
+		_node.ImageMaxCount = value
+	}
+	if value, ok := _c.mutation.ImageCountUsed(); ok {
+		_spec.SetField(apikey.FieldImageCountUsed, field.TypeInt, value)
+		_node.ImageCountUsed = value
 	}
 	if value, ok := _c.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)
@@ -921,6 +1021,66 @@ func (u *APIKeyUpsert) UpdateIPBlacklist() *APIKeyUpsert {
 // ClearIPBlacklist clears the value of the "ip_blacklist" field.
 func (u *APIKeyUpsert) ClearIPBlacklist() *APIKeyUpsert {
 	u.SetNull(apikey.FieldIPBlacklist)
+	return u
+}
+
+// SetImageOnlyEnabled sets the "image_only_enabled" field.
+func (u *APIKeyUpsert) SetImageOnlyEnabled(v bool) *APIKeyUpsert {
+	u.Set(apikey.FieldImageOnlyEnabled, v)
+	return u
+}
+
+// UpdateImageOnlyEnabled sets the "image_only_enabled" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateImageOnlyEnabled() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldImageOnlyEnabled)
+	return u
+}
+
+// SetImageCountBillingEnabled sets the "image_count_billing_enabled" field.
+func (u *APIKeyUpsert) SetImageCountBillingEnabled(v bool) *APIKeyUpsert {
+	u.Set(apikey.FieldImageCountBillingEnabled, v)
+	return u
+}
+
+// UpdateImageCountBillingEnabled sets the "image_count_billing_enabled" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateImageCountBillingEnabled() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldImageCountBillingEnabled)
+	return u
+}
+
+// SetImageMaxCount sets the "image_max_count" field.
+func (u *APIKeyUpsert) SetImageMaxCount(v int) *APIKeyUpsert {
+	u.Set(apikey.FieldImageMaxCount, v)
+	return u
+}
+
+// UpdateImageMaxCount sets the "image_max_count" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateImageMaxCount() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldImageMaxCount)
+	return u
+}
+
+// AddImageMaxCount adds v to the "image_max_count" field.
+func (u *APIKeyUpsert) AddImageMaxCount(v int) *APIKeyUpsert {
+	u.Add(apikey.FieldImageMaxCount, v)
+	return u
+}
+
+// SetImageCountUsed sets the "image_count_used" field.
+func (u *APIKeyUpsert) SetImageCountUsed(v int) *APIKeyUpsert {
+	u.Set(apikey.FieldImageCountUsed, v)
+	return u
+}
+
+// UpdateImageCountUsed sets the "image_count_used" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateImageCountUsed() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldImageCountUsed)
+	return u
+}
+
+// AddImageCountUsed adds v to the "image_count_used" field.
+func (u *APIKeyUpsert) AddImageCountUsed(v int) *APIKeyUpsert {
+	u.Add(apikey.FieldImageCountUsed, v)
 	return u
 }
 
@@ -1371,6 +1531,76 @@ func (u *APIKeyUpsertOne) UpdateIPBlacklist() *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) ClearIPBlacklist() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearIPBlacklist()
+	})
+}
+
+// SetImageOnlyEnabled sets the "image_only_enabled" field.
+func (u *APIKeyUpsertOne) SetImageOnlyEnabled(v bool) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageOnlyEnabled(v)
+	})
+}
+
+// UpdateImageOnlyEnabled sets the "image_only_enabled" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateImageOnlyEnabled() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageOnlyEnabled()
+	})
+}
+
+// SetImageCountBillingEnabled sets the "image_count_billing_enabled" field.
+func (u *APIKeyUpsertOne) SetImageCountBillingEnabled(v bool) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageCountBillingEnabled(v)
+	})
+}
+
+// UpdateImageCountBillingEnabled sets the "image_count_billing_enabled" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateImageCountBillingEnabled() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageCountBillingEnabled()
+	})
+}
+
+// SetImageMaxCount sets the "image_max_count" field.
+func (u *APIKeyUpsertOne) SetImageMaxCount(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageMaxCount(v)
+	})
+}
+
+// AddImageMaxCount adds v to the "image_max_count" field.
+func (u *APIKeyUpsertOne) AddImageMaxCount(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.AddImageMaxCount(v)
+	})
+}
+
+// UpdateImageMaxCount sets the "image_max_count" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateImageMaxCount() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageMaxCount()
+	})
+}
+
+// SetImageCountUsed sets the "image_count_used" field.
+func (u *APIKeyUpsertOne) SetImageCountUsed(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageCountUsed(v)
+	})
+}
+
+// AddImageCountUsed adds v to the "image_count_used" field.
+func (u *APIKeyUpsertOne) AddImageCountUsed(v int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.AddImageCountUsed(v)
+	})
+}
+
+// UpdateImageCountUsed sets the "image_count_used" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateImageCountUsed() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageCountUsed()
 	})
 }
 
@@ -2023,6 +2253,76 @@ func (u *APIKeyUpsertBulk) UpdateIPBlacklist() *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) ClearIPBlacklist() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.ClearIPBlacklist()
+	})
+}
+
+// SetImageOnlyEnabled sets the "image_only_enabled" field.
+func (u *APIKeyUpsertBulk) SetImageOnlyEnabled(v bool) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageOnlyEnabled(v)
+	})
+}
+
+// UpdateImageOnlyEnabled sets the "image_only_enabled" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateImageOnlyEnabled() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageOnlyEnabled()
+	})
+}
+
+// SetImageCountBillingEnabled sets the "image_count_billing_enabled" field.
+func (u *APIKeyUpsertBulk) SetImageCountBillingEnabled(v bool) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageCountBillingEnabled(v)
+	})
+}
+
+// UpdateImageCountBillingEnabled sets the "image_count_billing_enabled" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateImageCountBillingEnabled() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageCountBillingEnabled()
+	})
+}
+
+// SetImageMaxCount sets the "image_max_count" field.
+func (u *APIKeyUpsertBulk) SetImageMaxCount(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageMaxCount(v)
+	})
+}
+
+// AddImageMaxCount adds v to the "image_max_count" field.
+func (u *APIKeyUpsertBulk) AddImageMaxCount(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.AddImageMaxCount(v)
+	})
+}
+
+// UpdateImageMaxCount sets the "image_max_count" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateImageMaxCount() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageMaxCount()
+	})
+}
+
+// SetImageCountUsed sets the "image_count_used" field.
+func (u *APIKeyUpsertBulk) SetImageCountUsed(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageCountUsed(v)
+	})
+}
+
+// AddImageCountUsed adds v to the "image_count_used" field.
+func (u *APIKeyUpsertBulk) AddImageCountUsed(v int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.AddImageCountUsed(v)
+	})
+}
+
+// UpdateImageCountUsed sets the "image_count_used" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateImageCountUsed() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageCountUsed()
 	})
 }
 

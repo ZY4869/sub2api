@@ -447,6 +447,81 @@ describe('AccountTestModal', () => {
     })
   })
 
+  it('infers openai source protocol for protocol gateway manual gpt-image-2 tests', async () => {
+    getAvailableModels.mockResolvedValueOnce([])
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"gpt-image-2"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: false,
+        account: {
+          id: 77,
+          name: 'Gateway Manual Image Test',
+          platform: 'protocol_gateway',
+          type: 'apikey',
+          status: 'active',
+          extra: {}
+        }
+      } as any,
+      global: {
+        stubs: {
+          BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          Select: {
+            props: ['modelValue', 'options'],
+            template: `
+              <div class="select-stub">
+                <div data-test="selected-option">
+                  <slot name="selected" :option="options.find((opt) => (opt.key || opt.id) === modelValue) || null" />
+                </div>
+                <div v-for="option in options" :key="option.key || option.id" data-test="option">
+                  <slot name="option" :option="option" :selected="(option.key || option.id) === modelValue" />
+                </div>
+              </div>
+            `
+          },
+          TextArea: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template: '<textarea class="textarea-stub" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+          },
+          Icon: true
+        }
+      }
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    await wrapper.get('[data-test="model-input-mode-manual"]').trigger('click')
+    await wrapper.get('input[data-test="manual-model-id"]').setValue('gpt-image-2')
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('draw a tiny orange cat astronaut')
+
+    const startButton = wrapper.findAll('button').find((button) => button.text().includes('admin.accounts.startTest'))
+    expect(startButton).toBeTruthy()
+    await startButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toEqual({
+      model_input_mode: 'manual',
+      manual_model_id: 'gpt-image-2',
+      test_mode: 'real_forward',
+      source_protocol: 'openai',
+      prompt: 'draw a tiny orange cat astronaut'
+    })
+  })
+
   it('shows blacklist advice and emits direct blacklist feedback from the test modal', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       createStreamResponse([

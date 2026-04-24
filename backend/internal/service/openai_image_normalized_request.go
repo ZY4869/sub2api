@@ -56,6 +56,8 @@ func normalizeOpenAIImageRequestJSON(body []byte, operation string) (*Normalized
 	if err := json.Unmarshal(body, &payload); err != nil || payload == nil {
 		return nil, fmt.Errorf("invalid json body")
 	}
+	rawImageSize := stringValueFromAny(payload["image_size"])
+	rawAspectRatio := stringValueFromAny(payload["aspect_ratio"])
 	req := &NormalizedImageRequest{
 		Operation:      strings.TrimSpace(operation),
 		DisplayModelID: stringValueFromAny(payload["model"]),
@@ -76,6 +78,12 @@ func normalizeOpenAIImageRequestJSON(body []byte, operation string) (*Normalized
 		req.Images = append(req.Images, collectJSONImageSources(payload["image"])...)
 	}
 	req.Mask = firstJSONImageSource(payload["mask"])
+
+	if normalizedSize, _, errCode, errMessage := normalizeOpenAIImageSizeWithAspect(req.Size, rawImageSize, rawAspectRatio); errCode != "" {
+		return nil, newOpenAIImageRequestError(errCode, errMessage)
+	} else if strings.TrimSpace(normalizedSize) != "" {
+		req.Size = normalizedSize
+	}
 	if req.DisplayModelID == "" {
 		req.DisplayModelID = OpenAICompatImageTargetModel
 	}
@@ -94,6 +102,10 @@ func normalizeOpenAIImageRequestJSON(body []byte, operation string) (*Normalized
 func normalizeOpenAIImageRequestMultipart(body []byte, boundary string, operation string) (*NormalizedImageRequest, error) {
 	reader := multipart.NewReader(bytes.NewReader(body), boundary)
 	req := &NormalizedImageRequest{Operation: strings.TrimSpace(operation)}
+	var (
+		rawImageSize   string
+		rawAspectRatio string
+	)
 	for {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -120,7 +132,7 @@ func normalizeOpenAIImageRequestMultipart(body []byte, boundary string, operatio
 			switch name {
 			case "mask":
 				req.Mask = dataURL
-			case "image", "images", "images[]", "reference_image":
+			case "image", "image[]", "images", "images[]", "reference_image":
 				req.Images = append(req.Images, dataURL)
 			default:
 				return nil, fmt.Errorf("unsupported multipart file field %q", name)
@@ -135,6 +147,10 @@ func normalizeOpenAIImageRequestMultipart(body []byte, boundary string, operatio
 			req.Prompt = value
 		case "size":
 			req.Size = value
+		case "image_size":
+			rawImageSize = value
+		case "aspect_ratio":
+			rawAspectRatio = value
 		case "quality":
 			req.Quality = value
 		case "background":
@@ -155,11 +171,16 @@ func normalizeOpenAIImageRequestMultipart(body []byte, boundary string, operatio
 			req.Stream = parseExtraBool(value)
 		case "mask_image_url":
 			req.Mask = firstJSONImageSource(value)
-		case "image_url", "images_url", "reference_image_url", "image", "images", "images[]":
+		case "image_url", "images_url", "reference_image_url", "image", "image[]", "images", "images[]":
 			if source := firstJSONImageSource(value); source != "" {
 				req.Images = append(req.Images, source)
 			}
 		}
+	}
+	if normalizedSize, _, errCode, errMessage := normalizeOpenAIImageSizeWithAspect(req.Size, rawImageSize, rawAspectRatio); errCode != "" {
+		return nil, newOpenAIImageRequestError(errCode, errMessage)
+	} else if strings.TrimSpace(normalizedSize) != "" {
+		req.Size = normalizedSize
 	}
 	if req.DisplayModelID == "" {
 		req.DisplayModelID = OpenAICompatImageTargetModel
@@ -203,7 +224,13 @@ func BuildOpenAIImageCompatResponsesBody(req *NormalizedImageRequest, topLevelMo
 		tool["partial_images"] = *req.PartialImages
 	}
 	if req.N != nil {
-		tool["n"] = *req.N
+		n := *req.N
+		if n < 1 {
+			return nil, newOpenAIImageRequestError("image_n_invalid", "n must be at least 1")
+		}
+		if n > 1 {
+			return nil, newOpenAIImageRequestError("image_n_not_supported", "compat image generation does not support n>1; call the endpoint multiple times instead")
+		}
 	}
 	if req.Mask != "" {
 		tool["input_image_mask"] = req.Mask

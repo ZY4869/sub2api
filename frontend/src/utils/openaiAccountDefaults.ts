@@ -1,7 +1,11 @@
 import type { OpenAIImageProtocolMode } from '@/types'
 
-const OPENAI_BASE_DEFAULT_WHITELIST = ['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini'] as const
-const OPENAI_PRO_DEFAULT_WHITELIST = [...OPENAI_BASE_DEFAULT_WHITELIST, 'gpt-5.3-codex-spark'] as const
+const OPENAI_LEGACY_BASE_DEFAULT_WHITELIST = ['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini'] as const
+const OPENAI_LEGACY_PRO_DEFAULT_WHITELIST = [...OPENAI_LEGACY_BASE_DEFAULT_WHITELIST, 'gpt-5.3-codex-spark'] as const
+
+const OPENAI_FREE_DEFAULT_WHITELIST = [...OPENAI_LEGACY_BASE_DEFAULT_WHITELIST] as const
+const OPENAI_PAID_DEFAULT_WHITELIST = [...OPENAI_LEGACY_BASE_DEFAULT_WHITELIST, 'gpt-5.5'] as const
+const OPENAI_PRO_DEFAULT_WHITELIST = [...OPENAI_PAID_DEFAULT_WHITELIST, 'gpt-5.3-codex-spark'] as const
 const OPENAI_IMAGE_COMPAT_ALLOWED_PLANS = new Set(['plus', 'team', 'pro', 'business', 'enterprise', 'edu'])
 
 function normalizeOpenAIWhitelist(models: readonly string[] | null | undefined): string[] {
@@ -65,16 +69,22 @@ export function normalizeOpenAIPlanType(raw: string | null | undefined): string 
 
 export function getOpenAIDefaultWhitelist(planType?: string | null): string[] {
   const normalizedPlanType = normalizeOpenAIPlanType(planType)
+  if (normalizedPlanType === 'free') {
+    return [...OPENAI_FREE_DEFAULT_WHITELIST]
+  }
   return normalizedPlanType === 'pro'
     ? [...OPENAI_PRO_DEFAULT_WHITELIST]
-    : [...OPENAI_BASE_DEFAULT_WHITELIST]
+    : [...OPENAI_PAID_DEFAULT_WHITELIST]
 }
 
 export function shouldAutoReplaceOpenAIWhitelist(currentModels: string[] | null | undefined): boolean {
   const current = normalizeOpenAIWhitelist(currentModels)
   return (
     current.length === 0 ||
-    isSameOpenAIWhitelist(current, OPENAI_BASE_DEFAULT_WHITELIST) ||
+    isSameOpenAIWhitelist(current, OPENAI_LEGACY_BASE_DEFAULT_WHITELIST) ||
+    isSameOpenAIWhitelist(current, OPENAI_LEGACY_PRO_DEFAULT_WHITELIST) ||
+    isSameOpenAIWhitelist(current, OPENAI_FREE_DEFAULT_WHITELIST) ||
+    isSameOpenAIWhitelist(current, OPENAI_PAID_DEFAULT_WHITELIST) ||
     isSameOpenAIWhitelist(current, OPENAI_PRO_DEFAULT_WHITELIST)
   )
 }

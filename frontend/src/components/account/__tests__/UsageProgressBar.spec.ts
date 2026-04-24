@@ -176,6 +176,6 @@ describe("UsageProgressBar", () => {
     expect(
       wrapper.get('[data-testid="usage-progress-fill"]').attributes("style"),
     ).toContain("width: 68%;");
-    expect(wrapper.text()).toContain("32%");
+    expect(wrapper.text()).toContain("68%");
   });
 });

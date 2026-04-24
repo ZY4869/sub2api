@@ -677,7 +677,9 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	if accessToken == "" {
 		return nil, nil, fmt.Errorf("no access token available")
 	}
-	payload := createOpenAITestPayload(modelID, true)
+
+	probeModelID := resolveOpenAICodexProbeModelID(account, modelID)
+	payload := createOpenAITestPayload(probeModelID, true)
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, nil, fmt.Errorf("marshal openai probe payload: %w", err)
@@ -685,7 +687,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 
 	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	reqCtx = WithOpenAICodexRequestModel(reqCtx, modelID)
+	reqCtx = WithOpenAICodexRequestModel(reqCtx, probeModelID)
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, chatgptCodexURL, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create openai probe request: %w", err)
@@ -725,7 +727,7 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	updates, resetAt, _, err := extractOpenAICodexProbeSnapshotForScope(resp, resolveOpenAICodexQuotaScope(account, modelID))
+	updates, resetAt, _, err := extractOpenAICodexProbeSnapshotForScope(resp, resolveOpenAICodexQuotaScope(account, probeModelID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -751,6 +753,21 @@ func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(ctx context.Contex
 	updateCtx, updateCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer updateCancel()
 	return syncOpenAICodexRateLimitState(updateCtx, s.accountRepo, account, updates, time.Now())
+}
+
+func resolveOpenAICodexProbeModelID(account *Account, modelID string) string {
+	modelID = strings.TrimSpace(modelID)
+	if account == nil || modelID == "" {
+		return modelID
+	}
+	if modelID != openAICodexScopeSpark {
+		return modelID
+	}
+	mapped := strings.TrimSpace(account.GetMappedModel(modelID))
+	if mapped == "" {
+		return modelID
+	}
+	return mapped
 }
 
 func extractOpenAICodexProbeSnapshotForScope(resp *http.Response, scope string) (map[string]any, *time.Time, string, error) {

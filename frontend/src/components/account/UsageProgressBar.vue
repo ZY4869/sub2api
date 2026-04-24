@@ -2,8 +2,9 @@
   <div :class="detailedReset ? 'space-y-0.5' : ''">
     <div class="flex min-w-0 items-center gap-1">
       <span
+        :title="label"
         :class="[
-          'shrink-0 rounded text-center text-[10px] font-medium',
+          'shrink-0 truncate rounded text-center text-[10px] font-medium',
           labelWidthClass,
           labelClass,
         ]"
@@ -12,7 +13,7 @@
       </span>
 
       <div
-        class="relative"
+        class="relative shrink-0"
         data-testid="usage-progress-trigger"
         :tabindex="windowStats ? 0 : undefined"
         @mouseenter="showStatsTooltip"
@@ -153,8 +154,8 @@ const labelClass = computed(() => {
 
 const labelWidthClass = computed(() => {
   return props.detailedReset
-    ? "min-w-[56px] px-1.5 py-0.5"
-    : "w-[32px] px-1 py-0";
+    ? "min-w-[56px] max-w-[88px] px-1.5 py-0.5"
+    : "min-w-[32px] max-w-[64px] px-1 py-0";
 });
 
 const detailPaddingClass = computed(() => {
@@ -185,6 +186,9 @@ const resolvedBarPercent = computed(() => {
 const barWidth = computed(() => `${resolvedBarPercent.value}%`);
 
 const displayPercent = computed(() => {
+  if (props.displayMode === "remaining") {
+    return `${Math.round(resolvedBarPercent.value)}%`;
+  }
   const percent = Math.round(props.utilization);
   return percent > 999 ? ">999%" : `${percent}%`;
 });

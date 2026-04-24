@@ -62,6 +62,20 @@ func (APIKey) Fields() []ent.Field {
 			Optional().
 			Comment("Blocked IPs/CIDRs"),
 
+		// ========== Image-only fields ==========
+		field.Bool("image_only_enabled").
+			Default(false).
+			Comment("When enabled, this API key can only use image generation models/endpoints"),
+		field.Bool("image_count_billing_enabled").
+			Default(false).
+			Comment("When enabled (and image_max_count>0), image requests are limited by image_max_count and billed by image count"),
+		field.Int("image_max_count").
+			Default(0).
+			Comment("Max allowed image outputs for this API key when image_count_billing_enabled is true; 0 means unlimited/token-billing"),
+		field.Int("image_count_used").
+			Default(0).
+			Comment("Used image outputs for image count billing (only successful images are counted)"),
+
 		// ========== Quota fields ==========
 		// Quota limit in USD (0 = unlimited)
 		field.Float("quota").

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -54,9 +55,21 @@ func (s *OpenAIGatewayService) forwardNativeImages(
 	if err != nil {
 		return nil, fmt.Errorf("rewrite image request model: %w", err)
 	}
+	requestBody, rewrittenContentType, _, err = RewriteOpenAIImageRequestSizeAndDropExtras(requestBody, rewrittenContentType)
+	if err != nil {
+		var requestErr *OpenAIImageRequestError
+		if errors.As(err, &requestErr) {
+			return nil, requestErr
+		}
+		return nil, newOpenAIImageRequestError("image_request_invalid", err.Error())
+	}
 	imageSize := DetectOpenAIImageRequestSize(requestBody, rewrittenContentType)
 	normalizedRequest, err := NormalizeOpenAIImageRequest(requestBody, rewrittenContentType, action)
 	if err != nil {
+		var requestErr *OpenAIImageRequestError
+		if errors.As(err, &requestErr) {
+			return nil, requestErr
+		}
 		return nil, newOpenAIImageRequestError("image_request_invalid", err.Error())
 	}
 	normalizedRequest.DisplayModelID = originalModel

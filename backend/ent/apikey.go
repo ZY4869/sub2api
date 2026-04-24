@@ -44,6 +44,14 @@ type APIKey struct {
 	IPWhitelist []string `json:"ip_whitelist,omitempty"`
 	// Blocked IPs/CIDRs
 	IPBlacklist []string `json:"ip_blacklist,omitempty"`
+	// When enabled, this API key can only use image generation models/endpoints
+	ImageOnlyEnabled bool `json:"image_only_enabled,omitempty"`
+	// When enabled (and image_max_count>0), image requests are limited by image_max_count and billed by image count
+	ImageCountBillingEnabled bool `json:"image_count_billing_enabled,omitempty"`
+	// Max allowed image outputs for this API key when image_count_billing_enabled is true; 0 means unlimited/token-billing
+	ImageMaxCount int `json:"image_max_count,omitempty"`
+	// Used image outputs for image count billing (only successful images are counted)
+	ImageCountUsed int `json:"image_count_used,omitempty"`
 	// Quota limit in USD for this API key (0 = unlimited)
 	Quota float64 `json:"quota,omitempty"`
 	// Used quota amount in USD
@@ -147,9 +155,11 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist:
 			values[i] = new([]byte)
+		case apikey.FieldImageOnlyEnabled, apikey.FieldImageCountBillingEnabled:
+			values[i] = new(sql.NullBool)
 		case apikey.FieldQuota, apikey.FieldQuotaUsed, apikey.FieldRateLimit5h, apikey.FieldRateLimit1d, apikey.FieldRateLimit7d, apikey.FieldUsage5h, apikey.FieldUsage1d, apikey.FieldUsage7d:
 			values[i] = new(sql.NullFloat64)
-		case apikey.FieldID, apikey.FieldUserID, apikey.FieldGroupID:
+		case apikey.FieldID, apikey.FieldUserID, apikey.FieldGroupID, apikey.FieldImageMaxCount, apikey.FieldImageCountUsed:
 			values[i] = new(sql.NullInt64)
 		case apikey.FieldKey, apikey.FieldName, apikey.FieldModelDisplayMode, apikey.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -254,6 +264,30 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.IPBlacklist); err != nil {
 					return fmt.Errorf("unmarshal field ip_blacklist: %w", err)
 				}
+			}
+		case apikey.FieldImageOnlyEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field image_only_enabled", values[i])
+			} else if value.Valid {
+				_m.ImageOnlyEnabled = value.Bool
+			}
+		case apikey.FieldImageCountBillingEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field image_count_billing_enabled", values[i])
+			} else if value.Valid {
+				_m.ImageCountBillingEnabled = value.Bool
+			}
+		case apikey.FieldImageMaxCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field image_max_count", values[i])
+			} else if value.Valid {
+				_m.ImageMaxCount = int(value.Int64)
+			}
+		case apikey.FieldImageCountUsed:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field image_count_used", values[i])
+			} else if value.Valid {
+				_m.ImageCountUsed = int(value.Int64)
 			}
 		case apikey.FieldQuota:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -433,6 +467,18 @@ func (_m *APIKey) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ip_blacklist=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IPBlacklist))
+	builder.WriteString(", ")
+	builder.WriteString("image_only_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ImageOnlyEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("image_count_billing_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ImageCountBillingEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("image_max_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ImageMaxCount))
+	builder.WriteString(", ")
+	builder.WriteString("image_count_used=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ImageCountUsed))
 	builder.WriteString(", ")
 	builder.WriteString("quota=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Quota))

@@ -78,7 +78,11 @@ func (s *GeminiMessagesCompatService) forwardGeminiPassthrough(ctx context.Conte
 		if message == "" {
 			message = "Gemini upstream request failed"
 		}
-		return nil, infraerrors.New(resp.StatusCode, "GEMINI_PASSTHROUGH_UPSTREAM_ERROR", message)
+		return &GeminiPublicPassthroughOutput{
+			Response:      &UpstreamHTTPResult{StatusCode: resp.StatusCode, Headers: filteredHeaders, Body: body},
+			Account:       account,
+			ForwardResult: buildGeminiPassthroughForwardResult(input, requestedModel, filteredHeaders, body, time.Since(startedAt), false),
+		}, infraerrors.New(resp.StatusCode, "GEMINI_PASSTHROUGH_UPSTREAM_ERROR", message)
 	}
 
 	if err := s.persistGeminiPassthroughBinding(ctx, input, account, binding, resp.StatusCode, body); err != nil {

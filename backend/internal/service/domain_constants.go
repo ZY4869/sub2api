@@ -177,6 +177,7 @@ const (
 	SettingKeyBackendModeEnabled          = "backend_mode_enabled"
 	SettingKeyMaintenanceModeEnabled      = "maintenance_mode_enabled"
 	SettingKeyDocumentAIEnabled           = "document_ai_enabled"
+	SettingKeyOpenAIBackfillGPT55Done     = "openai_backfill_gpt_5_5_done"
 )
 
 // AdminAPIKeyPrefix is the prefix for admin API keys.

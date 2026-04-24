@@ -176,6 +176,12 @@ func (s *gatewayRouteAPIKeyRepoStub) IncrementQuotaUsed(context.Context, int64, 
 func (s *gatewayRouteAPIKeyRepoStub) UpdateLastUsed(context.Context, int64, time.Time) error {
 	return nil
 }
+func (s *gatewayRouteAPIKeyRepoStub) TryReserveImageCount(context.Context, int64, int) (bool, error) {
+	return false, nil
+}
+func (s *gatewayRouteAPIKeyRepoStub) RollbackImageCount(context.Context, int64, int) error {
+	return nil
+}
 func (s *gatewayRouteAPIKeyRepoStub) IncrementRateLimitUsage(context.Context, int64, float64) error {
 	return nil
 }

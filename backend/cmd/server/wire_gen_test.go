@@ -64,6 +64,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // googleBatchArchiveCleanup
 		schedulerSnapshotSvc,
 		tokenRefreshSvc,
+		nil, // openAIGPT55WhitelistBackfill
 		accountExpirySvc,
 		accountBlacklistCleanupSvc,
 		accountRateLimitRecoveryProbeSvc,

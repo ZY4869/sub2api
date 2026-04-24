@@ -266,12 +266,13 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	googleBatchArchivePrefetchService := service.ProvideGoogleBatchArchivePrefetchService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
 	googleBatchArchiveCleanupService := service.ProvideGoogleBatchArchiveCleanupService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
 	tokenRefreshService := service.ProvideTokenRefreshService(accountRepository, oAuthService, kiroOAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, compositeTokenCacheInvalidator, schedulerCache, configConfig, tempUnschedCache, privacyClientFactory, proxyRepository, oAuthRefreshAPI)
+	openAIGPT55WhitelistBackfillService := service.ProvideOpenAIGPT55WhitelistBackfillService(settingRepository, accountRepository)
 	accountExpiryService := service.ProvideAccountExpiryService(accountRepository)
 	accountBlacklistCleanupService := service.ProvideAccountBlacklistCleanupService(accountRepository)
 	accountRateLimitRecoveryProbeService := service.ProvideAccountRateLimitRecoveryProbeService(accountRepository, accountTestService, rateLimitService)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, accountRepository, telegramNotifierService, configConfig)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, accountExpiryService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -307,6 +308,7 @@ func provideCleanup(
 	googleBatchArchiveCleanup *service.GoogleBatchArchiveCleanupService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
+	openAIGPT55WhitelistBackfill *service.OpenAIGPT55WhitelistBackfillService,
 	accountExpiry *service.AccountExpiryService,
 	accountBlacklistCleanup *service.AccountBlacklistCleanupService,
 	accountRateLimitRecoveryProbe *service.AccountRateLimitRecoveryProbeService,
@@ -424,6 +426,12 @@ func provideCleanup(
 			}},
 			{"TokenRefreshService", func() error {
 				tokenRefresh.Stop()
+				return nil
+			}},
+			{"OpenAIGPT55WhitelistBackfillService", func() error {
+				if openAIGPT55WhitelistBackfill != nil {
+					openAIGPT55WhitelistBackfill.Stop()
+				}
 				return nil
 			}},
 			{"AccountExpiryService", func() error {

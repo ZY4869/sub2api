@@ -738,6 +738,125 @@
           </div>
         </div>
 
+        <!-- Image-only Key Section -->
+        <div class="space-y-3 lg:col-span-2">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <label class="input-label mb-0">{{
+                t("keys.imageOnlyKey")
+              }}</label>
+              <p class="input-hint mt-1">{{ t("keys.imageOnlyKeyHint") }}</p>
+            </div>
+            <button
+              type="button"
+              @click="
+                formData.image_only_enabled = !formData.image_only_enabled
+              "
+              :class="[
+                'relative mt-1 inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
+                formData.image_only_enabled
+                  ? 'bg-primary-600'
+                  : 'bg-gray-200 dark:bg-dark-600',
+              ]"
+            >
+              <span
+                :class="[
+                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                  formData.image_only_enabled
+                    ? 'translate-x-4'
+                    : 'translate-x-0',
+                ]"
+              />
+            </button>
+          </div>
+
+          <div v-if="formData.image_only_enabled" class="space-y-4 pt-2">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <label class="input-label mb-0">{{
+                  t("keys.imageCountBilling")
+                }}</label>
+                <p class="input-hint mt-1">
+                  {{ t("keys.imageCountBillingHint") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="
+                  formData.image_count_billing_enabled =
+                    !formData.image_count_billing_enabled
+                "
+                :class="[
+                  'relative mt-1 inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
+                  formData.image_count_billing_enabled
+                    ? 'bg-primary-600'
+                    : 'bg-gray-200 dark:bg-dark-600',
+                ]"
+              >
+                <span
+                  :class="[
+                    'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                    formData.image_count_billing_enabled
+                      ? 'translate-x-4'
+                      : 'translate-x-0',
+                  ]"
+                />
+              </button>
+            </div>
+
+            <div
+              v-if="formData.image_count_billing_enabled"
+              class="grid gap-3 md:grid-cols-2"
+            >
+              <div>
+                <label class="input-label">{{ t("keys.imageMaxCount") }}</label>
+                <input
+                  v-model.number="formData.image_max_count"
+                  type="number"
+                  step="1"
+                  min="1"
+                  class="input"
+                  :placeholder="t('keys.imageMaxCountPlaceholder')"
+                />
+                <p class="input-hint">{{ t("keys.imageMaxCountHint") }}</p>
+              </div>
+
+              <div
+                v-if="
+                  showEditModal &&
+                  selectedKey &&
+                  selectedKey.image_only_enabled &&
+                  selectedKey.image_count_billing_enabled &&
+                  selectedKey.image_max_count > 0
+                "
+              >
+                <label class="input-label">{{ t("keys.imageCountUsage") }}</label>
+                <div
+                  class="flex-1 rounded-lg bg-gray-100 px-3 py-2 dark:bg-dark-700"
+                >
+                  <span class="font-medium text-gray-900 dark:text-white">
+                    {{ selectedKey.image_count_used || 0 }}
+                  </span>
+                  <span class="mx-2 text-gray-400">/</span>
+                  <span class="text-gray-500 dark:text-gray-400">
+                    {{ selectedKey.image_max_count }}
+                  </span>
+                  <span class="ml-3 text-gray-500 dark:text-gray-400">
+                    {{ t("keys.imageCountRemaining") }}:
+                    {{
+                      Math.max(
+                        (selectedKey.image_max_count || 0) -
+                          (selectedKey.image_count_used || 0),
+                        0,
+                      )
+                    }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Rate Limit Section -->
         <div class="space-y-3 lg:col-span-2">
           <div class="flex items-center justify-between">
@@ -1386,6 +1505,10 @@ const formData = ref({
   // Quota settings (empty = unlimited)
   enable_quota: false,
   quota: null as number | null,
+  // Image-only key settings
+  image_only_enabled: false,
+  image_count_billing_enabled: false,
+  image_max_count: null as number | null,
   // Rate limit settings
   enable_rate_limit: false,
   rate_limit_5h: null as number | null,
@@ -1411,6 +1534,23 @@ const customKeyError = computed(() => {
   }
   return "";
 });
+
+watch(
+  () => formData.value.image_only_enabled,
+  (enabled) => {
+    if (enabled) return;
+    formData.value.image_count_billing_enabled = false;
+    formData.value.image_max_count = null;
+  },
+);
+
+watch(
+  () => formData.value.image_count_billing_enabled,
+  (enabled) => {
+    if (enabled) return;
+    formData.value.image_max_count = null;
+  },
+);
 
 const statusOptions = computed(() => [
   { value: "active", label: t("common.active") },
@@ -1633,6 +1773,15 @@ const editKey = (key: ApiKey) => {
     ip_blacklist: (key.ip_blacklist || []).join("\n"),
     enable_quota: key.quota > 0,
     quota: key.quota > 0 ? key.quota : null,
+    image_only_enabled: !!key.image_only_enabled,
+    image_count_billing_enabled:
+      !!key.image_only_enabled && !!key.image_count_billing_enabled,
+    image_max_count:
+      !!key.image_only_enabled &&
+      !!key.image_count_billing_enabled &&
+      (key.image_max_count || 0) > 0
+        ? key.image_max_count
+        : null,
     enable_rate_limit:
       key.rate_limit_5h > 0 || key.rate_limit_1d > 0 || key.rate_limit_7d > 0,
     rate_limit_5h: key.rate_limit_5h || null,
@@ -1744,6 +1893,20 @@ const handleSubmit = async () => {
       }
     : { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 };
 
+  const imageOnlyEnabled = !!formData.value.image_only_enabled;
+  const imageCountBillingEnabled =
+    imageOnlyEnabled && !!formData.value.image_count_billing_enabled;
+  const parsedImageMaxCount = Number(formData.value.image_max_count ?? 0);
+  const imageMaxCount =
+    imageCountBillingEnabled && Number.isFinite(parsedImageMaxCount) && parsedImageMaxCount > 0
+      ? Math.floor(parsedImageMaxCount)
+      : 0;
+
+  if (imageCountBillingEnabled && imageMaxCount <= 0) {
+    appStore.showError(t("keys.imageMaxCountRequired"));
+    return;
+  }
+
   submitting.value = true;
   try {
     if (showEditModal.value && selectedKey.value) {
@@ -1754,6 +1917,9 @@ const handleSubmit = async () => {
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
+        image_only_enabled: imageOnlyEnabled,
+        image_count_billing_enabled: imageCountBillingEnabled,
+        image_max_count: imageMaxCount,
         expires_at: expiresAt,
         rate_limit_5h: rateLimitData.rate_limit_5h,
         rate_limit_1d: rateLimitData.rate_limit_1d,
@@ -1767,6 +1933,9 @@ const handleSubmit = async () => {
       await keysAPI.createWithPayload({
         name: formData.value.name,
         groups: groupBindingsPayload,
+        image_only_enabled: imageOnlyEnabled,
+        image_count_billing_enabled: imageCountBillingEnabled,
+        image_max_count: imageMaxCount,
         ...(customKey ? { custom_key: customKey } : {}),
         ...(ipWhitelist.length ? { ip_whitelist: ipWhitelist } : {}),
         ...(ipBlacklist.length ? { ip_blacklist: ipBlacklist } : {}),
@@ -1829,6 +1998,9 @@ const closeModals = () => {
     ip_blacklist: "",
     enable_quota: false,
     quota: null,
+    image_only_enabled: false,
+    image_count_billing_enabled: false,
+    image_max_count: null,
     enable_rate_limit: false,
     rate_limit_5h: null,
     rate_limit_1d: null,

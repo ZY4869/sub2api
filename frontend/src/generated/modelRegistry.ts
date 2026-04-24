@@ -34,11 +34,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-22T09:29:20Z"
+export const generatedModelRegistryBuiltAt = "2026-04-24T13:31:56Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"db0bbf79987fd7ca6fadbf487fd2349d424ff5c0803b116ebc78e5785eb36f73\"",
-  "updated_at": "2026-04-22T09:29:20Z",
+  "etag": "W/\"1678b2e840a4d4a3782a768ad7a70c93727647b822d87e5e28f9d898edfe9d1b\"",
+  "updated_at": "2026-04-24T13:31:56Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -5897,6 +5897,33 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "gpt-5.4"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "image_generation_tool"
+      ],
+      "ui_priority": 48,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ]
+    },
+    {
+      "id": "gpt-5.5",
+      "display_name": "GPT-5.5",
+      "provider": "openai",
+      "platforms": [
+        "openai"
+      ],
+      "protocol_ids": [
+        "gpt-5.5"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "gpt-5.5"
       ],
       "modalities": [
         "text"

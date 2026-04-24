@@ -102,6 +102,37 @@ func TestNormalizeOpenAIImageRequest_EditJSON(t *testing.T) {
 	require.Equal(t, OpenAIImageSizeTier2K, ResolveOpenAIImageSizeTier(req.Size))
 }
 
+func TestNormalizeOpenAIImageRequest_GenerationNormalizesSizeShorthand(t *testing.T) {
+	t.Parallel()
+
+	requestBody := []byte(`{
+		"model":"gpt-image-2",
+		"prompt":"a poster",
+		"size":"2K 16:9"
+	}`)
+
+	req, err := NormalizeOpenAIImageRequest(requestBody, "application/json", "generations")
+	require.NoError(t, err)
+	require.Equal(t, "2048x1152", req.Size)
+	require.Equal(t, OpenAIImageSizeTier2K, ResolveOpenAIImageSizeTier(req.Size))
+}
+
+func TestNormalizeOpenAIImageRequest_GenerationNormalizesSizeParts(t *testing.T) {
+	t.Parallel()
+
+	requestBody := []byte(`{
+		"model":"gpt-image-2",
+		"prompt":"a poster",
+		"image_size":"2K",
+		"aspect_ratio":"16:9"
+	}`)
+
+	req, err := NormalizeOpenAIImageRequest(requestBody, "application/json", "generations")
+	require.NoError(t, err)
+	require.Equal(t, "2048x1152", req.Size)
+	require.Equal(t, OpenAIImageSizeTier2K, ResolveOpenAIImageSizeTier(req.Size))
+}
+
 func TestBuildOpenAIImageCompatResponsesBody_EditCarriesMaskAndAction(t *testing.T) {
 	t.Parallel()
 
@@ -133,6 +164,44 @@ func TestBuildOpenAIImageCompatResponsesBody_EditCarriesMaskAndAction(t *testing
 	_, hasInputFidelity := tool["input_fidelity"]
 	require.False(t, hasInputFidelity)
 	require.Equal(t, OpenAIImageSizeTier4K, ResolveOpenAIResponsesImageToolSizeTier(body))
+}
+
+func TestBuildOpenAIImageCompatResponsesBody_DoesNotForwardN(t *testing.T) {
+	t.Parallel()
+
+	req := &NormalizedImageRequest{
+		Operation:      "generations",
+		DisplayModelID: "gpt-image-2",
+		TargetModelID:  OpenAICompatImageTargetModel,
+		Prompt:         "a poster",
+		Size:           "1024x1024",
+		N:              intPtrTest(1),
+	}
+
+	body, err := BuildOpenAIImageCompatResponsesBody(req, OpenAICompatImageHostModel, OpenAICompatImageTargetModel)
+	require.NoError(t, err)
+	tool := firstOpenAIResponsesImageTool(body)
+	_, hasN := tool["n"]
+	require.False(t, hasN)
+}
+
+func TestBuildOpenAIImageCompatResponsesBody_RejectsUnsupportedN(t *testing.T) {
+	t.Parallel()
+
+	req := &NormalizedImageRequest{
+		Operation:      "generations",
+		DisplayModelID: "gpt-image-2",
+		TargetModelID:  OpenAICompatImageTargetModel,
+		Prompt:         "a poster",
+		Size:           "1024x1024",
+		N:              intPtrTest(2),
+	}
+
+	body, err := BuildOpenAIImageCompatResponsesBody(req, OpenAICompatImageHostModel, OpenAICompatImageTargetModel)
+	require.Nil(t, body)
+	var requestErr *OpenAIImageRequestError
+	require.ErrorAs(t, err, &requestErr)
+	require.Equal(t, "image_n_not_supported", requestErr.Code)
 }
 
 func TestBuildOpenAIImagesCompatResponse_ExtractsDataURIImages(t *testing.T) {

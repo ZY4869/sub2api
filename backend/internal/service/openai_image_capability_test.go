@@ -144,6 +144,16 @@ func TestValidateOpenAIImageCapabilities_UnknownModelsStayConservative(t *testin
 	})
 }
 
+func TestIsOpenAIGPTImageProfileModelID_NormalizesPrefixedVariants(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isOpenAIGPTImageProfileModelID("openai/gpt-image-2"))
+	require.True(t, isOpenAIGPTImageProfileModelID("/openai/gpt-image-2"))
+	require.True(t, isOpenAIGPTImageProfileModelID("models/gpt-image-2"))
+	require.True(t, isOpenAIGPTImageProfileModelID("openai:chatgpt-image-latest"))
+	require.True(t, isOpenAIGPTImageProfileModelID("models/chatgpt-image-latest"))
+}
+
 func TestNormalizeOpenAIResponsesImageToolRequestAndForceCompat(t *testing.T) {
 	t.Parallel()
 

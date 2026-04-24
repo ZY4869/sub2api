@@ -70,6 +70,9 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 	setOpsRequestContext(c, reqModel, false, body)
 	reqLog = reqLog.With(zap.String("model", reqModel))
 	imageSizeTier := service.ResolveOpenAIImageSizeTier(service.DetectOpenAIImageRequestSize(body, c.GetHeader("Content-Type")))
+	expectedImageCount := service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
+	reservedImageCount := 0
+	imageCountSettled := false
 
 	subscription, _ := middleware2.GetSubscriptionFromContext(c)
 	service.SetOpsLatencyMs(c, service.OpsAuthLatencyMsKey, time.Since(requestStart).Milliseconds())
@@ -82,6 +85,31 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 	}
 	if userReleaseFunc != nil {
 		defer userReleaseFunc()
+	}
+
+	if apiKey.EffectiveImageCountBillingEnabled() {
+		reservedImageCount = expectedImageCount
+		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), apiKey.ID, reservedImageCount)
+		if reserveErr != nil {
+			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to reserve image quota")
+			return
+		}
+		if !ok {
+			h.errorResponseWithCode(c, http.StatusTooManyRequests, "rate_limit_error", "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED", "图片数量额度已用完")
+			return
+		}
+		reqLog.Info("api_key_image_count_reserved", zap.Int("reserved", reservedImageCount), zap.Int("max", apiKey.ImageMaxCount))
+		defer func() {
+			if reservedImageCount <= 0 || imageCountSettled {
+				return
+			}
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, reservedImageCount); err != nil {
+				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.Int("rollback", reservedImageCount))
+				return
+			}
+			reqLog.Info("api_key_image_count_rolled_back", zap.Int("rollback", reservedImageCount))
+		}()
 	}
 
 	sessionHash := h.gatewayService.GenerateSessionHash(c, body)
@@ -208,6 +236,18 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 			}
 			if errors.As(err, &requestErr) {
 				h.errorResponseWithCode(c, requestErr.Status, requestErr.Type, requestErr.Code, requestErr.Message)
+				h.submitFailedUsageRecordTask(
+					"handler.openai_gateway.images",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					false,
+					time.Since(requestStart),
+					nil,
+					err,
+				)
 				return
 			}
 			if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !c.Writer.Written() {
@@ -217,13 +257,55 @@ func (h *OpenAIGatewayHandler) handleImagesRequest(c *gin.Context, action string
 				} else {
 					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", errMessage)
 				}
+				h.submitFailedUsageRecordTask(
+					"handler.openai_gateway.images",
+					c,
+					currentAPIKey,
+					currentSubscription,
+					account,
+					reqModel,
+					false,
+					time.Since(requestStart),
+					nil,
+					err,
+				)
 				return
 			}
 			wroteFallback := h.ensureForwardErrorResponse(c, false)
 			if !wroteFallback && !c.Writer.Written() {
 				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 			}
+			h.submitFailedUsageRecordTask(
+				"handler.openai_gateway.images",
+				c,
+				currentAPIKey,
+				currentSubscription,
+				account,
+				reqModel,
+				false,
+				time.Since(requestStart),
+				nil,
+				err,
+			)
 			return
+		}
+
+		if reservedImageCount > 0 && !imageCountSettled {
+			imageCountSettled = true
+			actual := reservedImageCount
+			if result != nil && result.ImageCount > 0 {
+				actual = result.ImageCount
+			}
+			if actual < reservedImageCount {
+				diff := reservedImageCount - actual
+				if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, diff); err != nil {
+					reqLog.Error("api_key_image_count_settle_rollback_failed", zap.Error(err), zap.Int("rollback", diff))
+				} else {
+					reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual), zap.Int("rollback", diff))
+				}
+			} else {
+				reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual))
+			}
 		}
 
 		if result != nil && currentAPIKey.User != nil {

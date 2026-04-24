@@ -76,6 +76,10 @@ type APIKeyRepository interface {
 	IncrementQuotaUsed(ctx context.Context, id int64, amount float64) (float64, error)
 	UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error
 
+	// Image-count quota methods (only used when apiKey.EffectiveImageCountBillingEnabled() is true)
+	TryReserveImageCount(ctx context.Context, id int64, count int) (bool, error)
+	RollbackImageCount(ctx context.Context, id int64, count int) error
+
 	// Rate limit methods
 	IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error
 	ResetRateLimitWindows(ctx context.Context, id int64) error
@@ -164,6 +168,11 @@ type CreateAPIKeyRequest struct {
 	IPWhitelist      []string                  `json:"ip_whitelist"` // IP 白名单
 	IPBlacklist      []string                  `json:"ip_blacklist"` // IP 黑名单
 
+	// Image-only fields
+	ImageOnlyEnabled         bool `json:"image_only_enabled"`
+	ImageCountBillingEnabled bool `json:"image_count_billing_enabled"`
+	ImageMaxCount            int  `json:"image_max_count"`
+
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
 	ExpiresInDays *int    `json:"expires_in_days"` // Days until expiry (nil = never expires)
@@ -183,6 +192,11 @@ type UpdateAPIKeyRequest struct {
 	Status           *string                   `json:"status"`
 	IPWhitelist      []string                  `json:"ip_whitelist"` // IP 白名单（空数组清空）
 	IPBlacklist      []string                  `json:"ip_blacklist"` // IP 黑名单（空数组清空）
+
+	// Image-only fields (nil = no change)
+	ImageOnlyEnabled         *bool `json:"image_only_enabled"`
+	ImageCountBillingEnabled *bool `json:"image_count_billing_enabled"`
+	ImageMaxCount            *int  `json:"image_max_count"`
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -396,6 +410,20 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	}
 	defer rollback()
 
+	imageOnlyEnabled := req.ImageOnlyEnabled
+	imageCountBillingEnabled := false
+	imageMaxCount := 0
+	if imageOnlyEnabled {
+		maxCandidate := req.ImageMaxCount
+		if maxCandidate < 0 {
+			maxCandidate = 0
+		}
+		if req.ImageCountBillingEnabled && maxCandidate > 0 {
+			imageCountBillingEnabled = true
+			imageMaxCount = maxCandidate
+		}
+	}
+
 	apiKey := &APIKey{
 		UserID: userID,
 		Key:    key,
@@ -409,6 +437,10 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		Status:      StatusActive,
 		IPWhitelist: req.IPWhitelist,
 		IPBlacklist: req.IPBlacklist,
+		ImageOnlyEnabled:         imageOnlyEnabled,
+		ImageCountBillingEnabled: imageCountBillingEnabled,
+		ImageMaxCount:            imageMaxCount,
+		ImageCountUsed:           0,
 		Quota:       req.Quota,
 		QuotaUsed:   0,
 		RateLimit5h: req.RateLimit5h,
@@ -643,6 +675,30 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 
 	apiKey.IPWhitelist = req.IPWhitelist
 	apiKey.IPBlacklist = req.IPBlacklist
+
+	if req.ImageOnlyEnabled != nil {
+		apiKey.ImageOnlyEnabled = *req.ImageOnlyEnabled
+	}
+	if req.ImageCountBillingEnabled != nil {
+		apiKey.ImageCountBillingEnabled = *req.ImageCountBillingEnabled
+	}
+	if req.ImageMaxCount != nil {
+		nextMax := *req.ImageMaxCount
+		if nextMax < 0 {
+			nextMax = 0
+		}
+		apiKey.ImageMaxCount = nextMax
+	}
+	// Normalize image-count billing config:
+	// - not image-only => disable image-count billing and clear max
+	// - image-only but max not set => fall back to token/USD billing (disable count billing)
+	if !apiKey.ImageOnlyEnabled {
+		apiKey.ImageCountBillingEnabled = false
+		apiKey.ImageMaxCount = 0
+	} else if !apiKey.ImageCountBillingEnabled || apiKey.ImageMaxCount <= 0 {
+		apiKey.ImageCountBillingEnabled = false
+		apiKey.ImageMaxCount = 0
+	}
 
 	if req.RateLimit5h != nil {
 		apiKey.RateLimit5h = *req.RateLimit5h

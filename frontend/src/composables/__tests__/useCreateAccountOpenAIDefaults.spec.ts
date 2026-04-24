@@ -84,7 +84,7 @@ describe('OpenAI create-account defaults', () => {
 
     await handleOpenAIExchange('code')
 
-    expect(base.allowedModels.value).toEqual(['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex-spark'])
+    expect(base.allowedModels.value).toEqual(['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.3-codex-spark'])
     expect(createMock).toHaveBeenCalledTimes(1)
   })
 
@@ -132,7 +132,7 @@ describe('OpenAI create-account defaults', () => {
 
     await handleOpenAIValidateRT('rt_123')
 
-    expect(base.allowedModels.value).toEqual(['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.3-codex-spark'])
+    expect(base.allowedModels.value).toEqual(['gpt-5.2', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.3-codex-spark'])
     expect(createMock).toHaveBeenCalledTimes(1)
   })
 })

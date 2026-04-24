@@ -204,6 +204,76 @@ func (_u *APIKeyUpdate) ClearIPBlacklist() *APIKeyUpdate {
 	return _u
 }
 
+// SetImageOnlyEnabled sets the "image_only_enabled" field.
+func (_u *APIKeyUpdate) SetImageOnlyEnabled(v bool) *APIKeyUpdate {
+	_u.mutation.SetImageOnlyEnabled(v)
+	return _u
+}
+
+// SetNillableImageOnlyEnabled sets the "image_only_enabled" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableImageOnlyEnabled(v *bool) *APIKeyUpdate {
+	if v != nil {
+		_u.SetImageOnlyEnabled(*v)
+	}
+	return _u
+}
+
+// SetImageCountBillingEnabled sets the "image_count_billing_enabled" field.
+func (_u *APIKeyUpdate) SetImageCountBillingEnabled(v bool) *APIKeyUpdate {
+	_u.mutation.SetImageCountBillingEnabled(v)
+	return _u
+}
+
+// SetNillableImageCountBillingEnabled sets the "image_count_billing_enabled" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableImageCountBillingEnabled(v *bool) *APIKeyUpdate {
+	if v != nil {
+		_u.SetImageCountBillingEnabled(*v)
+	}
+	return _u
+}
+
+// SetImageMaxCount sets the "image_max_count" field.
+func (_u *APIKeyUpdate) SetImageMaxCount(v int) *APIKeyUpdate {
+	_u.mutation.ResetImageMaxCount()
+	_u.mutation.SetImageMaxCount(v)
+	return _u
+}
+
+// SetNillableImageMaxCount sets the "image_max_count" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableImageMaxCount(v *int) *APIKeyUpdate {
+	if v != nil {
+		_u.SetImageMaxCount(*v)
+	}
+	return _u
+}
+
+// AddImageMaxCount adds value to the "image_max_count" field.
+func (_u *APIKeyUpdate) AddImageMaxCount(v int) *APIKeyUpdate {
+	_u.mutation.AddImageMaxCount(v)
+	return _u
+}
+
+// SetImageCountUsed sets the "image_count_used" field.
+func (_u *APIKeyUpdate) SetImageCountUsed(v int) *APIKeyUpdate {
+	_u.mutation.ResetImageCountUsed()
+	_u.mutation.SetImageCountUsed(v)
+	return _u
+}
+
+// SetNillableImageCountUsed sets the "image_count_used" field if the given value is not nil.
+func (_u *APIKeyUpdate) SetNillableImageCountUsed(v *int) *APIKeyUpdate {
+	if v != nil {
+		_u.SetImageCountUsed(*v)
+	}
+	return _u
+}
+
+// AddImageCountUsed adds value to the "image_count_used" field.
+func (_u *APIKeyUpdate) AddImageCountUsed(v int) *APIKeyUpdate {
+	_u.mutation.AddImageCountUsed(v)
+	return _u
+}
+
 // SetQuota sets the "quota" field.
 func (_u *APIKeyUpdate) SetQuota(v float64) *APIKeyUpdate {
 	_u.mutation.ResetQuota()
@@ -682,6 +752,24 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.IPBlacklistCleared() {
 		_spec.ClearField(apikey.FieldIPBlacklist, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.ImageOnlyEnabled(); ok {
+		_spec.SetField(apikey.FieldImageOnlyEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ImageCountBillingEnabled(); ok {
+		_spec.SetField(apikey.FieldImageCountBillingEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ImageMaxCount(); ok {
+		_spec.SetField(apikey.FieldImageMaxCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageMaxCount(); ok {
+		_spec.AddField(apikey.FieldImageMaxCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageCountUsed(); ok {
+		_spec.SetField(apikey.FieldImageCountUsed, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageCountUsed(); ok {
+		_spec.AddField(apikey.FieldImageCountUsed, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)
 	}
@@ -1103,6 +1191,76 @@ func (_u *APIKeyUpdateOne) AppendIPBlacklist(v []string) *APIKeyUpdateOne {
 // ClearIPBlacklist clears the value of the "ip_blacklist" field.
 func (_u *APIKeyUpdateOne) ClearIPBlacklist() *APIKeyUpdateOne {
 	_u.mutation.ClearIPBlacklist()
+	return _u
+}
+
+// SetImageOnlyEnabled sets the "image_only_enabled" field.
+func (_u *APIKeyUpdateOne) SetImageOnlyEnabled(v bool) *APIKeyUpdateOne {
+	_u.mutation.SetImageOnlyEnabled(v)
+	return _u
+}
+
+// SetNillableImageOnlyEnabled sets the "image_only_enabled" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableImageOnlyEnabled(v *bool) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetImageOnlyEnabled(*v)
+	}
+	return _u
+}
+
+// SetImageCountBillingEnabled sets the "image_count_billing_enabled" field.
+func (_u *APIKeyUpdateOne) SetImageCountBillingEnabled(v bool) *APIKeyUpdateOne {
+	_u.mutation.SetImageCountBillingEnabled(v)
+	return _u
+}
+
+// SetNillableImageCountBillingEnabled sets the "image_count_billing_enabled" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableImageCountBillingEnabled(v *bool) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetImageCountBillingEnabled(*v)
+	}
+	return _u
+}
+
+// SetImageMaxCount sets the "image_max_count" field.
+func (_u *APIKeyUpdateOne) SetImageMaxCount(v int) *APIKeyUpdateOne {
+	_u.mutation.ResetImageMaxCount()
+	_u.mutation.SetImageMaxCount(v)
+	return _u
+}
+
+// SetNillableImageMaxCount sets the "image_max_count" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableImageMaxCount(v *int) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetImageMaxCount(*v)
+	}
+	return _u
+}
+
+// AddImageMaxCount adds value to the "image_max_count" field.
+func (_u *APIKeyUpdateOne) AddImageMaxCount(v int) *APIKeyUpdateOne {
+	_u.mutation.AddImageMaxCount(v)
+	return _u
+}
+
+// SetImageCountUsed sets the "image_count_used" field.
+func (_u *APIKeyUpdateOne) SetImageCountUsed(v int) *APIKeyUpdateOne {
+	_u.mutation.ResetImageCountUsed()
+	_u.mutation.SetImageCountUsed(v)
+	return _u
+}
+
+// SetNillableImageCountUsed sets the "image_count_used" field if the given value is not nil.
+func (_u *APIKeyUpdateOne) SetNillableImageCountUsed(v *int) *APIKeyUpdateOne {
+	if v != nil {
+		_u.SetImageCountUsed(*v)
+	}
+	return _u
+}
+
+// AddImageCountUsed adds value to the "image_count_used" field.
+func (_u *APIKeyUpdateOne) AddImageCountUsed(v int) *APIKeyUpdateOne {
+	_u.mutation.AddImageCountUsed(v)
 	return _u
 }
 
@@ -1613,6 +1771,24 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if _u.mutation.IPBlacklistCleared() {
 		_spec.ClearField(apikey.FieldIPBlacklist, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ImageOnlyEnabled(); ok {
+		_spec.SetField(apikey.FieldImageOnlyEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ImageCountBillingEnabled(); ok {
+		_spec.SetField(apikey.FieldImageCountBillingEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ImageMaxCount(); ok {
+		_spec.SetField(apikey.FieldImageMaxCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageMaxCount(); ok {
+		_spec.AddField(apikey.FieldImageMaxCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageCountUsed(); ok {
+		_spec.SetField(apikey.FieldImageCountUsed, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedImageCountUsed(); ok {
+		_spec.AddField(apikey.FieldImageCountUsed, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)

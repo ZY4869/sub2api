@@ -106,6 +106,10 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 		h.errorResponse(c, http.StatusUnauthorized, "authentication_error", "Invalid API key")
 		return
 	}
+	if apiKey.ImageOnlyEnabled && action != grokActionImagesGen && action != grokActionImagesEdits {
+		h.errorResponse(c, http.StatusForbidden, "forbidden_error", "生图专用 Key 仅允许调用图片生成接口")
+		return
+	}
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
@@ -125,6 +129,9 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 	reqStream := false
 	imageToolModel := ""
 	hasImageTool := false
+	expectedImageCount := 1
+	reservedImageCount := 0
+	imageCountSettled := false
 	if action != grokActionVideoStatus {
 		body, err = pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 		if err != nil {
@@ -143,6 +150,9 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 		reqStream = gjson.GetBytes(body, "stream").Bool()
 		if action == grokActionResponses {
 			imageToolModel, hasImageTool = detectResponsesImageToolRequest(body)
+		}
+		if action == grokActionImagesGen || action == grokActionImagesEdits {
+			expectedImageCount = service.DetectOpenAIImageRequestN(body, strings.TrimSpace(c.GetHeader("Content-Type")))
 		}
 		setOpsRequestContext(c, reqModel, reqStream, body)
 	} else {
@@ -172,6 +182,37 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 	}
 	if userReleaseFunc != nil {
 		defer userReleaseFunc()
+	}
+
+	if apiKey.EffectiveImageCountBillingEnabled() && (action == grokActionImagesGen || action == grokActionImagesEdits) {
+		reservedImageCount = expectedImageCount
+		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), apiKey.ID, reservedImageCount)
+		if reserveErr != nil {
+			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to reserve image quota")
+			return
+		}
+		if !ok {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": gin.H{
+					"type":    "rate_limit_error",
+					"message": "图片数量额度已用完",
+					"code":    "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED",
+				},
+			})
+			return
+		}
+		reqLog.Info("api_key_image_count_reserved", zap.Int("reserved", reservedImageCount), zap.Int("max", apiKey.ImageMaxCount))
+		defer func() {
+			if reservedImageCount <= 0 || imageCountSettled {
+				return
+			}
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, reservedImageCount); err != nil {
+				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.Int("rollback", reservedImageCount))
+				return
+			}
+			reqLog.Info("api_key_image_count_rolled_back", zap.Int("rollback", reservedImageCount))
+		}()
 	}
 
 	sessionHash := generateGrokSessionHash(c, body)
@@ -334,6 +375,24 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 					result.FailedUsage.ImageSize,
 				)
 				return
+			}
+
+			if reservedImageCount > 0 && !imageCountSettled {
+				imageCountSettled = true
+				actual := reservedImageCount
+				if result != nil && result.Result != nil && result.Result.ImageCount > 0 {
+					actual = result.Result.ImageCount
+				}
+				if actual < reservedImageCount {
+					diff := reservedImageCount - actual
+					if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, diff); err != nil {
+						reqLog.Error("api_key_image_count_settle_rollback_failed", zap.Error(err), zap.Int("rollback", diff))
+					} else {
+						reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual), zap.Int("rollback", diff))
+					}
+				} else {
+					reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual))
+				}
 			}
 
 			if result != nil && result.Result != nil && !result.SkipUsageRecord {

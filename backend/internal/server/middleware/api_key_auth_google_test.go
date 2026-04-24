@@ -95,6 +95,12 @@ func (f fakeAPIKeyRepo) UpdateLastUsed(ctx context.Context, id int64, usedAt tim
 	}
 	return nil
 }
+func (f fakeAPIKeyRepo) TryReserveImageCount(ctx context.Context, id int64, count int) (bool, error) {
+	return false, errors.New("not implemented")
+}
+func (f fakeAPIKeyRepo) RollbackImageCount(ctx context.Context, id int64, count int) error {
+	return errors.New("not implemented")
+}
 func (f fakeAPIKeyRepo) IncrementRateLimitUsage(ctx context.Context, id int64, cost float64) error {
 	return nil
 }

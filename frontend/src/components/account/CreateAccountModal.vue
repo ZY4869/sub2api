@@ -562,7 +562,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, toRef, watch, type Ref } from 'vue'
+import { ref, reactive, computed, toRef, watch, nextTick, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useModelInventoryStore } from '@/stores'
@@ -1343,6 +1343,16 @@ watch(
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       autoImportModels.value = false
+      nextTick(() => {
+        const editor = document.querySelector('[data-testid="baidu-document-ai-credentials-editor"]') as any
+        if (editor && typeof editor.scrollIntoView === 'function') {
+          try {
+            editor.scrollIntoView({ block: 'start' })
+          } catch {
+            editor.scrollIntoView()
+          }
+        }
+      })
     } else if (isBaiduDocumentAIPlatform(previousPlatform)) {
       baiduDocumentAIAsyncBearerToken.value = ''
       baiduDocumentAIAsyncBaseUrl.value = BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL

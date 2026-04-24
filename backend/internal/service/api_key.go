@@ -56,6 +56,12 @@ type APIKey struct {
 	GroupBindings        []APIKeyGroupBinding
 	SelectedGroupBinding *APIKeyGroupBinding
 
+	// Image-only fields
+	ImageOnlyEnabled        bool
+	ImageCountBillingEnabled bool
+	ImageMaxCount           int
+	ImageCountUsed          int
+
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)
 	QuotaUsed float64    // Used quota amount
@@ -86,6 +92,19 @@ type APIKeyGroupBinding struct {
 
 func (k *APIKey) IsActive() bool {
 	return k.Status == StatusActive
+}
+
+func (k *APIKey) IsImageOnly() bool {
+	return k != nil && k.ImageOnlyEnabled
+}
+
+// EffectiveImageCountBillingEnabled returns true when the API key is configured to:
+// - be image-only, and
+// - enforce image-count quota (image_max_count > 0).
+//
+// When disabled (default), the gateway falls back to the existing token/USD billing logic.
+func (k *APIKey) EffectiveImageCountBillingEnabled() bool {
+	return k != nil && k.ImageOnlyEnabled && k.ImageCountBillingEnabled && k.ImageMaxCount > 0
 }
 
 func NormalizeAPIKeyModelDisplayMode(value string) string {

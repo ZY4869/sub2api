@@ -174,7 +174,20 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		return
 	}
 	reqModel := modelResult.String()
+	if apiKey.ImageOnlyEnabled && !service.IsOpenAINativeImageModelID(reqModel) {
+		h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "IMAGE_ONLY_KEY_MODEL_NOT_ALLOWED", "生图专用 Key 仅允许调用图片模型")
+		return
+	}
 	imageToolModel, hasImageTool := detectResponsesImageToolRequest(body)
+	expectedImageCount := 1
+	if hasImageTool {
+		n := int(gjson.GetBytes(body, `tools.#(type=="image_generation").n`).Int())
+		if n > 0 {
+			expectedImageCount = n
+		}
+	}
+	reservedImageCount := 0
+	imageCountSettled := false
 
 	streamResult := gjson.GetBytes(body, "stream")
 	if streamResult.Exists() && streamResult.Type != gjson.True && streamResult.Type != gjson.False {
@@ -228,6 +241,31 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 	// 确保请求取消时也会释放槽位，避免长连接被动中断造成泄漏
 	if userReleaseFunc != nil {
 		defer userReleaseFunc()
+	}
+
+	if apiKey.EffectiveImageCountBillingEnabled() {
+		reservedImageCount = expectedImageCount
+		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), apiKey.ID, reservedImageCount)
+		if reserveErr != nil {
+			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
+			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to reserve image quota")
+			return
+		}
+		if !ok {
+			h.errorResponseWithCode(c, http.StatusTooManyRequests, "rate_limit_error", "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED", "图片数量额度已用完")
+			return
+		}
+		reqLog.Info("api_key_image_count_reserved", zap.Int("reserved", reservedImageCount), zap.Int("max", apiKey.ImageMaxCount))
+		defer func() {
+			if reservedImageCount <= 0 || imageCountSettled {
+				return
+			}
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, reservedImageCount); err != nil {
+				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.Int("rollback", reservedImageCount))
+				return
+			}
+			reqLog.Info("api_key_image_count_rolled_back", zap.Int("rollback", reservedImageCount))
+		}()
 	}
 
 	// Generate session hash (header first; fallback to prompt_cache_key)
@@ -566,6 +604,24 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			// 捕获请求信息（用于异步记录，避免在 goroutine 中访问 gin.Context）
 			userAgent := c.GetHeader("User-Agent")
 			clientIP := ip.GetClientIP(c)
+
+			if reservedImageCount > 0 && !imageCountSettled {
+				imageCountSettled = true
+				actual := reservedImageCount
+				if result != nil && result.ImageCount > 0 {
+					actual = result.ImageCount
+				}
+				if actual < reservedImageCount {
+					diff := reservedImageCount - actual
+					if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, diff); err != nil {
+						reqLog.Error("api_key_image_count_settle_rollback_failed", zap.Error(err), zap.Int("rollback", diff))
+					} else {
+						reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual), zap.Int("rollback", diff))
+					}
+				} else {
+					reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual))
+				}
+			}
 
 			// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 			h.submitUsageRecordTask(func(ctx context.Context) {

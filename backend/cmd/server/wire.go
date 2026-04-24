@@ -74,6 +74,7 @@ func provideCleanup(
 	googleBatchArchiveCleanup *service.GoogleBatchArchiveCleanupService,
 	schedulerSnapshot *service.SchedulerSnapshotService,
 	tokenRefresh *service.TokenRefreshService,
+	openAIGPT55WhitelistBackfill *service.OpenAIGPT55WhitelistBackfillService,
 	accountExpiry *service.AccountExpiryService,
 	accountBlacklistCleanup *service.AccountBlacklistCleanupService,
 	accountRateLimitRecoveryProbe *service.AccountRateLimitRecoveryProbeService,
@@ -192,6 +193,12 @@ func provideCleanup(
 			}},
 			{"TokenRefreshService", func() error {
 				tokenRefresh.Stop()
+				return nil
+			}},
+			{"OpenAIGPT55WhitelistBackfillService", func() error {
+				if openAIGPT55WhitelistBackfill != nil {
+					openAIGPT55WhitelistBackfill.Stop()
+				}
 				return nil
 			}},
 			{"AccountExpiryService", func() error {

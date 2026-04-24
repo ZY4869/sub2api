@@ -17,7 +17,8 @@
       class="flex items-center gap-1 text-[10px] tabular-nums"
     >
       <span
-        class="w-[32px] shrink-0 rounded px-1 py-0 text-center font-medium text-gray-500 dark:text-gray-400"
+        :title="row.label"
+        class="min-w-[32px] max-w-[64px] shrink-0 truncate rounded px-1 py-0 text-center font-medium text-gray-500 dark:text-gray-400"
       >
         {{ row.label }}
       </span>
@@ -32,7 +33,9 @@
           size="xs"
           class="shrink-0 text-gray-400 dark:text-gray-500"
         />
-        <span class="shrink-0 font-medium">
+        <span
+          class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 font-medium leading-none text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+        >
           {{ formatResetValue(row.resetsAt, row.remainingSeconds)?.countdown }}
         </span>
         <span class="shrink-0 text-gray-400 dark:text-gray-500">·</span>

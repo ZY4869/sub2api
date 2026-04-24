@@ -408,6 +408,27 @@ func TestAccountUsageService_GetOpenAIUsage_ForceRefreshProbesNormalAndSpark(t *
 	}
 }
 
+func TestResolveOpenAICodexProbeModelID_UsesSparkMapping(t *testing.T) {
+	t.Parallel()
+
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				openAICodexScopeSpark: "gpt-5.3-codex-spark-high",
+			},
+		},
+	}
+
+	if got := resolveOpenAICodexProbeModelID(account, openAICodexScopeSpark); got != "gpt-5.3-codex-spark-high" {
+		t.Fatalf("resolveOpenAICodexProbeModelID(spark) = %q, want %q", got, "gpt-5.3-codex-spark-high")
+	}
+	if got := resolveOpenAICodexProbeModelID(account, openaipkg.DefaultTestModel); got != openaipkg.DefaultTestModel {
+		t.Fatalf("resolveOpenAICodexProbeModelID(normal) = %q, want %q", got, openaipkg.DefaultTestModel)
+	}
+}
+
 func TestAccountUsageService_ProbeOpenAICodexSnapshot_ProKeepsPartialSuccess(t *testing.T) {
 	t.Parallel()
 

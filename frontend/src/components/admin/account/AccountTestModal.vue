@@ -487,7 +487,9 @@ const supportsImageTest = computed(() => {
     modelID === 'chatgpt-image-latest' ||
     modelID.startsWith('gpt-image-') ||
     (modelID.startsWith('gemini-') && modelID.includes('-image'))
-  const isImageModel = optionMode === 'image' || (optionMode === '' && inferredByID)
+  const isImageModel = modelInputMode.value === 'manual'
+    ? inferredByID
+    : optionMode === 'image' || (optionMode === '' && inferredByID)
   if (!isImageModel) {
     return false
   }
@@ -498,6 +500,19 @@ const supportsImageTest = computed(() => {
     (props.account?.platform === 'antigravity' && props.account?.type === 'apikey')
   )
 })
+
+watch(
+  [modelInputMode, manualModelId, isProtocolGatewayAccount, manualSourceProtocol],
+  ([inputMode, modelID, isGateway, selectedProtocol]) => {
+    if (inputMode !== 'manual' || !isGateway || selectedProtocol) {
+      return
+    }
+    const normalizedModelID = String(modelID || '').trim().toLowerCase()
+    if (normalizedModelID === 'chatgpt-image-latest' || normalizedModelID.startsWith('gpt-image-')) {
+      manualSourceProtocol.value = 'openai'
+    }
+  }
+)
 const runtimeContextItems = computed(() => {
   const items: Array<{ key: string; label: string }> = []
   const testModeLabel = runtimeTestModeLabel(runtimeContext.value.testMode)

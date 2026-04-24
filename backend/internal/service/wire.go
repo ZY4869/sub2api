@@ -64,6 +64,13 @@ func ProvideTokenRefreshService(
 	return svc
 }
 
+// ProvideOpenAIGPT55WhitelistBackfillService creates and runs the OpenAI GPT-5.5 whitelist backfill.
+func ProvideOpenAIGPT55WhitelistBackfillService(settingRepo SettingRepository, accountRepo AccountRepository) *OpenAIGPT55WhitelistBackfillService {
+	svc := NewOpenAIGPT55WhitelistBackfillService(settingRepo, accountRepo)
+	svc.Start()
+	return svc
+}
+
 // ProvideClaudeTokenProvider creates ClaudeTokenProvider with OAuthRefreshAPI injection
 func ProvideClaudeTokenProvider(
 	accountRepo AccountRepository,
@@ -786,6 +793,7 @@ var ProviderSet = wire.NewSet(
 	NewCRSSyncService,
 	ProvideUpdateService,
 	ProvideTokenRefreshService,
+	ProvideOpenAIGPT55WhitelistBackfillService,
 	ProvideAccountExpiryService,
 	ProvideAccountBlacklistCleanupService,
 	ProvideAccountRateLimitRecoveryProbeService,

@@ -315,3 +315,40 @@ func TestBuildAvailableTestModels_OpenAIProRuntimeQuotaHidesOnlyLimitedScope(t *
 		require.Empty(t, models)
 	})
 }
+
+func TestBuildAvailableTestModels_OpenAIFreeOAuthHidesGptImage2(t *testing.T) {
+	account := &Account{
+		ID:       1000,
+		Name:     "openai-free-hide-gpt-image-2",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Credentials: map[string]any{
+			"plan_type": "free",
+		},
+		Extra: map[string]any{
+			"model_scope_v2": map[string]any{
+				"policy_mode": AccountModelPolicyModeWhitelist,
+				"entries": []any{
+					map[string]any{
+						"display_model_id": "friendly-image",
+						"target_model_id":  "gpt-image-2",
+						"provider":         PlatformOpenAI,
+						"visibility_mode":  AccountModelVisibilityModeAlias,
+					},
+					map[string]any{
+						"display_model_id": "friendly-normal",
+						"target_model_id":  "gpt-5.4",
+						"provider":         PlatformOpenAI,
+						"visibility_mode":  AccountModelVisibilityModeAlias,
+					},
+				},
+			},
+		},
+	}
+
+	models := BuildAvailableTestModels(context.Background(), account, nil)
+	require.Len(t, models, 1)
+	require.Equal(t, "friendly-normal", models[0].ID)
+	require.Equal(t, "gpt-5.4", models[0].TargetModelID)
+}

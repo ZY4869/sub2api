@@ -191,6 +191,12 @@ func isOpenAIGPTImageProfileModelID(value string) bool {
 	if normalized == "" {
 		return false
 	}
+	if idx := strings.LastIndex(normalized, "/"); idx != -1 {
+		normalized = strings.TrimSpace(normalized[idx+1:])
+	}
+	if idx := strings.LastIndex(normalized, ":"); idx != -1 {
+		normalized = strings.TrimSpace(normalized[idx+1:])
+	}
 	if normalized == "chatgpt-image-latest" {
 		return true
 	}

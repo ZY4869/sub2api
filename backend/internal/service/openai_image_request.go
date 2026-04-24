@@ -7,6 +7,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/textproto"
+	"strconv"
 	"strings"
 
 	"github.com/tidwall/gjson"
@@ -51,6 +52,36 @@ func DetectOpenAIImageRequestSize(body []byte, contentType string) string {
 		return strings.TrimSpace(size)
 	}
 	return strings.TrimSpace(gjson.GetBytes(body, "size").String())
+}
+
+func DetectOpenAIImageRequestN(body []byte, contentType string) int {
+	if len(body) == 0 {
+		return 1
+	}
+	mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(contentType))
+	if err != nil {
+		mediaType = strings.TrimSpace(contentType)
+	}
+	if strings.HasPrefix(strings.ToLower(mediaType), "multipart/form-data") {
+		boundary := strings.TrimSpace(params["boundary"])
+		if boundary == "" {
+			return 1
+		}
+		raw, _ := detectMultipartImageField(body, boundary, "n")
+		n, err := strconv.Atoi(strings.TrimSpace(raw))
+		if err == nil && n > 0 {
+			return n
+		}
+		return 1
+	}
+	if !gjson.ValidBytes(body) {
+		return 1
+	}
+	n := int(gjson.GetBytes(body, "n").Int())
+	if n > 0 {
+		return n
+	}
+	return 1
 }
 
 func RewriteOpenAIImageRequestModel(body []byte, contentType string, mappedModel string) ([]byte, string, error) {

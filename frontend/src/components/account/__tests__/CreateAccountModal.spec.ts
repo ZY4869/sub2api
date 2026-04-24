@@ -700,13 +700,13 @@ describe('CreateAccountModal', () => {
     })
   })
 
-  it('prefills the openai login flow with the base default whitelist', async () => {
+  it('prefills the openai login flow with the paid default whitelist', async () => {
     const wrapper = mountModal()
 
     await wrapper.get('[data-testid="select-openai"]').trigger('click')
 
     expect(wrapper.get('[data-testid="oauth-allowed-models-prop"]').text()).toBe(
-      'gpt-5.2,gpt-5.4,gpt-5.4-mini'
+      'gpt-5.2,gpt-5.4,gpt-5.4-mini,gpt-5.5'
     )
   })
 

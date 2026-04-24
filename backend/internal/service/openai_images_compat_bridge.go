@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -35,6 +36,10 @@ func (s *OpenAIGatewayService) ForwardCompatImages(
 	startTime := time.Now()
 	normalizedRequest, err := NormalizeOpenAIImageRequest(body, contentType, action)
 	if err != nil {
+		var requestErr *OpenAIImageRequestError
+		if errors.As(err, &requestErr) {
+			return nil, requestErr
+		}
 		return nil, newOpenAIImageRequestError("image_request_invalid", err.Error())
 	}
 	normalizedRequest.DisplayModelID = firstNonEmptyString(strings.TrimSpace(displayModel), normalizedRequest.DisplayModelID, OpenAICompatImageTargetModel)

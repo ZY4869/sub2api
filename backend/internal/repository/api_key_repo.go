@@ -45,6 +45,10 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		SetStatus(key.Status).
 		SetNillableGroupID(key.GroupID).
 		SetNillableLastUsedAt(key.LastUsedAt).
+		SetImageOnlyEnabled(key.ImageOnlyEnabled).
+		SetImageCountBillingEnabled(key.ImageCountBillingEnabled).
+		SetImageMaxCount(key.ImageMaxCount).
+		SetImageCountUsed(key.ImageCountUsed).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
 		SetNillableExpiresAt(key.ExpiresAt).
@@ -186,6 +190,9 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldStatus,
 			apikey.FieldIPWhitelist,
 			apikey.FieldIPBlacklist,
+			apikey.FieldImageOnlyEnabled,
+			apikey.FieldImageCountBillingEnabled,
+			apikey.FieldImageMaxCount,
 			apikey.FieldQuota,
 			apikey.FieldQuotaUsed,
 			apikey.FieldExpiresAt,
@@ -257,6 +264,9 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 		SetName(key.Name).
 		SetModelDisplayMode(service.NormalizeAPIKeyModelDisplayMode(key.ModelDisplayMode)).
 		SetStatus(key.Status).
+		SetImageOnlyEnabled(key.ImageOnlyEnabled).
+		SetImageCountBillingEnabled(key.ImageCountBillingEnabled).
+		SetImageMaxCount(key.ImageMaxCount).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
 		SetRateLimit5h(key.RateLimit5h).
@@ -639,6 +649,63 @@ func (r *apiKeyRepository) IncrementQuotaUsedAndGetState(ctx context.Context, id
 	return state, nil
 }
 
+func (r *apiKeyRepository) TryReserveImageCount(ctx context.Context, id int64, count int) (bool, error) {
+	if count <= 0 {
+		return true, nil
+	}
+	query := `
+		UPDATE api_keys
+		SET
+			image_count_used = image_count_used + $1,
+			updated_at = NOW()
+		WHERE id = $2
+			AND deleted_at IS NULL
+			AND image_only_enabled = TRUE
+			AND image_count_billing_enabled = TRUE
+			AND image_max_count > 0
+			AND image_count_used + $1 <= image_max_count
+		RETURNING image_count_used
+	`
+	var nextUsed int
+	if err := scanSingleRow(ctx, r.sql, query, []any{count, id}, &nextUsed); err == nil {
+		return true, nil
+	} else if err != sql.ErrNoRows {
+		return false, err
+	}
+
+	// Distinguish "not found" from "quota exhausted / disabled / max=0".
+	var exists int
+	if err := scanSingleRow(ctx, r.sql, `SELECT 1 FROM api_keys WHERE id = $1 AND deleted_at IS NULL`, []any{id}, &exists); err != nil {
+		if err == sql.ErrNoRows {
+			return false, service.ErrAPIKeyNotFound
+		}
+		return false, err
+	}
+	return false, nil
+}
+
+func (r *apiKeyRepository) RollbackImageCount(ctx context.Context, id int64, count int) error {
+	if count <= 0 {
+		return nil
+	}
+	query := `
+		UPDATE api_keys
+		SET
+			image_count_used = GREATEST(image_count_used - $1, 0),
+			updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL
+		RETURNING image_count_used
+	`
+	var nextUsed int
+	if err := scanSingleRow(ctx, r.sql, query, []any{count, id}, &nextUsed); err != nil {
+		if err == sql.ErrNoRows {
+			return service.ErrAPIKeyNotFound
+		}
+		return err
+	}
+	return nil
+}
+
 func (r *apiKeyRepository) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
 	affected, err := r.client.APIKey.Update().
 		Where(apikey.IDEQ(id), apikey.DeletedAtIsNil()).
@@ -730,6 +797,10 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		CreatedAt:        m.CreatedAt,
 		UpdatedAt:        m.UpdatedAt,
 		GroupID:          m.GroupID,
+		ImageOnlyEnabled:         m.ImageOnlyEnabled,
+		ImageCountBillingEnabled: m.ImageCountBillingEnabled,
+		ImageMaxCount:            m.ImageMaxCount,
+		ImageCountUsed:           m.ImageCountUsed,
 		Quota:            m.Quota,
 		QuotaUsed:        m.QuotaUsed,
 		ExpiresAt:        m.ExpiresAt,

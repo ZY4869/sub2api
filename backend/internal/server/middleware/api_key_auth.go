@@ -114,6 +114,23 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 
+		// ── 3.5 生图专用 Key：限制可访问的入口 ───────────────────────
+
+		if apiKey.ImageOnlyEnabled {
+			method := ""
+			path := ""
+			if c.Request != nil {
+				method = c.Request.Method
+				if c.Request.URL != nil {
+					path = c.Request.URL.Path
+				}
+			}
+			if !isImageOnlyAllowedGatewayRequest(method, path) {
+				AbortWithError(c, 403, "IMAGE_ONLY_KEY_ENDPOINT_NOT_ALLOWED", "生图专用 Key 仅允许调用图片生成接口")
+				return
+			}
+		}
+
 		// ── 4. SimpleMode → early return ─────────────────────────────
 
 		if cfg.RunMode == config.RunModeSimple {

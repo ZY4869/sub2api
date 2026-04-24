@@ -530,6 +530,17 @@ func filterAvailableTestModelsForAccount(
 		}
 	}
 
+	if account.IsOpenAIOAuth() && openAIAccountPlanType(account) == "free" && len(filtered) > 0 {
+		planFiltered := make([]AvailableTestModel, 0, len(filtered))
+		for _, model := range filtered {
+			if shouldHideOpenAITestModelForFreePlan(model) {
+				continue
+			}
+			planFiltered = append(planFiltered, model)
+		}
+		filtered = planFiltered
+	}
+
 	if !account.IsOpenAI() || !isOpenAIProPlan(account) || len(filtered) == 0 {
 		return filtered
 	}
@@ -542,6 +553,20 @@ func filterAvailableTestModelsForAccount(
 		runtimeFiltered = append(runtimeFiltered, model)
 	}
 	return runtimeFiltered
+}
+
+func shouldHideOpenAITestModelForFreePlan(model AvailableTestModel) bool {
+	candidates := []string{
+		model.ID,
+		model.CanonicalID,
+		model.TargetModelID,
+	}
+	for _, candidate := range candidates {
+		if NormalizeModelCatalogModelID(candidate) == "gpt-image-2" {
+			return true
+		}
+	}
+	return false
 }
 
 func compareTestModelCandidates(left testModelCandidate, right testModelCandidate) int {

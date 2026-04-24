@@ -458,6 +458,11 @@ export interface ApiKey {
   last_used_at: string | null;
   quota: number; // Quota limit in USD (0 = unlimited)
   quota_used: number; // Used quota amount in USD
+  // Image-only key settings
+  image_only_enabled: boolean;
+  image_count_billing_enabled: boolean;
+  image_max_count: number; // 0 = not configured (falls back to token billing)
+  image_count_used: number;
   expires_at: string | null; // Expiration time (null = never expires)
   created_at: string;
   updated_at: string;
@@ -520,6 +525,9 @@ export interface CreateApiKeyRequest {
   rate_limit_5h?: number;
   rate_limit_1d?: number;
   rate_limit_7d?: number;
+  image_only_enabled?: boolean;
+  image_count_billing_enabled?: boolean;
+  image_max_count?: number;
 }
 
 export interface UpdateApiKeyRequest {
@@ -536,6 +544,9 @@ export interface UpdateApiKeyRequest {
   rate_limit_1d?: number;
   rate_limit_7d?: number;
   reset_rate_limit_usage?: boolean;
+  image_only_enabled?: boolean;
+  image_count_billing_enabled?: boolean;
+  image_max_count?: number;
 }
 
 export interface CreateGroupRequest {

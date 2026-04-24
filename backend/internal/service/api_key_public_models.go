@@ -101,6 +101,17 @@ func (s *GatewayService) GetAPIKeyPublicModels(
 	for _, entry := range entriesByID {
 		entries = append(entries, entry)
 	}
+	if apiKey.IsImageOnly() {
+		filtered := make([]APIKeyPublicModelEntry, 0, len(entries))
+		for _, entry := range entries {
+			// image-only key: only expose native image generation models (capability=image_generation).
+			native, _ := s.resolvePublicImageCapability(ctx, &entry)
+			if native {
+				filtered = append(filtered, entry)
+			}
+		}
+		entries = filtered
+	}
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].PublicID < entries[j].PublicID
 	})

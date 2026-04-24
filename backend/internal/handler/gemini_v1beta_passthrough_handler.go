@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -14,6 +15,7 @@ import (
 )
 
 func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.GeminiPublicPassthroughInput) {
+	requestStart := time.Now()
 	applyGeminiPublicPathMetadata(c, input.UpstreamPath)
 	passthroughService := h.resolveGeminiPassthroughService(c, input)
 	if passthroughService == nil {
@@ -74,6 +76,40 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		zap.String("path", strings.TrimSpace(c.Request.URL.Path)),
 	)
 
+	expectedImageCount := 1
+	reservedImageCount := 0
+	imageCountSettled := false
+	if currentAPIKey.EffectiveImageCountBillingEnabled() && GetInboundEndpoint(c) == service.EndpointImagesGen {
+		if h.apiKeyService == nil {
+			reqLog.Error("api_key_service_missing_for_image_quota")
+			googleErrorKey(c, http.StatusInternalServerError, "api_key.image_count_quota_unavailable", "Image quota service unavailable")
+			return
+		}
+		expectedImageCount = service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
+		reservedImageCount = expectedImageCount
+		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageCount)
+		if reserveErr != nil {
+			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
+			googleErrorKey(c, http.StatusInternalServerError, "api_key.image_count_reserve_failed", "Failed to reserve image quota")
+			return
+		}
+		if !ok {
+			googleErrorWithReason(c, http.StatusTooManyRequests, "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED", "api_key.image_count_quota_exhausted", "图片数量额度已用完")
+			return
+		}
+		reqLog.Info("api_key_image_count_reserved", zap.Int("reserved", reservedImageCount), zap.Int("max", currentAPIKey.ImageMaxCount))
+		defer func() {
+			if reservedImageCount <= 0 || imageCountSettled {
+				return
+			}
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageCount); err != nil {
+				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.Int("rollback", reservedImageCount))
+				return
+			}
+			reqLog.Info("api_key_image_count_rolled_back", zap.Int("rollback", reservedImageCount))
+		}()
+	}
+
 	result, err := passthroughService.ForwardGeminiPassthrough(c.Request.Context(), service.GeminiPublicPassthroughInput{
 		GoogleBatchForwardInput: service.GoogleBatchForwardInput{
 			GroupID:        currentAPIKey.GroupID,
@@ -97,11 +133,54 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 	if err != nil {
 		reqLog.Warn("gemini.passthrough_failed", zap.Error(err))
 		googleErrorFromServiceError(c, err)
+		if result != nil && result.Account != nil {
+			var failoverErr *service.UpstreamFailoverError
+			if upstreamResult, ok := result.Response.(*service.UpstreamHTTPResult); ok && upstreamResult != nil {
+				failoverErr = &service.UpstreamFailoverError{
+					StatusCode:      upstreamResult.StatusCode,
+					ResponseHeaders: upstreamResult.Headers,
+					ResponseBody:    upstreamResult.Body,
+				}
+			}
+			h.submitFailedUsageRecordTask(
+				"handler.gemini_v1beta.passthrough",
+				c,
+				currentAPIKey,
+				currentSubscription,
+				result.Account,
+				input.RequestedModel,
+				stream,
+				time.Since(requestStart),
+				service.PlatformGemini,
+				failoverErr,
+				err,
+			)
+		}
 		return
 	}
 	if result == nil || result.Account == nil {
 		googleErrorKey(c, http.StatusBadGateway, "gateway.gemini.upstream_empty", "Empty upstream response")
 		return
+	}
+
+	if reservedImageCount > 0 && !imageCountSettled {
+		imageCountSettled = true
+		actual := reservedImageCount
+		if upstreamResult, ok := result.Response.(*service.UpstreamHTTPResult); ok && upstreamResult != nil {
+			if count := service.CountOpenAIImageResponse(upstreamResult.Body); count > 0 {
+				actual = count
+			}
+		}
+		if actual < reservedImageCount {
+			diff := reservedImageCount - actual
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), currentAPIKey.ID, diff); err != nil {
+				reqLog.Error("api_key_image_count_settle_rollback_failed", zap.Error(err), zap.Int("rollback", diff))
+			} else {
+				reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual), zap.Int("rollback", diff))
+			}
+		} else {
+			reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual))
+		}
 	}
 
 	requestType := service.RequestTypeSync
