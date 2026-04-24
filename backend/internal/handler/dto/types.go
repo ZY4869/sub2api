@@ -52,11 +52,11 @@ type APIKey struct {
 	ImageMaxCount            int  `json:"image_max_count"`
 	ImageCountUsed           int  `json:"image_count_used"`
 
-	Quota            float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
-	QuotaUsed        float64    `json:"quota_used"` // Used quota amount in USD
-	ExpiresAt        *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	Quota     float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
+	QuotaUsed float64    `json:"quota_used"` // Used quota amount in USD
+	ExpiresAt *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 
 	// Rate limit fields
 	RateLimit5h   float64    `json:"rate_limit_5h"`

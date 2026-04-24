@@ -171,4 +171,3 @@ func resolveOpenAIImageSizeForAspect(maxSide int, ratioW int, ratioH int) (int, 
 	}
 	return width, maxSide
 }
-

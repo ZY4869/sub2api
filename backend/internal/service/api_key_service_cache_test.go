@@ -118,6 +118,14 @@ func (s *authRepoStub) IncrementQuotaUsed(ctx context.Context, id int64, amount 
 	panic("unexpected IncrementQuotaUsed call")
 }
 
+func (s *authRepoStub) TryReserveImageCount(ctx context.Context, id int64, count int) (bool, error) {
+	panic("unexpected TryReserveImageCount call")
+}
+
+func (s *authRepoStub) RollbackImageCount(ctx context.Context, id int64, count int) error {
+	panic("unexpected RollbackImageCount call")
+}
+
 func (s *authRepoStub) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
 	panic("unexpected UpdateLastUsed call")
 }

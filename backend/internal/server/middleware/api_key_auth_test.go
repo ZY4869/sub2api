@@ -594,6 +594,14 @@ func (r *stubApiKeyRepo) IncrementQuotaUsed(ctx context.Context, id int64, amoun
 	return 0, errors.New("not implemented")
 }
 
+func (r *stubApiKeyRepo) TryReserveImageCount(ctx context.Context, id int64, count int) (bool, error) {
+	return true, nil
+}
+
+func (r *stubApiKeyRepo) RollbackImageCount(ctx context.Context, id int64, count int) error {
+	return nil
+}
+
 func (r *stubApiKeyRepo) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
 	if r.updateLastUsed != nil {
 		return r.updateLastUsed(ctx, id, usedAt)

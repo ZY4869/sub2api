@@ -593,10 +593,29 @@ go generate ./cmd/server
    git tag -a v0.0.1 -m "v0.0.1"
    git push origin v0.0.1
    ```
-2. 在 GitHub Actions 中确认 `Release` workflow 执行成功。
-3. 在 GitHub Releases 中确认已生成二进制压缩包与 `checksums.txt`。
-4. 在 GHCR 中确认已生成 `ghcr.io/zy4869/sub2api:v0.0.1`。
-5. 以后不要再使用 `-rc` 标签发布，工作流只接受 `v1.2.3` 这种正式版本格式。
+2. 推送后可实时监控 tag 对应的 `Release` workflow：
+   ```bash
+   python scripts/diagnose_github_actions.py --tag v0.0.1 --watch
+   ```
+   如果本机已配置 `GITHUB_TOKEN`，脚本会额外输出失败 job 的日志尾部；PowerShell 也可直接运行：
+   ```powershell
+   .\scripts\diagnose-github-actions.ps1 --tag v0.0.1 --watch
+   ```
+3. 若 workflow 失败，可立即拉取失败原因与本地复现命令：
+   ```bash
+   python scripts/diagnose_github_actions.py --tag v0.0.1
+   python scripts/diagnose_github_actions.py --run-id <run_id>
+   ```
+4. 修复后重新推送同名 tag（会触发新的 Release run）：
+   ```bash
+   git tag -d v0.0.1
+   git push origin :refs/tags/v0.0.1
+   git tag -a v0.0.1 -m "v0.0.1"
+   git push origin v0.0.1
+   ```
+5. 在 GitHub Releases 中确认已生成二进制压缩包与 `checksums.txt`。
+6. 在 GHCR 中确认已生成 `ghcr.io/zy4869/sub2api:v0.0.1`。
+7. 以后不要再使用 `-rc` 标签发布，工作流只接受 `v1.2.3` 这种正式版本格式。
 
 ### 可选 Secrets
 

@@ -182,6 +182,12 @@ func (s *apiKeyRepoStubForGroupUpdate) IncrementAPIKeyGroupQuotaUsed(context.Con
 func (s *apiKeyRepoStubForGroupUpdate) IncrementQuotaUsed(context.Context, int64, float64) (float64, error) {
 	panic("unexpected")
 }
+func (s *apiKeyRepoStubForGroupUpdate) TryReserveImageCount(context.Context, int64, int) (bool, error) {
+	panic("unexpected")
+}
+func (s *apiKeyRepoStubForGroupUpdate) RollbackImageCount(context.Context, int64, int) error {
+	panic("unexpected")
+}
 func (s *apiKeyRepoStubForGroupUpdate) UpdateLastUsed(context.Context, int64, time.Time) error {
 	panic("unexpected")
 }

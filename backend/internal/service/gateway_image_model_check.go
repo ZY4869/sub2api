@@ -25,4 +25,3 @@ func (s *GatewayService) IsNativeImageModel(ctx context.Context, modelID string)
 	native, _ := s.resolvePublicImageCapability(ctx, entry)
 	return native
 }
-

@@ -264,4 +264,3 @@ func (s *OpenAIGPT55WhitelistBackfillService) Stop() {
 	})
 	s.wg.Wait()
 }
-

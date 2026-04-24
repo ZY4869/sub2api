@@ -167,12 +167,12 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 	}
 
 	svcReq := service.CreateAPIKeyRequest{
-		Name:          req.Name,
-		GroupID:       req.GroupID,
-		CustomKey:     req.CustomKey,
-		IPWhitelist:   req.IPWhitelist,
-		IPBlacklist:   req.IPBlacklist,
-		ExpiresInDays: req.ExpiresInDays,
+		Name:                     req.Name,
+		GroupID:                  req.GroupID,
+		CustomKey:                req.CustomKey,
+		IPWhitelist:              req.IPWhitelist,
+		IPBlacklist:              req.IPBlacklist,
+		ExpiresInDays:            req.ExpiresInDays,
 		ImageOnlyEnabled:         req.ImageOnlyEnabled,
 		ImageCountBillingEnabled: req.ImageCountBillingEnabled,
 		ImageMaxCount:            req.ImageMaxCount,
@@ -232,14 +232,14 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 	}
 
 	svcReq := service.UpdateAPIKeyRequest{
-		IPWhitelist:         req.IPWhitelist,
-		IPBlacklist:         req.IPBlacklist,
-		Quota:               req.Quota,
-		ResetQuota:          req.ResetQuota,
-		RateLimit5h:         req.RateLimit5h,
-		RateLimit1d:         req.RateLimit1d,
-		RateLimit7d:         req.RateLimit7d,
-		ResetRateLimitUsage: req.ResetRateLimitUsage,
+		IPWhitelist:              req.IPWhitelist,
+		IPBlacklist:              req.IPBlacklist,
+		Quota:                    req.Quota,
+		ResetQuota:               req.ResetQuota,
+		RateLimit5h:              req.RateLimit5h,
+		RateLimit1d:              req.RateLimit1d,
+		RateLimit7d:              req.RateLimit7d,
+		ResetRateLimitUsage:      req.ResetRateLimitUsage,
 		ImageOnlyEnabled:         req.ImageOnlyEnabled,
 		ImageCountBillingEnabled: req.ImageCountBillingEnabled,
 		ImageMaxCount:            req.ImageMaxCount,

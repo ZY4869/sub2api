@@ -1608,6 +1608,42 @@ func (r *stubApiKeyRepo) IncrementQuotaUsed(ctx context.Context, id int64, amoun
 	return 0, errors.New("not implemented")
 }
 
+func (r *stubApiKeyRepo) TryReserveImageCount(ctx context.Context, id int64, count int) (bool, error) {
+	if count <= 0 {
+		return true, nil
+	}
+	key, ok := r.byID[id]
+	if !ok {
+		return false, service.ErrAPIKeyNotFound
+	}
+	if key.ImageMaxCount > 0 && key.ImageCountUsed+count > key.ImageMaxCount {
+		return false, nil
+	}
+	key.ImageCountUsed += count
+	clone := *key
+	r.byID[id] = &clone
+	r.byKey[clone.Key] = &clone
+	return true, nil
+}
+
+func (r *stubApiKeyRepo) RollbackImageCount(ctx context.Context, id int64, count int) error {
+	if count <= 0 {
+		return nil
+	}
+	key, ok := r.byID[id]
+	if !ok {
+		return service.ErrAPIKeyNotFound
+	}
+	key.ImageCountUsed -= count
+	if key.ImageCountUsed < 0 {
+		key.ImageCountUsed = 0
+	}
+	clone := *key
+	r.byID[id] = &clone
+	r.byKey[clone.Key] = &clone
+	return nil
+}
+
 func (r *stubApiKeyRepo) UpdateLastUsed(ctx context.Context, id int64, usedAt time.Time) error {
 	key, ok := r.byID[id]
 	if !ok {

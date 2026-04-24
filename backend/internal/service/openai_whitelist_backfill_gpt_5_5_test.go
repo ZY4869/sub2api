@@ -165,4 +165,3 @@ func TestBackfillOpenAIGPT55DefaultWhitelists_IsIdempotent(t *testing.T) {
 	require.Equal(t, 0, result.Updated)
 	require.Len(t, repo.updateExtraCalls, 0)
 }
-

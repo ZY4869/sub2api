@@ -146,6 +146,12 @@ func (s *quotaBaseAPIKeyRepoStub) IncrementAPIKeyGroupQuotaUsed(context.Context,
 func (s *quotaBaseAPIKeyRepoStub) IncrementQuotaUsed(context.Context, int64, float64) (float64, error) {
 	panic("unexpected IncrementQuotaUsed call")
 }
+func (s *quotaBaseAPIKeyRepoStub) TryReserveImageCount(context.Context, int64, int) (bool, error) {
+	panic("unexpected TryReserveImageCount call")
+}
+func (s *quotaBaseAPIKeyRepoStub) RollbackImageCount(context.Context, int64, int) error {
+	panic("unexpected RollbackImageCount call")
+}
 func (s *quotaBaseAPIKeyRepoStub) UpdateLastUsed(context.Context, int64, time.Time) error {
 	panic("unexpected UpdateLastUsed call")
 }

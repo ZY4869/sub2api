@@ -10,4 +10,3 @@ package service
 func IsOpenAINativeImageModelID(modelID string) bool {
 	return isOpenAIGPTImageProfileModelID(modelID)
 }
-

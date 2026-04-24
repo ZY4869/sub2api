@@ -434,18 +434,18 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 			}
 			return *req.ModelDisplayMode
 		}()),
-		Status:      StatusActive,
-		IPWhitelist: req.IPWhitelist,
-		IPBlacklist: req.IPBlacklist,
+		Status:                   StatusActive,
+		IPWhitelist:              req.IPWhitelist,
+		IPBlacklist:              req.IPBlacklist,
 		ImageOnlyEnabled:         imageOnlyEnabled,
 		ImageCountBillingEnabled: imageCountBillingEnabled,
 		ImageMaxCount:            imageMaxCount,
 		ImageCountUsed:           0,
-		Quota:       req.Quota,
-		QuotaUsed:   0,
-		RateLimit5h: req.RateLimit5h,
-		RateLimit1d: req.RateLimit1d,
-		RateLimit7d: req.RateLimit7d,
+		Quota:                    req.Quota,
+		QuotaUsed:                0,
+		RateLimit5h:              req.RateLimit5h,
+		RateLimit1d:              req.RateLimit1d,
+		RateLimit7d:              req.RateLimit7d,
 	}
 
 	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {

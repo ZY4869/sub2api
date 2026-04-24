@@ -43,4 +43,3 @@ func isImageOnlyAllowedGatewayRequest(method, path string) bool {
 		return false
 	}
 }
-

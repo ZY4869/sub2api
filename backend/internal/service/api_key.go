@@ -57,10 +57,10 @@ type APIKey struct {
 	SelectedGroupBinding *APIKeyGroupBinding
 
 	// Image-only fields
-	ImageOnlyEnabled        bool
+	ImageOnlyEnabled         bool
 	ImageCountBillingEnabled bool
-	ImageMaxCount           int
-	ImageCountUsed          int
+	ImageMaxCount            int
+	ImageCountUsed           int
 
 	// Quota fields
 	Quota     float64    // Quota limit in USD (0 = unlimited)

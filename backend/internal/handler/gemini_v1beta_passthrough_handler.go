@@ -76,7 +76,6 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		zap.String("path", strings.TrimSpace(c.Request.URL.Path)),
 	)
 
-	expectedImageCount := 1
 	reservedImageCount := 0
 	imageCountSettled := false
 	if currentAPIKey.EffectiveImageCountBillingEnabled() && GetInboundEndpoint(c) == service.EndpointImagesGen {
@@ -85,8 +84,7 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 			googleErrorKey(c, http.StatusInternalServerError, "api_key.image_count_quota_unavailable", "Image quota service unavailable")
 			return
 		}
-		expectedImageCount = service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
-		reservedImageCount = expectedImageCount
+		reservedImageCount = service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
 		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageCount)
 		if reserveErr != nil {
 			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
