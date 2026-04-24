@@ -60,7 +60,7 @@ func TestNormalizeOpenAIResponsesImageGenCompat_JSONShorthandNormalizesIntOption
 		"model": "gpt-5.4-mini",
 		"input": "$imagegen test",
 		"image_generation": map[string]any{
-			"n":                 "2",
+			"n":                  "2",
 			"partial_images":     "1",
 			"output_compression": "80",
 		},

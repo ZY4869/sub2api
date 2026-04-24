@@ -59,4 +59,3 @@ func TestAccountIsSchedulableForModelWithContext_OpenAIPro_NormalRateLimitDoesNo
 	require.False(t, account.IsSchedulableForModelWithContext(context.Background(), openAICodexScopeNormal))
 	require.True(t, account.IsSchedulableForModelWithContext(context.Background(), openAICodexScopeSpark))
 }
-
