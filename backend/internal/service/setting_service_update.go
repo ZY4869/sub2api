@@ -68,6 +68,19 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyDocURL] = settings.DocURL
 	updates[SettingKeyHomeContent] = settings.HomeContent
 	updates[SettingKeyHideCcsImportButton] = strconv.FormatBool(settings.HideCcsImportButton)
+	updates[SettingKeyAvailableChannelsEnabled] = strconv.FormatBool(settings.AvailableChannelsEnabled)
+	updates[SettingKeyChannelMonitorEnabled] = strconv.FormatBool(settings.ChannelMonitorEnabled)
+	monitorInterval := settings.ChannelMonitorDefaultIntervalSeconds
+	if monitorInterval <= 0 {
+		monitorInterval = 60
+	}
+	if monitorInterval < 15 {
+		monitorInterval = 15
+	}
+	if monitorInterval > 3600 {
+		monitorInterval = 3600
+	}
+	updates[SettingKeyChannelMonitorDefaultIntervalSeconds] = strconv.Itoa(monitorInterval)
 	updates[SettingKeyPublicModelCatalogEnabled] = strconv.FormatBool(settings.PublicModelCatalogEnabled)
 	updates[SettingKeyPurchaseSubscriptionEnabled] = strconv.FormatBool(settings.PurchaseSubscriptionEnabled)
 	updates[SettingKeyPurchaseSubscriptionURL] = strings.TrimSpace(settings.PurchaseSubscriptionURL)

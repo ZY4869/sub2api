@@ -897,17 +897,15 @@ func (s *PricingService) matchByModelFamily(model string) *LiteLLMModelPricing {
 
 // matchOpenAIModel OpenAI 模型回退匹配策略
 // 回退顺序：
-// 1. gpt-5.3-codex-spark* -> gpt-5.1-codex（按业务要求固定计费）
-// 2. gpt-5.2-codex -> gpt-5.2（去掉后缀如 -codex, -mini, -max 等）
-// 3. gpt-5.2-20251222 -> gpt-5.2（去掉日期版本号）
-// 4. gpt-5.3-codex -> gpt-5.2-codex
-// 5. gpt-5.4* -> 业务静态兜底价
-// 6. 最终回退到 DefaultTestModel (gpt-5.1-codex)
+// 1. gpt-5.3-codex-spark* -> gpt-5.4（固定计费兜底）
+// 2. gpt-5.2-20251222 -> gpt-5.2（去掉日期版本号）
+// 3. gpt-5.4* -> 业务静态兜底价
+// 4. 最终回退到 DefaultTestModel (gpt-5.4)
 func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 	if strings.HasPrefix(model, "gpt-5.3-codex-spark") {
-		if pricing, ok := s.pricingData["gpt-5.1-codex"]; ok {
-			logger.LegacyPrintf("service.pricing", "[Pricing][SparkBilling] %s -> %s billing", model, "gpt-5.1-codex")
-			s.logOpenAIFallbackOnce(model, "gpt-5.1-codex", "matched")
+		if pricing, ok := s.pricingData["gpt-5.4"]; ok {
+			logger.LegacyPrintf("service.pricing", "[Pricing][SparkBilling] %s -> %s billing", model, "gpt-5.4")
+			s.logOpenAIFallbackOnce(model, "gpt-5.4", "matched")
 			return pricing
 		}
 	}
@@ -918,13 +916,6 @@ func (s *PricingService) matchOpenAIModel(model string) *LiteLLMModelPricing {
 	for _, variant := range variants {
 		if pricing, ok := s.pricingData[variant]; ok {
 			s.logOpenAIFallbackOnce(model, variant, "matched")
-			return pricing
-		}
-	}
-
-	if strings.HasPrefix(model, "gpt-5.3-codex") {
-		if pricing, ok := s.pricingData["gpt-5.2-codex"]; ok {
-			s.logOpenAIFallbackOnce(model, "gpt-5.2-codex", "matched")
 			return pricing
 		}
 	}
@@ -1000,7 +991,7 @@ func (s *PricingService) generateOpenAIModelVariants(model string, datePattern *
 		addVariant(withoutDate)
 	}
 
-	// 2. 提取基础版本号: gpt-5.2-codex -> gpt-5.2
+	// 2. 提取基础版本号: gpt-5.4-pro -> gpt-5.4
 	// 只匹配纯数字版本号格式 gpt-X 或 gpt-X.Y，不匹配 gpt-4o 这种带字母后缀的
 	if matches := openAIModelBasePattern.FindStringSubmatch(model); len(matches) > 1 {
 		addVariant(matches[1])

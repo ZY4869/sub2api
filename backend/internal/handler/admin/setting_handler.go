@@ -141,6 +141,15 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.HideCcsImportButton != after.HideCcsImportButton {
 		changed = append(changed, "hide_ccs_import_button")
 	}
+	if before.AvailableChannelsEnabled != after.AvailableChannelsEnabled {
+		changed = append(changed, "available_channels_enabled")
+	}
+	if before.ChannelMonitorEnabled != after.ChannelMonitorEnabled {
+		changed = append(changed, "channel_monitor_enabled")
+	}
+	if before.ChannelMonitorDefaultIntervalSeconds != after.ChannelMonitorDefaultIntervalSeconds {
+		changed = append(changed, "channel_monitor_default_interval_seconds")
+	}
 	if before.PublicModelCatalogEnabled != after.PublicModelCatalogEnabled {
 		changed = append(changed, "public_model_catalog_enabled")
 	}
@@ -257,6 +266,9 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		DocURL:                               settings.DocURL,
 		HomeContent:                          settings.HomeContent,
 		HideCcsImportButton:                  settings.HideCcsImportButton,
+		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
+		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		PublicModelCatalogEnabled:            settings.PublicModelCatalogEnabled,
 		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,

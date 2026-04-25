@@ -154,3 +154,37 @@ func TestSettingService_MaintenanceMode_RoundTripsAcrossPublicSettings(t *testin
 	require.NoError(t, json.Unmarshal(raw, &payload))
 	require.Equal(t, true, payload["maintenance_mode_enabled"])
 }
+
+func TestSettingService_AvailableChannelsAndChannelMonitor_RoundTripsAcrossPublicSettings(t *testing.T) {
+	ctx := context.Background()
+	repo := &settingPublicRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	initial, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.False(t, initial.AvailableChannelsEnabled)
+	require.False(t, initial.ChannelMonitorEnabled)
+
+	err = svc.UpdateSettings(ctx, &SystemSettings{
+		AvailableChannelsEnabled: true,
+		ChannelMonitorEnabled:    true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.values[SettingKeyAvailableChannelsEnabled])
+	require.Equal(t, "true", repo.values[SettingKeyChannelMonitorEnabled])
+
+	updated, err := svc.GetPublicSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, updated.AvailableChannelsEnabled)
+	require.True(t, updated.ChannelMonitorEnabled)
+
+	injected, err := svc.GetPublicSettingsForInjection(ctx)
+	require.NoError(t, err)
+	raw, err := json.Marshal(injected)
+	require.NoError(t, err)
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(raw, &payload))
+	require.Equal(t, true, payload["available_channels_enabled"])
+	require.Equal(t, true, payload["channel_monitor_enabled"])
+}

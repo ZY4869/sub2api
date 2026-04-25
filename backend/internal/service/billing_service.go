@@ -231,17 +231,6 @@ func (s *BillingService) initFallbackPricing() {
 		SupportsCacheBreakdown:     false,
 	}
 
-	// OpenAI GPT-5.1 local fallback to avoid billing failures when dynamic pricing is unavailable.
-	s.fallbackPrices["gpt-5.1"] = &ModelPricing{
-		InputPricePerToken:             1.25e-6, // $1.25 per MTok
-		InputPricePerTokenPriority:     2.5e-6,  // $2.5 per MTok
-		OutputPricePerToken:            10e-6,   // $10 per MTok
-		OutputPricePerTokenPriority:    20e-6,   // $20 per MTok
-		CacheCreationPricePerToken:     1.25e-6, // $1.25 per MTok
-		CacheReadPricePerToken:         0.125e-6,
-		CacheReadPricePerTokenPriority: 0.25e-6,
-		SupportsCacheBreakdown:         false,
-	}
 	// OpenAI GPT-5.4 business baseline pricing.
 	s.fallbackPrices["gpt-5.4"] = &ModelPricing{
 		InputPricePerToken:             2.5e-6,  // $2.5 per MTok
@@ -292,28 +281,8 @@ func (s *BillingService) initFallbackPricing() {
 		CacheReadPricePerTokenPriority: 0.35e-6,
 		SupportsCacheBreakdown:         false,
 	}
-	// Codex family fallback pricing uses GPT-5.1 Codex as the baseline.
-	s.fallbackPrices["gpt-5.1-codex"] = &ModelPricing{
-		InputPricePerToken:             1.5e-6, // $1.5 per MTok
-		InputPricePerTokenPriority:     3e-6,   // $3 per MTok
-		OutputPricePerToken:            12e-6,  // $12 per MTok
-		OutputPricePerTokenPriority:    24e-6,  // $24 per MTok
-		CacheCreationPricePerToken:     1.5e-6, // $1.5 per MTok
-		CacheReadPricePerToken:         0.15e-6,
-		CacheReadPricePerTokenPriority: 0.3e-6,
-		SupportsCacheBreakdown:         false,
-	}
-	s.fallbackPrices["gpt-5.2-codex"] = &ModelPricing{
-		InputPricePerToken:             1.75e-6,
-		InputPricePerTokenPriority:     3.5e-6,
-		OutputPricePerToken:            14e-6,
-		OutputPricePerTokenPriority:    28e-6,
-		CacheCreationPricePerToken:     1.75e-6,
-		CacheReadPricePerToken:         0.175e-6,
-		CacheReadPricePerTokenPriority: 0.35e-6,
-		SupportsCacheBreakdown:         false,
-	}
-	s.fallbackPrices["gpt-5.3-codex"] = s.fallbackPrices["gpt-5.1-codex"]
+	// Codex Spark fallback pricing uses GPT-5.4 as the baseline (billing-only fallback).
+	s.fallbackPrices["gpt-5.3-codex-spark"] = s.fallbackPrices["gpt-5.4"]
 }
 
 // getFallbackPricing returns fallback pricing by model family.
@@ -365,16 +334,12 @@ func (s *BillingService) getFallbackPricing(model string) *ModelPricing {
 			return s.fallbackPrices["gpt-5.4-nano"]
 		case strings.HasPrefix(normalized, "gpt-5.4"):
 			return s.fallbackPrices["gpt-5.4"]
-		case strings.HasPrefix(normalized, "gpt-5.2-codex"):
-			return s.fallbackPrices["gpt-5.2-codex"]
+		case strings.HasPrefix(normalized, "gpt-5.3-codex-spark"):
+			return s.fallbackPrices["gpt-5.3-codex-spark"]
 		case strings.HasPrefix(normalized, "gpt-5.2"):
 			return s.fallbackPrices["gpt-5.2"]
-		case strings.HasPrefix(normalized, "gpt-5.3-codex"):
-			return s.fallbackPrices["gpt-5.3-codex"]
-		case normalized == "gpt-5.1-codex", normalized == "gpt-5.1-codex-max", normalized == "gpt-5.1-codex-mini", normalized == "codex-mini-latest":
-			return s.fallbackPrices["gpt-5.1-codex"]
-		case strings.HasPrefix(normalized, "gpt-5.1"), strings.HasPrefix(normalized, "gpt-5-pro"):
-			return s.fallbackPrices["gpt-5.1"]
+		case strings.HasPrefix(normalized, "gpt-5-pro"):
+			return s.fallbackPrices["gpt-5.4"]
 		}
 	}
 

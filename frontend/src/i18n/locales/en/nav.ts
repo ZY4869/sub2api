@@ -6,6 +6,8 @@ export default {
     billing: 'Billing Center',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
+    availableChannels: 'Available Channels',
+    channelStatus: 'Channel Status',
     usage: 'Usage',
     redeem: 'Redeem',
     profile: 'Profile',

@@ -154,6 +154,10 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				h.anthropicStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel", streamStarted)
 				return
 			}
+			if errors.Is(err, service.ErrModelHardRemoved) {
+				h.anthropicStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", "Requested model is no longer available", streamStarted)
+				return
+			}
 			h.anthropicStreamingAwareError(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing", streamStarted)
 			return
 		}

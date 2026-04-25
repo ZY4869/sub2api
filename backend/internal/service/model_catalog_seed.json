@@ -10,7 +10,6 @@
   {"model":"gpt-image-2","display_name":"GPT Image 2","provider":"openai","mode":"image","canonical_model_id":"gpt-image-2","pricing_lookup_model_id":"gpt-image-2"},
   {"model":"gpt-5-mini","display_name":"GPT-5 Mini","provider":"openai","mode":"chat","canonical_model_id":"gpt-5-mini","pricing_lookup_model_id":"gpt-5-mini"},
   {"model":"gpt-5-nano","display_name":"GPT-5 Nano","provider":"openai","mode":"chat","canonical_model_id":"gpt-5-nano","pricing_lookup_model_id":"gpt-5-nano"},
-  {"model":"gpt-5-codex","display_name":"GPT-5 Codex","provider":"openai","mode":"chat","canonical_model_id":"gpt-5-codex","pricing_lookup_model_id":"gpt-5-codex"},
   {"model":"gemini-2.5-pro","display_name":"Gemini 2.5 Pro","provider":"gemini","mode":"chat","canonical_model_id":"gemini-2.5-pro","pricing_lookup_model_id":"gemini-2.5-pro"},
   {"model":"gemini-2.5-flash","display_name":"Gemini 2.5 Flash","provider":"gemini","mode":"chat","canonical_model_id":"gemini-2.5-flash","pricing_lookup_model_id":"gemini-2.5-flash"},
   {"model":"gemini-2.5-flash-lite","display_name":"Gemini 2.5 Flash Lite","provider":"gemini","mode":"chat","canonical_model_id":"gemini-2.5-flash-lite","pricing_lookup_model_id":"gemini-2.5-flash-lite"},

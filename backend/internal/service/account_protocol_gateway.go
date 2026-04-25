@@ -118,7 +118,7 @@ var gatewayClientProfileDescriptors = map[string]GatewayClientProfileDescriptor{
 		ID:                   GatewayClientProfileCodex,
 		DisplayName:          "Codex",
 		DebugTag:             "codex",
-		DefaultTestModel:     "gpt-5.1-codex",
+		DefaultTestModel:     "gpt-5.3-codex-spark",
 		RequestHeaderProfile: "codex",
 		RequestBodyProfile:   "codex",
 		CompatibleProtocols:  []string{PlatformOpenAI},

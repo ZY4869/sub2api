@@ -278,6 +278,9 @@ func isRequestedModelSupportedByAccount(ctx context.Context, registry *ModelRegi
 	if strings.TrimSpace(requestedModel) == "" {
 		return true
 	}
+	if isHardRemovedModelID(requestedModel) {
+		return false
+	}
 	if account.Type == AccountTypeBedrock {
 		_, ok := ResolveBedrockModelID(account, requestedModel)
 		return ok

@@ -164,15 +164,5 @@ func openAIOAuthTestModelLookupIDs(ctx context.Context, modelID string, registry
 }
 
 func isChatGPTOpenAIUnsupportedTestModelID(modelID string) bool {
-	switch NormalizeModelCatalogModelID(modelID) {
-	case "gpt-5.1-codex-mini":
-		return true
-	}
-
-	switch strings.TrimSpace(strings.ToLower(modelID)) {
-	case "gpt-5.1-codex-mini", "codex-mini-latest", "gpt-5-codex-mini":
-		return true
-	default:
-		return false
-	}
+	return isHardRemovedModelID(modelID)
 }

@@ -6,6 +6,8 @@ export default {
     billing: '计费中心',
     announcements: '公告',
     apiKeys: 'API 密钥',
+    availableChannels: '可用渠道',
+    channelStatus: '渠道状态',
     usage: '使用记录',
     redeem: '兑换',
     profile: '个人资料',

@@ -54,6 +54,17 @@ func RegisterUserRoutes(
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
 		}
 
+		channels := authenticated.Group("/channels")
+		{
+			channels.GET("/available", h.AvailableChannel.List)
+		}
+
+		channelMonitors := authenticated.Group("/channel-monitors")
+		{
+			channelMonitors.GET("", h.ChannelMonitor.ListUserView)
+			channelMonitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
+		}
+
 		usage := authenticated.Group("/usage")
 		{
 			usage.GET("", h.Usage.List)

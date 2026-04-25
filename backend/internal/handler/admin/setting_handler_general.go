@@ -24,61 +24,64 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 }
 
 type UpdateSettingsRequest struct {
-	RegistrationEnabled              bool                             `json:"registration_enabled"`
-	EmailVerifyEnabled               bool                             `json:"email_verify_enabled"`
-	RegistrationEmailSuffixWhitelist []string                         `json:"registration_email_suffix_whitelist"`
-	PromoCodeEnabled                 bool                             `json:"promo_code_enabled"`
-	PasswordResetEnabled             bool                             `json:"password_reset_enabled"`
-	FrontendURL                      string                           `json:"frontend_url"`
-	InvitationCodeEnabled            bool                             `json:"invitation_code_enabled"`
-	TotpEnabled                      bool                             `json:"totp_enabled"`
-	SMTPHost                         string                           `json:"smtp_host"`
-	SMTPPort                         int                              `json:"smtp_port"`
-	SMTPUsername                     string                           `json:"smtp_username"`
-	SMTPPassword                     string                           `json:"smtp_password"`
-	SMTPFrom                         string                           `json:"smtp_from_email"`
-	SMTPFromName                     string                           `json:"smtp_from_name"`
-	SMTPUseTLS                       bool                             `json:"smtp_use_tls"`
-	TelegramChatID                   string                           `json:"telegram_chat_id"`
-	TelegramBotToken                 string                           `json:"telegram_bot_token"`
-	TurnstileEnabled                 bool                             `json:"turnstile_enabled"`
-	TurnstileSiteKey                 string                           `json:"turnstile_site_key"`
-	TurnstileSecretKey               string                           `json:"turnstile_secret_key"`
-	LinuxDoConnectEnabled            bool                             `json:"linuxdo_connect_enabled"`
-	LinuxDoConnectClientID           string                           `json:"linuxdo_connect_client_id"`
-	LinuxDoConnectClientSecret       string                           `json:"linuxdo_connect_client_secret"`
-	LinuxDoConnectRedirectURL        string                           `json:"linuxdo_connect_redirect_url"`
-	SiteName                         string                           `json:"site_name"`
-	SiteLogo                         string                           `json:"site_logo"`
-	SiteSubtitle                     string                           `json:"site_subtitle"`
-	APIBaseURL                       string                           `json:"api_base_url"`
-	ContactInfo                      string                           `json:"contact_info"`
-	DocURL                           string                           `json:"doc_url"`
-	HomeContent                      string                           `json:"home_content"`
-	HideCcsImportButton              bool                             `json:"hide_ccs_import_button"`
-	PublicModelCatalogEnabled        bool                             `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled      *bool                            `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL          *string                          `json:"purchase_subscription_url"`
-	CustomMenuItems                  *[]dto.CustomMenuItem            `json:"custom_menu_items"`
-	DefaultConcurrency               int                              `json:"default_concurrency"`
-	DefaultBalance                   float64                          `json:"default_balance"`
-	DefaultSubscriptions             []dto.DefaultSubscriptionSetting `json:"default_subscriptions"`
-	EnableModelFallback              bool                             `json:"enable_model_fallback"`
-	FallbackModelAnthropic           string                           `json:"fallback_model_anthropic"`
-	FallbackModelOpenAI              string                           `json:"fallback_model_openai"`
-	FallbackModelGemini              string                           `json:"fallback_model_gemini"`
-	FallbackModelAntigravity         string                           `json:"fallback_model_antigravity"`
-	EnableIdentityPatch              bool                             `json:"enable_identity_patch"`
-	IdentityPatchPrompt              string                           `json:"identity_patch_prompt"`
-	OpsMonitoringEnabled             *bool                            `json:"ops_monitoring_enabled"`
-	OpsRealtimeMonitoringEnabled     *bool                            `json:"ops_realtime_monitoring_enabled"`
-	OpsQueryModeDefault              *string                          `json:"ops_query_mode_default"`
-	OpsMetricsIntervalSeconds        *int                             `json:"ops_metrics_interval_seconds"`
-	MinClaudeCodeVersion             string                           `json:"min_claude_code_version"`
-	MaxClaudeCodeVersion             string                           `json:"max_claude_code_version"`
-	AllowUngroupedKeyScheduling      bool                             `json:"allow_ungrouped_key_scheduling"`
-	BackendModeEnabled               bool                             `json:"backend_mode_enabled"`
-	MaintenanceModeEnabled           bool                             `json:"maintenance_mode_enabled"`
+	RegistrationEnabled                  bool                             `json:"registration_enabled"`
+	EmailVerifyEnabled                   bool                             `json:"email_verify_enabled"`
+	RegistrationEmailSuffixWhitelist     []string                         `json:"registration_email_suffix_whitelist"`
+	PromoCodeEnabled                     bool                             `json:"promo_code_enabled"`
+	PasswordResetEnabled                 bool                             `json:"password_reset_enabled"`
+	FrontendURL                          string                           `json:"frontend_url"`
+	InvitationCodeEnabled                bool                             `json:"invitation_code_enabled"`
+	TotpEnabled                          bool                             `json:"totp_enabled"`
+	SMTPHost                             string                           `json:"smtp_host"`
+	SMTPPort                             int                              `json:"smtp_port"`
+	SMTPUsername                         string                           `json:"smtp_username"`
+	SMTPPassword                         string                           `json:"smtp_password"`
+	SMTPFrom                             string                           `json:"smtp_from_email"`
+	SMTPFromName                         string                           `json:"smtp_from_name"`
+	SMTPUseTLS                           bool                             `json:"smtp_use_tls"`
+	TelegramChatID                       string                           `json:"telegram_chat_id"`
+	TelegramBotToken                     string                           `json:"telegram_bot_token"`
+	TurnstileEnabled                     bool                             `json:"turnstile_enabled"`
+	TurnstileSiteKey                     string                           `json:"turnstile_site_key"`
+	TurnstileSecretKey                   string                           `json:"turnstile_secret_key"`
+	LinuxDoConnectEnabled                bool                             `json:"linuxdo_connect_enabled"`
+	LinuxDoConnectClientID               string                           `json:"linuxdo_connect_client_id"`
+	LinuxDoConnectClientSecret           string                           `json:"linuxdo_connect_client_secret"`
+	LinuxDoConnectRedirectURL            string                           `json:"linuxdo_connect_redirect_url"`
+	SiteName                             string                           `json:"site_name"`
+	SiteLogo                             string                           `json:"site_logo"`
+	SiteSubtitle                         string                           `json:"site_subtitle"`
+	APIBaseURL                           string                           `json:"api_base_url"`
+	ContactInfo                          string                           `json:"contact_info"`
+	DocURL                               string                           `json:"doc_url"`
+	HomeContent                          string                           `json:"home_content"`
+	HideCcsImportButton                  bool                             `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled             *bool                            `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                *bool                            `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds *int                             `json:"channel_monitor_default_interval_seconds"`
+	PublicModelCatalogEnabled            bool                             `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled          *bool                            `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL              *string                          `json:"purchase_subscription_url"`
+	CustomMenuItems                      *[]dto.CustomMenuItem            `json:"custom_menu_items"`
+	DefaultConcurrency                   int                              `json:"default_concurrency"`
+	DefaultBalance                       float64                          `json:"default_balance"`
+	DefaultSubscriptions                 []dto.DefaultSubscriptionSetting `json:"default_subscriptions"`
+	EnableModelFallback                  bool                             `json:"enable_model_fallback"`
+	FallbackModelAnthropic               string                           `json:"fallback_model_anthropic"`
+	FallbackModelOpenAI                  string                           `json:"fallback_model_openai"`
+	FallbackModelGemini                  string                           `json:"fallback_model_gemini"`
+	FallbackModelAntigravity             string                           `json:"fallback_model_antigravity"`
+	EnableIdentityPatch                  bool                             `json:"enable_identity_patch"`
+	IdentityPatchPrompt                  string                           `json:"identity_patch_prompt"`
+	OpsMonitoringEnabled                 *bool                            `json:"ops_monitoring_enabled"`
+	OpsRealtimeMonitoringEnabled         *bool                            `json:"ops_realtime_monitoring_enabled"`
+	OpsQueryModeDefault                  *string                          `json:"ops_query_mode_default"`
+	OpsMetricsIntervalSeconds            *int                             `json:"ops_metrics_interval_seconds"`
+	MinClaudeCodeVersion                 string                           `json:"min_claude_code_version"`
+	MaxClaudeCodeVersion                 string                           `json:"max_claude_code_version"`
+	AllowUngroupedKeyScheduling          bool                             `json:"allow_ungrouped_key_scheduling"`
+	BackendModeEnabled                   bool                             `json:"backend_mode_enabled"`
+	MaintenanceModeEnabled               bool                             `json:"maintenance_mode_enabled"`
 }
 
 func (h *SettingHandler) UpdateSettings(c *gin.Context) {
@@ -266,6 +269,27 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 		req.OpsMetricsIntervalSeconds = &v
 	}
+	availableChannelsEnabled := previousSettings.AvailableChannelsEnabled
+	if req.AvailableChannelsEnabled != nil {
+		availableChannelsEnabled = *req.AvailableChannelsEnabled
+	}
+	channelMonitorEnabled := previousSettings.ChannelMonitorEnabled
+	if req.ChannelMonitorEnabled != nil {
+		channelMonitorEnabled = *req.ChannelMonitorEnabled
+	}
+	channelMonitorDefaultIntervalSeconds := previousSettings.ChannelMonitorDefaultIntervalSeconds
+	if req.ChannelMonitorDefaultIntervalSeconds != nil {
+		channelMonitorDefaultIntervalSeconds = *req.ChannelMonitorDefaultIntervalSeconds
+	}
+	if channelMonitorDefaultIntervalSeconds <= 0 {
+		channelMonitorDefaultIntervalSeconds = 60
+	}
+	if channelMonitorDefaultIntervalSeconds < 15 {
+		channelMonitorDefaultIntervalSeconds = 15
+	}
+	if channelMonitorDefaultIntervalSeconds > 3600 {
+		channelMonitorDefaultIntervalSeconds = 3600
+	}
 	defaultSubscriptions := make([]service.DefaultSubscriptionSetting, 0, len(req.DefaultSubscriptions))
 	for _, sub := range req.DefaultSubscriptions {
 		defaultSubscriptions = append(defaultSubscriptions, service.DefaultSubscriptionSetting{GroupID: sub.GroupID, ValidityDays: sub.ValidityDays})
@@ -288,7 +312,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
-	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
+	settings := &service.SystemSettings{RegistrationEnabled: req.RegistrationEnabled, EmailVerifyEnabled: req.EmailVerifyEnabled, RegistrationEmailSuffixWhitelist: req.RegistrationEmailSuffixWhitelist, PromoCodeEnabled: req.PromoCodeEnabled, PasswordResetEnabled: req.PasswordResetEnabled, FrontendURL: req.FrontendURL, InvitationCodeEnabled: req.InvitationCodeEnabled, TotpEnabled: req.TotpEnabled, SMTPHost: req.SMTPHost, SMTPPort: req.SMTPPort, SMTPUsername: req.SMTPUsername, SMTPPassword: req.SMTPPassword, SMTPFrom: req.SMTPFrom, SMTPFromName: req.SMTPFromName, SMTPUseTLS: req.SMTPUseTLS, TelegramChatID: req.TelegramChatID, TelegramBotToken: req.TelegramBotToken, TurnstileEnabled: req.TurnstileEnabled, TurnstileSiteKey: req.TurnstileSiteKey, TurnstileSecretKey: req.TurnstileSecretKey, LinuxDoConnectEnabled: req.LinuxDoConnectEnabled, LinuxDoConnectClientID: req.LinuxDoConnectClientID, LinuxDoConnectClientSecret: req.LinuxDoConnectClientSecret, LinuxDoConnectRedirectURL: req.LinuxDoConnectRedirectURL, SiteName: req.SiteName, SiteLogo: req.SiteLogo, SiteSubtitle: req.SiteSubtitle, APIBaseURL: req.APIBaseURL, ContactInfo: req.ContactInfo, DocURL: req.DocURL, HomeContent: req.HomeContent, HideCcsImportButton: req.HideCcsImportButton, AvailableChannelsEnabled: availableChannelsEnabled, ChannelMonitorEnabled: channelMonitorEnabled, ChannelMonitorDefaultIntervalSeconds: channelMonitorDefaultIntervalSeconds, PublicModelCatalogEnabled: req.PublicModelCatalogEnabled, PurchaseSubscriptionEnabled: purchaseEnabled, PurchaseSubscriptionURL: purchaseURL, CustomMenuItems: customMenuJSON, DefaultConcurrency: req.DefaultConcurrency, DefaultBalance: req.DefaultBalance, DefaultSubscriptions: defaultSubscriptions, EnableModelFallback: req.EnableModelFallback, FallbackModelAnthropic: req.FallbackModelAnthropic, FallbackModelOpenAI: req.FallbackModelOpenAI, FallbackModelGemini: req.FallbackModelGemini, FallbackModelAntigravity: req.FallbackModelAntigravity, EnableIdentityPatch: req.EnableIdentityPatch, IdentityPatchPrompt: req.IdentityPatchPrompt, MinClaudeCodeVersion: req.MinClaudeCodeVersion, MaxClaudeCodeVersion: req.MaxClaudeCodeVersion, AllowUngroupedKeyScheduling: req.AllowUngroupedKeyScheduling, BackendModeEnabled: req.BackendModeEnabled, MaintenanceModeEnabled: req.MaintenanceModeEnabled, OpsMonitoringEnabled: func() bool {
 		if req.OpsMonitoringEnabled != nil {
 			return *req.OpsMonitoringEnabled
 		}

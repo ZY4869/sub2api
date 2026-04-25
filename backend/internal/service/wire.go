@@ -720,6 +720,8 @@ var ProviderSet = wire.NewSet(
 	ProvideAPIKeyAuthCacheInvalidator,
 	NewGroupService,
 	NewChannelService,
+	NewChannelMonitorService,
+	NewChannelMonitorTemplateService,
 	NewAccountService,
 	NewProxyService,
 	NewRedeemService,
@@ -816,5 +818,6 @@ var ProviderSet = wire.NewSet(
 	ProvideScheduledTestService,
 	NewTelegramNotifierService,
 	ProvideScheduledTestRunnerService,
+	ProvideChannelMonitorRunnerService,
 	NewGroupCapacityService,
 )

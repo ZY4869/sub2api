@@ -105,14 +105,6 @@
   },
   {
     "platform": "openai",
-    "label": "GPT-5.1",
-    "from": "gpt-5.1",
-    "to": "gpt-5.1",
-    "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
-    "order": 13
-  },
-  {
-    "platform": "openai",
     "label": "GPT-5.2",
     "from": "gpt-5.2",
     "to": "gpt-5.2",
@@ -126,14 +118,6 @@
     "to": "gpt-5.4",
     "color": "bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400",
     "order": 15
-  },
-  {
-    "platform": "openai",
-    "label": "GPT-5.1 Codex",
-    "from": "gpt-5.1-codex",
-    "to": "gpt-5.1-codex",
-    "color": "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400",
-    "order": 16
   },
   {
     "platform": "openai",

@@ -26,6 +26,7 @@ func RegisterAdminRoutes(
 		// 分组管理
 		registerGroupRoutes(admin, h)
 		registerChannelRoutes(admin, h)
+		registerChannelMonitorRoutes(admin, h)
 
 		// 账号管理
 		registerAccountRoutes(admin, h)
@@ -332,6 +333,30 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)
 		channels.DELETE("/:id", h.Admin.Channel.Delete)
+	}
+}
+
+func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	monitors := admin.Group("/channel-monitors")
+	{
+		monitors.GET("", h.Admin.ChannelMonitor.List)
+		monitors.GET("/:id", h.Admin.ChannelMonitor.GetByID)
+		monitors.POST("", h.Admin.ChannelMonitor.Create)
+		monitors.PUT("/:id", h.Admin.ChannelMonitor.Update)
+		monitors.DELETE("/:id", h.Admin.ChannelMonitor.Delete)
+		monitors.POST("/:id/run", h.Admin.ChannelMonitor.Run)
+		monitors.GET("/:id/histories", h.Admin.ChannelMonitor.ListHistories)
+	}
+
+	templates := admin.Group("/channel-monitor-templates")
+	{
+		templates.GET("", h.Admin.ChannelMonitorTemplate.List)
+		templates.GET("/:id", h.Admin.ChannelMonitorTemplate.GetByID)
+		templates.POST("", h.Admin.ChannelMonitorTemplate.Create)
+		templates.PUT("/:id", h.Admin.ChannelMonitorTemplate.Update)
+		templates.DELETE("/:id", h.Admin.ChannelMonitorTemplate.Delete)
+		templates.POST("/:id/apply", h.Admin.ChannelMonitorTemplate.ApplyToMonitor)
+		templates.GET("/:id/associated-monitors", h.Admin.ChannelMonitorTemplate.ListAssociatedMonitors)
 	}
 }
 

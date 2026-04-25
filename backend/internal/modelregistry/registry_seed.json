@@ -3598,34 +3598,6 @@
     ]
   },
   {
-    "id": "gpt-5-codex",
-    "display_name": "GPT-5-codex",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5-codex"
-    ],
-    "aliases": [
-      "gpt-5.1-codex",
-      "gpt-5.2-codex",
-      "gpt-5.3-codex"
-    ],
-    "pricing_lookup_ids": [
-      "gpt-5-codex"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 28,
-    "exposed_in": [
-      "use_key",
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-5.3-codex-spark",
     "display_name": "GPT-5.3 Codex Spark",
     "provider": "openai",
@@ -3789,154 +3761,6 @@
     ]
   },
   {
-    "id": "gpt-5.1",
-    "display_name": "GPT-5.1",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.1"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.1"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 36,
-    "exposed_in": [
-      "runtime",
-      "test",
-      "whitelist"
-    ]
-  },
-  {
-    "id": "gpt-5.1-2025-11-13",
-    "display_name": "GPT-5.1-2025-11-13",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.1-2025-11-13"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.1-2025-11-13"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 37,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "gpt-5.1-chat-latest",
-    "display_name": "GPT-5.1-chat-latest",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.1-chat-latest"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.1-chat-latest"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 38,
-    "exposed_in": [
-      "whitelist"
-    ]
-  },
-  {
-    "id": "gpt-5.1-codex",
-    "display_name": "GPT-5.1 Codex",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.1-codex"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.1-codex"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 39,
-    "exposed_in": [
-      "runtime",
-      "test",
-      "whitelist"
-    ],
-    "status": "deprecated",
-    "replaced_by": "gpt-5-codex"
-  },
-  {
-    "id": "gpt-5.1-codex-max",
-    "display_name": "GPT-5.1 Codex Max",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.1-codex-max"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.1-codex-max"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 40,
-    "exposed_in": [
-      "runtime",
-      "test",
-      "whitelist"
-    ]
-  },
-  {
-    "id": "gpt-5.1-codex-mini",
-    "display_name": "GPT-5.1 Codex Mini",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.1-codex-mini"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.1-codex-mini"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 41,
-    "exposed_in": [
-      "runtime",
-      "test",
-      "whitelist"
-    ]
-  },
-  {
     "id": "gpt-5.2",
     "display_name": "GPT-5.2",
     "provider": "openai",
@@ -4006,33 +3830,6 @@
     "exposed_in": [
       "whitelist"
     ]
-  },
-  {
-    "id": "gpt-5.2-codex",
-    "display_name": "GPT-5.2 Codex",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.2-codex"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.2-codex"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 45,
-    "exposed_in": [
-      "runtime",
-      "test",
-      "whitelist"
-    ],
-    "status": "deprecated",
-    "replaced_by": "gpt-5-codex"
   },
   {
     "id": "gpt-5.2-pro",
@@ -4293,33 +4090,6 @@
       "whitelist",
       "use_key"
     ]
-  },
-  {
-    "id": "gpt-5.3-codex",
-    "display_name": "GPT-5.3 Codex",
-    "provider": "openai",
-    "platforms": [
-      "openai"
-    ],
-    "protocol_ids": [
-      "gpt-5.3-codex"
-    ],
-    "aliases": [],
-    "pricing_lookup_ids": [
-      "gpt-5.3-codex"
-    ],
-    "modalities": [
-      "text"
-    ],
-    "capabilities": [],
-    "ui_priority": 50,
-    "exposed_in": [
-      "runtime",
-      "test",
-      "whitelist"
-    ],
-    "status": "deprecated",
-    "replaced_by": "gpt-5-codex"
   },
   {
     "id": "chatgpt-4o-latest",

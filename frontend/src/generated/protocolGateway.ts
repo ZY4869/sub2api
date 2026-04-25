@@ -11,7 +11,7 @@ export interface GeneratedProtocolGatewayDescriptor {
   targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
-export const generatedProtocolGatewayBuiltAt = "2026-04-24T13:31:56Z"
+export const generatedProtocolGatewayBuiltAt = "2026-04-25T12:20:24Z"
 
 export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = {
   "anthropic": {

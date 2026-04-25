@@ -105,12 +105,12 @@ func TestResolveToPricingIDUsesIntendedSharedOrExactTargets(t *testing.T) {
 }
 
 func TestExplainSeedResolutionReportsDeprecatedReplacement(t *testing.T) {
-	resolution, ok := ExplainSeedResolution("gpt-5.3-codex")
+	resolution, ok := ExplainSeedResolution("claude-haiku-4-5-20251001")
 	require.True(t, ok)
 	require.NotNil(t, resolution)
-	require.Equal(t, "gpt-5.3-codex", resolution.CanonicalID)
-	require.Equal(t, "gpt-5-codex", resolution.EffectiveID)
+	require.Equal(t, "claude-haiku-4-5-20251001", resolution.CanonicalID)
+	require.Equal(t, "claude-haiku-4.5", resolution.EffectiveID)
 	require.True(t, resolution.Deprecated)
 	require.NotNil(t, resolution.ReplacementEntry)
-	require.Equal(t, "gpt-5-codex", resolution.ReplacementEntry.ID)
+	require.Equal(t, "claude-haiku-4.5", resolution.ReplacementEntry.ID)
 }

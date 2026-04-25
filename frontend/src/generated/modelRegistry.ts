@@ -34,11 +34,11 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-24T13:31:56Z"
+export const generatedModelRegistryBuiltAt = "2026-04-25T12:20:24Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"1678b2e840a4d4a3782a768ad7a70c93727647b822d87e5e28f9d898edfe9d1b\"",
-  "updated_at": "2026-04-24T13:31:56Z",
+  "etag": "W/\"c7069119f6706cd4937c8a26a88d78868ea41ba1a9c9183f0053d2b39b88ec6d\"",
+  "updated_at": "2026-04-25T12:20:24Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
@@ -5063,34 +5063,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "gpt-5-codex",
-      "display_name": "GPT-5-codex",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5-codex"
-      ],
-      "aliases": [
-        "gpt-5.1-codex",
-        "gpt-5.2-codex",
-        "gpt-5.3-codex"
-      ],
-      "pricing_lookup_ids": [
-        "gpt-5-codex"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 28,
-      "exposed_in": [
-        "use_key",
-        "whitelist"
-      ]
-    },
-    {
       "id": "gpt-5.3-codex-spark",
       "display_name": "GPT-5.3 Codex Spark",
       "provider": "openai",
@@ -5416,31 +5388,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "replaced_by": "grok-auto"
     },
     {
-      "id": "gpt-5.1",
-      "display_name": "GPT-5.1",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.1"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.1"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 36,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
       "id": "grok-2-vision",
       "display_name": "Grok-2-vision",
       "provider": "grok",
@@ -5469,29 +5416,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "status": "deprecated",
       "replaced_by": "grok-auto"
-    },
-    {
-      "id": "gpt-5.1-2025-11-13",
-      "display_name": "GPT-5.1-2025-11-13",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.1-2025-11-13"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.1-2025-11-13"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 37,
-      "exposed_in": [
-        "whitelist"
-      ]
     },
     {
       "id": "grok-imagine-image",
@@ -5524,29 +5448,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "replaced_by": "grok-imagine-1.0"
     },
     {
-      "id": "gpt-5.1-chat-latest",
-      "display_name": "GPT-5.1-chat-latest",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.1-chat-latest"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.1-chat-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 38,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "grok-imagine-video",
       "display_name": "Grok Imagine Video",
       "provider": "grok",
@@ -5575,33 +5476,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "status": "deprecated",
       "replaced_by": "grok-imagine-1.0-video"
-    },
-    {
-      "id": "gpt-5.1-codex",
-      "display_name": "GPT-5.1 Codex",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.1-codex"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.1-codex"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 39,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ],
-      "status": "deprecated",
-      "replaced_by": "gpt-5-codex"
     },
     {
       "id": "grok-2-image",
@@ -5634,31 +5508,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "replaced_by": "grok-imagine-1.0"
     },
     {
-      "id": "gpt-5.1-codex-max",
-      "display_name": "GPT-5.1 Codex Max",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.1-codex-max"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.1-codex-max"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 40,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
-    },
-    {
       "id": "grok-beta",
       "display_name": "Grok-beta",
       "provider": "grok",
@@ -5684,31 +5533,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "status": "deprecated",
       "replaced_by": "grok-auto"
-    },
-    {
-      "id": "gpt-5.1-codex-mini",
-      "display_name": "GPT-5.1 Codex Mini",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.1-codex-mini"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.1-codex-mini"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 41,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ]
     },
     {
       "id": "grok-vision-beta",
@@ -5810,33 +5634,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "whitelist"
       ]
-    },
-    {
-      "id": "gpt-5.2-codex",
-      "display_name": "GPT-5.2 Codex",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.2-codex"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.2-codex"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 45,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ],
-      "status": "deprecated",
-      "replaced_by": "gpt-5-codex"
     },
     {
       "id": "gpt-5.2-pro",
@@ -5990,33 +5787,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "whitelist",
         "use_key"
       ]
-    },
-    {
-      "id": "gpt-5.3-codex",
-      "display_name": "GPT-5.3 Codex",
-      "provider": "openai",
-      "platforms": [
-        "openai"
-      ],
-      "protocol_ids": [
-        "gpt-5.3-codex"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "gpt-5.3-codex"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 50,
-      "exposed_in": [
-        "runtime",
-        "test",
-        "whitelist"
-      ],
-      "status": "deprecated",
-      "replaced_by": "gpt-5-codex"
     },
     {
       "id": "gpt-5.4-nano",
@@ -6651,14 +6421,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
     },
     {
       "platform": "openai",
-      "label": "GPT-5.1",
-      "from": "gpt-5.1",
-      "to": "gpt-5.1",
-      "color": "bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400",
-      "order": 13
-    },
-    {
-      "platform": "openai",
       "label": "GPT-5.2",
       "from": "gpt-5.2",
       "to": "gpt-5.2",
@@ -6672,14 +6434,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "to": "gpt-5.4",
       "color": "bg-rose-100 text-rose-700 hover:bg-rose-200 dark:bg-rose-900/30 dark:text-rose-400",
       "order": 15
-    },
-    {
-      "platform": "openai",
-      "label": "GPT-5.1 Codex",
-      "from": "gpt-5.1-codex",
-      "to": "gpt-5.1-codex",
-      "color": "bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400",
-      "order": 16
     },
     {
       "platform": "openai",

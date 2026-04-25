@@ -49,6 +49,8 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		DocURL:                           settings.DocURL,
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,
+		AvailableChannelsEnabled:         settings.AvailableChannelsEnabled,
+		ChannelMonitorEnabled:            settings.ChannelMonitorEnabled,
 		PublicModelCatalogEnabled:        settings.PublicModelCatalogEnabled,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,

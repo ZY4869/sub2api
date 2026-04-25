@@ -15,6 +15,8 @@ export { usageAPI } from './usage'
 export { userAPI } from './user'
 export { redeemAPI, type RedeemHistoryItem } from './redeem'
 export { userGroupsAPI } from './groups'
+export { channelsAPI } from './channels'
+export { channelMonitorsAPI } from './channelMonitors'
 export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 

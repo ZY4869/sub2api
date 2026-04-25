@@ -74,6 +74,38 @@ LIMIT $`+fmt.Sprint(len(queryArgs)-1)+` OFFSET $`+fmt.Sprint(len(queryArgs)),
 	}, nil
 }
 
+func (r *channelRepository) ListAll(ctx context.Context) ([]*model.Channel, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT
+	c.id,
+	c.name,
+	COALESCE(c.description, ''),
+	c.status,
+	c.restrict_models,
+	c.billing_model_source,
+	c.model_mapping,
+	c.created_at,
+	c.updated_at
+FROM channels c
+ORDER BY c.created_at DESC, c.id DESC
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	channels, err := scanChannelRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.hydrateChannels(ctx, channels); err != nil {
+		return nil, err
+	}
+	return channels, nil
+}
+
 func (r *channelRepository) GetByID(ctx context.Context, id int64) (*model.Channel, error) {
 	row := r.db.QueryRowContext(ctx, `
 SELECT

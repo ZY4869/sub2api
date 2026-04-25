@@ -160,6 +160,30 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/available-channels',
+    name: 'AvailableChannels',
+    component: () => import('@/views/user/AvailableChannelsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Available Channels',
+      titleKey: 'availableChannels.title',
+      descriptionKey: 'availableChannels.description'
+    }
+  },
+  {
+    path: '/channel-status',
+    name: 'ChannelStatus',
+    component: () => import('@/views/user/ChannelStatusView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Channel Status',
+      titleKey: 'channelStatus.title',
+      descriptionKey: 'channelStatus.description'
+    }
+  },
+  {
     path: '/usage',
     name: 'Usage',
     component: () => import('@/views/user/UsageView.vue'),
@@ -452,6 +476,18 @@ const routes: RouteRecordRaw[] = [
       title: 'Channel Management',
       titleKey: 'admin.channels.title',
       descriptionKey: 'admin.channels.description'
+    }
+  },
+  {
+    path: '/admin/channel-monitors',
+    name: 'AdminChannelMonitors',
+    component: () => import('@/views/admin/ChannelMonitorsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Channel Monitors',
+      titleKey: 'admin.channelMonitors.title',
+      descriptionKey: 'admin.channelMonitors.description'
     }
   },
   {

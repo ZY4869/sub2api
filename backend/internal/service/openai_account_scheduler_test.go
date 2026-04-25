@@ -58,7 +58,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyRateLimite
 	snapshotService := &SchedulerSnapshotService{cache: snapshotCache}
 	svc := &OpenAIGatewayService{accountRepo: stubOpenAIAccountRepo{accounts: []Account{*freshSticky, *freshBackup}}, cache: cache, cfg: &config.Config{}, schedulerSnapshot: snapshotService, concurrencyService: NewConcurrencyService(stubConcurrencyCache{})}
 
-	selection, decision, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_rate_limited", "gpt-5.1", nil, OpenAIUpstreamTransportAny)
+	selection, decision, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_rate_limited", "gpt-5.4", nil, OpenAIUpstreamTransportAny)
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
@@ -78,7 +78,7 @@ func TestOpenAIGatewayService_SelectAccountForModelWithExclusions_SkipsFreshlyRa
 	snapshotService := &SchedulerSnapshotService{cache: snapshotCache}
 	svc := &OpenAIGatewayService{accountRepo: stubOpenAIAccountRepo{accounts: []Account{*freshPrimary, *freshSecondary}}, cfg: &config.Config{}, schedulerSnapshot: snapshotService}
 
-	account, err := svc.SelectAccountForModelWithExclusions(ctx, &groupID, "", "gpt-5.1", nil)
+	account, err := svc.SelectAccountForModelWithExclusions(ctx, &groupID, "", "gpt-5.4", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
 	require.Equal(t, int64(32002), account.ID)
@@ -106,7 +106,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyDBRuntimeR
 		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
 	}
 
-	selection, decision, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_db_runtime_recheck", "gpt-5.1", nil, OpenAIUpstreamTransportAny)
+	selection, decision, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_db_runtime_recheck", "gpt-5.4", nil, OpenAIUpstreamTransportAny)
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
@@ -133,7 +133,7 @@ func TestOpenAIGatewayService_SelectAccountForModelWithExclusions_DBRuntimeReche
 		schedulerSnapshot: snapshotService,
 	}
 
-	account, err := svc.SelectAccountForModelWithExclusions(ctx, &groupID, "", "gpt-5.1", nil)
+	account, err := svc.SelectAccountForModelWithExclusions(ctx, &groupID, "", "gpt-5.4", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
 	require.Equal(t, int64(34002), account.ID)
@@ -177,7 +177,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_PreviousResponseSticky(
 		&groupID,
 		"resp_prev_001",
 		"session_hash_001",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportAny,
 	)
@@ -222,7 +222,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionSticky(t *testin
 		&groupID,
 		"",
 		"session_hash_abc",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportAny,
 	)
@@ -299,7 +299,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsS
 		&groupID,
 		"",
 		"session_hash_sticky_busy",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportAny,
 	)
@@ -346,7 +346,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionSticky_ForceHTTP
 		&groupID,
 		"",
 		"session_hash_force_http",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportAny,
 	)
@@ -414,7 +414,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_RequiredWSV2_SkipsStick
 		&groupID,
 		"",
 		"session_hash_ws_only",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportResponsesWebsocketV2,
 	)
@@ -456,7 +456,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_RequiredWSV2_NoAvailabl
 		&groupID,
 		"",
 		"",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportResponsesWebsocketV2,
 	)
@@ -531,7 +531,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceTopKFallback
 		&groupID,
 		"",
 		"",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportAny,
 	)
@@ -598,7 +598,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalancePrefersLower
 		&groupID,
 		"",
 		"",
-		"gpt-5.1",
+		"gpt-5.4",
 		nil,
 		OpenAIUpstreamTransportAny,
 	)
@@ -635,7 +635,7 @@ func TestOpenAIGatewayService_OpenAIAccountSchedulerMetrics(t *testing.T) {
 		concurrencyService: NewConcurrencyService(stubConcurrencyCache{}),
 	}
 
-	selection, _, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_metrics", "gpt-5.1", nil, OpenAIUpstreamTransportAny)
+	selection, _, err := svc.SelectAccountWithScheduler(ctx, &groupID, "", "session_hash_metrics", "gpt-5.4", nil, OpenAIUpstreamTransportAny)
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	svc.ReportOpenAIAccountScheduleResult(account.ID, true, intPtrForTest(120))
@@ -817,7 +817,7 @@ func TestBuildOpenAIWeightedSelectionOrder_DeterministicBySessionSeed(t *testing
 	req := OpenAIAccountScheduleRequest{
 		GroupID:        int64PtrForTest(99),
 		SessionHash:    "session_seed_fixed",
-		RequestedModel: "gpt-5.1",
+		RequestedModel: "gpt-5.4",
 	}
 
 	first := buildOpenAIWeightedSelectionOrder(candidates, req)
@@ -976,7 +976,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceDistributesA
 			&groupID,
 			"",
 			sessionHash,
-			"gpt-5.1",
+			"gpt-5.4",
 			nil,
 			OpenAIUpstreamTransportAny,
 		)
@@ -996,7 +996,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceDistributesA
 
 func TestDeriveOpenAISelectionSeed_NoAffinityAddsEntropy(t *testing.T) {
 	req := OpenAIAccountScheduleRequest{
-		RequestedModel: "gpt-5.1",
+		RequestedModel: "gpt-5.4",
 	}
 	seed1 := deriveOpenAISelectionSeed(req)
 	time.Sleep(1 * time.Millisecond)

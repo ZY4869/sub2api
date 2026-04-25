@@ -15,7 +15,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillsMappedRequestsUsingRequestedModel(
 	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
 	usage := OpenAIUsage{InputTokens: 20, OutputTokens: 10}
 
-	expectedCost, err := svc.billingService.CalculateCost("gpt-5.1", UsageTokens{
+	expectedCost, err := svc.billingService.CalculateCost("gpt-5.4", UsageTokens{
 		InputTokens:  20,
 		OutputTokens: 10,
 	}, 1.1)
@@ -24,8 +24,8 @@ func TestOpenAIGatewayServiceRecordUsage_BillsMappedRequestsUsingRequestedModel(
 	err = svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
 			RequestID:     "resp_upstream_model_billing_fallback",
-			Model:         "gpt-5.1",
-			UpstreamModel: "gpt-5.1-codex",
+			Model:         "gpt-5.4",
+			UpstreamModel: "gpt-5.3-codex-spark",
 			Usage:         usage,
 			Duration:      time.Second,
 		},
@@ -36,7 +36,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillsMappedRequestsUsingRequestedModel(
 
 	require.NoError(t, err)
 	require.NotNil(t, usageRepo.lastLog)
-	require.Equal(t, "gpt-5.1", usageRepo.lastLog.Model)
+	require.Equal(t, "gpt-5.4", usageRepo.lastLog.Model)
 	require.Equal(t, expectedCost.ActualCost, usageRepo.lastLog.ActualCost)
 	require.Equal(t, expectedCost.TotalCost, usageRepo.lastLog.TotalCost)
 	require.Equal(t, expectedCost.ActualCost, userRepo.lastAmount)

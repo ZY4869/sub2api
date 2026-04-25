@@ -198,7 +198,7 @@ func TestOpenAIGatewayServiceRecordUsage_UsesUserSpecificGroupRate(t *testing.T)
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_user_group_rate",
 			Usage:     usage,
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey: &APIKey{
@@ -220,7 +220,7 @@ func TestOpenAIGatewayServiceRecordUsage_UsesUserSpecificGroupRate(t *testing.T)
 	require.Equal(t, 12, usageRepo.lastLog.InputTokens)
 	require.Equal(t, 3, usageRepo.lastLog.CacheReadTokens)
 
-	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, userRate)
+	expected := expectedOpenAICost(t, svc, "gpt-5.4", usage, userRate)
 	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
 	require.InDelta(t, expected.ActualCost, userRepo.lastAmount, 1e-12)
 	require.Equal(t, 1, userRepo.deductCalls)
@@ -240,7 +240,7 @@ func TestOpenAIGatewayServiceRecordUsage_IncludesEndpointMetadata(t *testing.T) 
 				InputTokens:  8,
 				OutputTokens: 2,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
@@ -276,7 +276,7 @@ func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateOnResolverEr
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_group_default_on_error",
 			Usage:     usage,
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey: &APIKey{
@@ -296,7 +296,7 @@ func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateOnResolverEr
 	require.NotNil(t, usageRepo.lastLog)
 	require.Equal(t, groupRate, usageRepo.lastLog.RateMultiplier)
 
-	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, groupRate)
+	expected := expectedOpenAICost(t, svc, "gpt-5.4", usage, groupRate)
 	require.InDelta(t, expected.ActualCost, userRepo.lastAmount, 1e-12)
 }
 
@@ -315,7 +315,7 @@ func TestOpenAIGatewayServiceRecordUsage_FallsBackToGroupDefaultRateWhenResolver
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_group_default_nil_resolver",
 			Usage:     usage,
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey: &APIKey{
@@ -349,7 +349,7 @@ func TestOpenAIGatewayServiceRecordUsage_DuplicateUsageLogSkipsBilling(t *testin
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 1004},
@@ -379,7 +379,7 @@ func TestOpenAIGatewayServiceRecordUsage_DuplicateBillingKeySkipsBillingWithRepo
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
@@ -410,7 +410,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillsWhenUsageLogCreateReturnsError(t *
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_usage_log_error",
 			Usage:     usage,
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey:  &APIKey{ID: 10041},
@@ -438,7 +438,7 @@ func TestOpenAIGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t 
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey: &APIKey{
@@ -472,7 +472,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_detached_billing_ctx",
 			Usage:     usage,
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey: &APIKey{
@@ -508,7 +508,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillingRepoUsesDetachedContext(t *testi
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 10046},
@@ -564,7 +564,7 @@ func TestOpenAIGatewayServiceRecordUsage_UsesFallbackRequestIDForBillingAndUsage
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 10047},
@@ -594,7 +594,7 @@ func TestOpenAIGatewayServiceRecordUsage_PrefersClientRequestIDOverUpstreamReque
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 10049},
@@ -623,7 +623,7 @@ func TestOpenAIGatewayServiceRecordUsage_GeneratesRequestIDWhenAllSourcesMissing
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 10050},
@@ -652,7 +652,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillingErrorSkipsUsageLogWrite(t *testi
 				InputTokens:  8,
 				OutputTokens: 4,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 10048},
@@ -677,7 +677,7 @@ func TestOpenAIGatewayServiceRecordUsage_UpdatesAPIKeyQuotaWhenConfigured(t *tes
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_quota_update",
 			Usage:     usage,
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey: &APIKey{
@@ -692,7 +692,7 @@ func TestOpenAIGatewayServiceRecordUsage_UpdatesAPIKeyQuotaWhenConfigured(t *tes
 	require.NoError(t, err)
 	require.Equal(t, 1, quotaSvc.quotaCalls)
 	require.Equal(t, 0, quotaSvc.rateLimitCalls)
-	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 1.1)
+	expected := expectedOpenAICost(t, svc, "gpt-5.4", usage, 1.1)
 	require.InDelta(t, expected.ActualCost, quotaSvc.lastAmount, 1e-12)
 }
 
@@ -710,7 +710,7 @@ func TestOpenAIGatewayServiceRecordUsage_ClampsActualInputTokensToZero(t *testin
 				OutputTokens:         1,
 				CacheReadInputTokens: 5,
 			},
-			Model:    "gpt-5.1",
+			Model:    "gpt-5.4",
 			Duration: time.Second,
 		},
 		APIKey:  &APIKey{ID: 1006},
@@ -857,9 +857,9 @@ func TestOpenAIGatewayServiceRecordUsage_UsesRequestedModelAndUpstreamModelMetad
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
 			RequestID:       "resp_billing_model_override",
-			BillingModel:    "gpt-5.1-codex",
-			Model:           "gpt-5.1",
-			UpstreamModel:   "gpt-5.1-codex",
+			BillingModel:    "gpt-5.3-codex-spark",
+			Model:           "gpt-5.4",
+			UpstreamModel:   "gpt-5.3-codex-spark",
 			ServiceTier:     &serviceTier,
 			ReasoningEffort: &reasoning,
 			Usage: OpenAIUsage{
@@ -878,10 +878,10 @@ func TestOpenAIGatewayServiceRecordUsage_UsesRequestedModelAndUpstreamModelMetad
 
 	require.NoError(t, err)
 	require.NotNil(t, usageRepo.lastLog)
-	require.Equal(t, "gpt-5.1", usageRepo.lastLog.Model)
-	require.Equal(t, "gpt-5.1", usageRepo.lastLog.RequestedModel)
+	require.Equal(t, "gpt-5.4", usageRepo.lastLog.Model)
+	require.Equal(t, "gpt-5.4", usageRepo.lastLog.RequestedModel)
 	require.NotNil(t, usageRepo.lastLog.UpstreamModel)
-	require.Equal(t, "gpt-5.1-codex", *usageRepo.lastLog.UpstreamModel)
+	require.Equal(t, "gpt-5.3-codex-spark", *usageRepo.lastLog.UpstreamModel)
 	require.NotNil(t, usageRepo.lastLog.ServiceTier)
 	require.Equal(t, serviceTier, *usageRepo.lastLog.ServiceTier)
 	require.NotNil(t, usageRepo.lastLog.ReasoningEffort)
@@ -939,7 +939,7 @@ func TestOpenAIGatewayServiceRecordUsage_SubscriptionBillingSetsSubscriptionFiel
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_subscription_billing",
 			Usage:     OpenAIUsage{InputTokens: 10, OutputTokens: 5},
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey:       &APIKey{ID: 100, GroupID: i64p(88), Group: &Group{ID: 88, SubscriptionType: SubscriptionTypeSubscription}},
@@ -968,7 +968,7 @@ func TestOpenAIGatewayServiceRecordUsage_SimpleModeSkipsBillingAfterPersist(t *t
 		Result: &OpenAIForwardResult{
 			RequestID: "resp_simple_mode",
 			Usage:     OpenAIUsage{InputTokens: 10, OutputTokens: 5},
-			Model:     "gpt-5.1",
+			Model:     "gpt-5.4",
 			Duration:  time.Second,
 		},
 		APIKey:  &APIKey{ID: 1000},

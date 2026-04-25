@@ -158,6 +158,9 @@ func (s *ModelRegistryService) UpsertEntry(ctx context.Context, input UpsertMode
 	if err != nil {
 		return nil, err
 	}
+	if isHardRemovedModelID(entry.ID) {
+		return nil, infraerrors.BadRequest("MODEL_HARD_REMOVED", "model is no longer available")
+	}
 	entries, err := s.loadRuntimeEntries(ctx)
 	if err != nil {
 		return nil, err
@@ -281,6 +284,9 @@ func (s *ModelRegistryService) UpsertDiscoveredEntry(ctx context.Context, input 
 		} else if resolution.CanonicalID != "" {
 			canonicalModelID = resolution.CanonicalID
 		}
+	}
+	if isHardRemovedModelID(sourceModelID) || isHardRemovedModelID(canonicalModelID) {
+		return &UpsertDiscoveredEntryResult{RegistryModelID: sourceModelID, CanonicalModel: canonicalModelID, Blocked: true}, nil
 	}
 	entries, _, _, tombstones, err := s.mergedEntries(ctx)
 	if err != nil {
@@ -633,6 +639,9 @@ func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistr
 	}
 	details := make([]modelregistry.AdminModelDetail, 0, len(entries)+len(tombstones))
 	for id, entry := range entries {
+		if isHardRemovedModelID(id) {
+			continue
+		}
 		_, isHidden := hidden[id]
 		_, isTombstoned := tombstones[id]
 		_, isAvailable := availableSet[id]
@@ -645,6 +654,9 @@ func (s *ModelRegistryService) adminDetails(ctx context.Context) ([]modelregistr
 		})
 	}
 	for id := range tombstones {
+		if isHardRemovedModelID(id) {
+			continue
+		}
 		if _, exists := entries[id]; exists {
 			continue
 		}

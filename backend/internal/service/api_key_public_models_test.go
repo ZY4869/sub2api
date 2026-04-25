@@ -1219,6 +1219,13 @@ func (s *apiKeyPublicModelsChannelRepoStub) List(_ context.Context, _ pagination
 	return nil, nil, nil
 }
 
+func (s *apiKeyPublicModelsChannelRepoStub) ListAll(_ context.Context) ([]*model.Channel, error) {
+	if s.channel == nil {
+		return nil, nil
+	}
+	return []*model.Channel{s.channel}, nil
+}
+
 func (s *apiKeyPublicModelsChannelRepoStub) GetByID(_ context.Context, _ int64) (*model.Channel, error) {
 	return s.channel, nil
 }

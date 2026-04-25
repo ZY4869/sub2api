@@ -80,7 +80,7 @@ describe("useModelWhitelist", () => {
     const openAIModels = getModelsByPlatform("openai", "use_key");
     const geminiModels = getModelsByPlatform("gemini", "use_key");
 
-    expect(openAIModels).toContain("gpt-5-codex");
+    expect(openAIModels).toContain("gpt-image-2");
     expect(openAIModels).toContain("gpt-5.4-mini");
     expect(openAIModels).toContain("gpt-5.4-nano");
     expect(openAIModels).not.toContain("gpt-5.4");

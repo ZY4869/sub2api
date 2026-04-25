@@ -151,7 +151,7 @@ func TestModelCatalogService_SeedFallbackUsesCuratedBaseline(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
 
-	items, total, err := svc.ListModels(context.Background(), ModelCatalogListFilter{Page: 1, PageSize: 100})
+	items, total, err := svc.ListModels(context.Background(), ModelCatalogListFilter{Page: 1, PageSize: 1000})
 	require.NoError(t, err)
 	require.Greater(t, total, int64(0))
 
@@ -162,11 +162,13 @@ func TestModelCatalogService_SeedFallbackUsesCuratedBaseline(t *testing.T) {
 
 	_, hasAnthropicOfficial := models["claude-opus-4.1"]
 	_, hasOldAnthropic := models["claude-opus-4.6"]
-	_, hasCurrentCodex := models["gpt-5-codex"]
+	_, hasCurrentCodex := models["gpt-5.3-codex-spark"]
+	_, hasLegacyCodex := models["gpt-5-codex"]
 	_, hasOldCodex := models["gpt-5.3-codex"]
 	require.True(t, hasAnthropicOfficial)
 	require.False(t, hasOldAnthropic)
 	require.True(t, hasCurrentCodex)
+	require.False(t, hasLegacyCodex)
 	require.False(t, hasOldCodex)
 }
 
@@ -225,11 +227,6 @@ func TestModelCatalogService_PricingBackedSyntheticEntriesAppearInCatalogAndBill
 func TestModelCatalogService_LegacyAliasesResolveToCuratedRows(t *testing.T) {
 	repo := &modelCatalogSettingRepoStub{values: map[string]string{}}
 	repo.values[SettingKeyModelOfficialPriceOverrides] = mustModelCatalogJSON(t, map[string]*ModelPricingOverride{
-		"gpt-5.3-codex": {
-			ModelCatalogPricing: ModelCatalogPricing{
-				InputCostPerToken: modelCatalogFloat64Ptr(1.25e-6),
-			},
-		},
 		"claude-sonnet-4-5": {
 			ModelCatalogPricing: ModelCatalogPricing{
 				OutputCostPerToken: modelCatalogFloat64Ptr(5e-6),
@@ -237,11 +234,6 @@ func TestModelCatalogService_LegacyAliasesResolveToCuratedRows(t *testing.T) {
 		},
 	})
 	svc := NewModelCatalogService(repo, nil, nil, nil, &config.Config{})
-
-	codexDetail, err := svc.GetModelDetail(context.Background(), "gpt-5-codex")
-	require.NoError(t, err)
-	require.NotNil(t, codexDetail.OfficialOverridePricing)
-	require.Equal(t, 1.25e-6, *codexDetail.OfficialOverridePricing.InputCostPerToken)
 
 	sonnetDetail, err := svc.GetModelDetail(context.Background(), "claude-sonnet-4.5")
 	require.NoError(t, err)

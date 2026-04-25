@@ -21,6 +21,8 @@ import version from './version'
 import purchase from './purchase'
 import customPage from './customPage'
 import announcements from './announcements'
+import availableChannels from './availableChannels'
+import channelStatus from './channelStatus'
 import userSubscriptions from './userSubscriptions'
 import onboarding from './onboarding'
 import ui from './ui'
@@ -49,6 +51,8 @@ export default {
   ...purchase,
   ...customPage,
   ...announcements,
+  ...availableChannels,
+  ...channelStatus,
   ...userSubscriptions,
   ...onboarding,
   ...ui,

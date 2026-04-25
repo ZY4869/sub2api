@@ -151,13 +151,13 @@ func TestGetModelPricing_UnknownOpenAIModelReturnsError(t *testing.T) {
 	require.Contains(t, err.Error(), "pricing not found")
 }
 
-func TestGetModelPricing_OpenAIGPT51Fallback(t *testing.T) {
+func TestGetModelPricing_OpenAIGPT51HardRemovedReturnsError(t *testing.T) {
 	svc := newTestBillingService()
 
 	pricing, err := svc.GetModelPricing("gpt-5.1")
-	require.NoError(t, err)
-	require.NotNil(t, pricing)
-	require.InDelta(t, 1.25e-6, pricing.InputPricePerToken, 1e-12)
+	require.Error(t, err)
+	require.Nil(t, pricing)
+	require.Contains(t, err.Error(), "gpt-5.1")
 }
 
 func TestGetModelPricing_OpenAIGPT54Fallback(t *testing.T) {
@@ -259,11 +259,12 @@ func TestGetFallbackPricing_FamilyMatching(t *testing.T) {
 		{name: "claude generic model fallback sonnet", model: "claude-foo-bar", expectedInput: 3e-6},
 		{name: "gemini explicit fallback", model: "gemini-3-1-pro", expectedInput: 2e-6},
 		{name: "gemini unknown no fallback", model: "gemini-2.0-pro", expectNilPricing: true},
-		{name: "openai gpt5.1", model: "gpt-5.1", expectedInput: 1.25e-6},
+		{name: "openai gpt5.1 hard removed", model: "gpt-5.1", expectNilPricing: true},
 		{name: "openai gpt5.4", model: "gpt-5.4", expectedInput: 2.5e-6},
-		{name: "openai gpt5.3 codex", model: "gpt-5.3-codex", expectedInput: 1.5e-6},
-		{name: "openai gpt5.1 codex max alias", model: "gpt-5.1-codex-max", expectedInput: 1.5e-6},
-		{name: "openai codex mini latest alias", model: "codex-mini-latest", expectedInput: 1.5e-6},
+		{name: "openai gpt5.3 codex hard removed", model: "gpt-5.3-codex", expectNilPricing: true},
+		{name: "openai gpt5.3 codex spark", model: "gpt-5.3-codex-spark", expectedInput: 2.5e-6},
+		{name: "openai gpt5.1 codex max alias hard removed", model: "gpt-5.1-codex-max", expectNilPricing: true},
+		{name: "openai codex mini latest alias hard removed", model: "codex-mini-latest", expectNilPricing: true},
 		{name: "openai unknown no fallback", model: "gpt-unknown-model", expectNilPricing: true},
 		{name: "non supported family", model: "qwen-max", expectNilPricing: true},
 	}
@@ -536,10 +537,10 @@ func TestCalculateCostWithServiceTier_OpenAIPriorityUsesPriorityPricing(t *testi
 	svc := newTestBillingService()
 	tokens := UsageTokens{InputTokens: 100, OutputTokens: 50, CacheReadTokens: 20}
 
-	baseCost, err := svc.CalculateCost("gpt-5.1-codex", tokens, 1.0)
+	baseCost, err := svc.CalculateCost("gpt-5.4", tokens, 1.0)
 	require.NoError(t, err)
 
-	priorityCost, err := svc.CalculateCostWithServiceTier("gpt-5.1-codex", tokens, 1.0, "priority")
+	priorityCost, err := svc.CalculateCostWithServiceTier("gpt-5.4", tokens, 1.0, "priority")
 	require.NoError(t, err)
 
 	require.InDelta(t, baseCost.InputCost*2, priorityCost.InputCost, 1e-10)

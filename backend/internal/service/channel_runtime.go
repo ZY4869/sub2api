@@ -11,6 +11,7 @@ import (
 )
 
 var ErrChannelModelNotAllowed = infraerrors.BadRequest("CHANNEL_MODEL_NOT_ALLOWED", "requested model not allowed by channel")
+var ErrModelHardRemoved = infraerrors.BadRequest("MODEL_HARD_REMOVED", "requested model is no longer available")
 
 type gatewayChannelStateContextKey struct{}
 
@@ -71,9 +72,15 @@ func (s *ChannelService) ResolveGatewayState(ctx context.Context, groupID int64,
 
 	normalizedPlatform := normalizeChannelRuntimePlatform(platform)
 	normalizedRequested := strings.TrimSpace(requestedModel)
+	if normalizedRequested != "" && isHardRemovedModelID(normalizedRequested) {
+		return nil, ErrModelHardRemoved
+	}
 	selectionModel := resolveChannelMappingTarget(channel, normalizedPlatform, normalizedRequested)
 	if selectionModel == "" {
 		selectionModel = normalizedRequested
+	}
+	if selectionModel != "" && isHardRemovedModelID(selectionModel) {
+		return nil, ErrModelHardRemoved
 	}
 
 	state := &GatewayChannelState{

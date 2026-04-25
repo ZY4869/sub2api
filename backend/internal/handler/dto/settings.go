@@ -47,18 +47,21 @@ type SystemSettings struct {
 	LinuxDoConnectClientSecretConfigured bool   `json:"linuxdo_connect_client_secret_configured"`
 	LinuxDoConnectRedirectURL            string `json:"linuxdo_connect_redirect_url"`
 
-	SiteName                    string           `json:"site_name"`
-	SiteLogo                    string           `json:"site_logo"`
-	SiteSubtitle                string           `json:"site_subtitle"`
-	APIBaseURL                  string           `json:"api_base_url"`
-	ContactInfo                 string           `json:"contact_info"`
-	DocURL                      string           `json:"doc_url"`
-	HomeContent                 string           `json:"home_content"`
-	HideCcsImportButton         bool             `json:"hide_ccs_import_button"`
-	PublicModelCatalogEnabled   bool             `json:"public_model_catalog_enabled"`
-	PurchaseSubscriptionEnabled bool             `json:"purchase_subscription_enabled"`
-	PurchaseSubscriptionURL     string           `json:"purchase_subscription_url"`
-	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
+	SiteName                             string           `json:"site_name"`
+	SiteLogo                             string           `json:"site_logo"`
+	SiteSubtitle                         string           `json:"site_subtitle"`
+	APIBaseURL                           string           `json:"api_base_url"`
+	ContactInfo                          string           `json:"contact_info"`
+	DocURL                               string           `json:"doc_url"`
+	HomeContent                          string           `json:"home_content"`
+	HideCcsImportButton                  bool             `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled             bool             `json:"available_channels_enabled"`
+	ChannelMonitorEnabled                bool             `json:"channel_monitor_enabled"`
+	ChannelMonitorDefaultIntervalSeconds int              `json:"channel_monitor_default_interval_seconds"`
+	PublicModelCatalogEnabled            bool             `json:"public_model_catalog_enabled"`
+	PurchaseSubscriptionEnabled          bool             `json:"purchase_subscription_enabled"`
+	PurchaseSubscriptionURL              string           `json:"purchase_subscription_url"`
+	CustomMenuItems                      []CustomMenuItem `json:"custom_menu_items"`
 
 	DefaultConcurrency   int                          `json:"default_concurrency"`
 	DefaultBalance       float64                      `json:"default_balance"`
@@ -115,6 +118,8 @@ type PublicSettings struct {
 	DocURL                           string           `json:"doc_url"`
 	HomeContent                      string           `json:"home_content"`
 	HideCcsImportButton              bool             `json:"hide_ccs_import_button"`
+	AvailableChannelsEnabled         bool             `json:"available_channels_enabled"`
+	ChannelMonitorEnabled            bool             `json:"channel_monitor_enabled"`
 	PublicModelCatalogEnabled        bool             `json:"public_model_catalog_enabled"`
 	PurchaseSubscriptionEnabled      bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`

@@ -35,18 +35,21 @@ type SystemSettings struct {
 	LinuxDoConnectClientSecretConfigured bool
 	LinuxDoConnectRedirectURL            string
 
-	SiteName                    string
-	SiteLogo                    string
-	SiteSubtitle                string
-	APIBaseURL                  string
-	ContactInfo                 string
-	DocURL                      string
-	HomeContent                 string
-	HideCcsImportButton         bool
-	PublicModelCatalogEnabled   bool
-	PurchaseSubscriptionEnabled bool
-	PurchaseSubscriptionURL     string
-	CustomMenuItems             string // JSON array of custom menu items
+	SiteName                             string
+	SiteLogo                             string
+	SiteSubtitle                         string
+	APIBaseURL                           string
+	ContactInfo                          string
+	DocURL                               string
+	HomeContent                          string
+	HideCcsImportButton                  bool
+	AvailableChannelsEnabled             bool
+	ChannelMonitorEnabled                bool
+	ChannelMonitorDefaultIntervalSeconds int
+	PublicModelCatalogEnabled            bool
+	PurchaseSubscriptionEnabled          bool
+	PurchaseSubscriptionURL              string
+	CustomMenuItems                      string // JSON array of custom menu items
 
 	DefaultConcurrency   int
 	DefaultBalance       float64
@@ -104,6 +107,8 @@ type PublicSettings struct {
 	DocURL                           string
 	HomeContent                      string
 	HideCcsImportButton              bool
+	AvailableChannelsEnabled         bool
+	ChannelMonitorEnabled            bool
 	PublicModelCatalogEnabled        bool
 
 	PurchaseSubscriptionEnabled bool

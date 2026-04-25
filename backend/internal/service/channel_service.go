@@ -21,6 +21,7 @@ type ChannelListFilters struct {
 
 type ChannelRepository interface {
 	List(ctx context.Context, params pagination.PaginationParams, filters ChannelListFilters) ([]*model.Channel, *pagination.PaginationResult, error)
+	ListAll(ctx context.Context) ([]*model.Channel, error)
 	GetByID(ctx context.Context, id int64) (*model.Channel, error)
 	GetActiveByGroupID(ctx context.Context, groupID int64) (*model.Channel, error)
 	Create(ctx context.Context, channel *model.Channel) (*model.Channel, error)
@@ -29,11 +30,17 @@ type ChannelRepository interface {
 }
 
 type ChannelService struct {
-	repo ChannelRepository
+	repo           ChannelRepository
+	groupRepo      GroupRepository
+	pricingService *PricingService
 }
 
-func NewChannelService(repo ChannelRepository) *ChannelService {
-	return &ChannelService{repo: repo}
+func NewChannelService(repo ChannelRepository, groupRepo GroupRepository, pricingService *PricingService) *ChannelService {
+	return &ChannelService{
+		repo:           repo,
+		groupRepo:      groupRepo,
+		pricingService: pricingService,
+	}
 }
 
 func (s *ChannelService) List(ctx context.Context, params pagination.PaginationParams, filters ChannelListFilters) ([]*model.Channel, *pagination.PaginationResult, error) {

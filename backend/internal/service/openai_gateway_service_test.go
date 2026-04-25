@@ -395,12 +395,12 @@ func TestOpenAISelectAccountWithLoadAwareness_IgnoresSparkOnlyModelRateLimitForN
 		accountRepo: stubOpenAIAccountRepo{accounts: []Account{account}},
 	}
 
-	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.3-codex", nil)
+	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.4", nil)
 	if err != nil {
 		t.Fatalf("SelectAccountWithLoadAwareness error: %v", err)
 	}
 	if selection == nil || selection.Account == nil || selection.Account.ID != account.ID {
-		t.Fatalf("expected normal codex request to ignore spark-only cooldown, got %+v", selection)
+		t.Fatalf("expected non-spark request to ignore spark-only cooldown, got %+v", selection)
 	}
 }
 

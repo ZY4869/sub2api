@@ -1334,6 +1334,56 @@
             >
               <div>
                 <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.site.availableChannelsEnabled')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.site.availableChannelsEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.available_channels_enabled" />
+            </div>
+
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.site.channelMonitorEnabled')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.site.channelMonitorEnabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.channel_monitor_enabled" />
+            </div>
+
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.site.channelMonitorDefaultIntervalSeconds')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.site.channelMonitorDefaultIntervalSecondsHint') }}
+                </p>
+              </div>
+              <input
+                v-model.number="form.channel_monitor_default_interval_seconds"
+                type="number"
+                class="input w-32 text-right font-mono text-sm"
+                min="15"
+                max="3600"
+                step="1"
+                :disabled="!form.channel_monitor_enabled"
+              />
+            </div>
+
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
                   t('admin.settings.site.publicModelCatalogEnabled')
                 }}</label>
                 <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -2000,6 +2050,9 @@ const form = reactive<SettingsForm>({
   doc_url: '',
   home_content: '',
   hide_ccs_import_button: false,
+  available_channels_enabled: false,
+  channel_monitor_enabled: false,
+  channel_monitor_default_interval_seconds: 60,
   public_model_catalog_enabled: true,
   purchase_subscription_enabled: false,
   purchase_subscription_url: '',
@@ -2283,6 +2336,9 @@ async function saveSettings() {
       doc_url: form.doc_url,
       home_content: form.home_content,
       hide_ccs_import_button: form.hide_ccs_import_button,
+      available_channels_enabled: form.available_channels_enabled,
+      channel_monitor_enabled: form.channel_monitor_enabled,
+      channel_monitor_default_interval_seconds: form.channel_monitor_default_interval_seconds,
       public_model_catalog_enabled: form.public_model_catalog_enabled,
       purchase_subscription_enabled: form.purchase_subscription_enabled,
       purchase_subscription_url: form.purchase_subscription_url,

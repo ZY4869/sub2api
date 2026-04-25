@@ -282,7 +282,99 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 开启时，游客与已登录用户都可以访问 `GET /api/v1/meta/model-catalog`。
 - 关闭时，游客访问该接口会返回 `401`，前端 `/models` 页面会跳转到登录页。
 - 已登录用户不受这个开关影响，仍然可以继续访问模型库与对应接口。
-- `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`，前端可据此决定是否展示维护提示。
+- `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`，前端可据此决定是否展示维护提示与菜单入口。
+
+### 可用渠道（Available Channels）
+
+系统提供一个用户视角的“可用渠道”只读接口，用于前端快速展示当前 Key / 分组可用的渠道聚合视图：
+
+- 路径：`GET /api/v1/channels/available`
+- 鉴权：必须登录
+- 开关：`available_channels_enabled`（默认 `false`，关闭时该接口返回空数组）
+- 返回：只包含展示必要字段，不包含管理侧敏感字段（例如渠道内部配置、secret、状态细节等）
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de"
+jwt = "你的JWT"
+
+resp = requests.get(
+    f"{base_url}/api/v1/channels/available",
+    headers={"Authorization": f"Bearer {jwt}"},
+    timeout=30,
+)
+
+print(resp.status_code)
+print(resp.json())
+```
+
+#### JavaScript
+```javascript
+const baseUrl = "https://api.zyxai.de";
+const jwt = "你的JWT";
+
+const resp = await fetch(`${baseUrl}/api/v1/channels/available`, {
+  headers: { Authorization: `Bearer ${jwt}` },
+});
+
+console.log(resp.status, await resp.json());
+```
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/channels/available" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+### 渠道监控（Channel Monitor）
+
+系统提供一套“渠道监控”能力，用户侧可以读取监控状态页，管理员侧可以配置监控与模板并触发运行。
+
+用户侧只读接口：
+
+- 列表：`GET /api/v1/channel-monitors`
+- 详情：`GET /api/v1/channel-monitors/:id/status`
+- 鉴权：必须登录
+- 开关：`channel_monitor_enabled`（默认 `false`）
+- 语义：
+  - 关闭时：列表接口返回空数组；详情接口返回 `404`
+  - 开启时：返回监控概览与每个监控的最近状态、可用率摘要与简化时间线
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de"
+jwt = "你的JWT"
+
+items = requests.get(
+    f"{base_url}/api/v1/channel-monitors",
+    headers={"Authorization": f"Bearer {jwt}"},
+    timeout=30,
+).json()
+
+print(items)
+```
+
+#### JavaScript
+```javascript
+const baseUrl = "https://api.zyxai.de";
+const jwt = "你的JWT";
+
+const resp = await fetch(`${baseUrl}/api/v1/channel-monitors`, {
+  headers: { Authorization: `Bearer ${jwt}` },
+});
+
+console.log(resp.status, await resp.json());
+```
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/channel-monitors" \
+  -H "Authorization: Bearer <JWT>"
+```
 
 ### 错误响应与限流
 

@@ -320,6 +320,10 @@ groupSelectionLoop:
 				googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.channel_model_not_allowed", "Requested model is not allowed by the bound channel")
 				return
 			}
+			if errors.Is(err, service.ErrModelHardRemoved) {
+				googleErrorKey(c, http.StatusBadRequest, "gateway.gemini.model_hard_removed", "Requested model is no longer available")
+				return
+			}
 			googleErrorKey(c, http.StatusInternalServerError, "gateway.gemini.channel_routing_failed", "Failed to resolve channel routing")
 			return
 		}

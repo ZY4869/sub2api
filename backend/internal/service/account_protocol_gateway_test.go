@@ -11,7 +11,7 @@ func TestGatewayClientProfileDescriptorByID(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, GatewayClientProfileCodex, descriptor.ID)
 	require.Equal(t, "Codex", descriptor.DisplayName)
-	require.Equal(t, "gpt-5.1-codex", descriptor.DefaultTestModel)
+	require.Equal(t, "gpt-5.3-codex-spark", descriptor.DefaultTestModel)
 	require.Equal(t, []string{PlatformOpenAI}, descriptor.CompatibleProtocols)
 
 	_, ok = GatewayClientProfileDescriptorByID("unknown")
@@ -79,16 +79,16 @@ func TestMatchGatewayClientRoutePrefersLongestPrefix(t *testing.T) {
 				map[string]any{
 					"protocol":       "openai",
 					"match_type":     "prefix",
-					"match_value":    "gpt-5.1-",
+					"match_value":    "gpt-5.3-",
 					"client_profile": "codex",
 				},
 			},
 		},
 	}
 
-	route := MatchGatewayClientRoute(account, PlatformOpenAI, "gpt-5.1-codex")
+	route := MatchGatewayClientRoute(account, PlatformOpenAI, "gpt-5.3-codex-spark")
 	require.NotNil(t, route)
-	require.Equal(t, "gpt-5.1-", route.MatchValue)
+	require.Equal(t, "gpt-5.3-", route.MatchValue)
 	require.Equal(t, GatewayClientProfileCodex, route.ClientProfile)
 }
 

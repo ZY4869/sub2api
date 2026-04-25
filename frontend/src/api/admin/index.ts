@@ -7,6 +7,7 @@ import dashboardAPI from './dashboard'
 import usersAPI from './users'
 import groupsAPI from './groups'
 import channelsAPI from './channels'
+import channelMonitorsAPI from './channelMonitors'
 import accountsAPI from './accounts'
 import proxiesAPI from './proxies'
 import redeemAPI from './redeem'
@@ -38,6 +39,7 @@ export const adminAPI = {
   users: usersAPI,
   groups: groupsAPI,
   channels: channelsAPI,
+  channelMonitors: channelMonitorsAPI,
   accounts: accountsAPI,
   docs: docsAPI,
   proxies: proxiesAPI,
@@ -67,6 +69,7 @@ export {
   usersAPI,
   groupsAPI,
   channelsAPI,
+  channelMonitorsAPI,
   accountsAPI,
   proxiesAPI,
   redeemAPI,

@@ -72,6 +72,10 @@ func (h *GatewayHandler) CountTokens(c *gin.Context) {
 			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is not allowed by the bound channel")
 			return
 		}
+		if errors.Is(err, service.ErrModelHardRemoved) {
+			h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Requested model is no longer available")
+			return
+		}
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to resolve channel routing")
 		return
 	}

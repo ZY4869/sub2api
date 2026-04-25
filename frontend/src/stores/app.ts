@@ -401,6 +401,8 @@ export const useAppStore = defineStore("app", () => {
         doc_url: docUrl.value,
         home_content: "",
         hide_ccs_import_button: false,
+        available_channels_enabled: false,
+        channel_monitor_enabled: false,
         public_model_catalog_enabled: true,
         purchase_subscription_enabled: false,
         purchase_subscription_url: "",

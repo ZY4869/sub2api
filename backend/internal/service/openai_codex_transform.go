@@ -75,16 +75,16 @@ var codexModelMap = map[string]string{
 	"gpt-5.1-medium":             "gpt-5.1",
 	"gpt-5.1-high":               "gpt-5.1",
 	"gpt-5.1-chat-latest":        "gpt-5.1",
-	"gpt-5-codex":                "gpt-5.1-codex",
-	"codex-mini-latest":          "gpt-5.1-codex-mini",
-	"gpt-5-codex-mini":           "gpt-5.1-codex-mini",
-	"gpt-5-codex-mini-medium":    "gpt-5.1-codex-mini",
-	"gpt-5-codex-mini-high":      "gpt-5.1-codex-mini",
+	"gpt-5-codex":                "gpt-5-codex",
+	"codex-mini-latest":          "codex-mini-latest",
+	"gpt-5-codex-mini":           "gpt-5-codex-mini",
+	"gpt-5-codex-mini-medium":    "gpt-5-codex-mini",
+	"gpt-5-codex-mini-high":      "gpt-5-codex-mini",
 	"gpt-5-pro":                  "gpt-5-pro",
 	"gpt-5-pro-2025-10-06":       "gpt-5-pro-2025-10-06",
-	"gpt-5":                      "gpt-5.1",
-	"gpt-5-mini":                 "gpt-5.1",
-	"gpt-5-nano":                 "gpt-5.1",
+	"gpt-5":                      "gpt-5",
+	"gpt-5-mini":                 "gpt-5-mini",
+	"gpt-5-nano":                 "gpt-5-nano",
 }
 
 type codexTransformResult struct {
@@ -303,13 +303,13 @@ func normalizeCodexModel(model string) string {
 		return "gpt-5.1"
 	}
 	if strings.Contains(normalized, "codex") {
-		return "gpt-5.1-codex"
+		return "gpt-5-codex"
 	}
 	if strings.Contains(normalized, "gpt-5-pro") || strings.Contains(normalized, "gpt 5 pro") {
 		return "gpt-5-pro"
 	}
 	if strings.Contains(normalized, "gpt-5") || strings.Contains(normalized, "gpt 5") {
-		return "gpt-5.1"
+		return "gpt-5"
 	}
 
 	return "gpt-5.5"

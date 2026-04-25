@@ -91,6 +91,14 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userHandler := handler.NewUserHandler(userService)
 	metaHandler := handler.ProvideMetaHandler(modelCatalogService, modelRegistryService, settingService, authService, userService)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
+	channelRepository := repository.NewChannelRepository(db)
+	channelService := service.NewChannelService(channelRepository, groupRepository, pricingService)
+	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
+	channelMonitorRepository := repository.NewChannelMonitorRepository(db)
+	channelMonitorHistoryRepository := repository.NewChannelMonitorHistoryRepository(db)
+	channelMonitorRollupRepository := repository.NewChannelMonitorRollupRepository(db)
+	channelMonitorService := service.NewChannelMonitorService(channelMonitorRepository, channelMonitorHistoryRepository, channelMonitorRollupRepository, settingService, secretEncryptor, configConfig)
+	channelMonitorHandler := handler.NewChannelMonitorHandler(channelMonitorService)
 	usageLogRepository := repository.NewUsageLogRepository(client, db)
 	usageService := service.NewUsageService(usageLogRepository, userRepository, client, apiKeyAuthCacheInvalidator)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService)
@@ -122,9 +130,11 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	rpmCache := repository.NewRPMCache(redisClient)
 	groupCapacityService := service.NewGroupCapacityService(accountRepository, groupRepository, concurrencyService, sessionLimitCache, rpmCache)
 	groupHandler := admin.NewGroupHandler(adminService, dashboardService, groupCapacityService)
-	channelRepository := repository.NewChannelRepository(db)
-	channelService := service.NewChannelService(channelRepository)
 	channelHandler := admin.NewChannelHandler(channelService)
+	adminChannelMonitorHandler := admin.NewChannelMonitorHandler(channelMonitorService)
+	channelMonitorTemplateRepository := repository.NewChannelMonitorTemplateRepository(db)
+	channelMonitorTemplateService := service.NewChannelMonitorTemplateService(channelMonitorTemplateRepository, channelMonitorRepository)
+	channelMonitorTemplateHandler := admin.NewChannelMonitorTemplateHandler(channelMonitorTemplateService, channelMonitorService)
 	claudeOAuthClient := repository.NewClaudeOAuthClient()
 	oAuthService := service.NewOAuthService(proxyRepository, claudeOAuthClient)
 	openAIOAuthClient := repository.NewOpenAIOAuthClient()
@@ -233,7 +243,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestService := service.ProvideScheduledTestService(scheduledTestPlanRepository, scheduledTestResultRepository)
 	scheduledTestHandler := admin.NewScheduledTestHandler(scheduledTestService)
 	tlsFingerprintProfileHandler := admin.NewTLSFingerprintProfileHandler(tlsFingerprintProfileService)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, channelHandler, accountHandler, adminDocsHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, channelHandler, adminChannelMonitorHandler, channelMonitorTemplateHandler, accountHandler, adminDocsHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, kiroOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, adminAPIKeyHandler, modelCatalogHandler, modelRegistryHandler, scheduledTestHandler, tlsFingerprintProfileHandler)
 	geminiNativeGatewayService := service.ProvideGeminiNativeGatewayService(geminiMessagesCompatService)
 	geminiCompatGatewayService := service.ProvideGeminiCompatGatewayService(geminiMessagesCompatService)
 	geminiLiveGatewayService := service.ProvideGeminiLiveGatewayService(geminiMessagesCompatService)
@@ -251,7 +261,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	totpHandler := handler.NewTotpHandler(totpService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, metaHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, docsHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, grokGatewayHandler, documentAIHandler, handlerSettingHandler, totpHandler, opsService, idempotencyCoordinator, idempotencyCleanupService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, metaHandler, apiKeyHandler, availableChannelHandler, channelMonitorHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, docsHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, grokGatewayHandler, documentAIHandler, handlerSettingHandler, totpHandler, opsService, idempotencyCoordinator, idempotencyCleanupService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService)
 	apiKeyAuthMiddleware := middleware.NewAPIKeyAuthMiddleware(apiKeyService, subscriptionService, configConfig)
@@ -272,7 +282,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	accountRateLimitRecoveryProbeService := service.ProvideAccountRateLimitRecoveryProbeService(accountRepository, accountTestService, rateLimitService)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, accountRepository, telegramNotifierService, configConfig)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService)
+	channelMonitorAggregationRepository := repository.NewChannelMonitorAggregationRepository(db)
+	channelMonitorRunnerService := service.ProvideChannelMonitorRunnerService(db, channelMonitorRepository, channelMonitorHistoryRepository, channelMonitorRollupRepository, channelMonitorAggregationRepository, settingService, secretEncryptor, configConfig)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, googleBatchArchivePollerService, googleBatchArchivePrefetchService, googleBatchArchiveCleanupService, schedulerSnapshotService, tokenRefreshService, openAIGPT55WhitelistBackfillService, accountExpiryService, accountBlacklistCleanupService, accountRateLimitRecoveryProbeService, subscriptionExpiryService, usageCleanupService, usageRepairService, documentAIService, idempotencyCleanupService, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, openAIGatewayService, scheduledTestRunnerService, channelMonitorRunnerService, backupService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -328,6 +340,7 @@ func provideCleanup(
 	antigravityOAuth *service.AntigravityOAuthService,
 	openAIGateway *service.OpenAIGatewayService,
 	scheduledTestRunner *service.ScheduledTestRunnerService,
+	channelMonitorRunner *service.ChannelMonitorRunnerService,
 	backupSvc *service.BackupService,
 ) func() {
 	return func() {
@@ -503,6 +516,12 @@ func provideCleanup(
 			{"ScheduledTestRunnerService", func() error {
 				if scheduledTestRunner != nil {
 					scheduledTestRunner.Stop()
+				}
+				return nil
+			}},
+			{"ChannelMonitorRunnerService", func() error {
+				if channelMonitorRunner != nil {
+					channelMonitorRunner.Stop()
 				}
 				return nil
 			}},

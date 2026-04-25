@@ -188,6 +188,10 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "requested model is not allowed by the bound channel")
 				return
 			}
+			if errors.Is(err, service.ErrModelHardRemoved) {
+				closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "requested model is no longer available")
+				return
+			}
 			closeOpenAIClientWS(wsConn, coderws.StatusInternalError, "failed to resolve channel routing")
 			return
 		}
