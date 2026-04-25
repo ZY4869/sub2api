@@ -262,6 +262,9 @@ type OpsRequestTraceListItem struct {
 	AccountID *int64 `json:"account_id,omitempty"`
 	GroupID   *int64 `json:"group_id,omitempty"`
 
+	AccountName string `json:"account_name"`
+	GroupName   string `json:"group_name"`
+
 	RequestedModel      string `json:"requested_model"`
 	UpstreamModel       string `json:"upstream_model"`
 	ActualUpstreamModel string `json:"actual_upstream_model"`

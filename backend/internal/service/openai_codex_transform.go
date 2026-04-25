@@ -6,6 +6,13 @@ import (
 )
 
 var codexModelMap = map[string]string{
+	"gpt-5.5":                    "gpt-5.5",
+	"gpt-5.5-none":               "gpt-5.5",
+	"gpt-5.5-low":                "gpt-5.5",
+	"gpt-5.5-medium":             "gpt-5.5",
+	"gpt-5.5-high":               "gpt-5.5",
+	"gpt-5.5-xhigh":              "gpt-5.5",
+	"gpt-5.5-chat-latest":        "gpt-5.5",
 	"gpt-5.4":                    "gpt-5.4",
 	"gpt-5.4-mini":               "gpt-5.4-mini",
 	"gpt-5.4-nano":               "gpt-5.4-nano",
@@ -230,7 +237,7 @@ func applyCodexOAuthTransform(reqBody map[string]any, isCodexCLI bool, isCompact
 
 func normalizeCodexModel(model string) string {
 	if model == "" {
-		return "gpt-5.1"
+		return "gpt-5.5"
 	}
 
 	modelID := model
@@ -245,6 +252,9 @@ func normalizeCodexModel(model string) string {
 
 	normalized := strings.ToLower(modelID)
 
+	if strings.Contains(normalized, "gpt-5.5") || strings.Contains(normalized, "gpt 5.5") {
+		return "gpt-5.5"
+	}
 	if strings.Contains(normalized, "gpt-5.4-mini") || strings.Contains(normalized, "gpt 5.4 mini") {
 		return "gpt-5.4-mini"
 	}
@@ -302,7 +312,7 @@ func normalizeCodexModel(model string) string {
 		return "gpt-5.1"
 	}
 
-	return "gpt-5.1"
+	return "gpt-5.5"
 }
 
 func normalizeOpenAIModelForUpstream(account *Account, model string) string {

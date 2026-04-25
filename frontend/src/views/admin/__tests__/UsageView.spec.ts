@@ -19,6 +19,10 @@ const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() 
   };
 });
 
+const authState = vi.hoisted(() => ({
+  canReviewRequestDetails: true,
+}));
+
 const messages: Record<string, string> = {
   "admin.dashboard.day": "Day",
   "admin.dashboard.hour": "Hour",
@@ -72,6 +76,10 @@ vi.mock("@/stores/app", () => ({
   }),
 }));
 
+vi.mock("@/stores/auth", () => ({
+  useAuthStore: () => authState,
+}));
+
 vi.mock("@/utils/format", () => ({
   formatReasoningEffort: (value: string | null | undefined) => value ?? "-",
   formatThinkingEnabled: (value: boolean | null | undefined) =>
@@ -115,7 +123,7 @@ const UsageTableStub = {
 };
 const ModelDistributionChartStub = {
   props: ["metric"],
-  emits: ["update:metric"],
+  emits: ["update:metric", "ranking-click"],
   template: `
     <div data-test="model-chart">
       <span class="metric">{{ metric }}</span>
@@ -142,6 +150,7 @@ describe("admin UsageView distribution metric toggles", () => {
     getSnapshotV2.mockReset();
     getModelStats.mockReset();
     getById.mockReset();
+    authState.canReviewRequestDetails = true;
 
     list.mockResolvedValue({
       items: [],
@@ -199,6 +208,9 @@ describe("admin UsageView distribution metric toggles", () => {
     await flushPromises();
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1);
+
+    await wrapper.get('[data-test="admin-usage-tab-leaderboard"]').trigger("click");
+    await flushPromises();
 
     const modelChart = wrapper.find('[data-test="model-chart"]');
     const groupChart = wrapper.find('[data-test="group-chart"]');
@@ -302,5 +314,32 @@ describe("admin UsageView distribution metric toggles", () => {
     expect(getModelStats).toHaveBeenCalledWith(
       expect.objectContaining({ channel_id: 11, model_source: "requested" }),
     );
+  });
+
+  it("hides request details tab when permission is missing", async () => {
+    authState.canReviewRequestDetails = false;
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          UsageStatsCards: true,
+          UsageFilters: UsageFiltersStub,
+          UsageTable: UsageTableStub,
+          UsageExportProgress: true,
+          UsageCleanupDialog: true,
+          UserBalanceHistoryModal: true,
+          Pagination: true,
+          Select: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          TokenUsageTrend: true,
+          ModelDistributionChart: ModelDistributionChartStub,
+          GroupDistributionChart: GroupDistributionChartStub,
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-test=\"admin-usage-tab-request-details\"]').exists()).toBe(false);
   });
 });

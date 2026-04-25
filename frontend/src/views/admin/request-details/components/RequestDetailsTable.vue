@@ -56,13 +56,40 @@ function joinSummaryParts(parts: Array<string | null | undefined>): string {
     .join(' · ') || '-'
 }
 
-function getSubjectSummary(item: OpsRequestTraceListItem): string {
-  return joinSummaryParts([
-    item.user_id ? t('admin.requestDetails.table.summary.user', { id: item.user_id }) : '',
-    item.api_key_id ? t('admin.requestDetails.table.summary.apiKey', { id: item.api_key_id }) : '',
-    item.account_id ? t('admin.requestDetails.table.summary.account', { id: item.account_id }) : '',
-    item.group_id ? t('admin.requestDetails.table.summary.group', { id: item.group_id }) : ''
-  ])
+function resolveEntityPresentation(
+  name: string | null | undefined,
+  id: number | null | undefined
+) {
+  const normalizedName = String(name || '').trim()
+  if (normalizedName) {
+    const idSuffix = typeof id === 'number' && id > 0 ? ` (#${id})` : ''
+    return {
+      displayText: normalizedName,
+      copyValue: normalizedName,
+      titleText: normalizedName + idSuffix
+    }
+  }
+  if (typeof id === 'number' && id > 0) {
+    const idText = `#${id}`
+    return {
+      displayText: idText,
+      copyValue: idText,
+      titleText: idText
+    }
+  }
+  return {
+    displayText: '-',
+    copyValue: '',
+    titleText: '-'
+  }
+}
+
+function getAccountPresentation(item: OpsRequestTraceListItem) {
+  return resolveEntityPresentation(item.account_name, item.account_id)
+}
+
+function getGroupPresentation(item: OpsRequestTraceListItem) {
+  return resolveEntityPresentation(item.group_name, item.group_id)
 }
 
 function getRouteSummary(item: OpsRequestTraceListItem): string {
@@ -77,14 +104,25 @@ function getRouteSummary(item: OpsRequestTraceListItem): string {
 }
 
 function getRequestIdTooltip(item: OpsRequestTraceListItem): string {
+  const subjectLines = [
+    item.user_id ? t('admin.requestDetails.table.summary.user', { id: item.user_id }) : '',
+    item.api_key_id ? t('admin.requestDetails.table.summary.apiKey', { id: item.api_key_id }) : '',
+    item.account_id ? t('admin.requestDetails.table.summary.account', { id: item.account_id }) : '',
+    item.group_id ? t('admin.requestDetails.table.summary.group', { id: item.group_id }) : ''
+  ]
+
   return [
     `${t('admin.requestDetails.presentation.labels.requestId')}: ${item.request_id || '-'}`,
     `${t('admin.requestDetails.presentation.labels.clientRequestId')}: ${item.client_request_id || '-'}`,
     `${t('admin.requestDetails.presentation.labels.upstreamRequestId')}: ${item.upstream_request_id || '-'}`,
     `${t('admin.requestDetails.presentation.labels.billingRuleId')}: ${item.billing_rule_id || '-'}`,
     `${t('admin.requestDetails.presentation.labels.geminiSurface')}: ${item.gemini_surface || '-'}`,
-    `${t('admin.requestDetails.presentation.labels.probeAction')}: ${item.probe_action || '-'}`
-  ].join('\n')
+    `${t('admin.requestDetails.presentation.labels.probeAction')}: ${item.probe_action || '-'}`,
+    ...subjectLines
+  ]
+    .map((line) => String(line || '').trim())
+    .filter(Boolean)
+    .join('\n')
 }
 
 function getStatusReasonSummary(item: OpsRequestTraceListItem): string {
@@ -153,7 +191,10 @@ function getModelTitle(modelId?: string | null) {
               {{ t('admin.requestDetails.table.columns.requestId') }}
             </th>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {{ t('admin.requestDetails.table.columns.subject') }}
+              {{ t('admin.requestDetails.table.columns.account') }}
+            </th>
+            <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              {{ t('admin.requestDetails.table.columns.group') }}
             </th>
             <th class="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {{ t('admin.requestDetails.table.columns.protocolPair') }}
@@ -181,13 +222,13 @@ function getModelTitle(modelId?: string | null) {
 
         <tbody class="divide-y divide-gray-200 dark:divide-dark-700">
           <tr v-if="loading" v-for="i in 8" :key="i">
-            <td v-for="j in 10" :key="j" class="px-4 py-4">
+            <td v-for="j in 11" :key="j" class="px-4 py-4">
               <div class="h-4 animate-pulse rounded bg-gray-100 dark:bg-dark-700"></div>
             </td>
           </tr>
 
           <tr v-else-if="props.items.length === 0">
-            <td colspan="10" class="px-4 py-14 text-center text-sm text-gray-500 dark:text-gray-400">
+            <td colspan="11" class="px-4 py-14 text-center text-sm text-gray-500 dark:text-gray-400">
               {{ t('admin.requestDetails.table.empty') }}
             </td>
           </tr>
@@ -214,10 +255,15 @@ function getModelTitle(modelId?: string | null) {
 
             <td class="px-4 py-3">
               <TruncatedCopyText
+                v-bind="getAccountPresentation(item)"
                 class="block max-w-[260px] text-sm text-gray-700 dark:text-gray-200"
-                :display-text="getSubjectSummary(item)"
-                :copy-value="getSubjectSummary(item)"
-                :title-text="getSubjectSummary(item)"
+              />
+            </td>
+
+            <td class="px-4 py-3">
+              <TruncatedCopyText
+                v-bind="getGroupPresentation(item)"
+                class="block max-w-[240px] text-sm text-gray-700 dark:text-gray-200"
               />
             </td>
 

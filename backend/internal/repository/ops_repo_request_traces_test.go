@@ -128,7 +128,7 @@ func TestOpsRepositoryListRequestTraces_UsesLiteralFallbackMetadataExpressions(t
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM ops_request_traces t WHERE 1=1 AND t.created_at >= $1 AND t.created_at < $2")).
 		WithArgs(startTime.UTC(), endTime.UTC()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(0)))
-	mock.ExpectQuery(`(?s)SELECT.*''.*,.*''.*,.*''.*FROM ops_request_traces t\s+WHERE 1=1 AND t\.created_at >= \$1 AND t\.created_at < \$2\s+ORDER BY t.created_at DESC, t.id DESC\s+LIMIT \$3 OFFSET \$4`).
+	mock.ExpectQuery(`(?s)SELECT.*''.*,.*''.*,.*''.*FROM ops_request_traces t\s+LEFT JOIN accounts a ON a.id = t\.account_id\s+LEFT JOIN groups g ON g.id = t\.group_id\s+WHERE 1=1 AND t\.created_at >= \$1 AND t\.created_at < \$2\s+ORDER BY t.created_at DESC, t.id DESC\s+LIMIT \$3 OFFSET \$4`).
 		WithArgs(startTime.UTC(), endTime.UTC(), 50, 0).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 

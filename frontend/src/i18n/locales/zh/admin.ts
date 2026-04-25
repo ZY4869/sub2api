@@ -3963,6 +3963,11 @@
     usage: {
       title: "使用记录",
       description: "查看和管理所有用户的使用记录",
+      pageTabs: {
+        records: "使用记录",
+        requestDetails: "请求详情",
+        leaderboard: "消耗排行榜",
+      },
       userFilter: "用户",
       searchUserPlaceholder: "按邮箱搜索用户...",
       searchApiKeyPlaceholder: "按名称搜索 API 密钥...",
@@ -5478,6 +5483,8 @@
           protocolPair: "协议对",
           route: "路由来源",
           subject: "主体对象",
+          account: "请求账号",
+          group: "请求分组",
           models: "模型",
           status: "状态 / 原因",
           performance: "性能",

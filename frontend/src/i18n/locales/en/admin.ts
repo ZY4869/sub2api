@@ -3941,6 +3941,11 @@ export default {
     usage: {
       title: "Usage Records",
       description: "View and manage all user usage records",
+      pageTabs: {
+        records: "Usage Records",
+        requestDetails: "Request Details",
+        leaderboard: "Consumption Leaderboard",
+      },
       userFilter: "User",
       searchUserPlaceholder: "Search user by email...",
       searchApiKeyPlaceholder: "Search API key by name...",
@@ -5565,6 +5570,8 @@ export default {
           protocolPair: "Protocol Pair",
           route: "Route Context",
           subject: "Subjects",
+          account: "Request Account",
+          group: "Request Group",
           models: "Models",
           status: "Status / Reason",
           performance: "Performance",

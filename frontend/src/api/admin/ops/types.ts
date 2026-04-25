@@ -711,6 +711,8 @@ export interface OpsRequestTraceListItem {
   api_key_id?: number | null
   account_id?: number | null
   group_id?: number | null
+  account_name?: string
+  group_name?: string
   requested_model: string
   upstream_model: string
   actual_upstream_model: string

@@ -251,6 +251,8 @@ SELECT
   t.api_key_id,
   t.account_id,
   t.group_id,
+  COALESCE(a.name, ''),
+  COALESCE(g.name, ''),
   COALESCE(t.requested_model, ''),
   COALESCE(t.upstream_model, ''),
   COALESCE(t.actual_upstream_model, ''),
@@ -280,6 +282,8 @@ SELECT
   COALESCE(t.sampled, false),
   COALESCE(t.raw_available, false)
 FROM ops_request_traces t
+LEFT JOIN accounts a ON a.id = t.account_id
+LEFT JOIN groups g ON g.id = t.group_id
 ` + where + `
 ` + sort + `
 LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
@@ -914,6 +918,8 @@ func scanOpsRequestTraceListItem(scanner interface {
 		&apiKeyID,
 		&accountID,
 		&groupID,
+		&item.AccountName,
+		&item.GroupName,
 		&item.RequestedModel,
 		&item.UpstreamModel,
 		&item.ActualUpstreamModel,

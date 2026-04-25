@@ -841,30 +841,28 @@ describe('CreateAccountModal', () => {
     expect(wrapper.get('[data-testid="baidu-direct-api-urls-prop"]').text()).toBe('')
   })
 
-  it('keeps the baidu document ai credential editor mounted and toggles visibility with platform selection', async () => {
+  it('mounts the baidu document ai credential editor only when platform is selected', async () => {
     const wrapper = mountModal()
-    const editor = wrapper.get('[data-testid="baidu-document-ai-credentials-editor"]')
 
-    expect(editor.attributes('style')).toContain('display: none;')
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
 
-    expect(editor.attributes('style') || '').not.toContain('display: none;')
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(true)
 
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
 
-    expect(editor.attributes('style')).toContain('display: none;')
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(false)
   })
 
   it('shows the baidu document ai credential editor for legacy baidu platform values', async () => {
     const wrapper = mountModal()
-    const editor = wrapper.get('[data-testid="baidu-document-ai-credentials-editor"]')
 
-    expect(editor.attributes('style')).toContain('display: none;')
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(false)
 
     await wrapper.get('[data-testid="select-baidu-legacy"]').trigger('click')
 
-    expect(editor.attributes('style') || '').not.toContain('display: none;')
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(true)
   })
 
   it('keeps the top mapping state in sync when probe selections are added and removed', async () => {

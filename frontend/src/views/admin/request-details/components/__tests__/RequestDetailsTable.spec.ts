@@ -53,7 +53,8 @@ const translations: Record<string, string> = {
   'admin.requestDetails.table.description': 'Trace table description',
   'admin.requestDetails.table.columns.time': 'Time',
   'admin.requestDetails.table.columns.requestId': 'Request ID',
-  'admin.requestDetails.table.columns.subject': 'Subject',
+  'admin.requestDetails.table.columns.account': 'Request Account',
+  'admin.requestDetails.table.columns.group': 'Request Group',
   'admin.requestDetails.table.columns.protocolPair': 'Protocol Pair',
   'admin.requestDetails.table.columns.route': 'Route',
   'admin.requestDetails.table.columns.models': 'Models',
@@ -122,6 +123,8 @@ const baseItem = {
   api_key_id: 20,
   account_id: 30,
   group_id: 40,
+  account_name: 'Test Account',
+  group_name: 'Test Group',
   requested_model: 'claude-opus-4-1-20250805',
   upstream_model: 'gpt-4o-mini-2025-04-01',
   actual_upstream_model: 'gpt-4o-mini-2025-04-01',
@@ -183,10 +186,8 @@ describe('RequestDetailsTable', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('User 10')
-    expect(wrapper.text()).toContain('API Key 20')
-    expect(wrapper.text()).toContain('Account 30')
-    expect(wrapper.text()).toContain('Group 40')
+    expect(wrapper.text()).toContain('Test Account')
+    expect(wrapper.text()).toContain('Test Group')
     expect(wrapper.text()).toContain('/v1/responses')
     expect(wrapper.text()).toContain('/v1/responses -> /v1/chat/completions')
     expect(wrapper.text()).toContain('openai_compat')
@@ -227,6 +228,10 @@ describe('RequestDetailsTable', () => {
     expect(requestIdButton.attributes('title')).toContain('Billing Rule ID: rule-live-1')
     expect(requestIdButton.attributes('title')).toContain('Gemini Surface: live')
     expect(requestIdButton.attributes('title')).toContain('Probe Action: recovery_probe')
+    expect(requestIdButton.attributes('title')).toContain('User 10')
+    expect(requestIdButton.attributes('title')).toContain('API Key 20')
+    expect(requestIdButton.attributes('title')).toContain('Account 30')
+    expect(requestIdButton.attributes('title')).toContain('Group 40')
 
     await requestIdButton.trigger('click')
 

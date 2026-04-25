@@ -1,122 +1,172 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <UsageStatsCards :stats="usageStats" />
-      <!-- Charts Section -->
-      <div class="space-y-4">
-        <div class="card p-4">
-          <div class="flex items-center gap-4">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
-              >{{ t("admin.dashboard.granularity") }}:</span
-            >
-            <div class="w-28">
-              <Select
-                v-model="granularity"
-                :options="granularityOptions"
-                @change="loadChartData"
-              />
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <ModelDistributionChart
-            v-model:source="modelDistributionSource"
-            v-model:metric="modelDistributionMetric"
-            :model-stats="requestedModelStats"
-            :upstream-model-stats="upstreamModelStats"
-            :mapping-model-stats="mappingModelStats"
-            :loading="modelStatsLoading"
-            :show-source-toggle="true"
-            :show-metric-toggle="true"
-            :start-date="startDate"
-            :end-date="endDate"
-          />
-          <GroupDistributionChart
-            v-model:metric="groupDistributionMetric"
-            :group-stats="groupStats"
-            :loading="chartsLoading"
-            :show-metric-toggle="true"
-            :start-date="startDate"
-            :end-date="endDate"
-          />
-        </div>
-        <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">
+          {{ t("admin.usage.title") }}
+        </h1>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          {{ t("admin.usage.description") }}
+        </p>
       </div>
-      <UsageFilters
-        v-model="filters"
-        v-model:startDate="startDate"
-        v-model:endDate="endDate"
-        :exporting="exporting"
-        @change="applyFilters"
-        @refresh="refreshData"
-        @reset="resetFilters"
-        @cleanup="openCleanupDialog"
-        @export="exportToExcel"
-      >
-        <template #after-reset>
-          <div class="flex items-center gap-3">
-            <TokenDisplayModeToggle />
-            <div class="relative" ref="columnDropdownRef">
-              <button
-                @click="showColumnDropdown = !showColumnDropdown"
-                class="btn btn-secondary px-2 md:px-3"
-                :title="t('admin.users.columnSettings')"
+
+      <div class="inline-flex rounded-full border border-gray-200 bg-white p-1 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+        <button
+          data-test="admin-usage-tab-records"
+          class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+          :class="activeTab === 'records' ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'"
+          type="button"
+          @click="activeTab = 'records'"
+        >
+          {{ t("admin.usage.pageTabs.records") }}
+        </button>
+        <button
+          v-if="canReviewRequestDetails"
+          data-test="admin-usage-tab-request-details"
+          class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+          :class="activeTab === 'request_details' ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'"
+          type="button"
+          @click="activeTab = 'request_details'"
+        >
+          {{ t("admin.usage.pageTabs.requestDetails") }}
+        </button>
+        <button
+          data-test="admin-usage-tab-leaderboard"
+          class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+          :class="activeTab === 'leaderboard' ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'"
+          type="button"
+          @click="activeTab = 'leaderboard'"
+        >
+          {{ t("admin.usage.pageTabs.leaderboard") }}
+        </button>
+      </div>
+
+      <RequestDetailsTraceTab v-if="activeTab === 'request_details'" />
+
+      <template v-else>
+        <UsageStatsCards :stats="usageStats" />
+
+        <!-- Charts Section -->
+        <div v-if="activeTab === 'leaderboard'" class="space-y-4">
+          <div class="card p-4">
+            <div class="flex items-center gap-4">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >{{ t("admin.dashboard.granularity") }}:</span
               >
-                <svg
-                  class="h-4 w-4 md:mr-1.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
-                  />
-                </svg>
-                <span class="hidden md:inline">{{
-                  t("admin.users.columnSettings")
-                }}</span>
-              </button>
-              <div
-                v-if="showColumnDropdown"
-                class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
-              >
-                <button
-                  v-for="col in toggleableColumns"
-                  :key="col.key"
-                  @click="toggleColumn(col.key)"
-                  class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-                >
-                  <span>{{ col.label }}</span>
-                  <Icon
-                    v-if="isColumnVisible(col.key)"
-                    name="check"
-                    size="sm"
-                    class="text-primary-500"
-                    :stroke-width="2"
-                  />
-                </button>
+              <div class="w-28">
+                <Select
+                  v-model="granularity"
+                  :options="granularityOptions"
+                  @change="loadChartData"
+                />
               </div>
             </div>
           </div>
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <ModelDistributionChart
+              v-model:source="modelDistributionSource"
+              v-model:metric="modelDistributionMetric"
+              :model-stats="requestedModelStats"
+              :upstream-model-stats="upstreamModelStats"
+              :mapping-model-stats="mappingModelStats"
+              :loading="modelStatsLoading"
+              :show-source-toggle="true"
+              :show-metric-toggle="true"
+              :enable-ranking-view="true"
+              :start-date="startDate"
+              :end-date="endDate"
+              @ranking-click="handleUserClick($event.user_id)"
+            />
+            <GroupDistributionChart
+              v-model:metric="groupDistributionMetric"
+              :group-stats="groupStats"
+              :loading="chartsLoading"
+              :show-metric-toggle="true"
+              :start-date="startDate"
+              :end-date="endDate"
+            />
+          </div>
+          <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
+        </div>
+
+        <template v-else>
+          <UsageFilters
+            v-model="filters"
+            v-model:startDate="startDate"
+            v-model:endDate="endDate"
+            :exporting="exporting"
+            @change="applyFilters"
+            @refresh="refreshData"
+            @reset="resetFilters"
+            @cleanup="openCleanupDialog"
+            @export="exportToExcel"
+          >
+            <template #after-reset>
+              <div class="flex items-center gap-3">
+                <TokenDisplayModeToggle />
+                <div class="relative" ref="columnDropdownRef">
+                  <button
+                    @click="showColumnDropdown = !showColumnDropdown"
+                    class="btn btn-secondary px-2 md:px-3"
+                    :title="t('admin.users.columnSettings')"
+                  >
+                    <svg
+                      class="h-4 w-4 md:mr-1.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"
+                      />
+                    </svg>
+                    <span class="hidden md:inline">{{
+                      t("admin.users.columnSettings")
+                    }}</span>
+                  </button>
+                  <div
+                    v-if="showColumnDropdown"
+                    class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                  >
+                    <button
+                      v-for="col in toggleableColumns"
+                      :key="col.key"
+                      @click="toggleColumn(col.key)"
+                      class="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+                    >
+                      <span>{{ col.label }}</span>
+                      <Icon
+                        v-if="isColumnVisible(col.key)"
+                        name="check"
+                        size="sm"
+                        class="text-primary-500"
+                        :stroke-width="2"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </UsageFilters>
+          <UsageTable
+            :data="usageLogs"
+            :loading="loading"
+            :columns="visibleColumns"
+            @userClick="handleUserClick"
+          />
+          <Pagination
+            v-if="pagination.total > 0"
+            :page="pagination.page"
+            :total="pagination.total"
+            :page-size="pagination.page_size"
+            @update:page="handlePageChange"
+            @update:pageSize="handlePageSizeChange"
+          />
         </template>
-      </UsageFilters>
-      <UsageTable
-        :data="usageLogs"
-        :loading="loading"
-        :columns="visibleColumns"
-        @userClick="handleUserClick"
-      />
-      <Pagination
-        v-if="pagination.total > 0"
-        :page="pagination.page"
-        :total="pagination.total"
-        :page-size="pagination.page_size"
-        @update:page="handlePageChange"
-        @update:pageSize="handlePageSizeChange"
-      />
+      </template>
     </div>
   </AppLayout>
   <UsageExportProgress
@@ -151,6 +201,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { saveAs } from "file-saver";
 import { useAppStore } from "@/stores/app";
+import { useAuthStore } from "@/stores/auth";
 import { adminAPI } from "@/api/admin";
 import { adminUsageAPI } from "@/api/admin/usage";
 import { formatReasoningEffort, formatThinkingEnabled } from "@/utils/format";
@@ -176,6 +227,7 @@ import GroupDistributionChart from "@/components/charts/GroupDistributionChart.v
 import TokenUsageTrend from "@/components/charts/TokenUsageTrend.vue";
 import Icon from "@/components/icons/Icon.vue";
 import TokenDisplayModeToggle from "@/components/common/TokenDisplayModeToggle.vue";
+import RequestDetailsTraceTab from "./request-details/components/RequestDetailsTraceTab.vue";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";
 import type {
   AdminUsageLog,
@@ -191,6 +243,21 @@ import type {
 
 const { t } = useI18n();
 const appStore = useAppStore();
+const authStore = useAuthStore();
+const canReviewRequestDetails = computed(() => authStore.canReviewRequestDetails);
+
+type UsageViewTab = "records" | "request_details" | "leaderboard";
+const activeTab = ref<UsageViewTab>("records");
+
+watch(
+  canReviewRequestDetails,
+  (allowed) => {
+    if (!allowed && activeTab.value === "request_details") {
+      activeTab.value = "records";
+    }
+  },
+  { immediate: true },
+);
 type DistributionMetric = "tokens" | "actual_cost";
 type ModelDistributionSource = "requested" | "upstream" | "mapping";
 

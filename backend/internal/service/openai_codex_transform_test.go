@@ -234,6 +234,10 @@ func TestApplyCodexOAuthTransform_EmptyInput(t *testing.T) {
 
 func TestNormalizeCodexModel_Gpt53(t *testing.T) {
 	cases := map[string]string{
+		"gpt-5.5":                   "gpt-5.5",
+		"gpt 5.5":                   "gpt-5.5",
+		"gpt-5.5-none":              "gpt-5.5",
+		"gpt-5.5-chat-latest":       "gpt-5.5",
 		"gpt-5.4":                   "gpt-5.4",
 		"gpt-5.4-mini":              "gpt-5.4-mini",
 		"gpt 5.4 mini":              "gpt-5.4-mini",
@@ -262,6 +266,11 @@ func TestNormalizeCodexModel_Gpt53(t *testing.T) {
 	for input, expected := range cases {
 		require.Equal(t, expected, normalizeCodexModel(input))
 	}
+}
+
+func TestNormalizeCodexModel_DefaultFallbacksToGpt55(t *testing.T) {
+	require.Equal(t, "gpt-5.5", normalizeCodexModel(""))
+	require.Equal(t, "gpt-5.5", normalizeCodexModel("some-unknown-model"))
 }
 
 func TestApplyCodexOAuthTransform_CodexCLI_PreservesExistingInstructions(t *testing.T) {
