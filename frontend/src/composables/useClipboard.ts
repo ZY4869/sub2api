@@ -29,7 +29,6 @@ function fallbackCopy(text: string): boolean {
 }
 
 export function useClipboard() {
-  const appStore = useAppStore()
   const copied = ref(false)
 
   const copyToClipboard = async (
@@ -38,6 +37,7 @@ export function useClipboard() {
   ): Promise<boolean> => {
     if (!text) return false
 
+    const appStore = useAppStore()
     let success = false
 
     if (isClipboardSupported()) {

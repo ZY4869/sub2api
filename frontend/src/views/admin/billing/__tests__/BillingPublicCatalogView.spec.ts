@@ -81,6 +81,28 @@ describe('BillingPublicCatalogView', () => {
     })
   })
 
+  it('loads without force by default and forces refresh when manually reloading', async () => {
+    const wrapper = mount(BillingPublicCatalogView, {
+      global: {
+        stubs: {
+          ModelIcon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(apiMocks.getBillingPublicCatalogDraft).toHaveBeenCalledTimes(1)
+    expect(apiMocks.getBillingPublicCatalogDraft).toHaveBeenNthCalledWith(1, { force: false })
+
+    const reloadButton = wrapper.findAll('button').find((node) => node.text().includes('重新加载'))
+    expect(reloadButton).toBeTruthy()
+    await reloadButton!.trigger('click')
+    await flushPromises()
+
+    expect(apiMocks.getBillingPublicCatalogDraft).toHaveBeenLastCalledWith({ force: true })
+  })
+
   it('publishes the current draft payload so page_size changes are included in the new snapshot', async () => {
     const wrapper = mount(BillingPublicCatalogView, {
       global: {

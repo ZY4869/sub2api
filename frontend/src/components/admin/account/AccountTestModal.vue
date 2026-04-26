@@ -403,6 +403,7 @@ const terminalRef = ref<HTMLElement | null>(null)
 const status = ref<'idle' | 'connecting' | 'success' | 'error'>('idle')
 const outputLines = ref<OutputLine[]>([])
 const streamingContent = ref('')
+const aiResponseHeaderPrinted = ref(false)
 const errorMessage = ref('')
 const availableModels = ref<AdminAccountModelOption[]>([])
 const selectedModelKey = ref('')
@@ -737,6 +738,7 @@ const resetState = () => {
   status.value = 'idle'
   outputLines.value = []
   streamingContent.value = ''
+  aiResponseHeaderPrinted.value = false
   errorMessage.value = ''
   generatedImages.value = []
   blacklistAdvice.value = null
@@ -777,6 +779,14 @@ const isAbortError = (error: unknown) => {
 const addLine = (text: string, className: string = 'text-gray-300') => {
   outputLines.value.push({ text, class: className })
   scrollToBottom()
+}
+
+const ensureAiResponseHeader = () => {
+  if (aiResponseHeaderPrinted.value) {
+    return
+  }
+  aiResponseHeaderPrinted.value = true
+  addLine(t('admin.accounts.aiResponseHeader'), 'text-green-300')
 }
 
 const scrollToBottom = async () => {
@@ -1014,7 +1024,6 @@ const handleEvent = (event: {
         'text-gray-400'
       )
       addLine('', 'text-gray-300')
-      addLine(t('admin.accounts.response'), 'text-yellow-400')
       break
 
     case 'content':
@@ -1051,8 +1060,9 @@ const handleEvent = (event: {
         break
       }
       if (event.text) {
+        ensureAiResponseHeader()
         if (isGrokAccount.value || effectiveTestMode.value === 'health_check') {
-          addLine(event.text, 'text-sky-300')
+          addLine(event.text, 'text-green-400')
         } else {
           streamingContent.value += event.text
           scrollToBottom()

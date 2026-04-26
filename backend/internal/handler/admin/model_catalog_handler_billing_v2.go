@@ -25,15 +25,29 @@ func (h *ModelCatalogHandler) ListBillingPricingProviders(c *gin.Context) {
 
 func (h *ModelCatalogHandler) ListBillingPricingModels(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
+	pricingStatus := strings.TrimSpace(c.Query("pricing_status"))
+	if pricingStatus != "" {
+		switch strings.ToLower(pricingStatus) {
+		case string(service.BillingPricingStatusOK),
+			string(service.BillingPricingStatusFallback),
+			string(service.BillingPricingStatusConflict),
+			string(service.BillingPricingStatusMissing):
+			pricingStatus = strings.ToLower(pricingStatus)
+		default:
+			response.BadRequest(c, "Invalid pricing_status")
+			return
+		}
+	}
 	filter := service.BillingPricingListFilter{
-		Search:    c.Query("search"),
-		Provider:  c.Query("provider"),
-		Mode:      c.Query("mode"),
-		GroupID:   parseOptionalInt64(c.Query("group_id")),
-		SortBy:    c.Query("sort_by"),
-		SortOrder: c.Query("sort_order"),
-		Page:      page,
-		PageSize:  pageSize,
+		Search:        c.Query("search"),
+		Provider:      c.Query("provider"),
+		Mode:          c.Query("mode"),
+		GroupID:       parseOptionalInt64(c.Query("group_id")),
+		PricingStatus: pricingStatus,
+		SortBy:        c.Query("sort_by"),
+		SortOrder:     c.Query("sort_order"),
+		Page:          page,
+		PageSize:      pageSize,
 	}
 	items, total, err := h.modelCatalogService.ListBillingPricingModels(c.Request.Context(), filter)
 	if err != nil {
@@ -86,7 +100,9 @@ func (h *ModelCatalogHandler) SaveBillingPricingLayer(c *gin.Context) {
 }
 
 func (h *ModelCatalogHandler) GetPublicModelCatalogDraft(c *gin.Context) {
-	payload, err := h.modelCatalogService.GetPublicModelCatalogDraftPayload(c.Request.Context())
+	force := strings.TrimSpace(c.Query("force"))
+	forceRefresh := force == "1" || strings.EqualFold(force, "true")
+	payload, err := h.modelCatalogService.GetPublicModelCatalogDraftPayload(c.Request.Context(), forceRefresh)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

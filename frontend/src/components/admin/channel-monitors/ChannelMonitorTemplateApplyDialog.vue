@@ -72,15 +72,17 @@ const emit = defineEmits<{
 const selectedMonitorId = ref<number | null>(null)
 const submitting = ref(false)
 
-const monitorOptions = computed(() =>
-  props.monitors.map((m) => ({ value: m.id, label: m.name }))
-)
+const monitorOptions = computed(() => {
+  const monitors = Array.isArray(props.monitors) ? props.monitors : []
+  return monitors.map((m) => ({ value: m.id, label: m.name }))
+})
 
 watch(
-  () => [props.show, props.template?.id, props.monitors.length],
+  () => [props.show, props.template?.id, Array.isArray(props.monitors) ? props.monitors.length : 0],
   ([show]) => {
     if (!show) return
-    selectedMonitorId.value = props.monitors.length > 0 ? props.monitors[0].id : null
+    const monitors = Array.isArray(props.monitors) ? props.monitors : []
+    selectedMonitorId.value = monitors.length > 0 ? monitors[0].id : null
   },
   { immediate: true }
 )
@@ -99,4 +101,3 @@ async function applyNow() {
   }
 }
 </script>
-

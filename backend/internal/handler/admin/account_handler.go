@@ -43,6 +43,7 @@ type AccountHandler struct {
 	accountModelImportService *service.AccountModelImportService
 	accountModelDiagnostics   *service.AccountModelDiagnosticsService
 	modelRegistryService      *service.ModelRegistryService
+	opsService                *service.OpsService
 }
 
 func NewAccountHandler(adminService service.AdminService, oauthService *service.OAuthService, openaiOAuthService *service.OpenAIOAuthService, geminiOAuthService *service.GeminiOAuthService, antigravityOAuthService *service.AntigravityOAuthService, rateLimitService *service.RateLimitService, accountUsageService *service.AccountUsageService, accountTestService accountTestServicePort, concurrencyService *service.ConcurrencyService, crsSyncService *service.CRSSyncService, sessionLimitCache service.SessionLimitCache, rpmCache service.RPMCache, tokenCacheInvalidator service.TokenCacheInvalidator) *AccountHandler {
@@ -65,6 +66,10 @@ func (h *AccountHandler) SetCopilotOAuthService(copilotOAuthService *service.Cop
 }
 func (h *AccountHandler) SetKiroOAuthService(kiroOAuthService *service.KiroOAuthService) {
 	h.kiroOAuthService = kiroOAuthService
+}
+
+func (h *AccountHandler) SetOpsService(opsService *service.OpsService) {
+	h.opsService = opsService
 }
 
 type CreateAccountRequest struct {

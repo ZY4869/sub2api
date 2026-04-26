@@ -1,11 +1,25 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"path/filepath"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
+
+type pricingRemoteClientStub struct{}
+
+func (pricingRemoteClientStub) FetchPricingJSON(_ context.Context, _ string) ([]byte, error) {
+	return nil, errors.New("remote pricing unavailable")
+}
+
+func (pricingRemoteClientStub) FetchHashText(_ context.Context, _ string) (string, error) {
+	return "", errors.New("remote hash unavailable")
+}
 
 func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	svc := &PricingService{}
@@ -242,4 +256,20 @@ func TestParsePricingData_PreservesPriorityImagePrice(t *testing.T) {
 	require.InDelta(t, 0.039, pricing.OutputCostPerImage, 1e-12)
 	require.InDelta(t, 0.0702, pricing.OutputCostPerImagePriority, 1e-12)
 	require.True(t, pricing.SupportsServiceTier)
+}
+
+func TestPricingService_Initialize_UsesEmbeddedFallbackWhenFallbackFileMissing(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Pricing.DataDir = t.TempDir()
+	cfg.Pricing.FallbackFile = filepath.Join(cfg.Pricing.DataDir, "missing_fallback.json")
+
+	svc := NewPricingService(cfg, pricingRemoteClientStub{})
+	t.Cleanup(svc.Stop)
+
+	require.NoError(t, svc.Initialize())
+	require.Greater(t, len(svc.GetPricingSnapshot()), 0)
+
+	pricing := svc.GetModelPricing("claude-3-5-haiku")
+	require.NotNil(t, pricing)
+	require.Greater(t, pricing.InputCostPerToken, 0.0)
 }

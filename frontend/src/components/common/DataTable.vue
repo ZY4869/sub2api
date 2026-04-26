@@ -577,7 +577,7 @@ watch(
 // 数据/列变化时重新检查滚动状态
 // 注意：不能监听 actionsExpanded，因为 checkActionsColumnWidth 会临时修改它，会导致无限循环
 watch(
-  [() => props.data.length, columnsSignature],
+  [() => (Array.isArray(props.data) ? props.data.length : 0), columnsSignature],
   async () => {
     await nextTick()
     checkScrollable()

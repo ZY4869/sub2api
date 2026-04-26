@@ -110,6 +110,12 @@ func matchesBillingPricingFilter(item BillingPricingListItem, filter BillingPric
 	if mode := strings.TrimSpace(filter.Mode); mode != "" && !strings.EqualFold(mode, item.Mode) {
 		return false
 	}
+	if status := strings.TrimSpace(filter.PricingStatus); status != "" {
+		expected := normalizeBillingPricingStatus(BillingPricingStatus(strings.ToLower(status)))
+		if normalizeBillingPricingStatus(item.PricingStatus) != expected {
+			return false
+		}
+	}
 	return true
 }
 

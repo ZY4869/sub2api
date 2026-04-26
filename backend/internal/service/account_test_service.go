@@ -73,6 +73,7 @@ type AccountTestService struct {
 	tlsFingerprintProfileService *TLSFingerprintProfileService
 	cfg                          *config.Config
 	backgroundRunner             func(func())
+	opsService                   *OpsService
 }
 
 // NewAccountTestService creates a new AccountTestService
@@ -745,10 +746,21 @@ func (s *AccountTestService) resolveGatewayTestSimulatedClient(ctx context.Conte
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, sourceProtocol string, targetProvider string, targetModelID string, testMode string) error {
 	ctx := c.Request.Context()
 
+	// Best-effort: attach an ops trace collector (if the caller has provided a test_run_id).
+	s.ensureOpsCollector(c)
+
+	runtimeMeta := accountTestRuntimeMeta{}
+	normalizedTestMode := AccountTestModeHealthCheck
+	var testErr error
+	defer func() {
+		s.finalizeUpstreamTrace(c, accountID, runtimeMeta, modelID, normalizedTestMode, testErr)
+	}()
+
 	// Get account
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
-		return s.sendErrorAndEnd(c, "Account not found")
+		testErr = s.sendErrorAndEnd(c, "Account not found")
+		return testErr
 	}
 
 	if !IsProtocolGatewayAccount(account) && strings.TrimSpace(modelID) == "" {
@@ -788,7 +800,8 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 			"reason", reason,
 			"error", err,
 		)
-		return err
+		testErr = err
+		return testErr
 	}
 	if resolvedTarget.SourceProtocol != "" {
 		account = ResolveProtocolGatewayInboundAccount(account, resolvedTarget.SourceProtocol)
@@ -806,17 +819,18 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 			"target_model_id", strings.TrimSpace(resolvedTarget.TargetModelID),
 			"error", err,
 		)
-		return err
+		testErr = err
+		return testErr
 	}
 	if account != nil && account.IsOpenAI() && !isOpenAIGPTImageProfileModelID(modelID) {
 		modelID = resolveOpenAITestModelID(ctx, account, modelID, s.modelRegistryService)
 	}
 	simulatedClient := s.resolveGatewayTestSimulatedClient(ctx, account, resolvedTarget.SourceProtocol, modelID)
-	normalizedTestMode := normalizeAccountTestMode(testMode)
+	normalizedTestMode = normalizeAccountTestMode(testMode)
 	if account != nil && account.IsBaiduDocumentAI() {
 		normalizedTestMode = AccountTestModeHealthCheck
 	}
-	runtimeMeta := buildAccountTestRuntimeMeta(
+	runtimeMeta = buildAccountTestRuntimeMeta(
 		account,
 		normalizedTestMode,
 		resolvedTarget.SourceProtocol,
@@ -840,7 +854,6 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		"simulated_client", runtimeMeta.SimulatedClient,
 	)
 
-	var testErr error
 	if normalizedTestMode == AccountTestModeRealForward {
 		testErr = s.testAccountConnectionRealForward(c, account, modelID, prompt, resolvedTarget.SourceProtocol, simulatedClient)
 	} else {
@@ -2063,6 +2076,7 @@ func (s *AccountTestService) processOpenAIChatCompletionsStream(c *gin.Context, 
 
 // sendEvent sends a SSE event to the client
 func (s *AccountTestService) sendEvent(c *gin.Context, event TestEvent) {
+	s.captureOpsEvent(c, event)
 	eventJSON, _ := json.Marshal(event)
 	if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", eventJSON); err != nil {
 		log.Printf("failed to write SSE event: %v", err)
@@ -2089,6 +2103,7 @@ func (s *AccountTestService) sendBlacklistAdviceEvent(c *gin.Context, advice *Bl
 }
 
 func (s *AccountTestService) sendFailedTestResponse(c *gin.Context, ctx context.Context, account *Account, statusCode int, body []byte, prefix string) error {
+	s.captureUpstreamFailure(c, statusCode, body)
 	message, advice := s.formatFailedTestResponse(ctx, account, statusCode, body, prefix)
 	if advice != nil {
 		s.sendBlacklistAdviceEvent(c, advice)

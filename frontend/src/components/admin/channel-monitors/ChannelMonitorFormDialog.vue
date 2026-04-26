@@ -200,10 +200,13 @@ const providerOptions = computed(() => [
   { value: 'antigravity', label: 'antigravity' }
 ])
 
-const templateOptions = computed(() => [
-  { value: null, label: t('admin.channelMonitors.fields.templateNone') },
-  ...props.templates.map((tpl) => ({ value: tpl.id, label: `${tpl.name} (${tpl.provider})` }))
-])
+const templateOptions = computed(() => {
+  const templates = Array.isArray(props.templates) ? props.templates : []
+  return [
+    { value: null, label: t('admin.channelMonitors.fields.templateNone') },
+    ...templates.map((tpl) => ({ value: tpl.id, label: `${tpl.name} (${tpl.provider})` }))
+  ]
+})
 
 const bodyOverrideModeOptions = computed(() => [
   { value: 'off', label: 'off' },

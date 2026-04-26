@@ -5,10 +5,14 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -129,6 +133,14 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		return
 	}
 
+	var adminUserID *int64
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
+		v := subject.UserID
+		adminUserID = &v
+	}
+	testRunID := uuid.NewString()
+	service.AttachAccountTestOpsContext(c, testRunID, "batch_test", adminUserID)
+
 	var req batchAccountTestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequestKey(c, "admin.account.invalid_request", "Invalid request: %s", err.Error())
@@ -171,6 +183,7 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 	)
 
 	results := make([]batchAccountTestResult, len(accountIDs))
+	startedAt := time.Now()
 	g, gctx := errgroup.WithContext(c.Request.Context())
 	g.SetLimit(4)
 	var mu sync.Mutex
@@ -249,7 +262,113 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 		"model_input_mode", modelInputMode,
 	)
 
+	duration := time.Since(startedAt)
+	failedCount := len(results) - successCount
+	status := "success"
+	statusCode := 200
+	if failedCount > 0 {
+		status = "error"
+		statusCode = 500
+	}
+
+	routePath := strings.TrimSpace(c.FullPath())
+	if routePath == "" && c.Request != nil {
+		routePath = strings.TrimSpace(c.Request.URL.Path)
+	}
+
+	promptPreview := redactPromptPreview(req.Prompt, 120)
+	normalizedRequest := map[string]any{
+		"test_run_id":        testRunID,
+		"account_count":      len(accountIDs),
+		"account_id_sample":  limitInt64Slice(accountIDs, 5),
+		"requested_model_id": requestedModelID,
+		"model_input_mode":   modelInputMode,
+		"test_mode":          testMode,
+		"source_protocol":    normalizeBatchTestSourceProtocol(req.SourceProtocol),
+		"target_provider":    strings.TrimSpace(req.TargetProvider),
+		"target_model_id":    strings.TrimSpace(req.TargetModelID),
+		"prompt_len":         len(strings.TrimSpace(req.Prompt)),
+		"prompt_preview":     promptPreview,
+	}
+
+	gatewayResponse := map[string]any{
+		"success":               status == "success",
+		"success_count":         successCount,
+		"failed_count":          failedCount,
+		"auto_blacklisted_count": autoBlacklistedCount,
+	}
+
+	recordProbeActionTrace(
+		c,
+		h.opsService,
+		testRunID,
+		"",
+		"batch_test",
+		adminUserID,
+		nil,
+		"",
+		normalizeBatchTestSourceProtocol(req.SourceProtocol),
+		"",
+		routePath,
+		requestedModelID,
+		normalizedRequest,
+		gatewayResponse,
+		status,
+		statusCode,
+		duration,
+	)
+
+	// Best-effort: also write an upstream summary trace so ops can clearly distinguish
+	// "batch action" vs "upstream execution" when filtering by probe_action.
+	var failureSamples []string
+	for _, item := range results {
+		if item.Status == "success" {
+			continue
+		}
+		if strings.TrimSpace(item.ErrorMessage) == "" {
+			continue
+		}
+		failureSamples = append(failureSamples, logredact.RedactText(item.ErrorMessage, "sso_token"))
+		if len(failureSamples) >= 5 {
+			break
+		}
+	}
+	upstreamGatewayResponse := map[string]any{
+		"success":        status == "success",
+		"success_count":  successCount,
+		"failed_count":   failedCount,
+		"failure_sample": failureSamples,
+	}
+	recordProbeActionTrace(
+		c,
+		h.opsService,
+		uuid.NewString(),
+		testRunID,
+		"batch_test_upstream",
+		adminUserID,
+		nil,
+		"",
+		normalizeBatchTestSourceProtocol(req.SourceProtocol),
+		"",
+		routePath,
+		requestedModelID,
+		normalizedRequest,
+		upstreamGatewayResponse,
+		status,
+		statusCode,
+		duration,
+	)
+
 	response.Success(c, batchAccountTestResponse{Results: results})
+}
+
+func limitInt64Slice(items []int64, limit int) []int64 {
+	if limit <= 0 || len(items) <= limit {
+		return items
+	}
+	cloned := make([]int64, limit)
+	copy(cloned, items[:limit])
+	return cloned
 }
 
 func (h *AccountHandler) resolveBatchAccountTestExecutionInput(

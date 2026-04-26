@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -135,6 +135,13 @@ const AccountCreatePlatformSelectorStub = defineComponent({
     <div>
       <button
         type="button"
+        data-testid="select-grok"
+        @click="$emit('update:platform', 'grok')"
+      >
+        select grok
+      </button>
+      <button
+        type="button"
         data-testid="select-protocol-gateway"
         @click="$emit('update:platform', 'protocol_gateway')"
       >
@@ -186,6 +193,13 @@ const AccountCreatePlatformTypeEditorStub = defineComponent({
         "
       >
         set mixed gateway
+      </button>
+      <button
+        type="button"
+        data-testid="set-oauth-based-mode"
+        @click="$emit('update:account-category', 'oauth-based')"
+      >
+        set oauth based mode
       </button>
       <button
         type="button"
@@ -417,12 +431,19 @@ const AccountModelScopeEditorStub = defineComponent({
       default: () => []
     }
   },
-  emits: ['update:allowedModels'],
+  emits: ['update:allowedModels', 'update:enabled'],
   template: `
     <div>
       <span data-testid="oauth-allowed-models-prop">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
+      <button
+        type="button"
+        data-testid="enable-oauth-model-restriction"
+        @click="$emit('update:enabled', true)"
+      >
+        enable oauth restriction
+      </button>
       <button
         type="button"
         data-testid="set-openai-custom-whitelist"
@@ -556,6 +577,61 @@ describe('CreateAccountModal', () => {
     expect(source).toContain("accountCategory.value = 'apikey'")
     expect(source).toContain("form.type = 'apikey'")
     expect(source).toContain("form.platform === 'grok' && form.type === 'sso'")
+  })
+
+  it('submits Grok SSO model scope through extra.model_scope_v2 while preserving grok_tier', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 18,
+      name: 'Grok SSO Account',
+      platform: 'grok',
+      type: 'sso',
+      extra: {}
+    })
+
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-grok"]').trigger('click')
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+    await wrapper.get('textarea[placeholder="admin.accounts.grokTokenPlaceholder"]').setValue('grok-sso-token')
+    await wrapper.get('[data-testid="enable-oauth-model-restriction"]').trigger('click')
+    await wrapper.get('[data-testid="set-openai-custom-whitelist"]').trigger('click')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Grok SSO Account')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    const payload = createMock.mock.calls[0]?.[0] as any
+    expect(payload).toMatchObject({
+      name: 'Grok SSO Account',
+      platform: 'grok',
+      type: 'sso',
+      credentials: {
+        sso_token: 'grok-sso-token'
+      },
+      extra: {
+        grok_tier: 'basic',
+        model_scope_v2: {
+          policy_mode: 'whitelist'
+        }
+      }
+    })
+    expect(payload.extra.model_scope_v2.entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          display_model_id: 'gpt-5.4',
+          target_model_id: 'gpt-5.4'
+        })
+      ])
+    )
+    expect(payload.credentials.model_mapping).toEqual({
+      'gpt-5.4': 'gpt-5.4'
+    })
   })
 
   it('shows generic quota controls and protocol gateway batch controls in account creation', () => {
@@ -853,6 +929,24 @@ describe('CreateAccountModal', () => {
     await wrapper.get('[data-testid="select-protocol-gateway"]').trigger('click')
 
     expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(false)
+  })
+
+  it('returns to the basic info step when switching from OAuth flow platforms to baidu document ai', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-openai"]').trigger('click')
+
+    ;(wrapper.vm as any).step = 2
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(false)
+
+    ;(wrapper.vm as any).form.platform = 'baidu_document_ai'
+    await flushPromises()
+
+    expect((wrapper.vm as any).step).toBe(1)
+    expect(wrapper.find('[data-testid="baidu-document-ai-selected-hint"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="baidu-document-ai-credentials-editor"]').exists()).toBe(true)
   })
 
   it('shows the baidu document ai credential editor for legacy baidu platform values', async () => {

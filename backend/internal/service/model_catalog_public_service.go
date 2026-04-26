@@ -175,8 +175,15 @@ func (s *ModelCatalogService) publicModelCatalogTTL() time.Duration {
 }
 
 func (s *ModelCatalogService) getFreshPublicModelCatalogSnapshot() (*PublicModelCatalogSnapshot, time.Duration, bool) {
+	return s.getFreshPublicModelCatalogSnapshotWithTTL(s.publicModelCatalogTTL())
+}
+
+func (s *ModelCatalogService) getFreshPublicModelCatalogSnapshotWithTTL(ttl time.Duration) (*PublicModelCatalogSnapshot, time.Duration, bool) {
 	if s == nil {
 		return nil, 0, false
+	}
+	if ttl <= 0 {
+		ttl = s.publicModelCatalogTTL()
 	}
 	s.publicCatalogCacheMu.RLock()
 	defer s.publicCatalogCacheMu.RUnlock()
@@ -184,7 +191,7 @@ func (s *ModelCatalogService) getFreshPublicModelCatalogSnapshot() (*PublicModel
 		return nil, 0, false
 	}
 	age := time.Since(s.publicCatalogBuiltAt)
-	if age > s.publicModelCatalogTTL() {
+	if age > ttl {
 		return nil, age, false
 	}
 	return clonePublicModelCatalogSnapshot(s.publicCatalogCache), age, true

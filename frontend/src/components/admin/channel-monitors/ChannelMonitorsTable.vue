@@ -132,7 +132,10 @@ defineEmits<{
   (e: 'toggleEnabled', monitor: AdminChannelMonitor, enabled: boolean): void
 }>()
 
-const templateMap = computed(() => new Map(props.templates.map(tpl => [tpl.id, tpl])))
+const templateMap = computed(() => {
+  const templates = Array.isArray(props.templates) ? props.templates : []
+  return new Map(templates.map(tpl => [tpl.id, tpl]))
+})
 
 const columns = computed(() => [
   { key: 'name', label: t('admin.channelMonitors.fields.name') },
@@ -170,4 +173,3 @@ function apiKeyBadgeClass(m: AdminChannelMonitor): string {
   return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
 }
 </script>
-

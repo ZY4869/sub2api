@@ -2738,6 +2738,9 @@ export default {
         title: "Baidu Document AI Credentials",
         description:
           "Configure the async PaddleOCR token and optional direct model endpoints. At least one token is required.",
+        selectedHintTitle: "Selected platform: Baidu Document AI",
+        selectedHintBody:
+          'Token fields are in the "Baidu Document AI Credentials" section below. If you cannot see them, scroll down or check the browser console for errors.',
         asyncBaseUrl: "Async Base URL",
         asyncBaseUrlHint:
           "Default async jobs endpoint from Baidu AI Studio PaddleOCR.",
@@ -3440,6 +3443,7 @@ export default {
       sendingTestMessage: 'Sending test message: "hi"',
       sendingImageTestRequest: "Sending image generation test request...",
       response: "Response:",
+      aiResponseHeader: "AI Response:",
       startTest: "Start Test",
       testing: "Testing...",
       retry: "Retry",
@@ -5099,6 +5103,22 @@ export default {
         totpKeyNotConfigured:
           "Please configure TOTP_ENCRYPTION_KEY in environment variables first. Generate a key with: openssl rand -hex 32",
       },
+      affiliate: {
+        title: "Affiliate / Invite Rebate",
+        description: "Configure affiliate rebate switches and rate (default: disabled).",
+        enabled: "Enable Affiliate Rebates",
+        enabledHint: "Enable binding affiliate codes and accruing rebates (usage / topup).",
+        transferEnabled: "Enable Transfer to Balance",
+        transferEnabledHint: "Independent switch: only controls whether users can transfer rebates to balance.",
+        ratePercent: "Rebate Rate (%)",
+        ratePercentHint: "Integer 0-100. Used when accruing rebates (effective only when enabled).",
+        onUsage: "Rebate on usage",
+        onUsageHint: "Accrue rebates after successful usage billing.",
+        onTopup: "Rebate on topup",
+        onTopupHint: "Accrue rebates on positive balance topups (redeem/admin balance).",
+        note: "Note: Usage/topup switches take effect only when affiliate is enabled. Transfer is controlled independently.",
+        rateInvalid: "Rebate rate must be an integer between 0 and 100.",
+      },
       turnstile: {
         title: "Cloudflare Turnstile",
         description: "Bot protection for login and registration",
@@ -5944,6 +5964,7 @@ export default {
         thinkingSources: {
           request: "Request Parameter",
           gateway: "Gateway Inference",
+          openai_reasoning_effort: "OpenAI reasoning.effort",
           upstream: "Upstream Response",
           model: "Model Default",
           default: "Default",

@@ -100,8 +100,8 @@ export interface UpdateChannelMonitorTemplateRequest {
 }
 
 export async function listMonitors(): Promise<AdminChannelMonitor[]> {
-  const { data } = await apiClient.get<AdminChannelMonitor[]>('/admin/channel-monitors')
-  return data
+  const { data } = await apiClient.get<AdminChannelMonitor[] | null>('/admin/channel-monitors')
+  return Array.isArray(data) ? data : []
 }
 
 export async function createMonitor(payload: CreateChannelMonitorRequest): Promise<AdminChannelMonitor> {
@@ -119,20 +119,20 @@ export async function deleteMonitor(id: number): Promise<void> {
 }
 
 export async function runMonitor(id: number): Promise<AdminChannelMonitorHistory[]> {
-  const { data } = await apiClient.post<AdminChannelMonitorHistory[]>(`/admin/channel-monitors/${id}/run`)
-  return data
+  const { data } = await apiClient.post<AdminChannelMonitorHistory[] | null>(`/admin/channel-monitors/${id}/run`)
+  return Array.isArray(data) ? data : []
 }
 
 export async function listMonitorHistories(id: number, limit = 50): Promise<AdminChannelMonitorHistory[]> {
-  const { data } = await apiClient.get<AdminChannelMonitorHistory[]>(`/admin/channel-monitors/${id}/histories`, {
+  const { data } = await apiClient.get<AdminChannelMonitorHistory[] | null>(`/admin/channel-monitors/${id}/histories`, {
     params: { limit }
   })
-  return data
+  return Array.isArray(data) ? data : []
 }
 
 export async function listTemplates(): Promise<AdminChannelMonitorTemplate[]> {
-  const { data } = await apiClient.get<AdminChannelMonitorTemplate[]>('/admin/channel-monitor-templates')
-  return data
+  const { data } = await apiClient.get<AdminChannelMonitorTemplate[] | null>('/admin/channel-monitor-templates')
+  return Array.isArray(data) ? data : []
 }
 
 export async function createTemplate(payload: CreateChannelMonitorTemplateRequest): Promise<AdminChannelMonitorTemplate> {
@@ -157,10 +157,10 @@ export async function applyTemplate(id: number, monitorId: number): Promise<Admi
 }
 
 export async function listAssociatedMonitors(id: number): Promise<Array<{ id: number; name: string }>> {
-  const { data } = await apiClient.get<Array<{ id: number; name: string }>>(
+  const { data } = await apiClient.get<Array<{ id: number; name: string }> | null>(
     `/admin/channel-monitor-templates/${id}/associated-monitors`
   )
-  return data
+  return Array.isArray(data) ? data : []
 }
 
 export const channelMonitorsAdminAPI = {
@@ -179,4 +179,3 @@ export const channelMonitorsAdminAPI = {
 }
 
 export default channelMonitorsAdminAPI
-

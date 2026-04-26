@@ -44,6 +44,7 @@ export default {
     todayExchangeRate: "Today's Rate",
     available: 'Available',
     copiedToClipboard: 'Copied to clipboard',
+    copy: 'Copy',
     copied: 'Copied',
     copyFailed: 'Failed to copy',
     verifying: 'Verifying...',

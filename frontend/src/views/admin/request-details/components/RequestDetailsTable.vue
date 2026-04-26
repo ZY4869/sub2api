@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import Pagination from '@/components/common/Pagination.vue'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import ProtocolPairDisplay from '@/components/common/ProtocolPairDisplay.vue'
+import Icon from '@/components/icons/Icon.vue'
 import type { OpsRequestTraceListItem } from '@/api/admin/ops'
 import { formatDateTime, formatNumber } from '@/utils/format'
 import TruncatedCopyText from './TruncatedCopyText.vue'
@@ -28,6 +29,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', value: OpsRequestTraceListItem): void
+  (e: 'copyError', value: OpsRequestTraceListItem): void
   (e: 'refresh'): void
   (e: 'update:page', value: number): void
   (e: 'update:pageSize', value: number): void
@@ -135,6 +137,10 @@ function getStatusReasonSummary(item: OpsRequestTraceListItem): string {
     getRequestTraceFinishReasonLabel(t, item.finish_reason),
     getRequestTraceCaptureReasonLabel(t, item.capture_reason)
   ])
+}
+
+function canCopyError(item: OpsRequestTraceListItem): boolean {
+  return String(item.status || '').toLowerCase() !== 'success'
 }
 
 function getPerformanceSummary(item: OpsRequestTraceListItem): string {
@@ -331,6 +337,15 @@ function getModelTitle(modelId?: string | null) {
                   :copy-value="getStatusReasonSummary(item)"
                   :title-text="getStatusReasonSummary(item)"
                 />
+                <button
+                  v-if="canCopyError(item)"
+                  type="button"
+                  class="shrink-0 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-200"
+                  :title="t('common.copy')"
+                  @click.stop="emit('copyError', item)"
+                >
+                  <Icon name="link" size="xs" />
+                </button>
               </div>
             </td>
 

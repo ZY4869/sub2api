@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"log"
 	"strings"
 	"sync"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
 // APIKeyRateLimitCacheData holds rate limit usage data cached in Redis.
@@ -130,6 +130,7 @@ type BillingService struct {
 	modelRegistryService   *ModelRegistryService
 	billingCenterService   *BillingCenterService
 	fallbackPrices         map[string]*ModelPricing // fallback pricing table
+	fallbackPricingLogs    sync.Map
 	overrideMu             sync.RWMutex
 	officialPriceOverrides map[string]*ModelPricingOverride
 	priceOverrides         map[string]*ModelPricingOverride
@@ -396,7 +397,15 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 	// 2. Fall back to hardcoded pricing.
 	fallback := s.getFallbackPricing(model)
 	if fallback != nil {
-		log.Printf("[Billing] Using fallback pricing for model: %s", model)
+		key := CanonicalizeModelNameForPricing(model)
+		if key == "" {
+			key = strings.ToLower(strings.TrimSpace(model))
+		}
+		if key != "" {
+			if _, loaded := s.fallbackPricingLogs.LoadOrStore(key, struct{}{}); !loaded {
+				logger.LegacyPrintf("service.billing", "[Debug] [Billing] Using fallback pricing for model: %s", model)
+			}
+		}
 		return s.applyModelSpecificPricingPolicy(model, fallback), nil
 	}
 

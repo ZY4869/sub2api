@@ -121,6 +121,16 @@
               >
                 {{ getSimulatedClientLabel(row.simulated_client) }}
               </span>
+              <button
+                v-if="row.status === 'failed'"
+                type="button"
+                class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 transition hover:bg-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25"
+                :title="t('common.copy')"
+                @click.stop="copyUsageFailure(row)"
+              >
+                <Icon name="link" size="xs" class="h-3 w-3" />
+                <span>{{ t('common.copy') }}</span>
+              </button>
             </div>
             <div
               v-if="row.status === 'failed'"
@@ -764,6 +774,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { useClipboard } from "@/composables/useClipboard";
 import {
   formatDateTime,
   formatReasoningEffort,
@@ -799,6 +810,25 @@ defineProps(["data", "loading", "columns"]);
 defineEmits(["userClick"]);
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
+const { copyToClipboard } = useClipboard();
+
+const buildUsageFailureSummary = (row: AdminUsageLog): string => {
+  const requestID = String(row.request_id || "").trim();
+  const httpStatus = row.http_status == null ? "" : String(row.http_status);
+  const errorCode = String(row.error_code || "").trim();
+  const errorMessage = String(row.error_message || "").trim();
+
+  return [
+    `request_id: ${requestID || "-"}`,
+    `http_status: ${httpStatus || "-"}`,
+    `error_code: ${errorCode || "-"}`,
+    `error_message: ${errorMessage || "-"}`,
+  ].join("\n");
+};
+
+const copyUsageFailure = async (row: AdminUsageLog) => {
+  await copyToClipboard(buildUsageFailureSummary(row));
+};
 
 // Tooltip state - cost
 const tooltipVisible = ref(false);

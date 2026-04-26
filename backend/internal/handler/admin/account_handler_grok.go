@@ -6,10 +6,14 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const grokImportPageSize = 200
@@ -242,8 +246,67 @@ func (h *AccountHandler) TestGrokAccount(c *gin.Context) {
 		modelID = strings.TrimSpace(req.Model)
 	}
 
-	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, "", "", "", "", string(service.AccountTestModeHealthCheck)); err != nil && !c.Writer.Written() {
-		response.ErrorFrom(c, err)
+	var adminUserID *int64
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
+		v := subject.UserID
+		adminUserID = &v
+	}
+
+	testRunID := uuid.NewString()
+	service.AttachAccountTestOpsContext(c, testRunID, "account_test", adminUserID)
+
+	startedAt := time.Now()
+	runErr := h.accountTestService.TestAccountConnection(c, accountID, modelID, "", "", "", "", string(service.AccountTestModeHealthCheck))
+	duration := time.Since(startedAt)
+
+	status := "success"
+	statusCode := 200
+	errorText := ""
+	if runErr != nil {
+		status = "error"
+		statusCode = 500
+		errorText = logredact.RedactText(runErr.Error(), "sso_token")
+	}
+
+	routePath := strings.TrimSpace(c.FullPath())
+	if routePath == "" && c.Request != nil {
+		routePath = strings.TrimSpace(c.Request.URL.Path)
+	}
+
+	normalizedRequest := map[string]any{
+		"test_run_id":        testRunID,
+		"account_id":         accountID,
+		"requested_model_id": strings.TrimSpace(modelID),
+		"test_mode":          string(service.AccountTestModeHealthCheck),
+	}
+
+	gatewayResponse := map[string]any{
+		"success":    status == "success",
+		"error_text": errorText,
+	}
+
+	recordProbeActionTrace(
+		c,
+		h.opsService,
+		testRunID,
+		"",
+		"account_test",
+		adminUserID,
+		&accountID,
+		account.Platform,
+		"",
+		account.Platform,
+		routePath,
+		modelID,
+		normalizedRequest,
+		gatewayResponse,
+		status,
+		statusCode,
+		duration,
+	)
+
+	if runErr != nil && !c.Writer.Written() {
+		response.ErrorFrom(c, runErr)
 	}
 }
 

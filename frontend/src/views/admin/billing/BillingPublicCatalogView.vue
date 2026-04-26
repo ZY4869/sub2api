@@ -13,7 +13,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <button type="button" class="btn btn-secondary" :disabled="loading || saving || publishing" @click="loadDraft">
+          <button type="button" class="btn btn-secondary" :disabled="loading || saving || publishing" @click="loadDraft(true)">
             {{ loading ? '加载中...' : '重新加载' }}
           </button>
           <button
@@ -223,10 +223,10 @@ onMounted(async () => {
   await loadDraft()
 })
 
-async function loadDraft() {
+async function loadDraft(force = false) {
   loading.value = true
   try {
-    const payload = await getBillingPublicCatalogDraft()
+    const payload = await getBillingPublicCatalogDraft({ force })
     availableItems.value = payload.available_items || []
     selectedModels.value = normalizeSelectedModels(payload.draft?.selected_models || [])
     pageSize.value = normalizePageSize(payload.draft?.page_size || 10)

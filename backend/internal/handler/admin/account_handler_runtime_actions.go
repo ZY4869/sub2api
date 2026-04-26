@@ -8,8 +8,11 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type syncFromCRSRequest struct {
@@ -143,9 +146,83 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	if testMode == "" {
 		testMode = strings.TrimSpace(c.Query("test_mode"))
 	}
-	if err := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt, sourceProtocol, targetProvider, targetModelID, testMode); err != nil {
+
+	var adminUserID *int64
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
+		v := subject.UserID
+		adminUserID = &v
+	}
+
+	testRunID := uuid.NewString()
+	service.AttachAccountTestOpsContext(c, testRunID, "account_test", adminUserID)
+
+	startedAt := time.Now()
+	runErr := h.accountTestService.TestAccountConnection(c, accountID, modelID, prompt, sourceProtocol, targetProvider, targetModelID, testMode)
+	duration := time.Since(startedAt)
+
+	platform := ""
+	protocolOut := ""
+	if h.adminService != nil {
+		if acct, acctErr := h.adminService.GetAccount(c.Request.Context(), accountID); acctErr == nil && acct != nil {
+			platform = acct.Platform
+			protocolOut = acct.Platform
+		}
+	}
+
+	routePath := strings.TrimSpace(c.FullPath())
+	if routePath == "" && c.Request != nil {
+		routePath = strings.TrimSpace(c.Request.URL.Path)
+	}
+
+	status := "success"
+	statusCode := 200
+	errorText := ""
+	if runErr != nil {
+		status = "error"
+		statusCode = 500
+		errorText = logredact.RedactText(runErr.Error(), "sso_token")
+	}
+
+	normalizedRequest := map[string]any{
+		"test_run_id":        testRunID,
+		"account_id":         accountID,
+		"requested_model_id": strings.TrimSpace(modelID),
+		"test_mode":          strings.TrimSpace(testMode),
+		"source_protocol":    strings.TrimSpace(sourceProtocol),
+		"target_provider":    strings.TrimSpace(targetProvider),
+		"target_model_id":    strings.TrimSpace(targetModelID),
+		"prompt_len":         len(strings.TrimSpace(prompt)),
+		"prompt_preview":     redactPromptPreview(prompt, 120),
+	}
+
+	gatewayResponse := map[string]any{
+		"success":    status == "success",
+		"error_text": errorText,
+	}
+
+	recordProbeActionTrace(
+		c,
+		h.opsService,
+		testRunID,
+		"",
+		"account_test",
+		adminUserID,
+		&accountID,
+		platform,
+		sourceProtocol,
+		protocolOut,
+		routePath,
+		modelID,
+		normalizedRequest,
+		gatewayResponse,
+		status,
+		statusCode,
+		duration,
+	)
+
+	if runErr != nil {
 		if !c.Writer.Written() {
-			response.ErrorFrom(c, err)
+			response.ErrorFrom(c, runErr)
 		}
 		return
 	}

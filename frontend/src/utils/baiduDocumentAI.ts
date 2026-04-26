@@ -3,7 +3,12 @@ export const BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL =
 
 export function isBaiduDocumentAIPlatform(platform: unknown): boolean {
   const normalized = String(platform || '').trim().toLowerCase()
-  return normalized === 'baidu_document_ai' || normalized === 'baidu'
+  return (
+    normalized === 'baidu_document_ai' ||
+    normalized === 'baidu' ||
+    normalized === 'document-ai' ||
+    normalized === 'document_ai'
+  )
 }
 
 export function parseBaiduDocumentAIDirectApiUrlsInput(

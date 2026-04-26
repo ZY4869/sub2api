@@ -13,8 +13,8 @@ type syntheticCatalogSource struct {
 	mode     string
 }
 
-func (s *ModelCatalogService) appendPricingBackedSyntheticCatalogDetails(_ context.Context, base []modelregistry.AdminModelDetail) []modelregistry.AdminModelDetail {
-	sources := s.collectSyntheticCatalogSources()
+func (s *ModelCatalogService) appendPricingBackedSyntheticCatalogDetails(ctx context.Context, base []modelregistry.AdminModelDetail) []modelregistry.AdminModelDetail {
+	sources := s.collectSyntheticCatalogSources(ctx)
 	if len(sources) == 0 {
 		return base
 	}
@@ -49,7 +49,7 @@ func (s *ModelCatalogService) appendPricingBackedSyntheticCatalogDetails(_ conte
 
 		provider := providerOrPlatform(inferModelProvider(modelID), source.provider)
 		if provider == "" {
-			continue
+			provider = "unknown"
 		}
 
 		entry, err := normalizePersistedEntry(modelregistry.ModelEntry{
@@ -85,7 +85,7 @@ func (s *ModelCatalogService) appendPricingBackedSyntheticCatalogDetails(_ conte
 	return append(base, extras...)
 }
 
-func (s *ModelCatalogService) collectSyntheticCatalogSources() []syntheticCatalogSource {
+func (s *ModelCatalogService) collectSyntheticCatalogSources(ctx context.Context) []syntheticCatalogSource {
 	seen := make(map[string]syntheticCatalogSource)
 	appendSource := func(model string, provider string, mode string) {
 		model = CanonicalizeModelNameForPricing(model)
@@ -119,6 +119,18 @@ func (s *ModelCatalogService) collectSyntheticCatalogSources() []syntheticCatalo
 	}
 	if s.billingService != nil {
 		for _, model := range s.billingService.ListSupportedModels() {
+			appendSource(model, "", "")
+		}
+	}
+
+	if s.settingRepo != nil {
+		for model := range s.loadOfficialPriceOverrides(ctx) {
+			appendSource(model, "", "")
+		}
+		for model := range s.loadSalePriceOverrides(ctx) {
+			appendSource(model, "", "")
+		}
+		for model := range s.loadModelPricingCurrencies(ctx) {
 			appendSource(model, "", "")
 		}
 	}

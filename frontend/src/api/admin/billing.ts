@@ -230,6 +230,7 @@ export interface BillingPricingListParams {
   search?: string
   provider?: string
   mode?: string
+  pricing_status?: BillingPricingStatus
   group_id?: number
   sort_by?: BillingPricingSortBy
   sort_order?: BillingPricingSortOrder
@@ -405,8 +406,11 @@ export async function listBillingRules(): Promise<BillingRule[]> {
   return data
 }
 
-export async function getBillingPublicCatalogDraft(): Promise<BillingPublicCatalogDraftPayload> {
-  const { data } = await apiClient.get<BillingPublicCatalogDraftPayload>('/admin/billing/public-model-catalog/draft')
+export async function getBillingPublicCatalogDraft(options: { force?: boolean } = {}): Promise<BillingPublicCatalogDraftPayload> {
+  const params = options.force ? { force: 1 } : undefined
+  const { data } = await apiClient.get<BillingPublicCatalogDraftPayload>('/admin/billing/public-model-catalog/draft', {
+    params,
+  })
   return data
 }
 

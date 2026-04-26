@@ -649,6 +649,9 @@ func evaluateOpsRequestTraceDecision(runtimeCfg opsRequestTraceRuntimeConfig, in
 
 	normalize := input.Trace.Normalize
 	switch {
+	case strings.TrimSpace(normalize.ProbeAction) != "":
+		decision.Capture = true
+		decision.Reason = "probe_action"
 	case input.StatusCode >= 400:
 		decision.Capture = true
 		decision.Reason = "error"

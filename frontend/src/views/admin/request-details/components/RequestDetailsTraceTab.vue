@@ -10,6 +10,7 @@ import {
   type OpsRequestTraceRawDetail,
   type OpsRequestTraceSummary
 } from '@/api/admin/ops'
+import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 import RequestDetailsBreakdownChart from './RequestDetailsBreakdownChart.vue'
 import RequestDetailsDrawer from './RequestDetailsDrawer.vue'
@@ -18,6 +19,7 @@ import RequestDetailsSummaryCards from './RequestDetailsSummaryCards.vue'
 import RequestDetailsTable from './RequestDetailsTable.vue'
 import RequestDetailsTrendChart from './RequestDetailsTrendChart.vue'
 import {
+  buildCopyableRequestTraceErrorSummary,
   buildRequestTraceQuery,
   createDefaultRequestTraceFilter,
   parseRequestTraceFilterFromQuery
@@ -27,6 +29,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const { copyToClipboard } = useClipboard()
 
 const filters = ref<OpsRequestTraceFilter>(parseRequestTraceFilterFromQuery(route.query))
 const items = ref<OpsRequestTraceListItem[]>([])
@@ -229,6 +232,17 @@ function handleSelect(item: OpsRequestTraceListItem) {
   selectedId.value = item.id
 }
 
+async function handleCopyError(item: OpsRequestTraceListItem) {
+  try {
+    const resolvedDetail = detail.value?.id === item.id
+      ? detail.value
+      : await opsAPI.getRequestTraceDetail(item.id)
+    await copyToClipboard(buildCopyableRequestTraceErrorSummary(resolvedDetail))
+  } catch (error: any) {
+    appStore.showError(error?.message || t('common.copyFailed'))
+  }
+}
+
 function handlePage(page: number) {
   filters.value = { ...filters.value, page }
 }
@@ -340,6 +354,7 @@ onUnmounted(() => {
       :selected-id="selectedId"
       @refresh="handleManualRefresh"
       @select="handleSelect"
+      @copy-error="handleCopyError"
       @update:page="handlePage"
       @update:page-size="handlePageSize"
     />

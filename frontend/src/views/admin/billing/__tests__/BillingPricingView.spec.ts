@@ -129,6 +129,7 @@ function resetBillingPricingStore() {
   store.search = ''
   store.providerFilter = ''
   store.modeFilter = ''
+  store.pricingStatusFilter = ''
   store.groupPreviewId = null
   store.sortBy = 'display_name'
   store.sortOrder = 'asc'
@@ -298,6 +299,20 @@ describe('BillingPricingView', () => {
     }))
   })
 
+  it('filters list mode by pricing status and passes pricing_status to the list api', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="billing-pricing-status"]').setValue('missing')
+    await flushPromises()
+
+    expect(apiMocks.listBillingPricingModels).toHaveBeenLastCalledWith(expect.objectContaining({
+      pricing_status: 'missing',
+      page: 1,
+      page_size: 20,
+    }))
+  })
+
   it('filters list mode with provider quick cards and resets to page 1', async () => {
     const wrapper = mountView()
     await flushPromises()
@@ -391,6 +406,49 @@ describe('BillingPricingView', () => {
 
     expect(wrapper.text()).toContain('缺价')
     expect(wrapper.text()).toContain('No stable upstream pricing source found.')
+  })
+
+  it('imports a pricing patch file and updates only the patched fields', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const patch = {
+      version: 1,
+      kind: 'billing_pricing_patch',
+      generated_at: '2026-04-26T00:00:00Z',
+      models: [
+        {
+          model: 'gpt-5.4',
+          current: {
+            official: createForm(),
+            sale: createForm(),
+          },
+          patch: {
+            official: {
+              input_price: 9,
+            },
+          },
+          notes: '',
+        },
+      ],
+    }
+
+    const input = wrapper.get('input[type="file"]')
+    const file = new File([JSON.stringify(patch)], 'patch.json', { type: 'application/json' })
+    Object.defineProperty(input.element, 'files', { value: [file] })
+    await input.trigger('change')
+    for (let i = 0; i < 5 && apiMocks.updateBillingPricingLayer.mock.calls.length === 0; i += 1) {
+      await flushPromises()
+    }
+
+    expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledTimes(1)
+    expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledWith('gpt-5.4', 'official', expect.objectContaining({
+      form: expect.objectContaining({
+        input_price: 9,
+        output_price: 2,
+      }),
+      currency: 'USD',
+    }))
   })
 
   it('refreshes the persisted catalog and reloads the current filters', async () => {

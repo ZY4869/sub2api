@@ -15,11 +15,29 @@
           <button
             type="button"
             class="btn btn-secondary"
-            :disabled="loading || refreshing"
+            :disabled="loading || refreshing || exporting || importing"
             data-testid="billing-pricing-refresh"
             @click="handleManualRefresh"
           >
             {{ refreshing ? '刷新中...' : '手动刷新' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :disabled="loading || refreshing || exporting || importing"
+            data-testid="billing-pricing-export"
+            @click="handleExportPricingPatch"
+          >
+            {{ exporting ? '导出中...' : '导出问题/缺价 JSON' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            :disabled="loading || refreshing || exporting || importing"
+            data-testid="billing-pricing-import"
+            @click="triggerImport"
+          >
+            {{ importButtonLabel }}
           </button>
           <BillingPricingModeToggle v-model="viewMode" />
         </div>
@@ -31,7 +49,15 @@
         :snapshot-updated-at-label="snapshotUpdatedAtLabel"
       />
 
-      <div class="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_220px_180px_220px_240px]">
+      <input
+        ref="importFileInput"
+        type="file"
+        accept="application/json"
+        class="hidden"
+        @change="handleImportFileChange"
+      />
+
+      <div class="mt-5 grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_160px_200px_220px_240px]">
         <input
           v-model.trim="search"
           type="text"
@@ -51,6 +77,18 @@
           <option value="image">image</option>
           <option value="video">video</option>
           <option value="embedding">embedding</option>
+        </select>
+        <select
+          v-model="pricingStatusFilter"
+          class="input"
+          data-testid="billing-pricing-status"
+          @change="applyFilters"
+        >
+          <option value="">全部状态</option>
+          <option value="ok">正常</option>
+          <option value="fallback">回退</option>
+          <option value="conflict">冲突</option>
+          <option value="missing">缺价</option>
         </select>
         <select
           v-model="sortMode"
@@ -135,9 +173,11 @@ import {
   getBillingPricingAudit,
   getBillingPricingDetails,
   getBillingPricingDetailsWithPreview,
+  listBillingPricingModels,
   updateBillingPricingLayer,
   type BillingPricingAudit,
   type BillingPricingLayerForm,
+  type BillingPricingStatus,
   type BillingPricingSortBy,
   type BillingPricingSortOrder,
   type BillingPricingSheetDetail,
@@ -153,6 +193,12 @@ import { useBillingPricingStore } from '@/stores'
 import { useAppStore } from '@/stores/app'
 import type { AdminGroup } from '@/types'
 import { formatDateTime } from '@/utils/format'
+import {
+  applyBillingPricingLayerPatch,
+  billingPricingLayerPatchHasChanges,
+  buildBillingPricingPatchFileV1,
+  parseBillingPricingPatchFileV1,
+} from '@/utils/billingPricingPatch'
 
 const PAGE_SIZE_STORAGE_KEY = 'admin.billing.pricing.page_size'
 
@@ -164,6 +210,7 @@ const {
   search,
   providerFilter,
   modeFilter,
+  pricingStatusFilter,
   groupPreviewId,
   sortBy,
   sortOrder,
@@ -179,11 +226,25 @@ const editorOpen = ref(false)
 const editorBusy = ref(false)
 const loading = ref(false)
 const refreshing = ref(false)
+const exporting = ref(false)
+const importing = ref(false)
 const auditLoading = ref(false)
 const activeEditorModel = ref('')
 const editorDetails = ref<BillingPricingSheetDetail[]>([])
 const audit = ref<BillingPricingAudit | null>(null)
 const previewGroups = ref<AdminGroup[]>([])
+const importFileInput = ref<HTMLInputElement | null>(null)
+const importProgress = ref<{ processed: number; total: number } | null>(null)
+
+const importButtonLabel = computed(() => {
+  if (!importing.value) {
+    return '导入 JSON 批量修复'
+  }
+  if (!importProgress.value) {
+    return '导入中...'
+  }
+  return `导入中 (${importProgress.value.processed}/${importProgress.value.total})...`
+})
 
 const sortMode = computed({
   get: () => `${sortBy.value}:${sortOrder.value}`,
@@ -263,6 +324,143 @@ async function loadAudit() {
 
 async function loadPreviewGroups() {
   previewGroups.value = await getAllGroups()
+}
+
+function triggerImport() {
+  if (importing.value || exporting.value) {
+    return
+  }
+  importFileInput.value?.click()
+}
+
+async function readTextFromFile(file: File): Promise<string> {
+  const maybeText = (file as unknown as { text?: () => Promise<string> }).text
+  if (typeof maybeText === 'function') {
+    return await maybeText.call(file)
+  }
+  if (typeof FileReader === 'undefined') {
+    throw new Error('当前环境不支持读取文件内容')
+  }
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error || new Error('读取文件失败'))
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.readAsText(file)
+  })
+}
+
+async function handleImportFileChange(event: Event) {
+  const target = event.target as HTMLInputElement | null
+  const file = target?.files?.[0] || null
+  if (target) {
+    target.value = ''
+  }
+  if (!file) {
+    return
+  }
+
+  importing.value = true
+  importProgress.value = null
+
+  try {
+    const parsed = parseBillingPricingPatchFileV1(JSON.parse(await readTextFromFile(file)))
+    const models = dedupeModels(parsed.models.map((entry) => entry.model))
+    if (models.length === 0) {
+      appStore.showSuccess('导入文件中没有可处理的模型')
+      return
+    }
+
+    const details = await fetchPricingDetailsInBatches(models)
+    const detailMap = new Map(details.map((detail) => [detail.model, detail] as const))
+
+    let updatedLayers = 0
+    let skippedModels = 0
+    let failedUpdates = 0
+    const firstErrors: string[] = []
+
+    importProgress.value = { processed: 0, total: parsed.models.length }
+
+    for (let index = 0; index < parsed.models.length; index += 1) {
+      const entry = parsed.models[index]
+      importProgress.value = { processed: index + 1, total: parsed.models.length }
+
+      const model = String(entry.model || '').trim()
+      const base = model ? detailMap.get(model) : undefined
+      if (!model || !base) {
+        failedUpdates += 1
+        if (firstErrors.length < 10) {
+          firstErrors.push(`${model || '(empty model)'}: 模型不存在或不在快照中`)
+        }
+        continue
+      }
+
+      const patch = entry.patch || {}
+      const officialPatch = (patch as { official?: unknown }).official
+      const salePatch = (patch as { sale?: unknown }).sale
+
+      const officialHasChanges = billingPricingLayerPatchHasChanges(base.official_form, officialPatch as any)
+      const saleHasChanges = billingPricingLayerPatchHasChanges(base.sale_form, salePatch as any)
+      if (!officialHasChanges && !saleHasChanges) {
+        skippedModels += 1
+        continue
+      }
+
+      if (officialHasChanges) {
+        try {
+          const form = applyBillingPricingLayerPatch(base.official_form, officialPatch as any)
+          await updateBillingPricingLayer(model, 'official', { form, currency: base.currency })
+          updatedLayers += 1
+        } catch (error) {
+          failedUpdates += 1
+          if (firstErrors.length < 10) {
+            firstErrors.push(`${model} official: ${resolveErrorMessage(error, '保存失败')}`)
+          }
+        }
+      }
+
+      if (saleHasChanges) {
+        try {
+          const form = applyBillingPricingLayerPatch(base.sale_form, salePatch as any)
+          await updateBillingPricingLayer(model, 'sale', { form, currency: base.currency })
+          updatedLayers += 1
+        } catch (error) {
+          failedUpdates += 1
+          if (firstErrors.length < 10) {
+            firstErrors.push(`${model} sale: ${resolveErrorMessage(error, '保存失败')}`)
+          }
+        }
+      }
+    }
+
+    billingPricingStore.invalidate()
+    await guardedLoad(async () => {
+      await Promise.all([reloadAfterMutation(true), loadAudit()])
+    })
+
+    if (failedUpdates > 0) {
+      appStore.showError('批量导入完成，但存在失败项', {
+        title: '导入结果',
+        persistent: true,
+        details: [
+          `更新层数：${updatedLayers}`,
+          `跳过模型：${skippedModels}`,
+          `失败次数：${failedUpdates}`,
+          ...firstErrors,
+        ],
+      })
+      return
+    }
+
+    appStore.showSuccess('批量导入完成', {
+      title: '导入结果',
+      details: [`更新层数：${updatedLayers}`, `跳过模型：${skippedModels}`],
+    })
+  } catch (error) {
+    appStore.showError(resolveErrorMessage(error, '导入 JSON 失败'), { persistent: true })
+  } finally {
+    importing.value = false
+    importProgress.value = null
+  }
 }
 
 async function applyFilters() {
@@ -429,6 +627,31 @@ async function handleManualRefresh() {
   }
 }
 
+async function handleExportPricingPatch() {
+  exporting.value = true
+  try {
+    const currentAudit = audit.value || await getBillingPricingAudit()
+    const issueModels = (currentAudit?.pricing_issue_examples || []).map((item) => item.model)
+    const missingModels = await fetchAllModelIDsByPricingStatus('missing')
+    const models = dedupeModels([...issueModels, ...missingModels])
+
+    if (models.length === 0) {
+      appStore.showSuccess('没有可导出的缺价/问题模型')
+      return
+    }
+
+    const details = await fetchPricingDetailsInBatches(models)
+    const ordered = orderPricingDetails(models, details)
+    const payload = buildBillingPricingPatchFileV1(ordered)
+    downloadJSONFile(buildExportFilename('billing_pricing_patch'), payload)
+    appStore.showSuccess(`已导出 ${ordered.length} 个模型的 JSON 补丁`)
+  } catch (error) {
+    appStore.showError(resolveErrorMessage(error, '导出 JSON 失败'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 function mergeEditorDetail(detail: BillingPricingSheetDetail) {
   const next = [...editorDetails.value]
   const index = next.findIndex((item) => item.model === detail.model)
@@ -486,6 +709,78 @@ async function guardedLoad(loader: () => Promise<void>) {
 
 function dedupeModels(models: string[]): string[] {
   return Array.from(new Set(models.filter(Boolean)))
+}
+
+function buildExportFilename(prefix: string): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const now = new Date()
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  return `${prefix}_${stamp}.json`
+}
+
+function downloadJSONFile(filename: string, payload: unknown) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    throw new Error('当前环境不支持下载文件')
+  }
+  if (!window.URL?.createObjectURL) {
+    throw new Error('浏览器不支持下载文件')
+  }
+
+  const text = JSON.stringify(payload, null, 2)
+  const blob = new Blob([text], { type: 'application/json;charset=utf-8' })
+  const url = window.URL.createObjectURL(blob)
+
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+async function fetchAllModelIDsByPricingStatus(status: BillingPricingStatus): Promise<string[]> {
+  const models: string[] = []
+  const pageSize = 100
+  let page = 1
+  let pages = 1
+
+  while (page <= pages) {
+    const result = await listBillingPricingModels({
+      pricing_status: status,
+      page,
+      page_size: pageSize,
+      sort_by: 'display_name',
+      sort_order: 'asc',
+    })
+    models.push(...(result.items || []).map((item) => item.model))
+
+    const calculatedPages = Math.ceil((result.total || 0) / (result.page_size || pageSize)) || 1
+    pages = Number(result.pages || calculatedPages || 1)
+    page += 1
+  }
+
+  return dedupeModels(models)
+}
+
+async function fetchPricingDetailsInBatches(models: string[], batchSize = 30): Promise<BillingPricingSheetDetail[]> {
+  const normalized = dedupeModels(models)
+  if (normalized.length === 0) {
+    return []
+  }
+
+  const result: BillingPricingSheetDetail[] = []
+  for (let start = 0; start < normalized.length; start += batchSize) {
+    const batch = normalized.slice(start, start + batchSize)
+    const items = await getBillingPricingDetails(batch)
+    result.push(...(items || []))
+  }
+  return result
+}
+
+function orderPricingDetails(models: string[], details: BillingPricingSheetDetail[]): BillingPricingSheetDetail[] {
+  const map = new Map(details.map((detail) => [detail.model, detail] as const))
+  return models.map((model) => map.get(model)).filter(Boolean) as BillingPricingSheetDetail[]
 }
 
 function resolveErrorMessage(error: unknown, fallback: string): string {

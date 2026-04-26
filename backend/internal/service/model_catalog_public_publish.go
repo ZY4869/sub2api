@@ -13,6 +13,7 @@ import (
 )
 
 const defaultPublicModelCatalogPageSize = 10
+const publicModelCatalogDraftLiveTTL = 10 * time.Minute
 
 func normalizePublicModelCatalogPageSize(value int) int {
 	if value <= 0 {
@@ -240,11 +241,46 @@ func selectPublicModelCatalogPublishItems(draft PublicModelCatalogDraft, items [
 	return selected
 }
 
-func (s *ModelCatalogService) GetPublicModelCatalogDraftPayload(ctx context.Context) (*PublicModelCatalogDraftPayload, error) {
+func (s *ModelCatalogService) GetPublicModelCatalogDraftPayload(ctx context.Context, force bool) (*PublicModelCatalogDraftPayload, error) {
 	draft := normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
-	liveSnapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
-	if err != nil {
-		return nil, err
+	var liveSnapshot *PublicModelCatalogSnapshot
+	if !force {
+		if cached, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
+			liveSnapshot = cached
+			logger.FromContext(ctx).Info(
+				"public model catalog draft cache hit",
+				zap.String("component", "service.model_catalog"),
+				zap.Duration("cache_age", age),
+				zap.Int("model_count", len(cached.Items)),
+			)
+		}
+	}
+
+	if liveSnapshot == nil {
+		built, err := s.buildLivePublicModelCatalogSnapshot(ctx)
+		if err != nil {
+			if fallback, age, ok := s.getAnyPublicModelCatalogSnapshot(); ok {
+				liveSnapshot = fallback
+				logger.FromContext(ctx).Warn(
+					"public model catalog draft live snapshot stale cache",
+					zap.String("component", "service.model_catalog"),
+					zap.Duration("cache_age", age),
+					zap.Int("model_count", len(fallback.Items)),
+					zap.Error(err),
+				)
+			} else {
+				return nil, err
+			}
+		} else {
+			s.storePublicModelCatalogSnapshot(built)
+			liveSnapshot = clonePublicModelCatalogSnapshot(built)
+			logger.FromContext(ctx).Info(
+				"public model catalog draft cache rebuilt",
+				zap.String("component", "service.model_catalog"),
+				zap.Bool("force_refresh", force),
+				zap.Int("model_count", len(liveSnapshot.Items)),
+			)
+		}
 	}
 	return &PublicModelCatalogDraftPayload{
 		Draft:          draft,

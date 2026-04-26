@@ -44,6 +44,7 @@ export default {
     todayExchangeRate: '今日汇率',
     available: '可用',
     copiedToClipboard: '已复制到剪贴板',
+    copy: '复制',
     copied: '已复制',
     copyFailed: '复制失败',
     verifying: '验证中...',

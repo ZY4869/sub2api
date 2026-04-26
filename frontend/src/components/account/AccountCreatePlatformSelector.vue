@@ -74,6 +74,7 @@ const platformOptions = computed<
         v-for="option in platformOptions"
         :key="option.value"
         type="button"
+        :data-testid="`select-${String(option.value).replace(/_/g, '-')}`"
         @click="platform = option.value"
         :class="[
           'flex min-w-0 w-full items-center justify-center gap-2 rounded-md px-3 py-3 text-center text-sm font-medium leading-snug transition-all whitespace-normal',

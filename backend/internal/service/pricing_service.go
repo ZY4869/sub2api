@@ -18,6 +18,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
+	pricingbundle "github.com/Wei-Shaw/sub2api/resources/model-pricing"
 	"go.uber.org/zap"
 )
 
@@ -514,6 +515,33 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 	return result, nil
 }
 
+func (s *PricingService) loadPricingDataFromBytes(source string, data []byte, modTime time.Time) error {
+	if len(data) == 0 {
+		return fmt.Errorf("pricing data is empty")
+	}
+
+	pricingData, err := s.parsePricingData(data)
+	if err != nil {
+		return fmt.Errorf("parse pricing data: %w", err)
+	}
+
+	hash := sha256.Sum256(data)
+	hashStr := hex.EncodeToString(hash[:])
+
+	if modTime.IsZero() {
+		modTime = time.Now()
+	}
+
+	s.mu.Lock()
+	s.pricingData = pricingData
+	s.localHash = hashStr
+	s.lastUpdated = modTime
+	s.mu.Unlock()
+
+	logger.LegacyPrintf("service.pricing", "[Pricing] Loaded %d models from %s", len(pricingData), source)
+	return nil
+}
+
 // loadPricingData 从本地文件加载价格数据
 func (s *PricingService) loadPricingData(filePath string) error {
 	data, err := os.ReadFile(filePath)
@@ -521,54 +549,57 @@ func (s *PricingService) loadPricingData(filePath string) error {
 		return fmt.Errorf("read file failed: %w", err)
 	}
 
-	// 使用灵活的解析方式
-	pricingData, err := s.parsePricingData(data)
-	if err != nil {
-		return fmt.Errorf("parse pricing data: %w", err)
-	}
-
-	// 计算哈希
-	hash := sha256.Sum256(data)
-	hashStr := hex.EncodeToString(hash[:])
-
-	s.mu.Lock()
-	s.pricingData = pricingData
-	s.localHash = hashStr
-
 	info, _ := os.Stat(filePath)
+	modTime := time.Now()
 	if info != nil {
-		s.lastUpdated = info.ModTime()
-	} else {
-		s.lastUpdated = time.Now()
+		modTime = info.ModTime()
 	}
-	s.mu.Unlock()
-
-	logger.LegacyPrintf("service.pricing", "[Pricing] Loaded %d models from %s", len(pricingData), filePath)
-	return nil
+	return s.loadPricingDataFromBytes(filePath, data, modTime)
 }
 
 // useFallbackPricing 使用回退价格文件
 func (s *PricingService) useFallbackPricing() error {
-	fallbackFile := s.cfg.Pricing.FallbackFile
+	fallbackFile := strings.TrimSpace(s.cfg.Pricing.FallbackFile)
+	if fallbackFile != "" {
+		data, err := os.ReadFile(fallbackFile)
+		if err == nil {
+			logger.LegacyPrintf("service.pricing", "[Pricing] Using fallback file: %s", fallbackFile)
 
-	if _, err := os.Stat(fallbackFile); os.IsNotExist(err) {
-		return fmt.Errorf("fallback file not found: %s", fallbackFile)
+			pricingFile := s.getPricingFilePath()
+			if err := os.WriteFile(pricingFile, data, 0644); err != nil {
+				logger.LegacyPrintf("service.pricing", "[Pricing] Failed to copy fallback: %v", err)
+			}
+
+			modTime := time.Now()
+			if info, err := os.Stat(fallbackFile); err == nil && info != nil {
+				modTime = info.ModTime()
+			}
+
+			if err := s.loadPricingDataFromBytes(fallbackFile, data, modTime); err == nil {
+				return nil
+			}
+			logger.LegacyPrintf("service.pricing", "[Pricing] Failed to load fallback file, using embedded: %v", err)
+		} else {
+			logger.LegacyPrintf("service.pricing", "[Pricing] Fallback file unavailable, using embedded: %v", err)
+		}
 	}
 
-	logger.LegacyPrintf("service.pricing", "[Pricing] Using fallback file: %s", fallbackFile)
-
-	// 复制到数据目录
-	data, err := os.ReadFile(fallbackFile)
-	if err != nil {
-		return fmt.Errorf("read fallback failed: %w", err)
+	if len(pricingbundle.FallbackPricingJSON) == 0 {
+		return fmt.Errorf("embedded fallback pricing data is empty")
 	}
+
+	logger.LegacyPrintf("service.pricing", "%s", "[Pricing] Using embedded fallback pricing data")
 
 	pricingFile := s.getPricingFilePath()
-	if err := os.WriteFile(pricingFile, data, 0644); err != nil {
-		logger.LegacyPrintf("service.pricing", "[Pricing] Failed to copy fallback: %v", err)
+	if err := os.WriteFile(pricingFile, pricingbundle.FallbackPricingJSON, 0644); err != nil {
+		logger.LegacyPrintf("service.pricing", "[Pricing] Failed to copy embedded fallback: %v", err)
 	}
 
-	return s.loadPricingData(fallbackFile)
+	return s.loadPricingDataFromBytes(
+		"embedded://resources/model-pricing/model_prices_and_context_window.json",
+		pricingbundle.FallbackPricingJSON,
+		time.Now(),
+	)
 }
 
 // fetchRemoteHash 从远程获取哈希值

@@ -100,6 +100,7 @@ func ProvideAdminAccountHandler(
 	accountModelImportService *service.AccountModelImportService,
 	accountModelDiagnosticsService *service.AccountModelDiagnosticsService,
 	modelRegistryService *service.ModelRegistryService,
+	opsService *service.OpsService,
 ) *admin.AccountHandler {
 	handler := admin.NewAccountHandler(
 		adminService,
@@ -121,6 +122,10 @@ func ProvideAdminAccountHandler(
 	handler.SetModelRegistryService(modelRegistryService)
 	handler.SetCopilotOAuthService(copilotOAuthService)
 	handler.SetKiroOAuthService(kiroOAuthService)
+	handler.SetOpsService(opsService)
+	if accountTestService != nil {
+		accountTestService.SetOpsService(opsService)
+	}
 	return handler
 }
 

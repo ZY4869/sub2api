@@ -35,6 +35,9 @@ func (h *ChannelMonitorTemplateHandler) List(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if items == nil {
+		items = make([]*service.ChannelMonitorRequestTemplate, 0)
+	}
 	response.Success(c, items)
 }
 

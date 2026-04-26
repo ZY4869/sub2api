@@ -4,11 +4,14 @@ import { useI18n } from 'vue-i18n'
 import ModelIcon from '@/components/common/ModelIcon.vue'
 import ProtocolPairDisplay from '@/components/common/ProtocolPairDisplay.vue'
 import type { OpsRequestTraceDetail, OpsRequestTraceRawDetail } from '@/api/admin/ops'
+import Icon from '@/components/icons/Icon.vue'
+import { useClipboard } from '@/composables/useClipboard'
 import { parseRequestPreviewContent } from '@/utils/requestPreview'
 import { formatDateTime, formatNumber } from '@/utils/format'
 import RequestDetailsContentDialog from './RequestDetailsContentDialog.vue'
 import RequestDetailsPayloadPanel from './RequestDetailsPayloadPanel.vue'
 import {
+  buildCopyableRequestTraceErrorSummary,
   formatDurationMs,
   formatPrettyJSON,
   getRequestTraceCapabilityFields,
@@ -69,6 +72,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { copyToClipboard } = useClipboard()
 const activeTab = ref('overview')
 const pendingRawDialogKey = ref<'inbound' | 'rawRequest' | 'rawResponse' | null>(null)
 const fullDialog = ref<FullDialogState>(createEmptyDialogState())
@@ -148,6 +152,12 @@ const flagBadges = computed(() => {
 const requestHeaders = computed(() => formatPrettyJSON(props.detail?.request_headers_json))
 const responseHeaders = computed(() => formatPrettyJSON(props.detail?.response_headers_json))
 const rawBackedInboundAvailable = computed(() => Boolean(props.detail?.raw_access_allowed && props.detail?.raw_available))
+const canCopyError = computed(() => String(props.detail?.status || '').toLowerCase() !== 'success')
+
+async function copyErrorSummary() {
+  if (!props.detail) return
+  await copyToClipboard(buildCopyableRequestTraceErrorSummary(props.detail))
+}
 
 const parsedPanels = computed(() => ({
   inbound: parseRequestPreviewContent(props.detail?.inbound_request_json),
@@ -456,6 +466,15 @@ watch(
                   {{ getRequestTraceStatusLabel(t, detail.status) }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-gray-400">{{ detail.status_code }}</span>
+                <button
+                  v-if="canCopyError"
+                  type="button"
+                  class="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-dark-700 dark:hover:text-gray-200"
+                  :title="t('common.copy')"
+                  @click="copyErrorSummary"
+                >
+                  <Icon name="link" size="xs" />
+                </button>
               </div>
               <div class="mt-3">
                 <ProtocolPairDisplay

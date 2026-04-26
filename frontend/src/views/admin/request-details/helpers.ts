@@ -1,6 +1,7 @@
 import type { LocationQuery } from 'vue-router'
 import type { OpsRequestTraceDetail, OpsRequestTraceFilter, OpsRequestTraceListItem } from '@/api/admin/ops'
 import { getModelRegistrySnapshot } from '@/stores/modelRegistry'
+import { parseRequestPreviewContent } from '@/utils/requestPreview'
 
 const TIME_RANGES = new Set(['5m', '30m', '1h', '6h', '24h', '7d', '30d'])
 const SORTS = new Set(['created_at_desc', 'duration_desc'])
@@ -415,4 +416,130 @@ export function getStatusBadgeClass(status?: string): string {
     default:
       return 'badge-gray'
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function resolveFirstNonEmptyString(payload: unknown, keys: string[]): string {
+  if (!isRecord(payload)) {
+    return ''
+  }
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed) return trimmed
+    }
+  }
+  return ''
+}
+
+function extractErrorMessageFromPayload(payload: unknown): string {
+  if (typeof payload === 'string') {
+    return payload.trim()
+  }
+  if (!payload) {
+    return ''
+  }
+  const direct = resolveFirstNonEmptyString(payload, [
+    'error_message',
+    'message',
+    'error',
+    'detail',
+    'msg',
+    'reason',
+    'description',
+  ])
+  if (direct) return direct
+
+  if (isRecord(payload)) {
+    const nested = payload.error
+    if (typeof nested === 'string') {
+      return nested.trim()
+    }
+    const nestedDirect = resolveFirstNonEmptyString(nested, [
+      'error_message',
+      'message',
+      'error',
+      'detail',
+      'msg',
+      'reason',
+      'description',
+    ])
+    if (nestedDirect) return nestedDirect
+  }
+
+  return ''
+}
+
+function extractErrorCodeFromPayload(payload: unknown): string {
+  const direct = resolveFirstNonEmptyString(payload, ['error_code', 'code', 'type', 'reason'])
+  if (direct) return direct
+
+  if (isRecord(payload)) {
+    const nested = payload.error
+    const nestedDirect = resolveFirstNonEmptyString(nested, ['error_code', 'code', 'type', 'reason'])
+    if (nestedDirect) return nestedDirect
+  }
+
+  return ''
+}
+
+function truncateForCopy(text: string, limit = 8000): string {
+  const normalized = String(text || '').trim()
+  if (!normalized) return ''
+  if (normalized.length <= limit) return normalized
+  return `${normalized.slice(0, limit)}...`
+}
+
+export function extractRequestTraceErrorText(detail?: OpsRequestTraceDetail | null): string {
+  if (!detail) return ''
+  const candidates = [
+    parseRequestPreviewContent(detail.gateway_response_json),
+    parseRequestPreviewContent(detail.upstream_response_json),
+  ]
+
+  for (const parsed of candidates) {
+    if (!parsed.hasContent) continue
+    const extracted = extractErrorMessageFromPayload(parsed.payload)
+    if (extracted) return truncateForCopy(extracted)
+    if (parsed.displayContent) return truncateForCopy(parsed.displayContent)
+  }
+
+  return ''
+}
+
+export function extractRequestTraceErrorCode(detail?: OpsRequestTraceDetail | null): string {
+  if (!detail) return ''
+  const candidates = [
+    parseRequestPreviewContent(detail.gateway_response_json),
+    parseRequestPreviewContent(detail.upstream_response_json),
+  ]
+
+  for (const parsed of candidates) {
+    if (!parsed.hasContent) continue
+    const extracted = extractErrorCodeFromPayload(parsed.payload)
+    if (extracted) return extracted
+  }
+
+  return ''
+}
+
+export function buildCopyableRequestTraceErrorSummary(detail?: OpsRequestTraceDetail | null): string {
+  const requestID = String(detail?.request_id || '').trim()
+  const statusCode = detail?.status_code == null ? '' : String(detail.status_code)
+  const upstreamStatusCode = detail?.upstream_status_code == null ? '' : String(detail.upstream_status_code)
+  const httpStatus = upstreamStatusCode ? `${statusCode || '-'} (upstream ${upstreamStatusCode})` : (statusCode || '-')
+
+  const errorCode = extractRequestTraceErrorCode(detail)
+  const errorText = extractRequestTraceErrorText(detail)
+
+  return [
+    `request_id: ${requestID || '-'}`,
+    `http_status: ${httpStatus || '-'}`,
+    `error_code: ${errorCode || '-'}`,
+    `error_message: ${errorText || '-'}`,
+  ].join('\n')
 }

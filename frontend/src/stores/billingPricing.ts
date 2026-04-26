@@ -10,6 +10,7 @@ import {
   type BillingPricingRefreshResult,
   type BillingPricingSortBy,
   type BillingPricingSortOrder,
+  type BillingPricingStatus,
 } from '@/api/admin/billing'
 import type { PaginatedResponse } from '@/types'
 
@@ -28,6 +29,7 @@ const viewModeState = ref<'list' | 'grid'>('list')
 const searchState = ref('')
 const providerFilterState = ref('')
 const modeFilterState = ref('')
+const pricingStatusFilterState = ref<BillingPricingStatus | ''>('')
 const groupPreviewIdState = ref<number | null>(null)
 const sortByState = ref<BillingPricingSortBy>('display_name')
 const sortOrderState = ref<BillingPricingSortOrder>('asc')
@@ -49,6 +51,7 @@ function buildCurrentListParams(): BillingPricingListParams {
     search: searchState.value || undefined,
     provider: providerFilterState.value || undefined,
     mode: modeFilterState.value || undefined,
+    pricing_status: pricingStatusFilterState.value || undefined,
     group_id: groupPreviewIdState.value || undefined,
     sort_by: sortByState.value,
     sort_order: sortOrderState.value,
@@ -62,6 +65,7 @@ function serializeListParams(params: BillingPricingListParams): string {
     search: params.search || '',
     provider: params.provider || '',
     mode: params.mode || '',
+    pricing_status: params.pricing_status || '',
     group_id: params.group_id || null,
     sort_by: params.sort_by || 'display_name',
     sort_order: params.sort_order || 'asc',
@@ -74,6 +78,7 @@ function buildProviderModelScope(): string {
   return JSON.stringify({
     search: searchState.value || '',
     mode: modeFilterState.value || '',
+    pricing_status: pricingStatusFilterState.value || '',
     group_id: groupPreviewIdState.value || null,
     sort_by: sortByState.value,
     sort_order: sortOrderState.value,
@@ -108,6 +113,10 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
   const modeFilter = computed({
     get: () => modeFilterState.value,
     set: (value: string) => { modeFilterState.value = value },
+  })
+  const pricingStatusFilter = computed({
+    get: () => pricingStatusFilterState.value,
+    set: (value: BillingPricingStatus | '') => { pricingStatusFilterState.value = value },
   })
   const sortBy = computed({
     get: () => sortByState.value,
@@ -182,6 +191,7 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
       search: searchState.value || undefined,
       provider: normalizedProvider,
       mode: modeFilterState.value || undefined,
+      pricing_status: pricingStatusFilterState.value || undefined,
       group_id: groupPreviewIdState.value || undefined,
       sort_by: sortByState.value,
       sort_order: sortOrderState.value,
@@ -226,6 +236,7 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
     search,
     providerFilter,
     modeFilter,
+    pricingStatusFilter,
     sortBy,
     groupPreviewId,
     sortOrder,

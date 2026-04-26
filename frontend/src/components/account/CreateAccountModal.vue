@@ -93,6 +93,17 @@
 
         <AccountCreatePlatformSelector v-model:platform="form.platform" />
 
+        <div
+          v-if="isBaiduDocumentAIPlatform(form.platform)"
+          class="rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200"
+          data-testid="baidu-document-ai-selected-hint"
+        >
+          <div class="font-medium">{{ t('admin.accounts.baiduDocumentAI.selectedHintTitle') }}</div>
+          <div class="mt-1 text-xs leading-5 opacity-90">
+            {{ t('admin.accounts.baiduDocumentAI.selectedHintBody') }}
+          </div>
+        </div>
+
         <AccountCreatePlatformTypeEditor
           v-model:platform="form.platform"
           v-model:account-category="accountCategory"
@@ -382,7 +393,11 @@
       />
 
       <AccountModelScopeEditor
-        v-if="((accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity') || form.platform === 'protocol_gateway'"
+        v-if="
+          (((accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity') ||
+            form.platform === 'protocol_gateway' ||
+            (form.platform === 'grok' && form.type === 'sso'))
+        "
         v-model:enabled="modelRestrictionEnabled"
         v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
@@ -2271,10 +2286,20 @@ const goBackToBasicInfo = () => {
   openaiOAuth.resetState()
   geminiOAuth.resetState()
   antigravityOAuth.resetState()
-  oauthFlowRef.value?.reset()
-  copilotDeviceFlowRef.value?.reset()
-  kiroAuthRef.value?.reset()
+  oauthFlowRef.value?.reset?.()
+  copilotDeviceFlowRef.value?.reset?.()
+  kiroAuthRef.value?.reset?.()
 }
+
+watch(isOAuthFlow, (enabled) => {
+  if (enabled) {
+    return
+  }
+  if (step.value !== 2) {
+    return
+  }
+  goBackToBasicInfo()
+})
 
 const handleGenerateUrl = async () => {
   if (form.platform === 'openai') {

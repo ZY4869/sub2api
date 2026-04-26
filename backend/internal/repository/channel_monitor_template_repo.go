@@ -202,7 +202,7 @@ func scanChannelMonitorTemplateRow(row templateRowScanner) (*service.ChannelMoni
 }
 
 func scanChannelMonitorTemplateRows(rows *sql.Rows) ([]*service.ChannelMonitorRequestTemplate, error) {
-	var out []*service.ChannelMonitorRequestTemplate
+	out := make([]*service.ChannelMonitorRequestTemplate, 0)
 	for rows.Next() {
 		t, err := scanChannelMonitorTemplateRow(rows)
 		if err != nil {

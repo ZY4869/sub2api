@@ -21,6 +21,7 @@ function resetStore() {
   store.search = ''
   store.providerFilter = ''
   store.modeFilter = ''
+  store.pricingStatusFilter = ''
   store.sortBy = 'display_name'
   store.sortOrder = 'asc'
   store.page = 1

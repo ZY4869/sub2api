@@ -2783,6 +2783,9 @@
         title: "百度文档智能凭据",
         description:
           "配置百度文档智能异步任务访问令牌，以及可选的模型直连接口。至少填写一个访问令牌。",
+        selectedHintTitle: "已选择平台：百度智能文档",
+        selectedHintBody:
+          "令牌输入框在下方的「百度文档智能凭据」区域；若未显示，请向下滚动或检查浏览器控制台错误。",
         asyncBaseUrl: "异步服务地址",
         asyncBaseUrlHint:
           "百度文档智能异步任务接口地址，留空时使用默认官方地址。",
@@ -3453,6 +3456,7 @@
       sendingTestMessage: '发送测试消息："hi"',
       sendingImageTestRequest: "发送生图测试请求...",
       response: "响应：",
+      aiResponseHeader: "AI返回：",
       startTest: "开始测试",
       retry: "重试",
       copyOutput: "复制输出",
@@ -5048,6 +5052,22 @@
         totpKeyNotConfigured:
           "请先在环境变量中配置 TOTP_ENCRYPTION_KEY。使用命令 openssl rand -hex 32 生成密钥。",
       },
+      affiliate: {
+        title: "邀请返利",
+        description: "配置邀请返利开关与比例（默认关闭）。",
+        enabled: "启用邀请返利",
+        enabledHint: "开启后允许绑定返利码并累计返利（按消耗 / 入金）。",
+        transferEnabled: "允许转入余额",
+        transferEnabledHint: "独立开关：仅控制用户「转入余额」按钮/API 是否可用。",
+        ratePercent: "返利比例（%）",
+        ratePercentHint: "0-100 的整数；用于累计返利（仅在启用时生效）。",
+        onUsage: "按消耗返利",
+        onUsageHint: "每次扣费成功后按消耗金额累计返利。",
+        onTopup: "按入金返利",
+        onTopupHint: "兑换余额/管理员加余额等正向入金时累计返利。",
+        note: "提示：按消耗/按入金开关仅在「启用邀请返利」开启时生效；「允许转入余额」独立生效。",
+        rateInvalid: "返利比例必须是 0-100 的整数。",
+      },
       turnstile: {
         title: "Cloudflare Turnstile",
         description: "登录和注册的机器人防护",
@@ -5845,6 +5865,7 @@
         thinkingSources: {
           request: "请求参数",
           gateway: "网关推断",
+          openai_reasoning_effort: "OpenAI 推理强度参数",
           upstream: "上游返回",
           model: "模型默认",
           default: "默认值",

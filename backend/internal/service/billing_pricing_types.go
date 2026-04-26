@@ -138,14 +138,15 @@ type BillingPricingSheetDetail struct {
 }
 
 type BillingPricingListFilter struct {
-	Search    string
-	Provider  string
-	Mode      string
-	GroupID   *int64
-	SortBy    string
-	SortOrder string
-	Page      int
-	PageSize  int
+	Search        string
+	Provider      string
+	Mode          string
+	GroupID       *int64
+	PricingStatus string
+	SortBy        string
+	SortOrder     string
+	Page          int
+	PageSize      int
 }
 
 type BillingPricingDetailsRequest struct {
