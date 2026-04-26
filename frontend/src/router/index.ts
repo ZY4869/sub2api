@@ -208,6 +208,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/affiliate',
+    name: 'Affiliate',
+    component: () => import('@/views/user/AffiliateView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Affiliate',
+      titleKey: 'affiliate.title',
+      descriptionKey: 'affiliate.description'
+    }
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/user/ProfileView.vue'),
@@ -452,6 +464,18 @@ const routes: RouteRecordRaw[] = [
       title: 'User Management',
       titleKey: 'admin.users.title',
       descriptionKey: 'admin.users.description'
+    }
+  },
+  {
+    path: '/admin/affiliates',
+    name: 'AdminAffiliates',
+    component: () => import('@/views/admin/AffiliateUsersView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Affiliate Users',
+      titleKey: 'admin.affiliates.title',
+      descriptionKey: 'admin.affiliates.description'
     }
   },
   {

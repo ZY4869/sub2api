@@ -370,6 +370,7 @@ type adminServiceImpl struct {
 	settingService       *SettingService
 	defaultSubAssigner   DefaultSubscriptionAssigner
 	userSubRepo          UserSubscriptionRepository
+	affiliateService     *AffiliateService
 }
 type userGroupRateBatchReader interface {
 	GetByUserIDs(ctx context.Context, userIDs []int64) (map[int64]map[int64]float64, error)
@@ -378,8 +379,8 @@ type groupExistenceBatchReader interface {
 	ExistsByIDs(ctx context.Context, ids []int64) (map[int64]bool, error)
 }
 
-func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository) AdminService {
-	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo}
+func NewAdminService(userRepo UserRepository, groupRepo GroupRepository, accountRepo AccountRepository, proxyRepo ProxyRepository, apiKeyRepo APIKeyRepository, redeemCodeRepo RedeemCodeRepository, userGroupRateRepo UserGroupRateRepository, billingCacheService *BillingCacheService, proxyProber ProxyExitInfoProber, proxyLatencyCache ProxyLatencyCache, authCacheInvalidator APIKeyAuthCacheInvalidator, privacyClientFactory PrivacyClientFactory, entClient *dbent.Client, settingService *SettingService, defaultSubAssigner DefaultSubscriptionAssigner, userSubRepo UserSubscriptionRepository, affiliateService *AffiliateService) AdminService {
+	return &adminServiceImpl{userRepo: userRepo, groupRepo: groupRepo, accountRepo: accountRepo, proxyRepo: proxyRepo, apiKeyRepo: apiKeyRepo, redeemCodeRepo: redeemCodeRepo, userGroupRateRepo: userGroupRateRepo, billingCacheService: billingCacheService, proxyProber: proxyProber, proxyLatencyCache: proxyLatencyCache, authCacheInvalidator: authCacheInvalidator, privacyClientFactory: privacyClientFactory, entClient: entClient, settingService: settingService, defaultSubAssigner: defaultSubAssigner, userSubRepo: userSubRepo, affiliateService: affiliateService}
 }
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return s.proxyRepo.ExistsByHostPortAuth(ctx, host, port, username, password)

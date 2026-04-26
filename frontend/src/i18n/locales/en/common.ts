@@ -59,6 +59,8 @@ export default {
     noGroupsAvailable: 'No groups available',
     unknownError: 'Unknown error occurred',
     saving: 'Saving...',
+    saved: 'Saved',
+    noChanges: 'No changes',
     selectedCount: '({count} selected)',
     refresh: 'Refresh',
     settings: 'Settings',

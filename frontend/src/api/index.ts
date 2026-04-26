@@ -19,6 +19,7 @@ export { channelsAPI } from './channels'
 export { channelMonitorsAPI } from './channelMonitors'
 export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
+export { affiliateAPI } from './affiliate'
 
 // Admin APIs
 export { adminAPI } from './admin'

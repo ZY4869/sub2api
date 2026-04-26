@@ -216,6 +216,33 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.PurchaseSubscriptionURL != after.PurchaseSubscriptionURL {
 		changed = append(changed, "purchase_subscription_url")
 	}
+	if before.AffiliateEnabled != after.AffiliateEnabled {
+		changed = append(changed, "affiliate_enabled")
+	}
+	if before.AffiliateTransferEnabled != after.AffiliateTransferEnabled {
+		changed = append(changed, "affiliate_transfer_enabled")
+	}
+	if before.AffiliateRebateOnUsageEnabled != after.AffiliateRebateOnUsageEnabled {
+		changed = append(changed, "affiliate_rebate_on_usage_enabled")
+	}
+	if before.AffiliateRebateOnTopupEnabled != after.AffiliateRebateOnTopupEnabled {
+		changed = append(changed, "affiliate_rebate_on_topup_enabled")
+	}
+	if before.AffiliateRebateRate != after.AffiliateRebateRate {
+		changed = append(changed, "affiliate_rebate_rate")
+	}
+	if before.AffiliateRebateFreezeHours != after.AffiliateRebateFreezeHours {
+		changed = append(changed, "affiliate_rebate_freeze_hours")
+	}
+	if before.AffiliateRebateDurationDays != after.AffiliateRebateDurationDays {
+		changed = append(changed, "affiliate_rebate_duration_days")
+	}
+	if before.AffiliateRebatePerInviteeCap != after.AffiliateRebatePerInviteeCap {
+		changed = append(changed, "affiliate_rebate_per_invitee_cap")
+	}
+	if before.AffiliateAffCodeLength != after.AffiliateAffCodeLength {
+		changed = append(changed, "affiliate_aff_code_length")
+	}
 	if before.CustomMenuItems != after.CustomMenuItems {
 		changed = append(changed, "custom_menu_items")
 	}
@@ -273,6 +300,15 @@ func buildSystemSettingsDTO(settingService *service.SettingService, settings *se
 		PurchaseSubscriptionEnabled:          settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:              settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                      customMenuItems,
+		AffiliateEnabled:                     settings.AffiliateEnabled,
+		AffiliateTransferEnabled:             settings.AffiliateTransferEnabled,
+		AffiliateRebateOnUsageEnabled:        settings.AffiliateRebateOnUsageEnabled,
+		AffiliateRebateOnTopupEnabled:        settings.AffiliateRebateOnTopupEnabled,
+		AffiliateRebateRate:                  settings.AffiliateRebateRate,
+		AffiliateRebateFreezeHours:           settings.AffiliateRebateFreezeHours,
+		AffiliateRebateDurationDays:          settings.AffiliateRebateDurationDays,
+		AffiliateRebatePerInviteeCap:         settings.AffiliateRebatePerInviteeCap,
+		AffiliateAffCodeLength:               settings.AffiliateAffCodeLength,
 		DefaultConcurrency:                   settings.DefaultConcurrency,
 		DefaultBalance:                       settings.DefaultBalance,
 		DefaultSubscriptions:                 defaultSubscriptions,

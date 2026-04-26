@@ -79,6 +79,7 @@ type RedeemService struct {
 	billingCacheService  *BillingCacheService
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	affiliateService     *AffiliateService
 }
 
 // NewRedeemService 创建兑换码服务实例
@@ -90,6 +91,7 @@ func NewRedeemService(
 	billingCacheService *BillingCacheService,
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	affiliateService *AffiliateService,
 ) *RedeemService {
 	return &RedeemService{
 		redeemRepo:           redeemRepo,
@@ -99,6 +101,7 @@ func NewRedeemService(
 		billingCacheService:  billingCacheService,
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
+		affiliateService:     affiliateService,
 	}
 }
 
@@ -330,6 +333,9 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 		}
 		if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
+		}
+		if amount > 0 && s.affiliateService != nil {
+			s.affiliateService.AccrueTopupRebateBestEffort(txCtx, redeemCode.ID, userID, amount)
 		}
 
 	case RedeemTypeConcurrency:

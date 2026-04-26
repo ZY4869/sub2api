@@ -70,6 +70,7 @@ type AuthService struct {
 	turnstileService   *TurnstileService
 	emailQueueService  *EmailQueueService
 	promoService       *PromoService
+	affiliateService   *AffiliateService
 	defaultSubAssigner DefaultSubscriptionAssigner
 }
 
@@ -89,6 +90,7 @@ func NewAuthService(
 	turnstileService *TurnstileService,
 	emailQueueService *EmailQueueService,
 	promoService *PromoService,
+	affiliateService *AffiliateService,
 	defaultSubAssigner DefaultSubscriptionAssigner,
 ) *AuthService {
 	return &AuthService{
@@ -102,17 +104,18 @@ func NewAuthService(
 		turnstileService:   turnstileService,
 		emailQueueService:  emailQueueService,
 		promoService:       promoService,
+		affiliateService:   affiliateService,
 		defaultSubAssigner: defaultSubAssigner,
 	}
 }
 
 // Register 用户注册，返回token和用户
 func (s *AuthService) Register(ctx context.Context, email, password string) (string, *User, error) {
-	return s.RegisterWithVerification(ctx, email, password, "", "", "")
+	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
 }
 
 // RegisterWithVerification 用户注册（支持邮件验证、优惠码和邀请码），返回token和用户
-func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode string) (string, *User, error) {
+func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode, affCode string) (string, *User, error) {
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return "", nil, ErrRegDisabled
@@ -223,6 +226,19 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			// 重新获取用户信息以获取更新后的余额
 			if updatedUser, err := s.userRepo.GetByID(ctx, user.ID); err == nil {
 				user = updatedUser
+			}
+		}
+	}
+
+	// Best-effort: initialize affiliate row and bind inviter (does not block registration).
+	if s.affiliateService != nil {
+		if _, err := s.affiliateService.EnsureAffiliateRow(ctx, user.ID); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] EnsureAffiliateRow failed: user_id=%d err=%v", user.ID, err)
+		}
+		affCode = strings.TrimSpace(affCode)
+		if affCode != "" && s.settingService != nil {
+			if settings, err := s.settingService.GetAllSettings(ctx); err == nil && settings != nil && settings.AffiliateEnabled {
+				s.affiliateService.BindInviterByCode(ctx, user.ID, affCode)
 			}
 		}
 	}
@@ -531,7 +547,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 // LoginOrRegisterOAuthWithTokenPair 用于第三方 OAuth/SSO 登录，返回完整的 TokenPair。
 // 与 LoginOrRegisterOAuth 功能相同，但返回 TokenPair 而非单个 token。
 // invitationCode 仅在邀请码注册模式下新用户注册时使用；已有账号登录时忽略。
-func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode string) (*TokenPair, *User, error) {
+func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode, affCode string) (*TokenPair, *User, error) {
 	// 检查 refreshTokenCache 是否可用
 	if s.refreshTokenCache == nil {
 		return nil, nil, errors.New("refresh token cache not configured")
@@ -549,6 +565,8 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 	if len([]rune(username)) > 100 {
 		username = string([]rune(username)[:100])
 	}
+
+	createdUser := false
 
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
@@ -630,6 +648,7 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 						return nil, nil, ErrServiceUnavailable
 					}
 					user = newUser
+					createdUser = true
 					s.assignDefaultSubscriptions(ctx, user.ID)
 				}
 			} else {
@@ -646,6 +665,7 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					}
 				} else {
 					user = newUser
+					createdUser = true
 					s.assignDefaultSubscriptions(ctx, user.ID)
 					if invitationRedeemCode != nil {
 						if err := s.redeemRepo.Use(ctx, invitationRedeemCode.ID, user.ID); err != nil {
@@ -671,6 +691,19 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 		}
 	}
 
+	// Best-effort: initialize affiliate row and bind inviter (only when a new user was created).
+	if createdUser && s.affiliateService != nil {
+		if _, err := s.affiliateService.EnsureAffiliateRow(ctx, user.ID); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] EnsureAffiliateRow failed after oauth signup: user_id=%d err=%v", user.ID, err)
+		}
+		affCode = strings.TrimSpace(affCode)
+		if affCode != "" && s.settingService != nil {
+			if settings, err := s.settingService.GetAllSettings(ctx); err == nil && settings != nil && settings.AffiliateEnabled {
+				s.affiliateService.BindInviterByCode(ctx, user.ID, affCode)
+			}
+		}
+	}
+
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("generate token pair: %w", err)
@@ -687,17 +720,23 @@ const pendingOAuthPurpose = "pending_oauth_registration"
 type pendingOAuthClaims struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
+	AffCode  string `json:"aff_code,omitempty"`
 	Purpose  string `json:"purpose"`
 	jwt.RegisteredClaims
 }
 
 // CreatePendingOAuthToken generates a short-lived JWT that carries the OAuth identity
 // while waiting for the user to supply an invitation code.
-func (s *AuthService) CreatePendingOAuthToken(email, username string) (string, error) {
+func (s *AuthService) CreatePendingOAuthToken(email, username, affCode string) (string, error) {
 	now := time.Now()
+	affCode = strings.TrimSpace(affCode)
+	if len([]rune(affCode)) > 64 {
+		affCode = string([]rune(affCode)[:64])
+	}
 	claims := &pendingOAuthClaims{
 		Email:    email,
 		Username: username,
+		AffCode:  affCode,
 		Purpose:  pendingOAuthPurpose,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(pendingOAuthTokenTTL)),
@@ -711,9 +750,9 @@ func (s *AuthService) CreatePendingOAuthToken(email, username string) (string, e
 
 // VerifyPendingOAuthToken validates a pending OAuth token and returns the embedded identity.
 // Returns ErrInvalidToken when the token is invalid or expired.
-func (s *AuthService) VerifyPendingOAuthToken(tokenStr string) (email, username string, err error) {
+func (s *AuthService) VerifyPendingOAuthToken(tokenStr string) (email, username, affCode string, err error) {
 	if len(tokenStr) > maxTokenLength {
-		return "", "", ErrInvalidToken
+		return "", "", "", ErrInvalidToken
 	}
 	parser := jwt.NewParser(jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
 	token, parseErr := parser.ParseWithClaims(tokenStr, &pendingOAuthClaims{}, func(t *jwt.Token) (any, error) {
@@ -723,16 +762,16 @@ func (s *AuthService) VerifyPendingOAuthToken(tokenStr string) (email, username 
 		return []byte(s.cfg.JWT.Secret), nil
 	})
 	if parseErr != nil {
-		return "", "", ErrInvalidToken
+		return "", "", "", ErrInvalidToken
 	}
 	claims, ok := token.Claims.(*pendingOAuthClaims)
 	if !ok || !token.Valid {
-		return "", "", ErrInvalidToken
+		return "", "", "", ErrInvalidToken
 	}
 	if claims.Purpose != pendingOAuthPurpose {
-		return "", "", ErrInvalidToken
+		return "", "", "", ErrInvalidToken
 	}
-	return claims.Email, claims.Username, nil
+	return claims.Email, claims.Username, claims.AffCode, nil
 }
 
 func (s *AuthService) assignDefaultSubscriptions(ctx context.Context, userID int64) {

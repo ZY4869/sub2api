@@ -31,7 +31,7 @@ func (s *SettingService) IsPublicModelCatalogEnabled(ctx context.Context) bool {
 }
 
 func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings, error) {
-	keys := []string{SettingKeyRegistrationEnabled, SettingKeyEmailVerifyEnabled, SettingKeyRegistrationEmailSuffixWhitelist, SettingKeyPromoCodeEnabled, SettingKeyPasswordResetEnabled, SettingKeyInvitationCodeEnabled, SettingKeyTotpEnabled, SettingKeyTurnstileEnabled, SettingKeyTurnstileSiteKey, SettingKeySiteName, SettingKeySiteLogo, SettingKeySiteSubtitle, SettingKeyAPIBaseURL, SettingKeyContactInfo, SettingKeyDocURL, SettingKeyHomeContent, SettingKeyHideCcsImportButton, SettingKeyAvailableChannelsEnabled, SettingKeyChannelMonitorEnabled, SettingKeyPublicModelCatalogEnabled, SettingKeyPurchaseSubscriptionEnabled, SettingKeyPurchaseSubscriptionURL, SettingKeyCustomMenuItems, SettingKeyLinuxDoConnectEnabled, SettingKeyBackendModeEnabled, SettingKeyMaintenanceModeEnabled}
+	keys := []string{SettingKeyRegistrationEnabled, SettingKeyEmailVerifyEnabled, SettingKeyRegistrationEmailSuffixWhitelist, SettingKeyPromoCodeEnabled, SettingKeyPasswordResetEnabled, SettingKeyInvitationCodeEnabled, SettingKeyTotpEnabled, SettingKeyTurnstileEnabled, SettingKeyTurnstileSiteKey, SettingKeySiteName, SettingKeySiteLogo, SettingKeySiteSubtitle, SettingKeyAPIBaseURL, SettingKeyContactInfo, SettingKeyDocURL, SettingKeyHomeContent, SettingKeyHideCcsImportButton, SettingKeyAvailableChannelsEnabled, SettingKeyChannelMonitorEnabled, SettingKeyPublicModelCatalogEnabled, SettingKeyAffiliateEnabled, SettingKeyPurchaseSubscriptionEnabled, SettingKeyPurchaseSubscriptionURL, SettingKeyCustomMenuItems, SettingKeyLinuxDoConnectEnabled, SettingKeyBackendModeEnabled, SettingKeyMaintenanceModeEnabled}
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
 		return nil, fmt.Errorf("get public settings: %w", err)
@@ -45,7 +45,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
 	passwordResetEnabled := emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true"
 	registrationEmailSuffixWhitelist := ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist])
-	return &PublicSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist, PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: passwordResetEnabled, InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true", ChannelMonitorEnabled: settings[SettingKeyChannelMonitorEnabled] == "true", PublicModelCatalogEnabled: !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]), PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), CustomMenuItems: settings[SettingKeyCustomMenuItems], LinuxDoOAuthEnabled: linuxDoEnabled, BackendModeEnabled: settings[SettingKeyBackendModeEnabled] == "true", MaintenanceModeEnabled: settings[SettingKeyMaintenanceModeEnabled] == "true"}, nil
+	return &PublicSettings{RegistrationEnabled: settings[SettingKeyRegistrationEnabled] == "true", EmailVerifyEnabled: emailVerifyEnabled, RegistrationEmailSuffixWhitelist: registrationEmailSuffixWhitelist, PromoCodeEnabled: settings[SettingKeyPromoCodeEnabled] != "false", PasswordResetEnabled: passwordResetEnabled, InvitationCodeEnabled: settings[SettingKeyInvitationCodeEnabled] == "true", TotpEnabled: settings[SettingKeyTotpEnabled] == "true", TurnstileEnabled: settings[SettingKeyTurnstileEnabled] == "true", TurnstileSiteKey: settings[SettingKeyTurnstileSiteKey], SiteName: s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"), SiteLogo: settings[SettingKeySiteLogo], SiteSubtitle: s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"), APIBaseURL: settings[SettingKeyAPIBaseURL], ContactInfo: settings[SettingKeyContactInfo], DocURL: settings[SettingKeyDocURL], HomeContent: settings[SettingKeyHomeContent], HideCcsImportButton: settings[SettingKeyHideCcsImportButton] == "true", AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true", ChannelMonitorEnabled: settings[SettingKeyChannelMonitorEnabled] == "true", PublicModelCatalogEnabled: !isFalseSettingValue(settings[SettingKeyPublicModelCatalogEnabled]), AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true", PurchaseSubscriptionEnabled: settings[SettingKeyPurchaseSubscriptionEnabled] == "true", PurchaseSubscriptionURL: strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]), CustomMenuItems: settings[SettingKeyCustomMenuItems], LinuxDoOAuthEnabled: linuxDoEnabled, BackendModeEnabled: settings[SettingKeyBackendModeEnabled] == "true", MaintenanceModeEnabled: settings[SettingKeyMaintenanceModeEnabled] == "true"}, nil
 }
 func (s *SettingService) SetOnUpdateCallback(callback func()) {
 	s.onUpdate = callback
@@ -255,7 +255,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	if !errors.Is(err, ErrSettingNotFound) {
 		return fmt.Errorf("check existing settings: %w", err)
 	}
-	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeyFrontendURL: "", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyAvailableChannelsEnabled: "false", SettingKeyChannelMonitorEnabled: "false", SettingKeyChannelMonitorDefaultIntervalSeconds: "60", SettingKeyPublicModelCatalogEnabled: "true", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyMaxClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyMultiGroupRoutingEnabled: "false", SettingKeyBackendModeEnabled: "false", SettingKeyMaintenanceModeEnabled: "false", SettingKeyDocumentAIEnabled: "false", SettingKeyTelegramChatID: ""}
+	defaults := map[string]string{SettingKeyRegistrationEnabled: "true", SettingKeyEmailVerifyEnabled: "false", SettingKeyRegistrationEmailSuffixWhitelist: "[]", SettingKeyPromoCodeEnabled: "true", SettingKeyFrontendURL: "", SettingKeySiteName: "Sub2API", SettingKeySiteLogo: "", SettingKeyAvailableChannelsEnabled: "false", SettingKeyChannelMonitorEnabled: "false", SettingKeyChannelMonitorDefaultIntervalSeconds: "60", SettingKeyPublicModelCatalogEnabled: "true", SettingKeyAffiliateEnabled: "false", SettingKeyAffiliateTransferEnabled: "true", SettingKeyAffiliateRebateOnUsageEnabled: "true", SettingKeyAffiliateRebateOnTopupEnabled: "true", SettingKeyAffiliateRebateRate: "20.0", SettingKeyAffiliateRebateFreezeHours: "0", SettingKeyAffiliateRebateDurationDays: "0", SettingKeyAffiliateRebatePerInviteeCap: "0", SettingKeyAffiliateAffCodeLength: "10", SettingKeyPurchaseSubscriptionEnabled: "false", SettingKeyPurchaseSubscriptionURL: "", SettingKeyCustomMenuItems: "[]", SettingKeyDefaultConcurrency: strconv.Itoa(s.cfg.Default.UserConcurrency), SettingKeyDefaultBalance: strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64), SettingKeyDefaultSubscriptions: "[]", SettingKeySMTPPort: "587", SettingKeySMTPUseTLS: "false", SettingKeyEnableModelFallback: "false", SettingKeyFallbackModelAnthropic: "claude-3-5-sonnet-20241022", SettingKeyFallbackModelOpenAI: "gpt-4o", SettingKeyFallbackModelGemini: "gemini-2.5-pro", SettingKeyFallbackModelAntigravity: "gemini-2.5-pro", SettingKeyEnableIdentityPatch: "true", SettingKeyIdentityPatchPrompt: "", SettingKeyOpsMonitoringEnabled: "true", SettingKeyOpsRealtimeMonitoringEnabled: "true", SettingKeyOpsQueryModeDefault: "auto", SettingKeyOpsMetricsIntervalSeconds: "60", SettingKeyMinClaudeCodeVersion: "", SettingKeyMaxClaudeCodeVersion: "", SettingKeyAllowUngroupedKeyScheduling: "false", SettingKeyMultiGroupRoutingEnabled: "false", SettingKeyBackendModeEnabled: "false", SettingKeyMaintenanceModeEnabled: "false", SettingKeyDocumentAIEnabled: "false", SettingKeyTelegramChatID: ""}
 	return s.settingRepo.SetMultiple(ctx, defaults)
 }
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
@@ -349,6 +349,69 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.AllowUngroupedKeyScheduling = settings[SettingKeyAllowUngroupedKeyScheduling] == "true"
 	result.BackendModeEnabled = settings[SettingKeyBackendModeEnabled] == "true"
 	result.MaintenanceModeEnabled = settings[SettingKeyMaintenanceModeEnabled] == "true"
+
+	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
+	result.AffiliateTransferEnabled = !isFalseSettingValue(settings[SettingKeyAffiliateTransferEnabled])
+	result.AffiliateRebateOnUsageEnabled = !isFalseSettingValue(settings[SettingKeyAffiliateRebateOnUsageEnabled])
+	result.AffiliateRebateOnTopupEnabled = !isFalseSettingValue(settings[SettingKeyAffiliateRebateOnTopupEnabled])
+
+	result.AffiliateRebateRate = 20.0
+	if raw := strings.TrimSpace(settings[SettingKeyAffiliateRebateRate]); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil {
+			if v < 0 {
+				v = 0
+			}
+			if v > 100 {
+				v = 100
+			}
+			result.AffiliateRebateRate = v
+		}
+	}
+	result.AffiliateRebateFreezeHours = 0
+	if raw := strings.TrimSpace(settings[SettingKeyAffiliateRebateFreezeHours]); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil {
+			if v < 0 {
+				v = 0
+			}
+			if v > 720 {
+				v = 720
+			}
+			result.AffiliateRebateFreezeHours = v
+		}
+	}
+	result.AffiliateRebateDurationDays = 0
+	if raw := strings.TrimSpace(settings[SettingKeyAffiliateRebateDurationDays]); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil {
+			if v < 0 {
+				v = 0
+			}
+			if v > 3650 {
+				v = 3650
+			}
+			result.AffiliateRebateDurationDays = v
+		}
+	}
+	result.AffiliateRebatePerInviteeCap = 0
+	if raw := strings.TrimSpace(settings[SettingKeyAffiliateRebatePerInviteeCap]); raw != "" {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil {
+			if v < 0 {
+				v = 0
+			}
+			result.AffiliateRebatePerInviteeCap = v
+		}
+	}
+	result.AffiliateAffCodeLength = 10
+	if raw := strings.TrimSpace(settings[SettingKeyAffiliateAffCodeLength]); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil {
+			if v < 6 {
+				v = 6
+			}
+			if v > 32 {
+				v = 32
+			}
+			result.AffiliateAffCodeLength = v
+		}
+	}
 	return result
 }
 func isFalseSettingValue(value string) bool {

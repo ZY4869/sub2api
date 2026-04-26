@@ -62,6 +62,7 @@ export interface RegisterRequest {
   turnstile_token?: string;
   promo_code?: string;
   invitation_code?: string;
+  aff_code?: string;
 }
 
 export interface SendVerifyCodeRequest {
@@ -103,6 +104,7 @@ export interface PublicSettings {
   available_channels_enabled: boolean;
   channel_monitor_enabled: boolean;
   public_model_catalog_enabled: boolean;
+  affiliate_enabled: boolean;
   purchase_subscription_enabled: boolean;
   purchase_subscription_url: string;
   custom_menu_items: CustomMenuItem[];

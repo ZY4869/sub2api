@@ -74,6 +74,9 @@ export default {
     invitationCodeInvalid: 'Invalid or used invitation code',
     invitationCodeValidating: 'Validating invitation code...',
     invitationCodeInvalidCannotRegister: 'Invalid invitation code. Please check and try again',
+    affiliateCodeLabel: 'Affiliate Code',
+    affiliateCodePlaceholder: 'Enter affiliate code (optional)',
+    affiliateCodeHint: 'If you have an affiliate code, enter it to bind the inviter.',
     linuxdo: {
       signIn: 'Continue with Linux.do',
       orContinue: 'or continue with email',

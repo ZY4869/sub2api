@@ -110,6 +110,16 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyAllowUngroupedKeyScheduling] = strconv.FormatBool(settings.AllowUngroupedKeyScheduling)
 	updates[SettingKeyBackendModeEnabled] = strconv.FormatBool(settings.BackendModeEnabled)
 	updates[SettingKeyMaintenanceModeEnabled] = strconv.FormatBool(settings.MaintenanceModeEnabled)
+
+	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
+	updates[SettingKeyAffiliateTransferEnabled] = strconv.FormatBool(settings.AffiliateTransferEnabled)
+	updates[SettingKeyAffiliateRebateOnUsageEnabled] = strconv.FormatBool(settings.AffiliateRebateOnUsageEnabled)
+	updates[SettingKeyAffiliateRebateOnTopupEnabled] = strconv.FormatBool(settings.AffiliateRebateOnTopupEnabled)
+	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 4, 64)
+	updates[SettingKeyAffiliateRebateFreezeHours] = strconv.Itoa(settings.AffiliateRebateFreezeHours)
+	updates[SettingKeyAffiliateRebateDurationDays] = strconv.Itoa(settings.AffiliateRebateDurationDays)
+	updates[SettingKeyAffiliateRebatePerInviteeCap] = strconv.FormatFloat(settings.AffiliateRebatePerInviteeCap, 'f', 8, 64)
+	updates[SettingKeyAffiliateAffCodeLength] = strconv.Itoa(settings.AffiliateAffCodeLength)
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
 		versionBoundsSF.Forget("version_bounds")

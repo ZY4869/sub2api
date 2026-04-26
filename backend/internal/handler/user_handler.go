@@ -12,12 +12,14 @@ import (
 // UserHandler handles user-related requests
 type UserHandler struct {
 	userService *service.UserService
+	affiliate   *service.AffiliateService
 }
 
 // NewUserHandler creates a new UserHandler
-func NewUserHandler(userService *service.UserService) *UserHandler {
+func NewUserHandler(userService *service.UserService, affiliateService *service.AffiliateService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
+		affiliate:   affiliateService,
 	}
 }
 

@@ -33,6 +33,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: 'My Subscriptions',
     buySubscription: 'Recharge / Subscription',
+    affiliate: 'Affiliate',
     docs: 'Docs',
     apiDocs: 'API Docs'
   },

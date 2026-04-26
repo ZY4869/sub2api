@@ -86,6 +86,16 @@ const (
 	SettingKeyFrontendURL                      = "frontend_url"
 	SettingKeyInvitationCodeEnabled            = "invitation_code_enabled"
 
+	SettingKeyAffiliateEnabled              = "affiliate_enabled"
+	SettingKeyAffiliateTransferEnabled      = "affiliate_transfer_enabled"
+	SettingKeyAffiliateRebateOnUsageEnabled = "affiliate_rebate_on_usage_enabled"
+	SettingKeyAffiliateRebateOnTopupEnabled = "affiliate_rebate_on_topup_enabled"
+	SettingKeyAffiliateRebateRate           = "affiliate_rebate_rate"
+	SettingKeyAffiliateRebateFreezeHours    = "affiliate_rebate_freeze_hours"
+	SettingKeyAffiliateRebateDurationDays   = "affiliate_rebate_duration_days"
+	SettingKeyAffiliateRebatePerInviteeCap  = "affiliate_rebate_per_invitee_cap"
+	SettingKeyAffiliateAffCodeLength        = "affiliate_aff_code_length"
+
 	SettingKeySMTPHost     = "smtp_host"
 	SettingKeySMTPPort     = "smtp_port"
 	SettingKeySMTPUsername = "smtp_username"

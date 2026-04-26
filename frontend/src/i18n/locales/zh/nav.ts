@@ -33,6 +33,7 @@ export default {
     github: 'GitHub',
     mySubscriptions: '我的订阅',
     buySubscription: '充值 / 订阅',
+    affiliate: '邀请返利',
     docs: '文档',
     apiDocs: 'API 文档'
   },

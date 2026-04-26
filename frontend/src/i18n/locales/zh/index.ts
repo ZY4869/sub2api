@@ -4,6 +4,7 @@ import setup from './setup'
 import common from './common'
 import nav from './nav'
 import auth from './auth'
+import affiliate from './affiliate'
 import dashboard from './dashboard'
 import groups from './groups'
 import keys from './keys'
@@ -49,6 +50,7 @@ export default {
   ...common,
   ...nav,
   ...auth,
+  ...affiliate,
   ...dashboard,
   ...groups,
   ...keys,

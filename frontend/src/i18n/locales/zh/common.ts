@@ -59,6 +59,8 @@ export default {
     noGroupsAvailable: '无可用分组',
     unknownError: '发生未知错误',
     saving: '保存中...',
+    saved: '已保存',
+    noChanges: '没有改动',
     selectedCount: '（已选 {count} 个）',
     refresh: '刷新',
     settings: '设置',

@@ -63,6 +63,16 @@ type SystemSettings struct {
 	PurchaseSubscriptionURL              string           `json:"purchase_subscription_url"`
 	CustomMenuItems                      []CustomMenuItem `json:"custom_menu_items"`
 
+	AffiliateEnabled              bool    `json:"affiliate_enabled"`
+	AffiliateTransferEnabled      bool    `json:"affiliate_transfer_enabled"`
+	AffiliateRebateOnUsageEnabled bool    `json:"affiliate_rebate_on_usage_enabled"`
+	AffiliateRebateOnTopupEnabled bool    `json:"affiliate_rebate_on_topup_enabled"`
+	AffiliateRebateRate           float64 `json:"affiliate_rebate_rate"`
+	AffiliateRebateFreezeHours    int     `json:"affiliate_rebate_freeze_hours"`
+	AffiliateRebateDurationDays   int     `json:"affiliate_rebate_duration_days"`
+	AffiliateRebatePerInviteeCap  float64 `json:"affiliate_rebate_per_invitee_cap"`
+	AffiliateAffCodeLength        int     `json:"affiliate_aff_code_length"`
+
 	DefaultConcurrency   int                          `json:"default_concurrency"`
 	DefaultBalance       float64                      `json:"default_balance"`
 	DefaultSubscriptions []DefaultSubscriptionSetting `json:"default_subscriptions"`
@@ -121,6 +131,7 @@ type PublicSettings struct {
 	AvailableChannelsEnabled         bool             `json:"available_channels_enabled"`
 	ChannelMonitorEnabled            bool             `json:"channel_monitor_enabled"`
 	PublicModelCatalogEnabled        bool             `json:"public_model_catalog_enabled"`
+	AffiliateEnabled                 bool             `json:"affiliate_enabled"`
 	PurchaseSubscriptionEnabled      bool             `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string           `json:"purchase_subscription_url"`
 	CustomMenuItems                  []CustomMenuItem `json:"custom_menu_items"`

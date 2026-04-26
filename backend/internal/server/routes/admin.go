@@ -22,6 +22,7 @@ func RegisterAdminRoutes(
 
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
+		registerAffiliateRoutes(admin, h)
 
 		// 分组管理
 		registerGroupRoutes(admin, h)
@@ -302,6 +303,20 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		// User attribute values
 		users.GET("/:id/attributes", h.Admin.UserAttribute.GetUserAttributes)
 		users.PUT("/:id/attributes", h.Admin.UserAttribute.UpdateUserAttributes)
+	}
+}
+
+func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	affiliates := admin.Group("/affiliates")
+	{
+		users := affiliates.Group("/users")
+		{
+			users.GET("", h.Admin.Affiliate.ListUsers)
+			users.GET("/lookup", h.Admin.Affiliate.LookupUsers)
+			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUser)
+			users.DELETE("/:user_id", h.Admin.Affiliate.DeleteUserCustom)
+			users.POST("/batch-rate", h.Admin.Affiliate.BatchRate)
+		}
 	}
 }
 

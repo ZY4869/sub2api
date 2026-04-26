@@ -1085,6 +1085,144 @@
             </div>
           </div>
         </div>
+
+        <!-- Affiliate Settings -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.affiliate.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.affiliate.description') }}
+            </p>
+          </div>
+          <div class="space-y-6 p-6">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.affiliate.enabled') }}
+                  </label>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.affiliate.enabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.affiliate_enabled" />
+              </div>
+
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.affiliate.transferEnabled') }}
+                  </label>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.affiliate.transferEnabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.affiliate_transfer_enabled" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.affiliate.rate') }}
+                </label>
+                <input
+                  v-model.number="form.affiliate_rebate_rate"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.affiliate.freezeHours') }}
+                </label>
+                <input
+                  v-model.number="form.affiliate_rebate_freeze_hours"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="720"
+                  class="input"
+                />
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.affiliate.durationDays') }}
+                </label>
+                <input
+                  v-model.number="form.affiliate_rebate_duration_days"
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="3650"
+                  class="input"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.affiliate.durationDaysHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.affiliate.perInviteeCap') }}
+                </label>
+                <input
+                  v-model.number="form.affiliate_rebate_per_invitee_cap"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  class="input"
+                />
+                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.affiliate.perInviteeCapHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.affiliate.affCodeLength') }}
+                </label>
+                <input
+                  v-model.number="form.affiliate_aff_code_length"
+                  type="number"
+                  step="1"
+                  min="6"
+                  max="32"
+                  class="input"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.affiliate.onUsage') }}
+                  </label>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.affiliate.onUsageHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.affiliate_rebate_on_usage_enabled" />
+              </div>
+
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.affiliate.onTopup') }}
+                  </label>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.affiliate.onTopupHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.affiliate_rebate_on_topup_enabled" />
+              </div>
+            </div>
+          </div>
+        </div>
         </div><!-- /Tab: Users -->
 
         <!-- Tab: Gateway — Claude Code, Scheduling -->
@@ -2054,6 +2192,15 @@ const form = reactive<SettingsForm>({
   channel_monitor_enabled: false,
   channel_monitor_default_interval_seconds: 60,
   public_model_catalog_enabled: true,
+  affiliate_enabled: false,
+  affiliate_transfer_enabled: true,
+  affiliate_rebate_on_usage_enabled: true,
+  affiliate_rebate_on_topup_enabled: true,
+  affiliate_rebate_rate: 20.0,
+  affiliate_rebate_freeze_hours: 0,
+  affiliate_rebate_duration_days: 0,
+  affiliate_rebate_per_invitee_cap: 0,
+  affiliate_aff_code_length: 10,
   purchase_subscription_enabled: false,
   purchase_subscription_url: '',
   backend_mode_enabled: false,
@@ -2340,6 +2487,15 @@ async function saveSettings() {
       channel_monitor_enabled: form.channel_monitor_enabled,
       channel_monitor_default_interval_seconds: form.channel_monitor_default_interval_seconds,
       public_model_catalog_enabled: form.public_model_catalog_enabled,
+      affiliate_enabled: form.affiliate_enabled,
+      affiliate_transfer_enabled: form.affiliate_transfer_enabled,
+      affiliate_rebate_on_usage_enabled: form.affiliate_rebate_on_usage_enabled,
+      affiliate_rebate_on_topup_enabled: form.affiliate_rebate_on_topup_enabled,
+      affiliate_rebate_rate: form.affiliate_rebate_rate,
+      affiliate_rebate_freeze_hours: form.affiliate_rebate_freeze_hours,
+      affiliate_rebate_duration_days: form.affiliate_rebate_duration_days,
+      affiliate_rebate_per_invitee_cap: form.affiliate_rebate_per_invitee_cap,
+      affiliate_aff_code_length: form.affiliate_aff_code_length,
       purchase_subscription_enabled: form.purchase_subscription_enabled,
       purchase_subscription_url: form.purchase_subscription_url,
       maintenance_mode_enabled: form.maintenance_mode_enabled,

@@ -144,6 +144,8 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		}
 	}
 
+	applyAffiliateUsageRebateBestEffort(ctx, tx, cmd)
+
 	return nil
 }
 

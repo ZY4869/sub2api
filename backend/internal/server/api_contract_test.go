@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -63,6 +64,104 @@ func TestAPIContracts(t *testing.T) {
 					"request_details_review": false
  				}
  			}`,
+		},
+		{
+			name: "GET /api/v1/settings/public",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.settingRepo.SetAll(map[string]string{
+					service.SettingKeyRegistrationEnabled:              "true",
+					service.SettingKeyEmailVerifyEnabled:               "false",
+					service.SettingKeyRegistrationEmailSuffixWhitelist: "[]",
+					service.SettingKeyPromoCodeEnabled:                 "true",
+
+					service.SettingKeyTurnstileEnabled: "true",
+					service.SettingKeyTurnstileSiteKey: "site-key",
+
+					service.SettingKeySiteName:     "Sub2API",
+					service.SettingKeySiteLogo:     "",
+					service.SettingKeySiteSubtitle: "Subtitle",
+					service.SettingKeyAPIBaseURL:   "https://api.example.com",
+					service.SettingKeyContactInfo:  "support",
+					service.SettingKeyDocURL:       "https://docs.example.com",
+				})
+			},
+			method:     http.MethodGet,
+			path:       "/api/v1/settings/public",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"registration_enabled": true,
+					"email_verify_enabled": false,
+					"registration_email_suffix_whitelist": [],
+					"promo_code_enabled": true,
+					"password_reset_enabled": false,
+					"invitation_code_enabled": false,
+					"totp_enabled": false,
+					"turnstile_enabled": true,
+					"turnstile_site_key": "site-key",
+					"site_name": "Sub2API",
+					"site_logo": "",
+					"site_subtitle": "Subtitle",
+					"api_base_url": "https://api.example.com",
+					"contact_info": "support",
+					"doc_url": "https://docs.example.com",
+					"home_content": "",
+					"hide_ccs_import_button": false,
+					"available_channels_enabled": false,
+					"channel_monitor_enabled": false,
+					"public_model_catalog_enabled": true,
+					"affiliate_enabled": false,
+					"purchase_subscription_enabled": false,
+					"purchase_subscription_url": "",
+					"custom_menu_items": [],
+					"linuxdo_oauth_enabled": false,
+					"backend_mode_enabled": false,
+					"maintenance_mode_enabled": false,
+					"version": "0.0.0-test"
+				}
+			}`,
+		},
+		{
+			name:       "GET /api/v1/user/aff",
+			method:     http.MethodGet,
+			path:       "/api/v1/user/aff",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"enabled": false,
+					"transfer_enabled": true,
+					"aff_code": "AFFCODE0001",
+					"invitee_count": 0,
+					"rebate_balance": 3.5,
+					"rebate_frozen_balance": 0,
+					"lifetime_rebate": 3.5,
+					"effective_rate_percent": 20,
+					"rebate_on_usage_enabled": true,
+					"rebate_on_topup_enabled": true,
+					"rebate_freeze_hours": 0,
+					"rebate_duration_days": 0,
+					"rebate_per_invitee_cap": 0
+				}
+			}`,
+		},
+		{
+			name:       "POST /api/v1/user/aff/transfer",
+			method:     http.MethodPost,
+			path:       "/api/v1/user/aff/transfer",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"transferred_amount": 3.5,
+					"new_balance": 16
+				}
+			}`,
 		},
 		{
 			name:   "POST /api/v1/keys",
@@ -560,7 +659,132 @@ func TestAPIContracts(t *testing.T) {
 					"max_claude_code_version": "",
 					"allow_ungrouped_key_scheduling": false,
 					"backend_mode_enabled": false,
+					"affiliate_enabled": false,
+					"affiliate_transfer_enabled": true,
+					"affiliate_rebate_on_usage_enabled": true,
+					"affiliate_rebate_on_topup_enabled": true,
+					"affiliate_rebate_rate": 20,
+					"affiliate_rebate_freeze_hours": 0,
+					"affiliate_rebate_duration_days": 0,
+					"affiliate_rebate_per_invitee_cap": 0,
+					"affiliate_aff_code_length": 10,
 					"custom_menu_items": []
+				}
+			}`,
+		},
+		{
+			name:       "GET /api/v1/admin/affiliates/users",
+			method:     http.MethodGet,
+			path:       "/api/v1/admin/affiliates/users?page=1&page_size=20",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"items": [
+						{
+							"user_id": 1,
+							"email": "alice@example.com",
+							"aff_code": "AFFCODE0001",
+							"custom_aff_code": false,
+							"invitee_count": 0,
+							"rebate_balance": 3.5,
+							"rebate_frozen_balance": 0,
+							"lifetime_rebate": 3.5,
+							"updated_at": "2025-01-02T03:04:05Z"
+						}
+					],
+					"total": 1,
+					"page": 1,
+					"page_size": 20,
+					"pages": 1
+				}
+			}`,
+		},
+		{
+			name:       "GET /api/v1/admin/affiliates/users/lookup",
+			method:     http.MethodGet,
+			path:       "/api/v1/admin/affiliates/users/lookup?q=alice",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": [
+					{
+						"user_id": 1,
+						"email": "alice@example.com",
+						"aff_code": "AFFCODE0001",
+						"custom_aff_code": false,
+						"invitee_count": 0,
+						"rebate_balance": 3.5,
+						"rebate_frozen_balance": 0,
+						"lifetime_rebate": 3.5,
+						"updated_at": "2025-01-02T03:04:05Z"
+					}
+				]
+			}`,
+		},
+		{
+			name:   "PUT /api/v1/admin/affiliates/users/:user_id",
+			method: http.MethodPut,
+			path:   "/api/v1/admin/affiliates/users/1",
+			body:   `{"aff_code":"CUSTOM00001","custom_rebate_rate_percent":30}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"user_id": 1,
+					"aff_code": "CUSTOM00001",
+					"invitee_count": 0,
+					"rebate_balance": 3.5,
+					"rebate_frozen_balance": 0,
+					"lifetime_rebate": 3.5,
+					"custom_rebate_rate_percent": 30,
+					"custom_aff_code": true,
+					"created_at": "2025-01-02T03:04:05Z",
+					"updated_at": "2025-01-02T03:04:05Z"
+				}
+			}`,
+		},
+		{
+			name:       "DELETE /api/v1/admin/affiliates/users/:user_id",
+			method:     http.MethodDelete,
+			path:       "/api/v1/admin/affiliates/users/1",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"user_id": 1,
+					"aff_code": "RESETCODE01",
+					"invitee_count": 0,
+					"rebate_balance": 3.5,
+					"rebate_frozen_balance": 0,
+					"lifetime_rebate": 3.5,
+					"custom_aff_code": false,
+					"created_at": "2025-01-02T03:04:05Z",
+					"updated_at": "2025-01-02T03:04:05Z"
+				}
+			}`,
+		},
+		{
+			name:   "POST /api/v1/admin/affiliates/users/batch-rate",
+			method: http.MethodPost,
+			path:   "/api/v1/admin/affiliates/users/batch-rate",
+			body:   `{"user_ids":[101,102],"custom_rebate_rate_percent":25}`,
+			headers: map[string]string{
+				"Content-Type": "application/json",
+			},
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"updated": 2
 				}
 			}`,
 		},
@@ -613,6 +837,7 @@ type contractDeps struct {
 	usageRepo   *stubUsageLogRepo
 	settingRepo *stubSettingRepo
 	redeemRepo  *stubRedeemCodeRepo
+	affRepo     *stubAffiliateRepo
 }
 
 func newContractDeps(t *testing.T) *contractDeps {
@@ -667,6 +892,12 @@ func newContractDeps(t *testing.T) *contractDeps {
 
 	settingRepo := newStubSettingRepo()
 	settingService := service.NewSettingService(settingRepo, cfg)
+	settingHandler := handler.NewSettingHandler(settingService, "0.0.0-test")
+
+	affiliateRepo := newStubAffiliateRepo(now)
+	affiliateService := service.NewAffiliateService(settingService, affiliateRepo)
+	userHandler := handler.NewUserHandler(userService, affiliateService)
+	adminAffiliateHandler := adminhandler.NewAffiliateHandler(affiliateService)
 
 	adminService := service.NewAdminService(userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, settingService, nil, nil)
 	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil)
@@ -695,6 +926,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	r := gin.New()
 
 	v1 := r.Group("/api/v1")
+	v1.GET("/settings/public", settingHandler.GetPublicSettings)
 
 	v1Auth := v1.Group("")
 	v1Auth.Use(jwtAuth)
@@ -719,10 +951,21 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Redeem.Use(jwtAuth)
 	v1Redeem.GET("/redeem/history", redeemHandler.GetHistory)
 
+	v1User := v1.Group("/user")
+	v1User.Use(jwtAuth)
+	v1User.GET("/aff", userHandler.GetAffiliate)
+	v1User.POST("/aff/transfer", userHandler.TransferAffiliate)
+
 	v1Admin := v1.Group("/admin")
 	v1Admin.Use(adminAuth)
 	v1Admin.GET("/settings", adminSettingHandler.GetSettings)
 	v1Admin.POST("/accounts/bulk-update", adminAccountHandler.BulkUpdate)
+	v1AdminAff := v1Admin.Group("/affiliates")
+	v1AdminAff.GET("/users", adminAffiliateHandler.ListUsers)
+	v1AdminAff.GET("/users/lookup", adminAffiliateHandler.LookupUsers)
+	v1AdminAff.PUT("/users/:user_id", adminAffiliateHandler.UpdateUser)
+	v1AdminAff.DELETE("/users/:user_id", adminAffiliateHandler.DeleteUserCustom)
+	v1AdminAff.POST("/users/batch-rate", adminAffiliateHandler.BatchRate)
 
 	return &contractDeps{
 		now:         now,
@@ -733,6 +976,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 		usageRepo:   usageRepo,
 		settingRepo: settingRepo,
 		redeemRepo:  redeemRepo,
+		affRepo:     affiliateRepo,
 	}
 }
 
@@ -1933,6 +2177,206 @@ func (r *stubUsageLogRepo) GetAllGroupUsageSummary(ctx context.Context, todaySta
 	return nil, errors.New("not implemented")
 }
 
+type stubAffiliateRepo struct {
+	now   time.Time
+	users map[int64]*stubAffiliateUser
+}
+
+type stubAffiliateUser struct {
+	email   string
+	row     *service.UserAffiliate
+	balance float64
+}
+
+func newStubAffiliateRepo(now time.Time) *stubAffiliateRepo {
+	return &stubAffiliateRepo{
+		now: now,
+		users: map[int64]*stubAffiliateUser{
+			1: {
+				email: "alice@example.com",
+				row: &service.UserAffiliate{
+					UserID:              1,
+					AffCode:             "AFFCODE0001",
+					InviterUserID:       nil,
+					InviterBoundAt:      nil,
+					InviteeCount:        0,
+					RebateBalance:       3.5,
+					RebateFrozenBalance: 0,
+					LifetimeRebate:      3.5,
+					CustomAffCode:       false,
+					CreatedAt:           now,
+					UpdatedAt:           now,
+				},
+				balance: 12.5,
+			},
+		},
+	}
+}
+
+func (r *stubAffiliateRepo) GetUserAffiliate(ctx context.Context, userID int64) (*service.UserAffiliate, error) {
+	u, ok := r.users[userID]
+	if !ok || u == nil || u.row == nil {
+		return nil, errors.New("affiliate row not found")
+	}
+	clone := *u.row
+	return &clone, nil
+}
+
+func (r *stubAffiliateRepo) EnsureAffiliateRow(ctx context.Context, userID int64, affCode string) (bool, error) {
+	if userID <= 0 {
+		return false, errors.New("user_id must be positive")
+	}
+	if _, ok := r.users[userID]; ok {
+		return false, nil
+	}
+	if affCode == "" {
+		affCode = "AFFCODE0000"
+	}
+	r.users[userID] = &stubAffiliateUser{
+		email: "",
+		row: &service.UserAffiliate{
+			UserID:              userID,
+			AffCode:             affCode,
+			InviterUserID:       nil,
+			InviterBoundAt:      nil,
+			InviteeCount:        0,
+			RebateBalance:       0,
+			RebateFrozenBalance: 0,
+			LifetimeRebate:      0,
+			CustomAffCode:       false,
+			CreatedAt:           r.now,
+			UpdatedAt:           r.now,
+		},
+		balance: 0,
+	}
+	return true, nil
+}
+
+func (r *stubAffiliateRepo) BindInviterByCode(ctx context.Context, inviteeUserID int64, affCode string) (int64, bool, error) {
+	return 0, false, nil
+}
+
+func (r *stubAffiliateRepo) AccrueTopupRebate(ctx context.Context, redeemCodeID int64, inviteeUserID int64, creditedAmount float64, policy service.AffiliateRebatePolicy) (float64, error) {
+	return 0, nil
+}
+
+func (r *stubAffiliateRepo) ThawFrozenIfNeeded(ctx context.Context, inviterUserID int64) (float64, error) {
+	return 0, nil
+}
+
+func (r *stubAffiliateRepo) TransferToBalance(ctx context.Context, userID int64) (*service.AffiliateTransferResult, error) {
+	u, ok := r.users[userID]
+	if !ok || u == nil || u.row == nil {
+		return nil, errors.New("affiliate row not found")
+	}
+	transferred := u.row.RebateBalance
+	u.row.RebateBalance = 0
+	u.row.UpdatedAt = r.now
+	u.balance += transferred
+	return &service.AffiliateTransferResult{TransferredAmount: transferred, NewBalance: u.balance}, nil
+}
+
+func (r *stubAffiliateRepo) ListAffiliateUsers(ctx context.Context, params pagination.PaginationParams, filters service.AffiliateAdminUserListFilters) ([]service.AffiliateAdminUser, *pagination.PaginationResult, error) {
+	u := r.users[1]
+	if u == nil || u.row == nil {
+		return []service.AffiliateAdminUser{}, paginationResult(0, params), nil
+	}
+
+	if filters.HasCustomCode != nil && *filters.HasCustomCode && !u.row.CustomAffCode {
+		return []service.AffiliateAdminUser{}, paginationResult(0, params), nil
+	}
+	if filters.HasCustomRate != nil && *filters.HasCustomRate && u.row.CustomRebateRatePercent == nil {
+		return []service.AffiliateAdminUser{}, paginationResult(0, params), nil
+	}
+	if filters.HasInviter != nil && *filters.HasInviter && u.row.InviterUserID == nil {
+		return []service.AffiliateAdminUser{}, paginationResult(0, params), nil
+	}
+
+	item := service.AffiliateAdminUser{
+		UserID:                  u.row.UserID,
+		Email:                   u.email,
+		AffCode:                 u.row.AffCode,
+		CustomAffCode:           u.row.CustomAffCode,
+		CustomRebateRatePercent: u.row.CustomRebateRatePercent,
+		InviterUserID:           u.row.InviterUserID,
+		InviteeCount:            u.row.InviteeCount,
+		RebateBalance:           u.row.RebateBalance,
+		RebateFrozenBalance:     u.row.RebateFrozenBalance,
+		LifetimeRebate:          u.row.LifetimeRebate,
+		UpdatedAt:               r.now,
+	}
+
+	return []service.AffiliateAdminUser{item}, paginationResult(1, params), nil
+}
+
+func (r *stubAffiliateRepo) LookupAffiliateUsers(ctx context.Context, q string, limit int) ([]service.AffiliateAdminUser, error) {
+	if strings.TrimSpace(q) == "" {
+		return []service.AffiliateAdminUser{}, nil
+	}
+	items, _, _ := r.ListAffiliateUsers(ctx, pagination.PaginationParams{Page: 1, PageSize: limit}, service.AffiliateAdminUserListFilters{})
+	return items, nil
+}
+
+func (r *stubAffiliateRepo) UpdateAffiliateUserCustom(ctx context.Context, userID int64, update service.AffiliateAdminUserCustomUpdate, newAffCodeForClear string) (*service.UserAffiliate, error) {
+	if _, err := r.EnsureAffiliateRow(ctx, userID, ""); err != nil {
+		return nil, err
+	}
+	u := r.users[userID]
+	if u == nil || u.row == nil {
+		return nil, errors.New("affiliate row not found")
+	}
+
+	if update.AffCodeSet {
+		if update.AffCode == nil {
+			u.row.CustomAffCode = false
+			if newAffCodeForClear != "" {
+				u.row.AffCode = newAffCodeForClear
+			}
+		} else {
+			u.row.CustomAffCode = true
+			u.row.AffCode = *update.AffCode
+		}
+	}
+	if update.CustomRateSet {
+		u.row.CustomRebateRatePercent = update.CustomRate
+	}
+	u.row.UpdatedAt = r.now
+	clone := *u.row
+	return &clone, nil
+}
+
+func (r *stubAffiliateRepo) ResetAffiliateUserCustom(ctx context.Context, userID int64, newAffCode string) (*service.UserAffiliate, error) {
+	if _, err := r.EnsureAffiliateRow(ctx, userID, ""); err != nil {
+		return nil, err
+	}
+	u := r.users[userID]
+	if u == nil || u.row == nil {
+		return nil, errors.New("affiliate row not found")
+	}
+	u.row.CustomAffCode = false
+	u.row.CustomRebateRatePercent = nil
+	u.row.AffCode = "RESETCODE01"
+	u.row.UpdatedAt = r.now
+	clone := *u.row
+	return &clone, nil
+}
+
+func (r *stubAffiliateRepo) BatchUpdateAffiliateUserCustomRates(ctx context.Context, userIDs []int64, customRatePercent float64) (int, error) {
+	for _, id := range userIDs {
+		if _, err := r.EnsureAffiliateRow(ctx, id, ""); err != nil {
+			return 0, err
+		}
+		u := r.users[id]
+		if u == nil || u.row == nil {
+			continue
+		}
+		v := customRatePercent
+		u.row.CustomRebateRatePercent = &v
+		u.row.UpdatedAt = r.now
+	}
+	return len(userIDs), nil
+}
+
 type stubSettingRepo struct {
 	all map[string]string
 }
@@ -2034,4 +2478,5 @@ var (
 	_ service.UserSubscriptionRepository = (*stubUserSubscriptionRepo)(nil)
 	_ service.UsageLogRepository         = (*stubUsageLogRepo)(nil)
 	_ service.SettingRepository          = (*stubSettingRepo)(nil)
+	_ service.AffiliateRepository        = (*stubAffiliateRepo)(nil)
 )

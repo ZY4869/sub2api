@@ -42,6 +42,16 @@ export interface SystemSettings {
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
   public_model_catalog_enabled: boolean
+  // Affiliate / Invite rebate (运营版)
+  affiliate_enabled: boolean
+  affiliate_transfer_enabled: boolean
+  affiliate_rebate_on_usage_enabled: boolean
+  affiliate_rebate_on_topup_enabled: boolean
+  affiliate_rebate_rate: number
+  affiliate_rebate_freeze_hours: number
+  affiliate_rebate_duration_days: number
+  affiliate_rebate_per_invitee_cap: number
+  affiliate_aff_code_length: number
   purchase_subscription_enabled: boolean
   purchase_subscription_url: string
   backend_mode_enabled: boolean
@@ -118,6 +128,15 @@ export interface UpdateSettingsRequest {
   channel_monitor_enabled?: boolean
   channel_monitor_default_interval_seconds?: number
   public_model_catalog_enabled?: boolean
+  affiliate_enabled?: boolean
+  affiliate_transfer_enabled?: boolean
+  affiliate_rebate_on_usage_enabled?: boolean
+  affiliate_rebate_on_topup_enabled?: boolean
+  affiliate_rebate_rate?: number
+  affiliate_rebate_freeze_hours?: number
+  affiliate_rebate_duration_days?: number
+  affiliate_rebate_per_invitee_cap?: number
+  affiliate_aff_code_length?: number
   purchase_subscription_enabled?: boolean
   purchase_subscription_url?: string
   backend_mode_enabled?: boolean

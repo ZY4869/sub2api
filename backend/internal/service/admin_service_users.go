@@ -245,8 +245,12 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 		adjustmentRecord := &RedeemCode{Code: code, Type: AdjustmentTypeAdminBalance, Value: balanceDiff, Status: StatusUsed, UsedBy: &user.ID, Notes: notes}
 		now := time.Now()
 		adjustmentRecord.UsedAt = &now
-		if err := s.redeemCodeRepo.Create(ctx, adjustmentRecord); err != nil {
-			logger.LegacyPrintf("service.admin", "failed to create balance adjustment redeem code: %v", err)
+		createErr := s.redeemCodeRepo.Create(ctx, adjustmentRecord)
+		if createErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to create balance adjustment redeem code: %v", createErr)
+		}
+		if createErr == nil && balanceDiff > 0 && s.affiliateService != nil && adjustmentRecord.ID > 0 {
+			s.affiliateService.AccrueTopupRebateBestEffort(ctx, adjustmentRecord.ID, userID, balanceDiff)
 		}
 	}
 	return user, nil

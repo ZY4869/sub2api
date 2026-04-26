@@ -52,6 +52,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		AvailableChannelsEnabled:         settings.AvailableChannelsEnabled,
 		ChannelMonitorEnabled:            settings.ChannelMonitorEnabled,
 		PublicModelCatalogEnabled:        settings.PublicModelCatalogEnabled,
+		AffiliateEnabled:                 settings.AffiliateEnabled,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,
 		CustomMenuItems:                  dto.ParseUserVisibleMenuItems(settings.CustomMenuItems),

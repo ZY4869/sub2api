@@ -29,6 +29,7 @@ const (
 	linuxDoOAuthStateCookieName   = "linuxdo_oauth_state"
 	linuxDoOAuthVerifierCookie    = "linuxdo_oauth_verifier"
 	linuxDoOAuthRedirectCookie    = "linuxdo_oauth_redirect"
+	linuxDoOAuthAffCodeCookieName = "linuxdo_oauth_aff_code"
 	linuxDoOAuthCookieMaxAgeSec   = 10 * 60 // 10 minutes
 	linuxDoOAuthDefaultRedirectTo = "/dashboard"
 	linuxDoOAuthDefaultFrontendCB = "/auth/linuxdo/callback"
@@ -36,6 +37,7 @@ const (
 	linuxDoOAuthMaxRedirectLen      = 2048
 	linuxDoOAuthMaxFragmentValueLen = 512
 	linuxDoOAuthMaxSubjectLen       = 64 - len("linuxdo-")
+	linuxDoOAuthMaxAffCodeLen       = 64
 )
 
 type linuxDoTokenResponse struct {
@@ -87,9 +89,14 @@ func (h *AuthHandler) LinuxDoOAuthStart(c *gin.Context) {
 		redirectTo = linuxDoOAuthDefaultRedirectTo
 	}
 
+	affCode := sanitizeAffiliateCode(c.Query("aff_code"))
+
 	secureCookie := isRequestHTTPS(c)
 	setCookie(c, linuxDoOAuthStateCookieName, encodeCookieValue(state), linuxDoOAuthCookieMaxAgeSec, secureCookie)
 	setCookie(c, linuxDoOAuthRedirectCookie, encodeCookieValue(redirectTo), linuxDoOAuthCookieMaxAgeSec, secureCookie)
+	if affCode != "" {
+		setCookie(c, linuxDoOAuthAffCodeCookieName, encodeCookieValue(affCode), linuxDoOAuthCookieMaxAgeSec, secureCookie)
+	}
 
 	codeChallenge := ""
 	if cfg.UsePKCE {
@@ -148,6 +155,7 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		clearCookie(c, linuxDoOAuthStateCookieName, secureCookie)
 		clearCookie(c, linuxDoOAuthVerifierCookie, secureCookie)
 		clearCookie(c, linuxDoOAuthRedirectCookie, secureCookie)
+		clearCookie(c, linuxDoOAuthAffCodeCookieName, secureCookie)
 	}()
 
 	expectedState, err := readCookieDecoded(c, linuxDoOAuthStateCookieName)
@@ -161,6 +169,9 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 	if redirectTo == "" {
 		redirectTo = linuxDoOAuthDefaultRedirectTo
 	}
+
+	affCode, _ := readCookieDecoded(c, linuxDoOAuthAffCodeCookieName)
+	affCode = sanitizeAffiliateCode(affCode)
 
 	codeVerifier := ""
 	if cfg.UsePKCE {
@@ -212,10 +223,10 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 	}
 
 	// 传入空邀请码；如果需要邀请码，服务层返回 ErrOAuthInvitationRequired
-	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "")
+	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "", affCode)
 	if err != nil {
 		if errors.Is(err, service.ErrOAuthInvitationRequired) {
-			pendingToken, tokenErr := h.authService.CreatePendingOAuthToken(email, username)
+			pendingToken, tokenErr := h.authService.CreatePendingOAuthToken(email, username, affCode)
 			if tokenErr != nil {
 				redirectOAuthError(c, frontendCallback, "login_failed", "service_error", "")
 				return
@@ -244,6 +255,7 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 type completeLinuxDoOAuthRequest struct {
 	PendingOAuthToken string `json:"pending_oauth_token" binding:"required"`
 	InvitationCode    string `json:"invitation_code"     binding:"required"`
+	AffCode           string `json:"aff_code"`
 }
 
 // CompleteLinuxDoOAuthRegistration completes a pending OAuth registration by validating
@@ -256,13 +268,17 @@ func (h *AuthHandler) CompleteLinuxDoOAuthRegistration(c *gin.Context) {
 		return
 	}
 
-	email, username, err := h.authService.VerifyPendingOAuthToken(req.PendingOAuthToken)
+	email, username, affCode, err := h.authService.VerifyPendingOAuthToken(req.PendingOAuthToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "INVALID_TOKEN", "message": "invalid or expired registration token"})
 		return
 	}
 
-	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, req.InvitationCode)
+	if candidate := sanitizeAffiliateCode(req.AffCode); candidate != "" {
+		affCode = candidate
+	}
+
+	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, req.InvitationCode, affCode)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -701,6 +717,32 @@ func buildBearerAuthorization(tokenType, accessToken string) (string, error) {
 		return "", errors.New("access_token contains whitespace")
 	}
 	return "Bearer " + accessToken, nil
+}
+
+func sanitizeAffiliateCode(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.TrimSpace(strings.ToUpper(value))
+	value = strings.ReplaceAll(value, "-", "")
+	value = strings.ReplaceAll(value, " ", "")
+	if len([]rune(value)) > linuxDoOAuthMaxAffCodeLen {
+		value = string([]rune(value)[:linuxDoOAuthMaxAffCodeLen])
+	}
+	if value == "" {
+		return ""
+	}
+	for _, r := range value {
+		if r >= 'A' && r <= 'Z' {
+			continue
+		}
+		if r >= '0' && r <= '9' {
+			continue
+		}
+		return ""
+	}
+	return value
 }
 
 func isSafeLinuxDoSubject(subject string) bool {

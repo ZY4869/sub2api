@@ -282,7 +282,7 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 开启时，游客与已登录用户都可以访问 `GET /api/v1/meta/model-catalog`。
 - 关闭时，游客访问该接口会返回 `401`，前端 `/models` 页面会跳转到登录页。
 - 已登录用户不受这个开关影响，仍然可以继续访问模型库与对应接口。
-- `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`，前端可据此决定是否展示维护提示与菜单入口。
+- `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`、`affiliate_enabled`，前端可据此决定是否展示维护提示与菜单入口。
 
 ### 可用渠道（Available Channels）
 
@@ -374,6 +374,252 @@ console.log(resp.status, await resp.json());
 ```bash
 curl "https://api.zyxai.de/api/v1/channel-monitors" \
   -H "Authorization: Bearer <JWT>"
+```
+
+### 邀请返利（Affiliate / Invite Rebate）
+
+邀请返利是站内可选能力，默认关闭。开启后，系统会为每个用户生成一个 `aff_code`（返利码），新用户注册时可携带 `aff_code` 绑定邀请关系。被邀请用户产生“消耗计费”或“正向入金”时，系统会按设置的比例给邀请者累计返利。
+
+核心开关与规则均在 `GET /api/v1/admin/settings` 中配置：
+
+- `affiliate_enabled`：总开关（默认 `false`）。关闭时不绑定、不累计；前端入口也应隐藏。
+- `affiliate_transfer_enabled`：转入余额开关（默认 `true`）。仅控制用户 `transfer` API 是否可用。
+- `affiliate_rebate_on_usage_enabled` / `affiliate_rebate_on_topup_enabled`：分别控制“按消耗返利 / 按入金返利”。
+- `affiliate_rebate_rate`：全局默认返利比例（0–100）。
+- `affiliate_rebate_freeze_hours`：冻结期（小时），大于 0 时返利先进入冻结余额。
+- `affiliate_rebate_duration_days`：有效期（天），0 表示永久；用于限制 invitee 产生返利的窗口。
+- `affiliate_rebate_per_invitee_cap`：单人上限，0 表示不限；限制单 invitee 对 inviter 的累计返利。
+- `affiliate_aff_code_length`：返利码长度（用于新生成返利码）。
+
+Public settings 只额外暴露：
+
+- `GET /api/v1/settings/public` 返回 `affiliate_enabled`，前端可据此在注册页与侧边栏做严格 gating（`=== true` 才显示）。
+
+#### 注册：可选 aff_code
+
+注册请求新增可选字段 `aff_code?: string`（不替代已有 `invitation_code`）：
+
+- 路径：`POST /api/v1/auth/register`
+- 说明：当 `affiliate_enabled=true` 且填写了 `aff_code` 时，系统会尝试绑定邀请关系；绑定失败不会阻断注册。
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de"
+
+resp = requests.post(
+    f"{base_url}/api/v1/auth/register",
+    json={
+        "email": "new-user@example.com",
+        "password": "your-password",
+        "aff_code": "ABC123XYZ9",
+    },
+    timeout=30,
+)
+
+print(resp.status_code)
+print(resp.json())
+```
+
+#### JavaScript
+```javascript
+const baseUrl = "https://api.zyxai.de";
+
+const resp = await fetch(`${baseUrl}/api/v1/auth/register`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: "new-user@example.com",
+    password: "your-password",
+    aff_code: "ABC123XYZ9",
+  }),
+});
+
+console.log(resp.status, await resp.json());
+```
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "new-user@example.com",
+    "password": "your-password",
+    "aff_code": "ABC123XYZ9"
+  }'
+```
+
+#### 用户端：查看返利信息
+
+- 路径：`GET /api/v1/user/aff`
+- 鉴权：必须登录（JWT）
+- 返回：是否开启、是否允许转入、我的返利码、邀请人数、可转余额/冻结余额、累计返利、实际生效比例、以及当前规则开关。
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de"
+jwt = "你的JWT"
+
+resp = requests.get(
+    f"{base_url}/api/v1/user/aff",
+    headers={"Authorization": f"Bearer {jwt}"},
+    timeout=30,
+)
+
+print(resp.status_code)
+print(resp.json())
+```
+
+#### JavaScript
+```javascript
+const baseUrl = "https://api.zyxai.de";
+const jwt = "你的JWT";
+
+const resp = await fetch(`${baseUrl}/api/v1/user/aff`, {
+  headers: { Authorization: `Bearer ${jwt}` },
+});
+
+console.log(resp.status, await resp.json());
+```
+
+#### REST
+```bash
+curl "https://api.zyxai.de/api/v1/user/aff" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+#### 用户端：转入余额（transfer）
+
+- 路径：`POST /api/v1/user/aff/transfer`
+- 鉴权：必须登录（JWT）
+- 语义：将可转入的返利余额原子转入用户主余额；重复点击不会重复转入（`transferred_amount=0`）。
+- 开关：受 `affiliate_transfer_enabled` 控制（独立于 `affiliate_enabled`）。
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de"
+jwt = "你的JWT"
+
+resp = requests.post(
+    f"{base_url}/api/v1/user/aff/transfer",
+    headers={"Authorization": f"Bearer {jwt}"},
+    timeout=30,
+)
+
+print(resp.status_code)
+print(resp.json())
+```
+
+#### JavaScript
+```javascript
+const baseUrl = "https://api.zyxai.de";
+const jwt = "你的JWT";
+
+const resp = await fetch(`${baseUrl}/api/v1/user/aff/transfer`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${jwt}` },
+});
+
+console.log(resp.status, await resp.json());
+```
+
+#### REST
+```bash
+curl -X POST "https://api.zyxai.de/api/v1/user/aff/transfer" \
+  -H "Authorization: Bearer <JWT>"
+```
+
+#### 管理端：返利用户管理
+
+管理员可通过以下接口查询与运营返利用户（需要管理员 JWT）：
+
+- 列表：`GET /api/v1/admin/affiliates/users?page=1&page_size=20&has_custom_code=1&has_custom_rate=1&has_inviter=1`
+- 查询：`GET /api/v1/admin/affiliates/users/lookup?q=<user_id|email|aff_code>`
+- 设置专属：`PUT /api/v1/admin/affiliates/users/:user_id`
+- 撤销专属：`DELETE /api/v1/admin/affiliates/users/:user_id`
+- 批量设置比例：`POST /api/v1/admin/affiliates/users/batch-rate`
+
+`PUT` 更新说明：
+
+- `custom_rebate_rate_percent`：可传 `null` 表示清空（回退到全局默认）。
+- `aff_code`：传空字符串 `\"\"` 表示清空专属返利码（回退到默认随机码）。
+
+#### Python
+```python
+import requests
+
+base_url = "https://api.zyxai.de"
+admin_jwt = "你的管理员JWT"
+
+# lookup
+items = requests.get(
+    f"{base_url}/api/v1/admin/affiliates/users/lookup?q=alice",
+    headers={"Authorization": f"Bearer {admin_jwt}"},
+    timeout=30,
+).json()
+
+print(items)
+
+# batch-rate
+resp = requests.post(
+    f"{base_url}/api/v1/admin/affiliates/users/batch-rate",
+    headers={"Authorization": f"Bearer {admin_jwt}"},
+    json={"user_ids": [101, 102, 103], "custom_rebate_rate_percent": 25.0},
+    timeout=30,
+)
+print(resp.status_code, resp.json())
+```
+
+#### JavaScript
+```javascript
+const baseUrl = "https://api.zyxai.de";
+const adminJwt = "你的管理员JWT";
+
+const lookup = await fetch(`${baseUrl}/api/v1/admin/affiliates/users/lookup?q=alice`, {
+  headers: { Authorization: `Bearer ${adminJwt}` },
+});
+console.log(await lookup.json());
+
+const resp = await fetch(`${baseUrl}/api/v1/admin/affiliates/users/batch-rate`, {
+  method: "POST",
+  headers: { Authorization: `Bearer ${adminJwt}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ user_ids: [101, 102, 103], custom_rebate_rate_percent: 25.0 }),
+});
+console.log(resp.status, await resp.json());
+```
+
+#### REST
+```bash
+# 1) lookup
+curl "https://api.zyxai.de/api/v1/admin/affiliates/users/lookup?q=alice" \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+
+# 2) update user custom settings
+curl -X PUT "https://api.zyxai.de/api/v1/admin/affiliates/users/123" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "aff_code": "CUSTOMCODE1",
+    "custom_rebate_rate_percent": 30.0
+  }'
+
+# 3) reset user custom settings
+curl -X DELETE "https://api.zyxai.de/api/v1/admin/affiliates/users/123" \
+  -H "Authorization: Bearer <ADMIN_JWT>"
+
+# 4) batch rate
+curl -X POST "https://api.zyxai.de/api/v1/admin/affiliates/users/batch-rate" \
+  -H "Authorization: Bearer <ADMIN_JWT>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_ids": [101, 102, 103],
+    "custom_rebate_rate_percent": 25.0
+  }'
 ```
 
 ### 错误响应与限流

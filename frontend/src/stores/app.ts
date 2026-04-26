@@ -404,6 +404,7 @@ export const useAppStore = defineStore("app", () => {
         available_channels_enabled: false,
         channel_monitor_enabled: false,
         public_model_catalog_enabled: true,
+        affiliate_enabled: false,
         purchase_subscription_enabled: false,
         purchase_subscription_url: "",
         custom_menu_items: [],

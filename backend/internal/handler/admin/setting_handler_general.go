@@ -82,6 +82,16 @@ type UpdateSettingsRequest struct {
 	AllowUngroupedKeyScheduling          bool                             `json:"allow_ungrouped_key_scheduling"`
 	BackendModeEnabled                   bool                             `json:"backend_mode_enabled"`
 	MaintenanceModeEnabled               bool                             `json:"maintenance_mode_enabled"`
+
+	AffiliateEnabled              *bool    `json:"affiliate_enabled"`
+	AffiliateTransferEnabled      *bool    `json:"affiliate_transfer_enabled"`
+	AffiliateRebateOnUsageEnabled *bool    `json:"affiliate_rebate_on_usage_enabled"`
+	AffiliateRebateOnTopupEnabled *bool    `json:"affiliate_rebate_on_topup_enabled"`
+	AffiliateRebateRate           *float64 `json:"affiliate_rebate_rate"`
+	AffiliateRebateFreezeHours    *int     `json:"affiliate_rebate_freeze_hours"`
+	AffiliateRebateDurationDays   *int     `json:"affiliate_rebate_duration_days"`
+	AffiliateRebatePerInviteeCap  *float64 `json:"affiliate_rebate_per_invitee_cap"`
+	AffiliateAffCodeLength        *int     `json:"affiliate_aff_code_length"`
 }
 
 func (h *SettingHandler) UpdateSettings(c *gin.Context) {
@@ -290,6 +300,72 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	if channelMonitorDefaultIntervalSeconds > 3600 {
 		channelMonitorDefaultIntervalSeconds = 3600
 	}
+
+	affiliateEnabled := previousSettings.AffiliateEnabled
+	if req.AffiliateEnabled != nil {
+		affiliateEnabled = *req.AffiliateEnabled
+	}
+	affiliateTransferEnabled := previousSettings.AffiliateTransferEnabled
+	if req.AffiliateTransferEnabled != nil {
+		affiliateTransferEnabled = *req.AffiliateTransferEnabled
+	}
+	affiliateRebateOnUsageEnabled := previousSettings.AffiliateRebateOnUsageEnabled
+	if req.AffiliateRebateOnUsageEnabled != nil {
+		affiliateRebateOnUsageEnabled = *req.AffiliateRebateOnUsageEnabled
+	}
+	affiliateRebateOnTopupEnabled := previousSettings.AffiliateRebateOnTopupEnabled
+	if req.AffiliateRebateOnTopupEnabled != nil {
+		affiliateRebateOnTopupEnabled = *req.AffiliateRebateOnTopupEnabled
+	}
+
+	affiliateRebateRate := previousSettings.AffiliateRebateRate
+	if req.AffiliateRebateRate != nil {
+		affiliateRebateRate = *req.AffiliateRebateRate
+	}
+	if affiliateRebateRate < 0 {
+		affiliateRebateRate = 0
+	}
+	if affiliateRebateRate > 100 {
+		affiliateRebateRate = 100
+	}
+	affiliateRebateFreezeHours := previousSettings.AffiliateRebateFreezeHours
+	if req.AffiliateRebateFreezeHours != nil {
+		affiliateRebateFreezeHours = *req.AffiliateRebateFreezeHours
+	}
+	if affiliateRebateFreezeHours < 0 {
+		affiliateRebateFreezeHours = 0
+	}
+	if affiliateRebateFreezeHours > 720 {
+		affiliateRebateFreezeHours = 720
+	}
+	affiliateRebateDurationDays := previousSettings.AffiliateRebateDurationDays
+	if req.AffiliateRebateDurationDays != nil {
+		affiliateRebateDurationDays = *req.AffiliateRebateDurationDays
+	}
+	if affiliateRebateDurationDays < 0 {
+		affiliateRebateDurationDays = 0
+	}
+	if affiliateRebateDurationDays > 3650 {
+		affiliateRebateDurationDays = 3650
+	}
+	affiliateRebatePerInviteeCap := previousSettings.AffiliateRebatePerInviteeCap
+	if req.AffiliateRebatePerInviteeCap != nil {
+		affiliateRebatePerInviteeCap = *req.AffiliateRebatePerInviteeCap
+	}
+	if affiliateRebatePerInviteeCap < 0 {
+		affiliateRebatePerInviteeCap = 0
+	}
+	affiliateAffCodeLength := previousSettings.AffiliateAffCodeLength
+	if req.AffiliateAffCodeLength != nil {
+		affiliateAffCodeLength = *req.AffiliateAffCodeLength
+	}
+	if affiliateAffCodeLength < 6 {
+		affiliateAffCodeLength = 6
+	}
+	if affiliateAffCodeLength > 32 {
+		affiliateAffCodeLength = 32
+	}
+
 	defaultSubscriptions := make([]service.DefaultSubscriptionSetting, 0, len(req.DefaultSubscriptions))
 	for _, sub := range req.DefaultSubscriptions {
 		defaultSubscriptions = append(defaultSubscriptions, service.DefaultSubscriptionSetting{GroupID: sub.GroupID, ValidityDays: sub.ValidityDays})
@@ -333,6 +409,15 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 		return previousSettings.OpsMetricsIntervalSeconds
 	}()}
+	settings.AffiliateEnabled = affiliateEnabled
+	settings.AffiliateTransferEnabled = affiliateTransferEnabled
+	settings.AffiliateRebateOnUsageEnabled = affiliateRebateOnUsageEnabled
+	settings.AffiliateRebateOnTopupEnabled = affiliateRebateOnTopupEnabled
+	settings.AffiliateRebateRate = affiliateRebateRate
+	settings.AffiliateRebateFreezeHours = affiliateRebateFreezeHours
+	settings.AffiliateRebateDurationDays = affiliateRebateDurationDays
+	settings.AffiliateRebatePerInviteeCap = affiliateRebatePerInviteeCap
+	settings.AffiliateAffCodeLength = affiliateAffCodeLength
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
 		response.ErrorFrom(c, err)
 		return

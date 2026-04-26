@@ -51,6 +51,17 @@ type SystemSettings struct {
 	PurchaseSubscriptionURL              string
 	CustomMenuItems                      string // JSON array of custom menu items
 
+	// Affiliate rebate configuration
+	AffiliateEnabled              bool
+	AffiliateTransferEnabled      bool
+	AffiliateRebateOnUsageEnabled bool
+	AffiliateRebateOnTopupEnabled bool
+	AffiliateRebateRate           float64
+	AffiliateRebateFreezeHours    int
+	AffiliateRebateDurationDays   int
+	AffiliateRebatePerInviteeCap  float64
+	AffiliateAffCodeLength        int
+
 	DefaultConcurrency   int
 	DefaultBalance       float64
 	DefaultSubscriptions []DefaultSubscriptionSetting
@@ -110,6 +121,7 @@ type PublicSettings struct {
 	AvailableChannelsEnabled         bool
 	ChannelMonitorEnabled            bool
 	PublicModelCatalogEnabled        bool
+	AffiliateEnabled                 bool
 
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string

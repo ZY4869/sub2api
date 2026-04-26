@@ -13,6 +13,7 @@ type AdminHandlers struct {
 	ChannelMonitor         *admin.ChannelMonitorHandler
 	ChannelMonitorTemplate *admin.ChannelMonitorTemplateHandler
 	Account                *admin.AccountHandler
+	Affiliate              *admin.AffiliateHandler
 	Docs                   *admin.DocsHandler
 	Announcement           *admin.AnnouncementHandler
 	DataManagement         *admin.DataManagementHandler

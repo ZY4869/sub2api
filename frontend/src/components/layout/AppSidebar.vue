@@ -564,6 +564,9 @@ const userNavItems = computed((): NavItem[] => {
         ]
       : []),
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
+    ...(appStore.cachedPublicSettings?.affiliate_enabled === true
+      ? [{ path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true }]
+      : []),
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...(canReviewRequestDetails.value
       ? [{ path: '/admin/request-details', label: t('nav.requestDetails'), icon: ServerIcon }]
@@ -625,6 +628,9 @@ const personalNavItems = computed((): NavItem[] => {
         ]
       : []),
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
+    ...(appStore.cachedPublicSettings?.affiliate_enabled === true
+      ? [{ path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true }]
+      : []),
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
@@ -663,6 +669,7 @@ const adminNavItems = computed((): NavItem[] => {
         ]
       : []),
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
+    { path: '/admin/affiliates', label: t('admin.affiliates.nav', 'Affiliates'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     { path: '/admin/channels', label: t('admin.channels.title', 'Channels'), icon: GlobeIcon, hideInSimpleMode: true },
     { path: '/admin/channel-monitors', label: t('admin.channelMonitors.nav', 'Channel Monitors'), icon: ChartIcon, hideInSimpleMode: true },
