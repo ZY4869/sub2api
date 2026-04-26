@@ -26,14 +26,14 @@ type accountTestOpsCollector struct {
 	AdminUserID     *int64
 	StartedAt       time.Time
 
-	RuntimeMeta       accountTestRuntimeMeta
-	RequestedModelID  string
-	ResolvedTestMode  string
-	UpstreamStatus    *int
-	UpstreamBodyText  string
-	ResponsePreview   string
-	PreviewTruncated  bool
-	ErrorMessage      string
+	RuntimeMeta      accountTestRuntimeMeta
+	RequestedModelID string
+	ResolvedTestMode string
+	UpstreamStatus   *int
+	UpstreamBodyText string
+	ResponsePreview  string
+	PreviewTruncated bool
+	ErrorMessage     string
 }
 
 func (s *AccountTestService) SetOpsService(opsService *OpsService) {

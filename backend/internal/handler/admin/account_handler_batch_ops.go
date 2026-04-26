@@ -292,9 +292,9 @@ func (h *AccountHandler) BatchTest(c *gin.Context) {
 	}
 
 	gatewayResponse := map[string]any{
-		"success":               status == "success",
-		"success_count":         successCount,
-		"failed_count":          failedCount,
+		"success":                status == "success",
+		"success_count":          successCount,
+		"failed_count":           failedCount,
 		"auto_blacklisted_count": autoBlacklistedCount,
 	}
 
