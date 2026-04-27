@@ -672,6 +672,44 @@ func (s *AccountRepoSuite) TestBulkUpdate_SyncSchedulerSnapshotOnDisabled() {
 	s.Require().Contains(ids, account2.ID)
 }
 
+func (s *AccountRepoSuite) TestBulkUpdate_SyncSchedulerSnapshotOnSchedulingFields() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:        "bulk-openai-scheduling",
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    9,
+		Credentials: map[string]any{"plan_type": "free"},
+	})
+	cacheRecorder := &schedulerCacheRecorder{}
+	s.repo.schedulerCache = cacheRecorder
+
+	concurrency := 10
+	priority := 2
+	loadFactor := 8
+	rows, err := s.repo.BulkUpdate(s.ctx, []int64{account.ID}, service.AccountBulkUpdate{
+		Concurrency: &concurrency,
+		Priority:    &priority,
+		LoadFactor:  &loadFactor,
+		Credentials: map[string]any{"plan_type": "plus"},
+		Extra:       map[string]any{"openai_ws_force_http": true},
+	})
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), rows)
+
+	s.Require().Len(cacheRecorder.setAccounts, 1)
+	synced := cacheRecorder.setAccounts[0]
+	s.Require().Equal(account.ID, synced.ID)
+	s.Require().Equal(concurrency, synced.Concurrency)
+	s.Require().Equal(priority, synced.Priority)
+	s.Require().NotNil(synced.LoadFactor)
+	s.Require().Equal(loadFactor, *synced.LoadFactor)
+	s.Require().Equal("plus", synced.Credentials["plan_type"])
+	s.Require().Equal(true, synced.Extra["openai_ws_force_http"])
+}
+
 // --- SetOverloaded / SetRateLimited / ClearRateLimit ---
 
 func (s *AccountRepoSuite) TestSetOverloaded() {

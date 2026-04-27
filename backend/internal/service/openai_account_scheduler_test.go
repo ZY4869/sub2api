@@ -237,7 +237,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionSticky(t *testin
 	}
 }
 
-func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsSticky(t *testing.T) {
+func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusySelectsIdleAlternative(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(10100)
 	accounts := []Account{
@@ -311,6 +311,84 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsS
 	require.Nil(t, selection.WaitPlan)
 	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
 	require.False(t, decision.StickySessionHit)
+}
+
+func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyFallsBackToStickyWait(t *testing.T) {
+	ctx := context.Background()
+	groupID := int64(10105)
+	accounts := []Account{
+		{
+			ID:          21101,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			Concurrency: 1,
+			Priority:    5,
+		},
+		{
+			ID:          21102,
+			Platform:    PlatformOpenAI,
+			Type:        AccountTypeAPIKey,
+			Status:      StatusActive,
+			Schedulable: true,
+			Concurrency: 1,
+			Priority:    0,
+		},
+	}
+	cache := &stubGatewayCache{
+		sessionBindings: map[string]int64{
+			"openai:session_hash_sticky_wait": 21101,
+		},
+	}
+	cfg := &config.Config{}
+	cfg.Gateway.Scheduling.StickySessionMaxWaiting = 2
+	cfg.Gateway.Scheduling.StickySessionWaitTimeout = 45 * time.Second
+	cfg.Gateway.Scheduling.FallbackMaxWaiting = 100
+	cfg.Gateway.Scheduling.FallbackWaitTimeout = 30 * time.Second
+	cfg.Gateway.OpenAIWS.LBTopK = 1
+
+	concurrencyCache := stubConcurrencyCache{
+		acquireResults: map[int64]bool{
+			21101: false,
+			21102: false,
+		},
+		waitCounts: map[int64]int{
+			21101: 0,
+		},
+		loadMap: map[int64]*AccountLoadInfo{
+			21101: {AccountID: 21101, LoadRate: 100, WaitingCount: 0},
+			21102: {AccountID: 21102, LoadRate: 0, WaitingCount: 0},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo:        stubOpenAIAccountRepo{accounts: accounts},
+		cache:              cache,
+		cfg:                cfg,
+		concurrencyService: NewConcurrencyService(concurrencyCache),
+	}
+
+	selection, decision, err := svc.SelectAccountWithScheduler(
+		ctx,
+		&groupID,
+		"",
+		"session_hash_sticky_wait",
+		"gpt-5.4",
+		nil,
+		OpenAIUpstreamTransportAny,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.NotNil(t, selection.WaitPlan)
+	require.False(t, selection.Acquired)
+	require.Equal(t, int64(21101), selection.Account.ID)
+	require.Equal(t, int64(21101), selection.WaitPlan.AccountID)
+	require.Equal(t, cfg.Gateway.Scheduling.StickySessionMaxWaiting, selection.WaitPlan.MaxWaiting)
+	require.Equal(t, cfg.Gateway.Scheduling.StickySessionWaitTimeout, selection.WaitPlan.Timeout)
+	require.Equal(t, openAIAccountScheduleLayerSessionSticky, decision.Layer)
+	require.True(t, decision.StickySessionHit)
 }
 
 func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionSticky_ForceHTTP(t *testing.T) {
@@ -866,7 +944,7 @@ func TestIsOpenAIAccountCandidateBetter_PrefersPlanRankBeforeScore(t *testing.T)
 		openAIAccountCandidateScore{
 			account:  &Account{ID: 2101, Priority: 0},
 			loadInfo: &AccountLoadInfo{LoadRate: 90, WaitingCount: 3},
-			planType: "pro",
+			planType: "plus",
 			planRank: 0,
 			score:    0.1,
 		},
@@ -880,20 +958,20 @@ func TestIsOpenAIAccountCandidateBetter_PrefersPlanRankBeforeScore(t *testing.T)
 	))
 }
 
-func TestIsOpenAIAccountCandidateBetter_PrefersLowerConcurrencyBeforePlanRank(t *testing.T) {
+func TestIsOpenAIAccountCandidateBetter_PrefersPlanRankBeforeConcurrency(t *testing.T) {
 	require.True(t, isOpenAIAccountCandidateBetter(
 		openAIAccountCandidateScore{
-			account:  &Account{ID: 2111, Priority: 0, Concurrency: 1},
+			account:  &Account{ID: 2111, Priority: 0, Concurrency: 10},
 			loadInfo: &AccountLoadInfo{LoadRate: 90, WaitingCount: 3},
-			planType: "free",
-			planRank: 3,
+			planType: "team",
+			planRank: 1,
 			score:    0.1,
 		},
 		openAIAccountCandidateScore{
-			account:  &Account{ID: 2112, Priority: 0, Concurrency: 10},
+			account:  &Account{ID: 2112, Priority: 0, Concurrency: 1},
 			loadInfo: &AccountLoadInfo{LoadRate: 1, WaitingCount: 0},
-			planType: "pro",
-			planRank: 0,
+			planType: "free",
+			planRank: 3,
 			score:    0.9,
 		},
 	))
@@ -941,7 +1019,7 @@ func TestBuildOpenAIWeightedSelectionOrder_KeepsHigherPlanRankAheadOfLowerTier(t
 		{
 			account:  &Account{ID: 301, Priority: 0},
 			loadInfo: &AccountLoadInfo{LoadRate: 50, WaitingCount: 1},
-			planType: "pro",
+			planType: "plus",
 			planRank: 0,
 			score:    0.1,
 		},

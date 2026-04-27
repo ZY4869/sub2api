@@ -404,8 +404,8 @@ func TestOpenAISelectAccountWithLoadAwareness_IgnoresSparkOnlyModelRateLimitForN
 	}
 }
 
-func TestOpenAISelectAccountForModelWithExclusions_PrefersHigherPlanRankWithinSamePriority(t *testing.T) {
-	pro := Account{
+func TestOpenAISelectAccountForModelWithExclusions_PrefersPlusPlanWithinSamePriority(t *testing.T) {
+	plus := Account{
 		ID:          311,
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -414,10 +414,10 @@ func TestOpenAISelectAccountForModelWithExclusions_PrefersHigherPlanRankWithinSa
 		Concurrency: 1,
 		Priority:    1,
 		Credentials: map[string]any{
-			"plan_type": "pro",
+			"plan_type": "plus",
 		},
 	}
-	free := Account{
+	team := Account{
 		ID:          312,
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
@@ -426,23 +426,35 @@ func TestOpenAISelectAccountForModelWithExclusions_PrefersHigherPlanRankWithinSa
 		Concurrency: 1,
 		Priority:    1,
 		Credentials: map[string]any{
-			"plan_type": "free",
+			"plan_type": "team",
+		},
+	}
+	pro := Account{
+		ID:          313,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
 		},
 	}
 
 	svc := &OpenAIGatewayService{
-		accountRepo: stubOpenAIAccountRepo{accounts: []Account{free, pro}},
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{pro, team, plus}},
 	}
 
 	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "gpt-5.4", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
-	require.Equal(t, pro.ID, account.ID)
+	require.Equal(t, plus.ID, account.ID)
 }
 
-func TestOpenAISelectAccountForModelWithExclusions_PrefersLowerConcurrencyBeforePlanRank(t *testing.T) {
-	proHighConcurrency := Account{
-		ID:          313,
+func TestOpenAISelectAccountForModelWithExclusions_PrefersPlanRankBeforeConcurrency(t *testing.T) {
+	teamHighConcurrency := Account{
+		ID:          314,
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -450,11 +462,11 @@ func TestOpenAISelectAccountForModelWithExclusions_PrefersLowerConcurrencyBefore
 		Concurrency: 10,
 		Priority:    1,
 		Credentials: map[string]any{
-			"plan_type": "pro",
+			"plan_type": "team",
 		},
 	}
 	freeLowConcurrency := Account{
-		ID:          314,
+		ID:          315,
 		Platform:    PlatformOpenAI,
 		Type:        AccountTypeOAuth,
 		Status:      StatusActive,
@@ -467,13 +479,13 @@ func TestOpenAISelectAccountForModelWithExclusions_PrefersLowerConcurrencyBefore
 	}
 
 	svc := &OpenAIGatewayService{
-		accountRepo: stubOpenAIAccountRepo{accounts: []Account{proHighConcurrency, freeLowConcurrency}},
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{teamHighConcurrency, freeLowConcurrency}},
 	}
 
 	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "gpt-5.4", nil)
 	require.NoError(t, err)
 	require.NotNil(t, account)
-	require.Equal(t, freeLowConcurrency.ID, account.ID)
+	require.Equal(t, teamHighConcurrency.ID, account.ID)
 }
 
 func TestOpenAISelectAccountForModelWithExclusions_StickyHitKeepsLowerPlanRank(t *testing.T) {

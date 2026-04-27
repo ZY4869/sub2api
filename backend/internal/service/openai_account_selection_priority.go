@@ -25,11 +25,11 @@ func resolveOpenAIAccountPlanRank(account *Account) (int, bool) {
 	}
 
 	switch openAIAccountPlanType(account) {
-	case "pro":
+	case "plus":
 		return 0, true
 	case "team":
 		return 1, true
-	case "plus":
+	case "pro":
 		return 2, true
 	case "free":
 		return 3, true
@@ -81,19 +81,6 @@ func resolveOpenAIAccountSelectionConcurrency(account *Account) int {
 		return openAIAccountSelectionConcurrencyUnknown
 	}
 	return account.Concurrency
-}
-
-func compareOpenAIAccountSelectionConcurrency(left, right *Account) int {
-	leftConcurrency := resolveOpenAIAccountSelectionConcurrency(left)
-	rightConcurrency := resolveOpenAIAccountSelectionConcurrency(right)
-	switch {
-	case leftConcurrency < rightConcurrency:
-		return -1
-	case leftConcurrency > rightConcurrency:
-		return 1
-	default:
-		return 0
-	}
 }
 
 func resolveOpenAIAccountUsagePressureScope(account *Account, requestedModel string) string {
@@ -197,9 +184,6 @@ func compareOpenAIAccountsByPriorityPlanAndPressure(left, right *Account, reques
 			return -1
 		}
 		return 1
-	}
-	if concurrencyCmp := compareOpenAIAccountSelectionConcurrency(left, right); concurrencyCmp != 0 {
-		return concurrencyCmp
 	}
 	if planCmp, ok := compareOpenAIAccountPlanRank(left, right); ok && planCmp != 0 {
 		return planCmp

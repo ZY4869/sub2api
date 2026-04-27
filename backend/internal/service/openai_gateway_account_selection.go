@@ -249,6 +249,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	if len(accounts) == 0 {
 		return nil, errors.New("no available accounts")
 	}
+	var stickyWaitResult *AccountSelectionResult
 	isExcluded := func(accountID int64) bool {
 		if excludedIDs == nil {
 			return false
@@ -275,10 +276,13 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 						_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 					} else {
 						result, err := s.tryAcquireAccountSlot(ctx, accountID, account.Concurrency)
-						if err == nil && result.Acquired {
+						if err == nil && result != nil && result.Acquired {
 							_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
 							s.logSelectedAccountUsagePressure("sticky_acquired", groupID, sessionHash, requestedModel, account)
 							return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
+						}
+						if err == nil {
+							stickyWaitResult = s.buildOpenAIStickyWaitSelection(ctx, groupID, sessionHash, requestedModel, account, cfg)
 						}
 					}
 				}
@@ -303,6 +307,9 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		candidates = append(candidates, acc)
 	}
 	if len(candidates) == 0 {
+		if stickyWaitResult != nil {
+			return stickyWaitResult, nil
+		}
 		return nil, errors.New("no available accounts")
 	}
 	accountLoads := make([]AccountWithConcurrency, 0, len(candidates))
@@ -394,10 +401,45 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		if fresh == nil {
 			continue
 		}
+		if stickyWaitResult != nil {
+			return stickyWaitResult, nil
+		}
 		s.logSelectedAccountUsagePressure("load_wait", groupID, sessionHash, requestedModel, fresh)
 		return &AccountSelectionResult{Account: fresh, WaitPlan: &AccountWaitPlan{AccountID: fresh.ID, MaxConcurrency: fresh.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
+	if stickyWaitResult != nil {
+		return stickyWaitResult, nil
+	}
 	return nil, errors.New("no available accounts")
+}
+
+func (s *OpenAIGatewayService) buildOpenAIStickyWaitSelection(
+	ctx context.Context,
+	groupID *int64,
+	sessionHash string,
+	requestedModel string,
+	account *Account,
+	cfg config.GatewaySchedulingConfig,
+) *AccountSelectionResult {
+	if account == nil {
+		return nil
+	}
+	if s.concurrencyService != nil && cfg.StickySessionMaxWaiting > 0 {
+		waitingCount, err := s.concurrencyService.GetAccountWaitingCount(ctx, account.ID)
+		if err == nil && waitingCount >= cfg.StickySessionMaxWaiting {
+			return nil
+		}
+	}
+	s.logSelectedAccountUsagePressure("sticky_wait_prepared", groupID, sessionHash, requestedModel, account)
+	return &AccountSelectionResult{
+		Account: account,
+		WaitPlan: &AccountWaitPlan{
+			AccountID:      account.ID,
+			MaxConcurrency: account.Concurrency,
+			Timeout:        cfg.StickySessionWaitTimeout,
+			MaxWaiting:     cfg.StickySessionMaxWaiting,
+		},
+	}
 }
 func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64) ([]Account, error) {
 	platform := OpenAIPlatformFromContext(ctx)

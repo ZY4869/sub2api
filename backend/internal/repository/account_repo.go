@@ -366,17 +366,14 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountBulkChanged, nil, nil, payload); err != nil {
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue bulk update failed: err=%v", err)
 		}
-		shouldSync := false
-		if updates.Status != nil && (*updates.Status == service.StatusError || *updates.Status == service.StatusDisabled) {
-			shouldSync = true
-		}
-		if updates.Schedulable != nil && !*updates.Schedulable {
-			shouldSync = true
-		}
-		if updates.LifecycleState != nil {
-			shouldSync = true
-		}
-		if shouldSync {
+		if updates.Concurrency != nil ||
+			updates.Priority != nil ||
+			updates.LoadFactor != nil ||
+			len(updates.Credentials) > 0 ||
+			len(updates.Extra) > 0 ||
+			updates.Status != nil ||
+			updates.Schedulable != nil ||
+			updates.LifecycleState != nil {
 			r.syncSchedulerAccountSnapshots(ctx, ids)
 		}
 	}
