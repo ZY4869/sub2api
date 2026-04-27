@@ -193,7 +193,7 @@ func (r *BillingRuntimeResolver) resolveRuleBasedRuntime(ctx context.Context, in
 	}
 	protocolruntime.RecordBillingResolver("billing_rules")
 	return &BillingRuntimeResult{
-		Cost:          costBreakdownFromSimulation(result),
+		Cost:          costBreakdownFromSimulationWithMetadata(result, r.billingCenterService.resolveModelPricingCurrencyMetadata(ctx, input.Model, input.Layer)),
 		MatchedItems:  append([]string(nil), result.MatchedRuleIDs...),
 		PricingSource: "billing_rules",
 		ResolverPath:  "billing_rules",

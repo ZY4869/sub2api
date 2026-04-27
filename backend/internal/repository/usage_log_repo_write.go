@@ -59,6 +59,12 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			cache_read_cost,
 			total_cost,
 			actual_cost,
+			billing_currency,
+			total_cost_usd_equivalent,
+			actual_cost_usd_equivalent,
+			usd_to_cny_rate,
+			fx_rate_date,
+			fx_locked_at,
 			billing_exempt_reason,
 			rate_multiplier,
 			account_rate_multiplier,
@@ -96,7 +102,8 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 			$13, $14, $15, $16,
 			$17, $18,
 			$19, $20, $21, $22, $23, $24,
-			$25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56
+			$25, $26, $27, $28, $29, $30,
+			$31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -136,11 +143,22 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	chargeSource := nullString(log.ChargeSource)
 	imageOutputTokens := nullInt(log.ImageOutputTokens)
 	imageOutputCost := nullFloat(log.ImageOutputCost)
+	billingCurrency := service.NormalizeUsageBillingCurrency(log.BillingCurrency)
+	totalCostUSDEquivalent := log.TotalCostUSDEquivalent
+	if totalCostUSDEquivalent == 0 && log.TotalCost != 0 {
+		totalCostUSDEquivalent = service.CostUSDEquivalentForPersistence(log.TotalCost, billingCurrency, log.USDToCNYRate)
+	}
+	actualCostUSDEquivalent := log.ActualCostUSDEquivalent
+	if actualCostUSDEquivalent == 0 && log.ActualCost != 0 {
+		actualCostUSDEquivalent = service.CostUSDEquivalentForPersistence(log.ActualCost, billingCurrency, log.USDToCNYRate)
+	}
+	fxRateDate := nullString(log.FXRateDate)
+	fxLockedAt := nullUsageLogTime(log.FXLockedAt)
 	var requestIDArg any
 	if requestID != "" {
 		requestIDArg = requestID
 	}
-	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
+	args := []any{log.UserID, log.APIKeyID, log.AccountID, requestIDArg, log.Model, nullString(requestedModelPtr), upstreamModel, channelID, modelMappingChain, billingTier, billingMode, groupID, subscriptionID, log.InputTokens, log.OutputTokens, log.CacheCreationTokens, log.CacheReadTokens, log.CacheCreation5mTokens, log.CacheCreation1hTokens, log.InputCost, log.OutputCost, log.CacheCreationCost, log.CacheReadCost, log.TotalCost, log.ActualCost, billingCurrency, totalCostUSDEquivalent, actualCostUSDEquivalent, log.USDToCNYRate, fxRateDate, fxLockedAt, billingExemptReason, rateMultiplier, log.AccountRateMultiplier, log.BillingType, requestType, status, log.Stream, log.OpenAIWSMode, duration, firstToken, userAgent, ipAddress, httpStatus, errorCode, errorMessage, simulatedClient, operationType, chargeSource, log.ImageCount, imageSize, imageOutputTokens, imageOutputCost, serviceTier, reasoningEffort, thinkingEnabled, inboundEndpoint, upstreamEndpoint, upstreamURL, upstreamService, log.CacheTTLOverridden, createdAt}
 	if err := scanSingleRow(ctx, sqlq, query, args, &log.ID, &log.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) && requestID != "" {
 			selectQuery := "SELECT id, created_at FROM usage_logs WHERE request_id = $1 AND api_key_id = $2"

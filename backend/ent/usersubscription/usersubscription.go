@@ -43,6 +43,12 @@ const (
 	FieldWeeklyUsageUsd = "weekly_usage_usd"
 	// FieldMonthlyUsageUsd holds the string denoting the monthly_usage_usd field in the database.
 	FieldMonthlyUsageUsd = "monthly_usage_usd"
+	// FieldDailyUsageByCurrency holds the string denoting the daily_usage_by_currency field in the database.
+	FieldDailyUsageByCurrency = "daily_usage_by_currency"
+	// FieldWeeklyUsageByCurrency holds the string denoting the weekly_usage_by_currency field in the database.
+	FieldWeeklyUsageByCurrency = "weekly_usage_by_currency"
+	// FieldMonthlyUsageByCurrency holds the string denoting the monthly_usage_by_currency field in the database.
+	FieldMonthlyUsageByCurrency = "monthly_usage_by_currency"
 	// FieldAssignedBy holds the string denoting the assigned_by field in the database.
 	FieldAssignedBy = "assigned_by"
 	// FieldAssignedAt holds the string denoting the assigned_at field in the database.
@@ -106,6 +112,9 @@ var Columns = []string{
 	FieldDailyUsageUsd,
 	FieldWeeklyUsageUsd,
 	FieldMonthlyUsageUsd,
+	FieldDailyUsageByCurrency,
+	FieldWeeklyUsageByCurrency,
+	FieldMonthlyUsageByCurrency,
 	FieldAssignedBy,
 	FieldAssignedAt,
 	FieldNotes,

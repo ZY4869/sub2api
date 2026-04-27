@@ -36,6 +36,10 @@ func (APIKeyGroup) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0).
 			Comment("API Key 在该分组下已使用配额"),
+		field.JSON("quota_used_by_currency", map[string]float64{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("API Key 在该分组下按源币种统计的已使用配额"),
 		field.JSON("model_patterns", []string{}).
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).

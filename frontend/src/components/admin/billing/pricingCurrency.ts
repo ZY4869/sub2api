@@ -45,23 +45,46 @@ export function resolveBillingPricingExchangeRate(
   return null
 }
 
+export function convertSourcePriceToDisplayValue(options: {
+  sourcePrice?: number | null
+  currency: BillingPricingCurrency
+  unit: PricingFieldUnit
+  usdToCnyRate?: number | null
+}): number | undefined {
+  const { sourcePrice, unit } = options
+  if (sourcePrice == null || !Number.isFinite(sourcePrice)) {
+    return undefined
+  }
+
+  return sourcePrice * getBillingPricingUnitMultiplier(unit)
+}
+
+export function convertDisplayValueToSourcePrice(options: {
+  displayValue?: number | null
+  currency: BillingPricingCurrency
+  unit: PricingFieldUnit
+  usdToCnyRate?: number | null
+}): number | undefined {
+  const { displayValue, unit } = options
+  if (displayValue == null || !Number.isFinite(displayValue)) {
+    return undefined
+  }
+
+  return displayValue / getBillingPricingUnitMultiplier(unit)
+}
+
 export function convertCanonicalUSDPriceToDisplayValue(options: {
   canonicalUSD?: number | null
   currency: BillingPricingCurrency
   unit: PricingFieldUnit
   usdToCnyRate?: number | null
 }): number | undefined {
-  const { canonicalUSD, currency, unit, usdToCnyRate } = options
-  if (canonicalUSD == null || !Number.isFinite(canonicalUSD)) {
-    return undefined
-  }
-
-  const exchangeRate = resolveBillingPricingExchangeRate(currency, usdToCnyRate)
-  if (exchangeRate == null) {
-    return undefined
-  }
-
-  return canonicalUSD * getBillingPricingUnitMultiplier(unit) * exchangeRate
+  return convertSourcePriceToDisplayValue({
+    sourcePrice: options.canonicalUSD,
+    currency: options.currency,
+    unit: options.unit,
+    usdToCnyRate: options.usdToCnyRate,
+  })
 }
 
 export function convertDisplayValueToCanonicalUSD(options: {
@@ -70,17 +93,7 @@ export function convertDisplayValueToCanonicalUSD(options: {
   unit: PricingFieldUnit
   usdToCnyRate?: number | null
 }): number | undefined {
-  const { displayValue, currency, unit, usdToCnyRate } = options
-  if (displayValue == null || !Number.isFinite(displayValue)) {
-    return undefined
-  }
-
-  const exchangeRate = resolveBillingPricingExchangeRate(currency, usdToCnyRate)
-  if (exchangeRate == null) {
-    return undefined
-  }
-
-  return displayValue / getBillingPricingUnitMultiplier(unit) / exchangeRate
+  return convertDisplayValueToSourcePrice(options)
 }
 
 export function formatBillingPricingEditableNumber(
@@ -125,26 +138,28 @@ export function formatBillingPricingValueWithUnit(options: {
 }
 
 export function buildBillingPricingAlternateText(options: {
+  sourcePrice?: number | null
   canonicalUSD?: number | null
   currency: BillingPricingCurrency
   unit: PricingFieldUnit
   usdToCnyRate?: number | null
 }): string {
-  const { canonicalUSD, currency, unit, usdToCnyRate } = options
-  if (canonicalUSD == null || !Number.isFinite(canonicalUSD)) {
+  const { currency, unit, usdToCnyRate } = options
+  const sourcePrice = options.sourcePrice ?? options.canonicalUSD
+  if (sourcePrice == null || !Number.isFinite(sourcePrice)) {
+    return ''
+  }
+
+  const exchangeRate = resolveBillingPricingExchangeRate('CNY', usdToCnyRate)
+  if (exchangeRate == null) {
     return ''
   }
 
   const alternateCurrency: BillingPricingCurrency = currency === 'USD' ? 'CNY' : 'USD'
-  const displayValue = convertCanonicalUSDPriceToDisplayValue({
-    canonicalUSD,
-    currency: alternateCurrency,
-    unit,
-    usdToCnyRate,
-  })
-  if (displayValue == null) {
-    return ''
-  }
+  const sourceEquivalent = currency === 'USD'
+    ? sourcePrice * exchangeRate
+    : sourcePrice / exchangeRate
+  const displayValue = sourceEquivalent * getBillingPricingUnitMultiplier(unit)
 
   return `≈ ${formatBillingPricingValueWithUnit({
     value: displayValue,

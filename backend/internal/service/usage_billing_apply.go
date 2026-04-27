@@ -102,6 +102,10 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		AccountID:          p.Account.ID,
 		AccountType:        p.Account.Type,
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
+		BillingCurrency:    normalizeBillingCurrency(p.Cost.Currency),
+		USDToCNYRate:       p.Cost.USDToCNYRate,
+		FXRateDate:         p.Cost.FXRateDate,
+		FXLockedAt:         cloneBillingTime(p.Cost.FXLockedAt),
 	}
 	if usageLog != nil {
 		cmd.GroupID = usageLog.GroupID
@@ -216,16 +220,23 @@ func finalizePostUsageBilling(p *postUsageBillingParams, deps *billingDeps) {
 		return
 	}
 
+	currency := normalizeBillingCurrency(p.Cost.Currency)
 	if !p.SkipUserBilling {
 		if p.IsSubscriptionBill {
-			if p.Cost.TotalCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
+			if currency == ModelPricingCurrencyUSD && p.Cost.TotalCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
 				deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, p.Cost.TotalCost)
 			}
 		} else if p.Cost.ActualCost > 0 && p.User != nil {
-			deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+			if currency == ModelPricingCurrencyUSD {
+				deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+			} else {
+				ctx, cancel := context.WithTimeout(context.Background(), cacheWriteTimeout)
+				defer cancel()
+				_ = deps.billingCacheService.InvalidateUserBalance(ctx, p.User.ID)
+			}
 		}
 
-		if p.Cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() {
+		if currency == ModelPricingCurrencyUSD && p.Cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() {
 			deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, p.Cost.ActualCost)
 		}
 	}

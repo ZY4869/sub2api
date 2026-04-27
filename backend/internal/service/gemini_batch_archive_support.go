@@ -239,6 +239,14 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 	outputCost := 0.0
 	cacheCreationCost := 0.0
 	cacheReadCost := 0.0
+	billingCurrency := ModelPricingCurrencyUSD
+	totalCostUSDEquivalent := 0.0
+	actualCostUSDEquivalent := 0.0
+	usdToCNYRate := 0.0
+	var fxRateDate *string
+	var fxLockedAt *time.Time
+	var costByCurrency map[string]float64
+	var actualCostByCurrency map[string]float64
 	if cost != nil {
 		totalCost = cost.TotalCost
 		actualCost = cost.ActualCost
@@ -246,6 +254,14 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		outputCost = cost.OutputCost
 		cacheCreationCost = cost.CacheCreationCost
 		cacheReadCost = cost.CacheReadCost
+		billingCurrency = normalizeBillingCurrency(cost.Currency)
+		totalCostUSDEquivalent = cost.TotalCostUSDEquivalent
+		actualCostUSDEquivalent = cost.ActualCostUSDEquivalent
+		usdToCNYRate = cost.USDToCNYRate
+		fxRateDate = optionalTrimmedStringPtr(cost.FXRateDate)
+		fxLockedAt = cloneBillingTime(cost.FXLockedAt)
+		costByCurrency = cloneBillingStringMapFloat64(cost.CostByCurrency)
+		actualCostByCurrency = cloneBillingStringMapFloat64(cost.ActualCostByCurrency)
 	}
 	billingEndpoint := strings.TrimSpace(input.Path)
 	if billingResult != nil && billingResult.Classification != nil && billingResult.Classification.BatchMode == BillingBatchModeBatch {
@@ -272,6 +288,14 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		CacheReadCost:         cacheReadCost,
 		TotalCost:             totalCost,
 		ActualCost:            actualCost,
+		BillingCurrency:       billingCurrency,
+		TotalCostUSDEquivalent: totalCostUSDEquivalent,
+		ActualCostUSDEquivalent: actualCostUSDEquivalent,
+		USDToCNYRate:          usdToCNYRate,
+		FXRateDate:            fxRateDate,
+		FXLockedAt:            fxLockedAt,
+		CostByCurrency:        costByCurrency,
+		ActualCostByCurrency:  actualCostByCurrency,
 		RateMultiplier:        account.BillingRateMultiplier(),
 		AccountRateMultiplier: usageLogFloat64Ptr(account.BillingRateMultiplier()),
 		BillingType:           input.BillingType,
@@ -320,6 +344,10 @@ func (s *GeminiMessagesCompatService) recordGoogleBatchUsageEvent(ctx context.Co
 		CacheCreationTokens:  tokens.CacheCreationTokens,
 		CacheReadTokens:      tokens.CacheReadTokens,
 		AccountQuotaCost:     totalCost * account.BillingRateMultiplier(),
+		BillingCurrency:      billingCurrency,
+		USDToCNYRate:         usdToCNYRate,
+		FXRateDate:           stringPtrValue(fxRateDate),
+		FXLockedAt:           fxLockedAt,
 	}
 	switch input.BillingType {
 	case BillingTypeSubscription:

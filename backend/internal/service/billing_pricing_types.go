@@ -81,10 +81,13 @@ type BillingPricingLayerForm struct {
 }
 
 type BillingPricingCurrencyPreference struct {
-	Currency        string    `json:"currency"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	UpdatedByUserID int64     `json:"updated_by_user_id"`
-	UpdatedByEmail  string    `json:"updated_by_email,omitempty"`
+	Currency        string     `json:"currency"`
+	USDToCNYRate    *float64   `json:"usd_to_cny_rate,omitempty"`
+	FXRateDate      string     `json:"fx_rate_date,omitempty"`
+	FXLockedAt      *time.Time `json:"fx_locked_at,omitempty"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	UpdatedByUserID int64      `json:"updated_by_user_id"`
+	UpdatedByEmail  string     `json:"updated_by_email,omitempty"`
 }
 
 type BillingPricingListItem struct {

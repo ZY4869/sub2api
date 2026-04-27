@@ -212,6 +212,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 		ImageMaxCount:            apiKey.ImageMaxCount,
 		Quota:                    apiKey.Quota,
 		QuotaUsed:                apiKey.QuotaUsed,
+		QuotaUsedByCurrency:      cloneBillingStringMapFloat64(apiKey.QuotaUsedByCurrency),
 		ExpiresAt:                apiKey.ExpiresAt,
 		RateLimit5h:              apiKey.RateLimit5h,
 		RateLimit1d:              apiKey.RateLimit1d,
@@ -221,6 +222,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			Status:      apiKey.User.Status,
 			Role:        apiKey.User.Role,
 			Balance:     apiKey.User.Balance,
+			Balances:    cloneBillingStringMapFloat64(apiKey.User.Balances),
 			Concurrency: apiKey.User.Concurrency,
 		},
 	}
@@ -228,10 +230,11 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 		snapshot.Groups = make([]APIKeyAuthGroupBindingSnapshot, 0, len(apiKey.GroupBindings))
 		for _, binding := range apiKey.GroupBindings {
 			item := APIKeyAuthGroupBindingSnapshot{
-				GroupID:       binding.GroupID,
-				Quota:         binding.Quota,
-				QuotaUsed:     binding.QuotaUsed,
-				ModelPatterns: append([]string(nil), binding.ModelPatterns...),
+				GroupID:             binding.GroupID,
+				Quota:               binding.Quota,
+				QuotaUsed:           binding.QuotaUsed,
+				QuotaUsedByCurrency: cloneBillingStringMapFloat64(binding.QuotaUsedByCurrency),
+				ModelPatterns:       append([]string(nil), binding.ModelPatterns...),
 			}
 			if binding.Group != nil {
 				item.Group = &APIKeyAuthGroupSnapshot{
@@ -311,6 +314,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		ImageMaxCount:            snapshot.ImageMaxCount,
 		Quota:                    snapshot.Quota,
 		QuotaUsed:                snapshot.QuotaUsed,
+		QuotaUsedByCurrency:      cloneBillingStringMapFloat64(snapshot.QuotaUsedByCurrency),
 		ExpiresAt:                snapshot.ExpiresAt,
 		RateLimit5h:              snapshot.RateLimit5h,
 		RateLimit1d:              snapshot.RateLimit1d,
@@ -320,6 +324,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			Status:      snapshot.User.Status,
 			Role:        snapshot.User.Role,
 			Balance:     snapshot.User.Balance,
+			Balances:    cloneBillingStringMapFloat64(snapshot.User.Balances),
 			Concurrency: snapshot.User.Concurrency,
 		},
 	}
@@ -327,10 +332,11 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		apiKey.GroupBindings = make([]APIKeyGroupBinding, 0, len(snapshot.Groups))
 		for _, binding := range snapshot.Groups {
 			item := APIKeyGroupBinding{
-				GroupID:       binding.GroupID,
-				Quota:         binding.Quota,
-				QuotaUsed:     binding.QuotaUsed,
-				ModelPatterns: append([]string(nil), binding.ModelPatterns...),
+				GroupID:             binding.GroupID,
+				Quota:               binding.Quota,
+				QuotaUsed:           binding.QuotaUsed,
+				QuotaUsedByCurrency: cloneBillingStringMapFloat64(binding.QuotaUsedByCurrency),
+				ModelPatterns:       append([]string(nil), binding.ModelPatterns...),
 			}
 			if binding.Group != nil {
 				item.Group = &Group{

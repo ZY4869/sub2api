@@ -189,6 +189,24 @@ func (_c *UserSubscriptionCreate) SetNillableMonthlyUsageUsd(v *float64) *UserSu
 	return _c
 }
 
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (_c *UserSubscriptionCreate) SetDailyUsageByCurrency(v map[string]float64) *UserSubscriptionCreate {
+	_c.mutation.SetDailyUsageByCurrency(v)
+	return _c
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (_c *UserSubscriptionCreate) SetWeeklyUsageByCurrency(v map[string]float64) *UserSubscriptionCreate {
+	_c.mutation.SetWeeklyUsageByCurrency(v)
+	return _c
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (_c *UserSubscriptionCreate) SetMonthlyUsageByCurrency(v map[string]float64) *UserSubscriptionCreate {
+	_c.mutation.SetMonthlyUsageByCurrency(v)
+	return _c
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (_c *UserSubscriptionCreate) SetAssignedBy(v int64) *UserSubscriptionCreate {
 	_c.mutation.SetAssignedBy(v)
@@ -472,6 +490,18 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 	if value, ok := _c.mutation.MonthlyUsageUsd(); ok {
 		_spec.SetField(usersubscription.FieldMonthlyUsageUsd, field.TypeFloat64, value)
 		_node.MonthlyUsageUsd = value
+	}
+	if value, ok := _c.mutation.DailyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldDailyUsageByCurrency, field.TypeJSON, value)
+		_node.DailyUsageByCurrency = value
+	}
+	if value, ok := _c.mutation.WeeklyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldWeeklyUsageByCurrency, field.TypeJSON, value)
+		_node.WeeklyUsageByCurrency = value
+	}
+	if value, ok := _c.mutation.MonthlyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldMonthlyUsageByCurrency, field.TypeJSON, value)
+		_node.MonthlyUsageByCurrency = value
 	}
 	if value, ok := _c.mutation.AssignedAt(); ok {
 		_spec.SetField(usersubscription.FieldAssignedAt, field.TypeTime, value)
@@ -798,6 +828,60 @@ func (u *UserSubscriptionUpsert) AddMonthlyUsageUsd(v float64) *UserSubscription
 	return u
 }
 
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (u *UserSubscriptionUpsert) SetDailyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldDailyUsageByCurrency, v)
+	return u
+}
+
+// UpdateDailyUsageByCurrency sets the "daily_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateDailyUsageByCurrency() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldDailyUsageByCurrency)
+	return u
+}
+
+// ClearDailyUsageByCurrency clears the value of the "daily_usage_by_currency" field.
+func (u *UserSubscriptionUpsert) ClearDailyUsageByCurrency() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldDailyUsageByCurrency)
+	return u
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (u *UserSubscriptionUpsert) SetWeeklyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldWeeklyUsageByCurrency, v)
+	return u
+}
+
+// UpdateWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateWeeklyUsageByCurrency() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldWeeklyUsageByCurrency)
+	return u
+}
+
+// ClearWeeklyUsageByCurrency clears the value of the "weekly_usage_by_currency" field.
+func (u *UserSubscriptionUpsert) ClearWeeklyUsageByCurrency() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldWeeklyUsageByCurrency)
+	return u
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (u *UserSubscriptionUpsert) SetMonthlyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldMonthlyUsageByCurrency, v)
+	return u
+}
+
+// UpdateMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateMonthlyUsageByCurrency() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldMonthlyUsageByCurrency)
+	return u
+}
+
+// ClearMonthlyUsageByCurrency clears the value of the "monthly_usage_by_currency" field.
+func (u *UserSubscriptionUpsert) ClearMonthlyUsageByCurrency() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldMonthlyUsageByCurrency)
+	return u
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (u *UserSubscriptionUpsert) SetAssignedBy(v int64) *UserSubscriptionUpsert {
 	u.Set(usersubscription.FieldAssignedBy, v)
@@ -1119,6 +1203,69 @@ func (u *UserSubscriptionUpsertOne) AddMonthlyUsageUsd(v float64) *UserSubscript
 func (u *UserSubscriptionUpsertOne) UpdateMonthlyUsageUsd() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateMonthlyUsageUsd()
+	})
+}
+
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (u *UserSubscriptionUpsertOne) SetDailyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetDailyUsageByCurrency(v)
+	})
+}
+
+// UpdateDailyUsageByCurrency sets the "daily_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateDailyUsageByCurrency() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateDailyUsageByCurrency()
+	})
+}
+
+// ClearDailyUsageByCurrency clears the value of the "daily_usage_by_currency" field.
+func (u *UserSubscriptionUpsertOne) ClearDailyUsageByCurrency() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearDailyUsageByCurrency()
+	})
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertOne) SetWeeklyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetWeeklyUsageByCurrency(v)
+	})
+}
+
+// UpdateWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateWeeklyUsageByCurrency() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateWeeklyUsageByCurrency()
+	})
+}
+
+// ClearWeeklyUsageByCurrency clears the value of the "weekly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertOne) ClearWeeklyUsageByCurrency() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearWeeklyUsageByCurrency()
+	})
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertOne) SetMonthlyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetMonthlyUsageByCurrency(v)
+	})
+}
+
+// UpdateMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateMonthlyUsageByCurrency() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateMonthlyUsageByCurrency()
+	})
+}
+
+// ClearMonthlyUsageByCurrency clears the value of the "monthly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertOne) ClearMonthlyUsageByCurrency() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearMonthlyUsageByCurrency()
 	})
 }
 
@@ -1617,6 +1764,69 @@ func (u *UserSubscriptionUpsertBulk) AddMonthlyUsageUsd(v float64) *UserSubscrip
 func (u *UserSubscriptionUpsertBulk) UpdateMonthlyUsageUsd() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateMonthlyUsageUsd()
+	})
+}
+
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (u *UserSubscriptionUpsertBulk) SetDailyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetDailyUsageByCurrency(v)
+	})
+}
+
+// UpdateDailyUsageByCurrency sets the "daily_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateDailyUsageByCurrency() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateDailyUsageByCurrency()
+	})
+}
+
+// ClearDailyUsageByCurrency clears the value of the "daily_usage_by_currency" field.
+func (u *UserSubscriptionUpsertBulk) ClearDailyUsageByCurrency() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearDailyUsageByCurrency()
+	})
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertBulk) SetWeeklyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetWeeklyUsageByCurrency(v)
+	})
+}
+
+// UpdateWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateWeeklyUsageByCurrency() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateWeeklyUsageByCurrency()
+	})
+}
+
+// ClearWeeklyUsageByCurrency clears the value of the "weekly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertBulk) ClearWeeklyUsageByCurrency() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearWeeklyUsageByCurrency()
+	})
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertBulk) SetMonthlyUsageByCurrency(v map[string]float64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetMonthlyUsageByCurrency(v)
+	})
+}
+
+// UpdateMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateMonthlyUsageByCurrency() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateMonthlyUsageByCurrency()
+	})
+}
+
+// ClearMonthlyUsageByCurrency clears the value of the "monthly_usage_by_currency" field.
+func (u *UserSubscriptionUpsertBulk) ClearMonthlyUsageByCurrency() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearMonthlyUsageByCurrency()
 	})
 }
 

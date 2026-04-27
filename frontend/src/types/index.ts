@@ -32,6 +32,7 @@ export interface User {
   request_details_review?: boolean;
   admin_free_billing?: boolean;
   balance: number; // User balance for API usage
+  balances?: Record<string, number>; // Wallet balances by billing currency
   concurrency: number; // Allowed concurrent requests
   status: "active" | "disabled"; // Account status
   allowed_groups: number[] | null; // Allowed group IDs (null = all non-exclusive groups)
@@ -462,6 +463,7 @@ export interface ApiKey {
   last_used_at: string | null;
   quota: number; // Quota limit in USD (0 = unlimited)
   quota_used: number; // Used quota amount in USD
+  quota_used_by_currency?: Record<string, number>;
   // Image-only key settings
   image_only_enabled: boolean;
   image_count_billing_enabled: boolean;
@@ -477,6 +479,9 @@ export interface ApiKey {
   usage_5h: number;
   usage_1d: number;
   usage_7d: number;
+  usage_5h_by_currency?: Record<string, number>;
+  usage_1d_by_currency?: Record<string, number>;
+  usage_7d_by_currency?: Record<string, number>;
   window_5h_start: string | null;
   window_1d_start: string | null;
   window_7d_start: string | null;
@@ -492,6 +497,7 @@ export interface ApiKeyGroup {
   priority: number;
   quota: number;
   quota_used: number;
+  quota_used_by_currency?: Record<string, number>;
   model_patterns: string[];
 }
 
@@ -893,10 +899,16 @@ export interface Account {
   // API Key quota limits and usage snapshots.
   quota_limit?: number | null;
   quota_used?: number | null;
+  quota_limit_by_currency?: Record<string, number>;
+  quota_used_by_currency?: Record<string, number>;
   quota_daily_limit?: number | null;
   quota_daily_used?: number | null;
+  quota_daily_limit_by_currency?: Record<string, number>;
+  quota_daily_used_by_currency?: Record<string, number>;
   quota_weekly_limit?: number | null;
   quota_weekly_used?: number | null;
+  quota_weekly_limit_by_currency?: Record<string, number>;
+  quota_weekly_used_by_currency?: Record<string, number>;
 
   // Runtime snapshots captured for account-level usage widgets.
   current_window_cost?: number | null; // Runtime snapshot of the current 5-hour window cost.
@@ -1298,6 +1310,11 @@ export interface UsageLog {
   cache_read_cost: number | null;
   total_cost: number | null;
   actual_cost: number | null;
+  billing_currency?: string;
+  total_cost_usd_equivalent?: number | null;
+  actual_cost_usd_equivalent?: number | null;
+  cost_by_currency?: Record<string, number>;
+  actual_cost_by_currency?: Record<string, number>;
   billing_exempt_reason?: "admin_free" | null;
   rate_multiplier: number | null;
   billing_type: number;
@@ -1444,6 +1461,8 @@ export interface DashboardStats {
   total_tokens: number;
   total_cost: number; // Standard cost before final billing adjustments.
   total_actual_cost: number; // Actual billed cost.
+  cost_by_currency?: Record<string, number>;
+  actual_cost_by_currency?: Record<string, number>;
   // Today request, token, and cost totals.
   today_requests: number;
   today_input_tokens: number;
@@ -1453,6 +1472,8 @@ export interface DashboardStats {
   today_tokens: number;
   today_cost: number; // Standard cost before final billing adjustments.
   today_actual_cost: number; // Actual billed cost.
+  today_cost_by_currency?: Record<string, number>;
+  today_actual_cost_by_currency?: Record<string, number>;
   average_duration_ms: number; // Average request duration in milliseconds.
   uptime: number; // Service uptime in seconds.
   rpm: number; // Requests per minute.
@@ -1468,6 +1489,8 @@ export interface UsageStatsResponse {
   total_tokens: number;
   total_cost: number;
   total_actual_cost: number;
+  cost_by_currency?: Record<string, number>;
+  actual_cost_by_currency?: Record<string, number>;
   admin_free_requests: number;
   admin_free_standard_cost: number;
   average_duration_ms: number;
@@ -1596,6 +1619,9 @@ export interface UserSubscription {
   daily_usage_usd: number;
   weekly_usage_usd: number;
   monthly_usage_usd: number;
+  daily_usage_by_currency?: Record<string, number>;
+  weekly_usage_by_currency?: Record<string, number>;
+  monthly_usage_by_currency?: Record<string, number>;
   daily_window_start: string | null;
   weekly_window_start: string | null;
   monthly_window_start: string | null;

@@ -284,6 +284,18 @@ curl "https://api.zyxai.de/v1beta/models?key=sk-你的站内Key" \
 - 已登录用户不受这个开关影响，仍然可以继续访问模型库与对应接口。
 - `GET /api/v1/settings/public` 会额外返回 `maintenance_mode_enabled`、`available_channels_enabled`、`channel_monitor_enabled`、`affiliate_enabled`，前端可据此决定是否展示维护提示与菜单入口。
 
+### 混合币种计费字段
+
+模型价格与用量统计采用“源币种计费 + USD 兼容字段”的响应契约：
+
+- 公共目录、分组目录和后台价格页里的 `currency` 是源币种；`price_display.primary[].value` 按该源币种展示。CNY 官方价格保持人民币数值，不会在保存或展示时先折算成 USD。
+- CNY 价格必须带有锁定汇率元数据：`usd_to_cny_rate`、`fx_rate_date`、`fx_locked_at`。缺少锁定 USD/CNY 汇率的 CNY 价格会被视为不可计费价格，不应进入运行时可扣费状态。
+- `usage_logs` 和用量列表会返回 `billing_currency`、`total_cost_usd_equivalent`、`actual_cost_usd_equivalent`、`cost_by_currency`、`actual_cost_by_currency`。其中 `total_cost` / `actual_cost` 保留旧字段语义，对非 USD 记录按 USD 等值给旧客户端使用；分币种金额请读取 `*_by_currency`。
+- `/api/v1/usage/stats`、`/api/v1/admin/usage/stats`、用户 Dashboard 和管理员 Dashboard 会返回 `cost_by_currency`、`actual_cost_by_currency`；Dashboard 还会返回 `today_cost_by_currency`、`today_actual_cost_by_currency`。
+- `/v1/usage` 在钱包模式下会返回 `balances`，格式为 `{ "USD": 10, "CNY": 25 }`；旧 `balance` / `remaining` 仍只代表 USD 钱包影子余额。
+- `/v1/usage` 的 API Key 配额块会返回 `quota.used_by_currency`，限流窗口会返回 `rate_limits[].used_by_currency`；订阅块会返回 `daily_usage_by_currency`、`weekly_usage_by_currency`、`monthly_usage_by_currency`。旧 `quota.used`、`daily_usage_usd`、`weekly_usage_usd`、`monthly_usage_usd` 均继续代表 USD。
+- 自动换汇只用于 CNY 钱包不足时的运行时扣费：系统按价格保存时锁定的 `usd_to_cny_rate` 从 USD 钱包换入刚好覆盖缺口的 CNY，并写入 `fx_out`、`fx_in`、`usage_debit` 三类账本记录。
+
 ### 可用渠道（Available Channels）
 
 系统提供一个用户视角的“可用渠道”只读接口，用于前端快速展示当前 Key / 分组可用的渠道聚合视图：

@@ -24,8 +24,8 @@
           </div>
           <div class="text-right">
             <p class="text-sm font-semibold">
-              <span class="text-green-600 dark:text-green-400" :title="t('dashboard.actual')">${{ formatCost(log.actual_cost) }}</span>
-              <span class="font-normal text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / ${{ formatCost(log.total_cost) }}</span>
+              <span class="text-green-600 dark:text-green-400" :title="t('dashboard.actual')">{{ formatCurrencyBreakdown(log.actual_cost_by_currency, log.actual_cost) }}</span>
+              <span class="font-normal text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / {{ formatCurrencyBreakdown(log.cost_by_currency, log.total_cost) }}</span>
             </p>
             <p
               class="text-xs text-gray-500 dark:text-dark-400"
@@ -68,6 +68,18 @@ function normalizeUsageTokens(value: unknown): number {
 
 function formatCost(value: unknown): string {
   return normalizeUsageAmount(value).toFixed(4)
+}
+
+function formatCurrencyBreakdown(values: Record<string, number> | undefined, fallbackUSD: unknown): string {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right))
+  if (entries.length === 0) {
+    return `$${formatCost(fallbackUSD)}`
+  }
+  return entries
+    .map(([currency, value]) => `${currency.toUpperCase() === 'CNY' ? '¥' : '$'}${formatCost(value)}`)
+    .join(' / ')
 }
 
 function formatTokens(inputTokens: unknown, outputTokens: unknown): string {

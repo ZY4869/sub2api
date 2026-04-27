@@ -20,6 +20,8 @@ const (
 	FieldQuota = "quota"
 	// FieldQuotaUsed holds the string denoting the quota_used field in the database.
 	FieldQuotaUsed = "quota_used"
+	// FieldQuotaUsedByCurrency holds the string denoting the quota_used_by_currency field in the database.
+	FieldQuotaUsedByCurrency = "quota_used_by_currency"
 	// FieldModelPatterns holds the string denoting the model_patterns field in the database.
 	FieldModelPatterns = "model_patterns"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -58,6 +60,7 @@ var Columns = []string{
 	FieldGroupID,
 	FieldQuota,
 	FieldQuotaUsed,
+	FieldQuotaUsedByCurrency,
 	FieldModelPatterns,
 	FieldCreatedAt,
 	FieldUpdatedAt,

@@ -127,27 +127,27 @@ func init() {
 	// apikey.DefaultQuotaUsed holds the default value on creation for the quota_used field.
 	apikey.DefaultQuotaUsed = apikeyDescQuotaUsed.Default.(float64)
 	// apikeyDescRateLimit5h is the schema descriptor for rate_limit_5h field.
-	apikeyDescRateLimit5h := apikeyFields[16].Descriptor()
+	apikeyDescRateLimit5h := apikeyFields[17].Descriptor()
 	// apikey.DefaultRateLimit5h holds the default value on creation for the rate_limit_5h field.
 	apikey.DefaultRateLimit5h = apikeyDescRateLimit5h.Default.(float64)
 	// apikeyDescRateLimit1d is the schema descriptor for rate_limit_1d field.
-	apikeyDescRateLimit1d := apikeyFields[17].Descriptor()
+	apikeyDescRateLimit1d := apikeyFields[18].Descriptor()
 	// apikey.DefaultRateLimit1d holds the default value on creation for the rate_limit_1d field.
 	apikey.DefaultRateLimit1d = apikeyDescRateLimit1d.Default.(float64)
 	// apikeyDescRateLimit7d is the schema descriptor for rate_limit_7d field.
-	apikeyDescRateLimit7d := apikeyFields[18].Descriptor()
+	apikeyDescRateLimit7d := apikeyFields[19].Descriptor()
 	// apikey.DefaultRateLimit7d holds the default value on creation for the rate_limit_7d field.
 	apikey.DefaultRateLimit7d = apikeyDescRateLimit7d.Default.(float64)
 	// apikeyDescUsage5h is the schema descriptor for usage_5h field.
-	apikeyDescUsage5h := apikeyFields[19].Descriptor()
+	apikeyDescUsage5h := apikeyFields[20].Descriptor()
 	// apikey.DefaultUsage5h holds the default value on creation for the usage_5h field.
 	apikey.DefaultUsage5h = apikeyDescUsage5h.Default.(float64)
 	// apikeyDescUsage1d is the schema descriptor for usage_1d field.
-	apikeyDescUsage1d := apikeyFields[20].Descriptor()
+	apikeyDescUsage1d := apikeyFields[22].Descriptor()
 	// apikey.DefaultUsage1d holds the default value on creation for the usage_1d field.
 	apikey.DefaultUsage1d = apikeyDescUsage1d.Default.(float64)
 	// apikeyDescUsage7d is the schema descriptor for usage_7d field.
-	apikeyDescUsage7d := apikeyFields[21].Descriptor()
+	apikeyDescUsage7d := apikeyFields[24].Descriptor()
 	// apikey.DefaultUsage7d holds the default value on creation for the usage_7d field.
 	apikey.DefaultUsage7d = apikeyDescUsage7d.Default.(float64)
 	apikeygroupFields := schema.APIKeyGroup{}.Fields()
@@ -161,11 +161,11 @@ func init() {
 	// apikeygroup.DefaultQuotaUsed holds the default value on creation for the quota_used field.
 	apikeygroup.DefaultQuotaUsed = apikeygroupDescQuotaUsed.Default.(float64)
 	// apikeygroupDescCreatedAt is the schema descriptor for created_at field.
-	apikeygroupDescCreatedAt := apikeygroupFields[5].Descriptor()
+	apikeygroupDescCreatedAt := apikeygroupFields[6].Descriptor()
 	// apikeygroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	apikeygroup.DefaultCreatedAt = apikeygroupDescCreatedAt.Default.(func() time.Time)
 	// apikeygroupDescUpdatedAt is the schema descriptor for updated_at field.
-	apikeygroupDescUpdatedAt := apikeygroupFields[6].Descriptor()
+	apikeygroupDescUpdatedAt := apikeygroupFields[7].Descriptor()
 	// apikeygroup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	apikeygroup.DefaultUpdatedAt = apikeygroupDescUpdatedAt.Default.(func() time.Time)
 	// apikeygroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -978,44 +978,66 @@ func init() {
 	usagelogDescActualCost := usagelogFields[20].Descriptor()
 	// usagelog.DefaultActualCost holds the default value on creation for the actual_cost field.
 	usagelog.DefaultActualCost = usagelogDescActualCost.Default.(float64)
+	// usagelogDescBillingCurrency is the schema descriptor for billing_currency field.
+	usagelogDescBillingCurrency := usagelogFields[21].Descriptor()
+	// usagelog.DefaultBillingCurrency holds the default value on creation for the billing_currency field.
+	usagelog.DefaultBillingCurrency = usagelogDescBillingCurrency.Default.(string)
+	// usagelog.BillingCurrencyValidator is a validator for the "billing_currency" field. It is called by the builders before save.
+	usagelog.BillingCurrencyValidator = usagelogDescBillingCurrency.Validators[0].(func(string) error)
+	// usagelogDescTotalCostUsdEquivalent is the schema descriptor for total_cost_usd_equivalent field.
+	usagelogDescTotalCostUsdEquivalent := usagelogFields[22].Descriptor()
+	// usagelog.DefaultTotalCostUsdEquivalent holds the default value on creation for the total_cost_usd_equivalent field.
+	usagelog.DefaultTotalCostUsdEquivalent = usagelogDescTotalCostUsdEquivalent.Default.(float64)
+	// usagelogDescActualCostUsdEquivalent is the schema descriptor for actual_cost_usd_equivalent field.
+	usagelogDescActualCostUsdEquivalent := usagelogFields[23].Descriptor()
+	// usagelog.DefaultActualCostUsdEquivalent holds the default value on creation for the actual_cost_usd_equivalent field.
+	usagelog.DefaultActualCostUsdEquivalent = usagelogDescActualCostUsdEquivalent.Default.(float64)
+	// usagelogDescUsdToCnyRate is the schema descriptor for usd_to_cny_rate field.
+	usagelogDescUsdToCnyRate := usagelogFields[24].Descriptor()
+	// usagelog.DefaultUsdToCnyRate holds the default value on creation for the usd_to_cny_rate field.
+	usagelog.DefaultUsdToCnyRate = usagelogDescUsdToCnyRate.Default.(float64)
+	// usagelogDescFxRateDate is the schema descriptor for fx_rate_date field.
+	usagelogDescFxRateDate := usagelogFields[25].Descriptor()
+	// usagelog.FxRateDateValidator is a validator for the "fx_rate_date" field. It is called by the builders before save.
+	usagelog.FxRateDateValidator = usagelogDescFxRateDate.Validators[0].(func(string) error)
 	// usagelogDescBillingExemptReason is the schema descriptor for billing_exempt_reason field.
-	usagelogDescBillingExemptReason := usagelogFields[21].Descriptor()
+	usagelogDescBillingExemptReason := usagelogFields[27].Descriptor()
 	// usagelog.BillingExemptReasonValidator is a validator for the "billing_exempt_reason" field. It is called by the builders before save.
 	usagelog.BillingExemptReasonValidator = usagelogDescBillingExemptReason.Validators[0].(func(string) error)
 	// usagelogDescRateMultiplier is the schema descriptor for rate_multiplier field.
-	usagelogDescRateMultiplier := usagelogFields[23].Descriptor()
+	usagelogDescRateMultiplier := usagelogFields[29].Descriptor()
 	// usagelog.DefaultRateMultiplier holds the default value on creation for the rate_multiplier field.
 	usagelog.DefaultRateMultiplier = usagelogDescRateMultiplier.Default.(float64)
 	// usagelogDescBillingType is the schema descriptor for billing_type field.
-	usagelogDescBillingType := usagelogFields[25].Descriptor()
+	usagelogDescBillingType := usagelogFields[31].Descriptor()
 	// usagelog.DefaultBillingType holds the default value on creation for the billing_type field.
 	usagelog.DefaultBillingType = usagelogDescBillingType.Default.(int8)
 	// usagelogDescStream is the schema descriptor for stream field.
-	usagelogDescStream := usagelogFields[26].Descriptor()
+	usagelogDescStream := usagelogFields[32].Descriptor()
 	// usagelog.DefaultStream holds the default value on creation for the stream field.
 	usagelog.DefaultStream = usagelogDescStream.Default.(bool)
 	// usagelogDescUserAgent is the schema descriptor for user_agent field.
-	usagelogDescUserAgent := usagelogFields[29].Descriptor()
+	usagelogDescUserAgent := usagelogFields[35].Descriptor()
 	// usagelog.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	usagelog.UserAgentValidator = usagelogDescUserAgent.Validators[0].(func(string) error)
 	// usagelogDescIPAddress is the schema descriptor for ip_address field.
-	usagelogDescIPAddress := usagelogFields[30].Descriptor()
+	usagelogDescIPAddress := usagelogFields[36].Descriptor()
 	// usagelog.IPAddressValidator is a validator for the "ip_address" field. It is called by the builders before save.
 	usagelog.IPAddressValidator = usagelogDescIPAddress.Validators[0].(func(string) error)
 	// usagelogDescImageCount is the schema descriptor for image_count field.
-	usagelogDescImageCount := usagelogFields[31].Descriptor()
+	usagelogDescImageCount := usagelogFields[37].Descriptor()
 	// usagelog.DefaultImageCount holds the default value on creation for the image_count field.
 	usagelog.DefaultImageCount = usagelogDescImageCount.Default.(int)
 	// usagelogDescImageSize is the schema descriptor for image_size field.
-	usagelogDescImageSize := usagelogFields[32].Descriptor()
+	usagelogDescImageSize := usagelogFields[38].Descriptor()
 	// usagelog.ImageSizeValidator is a validator for the "image_size" field. It is called by the builders before save.
 	usagelog.ImageSizeValidator = usagelogDescImageSize.Validators[0].(func(string) error)
 	// usagelogDescCacheTTLOverridden is the schema descriptor for cache_ttl_overridden field.
-	usagelogDescCacheTTLOverridden := usagelogFields[33].Descriptor()
+	usagelogDescCacheTTLOverridden := usagelogFields[39].Descriptor()
 	// usagelog.DefaultCacheTTLOverridden holds the default value on creation for the cache_ttl_overridden field.
 	usagelog.DefaultCacheTTLOverridden = usagelogDescCacheTTLOverridden.Default.(bool)
 	// usagelogDescCreatedAt is the schema descriptor for created_at field.
-	usagelogDescCreatedAt := usagelogFields[34].Descriptor()
+	usagelogDescCreatedAt := usagelogFields[40].Descriptor()
 	// usagelog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usagelog.DefaultCreatedAt = usagelogDescCreatedAt.Default.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
@@ -1281,7 +1303,7 @@ func init() {
 	// usersubscription.DefaultMonthlyUsageUsd holds the default value on creation for the monthly_usage_usd field.
 	usersubscription.DefaultMonthlyUsageUsd = usersubscriptionDescMonthlyUsageUsd.Default.(float64)
 	// usersubscriptionDescAssignedAt is the schema descriptor for assigned_at field.
-	usersubscriptionDescAssignedAt := usersubscriptionFields[12].Descriptor()
+	usersubscriptionDescAssignedAt := usersubscriptionFields[15].Descriptor()
 	// usersubscription.DefaultAssignedAt holds the default value on creation for the assigned_at field.
 	usersubscription.DefaultAssignedAt = usersubscriptionDescAssignedAt.Default.(func() time.Time)
 }

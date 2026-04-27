@@ -51,6 +51,8 @@ const (
 	FieldQuota = "quota"
 	// FieldQuotaUsed holds the string denoting the quota_used field in the database.
 	FieldQuotaUsed = "quota_used"
+	// FieldQuotaUsedByCurrency holds the string denoting the quota_used_by_currency field in the database.
+	FieldQuotaUsedByCurrency = "quota_used_by_currency"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
 	FieldExpiresAt = "expires_at"
 	// FieldRateLimit5h holds the string denoting the rate_limit_5h field in the database.
@@ -61,10 +63,16 @@ const (
 	FieldRateLimit7d = "rate_limit_7d"
 	// FieldUsage5h holds the string denoting the usage_5h field in the database.
 	FieldUsage5h = "usage_5h"
+	// FieldUsage5hByCurrency holds the string denoting the usage_5h_by_currency field in the database.
+	FieldUsage5hByCurrency = "usage_5h_by_currency"
 	// FieldUsage1d holds the string denoting the usage_1d field in the database.
 	FieldUsage1d = "usage_1d"
+	// FieldUsage1dByCurrency holds the string denoting the usage_1d_by_currency field in the database.
+	FieldUsage1dByCurrency = "usage_1d_by_currency"
 	// FieldUsage7d holds the string denoting the usage_7d field in the database.
 	FieldUsage7d = "usage_7d"
+	// FieldUsage7dByCurrency holds the string denoting the usage_7d_by_currency field in the database.
+	FieldUsage7dByCurrency = "usage_7d_by_currency"
 	// FieldWindow5hStart holds the string denoting the window_5h_start field in the database.
 	FieldWindow5hStart = "window_5h_start"
 	// FieldWindow1dStart holds the string denoting the window_1d_start field in the database.
@@ -139,13 +147,17 @@ var Columns = []string{
 	FieldImageCountUsed,
 	FieldQuota,
 	FieldQuotaUsed,
+	FieldQuotaUsedByCurrency,
 	FieldExpiresAt,
 	FieldRateLimit5h,
 	FieldRateLimit1d,
 	FieldRateLimit7d,
 	FieldUsage5h,
+	FieldUsage5hByCurrency,
 	FieldUsage1d,
+	FieldUsage1dByCurrency,
 	FieldUsage7d,
+	FieldUsage7dByCurrency,
 	FieldWindow5hStart,
 	FieldWindow1dStart,
 	FieldWindow7dStart,

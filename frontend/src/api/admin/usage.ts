@@ -23,6 +23,8 @@ export interface AdminUsageStatsResponse {
   total_tokens: number
   total_cost: number
   total_actual_cost: number
+  cost_by_currency?: Record<string, number>
+  actual_cost_by_currency?: Record<string, number>
   admin_free_requests: number
   admin_free_standard_cost: number
   total_account_cost?: number

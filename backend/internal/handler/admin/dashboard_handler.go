@@ -102,18 +102,22 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 		"total_tokens":                stats.TotalTokens,
 		"total_cost":                  stats.TotalCost,       // 标准计费
 		"total_actual_cost":           stats.TotalActualCost, // 实际扣除
+		"cost_by_currency":            stats.CostByCurrency,
+		"actual_cost_by_currency":     stats.ActualCostByCurrency,
 		"admin_free_requests":         stats.AdminFreeRequests,
 		"admin_free_standard_cost":    stats.AdminFreeStandardCost,
 
 		// 今日 Token 使用统计
-		"today_requests":              stats.TodayRequests,
-		"today_input_tokens":          stats.TodayInputTokens,
-		"today_output_tokens":         stats.TodayOutputTokens,
-		"today_cache_creation_tokens": stats.TodayCacheCreationTokens,
-		"today_cache_read_tokens":     stats.TodayCacheReadTokens,
-		"today_tokens":                stats.TodayTokens,
-		"today_cost":                  stats.TodayCost,       // 今日标准计费
-		"today_actual_cost":           stats.TodayActualCost, // 今日实际扣除
+		"today_requests":                stats.TodayRequests,
+		"today_input_tokens":            stats.TodayInputTokens,
+		"today_output_tokens":           stats.TodayOutputTokens,
+		"today_cache_creation_tokens":   stats.TodayCacheCreationTokens,
+		"today_cache_read_tokens":       stats.TodayCacheReadTokens,
+		"today_tokens":                  stats.TodayTokens,
+		"today_cost":                    stats.TodayCost,       // 今日标准计费
+		"today_actual_cost":             stats.TodayActualCost, // 今日实际扣除
+		"today_cost_by_currency":        stats.TodayCostByCurrency,
+		"today_actual_cost_by_currency": stats.TodayActualCostByCurrency,
 
 		// 系统运行统计
 		"average_duration_ms": stats.AverageDurationMs,

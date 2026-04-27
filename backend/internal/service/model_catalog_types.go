@@ -12,6 +12,10 @@ const (
 )
 
 type ModelCatalogPricing struct {
+	Currency                                 string     `json:"currency,omitempty"`
+	USDToCNYRate                             *float64  `json:"usd_to_cny_rate,omitempty"`
+	FXRateDate                               string    `json:"fx_rate_date,omitempty"`
+	FXLockedAt                               *time.Time `json:"fx_locked_at,omitempty"`
 	InputCostPerToken                        *float64 `json:"input_cost_per_token,omitempty"`
 	InputCostPerTokenPriority                *float64 `json:"input_cost_per_token_priority,omitempty"`
 	InputTokenThreshold                      *int     `json:"input_token_threshold,omitempty"`

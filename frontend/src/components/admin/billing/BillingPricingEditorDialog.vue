@@ -427,13 +427,86 @@ function updateCurrentCurrency(currency: BillingPricingCurrency) {
     return
   }
 
+  const previousCurrency = currentDetail.value.currency || 'USD'
+  const conversionFactor = resolveSourceCurrencyConversionFactor(
+    previousCurrency,
+    currency,
+    usdToCnyRate.value,
+  )
+
   currentDetailMap.value = {
     ...currentDetailMap.value,
-    [currentDetail.value.model]: {
-      ...currentDetail.value,
+    [currentDetail.value.model]: convertSheetDetailCurrency(
+      currentDetail.value,
       currency,
-    },
+      conversionFactor,
+    ),
   }
+}
+
+function resolveSourceCurrencyConversionFactor(
+  from: BillingPricingCurrency,
+  to: BillingPricingCurrency,
+  usdToCnyRate?: number | null,
+): number {
+  if (from === to) {
+    return 1
+  }
+  if (typeof usdToCnyRate !== 'number' || !Number.isFinite(usdToCnyRate) || usdToCnyRate <= 0) {
+    return 1
+  }
+  return from === 'USD' && to === 'CNY'
+    ? usdToCnyRate
+    : 1 / usdToCnyRate
+}
+
+function convertSheetDetailCurrency(
+  detail: BillingPricingSheetDetail,
+  currency: BillingPricingCurrency,
+  factor: number,
+): BillingPricingSheetDetail {
+  return normalizeBillingPricingSheetDetail({
+    ...detail,
+    currency,
+    official_form: scaleBillingPricingLayerForm(detail.official_form, factor),
+    sale_form: scaleBillingPricingLayerForm(detail.sale_form, factor),
+    preview_sale_form: detail.preview_sale_form
+      ? scaleBillingPricingLayerForm(detail.preview_sale_form, factor)
+      : detail.preview_sale_form,
+  })
+}
+
+function scaleBillingPricingLayerForm(
+  form: BillingPricingLayerForm,
+  factor: number,
+): BillingPricingLayerForm {
+  if (factor === 1) {
+    return cloneBillingPricingLayerForm(form)
+  }
+
+  const next = cloneBillingPricingLayerForm(form)
+  next.input_price = scaleOptionalPrice(next.input_price, factor)
+  next.output_price = scaleOptionalPrice(next.output_price, factor)
+  next.cache_price = scaleOptionalPrice(next.cache_price, factor)
+  next.input_price_above_threshold = scaleOptionalPrice(next.input_price_above_threshold, factor)
+  next.output_price_above_threshold = scaleOptionalPrice(next.output_price_above_threshold, factor)
+  next.special = {
+    ...next.special,
+    batch_input_price: scaleOptionalPrice(next.special.batch_input_price, factor),
+    batch_output_price: scaleOptionalPrice(next.special.batch_output_price, factor),
+    batch_cache_price: scaleOptionalPrice(next.special.batch_cache_price, factor),
+    grounding_search: scaleOptionalPrice(next.special.grounding_search, factor),
+    grounding_maps: scaleOptionalPrice(next.special.grounding_maps, factor),
+    file_search_embedding: scaleOptionalPrice(next.special.file_search_embedding, factor),
+    file_search_retrieval: scaleOptionalPrice(next.special.file_search_retrieval, factor),
+  }
+  return next
+}
+
+function scaleOptionalPrice(value: number | undefined, factor: number): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value * factor
+    : value
 }
 
 function saveLayer(layer: Layer) {

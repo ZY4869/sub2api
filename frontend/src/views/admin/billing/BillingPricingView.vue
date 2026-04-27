@@ -176,6 +176,7 @@ import {
   listBillingPricingModels,
   updateBillingPricingLayer,
   type BillingPricingAudit,
+  type BillingPricingCurrency,
   type BillingPricingLayerForm,
   type BillingPricingStatus,
   type BillingPricingSortBy,
@@ -397,6 +398,7 @@ async function handleImportFileChange(event: Event) {
       const patch = entry.patch || {}
       const officialPatch = (patch as { official?: unknown }).official
       const salePatch = (patch as { sale?: unknown }).sale
+      const patchCurrency = resolvePricingPatchCurrency(entry.currency, base.currency)
 
       const officialHasChanges = billingPricingLayerPatchHasChanges(base.official_form, officialPatch as any)
       const saleHasChanges = billingPricingLayerPatchHasChanges(base.sale_form, salePatch as any)
@@ -408,7 +410,7 @@ async function handleImportFileChange(event: Event) {
       if (officialHasChanges) {
         try {
           const form = applyBillingPricingLayerPatch(base.official_form, officialPatch as any)
-          await updateBillingPricingLayer(model, 'official', { form, currency: base.currency })
+          await updateBillingPricingLayer(model, 'official', { form, currency: patchCurrency })
           updatedLayers += 1
         } catch (error) {
           failedUpdates += 1
@@ -421,7 +423,7 @@ async function handleImportFileChange(event: Event) {
       if (saleHasChanges) {
         try {
           const form = applyBillingPricingLayerPatch(base.sale_form, salePatch as any)
-          await updateBillingPricingLayer(model, 'sale', { form, currency: base.currency })
+          await updateBillingPricingLayer(model, 'sale', { form, currency: patchCurrency })
           updatedLayers += 1
         } catch (error) {
           failedUpdates += 1
@@ -461,6 +463,15 @@ async function handleImportFileChange(event: Event) {
     importing.value = false
     importProgress.value = null
   }
+}
+
+function resolvePricingPatchCurrency(
+  patchCurrency: unknown,
+  fallback: BillingPricingCurrency,
+): BillingPricingCurrency {
+  return patchCurrency === 'CNY' || patchCurrency === 'USD'
+    ? patchCurrency
+    : fallback
 }
 
 async function applyFilters() {

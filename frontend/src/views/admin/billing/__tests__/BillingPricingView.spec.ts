@@ -451,6 +451,48 @@ describe('BillingPricingView', () => {
     }))
   })
 
+  it('imports source currency from the pricing patch file', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const patch = {
+      version: 1,
+      kind: 'billing_pricing_patch',
+      generated_at: '2026-04-27T00:00:00Z',
+      models: [
+        {
+          model: 'gpt-5.4',
+          currency: 'CNY',
+          current: {
+            official: createForm(),
+            sale: createForm(),
+          },
+          patch: {
+            official: {
+              input_price: 0.3,
+            },
+          },
+          notes: '',
+        },
+      ],
+    }
+
+    const input = wrapper.get('input[type="file"]')
+    const file = new File([JSON.stringify(patch)], 'patch-cny.json', { type: 'application/json' })
+    Object.defineProperty(input.element, 'files', { value: [file] })
+    await input.trigger('change')
+    for (let i = 0; i < 5 && apiMocks.updateBillingPricingLayer.mock.calls.length === 0; i += 1) {
+      await flushPromises()
+    }
+
+    expect(apiMocks.updateBillingPricingLayer).toHaveBeenCalledWith('gpt-5.4', 'official', expect.objectContaining({
+      currency: 'CNY',
+      form: expect.objectContaining({
+        input_price: 0.3,
+      }),
+    }))
+  })
+
   it('refreshes the persisted catalog and reloads the current filters', async () => {
     const wrapper = mountView()
     await flushPromises()

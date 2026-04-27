@@ -56,7 +56,7 @@ func TestLoadAPIKeyGroupBindingsMap_IgnoresMissingSchemaError(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &apiKeyRepository{}
 
-	mock.ExpectQuery(`SELECT api_key_id, group_id, quota, quota_used, model_patterns, created_at, updated_at`).
+	mock.ExpectQuery(`SELECT api_key_id, group_id, quota, quota_used, COALESCE\(quota_used_by_currency, '\{\}'::jsonb\), model_patterns, created_at, updated_at`).
 		WithArgs(sqlmock.AnyArg()).
 		WillReturnError(&pq.Error{
 			Code:    "42P01",

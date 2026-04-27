@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -434,6 +435,123 @@ func (_u *UsageLogUpdate) AddActualCost(v float64) *UsageLogUpdate {
 	return _u
 }
 
+// SetBillingCurrency sets the "billing_currency" field.
+func (_u *UsageLogUpdate) SetBillingCurrency(v string) *UsageLogUpdate {
+	_u.mutation.SetBillingCurrency(v)
+	return _u
+}
+
+// SetNillableBillingCurrency sets the "billing_currency" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingCurrency(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingCurrency(*v)
+	}
+	return _u
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (_u *UsageLogUpdate) SetTotalCostUsdEquivalent(v float64) *UsageLogUpdate {
+	_u.mutation.ResetTotalCostUsdEquivalent()
+	_u.mutation.SetTotalCostUsdEquivalent(v)
+	return _u
+}
+
+// SetNillableTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableTotalCostUsdEquivalent(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetTotalCostUsdEquivalent(*v)
+	}
+	return _u
+}
+
+// AddTotalCostUsdEquivalent adds value to the "total_cost_usd_equivalent" field.
+func (_u *UsageLogUpdate) AddTotalCostUsdEquivalent(v float64) *UsageLogUpdate {
+	_u.mutation.AddTotalCostUsdEquivalent(v)
+	return _u
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (_u *UsageLogUpdate) SetActualCostUsdEquivalent(v float64) *UsageLogUpdate {
+	_u.mutation.ResetActualCostUsdEquivalent()
+	_u.mutation.SetActualCostUsdEquivalent(v)
+	return _u
+}
+
+// SetNillableActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableActualCostUsdEquivalent(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetActualCostUsdEquivalent(*v)
+	}
+	return _u
+}
+
+// AddActualCostUsdEquivalent adds value to the "actual_cost_usd_equivalent" field.
+func (_u *UsageLogUpdate) AddActualCostUsdEquivalent(v float64) *UsageLogUpdate {
+	_u.mutation.AddActualCostUsdEquivalent(v)
+	return _u
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (_u *UsageLogUpdate) SetUsdToCnyRate(v float64) *UsageLogUpdate {
+	_u.mutation.ResetUsdToCnyRate()
+	_u.mutation.SetUsdToCnyRate(v)
+	return _u
+}
+
+// SetNillableUsdToCnyRate sets the "usd_to_cny_rate" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableUsdToCnyRate(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetUsdToCnyRate(*v)
+	}
+	return _u
+}
+
+// AddUsdToCnyRate adds value to the "usd_to_cny_rate" field.
+func (_u *UsageLogUpdate) AddUsdToCnyRate(v float64) *UsageLogUpdate {
+	_u.mutation.AddUsdToCnyRate(v)
+	return _u
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (_u *UsageLogUpdate) SetFxRateDate(v string) *UsageLogUpdate {
+	_u.mutation.SetFxRateDate(v)
+	return _u
+}
+
+// SetNillableFxRateDate sets the "fx_rate_date" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableFxRateDate(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetFxRateDate(*v)
+	}
+	return _u
+}
+
+// ClearFxRateDate clears the value of the "fx_rate_date" field.
+func (_u *UsageLogUpdate) ClearFxRateDate() *UsageLogUpdate {
+	_u.mutation.ClearFxRateDate()
+	return _u
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (_u *UsageLogUpdate) SetFxLockedAt(v time.Time) *UsageLogUpdate {
+	_u.mutation.SetFxLockedAt(v)
+	return _u
+}
+
+// SetNillableFxLockedAt sets the "fx_locked_at" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableFxLockedAt(v *time.Time) *UsageLogUpdate {
+	if v != nil {
+		_u.SetFxLockedAt(*v)
+	}
+	return _u
+}
+
+// ClearFxLockedAt clears the value of the "fx_locked_at" field.
+func (_u *UsageLogUpdate) ClearFxLockedAt() *UsageLogUpdate {
+	_u.mutation.ClearFxLockedAt()
+	return _u
+}
+
 // SetBillingExemptReason sets the "billing_exempt_reason" field.
 func (_u *UsageLogUpdate) SetBillingExemptReason(v string) *UsageLogUpdate {
 	_u.mutation.SetBillingExemptReason(v)
@@ -815,6 +933,16 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "upstream_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_model": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingCurrency(); ok {
+		if err := usagelog.BillingCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "billing_currency", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.FxRateDate(); ok {
+		if err := usagelog.FxRateDateValidator(v); err != nil {
+			return &ValidationError{Name: "fx_rate_date", err: fmt.Errorf(`ent: validator failed for field "UsageLog.fx_rate_date": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.BillingExemptReason(); ok {
 		if err := usagelog.BillingExemptReasonValidator(v); err != nil {
 			return &ValidationError{Name: "billing_exempt_reason", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_exempt_reason": %w`, err)}
@@ -948,6 +1076,39 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedActualCost(); ok {
 		_spec.AddField(usagelog.FieldActualCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingCurrency(); ok {
+		_spec.SetField(usagelog.FieldBillingCurrency, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TotalCostUsdEquivalent(); ok {
+		_spec.SetField(usagelog.FieldTotalCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalCostUsdEquivalent(); ok {
+		_spec.AddField(usagelog.FieldTotalCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ActualCostUsdEquivalent(); ok {
+		_spec.SetField(usagelog.FieldActualCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedActualCostUsdEquivalent(); ok {
+		_spec.AddField(usagelog.FieldActualCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.UsdToCnyRate(); ok {
+		_spec.SetField(usagelog.FieldUsdToCnyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedUsdToCnyRate(); ok {
+		_spec.AddField(usagelog.FieldUsdToCnyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.FxRateDate(); ok {
+		_spec.SetField(usagelog.FieldFxRateDate, field.TypeString, value)
+	}
+	if _u.mutation.FxRateDateCleared() {
+		_spec.ClearField(usagelog.FieldFxRateDate, field.TypeString)
+	}
+	if value, ok := _u.mutation.FxLockedAt(); ok {
+		_spec.SetField(usagelog.FieldFxLockedAt, field.TypeTime, value)
+	}
+	if _u.mutation.FxLockedAtCleared() {
+		_spec.ClearField(usagelog.FieldFxLockedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.BillingExemptReason(); ok {
 		_spec.SetField(usagelog.FieldBillingExemptReason, field.TypeString, value)
@@ -1597,6 +1758,123 @@ func (_u *UsageLogUpdateOne) AddActualCost(v float64) *UsageLogUpdateOne {
 	return _u
 }
 
+// SetBillingCurrency sets the "billing_currency" field.
+func (_u *UsageLogUpdateOne) SetBillingCurrency(v string) *UsageLogUpdateOne {
+	_u.mutation.SetBillingCurrency(v)
+	return _u
+}
+
+// SetNillableBillingCurrency sets the "billing_currency" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingCurrency(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingCurrency(*v)
+	}
+	return _u
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (_u *UsageLogUpdateOne) SetTotalCostUsdEquivalent(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetTotalCostUsdEquivalent()
+	_u.mutation.SetTotalCostUsdEquivalent(v)
+	return _u
+}
+
+// SetNillableTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableTotalCostUsdEquivalent(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetTotalCostUsdEquivalent(*v)
+	}
+	return _u
+}
+
+// AddTotalCostUsdEquivalent adds value to the "total_cost_usd_equivalent" field.
+func (_u *UsageLogUpdateOne) AddTotalCostUsdEquivalent(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddTotalCostUsdEquivalent(v)
+	return _u
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (_u *UsageLogUpdateOne) SetActualCostUsdEquivalent(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetActualCostUsdEquivalent()
+	_u.mutation.SetActualCostUsdEquivalent(v)
+	return _u
+}
+
+// SetNillableActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableActualCostUsdEquivalent(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetActualCostUsdEquivalent(*v)
+	}
+	return _u
+}
+
+// AddActualCostUsdEquivalent adds value to the "actual_cost_usd_equivalent" field.
+func (_u *UsageLogUpdateOne) AddActualCostUsdEquivalent(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddActualCostUsdEquivalent(v)
+	return _u
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (_u *UsageLogUpdateOne) SetUsdToCnyRate(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetUsdToCnyRate()
+	_u.mutation.SetUsdToCnyRate(v)
+	return _u
+}
+
+// SetNillableUsdToCnyRate sets the "usd_to_cny_rate" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableUsdToCnyRate(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetUsdToCnyRate(*v)
+	}
+	return _u
+}
+
+// AddUsdToCnyRate adds value to the "usd_to_cny_rate" field.
+func (_u *UsageLogUpdateOne) AddUsdToCnyRate(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddUsdToCnyRate(v)
+	return _u
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (_u *UsageLogUpdateOne) SetFxRateDate(v string) *UsageLogUpdateOne {
+	_u.mutation.SetFxRateDate(v)
+	return _u
+}
+
+// SetNillableFxRateDate sets the "fx_rate_date" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableFxRateDate(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetFxRateDate(*v)
+	}
+	return _u
+}
+
+// ClearFxRateDate clears the value of the "fx_rate_date" field.
+func (_u *UsageLogUpdateOne) ClearFxRateDate() *UsageLogUpdateOne {
+	_u.mutation.ClearFxRateDate()
+	return _u
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (_u *UsageLogUpdateOne) SetFxLockedAt(v time.Time) *UsageLogUpdateOne {
+	_u.mutation.SetFxLockedAt(v)
+	return _u
+}
+
+// SetNillableFxLockedAt sets the "fx_locked_at" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableFxLockedAt(v *time.Time) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetFxLockedAt(*v)
+	}
+	return _u
+}
+
+// ClearFxLockedAt clears the value of the "fx_locked_at" field.
+func (_u *UsageLogUpdateOne) ClearFxLockedAt() *UsageLogUpdateOne {
+	_u.mutation.ClearFxLockedAt()
+	return _u
+}
+
 // SetBillingExemptReason sets the "billing_exempt_reason" field.
 func (_u *UsageLogUpdateOne) SetBillingExemptReason(v string) *UsageLogUpdateOne {
 	_u.mutation.SetBillingExemptReason(v)
@@ -1991,6 +2269,16 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "upstream_model", err: fmt.Errorf(`ent: validator failed for field "UsageLog.upstream_model": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingCurrency(); ok {
+		if err := usagelog.BillingCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "billing_currency", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_currency": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.FxRateDate(); ok {
+		if err := usagelog.FxRateDateValidator(v); err != nil {
+			return &ValidationError{Name: "fx_rate_date", err: fmt.Errorf(`ent: validator failed for field "UsageLog.fx_rate_date": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.BillingExemptReason(); ok {
 		if err := usagelog.BillingExemptReasonValidator(v); err != nil {
 			return &ValidationError{Name: "billing_exempt_reason", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_exempt_reason": %w`, err)}
@@ -2141,6 +2429,39 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedActualCost(); ok {
 		_spec.AddField(usagelog.FieldActualCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingCurrency(); ok {
+		_spec.SetField(usagelog.FieldBillingCurrency, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TotalCostUsdEquivalent(); ok {
+		_spec.SetField(usagelog.FieldTotalCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedTotalCostUsdEquivalent(); ok {
+		_spec.AddField(usagelog.FieldTotalCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.ActualCostUsdEquivalent(); ok {
+		_spec.SetField(usagelog.FieldActualCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedActualCostUsdEquivalent(); ok {
+		_spec.AddField(usagelog.FieldActualCostUsdEquivalent, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.UsdToCnyRate(); ok {
+		_spec.SetField(usagelog.FieldUsdToCnyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedUsdToCnyRate(); ok {
+		_spec.AddField(usagelog.FieldUsdToCnyRate, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.FxRateDate(); ok {
+		_spec.SetField(usagelog.FieldFxRateDate, field.TypeString, value)
+	}
+	if _u.mutation.FxRateDateCleared() {
+		_spec.ClearField(usagelog.FieldFxRateDate, field.TypeString)
+	}
+	if value, ok := _u.mutation.FxLockedAt(); ok {
+		_spec.SetField(usagelog.FieldFxLockedAt, field.TypeTime, value)
+	}
+	if _u.mutation.FxLockedAtCleared() {
+		_spec.ClearField(usagelog.FieldFxLockedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.BillingExemptReason(); ok {
 		_spec.SetField(usagelog.FieldBillingExemptReason, field.TypeString, value)

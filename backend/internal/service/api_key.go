@@ -63,31 +63,36 @@ type APIKey struct {
 	ImageCountUsed           int
 
 	// Quota fields
-	Quota     float64    // Quota limit in USD (0 = unlimited)
-	QuotaUsed float64    // Used quota amount
-	ExpiresAt *time.Time // Expiration time (nil = never expires)
+	Quota               float64            // Quota limit in USD (0 = unlimited)
+	QuotaUsed           float64            // Used quota amount in USD
+	QuotaUsedByCurrency map[string]float64 // Used quota amount by source billing currency
+	ExpiresAt           *time.Time         // Expiration time (nil = never expires)
 
 	// Rate limit fields
-	RateLimit5h   float64    // Rate limit in USD per 5h (0 = unlimited)
-	RateLimit1d   float64    // Rate limit in USD per 1d (0 = unlimited)
-	RateLimit7d   float64    // Rate limit in USD per 7d (0 = unlimited)
-	Usage5h       float64    // Used amount in current 5h window
-	Usage1d       float64    // Used amount in current 1d window
-	Usage7d       float64    // Used amount in current 7d window
-	Window5hStart *time.Time // Start of current 5h window
-	Window1dStart *time.Time // Start of current 1d window
-	Window7dStart *time.Time // Start of current 7d window
+	RateLimit5h       float64            // Rate limit in USD per 5h (0 = unlimited)
+	RateLimit1d       float64            // Rate limit in USD per 1d (0 = unlimited)
+	RateLimit7d       float64            // Rate limit in USD per 7d (0 = unlimited)
+	Usage5h           float64            // Used amount in current 5h window
+	Usage1d           float64            // Used amount in current 1d window
+	Usage7d           float64            // Used amount in current 7d window
+	Usage5hByCurrency map[string]float64 // Used amount by source billing currency in current 5h window
+	Usage1dByCurrency map[string]float64 // Used amount by source billing currency in current 1d window
+	Usage7dByCurrency map[string]float64 // Used amount by source billing currency in current 7d window
+	Window5hStart     *time.Time         // Start of current 5h window
+	Window1dStart     *time.Time         // Start of current 1d window
+	Window7dStart     *time.Time         // Start of current 7d window
 }
 
 type APIKeyGroupBinding struct {
-	APIKeyID      int64
-	GroupID       int64
-	Group         *Group
-	Quota         float64
-	QuotaUsed     float64
-	ModelPatterns []string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	APIKeyID            int64
+	GroupID             int64
+	Group               *Group
+	Quota               float64
+	QuotaUsed           float64
+	QuotaUsedByCurrency map[string]float64
+	ModelPatterns       []string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 func (k *APIKey) IsActive() bool {
@@ -235,6 +240,13 @@ func (k *APIKey) EffectiveUsage5h() float64 {
 	return k.Usage5h
 }
 
+func (k *APIKey) EffectiveUsage5hByCurrency() map[string]float64 {
+	if k == nil || IsWindowExpired(k.Window5hStart, RateLimitWindow5h) {
+		return nil
+	}
+	return cloneBillingStringMapFloat64(k.Usage5hByCurrency)
+}
+
 // EffectiveUsage1d returns the 1d window usage, or 0 if the window has expired.
 func (k *APIKey) EffectiveUsage1d() float64 {
 	if IsWindowExpired(k.Window1dStart, RateLimitWindow1d) {
@@ -243,12 +255,26 @@ func (k *APIKey) EffectiveUsage1d() float64 {
 	return k.Usage1d
 }
 
+func (k *APIKey) EffectiveUsage1dByCurrency() map[string]float64 {
+	if k == nil || IsWindowExpired(k.Window1dStart, RateLimitWindow1d) {
+		return nil
+	}
+	return cloneBillingStringMapFloat64(k.Usage1dByCurrency)
+}
+
 // EffectiveUsage7d returns the 7d window usage, or 0 if the window has expired.
 func (k *APIKey) EffectiveUsage7d() float64 {
 	if IsWindowExpired(k.Window7dStart, RateLimitWindow7d) {
 		return 0
 	}
 	return k.Usage7d
+}
+
+func (k *APIKey) EffectiveUsage7dByCurrency() map[string]float64 {
+	if k == nil || IsWindowExpired(k.Window7dStart, RateLimitWindow7d) {
+		return nil
+	}
+	return cloneBillingStringMapFloat64(k.Usage7dByCurrency)
 }
 
 func (b *APIKeyGroupBinding) IsQuotaExhausted() bool {

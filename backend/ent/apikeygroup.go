@@ -26,6 +26,8 @@ type APIKeyGroup struct {
 	Quota float64 `json:"quota,omitempty"`
 	// API Key 在该分组下已使用配额
 	QuotaUsed float64 `json:"quota_used,omitempty"`
+	// API Key 在该分组下按源币种统计的已使用配额
+	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
 	// 模型匹配规则，空数组表示匹配所有模型
 	ModelPatterns []string `json:"model_patterns,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -76,7 +78,7 @@ func (*APIKeyGroup) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikeygroup.FieldModelPatterns:
+		case apikeygroup.FieldQuotaUsedByCurrency, apikeygroup.FieldModelPatterns:
 			values[i] = new([]byte)
 		case apikeygroup.FieldQuota, apikeygroup.FieldQuotaUsed:
 			values[i] = new(sql.NullFloat64)
@@ -122,6 +124,14 @@ func (_m *APIKeyGroup) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field quota_used", values[i])
 			} else if value.Valid {
 				_m.QuotaUsed = value.Float64
+			}
+		case apikeygroup.FieldQuotaUsedByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field quota_used_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.QuotaUsedByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field quota_used_by_currency: %w", err)
+				}
 			}
 		case apikeygroup.FieldModelPatterns:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -199,6 +209,9 @@ func (_m *APIKeyGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("quota_used=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QuotaUsed))
+	builder.WriteString(", ")
+	builder.WriteString("quota_used_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.QuotaUsedByCurrency))
 	builder.WriteString(", ")
 	builder.WriteString("model_patterns=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModelPatterns))

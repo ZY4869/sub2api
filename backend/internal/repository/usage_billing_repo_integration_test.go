@@ -80,6 +80,140 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	require.Equal(t, 1, dedupCount)
 }
 
+func TestUsageBillingRepositoryApply_DebitsCNYWallet(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-cny-user-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      10,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-cny-" + uuid.NewString(),
+		Name:   "billing-cny",
+	})
+	_, err := integrationDB.ExecContext(ctx, `
+		INSERT INTO billing_wallets (user_id, currency, balance)
+		VALUES ($1, 'CNY', 5)
+		ON CONFLICT (user_id, currency) DO UPDATE SET balance = EXCLUDED.balance
+	`, user.ID)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:       uuid.NewString(),
+		APIKeyID:        apiKey.ID,
+		UserID:          user.ID,
+		BillingCurrency: service.ModelPricingCurrencyCNY,
+		BalanceCost:     3,
+		USDToCNYRate:    6.8,
+		FXRateDate:      "2026-04-24",
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+
+	var cnyBalance, usdBalance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM billing_wallets WHERE user_id = $1 AND currency = 'CNY'", user.ID).Scan(&cnyBalance))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM billing_wallets WHERE user_id = $1 AND currency = 'USD'", user.ID).Scan(&usdBalance))
+	require.InDelta(t, 2, cnyBalance, 0.000001)
+	require.InDelta(t, 10, usdBalance, 0.000001)
+
+	var debitCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM billing_ledger_entries WHERE user_id = $1 AND currency = 'CNY' AND type = 'usage_debit'", user.ID).Scan(&debitCount))
+	require.Equal(t, 1, debitCount)
+}
+
+func TestUsageBillingRepositoryApply_AutoFXForCNYDeficit(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-fx-user-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      10,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-fx-" + uuid.NewString(),
+		Name:   "billing-fx",
+	})
+	_, err := integrationDB.ExecContext(ctx, `
+		INSERT INTO billing_wallets (user_id, currency, balance)
+		VALUES ($1, 'CNY', 2)
+		ON CONFLICT (user_id, currency) DO UPDATE SET balance = EXCLUDED.balance
+	`, user.ID)
+	require.NoError(t, err)
+
+	requestID := uuid.NewString()
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:       requestID,
+		APIKeyID:        apiKey.ID,
+		UserID:          user.ID,
+		Model:           "deepseek-chat",
+		BillingCurrency: service.ModelPricingCurrencyCNY,
+		BalanceCost:     5.4,
+		USDToCNYRate:    6.8,
+		FXRateDate:      "2026-04-24",
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+
+	var cnyBalance, usdBalance, shadowBalance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM billing_wallets WHERE user_id = $1 AND currency = 'CNY'", user.ID).Scan(&cnyBalance))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM billing_wallets WHERE user_id = $1 AND currency = 'USD'", user.ID).Scan(&usdBalance))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&shadowBalance))
+	require.InDelta(t, 0, cnyBalance, 0.000001)
+	require.InDelta(t, 9.5, usdBalance, 0.000001)
+	require.InDelta(t, 9.5, shadowBalance, 0.000001)
+
+	rows, err := integrationDB.QueryContext(ctx, `
+		SELECT currency, type
+		FROM billing_ledger_entries
+		WHERE request_id = $1
+		ORDER BY id ASC
+	`, requestID)
+	require.NoError(t, err)
+	defer rows.Close()
+	var entries []string
+	for rows.Next() {
+		var currency, entryType string
+		require.NoError(t, rows.Scan(&currency, &entryType))
+		entries = append(entries, currency+":"+entryType)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []string{"USD:fx_out", "CNY:fx_in", "CNY:usage_debit"}, entries)
+}
+
+func TestUsageBillingRepositoryApply_AutoFXFailsWhenUSDInsufficient(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-fx-low-user-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      0.1,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-fx-low-" + uuid.NewString(),
+		Name:   "billing-fx-low",
+	})
+
+	_, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:       uuid.NewString(),
+		APIKeyID:        apiKey.ID,
+		UserID:          user.ID,
+		BillingCurrency: service.ModelPricingCurrencyCNY,
+		BalanceCost:     5,
+		USDToCNYRate:    6.8,
+	})
+	require.ErrorIs(t, err, service.ErrInsufficientBalance)
+}
+
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

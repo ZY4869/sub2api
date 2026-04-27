@@ -6,7 +6,7 @@
         <div class="flex justify-end">
           <TokenDisplayModeToggle />
         </div>
-        <UserDashboardStats :stats="stats" :balance="user?.balance || 0" :is-simple="authStore.isSimpleMode" />
+        <UserDashboardStats :stats="stats" :balance="user?.balance || 0" :balances="user?.balances" :is-simple="authStore.isSimpleMode" />
         <UserDashboardCharts v-model:startDate="startDate" v-model:endDate="endDate" v-model:granularity="granularity" :loading="loadingCharts" :trend="trendData" :models="modelStats" @dateRangeChange="loadCharts" @granularityChange="loadCharts" />
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div class="lg:col-span-2"><UserDashboardRecentUsage :data="recentUsage" :loading="loadingUsage" /></div>

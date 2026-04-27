@@ -185,6 +185,14 @@ type UsageLog struct {
 	CacheReadCost       float64
 	TotalCost           float64
 	ActualCost          float64
+	BillingCurrency     string
+	TotalCostUSDEquivalent  float64
+	ActualCostUSDEquivalent float64
+	USDToCNYRate        float64
+	FXRateDate          *string
+	FXLockedAt          *time.Time
+	CostByCurrency      map[string]float64
+	ActualCostByCurrency map[string]float64
 	BillingExemptReason *string
 	RateMultiplier      float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）

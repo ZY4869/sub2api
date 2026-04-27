@@ -725,6 +725,36 @@ func MonthlyUsageUsdLTE(v float64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldLTE(FieldMonthlyUsageUsd, v))
 }
 
+// DailyUsageByCurrencyIsNil applies the IsNil predicate on the "daily_usage_by_currency" field.
+func DailyUsageByCurrencyIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldDailyUsageByCurrency))
+}
+
+// DailyUsageByCurrencyNotNil applies the NotNil predicate on the "daily_usage_by_currency" field.
+func DailyUsageByCurrencyNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldDailyUsageByCurrency))
+}
+
+// WeeklyUsageByCurrencyIsNil applies the IsNil predicate on the "weekly_usage_by_currency" field.
+func WeeklyUsageByCurrencyIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldWeeklyUsageByCurrency))
+}
+
+// WeeklyUsageByCurrencyNotNil applies the NotNil predicate on the "weekly_usage_by_currency" field.
+func WeeklyUsageByCurrencyNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldWeeklyUsageByCurrency))
+}
+
+// MonthlyUsageByCurrencyIsNil applies the IsNil predicate on the "monthly_usage_by_currency" field.
+func MonthlyUsageByCurrencyIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldMonthlyUsageByCurrency))
+}
+
+// MonthlyUsageByCurrencyNotNil applies the NotNil predicate on the "monthly_usage_by_currency" field.
+func MonthlyUsageByCurrencyNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldMonthlyUsageByCurrency))
+}
+
 // AssignedByEQ applies the EQ predicate on the "assigned_by" field.
 func AssignedByEQ(v int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldAssignedBy, v))

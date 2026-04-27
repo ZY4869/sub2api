@@ -200,7 +200,7 @@ describe('BillingPricingEditorDialog', () => {
     ])
   })
 
-  it('shares currency state across official and sale columns and preserves canonical usd values on save', async () => {
+  it('shares currency state and saves converted source currency values', async () => {
     const wrapper = mountDialog([createDetail()])
 
     await wrapper.get('[data-testid="pricing-currency-select"]').setValue('CNY')
@@ -210,17 +210,14 @@ describe('BillingPricingEditorDialog', () => {
 
     await wrapper.get('[data-testid="save-layer-official"]').trigger('click')
 
-    expect(wrapper.emitted('save-layer')?.[0]).toEqual([
-      {
-        model: 'gpt-5.4',
-        layer: 'official',
-        currency: 'CNY',
-        form: expect.objectContaining({
-          input_price: 2.8e-7,
-          output_price: 6e-7,
-        }),
-      },
-    ])
+    const payload = wrapper.emitted('save-layer')?.[0]?.[0]
+    expect(payload).toEqual(expect.objectContaining({
+      model: 'gpt-5.4',
+      layer: 'official',
+      currency: 'CNY',
+    }))
+    expect(payload?.form.input_price).toBeCloseTo(2.016e-6)
+    expect(payload?.form.output_price).toBeCloseTo(4.32e-6)
   })
 
   it('marks sale special pricing enabled after editing mirrored special fields', async () => {

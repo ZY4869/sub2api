@@ -351,7 +351,7 @@
           <div class="text-sm">
             <div class="flex items-center gap-1.5">
               <span class="font-medium text-green-600 dark:text-green-400"
-                >${{ formatUsageAmount(row.actual_cost) }}</span
+                >{{ formatCurrencyBreakdown(row.actual_cost_by_currency, row.actual_cost) }}</span
               >
               <span
                 v-if="row.billing_exempt_reason === 'admin_free'"
@@ -726,13 +726,13 @@
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.original") }}</span>
             <span class="font-medium text-white"
-              >${{ formatUsageAmount(tooltipData?.total_cost) }}</span
+              >{{ formatCurrencyBreakdown(tooltipData?.cost_by_currency, tooltipData?.total_cost) }}</span
             >
           </div>
           <div class="flex items-center justify-between gap-6">
             <span class="text-gray-400">{{ t("usage.userBilled") }}</span>
             <span class="font-semibold text-green-400"
-              >${{ formatUsageAmount(tooltipData?.actual_cost) }}</span
+              >{{ formatCurrencyBreakdown(tooltipData?.actual_cost_by_currency, tooltipData?.actual_cost) }}</span
             >
           </div>
           <div
@@ -811,6 +811,21 @@ defineEmits(["userClick"]);
 const { t } = useI18n();
 const { formatTokenDisplay } = useTokenDisplayMode();
 const { copyToClipboard } = useClipboard();
+
+const formatCurrencyBreakdown = (
+  values: Record<string, number> | null | undefined,
+  fallbackUSD: number | null | undefined,
+) => {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (entries.length === 0) {
+    return `$${formatUsageAmount(fallbackUSD)}`;
+  }
+  return entries
+    .map(([currency, value]) => `${currency.toUpperCase() === "CNY" ? "¥" : "$"}${formatUsageAmount(value)}`)
+    .join(" / ");
+};
 
 const buildUsageFailureSummary = (row: AdminUsageLog): string => {
   const requestID = String(row.request_id || "").trim();

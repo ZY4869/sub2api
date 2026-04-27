@@ -65,7 +65,7 @@
             />
           </svg>
           <span class="text-sm font-semibold text-primary-700 dark:text-primary-300">
-            ${{ user.balance?.toFixed(2) || '0.00' }}
+            {{ formatBalanceBreakdown(user.balances, user.balance) }}
           </span>
         </div>
 
@@ -109,7 +109,7 @@
                   {{ t('common.balance') }}
                 </div>
                 <div class="text-sm font-semibold text-primary-600 dark:text-primary-400">
-                  ${{ user.balance?.toFixed(2) || '0.00' }}
+                  {{ formatBalanceBreakdown(user.balances, user.balance) }}
                 </div>
               </div>
 
@@ -235,6 +235,18 @@ const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => appStore.docUrl)
+
+const formatBalanceBreakdown = (values?: Record<string, number>, fallbackUSD = 0) => {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right))
+  if (entries.length === 0) {
+    return `$${(fallbackUSD || 0).toFixed(2)}`
+  }
+  return entries
+    .map(([currency, value]) => `${currency.toUpperCase() === 'CNY' ? '¥' : '$'}${value.toFixed(2)}`)
+    .join(' / ')
+}
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {

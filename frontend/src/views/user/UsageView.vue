@@ -69,12 +69,12 @@
                   {{ t("usage.totalCost") }}
                 </p>
                 <p class="text-xl font-bold text-green-600 dark:text-green-400">
-                  ${{ formatUsageAmount(usageStats?.total_actual_cost, 4) }}
+                  {{ formatCurrencyBreakdown(usageStats?.actual_cost_by_currency, usageStats?.total_actual_cost, 4) }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ t("usage.actualCost") }} /
                   <span class="line-through"
-                    >${{ formatUsageAmount(usageStats?.total_cost, 4) }}</span
+                    >{{ formatCurrencyBreakdown(usageStats?.cost_by_currency, usageStats?.total_cost, 4) }}</span
                   >
                   {{ t("usage.standardCost") }}
                 </p>
@@ -432,7 +432,7 @@
           <template #cell-cost="{ row }">
             <div class="flex items-center gap-1.5 text-sm">
               <span class="font-medium text-green-600 dark:text-green-400">
-                ${{ formatUsageAmount(row.actual_cost) }}
+                {{ formatCurrencyBreakdown(row.actual_cost_by_currency, row.actual_cost) }}
               </span>
               <span
                 v-if="getChargeLabel(row)"
@@ -893,6 +893,25 @@ import {
 const { t } = useI18n();
 const appStore = useAppStore();
 const { formatTokenDisplay } = useTokenDisplayMode();
+
+const formatCurrencyBreakdown = (
+  values: Record<string, number> | null | undefined,
+  fallbackUSD: number | null | undefined,
+  decimals = 4,
+) => {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (entries.length === 0) {
+    return `$${formatUsageAmount(fallbackUSD, decimals)}`;
+  }
+  return entries
+    .map(([currency, value]) => {
+      const normalized = currency.toUpperCase();
+      return `${normalized === "CNY" ? "¥" : "$"}${formatUsageAmount(value, decimals)}`;
+    })
+    .join(" / ");
+};
 
 let abortController: AbortController | null = null;
 

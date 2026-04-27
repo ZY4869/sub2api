@@ -15,9 +15,12 @@ type UserSubscription struct {
 	WeeklyWindowStart  *time.Time
 	MonthlyWindowStart *time.Time
 
-	DailyUsageUSD   float64
-	WeeklyUsageUSD  float64
-	MonthlyUsageUSD float64
+	DailyUsageUSD          float64
+	WeeklyUsageUSD         float64
+	MonthlyUsageUSD        float64
+	DailyUsageByCurrency   map[string]float64
+	WeeklyUsageByCurrency  map[string]float64
+	MonthlyUsageByCurrency map[string]float64
 
 	AssignedBy *int64
 	AssignedAt time.Time

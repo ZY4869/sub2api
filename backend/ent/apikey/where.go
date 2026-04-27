@@ -875,6 +875,16 @@ func QuotaUsedLTE(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldLTE(FieldQuotaUsed, v))
 }
 
+// QuotaUsedByCurrencyIsNil applies the IsNil predicate on the "quota_used_by_currency" field.
+func QuotaUsedByCurrencyIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldQuotaUsedByCurrency))
+}
+
+// QuotaUsedByCurrencyNotNil applies the NotNil predicate on the "quota_used_by_currency" field.
+func QuotaUsedByCurrencyNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldQuotaUsedByCurrency))
+}
+
 // ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
 func ExpiresAtEQ(v time.Time) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldExpiresAt, v))
@@ -1085,6 +1095,16 @@ func Usage5hLTE(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldLTE(FieldUsage5h, v))
 }
 
+// Usage5hByCurrencyIsNil applies the IsNil predicate on the "usage_5h_by_currency" field.
+func Usage5hByCurrencyIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldUsage5hByCurrency))
+}
+
+// Usage5hByCurrencyNotNil applies the NotNil predicate on the "usage_5h_by_currency" field.
+func Usage5hByCurrencyNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldUsage5hByCurrency))
+}
+
 // Usage1dEQ applies the EQ predicate on the "usage_1d" field.
 func Usage1dEQ(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUsage1d, v))
@@ -1125,6 +1145,16 @@ func Usage1dLTE(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldLTE(FieldUsage1d, v))
 }
 
+// Usage1dByCurrencyIsNil applies the IsNil predicate on the "usage_1d_by_currency" field.
+func Usage1dByCurrencyIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldUsage1dByCurrency))
+}
+
+// Usage1dByCurrencyNotNil applies the NotNil predicate on the "usage_1d_by_currency" field.
+func Usage1dByCurrencyNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldUsage1dByCurrency))
+}
+
 // Usage7dEQ applies the EQ predicate on the "usage_7d" field.
 func Usage7dEQ(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldUsage7d, v))
@@ -1163,6 +1193,16 @@ func Usage7dLT(v float64) predicate.APIKey {
 // Usage7dLTE applies the LTE predicate on the "usage_7d" field.
 func Usage7dLTE(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldLTE(FieldUsage7d, v))
+}
+
+// Usage7dByCurrencyIsNil applies the IsNil predicate on the "usage_7d_by_currency" field.
+func Usage7dByCurrencyIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldUsage7dByCurrency))
+}
+
+// Usage7dByCurrencyNotNil applies the NotNil predicate on the "usage_7d_by_currency" field.
+func Usage7dByCurrencyNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldUsage7dByCurrency))
 }
 
 // Window5hStartEQ applies the EQ predicate on the "window_5h_start" field.

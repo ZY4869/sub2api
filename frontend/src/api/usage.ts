@@ -27,6 +27,8 @@ export interface UserDashboardStats {
   total_tokens: number;
   total_cost: number; // Standard billed cost
   total_actual_cost: number; // Actual deducted cost
+  cost_by_currency?: Record<string, number>;
+  actual_cost_by_currency?: Record<string, number>;
   admin_free_requests: number;
   admin_free_standard_cost: number;
   today_requests: number;
@@ -37,6 +39,8 @@ export interface UserDashboardStats {
   today_tokens: number;
   today_cost: number; // Today's standard billed cost
   today_actual_cost: number; // Today's actual deducted cost
+  today_cost_by_currency?: Record<string, number>;
+  today_actual_cost_by_currency?: Record<string, number>;
   average_duration_ms: number;
   rpm: number; // Average requests per minute in the recent window
   tpm: number; // Average tokens per minute in the recent window

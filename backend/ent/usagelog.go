@@ -64,6 +64,18 @@ type UsageLog struct {
 	TotalCost float64 `json:"total_cost,omitempty"`
 	// ActualCost holds the value of the "actual_cost" field.
 	ActualCost float64 `json:"actual_cost,omitempty"`
+	// BillingCurrency holds the value of the "billing_currency" field.
+	BillingCurrency string `json:"billing_currency,omitempty"`
+	// TotalCostUsdEquivalent holds the value of the "total_cost_usd_equivalent" field.
+	TotalCostUsdEquivalent float64 `json:"total_cost_usd_equivalent,omitempty"`
+	// ActualCostUsdEquivalent holds the value of the "actual_cost_usd_equivalent" field.
+	ActualCostUsdEquivalent float64 `json:"actual_cost_usd_equivalent,omitempty"`
+	// UsdToCnyRate holds the value of the "usd_to_cny_rate" field.
+	UsdToCnyRate float64 `json:"usd_to_cny_rate,omitempty"`
+	// FxRateDate holds the value of the "fx_rate_date" field.
+	FxRateDate *string `json:"fx_rate_date,omitempty"`
+	// FxLockedAt holds the value of the "fx_locked_at" field.
+	FxLockedAt *time.Time `json:"fx_locked_at,omitempty"`
 	// BillingExemptReason holds the value of the "billing_exempt_reason" field.
 	BillingExemptReason *string `json:"billing_exempt_reason,omitempty"`
 	// ThinkingEnabled holds the value of the "thinking_enabled" field.
@@ -177,13 +189,13 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usagelog.FieldThinkingEnabled, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
+		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldTotalCostUsdEquivalent, usagelog.FieldActualCostUsdEquivalent, usagelog.FieldUsdToCnyRate, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
 		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldBillingExemptReason, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize:
+		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldBillingCurrency, usagelog.FieldFxRateDate, usagelog.FieldBillingExemptReason, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize:
 			values[i] = new(sql.NullString)
-		case usagelog.FieldCreatedAt:
+		case usagelog.FieldFxLockedAt, usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -335,6 +347,44 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field actual_cost", values[i])
 			} else if value.Valid {
 				_m.ActualCost = value.Float64
+			}
+		case usagelog.FieldBillingCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field billing_currency", values[i])
+			} else if value.Valid {
+				_m.BillingCurrency = value.String
+			}
+		case usagelog.FieldTotalCostUsdEquivalent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field total_cost_usd_equivalent", values[i])
+			} else if value.Valid {
+				_m.TotalCostUsdEquivalent = value.Float64
+			}
+		case usagelog.FieldActualCostUsdEquivalent:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field actual_cost_usd_equivalent", values[i])
+			} else if value.Valid {
+				_m.ActualCostUsdEquivalent = value.Float64
+			}
+		case usagelog.FieldUsdToCnyRate:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field usd_to_cny_rate", values[i])
+			} else if value.Valid {
+				_m.UsdToCnyRate = value.Float64
+			}
+		case usagelog.FieldFxRateDate:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field fx_rate_date", values[i])
+			} else if value.Valid {
+				_m.FxRateDate = new(string)
+				*_m.FxRateDate = value.String
+			}
+		case usagelog.FieldFxLockedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field fx_locked_at", values[i])
+			} else if value.Valid {
+				_m.FxLockedAt = new(time.Time)
+				*_m.FxLockedAt = value.Time
 			}
 		case usagelog.FieldBillingExemptReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -559,6 +609,28 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("actual_cost=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ActualCost))
+	builder.WriteString(", ")
+	builder.WriteString("billing_currency=")
+	builder.WriteString(_m.BillingCurrency)
+	builder.WriteString(", ")
+	builder.WriteString("total_cost_usd_equivalent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotalCostUsdEquivalent))
+	builder.WriteString(", ")
+	builder.WriteString("actual_cost_usd_equivalent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ActualCostUsdEquivalent))
+	builder.WriteString(", ")
+	builder.WriteString("usd_to_cny_rate=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UsdToCnyRate))
+	builder.WriteString(", ")
+	if v := _m.FxRateDate; v != nil {
+		builder.WriteString("fx_rate_date=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.FxLockedAt; v != nil {
+		builder.WriteString("fx_locked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	if v := _m.BillingExemptReason; v != nil {
 		builder.WriteString("billing_exempt_reason=")

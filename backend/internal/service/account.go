@@ -1473,6 +1473,30 @@ func (a *Account) GetQuotaWeeklyUsed() float64 {
 	return a.getExtraFloat64("quota_weekly_used")
 }
 
+func (a *Account) GetQuotaLimitByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_limit_by_currency")
+}
+
+func (a *Account) GetQuotaUsedByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_used_by_currency")
+}
+
+func (a *Account) GetQuotaDailyLimitByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_daily_limit_by_currency")
+}
+
+func (a *Account) GetQuotaDailyUsedByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_daily_used_by_currency")
+}
+
+func (a *Account) GetQuotaWeeklyLimitByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_weekly_limit_by_currency")
+}
+
+func (a *Account) GetQuotaWeeklyUsedByCurrency() map[string]float64 {
+	return a.getExtraCurrencyMap("quota_weekly_used_by_currency")
+}
+
 // getExtraFloat64 从 Extra 中读取指定 key 的 float64 值
 func (a *Account) getExtraFloat64(key string) float64 {
 	if a.Extra == nil {
@@ -1482,6 +1506,28 @@ func (a *Account) getExtraFloat64(key string) float64 {
 		return parseExtraFloat64(v)
 	}
 	return 0
+}
+
+func (a *Account) getExtraCurrencyMap(key string) map[string]float64 {
+	if a == nil || a.Extra == nil {
+		return nil
+	}
+	raw, ok := a.Extra[key]
+	if !ok {
+		return nil
+	}
+	values := map[string]float64{}
+	switch typed := raw.(type) {
+	case map[string]float64:
+		values = typed
+	case map[string]any:
+		for currency, value := range typed {
+			values[currency] = parseExtraFloat64(value)
+		}
+	default:
+		return nil
+	}
+	return cloneBillingStringMapFloat64(values)
 }
 
 // getExtraTime 从 Extra 中读取 RFC3339 时间戳
@@ -1738,7 +1784,12 @@ func ValidateQuotaResetConfig(extra map[string]any) error {
 
 // HasAnyQuotaLimit 检查是否配置了任一维度的配额限制
 func (a *Account) HasAnyQuotaLimit() bool {
-	return a.GetQuotaLimit() > 0 || a.GetQuotaDailyLimit() > 0 || a.GetQuotaWeeklyLimit() > 0
+	return a.GetQuotaLimit() > 0 ||
+		a.GetQuotaDailyLimit() > 0 ||
+		a.GetQuotaWeeklyLimit() > 0 ||
+		len(a.GetQuotaLimitByCurrency()) > 0 ||
+		len(a.GetQuotaDailyLimitByCurrency()) > 0 ||
+		len(a.GetQuotaWeeklyLimitByCurrency()) > 0
 }
 
 // isPeriodExpired 检查指定周期（自 periodStart 起经过 dur）是否已过期
@@ -1778,6 +1829,27 @@ func (a *Account) IsQuotaExceeded() bool {
 			expired = isPeriodExpired(start, 7*24*time.Hour)
 		}
 		if !expired && a.GetQuotaWeeklyUsed() >= limit {
+			return true
+		}
+	}
+	if isQuotaCurrencyMapExceeded(a.GetQuotaLimitByCurrency(), a.GetQuotaUsedByCurrency()) {
+		return true
+	}
+	if isQuotaCurrencyMapExceeded(a.GetQuotaDailyLimitByCurrency(), a.GetQuotaDailyUsedByCurrency()) {
+		return true
+	}
+	if isQuotaCurrencyMapExceeded(a.GetQuotaWeeklyLimitByCurrency(), a.GetQuotaWeeklyUsedByCurrency()) {
+		return true
+	}
+	return false
+}
+
+func isQuotaCurrencyMapExceeded(limits, used map[string]float64) bool {
+	for currency, limit := range limits {
+		if normalizeBillingCurrency(currency) == "" || limit <= 0 {
+			continue
+		}
+		if used[normalizeBillingCurrency(currency)] >= limit {
 			return true
 		}
 	}

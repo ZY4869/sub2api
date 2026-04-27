@@ -206,8 +206,8 @@ import BillingPricingMultiplierInline from './BillingPricingMultiplierInline.vue
 import BillingPricingMultiplierPanel from './BillingPricingMultiplierPanel.vue'
 import {
   buildBillingPricingAlternateText,
-  convertCanonicalUSDPriceToDisplayValue,
-  convertDisplayValueToCanonicalUSD,
+  convertDisplayValueToSourcePrice,
+  convertSourcePriceToDisplayValue,
   parseBillingPricingDecimalInput,
 } from './pricingCurrency'
 import {
@@ -335,7 +335,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
     fields.push(buildFieldDescriptor({
       id: 'input_price',
       label: '输入定价',
-      canonicalValue: props.form.input_price,
+      sourceValue: props.form.input_price,
       field: 'input_price',
     }))
   }
@@ -343,7 +343,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
   fields.push(buildFieldDescriptor({
     id: 'output_price',
     label: outputPriceLabel(props.outputChargeSlot),
-    canonicalValue: props.form.output_price,
+    sourceValue: props.form.output_price,
     field: 'output_price',
   }))
 
@@ -351,7 +351,7 @@ const baseFields = computed<PricingFieldDescriptor<RootNumberField>[]>(() => {
     fields.push(buildFieldDescriptor({
       id: 'cache_price',
       label: '缓存定价',
-      canonicalValue: props.form.cache_price,
+      sourceValue: props.form.cache_price,
       field: 'cache_price',
     }))
   }
@@ -371,7 +371,7 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
       fields.push(buildFieldDescriptor({
         id: 'batch_input_price',
         label: 'Batch 输入定价',
-        canonicalValue: props.form.special.batch_input_price,
+        sourceValue: props.form.special.batch_input_price,
         field: 'batch_input_price',
       }))
     }
@@ -379,7 +379,7 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
     fields.push(buildFieldDescriptor({
       id: 'batch_output_price',
       label: `Batch ${outputPriceLabel(props.outputChargeSlot)}`,
-      canonicalValue: props.form.special.batch_output_price,
+      sourceValue: props.form.special.batch_output_price,
       field: 'batch_output_price',
     }))
 
@@ -387,7 +387,7 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
       fields.push(buildFieldDescriptor({
         id: 'batch_cache_price',
         label: 'Batch 缓存定价',
-        canonicalValue: props.form.special.batch_cache_price,
+        sourceValue: props.form.special.batch_cache_price,
         field: 'batch_cache_price',
       }))
     }
@@ -398,25 +398,25 @@ const specialFields = computed<PricingFieldDescriptor<SpecialNumberField>[]>(() 
       buildFieldDescriptor({
         id: 'grounding_search',
         label: 'Grounding Search',
-        canonicalValue: props.form.special.grounding_search,
+        sourceValue: props.form.special.grounding_search,
         field: 'grounding_search',
       }),
       buildFieldDescriptor({
         id: 'grounding_maps',
         label: 'Grounding Maps',
-        canonicalValue: props.form.special.grounding_maps,
+        sourceValue: props.form.special.grounding_maps,
         field: 'grounding_maps',
       }),
       buildFieldDescriptor({
         id: 'file_search_embedding',
         label: 'File Search Embedding',
-        canonicalValue: props.form.special.file_search_embedding,
+        sourceValue: props.form.special.file_search_embedding,
         field: 'file_search_embedding',
       }),
       buildFieldDescriptor({
         id: 'file_search_retrieval',
         label: 'File Search Retrieval',
-        canonicalValue: props.form.special.file_search_retrieval,
+        sourceValue: props.form.special.file_search_retrieval,
         field: 'file_search_retrieval',
       }),
     )
@@ -436,7 +436,7 @@ const tierFields = computed<PricingFieldDescriptor<'input_price_above_threshold'
     fields.push(buildFieldDescriptor({
       id: 'input_price_above_threshold',
       label: '输入阈值后定价',
-      canonicalValue: props.form.input_price_above_threshold,
+      sourceValue: props.form.input_price_above_threshold,
       field: 'input_price_above_threshold',
     }))
   }
@@ -445,7 +445,7 @@ const tierFields = computed<PricingFieldDescriptor<'input_price_above_threshold'
     fields.push(buildFieldDescriptor({
       id: 'output_price_above_threshold',
       label: '输出阈值后定价',
-      canonicalValue: props.form.output_price_above_threshold,
+      sourceValue: props.form.output_price_above_threshold,
       field: 'output_price_above_threshold',
     }))
   }
@@ -467,7 +467,7 @@ function emitForm(next: BillingPricingLayerForm) {
 function buildFieldDescriptor<T extends BillingPricingFieldId>(options: {
   id: T
   label: string
-  canonicalValue?: number
+  sourceValue?: number
   field: T
 }): PricingFieldDescriptor<T> {
   const unit = resolvePricingFieldUnit(options.id, props.outputChargeSlot)
@@ -476,14 +476,14 @@ function buildFieldDescriptor<T extends BillingPricingFieldId>(options: {
     label: options.label,
     unit,
     unitLabel: pricingFieldUnitLabel(unit, props.currency),
-    value: convertCanonicalUSDPriceToDisplayValue({
-      canonicalUSD: options.canonicalValue,
+    value: convertSourcePriceToDisplayValue({
+      sourcePrice: options.sourceValue,
       currency: props.currency,
       unit,
       usdToCnyRate: props.usdToCnyRate,
     }),
     secondaryText: buildBillingPricingAlternateText({
-      canonicalUSD: options.canonicalValue,
+      sourcePrice: options.sourceValue,
       currency: props.currency,
       unit,
       usdToCnyRate: props.usdToCnyRate,
@@ -492,7 +492,7 @@ function buildFieldDescriptor<T extends BillingPricingFieldId>(options: {
   }
 }
 
-function parseCanonicalPrice(
+function parseSourcePrice(
   field: BillingPricingFieldId,
   raw: string,
 ): number | undefined {
@@ -501,7 +501,7 @@ function parseCanonicalPrice(
     return undefined
   }
 
-  return convertDisplayValueToCanonicalUSD({
+  return convertDisplayValueToSourcePrice({
     displayValue,
     currency: props.currency,
     unit: resolvePricingFieldUnit(field, props.outputChargeSlot),
@@ -511,7 +511,7 @@ function parseCanonicalPrice(
 
 function updateRootNumber(field: RootNumberField, raw: string) {
   const next = cloneBillingPricingLayerForm(props.form)
-  next[field] = parseCanonicalPrice(field, raw) as BillingPricingLayerForm[RootNumberField]
+  next[field] = parseSourcePrice(field, raw) as BillingPricingLayerForm[RootNumberField]
   emitForm(next)
 }
 
@@ -520,8 +520,8 @@ function displayEffectiveValue(fieldId: BillingPricingFieldId): number | undefin
   if (effectiveValue == null) {
     return undefined
   }
-  return convertCanonicalUSDPriceToDisplayValue({
-    canonicalUSD: effectiveValue,
+  return convertSourcePriceToDisplayValue({
+    sourcePrice: effectiveValue,
     currency: props.currency,
     unit: resolvePricingFieldUnit(fieldId, props.outputChargeSlot),
     usdToCnyRate: props.usdToCnyRate,
@@ -539,7 +539,7 @@ function updateSpecialNumber(field: SpecialNumberField, raw: string) {
   const next = cloneBillingPricingLayerForm(props.form)
   next.special = {
     ...next.special,
-    [field]: parseCanonicalPrice(field, raw),
+    [field]: parseSourcePrice(field, raw),
   }
   next.special_enabled = true
   emitForm(next)

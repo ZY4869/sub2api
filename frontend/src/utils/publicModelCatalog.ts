@@ -62,12 +62,12 @@ export function formatCatalogPrice(
   t: Translate,
   entry: PublicModelCatalogPriceEntry,
   currency: string,
-  usdToCnyRate: number | null,
+  _usdToCnyRate: number | null,
 ): string {
   const nextCurrency = currency === "CNY" ? "CNY" : "USD";
   const symbol = nextCurrency === "CNY" ? "¥" : "$";
   const unit = resolveDisplayUnit(entry.unit);
-  const rawValue = convertCurrency(entry.value, nextCurrency, usdToCnyRate);
+  const rawValue = entry.value;
   const displayValue =
     unit === "per_million_tokens" ? rawValue * 1_000_000 : rawValue;
   const suffix =
@@ -95,20 +95,6 @@ function resolveDisplayUnit(
       }
       return "per_request";
   }
-}
-
-function convertCurrency(
-  value: number,
-  currency: string,
-  usdToCnyRate: number | null,
-): number {
-  if (currency !== "CNY") {
-    return value;
-  }
-  if (typeof usdToCnyRate === "number" && usdToCnyRate > 0) {
-    return value * usdToCnyRate;
-  }
-  return value;
 }
 
 function formatNumber(value: number): string {

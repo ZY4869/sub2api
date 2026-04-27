@@ -16,6 +16,8 @@ func cloneModelPricingOverride(override *ModelPricingOverride) *ModelPricingOver
 		return nil
 	}
 	copy := *override
+	copy.USDToCNYRate = cloneBillingFloat64(override.USDToCNYRate)
+	copy.FXLockedAt = cloneBillingTime(override.FXLockedAt)
 	return &copy
 }
 
@@ -71,6 +73,10 @@ func pricingFromLiteLLM(pricing *LiteLLMModelPricing) *ModelCatalogPricing {
 		return nil
 	}
 	return &ModelCatalogPricing{
+		Currency:                                 normalizeBillingCurrency(pricing.Currency),
+		USDToCNYRate:                             modelCatalogFloat64Ptr(pricing.USDToCNYRate),
+		FXRateDate:                               pricing.FXRateDate,
+		FXLockedAt:                               cloneBillingTime(pricing.FXLockedAt),
 		InputCostPerToken:                        modelCatalogFloat64Ptr(pricing.InputCostPerToken),
 		InputCostPerTokenPriority:                modelCatalogFloat64Ptr(pricing.InputCostPerTokenPriority),
 		InputTokenThreshold:                      modelCatalogPositiveIntPtr(pricing.InputTokenThreshold),
@@ -96,6 +102,10 @@ func pricingFromBilling(pricing *ModelPricing) *ModelCatalogPricing {
 		return nil
 	}
 	return &ModelCatalogPricing{
+		Currency:                                 normalizeBillingCurrency(pricing.Currency),
+		USDToCNYRate:                             modelCatalogFloat64Ptr(pricing.USDToCNYRate),
+		FXRateDate:                               pricing.FXRateDate,
+		FXLockedAt:                               cloneBillingTime(pricing.FXLockedAt),
 		InputCostPerToken:                        modelCatalogFloat64Ptr(pricing.InputPricePerToken),
 		InputCostPerTokenPriority:                modelCatalogFloat64Ptr(pricing.InputPricePerTokenPriority),
 		InputTokenThreshold:                      modelCatalogPositiveIntPtr(pricing.InputTokenThreshold),
@@ -139,12 +149,26 @@ func cloneCatalogPricing(pricing *ModelCatalogPricing) *ModelCatalogPricing {
 		return nil
 	}
 	copy := *pricing
+	copy.USDToCNYRate = cloneBillingFloat64(pricing.USDToCNYRate)
+	copy.FXLockedAt = cloneBillingTime(pricing.FXLockedAt)
 	return &copy
 }
 
 func mergeCatalogPricing(target *ModelCatalogPricing, patch *ModelCatalogPricing) {
 	if target == nil || patch == nil {
 		return
+	}
+	if currency := normalizeBillingCurrency(patch.Currency); currency != "" {
+		target.Currency = currency
+	}
+	if patch.USDToCNYRate != nil {
+		target.USDToCNYRate = modelCatalogFloat64Ptr(*patch.USDToCNYRate)
+	}
+	if patch.FXRateDate != "" {
+		target.FXRateDate = patch.FXRateDate
+	}
+	if patch.FXLockedAt != nil {
+		target.FXLockedAt = cloneBillingTime(patch.FXLockedAt)
 	}
 	assignFloat := func(dst **float64, src *float64) {
 		if src != nil {

@@ -25,6 +25,7 @@ TOKEN_FIELDS = {
 }
 INT_FIELDS = {"input_token_threshold", "output_token_threshold"}
 PRICING_FIELDS = [
+    "currency",
     "input_cost_per_token",
     "input_cost_per_token_priority",
     "input_token_threshold",
@@ -119,6 +120,9 @@ def normalize_overrides(raw: dict) -> dict:
 def format_value(field: str, value) -> str:
     if value is None:
         return ""
+    if field == "currency":
+        currency = str(value).strip().upper()
+        return currency if currency else "USD"
     if field in INT_FIELDS:
         return str(int(value))
     if field in TOKEN_FIELDS:
@@ -128,6 +132,7 @@ def format_value(field: str, value) -> str:
 
 def merge_pricing(base: dict, override: dict) -> dict:
     merged = {field: base.get(field) for field in PRICING_FIELDS}
+    merged["currency"] = merged.get("currency") or "USD"
     for field in PRICING_FIELDS:
         if override.get(field) is not None:
             merged[field] = override[field]

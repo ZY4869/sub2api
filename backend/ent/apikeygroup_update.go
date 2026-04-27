@@ -101,6 +101,18 @@ func (_u *APIKeyGroupUpdate) AddQuotaUsed(v float64) *APIKeyGroupUpdate {
 	return _u
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (_u *APIKeyGroupUpdate) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyGroupUpdate {
+	_u.mutation.SetQuotaUsedByCurrency(v)
+	return _u
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (_u *APIKeyGroupUpdate) ClearQuotaUsedByCurrency() *APIKeyGroupUpdate {
+	_u.mutation.ClearQuotaUsedByCurrency()
+	return _u
+}
+
 // SetModelPatterns sets the "model_patterns" field.
 func (_u *APIKeyGroupUpdate) SetModelPatterns(v []string) *APIKeyGroupUpdate {
 	_u.mutation.SetModelPatterns(v)
@@ -222,6 +234,12 @@ func (_u *APIKeyGroupUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.AddedQuotaUsed(); ok {
 		_spec.AddField(apikeygroup.FieldQuotaUsed, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.QuotaUsedByCurrency(); ok {
+		_spec.SetField(apikeygroup.FieldQuotaUsedByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaUsedByCurrencyCleared() {
+		_spec.ClearField(apikeygroup.FieldQuotaUsedByCurrency, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ModelPatterns(); ok {
 		_spec.SetField(apikeygroup.FieldModelPatterns, field.TypeJSON, value)
@@ -385,6 +403,18 @@ func (_u *APIKeyGroupUpdateOne) AddQuotaUsed(v float64) *APIKeyGroupUpdateOne {
 	return _u
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (_u *APIKeyGroupUpdateOne) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyGroupUpdateOne {
+	_u.mutation.SetQuotaUsedByCurrency(v)
+	return _u
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (_u *APIKeyGroupUpdateOne) ClearQuotaUsedByCurrency() *APIKeyGroupUpdateOne {
+	_u.mutation.ClearQuotaUsedByCurrency()
+	return _u
+}
+
 // SetModelPatterns sets the "model_patterns" field.
 func (_u *APIKeyGroupUpdateOne) SetModelPatterns(v []string) *APIKeyGroupUpdateOne {
 	_u.mutation.SetModelPatterns(v)
@@ -538,6 +568,12 @@ func (_u *APIKeyGroupUpdateOne) sqlSave(ctx context.Context) (_node *APIKeyGroup
 	}
 	if value, ok := _u.mutation.AddedQuotaUsed(); ok {
 		_spec.AddField(apikeygroup.FieldQuotaUsed, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.QuotaUsedByCurrency(); ok {
+		_spec.SetField(apikeygroup.FieldQuotaUsedByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaUsedByCurrencyCleared() {
+		_spec.ClearField(apikeygroup.FieldQuotaUsedByCurrency, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ModelPatterns(); ok {
 		_spec.SetField(apikeygroup.FieldModelPatterns, field.TypeJSON, value)

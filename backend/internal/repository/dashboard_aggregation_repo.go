@@ -329,8 +329,8 @@ func (r *dashboardAggregationRepository) upsertHourlyAggregates(ctx context.Cont
 				COALESCE(SUM(output_tokens), 0) AS output_tokens,
 				COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
 				COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
-				COALESCE(SUM(total_cost), 0) AS total_cost,
-				COALESCE(SUM(actual_cost), 0) AS actual_cost,
+				COALESCE(SUM(total_cost_usd_equivalent), 0) AS total_cost,
+				COALESCE(SUM(actual_cost_usd_equivalent), 0) AS actual_cost,
 				COALESCE(SUM(COALESCE(duration_ms, 0)), 0) AS total_duration_ms
 			FROM usage_logs
 			WHERE created_at >= $1 AND created_at < $2

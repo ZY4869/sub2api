@@ -682,7 +682,20 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 	}
 
 	if balance <= 0 {
-		return ErrInsufficientBalance
+		if s.userRepo == nil {
+			return ErrInsufficientBalance
+		}
+		user, userErr := s.userRepo.GetByID(ctx, userID)
+		if userErr != nil {
+			if s.circuitBreaker != nil {
+				s.circuitBreaker.OnFailure(userErr)
+			}
+			logger.LegacyPrintf("service.billing_cache", "ALERT: billing wallet check failed for user %d: %v", userID, userErr)
+			return ErrBillingServiceUnavailable.WithCause(userErr)
+		}
+		if !user.HasUsableBillingBalance() {
+			return ErrInsufficientBalance
+		}
 	}
 
 	return nil

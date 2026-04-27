@@ -67,6 +67,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		if pricing, ok := s.resolveDynamicPricing(record); ok {
 			record.upstreamPricing = pricingFromLiteLLM(pricing)
 			record.basePricingSource = ModelCatalogPricingSourceDynamic
+			record.pricingCurrency = defaultModelPricingCurrency(record.upstreamPricing.Currency)
 			mergeRecordMetadata(record, pricing.LiteLLMProvider, pricing.Mode)
 			record.supportsPromptCaching = pricing.SupportsPromptCaching
 			record.supportsServiceTier = pricing.SupportsServiceTier
@@ -76,6 +77,7 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		} else if pricing, ok := s.resolveFallbackPricing(record); ok {
 			record.upstreamPricing = pricingFromBilling(pricing)
 			record.basePricingSource = ModelCatalogPricingSourceFallback
+			record.pricingCurrency = defaultModelPricingCurrency(record.upstreamPricing.Currency)
 			record.longContextInputTokenThreshold = pricing.LongContextInputThreshold
 			record.longContextInputCostMultiplier = pricing.LongContextInputMultiplier
 			record.longContextOutputCostMultiplier = pricing.LongContextOutputMultiplier
@@ -103,6 +105,13 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 			continue
 		}
 		record.pricingCurrency = defaultModelPricingCurrency(pref.Currency)
+		meta := modelPricingMetadataFromPreference(pref)
+		if record.officialOverridePricing != nil {
+			applyCurrencyMetadataToCatalogPricing(&record.officialOverridePricing.ModelCatalogPricing, meta)
+		}
+		if record.saleOverridePricing != nil {
+			applyCurrencyMetadataToCatalogPricing(&record.saleOverridePricing.ModelCatalogPricing, meta)
+		}
 	}
 	for _, record := range records {
 		if record.provider == "" {
@@ -117,7 +126,13 @@ func (s *ModelCatalogService) buildCatalogRecords(ctx context.Context) (map[stri
 		if record.displayName == "" {
 			record.displayName = FormatModelCatalogDisplayName(record.model)
 		}
-		record.pricingCurrency = defaultModelPricingCurrency(record.pricingCurrency)
+		if record.saleOverridePricing != nil && normalizeModelPricingCurrency(record.saleOverridePricing.Currency) != "" {
+			record.pricingCurrency = defaultModelPricingCurrency(record.saleOverridePricing.Currency)
+		} else if record.officialOverridePricing != nil && normalizeModelPricingCurrency(record.officialOverridePricing.Currency) != "" {
+			record.pricingCurrency = defaultModelPricingCurrency(record.officialOverridePricing.Currency)
+		} else {
+			record.pricingCurrency = defaultModelPricingCurrency(record.pricingCurrency)
+		}
 		record.iconKey = InferModelCatalogIconKey(record.model)
 		record.officialPricing = applyPricingOverride(record.upstreamPricing, record.officialOverridePricing)
 		record.salePricing = applyPricingOverride(record.officialPricing, record.saleOverridePricing)

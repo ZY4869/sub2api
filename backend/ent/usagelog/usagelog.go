@@ -56,6 +56,18 @@ const (
 	FieldTotalCost = "total_cost"
 	// FieldActualCost holds the string denoting the actual_cost field in the database.
 	FieldActualCost = "actual_cost"
+	// FieldBillingCurrency holds the string denoting the billing_currency field in the database.
+	FieldBillingCurrency = "billing_currency"
+	// FieldTotalCostUsdEquivalent holds the string denoting the total_cost_usd_equivalent field in the database.
+	FieldTotalCostUsdEquivalent = "total_cost_usd_equivalent"
+	// FieldActualCostUsdEquivalent holds the string denoting the actual_cost_usd_equivalent field in the database.
+	FieldActualCostUsdEquivalent = "actual_cost_usd_equivalent"
+	// FieldUsdToCnyRate holds the string denoting the usd_to_cny_rate field in the database.
+	FieldUsdToCnyRate = "usd_to_cny_rate"
+	// FieldFxRateDate holds the string denoting the fx_rate_date field in the database.
+	FieldFxRateDate = "fx_rate_date"
+	// FieldFxLockedAt holds the string denoting the fx_locked_at field in the database.
+	FieldFxLockedAt = "fx_locked_at"
 	// FieldBillingExemptReason holds the string denoting the billing_exempt_reason field in the database.
 	FieldBillingExemptReason = "billing_exempt_reason"
 	// FieldThinkingEnabled holds the string denoting the thinking_enabled field in the database.
@@ -157,6 +169,12 @@ var Columns = []string{
 	FieldCacheReadCost,
 	FieldTotalCost,
 	FieldActualCost,
+	FieldBillingCurrency,
+	FieldTotalCostUsdEquivalent,
+	FieldActualCostUsdEquivalent,
+	FieldUsdToCnyRate,
+	FieldFxRateDate,
+	FieldFxLockedAt,
 	FieldBillingExemptReason,
 	FieldThinkingEnabled,
 	FieldRateMultiplier,
@@ -216,6 +234,18 @@ var (
 	DefaultTotalCost float64
 	// DefaultActualCost holds the default value on creation for the "actual_cost" field.
 	DefaultActualCost float64
+	// DefaultBillingCurrency holds the default value on creation for the "billing_currency" field.
+	DefaultBillingCurrency string
+	// BillingCurrencyValidator is a validator for the "billing_currency" field. It is called by the builders before save.
+	BillingCurrencyValidator func(string) error
+	// DefaultTotalCostUsdEquivalent holds the default value on creation for the "total_cost_usd_equivalent" field.
+	DefaultTotalCostUsdEquivalent float64
+	// DefaultActualCostUsdEquivalent holds the default value on creation for the "actual_cost_usd_equivalent" field.
+	DefaultActualCostUsdEquivalent float64
+	// DefaultUsdToCnyRate holds the default value on creation for the "usd_to_cny_rate" field.
+	DefaultUsdToCnyRate float64
+	// FxRateDateValidator is a validator for the "fx_rate_date" field. It is called by the builders before save.
+	FxRateDateValidator func(string) error
 	// BillingExemptReasonValidator is a validator for the "billing_exempt_reason" field. It is called by the builders before save.
 	BillingExemptReasonValidator func(string) error
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
@@ -349,6 +379,36 @@ func ByTotalCost(opts ...sql.OrderTermOption) OrderOption {
 // ByActualCost orders the results by the actual_cost field.
 func ByActualCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActualCost, opts...).ToFunc()
+}
+
+// ByBillingCurrency orders the results by the billing_currency field.
+func ByBillingCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingCurrency, opts...).ToFunc()
+}
+
+// ByTotalCostUsdEquivalent orders the results by the total_cost_usd_equivalent field.
+func ByTotalCostUsdEquivalent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotalCostUsdEquivalent, opts...).ToFunc()
+}
+
+// ByActualCostUsdEquivalent orders the results by the actual_cost_usd_equivalent field.
+func ByActualCostUsdEquivalent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActualCostUsdEquivalent, opts...).ToFunc()
+}
+
+// ByUsdToCnyRate orders the results by the usd_to_cny_rate field.
+func ByUsdToCnyRate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUsdToCnyRate, opts...).ToFunc()
+}
+
+// ByFxRateDate orders the results by the fx_rate_date field.
+func ByFxRateDate(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFxRateDate, opts...).ToFunc()
+}
+
+// ByFxLockedAt orders the results by the fx_locked_at field.
+func ByFxLockedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFxLockedAt, opts...).ToFunc()
 }
 
 // ByBillingExemptReason orders the results by the billing_exempt_reason field.

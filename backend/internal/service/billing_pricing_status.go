@@ -90,7 +90,29 @@ func deriveBillingPricingStatus(
 	if len(conflictWarnings) > 0 {
 		status = BillingPricingStatusConflict
 	}
+	if recordHasCNYPricingWithoutLockedFX(record) {
+		if status != BillingPricingStatusConflict {
+			status = BillingPricingStatusMissing
+		}
+		warnings = append(warnings, "CNY pricing is missing a locked USD/CNY rate.")
+	}
 	return status, compactStrings(warnings)
+}
+
+func recordHasCNYPricingWithoutLockedFX(record *modelCatalogRecord) bool {
+	if record == nil || defaultModelPricingCurrency(record.pricingCurrency) != ModelPricingCurrencyCNY {
+		return false
+	}
+	for _, pricing := range []*ModelCatalogPricing{record.salePricing, record.officialPricing, record.upstreamPricing} {
+		if pricingEmpty(pricing) {
+			continue
+		}
+		if pricing.USDToCNYRate == nil || *pricing.USDToCNYRate <= 0 || pricing.FXLockedAt == nil || pricing.FXLockedAt.IsZero() {
+			return true
+		}
+		return false
+	}
+	return false
 }
 
 func billingPricingStatusForRecord(record *modelCatalogRecord) BillingPricingStatus {

@@ -749,6 +749,7 @@ func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *Use
 		}
 		sub.DailyWindowStart = &windowStart
 		sub.DailyUsageUSD = 0
+		sub.DailyUsageByCurrency = nil
 		needsInvalidateCache = true
 	}
 
@@ -759,6 +760,7 @@ func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *Use
 		}
 		sub.WeeklyWindowStart = &windowStart
 		sub.WeeklyUsageUSD = 0
+		sub.WeeklyUsageByCurrency = nil
 		needsInvalidateCache = true
 	}
 
@@ -769,6 +771,7 @@ func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *Use
 		}
 		sub.MonthlyWindowStart = &windowStart
 		sub.MonthlyUsageUSD = 0
+		sub.MonthlyUsageByCurrency = nil
 		needsInvalidateCache = true
 	}
 
@@ -817,14 +820,17 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 	//    实际的 DB 窗口重置由 DoWindowMaintenance 异步完成
 	if sub.NeedsDailyReset() {
 		sub.DailyUsageUSD = 0
+		sub.DailyUsageByCurrency = nil
 		needsMaintenance = true
 	}
 	if sub.NeedsWeeklyReset() {
 		sub.WeeklyUsageUSD = 0
+		sub.WeeklyUsageByCurrency = nil
 		needsMaintenance = true
 	}
 	if sub.NeedsMonthlyReset() {
 		sub.MonthlyUsageUSD = 0
+		sub.MonthlyUsageByCurrency = nil
 		needsMaintenance = true
 	}
 	if !sub.IsWindowActivated() {

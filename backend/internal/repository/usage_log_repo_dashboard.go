@@ -109,7 +109,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 	adminFreeQuery := `
 		SELECT
 			COUNT(*),
-			COALESCE(SUM(total_cost), 0)
+			COALESCE(SUM(total_cost_usd_equivalent), 0)
 		FROM usage_logs
 		WHERE billing_exempt_reason = $1
 	`
@@ -120,6 +120,12 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 	if stats.TotalRequests > 0 {
 		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
 	}
+	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "", nil)
+	if err != nil {
+		return err
+	}
+	stats.CostByCurrency = costByCurrency
+	stats.ActualCostByCurrency = actualCostByCurrency
 	todayStatsQuery := `
 		SELECT
 			total_requests as today_requests,
@@ -139,6 +145,12 @@ func (r *usageLogRepository) fillDashboardUsageStatsAggregated(ctx context.Conte
 		}
 	}
 	stats.TodayTokens = stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+	todayCostByCurrency, todayActualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "WHERE created_at >= $1", []any{todayUTC})
+	if err != nil {
+		return err
+	}
+	stats.TodayCostByCurrency = todayCostByCurrency
+	stats.TodayActualCostByCurrency = todayActualCostByCurrency
 	hourlyActiveQuery := `
 		SELECT active_users
 		FROM usage_dashboard_hourly
@@ -163,8 +175,8 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 				cache_creation_tokens,
 				cache_read_tokens,
 				billing_exempt_reason,
-				total_cost,
-				actual_cost,
+				total_cost_usd_equivalent AS total_cost_usd,
+				actual_cost_usd_equivalent AS actual_cost_usd,
 				COALESCE(duration_ms, 0) AS duration_ms
 			FROM usage_logs
 			WHERE created_at >= LEAST($1::timestamptz, $3::timestamptz)
@@ -176,18 +188,18 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 			COALESCE(SUM(output_tokens) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_output_tokens,
 			COALESCE(SUM(cache_creation_tokens) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_cache_read_tokens,
-			COALESCE(SUM(total_cost) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_cost,
-			COALESCE(SUM(actual_cost) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_actual_cost,
+			COALESCE(SUM(total_cost_usd) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_cost,
+			COALESCE(SUM(actual_cost_usd) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_actual_cost,
 			COUNT(*) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz AND billing_exempt_reason = 'admin_free') AS admin_free_requests,
-			COALESCE(SUM(total_cost) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz AND billing_exempt_reason = 'admin_free'), 0) AS admin_free_standard_cost,
+			COALESCE(SUM(total_cost_usd) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz AND billing_exempt_reason = 'admin_free'), 0) AS admin_free_standard_cost,
 			COALESCE(SUM(duration_ms) FILTER (WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz), 0) AS total_duration_ms,
 			COUNT(*) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz) AS today_requests,
 			COALESCE(SUM(input_tokens) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_input_tokens,
 			COALESCE(SUM(output_tokens) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_output_tokens,
 			COALESCE(SUM(cache_creation_tokens) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_cache_read_tokens,
-			COALESCE(SUM(total_cost) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_cost,
-			COALESCE(SUM(actual_cost) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_actual_cost
+			COALESCE(SUM(total_cost_usd) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_cost,
+			COALESCE(SUM(actual_cost_usd) FILTER (WHERE created_at >= $3::timestamptz AND created_at < $4::timestamptz), 0) AS today_actual_cost
 		FROM scoped
 	`
 	var totalDurationMs int64
@@ -198,7 +210,19 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 	if stats.TotalRequests > 0 {
 		stats.AverageDurationMs = float64(totalDurationMs) / float64(stats.TotalRequests)
 	}
+	costByCurrency, actualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "WHERE created_at >= $1 AND created_at < $2", []any{startUTC, endUTC})
+	if err != nil {
+		return err
+	}
+	stats.CostByCurrency = costByCurrency
+	stats.ActualCostByCurrency = actualCostByCurrency
 	stats.TodayTokens = stats.TodayInputTokens + stats.TodayOutputTokens + stats.TodayCacheCreationTokens + stats.TodayCacheReadTokens
+	todayCostByCurrency, todayActualCostByCurrency, err := queryUsageCostByCurrency(ctx, r.sql, "WHERE created_at >= $1 AND created_at < $2", []any{todayUTC, todayEnd})
+	if err != nil {
+		return err
+	}
+	stats.TodayCostByCurrency = todayCostByCurrency
+	stats.TodayActualCostByCurrency = todayActualCostByCurrency
 	hourStart := now.UTC().Truncate(time.Hour)
 	hourEnd := hourStart.Add(time.Hour)
 	activeUsersQuery := `

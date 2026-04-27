@@ -117,7 +117,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				subscriptionService.DoWindowMaintenance(&maintenanceCopy)
 			}
 		} else if !dynamicGroupRouting {
-			if apiKey.User.Balance <= 0 {
+			if !apiKey.User.HasUsableBillingBalance() {
 				abortWithGoogleError(c, 403, "Insufficient account balance")
 				return
 			}

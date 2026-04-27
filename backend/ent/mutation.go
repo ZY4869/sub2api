@@ -101,6 +101,7 @@ type APIKeyMutation struct {
 	addquota                    *float64
 	quota_used                  *float64
 	addquota_used               *float64
+	quota_used_by_currency      *map[string]float64
 	expires_at                  *time.Time
 	rate_limit_5h               *float64
 	addrate_limit_5h            *float64
@@ -110,10 +111,13 @@ type APIKeyMutation struct {
 	addrate_limit_7d            *float64
 	usage_5h                    *float64
 	addusage_5h                 *float64
+	usage_5h_by_currency        *map[string]float64
 	usage_1d                    *float64
 	addusage_1d                 *float64
+	usage_1d_by_currency        *map[string]float64
 	usage_7d                    *float64
 	addusage_7d                 *float64
+	usage_7d_by_currency        *map[string]float64
 	window_5h_start             *time.Time
 	window_1d_start             *time.Time
 	window_7d_start             *time.Time
@@ -1056,6 +1060,55 @@ func (m *APIKeyMutation) ResetQuotaUsed() {
 	m.addquota_used = nil
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (m *APIKeyMutation) SetQuotaUsedByCurrency(value map[string]float64) {
+	m.quota_used_by_currency = &value
+}
+
+// QuotaUsedByCurrency returns the value of the "quota_used_by_currency" field in the mutation.
+func (m *APIKeyMutation) QuotaUsedByCurrency() (r map[string]float64, exists bool) {
+	v := m.quota_used_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaUsedByCurrency returns the old "quota_used_by_currency" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldQuotaUsedByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaUsedByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaUsedByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaUsedByCurrency: %w", err)
+	}
+	return oldValue.QuotaUsedByCurrency, nil
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (m *APIKeyMutation) ClearQuotaUsedByCurrency() {
+	m.quota_used_by_currency = nil
+	m.clearedFields[apikey.FieldQuotaUsedByCurrency] = struct{}{}
+}
+
+// QuotaUsedByCurrencyCleared returns if the "quota_used_by_currency" field was cleared in this mutation.
+func (m *APIKeyMutation) QuotaUsedByCurrencyCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldQuotaUsedByCurrency]
+	return ok
+}
+
+// ResetQuotaUsedByCurrency resets all changes to the "quota_used_by_currency" field.
+func (m *APIKeyMutation) ResetQuotaUsedByCurrency() {
+	m.quota_used_by_currency = nil
+	delete(m.clearedFields, apikey.FieldQuotaUsedByCurrency)
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (m *APIKeyMutation) SetExpiresAt(t time.Time) {
 	m.expires_at = &t
@@ -1329,6 +1382,55 @@ func (m *APIKeyMutation) ResetUsage5h() {
 	m.addusage_5h = nil
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (m *APIKeyMutation) SetUsage5hByCurrency(value map[string]float64) {
+	m.usage_5h_by_currency = &value
+}
+
+// Usage5hByCurrency returns the value of the "usage_5h_by_currency" field in the mutation.
+func (m *APIKeyMutation) Usage5hByCurrency() (r map[string]float64, exists bool) {
+	v := m.usage_5h_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsage5hByCurrency returns the old "usage_5h_by_currency" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldUsage5hByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsage5hByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsage5hByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsage5hByCurrency: %w", err)
+	}
+	return oldValue.Usage5hByCurrency, nil
+}
+
+// ClearUsage5hByCurrency clears the value of the "usage_5h_by_currency" field.
+func (m *APIKeyMutation) ClearUsage5hByCurrency() {
+	m.usage_5h_by_currency = nil
+	m.clearedFields[apikey.FieldUsage5hByCurrency] = struct{}{}
+}
+
+// Usage5hByCurrencyCleared returns if the "usage_5h_by_currency" field was cleared in this mutation.
+func (m *APIKeyMutation) Usage5hByCurrencyCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldUsage5hByCurrency]
+	return ok
+}
+
+// ResetUsage5hByCurrency resets all changes to the "usage_5h_by_currency" field.
+func (m *APIKeyMutation) ResetUsage5hByCurrency() {
+	m.usage_5h_by_currency = nil
+	delete(m.clearedFields, apikey.FieldUsage5hByCurrency)
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (m *APIKeyMutation) SetUsage1d(f float64) {
 	m.usage_1d = &f
@@ -1385,6 +1487,55 @@ func (m *APIKeyMutation) ResetUsage1d() {
 	m.addusage_1d = nil
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (m *APIKeyMutation) SetUsage1dByCurrency(value map[string]float64) {
+	m.usage_1d_by_currency = &value
+}
+
+// Usage1dByCurrency returns the value of the "usage_1d_by_currency" field in the mutation.
+func (m *APIKeyMutation) Usage1dByCurrency() (r map[string]float64, exists bool) {
+	v := m.usage_1d_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsage1dByCurrency returns the old "usage_1d_by_currency" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldUsage1dByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsage1dByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsage1dByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsage1dByCurrency: %w", err)
+	}
+	return oldValue.Usage1dByCurrency, nil
+}
+
+// ClearUsage1dByCurrency clears the value of the "usage_1d_by_currency" field.
+func (m *APIKeyMutation) ClearUsage1dByCurrency() {
+	m.usage_1d_by_currency = nil
+	m.clearedFields[apikey.FieldUsage1dByCurrency] = struct{}{}
+}
+
+// Usage1dByCurrencyCleared returns if the "usage_1d_by_currency" field was cleared in this mutation.
+func (m *APIKeyMutation) Usage1dByCurrencyCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldUsage1dByCurrency]
+	return ok
+}
+
+// ResetUsage1dByCurrency resets all changes to the "usage_1d_by_currency" field.
+func (m *APIKeyMutation) ResetUsage1dByCurrency() {
+	m.usage_1d_by_currency = nil
+	delete(m.clearedFields, apikey.FieldUsage1dByCurrency)
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (m *APIKeyMutation) SetUsage7d(f float64) {
 	m.usage_7d = &f
@@ -1439,6 +1590,55 @@ func (m *APIKeyMutation) AddedUsage7d() (r float64, exists bool) {
 func (m *APIKeyMutation) ResetUsage7d() {
 	m.usage_7d = nil
 	m.addusage_7d = nil
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (m *APIKeyMutation) SetUsage7dByCurrency(value map[string]float64) {
+	m.usage_7d_by_currency = &value
+}
+
+// Usage7dByCurrency returns the value of the "usage_7d_by_currency" field in the mutation.
+func (m *APIKeyMutation) Usage7dByCurrency() (r map[string]float64, exists bool) {
+	v := m.usage_7d_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsage7dByCurrency returns the old "usage_7d_by_currency" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldUsage7dByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsage7dByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsage7dByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsage7dByCurrency: %w", err)
+	}
+	return oldValue.Usage7dByCurrency, nil
+}
+
+// ClearUsage7dByCurrency clears the value of the "usage_7d_by_currency" field.
+func (m *APIKeyMutation) ClearUsage7dByCurrency() {
+	m.usage_7d_by_currency = nil
+	m.clearedFields[apikey.FieldUsage7dByCurrency] = struct{}{}
+}
+
+// Usage7dByCurrencyCleared returns if the "usage_7d_by_currency" field was cleared in this mutation.
+func (m *APIKeyMutation) Usage7dByCurrencyCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldUsage7dByCurrency]
+	return ok
+}
+
+// ResetUsage7dByCurrency resets all changes to the "usage_7d_by_currency" field.
+func (m *APIKeyMutation) ResetUsage7dByCurrency() {
+	m.usage_7d_by_currency = nil
+	delete(m.clearedFields, apikey.FieldUsage7dByCurrency)
 }
 
 // SetWindow5hStart sets the "window_5h_start" field.
@@ -1784,7 +1984,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -1839,6 +2039,9 @@ func (m *APIKeyMutation) Fields() []string {
 	if m.quota_used != nil {
 		fields = append(fields, apikey.FieldQuotaUsed)
 	}
+	if m.quota_used_by_currency != nil {
+		fields = append(fields, apikey.FieldQuotaUsedByCurrency)
+	}
 	if m.expires_at != nil {
 		fields = append(fields, apikey.FieldExpiresAt)
 	}
@@ -1854,11 +2057,20 @@ func (m *APIKeyMutation) Fields() []string {
 	if m.usage_5h != nil {
 		fields = append(fields, apikey.FieldUsage5h)
 	}
+	if m.usage_5h_by_currency != nil {
+		fields = append(fields, apikey.FieldUsage5hByCurrency)
+	}
 	if m.usage_1d != nil {
 		fields = append(fields, apikey.FieldUsage1d)
 	}
+	if m.usage_1d_by_currency != nil {
+		fields = append(fields, apikey.FieldUsage1dByCurrency)
+	}
 	if m.usage_7d != nil {
 		fields = append(fields, apikey.FieldUsage7d)
+	}
+	if m.usage_7d_by_currency != nil {
+		fields = append(fields, apikey.FieldUsage7dByCurrency)
 	}
 	if m.window_5h_start != nil {
 		fields = append(fields, apikey.FieldWindow5hStart)
@@ -1913,6 +2125,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.Quota()
 	case apikey.FieldQuotaUsed:
 		return m.QuotaUsed()
+	case apikey.FieldQuotaUsedByCurrency:
+		return m.QuotaUsedByCurrency()
 	case apikey.FieldExpiresAt:
 		return m.ExpiresAt()
 	case apikey.FieldRateLimit5h:
@@ -1923,10 +2137,16 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.RateLimit7d()
 	case apikey.FieldUsage5h:
 		return m.Usage5h()
+	case apikey.FieldUsage5hByCurrency:
+		return m.Usage5hByCurrency()
 	case apikey.FieldUsage1d:
 		return m.Usage1d()
+	case apikey.FieldUsage1dByCurrency:
+		return m.Usage1dByCurrency()
 	case apikey.FieldUsage7d:
 		return m.Usage7d()
+	case apikey.FieldUsage7dByCurrency:
+		return m.Usage7dByCurrency()
 	case apikey.FieldWindow5hStart:
 		return m.Window5hStart()
 	case apikey.FieldWindow1dStart:
@@ -1978,6 +2198,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldQuota(ctx)
 	case apikey.FieldQuotaUsed:
 		return m.OldQuotaUsed(ctx)
+	case apikey.FieldQuotaUsedByCurrency:
+		return m.OldQuotaUsedByCurrency(ctx)
 	case apikey.FieldExpiresAt:
 		return m.OldExpiresAt(ctx)
 	case apikey.FieldRateLimit5h:
@@ -1988,10 +2210,16 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldRateLimit7d(ctx)
 	case apikey.FieldUsage5h:
 		return m.OldUsage5h(ctx)
+	case apikey.FieldUsage5hByCurrency:
+		return m.OldUsage5hByCurrency(ctx)
 	case apikey.FieldUsage1d:
 		return m.OldUsage1d(ctx)
+	case apikey.FieldUsage1dByCurrency:
+		return m.OldUsage1dByCurrency(ctx)
 	case apikey.FieldUsage7d:
 		return m.OldUsage7d(ctx)
+	case apikey.FieldUsage7dByCurrency:
+		return m.OldUsage7dByCurrency(ctx)
 	case apikey.FieldWindow5hStart:
 		return m.OldWindow5hStart(ctx)
 	case apikey.FieldWindow1dStart:
@@ -2133,6 +2361,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetQuotaUsed(v)
 		return nil
+	case apikey.FieldQuotaUsedByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaUsedByCurrency(v)
+		return nil
 	case apikey.FieldExpiresAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -2168,6 +2403,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUsage5h(v)
 		return nil
+	case apikey.FieldUsage5hByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsage5hByCurrency(v)
+		return nil
 	case apikey.FieldUsage1d:
 		v, ok := value.(float64)
 		if !ok {
@@ -2175,12 +2417,26 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUsage1d(v)
 		return nil
+	case apikey.FieldUsage1dByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsage1dByCurrency(v)
+		return nil
 	case apikey.FieldUsage7d:
 		v, ok := value.(float64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUsage7d(v)
+		return nil
+	case apikey.FieldUsage7dByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsage7dByCurrency(v)
 		return nil
 	case apikey.FieldWindow5hStart:
 		v, ok := value.(time.Time)
@@ -2371,8 +2627,20 @@ func (m *APIKeyMutation) ClearedFields() []string {
 	if m.FieldCleared(apikey.FieldIPBlacklist) {
 		fields = append(fields, apikey.FieldIPBlacklist)
 	}
+	if m.FieldCleared(apikey.FieldQuotaUsedByCurrency) {
+		fields = append(fields, apikey.FieldQuotaUsedByCurrency)
+	}
 	if m.FieldCleared(apikey.FieldExpiresAt) {
 		fields = append(fields, apikey.FieldExpiresAt)
+	}
+	if m.FieldCleared(apikey.FieldUsage5hByCurrency) {
+		fields = append(fields, apikey.FieldUsage5hByCurrency)
+	}
+	if m.FieldCleared(apikey.FieldUsage1dByCurrency) {
+		fields = append(fields, apikey.FieldUsage1dByCurrency)
+	}
+	if m.FieldCleared(apikey.FieldUsage7dByCurrency) {
+		fields = append(fields, apikey.FieldUsage7dByCurrency)
 	}
 	if m.FieldCleared(apikey.FieldWindow5hStart) {
 		fields = append(fields, apikey.FieldWindow5hStart)
@@ -2412,8 +2680,20 @@ func (m *APIKeyMutation) ClearField(name string) error {
 	case apikey.FieldIPBlacklist:
 		m.ClearIPBlacklist()
 		return nil
+	case apikey.FieldQuotaUsedByCurrency:
+		m.ClearQuotaUsedByCurrency()
+		return nil
 	case apikey.FieldExpiresAt:
 		m.ClearExpiresAt()
+		return nil
+	case apikey.FieldUsage5hByCurrency:
+		m.ClearUsage5hByCurrency()
+		return nil
+	case apikey.FieldUsage1dByCurrency:
+		m.ClearUsage1dByCurrency()
+		return nil
+	case apikey.FieldUsage7dByCurrency:
+		m.ClearUsage7dByCurrency()
 		return nil
 	case apikey.FieldWindow5hStart:
 		m.ClearWindow5hStart()
@@ -2486,6 +2766,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 	case apikey.FieldQuotaUsed:
 		m.ResetQuotaUsed()
 		return nil
+	case apikey.FieldQuotaUsedByCurrency:
+		m.ResetQuotaUsedByCurrency()
+		return nil
 	case apikey.FieldExpiresAt:
 		m.ResetExpiresAt()
 		return nil
@@ -2501,11 +2784,20 @@ func (m *APIKeyMutation) ResetField(name string) error {
 	case apikey.FieldUsage5h:
 		m.ResetUsage5h()
 		return nil
+	case apikey.FieldUsage5hByCurrency:
+		m.ResetUsage5hByCurrency()
+		return nil
 	case apikey.FieldUsage1d:
 		m.ResetUsage1d()
 		return nil
+	case apikey.FieldUsage1dByCurrency:
+		m.ResetUsage1dByCurrency()
+		return nil
 	case apikey.FieldUsage7d:
 		m.ResetUsage7d()
+		return nil
+	case apikey.FieldUsage7dByCurrency:
+		m.ResetUsage7dByCurrency()
 		return nil
 	case apikey.FieldWindow5hStart:
 		m.ResetWindow5hStart()
@@ -2669,24 +2961,25 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 // APIKeyGroupMutation represents an operation that mutates the APIKeyGroup nodes in the graph.
 type APIKeyGroupMutation struct {
 	config
-	op                   Op
-	typ                  string
-	quota                *float64
-	addquota             *float64
-	quota_used           *float64
-	addquota_used        *float64
-	model_patterns       *[]string
-	appendmodel_patterns []string
-	created_at           *time.Time
-	updated_at           *time.Time
-	clearedFields        map[string]struct{}
-	api_key              *int64
-	clearedapi_key       bool
-	group                *int64
-	clearedgroup         bool
-	done                 bool
-	oldValue             func(context.Context) (*APIKeyGroup, error)
-	predicates           []predicate.APIKeyGroup
+	op                     Op
+	typ                    string
+	quota                  *float64
+	addquota               *float64
+	quota_used             *float64
+	addquota_used          *float64
+	quota_used_by_currency *map[string]float64
+	model_patterns         *[]string
+	appendmodel_patterns   []string
+	created_at             *time.Time
+	updated_at             *time.Time
+	clearedFields          map[string]struct{}
+	api_key                *int64
+	clearedapi_key         bool
+	group                  *int64
+	clearedgroup           bool
+	done                   bool
+	oldValue               func(context.Context) (*APIKeyGroup, error)
+	predicates             []predicate.APIKeyGroup
 }
 
 var _ ent.Mutation = (*APIKeyGroupMutation)(nil)
@@ -2841,6 +3134,38 @@ func (m *APIKeyGroupMutation) AddedQuotaUsed() (r float64, exists bool) {
 func (m *APIKeyGroupMutation) ResetQuotaUsed() {
 	m.quota_used = nil
 	m.addquota_used = nil
+}
+
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (m *APIKeyGroupMutation) SetQuotaUsedByCurrency(value map[string]float64) {
+	m.quota_used_by_currency = &value
+}
+
+// QuotaUsedByCurrency returns the value of the "quota_used_by_currency" field in the mutation.
+func (m *APIKeyGroupMutation) QuotaUsedByCurrency() (r map[string]float64, exists bool) {
+	v := m.quota_used_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (m *APIKeyGroupMutation) ClearQuotaUsedByCurrency() {
+	m.quota_used_by_currency = nil
+	m.clearedFields[apikeygroup.FieldQuotaUsedByCurrency] = struct{}{}
+}
+
+// QuotaUsedByCurrencyCleared returns if the "quota_used_by_currency" field was cleared in this mutation.
+func (m *APIKeyGroupMutation) QuotaUsedByCurrencyCleared() bool {
+	_, ok := m.clearedFields[apikeygroup.FieldQuotaUsedByCurrency]
+	return ok
+}
+
+// ResetQuotaUsedByCurrency resets all changes to the "quota_used_by_currency" field.
+func (m *APIKeyGroupMutation) ResetQuotaUsedByCurrency() {
+	m.quota_used_by_currency = nil
+	delete(m.clearedFields, apikeygroup.FieldQuotaUsedByCurrency)
 }
 
 // SetModelPatterns sets the "model_patterns" field.
@@ -3017,7 +3342,7 @@ func (m *APIKeyGroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyGroupMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.api_key != nil {
 		fields = append(fields, apikeygroup.FieldAPIKeyID)
 	}
@@ -3029,6 +3354,9 @@ func (m *APIKeyGroupMutation) Fields() []string {
 	}
 	if m.quota_used != nil {
 		fields = append(fields, apikeygroup.FieldQuotaUsed)
+	}
+	if m.quota_used_by_currency != nil {
+		fields = append(fields, apikeygroup.FieldQuotaUsedByCurrency)
 	}
 	if m.model_patterns != nil {
 		fields = append(fields, apikeygroup.FieldModelPatterns)
@@ -3055,6 +3383,8 @@ func (m *APIKeyGroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Quota()
 	case apikeygroup.FieldQuotaUsed:
 		return m.QuotaUsed()
+	case apikeygroup.FieldQuotaUsedByCurrency:
+		return m.QuotaUsedByCurrency()
 	case apikeygroup.FieldModelPatterns:
 		return m.ModelPatterns()
 	case apikeygroup.FieldCreatedAt:
@@ -3104,6 +3434,13 @@ func (m *APIKeyGroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetQuotaUsed(v)
+		return nil
+	case apikeygroup.FieldQuotaUsedByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaUsedByCurrency(v)
 		return nil
 	case apikeygroup.FieldModelPatterns:
 		v, ok := value.([]string)
@@ -3183,6 +3520,9 @@ func (m *APIKeyGroupMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *APIKeyGroupMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(apikeygroup.FieldQuotaUsedByCurrency) {
+		fields = append(fields, apikeygroup.FieldQuotaUsedByCurrency)
+	}
 	if m.FieldCleared(apikeygroup.FieldModelPatterns) {
 		fields = append(fields, apikeygroup.FieldModelPatterns)
 	}
@@ -3200,6 +3540,9 @@ func (m *APIKeyGroupMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *APIKeyGroupMutation) ClearField(name string) error {
 	switch name {
+	case apikeygroup.FieldQuotaUsedByCurrency:
+		m.ClearQuotaUsedByCurrency()
+		return nil
 	case apikeygroup.FieldModelPatterns:
 		m.ClearModelPatterns()
 		return nil
@@ -3222,6 +3565,9 @@ func (m *APIKeyGroupMutation) ResetField(name string) error {
 		return nil
 	case apikeygroup.FieldQuotaUsed:
 		m.ResetQuotaUsed()
+		return nil
+	case apikeygroup.FieldQuotaUsedByCurrency:
+		m.ResetQuotaUsedByCurrency()
 		return nil
 	case apikeygroup.FieldModelPatterns:
 		m.ResetModelPatterns()
@@ -20802,71 +21148,80 @@ func (m *UsageCleanupTaskMutation) ResetEdge(name string) error {
 // UsageLogMutation represents an operation that mutates the UsageLog nodes in the graph.
 type UsageLogMutation struct {
 	config
-	op                          Op
-	typ                         string
-	id                          *int64
-	request_id                  *string
-	model                       *string
-	requested_model             *string
-	upstream_model              *string
-	input_tokens                *int
-	addinput_tokens             *int
-	output_tokens               *int
-	addoutput_tokens            *int
-	cache_creation_tokens       *int
-	addcache_creation_tokens    *int
-	cache_read_tokens           *int
-	addcache_read_tokens        *int
-	cache_creation_5m_tokens    *int
-	addcache_creation_5m_tokens *int
-	cache_creation_1h_tokens    *int
-	addcache_creation_1h_tokens *int
-	input_cost                  *float64
-	addinput_cost               *float64
-	output_cost                 *float64
-	addoutput_cost              *float64
-	cache_creation_cost         *float64
-	addcache_creation_cost      *float64
-	cache_read_cost             *float64
-	addcache_read_cost          *float64
-	total_cost                  *float64
-	addtotal_cost               *float64
-	actual_cost                 *float64
-	addactual_cost              *float64
-	billing_exempt_reason       *string
-	thinking_enabled            *bool
-	rate_multiplier             *float64
-	addrate_multiplier          *float64
-	account_rate_multiplier     *float64
-	addaccount_rate_multiplier  *float64
-	billing_type                *int8
-	addbilling_type             *int8
-	stream                      *bool
-	duration_ms                 *int
-	addduration_ms              *int
-	first_token_ms              *int
-	addfirst_token_ms           *int
-	user_agent                  *string
-	ip_address                  *string
-	image_count                 *int
-	addimage_count              *int
-	image_size                  *string
-	cache_ttl_overridden        *bool
-	created_at                  *time.Time
-	clearedFields               map[string]struct{}
-	user                        *int64
-	cleareduser                 bool
-	api_key                     *int64
-	clearedapi_key              bool
-	account                     *int64
-	clearedaccount              bool
-	group                       *int64
-	clearedgroup                bool
-	subscription                *int64
-	clearedsubscription         bool
-	done                        bool
-	oldValue                    func(context.Context) (*UsageLog, error)
-	predicates                  []predicate.UsageLog
+	op                            Op
+	typ                           string
+	id                            *int64
+	request_id                    *string
+	model                         *string
+	requested_model               *string
+	upstream_model                *string
+	input_tokens                  *int
+	addinput_tokens               *int
+	output_tokens                 *int
+	addoutput_tokens              *int
+	cache_creation_tokens         *int
+	addcache_creation_tokens      *int
+	cache_read_tokens             *int
+	addcache_read_tokens          *int
+	cache_creation_5m_tokens      *int
+	addcache_creation_5m_tokens   *int
+	cache_creation_1h_tokens      *int
+	addcache_creation_1h_tokens   *int
+	input_cost                    *float64
+	addinput_cost                 *float64
+	output_cost                   *float64
+	addoutput_cost                *float64
+	cache_creation_cost           *float64
+	addcache_creation_cost        *float64
+	cache_read_cost               *float64
+	addcache_read_cost            *float64
+	total_cost                    *float64
+	addtotal_cost                 *float64
+	actual_cost                   *float64
+	addactual_cost                *float64
+	billing_currency              *string
+	total_cost_usd_equivalent     *float64
+	addtotal_cost_usd_equivalent  *float64
+	actual_cost_usd_equivalent    *float64
+	addactual_cost_usd_equivalent *float64
+	usd_to_cny_rate               *float64
+	addusd_to_cny_rate            *float64
+	fx_rate_date                  *string
+	fx_locked_at                  *time.Time
+	billing_exempt_reason         *string
+	thinking_enabled              *bool
+	rate_multiplier               *float64
+	addrate_multiplier            *float64
+	account_rate_multiplier       *float64
+	addaccount_rate_multiplier    *float64
+	billing_type                  *int8
+	addbilling_type               *int8
+	stream                        *bool
+	duration_ms                   *int
+	addduration_ms                *int
+	first_token_ms                *int
+	addfirst_token_ms             *int
+	user_agent                    *string
+	ip_address                    *string
+	image_count                   *int
+	addimage_count                *int
+	image_size                    *string
+	cache_ttl_overridden          *bool
+	created_at                    *time.Time
+	clearedFields                 map[string]struct{}
+	user                          *int64
+	cleareduser                   bool
+	api_key                       *int64
+	clearedapi_key                bool
+	account                       *int64
+	clearedaccount                bool
+	group                         *int64
+	clearedgroup                  bool
+	subscription                  *int64
+	clearedsubscription           bool
+	done                          bool
+	oldValue                      func(context.Context) (*UsageLog, error)
+	predicates                    []predicate.UsageLog
 }
 
 var _ ent.Mutation = (*UsageLogMutation)(nil)
@@ -22015,6 +22370,308 @@ func (m *UsageLogMutation) ResetActualCost() {
 	m.addactual_cost = nil
 }
 
+// SetBillingCurrency sets the "billing_currency" field.
+func (m *UsageLogMutation) SetBillingCurrency(s string) {
+	m.billing_currency = &s
+}
+
+// BillingCurrency returns the value of the "billing_currency" field in the mutation.
+func (m *UsageLogMutation) BillingCurrency() (r string, exists bool) {
+	v := m.billing_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingCurrency returns the old "billing_currency" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldBillingCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingCurrency: %w", err)
+	}
+	return oldValue.BillingCurrency, nil
+}
+
+// ResetBillingCurrency resets all changes to the "billing_currency" field.
+func (m *UsageLogMutation) ResetBillingCurrency() {
+	m.billing_currency = nil
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (m *UsageLogMutation) SetTotalCostUsdEquivalent(f float64) {
+	m.total_cost_usd_equivalent = &f
+	m.addtotal_cost_usd_equivalent = nil
+}
+
+// TotalCostUsdEquivalent returns the value of the "total_cost_usd_equivalent" field in the mutation.
+func (m *UsageLogMutation) TotalCostUsdEquivalent() (r float64, exists bool) {
+	v := m.total_cost_usd_equivalent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotalCostUsdEquivalent returns the old "total_cost_usd_equivalent" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldTotalCostUsdEquivalent(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotalCostUsdEquivalent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotalCostUsdEquivalent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotalCostUsdEquivalent: %w", err)
+	}
+	return oldValue.TotalCostUsdEquivalent, nil
+}
+
+// AddTotalCostUsdEquivalent adds f to the "total_cost_usd_equivalent" field.
+func (m *UsageLogMutation) AddTotalCostUsdEquivalent(f float64) {
+	if m.addtotal_cost_usd_equivalent != nil {
+		*m.addtotal_cost_usd_equivalent += f
+	} else {
+		m.addtotal_cost_usd_equivalent = &f
+	}
+}
+
+// AddedTotalCostUsdEquivalent returns the value that was added to the "total_cost_usd_equivalent" field in this mutation.
+func (m *UsageLogMutation) AddedTotalCostUsdEquivalent() (r float64, exists bool) {
+	v := m.addtotal_cost_usd_equivalent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTotalCostUsdEquivalent resets all changes to the "total_cost_usd_equivalent" field.
+func (m *UsageLogMutation) ResetTotalCostUsdEquivalent() {
+	m.total_cost_usd_equivalent = nil
+	m.addtotal_cost_usd_equivalent = nil
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (m *UsageLogMutation) SetActualCostUsdEquivalent(f float64) {
+	m.actual_cost_usd_equivalent = &f
+	m.addactual_cost_usd_equivalent = nil
+}
+
+// ActualCostUsdEquivalent returns the value of the "actual_cost_usd_equivalent" field in the mutation.
+func (m *UsageLogMutation) ActualCostUsdEquivalent() (r float64, exists bool) {
+	v := m.actual_cost_usd_equivalent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActualCostUsdEquivalent returns the old "actual_cost_usd_equivalent" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldActualCostUsdEquivalent(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActualCostUsdEquivalent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActualCostUsdEquivalent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActualCostUsdEquivalent: %w", err)
+	}
+	return oldValue.ActualCostUsdEquivalent, nil
+}
+
+// AddActualCostUsdEquivalent adds f to the "actual_cost_usd_equivalent" field.
+func (m *UsageLogMutation) AddActualCostUsdEquivalent(f float64) {
+	if m.addactual_cost_usd_equivalent != nil {
+		*m.addactual_cost_usd_equivalent += f
+	} else {
+		m.addactual_cost_usd_equivalent = &f
+	}
+}
+
+// AddedActualCostUsdEquivalent returns the value that was added to the "actual_cost_usd_equivalent" field in this mutation.
+func (m *UsageLogMutation) AddedActualCostUsdEquivalent() (r float64, exists bool) {
+	v := m.addactual_cost_usd_equivalent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetActualCostUsdEquivalent resets all changes to the "actual_cost_usd_equivalent" field.
+func (m *UsageLogMutation) ResetActualCostUsdEquivalent() {
+	m.actual_cost_usd_equivalent = nil
+	m.addactual_cost_usd_equivalent = nil
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (m *UsageLogMutation) SetUsdToCnyRate(f float64) {
+	m.usd_to_cny_rate = &f
+	m.addusd_to_cny_rate = nil
+}
+
+// UsdToCnyRate returns the value of the "usd_to_cny_rate" field in the mutation.
+func (m *UsageLogMutation) UsdToCnyRate() (r float64, exists bool) {
+	v := m.usd_to_cny_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUsdToCnyRate returns the old "usd_to_cny_rate" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldUsdToCnyRate(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUsdToCnyRate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUsdToCnyRate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUsdToCnyRate: %w", err)
+	}
+	return oldValue.UsdToCnyRate, nil
+}
+
+// AddUsdToCnyRate adds f to the "usd_to_cny_rate" field.
+func (m *UsageLogMutation) AddUsdToCnyRate(f float64) {
+	if m.addusd_to_cny_rate != nil {
+		*m.addusd_to_cny_rate += f
+	} else {
+		m.addusd_to_cny_rate = &f
+	}
+}
+
+// AddedUsdToCnyRate returns the value that was added to the "usd_to_cny_rate" field in this mutation.
+func (m *UsageLogMutation) AddedUsdToCnyRate() (r float64, exists bool) {
+	v := m.addusd_to_cny_rate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUsdToCnyRate resets all changes to the "usd_to_cny_rate" field.
+func (m *UsageLogMutation) ResetUsdToCnyRate() {
+	m.usd_to_cny_rate = nil
+	m.addusd_to_cny_rate = nil
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (m *UsageLogMutation) SetFxRateDate(s string) {
+	m.fx_rate_date = &s
+}
+
+// FxRateDate returns the value of the "fx_rate_date" field in the mutation.
+func (m *UsageLogMutation) FxRateDate() (r string, exists bool) {
+	v := m.fx_rate_date
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFxRateDate returns the old "fx_rate_date" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldFxRateDate(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFxRateDate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFxRateDate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFxRateDate: %w", err)
+	}
+	return oldValue.FxRateDate, nil
+}
+
+// ClearFxRateDate clears the value of the "fx_rate_date" field.
+func (m *UsageLogMutation) ClearFxRateDate() {
+	m.fx_rate_date = nil
+	m.clearedFields[usagelog.FieldFxRateDate] = struct{}{}
+}
+
+// FxRateDateCleared returns if the "fx_rate_date" field was cleared in this mutation.
+func (m *UsageLogMutation) FxRateDateCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldFxRateDate]
+	return ok
+}
+
+// ResetFxRateDate resets all changes to the "fx_rate_date" field.
+func (m *UsageLogMutation) ResetFxRateDate() {
+	m.fx_rate_date = nil
+	delete(m.clearedFields, usagelog.FieldFxRateDate)
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (m *UsageLogMutation) SetFxLockedAt(t time.Time) {
+	m.fx_locked_at = &t
+}
+
+// FxLockedAt returns the value of the "fx_locked_at" field in the mutation.
+func (m *UsageLogMutation) FxLockedAt() (r time.Time, exists bool) {
+	v := m.fx_locked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFxLockedAt returns the old "fx_locked_at" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldFxLockedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFxLockedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFxLockedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFxLockedAt: %w", err)
+	}
+	return oldValue.FxLockedAt, nil
+}
+
+// ClearFxLockedAt clears the value of the "fx_locked_at" field.
+func (m *UsageLogMutation) ClearFxLockedAt() {
+	m.fx_locked_at = nil
+	m.clearedFields[usagelog.FieldFxLockedAt] = struct{}{}
+}
+
+// FxLockedAtCleared returns if the "fx_locked_at" field was cleared in this mutation.
+func (m *UsageLogMutation) FxLockedAtCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldFxLockedAt]
+	return ok
+}
+
+// ResetFxLockedAt resets all changes to the "fx_locked_at" field.
+func (m *UsageLogMutation) ResetFxLockedAt() {
+	m.fx_locked_at = nil
+	delete(m.clearedFields, usagelog.FieldFxLockedAt)
+}
+
 // SetBillingExemptReason sets the "billing_exempt_reason" field.
 func (m *UsageLogMutation) SetBillingExemptReason(s string) {
 	m.billing_exempt_reason = &s
@@ -22915,7 +23572,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 35)
+	fields := make([]string, 0, 41)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -22978,6 +23635,24 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.actual_cost != nil {
 		fields = append(fields, usagelog.FieldActualCost)
+	}
+	if m.billing_currency != nil {
+		fields = append(fields, usagelog.FieldBillingCurrency)
+	}
+	if m.total_cost_usd_equivalent != nil {
+		fields = append(fields, usagelog.FieldTotalCostUsdEquivalent)
+	}
+	if m.actual_cost_usd_equivalent != nil {
+		fields = append(fields, usagelog.FieldActualCostUsdEquivalent)
+	}
+	if m.usd_to_cny_rate != nil {
+		fields = append(fields, usagelog.FieldUsdToCnyRate)
+	}
+	if m.fx_rate_date != nil {
+		fields = append(fields, usagelog.FieldFxRateDate)
+	}
+	if m.fx_locked_at != nil {
+		fields = append(fields, usagelog.FieldFxLockedAt)
 	}
 	if m.billing_exempt_reason != nil {
 		fields = append(fields, usagelog.FieldBillingExemptReason)
@@ -23071,6 +23746,18 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalCost()
 	case usagelog.FieldActualCost:
 		return m.ActualCost()
+	case usagelog.FieldBillingCurrency:
+		return m.BillingCurrency()
+	case usagelog.FieldTotalCostUsdEquivalent:
+		return m.TotalCostUsdEquivalent()
+	case usagelog.FieldActualCostUsdEquivalent:
+		return m.ActualCostUsdEquivalent()
+	case usagelog.FieldUsdToCnyRate:
+		return m.UsdToCnyRate()
+	case usagelog.FieldFxRateDate:
+		return m.FxRateDate()
+	case usagelog.FieldFxLockedAt:
+		return m.FxLockedAt()
 	case usagelog.FieldBillingExemptReason:
 		return m.BillingExemptReason()
 	case usagelog.FieldThinkingEnabled:
@@ -23150,6 +23837,18 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldTotalCost(ctx)
 	case usagelog.FieldActualCost:
 		return m.OldActualCost(ctx)
+	case usagelog.FieldBillingCurrency:
+		return m.OldBillingCurrency(ctx)
+	case usagelog.FieldTotalCostUsdEquivalent:
+		return m.OldTotalCostUsdEquivalent(ctx)
+	case usagelog.FieldActualCostUsdEquivalent:
+		return m.OldActualCostUsdEquivalent(ctx)
+	case usagelog.FieldUsdToCnyRate:
+		return m.OldUsdToCnyRate(ctx)
+	case usagelog.FieldFxRateDate:
+		return m.OldFxRateDate(ctx)
+	case usagelog.FieldFxLockedAt:
+		return m.OldFxLockedAt(ctx)
 	case usagelog.FieldBillingExemptReason:
 		return m.OldBillingExemptReason(ctx)
 	case usagelog.FieldThinkingEnabled:
@@ -23334,6 +24033,48 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetActualCost(v)
 		return nil
+	case usagelog.FieldBillingCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingCurrency(v)
+		return nil
+	case usagelog.FieldTotalCostUsdEquivalent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotalCostUsdEquivalent(v)
+		return nil
+	case usagelog.FieldActualCostUsdEquivalent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActualCostUsdEquivalent(v)
+		return nil
+	case usagelog.FieldUsdToCnyRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUsdToCnyRate(v)
+		return nil
+	case usagelog.FieldFxRateDate:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFxRateDate(v)
+		return nil
+	case usagelog.FieldFxLockedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFxLockedAt(v)
+		return nil
 	case usagelog.FieldBillingExemptReason:
 		v, ok := value.(string)
 		if !ok {
@@ -23476,6 +24217,15 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addactual_cost != nil {
 		fields = append(fields, usagelog.FieldActualCost)
 	}
+	if m.addtotal_cost_usd_equivalent != nil {
+		fields = append(fields, usagelog.FieldTotalCostUsdEquivalent)
+	}
+	if m.addactual_cost_usd_equivalent != nil {
+		fields = append(fields, usagelog.FieldActualCostUsdEquivalent)
+	}
+	if m.addusd_to_cny_rate != nil {
+		fields = append(fields, usagelog.FieldUsdToCnyRate)
+	}
 	if m.addrate_multiplier != nil {
 		fields = append(fields, usagelog.FieldRateMultiplier)
 	}
@@ -23526,6 +24276,12 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedTotalCost()
 	case usagelog.FieldActualCost:
 		return m.AddedActualCost()
+	case usagelog.FieldTotalCostUsdEquivalent:
+		return m.AddedTotalCostUsdEquivalent()
+	case usagelog.FieldActualCostUsdEquivalent:
+		return m.AddedActualCostUsdEquivalent()
+	case usagelog.FieldUsdToCnyRate:
+		return m.AddedUsdToCnyRate()
 	case usagelog.FieldRateMultiplier:
 		return m.AddedRateMultiplier()
 	case usagelog.FieldAccountRateMultiplier:
@@ -23631,6 +24387,27 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddActualCost(v)
 		return nil
+	case usagelog.FieldTotalCostUsdEquivalent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTotalCostUsdEquivalent(v)
+		return nil
+	case usagelog.FieldActualCostUsdEquivalent:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActualCostUsdEquivalent(v)
+		return nil
+	case usagelog.FieldUsdToCnyRate:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUsdToCnyRate(v)
+		return nil
 	case usagelog.FieldRateMultiplier:
 		v, ok := value.(float64)
 		if !ok {
@@ -23693,6 +24470,12 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldSubscriptionID) {
 		fields = append(fields, usagelog.FieldSubscriptionID)
 	}
+	if m.FieldCleared(usagelog.FieldFxRateDate) {
+		fields = append(fields, usagelog.FieldFxRateDate)
+	}
+	if m.FieldCleared(usagelog.FieldFxLockedAt) {
+		fields = append(fields, usagelog.FieldFxLockedAt)
+	}
 	if m.FieldCleared(usagelog.FieldBillingExemptReason) {
 		fields = append(fields, usagelog.FieldBillingExemptReason)
 	}
@@ -23742,6 +24525,12 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldSubscriptionID:
 		m.ClearSubscriptionID()
+		return nil
+	case usagelog.FieldFxRateDate:
+		m.ClearFxRateDate()
+		return nil
+	case usagelog.FieldFxLockedAt:
+		m.ClearFxLockedAt()
 		return nil
 	case usagelog.FieldBillingExemptReason:
 		m.ClearBillingExemptReason()
@@ -23837,6 +24626,24 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldActualCost:
 		m.ResetActualCost()
+		return nil
+	case usagelog.FieldBillingCurrency:
+		m.ResetBillingCurrency()
+		return nil
+	case usagelog.FieldTotalCostUsdEquivalent:
+		m.ResetTotalCostUsdEquivalent()
+		return nil
+	case usagelog.FieldActualCostUsdEquivalent:
+		m.ResetActualCostUsdEquivalent()
+		return nil
+	case usagelog.FieldUsdToCnyRate:
+		m.ResetUsdToCnyRate()
+		return nil
+	case usagelog.FieldFxRateDate:
+		m.ResetFxRateDate()
+		return nil
+	case usagelog.FieldFxLockedAt:
+		m.ResetFxLockedAt()
 		return nil
 	case usagelog.FieldBillingExemptReason:
 		m.ResetBillingExemptReason()
@@ -28271,39 +29078,42 @@ func (m *UserAttributeValueMutation) ResetEdge(name string) error {
 // UserSubscriptionMutation represents an operation that mutates the UserSubscription nodes in the graph.
 type UserSubscriptionMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int64
-	created_at              *time.Time
-	updated_at              *time.Time
-	deleted_at              *time.Time
-	starts_at               *time.Time
-	expires_at              *time.Time
-	status                  *string
-	daily_window_start      *time.Time
-	weekly_window_start     *time.Time
-	monthly_window_start    *time.Time
-	daily_usage_usd         *float64
-	adddaily_usage_usd      *float64
-	weekly_usage_usd        *float64
-	addweekly_usage_usd     *float64
-	monthly_usage_usd       *float64
-	addmonthly_usage_usd    *float64
-	assigned_at             *time.Time
-	notes                   *string
-	clearedFields           map[string]struct{}
-	user                    *int64
-	cleareduser             bool
-	group                   *int64
-	clearedgroup            bool
-	assigned_by_user        *int64
-	clearedassigned_by_user bool
-	usage_logs              map[int64]struct{}
-	removedusage_logs       map[int64]struct{}
-	clearedusage_logs       bool
-	done                    bool
-	oldValue                func(context.Context) (*UserSubscription, error)
-	predicates              []predicate.UserSubscription
+	op                        Op
+	typ                       string
+	id                        *int64
+	created_at                *time.Time
+	updated_at                *time.Time
+	deleted_at                *time.Time
+	starts_at                 *time.Time
+	expires_at                *time.Time
+	status                    *string
+	daily_window_start        *time.Time
+	weekly_window_start       *time.Time
+	monthly_window_start      *time.Time
+	daily_usage_usd           *float64
+	adddaily_usage_usd        *float64
+	weekly_usage_usd          *float64
+	addweekly_usage_usd       *float64
+	monthly_usage_usd         *float64
+	addmonthly_usage_usd      *float64
+	daily_usage_by_currency   *map[string]float64
+	weekly_usage_by_currency  *map[string]float64
+	monthly_usage_by_currency *map[string]float64
+	assigned_at               *time.Time
+	notes                     *string
+	clearedFields             map[string]struct{}
+	user                      *int64
+	cleareduser               bool
+	group                     *int64
+	clearedgroup              bool
+	assigned_by_user          *int64
+	clearedassigned_by_user   bool
+	usage_logs                map[int64]struct{}
+	removedusage_logs         map[int64]struct{}
+	clearedusage_logs         bool
+	done                      bool
+	oldValue                  func(context.Context) (*UserSubscription, error)
+	predicates                []predicate.UserSubscription
 }
 
 var _ ent.Mutation = (*UserSubscriptionMutation)(nil)
@@ -29020,6 +29830,153 @@ func (m *UserSubscriptionMutation) ResetMonthlyUsageUsd() {
 	m.addmonthly_usage_usd = nil
 }
 
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (m *UserSubscriptionMutation) SetDailyUsageByCurrency(value map[string]float64) {
+	m.daily_usage_by_currency = &value
+}
+
+// DailyUsageByCurrency returns the value of the "daily_usage_by_currency" field in the mutation.
+func (m *UserSubscriptionMutation) DailyUsageByCurrency() (r map[string]float64, exists bool) {
+	v := m.daily_usage_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDailyUsageByCurrency returns the old "daily_usage_by_currency" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldDailyUsageByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDailyUsageByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDailyUsageByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDailyUsageByCurrency: %w", err)
+	}
+	return oldValue.DailyUsageByCurrency, nil
+}
+
+// ClearDailyUsageByCurrency clears the value of the "daily_usage_by_currency" field.
+func (m *UserSubscriptionMutation) ClearDailyUsageByCurrency() {
+	m.daily_usage_by_currency = nil
+	m.clearedFields[usersubscription.FieldDailyUsageByCurrency] = struct{}{}
+}
+
+// DailyUsageByCurrencyCleared returns if the "daily_usage_by_currency" field was cleared in this mutation.
+func (m *UserSubscriptionMutation) DailyUsageByCurrencyCleared() bool {
+	_, ok := m.clearedFields[usersubscription.FieldDailyUsageByCurrency]
+	return ok
+}
+
+// ResetDailyUsageByCurrency resets all changes to the "daily_usage_by_currency" field.
+func (m *UserSubscriptionMutation) ResetDailyUsageByCurrency() {
+	m.daily_usage_by_currency = nil
+	delete(m.clearedFields, usersubscription.FieldDailyUsageByCurrency)
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (m *UserSubscriptionMutation) SetWeeklyUsageByCurrency(value map[string]float64) {
+	m.weekly_usage_by_currency = &value
+}
+
+// WeeklyUsageByCurrency returns the value of the "weekly_usage_by_currency" field in the mutation.
+func (m *UserSubscriptionMutation) WeeklyUsageByCurrency() (r map[string]float64, exists bool) {
+	v := m.weekly_usage_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeeklyUsageByCurrency returns the old "weekly_usage_by_currency" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldWeeklyUsageByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeeklyUsageByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeeklyUsageByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeeklyUsageByCurrency: %w", err)
+	}
+	return oldValue.WeeklyUsageByCurrency, nil
+}
+
+// ClearWeeklyUsageByCurrency clears the value of the "weekly_usage_by_currency" field.
+func (m *UserSubscriptionMutation) ClearWeeklyUsageByCurrency() {
+	m.weekly_usage_by_currency = nil
+	m.clearedFields[usersubscription.FieldWeeklyUsageByCurrency] = struct{}{}
+}
+
+// WeeklyUsageByCurrencyCleared returns if the "weekly_usage_by_currency" field was cleared in this mutation.
+func (m *UserSubscriptionMutation) WeeklyUsageByCurrencyCleared() bool {
+	_, ok := m.clearedFields[usersubscription.FieldWeeklyUsageByCurrency]
+	return ok
+}
+
+// ResetWeeklyUsageByCurrency resets all changes to the "weekly_usage_by_currency" field.
+func (m *UserSubscriptionMutation) ResetWeeklyUsageByCurrency() {
+	m.weekly_usage_by_currency = nil
+	delete(m.clearedFields, usersubscription.FieldWeeklyUsageByCurrency)
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (m *UserSubscriptionMutation) SetMonthlyUsageByCurrency(value map[string]float64) {
+	m.monthly_usage_by_currency = &value
+}
+
+// MonthlyUsageByCurrency returns the value of the "monthly_usage_by_currency" field in the mutation.
+func (m *UserSubscriptionMutation) MonthlyUsageByCurrency() (r map[string]float64, exists bool) {
+	v := m.monthly_usage_by_currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMonthlyUsageByCurrency returns the old "monthly_usage_by_currency" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldMonthlyUsageByCurrency(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMonthlyUsageByCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMonthlyUsageByCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMonthlyUsageByCurrency: %w", err)
+	}
+	return oldValue.MonthlyUsageByCurrency, nil
+}
+
+// ClearMonthlyUsageByCurrency clears the value of the "monthly_usage_by_currency" field.
+func (m *UserSubscriptionMutation) ClearMonthlyUsageByCurrency() {
+	m.monthly_usage_by_currency = nil
+	m.clearedFields[usersubscription.FieldMonthlyUsageByCurrency] = struct{}{}
+}
+
+// MonthlyUsageByCurrencyCleared returns if the "monthly_usage_by_currency" field was cleared in this mutation.
+func (m *UserSubscriptionMutation) MonthlyUsageByCurrencyCleared() bool {
+	_, ok := m.clearedFields[usersubscription.FieldMonthlyUsageByCurrency]
+	return ok
+}
+
+// ResetMonthlyUsageByCurrency resets all changes to the "monthly_usage_by_currency" field.
+func (m *UserSubscriptionMutation) ResetMonthlyUsageByCurrency() {
+	m.monthly_usage_by_currency = nil
+	delete(m.clearedFields, usersubscription.FieldMonthlyUsageByCurrency)
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (m *UserSubscriptionMutation) SetAssignedBy(i int64) {
 	m.assigned_by_user = &i
@@ -29336,7 +30293,7 @@ func (m *UserSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 20)
 	if m.created_at != nil {
 		fields = append(fields, usersubscription.FieldCreatedAt)
 	}
@@ -29378,6 +30335,15 @@ func (m *UserSubscriptionMutation) Fields() []string {
 	}
 	if m.monthly_usage_usd != nil {
 		fields = append(fields, usersubscription.FieldMonthlyUsageUsd)
+	}
+	if m.daily_usage_by_currency != nil {
+		fields = append(fields, usersubscription.FieldDailyUsageByCurrency)
+	}
+	if m.weekly_usage_by_currency != nil {
+		fields = append(fields, usersubscription.FieldWeeklyUsageByCurrency)
+	}
+	if m.monthly_usage_by_currency != nil {
+		fields = append(fields, usersubscription.FieldMonthlyUsageByCurrency)
 	}
 	if m.assigned_by_user != nil {
 		fields = append(fields, usersubscription.FieldAssignedBy)
@@ -29424,6 +30390,12 @@ func (m *UserSubscriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.WeeklyUsageUsd()
 	case usersubscription.FieldMonthlyUsageUsd:
 		return m.MonthlyUsageUsd()
+	case usersubscription.FieldDailyUsageByCurrency:
+		return m.DailyUsageByCurrency()
+	case usersubscription.FieldWeeklyUsageByCurrency:
+		return m.WeeklyUsageByCurrency()
+	case usersubscription.FieldMonthlyUsageByCurrency:
+		return m.MonthlyUsageByCurrency()
 	case usersubscription.FieldAssignedBy:
 		return m.AssignedBy()
 	case usersubscription.FieldAssignedAt:
@@ -29467,6 +30439,12 @@ func (m *UserSubscriptionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldWeeklyUsageUsd(ctx)
 	case usersubscription.FieldMonthlyUsageUsd:
 		return m.OldMonthlyUsageUsd(ctx)
+	case usersubscription.FieldDailyUsageByCurrency:
+		return m.OldDailyUsageByCurrency(ctx)
+	case usersubscription.FieldWeeklyUsageByCurrency:
+		return m.OldWeeklyUsageByCurrency(ctx)
+	case usersubscription.FieldMonthlyUsageByCurrency:
+		return m.OldMonthlyUsageByCurrency(ctx)
 	case usersubscription.FieldAssignedBy:
 		return m.OldAssignedBy(ctx)
 	case usersubscription.FieldAssignedAt:
@@ -29580,6 +30558,27 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetMonthlyUsageUsd(v)
 		return nil
+	case usersubscription.FieldDailyUsageByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDailyUsageByCurrency(v)
+		return nil
+	case usersubscription.FieldWeeklyUsageByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeeklyUsageByCurrency(v)
+		return nil
+	case usersubscription.FieldMonthlyUsageByCurrency:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMonthlyUsageByCurrency(v)
+		return nil
 	case usersubscription.FieldAssignedBy:
 		v, ok := value.(int64)
 		if !ok {
@@ -29682,6 +30681,15 @@ func (m *UserSubscriptionMutation) ClearedFields() []string {
 	if m.FieldCleared(usersubscription.FieldMonthlyWindowStart) {
 		fields = append(fields, usersubscription.FieldMonthlyWindowStart)
 	}
+	if m.FieldCleared(usersubscription.FieldDailyUsageByCurrency) {
+		fields = append(fields, usersubscription.FieldDailyUsageByCurrency)
+	}
+	if m.FieldCleared(usersubscription.FieldWeeklyUsageByCurrency) {
+		fields = append(fields, usersubscription.FieldWeeklyUsageByCurrency)
+	}
+	if m.FieldCleared(usersubscription.FieldMonthlyUsageByCurrency) {
+		fields = append(fields, usersubscription.FieldMonthlyUsageByCurrency)
+	}
 	if m.FieldCleared(usersubscription.FieldAssignedBy) {
 		fields = append(fields, usersubscription.FieldAssignedBy)
 	}
@@ -29713,6 +30721,15 @@ func (m *UserSubscriptionMutation) ClearField(name string) error {
 		return nil
 	case usersubscription.FieldMonthlyWindowStart:
 		m.ClearMonthlyWindowStart()
+		return nil
+	case usersubscription.FieldDailyUsageByCurrency:
+		m.ClearDailyUsageByCurrency()
+		return nil
+	case usersubscription.FieldWeeklyUsageByCurrency:
+		m.ClearWeeklyUsageByCurrency()
+		return nil
+	case usersubscription.FieldMonthlyUsageByCurrency:
+		m.ClearMonthlyUsageByCurrency()
 		return nil
 	case usersubscription.FieldAssignedBy:
 		m.ClearAssignedBy()
@@ -29769,6 +30786,15 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 		return nil
 	case usersubscription.FieldMonthlyUsageUsd:
 		m.ResetMonthlyUsageUsd()
+		return nil
+	case usersubscription.FieldDailyUsageByCurrency:
+		m.ResetDailyUsageByCurrency()
+		return nil
+	case usersubscription.FieldWeeklyUsageByCurrency:
+		m.ResetWeeklyUsageByCurrency()
+		return nil
+	case usersubscription.FieldMonthlyUsageByCurrency:
+		m.ResetMonthlyUsageByCurrency()
 		return nil
 	case usersubscription.FieldAssignedBy:
 		m.ResetAssignedBy()

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
@@ -65,4 +66,27 @@ func TestBillingCenterService_BuildPricingStatusSnapshotUsesSharedLookupWarnings
 	geminiFlashImagePersisted, ok, _ := billingPricingSnapshotModel(snapshot, "gemini-3.1-flash-image")
 	require.True(t, ok)
 	require.Equal(t, BillingPricingStatusMissing, geminiFlashImagePersisted.PricingStatus)
+}
+
+func TestDeriveBillingPricingStatus_CNYMissingLockedFXIsNotOK(t *testing.T) {
+	record := &modelCatalogRecord{
+		model:             "ernie-x1-turbo-32k",
+		pricingCurrency:   ModelPricingCurrencyCNY,
+		basePricingSource: ModelCatalogPricingSourceDynamic,
+		upstreamPricing: &ModelCatalogPricing{
+			Currency:          ModelPricingCurrencyCNY,
+			InputCostPerToken: modelCatalogFloat64Ptr(0.000004),
+		},
+	}
+
+	status, warnings := deriveBillingPricingStatus(record, nil, nil)
+	require.Equal(t, BillingPricingStatusMissing, status)
+	require.Contains(t, warnings, "CNY pricing is missing a locked USD/CNY rate.")
+
+	lockedAt := time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC)
+	record.upstreamPricing.USDToCNYRate = modelCatalogFloat64Ptr(6.8363)
+	record.upstreamPricing.FXLockedAt = &lockedAt
+	status, warnings = deriveBillingPricingStatus(record, nil, nil)
+	require.Equal(t, BillingPricingStatusOK, status)
+	require.NotContains(t, warnings, "CNY pricing is missing a locked USD/CNY rate.")
 }

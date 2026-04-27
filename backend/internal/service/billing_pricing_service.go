@@ -175,6 +175,10 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	if currency == "" {
 		currency = defaultModelPricingCurrency(persisted.Currency)
 	}
+	currencyMeta, err := s.resolveBillingPricingCurrencyMetadata(ctx, currency)
+	if err != nil {
+		return nil, err
+	}
 	form := BillingPricingLayerForm{}
 	switch {
 	case input.Form != nil:
@@ -189,6 +193,7 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	items := billingPricingItemsFromForm(metadata, layer, form)
 
 	legacyPricing := effectiveFlatPricingFromForm(metadata, form)
+	applyCurrencyMetadataToCatalogPricing(legacyPricing, currencyMeta)
 	if err := validateFlatPricingForSave(legacyPricing); err != nil {
 		return nil, err
 	}
@@ -230,7 +235,7 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 	if err := persistBillingRulesBySetting(ctx, s.settingRepo, SettingKeyBillingCenterRules, rules); err != nil {
 		return nil, err
 	}
-	if err := s.modelCatalogService.saveModelPricingCurrency(ctx, actor, record.model, currency); err != nil {
+	if err := s.modelCatalogService.saveModelPricingCurrency(ctx, actor, record.model, currency, currencyMeta); err != nil {
 		return nil, err
 	}
 	s.syncBillingServiceOverrides(ctx)
@@ -261,6 +266,29 @@ func (s *BillingCenterService) SavePricingLayer(ctx context.Context, actor Model
 		}
 	}
 	return &detail, nil
+}
+
+func (s *BillingCenterService) resolveBillingPricingCurrencyMetadata(ctx context.Context, currency string) (ModelPricingCurrencyMetadata, error) {
+	normalized := defaultModelPricingCurrency(currency)
+	meta := ModelPricingCurrencyMetadata{Currency: normalized}
+	if normalized != ModelPricingCurrencyCNY {
+		return meta, nil
+	}
+	if s == nil || s.modelCatalogService == nil {
+		return meta, infraerrors.ServiceUnavailable("BILLING_FX_RATE_UNAVAILABLE", "USD/CNY exchange rate is unavailable")
+	}
+	rate, err := s.modelCatalogService.GetUSDCNYExchangeRate(ctx, false)
+	if err != nil || rate == nil || rate.Rate <= 0 {
+		return meta, infraerrors.ServiceUnavailable("BILLING_FX_RATE_UNAVAILABLE", "USD/CNY exchange rate is unavailable")
+	}
+	lockedAt := rate.UpdatedAt
+	if lockedAt.IsZero() {
+		lockedAt = time.Now().UTC()
+	}
+	meta.USDToCNYRate = modelCatalogFloat64Ptr(rate.Rate)
+	meta.FXRateDate = strings.TrimSpace(rate.Date)
+	meta.FXLockedAt = cloneBillingTime(&lockedAt)
+	return meta, nil
 }
 
 func billingPricingSnapshotModel(snapshot *BillingPricingCatalogSnapshot, model string) (BillingPricingPersistedModel, bool, int) {

@@ -351,7 +351,7 @@ func (s *BillingCenterService) CalculateGeminiCost(ctx context.Context, input Ge
 		}, nil
 	}
 	recordGeminiBillingRuntimeMetrics(result, result.Fallback)
-	cost := costBreakdownFromSimulation(result)
+	cost := costBreakdownFromSimulationWithMetadata(result, s.resolveModelPricingCurrencyMetadata(ctx, sim.Model, BillingLayerSale))
 	return &GeminiBillingCalculationResult{
 		Cost:             cost,
 		Classification:   classification,
@@ -540,8 +540,12 @@ func normalizeGeminiBillingMetricReason(reason string) string {
 }
 
 func costBreakdownFromSimulation(result *BillingSimulationResult) *CostBreakdown {
+	return costBreakdownFromSimulationWithMetadata(result, ModelPricingCurrencyMetadata{Currency: ModelPricingCurrencyUSD})
+}
+
+func costBreakdownFromSimulationWithMetadata(result *BillingSimulationResult, meta ModelPricingCurrencyMetadata) *CostBreakdown {
 	if result == nil {
-		return &CostBreakdown{}
+		return finalizeCostBreakdownCurrency(&CostBreakdown{}, nil)
 	}
 	cost := &CostBreakdown{
 		TotalCost:  result.TotalCost,
@@ -559,7 +563,32 @@ func costBreakdownFromSimulation(result *BillingSimulationResult) *CostBreakdown
 			cost.OutputCost += line.Cost
 		}
 	}
-	return cost
+	pricing := &ModelPricing{}
+	applyModelPricingCurrencyMetadata(pricing, meta)
+	return finalizeCostBreakdownCurrency(cost, pricing)
+}
+
+func (s *BillingCenterService) resolveModelPricingCurrencyMetadata(ctx context.Context, model string, layer string) ModelPricingCurrencyMetadata {
+	if s == nil || s.modelCatalogService == nil {
+		return ModelPricingCurrencyMetadata{Currency: ModelPricingCurrencyUSD}
+	}
+	record, err := s.resolveBillingRecord(ctx, model)
+	if err != nil || record == nil {
+		return ModelPricingCurrencyMetadata{Currency: ModelPricingCurrencyUSD}
+	}
+	if normalizeBillingDimension(layer, BillingLayerSale) == BillingLayerSale && record.saleOverridePricing != nil {
+		meta := pricingCurrencyMetadataFromCatalog(&record.saleOverridePricing.ModelCatalogPricing)
+		if normalizeModelPricingCurrency(meta.Currency) != "" {
+			return meta
+		}
+	}
+	if record.officialOverridePricing != nil {
+		meta := pricingCurrencyMetadataFromCatalog(&record.officialOverridePricing.ModelCatalogPricing)
+		if normalizeModelPricingCurrency(meta.Currency) != "" {
+			return meta
+		}
+	}
+	return ModelPricingCurrencyMetadata{Currency: defaultModelPricingCurrency(record.pricingCurrency)}
 }
 
 func buildLegacyGeminiFallbackLines(
@@ -715,6 +744,7 @@ func buildLegacyGeminiFallbackLines(
 		}
 	}
 
+	cost = finalizeCostBreakdownCurrency(cost, pricing)
 	if len(lines) > 0 {
 		return lines, cost, "no_billing_rule_match", coveredSlots
 	}

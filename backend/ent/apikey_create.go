@@ -237,6 +237,12 @@ func (_c *APIKeyCreate) SetNillableQuotaUsed(v *float64) *APIKeyCreate {
 	return _c
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (_c *APIKeyCreate) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyCreate {
+	_c.mutation.SetQuotaUsedByCurrency(v)
+	return _c
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_c *APIKeyCreate) SetExpiresAt(v time.Time) *APIKeyCreate {
 	_c.mutation.SetExpiresAt(v)
@@ -307,6 +313,12 @@ func (_c *APIKeyCreate) SetNillableUsage5h(v *float64) *APIKeyCreate {
 	return _c
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (_c *APIKeyCreate) SetUsage5hByCurrency(v map[string]float64) *APIKeyCreate {
+	_c.mutation.SetUsage5hByCurrency(v)
+	return _c
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (_c *APIKeyCreate) SetUsage1d(v float64) *APIKeyCreate {
 	_c.mutation.SetUsage1d(v)
@@ -321,6 +333,12 @@ func (_c *APIKeyCreate) SetNillableUsage1d(v *float64) *APIKeyCreate {
 	return _c
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (_c *APIKeyCreate) SetUsage1dByCurrency(v map[string]float64) *APIKeyCreate {
+	_c.mutation.SetUsage1dByCurrency(v)
+	return _c
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (_c *APIKeyCreate) SetUsage7d(v float64) *APIKeyCreate {
 	_c.mutation.SetUsage7d(v)
@@ -332,6 +350,12 @@ func (_c *APIKeyCreate) SetNillableUsage7d(v *float64) *APIKeyCreate {
 	if v != nil {
 		_c.SetUsage7d(*v)
 	}
+	return _c
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (_c *APIKeyCreate) SetUsage7dByCurrency(v map[string]float64) *APIKeyCreate {
+	_c.mutation.SetUsage7dByCurrency(v)
 	return _c
 }
 
@@ -700,6 +724,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldQuotaUsed, field.TypeFloat64, value)
 		_node.QuotaUsed = value
 	}
+	if value, ok := _c.mutation.QuotaUsedByCurrency(); ok {
+		_spec.SetField(apikey.FieldQuotaUsedByCurrency, field.TypeJSON, value)
+		_node.QuotaUsedByCurrency = value
+	}
 	if value, ok := _c.mutation.ExpiresAt(); ok {
 		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
 		_node.ExpiresAt = &value
@@ -720,13 +748,25 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldUsage5h, field.TypeFloat64, value)
 		_node.Usage5h = value
 	}
+	if value, ok := _c.mutation.Usage5hByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage5hByCurrency, field.TypeJSON, value)
+		_node.Usage5hByCurrency = value
+	}
 	if value, ok := _c.mutation.Usage1d(); ok {
 		_spec.SetField(apikey.FieldUsage1d, field.TypeFloat64, value)
 		_node.Usage1d = value
 	}
+	if value, ok := _c.mutation.Usage1dByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage1dByCurrency, field.TypeJSON, value)
+		_node.Usage1dByCurrency = value
+	}
 	if value, ok := _c.mutation.Usage7d(); ok {
 		_spec.SetField(apikey.FieldUsage7d, field.TypeFloat64, value)
 		_node.Usage7d = value
+	}
+	if value, ok := _c.mutation.Usage7dByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage7dByCurrency, field.TypeJSON, value)
+		_node.Usage7dByCurrency = value
 	}
 	if value, ok := _c.mutation.Window5hStart(); ok {
 		_spec.SetField(apikey.FieldWindow5hStart, field.TypeTime, value)
@@ -1120,6 +1160,24 @@ func (u *APIKeyUpsert) AddQuotaUsed(v float64) *APIKeyUpsert {
 	return u
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (u *APIKeyUpsert) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyUpsert {
+	u.Set(apikey.FieldQuotaUsedByCurrency, v)
+	return u
+}
+
+// UpdateQuotaUsedByCurrency sets the "quota_used_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateQuotaUsedByCurrency() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldQuotaUsedByCurrency)
+	return u
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (u *APIKeyUpsert) ClearQuotaUsedByCurrency() *APIKeyUpsert {
+	u.SetNull(apikey.FieldQuotaUsedByCurrency)
+	return u
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (u *APIKeyUpsert) SetExpiresAt(v time.Time) *APIKeyUpsert {
 	u.Set(apikey.FieldExpiresAt, v)
@@ -1210,6 +1268,24 @@ func (u *APIKeyUpsert) AddUsage5h(v float64) *APIKeyUpsert {
 	return u
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (u *APIKeyUpsert) SetUsage5hByCurrency(v map[string]float64) *APIKeyUpsert {
+	u.Set(apikey.FieldUsage5hByCurrency, v)
+	return u
+}
+
+// UpdateUsage5hByCurrency sets the "usage_5h_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateUsage5hByCurrency() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldUsage5hByCurrency)
+	return u
+}
+
+// ClearUsage5hByCurrency clears the value of the "usage_5h_by_currency" field.
+func (u *APIKeyUpsert) ClearUsage5hByCurrency() *APIKeyUpsert {
+	u.SetNull(apikey.FieldUsage5hByCurrency)
+	return u
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (u *APIKeyUpsert) SetUsage1d(v float64) *APIKeyUpsert {
 	u.Set(apikey.FieldUsage1d, v)
@@ -1228,6 +1304,24 @@ func (u *APIKeyUpsert) AddUsage1d(v float64) *APIKeyUpsert {
 	return u
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (u *APIKeyUpsert) SetUsage1dByCurrency(v map[string]float64) *APIKeyUpsert {
+	u.Set(apikey.FieldUsage1dByCurrency, v)
+	return u
+}
+
+// UpdateUsage1dByCurrency sets the "usage_1d_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateUsage1dByCurrency() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldUsage1dByCurrency)
+	return u
+}
+
+// ClearUsage1dByCurrency clears the value of the "usage_1d_by_currency" field.
+func (u *APIKeyUpsert) ClearUsage1dByCurrency() *APIKeyUpsert {
+	u.SetNull(apikey.FieldUsage1dByCurrency)
+	return u
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (u *APIKeyUpsert) SetUsage7d(v float64) *APIKeyUpsert {
 	u.Set(apikey.FieldUsage7d, v)
@@ -1243,6 +1337,24 @@ func (u *APIKeyUpsert) UpdateUsage7d() *APIKeyUpsert {
 // AddUsage7d adds v to the "usage_7d" field.
 func (u *APIKeyUpsert) AddUsage7d(v float64) *APIKeyUpsert {
 	u.Add(apikey.FieldUsage7d, v)
+	return u
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (u *APIKeyUpsert) SetUsage7dByCurrency(v map[string]float64) *APIKeyUpsert {
+	u.Set(apikey.FieldUsage7dByCurrency, v)
+	return u
+}
+
+// UpdateUsage7dByCurrency sets the "usage_7d_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateUsage7dByCurrency() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldUsage7dByCurrency)
+	return u
+}
+
+// ClearUsage7dByCurrency clears the value of the "usage_7d_by_currency" field.
+func (u *APIKeyUpsert) ClearUsage7dByCurrency() *APIKeyUpsert {
+	u.SetNull(apikey.FieldUsage7dByCurrency)
 	return u
 }
 
@@ -1646,6 +1758,27 @@ func (u *APIKeyUpsertOne) UpdateQuotaUsed() *APIKeyUpsertOne {
 	})
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (u *APIKeyUpsertOne) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetQuotaUsedByCurrency(v)
+	})
+}
+
+// UpdateQuotaUsedByCurrency sets the "quota_used_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateQuotaUsedByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateQuotaUsedByCurrency()
+	})
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (u *APIKeyUpsertOne) ClearQuotaUsedByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearQuotaUsedByCurrency()
+	})
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (u *APIKeyUpsertOne) SetExpiresAt(v time.Time) *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -1751,6 +1884,27 @@ func (u *APIKeyUpsertOne) UpdateUsage5h() *APIKeyUpsertOne {
 	})
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (u *APIKeyUpsertOne) SetUsage5hByCurrency(v map[string]float64) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUsage5hByCurrency(v)
+	})
+}
+
+// UpdateUsage5hByCurrency sets the "usage_5h_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateUsage5hByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUsage5hByCurrency()
+	})
+}
+
+// ClearUsage5hByCurrency clears the value of the "usage_5h_by_currency" field.
+func (u *APIKeyUpsertOne) ClearUsage5hByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearUsage5hByCurrency()
+	})
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (u *APIKeyUpsertOne) SetUsage1d(v float64) *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -1772,6 +1926,27 @@ func (u *APIKeyUpsertOne) UpdateUsage1d() *APIKeyUpsertOne {
 	})
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (u *APIKeyUpsertOne) SetUsage1dByCurrency(v map[string]float64) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUsage1dByCurrency(v)
+	})
+}
+
+// UpdateUsage1dByCurrency sets the "usage_1d_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateUsage1dByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUsage1dByCurrency()
+	})
+}
+
+// ClearUsage1dByCurrency clears the value of the "usage_1d_by_currency" field.
+func (u *APIKeyUpsertOne) ClearUsage1dByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearUsage1dByCurrency()
+	})
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (u *APIKeyUpsertOne) SetUsage7d(v float64) *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -1790,6 +1965,27 @@ func (u *APIKeyUpsertOne) AddUsage7d(v float64) *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) UpdateUsage7d() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateUsage7d()
+	})
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (u *APIKeyUpsertOne) SetUsage7dByCurrency(v map[string]float64) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUsage7dByCurrency(v)
+	})
+}
+
+// UpdateUsage7dByCurrency sets the "usage_7d_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateUsage7dByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUsage7dByCurrency()
+	})
+}
+
+// ClearUsage7dByCurrency clears the value of the "usage_7d_by_currency" field.
+func (u *APIKeyUpsertOne) ClearUsage7dByCurrency() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearUsage7dByCurrency()
 	})
 }
 
@@ -2368,6 +2564,27 @@ func (u *APIKeyUpsertBulk) UpdateQuotaUsed() *APIKeyUpsertBulk {
 	})
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (u *APIKeyUpsertBulk) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetQuotaUsedByCurrency(v)
+	})
+}
+
+// UpdateQuotaUsedByCurrency sets the "quota_used_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateQuotaUsedByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateQuotaUsedByCurrency()
+	})
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (u *APIKeyUpsertBulk) ClearQuotaUsedByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearQuotaUsedByCurrency()
+	})
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (u *APIKeyUpsertBulk) SetExpiresAt(v time.Time) *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -2473,6 +2690,27 @@ func (u *APIKeyUpsertBulk) UpdateUsage5h() *APIKeyUpsertBulk {
 	})
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (u *APIKeyUpsertBulk) SetUsage5hByCurrency(v map[string]float64) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUsage5hByCurrency(v)
+	})
+}
+
+// UpdateUsage5hByCurrency sets the "usage_5h_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateUsage5hByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUsage5hByCurrency()
+	})
+}
+
+// ClearUsage5hByCurrency clears the value of the "usage_5h_by_currency" field.
+func (u *APIKeyUpsertBulk) ClearUsage5hByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearUsage5hByCurrency()
+	})
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (u *APIKeyUpsertBulk) SetUsage1d(v float64) *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -2494,6 +2732,27 @@ func (u *APIKeyUpsertBulk) UpdateUsage1d() *APIKeyUpsertBulk {
 	})
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (u *APIKeyUpsertBulk) SetUsage1dByCurrency(v map[string]float64) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUsage1dByCurrency(v)
+	})
+}
+
+// UpdateUsage1dByCurrency sets the "usage_1d_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateUsage1dByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUsage1dByCurrency()
+	})
+}
+
+// ClearUsage1dByCurrency clears the value of the "usage_1d_by_currency" field.
+func (u *APIKeyUpsertBulk) ClearUsage1dByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearUsage1dByCurrency()
+	})
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (u *APIKeyUpsertBulk) SetUsage7d(v float64) *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
@@ -2512,6 +2771,27 @@ func (u *APIKeyUpsertBulk) AddUsage7d(v float64) *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) UpdateUsage7d() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateUsage7d()
+	})
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (u *APIKeyUpsertBulk) SetUsage7dByCurrency(v map[string]float64) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetUsage7dByCurrency(v)
+	})
+}
+
+// UpdateUsage7dByCurrency sets the "usage_7d_by_currency" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateUsage7dByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateUsage7dByCurrency()
+	})
+}
+
+// ClearUsage7dByCurrency clears the value of the "usage_7d_by_currency" field.
+func (u *APIKeyUpsertBulk) ClearUsage7dByCurrency() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearUsage7dByCurrency()
 	})
 }
 

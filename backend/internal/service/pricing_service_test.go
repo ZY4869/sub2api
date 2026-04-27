@@ -49,6 +49,29 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestParsePricingData_PreservesCNYFXMetadata(t *testing.T) {
+	svc := &PricingService{}
+	body := []byte(`{
+		"deepseek-chat": {
+			"currency": "CNY",
+			"usd_to_cny_rate": 6.8363,
+			"fx_rate_date": "2026-04-24",
+			"fx_locked_at": "2026-04-27T00:00:00Z",
+			"input_cost_per_token": 0.000001,
+			"output_cost_per_token": 0.000002
+		}
+	}`)
+
+	data, err := svc.parsePricingData(body)
+	require.NoError(t, err)
+	pricing := data["deepseek-chat"]
+	require.NotNil(t, pricing)
+	require.Equal(t, ModelPricingCurrencyCNY, pricing.Currency)
+	require.InDelta(t, 6.8363, pricing.USDToCNYRate, 1e-12)
+	require.Equal(t, "2026-04-24", pricing.FXRateDate)
+	require.NotNil(t, pricing.FXLockedAt)
+}
+
 func TestGetModelPricing_Gpt53CodexSparkUsesGpt54Pricing(t *testing.T) {
 	gpt54Pricing := &LiteLLMModelPricing{InputCostPerToken: 1}
 

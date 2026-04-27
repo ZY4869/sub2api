@@ -545,7 +545,7 @@ const ringItems = computed<RingItem[]>(() => {
   if (data.mode === 'quota_limited') {
     if (data.quota) {
       const pct = data.quota.limit > 0 ? Math.min(Math.round((data.quota.used / data.quota.limit) * 100), 100) : 0
-      items.push({ title: t('keyUsage.totalQuota'), pct, amount: `${usd(data.quota.used)} / ${usd(data.quota.limit)}`, iconType: 'dollar' })
+      items.push({ title: t('keyUsage.totalQuota'), pct, amount: `${currencyBreakdown(data.quota.used_by_currency, data.quota.used)} / ${usd(data.quota.limit)}`, iconType: 'dollar' })
     }
     if (data.rate_limits) {
       const windowLabels: Record<string, string> = { '5h': t('keyUsage.limit5h'), '1d': t('keyUsage.limitDaily'), '7d': t('keyUsage.limit7d') }
@@ -555,7 +555,7 @@ const ringItems = computed<RingItem[]>(() => {
         items.push({
           title: windowLabels[rl.window] || rl.window,
           pct,
-          amount: `${usd(rl.used)} / ${usd(rl.limit)}`,
+          amount: `${currencyBreakdown(rl.used_by_currency, rl.used)} / ${usd(rl.limit)}`,
           iconType: windowIcons[rl.window] || 'clock',
           resetAt: rl.reset_at,
         })
@@ -577,7 +577,7 @@ const ringItems = computed<RingItem[]>(() => {
       }
     }
     if (!data.subscription && data.balance != null) {
-      items.push({ title: t('keyUsage.walletBalance'), pct: 0, amount: usd(data.balance), isBalance: true, iconType: 'dollar' })
+      items.push({ title: t('keyUsage.walletBalance'), pct: 0, amount: currencyBreakdown(data.balances, data.balance), isBalance: true, iconType: 'dollar' })
     }
   }
 
@@ -641,7 +641,7 @@ const detailRows = computed<DetailRow[]>(() => {
       const windowMap: Record<string, string> = { '5h': '5H', '1d': locale.value === 'zh' ? '日' : 'D', '7d': '7D' }
       for (const rl of data.rate_limits) {
         const pct = rl.limit > 0 ? (rl.used / rl.limit) * 100 : 0
-        let valueStr = `${usd(rl.used)} / ${usd(rl.limit)}`
+        let valueStr = `${currencyBreakdown(rl.used_by_currency, rl.used)} / ${usd(rl.limit)}`
         const resetStr = formatResetTime(rl.reset_at)
         if (resetStr) {
           valueStr += ` (⟳ ${resetStr})`
@@ -696,7 +696,7 @@ const detailRows = computed<DetailRow[]>(() => {
       : ''
     rows.push({
       iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', iconSvg: ICON_SHIELD,
-      label: t('keyUsage.remainingQuota'), value: data.remaining != null ? usd(data.remaining) : '-', valueClass: remainColor,
+      label: t('keyUsage.remainingQuota'), value: data.remaining != null ? currencyBreakdown(data.balances, data.remaining) : '-', valueClass: remainColor,
     })
   }
 
@@ -723,7 +723,7 @@ const usageStatCells = computed<StatCell[]>(() => {
     { label: t('keyUsage.todayTokens'), value: formatTokenValue(today.total_tokens), title: formatExactTokenValue(today.total_tokens) },
     { label: t('keyUsage.todayCacheCreation'), value: formatTokenValue(today.cache_creation_tokens), title: formatExactTokenValue(today.cache_creation_tokens) },
     { label: t('keyUsage.todayCacheRead'), value: formatTokenValue(today.cache_read_tokens), title: formatExactTokenValue(today.cache_read_tokens) },
-    { label: t('keyUsage.todayCost'), value: usd(today.actual_cost) },
+    { label: t('keyUsage.todayCost'), value: currencyBreakdown(today.actual_cost_by_currency, today.actual_cost) },
     {
       label: t('keyUsage.rpmTpm'),
       value: `${usage.rpm || 0} / ${formatTokenValue(usage.tpm ?? 0)}`,
@@ -735,7 +735,7 @@ const usageStatCells = computed<StatCell[]>(() => {
     { label: t('keyUsage.totalTokensLabel'), value: formatTokenValue(total.total_tokens), title: formatExactTokenValue(total.total_tokens) },
     { label: t('keyUsage.totalCacheCreation'), value: formatTokenValue(total.cache_creation_tokens), title: formatExactTokenValue(total.cache_creation_tokens) },
     { label: t('keyUsage.totalCacheRead'), value: formatTokenValue(total.cache_read_tokens), title: formatExactTokenValue(total.cache_read_tokens) },
-    { label: t('keyUsage.totalCost'), value: usd(total.actual_cost) },
+    { label: t('keyUsage.totalCost'), value: currencyBreakdown(total.actual_cost_by_currency, total.actual_cost) },
     { label: t('keyUsage.avgDuration'), value: usage.average_duration_ms ? `${Math.round(usage.average_duration_ms)} ms` : '-' },
   ]
 })
@@ -748,6 +748,20 @@ const modelStats = computed<any[]>(() => resultData.value?.model_stats || [])
 function usd(value: number | null | undefined): string {
   if (value == null || value < 0) return '-'
   return '$' + Number(value).toFixed(2)
+}
+
+function currencyBreakdown(values: Record<string, number> | null | undefined, fallbackUSD?: number | null): string {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right))
+  if (entries.length === 0) {
+    return usd(fallbackUSD)
+  }
+  return entries.map(([currency, value]) => {
+    const normalized = currency.toUpperCase()
+    const prefix = normalized === 'CNY' ? '¥' : '$'
+    return `${prefix}${Number(value).toFixed(2)}`
+  }).join(' / ')
 }
 
 function fmtNum(val: number | null | undefined): string {

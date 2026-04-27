@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const usageLogSelectColumns = "id, user_id, api_key_id, account_id, request_id, model, requested_model, upstream_model, channel_id, model_mapping_chain, billing_tier, billing_mode, group_id, subscription_id, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, input_cost, output_cost, cache_creation_cost, cache_read_cost, total_cost, actual_cost, billing_exempt_reason, rate_multiplier, account_rate_multiplier, billing_type, request_type, status, stream, openai_ws_mode, duration_ms, first_token_ms, user_agent, ip_address, http_status, error_code, error_message, simulated_client, operation_type, charge_source, image_count, image_size, image_output_tokens, image_output_cost, service_tier, reasoning_effort, thinking_enabled, inbound_endpoint, upstream_endpoint, upstream_url, upstream_service, cache_ttl_overridden, created_at"
+const usageLogSelectColumns = "id, user_id, api_key_id, account_id, request_id, model, requested_model, upstream_model, channel_id, model_mapping_chain, billing_tier, billing_mode, group_id, subscription_id, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, input_cost, output_cost, cache_creation_cost, cache_read_cost, total_cost, actual_cost, billing_currency, total_cost_usd_equivalent, actual_cost_usd_equivalent, usd_to_cny_rate, fx_rate_date, fx_locked_at, billing_exempt_reason, rate_multiplier, account_rate_multiplier, billing_type, request_type, status, stream, openai_ws_mode, duration_ms, first_token_ms, user_agent, ip_address, http_status, error_code, error_message, simulated_client, operation_type, charge_source, image_count, image_size, image_output_tokens, image_output_cost, service_tier, reasoning_effort, thinking_enabled, inbound_endpoint, upstream_endpoint, upstream_url, upstream_service, cache_ttl_overridden, created_at"
 
 const rawUsageLogModelColumn = "model"
 
@@ -92,7 +92,7 @@ func (r *usageLogRepository) GetUserStats(ctx context.Context, userID int64, sta
 		SELECT
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
-			COALESCE(SUM(actual_cost), 0) as total_cost,
+			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_cost,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens
@@ -210,8 +210,8 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 			COALESCE(u.email, '') as email,
 			COUNT(*) as requests,
 			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as total_tokens,
-			COALESCE(SUM(ul.total_cost), 0) as cost,
-			COALESCE(SUM(ul.actual_cost), 0) as actual_cost
+			COALESCE(SUM(ul.total_cost_usd_equivalent), 0) as cost,
+			COALESCE(SUM(ul.actual_cost_usd_equivalent), 0) as actual_cost
 		FROM usage_logs ul
 		LEFT JOIN users u ON u.id = ul.user_id
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
@@ -265,8 +265,8 @@ func (r *usageLogRepository) GetAllGroupUsageSummary(ctx context.Context, todayS
 	query := `
 		SELECT
 			g.id AS group_id,
-			COALESCE(SUM(ul.actual_cost), 0) AS total_cost,
-			COALESCE(SUM(CASE WHEN ul.created_at >= $1 THEN ul.actual_cost ELSE 0 END), 0) AS today_cost
+			COALESCE(SUM(ul.actual_cost_usd_equivalent), 0) AS total_cost,
+			COALESCE(SUM(CASE WHEN ul.created_at >= $1 THEN ul.actual_cost_usd_equivalent ELSE 0 END), 0) AS today_cost
 		FROM groups g
 		LEFT JOIN usage_logs ul ON ul.group_id = g.id
 		GROUP BY g.id

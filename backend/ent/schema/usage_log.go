@@ -77,6 +77,26 @@ func (UsageLog) Fields() []ent.Field {
 		field.Float("actual_cost").
 			Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.String("billing_currency").
+			MaxLen(3).
+			Default("USD"),
+		field.Float("total_cost_usd_equivalent").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("actual_cost_usd_equivalent").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("usd_to_cny_rate").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
+		field.String("fx_rate_date").
+			MaxLen(16).
+			Optional().
+			Nillable(),
+		field.Time("fx_locked_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.String("billing_exempt_reason").
 			MaxLen(32).
 			Optional().

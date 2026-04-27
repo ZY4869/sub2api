@@ -64,6 +64,12 @@ func (_c *APIKeyGroupCreate) SetNillableQuotaUsed(v *float64) *APIKeyGroupCreate
 	return _c
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (_c *APIKeyGroupCreate) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyGroupCreate {
+	_c.mutation.SetQuotaUsedByCurrency(v)
+	return _c
+}
+
 // SetModelPatterns sets the "model_patterns" field.
 func (_c *APIKeyGroupCreate) SetModelPatterns(v []string) *APIKeyGroupCreate {
 	_c.mutation.SetModelPatterns(v)
@@ -217,6 +223,10 @@ func (_c *APIKeyGroupCreate) createSpec() (*APIKeyGroup, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.QuotaUsed(); ok {
 		_spec.SetField(apikeygroup.FieldQuotaUsed, field.TypeFloat64, value)
 		_node.QuotaUsed = value
+	}
+	if value, ok := _c.mutation.QuotaUsedByCurrency(); ok {
+		_spec.SetField(apikeygroup.FieldQuotaUsedByCurrency, field.TypeJSON, value)
+		_node.QuotaUsedByCurrency = value
 	}
 	if value, ok := _c.mutation.ModelPatterns(); ok {
 		_spec.SetField(apikeygroup.FieldModelPatterns, field.TypeJSON, value)
@@ -376,6 +386,24 @@ func (u *APIKeyGroupUpsert) AddQuotaUsed(v float64) *APIKeyGroupUpsert {
 	return u
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (u *APIKeyGroupUpsert) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyGroupUpsert {
+	u.Set(apikeygroup.FieldQuotaUsedByCurrency, v)
+	return u
+}
+
+// UpdateQuotaUsedByCurrency sets the "quota_used_by_currency" field to the value that was provided on create.
+func (u *APIKeyGroupUpsert) UpdateQuotaUsedByCurrency() *APIKeyGroupUpsert {
+	u.SetExcluded(apikeygroup.FieldQuotaUsedByCurrency)
+	return u
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (u *APIKeyGroupUpsert) ClearQuotaUsedByCurrency() *APIKeyGroupUpsert {
+	u.SetNull(apikeygroup.FieldQuotaUsedByCurrency)
+	return u
+}
+
 // SetModelPatterns sets the "model_patterns" field.
 func (u *APIKeyGroupUpsert) SetModelPatterns(v []string) *APIKeyGroupUpsert {
 	u.Set(apikeygroup.FieldModelPatterns, v)
@@ -518,6 +546,27 @@ func (u *APIKeyGroupUpsertOne) AddQuotaUsed(v float64) *APIKeyGroupUpsertOne {
 func (u *APIKeyGroupUpsertOne) UpdateQuotaUsed() *APIKeyGroupUpsertOne {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateQuotaUsed()
+	})
+}
+
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (u *APIKeyGroupUpsertOne) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetQuotaUsedByCurrency(v)
+	})
+}
+
+// UpdateQuotaUsedByCurrency sets the "quota_used_by_currency" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertOne) UpdateQuotaUsedByCurrency() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateQuotaUsedByCurrency()
+	})
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (u *APIKeyGroupUpsertOne) ClearQuotaUsedByCurrency() *APIKeyGroupUpsertOne {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.ClearQuotaUsedByCurrency()
 	})
 }
 
@@ -811,6 +860,27 @@ func (u *APIKeyGroupUpsertBulk) AddQuotaUsed(v float64) *APIKeyGroupUpsertBulk {
 func (u *APIKeyGroupUpsertBulk) UpdateQuotaUsed() *APIKeyGroupUpsertBulk {
 	return u.Update(func(s *APIKeyGroupUpsert) {
 		s.UpdateQuotaUsed()
+	})
+}
+
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (u *APIKeyGroupUpsertBulk) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.SetQuotaUsedByCurrency(v)
+	})
+}
+
+// UpdateQuotaUsedByCurrency sets the "quota_used_by_currency" field to the value that was provided on create.
+func (u *APIKeyGroupUpsertBulk) UpdateQuotaUsedByCurrency() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.UpdateQuotaUsedByCurrency()
+	})
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (u *APIKeyGroupUpsertBulk) ClearQuotaUsedByCurrency() *APIKeyGroupUpsertBulk {
+	return u.Update(func(s *APIKeyGroupUpsert) {
+		s.ClearQuotaUsedByCurrency()
 	})
 }
 

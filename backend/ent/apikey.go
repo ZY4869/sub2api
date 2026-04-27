@@ -56,6 +56,8 @@ type APIKey struct {
 	Quota float64 `json:"quota,omitempty"`
 	// Used quota amount in USD
 	QuotaUsed float64 `json:"quota_used,omitempty"`
+	// Used quota amount by source billing currency
+	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
 	// Expiration time for this API key (null = never expires)
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 	// Rate limit in USD per 5 hours (0 = unlimited)
@@ -66,10 +68,16 @@ type APIKey struct {
 	RateLimit7d float64 `json:"rate_limit_7d,omitempty"`
 	// Used amount in USD for the current 5h window
 	Usage5h float64 `json:"usage_5h,omitempty"`
+	// Used amount by source billing currency for the current 5h window
+	Usage5hByCurrency map[string]float64 `json:"usage_5h_by_currency,omitempty"`
 	// Used amount in USD for the current 1d window
 	Usage1d float64 `json:"usage_1d,omitempty"`
+	// Used amount by source billing currency for the current 1d window
+	Usage1dByCurrency map[string]float64 `json:"usage_1d_by_currency,omitempty"`
 	// Used amount in USD for the current 7d window
 	Usage7d float64 `json:"usage_7d,omitempty"`
+	// Used amount by source billing currency for the current 7d window
+	Usage7dByCurrency map[string]float64 `json:"usage_7d_by_currency,omitempty"`
 	// Start time of the current 5h rate limit window
 	Window5hStart *time.Time `json:"window_5h_start,omitempty"`
 	// Start time of the current 1d rate limit window
@@ -153,7 +161,7 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist:
+		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist, apikey.FieldQuotaUsedByCurrency, apikey.FieldUsage5hByCurrency, apikey.FieldUsage1dByCurrency, apikey.FieldUsage7dByCurrency:
 			values[i] = new([]byte)
 		case apikey.FieldImageOnlyEnabled, apikey.FieldImageCountBillingEnabled:
 			values[i] = new(sql.NullBool)
@@ -301,6 +309,14 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.QuotaUsed = value.Float64
 			}
+		case apikey.FieldQuotaUsedByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field quota_used_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.QuotaUsedByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field quota_used_by_currency: %w", err)
+				}
+			}
 		case apikey.FieldExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
@@ -332,17 +348,41 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Usage5h = value.Float64
 			}
+		case apikey.FieldUsage5hByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_5h_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Usage5hByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field usage_5h_by_currency: %w", err)
+				}
+			}
 		case apikey.FieldUsage1d:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field usage_1d", values[i])
 			} else if value.Valid {
 				_m.Usage1d = value.Float64
 			}
+		case apikey.FieldUsage1dByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_1d_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Usage1dByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field usage_1d_by_currency: %w", err)
+				}
+			}
 		case apikey.FieldUsage7d:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field usage_7d", values[i])
 			} else if value.Valid {
 				_m.Usage7d = value.Float64
+			}
+		case apikey.FieldUsage7dByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field usage_7d_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Usage7dByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field usage_7d_by_currency: %w", err)
+				}
 			}
 		case apikey.FieldWindow5hStart:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -486,6 +526,9 @@ func (_m *APIKey) String() string {
 	builder.WriteString("quota_used=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QuotaUsed))
 	builder.WriteString(", ")
+	builder.WriteString("quota_used_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.QuotaUsedByCurrency))
+	builder.WriteString(", ")
 	if v := _m.ExpiresAt; v != nil {
 		builder.WriteString("expires_at=")
 		builder.WriteString(v.Format(time.ANSIC))
@@ -503,11 +546,20 @@ func (_m *APIKey) String() string {
 	builder.WriteString("usage_5h=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Usage5h))
 	builder.WriteString(", ")
+	builder.WriteString("usage_5h_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Usage5hByCurrency))
+	builder.WriteString(", ")
 	builder.WriteString("usage_1d=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Usage1d))
 	builder.WriteString(", ")
+	builder.WriteString("usage_1d_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Usage1dByCurrency))
+	builder.WriteString(", ")
 	builder.WriteString("usage_7d=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Usage7d))
+	builder.WriteString(", ")
+	builder.WriteString("usage_7d_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Usage7dByCurrency))
 	builder.WriteString(", ")
 	if v := _m.Window5hStart; v != nil {
 		builder.WriteString("window_5h_start=")

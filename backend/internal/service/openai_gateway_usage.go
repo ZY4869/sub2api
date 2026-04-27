@@ -124,6 +124,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	durationMs := int(result.Duration.Milliseconds())
 	accountRateMultiplier := account.BillingRateMultiplier()
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
+	billingCurrency := normalizeBillingCurrency(cost.Currency)
 
 	usageLog := &UsageLog{
 		UserID:                user.ID,
@@ -150,6 +151,14 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		CacheReadCost:         cost.CacheReadCost,
 		TotalCost:             cost.TotalCost,
 		ActualCost:            cost.ActualCost,
+		BillingCurrency:       billingCurrency,
+		TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent,
+		ActualCostUSDEquivalent: cost.ActualCostUSDEquivalent,
+		USDToCNYRate:          cost.USDToCNYRate,
+		FXRateDate:            optionalTrimmedStringPtr(cost.FXRateDate),
+		FXLockedAt:            cloneBillingTime(cost.FXLockedAt),
+		CostByCurrency:        cloneBillingStringMapFloat64(cost.CostByCurrency),
+		ActualCostByCurrency:  cloneBillingStringMapFloat64(cost.ActualCostByCurrency),
 		RateMultiplier:        multiplier,
 		AccountRateMultiplier: &accountRateMultiplier,
 		BillingType:           billingType,

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 var ErrUsageBillingRequestIDRequired = errors.New("usage billing request_id is required")
@@ -49,6 +50,10 @@ type UsageBillingCommand struct {
 	APIKeyGroupQuotaCost float64
 	APIKeyRateLimitCost  float64
 	AccountQuotaCost     float64
+	BillingCurrency      string
+	USDToCNYRate         float64
+	FXRateDate           string
+	FXLockedAt           *time.Time
 }
 
 func (c *UsageBillingCommand) Normalize() {
@@ -56,6 +61,7 @@ func (c *UsageBillingCommand) Normalize() {
 		return
 	}
 	c.RequestID = strings.TrimSpace(c.RequestID)
+	c.BillingCurrency = NormalizeUsageBillingCurrency(c.BillingCurrency)
 	if strings.TrimSpace(c.RequestFingerprint) == "" {
 		c.RequestFingerprint = buildUsageBillingFingerprint(c)
 	}
@@ -66,7 +72,7 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		return ""
 	}
 	raw := fmt.Sprintf(
-		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
+		"%d|%d|%d|%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f|%s|%0.10f|%s",
 		c.UserID,
 		c.AccountID,
 		c.APIKeyID,
@@ -97,6 +103,9 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		c.APIKeyGroupQuotaCost,
 		c.APIKeyRateLimitCost,
 		c.AccountQuotaCost,
+		NormalizeUsageBillingCurrency(c.BillingCurrency),
+		c.USDToCNYRate,
+		strings.TrimSpace(c.FXRateDate),
 	)
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash

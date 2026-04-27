@@ -168,9 +168,9 @@ func (r *usageLogRepository) getUsageSubjectAggregate(ctx context.Context, scope
 			TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
 			COUNT(*) AS requests,
 			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) AS tokens,
-			COALESCE(SUM(total_cost), 0) AS standard_cost,
-			COALESCE(SUM(total_cost * COALESCE(account_rate_multiplier, 1)), 0) AS account_cost,
-			COALESCE(SUM(actual_cost), 0) AS user_cost
+			COALESCE(SUM(total_cost_usd_equivalent), 0) AS standard_cost,
+			COALESCE(SUM(total_cost_usd_equivalent * COALESCE(account_rate_multiplier, 1)), 0) AS account_cost,
+			COALESCE(SUM(actual_cost_usd_equivalent), 0) AS user_cost
 		FROM usage_logs
 		WHERE %s = $1 AND created_at >= $2 AND created_at < $3
 		GROUP BY date

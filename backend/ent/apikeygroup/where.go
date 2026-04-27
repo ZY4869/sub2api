@@ -160,6 +160,16 @@ func QuotaUsedLTE(v float64) predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldLTE(FieldQuotaUsed, v))
 }
 
+// QuotaUsedByCurrencyIsNil applies the IsNil predicate on the "quota_used_by_currency" field.
+func QuotaUsedByCurrencyIsNil() predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldIsNull(FieldQuotaUsedByCurrency))
+}
+
+// QuotaUsedByCurrencyNotNil applies the NotNil predicate on the "quota_used_by_currency" field.
+func QuotaUsedByCurrencyNotNil() predicate.APIKeyGroup {
+	return predicate.APIKeyGroup(sql.FieldNotNull(FieldQuotaUsedByCurrency))
+}
+
 // ModelPatternsIsNil applies the IsNil predicate on the "model_patterns" field.
 func ModelPatternsIsNil() predicate.APIKeyGroup {
 	return predicate.APIKeyGroup(sql.FieldIsNull(FieldModelPatterns))

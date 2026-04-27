@@ -82,38 +82,47 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 	defer cancel()
 
 	cost := p.Cost
+	currency := normalizeBillingCurrency(cost.Currency)
+	legacyUSDAmount := cost.ActualCostUSDEquivalent
+	if legacyUSDAmount == 0 && cost.ActualCost != 0 {
+		legacyUSDAmount = costUSDEquivalent(cost.ActualCost, currency, cost.USDToCNYRate)
+	}
+	legacyUSDTotal := cost.TotalCostUSDEquivalent
+	if legacyUSDTotal == 0 && cost.TotalCost != 0 {
+		legacyUSDTotal = costUSDEquivalent(cost.TotalCost, currency, cost.USDToCNYRate)
+	}
 	if p.IsSubscriptionBill {
-		if !p.SkipUserBilling && cost.TotalCost > 0 && p.Subscription != nil {
-			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, cost.TotalCost); err != nil {
+		if !p.SkipUserBilling && legacyUSDTotal > 0 && p.Subscription != nil {
+			if err := deps.userSubRepo.IncrementUsage(billingCtx, p.Subscription.ID, legacyUSDTotal); err != nil {
 				slog.Error("increment subscription usage failed", "subscription_id", p.Subscription.ID, "error", err)
 			}
 		}
 	} else {
-		if !p.SkipUserBilling && cost.ActualCost > 0 {
-			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, cost.ActualCost); err != nil {
+		if !p.SkipUserBilling && legacyUSDAmount > 0 {
+			if err := deps.userRepo.DeductBalance(billingCtx, p.User.ID, legacyUSDAmount); err != nil {
 				slog.Error("deduct balance failed", "user_id", p.User.ID, "error", err)
 			}
 		}
 	}
-	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
-		if err := p.APIKeyService.UpdateQuotaUsed(billingCtx, p.APIKey.ID, cost.ActualCost); err != nil {
+	if !p.SkipUserBilling && legacyUSDAmount > 0 && p.APIKey.Quota > 0 && p.APIKeyService != nil {
+		if err := p.APIKeyService.UpdateQuotaUsed(billingCtx, p.APIKey.ID, legacyUSDAmount); err != nil {
 			slog.Error("update api key quota failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
 	}
-	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKeyService != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
+	if !p.SkipUserBilling && legacyUSDAmount > 0 && p.APIKeyService != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
 		if updater, ok := p.APIKeyService.(apiKeyGroupQuotaUpdater); ok {
-			if err := updater.UpdateGroupQuotaUsed(billingCtx, p.APIKey.ID, *p.APIKey.GroupID, cost.ActualCost); err != nil {
+			if err := updater.UpdateGroupQuotaUsed(billingCtx, p.APIKey.ID, *p.APIKey.GroupID, legacyUSDAmount); err != nil {
 				slog.Error("update api key group quota failed", "api_key_id", p.APIKey.ID, "group_id", *p.APIKey.GroupID, "error", err)
 			}
 		}
 	}
-	if !p.SkipUserBilling && cost.ActualCost > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
-		if err := p.APIKeyService.UpdateRateLimitUsage(billingCtx, p.APIKey.ID, cost.ActualCost); err != nil {
+	if !p.SkipUserBilling && legacyUSDAmount > 0 && p.APIKey.HasRateLimits() && p.APIKeyService != nil {
+		if err := p.APIKeyService.UpdateRateLimitUsage(billingCtx, p.APIKey.ID, legacyUSDAmount); err != nil {
 			slog.Error("update api key rate limit usage failed", "api_key_id", p.APIKey.ID, "error", err)
 		}
 	}
-	if cost.TotalCost > 0 && CanParticipateInAccountQuota(p.Account) && p.Account.HasAnyQuotaLimit() {
-		accountCost := cost.TotalCost * p.AccountRateMultiplier
+	if legacyUSDTotal > 0 && CanParticipateInAccountQuota(p.Account) && p.Account.HasAnyQuotaLimit() {
+		accountCost := legacyUSDTotal * p.AccountRateMultiplier
 		if err := deps.accountRepo.IncrementQuotaUsed(billingCtx, p.Account.ID, accountCost); err != nil {
 			slog.Error("increment account quota used failed", "account_id", p.Account.ID, "cost", accountCost, "error", err)
 		}
@@ -332,12 +341,17 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
+	billingCurrency := normalizeBillingCurrency(cost.Currency)
+	actualCostUSDEquivalent := cost.ActualCostUSDEquivalent
+	if actualCostUSDEquivalent == 0 && actualCost != 0 {
+		actualCostUSDEquivalent = costUSDEquivalent(actualCost, billingCurrency, cost.USDToCNYRate)
+	}
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	thinkingEnabled := input.ThinkingEnabled
 	if thinkingEnabled == nil {
 		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
 	}
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingCurrency: billingCurrency, TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent, ActualCostUSDEquivalent: actualCostUSDEquivalent, USDToCNYRate: cost.USDToCNYRate, FXRateDate: optionalTrimmedStringPtr(cost.FXRateDate), FXLockedAt: cloneBillingTime(cost.FXLockedAt), CostByCurrency: cloneBillingStringMapFloat64(cost.CostByCurrency), ActualCostByCurrency: normalizedBillingCostMap(billingCurrency, actualCost), BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}
@@ -483,12 +497,17 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 	}
 	accountRateMultiplier := account.BillingRateMultiplier()
 	actualCost, billingExemptReason, skipUserBilling := applyBillingExemption(cost, user)
+	billingCurrency := normalizeBillingCurrency(cost.Currency)
+	actualCostUSDEquivalent := cost.ActualCostUSDEquivalent
+	if actualCostUSDEquivalent == 0 && actualCost != 0 {
+		actualCostUSDEquivalent = costUSDEquivalent(actualCost, billingCurrency, cost.USDToCNYRate)
+	}
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	thinkingEnabled := input.ThinkingEnabled
 	if thinkingEnabled == nil {
 		thinkingEnabled = usageLogThinkingEnabledFromContext(ctx)
 	}
-	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
+	usageLog := &UsageLog{UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID, RequestID: requestID, Model: result.Model, RequestedModel: result.Model, UpstreamModel: optionalNonEqualStringPtr(result.UpstreamModel, result.Model), ReasoningEffort: result.ReasoningEffort, ThinkingEnabled: thinkingEnabled, InboundEndpoint: optionalTrimmedStringPtr(input.InboundEndpoint), UpstreamEndpoint: optionalTrimmedStringPtr(input.UpstreamEndpoint), UpstreamURL: optionalTrimmedStringPtr(ResolveUsageLogUpstreamURL(account, input.UpstreamURL)), UpstreamService: optionalTrimmedStringPtr(ResolveUsageLogUpstreamService(account, input.UpstreamService)), InputTokens: result.Usage.InputTokens, OutputTokens: result.Usage.OutputTokens, CacheCreationTokens: result.Usage.CacheCreationInputTokens, CacheReadTokens: result.Usage.CacheReadInputTokens, CacheCreation5mTokens: result.Usage.CacheCreation5mTokens, CacheCreation1hTokens: result.Usage.CacheCreation1hTokens, InputCost: cost.InputCost, OutputCost: cost.OutputCost, CacheCreationCost: cost.CacheCreationCost, CacheReadCost: cost.CacheReadCost, TotalCost: cost.TotalCost, ActualCost: actualCost, BillingCurrency: billingCurrency, TotalCostUSDEquivalent: cost.TotalCostUSDEquivalent, ActualCostUSDEquivalent: actualCostUSDEquivalent, USDToCNYRate: cost.USDToCNYRate, FXRateDate: optionalTrimmedStringPtr(cost.FXRateDate), FXLockedAt: cloneBillingTime(cost.FXLockedAt), CostByCurrency: cloneBillingStringMapFloat64(cost.CostByCurrency), ActualCostByCurrency: normalizedBillingCostMap(billingCurrency, actualCost), BillingExemptReason: billingExemptReason, RateMultiplier: multiplier, AccountRateMultiplier: &accountRateMultiplier, BillingType: billingType, Status: UsageLogStatusSucceeded, Stream: result.Stream, DurationMs: &durationMs, FirstTokenMs: result.FirstTokenMs, ImageCount: result.ImageCount, ImageSize: imageSize, CacheTTLOverridden: cacheTTLOverridden, CreatedAt: time.Now()}
 	if input.UserAgent != "" {
 		usageLog.UserAgent = &input.UserAgent
 	}

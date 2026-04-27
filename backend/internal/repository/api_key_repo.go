@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/lib/pq"
 )
 
 type apiKeyRepository struct {
@@ -61,6 +63,9 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 	}
 	if len(key.IPBlacklist) > 0 {
 		builder.SetIPBlacklist(key.IPBlacklist)
+	}
+	if len(key.QuotaUsedByCurrency) > 0 {
+		builder.SetQuotaUsedByCurrency(service.CloneBillingCurrencyMap(key.QuotaUsedByCurrency))
 	}
 
 	created, err := builder.Save(ctx)
@@ -116,6 +121,9 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
+	if err := r.hydrateAPIKeyUserBalances(ctx, []*service.APIKey{out}); err != nil {
+		return nil, err
+	}
 	if err := r.hydrateAPIKeyGroups(ctx, []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
@@ -135,6 +143,9 @@ func (r *apiKeyRepository) GetByIDAllowDeleted(ctx context.Context, id int64) (*
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
+	if err := r.hydrateAPIKeyUserBalances(mixins.SkipSoftDelete(ctx), []*service.APIKey{out}); err != nil {
+		return nil, err
+	}
 	if err := r.hydrateAPIKeyGroups(mixins.SkipSoftDelete(ctx), []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
@@ -173,6 +184,9 @@ func (r *apiKeyRepository) GetByKey(ctx context.Context, key string) (*service.A
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
+	if err := r.hydrateAPIKeyUserBalances(ctx, []*service.APIKey{out}); err != nil {
+		return nil, err
+	}
 	if err := r.hydrateAPIKeyGroups(ctx, []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
@@ -195,6 +209,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldImageMaxCount,
 			apikey.FieldQuota,
 			apikey.FieldQuotaUsed,
+			apikey.FieldQuotaUsedByCurrency,
 			apikey.FieldExpiresAt,
 			apikey.FieldRateLimit5h,
 			apikey.FieldRateLimit1d,
@@ -245,6 +260,9 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		return nil, err
 	}
 	out := apiKeyEntityToService(m)
+	if err := r.hydrateAPIKeyUserBalances(ctx, []*service.APIKey{out}); err != nil {
+		return nil, err
+	}
 	if err := r.hydrateAPIKeyGroups(ctx, []*service.APIKey{out}); err != nil {
 		return nil, err
 	}
@@ -276,6 +294,18 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 		SetUsage1d(key.Usage1d).
 		SetUsage7d(key.Usage7d).
 		SetUpdatedAt(now)
+	if len(key.QuotaUsedByCurrency) > 0 {
+		builder.SetQuotaUsedByCurrency(service.CloneBillingCurrencyMap(key.QuotaUsedByCurrency))
+	}
+	if len(key.Usage5hByCurrency) > 0 {
+		builder.SetUsage5hByCurrency(service.CloneBillingCurrencyMap(key.Usage5hByCurrency))
+	}
+	if len(key.Usage1dByCurrency) > 0 {
+		builder.SetUsage1dByCurrency(service.CloneBillingCurrencyMap(key.Usage1dByCurrency))
+	}
+	if len(key.Usage7dByCurrency) > 0 {
+		builder.SetUsage7dByCurrency(service.CloneBillingCurrencyMap(key.Usage7dByCurrency))
+	}
 	if key.GroupID != nil {
 		builder.SetGroupID(*key.GroupID)
 	} else {
@@ -757,7 +787,11 @@ func (r *apiKeyRepository) ResetRateLimitWindows(ctx context.Context, id int64) 
 // GetRateLimitData returns the current rate limit usage and window start times for an API key.
 func (r *apiKeyRepository) GetRateLimitData(ctx context.Context, id int64) (result *service.APIKeyRateLimitData, err error) {
 	rows, err := r.sql.QueryContext(ctx, `
-		SELECT usage_5h, usage_1d, usage_7d, window_5h_start, window_1d_start, window_7d_start
+		SELECT usage_5h, usage_1d, usage_7d,
+			COALESCE(usage_5h_by_currency, '{}'::jsonb),
+			COALESCE(usage_1d_by_currency, '{}'::jsonb),
+			COALESCE(usage_7d_by_currency, '{}'::jsonb),
+			window_5h_start, window_1d_start, window_7d_start
 		FROM api_keys
 		WHERE id = $1 AND deleted_at IS NULL`,
 		id)
@@ -773,9 +807,13 @@ func (r *apiKeyRepository) GetRateLimitData(ctx context.Context, id int64) (resu
 		return nil, service.ErrAPIKeyNotFound
 	}
 	data := &service.APIKeyRateLimitData{}
-	if err := rows.Scan(&data.Usage5h, &data.Usage1d, &data.Usage7d, &data.Window5hStart, &data.Window1dStart, &data.Window7dStart); err != nil {
+	var usage5hRaw, usage1dRaw, usage7dRaw []byte
+	if err := rows.Scan(&data.Usage5h, &data.Usage1d, &data.Usage7d, &usage5hRaw, &usage1dRaw, &usage7dRaw, &data.Window5hStart, &data.Window1dStart, &data.Window7dStart); err != nil {
 		return nil, err
 	}
+	data.Usage5hByCurrency = service.CloneBillingCurrencyMap(parseBillingCurrencyJSONMap(usage5hRaw))
+	data.Usage1dByCurrency = service.CloneBillingCurrencyMap(parseBillingCurrencyJSONMap(usage1dRaw))
+	data.Usage7dByCurrency = service.CloneBillingCurrencyMap(parseBillingCurrencyJSONMap(usage7dRaw))
 	return data, rows.Err()
 }
 
@@ -803,6 +841,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		ImageCountUsed:           m.ImageCountUsed,
 		Quota:                    m.Quota,
 		QuotaUsed:                m.QuotaUsed,
+		QuotaUsedByCurrency:      service.CloneBillingCurrencyMap(m.QuotaUsedByCurrency),
 		ExpiresAt:                m.ExpiresAt,
 		RateLimit5h:              m.RateLimit5h,
 		RateLimit1d:              m.RateLimit1d,
@@ -810,6 +849,9 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		Usage5h:                  m.Usage5h,
 		Usage1d:                  m.Usage1d,
 		Usage7d:                  m.Usage7d,
+		Usage5hByCurrency:        service.CloneBillingCurrencyMap(m.Usage5hByCurrency),
+		Usage1dByCurrency:        service.CloneBillingCurrencyMap(m.Usage1dByCurrency),
+		Usage7dByCurrency:        service.CloneBillingCurrencyMap(m.Usage7dByCurrency),
 		Window5hStart:            m.Window5hStart,
 		Window1dStart:            m.Window1dStart,
 		Window7dStart:            m.Window7dStart,
@@ -835,6 +877,7 @@ func userEntityToService(u *dbent.User) *service.User {
 		PasswordHash:         u.PasswordHash,
 		Role:                 u.Role,
 		Balance:              u.Balance,
+		Balances:             map[string]float64{service.ModelPricingCurrencyUSD: u.Balance},
 		Concurrency:          u.Concurrency,
 		Status:               u.Status,
 		AdminFreeBilling:     u.AdminFreeBilling,
@@ -845,6 +888,75 @@ func userEntityToService(u *dbent.User) *service.User {
 		CreatedAt:            u.CreatedAt,
 		UpdatedAt:            u.UpdatedAt,
 	}
+}
+
+func (r *apiKeyRepository) hydrateAPIKeyUserBalances(ctx context.Context, keys []*service.APIKey) error {
+	if r == nil || r.sql == nil || len(keys) == 0 {
+		return nil
+	}
+	users := make(map[int64]*service.User)
+	userIDs := make([]int64, 0, len(keys))
+	for _, key := range keys {
+		if key == nil || key.User == nil {
+			continue
+		}
+		if _, exists := users[key.User.ID]; exists {
+			continue
+		}
+		key.User.Balances = map[string]float64{service.ModelPricingCurrencyUSD: key.User.Balance}
+		users[key.User.ID] = key.User
+		userIDs = append(userIDs, key.User.ID)
+	}
+	if len(userIDs) == 0 {
+		return nil
+	}
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT user_id, currency, balance
+		FROM billing_wallets
+		WHERE user_id = ANY($1)
+	`, pq.Array(userIDs))
+	if err != nil {
+		if isUndefinedBillingWalletTable(err) {
+			return nil
+		}
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			userID   int64
+			currency string
+			balance  float64
+		)
+		if err := rows.Scan(&userID, &currency, &balance); err != nil {
+			return err
+		}
+		user := users[userID]
+		if user == nil {
+			continue
+		}
+		normalized := service.NormalizeUsageBillingCurrency(currency)
+		if normalized == "" {
+			continue
+		}
+		if user.Balances == nil {
+			user.Balances = map[string]float64{}
+		}
+		user.Balances[normalized] = balance
+	}
+	return rows.Err()
+}
+
+func parseBillingCurrencyJSONMap(raw []byte) map[string]float64 {
+	if len(raw) == 0 {
+		return nil
+	}
+	var values map[string]float64
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil
+	}
+	return values
 }
 
 func groupEntityToService(g *dbent.Group) *service.Group {
@@ -904,6 +1016,9 @@ func (r *apiKeyRepository) getAPIKeysByIDs(ctx context.Context, ids []int64, wit
 		item := apiKeyEntityToService(row)
 		serviceKeys = append(serviceKeys, item)
 		keyByID[item.ID] = item
+	}
+	if err := r.hydrateAPIKeyUserBalances(ctx, serviceKeys); err != nil {
+		return nil, err
 	}
 	if err := r.hydrateAPIKeyGroups(ctx, serviceKeys); err != nil {
 		return nil, err

@@ -316,6 +316,18 @@ func (_u *APIKeyUpdate) AddQuotaUsed(v float64) *APIKeyUpdate {
 	return _u
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (_u *APIKeyUpdate) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyUpdate {
+	_u.mutation.SetQuotaUsedByCurrency(v)
+	return _u
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (_u *APIKeyUpdate) ClearQuotaUsedByCurrency() *APIKeyUpdate {
+	_u.mutation.ClearQuotaUsedByCurrency()
+	return _u
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_u *APIKeyUpdate) SetExpiresAt(v time.Time) *APIKeyUpdate {
 	_u.mutation.SetExpiresAt(v)
@@ -420,6 +432,18 @@ func (_u *APIKeyUpdate) AddUsage5h(v float64) *APIKeyUpdate {
 	return _u
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (_u *APIKeyUpdate) SetUsage5hByCurrency(v map[string]float64) *APIKeyUpdate {
+	_u.mutation.SetUsage5hByCurrency(v)
+	return _u
+}
+
+// ClearUsage5hByCurrency clears the value of the "usage_5h_by_currency" field.
+func (_u *APIKeyUpdate) ClearUsage5hByCurrency() *APIKeyUpdate {
+	_u.mutation.ClearUsage5hByCurrency()
+	return _u
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (_u *APIKeyUpdate) SetUsage1d(v float64) *APIKeyUpdate {
 	_u.mutation.ResetUsage1d()
@@ -441,6 +465,18 @@ func (_u *APIKeyUpdate) AddUsage1d(v float64) *APIKeyUpdate {
 	return _u
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (_u *APIKeyUpdate) SetUsage1dByCurrency(v map[string]float64) *APIKeyUpdate {
+	_u.mutation.SetUsage1dByCurrency(v)
+	return _u
+}
+
+// ClearUsage1dByCurrency clears the value of the "usage_1d_by_currency" field.
+func (_u *APIKeyUpdate) ClearUsage1dByCurrency() *APIKeyUpdate {
+	_u.mutation.ClearUsage1dByCurrency()
+	return _u
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (_u *APIKeyUpdate) SetUsage7d(v float64) *APIKeyUpdate {
 	_u.mutation.ResetUsage7d()
@@ -459,6 +495,18 @@ func (_u *APIKeyUpdate) SetNillableUsage7d(v *float64) *APIKeyUpdate {
 // AddUsage7d adds value to the "usage_7d" field.
 func (_u *APIKeyUpdate) AddUsage7d(v float64) *APIKeyUpdate {
 	_u.mutation.AddUsage7d(v)
+	return _u
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (_u *APIKeyUpdate) SetUsage7dByCurrency(v map[string]float64) *APIKeyUpdate {
+	_u.mutation.SetUsage7dByCurrency(v)
+	return _u
+}
+
+// ClearUsage7dByCurrency clears the value of the "usage_7d_by_currency" field.
+func (_u *APIKeyUpdate) ClearUsage7dByCurrency() *APIKeyUpdate {
+	_u.mutation.ClearUsage7dByCurrency()
 	return _u
 }
 
@@ -782,6 +830,12 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedQuotaUsed(); ok {
 		_spec.AddField(apikey.FieldQuotaUsed, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.QuotaUsedByCurrency(); ok {
+		_spec.SetField(apikey.FieldQuotaUsedByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaUsedByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldQuotaUsedByCurrency, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ExpiresAt(); ok {
 		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
 	}
@@ -812,17 +866,35 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedUsage5h(); ok {
 		_spec.AddField(apikey.FieldUsage5h, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.Usage5hByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage5hByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.Usage5hByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldUsage5hByCurrency, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Usage1d(); ok {
 		_spec.SetField(apikey.FieldUsage1d, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.AddedUsage1d(); ok {
 		_spec.AddField(apikey.FieldUsage1d, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.Usage1dByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage1dByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.Usage1dByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldUsage1dByCurrency, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Usage7d(); ok {
 		_spec.SetField(apikey.FieldUsage7d, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.AddedUsage7d(); ok {
 		_spec.AddField(apikey.FieldUsage7d, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Usage7dByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage7dByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.Usage7dByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldUsage7dByCurrency, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Window5hStart(); ok {
 		_spec.SetField(apikey.FieldWindow5hStart, field.TypeTime, value)
@@ -1306,6 +1378,18 @@ func (_u *APIKeyUpdateOne) AddQuotaUsed(v float64) *APIKeyUpdateOne {
 	return _u
 }
 
+// SetQuotaUsedByCurrency sets the "quota_used_by_currency" field.
+func (_u *APIKeyUpdateOne) SetQuotaUsedByCurrency(v map[string]float64) *APIKeyUpdateOne {
+	_u.mutation.SetQuotaUsedByCurrency(v)
+	return _u
+}
+
+// ClearQuotaUsedByCurrency clears the value of the "quota_used_by_currency" field.
+func (_u *APIKeyUpdateOne) ClearQuotaUsedByCurrency() *APIKeyUpdateOne {
+	_u.mutation.ClearQuotaUsedByCurrency()
+	return _u
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_u *APIKeyUpdateOne) SetExpiresAt(v time.Time) *APIKeyUpdateOne {
 	_u.mutation.SetExpiresAt(v)
@@ -1410,6 +1494,18 @@ func (_u *APIKeyUpdateOne) AddUsage5h(v float64) *APIKeyUpdateOne {
 	return _u
 }
 
+// SetUsage5hByCurrency sets the "usage_5h_by_currency" field.
+func (_u *APIKeyUpdateOne) SetUsage5hByCurrency(v map[string]float64) *APIKeyUpdateOne {
+	_u.mutation.SetUsage5hByCurrency(v)
+	return _u
+}
+
+// ClearUsage5hByCurrency clears the value of the "usage_5h_by_currency" field.
+func (_u *APIKeyUpdateOne) ClearUsage5hByCurrency() *APIKeyUpdateOne {
+	_u.mutation.ClearUsage5hByCurrency()
+	return _u
+}
+
 // SetUsage1d sets the "usage_1d" field.
 func (_u *APIKeyUpdateOne) SetUsage1d(v float64) *APIKeyUpdateOne {
 	_u.mutation.ResetUsage1d()
@@ -1431,6 +1527,18 @@ func (_u *APIKeyUpdateOne) AddUsage1d(v float64) *APIKeyUpdateOne {
 	return _u
 }
 
+// SetUsage1dByCurrency sets the "usage_1d_by_currency" field.
+func (_u *APIKeyUpdateOne) SetUsage1dByCurrency(v map[string]float64) *APIKeyUpdateOne {
+	_u.mutation.SetUsage1dByCurrency(v)
+	return _u
+}
+
+// ClearUsage1dByCurrency clears the value of the "usage_1d_by_currency" field.
+func (_u *APIKeyUpdateOne) ClearUsage1dByCurrency() *APIKeyUpdateOne {
+	_u.mutation.ClearUsage1dByCurrency()
+	return _u
+}
+
 // SetUsage7d sets the "usage_7d" field.
 func (_u *APIKeyUpdateOne) SetUsage7d(v float64) *APIKeyUpdateOne {
 	_u.mutation.ResetUsage7d()
@@ -1449,6 +1557,18 @@ func (_u *APIKeyUpdateOne) SetNillableUsage7d(v *float64) *APIKeyUpdateOne {
 // AddUsage7d adds value to the "usage_7d" field.
 func (_u *APIKeyUpdateOne) AddUsage7d(v float64) *APIKeyUpdateOne {
 	_u.mutation.AddUsage7d(v)
+	return _u
+}
+
+// SetUsage7dByCurrency sets the "usage_7d_by_currency" field.
+func (_u *APIKeyUpdateOne) SetUsage7dByCurrency(v map[string]float64) *APIKeyUpdateOne {
+	_u.mutation.SetUsage7dByCurrency(v)
+	return _u
+}
+
+// ClearUsage7dByCurrency clears the value of the "usage_7d_by_currency" field.
+func (_u *APIKeyUpdateOne) ClearUsage7dByCurrency() *APIKeyUpdateOne {
+	_u.mutation.ClearUsage7dByCurrency()
 	return _u
 }
 
@@ -1802,6 +1922,12 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	if value, ok := _u.mutation.AddedQuotaUsed(); ok {
 		_spec.AddField(apikey.FieldQuotaUsed, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.QuotaUsedByCurrency(); ok {
+		_spec.SetField(apikey.FieldQuotaUsedByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.QuotaUsedByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldQuotaUsedByCurrency, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ExpiresAt(); ok {
 		_spec.SetField(apikey.FieldExpiresAt, field.TypeTime, value)
 	}
@@ -1832,17 +1958,35 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	if value, ok := _u.mutation.AddedUsage5h(); ok {
 		_spec.AddField(apikey.FieldUsage5h, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.Usage5hByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage5hByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.Usage5hByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldUsage5hByCurrency, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Usage1d(); ok {
 		_spec.SetField(apikey.FieldUsage1d, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.AddedUsage1d(); ok {
 		_spec.AddField(apikey.FieldUsage1d, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.Usage1dByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage1dByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.Usage1dByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldUsage1dByCurrency, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Usage7d(); ok {
 		_spec.SetField(apikey.FieldUsage7d, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.AddedUsage7d(); ok {
 		_spec.AddField(apikey.FieldUsage7d, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Usage7dByCurrency(); ok {
+		_spec.SetField(apikey.FieldUsage7dByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.Usage7dByCurrencyCleared() {
+		_spec.ClearField(apikey.FieldUsage7dByCurrency, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Window5hStart(); ok {
 		_spec.SetField(apikey.FieldWindow5hStart, field.TypeTime, value)

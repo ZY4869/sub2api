@@ -847,3 +847,40 @@ func TestCalculateCost_UsesRuntimePricingOverridesWithoutMutatingBasePricing(t *
 	imageCost := svc.getDefaultImagePrice("gpt-5.4", "1024x1024", "")
 	require.InDelta(t, 0.5, imageCost, 1e-12)
 }
+
+func TestCalculateCost_CNYPricingRequiresLockedFX(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"cny-missing-fx": {
+				Currency:           ModelPricingCurrencyCNY,
+				InputCostPerToken:  1e-6,
+				OutputCostPerToken: 2e-6,
+			},
+		},
+	})
+
+	_, err := svc.CalculateCost("cny-missing-fx", UsageTokens{InputTokens: 10}, 1)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing locked USD/CNY rate")
+}
+
+func TestCalculateCost_CNYPricingCarriesSourceCurrencyAndUSDEquivalent(t *testing.T) {
+	svc := NewBillingService(&config.Config{}, &PricingService{
+		pricingData: map[string]*LiteLLMModelPricing{
+			"cny-with-fx": {
+				Currency:           ModelPricingCurrencyCNY,
+				USDToCNYRate:       6.8,
+				FXRateDate:         "2026-04-24",
+				InputCostPerToken:  1,
+				OutputCostPerToken: 2,
+			},
+		},
+	})
+
+	cost, err := svc.CalculateCost("cny-with-fx", UsageTokens{InputTokens: 2, OutputTokens: 3}, 1)
+	require.NoError(t, err)
+	require.Equal(t, ModelPricingCurrencyCNY, cost.Currency)
+	require.InDelta(t, 8, cost.ActualCost, 1e-12)
+	require.InDelta(t, 8/6.8, cost.ActualCostUSDEquivalent, 1e-12)
+	require.Equal(t, map[string]float64{ModelPricingCurrencyCNY: 8}, cost.ActualCostByCurrency)
+}

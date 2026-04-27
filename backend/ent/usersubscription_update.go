@@ -250,6 +250,42 @@ func (_u *UserSubscriptionUpdate) AddMonthlyUsageUsd(v float64) *UserSubscriptio
 	return _u
 }
 
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (_u *UserSubscriptionUpdate) SetDailyUsageByCurrency(v map[string]float64) *UserSubscriptionUpdate {
+	_u.mutation.SetDailyUsageByCurrency(v)
+	return _u
+}
+
+// ClearDailyUsageByCurrency clears the value of the "daily_usage_by_currency" field.
+func (_u *UserSubscriptionUpdate) ClearDailyUsageByCurrency() *UserSubscriptionUpdate {
+	_u.mutation.ClearDailyUsageByCurrency()
+	return _u
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdate) SetWeeklyUsageByCurrency(v map[string]float64) *UserSubscriptionUpdate {
+	_u.mutation.SetWeeklyUsageByCurrency(v)
+	return _u
+}
+
+// ClearWeeklyUsageByCurrency clears the value of the "weekly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdate) ClearWeeklyUsageByCurrency() *UserSubscriptionUpdate {
+	_u.mutation.ClearWeeklyUsageByCurrency()
+	return _u
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdate) SetMonthlyUsageByCurrency(v map[string]float64) *UserSubscriptionUpdate {
+	_u.mutation.SetMonthlyUsageByCurrency(v)
+	return _u
+}
+
+// ClearMonthlyUsageByCurrency clears the value of the "monthly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdate) ClearMonthlyUsageByCurrency() *UserSubscriptionUpdate {
+	_u.mutation.ClearMonthlyUsageByCurrency()
+	return _u
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (_u *UserSubscriptionUpdate) SetAssignedBy(v int64) *UserSubscriptionUpdate {
 	_u.mutation.SetAssignedBy(v)
@@ -515,6 +551,24 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedMonthlyUsageUsd(); ok {
 		_spec.AddField(usersubscription.FieldMonthlyUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DailyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldDailyUsageByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.DailyUsageByCurrencyCleared() {
+		_spec.ClearField(usersubscription.FieldDailyUsageByCurrency, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.WeeklyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldWeeklyUsageByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.WeeklyUsageByCurrencyCleared() {
+		_spec.ClearField(usersubscription.FieldWeeklyUsageByCurrency, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.MonthlyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldMonthlyUsageByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.MonthlyUsageByCurrencyCleared() {
+		_spec.ClearField(usersubscription.FieldMonthlyUsageByCurrency, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.AssignedAt(); ok {
 		_spec.SetField(usersubscription.FieldAssignedAt, field.TypeTime, value)
@@ -896,6 +950,42 @@ func (_u *UserSubscriptionUpdateOne) AddMonthlyUsageUsd(v float64) *UserSubscrip
 	return _u
 }
 
+// SetDailyUsageByCurrency sets the "daily_usage_by_currency" field.
+func (_u *UserSubscriptionUpdateOne) SetDailyUsageByCurrency(v map[string]float64) *UserSubscriptionUpdateOne {
+	_u.mutation.SetDailyUsageByCurrency(v)
+	return _u
+}
+
+// ClearDailyUsageByCurrency clears the value of the "daily_usage_by_currency" field.
+func (_u *UserSubscriptionUpdateOne) ClearDailyUsageByCurrency() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearDailyUsageByCurrency()
+	return _u
+}
+
+// SetWeeklyUsageByCurrency sets the "weekly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdateOne) SetWeeklyUsageByCurrency(v map[string]float64) *UserSubscriptionUpdateOne {
+	_u.mutation.SetWeeklyUsageByCurrency(v)
+	return _u
+}
+
+// ClearWeeklyUsageByCurrency clears the value of the "weekly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdateOne) ClearWeeklyUsageByCurrency() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearWeeklyUsageByCurrency()
+	return _u
+}
+
+// SetMonthlyUsageByCurrency sets the "monthly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdateOne) SetMonthlyUsageByCurrency(v map[string]float64) *UserSubscriptionUpdateOne {
+	_u.mutation.SetMonthlyUsageByCurrency(v)
+	return _u
+}
+
+// ClearMonthlyUsageByCurrency clears the value of the "monthly_usage_by_currency" field.
+func (_u *UserSubscriptionUpdateOne) ClearMonthlyUsageByCurrency() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearMonthlyUsageByCurrency()
+	return _u
+}
+
 // SetAssignedBy sets the "assigned_by" field.
 func (_u *UserSubscriptionUpdateOne) SetAssignedBy(v int64) *UserSubscriptionUpdateOne {
 	_u.mutation.SetAssignedBy(v)
@@ -1191,6 +1281,24 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	}
 	if value, ok := _u.mutation.AddedMonthlyUsageUsd(); ok {
 		_spec.AddField(usersubscription.FieldMonthlyUsageUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DailyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldDailyUsageByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.DailyUsageByCurrencyCleared() {
+		_spec.ClearField(usersubscription.FieldDailyUsageByCurrency, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.WeeklyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldWeeklyUsageByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.WeeklyUsageByCurrencyCleared() {
+		_spec.ClearField(usersubscription.FieldWeeklyUsageByCurrency, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.MonthlyUsageByCurrency(); ok {
+		_spec.SetField(usersubscription.FieldMonthlyUsageByCurrency, field.TypeJSON, value)
+	}
+	if _u.mutation.MonthlyUsageByCurrencyCleared() {
+		_spec.ClearField(usersubscription.FieldMonthlyUsageByCurrency, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.AssignedAt(); ok {
 		_spec.SetField(usersubscription.FieldAssignedAt, field.TypeTime, value)

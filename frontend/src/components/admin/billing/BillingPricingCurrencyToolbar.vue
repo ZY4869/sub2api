@@ -4,7 +4,7 @@
       <div class="space-y-1">
         <h3 class="text-sm font-semibold text-amber-950 dark:text-amber-100">模型主货币</h3>
         <p class="text-xs text-amber-900 dark:text-amber-200">
-          官方价和售价共用同一主货币，保存时仍会自动换回 USD 基准值。
+          官方价和售价共用同一主货币，保存时保留源币种数值。
         </p>
       </div>
 
@@ -27,10 +27,10 @@
         USD/CNY {{ usdToCnyRate ? usdToCnyRate.toFixed(4) : '不可用' }}
       </span>
       <span v-if="currency === 'CNY' && usdToCnyRate">
-        当前输入按人民币展示，保存时会自动换回 USD。
+        当前输入按人民币保存，USD/CNY 只用于参考等值和自动换汇审计。
       </span>
       <span v-else>
-        当前输入按美元展示，不影响底层计费口径。
+        当前输入按美元保存，CNY 仅作为参考等值展示。
       </span>
     </div>
 
@@ -39,7 +39,7 @@
       class="mt-3 rounded-2xl border border-amber-300 bg-white/80 px-3 py-2 text-xs text-amber-950 dark:border-amber-400/30 dark:bg-dark-900/40 dark:text-amber-100"
       data-testid="pricing-currency-alert"
     >
-      当前选择的是人民币展示，但本次会话没有可用的 USD/CNY 汇率，已阻止保存。请刷新汇率后再继续编辑。
+      当前选择的是人民币保存，但本次会话没有可用的 USD/CNY 汇率，无法锁定换汇审计汇率。请刷新汇率后再继续编辑。
     </p>
   </section>
 </template>

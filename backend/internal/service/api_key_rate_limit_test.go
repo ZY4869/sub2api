@@ -240,6 +240,37 @@ func TestAPIKeyRateLimitData_EffectiveUsage(t *testing.T) {
 	}
 }
 
+func TestAPIKey_EffectiveUsageByCurrency(t *testing.T) {
+	now := time.Now()
+	key := APIKey{
+		Usage5hByCurrency: map[string]float64{ModelPricingCurrencyCNY: 12},
+		Usage1dByCurrency: map[string]float64{ModelPricingCurrencyUSD: 1, ModelPricingCurrencyCNY: 2},
+		Usage7dByCurrency: map[string]float64{ModelPricingCurrencyCNY: 7},
+		Window5hStart:     rateLimitTimePtr(now.Add(-1 * time.Hour)),
+		Window1dStart:     rateLimitTimePtr(now.Add(-25 * time.Hour)),
+		Window7dStart:     rateLimitTimePtr(now.Add(-1 * time.Hour)),
+	}
+
+	if got := key.EffectiveUsage5hByCurrency(); got[ModelPricingCurrencyCNY] != 12 {
+		t.Fatalf("EffectiveUsage5hByCurrency() = %v", got)
+	}
+	if got := key.EffectiveUsage1dByCurrency(); len(got) != 0 {
+		t.Fatalf("expired EffectiveUsage1dByCurrency() = %v, want empty", got)
+	}
+	if got := key.EffectiveUsage7dByCurrency(); got[ModelPricingCurrencyCNY] != 7 {
+		t.Fatalf("EffectiveUsage7dByCurrency() = %v", got)
+	}
+}
+
+func TestUserHasUsableBillingBalance(t *testing.T) {
+	if (&User{Balance: 0, Balances: map[string]float64{ModelPricingCurrencyCNY: 0.5}}).HasUsableBillingBalance() != true {
+		t.Fatal("expected CNY wallet to count as usable balance")
+	}
+	if (&User{Balance: 0, Balances: map[string]float64{ModelPricingCurrencyUSD: 0}}).HasUsableBillingBalance() {
+		t.Fatal("expected zero wallets to be unusable")
+	}
+}
+
 func rateLimitTimePtr(t time.Time) *time.Time {
 	return &t
 }

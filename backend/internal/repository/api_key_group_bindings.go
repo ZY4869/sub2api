@@ -88,14 +88,23 @@ func (r *apiKeyRepository) SetAPIKeyGroups(ctx context.Context, keyID int64, bin
 		if err != nil {
 			return fmt.Errorf("marshal model patterns: %w", err)
 		}
+		quotaUsedByCurrency := service.CloneBillingCurrencyMap(binding.QuotaUsedByCurrency)
+		if quotaUsedByCurrency == nil {
+			quotaUsedByCurrency = map[string]float64{}
+		}
+		quotaUsedByCurrencyJSON, err := json.Marshal(quotaUsedByCurrency)
+		if err != nil {
+			return fmt.Errorf("marshal quota used by currency: %w", err)
+		}
 		if _, err := exec.ExecContext(
 			ctx,
-			`INSERT INTO api_key_groups (api_key_id, group_id, quota, quota_used, model_patterns, created_at, updated_at)
-			 VALUES ($1, $2, $3, $4, $5::jsonb, NOW(), NOW())`,
+			`INSERT INTO api_key_groups (api_key_id, group_id, quota, quota_used, quota_used_by_currency, model_patterns, created_at, updated_at)
+			 VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, NOW(), NOW())`,
 			keyID,
 			binding.GroupID,
 			binding.Quota,
 			binding.QuotaUsed,
+			string(quotaUsedByCurrencyJSON),
 			string(modelPatternsJSON),
 		); err != nil {
 			return err
@@ -184,7 +193,7 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 	}
 
 	rows, err := exec.QueryContext(ctx, `
-		SELECT api_key_id, group_id, quota, quota_used, model_patterns, created_at, updated_at
+		SELECT api_key_id, group_id, quota, quota_used, COALESCE(quota_used_by_currency, '{}'::jsonb), model_patterns, created_at, updated_at
 		FROM api_key_groups
 		WHERE api_key_id = ANY($1)
 		ORDER BY api_key_id ASC, group_id ASC
@@ -201,24 +210,26 @@ func (r *apiKeyRepository) loadAPIKeyGroupBindingsMap(ctx context.Context, exec 
 	seenGroupIDs := make(map[int64]struct{})
 	for rows.Next() {
 		var (
-			apiKeyID         int64
-			groupID          int64
-			quota            float64
-			quotaUsed        float64
-			modelPatternsRaw []byte
-			createdAt        sql.NullTime
-			updatedAt        sql.NullTime
+			apiKeyID           int64
+			groupID            int64
+			quota              float64
+			quotaUsed          float64
+			quotaByCurrencyRaw []byte
+			modelPatternsRaw   []byte
+			createdAt          sql.NullTime
+			updatedAt          sql.NullTime
 		)
-		if err := rows.Scan(&apiKeyID, &groupID, &quota, &quotaUsed, &modelPatternsRaw, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&apiKeyID, &groupID, &quota, &quotaUsed, &quotaByCurrencyRaw, &modelPatternsRaw, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		binding := service.APIKeyGroupBinding{
-			APIKeyID:  apiKeyID,
-			GroupID:   groupID,
-			Quota:     quota,
-			QuotaUsed: quotaUsed,
-			CreatedAt: createdAt.Time,
-			UpdatedAt: updatedAt.Time,
+			APIKeyID:            apiKeyID,
+			GroupID:             groupID,
+			Quota:               quota,
+			QuotaUsed:           quotaUsed,
+			QuotaUsedByCurrency: service.CloneBillingCurrencyMap(parseBillingCurrencyJSONMap(quotaByCurrencyRaw)),
+			CreatedAt:           createdAt.Time,
+			UpdatedAt:           updatedAt.Time,
 		}
 		if len(modelPatternsRaw) > 0 {
 			_ = json.Unmarshal(modelPatternsRaw, &binding.ModelPatterns)
@@ -427,7 +438,7 @@ func supportsAPIKeyGroupBindingsSchema(ctx context.Context, exec apiKeyGroupExec
 		return false, nil
 	}
 	requiredColumns := map[string][]string{
-		"api_key_groups": {"api_key_id", "group_id", "quota", "quota_used", "model_patterns"},
+		"api_key_groups": {"api_key_id", "group_id", "quota", "quota_used", "quota_used_by_currency", "model_patterns"},
 		"groups":         {"priority"},
 	}
 	for tableName, columns := range requiredColumns {

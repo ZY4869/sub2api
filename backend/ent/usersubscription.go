@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -47,6 +48,12 @@ type UserSubscription struct {
 	WeeklyUsageUsd float64 `json:"weekly_usage_usd,omitempty"`
 	// MonthlyUsageUsd holds the value of the "monthly_usage_usd" field.
 	MonthlyUsageUsd float64 `json:"monthly_usage_usd,omitempty"`
+	// DailyUsageByCurrency holds the value of the "daily_usage_by_currency" field.
+	DailyUsageByCurrency map[string]float64 `json:"daily_usage_by_currency,omitempty"`
+	// WeeklyUsageByCurrency holds the value of the "weekly_usage_by_currency" field.
+	WeeklyUsageByCurrency map[string]float64 `json:"weekly_usage_by_currency,omitempty"`
+	// MonthlyUsageByCurrency holds the value of the "monthly_usage_by_currency" field.
+	MonthlyUsageByCurrency map[string]float64 `json:"monthly_usage_by_currency,omitempty"`
 	// AssignedBy holds the value of the "assigned_by" field.
 	AssignedBy *int64 `json:"assigned_by,omitempty"`
 	// AssignedAt holds the value of the "assigned_at" field.
@@ -121,6 +128,8 @@ func (*UserSubscription) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case usersubscription.FieldDailyUsageByCurrency, usersubscription.FieldWeeklyUsageByCurrency, usersubscription.FieldMonthlyUsageByCurrency:
+			values[i] = new([]byte)
 		case usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd:
 			values[i] = new(sql.NullFloat64)
 		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldGroupID, usersubscription.FieldAssignedBy:
@@ -237,6 +246,30 @@ func (_m *UserSubscription) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field monthly_usage_usd", values[i])
 			} else if value.Valid {
 				_m.MonthlyUsageUsd = value.Float64
+			}
+		case usersubscription.FieldDailyUsageByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field daily_usage_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DailyUsageByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field daily_usage_by_currency: %w", err)
+				}
+			}
+		case usersubscription.FieldWeeklyUsageByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field weekly_usage_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.WeeklyUsageByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field weekly_usage_by_currency: %w", err)
+				}
+			}
+		case usersubscription.FieldMonthlyUsageByCurrency:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field monthly_usage_by_currency", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.MonthlyUsageByCurrency); err != nil {
+					return fmt.Errorf("unmarshal field monthly_usage_by_currency: %w", err)
+				}
 			}
 		case usersubscription.FieldAssignedBy:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -363,6 +396,15 @@ func (_m *UserSubscription) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("monthly_usage_usd=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MonthlyUsageUsd))
+	builder.WriteString(", ")
+	builder.WriteString("daily_usage_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DailyUsageByCurrency))
+	builder.WriteString(", ")
+	builder.WriteString("weekly_usage_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WeeklyUsageByCurrency))
+	builder.WriteString(", ")
+	builder.WriteString("monthly_usage_by_currency=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MonthlyUsageByCurrency))
 	builder.WriteString(", ")
 	if v := _m.AssignedBy; v != nil {
 		builder.WriteString("assigned_by=")

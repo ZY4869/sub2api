@@ -735,11 +735,11 @@ func (s *UsageLogRepoSuite) TestGetAccountTodayStats() {
 	s.Require().NoError(err, "GetAccountTodayStats")
 	s.Require().Equal(int64(2), stats.Requests)
 	s.Require().Equal(int64(40), stats.Tokens)
-	// account cost = SUM(total_cost * account_rate_multiplier)
+	// account cost = SUM(total_cost_usd_equivalent * account_rate_multiplier)
 	s.Require().InEpsilon(1.5, stats.Cost, 0.0001)
-	// standard cost = SUM(total_cost)
+	// standard cost = SUM(total_cost_usd_equivalent)
 	s.Require().InEpsilon(1.5, stats.StandardCost, 0.0001)
-	// user cost = SUM(actual_cost)
+	// user cost = SUM(actual_cost_usd_equivalent)
 	s.Require().InEpsilon(3.0, stats.UserCost, 0.0001)
 }
 

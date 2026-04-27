@@ -160,6 +160,36 @@ func ActualCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldActualCost, v))
 }
 
+// BillingCurrency applies equality check predicate on the "billing_currency" field. It's identical to BillingCurrencyEQ.
+func BillingCurrency(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingCurrency, v))
+}
+
+// TotalCostUsdEquivalent applies equality check predicate on the "total_cost_usd_equivalent" field. It's identical to TotalCostUsdEquivalentEQ.
+func TotalCostUsdEquivalent(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldTotalCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalent applies equality check predicate on the "actual_cost_usd_equivalent" field. It's identical to ActualCostUsdEquivalentEQ.
+func ActualCostUsdEquivalent(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldActualCostUsdEquivalent, v))
+}
+
+// UsdToCnyRate applies equality check predicate on the "usd_to_cny_rate" field. It's identical to UsdToCnyRateEQ.
+func UsdToCnyRate(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldUsdToCnyRate, v))
+}
+
+// FxRateDate applies equality check predicate on the "fx_rate_date" field. It's identical to FxRateDateEQ.
+func FxRateDate(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFxRateDate, v))
+}
+
+// FxLockedAt applies equality check predicate on the "fx_locked_at" field. It's identical to FxLockedAtEQ.
+func FxLockedAt(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFxLockedAt, v))
+}
+
 // BillingExemptReason applies equality check predicate on the "billing_exempt_reason" field. It's identical to BillingExemptReasonEQ.
 func BillingExemptReason(v string) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldBillingExemptReason, v))
@@ -1108,6 +1138,316 @@ func ActualCostLT(v float64) predicate.UsageLog {
 // ActualCostLTE applies the LTE predicate on the "actual_cost" field.
 func ActualCostLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldActualCost, v))
+}
+
+// BillingCurrencyEQ applies the EQ predicate on the "billing_currency" field.
+func BillingCurrencyEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyNEQ applies the NEQ predicate on the "billing_currency" field.
+func BillingCurrencyNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyIn applies the In predicate on the "billing_currency" field.
+func BillingCurrencyIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingCurrency, vs...))
+}
+
+// BillingCurrencyNotIn applies the NotIn predicate on the "billing_currency" field.
+func BillingCurrencyNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingCurrency, vs...))
+}
+
+// BillingCurrencyGT applies the GT predicate on the "billing_currency" field.
+func BillingCurrencyGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyGTE applies the GTE predicate on the "billing_currency" field.
+func BillingCurrencyGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyLT applies the LT predicate on the "billing_currency" field.
+func BillingCurrencyLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyLTE applies the LTE predicate on the "billing_currency" field.
+func BillingCurrencyLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyContains applies the Contains predicate on the "billing_currency" field.
+func BillingCurrencyContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyHasPrefix applies the HasPrefix predicate on the "billing_currency" field.
+func BillingCurrencyHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyHasSuffix applies the HasSuffix predicate on the "billing_currency" field.
+func BillingCurrencyHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyEqualFold applies the EqualFold predicate on the "billing_currency" field.
+func BillingCurrencyEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldBillingCurrency, v))
+}
+
+// BillingCurrencyContainsFold applies the ContainsFold predicate on the "billing_currency" field.
+func BillingCurrencyContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldBillingCurrency, v))
+}
+
+// TotalCostUsdEquivalentEQ applies the EQ predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldTotalCostUsdEquivalent, v))
+}
+
+// TotalCostUsdEquivalentNEQ applies the NEQ predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldTotalCostUsdEquivalent, v))
+}
+
+// TotalCostUsdEquivalentIn applies the In predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldTotalCostUsdEquivalent, vs...))
+}
+
+// TotalCostUsdEquivalentNotIn applies the NotIn predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldTotalCostUsdEquivalent, vs...))
+}
+
+// TotalCostUsdEquivalentGT applies the GT predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldTotalCostUsdEquivalent, v))
+}
+
+// TotalCostUsdEquivalentGTE applies the GTE predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldTotalCostUsdEquivalent, v))
+}
+
+// TotalCostUsdEquivalentLT applies the LT predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldTotalCostUsdEquivalent, v))
+}
+
+// TotalCostUsdEquivalentLTE applies the LTE predicate on the "total_cost_usd_equivalent" field.
+func TotalCostUsdEquivalentLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldTotalCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalentEQ applies the EQ predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldActualCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalentNEQ applies the NEQ predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldActualCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalentIn applies the In predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldActualCostUsdEquivalent, vs...))
+}
+
+// ActualCostUsdEquivalentNotIn applies the NotIn predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldActualCostUsdEquivalent, vs...))
+}
+
+// ActualCostUsdEquivalentGT applies the GT predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldActualCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalentGTE applies the GTE predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldActualCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalentLT applies the LT predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldActualCostUsdEquivalent, v))
+}
+
+// ActualCostUsdEquivalentLTE applies the LTE predicate on the "actual_cost_usd_equivalent" field.
+func ActualCostUsdEquivalentLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldActualCostUsdEquivalent, v))
+}
+
+// UsdToCnyRateEQ applies the EQ predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldUsdToCnyRate, v))
+}
+
+// UsdToCnyRateNEQ applies the NEQ predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldUsdToCnyRate, v))
+}
+
+// UsdToCnyRateIn applies the In predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldUsdToCnyRate, vs...))
+}
+
+// UsdToCnyRateNotIn applies the NotIn predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldUsdToCnyRate, vs...))
+}
+
+// UsdToCnyRateGT applies the GT predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldUsdToCnyRate, v))
+}
+
+// UsdToCnyRateGTE applies the GTE predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldUsdToCnyRate, v))
+}
+
+// UsdToCnyRateLT applies the LT predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldUsdToCnyRate, v))
+}
+
+// UsdToCnyRateLTE applies the LTE predicate on the "usd_to_cny_rate" field.
+func UsdToCnyRateLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldUsdToCnyRate, v))
+}
+
+// FxRateDateEQ applies the EQ predicate on the "fx_rate_date" field.
+func FxRateDateEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFxRateDate, v))
+}
+
+// FxRateDateNEQ applies the NEQ predicate on the "fx_rate_date" field.
+func FxRateDateNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldFxRateDate, v))
+}
+
+// FxRateDateIn applies the In predicate on the "fx_rate_date" field.
+func FxRateDateIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldFxRateDate, vs...))
+}
+
+// FxRateDateNotIn applies the NotIn predicate on the "fx_rate_date" field.
+func FxRateDateNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldFxRateDate, vs...))
+}
+
+// FxRateDateGT applies the GT predicate on the "fx_rate_date" field.
+func FxRateDateGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldFxRateDate, v))
+}
+
+// FxRateDateGTE applies the GTE predicate on the "fx_rate_date" field.
+func FxRateDateGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldFxRateDate, v))
+}
+
+// FxRateDateLT applies the LT predicate on the "fx_rate_date" field.
+func FxRateDateLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldFxRateDate, v))
+}
+
+// FxRateDateLTE applies the LTE predicate on the "fx_rate_date" field.
+func FxRateDateLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldFxRateDate, v))
+}
+
+// FxRateDateContains applies the Contains predicate on the "fx_rate_date" field.
+func FxRateDateContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldFxRateDate, v))
+}
+
+// FxRateDateHasPrefix applies the HasPrefix predicate on the "fx_rate_date" field.
+func FxRateDateHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldFxRateDate, v))
+}
+
+// FxRateDateHasSuffix applies the HasSuffix predicate on the "fx_rate_date" field.
+func FxRateDateHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldFxRateDate, v))
+}
+
+// FxRateDateIsNil applies the IsNil predicate on the "fx_rate_date" field.
+func FxRateDateIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldFxRateDate))
+}
+
+// FxRateDateNotNil applies the NotNil predicate on the "fx_rate_date" field.
+func FxRateDateNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldFxRateDate))
+}
+
+// FxRateDateEqualFold applies the EqualFold predicate on the "fx_rate_date" field.
+func FxRateDateEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldFxRateDate, v))
+}
+
+// FxRateDateContainsFold applies the ContainsFold predicate on the "fx_rate_date" field.
+func FxRateDateContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldFxRateDate, v))
+}
+
+// FxLockedAtEQ applies the EQ predicate on the "fx_locked_at" field.
+func FxLockedAtEQ(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFxLockedAt, v))
+}
+
+// FxLockedAtNEQ applies the NEQ predicate on the "fx_locked_at" field.
+func FxLockedAtNEQ(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldFxLockedAt, v))
+}
+
+// FxLockedAtIn applies the In predicate on the "fx_locked_at" field.
+func FxLockedAtIn(vs ...time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldFxLockedAt, vs...))
+}
+
+// FxLockedAtNotIn applies the NotIn predicate on the "fx_locked_at" field.
+func FxLockedAtNotIn(vs ...time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldFxLockedAt, vs...))
+}
+
+// FxLockedAtGT applies the GT predicate on the "fx_locked_at" field.
+func FxLockedAtGT(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldFxLockedAt, v))
+}
+
+// FxLockedAtGTE applies the GTE predicate on the "fx_locked_at" field.
+func FxLockedAtGTE(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldFxLockedAt, v))
+}
+
+// FxLockedAtLT applies the LT predicate on the "fx_locked_at" field.
+func FxLockedAtLT(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldFxLockedAt, v))
+}
+
+// FxLockedAtLTE applies the LTE predicate on the "fx_locked_at" field.
+func FxLockedAtLTE(v time.Time) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldFxLockedAt, v))
+}
+
+// FxLockedAtIsNil applies the IsNil predicate on the "fx_locked_at" field.
+func FxLockedAtIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldFxLockedAt))
+}
+
+// FxLockedAtNotNil applies the NotNil predicate on the "fx_locked_at" field.
+func FxLockedAtNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldFxLockedAt))
 }
 
 // BillingExemptReasonEQ applies the EQ predicate on the "billing_exempt_reason" field.

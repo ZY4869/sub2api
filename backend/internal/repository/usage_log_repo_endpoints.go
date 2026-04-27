@@ -31,8 +31,8 @@ func (r *usageLogRepository) getEndpointStatsWithFilters(ctx context.Context, st
 			COALESCE(%s, '') as endpoint,
 			COUNT(*) as requests,
 			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
-			COALESCE(SUM(total_cost), 0) as total_cost,
-			COALESCE(SUM(actual_cost), 0) as total_actual_cost
+			COALESCE(SUM(total_cost_usd_equivalent), 0) as total_cost,
+			COALESCE(SUM(actual_cost_usd_equivalent), 0) as total_actual_cost
 		FROM usage_logs ul
 		WHERE ul.created_at >= $1 AND ul.created_at <= $2
 	`, endpointField)

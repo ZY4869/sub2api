@@ -6,6 +6,7 @@ import (
 
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -44,6 +45,10 @@ type BillingCache interface {
 
 // ModelPricing defines per-token pricing, aligned with LiteLLM semantics.
 type ModelPricing struct {
+	Currency                                  string
+	USDToCNYRate                              float64
+	FXRateDate                                string
+	FXLockedAt                                *time.Time
 	InputPricePerToken                        float64
 	InputPricePerTokenPriority                float64
 	InputTokenThreshold                       int
@@ -115,12 +120,90 @@ type UsageTokens struct {
 
 // CostBreakdown contains the computed billing amounts.
 type CostBreakdown struct {
-	InputCost         float64
-	OutputCost        float64
-	CacheCreationCost float64
-	CacheReadCost     float64
-	TotalCost         float64
-	ActualCost        float64 // Final billed amount after multipliers are applied.
+	Currency                string
+	USDToCNYRate            float64
+	FXRateDate              string
+	FXLockedAt              *time.Time
+	InputCost               float64
+	OutputCost              float64
+	CacheCreationCost       float64
+	CacheReadCost           float64
+	TotalCost               float64
+	ActualCost              float64 // Final billed amount in Currency after multipliers are applied.
+	TotalCostUSDEquivalent  float64
+	ActualCostUSDEquivalent float64
+	CostByCurrency          map[string]float64
+	ActualCostByCurrency    map[string]float64
+}
+
+func applyModelPricingCurrencyMetadata(pricing *ModelPricing, meta ModelPricingCurrencyMetadata) {
+	if pricing == nil {
+		return
+	}
+	pricing.Currency = defaultModelPricingCurrency(meta.Currency)
+	if meta.USDToCNYRate != nil {
+		pricing.USDToCNYRate = *meta.USDToCNYRate
+	}
+	pricing.FXRateDate = strings.TrimSpace(meta.FXRateDate)
+	pricing.FXLockedAt = cloneBillingTime(meta.FXLockedAt)
+}
+
+func finalizeCostBreakdownCurrency(breakdown *CostBreakdown, pricing *ModelPricing) *CostBreakdown {
+	if breakdown == nil {
+		return &CostBreakdown{Currency: ModelPricingCurrencyUSD}
+	}
+	currency := ModelPricingCurrencyUSD
+	if pricing != nil {
+		currency = defaultModelPricingCurrency(pricing.Currency)
+		breakdown.USDToCNYRate = pricing.USDToCNYRate
+		breakdown.FXRateDate = pricing.FXRateDate
+		breakdown.FXLockedAt = cloneBillingTime(pricing.FXLockedAt)
+	}
+	breakdown.Currency = currency
+	breakdown.TotalCostUSDEquivalent = costUSDEquivalent(breakdown.TotalCost, currency, breakdown.USDToCNYRate)
+	breakdown.ActualCostUSDEquivalent = costUSDEquivalent(breakdown.ActualCost, currency, breakdown.USDToCNYRate)
+	breakdown.CostByCurrency = normalizedBillingCostMap(currency, breakdown.TotalCost)
+	breakdown.ActualCostByCurrency = normalizedBillingCostMap(currency, breakdown.ActualCost)
+	return breakdown
+}
+
+func mergeCostBreakdownsCurrency(total *CostBreakdown, parts ...*CostBreakdown) *CostBreakdown {
+	if total == nil {
+		total = &CostBreakdown{}
+	}
+	for _, part := range parts {
+		if part == nil {
+			continue
+		}
+		if total.Currency == "" {
+			total.Currency = part.Currency
+			total.USDToCNYRate = part.USDToCNYRate
+			total.FXRateDate = part.FXRateDate
+			total.FXLockedAt = cloneBillingTime(part.FXLockedAt)
+		}
+		total.TotalCostUSDEquivalent += part.TotalCostUSDEquivalent
+		total.ActualCostUSDEquivalent += part.ActualCostUSDEquivalent
+		if len(part.CostByCurrency) > 0 {
+			if total.CostByCurrency == nil {
+				total.CostByCurrency = map[string]float64{}
+			}
+			for currency, amount := range part.CostByCurrency {
+				total.CostByCurrency[currency] += amount
+			}
+		}
+		if len(part.ActualCostByCurrency) > 0 {
+			if total.ActualCostByCurrency == nil {
+				total.ActualCostByCurrency = map[string]float64{}
+			}
+			for currency, amount := range part.ActualCostByCurrency {
+				total.ActualCostByCurrency[currency] += amount
+			}
+		}
+	}
+	if total.Currency == "" {
+		total.Currency = ModelPricingCurrencyUSD
+	}
+	return total
 }
 
 // BillingService provides billing and pricing operations.
@@ -367,7 +450,11 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 			price5m := litellmPricing.CacheCreationInputTokenCost
 			price1h := litellmPricing.CacheCreationInputTokenCostAbove1hr
 			enableBreakdown := price1h > 0 && price1h > price5m
-			return s.applyModelSpecificPricingPolicy(model, &ModelPricing{
+			pricing := s.applyModelSpecificPricingPolicy(model, &ModelPricing{
+				Currency:                                  normalizeBillingCurrency(litellmPricing.Currency),
+				USDToCNYRate:                              litellmPricing.USDToCNYRate,
+				FXRateDate:                                strings.TrimSpace(litellmPricing.FXRateDate),
+				FXLockedAt:                                cloneBillingTime(litellmPricing.FXLockedAt),
 				InputPricePerToken:                        litellmPricing.InputCostPerToken,
 				InputPricePerTokenPriority:                litellmPricing.InputCostPerTokenPriority,
 				InputTokenThreshold:                       litellmPricing.InputTokenThreshold,
@@ -390,7 +477,11 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				LongContextInputThreshold:                 litellmPricing.LongContextInputTokenThreshold,
 				LongContextInputMultiplier:                litellmPricing.LongContextInputCostMultiplier,
 				LongContextOutputMultiplier:               litellmPricing.LongContextOutputCostMultiplier,
-			}), nil
+			})
+			if err := validateBillablePricingFX(model, pricing); err != nil {
+				return nil, err
+			}
+			return pricing, nil
 		}
 	}
 
@@ -406,10 +497,24 @@ func (s *BillingService) GetModelPricing(model string) (*ModelPricing, error) {
 				logger.LegacyPrintf("service.billing", "[Debug] [Billing] Using fallback pricing for model: %s", model)
 			}
 		}
-		return s.applyModelSpecificPricingPolicy(model, fallback), nil
+		pricing := s.applyModelSpecificPricingPolicy(model, fallback)
+		if err := validateBillablePricingFX(model, pricing); err != nil {
+			return nil, err
+		}
+		return pricing, nil
 	}
 
 	return nil, fmt.Errorf("pricing not found for model: %s", model)
+}
+
+func validateBillablePricingFX(model string, pricing *ModelPricing) error {
+	if pricing == nil {
+		return nil
+	}
+	if normalizeBillingCurrency(pricing.Currency) == ModelPricingCurrencyCNY && pricing.USDToCNYRate <= 0 {
+		return fmt.Errorf("pricing for CNY model %s is missing locked USD/CNY rate", strings.TrimSpace(model))
+	}
+	return nil
 }
 
 func (s *BillingService) ReplaceModelPriceOverrides(overrides map[string]*ModelPricingOverride) {
@@ -467,6 +572,9 @@ func applyModelPricingOverride(pricing *ModelPricing, override *ModelPricingOver
 		return pricing
 	}
 	cloned := *pricing
+	if currency := normalizeModelPricingCurrency(override.Currency); currency != "" {
+		applyModelPricingCurrencyMetadata(&cloned, pricingCurrencyMetadataFromCatalog(&override.ModelCatalogPricing))
+	}
 	if override.InputCostPerToken != nil {
 		cloned.InputPricePerToken = *override.InputCostPerToken
 	}
@@ -613,7 +721,7 @@ func (s *BillingService) calculateCostWithPricing(
 		rateMultiplier = 1.0
 	}
 	breakdown.ActualCost = breakdown.TotalCost * rateMultiplier
-	return breakdown
+	return finalizeCostBreakdownCurrency(breakdown, pricing)
 }
 
 func (s *BillingService) applyModelSpecificPricingPolicy(model string, pricing *ModelPricing) *ModelPricing {
@@ -732,14 +840,15 @@ func (s *BillingService) CalculateCostWithLongContext(model string, tokens Usage
 	outRangeCost := s.calculateCostWithPricing(pricing, outRangeTokens, tokens, rateMultiplier*extraMultiplier, "")
 
 	// Merge the two partial cost breakdowns.
-	return &CostBreakdown{
+	merged := &CostBreakdown{
 		InputCost:         inRangeCost.InputCost + outRangeCost.InputCost,
 		OutputCost:        inRangeCost.OutputCost,
 		CacheCreationCost: inRangeCost.CacheCreationCost,
 		CacheReadCost:     inRangeCost.CacheReadCost + outRangeCost.CacheReadCost,
 		TotalCost:         inRangeCost.TotalCost + outRangeCost.TotalCost,
 		ActualCost:        inRangeCost.ActualCost + outRangeCost.ActualCost,
-	}, nil
+	}
+	return mergeCostBreakdownsCurrency(merged, inRangeCost, outRangeCost), nil
 }
 
 // ListSupportedModels returns models covered by fallback pricing.
@@ -816,56 +925,88 @@ func (s *BillingService) CalculateImageCost(model string, imageSize string, imag
 
 func (s *BillingService) CalculateImageCostWithServiceTier(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64, serviceTier string) *CostBreakdown {
 	if imageCount <= 0 {
-		return &CostBreakdown{}
+		return finalizeCostBreakdownCurrency(&CostBreakdown{}, nil)
 	}
 
-	unitPrice := s.getImageUnitPrice(model, imageSize, groupConfig, serviceTier)
+	unitPrice, pricing := s.getImageUnitPriceWithPricing(model, imageSize, groupConfig, serviceTier)
 	totalCost := unitPrice * float64(imageCount)
 	if rateMultiplier <= 0 {
 		rateMultiplier = 1.0
 	}
 	actualCost := totalCost * rateMultiplier
 
-	return &CostBreakdown{
+	return finalizeCostBreakdownCurrency(&CostBreakdown{
 		TotalCost:  totalCost,
 		ActualCost: actualCost,
-	}
+	}, pricing)
 }
 
 // CalculateVideoRequestCost calculates one-shot video request billing using model pricing.
 func (s *BillingService) CalculateVideoRequestCost(model string, rateMultiplier float64) *CostBreakdown {
 	unitPrice := 0.0
-	if pricing, err := s.getPricingForBilling(model); err == nil && pricing != nil && pricing.OutputPricePerVideoRequest > 0 {
+	var pricing *ModelPricing
+	if resolved, err := s.getPricingForBilling(model); err == nil && resolved != nil && resolved.OutputPricePerVideoRequest > 0 {
+		pricing = resolved
 		unitPrice = pricing.OutputPricePerVideoRequest
 	}
 	if rateMultiplier <= 0 {
 		rateMultiplier = 1.0
 	}
-	return &CostBreakdown{
+	return finalizeCostBreakdownCurrency(&CostBreakdown{
 		TotalCost:  unitPrice,
 		ActualCost: unitPrice * rateMultiplier,
-	}
+	}, pricing)
 }
 
 // getImageUnitPrice returns the unit price for image generation.
 func (s *BillingService) getImageUnitPrice(model string, imageSize string, groupConfig *ImagePriceConfig, serviceTier string) float64 {
+	price, _ := s.getImageUnitPriceWithPricing(model, imageSize, groupConfig, serviceTier)
+	return price
+}
+
+func (s *BillingService) getImageUnitPriceWithPricing(model string, imageSize string, groupConfig *ImagePriceConfig, serviceTier string) (float64, *ModelPricing) {
 	if groupConfig != nil {
 		switch imageSize {
 		case "1K":
 			if groupConfig.Price1K != nil {
-				return *groupConfig.Price1K
+				return *groupConfig.Price1K, nil
 			}
 		case "2K":
 			if groupConfig.Price2K != nil {
-				return *groupConfig.Price2K
+				return *groupConfig.Price2K, nil
 			}
 		case "4K":
 			if groupConfig.Price4K != nil {
-				return *groupConfig.Price4K
+				return *groupConfig.Price4K, nil
 			}
 		}
 	}
-	return s.getDefaultImagePrice(model, imageSize, serviceTier)
+	pricing, _ := s.getPricingForBilling(model)
+	basePrice := 0.0
+	if pricing != nil {
+		basePrice = pricing.OutputPricePerImage
+		switch normalizeBillingServiceTier(serviceTier) {
+		case BillingServiceTierPriority:
+			if pricing.OutputPricePerImagePriority > 0 {
+				basePrice = pricing.OutputPricePerImagePriority
+			}
+		case BillingServiceTierFlex:
+			if basePrice > 0 {
+				basePrice *= serviceTierCostMultiplier(BillingServiceTierFlex)
+			}
+		}
+	}
+	if basePrice <= 0 {
+		basePrice = 0.134
+		pricing = nil
+	}
+	if imageSize == "2K" {
+		return basePrice * 1.5, pricing
+	}
+	if imageSize == "4K" {
+		return basePrice * 2, pricing
+	}
+	return basePrice, pricing
 }
 
 // getDefaultImagePrice returns the default image price for the requested size and service tier.

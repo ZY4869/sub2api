@@ -21,8 +21,9 @@ type APIKeyAuthSnapshot struct {
 	ImageMaxCount            int  `json:"image_max_count"`
 
 	// Quota fields for API Key independent quota feature
-	Quota     float64 `json:"quota"`      // Quota limit in USD (0 = unlimited)
-	QuotaUsed float64 `json:"quota_used"` // Used quota amount
+	Quota               float64            `json:"quota"`      // Quota limit in USD (0 = unlimited)
+	QuotaUsed           float64            `json:"quota_used"` // Used quota amount in USD
+	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
 
 	// Expiration field for API Key expiration feature
 	ExpiresAt *time.Time `json:"expires_at,omitempty"` // Expiration time (nil = never expires)
@@ -34,20 +35,22 @@ type APIKeyAuthSnapshot struct {
 }
 
 type APIKeyAuthGroupBindingSnapshot struct {
-	GroupID       int64                    `json:"group_id"`
-	Quota         float64                  `json:"quota"`
-	QuotaUsed     float64                  `json:"quota_used"`
-	ModelPatterns []string                 `json:"model_patterns,omitempty"`
-	Group         *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
+	GroupID             int64                    `json:"group_id"`
+	Quota               float64                  `json:"quota"`
+	QuotaUsed           float64                  `json:"quota_used"`
+	QuotaUsedByCurrency map[string]float64       `json:"quota_used_by_currency,omitempty"`
+	ModelPatterns       []string                 `json:"model_patterns,omitempty"`
+	Group               *APIKeyAuthGroupSnapshot `json:"group,omitempty"`
 }
 
 // APIKeyAuthUserSnapshot 用户快照
 type APIKeyAuthUserSnapshot struct {
-	ID          int64   `json:"id"`
-	Status      string  `json:"status"`
-	Role        string  `json:"role"`
-	Balance     float64 `json:"balance"`
-	Concurrency int     `json:"concurrency"`
+	ID          int64              `json:"id"`
+	Status      string             `json:"status"`
+	Role        string             `json:"role"`
+	Balance     float64            `json:"balance"`
+	Balances    map[string]float64 `json:"balances,omitempty"`
+	Concurrency int                `json:"concurrency"`
 }
 
 // APIKeyAuthGroupSnapshot 分组快照

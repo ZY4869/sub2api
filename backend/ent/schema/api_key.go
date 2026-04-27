@@ -87,6 +87,10 @@ func (APIKey) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0).
 			Comment("Used quota amount in USD"),
+		field.JSON("quota_used_by_currency", map[string]float64{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Used quota amount by source billing currency"),
 		// Expiration time (nil = never expires)
 		field.Time("expires_at").
 			Optional().
@@ -112,14 +116,26 @@ func (APIKey) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0).
 			Comment("Used amount in USD for the current 5h window"),
+		field.JSON("usage_5h_by_currency", map[string]float64{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Used amount by source billing currency for the current 5h window"),
 		field.Float("usage_1d").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0).
 			Comment("Used amount in USD for the current 1d window"),
+		field.JSON("usage_1d_by_currency", map[string]float64{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Used amount by source billing currency for the current 1d window"),
 		field.Float("usage_7d").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0).
 			Comment("Used amount in USD for the current 7d window"),
+		field.JSON("usage_7d_by_currency", map[string]float64{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Used amount by source billing currency for the current 7d window"),
 		// Window start times
 		field.Time("window_5h_start").
 			Optional().

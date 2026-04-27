@@ -59,7 +59,7 @@ func applyChannelPricingOverride(
 			multiplier = 1
 		}
 		cost.ActualCost = cost.TotalCost * multiplier
-		return &cost, nil, nil
+		return finalizeCostBreakdownCurrency(&cost, modelPricingFromCostBreakdownCurrency(base)), nil, nil
 	}
 }
 
@@ -67,9 +67,21 @@ func newChannelFlatCost(totalCost float64, multiplier float64) *CostBreakdown {
 	if multiplier <= 0 {
 		multiplier = 1
 	}
-	return &CostBreakdown{
+	return finalizeCostBreakdownCurrency(&CostBreakdown{
 		TotalCost:  totalCost,
 		ActualCost: totalCost * multiplier,
+	}, nil)
+}
+
+func modelPricingFromCostBreakdownCurrency(cost *CostBreakdown) *ModelPricing {
+	if cost == nil {
+		return nil
+	}
+	return &ModelPricing{
+		Currency:     defaultModelPricingCurrency(cost.Currency),
+		USDToCNYRate: cost.USDToCNYRate,
+		FXRateDate:   cost.FXRateDate,
+		FXLockedAt:   cloneBillingTime(cost.FXLockedAt),
 	}
 }
 

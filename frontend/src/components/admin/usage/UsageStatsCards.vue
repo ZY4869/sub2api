@@ -28,17 +28,17 @@
       <div class="min-w-0 flex-1">
         <p class="text-xs font-medium text-gray-500">{{ t('usage.totalCost') }}</p>
         <p class="text-xl font-bold text-green-600">
-          ${{ ((stats?.total_account_cost ?? stats?.total_actual_cost) || 0).toFixed(4) }}
+          {{ formatPrimaryCost(stats) }}
         </p>
         <p class="text-xs text-gray-400" v-if="stats?.total_account_cost != null">
           {{ t('usage.userBilled') }}:
-          <span class="text-gray-300">${{ (stats?.total_actual_cost || 0).toFixed(4) }}</span>
+          <span class="text-gray-300">{{ formatCurrencyBreakdown(stats?.actual_cost_by_currency, stats?.total_actual_cost || 0) }}</span>
           · {{ t('usage.standardCost') }}:
-          <span class="text-gray-300">${{ (stats?.total_cost || 0).toFixed(4) }}</span>
+          <span class="text-gray-300">{{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
         </p>
         <p class="text-xs text-gray-400" v-else>
           {{ t('usage.standardCost') }}:
-          <span class="line-through">${{ (stats?.total_cost || 0).toFixed(4) }}</span>
+          <span class="line-through">{{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
         </p>
         <p v-if="stats?.admin_free_requests" class="mt-1 text-[11px] text-emerald-500 dark:text-emerald-300">
           管理员免扣 {{ stats.admin_free_requests.toLocaleString() }} 次 / ${{ (stats.admin_free_standard_cost || 0).toFixed(4) }} 标准成本
@@ -69,4 +69,28 @@ const formatDuration = (ms: number) =>
   ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`
 
 const formatTokens = (value: number) => formatTokenDisplay(value)
+
+const formatCurrencyAmount = (currency: string, value: number) => {
+  const normalized = currency.toUpperCase()
+  const prefix = normalized === 'CNY' ? '¥' : '$'
+  return `${prefix}${value.toFixed(4)}`
+}
+
+const formatCurrencyBreakdown = (values?: Record<string, number>, fallbackUSD = 0) => {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right))
+  if (entries.length === 0) {
+    return formatCurrencyAmount('USD', fallbackUSD)
+  }
+  return entries.map(([currency, value]) => formatCurrencyAmount(currency, value)).join(' / ')
+}
+
+const formatPrimaryCost = (stats: AdminUsageStatsResponse | null) => {
+  if (!stats) return formatCurrencyAmount('USD', 0)
+  if (stats.total_account_cost != null) {
+    return formatCurrencyAmount('USD', stats.total_account_cost || 0)
+  }
+  return formatCurrencyBreakdown(stats.actual_cost_by_currency, stats.total_actual_cost || 0)
+}
 </script>

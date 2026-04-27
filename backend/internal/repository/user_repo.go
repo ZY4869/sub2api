@@ -17,6 +17,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 type userRepository struct {
@@ -72,6 +73,9 @@ func (r *userRepository) Create(ctx context.Context, userIn *service.User) error
 	if err := r.syncUserAllowedGroupsWithClient(ctx, txClient, created.ID, userIn.AllowedGroups); err != nil {
 		return err
 	}
+	if err := setUSDBillingWalletBalance(ctx, userRepositoryWriteExecutor(ctx, r.sql, tx), created.ID, userIn.Balance); err != nil {
+		return err
+	}
 
 	if tx != nil {
 		if err := tx.Commit(); err != nil {
@@ -97,6 +101,9 @@ func (r *userRepository) GetByID(ctx context.Context, id int64) (*service.User, 
 	if v, ok := groups[id]; ok {
 		out.AllowedGroups = v
 	}
+	if err := r.hydrateUserBalances(ctx, map[int64]*service.User{id: out}); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -113,6 +120,9 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*service
 	}
 	if v, ok := groups[m.ID]; ok {
 		out.AllowedGroups = v
+	}
+	if err := r.hydrateUserBalances(ctx, map[int64]*service.User{m.ID: out}); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -154,6 +164,9 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User) error
 	}
 
 	if err := r.syncUserAllowedGroupsWithClient(ctx, txClient, updated.ID, userIn.AllowedGroups); err != nil {
+		return err
+	}
+	if err := setUSDBillingWalletBalance(ctx, userRepositoryWriteExecutor(ctx, r.sql, tx), updated.ID, userIn.Balance); err != nil {
 		return err
 	}
 
@@ -281,6 +294,9 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 			u.AllowedGroups = groups
 		}
 	}
+	if err := r.hydrateUserBalances(ctx, userMap); err != nil {
+		return nil, nil, err
+	}
 
 	return outUsers, paginationResultFromTotal(int64(total), params), nil
 }
@@ -336,13 +352,39 @@ func (r *userRepository) filterUsersByAttributes(ctx context.Context, attrs map[
 }
 
 func (r *userRepository) UpdateBalance(ctx context.Context, id int64, amount float64) error {
-	client := clientFromContext(ctx, r.client)
+	return r.addUserUSDBalance(ctx, id, amount)
+}
+
+func (r *userRepository) addUserUSDBalance(ctx context.Context, id int64, amount float64) error {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return r.addUserUSDBalanceWithClient(ctx, tx.Client(), tx, id, amount)
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		if errors.Is(err, dbent.ErrTxStarted) {
+			return r.addUserUSDBalanceWithClient(ctx, r.client, r.client, id, amount)
+		}
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := r.addUserUSDBalanceWithClient(ctx, tx.Client(), tx, id, amount); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *userRepository) addUserUSDBalanceWithClient(ctx context.Context, client *dbent.Client, exec sqlExecutor, id int64, amount float64) error {
 	n, err := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(amount).Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}
 	if n == 0 {
 		return service.ErrUserNotFound
+	}
+	if err := addUSDBillingWalletBalance(ctx, exec, id, amount); err != nil {
+		return err
 	}
 	return nil
 }
@@ -351,18 +393,7 @@ func (r *userRepository) UpdateBalance(ctx context.Context, id int64, amount flo
 // 透支策略：允许余额变为负数，确保当前请求能够完成
 // 中间件会阻止余额 <= 0 的用户发起后续请求
 func (r *userRepository) DeductBalance(ctx context.Context, id int64, amount float64) error {
-	client := clientFromContext(ctx, r.client)
-	n, err := client.User.Update().
-		Where(dbuser.IDEQ(id)).
-		AddBalance(-amount).
-		Save(ctx)
-	if err != nil {
-		return err
-	}
-	if n == 0 {
-		return service.ErrUserNotFound
-	}
-	return nil
+	return r.addUserUSDBalance(ctx, id, -amount)
 }
 
 func (r *userRepository) UpdateConcurrency(ctx context.Context, id int64, amount int) error {
@@ -431,6 +462,9 @@ func (r *userRepository) GetFirstAdmin(ctx context.Context) (*service.User, erro
 	if v, ok := groups[m.ID]; ok {
 		out.AllowedGroups = v
 	}
+	if err := r.hydrateUserBalances(ctx, map[int64]*service.User{m.ID: out}); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -456,6 +490,145 @@ func (r *userRepository) loadAllowedGroups(ctx context.Context, userIDs []int64)
 	}
 
 	return out, nil
+}
+
+func (r *userRepository) hydrateUserBalances(ctx context.Context, users map[int64]*service.User) error {
+	if len(users) == 0 {
+		return nil
+	}
+	userIDs := make([]int64, 0, len(users))
+	for id, user := range users {
+		if user == nil {
+			continue
+		}
+		userIDs = append(userIDs, id)
+		user.Balances = map[string]float64{service.ModelPricingCurrencyUSD: user.Balance}
+	}
+	if len(userIDs) == 0 || r.sql == nil {
+		return nil
+	}
+	balances, err := r.loadBillingWalletBalances(ctx, userIDs)
+	if err != nil {
+		return err
+	}
+	for userID, byCurrency := range balances {
+		user := users[userID]
+		if user == nil || len(byCurrency) == 0 {
+			continue
+		}
+		user.Balances = byCurrency
+		if _, ok := user.Balances[service.ModelPricingCurrencyUSD]; !ok {
+			user.Balances[service.ModelPricingCurrencyUSD] = user.Balance
+		}
+	}
+	return nil
+}
+
+func (r *userRepository) loadBillingWalletBalances(ctx context.Context, userIDs []int64) (map[int64]map[string]float64, error) {
+	out := make(map[int64]map[string]float64, len(userIDs))
+	exec := userRepositoryReadExecutor(ctx, r.sql)
+	if exec == nil || len(userIDs) == 0 {
+		return out, nil
+	}
+	rows, err := exec.QueryContext(ctx, `
+		SELECT user_id, currency, balance
+		FROM billing_wallets
+		WHERE user_id = ANY($1)
+	`, pq.Array(userIDs))
+	if err != nil {
+		if isUndefinedBillingWalletTable(err) {
+			return out, nil
+		}
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			userID   int64
+			currency string
+			balance  float64
+		)
+		if err := rows.Scan(&userID, &currency, &balance); err != nil {
+			return nil, err
+		}
+		normalized := service.NormalizeUsageBillingCurrency(currency)
+		if normalized == "" {
+			continue
+		}
+		if out[userID] == nil {
+			out[userID] = map[string]float64{}
+		}
+		out[userID][normalized] = balance
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func userRepositoryReadExecutor(ctx context.Context, fallback sqlExecutor) sqlExecutor {
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		return tx
+	}
+	return fallback
+}
+
+func userRepositoryWriteExecutor(ctx context.Context, fallback sqlExecutor, localTx *dbent.Tx) sqlExecutor {
+	if localTx != nil {
+		return localTx
+	}
+	return userRepositoryReadExecutor(ctx, fallback)
+}
+
+func setUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID int64, balance float64) error {
+	if exec == nil {
+		return nil
+	}
+	_, err := exec.ExecContext(ctx, `
+		INSERT INTO billing_wallets (user_id, currency, balance)
+		SELECT id, $2, $3
+		FROM users
+		WHERE id = $1 AND deleted_at IS NULL
+		ON CONFLICT (user_id, currency) DO UPDATE
+		SET balance = EXCLUDED.balance,
+			updated_at = NOW()
+	`, userID, service.ModelPricingCurrencyUSD, balance)
+	if err != nil && isUndefinedBillingWalletTable(err) {
+		return nil
+	}
+	return err
+}
+
+func addUSDBillingWalletBalance(ctx context.Context, exec sqlExecutor, userID int64, delta float64) error {
+	if exec == nil || delta == 0 {
+		return nil
+	}
+	_, err := exec.ExecContext(ctx, `
+		INSERT INTO billing_wallets (user_id, currency, balance)
+		SELECT id, $2, $3
+		FROM users
+		WHERE id = $1 AND deleted_at IS NULL
+		ON CONFLICT (user_id, currency) DO UPDATE
+		SET balance = billing_wallets.balance + EXCLUDED.balance,
+			updated_at = NOW()
+	`, userID, service.ModelPricingCurrencyUSD, delta)
+	if err != nil && isUndefinedBillingWalletTable(err) {
+		return nil
+	}
+	return err
+}
+
+func isUndefinedBillingWalletTable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pq.Error
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "42P01"
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "billing_wallets") && strings.Contains(msg, "does not exist")
 }
 
 // syncUserAllowedGroupsWithClient 在 ent client/事务内同步用户允许分组：

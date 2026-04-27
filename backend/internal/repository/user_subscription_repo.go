@@ -36,6 +36,15 @@ func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.Us
 		SetWeeklyUsageUsd(sub.WeeklyUsageUSD).
 		SetMonthlyUsageUsd(sub.MonthlyUsageUSD).
 		SetNillableAssignedBy(sub.AssignedBy)
+	if len(sub.DailyUsageByCurrency) > 0 {
+		builder.SetDailyUsageByCurrency(service.CloneBillingCurrencyMap(sub.DailyUsageByCurrency))
+	}
+	if len(sub.WeeklyUsageByCurrency) > 0 {
+		builder.SetWeeklyUsageByCurrency(service.CloneBillingCurrencyMap(sub.WeeklyUsageByCurrency))
+	}
+	if len(sub.MonthlyUsageByCurrency) > 0 {
+		builder.SetMonthlyUsageByCurrency(service.CloneBillingCurrencyMap(sub.MonthlyUsageByCurrency))
+	}
 
 	if sub.StartsAt.IsZero() {
 		builder.SetStartsAt(time.Now())
@@ -122,6 +131,15 @@ func (r *userSubscriptionRepository) Update(ctx context.Context, sub *service.Us
 		SetNillableAssignedBy(sub.AssignedBy).
 		SetAssignedAt(sub.AssignedAt).
 		SetNotes(sub.Notes)
+	if len(sub.DailyUsageByCurrency) > 0 {
+		builder.SetDailyUsageByCurrency(service.CloneBillingCurrencyMap(sub.DailyUsageByCurrency))
+	}
+	if len(sub.WeeklyUsageByCurrency) > 0 {
+		builder.SetWeeklyUsageByCurrency(service.CloneBillingCurrencyMap(sub.WeeklyUsageByCurrency))
+	}
+	if len(sub.MonthlyUsageByCurrency) > 0 {
+		builder.SetMonthlyUsageByCurrency(service.CloneBillingCurrencyMap(sub.MonthlyUsageByCurrency))
+	}
 
 	updated, err := builder.Save(ctx)
 	if err == nil {
@@ -313,6 +331,7 @@ func (r *userSubscriptionRepository) ResetDailyUsage(ctx context.Context, id int
 	client := clientFromContext(ctx, r.client)
 	_, err := client.UserSubscription.UpdateOneID(id).
 		SetDailyUsageUsd(0).
+		SetDailyUsageByCurrency(map[string]float64{}).
 		SetDailyWindowStart(newWindowStart).
 		Save(ctx)
 	return translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
@@ -322,6 +341,7 @@ func (r *userSubscriptionRepository) ResetWeeklyUsage(ctx context.Context, id in
 	client := clientFromContext(ctx, r.client)
 	_, err := client.UserSubscription.UpdateOneID(id).
 		SetWeeklyUsageUsd(0).
+		SetWeeklyUsageByCurrency(map[string]float64{}).
 		SetWeeklyWindowStart(newWindowStart).
 		Save(ctx)
 	return translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
@@ -331,6 +351,7 @@ func (r *userSubscriptionRepository) ResetMonthlyUsage(ctx context.Context, id i
 	client := clientFromContext(ctx, r.client)
 	_, err := client.UserSubscription.UpdateOneID(id).
 		SetMonthlyUsageUsd(0).
+		SetMonthlyUsageByCurrency(map[string]float64{}).
 		SetMonthlyWindowStart(newWindowStart).
 		Save(ctx)
 	return translatePersistenceError(err, service.ErrSubscriptionNotFound, nil)
@@ -430,23 +451,26 @@ func userSubscriptionEntityToService(m *dbent.UserSubscription) *service.UserSub
 		return nil
 	}
 	out := &service.UserSubscription{
-		ID:                 m.ID,
-		UserID:             m.UserID,
-		GroupID:            m.GroupID,
-		StartsAt:           m.StartsAt,
-		ExpiresAt:          m.ExpiresAt,
-		Status:             m.Status,
-		DailyWindowStart:   m.DailyWindowStart,
-		WeeklyWindowStart:  m.WeeklyWindowStart,
-		MonthlyWindowStart: m.MonthlyWindowStart,
-		DailyUsageUSD:      m.DailyUsageUsd,
-		WeeklyUsageUSD:     m.WeeklyUsageUsd,
-		MonthlyUsageUSD:    m.MonthlyUsageUsd,
-		AssignedBy:         m.AssignedBy,
-		AssignedAt:         m.AssignedAt,
-		Notes:              derefString(m.Notes),
-		CreatedAt:          m.CreatedAt,
-		UpdatedAt:          m.UpdatedAt,
+		ID:                     m.ID,
+		UserID:                 m.UserID,
+		GroupID:                m.GroupID,
+		StartsAt:               m.StartsAt,
+		ExpiresAt:              m.ExpiresAt,
+		Status:                 m.Status,
+		DailyWindowStart:       m.DailyWindowStart,
+		WeeklyWindowStart:      m.WeeklyWindowStart,
+		MonthlyWindowStart:     m.MonthlyWindowStart,
+		DailyUsageUSD:          m.DailyUsageUsd,
+		WeeklyUsageUSD:         m.WeeklyUsageUsd,
+		MonthlyUsageUSD:        m.MonthlyUsageUsd,
+		DailyUsageByCurrency:   service.CloneBillingCurrencyMap(m.DailyUsageByCurrency),
+		WeeklyUsageByCurrency:  service.CloneBillingCurrencyMap(m.WeeklyUsageByCurrency),
+		MonthlyUsageByCurrency: service.CloneBillingCurrencyMap(m.MonthlyUsageByCurrency),
+		AssignedBy:             m.AssignedBy,
+		AssignedAt:             m.AssignedAt,
+		Notes:                  derefString(m.Notes),
+		CreatedAt:              m.CreatedAt,
+		UpdatedAt:              m.UpdatedAt,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)

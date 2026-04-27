@@ -61,13 +61,13 @@ func (h *GatewayHandler) buildUsageData(ctx context.Context, apiKeyID int64) gin
 	if err != nil || dashStats == nil {
 		return nil
 	}
-	return gin.H{"today": gin.H{"requests": dashStats.TodayRequests, "input_tokens": dashStats.TodayInputTokens, "output_tokens": dashStats.TodayOutputTokens, "cache_creation_tokens": dashStats.TodayCacheCreationTokens, "cache_read_tokens": dashStats.TodayCacheReadTokens, "total_tokens": dashStats.TodayTokens, "cost": dashStats.TodayCost, "actual_cost": dashStats.TodayActualCost}, "total": gin.H{"requests": dashStats.TotalRequests, "input_tokens": dashStats.TotalInputTokens, "output_tokens": dashStats.TotalOutputTokens, "cache_creation_tokens": dashStats.TotalCacheCreationTokens, "cache_read_tokens": dashStats.TotalCacheReadTokens, "total_tokens": dashStats.TotalTokens, "cost": dashStats.TotalCost, "actual_cost": dashStats.TotalActualCost}, "average_duration_ms": dashStats.AverageDurationMs, "rpm": dashStats.Rpm, "tpm": dashStats.Tpm}
+	return gin.H{"today": gin.H{"requests": dashStats.TodayRequests, "input_tokens": dashStats.TodayInputTokens, "output_tokens": dashStats.TodayOutputTokens, "cache_creation_tokens": dashStats.TodayCacheCreationTokens, "cache_read_tokens": dashStats.TodayCacheReadTokens, "total_tokens": dashStats.TodayTokens, "cost": dashStats.TodayCost, "actual_cost": dashStats.TodayActualCost, "cost_by_currency": dashStats.TodayCostByCurrency, "actual_cost_by_currency": dashStats.TodayActualCostByCurrency}, "total": gin.H{"requests": dashStats.TotalRequests, "input_tokens": dashStats.TotalInputTokens, "output_tokens": dashStats.TotalOutputTokens, "cache_creation_tokens": dashStats.TotalCacheCreationTokens, "cache_read_tokens": dashStats.TotalCacheReadTokens, "total_tokens": dashStats.TotalTokens, "cost": dashStats.TotalCost, "actual_cost": dashStats.TotalActualCost, "cost_by_currency": dashStats.CostByCurrency, "actual_cost_by_currency": dashStats.ActualCostByCurrency}, "average_duration_ms": dashStats.AverageDurationMs, "rpm": dashStats.Rpm, "tpm": dashStats.Tpm}
 }
 func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, apiKey *service.APIKey, usageData gin.H, modelStats any) {
 	resp := gin.H{"mode": "quota_limited", "isValid": apiKey.Status == service.StatusAPIKeyActive || apiKey.Status == service.StatusAPIKeyQuotaExhausted || apiKey.Status == service.StatusAPIKeyExpired, "status": apiKey.Status}
 	if apiKey.Quota > 0 {
 		remaining := apiKey.GetQuotaRemaining()
-		resp["quota"] = gin.H{"limit": apiKey.Quota, "used": apiKey.QuotaUsed, "remaining": remaining, "unit": "USD"}
+		resp["quota"] = gin.H{"limit": apiKey.Quota, "used": apiKey.QuotaUsed, "remaining": remaining, "unit": "USD", "used_by_currency": apiKey.QuotaUsedByCurrency}
 		resp["remaining"] = remaining
 		resp["unit"] = "USD"
 	}
@@ -77,7 +77,7 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 			var rateLimits []gin.H
 			if apiKey.RateLimit5h > 0 {
 				used := rateLimitData.EffectiveUsage5h()
-				entry := gin.H{"window": "5h", "limit": apiKey.RateLimit5h, "used": used, "remaining": max(0, apiKey.RateLimit5h-used), "window_start": rateLimitData.Window5hStart}
+				entry := gin.H{"window": "5h", "limit": apiKey.RateLimit5h, "used": used, "used_by_currency": rateLimitData.EffectiveUsage5hByCurrency(), "remaining": max(0, apiKey.RateLimit5h-used), "window_start": rateLimitData.Window5hStart}
 				if rateLimitData.Window5hStart != nil && !service.IsWindowExpired(rateLimitData.Window5hStart, service.RateLimitWindow5h) {
 					entry["reset_at"] = rateLimitData.Window5hStart.Add(service.RateLimitWindow5h)
 				}
@@ -85,7 +85,7 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 			}
 			if apiKey.RateLimit1d > 0 {
 				used := rateLimitData.EffectiveUsage1d()
-				entry := gin.H{"window": "1d", "limit": apiKey.RateLimit1d, "used": used, "remaining": max(0, apiKey.RateLimit1d-used), "window_start": rateLimitData.Window1dStart}
+				entry := gin.H{"window": "1d", "limit": apiKey.RateLimit1d, "used": used, "used_by_currency": rateLimitData.EffectiveUsage1dByCurrency(), "remaining": max(0, apiKey.RateLimit1d-used), "window_start": rateLimitData.Window1dStart}
 				if rateLimitData.Window1dStart != nil && !service.IsWindowExpired(rateLimitData.Window1dStart, service.RateLimitWindow1d) {
 					entry["reset_at"] = rateLimitData.Window1dStart.Add(service.RateLimitWindow1d)
 				}
@@ -93,7 +93,7 @@ func (h *GatewayHandler) usageQuotaLimited(c *gin.Context, ctx context.Context, 
 			}
 			if apiKey.RateLimit7d > 0 {
 				used := rateLimitData.EffectiveUsage7d()
-				entry := gin.H{"window": "7d", "limit": apiKey.RateLimit7d, "used": used, "remaining": max(0, apiKey.RateLimit7d-used), "window_start": rateLimitData.Window7dStart}
+				entry := gin.H{"window": "7d", "limit": apiKey.RateLimit7d, "used": used, "used_by_currency": rateLimitData.EffectiveUsage7dByCurrency(), "remaining": max(0, apiKey.RateLimit7d-used), "window_start": rateLimitData.Window7dStart}
 				if rateLimitData.Window7dStart != nil && !service.IsWindowExpired(rateLimitData.Window7dStart, service.RateLimitWindow7d) {
 					entry["reset_at"] = rateLimitData.Window7dStart.Add(service.RateLimitWindow7d)
 				}
@@ -123,7 +123,7 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		if ok {
 			remaining := h.calculateSubscriptionRemaining(apiKey.Group, subscription)
 			resp["remaining"] = remaining
-			resp["subscription"] = gin.H{"daily_usage_usd": subscription.DailyUsageUSD, "weekly_usage_usd": subscription.WeeklyUsageUSD, "monthly_usage_usd": subscription.MonthlyUsageUSD, "daily_limit_usd": apiKey.Group.DailyLimitUSD, "weekly_limit_usd": apiKey.Group.WeeklyLimitUSD, "monthly_limit_usd": apiKey.Group.MonthlyLimitUSD, "expires_at": subscription.ExpiresAt}
+			resp["subscription"] = gin.H{"daily_usage_usd": subscription.DailyUsageUSD, "weekly_usage_usd": subscription.WeeklyUsageUSD, "monthly_usage_usd": subscription.MonthlyUsageUSD, "daily_usage_by_currency": subscription.DailyUsageByCurrency, "weekly_usage_by_currency": subscription.WeeklyUsageByCurrency, "monthly_usage_by_currency": subscription.MonthlyUsageByCurrency, "daily_limit_usd": apiKey.Group.DailyLimitUSD, "weekly_limit_usd": apiKey.Group.WeeklyLimitUSD, "monthly_limit_usd": apiKey.Group.MonthlyLimitUSD, "expires_at": subscription.ExpiresAt}
 		}
 		if usageData != nil {
 			resp["usage"] = usageData
@@ -139,7 +139,7 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to get user info")
 		return
 	}
-	resp := gin.H{"mode": "unrestricted", "isValid": true, "planName": "钱包余额", "remaining": latestUser.Balance, "unit": "USD", "balance": latestUser.Balance}
+	resp := gin.H{"mode": "unrestricted", "isValid": true, "planName": "钱包余额", "remaining": latestUser.Balance, "unit": "USD", "balance": latestUser.Balance, "balances": latestUser.Balances}
 	if usageData != nil {
 		resp["usage"] = usageData
 	}

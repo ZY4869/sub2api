@@ -92,12 +92,15 @@ type apiKeyDeletedReader interface {
 
 // APIKeyRateLimitData holds rate limit usage and window state for an API key.
 type APIKeyRateLimitData struct {
-	Usage5h       float64
-	Usage1d       float64
-	Usage7d       float64
-	Window5hStart *time.Time
-	Window1dStart *time.Time
-	Window7dStart *time.Time
+	Usage5h           float64
+	Usage1d           float64
+	Usage7d           float64
+	Usage5hByCurrency map[string]float64
+	Usage1dByCurrency map[string]float64
+	Usage7dByCurrency map[string]float64
+	Window5hStart     *time.Time
+	Window1dStart     *time.Time
+	Window7dStart     *time.Time
 }
 
 // EffectiveUsage5h returns the 5h window usage, or 0 if the window has expired.
@@ -108,6 +111,13 @@ func (d *APIKeyRateLimitData) EffectiveUsage5h() float64 {
 	return d.Usage5h
 }
 
+func (d *APIKeyRateLimitData) EffectiveUsage5hByCurrency() map[string]float64 {
+	if d == nil || IsWindowExpired(d.Window5hStart, RateLimitWindow5h) {
+		return nil
+	}
+	return cloneBillingStringMapFloat64(d.Usage5hByCurrency)
+}
+
 // EffectiveUsage1d returns the 1d window usage, or 0 if the window has expired.
 func (d *APIKeyRateLimitData) EffectiveUsage1d() float64 {
 	if IsWindowExpired(d.Window1dStart, RateLimitWindow1d) {
@@ -116,12 +126,26 @@ func (d *APIKeyRateLimitData) EffectiveUsage1d() float64 {
 	return d.Usage1d
 }
 
+func (d *APIKeyRateLimitData) EffectiveUsage1dByCurrency() map[string]float64 {
+	if d == nil || IsWindowExpired(d.Window1dStart, RateLimitWindow1d) {
+		return nil
+	}
+	return cloneBillingStringMapFloat64(d.Usage1dByCurrency)
+}
+
 // EffectiveUsage7d returns the 7d window usage, or 0 if the window has expired.
 func (d *APIKeyRateLimitData) EffectiveUsage7d() float64 {
 	if IsWindowExpired(d.Window7dStart, RateLimitWindow7d) {
 		return 0
 	}
 	return d.Usage7d
+}
+
+func (d *APIKeyRateLimitData) EffectiveUsage7dByCurrency() map[string]float64 {
+	if d == nil || IsWindowExpired(d.Window7dStart, RateLimitWindow7d) {
+		return nil
+	}
+	return cloneBillingStringMapFloat64(d.Usage7dByCurrency)
 }
 
 // APIKeyQuotaUsageState captures the latest quota fields after an atomic quota update.

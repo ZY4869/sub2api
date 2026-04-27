@@ -3,18 +3,19 @@ package dto
 import "time"
 
 type User struct {
-	ID                   int64     `json:"id"`
-	Email                string    `json:"email"`
-	Username             string    `json:"username"`
-	Role                 string    `json:"role"`
-	AdminFreeBilling     bool      `json:"admin_free_billing"`
-	RequestDetailsReview bool      `json:"request_details_review"`
-	Balance              float64   `json:"balance"`
-	Concurrency          int       `json:"concurrency"`
-	Status               string    `json:"status"`
-	AllowedGroups        []int64   `json:"allowed_groups"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID                   int64              `json:"id"`
+	Email                string             `json:"email"`
+	Username             string             `json:"username"`
+	Role                 string             `json:"role"`
+	AdminFreeBilling     bool               `json:"admin_free_billing"`
+	RequestDetailsReview bool               `json:"request_details_review"`
+	Balance              float64            `json:"balance"`
+	Balances             map[string]float64 `json:"balances,omitempty"`
+	Concurrency          int                `json:"concurrency"`
+	Status               string             `json:"status"`
+	AllowedGroups        []int64            `json:"allowed_groups"`
+	CreatedAt            time.Time          `json:"created_at"`
+	UpdatedAt            time.Time          `json:"updated_at"`
 
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
@@ -52,25 +53,29 @@ type APIKey struct {
 	ImageMaxCount            int  `json:"image_max_count"`
 	ImageCountUsed           int  `json:"image_count_used"`
 
-	Quota     float64    `json:"quota"`      // Quota limit in USD (0 = unlimited)
-	QuotaUsed float64    `json:"quota_used"` // Used quota amount in USD
-	ExpiresAt *time.Time `json:"expires_at"` // Expiration time (nil = never expires)
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	Quota               float64            `json:"quota"`      // Quota limit in USD (0 = unlimited)
+	QuotaUsed           float64            `json:"quota_used"` // Used quota amount in USD
+	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
+	ExpiresAt           *time.Time         `json:"expires_at"` // Expiration time (nil = never expires)
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
 
 	// Rate limit fields
-	RateLimit5h   float64    `json:"rate_limit_5h"`
-	RateLimit1d   float64    `json:"rate_limit_1d"`
-	RateLimit7d   float64    `json:"rate_limit_7d"`
-	Usage5h       float64    `json:"usage_5h"`
-	Usage1d       float64    `json:"usage_1d"`
-	Usage7d       float64    `json:"usage_7d"`
-	Window5hStart *time.Time `json:"window_5h_start"`
-	Window1dStart *time.Time `json:"window_1d_start"`
-	Window7dStart *time.Time `json:"window_7d_start"`
-	Reset5hAt     *time.Time `json:"reset_5h_at,omitempty"`
-	Reset1dAt     *time.Time `json:"reset_1d_at,omitempty"`
-	Reset7dAt     *time.Time `json:"reset_7d_at,omitempty"`
+	RateLimit5h       float64            `json:"rate_limit_5h"`
+	RateLimit1d       float64            `json:"rate_limit_1d"`
+	RateLimit7d       float64            `json:"rate_limit_7d"`
+	Usage5h           float64            `json:"usage_5h"`
+	Usage1d           float64            `json:"usage_1d"`
+	Usage7d           float64            `json:"usage_7d"`
+	Usage5hByCurrency map[string]float64 `json:"usage_5h_by_currency,omitempty"`
+	Usage1dByCurrency map[string]float64 `json:"usage_1d_by_currency,omitempty"`
+	Usage7dByCurrency map[string]float64 `json:"usage_7d_by_currency,omitempty"`
+	Window5hStart     *time.Time         `json:"window_5h_start"`
+	Window1dStart     *time.Time         `json:"window_1d_start"`
+	Window7dStart     *time.Time         `json:"window_7d_start"`
+	Reset5hAt         *time.Time         `json:"reset_5h_at,omitempty"`
+	Reset1dAt         *time.Time         `json:"reset_1d_at,omitempty"`
+	Reset7dAt         *time.Time         `json:"reset_7d_at,omitempty"`
 
 	User   *User            `json:"user,omitempty"`
 	Group  *Group           `json:"group,omitempty"`
@@ -78,13 +83,14 @@ type APIKey struct {
 }
 
 type APIKeyGroupDTO struct {
-	GroupID       int64    `json:"group_id"`
-	GroupName     string   `json:"group_name"`
-	Platform      string   `json:"platform"`
-	Priority      int      `json:"priority"`
-	Quota         float64  `json:"quota"`
-	QuotaUsed     float64  `json:"quota_used"`
-	ModelPatterns []string `json:"model_patterns"`
+	GroupID             int64              `json:"group_id"`
+	GroupName           string             `json:"group_name"`
+	Platform            string             `json:"platform"`
+	Priority            int                `json:"priority"`
+	Quota               float64            `json:"quota"`
+	QuotaUsed           float64            `json:"quota_used"`
+	QuotaUsedByCurrency map[string]float64 `json:"quota_used_by_currency,omitempty"`
+	ModelPatterns       []string           `json:"model_patterns"`
 }
 
 type Group struct {
@@ -231,12 +237,18 @@ type Account struct {
 	CustomBaseURL        *string `json:"custom_base_url,omitempty"`
 
 	// API Key 账号配额限制
-	QuotaLimit       *float64 `json:"quota_limit,omitempty"`
-	QuotaUsed        *float64 `json:"quota_used,omitempty"`
-	QuotaDailyLimit  *float64 `json:"quota_daily_limit,omitempty"`
-	QuotaDailyUsed   *float64 `json:"quota_daily_used,omitempty"`
-	QuotaWeeklyLimit *float64 `json:"quota_weekly_limit,omitempty"`
-	QuotaWeeklyUsed  *float64 `json:"quota_weekly_used,omitempty"`
+	QuotaLimit                 *float64           `json:"quota_limit,omitempty"`
+	QuotaUsed                  *float64           `json:"quota_used,omitempty"`
+	QuotaLimitByCurrency       map[string]float64 `json:"quota_limit_by_currency,omitempty"`
+	QuotaUsedByCurrency        map[string]float64 `json:"quota_used_by_currency,omitempty"`
+	QuotaDailyLimit            *float64           `json:"quota_daily_limit,omitempty"`
+	QuotaDailyUsed             *float64           `json:"quota_daily_used,omitempty"`
+	QuotaDailyLimitByCurrency  map[string]float64 `json:"quota_daily_limit_by_currency,omitempty"`
+	QuotaDailyUsedByCurrency   map[string]float64 `json:"quota_daily_used_by_currency,omitempty"`
+	QuotaWeeklyLimit           *float64           `json:"quota_weekly_limit,omitempty"`
+	QuotaWeeklyUsed            *float64           `json:"quota_weekly_used,omitempty"`
+	QuotaWeeklyLimitByCurrency map[string]float64 `json:"quota_weekly_limit_by_currency,omitempty"`
+	QuotaWeeklyUsedByCurrency  map[string]float64 `json:"quota_weekly_used_by_currency,omitempty"`
 
 	// 配额固定时间重置配置
 	QuotaDailyResetMode  *string `json:"quota_daily_reset_mode,omitempty"`
@@ -415,14 +427,19 @@ type UsageLog struct {
 	CacheCreation5mTokens int `json:"cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `json:"cache_creation_1h_tokens"`
 
-	InputCost           float64 `json:"input_cost"`
-	OutputCost          float64 `json:"output_cost"`
-	CacheCreationCost   float64 `json:"cache_creation_cost"`
-	CacheReadCost       float64 `json:"cache_read_cost"`
-	TotalCost           float64 `json:"total_cost"`
-	ActualCost          float64 `json:"actual_cost"`
-	BillingExemptReason *string `json:"billing_exempt_reason,omitempty"`
-	RateMultiplier      float64 `json:"rate_multiplier"`
+	InputCost               float64            `json:"input_cost"`
+	OutputCost              float64            `json:"output_cost"`
+	CacheCreationCost       float64            `json:"cache_creation_cost"`
+	CacheReadCost           float64            `json:"cache_read_cost"`
+	TotalCost               float64            `json:"total_cost"`
+	ActualCost              float64            `json:"actual_cost"`
+	BillingCurrency         string             `json:"billing_currency"`
+	TotalCostUSDEquivalent  float64            `json:"total_cost_usd_equivalent"`
+	ActualCostUSDEquivalent float64            `json:"actual_cost_usd_equivalent"`
+	CostByCurrency          map[string]float64 `json:"cost_by_currency,omitempty"`
+	ActualCostByCurrency    map[string]float64 `json:"actual_cost_by_currency,omitempty"`
+	BillingExemptReason     *string            `json:"billing_exempt_reason,omitempty"`
+	RateMultiplier          float64            `json:"rate_multiplier"`
 
 	BillingType     int8    `json:"billing_type"`
 	RequestType     string  `json:"request_type"`
@@ -558,9 +575,12 @@ type UserSubscription struct {
 	WeeklyWindowStart  *time.Time `json:"weekly_window_start"`
 	MonthlyWindowStart *time.Time `json:"monthly_window_start"`
 
-	DailyUsageUSD   float64 `json:"daily_usage_usd"`
-	WeeklyUsageUSD  float64 `json:"weekly_usage_usd"`
-	MonthlyUsageUSD float64 `json:"monthly_usage_usd"`
+	DailyUsageUSD          float64            `json:"daily_usage_usd"`
+	WeeklyUsageUSD         float64            `json:"weekly_usage_usd"`
+	MonthlyUsageUSD        float64            `json:"monthly_usage_usd"`
+	DailyUsageByCurrency   map[string]float64 `json:"daily_usage_by_currency,omitempty"`
+	WeeklyUsageByCurrency  map[string]float64 `json:"weekly_usage_by_currency,omitempty"`
+	MonthlyUsageByCurrency map[string]float64 `json:"monthly_usage_by_currency,omitempty"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

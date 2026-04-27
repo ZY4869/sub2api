@@ -117,13 +117,13 @@
                   <span
                     class="text-amber-600 dark:text-amber-400"
                     :title="t('admin.dashboard.actual')"
-                    >${{ formatCost(stats.today_actual_cost) }}</span
+                    >{{ formatCurrencyBreakdown(stats.today_actual_cost_by_currency, stats.today_actual_cost) }}</span
                   >
                   <span
                     class="text-gray-400 dark:text-gray-500"
                     :title="t('admin.dashboard.standard')"
                   >
-                    / ${{ formatCost(stats.today_cost) }}</span
+                    / {{ formatCurrencyBreakdown(stats.today_cost_by_currency, stats.today_cost) }}</span
                   >
                 </p>
               </div>
@@ -147,13 +147,13 @@
                   <span
                     class="text-indigo-600 dark:text-indigo-400"
                     :title="t('admin.dashboard.actual')"
-                    >${{ formatCost(stats.total_actual_cost) }}</span
+                    >{{ formatCurrencyBreakdown(stats.actual_cost_by_currency, stats.total_actual_cost) }}</span
                   >
                   <span
                     class="text-gray-400 dark:text-gray-500"
                     :title="t('admin.dashboard.standard')"
                   >
-                    / ${{ formatCost(stats.total_cost) }}</span
+                    / {{ formatCurrencyBreakdown(stats.cost_by_currency, stats.total_cost) }}</span
                   >
                 </p>
               </div>
@@ -529,6 +529,19 @@ const formatCost = (value: number): string => {
     return value.toFixed(3)
   }
   return value.toFixed(4)
+}
+
+const formatCurrencyBreakdown = (values: Record<string, number> | undefined, fallbackUSD: number): string => {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right))
+  if (entries.length === 0) {
+    return `$${formatCost(fallbackUSD)}`
+  }
+  return entries.map(([currency, value]) => {
+    const normalized = currency.toUpperCase()
+    return `${normalized === 'CNY' ? '¥' : '$'}${formatCost(value)}`
+  }).join(' / ')
 }
 
 const formatDuration = (ms: number): string => {

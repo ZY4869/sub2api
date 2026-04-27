@@ -14,6 +14,7 @@ type User struct {
 	PasswordHash         string
 	Role                 string
 	Balance              float64
+	Balances             map[string]float64
 	Concurrency          int
 	Status               string
 	AdminFreeBilling     bool
@@ -50,6 +51,18 @@ func (u *User) IsAdminFreeBillingEnabled() bool {
 
 func (u *User) CanReviewRequestDetails() bool {
 	return u != nil && (u.IsAdmin() || u.RequestDetailsReview)
+}
+
+func (u *User) HasUsableBillingBalance() bool {
+	if u == nil {
+		return false
+	}
+	for currency, amount := range u.Balances {
+		if normalizeBillingCurrency(currency) != "" && amount > 0 {
+			return true
+		}
+	}
+	return u.Balance > 0
 }
 
 // CanBindGroup checks whether a user can bind to a given group.

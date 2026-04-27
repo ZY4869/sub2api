@@ -65,6 +65,12 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(), // billing_currency
+			sqlmock.AnyArg(), // total_cost_usd_equivalent
+			sqlmock.AnyArg(), // actual_cost_usd_equivalent
+			sqlmock.AnyArg(), // usd_to_cny_rate
+			sqlmock.AnyArg(), // fx_rate_date
+			sqlmock.AnyArg(), // fx_locked_at
 			sqlmock.AnyArg(), // billing_exempt_reason
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
@@ -154,6 +160,12 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(), // billing_currency
+			sqlmock.AnyArg(), // total_cost_usd_equivalent
+			sqlmock.AnyArg(), // actual_cost_usd_equivalent
+			sqlmock.AnyArg(), // usd_to_cny_rate
+			sqlmock.AnyArg(), // fx_rate_date
+			sqlmock.AnyArg(), // fx_locked_at
 			sqlmock.AnyArg(),
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
@@ -238,6 +250,12 @@ func TestUsageLogRepositoryCreate_PersistsThinkingEnabled(t *testing.T) {
 			log.CacheReadCost,
 			log.TotalCost,
 			log.ActualCost,
+			sqlmock.AnyArg(), // billing_currency
+			sqlmock.AnyArg(), // total_cost_usd_equivalent
+			sqlmock.AnyArg(), // actual_cost_usd_equivalent
+			sqlmock.AnyArg(), // usd_to_cny_rate
+			sqlmock.AnyArg(), // fx_rate_date
+			sqlmock.AnyArg(), // fx_locked_at
 			sqlmock.AnyArg(),
 			log.RateMultiplier,
 			log.AccountRateMultiplier,
@@ -403,11 +421,17 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"total_account_cost",
 			"avg_duration_ms",
 		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
+	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
+		WithArgs(requestType).
+		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
+			AddRow([]byte(`{"USD":1.2,"CNY":8}`), []byte(`{"USD":1,"CNY":7}`)))
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), stats.TotalRequests)
 	require.Equal(t, int64(9), stats.TotalTokens)
+	require.Equal(t, map[string]float64{"USD": 1.2, "CNY": 8}, stats.CostByCurrency)
+	require.Equal(t, map[string]float64{"USD": 1, "CNY": 7}, stats.ActualCostByCurrency)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -438,11 +462,17 @@ func TestUsageLogRepositoryGetStatsWithFilters_UserAndAPIKeyUsesHalfOpenEndTime(
 			"total_account_cost",
 			"avg_duration_ms",
 		}).AddRow(int64(1), int64(2), int64(3), int64(4), 1.2, 1.0, int64(0), 0.0, 1.2, 20.0))
+	mock.ExpectQuery("jsonb_object_agg\\(currency, total_amount\\)").
+		WithArgs(int64(42), int64(7), start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"cost_by_currency", "actual_cost_by_currency"}).
+			AddRow([]byte(`{"USD":1.2}`), []byte(`{"USD":1}`)))
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), stats.TotalRequests)
 	require.Equal(t, int64(9), stats.TotalTokens)
+	require.Equal(t, map[string]float64{"USD": 1.2}, stats.CostByCurrency)
+	require.Equal(t, map[string]float64{"USD": 1}, stats.ActualCostByCurrency)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -548,25 +578,31 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullString{Valid: true, String: "req-1"},
 			"gpt-5", // model
 			sql.NullString{Valid: true, String: "gpt-5"}, // requested_model
-			sql.NullString{},  // upstream_model
-			sql.NullInt64{},   // channel_id
-			sql.NullString{},  // model_mapping_chain
-			sql.NullString{},  // billing_tier
-			sql.NullString{},  // billing_mode
-			sql.NullInt64{},   // group_id
-			sql.NullInt64{},   // subscription_id
-			1,                 // input_tokens
-			2,                 // output_tokens
-			3,                 // cache_creation_tokens
-			4,                 // cache_read_tokens
-			5,                 // cache_creation_5m_tokens
-			6,                 // cache_creation_1h_tokens
-			0.1,               // input_cost
-			0.2,               // output_cost
-			0.3,               // cache_creation_cost
-			0.4,               // cache_read_cost
-			1.0,               // total_cost
-			0.9,               // actual_cost
+			sql.NullString{}, // upstream_model
+			sql.NullInt64{},  // channel_id
+			sql.NullString{}, // model_mapping_chain
+			sql.NullString{}, // billing_tier
+			sql.NullString{}, // billing_mode
+			sql.NullInt64{},  // group_id
+			sql.NullInt64{},  // subscription_id
+			1,                // input_tokens
+			2,                // output_tokens
+			3,                // cache_creation_tokens
+			4,                // cache_read_tokens
+			5,                // cache_creation_5m_tokens
+			6,                // cache_creation_1h_tokens
+			0.1,              // input_cost
+			0.2,              // output_cost
+			0.3,              // cache_creation_cost
+			0.4,              // cache_read_cost
+			1.0,              // total_cost
+			0.9,              // actual_cost
+			service.ModelPricingCurrencyUSD,
+			1.0,
+			0.9,
+			0.0,
+			sql.NullString{},
+			sql.NullTime{},
 			sql.NullString{},  // billing_exempt_reason
 			1.0,               // rate_multiplier
 			sql.NullFloat64{}, // account_rate_multiplier
@@ -628,6 +664,12 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			service.ModelPricingCurrencyUSD,
+			1.0,
+			0.9,
+			0.0,
+			sql.NullString{},
+			sql.NullTime{},
 			sql.NullString{},
 			1.0,
 			sql.NullFloat64{},
@@ -687,6 +729,12 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullInt64{},
 			1, 2, 3, 4, 5, 6,
 			0.1, 0.2, 0.3, 0.4, 1.0, 0.9,
+			service.ModelPricingCurrencyUSD,
+			1.0,
+			0.9,
+			0.0,
+			sql.NullString{},
+			sql.NullTime{},
 			sql.NullString{},
 			1.0,
 			sql.NullFloat64{},

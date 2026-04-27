@@ -41,6 +41,8 @@ func cloneBillingPricingCurrencyPreference(pref *BillingPricingCurrencyPreferenc
 	}
 	copy := *pref
 	copy.Currency = defaultModelPricingCurrency(pref.Currency)
+	copy.USDToCNYRate = cloneBillingFloat64(pref.USDToCNYRate)
+	copy.FXLockedAt = cloneBillingTime(pref.FXLockedAt)
 	return &copy
 }
 
@@ -137,6 +139,7 @@ func (s *ModelCatalogService) saveModelPricingCurrency(
 	actor ModelCatalogActor,
 	model string,
 	currency string,
+	meta ModelPricingCurrencyMetadata,
 ) error {
 	alias := NormalizeModelCatalogModelID(model)
 	if alias == "" {
@@ -153,6 +156,9 @@ func (s *ModelCatalogService) saveModelPricingCurrency(
 	}
 	prefs[alias] = &BillingPricingCurrencyPreference{
 		Currency:        normalized,
+		USDToCNYRate:    cloneBillingFloat64(meta.USDToCNYRate),
+		FXRateDate:      strings.TrimSpace(meta.FXRateDate),
+		FXLockedAt:      cloneBillingTime(meta.FXLockedAt),
 		UpdatedAt:       time.Now().UTC(),
 		UpdatedByUserID: actor.UserID,
 		UpdatedByEmail:  strings.TrimSpace(actor.Email),

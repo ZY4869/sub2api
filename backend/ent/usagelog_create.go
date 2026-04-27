@@ -281,6 +281,90 @@ func (_c *UsageLogCreate) SetNillableActualCost(v *float64) *UsageLogCreate {
 	return _c
 }
 
+// SetBillingCurrency sets the "billing_currency" field.
+func (_c *UsageLogCreate) SetBillingCurrency(v string) *UsageLogCreate {
+	_c.mutation.SetBillingCurrency(v)
+	return _c
+}
+
+// SetNillableBillingCurrency sets the "billing_currency" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingCurrency(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingCurrency(*v)
+	}
+	return _c
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (_c *UsageLogCreate) SetTotalCostUsdEquivalent(v float64) *UsageLogCreate {
+	_c.mutation.SetTotalCostUsdEquivalent(v)
+	return _c
+}
+
+// SetNillableTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableTotalCostUsdEquivalent(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetTotalCostUsdEquivalent(*v)
+	}
+	return _c
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (_c *UsageLogCreate) SetActualCostUsdEquivalent(v float64) *UsageLogCreate {
+	_c.mutation.SetActualCostUsdEquivalent(v)
+	return _c
+}
+
+// SetNillableActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableActualCostUsdEquivalent(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetActualCostUsdEquivalent(*v)
+	}
+	return _c
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (_c *UsageLogCreate) SetUsdToCnyRate(v float64) *UsageLogCreate {
+	_c.mutation.SetUsdToCnyRate(v)
+	return _c
+}
+
+// SetNillableUsdToCnyRate sets the "usd_to_cny_rate" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableUsdToCnyRate(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetUsdToCnyRate(*v)
+	}
+	return _c
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (_c *UsageLogCreate) SetFxRateDate(v string) *UsageLogCreate {
+	_c.mutation.SetFxRateDate(v)
+	return _c
+}
+
+// SetNillableFxRateDate sets the "fx_rate_date" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableFxRateDate(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetFxRateDate(*v)
+	}
+	return _c
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (_c *UsageLogCreate) SetFxLockedAt(v time.Time) *UsageLogCreate {
+	_c.mutation.SetFxLockedAt(v)
+	return _c
+}
+
+// SetNillableFxLockedAt sets the "fx_locked_at" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableFxLockedAt(v *time.Time) *UsageLogCreate {
+	if v != nil {
+		_c.SetFxLockedAt(*v)
+	}
+	return _c
+}
+
 // SetBillingExemptReason sets the "billing_exempt_reason" field.
 func (_c *UsageLogCreate) SetBillingExemptReason(v string) *UsageLogCreate {
 	_c.mutation.SetBillingExemptReason(v)
@@ -585,6 +669,22 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultActualCost
 		_c.mutation.SetActualCost(v)
 	}
+	if _, ok := _c.mutation.BillingCurrency(); !ok {
+		v := usagelog.DefaultBillingCurrency
+		_c.mutation.SetBillingCurrency(v)
+	}
+	if _, ok := _c.mutation.TotalCostUsdEquivalent(); !ok {
+		v := usagelog.DefaultTotalCostUsdEquivalent
+		_c.mutation.SetTotalCostUsdEquivalent(v)
+	}
+	if _, ok := _c.mutation.ActualCostUsdEquivalent(); !ok {
+		v := usagelog.DefaultActualCostUsdEquivalent
+		_c.mutation.SetActualCostUsdEquivalent(v)
+	}
+	if _, ok := _c.mutation.UsdToCnyRate(); !ok {
+		v := usagelog.DefaultUsdToCnyRate
+		_c.mutation.SetUsdToCnyRate(v)
+	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		v := usagelog.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
@@ -683,6 +783,28 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.ActualCost(); !ok {
 		return &ValidationError{Name: "actual_cost", err: errors.New(`ent: missing required field "UsageLog.actual_cost"`)}
+	}
+	if _, ok := _c.mutation.BillingCurrency(); !ok {
+		return &ValidationError{Name: "billing_currency", err: errors.New(`ent: missing required field "UsageLog.billing_currency"`)}
+	}
+	if v, ok := _c.mutation.BillingCurrency(); ok {
+		if err := usagelog.BillingCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "billing_currency", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_currency": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.TotalCostUsdEquivalent(); !ok {
+		return &ValidationError{Name: "total_cost_usd_equivalent", err: errors.New(`ent: missing required field "UsageLog.total_cost_usd_equivalent"`)}
+	}
+	if _, ok := _c.mutation.ActualCostUsdEquivalent(); !ok {
+		return &ValidationError{Name: "actual_cost_usd_equivalent", err: errors.New(`ent: missing required field "UsageLog.actual_cost_usd_equivalent"`)}
+	}
+	if _, ok := _c.mutation.UsdToCnyRate(); !ok {
+		return &ValidationError{Name: "usd_to_cny_rate", err: errors.New(`ent: missing required field "UsageLog.usd_to_cny_rate"`)}
+	}
+	if v, ok := _c.mutation.FxRateDate(); ok {
+		if err := usagelog.FxRateDateValidator(v); err != nil {
+			return &ValidationError{Name: "fx_rate_date", err: fmt.Errorf(`ent: validator failed for field "UsageLog.fx_rate_date": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.BillingExemptReason(); ok {
 		if err := usagelog.BillingExemptReasonValidator(v); err != nil {
@@ -821,6 +943,30 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ActualCost(); ok {
 		_spec.SetField(usagelog.FieldActualCost, field.TypeFloat64, value)
 		_node.ActualCost = value
+	}
+	if value, ok := _c.mutation.BillingCurrency(); ok {
+		_spec.SetField(usagelog.FieldBillingCurrency, field.TypeString, value)
+		_node.BillingCurrency = value
+	}
+	if value, ok := _c.mutation.TotalCostUsdEquivalent(); ok {
+		_spec.SetField(usagelog.FieldTotalCostUsdEquivalent, field.TypeFloat64, value)
+		_node.TotalCostUsdEquivalent = value
+	}
+	if value, ok := _c.mutation.ActualCostUsdEquivalent(); ok {
+		_spec.SetField(usagelog.FieldActualCostUsdEquivalent, field.TypeFloat64, value)
+		_node.ActualCostUsdEquivalent = value
+	}
+	if value, ok := _c.mutation.UsdToCnyRate(); ok {
+		_spec.SetField(usagelog.FieldUsdToCnyRate, field.TypeFloat64, value)
+		_node.UsdToCnyRate = value
+	}
+	if value, ok := _c.mutation.FxRateDate(); ok {
+		_spec.SetField(usagelog.FieldFxRateDate, field.TypeString, value)
+		_node.FxRateDate = &value
+	}
+	if value, ok := _c.mutation.FxLockedAt(); ok {
+		_spec.SetField(usagelog.FieldFxLockedAt, field.TypeTime, value)
+		_node.FxLockedAt = &value
 	}
 	if value, ok := _c.mutation.BillingExemptReason(); ok {
 		_spec.SetField(usagelog.FieldBillingExemptReason, field.TypeString, value)
@@ -1360,6 +1506,108 @@ func (u *UsageLogUpsert) UpdateActualCost() *UsageLogUpsert {
 // AddActualCost adds v to the "actual_cost" field.
 func (u *UsageLogUpsert) AddActualCost(v float64) *UsageLogUpsert {
 	u.Add(usagelog.FieldActualCost, v)
+	return u
+}
+
+// SetBillingCurrency sets the "billing_currency" field.
+func (u *UsageLogUpsert) SetBillingCurrency(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingCurrency, v)
+	return u
+}
+
+// UpdateBillingCurrency sets the "billing_currency" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingCurrency() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingCurrency)
+	return u
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (u *UsageLogUpsert) SetTotalCostUsdEquivalent(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldTotalCostUsdEquivalent, v)
+	return u
+}
+
+// UpdateTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateTotalCostUsdEquivalent() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldTotalCostUsdEquivalent)
+	return u
+}
+
+// AddTotalCostUsdEquivalent adds v to the "total_cost_usd_equivalent" field.
+func (u *UsageLogUpsert) AddTotalCostUsdEquivalent(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldTotalCostUsdEquivalent, v)
+	return u
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (u *UsageLogUpsert) SetActualCostUsdEquivalent(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldActualCostUsdEquivalent, v)
+	return u
+}
+
+// UpdateActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateActualCostUsdEquivalent() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldActualCostUsdEquivalent)
+	return u
+}
+
+// AddActualCostUsdEquivalent adds v to the "actual_cost_usd_equivalent" field.
+func (u *UsageLogUpsert) AddActualCostUsdEquivalent(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldActualCostUsdEquivalent, v)
+	return u
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (u *UsageLogUpsert) SetUsdToCnyRate(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldUsdToCnyRate, v)
+	return u
+}
+
+// UpdateUsdToCnyRate sets the "usd_to_cny_rate" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateUsdToCnyRate() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldUsdToCnyRate)
+	return u
+}
+
+// AddUsdToCnyRate adds v to the "usd_to_cny_rate" field.
+func (u *UsageLogUpsert) AddUsdToCnyRate(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldUsdToCnyRate, v)
+	return u
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (u *UsageLogUpsert) SetFxRateDate(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldFxRateDate, v)
+	return u
+}
+
+// UpdateFxRateDate sets the "fx_rate_date" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateFxRateDate() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldFxRateDate)
+	return u
+}
+
+// ClearFxRateDate clears the value of the "fx_rate_date" field.
+func (u *UsageLogUpsert) ClearFxRateDate() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldFxRateDate)
+	return u
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (u *UsageLogUpsert) SetFxLockedAt(v time.Time) *UsageLogUpsert {
+	u.Set(usagelog.FieldFxLockedAt, v)
+	return u
+}
+
+// UpdateFxLockedAt sets the "fx_locked_at" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateFxLockedAt() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldFxLockedAt)
+	return u
+}
+
+// ClearFxLockedAt clears the value of the "fx_locked_at" field.
+func (u *UsageLogUpsert) ClearFxLockedAt() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldFxLockedAt)
 	return u
 }
 
@@ -2051,6 +2299,125 @@ func (u *UsageLogUpsertOne) AddActualCost(v float64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateActualCost() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetBillingCurrency sets the "billing_currency" field.
+func (u *UsageLogUpsertOne) SetBillingCurrency(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingCurrency(v)
+	})
+}
+
+// UpdateBillingCurrency sets the "billing_currency" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingCurrency() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingCurrency()
+	})
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (u *UsageLogUpsertOne) SetTotalCostUsdEquivalent(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetTotalCostUsdEquivalent(v)
+	})
+}
+
+// AddTotalCostUsdEquivalent adds v to the "total_cost_usd_equivalent" field.
+func (u *UsageLogUpsertOne) AddTotalCostUsdEquivalent(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddTotalCostUsdEquivalent(v)
+	})
+}
+
+// UpdateTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateTotalCostUsdEquivalent() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateTotalCostUsdEquivalent()
+	})
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (u *UsageLogUpsertOne) SetActualCostUsdEquivalent(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetActualCostUsdEquivalent(v)
+	})
+}
+
+// AddActualCostUsdEquivalent adds v to the "actual_cost_usd_equivalent" field.
+func (u *UsageLogUpsertOne) AddActualCostUsdEquivalent(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddActualCostUsdEquivalent(v)
+	})
+}
+
+// UpdateActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateActualCostUsdEquivalent() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateActualCostUsdEquivalent()
+	})
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (u *UsageLogUpsertOne) SetUsdToCnyRate(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUsdToCnyRate(v)
+	})
+}
+
+// AddUsdToCnyRate adds v to the "usd_to_cny_rate" field.
+func (u *UsageLogUpsertOne) AddUsdToCnyRate(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddUsdToCnyRate(v)
+	})
+}
+
+// UpdateUsdToCnyRate sets the "usd_to_cny_rate" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateUsdToCnyRate() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUsdToCnyRate()
+	})
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (u *UsageLogUpsertOne) SetFxRateDate(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFxRateDate(v)
+	})
+}
+
+// UpdateFxRateDate sets the "fx_rate_date" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateFxRateDate() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFxRateDate()
+	})
+}
+
+// ClearFxRateDate clears the value of the "fx_rate_date" field.
+func (u *UsageLogUpsertOne) ClearFxRateDate() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearFxRateDate()
+	})
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (u *UsageLogUpsertOne) SetFxLockedAt(v time.Time) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFxLockedAt(v)
+	})
+}
+
+// UpdateFxLockedAt sets the "fx_locked_at" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateFxLockedAt() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFxLockedAt()
+	})
+}
+
+// ClearFxLockedAt clears the value of the "fx_locked_at" field.
+func (u *UsageLogUpsertOne) ClearFxLockedAt() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearFxLockedAt()
 	})
 }
 
@@ -2948,6 +3315,125 @@ func (u *UsageLogUpsertBulk) AddActualCost(v float64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateActualCost() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetBillingCurrency sets the "billing_currency" field.
+func (u *UsageLogUpsertBulk) SetBillingCurrency(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingCurrency(v)
+	})
+}
+
+// UpdateBillingCurrency sets the "billing_currency" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingCurrency() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingCurrency()
+	})
+}
+
+// SetTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field.
+func (u *UsageLogUpsertBulk) SetTotalCostUsdEquivalent(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetTotalCostUsdEquivalent(v)
+	})
+}
+
+// AddTotalCostUsdEquivalent adds v to the "total_cost_usd_equivalent" field.
+func (u *UsageLogUpsertBulk) AddTotalCostUsdEquivalent(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddTotalCostUsdEquivalent(v)
+	})
+}
+
+// UpdateTotalCostUsdEquivalent sets the "total_cost_usd_equivalent" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateTotalCostUsdEquivalent() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateTotalCostUsdEquivalent()
+	})
+}
+
+// SetActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field.
+func (u *UsageLogUpsertBulk) SetActualCostUsdEquivalent(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetActualCostUsdEquivalent(v)
+	})
+}
+
+// AddActualCostUsdEquivalent adds v to the "actual_cost_usd_equivalent" field.
+func (u *UsageLogUpsertBulk) AddActualCostUsdEquivalent(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddActualCostUsdEquivalent(v)
+	})
+}
+
+// UpdateActualCostUsdEquivalent sets the "actual_cost_usd_equivalent" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateActualCostUsdEquivalent() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateActualCostUsdEquivalent()
+	})
+}
+
+// SetUsdToCnyRate sets the "usd_to_cny_rate" field.
+func (u *UsageLogUpsertBulk) SetUsdToCnyRate(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetUsdToCnyRate(v)
+	})
+}
+
+// AddUsdToCnyRate adds v to the "usd_to_cny_rate" field.
+func (u *UsageLogUpsertBulk) AddUsdToCnyRate(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddUsdToCnyRate(v)
+	})
+}
+
+// UpdateUsdToCnyRate sets the "usd_to_cny_rate" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateUsdToCnyRate() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateUsdToCnyRate()
+	})
+}
+
+// SetFxRateDate sets the "fx_rate_date" field.
+func (u *UsageLogUpsertBulk) SetFxRateDate(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFxRateDate(v)
+	})
+}
+
+// UpdateFxRateDate sets the "fx_rate_date" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateFxRateDate() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFxRateDate()
+	})
+}
+
+// ClearFxRateDate clears the value of the "fx_rate_date" field.
+func (u *UsageLogUpsertBulk) ClearFxRateDate() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearFxRateDate()
+	})
+}
+
+// SetFxLockedAt sets the "fx_locked_at" field.
+func (u *UsageLogUpsertBulk) SetFxLockedAt(v time.Time) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFxLockedAt(v)
+	})
+}
+
+// UpdateFxLockedAt sets the "fx_locked_at" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateFxLockedAt() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFxLockedAt()
+	})
+}
+
+// ClearFxLockedAt clears the value of the "fx_locked_at" field.
+func (u *UsageLogUpsertBulk) ClearFxLockedAt() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearFxLockedAt()
 	})
 }
 

@@ -11,7 +11,7 @@
         </div>
         <div>
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.balance') }}</p>
-          <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">${{ formatBalance(balance) }}</p>
+          <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400">{{ formatCurrencyBreakdown(balances, balance) }}</p>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('common.available') }}</p>
         </div>
       </div>
@@ -54,13 +54,13 @@
         <div>
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.todayCost') }}</p>
           <p class="text-xl font-bold text-gray-900 dark:text-white">
-            <span class="text-purple-600 dark:text-purple-400" :title="t('dashboard.actual')">${{ formatCost(stats?.today_actual_cost || 0) }}</span>
-            <span class="text-sm font-normal text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / ${{ formatCost(stats?.today_cost || 0) }}</span>
+            <span class="text-purple-600 dark:text-purple-400" :title="t('dashboard.actual')">{{ formatCurrencyBreakdown(stats?.today_actual_cost_by_currency, stats?.today_actual_cost || 0) }}</span>
+            <span class="text-sm font-normal text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / {{ formatCurrencyBreakdown(stats?.today_cost_by_currency, stats?.today_cost || 0) }}</span>
           </p>
           <p class="text-xs">
             <span class="text-gray-500 dark:text-gray-400">{{ t('common.total') }}: </span>
-            <span class="text-purple-600 dark:text-purple-400" :title="t('dashboard.actual')">${{ formatCost(stats?.total_actual_cost || 0) }}</span>
-            <span class="text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / ${{ formatCost(stats?.total_cost || 0) }}</span>
+            <span class="text-purple-600 dark:text-purple-400" :title="t('dashboard.actual')">{{ formatCurrencyBreakdown(stats?.actual_cost_by_currency, stats?.total_actual_cost || 0) }}</span>
+            <span class="text-gray-400 dark:text-gray-500" :title="t('dashboard.standard')"> / {{ formatCurrencyBreakdown(stats?.cost_by_currency, stats?.total_cost || 0) }}</span>
           </p>
         </div>
       </div>
@@ -142,19 +142,33 @@ import { useTokenDisplayMode } from '@/composables/useTokenDisplayMode'
 defineProps<{
   stats: UserStatsType
   balance: number
+  balances?: Record<string, number>
   isSimple: boolean
 }>()
 const { t } = useI18n()
 const { formatTokenDisplay } = useTokenDisplayMode()
 
-const formatBalance = (b: number) =>
-  new Intl.NumberFormat('en-US', {
+const formatBalance = (value: number, currency = 'USD') =>
+  new Intl.NumberFormat(currency === 'CNY' ? 'zh-CN' : 'en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
-  }).format(b)
+  }).format(value)
+
+const currencyPrefix = (currency: string) => currency === 'CNY' ? '¥' : '$'
+
+const formatCurrencyBreakdown = (values?: Record<string, number>, fallbackUSD = 0) => {
+  const entries = Object.entries(values || {})
+    .filter(([, value]) => Number.isFinite(value))
+    .sort(([left], [right]) => left.localeCompare(right))
+  if (entries.length === 0) {
+    return `$${formatBalance(fallbackUSD)}`
+  }
+  return entries
+    .map(([currency, value]) => `${currencyPrefix(currency.toUpperCase())}${formatBalance(value, currency.toUpperCase())}`)
+    .join(' / ')
+}
 
 const formatNumber = (n: number) => n.toLocaleString()
-const formatCost = (c: number) => c.toFixed(4)
 const formatTokens = (t: number) => formatTokenDisplay(t)
 const formatDuration = (ms: number) => ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`
 </script>
