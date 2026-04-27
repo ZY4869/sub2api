@@ -204,6 +204,12 @@ export default {
         missing: "Missing",
         decryptFailed: "Decrypt failed",
       },
+      statusGate: {
+        title: "Channel monitoring is not visible to users",
+        description:
+          "You can still create and edit monitors. Enable channel monitoring in system settings to activate the public status page and scheduled checks.",
+        action: "Open settings",
+      },
       confirm: {
         deleteMonitor: "Delete monitor \"{name}\"? This cannot be undone.",
         deleteTemplate: "Delete template \"{name}\"? This cannot be undone.",
@@ -2793,7 +2799,7 @@ export default {
         directApiUrlsHint:
           "Provide a JSON object mapping model IDs to official direct API URLs.",
         directApiUrlsPlaceholder:
-          '{\n  "pp-ocrv5-server": "https://...",\n  "paddleocr-vl-1.5": "https://..."\n}',
+          "{'{'}\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n{'}'}",
         tokenRequired: "At least one Baidu Document AI token is required",
         directApiUrlsInvalid: "Direct API URLs must be valid JSON object text",
       },

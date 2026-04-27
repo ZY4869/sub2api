@@ -128,6 +128,14 @@ func TestAdminAuthAllowsRequestDetailsReviewer(t *testing.T) {
 	cfg := &config.Config{JWT: config.JWTConfig{Secret: "test-secret", ExpireHour: 1}}
 	authService := service.NewAuthService(nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil)
 
+	admin := &service.User{
+		ID:           1,
+		Email:        "admin@example.com",
+		Role:         service.RoleAdmin,
+		Status:       service.StatusActive,
+		TokenVersion: 1,
+		Concurrency:  1,
+	}
 	reviewer := &service.User{
 		ID:                   2,
 		Email:                "reviewer@example.com",
@@ -149,6 +157,9 @@ func TestAdminAuthAllowsRequestDetailsReviewer(t *testing.T) {
 	userRepo := &stubUserRepo{
 		getByID: func(ctx context.Context, id int64) (*service.User, error) {
 			switch id {
+			case admin.ID:
+				clone := *admin
+				return &clone, nil
 			case reviewer.ID:
 				clone := *reviewer
 				return &clone, nil
@@ -171,18 +182,30 @@ func TestAdminAuthAllowsRequestDetailsReviewer(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
+	adminToken, err := authService.GenerateToken(admin)
+	require.NoError(t, err)
 	reviewerToken, err := authService.GenerateToken(reviewer)
 	require.NoError(t, err)
 	userToken, err := authService.GenerateToken(plainUser)
 	require.NoError(t, err)
 
-	t.Run("reviewer_can_access_request_details", func(t *testing.T) {
+	t.Run("admin_can_access_request_details", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/ops/request-details", nil)
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+		router.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("reviewer_cannot_access_request_details", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/ops/request-details", nil)
 		req.Header.Set("Authorization", "Bearer "+reviewerToken)
 		router.ServeHTTP(w, req)
 
-		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, http.StatusForbidden, w.Code)
+		require.Contains(t, w.Body.String(), "FORBIDDEN")
 	})
 
 	t.Run("reviewer_cannot_access_other_admin_routes", func(t *testing.T) {

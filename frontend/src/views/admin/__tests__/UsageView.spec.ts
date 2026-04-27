@@ -20,7 +20,13 @@ const { list, getStats, getSnapshotV2, getModelStats, getById } = vi.hoisted(() 
 });
 
 const authState = vi.hoisted(() => ({
+  isAdmin: true,
   canReviewRequestDetails: true,
+}));
+
+const routeState = vi.hoisted(() => ({
+  query: {} as Record<string, string | undefined>,
+  replace: vi.fn(),
 }));
 
 const messages: Record<string, string> = {
@@ -78,6 +84,13 @@ vi.mock("@/stores/app", () => ({
 
 vi.mock("@/stores/auth", () => ({
   useAuthStore: () => authState,
+}));
+
+vi.mock("vue-router", () => ({
+  useRoute: () => routeState,
+  useRouter: () => ({
+    replace: routeState.replace,
+  }),
 }));
 
 vi.mock("@/utils/format", () => ({
@@ -150,6 +163,9 @@ describe("admin UsageView distribution metric toggles", () => {
     getSnapshotV2.mockReset();
     getModelStats.mockReset();
     getById.mockReset();
+    routeState.query = {};
+    routeState.replace.mockReset();
+    authState.isAdmin = true;
     authState.canReviewRequestDetails = true;
 
     list.mockResolvedValue({
@@ -317,6 +333,7 @@ describe("admin UsageView distribution metric toggles", () => {
   });
 
   it("hides request details tab when permission is missing", async () => {
+    authState.isAdmin = false;
     authState.canReviewRequestDetails = false;
 
     const wrapper = mount(UsageView, {
@@ -341,5 +358,39 @@ describe("admin UsageView distribution metric toggles", () => {
     });
 
     expect(wrapper.find('[data-test=\"admin-usage-tab-request-details\"]').exists()).toBe(false);
+  });
+
+  it("opens request details from the route tab query and keeps tab changes in the URL", async () => {
+    routeState.query = { tab: "request_details" };
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          UsageStatsCards: true,
+          UsageFilters: UsageFiltersStub,
+          UsageTable: UsageTableStub,
+          UsageExportProgress: true,
+          UsageCleanupDialog: true,
+          UserBalanceHistoryModal: true,
+          Pagination: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          TokenUsageTrend: true,
+          ModelDistributionChart: ModelDistributionChartStub,
+          GroupDistributionChart: GroupDistributionChartStub,
+          RequestDetailsTraceTab: { template: '<div data-test="request-details-trace" />' },
+        },
+      },
+    });
+
+    expect(wrapper.find('[data-test="request-details-trace"]').exists()).toBe(true);
+
+    await wrapper.get('[data-test="admin-usage-tab-records"]').trigger("click");
+    await flushPromises();
+
+    expect(routeState.replace).toHaveBeenCalledWith({ query: {} });
   });
 });

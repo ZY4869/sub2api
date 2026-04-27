@@ -937,6 +937,42 @@ func TestOpenAISelectAccountWithLoadAwareness_StickyWaitPlan(t *testing.T) {
 	}
 }
 
+func TestOpenAISelectAccountWithLoadAwareness_StickyBusySelectsIdleAccount(t *testing.T) {
+	sessionHash := "sticky-busy-idle"
+	groupID := int64(1)
+	repo := stubOpenAIAccountRepo{
+		accounts: []Account{
+			{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 1},
+			{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, Priority: 2},
+		},
+	}
+	cache := &stubGatewayCache{
+		sessionBindings: map[string]int64{"openai:" + sessionHash: 1},
+	}
+	concurrencyCache := stubConcurrencyCache{
+		acquireResults: map[int64]bool{1: false, 2: true},
+		loadMap: map[int64]*AccountLoadInfo{
+			1: {AccountID: 1, LoadRate: 100},
+			2: {AccountID: 2, LoadRate: 0},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo:        repo,
+		cache:              cache,
+		concurrencyService: NewConcurrencyService(concurrencyCache),
+	}
+
+	selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), &groupID, sessionHash, "gpt-4", nil)
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.NotNil(t, selection.Account)
+	require.Equal(t, int64(2), selection.Account.ID)
+	require.True(t, selection.Acquired)
+	require.Nil(t, selection.WaitPlan)
+	require.Equal(t, int64(2), cache.sessionBindings["openai:"+sessionHash])
+}
+
 func TestOpenAISelectAccountWithLoadAwareness_PrefersLowerLoad(t *testing.T) {
 	groupID := int64(1)
 	repo := stubOpenAIAccountRepo{

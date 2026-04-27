@@ -248,6 +248,10 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
     modelScopeEnabled: {
       type: Boolean,
       default: false
+    },
+    skipModelScopeEditor: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['update:api-key', 'update:base-url', 'update:allowedModels', 'update:modelScopeEnabled'],
@@ -256,6 +260,7 @@ const AccountApiKeyBasicSettingsEditorStub = defineComponent({
       <span data-testid="actual-model-locked-prop">{{ actualModelLocked }}</span>
       <span data-testid="model-scope-mode-prop">{{ modelScopeMode }}</span>
       <span data-testid="model-scope-enabled-prop">{{ modelScopeEnabled }}</span>
+      <span data-testid="skip-model-scope-editor-prop">{{ skipModelScopeEditor }}</span>
       <span data-testid="allowed-models-prop">
         {{ Array.isArray(allowedModels) ? allowedModels.join(',') : '' }}
       </span>
@@ -562,7 +567,7 @@ describe('CreateAccountModal', () => {
 
   it('uses the protocol gateway probe editor and hides the generic auto-import toggle for that platform', () => {
     expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
-    expect(source).toContain(":skip-model-scope-editor=\"form.platform === 'protocol_gateway'\"")
+    expect(source).toContain(':skip-model-scope-editor="!showApiKeyModelScopeEditor"')
     expect(source).toContain(
       ":show-auto-import=\"form.platform !== 'protocol_gateway' && !isBaiduDocumentAISelected\""
     )
@@ -578,6 +583,21 @@ describe('CreateAccountModal', () => {
     expect(source).toContain("accountCategory.value = 'apikey'")
     expect(source).toContain("form.type = 'apikey'")
     expect(source).toContain("form.platform === 'grok' && form.type === 'sso'")
+  })
+
+  it('shows model scope controls for Grok API Key and Grok SSO account creation', async () => {
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="select-grok"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="skip-model-scope-editor-prop"]').text()).toBe('false')
+    expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="set-oauth-based-mode"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="oauth-allowed-models-prop"]').exists()).toBe(true)
   })
 
   it('submits Grok SSO model scope through extra.model_scope_v2 while preserving grok_tier', async () => {

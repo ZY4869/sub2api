@@ -127,6 +127,13 @@ function parseJsonRecord(text: string, fallback: Record<string, any> = {}): Reco
   throw new Error('invalid_json_object')
 }
 
+function resolveSaveErrorMessage(err: any): string {
+  return err?.response?.data?.detail ||
+    err?.response?.data?.message ||
+    err?.message ||
+    t('admin.channelMonitors.messages.saveFailed')
+}
+
 function resetForm() {
   form.name = ''
   form.provider = 'openai'
@@ -210,7 +217,7 @@ async function handleSubmit() {
     appStore.showSuccess(t('admin.channelMonitors.messages.saved'))
     emit('saved')
   } catch (err: any) {
-    appStore.showError(err?.message || t('admin.channelMonitors.messages.saveFailed'))
+    appStore.showError(resolveSaveErrorMessage(err))
   } finally {
     submitting.value = false
   }

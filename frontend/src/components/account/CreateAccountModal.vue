@@ -234,7 +234,7 @@
           :effective-platform="effectivePlatform"
           mode="create"
           :model-scope-disabled="isOpenAIModelRestrictionDisabled"
-          :skip-model-scope-editor="form.platform === 'protocol_gateway'"
+          :skip-model-scope-editor="!showApiKeyModelScopeEditor"
           :model-mappings="modelMappings"
           :preset-mappings="presetMappings"
           :get-mapping-key="getModelMappingKey"
@@ -393,11 +393,7 @@
       />
 
       <AccountModelScopeEditor
-        v-if="
-          (((accountCategory === 'oauth-based' || accountCategory === 'vertex_ai') && form.platform !== 'antigravity') ||
-            form.platform === 'protocol_gateway' ||
-            (form.platform === 'grok' && form.type === 'sso'))
-        "
+        v-if="showStandaloneModelScopeEditor"
         v-model:enabled="modelRestrictionEnabled"
         v-model:actual-model-locked="actualModelLocked"
         :disabled="isOpenAIModelRestrictionDisabled"
@@ -952,6 +948,26 @@ const showCommonApiKeySection = computed(() =>
   !isBaiduDocumentAISelected.value &&
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
+const showApiKeyModelScopeEditor = computed(() =>
+  showCommonApiKeySection.value &&
+  form.platform !== 'protocol_gateway' &&
+  effectivePlatform.value !== 'antigravity'
+)
+const showStandaloneModelScopeEditor = computed(() => {
+  if (form.platform === 'antigravity') {
+    return false
+  }
+  if (form.platform === 'protocol_gateway') {
+    return true
+  }
+  if (showApiKeyModelScopeEditor.value) {
+    return false
+  }
+  if (form.platform === 'grok') {
+    return form.type === 'sso'
+  }
+  return accountCategory.value === 'oauth-based' || accountCategory.value === 'vertex_ai'
+})
 const showQuotaLimitSection = computed(() => true)
 const showGeminiAIStudioBatchArchiveEditor = computed(() =>
   form.platform === 'gemini' && accountCategory.value === 'apikey'

@@ -2412,7 +2412,60 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.Equal(t, int64(2), result.Account.ID, "应跳过过载账号，选择可用账号")
 	})
 
-	t.Run("粘性账号槽位满-返回粘性等待计划", func(t *testing.T) {
+	t.Run("单账号快照重查-跳过新限流状态", func(t *testing.T) {
+		resetAt := time.Now().Add(10 * time.Minute)
+		requestedModel := "claude-3-5-sonnet-20241022"
+
+		cases := []struct {
+			name    string
+			blocked *Account
+		}{
+			{
+				name:    "账号级限流",
+				blocked: &Account{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5, RateLimitResetAt: &resetAt},
+			},
+			{
+				name:    "模型级限流",
+				blocked: &Account{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5, Extra: map[string]any{modelRateLimitsKey: map[string]any{requestedModel: newModelRateLimitEntry(resetAt)}}},
+			},
+			{
+				name:    "临时不可调度",
+				blocked: &Account{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5, TempUnschedulableUntil: &resetAt},
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				stalePrimary := &Account{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5}
+				staleBackup := &Account{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, Concurrency: 5}
+				freshBackup := &Account{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, Concurrency: 5}
+				snapshotCache := &openAISnapshotCacheStub{
+					snapshotAccounts: []*Account{stalePrimary, staleBackup},
+					accountsByID:     map[int64]*Account{1: tc.blocked, 2: freshBackup},
+				}
+				concurrencyCache := &mockConcurrencyCache{
+					loadMap: map[int64]*AccountLoadInfo{
+						1: {AccountID: 1, LoadRate: 0},
+						2: {AccountID: 2, LoadRate: 0},
+					},
+				}
+				svc := &GatewayService{
+					cfg:                testConfig(),
+					schedulerSnapshot:  &SchedulerSnapshotService{cache: snapshotCache},
+					concurrencyService: NewConcurrencyService(concurrencyCache),
+				}
+				svc.cfg.Gateway.Scheduling.LoadBatchEnabled = true
+
+				result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "", requestedModel, nil, "")
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				require.NotNil(t, result.Account)
+				require.Equal(t, int64(2), result.Account.ID, "应在选择前用单账号快照重查并跳过未重置账号")
+			})
+		}
+	})
+
+	t.Run("粘性账号槽位满且无其它候选-返回等待计划", func(t *testing.T) {
 		repo := &mockAccountRepoForPlatform{
 			accounts: []Account{
 				{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5},
@@ -2448,7 +2501,7 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.NotNil(t, result)
 		require.NotNil(t, result.WaitPlan)
 		require.Equal(t, int64(1), result.Account.ID)
-		require.Equal(t, 0, concurrencyCache.loadBatchCalls)
+		require.GreaterOrEqual(t, concurrencyCache.loadBatchCalls, 1)
 	})
 
 	t.Run("负载批量查询失败-降级旧顺序选择", func(t *testing.T) {
@@ -2487,7 +2540,40 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		require.Equal(t, int64(2), cache.sessionBindings["legacy"])
 	})
 
-	t.Run("模型路由-粘性账号等待计划", func(t *testing.T) {
+	t.Run("负载批量查询失败-降级旧顺序选择前重查新鲜状态", func(t *testing.T) {
+		resetAt := time.Now().Add(10 * time.Minute)
+		requestedModel := "claude-3-5-sonnet-20241022"
+		stalePrimary := &Account{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5}
+		staleBackup := &Account{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, Concurrency: 5}
+		freshPrimary := &Account{ID: 1, Platform: PlatformAnthropic, Priority: 1, Status: StatusActive, Schedulable: true, Concurrency: 5, TempUnschedulableUntil: &resetAt}
+		freshBackup := &Account{ID: 2, Platform: PlatformAnthropic, Priority: 2, Status: StatusActive, Schedulable: true, Concurrency: 5}
+		snapshotCache := &openAISnapshotCacheStub{
+			snapshotAccounts: []*Account{stalePrimary, staleBackup},
+			accountsByID:     map[int64]*Account{1: freshPrimary, 2: freshBackup},
+		}
+		cache := &mockGatewayCacheForPlatform{}
+		cfg := testConfig()
+		cfg.Gateway.Scheduling.LoadBatchEnabled = true
+		concurrencyCache := &mockConcurrencyCache{
+			loadBatchErr: errors.New("load batch failed"),
+		}
+		svc := &GatewayService{
+			cache:              cache,
+			cfg:                cfg,
+			schedulerSnapshot:  &SchedulerSnapshotService{cache: snapshotCache},
+			concurrencyService: NewConcurrencyService(concurrencyCache),
+		}
+
+		result, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "legacy-fresh", requestedModel, nil, "")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.True(t, result.Acquired)
+		require.NotNil(t, result.Account)
+		require.Equal(t, int64(2), result.Account.ID)
+		require.Equal(t, int64(2), cache.sessionBindings["legacy-fresh"])
+	})
+
+	t.Run("模型路由-粘性账号满载时选择其它空闲路由账号", func(t *testing.T) {
 		groupID := int64(20)
 		sessionHash := "route-sticky"
 
@@ -2541,8 +2627,9 @@ func TestGatewayService_SelectAccountWithLoadAwareness(t *testing.T) {
 		result, err := svc.SelectAccountWithLoadAwareness(ctx, &groupID, sessionHash, "claude-3-5-sonnet-20241022", nil, "")
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		require.NotNil(t, result.WaitPlan)
-		require.Equal(t, int64(1), result.Account.ID)
+		require.True(t, result.Acquired)
+		require.Nil(t, result.WaitPlan)
+		require.Equal(t, int64(2), result.Account.ID)
 	})
 
 	t.Run("模型路由-粘性账号命中", func(t *testing.T) {

@@ -16,6 +16,9 @@ const directApiUrlsText = defineModel<string>('directApiUrlsText', { required: t
 
 const { t } = useI18n()
 
+const directApiUrlsPlaceholder =
+  '{\n  "pp-ocrv5-server": "https://...",\n  "paddleocr-vl-1.5": "https://..."\n}'
+
 const tokenPlaceholderKey = computed(() =>
   props.mode === 'edit'
     ? 'admin.accounts.leaveEmptyToKeep'
@@ -84,7 +87,7 @@ const tokenPlaceholderKey = computed(() =>
         v-model="directApiUrlsText"
         rows="6"
         class="input font-mono"
-        :placeholder="t('admin.accounts.baiduDocumentAI.directApiUrlsPlaceholder')"
+        :placeholder="directApiUrlsPlaceholder"
         data-testid="baidu-document-ai-direct-api-urls"
         spellcheck="false"
       />

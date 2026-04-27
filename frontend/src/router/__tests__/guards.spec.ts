@@ -66,8 +66,6 @@ function simulateGuard(
 ): string | null {
   const requiresAuth = toMeta.requiresAuth !== false
   const requiresAdmin = toMeta.requiresAdmin === true
-  const requiresRequestDetailsReview = toMeta.requiresRequestDetailsReview === true
-  const canReviewRequestDetails = authState.isAdmin || authState.canReviewRequestDetails === true
   const maintenanceModeEnabled = authState.maintenanceModeEnabled === true
 
   // 不需要认证的路由
@@ -82,9 +80,6 @@ function simulateGuard(
       if (authState.backendModeEnabled) {
         if (authState.isAdmin) {
           return '/admin/dashboard'
-        }
-        if (canReviewRequestDetails) {
-          return '/admin/request-details'
         }
         return null
       }
@@ -113,10 +108,6 @@ function simulateGuard(
     return '/dashboard'
   }
 
-  if (requiresRequestDetailsReview && !canReviewRequestDetails) {
-    return '/dashboard'
-  }
-
   // 简易模式限制
   if (authState.isSimpleMode) {
     const restrictedPaths = [
@@ -134,9 +125,6 @@ function simulateGuard(
   // Backend mode: admin gets full access, non-admin blocked
   if (authState.backendModeEnabled) {
     if (authState.isAuthenticated && authState.isAdmin) {
-      return null
-    }
-    if (canReviewRequestDetails && (toPath === '/admin/request-details' || toPath.startsWith('/admin/request-details/'))) {
       return null
     }
     const allowed = ['/login', '/key-usage', '/setup', '/models']
@@ -450,7 +438,7 @@ describe('路由守卫逻辑', () => {
       expect(redirect).toBeNull()
     })
 
-    it('reviewer authenticated: /login redirects to /admin/request-details', () => {
+    it('reviewer authenticated: /login is allowed without a request-details redirect', () => {
       const authState: MockAuthState = {
         isAuthenticated: true,
         isAdmin: false,
@@ -459,10 +447,10 @@ describe('路由守卫逻辑', () => {
         canReviewRequestDetails: true,
       }
       const redirect = simulateGuard('/login', { requiresAuth: false }, authState)
-      expect(redirect).toBe('/admin/request-details')
+      expect(redirect).toBeNull()
     })
 
-    it('reviewer authenticated: /admin/request-details is allowed', () => {
+    it('reviewer authenticated: /admin/request-details is blocked by admin-only access', () => {
       const authState: MockAuthState = {
         isAuthenticated: true,
         isAdmin: false,
@@ -472,10 +460,10 @@ describe('路由守卫逻辑', () => {
       }
       const redirect = simulateGuard(
         '/admin/request-details',
-        { requiresAuth: true, requiresRequestDetailsReview: true },
+        { requiresAuth: true, requiresAdmin: true },
         authState
       )
-      expect(redirect).toBeNull()
+      expect(redirect).toBe('/dashboard')
     })
   })
 

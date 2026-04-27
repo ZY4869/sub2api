@@ -172,12 +172,7 @@ func validateJWTForAdmin(
 		return false
 	}
 
-	if isRequestDetailsReviewPath(c.Request.URL.Path) {
-		if !user.CanReviewRequestDetails() {
-			AbortWithError(c, 403, "FORBIDDEN", "Request details review access required")
-			return false
-		}
-	} else if !user.IsAdmin() {
+	if !user.IsAdmin() {
 		AbortWithError(c, 403, "FORBIDDEN", "Admin access required")
 		return false
 	}
@@ -190,10 +185,4 @@ func validateJWTForAdmin(
 	c.Set("auth_method", "jwt")
 
 	return true
-}
-
-func isRequestDetailsReviewPath(path string) bool {
-	normalized := strings.TrimRight(strings.TrimSpace(path), "/")
-	const prefix = "/api/v1/admin/ops/request-details"
-	return normalized == prefix || strings.HasPrefix(normalized, prefix+"/")
 }

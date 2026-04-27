@@ -444,11 +444,16 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/admin/request-details',
     name: 'AdminRequestDetails',
-    component: () => import('@/views/admin/request-details/RequestDetailsView.vue'),
+    redirect: (to) => ({
+      path: '/admin/usage',
+      query: {
+        ...to.query,
+        tab: 'request_details',
+      },
+    }),
     meta: {
       requiresAuth: true,
-      requiresAdmin: false,
-      requiresRequestDetailsReview: true,
+      requiresAdmin: true,
       title: 'Request Details',
       titleKey: 'admin.requestDetails.title',
       descriptionKey: 'admin.requestDetails.description'
@@ -702,7 +707,6 @@ const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/models']
-const BACKEND_MODE_REVIEWER_ALLOWED_PATHS = ['/admin/request-details']
 const LOGIN_ENTRY_PATHS = ['/login', '/register']
 
 function isAllowedPath(path: string, allowedPaths: string[]) {
@@ -747,7 +751,6 @@ router.beforeEach((to, _from, next) => {
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
   const requiresAdmin = to.meta.requiresAdmin === true
-  const requiresRequestDetailsReview = to.meta.requiresRequestDetailsReview === true
 
   // If route doesn't require auth, allow access
   if (!requiresAuth) {
@@ -760,10 +763,6 @@ router.beforeEach((to, _from, next) => {
       if (appStore.backendModeEnabled) {
         if (authStore.isAdmin) {
           next('/admin/dashboard')
-          return
-        }
-        if (authStore.canReviewRequestDetails) {
-          next('/admin/request-details')
           return
         }
         next()
@@ -811,11 +810,6 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  if (requiresRequestDetailsReview && !authStore.canReviewRequestDetails) {
-    next('/dashboard')
-    return
-  }
-
   // 简易模式下限制访问某些页面
   if (authStore.isSimpleMode) {
     const restrictedPaths = [
@@ -837,10 +831,6 @@ router.beforeEach((to, _from, next) => {
   // Backend mode: admin gets full access, non-admin blocked
   if (appStore.backendModeEnabled) {
     if (authStore.isAuthenticated && authStore.isAdmin) {
-      next()
-      return
-    }
-    if (authStore.canReviewRequestDetails && isAllowedPath(to.path, BACKEND_MODE_REVIEWER_ALLOWED_PATHS)) {
       next()
       return
     }

@@ -357,20 +357,10 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 			ReleaseFunc: result.ReleaseFunc,
 		}, nil
 	}
-
-	cfg := s.service.schedulingConfig()
-	// WaitPlan.MaxConcurrency 使用 Concurrency（非 EffectiveLoadFactor），因为 WaitPlan 控制的是 Redis 实际并发槽位等待。
-	if s.service.concurrencyService != nil {
-		return &AccountSelectionResult{
-			Account: account,
-			WaitPlan: &AccountWaitPlan{
-				AccountID:      accountID,
-				MaxConcurrency: account.Concurrency,
-				Timeout:        cfg.StickySessionWaitTimeout,
-				MaxWaiting:     cfg.StickySessionMaxWaiting,
-			},
-		}, nil
+	if acquireErr != nil {
+		slog.DebugContext(ctx, "openai_account_scheduler_sticky_acquire_failed", "account_id", accountID, "error", acquireErr)
 	}
+	slog.DebugContext(ctx, "openai_account_scheduler_sticky_busy_try_load_balance", "account_id", accountID, "session", shortSessionHash(sessionHash))
 	return nil, nil
 }
 
@@ -774,6 +764,12 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 	}
 	rankedCandidates := selectTopKOpenAICandidates(candidates, topK)
 	selectionOrder := buildOpenAIWeightedSelectionOrder(rankedCandidates, req)
+	topKAccountIDs := make(map[int64]struct{}, len(selectionOrder))
+	for _, candidate := range selectionOrder {
+		if candidate.account != nil {
+			topKAccountIDs[candidate.account.ID] = struct{}{}
+		}
+	}
 
 	for i := 0; i < len(selectionOrder); i++ {
 		if isContextDoneError(ctx, nil) {
@@ -811,9 +807,56 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		}
 	}
 
+	fallbackOrder := make([]openAIAccountCandidateScore, 0, len(candidates))
+	for _, candidate := range selectTopKOpenAICandidates(candidates, len(candidates)) {
+		if candidate.account == nil {
+			continue
+		}
+		if _, alreadyTried := topKAccountIDs[candidate.account.ID]; alreadyTried {
+			continue
+		}
+		fallbackOrder = append(fallbackOrder, candidate)
+	}
+
+	for _, candidate := range fallbackOrder {
+		if isContextDoneError(ctx, nil) {
+			return nil, len(candidates), topK, loadSkew, ctx.Err()
+		}
+		fresh := s.service.resolveFreshSchedulableOpenAIAccount(ctx, candidate.account, req.RequestedModel)
+		if fresh == nil {
+			if isContextDoneError(ctx, nil) {
+				return nil, len(candidates), topK, loadSkew, ctx.Err()
+			}
+			continue
+		}
+		if !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
+			continue
+		}
+		fresh = s.service.recheckSelectedOpenAIAccountFromDB(ctx, fresh, req.RequestedModel)
+		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) {
+			continue
+		}
+		result, acquireErr := s.service.tryAcquireAccountSlot(ctx, fresh.ID, fresh.Concurrency)
+		if acquireErr != nil {
+			return nil, len(candidates), topK, loadSkew, acquireErr
+		}
+		if result != nil && result.Acquired {
+			s.logLoadBalanceSelection("fallback_all_acquire", req, candidate, len(candidates), topK, loadSkew)
+			if req.SessionHash != "" {
+				_ = s.service.BindStickySession(ctx, req.GroupID, req.SessionHash, fresh.ID)
+			}
+			return &AccountSelectionResult{
+				Account:     fresh,
+				Acquired:    true,
+				ReleaseFunc: result.ReleaseFunc,
+			}, len(candidates), topK, loadSkew, nil
+		}
+	}
+
 	cfg := s.service.schedulingConfig()
+	waitOrder := append(append([]openAIAccountCandidateScore(nil), selectionOrder...), fallbackOrder...)
 	// WaitPlan.MaxConcurrency 使用 Concurrency（非 EffectiveLoadFactor），因为 WaitPlan 控制的是 Redis 实际并发槽位等待。
-	for _, candidate := range selectionOrder {
+	for _, candidate := range waitOrder {
 		if isContextDoneError(ctx, nil) {
 			return nil, len(candidates), topK, loadSkew, ctx.Err()
 		}

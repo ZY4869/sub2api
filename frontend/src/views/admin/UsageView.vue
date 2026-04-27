@@ -16,7 +16,7 @@
           class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
           :class="activeTab === 'records' ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'"
           type="button"
-          @click="activeTab = 'records'"
+          @click="setActiveTab('records')"
         >
           {{ t("admin.usage.pageTabs.records") }}
         </button>
@@ -26,7 +26,7 @@
           class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
           :class="activeTab === 'request_details' ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'"
           type="button"
-          @click="activeTab = 'request_details'"
+          @click="setActiveTab('request_details')"
         >
           {{ t("admin.usage.pageTabs.requestDetails") }}
         </button>
@@ -35,7 +35,7 @@
           class="rounded-full px-4 py-2 text-sm font-medium transition-colors"
           :class="activeTab === 'leaderboard' ? 'bg-primary-600 text-white' : 'text-gray-600 dark:text-gray-300'"
           type="button"
-          @click="activeTab = 'leaderboard'"
+          @click="setActiveTab('leaderboard')"
         >
           {{ t("admin.usage.pageTabs.leaderboard") }}
         </button>
@@ -198,6 +198,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { saveAs } from "file-saver";
 import { useAppStore } from "@/stores/app";
@@ -244,10 +245,35 @@ import type {
 const { t } = useI18n();
 const appStore = useAppStore();
 const authStore = useAuthStore();
-const canReviewRequestDetails = computed(() => authStore.canReviewRequestDetails);
+const route = useRoute();
+const router = useRouter();
+const canReviewRequestDetails = computed(() => authStore.isAdmin === true);
 
 type UsageViewTab = "records" | "request_details" | "leaderboard";
 const activeTab = ref<UsageViewTab>("records");
+const usageViewTabs = new Set<UsageViewTab>([
+  "records",
+  "request_details",
+  "leaderboard",
+]);
+
+function normalizeUsageViewTab(raw: unknown): UsageViewTab {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === "string" && usageViewTabs.has(value as UsageViewTab)
+    ? (value as UsageViewTab)
+    : "records";
+}
+
+function applyRouteTab(raw: unknown) {
+  const nextTab = normalizeUsageViewTab(raw);
+  activeTab.value = nextTab === "request_details" && !canReviewRequestDetails.value
+    ? "records"
+    : nextTab;
+}
+
+function setActiveTab(tab: UsageViewTab) {
+  activeTab.value = tab;
+}
 
 watch(
   canReviewRequestDetails,
@@ -258,6 +284,26 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  () => route.query.tab,
+  applyRouteTab,
+  { immediate: true },
+);
+
+watch(activeTab, (tab) => {
+  const routeTab = normalizeUsageViewTab(route.query.tab);
+  if (routeTab === tab || (tab === "records" && route.query.tab == null)) {
+    return;
+  }
+  const query = { ...route.query };
+  if (tab === "records") {
+    delete query.tab;
+  } else {
+    query.tab = tab;
+  }
+  router.replace({ query });
+});
 type DistributionMetric = "tokens" | "actual_cost";
 type ModelDistributionSource = "requested" | "upstream" | "mapping";
 

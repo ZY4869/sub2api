@@ -217,6 +217,11 @@
         missing: "未配置",
         decryptFailed: "解密失败",
       },
+      statusGate: {
+        title: "渠道监控当前未对用户开放",
+        description: "你仍然可以创建和编辑监控项；公开状态页与定时监控需要先在系统设置中启用渠道监控。",
+        action: "前往系统设置",
+      },
       confirm: {
         deleteMonitor: "确认删除监控“{name}”？此操作不可恢复。",
         deleteTemplate: "确认删除模板“{name}”？此操作不可恢复。",
@@ -2835,7 +2840,7 @@
         directApiUrls: "直连接口地址映射",
         directApiUrlsHint: "填写 JSON 对象，把模型 ID 映射到官方直连接口地址。",
         directApiUrlsPlaceholder:
-          '{\n  "pp-ocrv5-server": "https://...",\n  "paddleocr-vl-1.5": "https://..."\n}',
+          "{'{'}\n  \"pp-ocrv5-server\": \"https://...\",\n  \"paddleocr-vl-1.5\": \"https://...\"\n{'}'}",
         tokenRequired: "请至少填写一个百度文档智能访问令牌",
         directApiUrlsInvalid: "直连接口地址映射必须是合法的 JSON 对象文本",
       },

@@ -20,12 +20,6 @@ declare module 'vue-router' {
     requiresAdmin?: boolean
 
     /**
-     * Whether this route allows request-details reviewers
-     * @default false
-     */
-    requiresRequestDetailsReview?: boolean
-
-    /**
      * Page title for this route
      */
     title?: string

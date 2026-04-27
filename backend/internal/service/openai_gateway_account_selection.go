@@ -206,24 +206,41 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 		}
 	}
 	if s.concurrencyService == nil || !cfg.LoadBatchEnabled {
-		account, err := s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, excludedIDs, stickyAccountID)
-		if err != nil {
-			return nil, err
+		localExcluded := copyAccountIDSet(excludedIDs)
+		if localExcluded == nil {
+			localExcluded = make(map[int64]struct{})
 		}
-		result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
-		if err == nil && result.Acquired {
-			s.logSelectedAccountUsagePressure("local_acquired", groupID, sessionHash, requestedModel, account)
-			return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
-		}
-		if stickyAccountID > 0 && stickyAccountID == account.ID && s.concurrencyService != nil {
-			waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, account.ID)
-			if waitingCount < cfg.StickySessionMaxWaiting {
-				s.logSelectedAccountUsagePressure("local_sticky_wait", groupID, sessionHash, requestedModel, account)
-				return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
+		var waitResult *AccountSelectionResult
+		for {
+			account, err := s.selectAccountForModelWithExclusions(ctx, groupID, sessionHash, requestedModel, localExcluded, stickyAccountID)
+			if err != nil {
+				if waitResult != nil {
+					return waitResult, nil
+				}
+				return nil, err
 			}
+			result, err := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+			if err == nil && result.Acquired {
+				s.logSelectedAccountUsagePressure("local_acquired", groupID, sessionHash, requestedModel, account)
+				return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
+			}
+			if waitResult == nil {
+				phase := "local_wait"
+				timeout := cfg.FallbackWaitTimeout
+				maxWaiting := cfg.FallbackMaxWaiting
+				if stickyAccountID > 0 && stickyAccountID == account.ID && s.concurrencyService != nil {
+					waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, account.ID)
+					if waitingCount < cfg.StickySessionMaxWaiting {
+						phase = "local_sticky_wait"
+						timeout = cfg.StickySessionWaitTimeout
+						maxWaiting = cfg.StickySessionMaxWaiting
+					}
+				}
+				s.logSelectedAccountUsagePressure(phase, groupID, sessionHash, requestedModel, account)
+				waitResult = &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: timeout, MaxWaiting: maxWaiting}}
+			}
+			localExcluded[account.ID] = struct{}{}
 		}
-		s.logSelectedAccountUsagePressure("local_wait", groupID, sessionHash, requestedModel, account)
-		return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: account.ID, MaxConcurrency: account.Concurrency, Timeout: cfg.FallbackWaitTimeout, MaxWaiting: cfg.FallbackMaxWaiting}}, nil
 	}
 	accounts, err := s.listSchedulableAccounts(ctx, groupID)
 	if err != nil {
@@ -262,11 +279,6 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 							_ = s.refreshStickySessionTTL(ctx, groupID, sessionHash, openaiStickySessionTTL)
 							s.logSelectedAccountUsagePressure("sticky_acquired", groupID, sessionHash, requestedModel, account)
 							return &AccountSelectionResult{Account: account, Acquired: true, ReleaseFunc: result.ReleaseFunc}, nil
-						}
-						waitingCount, _ := s.concurrencyService.GetAccountWaitingCount(ctx, accountID)
-						if waitingCount < cfg.StickySessionMaxWaiting {
-							s.logSelectedAccountUsagePressure("sticky_wait", groupID, sessionHash, requestedModel, account)
-							return &AccountSelectionResult{Account: account, WaitPlan: &AccountWaitPlan{AccountID: accountID, MaxConcurrency: account.Concurrency, Timeout: cfg.StickySessionWaitTimeout, MaxWaiting: cfg.StickySessionMaxWaiting}}, nil
 						}
 					}
 				}

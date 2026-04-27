@@ -82,6 +82,7 @@ describe('AppSidebar', () => {
     mockState.authStore.isSimpleMode = false
     mockState.appStore.backendModeEnabled = false
     mockState.appStore.publicModelCatalogEnabled = true
+    mockState.adminSettingsStore.opsMonitoringEnabled = false
     mockState.adminSettingsStore.fetch.mockReset()
     mockState.onboardingStore.isCurrentStep.mockReset()
     mockState.onboardingStore.isCurrentStep.mockReturnValue(false)
@@ -165,5 +166,23 @@ describe('AppSidebar', () => {
     expect(wrapper.text()).not.toContain('nav.blacklist')
     expect(wrapper.find('a[href="/admin/api-docs"]').classes()).toContain('sidebar-link-active')
     expect(mockState.adminSettingsStore.fetch).toHaveBeenCalled()
+  })
+
+  it('does not render request details as a first-level navigation entry', () => {
+    mockState.authStore.isAdmin = true
+    mockState.authStore.canReviewRequestDetails = true
+    mockState.adminSettingsStore.opsMonitoringEnabled = true
+
+    const wrapper = mount(AppSidebar, {
+      global: {
+        stubs: {
+          'router-link': RouterLinkStub,
+          VersionBadge: { template: '<span data-test="version-badge" />' },
+        },
+      },
+    })
+
+    expect(wrapper.find('a[href="/admin/request-details"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('nav.requestDetails')
   })
 })

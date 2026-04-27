@@ -2,64 +2,84 @@
   <AppLayout>
     <TablePageLayout prefer-page-scroll>
       <template #actions>
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div
-            class="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300"
-          >
-            <div class="text-base font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.channelMonitors.title') }}
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div
+              class="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 shadow-sm dark:border-dark-700 dark:bg-dark-800 dark:text-gray-300"
+            >
+              <div class="text-base font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.channelMonitors.title') }}
+              </div>
+              <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                {{ t('admin.channelMonitors.description') }}
+              </div>
             </div>
-            <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              {{ t('admin.channelMonitors.description') }}
+
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="flex items-center gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+                <button
+                  type="button"
+                  class="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+                  :class="activeTab === 'monitors'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white'"
+                  @click="activeTab = 'monitors'"
+                >
+                  {{ t('admin.channelMonitors.tabs.monitors') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+                  :class="activeTab === 'templates'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white'"
+                  @click="activeTab = 'templates'"
+                >
+                  {{ t('admin.channelMonitors.tabs.templates') }}
+                </button>
+              </div>
+
+              <button type="button" class="btn btn-secondary" :disabled="loadingAny" @click="refreshAll">
+                {{ t('common.refresh') }}
+              </button>
+
+              <button
+                v-if="activeTab === 'monitors'"
+                type="button"
+                class="btn btn-primary"
+                data-test="create-channel-monitor"
+                @click="openCreateMonitor"
+              >
+                <Icon name="plus" size="md" class="mr-2" />
+                {{ t('admin.channelMonitors.actions.createMonitor') }}
+              </button>
+              <button
+                v-else
+                type="button"
+                class="btn btn-primary"
+                data-test="create-channel-monitor-template"
+                @click="openCreateTemplate"
+              >
+                <Icon name="plus" size="md" class="mr-2" />
+                {{ t('admin.channelMonitors.actions.createTemplate') }}
+              </button>
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-3">
-            <div class="flex items-center gap-1 rounded-2xl border border-gray-200 bg-white p-1 shadow-sm dark:border-dark-700 dark:bg-dark-800">
-              <button
-                type="button"
-                class="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
-                :class="activeTab === 'monitors'
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white'"
-                @click="activeTab = 'monitors'"
-              >
-                {{ t('admin.channelMonitors.tabs.monitors') }}
-              </button>
-              <button
-                type="button"
-                class="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
-                :class="activeTab === 'templates'
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-white'"
-                @click="activeTab = 'templates'"
-              >
-                {{ t('admin.channelMonitors.tabs.templates') }}
+          <div
+            v-if="showFeatureDisabledNotice"
+            class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
+            data-test="channel-monitor-disabled-notice"
+          >
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div class="font-semibold">{{ t('admin.channelMonitors.statusGate.title') }}</div>
+                <p class="mt-1 leading-5">{{ t('admin.channelMonitors.statusGate.description') }}</p>
+              </div>
+              <button type="button" class="btn btn-secondary shrink-0" @click="openSettings">
+                {{ t('admin.channelMonitors.statusGate.action') }}
               </button>
             </div>
-
-            <button class="btn btn-secondary" :disabled="loadingAny" @click="refreshAll">
-              {{ t('common.refresh') }}
-            </button>
-
-            <button
-              v-if="activeTab === 'monitors'"
-              class="btn btn-primary"
-              :disabled="loadingAny"
-              @click="openCreateMonitor"
-            >
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.channelMonitors.actions.createMonitor') }}
-            </button>
-            <button
-              v-else
-              class="btn btn-primary"
-              :disabled="loadingAny"
-              @click="openCreateTemplate"
-            >
-              <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.channelMonitors.actions.createTemplate') }}
-            </button>
           </div>
         </div>
       </template>
@@ -138,6 +158,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { adminAPI } from '@/api/admin'
@@ -160,8 +181,13 @@ import type {
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const router = useRouter()
 
 const activeTab = ref<'monitors' | 'templates'>('monitors')
+const showFeatureDisabledNotice = computed(() =>
+  appStore.publicSettingsLoaded === true &&
+  appStore.cachedPublicSettings?.channel_monitor_enabled !== true
+)
 
 const monitors = ref<AdminChannelMonitor[]>([])
 const templates = ref<AdminChannelMonitorTemplate[]>([])
@@ -228,6 +254,10 @@ async function refreshAll() {
 function openCreateMonitor() {
   editingMonitor.value = null
   monitorDialogOpen.value = true
+}
+
+function openSettings() {
+  router.push('/admin/settings')
 }
 
 function openEditMonitor(m: AdminChannelMonitor) {
@@ -338,4 +368,3 @@ onMounted(() => {
   refreshAll()
 })
 </script>
-

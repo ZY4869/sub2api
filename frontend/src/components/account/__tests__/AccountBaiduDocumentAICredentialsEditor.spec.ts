@@ -51,4 +51,22 @@ describe('AccountBaiduDocumentAICredentialsEditor', () => {
     expect(passwordInputs[0]?.attributes('placeholder')).toBe('admin.accounts.leaveEmptyToKeep')
     expect(passwordInputs[1]?.attributes('placeholder')).toBe('admin.accounts.leaveEmptyToKeep')
   })
+
+  it('shows the direct API URL JSON placeholder without relying on i18n interpolation', () => {
+    const wrapper = mount(AccountBaiduDocumentAICredentialsEditor, {
+      props: {
+        mode: 'create',
+        asyncBearerToken: '',
+        asyncBaseUrl: '',
+        directToken: '',
+        directApiUrlsText: ''
+      }
+    })
+
+    const directApiUrlsInput = wrapper.get('[data-testid="baidu-document-ai-direct-api-urls"]')
+
+    expect(directApiUrlsInput.attributes('placeholder')).toContain('{')
+    expect(directApiUrlsInput.attributes('placeholder')).toContain('"pp-ocrv5-server": "https://..."')
+    expect(directApiUrlsInput.attributes('placeholder')?.trim().endsWith('}')).toBe(true)
+  })
 })

@@ -115,6 +115,7 @@ func (r *accountRepository) SetModelRateLimit(ctx context.Context, id int64, sco
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue model rate limit failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 func (r *accountRepository) SetOverloaded(ctx context.Context, id int64, until time.Time) error {
@@ -161,6 +162,7 @@ func (r *accountRepository) ClearTempUnschedulable(ctx context.Context, id int64
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear temp unschedulable failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 func (r *accountRepository) ClearRateLimit(ctx context.Context, id int64) error {
@@ -198,6 +200,7 @@ func (r *accountRepository) ClearAntigravityQuotaScopes(ctx context.Context, id 
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear quota scopes failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 func (r *accountRepository) ClearModelRateLimits(ctx context.Context, id int64) error {
@@ -216,6 +219,7 @@ func (r *accountRepository) ClearModelRateLimits(ctx context.Context, id int64) 
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue clear model rate limit failed: account=%d err=%v", id, err)
 	}
+	r.syncSchedulerAccountSnapshot(ctx, id)
 	return nil
 }
 func (r *accountRepository) UpdateSessionWindow(ctx context.Context, id int64, start, end *time.Time, status string) error {
@@ -234,6 +238,7 @@ func (r *accountRepository) UpdateSessionWindow(ctx context.Context, id int64, s
 		if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountChanged, &id, nil, nil); err != nil {
 			logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue session window update failed: account=%d err=%v", id, err)
 		}
+		r.syncSchedulerAccountSnapshot(ctx, id)
 	}
 	return nil
 }

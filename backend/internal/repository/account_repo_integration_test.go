@@ -721,6 +721,53 @@ func (s *AccountRepoSuite) TestClearRateLimit() {
 	s.Require().False(exists)
 }
 
+func (s *AccountRepoSuite) TestRuntimeSchedulingStateSyncsSchedulerAccountSnapshot() {
+	account := mustCreateAccount(s.T(), s.client, &service.Account{
+		Name:  "acc-runtime-snapshot",
+		Extra: map[string]any{},
+	})
+	cacheRecorder := &schedulerCacheRecorder{}
+	s.repo.schedulerCache = cacheRecorder
+	latestSnapshot := func() *service.Account {
+		s.T().Helper()
+		s.Require().NotEmpty(cacheRecorder.setAccounts)
+		return cacheRecorder.setAccounts[len(cacheRecorder.setAccounts)-1]
+	}
+
+	resetAt := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	s.Require().NoError(s.repo.SetRateLimited(s.ctx, account.ID, resetAt))
+	s.Require().NotNil(latestSnapshot().RateLimitResetAt)
+	s.Require().WithinDuration(resetAt, *latestSnapshot().RateLimitResetAt, time.Second)
+
+	model := "claude-3-5-sonnet-20241022"
+	s.Require().NoError(s.repo.SetModelRateLimit(s.ctx, account.ID, model, resetAt))
+	modelLimited := latestSnapshot()
+	modelLimits, ok := modelLimited.Extra["model_rate_limits"].(map[string]any)
+	s.Require().True(ok)
+	s.Require().Contains(modelLimits, model)
+
+	s.Require().NoError(s.repo.ClearModelRateLimits(s.ctx, account.ID))
+	_, exists := latestSnapshot().Extra["model_rate_limits"]
+	s.Require().False(exists)
+
+	reason := `{"rule":"401","matched_keyword":"unauthorized"}`
+	s.Require().NoError(s.repo.SetTempUnschedulable(s.ctx, account.ID, resetAt, reason))
+	tempLimited := latestSnapshot()
+	s.Require().NotNil(tempLimited.TempUnschedulableUntil)
+	s.Require().WithinDuration(resetAt, *tempLimited.TempUnschedulableUntil, time.Second)
+	s.Require().Equal(reason, tempLimited.TempUnschedulableReason)
+
+	s.Require().NoError(s.repo.ClearTempUnschedulable(s.ctx, account.ID))
+	tempCleared := latestSnapshot()
+	s.Require().Nil(tempCleared.TempUnschedulableUntil)
+	s.Require().Empty(tempCleared.TempUnschedulableReason)
+
+	s.Require().NoError(s.repo.ClearRateLimit(s.ctx, account.ID))
+	rateCleared := latestSnapshot()
+	s.Require().Nil(rateCleared.RateLimitedAt)
+	s.Require().Nil(rateCleared.RateLimitResetAt)
+}
+
 func (s *AccountRepoSuite) TestTempUnschedulableFieldsLoadedByGetByIDAndGetByIDs() {
 	acc1 := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-temp-1"})
 	acc2 := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-temp-2"})
