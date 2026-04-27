@@ -440,6 +440,42 @@ func TestOpenAISelectAccountForModelWithExclusions_PrefersHigherPlanRankWithinSa
 	require.Equal(t, pro.ID, account.ID)
 }
 
+func TestOpenAISelectAccountForModelWithExclusions_PrefersLowerConcurrencyBeforePlanRank(t *testing.T) {
+	proHighConcurrency := Account{
+		ID:          313,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 10,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+	freeLowConcurrency := Account{
+		ID:          314,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "free",
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{proHighConcurrency, freeLowConcurrency}},
+	}
+
+	account, err := svc.SelectAccountForModelWithExclusions(context.Background(), nil, "", "gpt-5.4", nil)
+	require.NoError(t, err)
+	require.NotNil(t, account)
+	require.Equal(t, freeLowConcurrency.ID, account.ID)
+}
+
 func TestOpenAISelectAccountForModelWithExclusions_StickyHitKeepsLowerPlanRank(t *testing.T) {
 	sessionHash := "sticky-plan-rank"
 	free := Account{

@@ -72,6 +72,17 @@ func TestForceOpenAIResponsesImageToolModel(t *testing.T) {
 	require.Equal(t, OpenAICompatImageTargetModel, firstOpenAIResponsesImageTool(rewritten)["model"])
 }
 
+func TestRewriteOpenAIResponsesImageToolModelPreservesInputFidelity(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{"model":"gpt-5.4-mini","tools":[{"type":"image_generation","model":"friendly-image","input_fidelity":"high"}]}`)
+	rewritten, err := RewriteOpenAIResponsesImageToolModel(body, OpenAICompatImageTargetModel)
+	require.NoError(t, err)
+	tool := firstOpenAIResponsesImageTool(rewritten)
+	require.Equal(t, OpenAICompatImageTargetModel, tool["model"])
+	require.Equal(t, "high", tool["input_fidelity"])
+}
+
 func TestNormalizeOpenAIImageRequest_EditJSON(t *testing.T) {
 	t.Parallel()
 

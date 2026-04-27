@@ -78,3 +78,29 @@ func TestCompareOpenAIAccountPlanRank_PrefersHigherTier(t *testing.T) {
 	require.False(t, ok)
 	require.Equal(t, 0, cmp)
 }
+
+func TestCompareOpenAIAccountsForSelection_PrefersLowerConcurrencyBeforePlanRank(t *testing.T) {
+	proHighConcurrency := &Account{
+		ID:          701,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 10,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+	}
+	freeLowConcurrency := &Account{
+		ID:          702,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Concurrency: 1,
+		Priority:    1,
+		Credentials: map[string]any{
+			"plan_type": "free",
+		},
+	}
+
+	require.Less(t, compareOpenAIAccountsForSelection(freeLowConcurrency, proHighConcurrency, "gpt-5.4", time.Now()), 0)
+	require.Greater(t, compareOpenAIAccountsForSelection(proHighConcurrency, freeLowConcurrency, "gpt-5.4", time.Now()), 0)
+}

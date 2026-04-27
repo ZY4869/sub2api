@@ -105,6 +105,7 @@ func (s *tempUnschedCacheStub) DeleteTempUnsched(ctx context.Context, accountID 
 type tokenRefresherStub struct {
 	credentials map[string]any
 	err         error
+	calls       int
 }
 
 func (r *tokenRefresherStub) CanRefresh(account *Account) bool {
@@ -116,6 +117,7 @@ func (r *tokenRefresherStub) NeedsRefresh(account *Account, refreshWindowDuratio
 }
 
 func (r *tokenRefresherStub) Refresh(ctx context.Context, account *Account) (map[string]any, error) {
+	r.calls++
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -498,6 +500,31 @@ func TestTokenRefreshService_RefreshWithRetry_NoRefreshTokenDoesNotTempUnschedul
 	require.Equal(t, 1, repo.setErrorCalls, "missing refresh token should be treated as a non-retryable credential state")
 }
 
+func TestTokenRefreshService_RefreshWithRetry_RefreshTokenReusedDoesNotRetry(t *testing.T) {
+	repo := &tokenRefreshAccountRepo{}
+	cfg := &config.Config{
+		TokenRefresh: config.TokenRefreshConfig{
+			MaxRetries:          3,
+			RetryBackoffSeconds: 0,
+		},
+	}
+	service := NewTokenRefreshService(repo, nil, nil, nil, nil, nil, nil, cfg, nil)
+	account := &Account{
+		ID:       19,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+	}
+	refresher := &tokenRefresherStub{
+		err: errors.New(`token refresh failed: status 401, provider_error_code="refresh_token_reused", provider_error_type="invalid_request_error"`),
+	}
+
+	err := service.refreshWithRetry(context.Background(), account, refresher, refresher, time.Hour)
+	require.Error(t, err)
+	require.Equal(t, 1, refresher.calls, "refresh_token_reused must not enter retry loop")
+	require.Equal(t, 1, repo.setErrorCalls)
+	require.Equal(t, 0, repo.setTempUnschedCalls)
+}
+
 // TestIsNonRetryableRefreshError 测试不可重试错误判断
 func TestIsNonRetryableRefreshError(t *testing.T) {
 	tests := []struct {
@@ -513,6 +540,8 @@ func TestIsNonRetryableRefreshError(t *testing.T) {
 		{name: "access_denied", err: errors.New("access_denied"), expected: true},
 		{name: "no_refresh_token", err: errors.New("no refresh token available"), expected: true},
 		{name: "invalid_grant_with_desc", err: errors.New("Error: invalid_grant - token revoked"), expected: true},
+		{name: "refresh_token_reused_code", err: errors.New("provider_error_code=refresh_token_reused"), expected: true},
+		{name: "refresh_token_reused_message", err: errors.New("Your refresh token has already been used to generate a new access token"), expected: true},
 		{name: "case_insensitive", err: errors.New("INVALID_GRANT"), expected: true},
 	}
 

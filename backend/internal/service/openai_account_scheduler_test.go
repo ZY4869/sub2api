@@ -796,6 +796,25 @@ func TestIsOpenAIAccountCandidateBetter_PrefersPlanRankBeforeScore(t *testing.T)
 	))
 }
 
+func TestIsOpenAIAccountCandidateBetter_PrefersLowerConcurrencyBeforePlanRank(t *testing.T) {
+	require.True(t, isOpenAIAccountCandidateBetter(
+		openAIAccountCandidateScore{
+			account:  &Account{ID: 2111, Priority: 0, Concurrency: 1},
+			loadInfo: &AccountLoadInfo{LoadRate: 90, WaitingCount: 3},
+			planType: "free",
+			planRank: 3,
+			score:    0.1,
+		},
+		openAIAccountCandidateScore{
+			account:  &Account{ID: 2112, Priority: 0, Concurrency: 10},
+			loadInfo: &AccountLoadInfo{LoadRate: 1, WaitingCount: 0},
+			planType: "pro",
+			planRank: 0,
+			score:    0.9,
+		},
+	))
+}
+
 func TestBuildOpenAIWeightedSelectionOrder_DeterministicBySessionSeed(t *testing.T) {
 	candidates := []openAIAccountCandidateScore{
 		{

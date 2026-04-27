@@ -94,7 +94,7 @@
         <AccountCreatePlatformSelector v-model:platform="form.platform" />
 
         <div
-          v-if="isBaiduDocumentAIPlatform(form.platform)"
+          v-if="isBaiduDocumentAISelected"
           class="rounded-2xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200"
           data-testid="baidu-document-ai-selected-hint"
         >
@@ -124,7 +124,7 @@
         />
 
         <AccountBaiduDocumentAICredentialsEditor
-          v-if="isBaiduDocumentAIPlatform(form.platform)"
+          v-if="isBaiduDocumentAISelected"
           v-model:async-bearer-token="baiduDocumentAIAsyncBearerToken"
           v-model:async-base-url="baiduDocumentAIAsyncBaseUrl"
           v-model:direct-token="baiduDocumentAIDirectToken"
@@ -558,7 +558,7 @@
         :is-manual-input-method="isManualInputMethod"
         :current-o-auth-loading="currentOAuthLoading"
         :can-exchange-code="canExchangeCode"
-        :show-auto-import="form.platform !== 'protocol_gateway' && !isBaiduDocumentAIPlatform(form.platform)"
+        :show-auto-import="form.platform !== 'protocol_gateway' && !isBaiduDocumentAISelected"
         @close="handleClose"
         @back="goBackToBasicInfo"
         @exchange-code="handleExchangeCode"
@@ -949,7 +949,7 @@ const isVertexProbeReady = computed(() => {
 const showCommonApiKeySection = computed(() =>
   form.type === 'apikey' &&
   form.platform !== 'antigravity' &&
-  !isBaiduDocumentAIPlatform(form.platform) &&
+  !isBaiduDocumentAISelected.value &&
   !(form.platform === 'gemini' && accountCategory.value === 'vertex_ai')
 )
 const showQuotaLimitSection = computed(() => true)
@@ -1099,6 +1099,8 @@ const form = reactive({
   group_ids: [] as number[],
   expires_at: null as number | null
 })
+
+const isBaiduDocumentAISelected = computed(() => isBaiduDocumentAIPlatform(form.platform))
 
 const {
   enabled: tempUnschedEnabled,
@@ -1290,7 +1292,7 @@ watch(
       form.type = 'apikey'
       return
     }
-    if (isBaiduDocumentAIPlatform(form.platform)) {
+    if (isBaiduDocumentAISelected.value) {
       form.type = 'apikey'
       return
     }
@@ -1354,7 +1356,7 @@ watch(
       geminiVertexExpiresAtInput.value = ''
       geminiVertexBaseUrl.value = ''
     }
-    if (isBaiduDocumentAIPlatform(newPlatform)) {
+    if (isBaiduDocumentAISelected.value) {
       accountCategory.value = 'apikey'
       form.type = 'apikey'
       autoImportModels.value = false
@@ -2211,7 +2213,7 @@ const handleSubmit = async () => {
     return
   }
 
-  if (isBaiduDocumentAIPlatform(form.platform)) {
+  if (isBaiduDocumentAISelected.value) {
     if (!form.name.trim()) {
       appStore.showError(t('admin.accounts.pleaseEnterAccountName'))
       return

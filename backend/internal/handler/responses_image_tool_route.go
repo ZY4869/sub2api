@@ -32,6 +32,28 @@ func responsesImageToolUnsupportedPlatformMessage() string {
 	return "image_generation tool on /v1/responses is only available for OpenAI/Codex accounts; use /grok/v1/images/* for Grok or /v1beta/openai/images/generations for Gemini native image models"
 }
 
+func resolveResponsesImageToolOpenAITargetModel(account *service.Account, toolModel string) (string, bool) {
+	toolModel = strings.TrimSpace(toolModel)
+	if toolModel == "" {
+		return "", true
+	}
+	targetModel := toolModel
+	if account != nil {
+		if mappedModel := strings.TrimSpace(account.GetMappedModel(toolModel)); mappedModel != "" {
+			targetModel = mappedModel
+		}
+	}
+	return targetModel, service.IsOpenAINativeImageModelID(targetModel)
+}
+
+func responsesImageToolUnsupportedModelMessage(toolModel string) string {
+	toolModel = strings.TrimSpace(toolModel)
+	if toolModel == "" {
+		return "image_generation tool model is not supported on /v1/responses"
+	}
+	return "image_generation tool model " + toolModel + " is not an OpenAI image model on /v1/responses; use the provider-specific image endpoint instead"
+}
+
 func applyResponsesImageToolTraceMetadata(
 	c *gin.Context,
 	platform string,

@@ -7,6 +7,14 @@ import (
 )
 
 func ForceOpenAIResponsesImageToolModel(body []byte, targetModel string) ([]byte, error) {
+	return rewriteOpenAIResponsesImageToolModel(body, targetModel, true)
+}
+
+func RewriteOpenAIResponsesImageToolModel(body []byte, targetModel string) ([]byte, error) {
+	return rewriteOpenAIResponsesImageToolModel(body, targetModel, false)
+}
+
+func rewriteOpenAIResponsesImageToolModel(body []byte, targetModel string, stripInputFidelity bool) ([]byte, error) {
 	if len(body) == 0 || !json.Valid(body) || strings.TrimSpace(targetModel) == "" {
 		return body, nil
 	}
@@ -28,7 +36,10 @@ func ForceOpenAIResponsesImageToolModel(body []byte, targetModel string) ([]byte
 			tool["model"] = targetModel
 			modified = true
 		}
-		if _, exists := tool["input_fidelity"]; exists {
+		if stripInputFidelity {
+			if _, exists := tool["input_fidelity"]; !exists {
+				continue
+			}
 			delete(tool, "input_fidelity")
 			modified = true
 		}

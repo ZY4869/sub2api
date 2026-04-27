@@ -492,6 +492,7 @@ func (s *OpenAIGatewayService) logSelectedAccountUsagePressure(
 		"account_id", account.ID,
 		"account_type", account.Type,
 		"priority", account.Priority,
+		"selection_concurrency", resolveOpenAIAccountSelectionConcurrency(account),
 		"plan_type", openAIAccountPlanType(account),
 		"plan_rank", resolveOpenAIAccountPlanRankForLog(account),
 		"pressure_scope", pressureScope,

@@ -35,3 +35,32 @@ func TestResponsesImageToolEndpointUnsupportedMessage(t *testing.T) {
 	require.Contains(t, message, "/v1beta/openai/images/generations")
 	require.Contains(t, message, "/v1/responses")
 }
+
+func TestResolveResponsesImageToolOpenAITargetModel(t *testing.T) {
+	account := &service.Account{
+		Credentials: map[string]any{
+			"model_mapping": map[string]any{
+				"friendly-image": "gpt-image-2",
+			},
+		},
+	}
+
+	target, ok := resolveResponsesImageToolOpenAITargetModel(account, "friendly-image")
+	require.True(t, ok)
+	require.Equal(t, "gpt-image-2", target)
+
+	target, ok = resolveResponsesImageToolOpenAITargetModel(account, "gemini-2.5-flash-image")
+	require.False(t, ok)
+	require.Equal(t, "gemini-2.5-flash-image", target)
+
+	target, ok = resolveResponsesImageToolOpenAITargetModel(account, "")
+	require.True(t, ok)
+	require.Empty(t, target)
+}
+
+func TestResponsesImageToolUnsupportedModelMessage(t *testing.T) {
+	message := responsesImageToolUnsupportedModelMessage("gemini-2.5-flash-image")
+
+	require.Contains(t, message, "gemini-2.5-flash-image")
+	require.Contains(t, message, "provider-specific image endpoint")
+}

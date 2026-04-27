@@ -503,7 +503,7 @@ const AccountBaiduDocumentAICredentialsEditorStub = defineComponent({
   `
 })
 
-function mountModal() {
+function mountModal(stubOverrides: Record<string, any> = {}) {
   return mount(CreateAccountModal, {
     props: {
       show: true,
@@ -541,7 +541,8 @@ function mountModal() {
         AccountQuotaControlEditor: true,
         AccountRuntimeSettingsEditor: true,
         AccountTempUnschedRulesEditor: true,
-        QuotaLimitCard: true
+        QuotaLimitCard: true,
+        ...stubOverrides
       }
     }
   })
@@ -563,7 +564,7 @@ describe('CreateAccountModal', () => {
     expect(source).toContain('AccountProtocolGatewayModelProbeEditor')
     expect(source).toContain(":skip-model-scope-editor=\"form.platform === 'protocol_gateway'\"")
     expect(source).toContain(
-      ":show-auto-import=\"form.platform !== 'protocol_gateway' && !isBaiduDocumentAIPlatform(form.platform)\""
+      ":show-auto-import=\"form.platform !== 'protocol_gateway' && !isBaiduDocumentAISelected\""
     )
   })
 
@@ -878,6 +879,57 @@ describe('CreateAccountModal', () => {
       credentials: {
         async_bearer_token: 'async-token',
         async_base_url: 'https://aistudio.baidu.com/async',
+        direct_token: 'direct-token',
+        direct_api_urls: {
+          'pp-ocrv5-server': 'https://direct.baidu.com/ocr'
+        }
+      }
+    })
+  })
+
+  it('renders the real baidu document ai credential inputs instead of the generic api key editor', async () => {
+    createMock.mockReset()
+    checkMixedChannelRiskMock.mockReset()
+    invalidateModelRegistryMock.mockReset()
+    invalidateInventoryMock.mockReset()
+
+    checkMixedChannelRiskMock.mockResolvedValue({ has_risk: false })
+    createMock.mockResolvedValue({
+      id: 16,
+      name: 'Baidu Real Editor',
+      platform: 'baidu_document_ai',
+      type: 'apikey',
+      extra: {}
+    })
+
+    const wrapper = mountModal({
+      AccountBaiduDocumentAICredentialsEditor: false
+    })
+
+    await wrapper.get('[data-testid="select-baidu-document-ai"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="baidu-document-ai-async-bearer-token"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="baidu-document-ai-direct-token"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="baidu-document-ai-direct-api-urls"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="set-api-key"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="baidu-document-ai-async-bearer-token"]').setValue('async-token')
+    await wrapper.get('[data-testid="baidu-document-ai-direct-token"]').setValue('direct-token')
+    await wrapper
+      .get('[data-testid="baidu-document-ai-direct-api-urls"]')
+      .setValue('{"pp-ocrv5-server":"https://direct.baidu.com/ocr"}')
+    await wrapper.get('input[data-tour="account-form-name"]').setValue('Baidu Real Editor')
+    await wrapper.get('form#create-account-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(createMock).toHaveBeenCalledTimes(1)
+    expect(createMock.mock.calls[0]?.[0]).toMatchObject({
+      name: 'Baidu Real Editor',
+      platform: 'baidu_document_ai',
+      type: 'apikey',
+      credentials: {
+        async_bearer_token: 'async-token',
+        async_base_url: BAIDU_DOCUMENT_AI_DEFAULT_ASYNC_BASE_URL,
         direct_token: 'direct-token',
         direct_api_urls: {
           'pp-ocrv5-server': 'https://direct.baidu.com/ocr'

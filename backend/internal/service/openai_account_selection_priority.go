@@ -6,6 +6,7 @@ import (
 )
 
 const openAIAccountPlanRankUnknown = -1
+const openAIAccountSelectionConcurrencyUnknown = 1 << 30
 
 func openAIAccountPlanType(account *Account) string {
 	if account == nil {
@@ -69,6 +70,26 @@ func compareOpenAIAccountPlanRankValues(left, right int) int {
 	case left < right:
 		return -1
 	case left > right:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func resolveOpenAIAccountSelectionConcurrency(account *Account) int {
+	if account == nil || account.Concurrency <= 0 {
+		return openAIAccountSelectionConcurrencyUnknown
+	}
+	return account.Concurrency
+}
+
+func compareOpenAIAccountSelectionConcurrency(left, right *Account) int {
+	leftConcurrency := resolveOpenAIAccountSelectionConcurrency(left)
+	rightConcurrency := resolveOpenAIAccountSelectionConcurrency(right)
+	switch {
+	case leftConcurrency < rightConcurrency:
+		return -1
+	case leftConcurrency > rightConcurrency:
 		return 1
 	default:
 		return 0
@@ -176,6 +197,9 @@ func compareOpenAIAccountsByPriorityPlanAndPressure(left, right *Account, reques
 			return -1
 		}
 		return 1
+	}
+	if concurrencyCmp := compareOpenAIAccountSelectionConcurrency(left, right); concurrencyCmp != 0 {
+		return concurrencyCmp
 	}
 	if planCmp, ok := compareOpenAIAccountPlanRank(left, right); ok && planCmp != 0 {
 		return planCmp

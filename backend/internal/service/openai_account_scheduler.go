@@ -422,6 +422,9 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 	if left.account.Priority != right.account.Priority {
 		return left.account.Priority < right.account.Priority
 	}
+	if concurrencyCmp := compareOpenAIAccountSelectionConcurrency(left.account, right.account); concurrencyCmp != 0 {
+		return concurrencyCmp < 0
+	}
 	if planCmp := compareOpenAIAccountCandidatePlanRank(left, right); planCmp != 0 {
 		return planCmp < 0
 	}
@@ -569,6 +572,9 @@ func sameOpenAIWeightedSelectionGroup(left, right openAIAccountCandidateScore) b
 		return false
 	}
 	if left.account.Priority != right.account.Priority {
+		return false
+	}
+	if compareOpenAIAccountSelectionConcurrency(left.account, right.account) != 0 {
 		return false
 	}
 	if compareOpenAIAccountCandidatePlanRank(left, right) != 0 {
@@ -862,6 +868,7 @@ func (s *defaultOpenAIAccountScheduler) logLoadBalanceSelection(
 		"account_id", candidate.account.ID,
 		"account_type", candidate.account.Type,
 		"priority", candidate.account.Priority,
+		"selection_concurrency", resolveOpenAIAccountSelectionConcurrency(candidate.account),
 		"plan_type", candidate.planType,
 		"plan_rank", candidate.planRank,
 		"candidate_count", candidateCount,

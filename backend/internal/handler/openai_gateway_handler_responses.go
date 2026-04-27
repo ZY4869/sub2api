@@ -431,6 +431,30 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				return
 			}
 			if hasImageTool {
+				imageToolTargetModel, imageToolTargetSupported := resolveResponsesImageToolOpenAITargetModel(account, imageToolModel)
+				if !imageToolTargetSupported {
+					applyResponsesImageToolTraceMetadata(
+						c,
+						account.Platform,
+						reqModel,
+						imageToolModel,
+						service.PublicImageToolRouteReasonRejected,
+					)
+					reqLog.Warn(
+						"openai.responses_image_tool_model_rejected",
+						zap.String("account_platform", account.Platform),
+						zap.String("requested_model", reqModel),
+						zap.String("tool_model", imageToolModel),
+					)
+					h.errorResponseWithCode(
+						c,
+						http.StatusBadRequest,
+						"invalid_request_error",
+						"image_tool_model_provider_unsupported",
+						responsesImageToolUnsupportedModelMessage(imageToolModel),
+					)
+					return
+				}
 				imageProtocolMode := service.ResolveEffectiveOpenAIImageProtocolMode(currentAPIKey.Group, account)
 				if imageProtocolMode == service.OpenAIImageProtocolModeCompat && !service.IsOpenAIImageCompatAllowed(account) {
 					h.errorResponseWithCode(c, http.StatusForbidden, "forbidden_error", "image_compat_not_allowed", "This account does not allow compat image generation")
@@ -440,6 +464,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				if normalizeErr != nil {
 					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
 					return
+				}
+				if strings.TrimSpace(imageToolTargetModel) != "" {
+					normalizedImageToolRequest.TargetModelID = imageToolTargetModel
 				}
 				if imageProtocolMode == service.OpenAIImageProtocolModeCompat {
 					normalizedImageToolRequest.TargetModelID = service.OpenAICompatImageTargetModel
@@ -464,6 +491,14 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						return
 					}
 					imageToolModel = service.OpenAICompatImageTargetModel
+					setOpsRequestContext(c, reqModel, reqStream, body)
+				} else if strings.TrimSpace(imageToolTargetModel) != "" && imageToolTargetModel != strings.TrimSpace(imageToolModel) {
+					body, err = service.RewriteOpenAIResponsesImageToolModel(body, imageToolTargetModel)
+					if err != nil {
+						h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to normalize image_generation tool request")
+						return
+					}
+					imageToolModel = imageToolTargetModel
 					setOpsRequestContext(c, reqModel, reqStream, body)
 				}
 				applyResponsesImageToolRuntimeMetadata(

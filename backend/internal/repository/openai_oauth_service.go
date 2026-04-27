@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -102,10 +104,69 @@ func (s *openaiOAuthService) refreshTokenWithClientID(ctx context.Context, refre
 	}
 
 	if !resp.IsSuccessState() {
-		return nil, infraerrors.Newf(http.StatusBadGateway, "OPENAI_OAUTH_TOKEN_REFRESH_FAILED", "token refresh failed: status %d, body: %s", resp.StatusCode, resp.String())
+		message, metadata := summarizeOpenAITokenRefreshError(resp.StatusCode, resp.String())
+		return nil, infraerrors.Newf(http.StatusBadGateway, "OPENAI_OAUTH_TOKEN_REFRESH_FAILED", "%s", message).WithMetadata(metadata)
 	}
 
 	return &tokenResp, nil
+}
+
+type openAITokenErrorPayload struct {
+	Error struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+		Code    string `json:"code"`
+	} `json:"error"`
+}
+
+func summarizeOpenAITokenRefreshError(status int, body string) (string, map[string]string) {
+	payload := openAITokenErrorPayload{}
+	_ = json.Unmarshal([]byte(body), &payload)
+
+	providerCode := strings.TrimSpace(payload.Error.Code)
+	providerType := strings.TrimSpace(payload.Error.Type)
+	providerMessage := collapseOpenAITokenErrorWhitespace(payload.Error.Message)
+
+	metadata := map[string]string{
+		"provider_status": fmt.Sprintf("%d", status),
+	}
+	if providerCode != "" {
+		metadata["provider_error_code"] = providerCode
+	}
+	if providerType != "" {
+		metadata["provider_error_type"] = providerType
+	}
+
+	parts := []string{fmt.Sprintf("token refresh failed: status %d", status)}
+	if providerCode != "" {
+		parts = append(parts, fmt.Sprintf("provider_error_code=%q", providerCode))
+	}
+	if providerType != "" {
+		parts = append(parts, fmt.Sprintf("provider_error_type=%q", providerType))
+	}
+	if providerMessage != "" {
+		parts = append(parts, fmt.Sprintf("provider_message=%q", truncateOpenAITokenError(providerMessage, 240)))
+	}
+	return strings.Join(parts, ", "), metadata
+}
+
+func collapseOpenAITokenErrorWhitespace(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func truncateOpenAITokenError(value string, maxRunes int) string {
+	value = strings.TrimSpace(value)
+	if maxRunes <= 0 {
+		return ""
+	}
+	runes := []rune(value)
+	if len(runes) <= maxRunes {
+		return value
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-3]) + "..."
 }
 
 func createOpenAIReqClient(proxyURL string) (*req.Client, error) {

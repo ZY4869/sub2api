@@ -163,6 +163,8 @@ OpenAI 侧现在建议明确区分两类能力：
 - `gpt-image-2` 这类原生图片模型，走 `/v1/images/generations` 或 `/v1/images/edits`。
 - `gpt-5.4`、`gpt-5.4-mini`、`gpt-5.4-pro` 这类主模型，如果要生图，主路径是 `/v1/responses` + `tools:[{type:"image_generation"}]`；顶层 `model` 继续保持主模型本身，不需要改成 `gpt-image-2`。
 - `/v1/images/generations`、`/v1/images/edits` 在 `native` 下直连原生 Images 链路，在 `compat` 下会桥接到兼容执行链；Compat 链路内部统一使用 `gpt-image-2` 作为目标图片模型。
+- `/v1/images/generations`、`/v1/images/edits` 会继续按请求里的 `model` 解析 provider；如果模型属于 Grok / Gemini 等非 OpenAI 图片模型，会走对应 provider 的图片链路，不会被改写成 Codex / `gpt-image-2`。
+- `/v1/responses` 的 `image_generation` tool 如果显式填写 `model`，网关会先确认它能解析为 OpenAI GPT image profile（含账号模型映射后的目标模型）；只有 OpenAI 图片模型在 compat 模式下才会被内部归一到 `gpt-image-2`。非 OpenAI tool 模型会返回 `400 invalid_request_error`，错误码 `image_tool_model_provider_unsupported`，请改用 provider 专用图片端点。
 - 网关现在会解析 `$imagegen ...` 兼容前缀，并自动改写成标准 Responses tool 请求；这是“网关兼容扩展”，不是 OpenAI 官方标准字段。
 - 兼容扩展只在命中 `$imagegen` 时生效：JSON 下可额外携带 `image_generation`、`reference_images`；`multipart/form-data` 下可额外使用 `reference_image`、`reference_image_url`。
 - `multipart/form-data` 仍然只作为网关扩展，不承诺官方 SDK 兼容；其中 `/v1/images/*` 的 native / compat 两条链路都支持 `stream=true`，但 `/v1/responses` 的 multipart `$imagegen` 扩展当前仍要求 `stream=false`。

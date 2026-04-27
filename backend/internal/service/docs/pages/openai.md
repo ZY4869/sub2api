@@ -145,6 +145,7 @@ curl https://api.zyxai.de/chat/completions
 - 当当前模式是 `compat` 时，`/v1/images/generations`、`/v1/images/edits` 会桥接到 compat 图片执行链；如果当前账号没有 compat 图片权限，会返回 `403 forbidden_error`，错误码 `image_compat_not_allowed`。
 - Compat 图片桥接现在已经补齐 `stream=true`：`/v1/images/generations` 会输出 `image_generation.partial_image` / `image_generation.completed`，`/v1/images/edits` 会输出 `image_edit.partial_image` / `image_edit.completed`。
 - Compat 执行链内部固定把目标图片模型归一到 `gpt-image-2`，并在真正请求上游前按能力矩阵校验 `size`、`background`、`output_format`、`output_compression`、`partial_images`、`mask` 与多图输入；`input_fidelity` 仍保留在网关内部 trace，但不会继续向 `gpt-image-2` 上游透传。
+- `/v1/responses` 的 `image_generation` tool 只有在显式 tool `model` 解析为 OpenAI GPT image profile 时才允许进入 compat 归一路径；Grok / Gemini 等非 OpenAI 图片模型不会被静默转成 Codex 生图，会返回 `400 image_tool_model_provider_unsupported`。
 - 对 GPT image profile（版本化 `gpt-image-*`，例如 `gpt-image-1.5`、`gpt-image-2`，以及 `chatgpt-image-latest`）来说，native / compat 两条链都会放开 `stream`、多图、`mask`、`background=transparent` 与最大边 `3840px` 的自定义尺寸；未知或旧模型保持保守拒绝。
 
 ### 常见兼容坑

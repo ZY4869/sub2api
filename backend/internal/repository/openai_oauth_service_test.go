@@ -314,6 +314,20 @@ func (s *OpenAIOAuthServiceSuite) TestRefreshToken_NonSuccessStatus() {
 	require.ErrorContains(s.T(), err, "status 401")
 }
 
+func (s *OpenAIOAuthServiceSuite) TestRefreshToken_NonSuccessStatusSummarizesProviderError() {
+	s.setupServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = io.WriteString(w, `{"error":{"message":"Your refresh token has already been used to generate a new access token. Please try signing in again.","type":"invalid_request_error","code":"refresh_token_reused"}}`)
+	}))
+
+	_, err := s.svc.RefreshToken(s.ctx, "rt", "")
+	require.Error(s.T(), err, "expected error for non-2xx status")
+	require.ErrorContains(s.T(), err, "provider_error_code")
+	require.ErrorContains(s.T(), err, "refresh_token_reused")
+	require.NotContains(s.T(), err.Error(), "\"error\"")
+}
+
 func TestNewOpenAIOAuthClient_DefaultTokenURL(t *testing.T) {
 	client := NewOpenAIOAuthClient()
 	svc, ok := client.(*openaiOAuthService)
