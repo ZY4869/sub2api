@@ -958,12 +958,6 @@ func (s *BillingService) CalculateVideoRequestCost(model string, rateMultiplier 
 	}, pricing)
 }
 
-// getImageUnitPrice returns the unit price for image generation.
-func (s *BillingService) getImageUnitPrice(model string, imageSize string, groupConfig *ImagePriceConfig, serviceTier string) float64 {
-	price, _ := s.getImageUnitPriceWithPricing(model, imageSize, groupConfig, serviceTier)
-	return price
-}
-
 func (s *BillingService) getImageUnitPriceWithPricing(model string, imageSize string, groupConfig *ImagePriceConfig, serviceTier string) (float64, *ModelPricing) {
 	if groupConfig != nil {
 		switch imageSize {
@@ -1007,34 +1001,4 @@ func (s *BillingService) getImageUnitPriceWithPricing(model string, imageSize st
 		return basePrice * 2, pricing
 	}
 	return basePrice, pricing
-}
-
-// getDefaultImagePrice returns the default image price for the requested size and service tier.
-func (s *BillingService) getDefaultImagePrice(model string, imageSize string, serviceTier string) float64 {
-	basePrice := 0.0
-
-	if pricing, err := s.getPricingForBilling(model); err == nil && pricing != nil {
-		basePrice = pricing.OutputPricePerImage
-		switch normalizeBillingServiceTier(serviceTier) {
-		case BillingServiceTierPriority:
-			if pricing.OutputPricePerImagePriority > 0 {
-				basePrice = pricing.OutputPricePerImagePriority
-			}
-		case BillingServiceTierFlex:
-			if basePrice > 0 {
-				basePrice *= serviceTierCostMultiplier(BillingServiceTierFlex)
-			}
-		}
-	}
-	if basePrice <= 0 {
-		basePrice = 0.134
-	}
-	if imageSize == "2K" {
-		return basePrice * 1.5
-	}
-	if imageSize == "4K" {
-		return basePrice * 2
-	}
-
-	return basePrice
 }

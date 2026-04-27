@@ -539,10 +539,6 @@ func normalizeGeminiBillingMetricReason(reason string) string {
 	return reason
 }
 
-func costBreakdownFromSimulation(result *BillingSimulationResult) *CostBreakdown {
-	return costBreakdownFromSimulationWithMetadata(result, ModelPricingCurrencyMetadata{Currency: ModelPricingCurrencyUSD})
-}
-
 func costBreakdownFromSimulationWithMetadata(result *BillingSimulationResult, meta ModelPricingCurrencyMetadata) *CostBreakdown {
 	if result == nil {
 		return finalizeCostBreakdownCurrency(&CostBreakdown{}, nil)

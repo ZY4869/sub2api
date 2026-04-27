@@ -13,26 +13,26 @@ const (
 
 type ModelCatalogPricing struct {
 	Currency                                 string     `json:"currency,omitempty"`
-	USDToCNYRate                             *float64  `json:"usd_to_cny_rate,omitempty"`
-	FXRateDate                               string    `json:"fx_rate_date,omitempty"`
+	USDToCNYRate                             *float64   `json:"usd_to_cny_rate,omitempty"`
+	FXRateDate                               string     `json:"fx_rate_date,omitempty"`
 	FXLockedAt                               *time.Time `json:"fx_locked_at,omitempty"`
-	InputCostPerToken                        *float64 `json:"input_cost_per_token,omitempty"`
-	InputCostPerTokenPriority                *float64 `json:"input_cost_per_token_priority,omitempty"`
-	InputTokenThreshold                      *int     `json:"input_token_threshold,omitempty"`
-	InputCostPerTokenAboveThreshold          *float64 `json:"input_cost_per_token_above_threshold,omitempty"`
-	InputCostPerTokenPriorityAboveThreshold  *float64 `json:"input_cost_per_token_priority_above_threshold,omitempty"`
-	OutputCostPerToken                       *float64 `json:"output_cost_per_token,omitempty"`
-	OutputCostPerTokenPriority               *float64 `json:"output_cost_per_token_priority,omitempty"`
-	OutputTokenThreshold                     *int     `json:"output_token_threshold,omitempty"`
-	OutputCostPerTokenAboveThreshold         *float64 `json:"output_cost_per_token_above_threshold,omitempty"`
-	OutputCostPerTokenPriorityAboveThreshold *float64 `json:"output_cost_per_token_priority_above_threshold,omitempty"`
-	CacheCreationInputTokenCost              *float64 `json:"cache_creation_input_token_cost,omitempty"`
-	CacheCreationInputTokenCostAbove1hr      *float64 `json:"cache_creation_input_token_cost_above_1hr,omitempty"`
-	CacheReadInputTokenCost                  *float64 `json:"cache_read_input_token_cost,omitempty"`
-	CacheReadInputTokenCostPriority          *float64 `json:"cache_read_input_token_cost_priority,omitempty"`
-	OutputCostPerImage                       *float64 `json:"output_cost_per_image,omitempty"`
-	OutputCostPerImagePriority               *float64 `json:"output_cost_per_image_priority,omitempty"`
-	OutputCostPerVideoRequest                *float64 `json:"output_cost_per_video_request,omitempty"`
+	InputCostPerToken                        *float64   `json:"input_cost_per_token,omitempty"`
+	InputCostPerTokenPriority                *float64   `json:"input_cost_per_token_priority,omitempty"`
+	InputTokenThreshold                      *int       `json:"input_token_threshold,omitempty"`
+	InputCostPerTokenAboveThreshold          *float64   `json:"input_cost_per_token_above_threshold,omitempty"`
+	InputCostPerTokenPriorityAboveThreshold  *float64   `json:"input_cost_per_token_priority_above_threshold,omitempty"`
+	OutputCostPerToken                       *float64   `json:"output_cost_per_token,omitempty"`
+	OutputCostPerTokenPriority               *float64   `json:"output_cost_per_token_priority,omitempty"`
+	OutputTokenThreshold                     *int       `json:"output_token_threshold,omitempty"`
+	OutputCostPerTokenAboveThreshold         *float64   `json:"output_cost_per_token_above_threshold,omitempty"`
+	OutputCostPerTokenPriorityAboveThreshold *float64   `json:"output_cost_per_token_priority_above_threshold,omitempty"`
+	CacheCreationInputTokenCost              *float64   `json:"cache_creation_input_token_cost,omitempty"`
+	CacheCreationInputTokenCostAbove1hr      *float64   `json:"cache_creation_input_token_cost_above_1hr,omitempty"`
+	CacheReadInputTokenCost                  *float64   `json:"cache_read_input_token_cost,omitempty"`
+	CacheReadInputTokenCostPriority          *float64   `json:"cache_read_input_token_cost_priority,omitempty"`
+	OutputCostPerImage                       *float64   `json:"output_cost_per_image,omitempty"`
+	OutputCostPerImagePriority               *float64   `json:"output_cost_per_image_priority,omitempty"`
+	OutputCostPerVideoRequest                *float64   `json:"output_cost_per_video_request,omitempty"`
 }
 
 type ModelPricingOverride struct {

@@ -179,22 +179,22 @@ type UsageLog struct {
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`
 
-	InputCost           float64
-	OutputCost          float64
-	CacheCreationCost   float64
-	CacheReadCost       float64
-	TotalCost           float64
-	ActualCost          float64
-	BillingCurrency     string
+	InputCost               float64
+	OutputCost              float64
+	CacheCreationCost       float64
+	CacheReadCost           float64
+	TotalCost               float64
+	ActualCost              float64
+	BillingCurrency         string
 	TotalCostUSDEquivalent  float64
 	ActualCostUSDEquivalent float64
-	USDToCNYRate        float64
-	FXRateDate          *string
-	FXLockedAt          *time.Time
-	CostByCurrency      map[string]float64
-	ActualCostByCurrency map[string]float64
-	BillingExemptReason *string
-	RateMultiplier      float64
+	USDToCNYRate            float64
+	FXRateDate              *string
+	FXLockedAt              *time.Time
+	CostByCurrency          map[string]float64
+	ActualCostByCurrency    map[string]float64
+	BillingExemptReason     *string
+	RateMultiplier          float64
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）
 	AccountRateMultiplier *float64
 

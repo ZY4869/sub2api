@@ -231,26 +231,6 @@ func incrementUsageBillingSubscriptionCurrency(ctx context.Context, tx *sql.Tx, 
 	return service.ErrSubscriptionNotFound
 }
 
-func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) error {
-	res, err := tx.ExecContext(ctx, `
-		UPDATE users
-		SET balance = balance - $1,
-			updated_at = NOW()
-		WHERE id = $2 AND deleted_at IS NULL
-	`, amount, userID)
-	if err != nil {
-		return err
-	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected > 0 {
-		return nil
-	}
-	return service.ErrUserNotFound
-}
-
 func applyUsageBillingWalletDebit(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, currency string, amount float64) error {
 	currency = service.NormalizeUsageBillingCurrency(currency)
 	if currency == service.ModelPricingCurrencyUSD {
