@@ -47,6 +47,8 @@ const (
 	FieldImageMaxCount = "image_max_count"
 	// FieldImageCountUsed holds the string denoting the image_count_used field in the database.
 	FieldImageCountUsed = "image_count_used"
+	// FieldImageCountWeights holds the string denoting the image_count_weights field in the database.
+	FieldImageCountWeights = "image_count_weights"
 	// FieldQuota holds the string denoting the quota field in the database.
 	FieldQuota = "quota"
 	// FieldQuotaUsed holds the string denoting the quota_used field in the database.
@@ -145,6 +147,7 @@ var Columns = []string{
 	FieldImageCountBillingEnabled,
 	FieldImageMaxCount,
 	FieldImageCountUsed,
+	FieldImageCountWeights,
 	FieldQuota,
 	FieldQuotaUsed,
 	FieldQuotaUsedByCurrency,

@@ -193,9 +193,10 @@ type CreateAPIKeyRequest struct {
 	IPBlacklist      []string                  `json:"ip_blacklist"` // IP 黑名单
 
 	// Image-only fields
-	ImageOnlyEnabled         bool `json:"image_only_enabled"`
-	ImageCountBillingEnabled bool `json:"image_count_billing_enabled"`
-	ImageMaxCount            int  `json:"image_max_count"`
+	ImageOnlyEnabled         bool           `json:"image_only_enabled"`
+	ImageCountBillingEnabled bool           `json:"image_count_billing_enabled"`
+	ImageMaxCount            int            `json:"image_max_count"`
+	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
@@ -218,9 +219,10 @@ type UpdateAPIKeyRequest struct {
 	IPBlacklist      []string                  `json:"ip_blacklist"` // IP 黑名单（空数组清空）
 
 	// Image-only fields (nil = no change)
-	ImageOnlyEnabled         *bool `json:"image_only_enabled"`
-	ImageCountBillingEnabled *bool `json:"image_count_billing_enabled"`
-	ImageMaxCount            *int  `json:"image_max_count"`
+	ImageOnlyEnabled         *bool          `json:"image_only_enabled"`
+	ImageCountBillingEnabled *bool          `json:"image_count_billing_enabled"`
+	ImageMaxCount            *int           `json:"image_max_count"`
+	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -382,6 +384,9 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	if err != nil {
 		return nil, err
 	}
+	if req.ImageOnlyEnabled && (requestedGroups == nil || len(*requestedGroups) == 0) {
+		return nil, ErrImageOnlyGroupRequired
+	}
 
 	if len(req.IPWhitelist) > 0 {
 		if invalid := ip.ValidateIPPatterns(req.IPWhitelist); len(invalid) > 0 {
@@ -465,6 +470,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		ImageCountBillingEnabled: imageCountBillingEnabled,
 		ImageMaxCount:            imageMaxCount,
 		ImageCountUsed:           0,
+		ImageCountWeights:        NormalizeAPIKeyImageCountWeights(req.ImageCountWeights),
 		Quota:                    req.Quota,
 		QuotaUsed:                0,
 		RateLimit5h:              req.RateLimit5h,
@@ -477,10 +483,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		apiKey.ExpiresAt = &expiresAt
 	}
 
-	if err := s.apiKeyRepo.Create(opCtx, apiKey); err != nil {
-		return nil, fmt.Errorf("create api key: %w", err)
-	}
-
+	var pendingGroupBindings []APIKeyGroupBinding
 	if requestedGroups != nil {
 		bindings, _, err := buildAPIKeyGroupBindings(
 			opCtx,
@@ -498,7 +501,24 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		if err != nil {
 			return nil, err
 		}
-		if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, apiKey.ID, bindings); err != nil {
+		if imageOnlyEnabled {
+			bindings, err = s.normalizeImageOnlyGroupBindings(opCtx, bindings)
+			if err != nil {
+				return nil, err
+			}
+		}
+		pendingGroupBindings = bindings
+	}
+
+	if err := s.apiKeyRepo.Create(opCtx, apiKey); err != nil {
+		return nil, fmt.Errorf("create api key: %w", err)
+	}
+
+	if requestedGroups != nil {
+		for i := range pendingGroupBindings {
+			pendingGroupBindings[i].APIKeyID = apiKey.ID
+		}
+		if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, apiKey.ID, pendingGroupBindings); err != nil {
 			return nil, fmt.Errorf("set api key groups: %w", err)
 		}
 	}
@@ -713,6 +733,9 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		}
 		apiKey.ImageMaxCount = nextMax
 	}
+	if req.ImageCountWeights != nil {
+		apiKey.ImageCountWeights = NormalizeAPIKeyImageCountWeights(req.ImageCountWeights)
+	}
 	// Normalize image-count billing config:
 	// - not image-only => disable image-count billing and clear max
 	// - image-only but max not set => fall back to token/USD billing (disable count billing)
@@ -743,10 +766,8 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		apiKey.Window7dStart = nil
 	}
 
-	if err := s.apiKeyRepo.Update(opCtx, apiKey); err != nil {
-		return nil, fmt.Errorf("update api key: %w", err)
-	}
-
+	var pendingGroupBindings []APIKeyGroupBinding
+	shouldSetGroupBindings := false
 	if requestedGroups != nil {
 		existingBindings, err := s.apiKeyRepo.GetAPIKeyGroups(opCtx, apiKey.ID)
 		if err != nil {
@@ -768,7 +789,32 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		if err != nil {
 			return nil, err
 		}
-		if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, apiKey.ID, bindings); err != nil {
+		if apiKey.ImageOnlyEnabled {
+			bindings, err = s.normalizeImageOnlyGroupBindings(opCtx, bindings)
+			if err != nil {
+				return nil, err
+			}
+		}
+		pendingGroupBindings = bindings
+		shouldSetGroupBindings = true
+	} else if apiKey.ImageOnlyEnabled {
+		bindings, err := s.normalizeImageOnlyGroupBindings(opCtx, apiKeyBindingsForSelection(apiKey))
+		if err != nil {
+			return nil, err
+		}
+		pendingGroupBindings = bindings
+		shouldSetGroupBindings = true
+	}
+
+	if err := s.apiKeyRepo.Update(opCtx, apiKey); err != nil {
+		return nil, fmt.Errorf("update api key: %w", err)
+	}
+
+	if shouldSetGroupBindings {
+		for i := range pendingGroupBindings {
+			pendingGroupBindings[i].APIKeyID = apiKey.ID
+		}
+		if err := s.apiKeyRepo.SetAPIKeyGroups(opCtx, apiKey.ID, pendingGroupBindings); err != nil {
 			return nil, fmt.Errorf("set api key groups: %w", err)
 		}
 	}

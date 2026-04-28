@@ -88,7 +88,9 @@
             {{
               selectedModelCount(binding) > 0
                 ? t("keys.modelScopeSelected", { count: selectedModelCount(binding) })
-                : t("keys.modelScopeAllHint")
+                : imageOnly
+                  ? t("keys.modelScopeAllImageHint")
+                  : t("keys.modelScopeAllHint")
             }}
           </p>
 
@@ -193,9 +195,11 @@ const props = withDefaults(
     groupModelCatalogItems?: Record<number, PublicModelCatalogItem[]>;
     groupModelOptionsLoading?: boolean;
     adminMode?: boolean;
+    imageOnly?: boolean;
   }>(),
   {
     adminMode: false,
+    imageOnly: false,
     groupModelCatalogItems: () => ({}),
     groupModelOptions: () => ({}),
     groupModelOptionsLoading: false,
@@ -272,7 +276,14 @@ const onModelPatternsInput = (index: number, event: Event) => {
 const modelsForBinding = (
   binding: EditableApiKeyGroupBinding,
 ): UserGroupModelOption[] => {
-  return props.groupModelOptions?.[binding.group_id] || [];
+  const models = props.groupModelOptions?.[binding.group_id] || [];
+  if (!props.imageOnly) {
+    return models;
+  }
+  const catalogByModel = new Map(
+    catalogItemsForBinding(binding).map((item) => [item.model, item]),
+  );
+  return models.filter((model) => isImageModelOption(model, catalogByModel.get(model.public_id)));
 };
 
 const catalogItemsForBinding = (
@@ -286,6 +297,17 @@ const catalogItemForBinding = (
   modelID: string,
 ): PublicModelCatalogItem | undefined => {
   return catalogItemsForBinding(binding).find((item) => item.model === modelID);
+};
+
+const isImageModelOption = (
+  model: UserGroupModelOption,
+  catalogItem?: PublicModelCatalogItem,
+): boolean => {
+  if (catalogItem?.mode === "image") {
+    return true;
+  }
+  const protocols = catalogItem?.request_protocols || model.request_protocols || [];
+  return protocols.some((protocol) => String(protocol).toLowerCase().includes("image"));
 };
 
 const modelPriceSummary = (

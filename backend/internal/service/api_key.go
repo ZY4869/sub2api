@@ -61,6 +61,7 @@ type APIKey struct {
 	ImageCountBillingEnabled bool
 	ImageMaxCount            int
 	ImageCountUsed           int
+	ImageCountWeights        map[string]int
 
 	// Quota fields
 	Quota               float64            // Quota limit in USD (0 = unlimited)

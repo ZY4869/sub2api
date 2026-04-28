@@ -1418,6 +1418,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 		if resolvedScope, ok := resolveOpenAICodexQuotaScopeFromContext(probeCtx, account); ok && strings.TrimSpace(resolvedScope) != "" {
 			probeScope = resolvedScope
 		}
+		probeCtx = withOpenAICodexResolvedQuotaScope(probeCtx, probeScope)
 		if updates, err := extractOpenAICodexProbeUpdatesForScope(resp, probeScope); err == nil && len(updates) > 0 {
 			codexState = syncOpenAICodexRateLimitState(probeCtx, s.accountRepo, account, updates, time.Now())
 		}

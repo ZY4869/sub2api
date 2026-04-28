@@ -220,6 +220,29 @@ func TestResolveOpenAICodexQuotaScopeWithCandidates_OpenAIProSeparatesSparkAndNo
 	require.Equal(t, openAICodexScopeNormal, resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, "friendly-codex53")...))
 }
 
+func TestResolveOpenAICodexSnapshotScopeFromContext_UsesFinalModelWithoutExpandingMapping(t *testing.T) {
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+			"model_mapping": map[string]any{
+				"gpt-5.4": "gpt-5.3-codex-spark-high",
+			},
+		},
+	}
+
+	normalCtx := WithOpenAICodexRequestModel(context.Background(), "gpt-5.4")
+	normalScope, ok := resolveOpenAICodexSnapshotScopeFromContext(normalCtx, account)
+	require.True(t, ok)
+	require.Equal(t, openAICodexScopeNormal, normalScope)
+
+	sparkCtx := WithOpenAICodexRequestModel(context.Background(), "gpt-5.3-codex-spark-high")
+	sparkScope, ok := resolveOpenAICodexSnapshotScopeFromContext(sparkCtx, account)
+	require.True(t, ok)
+	require.Equal(t, openAICodexScopeSpark, sparkScope)
+}
+
 func TestResolveOpenAICodexQuotaScopeWithCandidates_NonProDoesNotExpandGPT54(t *testing.T) {
 	account := &Account{
 		Platform: PlatformOpenAI,

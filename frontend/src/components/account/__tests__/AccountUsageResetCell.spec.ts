@@ -29,6 +29,8 @@ vi.mock('vue-i18n', async () => {
           'common.error': 'Error',
           'admin.accounts.usageWindow.snapshotUpdatedAt': 'Snapshot updated {time}',
           'admin.accounts.usageWindow.now': 'Now',
+          'admin.accounts.usageWindow.spark5h': 'Spark 5h',
+          'admin.accounts.usageWindow.spark7d': 'Spark 7d',
           'admin.accounts.gemini.rateLimit.unlimited': 'Unlimited',
         }
         return dict[key] ?? key
@@ -87,6 +89,51 @@ describe('AccountUsageResetCell', () => {
     expect(wrapper.text()).toContain('6d 13h')
     expect(wrapper.text()).toContain('03-20 01:09')
 
+  })
+
+  it('keeps pro openai normal and spark reset rows aligned with their labels', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00'))
+
+    const wrapper = mount(AccountUsageResetCell, {
+      props: {
+        account: {
+          id: 3005,
+          platform: 'openai',
+          type: 'oauth',
+          credentials: {
+            plan_type: 'pro',
+          },
+          extra: {
+            codex_usage_updated_at: '2099-03-07T10:00:00Z',
+            codex_5h_used_percent: 11,
+            codex_5h_reset_at: '2026-03-13T13:00:00',
+            codex_7d_used_percent: 22,
+            codex_7d_reset_at: '2026-03-13T14:00:00',
+            codex_spark_5h_used_percent: 33,
+            codex_spark_5h_reset_at: '2026-03-13T15:00:00',
+            codex_spark_7d_used_percent: 44,
+            codex_spark_7d_reset_at: '2026-03-13T16:00:00',
+          },
+        } as any,
+      },
+    })
+
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('5h')
+    expect(text).toContain('1h')
+    expect(text).toContain('Today 13:00')
+    expect(text).toContain('7d')
+    expect(text).toContain('2h')
+    expect(text).toContain('Today 14:00')
+    expect(text).toContain('Spark 5h')
+    expect(text).toContain('3h')
+    expect(text).toContain('Today 15:00')
+    expect(text).toContain('Spark 7d')
+    expect(text).toContain('4h')
+    expect(text).toContain('Today 16:00')
   })
 
   it('updates day labels when the shared clock crosses midnight', async () => {

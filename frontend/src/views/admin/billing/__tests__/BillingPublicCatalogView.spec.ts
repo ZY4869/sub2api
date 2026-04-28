@@ -61,6 +61,8 @@ describe('BillingPublicCatalogView', () => {
         createCatalogItem('gpt-5.4', 'GPT-5.4'),
         createCatalogItem('gpt-4.1-mini', 'GPT-4.1 Mini'),
       ],
+      available_updated_at: '2026-04-20T10:30:00Z',
+      available_source: 'persisted_snapshot',
       published: {
         etag: 'W/"published"',
         updated_at: '2026-04-19T09:00:00Z',
@@ -95,7 +97,7 @@ describe('BillingPublicCatalogView', () => {
     expect(apiMocks.getBillingPublicCatalogDraft).toHaveBeenCalledTimes(1)
     expect(apiMocks.getBillingPublicCatalogDraft).toHaveBeenNthCalledWith(1, { force: false })
 
-    const reloadButton = wrapper.findAll('button').find((node) => node.text().includes('重新加载'))
+    const reloadButton = wrapper.findAll('button').find((node) => node.text().includes('同步当前可用模型'))
     expect(reloadButton).toBeTruthy()
     await reloadButton!.trigger('click')
     await flushPromises()

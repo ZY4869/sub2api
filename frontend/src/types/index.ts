@@ -470,6 +470,7 @@ export interface ApiKey {
   image_count_billing_enabled: boolean;
   image_max_count: number; // 0 = not configured (falls back to token billing)
   image_count_used: number;
+  image_count_weights: Record<string, number>;
   expires_at: string | null; // Expiration time (null = never expires)
   created_at: string;
   updated_at: string;
@@ -539,6 +540,7 @@ export interface CreateApiKeyRequest {
   image_only_enabled?: boolean;
   image_count_billing_enabled?: boolean;
   image_max_count?: number;
+  image_count_weights?: Record<string, number>;
 }
 
 export interface UpdateApiKeyRequest {
@@ -558,6 +560,7 @@ export interface UpdateApiKeyRequest {
   image_only_enabled?: boolean;
   image_count_billing_enabled?: boolean;
   image_max_count?: number;
+  image_count_weights?: Record<string, number>;
 }
 
 export interface CreateGroupRequest {

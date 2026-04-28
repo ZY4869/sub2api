@@ -26,6 +26,7 @@ var (
 		{Name: "image_count_billing_enabled", Type: field.TypeBool, Default: false},
 		{Name: "image_max_count", Type: field.TypeInt, Default: 0},
 		{Name: "image_count_used", Type: field.TypeInt, Default: 0},
+		{Name: "image_count_weights", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "quota", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "quota_used", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "quota_used_by_currency", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
@@ -53,13 +54,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "api_keys_groups_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[31]},
+				Columns:    []*schema.Column{APIKeysColumns[32]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "api_keys_users_api_keys",
-				Columns:    []*schema.Column{APIKeysColumns[32]},
+				Columns:    []*schema.Column{APIKeysColumns[33]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -68,12 +69,12 @@ var (
 			{
 				Name:    "apikey_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[32]},
+				Columns: []*schema.Column{APIKeysColumns[33]},
 			},
 			{
 				Name:    "apikey_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[31]},
+				Columns: []*schema.Column{APIKeysColumns[32]},
 			},
 			{
 				Name:    "apikey_status",
@@ -93,12 +94,12 @@ var (
 			{
 				Name:    "apikey_quota_quota_used",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[15], APIKeysColumns[16]},
+				Columns: []*schema.Column{APIKeysColumns[16], APIKeysColumns[17]},
 			},
 			{
 				Name:    "apikey_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{APIKeysColumns[18]},
+				Columns: []*schema.Column{APIKeysColumns[19]},
 			},
 		},
 	}

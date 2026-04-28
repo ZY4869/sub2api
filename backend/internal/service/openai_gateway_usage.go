@@ -393,7 +393,7 @@ func codexRateLimitReasonFromSnapshot(snapshot *OpenAICodexUsageSnapshot) string
 func syncOpenAICodexRateLimitFromExtra(ctx context.Context, repo AccountRepository, account *Account, now time.Time) *openAICodexRateLimitState {
 	return syncOpenAICodexRateLimitState(ctx, repo, account, nil, now)
 }
-func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, accountID int64, snapshot *OpenAICodexUsageSnapshot) {
+func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, accountID int64, snapshot *OpenAICodexUsageSnapshot, finalModels ...string) {
 	if snapshot == nil {
 		return
 	}
@@ -412,11 +412,20 @@ func (s *OpenAIGatewayService) updateCodexUsageSnapshot(ctx context.Context, acc
 		if err != nil || account == nil || !account.IsOpenAI() {
 			return
 		}
-		scope, ok := resolveOpenAICodexQuotaScopeFromContext(updateCtx, account)
+		scope, ok := resolveOpenAICodexSnapshotScopeFromContext(updateCtx, account, finalModels...)
 		if !ok {
 			slog.Warn("openai_codex_snapshot_scope_missing", "account_id", accountID)
 			return
 		}
+		updateCtx = withOpenAICodexResolvedQuotaScope(updateCtx, scope)
+		slog.Info(
+			"openai_codex_snapshot_scope_resolved",
+			"account_id", accountID,
+			"requested_model", openAICodexRequestModelFromContext(updateCtx),
+			"upstream_model", firstNonEmptyString(finalModels...),
+			"resolved_scope", scope,
+			"snapshot_source", "success_header",
+		)
 		updates := buildCodexUsageExtraUpdatesForScope(scope, snapshot, now)
 		if len(updates) == 0 {
 			return
@@ -435,6 +444,6 @@ func (s *OpenAIGatewayService) UpdateCodexUsageSnapshotFromHeaders(ctx context.C
 	if snapshot := ParseCodexRateLimitHeaders(headers); snapshot != nil {
 		ctx = withOpenAICodexRequestModelFallback(ctx, fallbackModels...)
 		ctx = withOpenAICodexSuccessfulSnapshot(ctx)
-		s.updateCodexUsageSnapshot(ctx, accountID, snapshot)
+		s.updateCodexUsageSnapshot(ctx, accountID, snapshot, fallbackModels...)
 	}
 }

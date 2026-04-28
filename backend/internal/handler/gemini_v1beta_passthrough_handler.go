@@ -76,7 +76,9 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		zap.String("path", strings.TrimSpace(c.Request.URL.Path)),
 	)
 
-	reservedImageCount := 0
+	imageSizeTier := service.ResolveOpenAIImageSizeTier(service.DetectOpenAIImageRequestSize(body, c.GetHeader("Content-Type")))
+	expectedImageCount := service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
+	reservedImageUnits := 0
 	imageCountSettled := false
 	if currentAPIKey.EffectiveImageCountBillingEnabled() && GetInboundEndpoint(c) == service.EndpointImagesGen {
 		if h.apiKeyService == nil {
@@ -84,10 +86,10 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 			googleErrorKey(c, http.StatusInternalServerError, "api_key.image_count_quota_unavailable", "Image quota service unavailable")
 			return
 		}
-		reservedImageCount = service.DetectOpenAIImageRequestN(body, c.GetHeader("Content-Type"))
-		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageCount)
+		reservedImageUnits = currentAPIKey.ImageCountUnitsForTier(expectedImageCount, imageSizeTier)
+		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageUnits)
 		if reserveErr != nil {
-			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
+			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.String("image_size_tier", imageSizeTier), zap.Int("image_count", expectedImageCount), zap.Int("reserved_units", reservedImageUnits))
 			googleErrorKey(c, http.StatusInternalServerError, "api_key.image_count_reserve_failed", "Failed to reserve image quota")
 			return
 		}
@@ -95,16 +97,16 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 			googleErrorWithReason(c, http.StatusTooManyRequests, "IMAGE_ONLY_KEY_IMAGE_QUOTA_EXHAUSTED", "api_key.image_count_quota_exhausted", "图片数量额度已用完")
 			return
 		}
-		reqLog.Info("api_key_image_count_reserved", zap.Int("reserved", reservedImageCount), zap.Int("max", currentAPIKey.ImageMaxCount))
+		reqLog.Info("api_key_image_count_reserved", zap.String("image_size_tier", imageSizeTier), zap.Int("image_count", expectedImageCount), zap.Int("reserved_units", reservedImageUnits), zap.Int("max", currentAPIKey.ImageMaxCount))
 		defer func() {
-			if reservedImageCount <= 0 || imageCountSettled {
+			if reservedImageUnits <= 0 || imageCountSettled {
 				return
 			}
-			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageCount); err != nil {
-				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.Int("rollback", reservedImageCount))
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), currentAPIKey.ID, reservedImageUnits); err != nil {
+				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.String("image_size_tier", imageSizeTier), zap.Int("rollback_units", reservedImageUnits))
 				return
 			}
-			reqLog.Info("api_key_image_count_rolled_back", zap.Int("rollback", reservedImageCount))
+			reqLog.Info("api_key_image_count_rolled_back", zap.String("image_size_tier", imageSizeTier), zap.Int("rollback_units", reservedImageUnits))
 		}()
 	}
 
@@ -161,24 +163,18 @@ func (h *GatewayHandler) forwardGeminiPassthrough(c *gin.Context, input service.
 		return
 	}
 
-	if reservedImageCount > 0 && !imageCountSettled {
-		imageCountSettled = true
-		actual := reservedImageCount
+	if reservedImageUnits > 0 && !imageCountSettled {
+		actualCount := expectedImageCount
+		actualTier := imageSizeTier
 		if upstreamResult, ok := result.Response.(*service.UpstreamHTTPResult); ok && upstreamResult != nil {
 			if count := service.CountOpenAIImageResponse(upstreamResult.Body); count > 0 {
-				actual = count
+				actualCount = count
 			}
 		}
-		if actual < reservedImageCount {
-			diff := reservedImageCount - actual
-			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), currentAPIKey.ID, diff); err != nil {
-				reqLog.Error("api_key_image_count_settle_rollback_failed", zap.Error(err), zap.Int("rollback", diff))
-			} else {
-				reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual), zap.Int("rollback", diff))
-			}
-		} else {
-			reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual))
+		if result.ForwardResult != nil && strings.TrimSpace(result.ForwardResult.ImageSize) != "" {
+			actualTier = service.ResolveOpenAIImageSizeTier(result.ForwardResult.ImageSize)
 		}
+		imageCountSettled = settleAPIKeyImageCountUnits(c.Request.Context(), reqLog, h.apiKeyService, currentAPIKey, reservedImageUnits, actualCount, actualTier)
 	}
 
 	requestType := service.RequestTypeSync

@@ -51,6 +51,7 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		SetImageCountBillingEnabled(key.ImageCountBillingEnabled).
 		SetImageMaxCount(key.ImageMaxCount).
 		SetImageCountUsed(key.ImageCountUsed).
+		SetImageCountWeights(service.NormalizeAPIKeyImageCountWeights(key.ImageCountWeights)).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
 		SetNillableExpiresAt(key.ExpiresAt).
@@ -207,6 +208,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 			apikey.FieldImageOnlyEnabled,
 			apikey.FieldImageCountBillingEnabled,
 			apikey.FieldImageMaxCount,
+			apikey.FieldImageCountWeights,
 			apikey.FieldQuota,
 			apikey.FieldQuotaUsed,
 			apikey.FieldQuotaUsedByCurrency,
@@ -285,6 +287,7 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 		SetImageOnlyEnabled(key.ImageOnlyEnabled).
 		SetImageCountBillingEnabled(key.ImageCountBillingEnabled).
 		SetImageMaxCount(key.ImageMaxCount).
+		SetImageCountWeights(service.NormalizeAPIKeyImageCountWeights(key.ImageCountWeights)).
 		SetQuota(key.Quota).
 		SetQuotaUsed(key.QuotaUsed).
 		SetRateLimit5h(key.RateLimit5h).
@@ -839,6 +842,7 @@ func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {
 		ImageCountBillingEnabled: m.ImageCountBillingEnabled,
 		ImageMaxCount:            m.ImageMaxCount,
 		ImageCountUsed:           m.ImageCountUsed,
+		ImageCountWeights:        service.NormalizeAPIKeyImageCountWeights(m.ImageCountWeights),
 		Quota:                    m.Quota,
 		QuotaUsed:                m.QuotaUsed,
 		QuotaUsedByCurrency:      service.CloneBillingCurrencyMap(m.QuotaUsedByCurrency),

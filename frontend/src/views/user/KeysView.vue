@@ -559,6 +559,7 @@
             :group-model-options="groupModelOptions"
             :group-model-options-loading="groupModelOptionsLoading"
             :admin-mode="isAdminMode"
+            :image-only="formData.image_only_enabled"
           />
         </div>
 
@@ -852,6 +853,31 @@
                     }}
                   </span>
                 </div>
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="input-label">{{
+                  t("keys.imageCountWeights")
+                }}</label>
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <label
+                    v-for="tier in imageCountWeightTiers"
+                    :key="tier"
+                    class="space-y-1"
+                  >
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      {{ t(`keys.imageCountWeight${tier}`) }}
+                    </span>
+                    <input
+                      v-model.number="formData.image_count_weights[tier]"
+                      type="number"
+                      step="1"
+                      min="1"
+                      class="input"
+                    />
+                  </label>
+                </div>
+                <p class="input-hint">{{ t("keys.imageCountWeightsHint") }}</p>
               </div>
             </div>
           </div>
@@ -1455,6 +1481,14 @@ const groupModelOptionsLoading = ref(false);
 const groupMap = computed(
   () => new Map(groups.value.map((group) => [group.id, group] as const)),
 );
+const imageCountWeightTiers = ["1K", "2K", "4K"] as const;
+type ImageCountWeightTier = (typeof imageCountWeightTiers)[number];
+
+const defaultImageCountWeights = (): Record<ImageCountWeightTier, number> => ({
+  "1K": 1,
+  "2K": 1,
+  "4K": 2,
+});
 
 const resolveGroup = (
   groupId: number | null | undefined,
@@ -1509,6 +1543,7 @@ const formData = ref({
   image_only_enabled: false,
   image_count_billing_enabled: false,
   image_max_count: null as number | null,
+  image_count_weights: defaultImageCountWeights(),
   // Rate limit settings
   enable_rate_limit: false,
   rate_limit_5h: null as number | null,
@@ -1538,7 +1573,10 @@ const customKeyError = computed(() => {
 watch(
   () => formData.value.image_only_enabled,
   (enabled) => {
-    if (enabled) return;
+    if (enabled) {
+      syncImageOnlyGroupBindings();
+      return;
+    }
     formData.value.image_count_billing_enabled = false;
     formData.value.image_max_count = null;
   },
@@ -1687,6 +1725,7 @@ const loadGroupModelOptions = async () => {
     groupModelOptions.value = Object.fromEntries(
       response.map((group) => [group.group_id, group.models]),
     );
+    syncImageOnlyGroupBindings();
   } catch (error) {
     groupModelOptions.value = {};
     console.error("Failed to load group model options:", error);
@@ -1705,6 +1744,7 @@ const loadGroupModelCatalog = async (groupId: number) => {
       ...groupModelCatalogItems.value,
       [groupId]: snapshot.items || [],
     };
+    syncImageOnlyGroupBindings();
   } catch (error) {
     groupModelCatalogItems.value = {
       ...groupModelCatalogItems.value,
@@ -1713,6 +1753,67 @@ const loadGroupModelCatalog = async (groupId: number) => {
     console.error("Failed to load group model catalog:", error);
   }
 };
+
+function normalizeImageCountWeights(
+  weights?: Record<string, number> | null,
+): Record<ImageCountWeightTier, number> {
+  const normalized = defaultImageCountWeights();
+  imageCountWeightTiers.forEach((tier) => {
+    const value = Number(weights?.[tier] ?? normalized[tier]);
+    if (Number.isFinite(value) && value > 0) {
+      normalized[tier] = Math.floor(value);
+    }
+  });
+  return normalized;
+}
+
+function imageModelIdsForBinding(binding: EditableApiKeyGroupBinding): string[] {
+  const groupID = Number(binding.group_id) || 0;
+  if (groupID <= 0) {
+    return [];
+  }
+  const catalogByModel = new Map(
+    (groupModelCatalogItems.value[groupID] || []).map((item) => [item.model, item]),
+  );
+  return (groupModelOptions.value[groupID] || [])
+    .filter((model) => {
+      const catalogItem = catalogByModel.get(model.public_id);
+      if (catalogItem?.mode === "image") {
+        return true;
+      }
+      const protocols = catalogItem?.request_protocols || model.request_protocols || [];
+      return protocols.some((protocol) => String(protocol).toLowerCase().includes("image"));
+    })
+    .map((model) => model.public_id);
+}
+
+function syncImageOnlyGroupBindings() {
+  if (!formData.value.image_only_enabled || isAdminMode.value) {
+    return;
+  }
+  formData.value.group_bindings = formData.value.group_bindings.map((binding) => {
+    const imageModels = imageModelIdsForBinding(binding);
+    if (imageModels.length === 0) {
+      return binding;
+    }
+    if (
+      binding.model_selection_dirty &&
+      arraysEqual(binding.selected_models, imageModels)
+    ) {
+      return binding;
+    }
+    return {
+      ...binding,
+      selected_models: imageModels,
+      model_patterns_text: imageModels.join("\n"),
+      model_selection_dirty: true,
+    };
+  });
+}
+
+function arraysEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
 
 const loadUserGroupRates = async () => {
   try {
@@ -1782,6 +1883,7 @@ const editKey = (key: ApiKey) => {
       (key.image_max_count || 0) > 0
         ? key.image_max_count
         : null,
+    image_count_weights: normalizeImageCountWeights(key.image_count_weights),
     enable_rate_limit:
       key.rate_limit_5h > 0 || key.rate_limit_1d > 0 || key.rate_limit_7d > 0,
     rate_limit_5h: key.rate_limit_5h || null,
@@ -1815,6 +1917,9 @@ const confirmDelete = (key: ApiKey) => {
 };
 
 const handleSubmit = async () => {
+  if (formData.value.image_only_enabled) {
+    syncImageOnlyGroupBindings();
+  }
   const groupBindingsPayload = buildApiKeyGroupBindingPayload(
     formData.value.group_bindings,
     isAdminMode.value,
@@ -1906,6 +2011,19 @@ const handleSubmit = async () => {
     appStore.showError(t("keys.imageMaxCountRequired"));
     return;
   }
+  if (
+    imageCountBillingEnabled &&
+    !imageCountWeightTiers.every((tier) => {
+      const value = Number(formData.value.image_count_weights[tier]);
+      return Number.isInteger(value) && value > 0;
+    })
+  ) {
+    appStore.showError(t("keys.imageCountWeightInvalid"));
+    return;
+  }
+  const imageCountWeights = normalizeImageCountWeights(
+    formData.value.image_count_weights,
+  );
 
   submitting.value = true;
   try {
@@ -1920,6 +2038,7 @@ const handleSubmit = async () => {
         image_only_enabled: imageOnlyEnabled,
         image_count_billing_enabled: imageCountBillingEnabled,
         image_max_count: imageMaxCount,
+        image_count_weights: imageCountWeights,
         expires_at: expiresAt,
         rate_limit_5h: rateLimitData.rate_limit_5h,
         rate_limit_1d: rateLimitData.rate_limit_1d,
@@ -1936,6 +2055,7 @@ const handleSubmit = async () => {
         image_only_enabled: imageOnlyEnabled,
         image_count_billing_enabled: imageCountBillingEnabled,
         image_max_count: imageMaxCount,
+        image_count_weights: imageCountWeights,
         ...(customKey ? { custom_key: customKey } : {}),
         ...(ipWhitelist.length ? { ip_whitelist: ipWhitelist } : {}),
         ...(ipBlacklist.length ? { ip_blacklist: ipBlacklist } : {}),
@@ -2001,6 +2121,7 @@ const closeModals = () => {
     image_only_enabled: false,
     image_count_billing_enabled: false,
     image_max_count: null,
+    image_count_weights: defaultImageCountWeights(),
     enable_rate_limit: false,
     rate_limit_5h: null,
     rate_limit_1d: null,
@@ -2031,6 +2152,7 @@ watch(
     groupIDs.forEach((groupID) => {
       void loadGroupModelCatalog(groupID);
     });
+    syncImageOnlyGroupBindings();
   },
   { immediate: true },
 );

@@ -4,9 +4,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ChannelMonitorHandler struct {
@@ -112,6 +114,13 @@ func (h *ChannelMonitorHandler) Create(c *gin.Context) {
 		BodyOverride:       req.BodyOverride,
 	}, req.APIKey)
 	if err != nil {
+		logger.FromContext(c.Request.Context()).Warn(
+			"channel_monitor_create_failed",
+			zap.String("component", "handler.admin.channel_monitor"),
+			zap.String("provider", req.Provider),
+			zap.Bool("enabled", req.Enabled),
+			zap.Error(err),
+		)
 		response.ErrorFrom(c, err)
 		return
 	}

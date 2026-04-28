@@ -16,9 +16,10 @@ type APIKeyAuthSnapshot struct {
 	Groups           []APIKeyAuthGroupBindingSnapshot `json:"groups,omitempty"`
 
 	// Image-only fields (used by runtime enforcement; do not include mutable usage counters here).
-	ImageOnlyEnabled         bool `json:"image_only_enabled"`
-	ImageCountBillingEnabled bool `json:"image_count_billing_enabled"`
-	ImageMaxCount            int  `json:"image_max_count"`
+	ImageOnlyEnabled         bool           `json:"image_only_enabled"`
+	ImageCountBillingEnabled bool           `json:"image_count_billing_enabled"`
+	ImageMaxCount            int            `json:"image_max_count"`
+	ImageCountWeights        map[string]int `json:"image_count_weights,omitempty"`
 
 	// Quota fields for API Key independent quota feature
 	Quota               float64            `json:"quota"`      // Quota limit in USD (0 = unlimited)

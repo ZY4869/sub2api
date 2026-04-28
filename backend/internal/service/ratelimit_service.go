@@ -1044,10 +1044,19 @@ func (s *RateLimitService) persistOpenAICodexSnapshot(ctx context.Context, accou
 	if snapshot == nil {
 		return nil
 	}
-	scope, ok := resolveOpenAICodexQuotaScopeFromContext(ctx, account)
+	scope, ok := resolveOpenAICodexSnapshotScopeFromContext(ctx, account)
 	if !ok {
 		return nil
 	}
+	ctx = withOpenAICodexResolvedQuotaScope(ctx, scope)
+	slog.Info(
+		"openai_codex_snapshot_scope_resolved",
+		"account_id", account.ID,
+		"requested_model", openAICodexRequestModelFromContext(ctx),
+		"upstream_model", openAICodexRequestModelFromContext(ctx),
+		"resolved_scope", scope,
+		"snapshot_source", "429",
+	)
 	updates := buildCodexUsageExtraUpdatesForScope(scope, snapshot, time.Now())
 	if len(updates) == 0 {
 		return nil

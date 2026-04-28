@@ -8,13 +8,13 @@
           </div>
           <h2 class="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">对外模型展示</h2>
           <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
-            先在这里维护草稿，再手动“推送更新”生成正式对外快照。系统会优先展示已发布版本；如果还没有发布过，也会自动回退到实时目录供前台与内部选择器预览。
+            先在这里维护草稿，再手动“推送更新”生成正式对外快照。可发布集合会持久化为候选快照，只有点击“同步当前可用模型”才会刷新。
           </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
           <button type="button" class="btn btn-secondary" :disabled="loading || saving || publishing" @click="loadDraft(true)">
-            {{ loading ? '加载中...' : '重新加载' }}
+            {{ loading ? '加载中...' : '同步当前可用模型' }}
           </button>
           <button
             type="button"
@@ -53,7 +53,7 @@
         <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-4 dark:border-sky-900/60 dark:bg-sky-950/20">
           <div class="text-xs font-medium uppercase tracking-[0.18em] text-sky-700 dark:text-sky-200">发布语义</div>
           <div class="mt-2 text-sm leading-6 text-sky-800 dark:text-sky-100">
-            推送时会同时冻结列表排序、展示名称、分页大小与模型详情调用示例。已发布版本始终优先；未发布时才会回退到实时目录，不会再把未发布状态表现成空白加载。
+            推送时使用当前候选快照冻结列表排序、展示名称、分页大小与模型详情调用示例。候选来源：{{ availableSourceLabel }}，更新时间：{{ formatTimestamp(availableUpdatedAt) }}。
           </div>
         </div>
       </div>
@@ -116,7 +116,7 @@
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white">可发布模型集合</h3>
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">来源于当前可售卖的实时公共目录，用于构建下一次发布快照。</p>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">来源于持久化候选快照；需要更新时点击“同步当前可用模型”。</p>
           </div>
           <button type="button" class="btn btn-secondary btn-sm" :disabled="filteredAvailableItems.length === 0" @click="selectFilteredItems">选中当前筛选结果</button>
         </div>
@@ -174,6 +174,8 @@ const search = ref('')
 const selectedModels = ref<string[]>([])
 const pageSize = ref(10)
 const draftUpdatedAt = ref('')
+const availableUpdatedAt = ref('')
+const availableSource = ref('')
 const availableItems = ref<PublicModelCatalogItem[]>([])
 const published = ref<BillingPublicCatalogPublishedSummary | null>(null)
 
@@ -219,6 +221,21 @@ const pageSizeInput = computed({
   },
 })
 
+const availableSourceLabel = computed(() => {
+  switch (availableSource.value) {
+    case 'refreshed_snapshot':
+      return '刚同步的当前可用模型'
+    case 'bootstrap_snapshot':
+      return '首次生成的候选快照'
+    case 'cache_snapshot':
+      return '缓存候选快照'
+    case 'persisted_snapshot':
+      return '已持久化候选快照'
+    default:
+      return '候选快照'
+  }
+})
+
 onMounted(async () => {
   await loadDraft()
 })
@@ -231,6 +248,8 @@ async function loadDraft(force = false) {
     selectedModels.value = normalizeSelectedModels(payload.draft?.selected_models || [])
     pageSize.value = normalizePageSize(payload.draft?.page_size || 10)
     draftUpdatedAt.value = payload.draft?.updated_at || ''
+    availableUpdatedAt.value = payload.available_updated_at || ''
+    availableSource.value = payload.available_source || ''
     published.value = payload.published || null
   } catch (error) {
     appStore.showError(resolveErrorMessage(error, '加载对外模型展示草稿失败'))

@@ -284,6 +284,43 @@ func TestHandle429_OpenAISpark429ScopesToSparkModelLimit(t *testing.T) {
 	}
 }
 
+func TestHandle429_OpenAIProNormal429IgnoresModelMappingForSnapshotScope(t *testing.T) {
+	repo := &openAI429SnapshotRepo{}
+	svc := NewRateLimitService(repo, nil, nil, nil, nil)
+	account := &Account{
+		ID:       125,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+			"model_mapping": map[string]any{
+				"gpt-5.4": "gpt-5.3-codex-spark-high",
+			},
+		},
+	}
+
+	headers := buildCodexHeaders(100, 604800, 44, 18000)
+	ctx := WithOpenAICodexRequestModel(context.Background(), "gpt-5.4")
+
+	svc.handle429(ctx, account, headers, nil)
+
+	if repo.rateLimitedID != 0 {
+		t.Fatalf("expected no whole-account rate limit, got %d", repo.rateLimitedID)
+	}
+	if repo.modelScope != openAICodexScopeNormal {
+		t.Fatalf("modelScope = %q, want %q", repo.modelScope, openAICodexScopeNormal)
+	}
+	if got := repo.updatedExtra["codex_5h_used_percent"]; got != 44.0 {
+		t.Fatalf("codex_5h_used_percent = %v, want 44", got)
+	}
+	if got := repo.updatedExtra["codex_7d_used_percent"]; got != 100.0 {
+		t.Fatalf("codex_7d_used_percent = %v, want 100", got)
+	}
+	if _, ok := repo.updatedExtra[codexSpark7dUsedPercentKey]; ok {
+		t.Fatal("expected normal 429 to avoid spark codex fields")
+	}
+}
+
 func TestSyncOpenAICodexRateLimitState_OnlyNormal7dLimitsNormalScope(t *testing.T) {
 	repo := &openAI429SnapshotRepo{}
 	now := time.Date(2026, 4, 21, 12, 0, 0, 0, time.UTC)

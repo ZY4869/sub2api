@@ -75,6 +75,10 @@ func (APIKey) Fields() []ent.Field {
 		field.Int("image_count_used").
 			Default(0).
 			Comment("Used image outputs for image count billing (only successful images are counted)"),
+		field.JSON("image_count_weights", map[string]int{"1K": 1, "2K": 1, "4K": 2}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("Per-resolution image count billing weights for image-only API keys"),
 
 		// ========== Quota fields ==========
 		// Quota limit in USD (0 = unlimited)

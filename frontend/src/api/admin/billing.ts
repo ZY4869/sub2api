@@ -333,6 +333,8 @@ export interface BillingPublicCatalogPublishedSummary {
 export interface BillingPublicCatalogDraftPayload {
   draft: BillingPublicCatalogDraft
   available_items: PublicModelCatalogItem[]
+  available_updated_at?: string
+  available_source?: string
   published?: BillingPublicCatalogPublishedSummary | null
 }
 

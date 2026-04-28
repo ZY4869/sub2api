@@ -282,6 +282,7 @@ const previewGroupName = computed(() =>
 )
 
 onMounted(async () => {
+  billingPricingStore.resetPricingStatusForEntry()
   await guardedLoad(async () => {
     await Promise.all([
       billingPricingStore.loadProviders(),

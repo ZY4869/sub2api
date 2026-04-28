@@ -216,6 +216,20 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
     return result
   }
 
+  function resetPricingStatusForEntry() {
+    if (pricingStatusFilterState.value === '') {
+      return
+    }
+    pricingStatusFilterState.value = ''
+    pageState.value = 1
+    itemsState.value = []
+    totalState.value = 0
+    providerModelsState.value = {}
+    listCacheState.value = {}
+    providerModelCacheState.value = {}
+    providerModelScopeState.value = ''
+  }
+
   function invalidate() {
     providersState.value = []
     providersLoadedState.value = false
@@ -247,6 +261,7 @@ export const useBillingPricingStore = defineStore('billingPricing', () => {
     loadModels,
     loadProviderModels,
     refreshCatalog,
+    resetPricingStatusForEntry,
     invalidate,
   }
 })

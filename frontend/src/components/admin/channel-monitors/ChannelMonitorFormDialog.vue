@@ -6,7 +6,7 @@
     close-on-click-outside
     @close="emit('close')"
   >
-    <form class="space-y-6" @submit.prevent="handleSubmit">
+    <form id="channel-monitor-form" class="space-y-6" @submit.prevent="handleSubmit">
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label class="input-label">{{ t('admin.channelMonitors.fields.name') }} <span class="text-red-500">*</span></label>
@@ -126,7 +126,7 @@
         <button type="button" class="btn btn-secondary" :disabled="submitting" @click="emit('close')">
           {{ t('common.cancel') }}
         </button>
-        <button type="button" class="btn btn-primary" :disabled="submitting" @click="handleSubmit">
+        <button type="submit" form="channel-monitor-form" class="btn btn-primary" :disabled="submitting">
           <Icon v-if="submitting" name="refresh" size="md" class="mr-2 animate-spin" />
           {{ t('common.save') }}
         </button>

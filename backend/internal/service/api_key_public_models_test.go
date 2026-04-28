@@ -634,6 +634,85 @@ func TestGatewayService_GetAPIKeyPublicModels_WithoutRestrictionsReturnsComplete
 	require.ElementsMatch(t, []string{"registry-openai-alpha", "registry-openai-beta"}, []string{entries[0].PublicID, entries[1].PublicID})
 }
 
+func TestGatewayService_GetAPIKeyPublicModels_ImageOnlyFiltersNativeImageModels(t *testing.T) {
+	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
+	for _, entry := range []UpsertModelRegistryEntryInput{
+		{
+			ID:           "key-test-image",
+			DisplayName:  "Key Test Image",
+			Provider:     PlatformOpenAI,
+			Platforms:    []string{PlatformOpenAI},
+			Capabilities: []string{"image_generation"},
+			ExposedIn:    []string{"runtime", "whitelist"},
+			UIPriority:   1,
+		},
+		{
+			ID:          "key-test-chat",
+			DisplayName: "Key Test Chat",
+			Provider:    PlatformOpenAI,
+			Platforms:   []string{PlatformOpenAI},
+			Modalities:  []string{"text"},
+			ExposedIn:   []string{"runtime", "whitelist"},
+			UIPriority:  2,
+		},
+	} {
+		_, err := registrySvc.UpsertEntry(context.Background(), entry)
+		require.NoError(t, err)
+	}
+	_, err := registrySvc.ActivateModels(context.Background(), []string{"key-test-image", "key-test-chat"})
+	require.NoError(t, err)
+
+	repo := &mockAccountRepoForPlatform{
+		accounts: []Account{
+			{
+				ID:          62,
+				Name:        "openai-image-only",
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeAPIKey,
+				Status:      StatusActive,
+				Schedulable: true,
+				Credentials: map[string]any{
+					"api_key":  "sk-test",
+					"base_url": "https://openai.example.test",
+				},
+			},
+		},
+	}
+	svc := &GatewayService{
+		accountRepo:          repo,
+		modelRegistryService: registrySvc,
+	}
+	apiKey := &APIKey{
+		ID:               162,
+		ImageOnlyEnabled: true,
+		ModelDisplayMode: APIKeyModelDisplayModeSourceOnly,
+		GroupBindings: []APIKeyGroupBinding{
+			{
+				GroupID:       262,
+				ModelPatterns: []string{"key-test-*"},
+				Group: &Group{
+					ID:       262,
+					Name:     "openai-group",
+					Platform: PlatformOpenAI,
+					Status:   StatusActive,
+				},
+			},
+		},
+	}
+
+	entries, err := svc.GetAPIKeyPublicModels(context.Background(), apiKey, PlatformOpenAI)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "key-test-image", entries[0].PublicID)
+
+	chatEntry, chatVisible, err := svc.FindAPIKeyPublicModel(context.Background(), apiKey, PlatformOpenAI, "key-test-chat")
+	require.NoError(t, err)
+	require.False(t, chatVisible)
+	require.Nil(t, chatEntry)
+	require.Equal(t, "key-test-chat", svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformOpenAI, "key-test-chat"))
+	require.Equal(t, "key-test-image", svc.ResolveAPIKeySelectionModel(context.Background(), apiKey, PlatformOpenAI, "key-test-image"))
+}
+
 func TestGatewayService_GetAPIKeyPublicModels_ReadPathDoesNotBackfillSnapshot(t *testing.T) {
 	registrySvc := NewModelRegistryService(newAccountModelImportSettingRepoStub())
 	for _, entry := range []UpsertModelRegistryEntryInput{

@@ -756,6 +756,47 @@ describe("AccountUsageCell", () => {
     );
   });
 
+  it("keeps pro openai normal and spark snapshot rows on their own labels", async () => {
+    const wrapper = mount(AccountUsageCell, {
+      props: {
+        account: {
+          id: 2015,
+          platform: "openai",
+          type: "oauth",
+          credentials: {
+            plan_type: "pro",
+          },
+          extra: {
+            codex_usage_updated_at: "2099-03-07T10:00:00Z",
+            codex_5h_used_percent: 11,
+            codex_5h_reset_at: "2099-03-07T12:00:00Z",
+            codex_7d_used_percent: 22,
+            codex_7d_reset_at: "2099-03-13T12:00:00Z",
+            codex_spark_5h_used_percent: 33,
+            codex_spark_5h_reset_at: "2099-03-08T12:00:00Z",
+            codex_spark_7d_used_percent: 44,
+            codex_spark_7d_reset_at: "2099-03-14T12:00:00Z",
+          },
+        } as any,
+      },
+      global: {
+        stubs: {
+          UsageProgressBar: usageBarStub,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(getUsage).not.toHaveBeenCalled();
+    expect(wrapper.findAll(".usage-bar").map((row) => row.text())).toEqual([
+      "5h|11|",
+      "7d|22|",
+      "Spark 5h|33|",
+      "Spark 7d|44|",
+    ]);
+  });
+
   it("keeps pro openai accounts on four usage rows when spark data is temporarily missing", async () => {
     getUsage.mockResolvedValue({});
 

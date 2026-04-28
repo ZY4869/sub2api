@@ -274,6 +274,18 @@ func (_u *APIKeyUpdate) AddImageCountUsed(v int) *APIKeyUpdate {
 	return _u
 }
 
+// SetImageCountWeights sets the "image_count_weights" field.
+func (_u *APIKeyUpdate) SetImageCountWeights(v map[string]int) *APIKeyUpdate {
+	_u.mutation.SetImageCountWeights(v)
+	return _u
+}
+
+// ClearImageCountWeights clears the value of the "image_count_weights" field.
+func (_u *APIKeyUpdate) ClearImageCountWeights() *APIKeyUpdate {
+	_u.mutation.ClearImageCountWeights()
+	return _u
+}
+
 // SetQuota sets the "quota" field.
 func (_u *APIKeyUpdate) SetQuota(v float64) *APIKeyUpdate {
 	_u.mutation.ResetQuota()
@@ -818,6 +830,12 @@ func (_u *APIKeyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedImageCountUsed(); ok {
 		_spec.AddField(apikey.FieldImageCountUsed, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.ImageCountWeights(); ok {
+		_spec.SetField(apikey.FieldImageCountWeights, field.TypeJSON, value)
+	}
+	if _u.mutation.ImageCountWeightsCleared() {
+		_spec.ClearField(apikey.FieldImageCountWeights, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)
 	}
@@ -1333,6 +1351,18 @@ func (_u *APIKeyUpdateOne) SetNillableImageCountUsed(v *int) *APIKeyUpdateOne {
 // AddImageCountUsed adds value to the "image_count_used" field.
 func (_u *APIKeyUpdateOne) AddImageCountUsed(v int) *APIKeyUpdateOne {
 	_u.mutation.AddImageCountUsed(v)
+	return _u
+}
+
+// SetImageCountWeights sets the "image_count_weights" field.
+func (_u *APIKeyUpdateOne) SetImageCountWeights(v map[string]int) *APIKeyUpdateOne {
+	_u.mutation.SetImageCountWeights(v)
+	return _u
+}
+
+// ClearImageCountWeights clears the value of the "image_count_weights" field.
+func (_u *APIKeyUpdateOne) ClearImageCountWeights() *APIKeyUpdateOne {
+	_u.mutation.ClearImageCountWeights()
 	return _u
 }
 
@@ -1909,6 +1939,12 @@ func (_u *APIKeyUpdateOne) sqlSave(ctx context.Context) (_node *APIKey, err erro
 	}
 	if value, ok := _u.mutation.AddedImageCountUsed(); ok {
 		_spec.AddField(apikey.FieldImageCountUsed, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ImageCountWeights(); ok {
+		_spec.SetField(apikey.FieldImageCountWeights, field.TypeJSON, value)
+	}
+	if _u.mutation.ImageCountWeightsCleared() {
+		_spec.ClearField(apikey.FieldImageCountWeights, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)

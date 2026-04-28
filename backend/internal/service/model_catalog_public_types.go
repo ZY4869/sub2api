@@ -73,7 +73,9 @@ type PublicModelCatalogPublishedSummary struct {
 }
 
 type PublicModelCatalogDraftPayload struct {
-	Draft          PublicModelCatalogDraft             `json:"draft"`
-	AvailableItems []PublicModelCatalogItem            `json:"available_items"`
-	Published      *PublicModelCatalogPublishedSummary `json:"published,omitempty"`
+	Draft              PublicModelCatalogDraft             `json:"draft"`
+	AvailableItems     []PublicModelCatalogItem            `json:"available_items"`
+	AvailableUpdatedAt string                              `json:"available_updated_at,omitempty"`
+	AvailableSource    string                              `json:"available_source,omitempty"`
+	Published          *PublicModelCatalogPublishedSummary `json:"published,omitempty"`
 }

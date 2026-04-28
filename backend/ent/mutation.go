@@ -97,6 +97,7 @@ type APIKeyMutation struct {
 	addimage_max_count          *int
 	image_count_used            *int
 	addimage_count_used         *int
+	image_count_weights         *map[string]int
 	quota                       *float64
 	addquota                    *float64
 	quota_used                  *float64
@@ -946,6 +947,55 @@ func (m *APIKeyMutation) AddedImageCountUsed() (r int, exists bool) {
 func (m *APIKeyMutation) ResetImageCountUsed() {
 	m.image_count_used = nil
 	m.addimage_count_used = nil
+}
+
+// SetImageCountWeights sets the "image_count_weights" field.
+func (m *APIKeyMutation) SetImageCountWeights(value map[string]int) {
+	m.image_count_weights = &value
+}
+
+// ImageCountWeights returns the value of the "image_count_weights" field in the mutation.
+func (m *APIKeyMutation) ImageCountWeights() (r map[string]int, exists bool) {
+	v := m.image_count_weights
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageCountWeights returns the old "image_count_weights" field's value of the APIKey entity.
+// If the APIKey object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *APIKeyMutation) OldImageCountWeights(ctx context.Context) (v map[string]int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageCountWeights is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageCountWeights requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageCountWeights: %w", err)
+	}
+	return oldValue.ImageCountWeights, nil
+}
+
+// ClearImageCountWeights clears the value of the "image_count_weights" field.
+func (m *APIKeyMutation) ClearImageCountWeights() {
+	m.image_count_weights = nil
+	m.clearedFields[apikey.FieldImageCountWeights] = struct{}{}
+}
+
+// ImageCountWeightsCleared returns if the "image_count_weights" field was cleared in this mutation.
+func (m *APIKeyMutation) ImageCountWeightsCleared() bool {
+	_, ok := m.clearedFields[apikey.FieldImageCountWeights]
+	return ok
+}
+
+// ResetImageCountWeights resets all changes to the "image_count_weights" field.
+func (m *APIKeyMutation) ResetImageCountWeights() {
+	m.image_count_weights = nil
+	delete(m.clearedFields, apikey.FieldImageCountWeights)
 }
 
 // SetQuota sets the "quota" field.
@@ -1984,7 +2034,7 @@ func (m *APIKeyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *APIKeyMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 33)
 	if m.created_at != nil {
 		fields = append(fields, apikey.FieldCreatedAt)
 	}
@@ -2032,6 +2082,9 @@ func (m *APIKeyMutation) Fields() []string {
 	}
 	if m.image_count_used != nil {
 		fields = append(fields, apikey.FieldImageCountUsed)
+	}
+	if m.image_count_weights != nil {
+		fields = append(fields, apikey.FieldImageCountWeights)
 	}
 	if m.quota != nil {
 		fields = append(fields, apikey.FieldQuota)
@@ -2121,6 +2174,8 @@ func (m *APIKeyMutation) Field(name string) (ent.Value, bool) {
 		return m.ImageMaxCount()
 	case apikey.FieldImageCountUsed:
 		return m.ImageCountUsed()
+	case apikey.FieldImageCountWeights:
+		return m.ImageCountWeights()
 	case apikey.FieldQuota:
 		return m.Quota()
 	case apikey.FieldQuotaUsed:
@@ -2194,6 +2249,8 @@ func (m *APIKeyMutation) OldField(ctx context.Context, name string) (ent.Value, 
 		return m.OldImageMaxCount(ctx)
 	case apikey.FieldImageCountUsed:
 		return m.OldImageCountUsed(ctx)
+	case apikey.FieldImageCountWeights:
+		return m.OldImageCountWeights(ctx)
 	case apikey.FieldQuota:
 		return m.OldQuota(ctx)
 	case apikey.FieldQuotaUsed:
@@ -2346,6 +2403,13 @@ func (m *APIKeyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetImageCountUsed(v)
+		return nil
+	case apikey.FieldImageCountWeights:
+		v, ok := value.(map[string]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageCountWeights(v)
 		return nil
 	case apikey.FieldQuota:
 		v, ok := value.(float64)
@@ -2627,6 +2691,9 @@ func (m *APIKeyMutation) ClearedFields() []string {
 	if m.FieldCleared(apikey.FieldIPBlacklist) {
 		fields = append(fields, apikey.FieldIPBlacklist)
 	}
+	if m.FieldCleared(apikey.FieldImageCountWeights) {
+		fields = append(fields, apikey.FieldImageCountWeights)
+	}
 	if m.FieldCleared(apikey.FieldQuotaUsedByCurrency) {
 		fields = append(fields, apikey.FieldQuotaUsedByCurrency)
 	}
@@ -2679,6 +2746,9 @@ func (m *APIKeyMutation) ClearField(name string) error {
 		return nil
 	case apikey.FieldIPBlacklist:
 		m.ClearIPBlacklist()
+		return nil
+	case apikey.FieldImageCountWeights:
+		m.ClearImageCountWeights()
 		return nil
 	case apikey.FieldQuotaUsedByCurrency:
 		m.ClearQuotaUsedByCurrency()
@@ -2759,6 +2829,9 @@ func (m *APIKeyMutation) ResetField(name string) error {
 		return nil
 	case apikey.FieldImageCountUsed:
 		m.ResetImageCountUsed()
+		return nil
+	case apikey.FieldImageCountWeights:
+		m.ResetImageCountWeights()
 		return nil
 	case apikey.FieldQuota:
 		m.ResetQuota()

@@ -52,6 +52,8 @@ type APIKey struct {
 	ImageMaxCount int `json:"image_max_count,omitempty"`
 	// Used image outputs for image count billing (only successful images are counted)
 	ImageCountUsed int `json:"image_count_used,omitempty"`
+	// Per-resolution image count billing weights for image-only API keys
+	ImageCountWeights map[string]int `json:"image_count_weights,omitempty"`
 	// Quota limit in USD for this API key (0 = unlimited)
 	Quota float64 `json:"quota,omitempty"`
 	// Used quota amount in USD
@@ -161,7 +163,7 @@ func (*APIKey) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist, apikey.FieldQuotaUsedByCurrency, apikey.FieldUsage5hByCurrency, apikey.FieldUsage1dByCurrency, apikey.FieldUsage7dByCurrency:
+		case apikey.FieldIPWhitelist, apikey.FieldIPBlacklist, apikey.FieldImageCountWeights, apikey.FieldQuotaUsedByCurrency, apikey.FieldUsage5hByCurrency, apikey.FieldUsage1dByCurrency, apikey.FieldUsage7dByCurrency:
 			values[i] = new([]byte)
 		case apikey.FieldImageOnlyEnabled, apikey.FieldImageCountBillingEnabled:
 			values[i] = new(sql.NullBool)
@@ -296,6 +298,14 @@ func (_m *APIKey) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field image_count_used", values[i])
 			} else if value.Valid {
 				_m.ImageCountUsed = int(value.Int64)
+			}
+		case apikey.FieldImageCountWeights:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field image_count_weights", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ImageCountWeights); err != nil {
+					return fmt.Errorf("unmarshal field image_count_weights: %w", err)
+				}
 			}
 		case apikey.FieldQuota:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -519,6 +529,9 @@ func (_m *APIKey) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("image_count_used=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ImageCountUsed))
+	builder.WriteString(", ")
+	builder.WriteString("image_count_weights=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ImageCountWeights))
 	builder.WriteString(", ")
 	builder.WriteString("quota=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Quota))

@@ -688,6 +688,11 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	reqCtx = WithOpenAICodexRequestModel(reqCtx, probeModelID)
+	scope, ok := resolveOpenAICodexSnapshotScopeFromContext(reqCtx, account, probeModelID)
+	if !ok {
+		return nil, nil, fmt.Errorf("openai codex probe scope could not be resolved for model %q", probeModelID)
+	}
+	reqCtx = withOpenAICodexResolvedQuotaScope(reqCtx, scope)
 	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, chatgptCodexURL, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create openai probe request: %w", err)
@@ -727,11 +732,12 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	updates, resetAt, _, err := extractOpenAICodexProbeSnapshotForScope(resp, resolveOpenAICodexQuotaScope(account, probeModelID))
+	updates, resetAt, _, err := extractOpenAICodexProbeSnapshotForScope(resp, scope)
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(updates) > 0 || resetAt != nil {
+		slog.Info("openai_codex_snapshot_scope_resolved", "account_id", account.ID, "requested_model", probeModelID, "upstream_model", probeModelID, "resolved_scope", scope, "snapshot_source", "usage_probe")
 		state := s.persistOpenAICodexProbeSnapshot(reqCtx, account, updates)
 		if state != nil {
 			if state.AccountResetAt != nil {

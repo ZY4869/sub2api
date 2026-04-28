@@ -133,4 +133,19 @@ describe('billingPricing store', () => {
     expect(apiMocks.listBillingPricingProviders).toHaveBeenCalledTimes(2)
     expect(apiMocks.listBillingPricingModels).toHaveBeenCalledTimes(2)
   })
+
+  it('clears stale pricing status when entering pricing tab', async () => {
+    const store = resetStore()
+    store.pricingStatusFilter = 'missing'
+    store.page = 3
+
+    store.resetPricingStatusForEntry()
+    await store.loadModels()
+
+    expect(store.pricingStatusFilter).toBe('')
+    expect(store.page).toBe(1)
+    expect(apiMocks.listBillingPricingModels).toHaveBeenCalledWith(expect.not.objectContaining({
+      pricing_status: 'missing',
+    }))
+  })
 })

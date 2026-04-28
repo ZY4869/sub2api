@@ -15,6 +15,13 @@ import (
 const defaultPublicModelCatalogPageSize = 10
 const publicModelCatalogDraftLiveTTL = 10 * time.Minute
 
+const (
+	publicModelCatalogDraftAvailableSourcePersisted = "persisted_snapshot"
+	publicModelCatalogDraftAvailableSourceRefreshed = "refreshed_snapshot"
+	publicModelCatalogDraftAvailableSourceBootstrap = "bootstrap_snapshot"
+	publicModelCatalogDraftAvailableSourceCache     = "cache_snapshot"
+)
+
 func normalizePublicModelCatalogPageSize(value int) int {
 	if value <= 0 {
 		return defaultPublicModelCatalogPageSize
@@ -133,6 +140,59 @@ func persistPublicModelCatalogDraftBySetting(
 	return settingRepo.Set(ctx, settingKey, string(payload))
 }
 
+func loadPublicModelCatalogSnapshotBySetting(
+	ctx context.Context,
+	settingRepo SettingRepository,
+	settingKey string,
+) *PublicModelCatalogSnapshot {
+	if settingRepo == nil {
+		return nil
+	}
+	raw, err := settingRepo.GetValue(ctx, settingKey)
+	if err != nil || strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var snapshot PublicModelCatalogSnapshot
+	if err := json.Unmarshal([]byte(raw), &snapshot); err != nil {
+		logger.FromContext(ctx).Warn(
+			"public model catalog: invalid snapshot json",
+			zap.String("setting_key", settingKey),
+			zap.Error(err),
+		)
+		return nil
+	}
+	normalized := clonePublicModelCatalogSnapshot(&snapshot)
+	if normalized == nil {
+		return nil
+	}
+	normalized.PageSize = normalizePublicModelCatalogPageSize(normalized.PageSize)
+	return normalized
+}
+
+func persistPublicModelCatalogSnapshotBySetting(
+	ctx context.Context,
+	settingRepo SettingRepository,
+	settingKey string,
+	snapshot *PublicModelCatalogSnapshot,
+) error {
+	if settingRepo == nil {
+		return nil
+	}
+	if snapshot == nil {
+		return settingRepo.Delete(ctx, settingKey)
+	}
+	normalized := clonePublicModelCatalogSnapshot(snapshot)
+	normalized.PageSize = normalizePublicModelCatalogPageSize(normalized.PageSize)
+	if normalized.UpdatedAt == "" {
+		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	payload, err := json.Marshal(normalized)
+	if err != nil {
+		return err
+	}
+	return settingRepo.Set(ctx, settingKey, string(payload))
+}
+
 func loadPublicModelCatalogPublishedSnapshotBySetting(
 	ctx context.Context,
 	settingRepo SettingRepository,
@@ -197,6 +257,20 @@ func (s *ModelCatalogService) persistPublicModelCatalogDraft(ctx context.Context
 	return persistPublicModelCatalogDraftBySetting(ctx, s.settingRepo, SettingKeyPublicModelCatalogDraft, draft)
 }
 
+func (s *ModelCatalogService) loadPublicModelCatalogDraftCandidateSnapshot(ctx context.Context) *PublicModelCatalogSnapshot {
+	if s == nil {
+		return nil
+	}
+	return loadPublicModelCatalogSnapshotBySetting(ctx, s.settingRepo, SettingKeyPublicModelCatalogDraftCandidateSnapshot)
+}
+
+func (s *ModelCatalogService) persistPublicModelCatalogDraftCandidateSnapshot(ctx context.Context, snapshot *PublicModelCatalogSnapshot) error {
+	if s == nil {
+		return nil
+	}
+	return persistPublicModelCatalogSnapshotBySetting(ctx, s.settingRepo, SettingKeyPublicModelCatalogDraftCandidateSnapshot, snapshot)
+}
+
 func (s *ModelCatalogService) loadPublishedPublicModelCatalogSnapshot(ctx context.Context) *PublicModelCatalogPublishedSnapshot {
 	if s == nil {
 		return nil
@@ -243,50 +317,75 @@ func selectPublicModelCatalogPublishItems(draft PublicModelCatalogDraft, items [
 
 func (s *ModelCatalogService) GetPublicModelCatalogDraftPayload(ctx context.Context, force bool) (*PublicModelCatalogDraftPayload, error) {
 	draft := normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
-	var liveSnapshot *PublicModelCatalogSnapshot
+	availableSnapshot, availableSource, err := s.publicModelCatalogDraftCandidateSnapshot(ctx, force)
+	if err != nil {
+		return nil, err
+	}
+	return &PublicModelCatalogDraftPayload{
+		Draft:              draft,
+		AvailableItems:     append([]PublicModelCatalogItem(nil), availableSnapshot.Items...),
+		AvailableUpdatedAt: availableSnapshot.UpdatedAt,
+		AvailableSource:    availableSource,
+		Published:          publicModelCatalogPublishedSummary(s.loadPublishedPublicModelCatalogSnapshot(ctx)),
+	}, nil
+}
+
+func (s *ModelCatalogService) publicModelCatalogDraftCandidateSnapshot(
+	ctx context.Context,
+	force bool,
+) (*PublicModelCatalogSnapshot, string, error) {
 	if !force {
-		if cached, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
-			liveSnapshot = cached
+		if persisted := s.loadPublicModelCatalogDraftCandidateSnapshot(ctx); persisted != nil {
 			logger.FromContext(ctx).Info(
-				"public model catalog draft cache hit",
+				"public model catalog draft candidate snapshot loaded",
+				zap.String("component", "service.model_catalog"),
+				zap.Int("model_count", len(persisted.Items)),
+				zap.String("updated_at", persisted.UpdatedAt),
+			)
+			return persisted, publicModelCatalogDraftAvailableSourcePersisted, nil
+		}
+		if cached, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
+			logger.FromContext(ctx).Info(
+				"public model catalog draft candidate cache hit",
 				zap.String("component", "service.model_catalog"),
 				zap.Duration("cache_age", age),
 				zap.Int("model_count", len(cached.Items)),
 			)
+			return cached, publicModelCatalogDraftAvailableSourceCache, nil
 		}
 	}
 
-	if liveSnapshot == nil {
-		built, err := s.buildLivePublicModelCatalogSnapshot(ctx)
-		if err != nil {
-			if fallback, age, ok := s.getAnyPublicModelCatalogSnapshot(); ok {
-				liveSnapshot = fallback
-				logger.FromContext(ctx).Warn(
-					"public model catalog draft live snapshot stale cache",
-					zap.String("component", "service.model_catalog"),
-					zap.Duration("cache_age", age),
-					zap.Int("model_count", len(fallback.Items)),
-					zap.Error(err),
-				)
-			} else {
-				return nil, err
-			}
-		} else {
-			s.storePublicModelCatalogSnapshot(built)
-			liveSnapshot = clonePublicModelCatalogSnapshot(built)
-			logger.FromContext(ctx).Info(
-				"public model catalog draft cache rebuilt",
-				zap.String("component", "service.model_catalog"),
-				zap.Bool("force_refresh", force),
-				zap.Int("model_count", len(liveSnapshot.Items)),
-			)
-		}
+	availableSource := publicModelCatalogDraftAvailableSourceRefreshed
+	if !force {
+		availableSource = publicModelCatalogDraftAvailableSourceBootstrap
 	}
-	return &PublicModelCatalogDraftPayload{
-		Draft:          draft,
-		AvailableItems: append([]PublicModelCatalogItem(nil), liveSnapshot.Items...),
-		Published:      publicModelCatalogPublishedSummary(s.loadPublishedPublicModelCatalogSnapshot(ctx)),
-	}, nil
+	liveSnapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
+	if err != nil {
+		if fallback, age, ok := s.getFreshPublicModelCatalogSnapshotWithTTL(publicModelCatalogDraftLiveTTL); ok {
+			logger.FromContext(ctx).Warn(
+				"public model catalog draft candidate cache fallback",
+				zap.String("component", "service.model_catalog"),
+				zap.Duration("cache_age", age),
+				zap.Int("model_count", len(fallback.Items)),
+				zap.Error(err),
+			)
+			return fallback, publicModelCatalogDraftAvailableSourceCache, nil
+		}
+		return nil, "", err
+	}
+	s.storePublicModelCatalogSnapshot(liveSnapshot)
+	liveSnapshot = clonePublicModelCatalogSnapshot(liveSnapshot)
+	if err := s.persistPublicModelCatalogDraftCandidateSnapshot(ctx, liveSnapshot); err != nil {
+		return nil, "", err
+	}
+	logger.FromContext(ctx).Info(
+		"public model catalog draft candidate snapshot refreshed",
+		zap.String("component", "service.model_catalog"),
+		zap.Bool("force_refresh", force),
+		zap.Int("model_count", len(liveSnapshot.Items)),
+		zap.String("updated_at", liveSnapshot.UpdatedAt),
+	)
+	return liveSnapshot, availableSource, nil
 }
 
 func (s *ModelCatalogService) SavePublicModelCatalogDraft(ctx context.Context, draft PublicModelCatalogDraft) (*PublicModelCatalogDraft, error) {
@@ -321,12 +420,12 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 	} else {
 		draft = normalizePublicModelCatalogDraft(s.loadPublicModelCatalogDraft(ctx))
 	}
-	liveSnapshot, err := s.buildLivePublicModelCatalogSnapshot(ctx)
+	availableSnapshot, _, err := s.publicModelCatalogDraftCandidateSnapshot(ctx, false)
 	if err != nil {
 		return nil, err
 	}
-	selectedItems := selectPublicModelCatalogPublishItems(draft, liveSnapshot.Items)
-	if len(selectedItems) == 0 && len(liveSnapshot.Items) > 0 {
+	selectedItems := selectPublicModelCatalogPublishItems(draft, availableSnapshot.Items)
+	if len(selectedItems) == 0 && len(availableSnapshot.Items) > 0 {
 		return nil, infraerrors.BadRequest("PUBLIC_MODEL_CATALOG_EMPTY", "no models selected for publish")
 	}
 	details := make(map[string]PublicModelCatalogDetail, len(selectedItems))
@@ -343,7 +442,7 @@ func (s *ModelCatalogService) PublishPublicModelCatalog(
 	}
 	published := &PublicModelCatalogPublishedSnapshot{
 		Snapshot: PublicModelCatalogSnapshot{
-			ETag:      liveSnapshot.ETag,
+			ETag:      availableSnapshot.ETag,
 			UpdatedAt: time.Now().UTC().Format(time.RFC3339),
 			PageSize:  normalizePublicModelCatalogPageSize(draft.PageSize),
 			Items:     selectedItems,

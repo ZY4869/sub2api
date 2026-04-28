@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ChannelMonitorFormDialog from '../ChannelMonitorFormDialog.vue'
 
@@ -41,6 +41,7 @@ vi.mock('vue-i18n', () => ({
 
 function mountDialog() {
   return mount(ChannelMonitorFormDialog, {
+    attachTo: document.body,
     props: {
       show: true,
       monitor: null,
@@ -75,6 +76,10 @@ describe('ChannelMonitorFormDialog', () => {
     mocks.showSuccess.mockReset()
   })
 
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   it('shows backend detail when saving a new monitor fails', async () => {
     mocks.createMonitor.mockRejectedValue({
       response: {
@@ -94,5 +99,26 @@ describe('ChannelMonitorFormDialog', () => {
     await flushPromises()
 
     expect(mocks.showError).toHaveBeenCalledWith('endpoint is unreachable')
+  })
+
+  it('submits create payload from the footer save button', async () => {
+    mocks.createMonitor.mockResolvedValue({ id: 1 })
+
+    const wrapper = mountDialog()
+    const inputs = wrapper.findAll('input.input')
+    await inputs[0].setValue('Primary OpenAI monitor')
+    await inputs[1].setValue('https://example.test/v1/chat/completions')
+    await inputs[3].setValue('gpt-5.4')
+
+    wrapper.find('button[type="submit"][form="channel-monitor-form"]').element.click()
+    await flushPromises()
+
+    expect(mocks.createMonitor).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Primary OpenAI monitor',
+      endpoint: 'https://example.test/v1/chat/completions',
+      primary_model_id: 'gpt-5.4',
+      enabled: false,
+    }))
+    expect(wrapper.emitted('saved')).toBeTruthy()
   })
 })

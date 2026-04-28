@@ -130,7 +130,8 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 	imageToolModel := ""
 	hasImageTool := false
 	expectedImageCount := 1
-	reservedImageCount := 0
+	imageSizeTier := service.OpenAIImageSizeTier2K
+	reservedImageUnits := 0
 	imageCountSettled := false
 	if action != grokActionVideoStatus {
 		body, err = pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
@@ -152,7 +153,9 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			imageToolModel, hasImageTool = detectResponsesImageToolRequest(body)
 		}
 		if action == grokActionImagesGen || action == grokActionImagesEdits {
-			expectedImageCount = service.DetectOpenAIImageRequestN(body, strings.TrimSpace(c.GetHeader("Content-Type")))
+			contentType := strings.TrimSpace(c.GetHeader("Content-Type"))
+			expectedImageCount = service.DetectOpenAIImageRequestN(body, contentType)
+			imageSizeTier = service.ResolveOpenAIImageSizeTier(service.DetectOpenAIImageRequestSize(body, contentType))
 		}
 		setOpsRequestContext(c, reqModel, reqStream, body)
 	} else {
@@ -185,10 +188,10 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 	}
 
 	if apiKey.EffectiveImageCountBillingEnabled() && (action == grokActionImagesGen || action == grokActionImagesEdits) {
-		reservedImageCount = expectedImageCount
-		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), apiKey.ID, reservedImageCount)
+		reservedImageUnits = apiKey.ImageCountUnitsForTier(expectedImageCount, imageSizeTier)
+		ok, reserveErr := h.apiKeyService.TryReserveImageCount(c.Request.Context(), apiKey.ID, reservedImageUnits)
 		if reserveErr != nil {
-			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.Int("reserved", reservedImageCount))
+			reqLog.Error("api_key_image_count_reserve_failed", zap.Error(reserveErr), zap.String("image_size_tier", imageSizeTier), zap.Int("image_count", expectedImageCount), zap.Int("reserved_units", reservedImageUnits))
 			h.errorResponse(c, http.StatusInternalServerError, "api_error", "Failed to reserve image quota")
 			return
 		}
@@ -202,16 +205,16 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 			})
 			return
 		}
-		reqLog.Info("api_key_image_count_reserved", zap.Int("reserved", reservedImageCount), zap.Int("max", apiKey.ImageMaxCount))
+		reqLog.Info("api_key_image_count_reserved", zap.String("image_size_tier", imageSizeTier), zap.Int("image_count", expectedImageCount), zap.Int("reserved_units", reservedImageUnits), zap.Int("max", apiKey.ImageMaxCount))
 		defer func() {
-			if reservedImageCount <= 0 || imageCountSettled {
+			if reservedImageUnits <= 0 || imageCountSettled {
 				return
 			}
-			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, reservedImageCount); err != nil {
-				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.Int("rollback", reservedImageCount))
+			if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, reservedImageUnits); err != nil {
+				reqLog.Error("api_key_image_count_rollback_failed", zap.Error(err), zap.String("image_size_tier", imageSizeTier), zap.Int("rollback_units", reservedImageUnits))
 				return
 			}
-			reqLog.Info("api_key_image_count_rolled_back", zap.Int("rollback", reservedImageCount))
+			reqLog.Info("api_key_image_count_rolled_back", zap.String("image_size_tier", imageSizeTier), zap.Int("rollback_units", reservedImageUnits))
 		}()
 	}
 
@@ -381,22 +384,16 @@ func (h *GrokGatewayHandler) handleRequest(c *gin.Context, action grokAction) {
 				return
 			}
 
-			if reservedImageCount > 0 && !imageCountSettled {
-				imageCountSettled = true
-				actual := reservedImageCount
+			if reservedImageUnits > 0 && !imageCountSettled {
+				actualCount := expectedImageCount
+				actualTier := imageSizeTier
 				if result != nil && result.Result != nil && result.Result.ImageCount > 0 {
-					actual = result.Result.ImageCount
+					actualCount = result.Result.ImageCount
 				}
-				if actual < reservedImageCount {
-					diff := reservedImageCount - actual
-					if err := h.apiKeyService.RollbackImageCount(c.Request.Context(), apiKey.ID, diff); err != nil {
-						reqLog.Error("api_key_image_count_settle_rollback_failed", zap.Error(err), zap.Int("rollback", diff))
-					} else {
-						reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual), zap.Int("rollback", diff))
-					}
-				} else {
-					reqLog.Info("api_key_image_count_settled", zap.Int("final_count", actual))
+				if result != nil && result.Result != nil && strings.TrimSpace(result.Result.ImageSize) != "" {
+					actualTier = service.ResolveOpenAIImageSizeTier(result.Result.ImageSize)
 				}
+				imageCountSettled = settleAPIKeyImageCountUnits(c.Request.Context(), reqLog, h.apiKeyService, apiKey, reservedImageUnits, actualCount, actualTier)
 			}
 
 			if result != nil && result.Result != nil && !result.SkipUsageRecord {

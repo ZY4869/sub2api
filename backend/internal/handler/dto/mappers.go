@@ -105,6 +105,7 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		ImageCountBillingEnabled: k.ImageCountBillingEnabled,
 		ImageMaxCount:            k.ImageMaxCount,
 		ImageCountUsed:           k.ImageCountUsed,
+		ImageCountWeights:        service.CloneAPIKeyImageCountWeights(k.ImageCountWeights),
 		Quota:                    k.Quota,
 		QuotaUsed:                k.QuotaUsed,
 		QuotaUsedByCurrency:      cloneUsageCostByCurrency(k.QuotaUsedByCurrency),

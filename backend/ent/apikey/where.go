@@ -795,6 +795,16 @@ func ImageCountUsedLTE(v int) predicate.APIKey {
 	return predicate.APIKey(sql.FieldLTE(FieldImageCountUsed, v))
 }
 
+// ImageCountWeightsIsNil applies the IsNil predicate on the "image_count_weights" field.
+func ImageCountWeightsIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldImageCountWeights))
+}
+
+// ImageCountWeightsNotNil applies the NotNil predicate on the "image_count_weights" field.
+func ImageCountWeightsNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldImageCountWeights))
+}
+
 // QuotaEQ applies the EQ predicate on the "quota" field.
 func QuotaEQ(v float64) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldQuota, v))

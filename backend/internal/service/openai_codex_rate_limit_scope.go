@@ -22,6 +22,7 @@ const (
 )
 
 type openAICodexRequestModelContextKey struct{}
+type openAICodexResolvedQuotaScopeContextKey struct{}
 type openAICodexSuccessfulSnapshotContextKey struct{}
 
 type openAICodexRateLimitState struct {
@@ -43,11 +44,30 @@ func WithOpenAICodexRequestModel(ctx context.Context, model string) context.Cont
 	return context.WithValue(ctx, openAICodexRequestModelContextKey{}, model)
 }
 
+func withOpenAICodexResolvedQuotaScope(ctx context.Context, scope string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	scope = strings.TrimSpace(scope)
+	if scope == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, openAICodexResolvedQuotaScopeContextKey{}, scope)
+}
+
 func withOpenAICodexSuccessfulSnapshot(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return context.WithValue(ctx, openAICodexSuccessfulSnapshotContextKey{}, true)
+}
+
+func openAICodexResolvedQuotaScopeFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	scope, _ := ctx.Value(openAICodexResolvedQuotaScopeContextKey{}).(string)
+	return strings.TrimSpace(scope)
 }
 
 func openAICodexSuccessfulSnapshotFromContext(ctx context.Context) bool {
@@ -201,15 +221,46 @@ func resolveOpenAICodexQuotaScope(account *Account, model string) string {
 	return resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, model)...)
 }
 
-func resolveOpenAICodexQuotaScopeFromContext(ctx context.Context, account *Account) (string, bool) {
+func resolveOpenAICodexFinalModelQuotaScope(account *Account, model string) (string, bool) {
 	if !isOpenAIProPlan(account) {
 		return openAICodexScopeNormal, true
 	}
-	scope := resolveOpenAICodexQuotaScopeWithCandidates(account, openAIRuntimeQuotaModelCandidates(account, openAICodexRequestModelFromContext(ctx))...)
-	if scope == "" {
+	model = strings.TrimSpace(model)
+	if model == "" {
 		return "", false
 	}
-	return scope, true
+	if normalizeOpenAICodexQuotaScope(model) == openAICodexScopeSpark {
+		return openAICodexScopeSpark, true
+	}
+	return openAICodexScopeNormal, true
+}
+
+func resolveOpenAICodexSnapshotScopeFromContext(ctx context.Context, account *Account, finalModels ...string) (string, bool) {
+	if explicit := openAICodexResolvedQuotaScopeFromContext(ctx); explicit != "" {
+		return explicit, true
+	}
+	if scope, ok := resolveOpenAICodexFinalModelQuotaScope(account, openAICodexRequestModelFromContext(ctx)); ok {
+		return scope, true
+	}
+	for _, model := range finalModels {
+		if scope, ok := resolveOpenAICodexFinalModelQuotaScope(account, model); ok {
+			return scope, true
+		}
+	}
+	if !isOpenAIProPlan(account) {
+		return openAICodexScopeNormal, true
+	}
+	return "", false
+}
+
+func resolveOpenAICodexQuotaScopeFromContext(ctx context.Context, account *Account) (string, bool) {
+	if explicit := openAICodexResolvedQuotaScopeFromContext(ctx); explicit != "" {
+		return explicit, true
+	}
+	if !isOpenAIProPlan(account) {
+		return openAICodexScopeNormal, true
+	}
+	return resolveOpenAICodexFinalModelQuotaScope(account, openAICodexRequestModelFromContext(ctx))
 }
 
 func openAIQuotaScopeRateLimitRemaining(account *Account, candidates ...string) (string, time.Duration) {

@@ -209,6 +209,12 @@ func (_c *APIKeyCreate) SetNillableImageCountUsed(v *int) *APIKeyCreate {
 	return _c
 }
 
+// SetImageCountWeights sets the "image_count_weights" field.
+func (_c *APIKeyCreate) SetImageCountWeights(v map[string]int) *APIKeyCreate {
+	_c.mutation.SetImageCountWeights(v)
+	return _c
+}
+
 // SetQuota sets the "quota" field.
 func (_c *APIKeyCreate) SetQuota(v float64) *APIKeyCreate {
 	_c.mutation.SetQuota(v)
@@ -716,6 +722,10 @@ func (_c *APIKeyCreate) createSpec() (*APIKey, *sqlgraph.CreateSpec) {
 		_spec.SetField(apikey.FieldImageCountUsed, field.TypeInt, value)
 		_node.ImageCountUsed = value
 	}
+	if value, ok := _c.mutation.ImageCountWeights(); ok {
+		_spec.SetField(apikey.FieldImageCountWeights, field.TypeJSON, value)
+		_node.ImageCountWeights = value
+	}
 	if value, ok := _c.mutation.Quota(); ok {
 		_spec.SetField(apikey.FieldQuota, field.TypeFloat64, value)
 		_node.Quota = value
@@ -1121,6 +1131,24 @@ func (u *APIKeyUpsert) UpdateImageCountUsed() *APIKeyUpsert {
 // AddImageCountUsed adds v to the "image_count_used" field.
 func (u *APIKeyUpsert) AddImageCountUsed(v int) *APIKeyUpsert {
 	u.Add(apikey.FieldImageCountUsed, v)
+	return u
+}
+
+// SetImageCountWeights sets the "image_count_weights" field.
+func (u *APIKeyUpsert) SetImageCountWeights(v map[string]int) *APIKeyUpsert {
+	u.Set(apikey.FieldImageCountWeights, v)
+	return u
+}
+
+// UpdateImageCountWeights sets the "image_count_weights" field to the value that was provided on create.
+func (u *APIKeyUpsert) UpdateImageCountWeights() *APIKeyUpsert {
+	u.SetExcluded(apikey.FieldImageCountWeights)
+	return u
+}
+
+// ClearImageCountWeights clears the value of the "image_count_weights" field.
+func (u *APIKeyUpsert) ClearImageCountWeights() *APIKeyUpsert {
+	u.SetNull(apikey.FieldImageCountWeights)
 	return u
 }
 
@@ -1713,6 +1741,27 @@ func (u *APIKeyUpsertOne) AddImageCountUsed(v int) *APIKeyUpsertOne {
 func (u *APIKeyUpsertOne) UpdateImageCountUsed() *APIKeyUpsertOne {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateImageCountUsed()
+	})
+}
+
+// SetImageCountWeights sets the "image_count_weights" field.
+func (u *APIKeyUpsertOne) SetImageCountWeights(v map[string]int) *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageCountWeights(v)
+	})
+}
+
+// UpdateImageCountWeights sets the "image_count_weights" field to the value that was provided on create.
+func (u *APIKeyUpsertOne) UpdateImageCountWeights() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageCountWeights()
+	})
+}
+
+// ClearImageCountWeights clears the value of the "image_count_weights" field.
+func (u *APIKeyUpsertOne) ClearImageCountWeights() *APIKeyUpsertOne {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearImageCountWeights()
 	})
 }
 
@@ -2519,6 +2568,27 @@ func (u *APIKeyUpsertBulk) AddImageCountUsed(v int) *APIKeyUpsertBulk {
 func (u *APIKeyUpsertBulk) UpdateImageCountUsed() *APIKeyUpsertBulk {
 	return u.Update(func(s *APIKeyUpsert) {
 		s.UpdateImageCountUsed()
+	})
+}
+
+// SetImageCountWeights sets the "image_count_weights" field.
+func (u *APIKeyUpsertBulk) SetImageCountWeights(v map[string]int) *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.SetImageCountWeights(v)
+	})
+}
+
+// UpdateImageCountWeights sets the "image_count_weights" field to the value that was provided on create.
+func (u *APIKeyUpsertBulk) UpdateImageCountWeights() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.UpdateImageCountWeights()
+	})
+}
+
+// ClearImageCountWeights clears the value of the "image_count_weights" field.
+func (u *APIKeyUpsertBulk) ClearImageCountWeights() *APIKeyUpsertBulk {
+	return u.Update(func(s *APIKeyUpsert) {
+		s.ClearImageCountWeights()
 	})
 }
 

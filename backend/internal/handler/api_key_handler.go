@@ -40,9 +40,10 @@ type CreateAPIKeyRequest struct {
 	ExpiresInDays *int                     `json:"expires_in_days"` // 过期天数
 
 	// Image-only fields
-	ImageOnlyEnabled         bool `json:"image_only_enabled"`
-	ImageCountBillingEnabled bool `json:"image_count_billing_enabled"`
-	ImageMaxCount            int  `json:"image_max_count"`
+	ImageOnlyEnabled         bool           `json:"image_only_enabled"`
+	ImageCountBillingEnabled bool           `json:"image_count_billing_enabled"`
+	ImageMaxCount            int            `json:"image_max_count"`
+	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
 	// Rate limit fields (0 = unlimited)
 	RateLimit5h *float64 `json:"rate_limit_5h"`
@@ -63,9 +64,10 @@ type UpdateAPIKeyRequest struct {
 	ResetQuota  *bool                    `json:"reset_quota"`  // 重置已用配额
 
 	// Image-only fields (nil = no change)
-	ImageOnlyEnabled         *bool `json:"image_only_enabled"`
-	ImageCountBillingEnabled *bool `json:"image_count_billing_enabled"`
-	ImageMaxCount            *int  `json:"image_max_count"`
+	ImageOnlyEnabled         *bool          `json:"image_only_enabled"`
+	ImageCountBillingEnabled *bool          `json:"image_count_billing_enabled"`
+	ImageMaxCount            *int           `json:"image_max_count"`
+	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
 	// Rate limit fields (nil = no change, 0 = unlimited)
 	RateLimit5h         *float64 `json:"rate_limit_5h"`
@@ -176,6 +178,7 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 		ImageOnlyEnabled:         req.ImageOnlyEnabled,
 		ImageCountBillingEnabled: req.ImageCountBillingEnabled,
 		ImageMaxCount:            req.ImageMaxCount,
+		ImageCountWeights:        req.ImageCountWeights,
 	}
 	if req.Groups != nil {
 		groups := make([]service.APIKeyGroupUpdateInput, 0, len(*req.Groups))
@@ -243,6 +246,7 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		ImageOnlyEnabled:         req.ImageOnlyEnabled,
 		ImageCountBillingEnabled: req.ImageCountBillingEnabled,
 		ImageMaxCount:            req.ImageMaxCount,
+		ImageCountWeights:        req.ImageCountWeights,
 	}
 	if req.Name != "" {
 		svcReq.Name = &req.Name

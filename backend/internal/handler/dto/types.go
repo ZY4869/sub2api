@@ -48,10 +48,11 @@ type APIKey struct {
 	LastUsedAt       *time.Time `json:"last_used_at"`
 
 	// Image-only fields
-	ImageOnlyEnabled         bool `json:"image_only_enabled"`
-	ImageCountBillingEnabled bool `json:"image_count_billing_enabled"`
-	ImageMaxCount            int  `json:"image_max_count"`
-	ImageCountUsed           int  `json:"image_count_used"`
+	ImageOnlyEnabled         bool           `json:"image_only_enabled"`
+	ImageCountBillingEnabled bool           `json:"image_count_billing_enabled"`
+	ImageMaxCount            int            `json:"image_max_count"`
+	ImageCountUsed           int            `json:"image_count_used"`
+	ImageCountWeights        map[string]int `json:"image_count_weights"`
 
 	Quota               float64            `json:"quota"`      // Quota limit in USD (0 = unlimited)
 	QuotaUsed           float64            `json:"quota_used"` // Used quota amount in USD

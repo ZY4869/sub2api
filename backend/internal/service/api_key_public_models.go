@@ -459,6 +459,12 @@ func (s *GatewayService) findConfiguredAPIKeyModelByAnyID(
 				continue
 			}
 			for _, entry := range entries {
+				if apiKey.IsImageOnly() {
+					native, _ := s.resolvePublicImageCapability(ctx, &entry)
+					if !native {
+						continue
+					}
+				}
 				if apiKeyPublicEntryMatchesID(entry, modelID) {
 					return &entry, true
 				}
