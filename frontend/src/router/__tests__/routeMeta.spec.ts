@@ -35,4 +35,14 @@ describe('router route meta titles', () => {
     expect(titleKeys.get('KeyUsage')).toBe('keyUsage.title')
     expect(titleKeys.get('NotFound')).toBe('ui.routeTitles.notFound')
   })
+
+  it('registers the admin modules route with admin-only metadata', () => {
+    const route = router.getRoutes().find((item) => item.name === 'AdminModules')
+
+    expect(route?.path).toBe('/admin/modules')
+    expect(route?.meta.requiresAuth).toBe(true)
+    expect(route?.meta.requiresAdmin).toBe(true)
+    expect(route?.meta.titleKey).toBe('admin.modules.title')
+    expect(route?.meta.descriptionKey).toBe('admin.modules.description')
+  })
 })

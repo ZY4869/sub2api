@@ -1,6 +1,7 @@
 export default {
   nav: {
     dashboard: 'Dashboard',
+    modules: 'Modules',
     models: 'Models',
     modelsCatalog: 'Models Catalog',
     billing: 'Billing Center',

@@ -112,7 +112,9 @@ const (
 	apiQueryMaxJitter       = 800 * time.Millisecond // 用量查询最大随机延迟
 	windowStatsCacheTTL     = 1 * time.Minute
 	openAIProbeCacheTTL     = 10 * time.Minute
-	openAICodexProbeVersion = "0.104.0"
+	openAICodexProbeVersion = "0.118.0"
+	openAICodexProbeAgent   = "codex-tui/0.118.0 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9 (codex-tui; 0.118.0)"
+	openAICodexProbeOrigin  = "codex-tui"
 )
 
 // UsageCache 封装账户使用量相关的缓存
@@ -592,6 +594,12 @@ func shouldRefreshOpenAICodexSnapshot(account *Account, usage *UsageInfo, now ti
 	if usage.FiveHour == nil || usage.SevenDay == nil {
 		return true
 	}
+	if isOpenAIProPlan(account) && (usage.SparkFiveHour == nil || usage.SparkSevenDay == nil) {
+		return true
+	}
+	if isOpenAIProPlan(account) && isOpenAICodexSparkSnapshotStale(account, now) {
+		return true
+	}
 	if account.IsRateLimited() {
 		return true
 	}
@@ -606,6 +614,24 @@ func isOpenAICodexSnapshotStale(account *Account, now time.Time) bool {
 		return true
 	}
 	raw, ok := account.Extra["codex_usage_updated_at"]
+	if !ok {
+		return true
+	}
+	ts, err := parseTime(fmt.Sprint(raw))
+	if err != nil {
+		return true
+	}
+	return now.Sub(ts) >= openAIProbeCacheTTL
+}
+
+func isOpenAICodexSparkSnapshotStale(account *Account, now time.Time) bool {
+	if account == nil || !isOpenAIProPlan(account) {
+		return false
+	}
+	if account.Extra == nil {
+		return true
+	}
+	raw, ok := account.Extra[codexSparkUsageUpdatedAtKey]
 	if !ok {
 		return true
 	}
@@ -702,14 +728,9 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
-	req.Header.Set("Originator", "codex_cli_rs")
+	req.Header.Set("Originator", openAICodexProbeOrigin)
 	req.Header.Set("Version", openAICodexProbeVersion)
-	req.Header.Set("User-Agent", codexCLIUserAgent)
-	if s.identityCache != nil {
-		if fp, fpErr := s.identityCache.GetFingerprint(reqCtx, account.ID); fpErr == nil && fp != nil && strings.TrimSpace(fp.UserAgent) != "" {
-			req.Header.Set("User-Agent", strings.TrimSpace(fp.UserAgent))
-		}
-	}
+	req.Header.Set("User-Agent", openAICodexProbeAgent)
 	if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
 		req.Header.Set("chatgpt-account-id", chatgptAccountID)
 	}
@@ -769,8 +790,13 @@ func resolveOpenAICodexProbeModelID(account *Account, modelID string) string {
 	if modelID != openAICodexScopeSpark {
 		return modelID
 	}
-	mapped := strings.TrimSpace(account.GetMappedModel(modelID))
-	if mapped == "" {
+	mapped, matched := account.ResolveMappedModel(modelID)
+	mapped = strings.TrimSpace(mapped)
+	if !matched || mapped == "" {
+		return modelID
+	}
+	if normalizeOpenAICodexQuotaScope(mapped) != openAICodexScopeSpark {
+		slog.Info("openai_codex_spark_probe_mapping_ignored", "account_id", account.ID, "mapped_model", mapped)
 		return modelID
 	}
 	return mapped

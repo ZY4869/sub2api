@@ -1,6 +1,7 @@
 export default {
   nav: {
     dashboard: '仪表盘',
+    modules: '模块管理',
     models: '模型管理',
     modelsCatalog: '模型库',
     billing: '计费中心',

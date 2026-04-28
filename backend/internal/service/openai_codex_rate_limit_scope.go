@@ -11,6 +11,7 @@ const (
 	openAICodexScopeNormal        = "gpt-5.3-codex"
 	openAICodexScopeSpark         = "gpt-5.3-codex-spark"
 	codexAccountAll7dExhaustedKey = "codex_account_7d_all_exhausted"
+	codexSparkUsageUpdatedAtKey   = "codex_spark_usage_updated_at"
 	codexSpark5hUsedPercentKey    = "codex_spark_5h_used_percent"
 	codexSpark5hResetAfterKey     = "codex_spark_5h_reset_after_seconds"
 	codexSpark5hResetAtKey        = "codex_spark_5h_reset_at"
@@ -295,7 +296,8 @@ func buildCodexUsageExtraUpdatesForScope(scope string, snapshot *OpenAICodexUsag
 
 	baseTime := codexSnapshotBaseTime(snapshot, fallbackNow)
 	updates := map[string]any{
-		"codex_usage_updated_at": baseTime.Format(time.RFC3339),
+		"codex_usage_updated_at":    baseTime.Format(time.RFC3339),
+		codexSparkUsageUpdatedAtKey: baseTime.Format(time.RFC3339),
 	}
 	normalized := snapshot.Normalize()
 	if normalized == nil {

@@ -300,6 +300,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/modules',
+    name: 'AdminModules',
+    component: () => import('@/views/admin/AdminModulesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Module Management',
+      titleKey: 'admin.modules.title',
+      descriptionKey: 'admin.modules.description'
+    }
+  },
+  {
     path: '/admin/models',
     name: 'AdminModels',
     redirect: '/admin/models/all',

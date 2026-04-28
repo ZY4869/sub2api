@@ -160,12 +160,51 @@ describe('AppSidebar', () => {
       },
     })
 
+    expect(wrapper.text()).toContain('nav.modules')
     expect(wrapper.text()).toContain('nav.accounts')
     expect(wrapper.text()).toContain('nav.apiDocs')
     expect(wrapper.text()).not.toContain('nav.limitedAccounts')
     expect(wrapper.text()).not.toContain('nav.blacklist')
     expect(wrapper.find('a[href="/admin/api-docs"]').classes()).toContain('sidebar-link-active')
     expect(mockState.adminSettingsStore.fetch).toHaveBeenCalled()
+  })
+
+  it('moves module-managed admin entries out of the first-level navigation', () => {
+    mockState.authStore.isAdmin = true
+
+    const wrapper = mount(AppSidebar, {
+      global: {
+        stubs: {
+          'router-link': RouterLinkStub,
+          VersionBadge: { template: '<span data-test="version-badge" />' },
+        },
+      },
+    })
+
+    expect(wrapper.find('a[href="/admin/modules"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="/admin/promo-codes"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/redeem"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/proxies"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/subscriptions"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/channels"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/channel-monitors"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/admin/settings"]').exists()).toBe(false)
+  })
+
+  it('highlights module management for routes represented by module cards', () => {
+    mockState.authStore.isAdmin = true
+    mockState.routePath = '/admin/redeem'
+
+    const wrapper = mount(AppSidebar, {
+      global: {
+        stubs: {
+          'router-link': RouterLinkStub,
+          VersionBadge: { template: '<span data-test="version-badge" />' },
+        },
+      },
+    })
+
+    expect(wrapper.find('a[href="/admin/modules"]').classes()).toContain('sidebar-link-active')
   })
 
   it('does not render request details as a first-level navigation entry', () => {

@@ -291,6 +291,107 @@ func TestAccountUsageService_GetOpenAIUsage_IgnoresSparkWindowsForNonPro(t *test
 	}
 }
 
+func TestAccountUsageService_GetOpenAIUsage_NonProPlansProbeOnlyNormalScope(t *testing.T) {
+	t.Parallel()
+
+	plans := []string{"", "free", "plus", "team", "mystery"}
+	for _, plan := range plans {
+		plan := plan
+		t.Run("plan="+plan, func(t *testing.T) {
+			t.Parallel()
+
+			now := time.Now().UTC().Truncate(time.Second)
+			probedModels := make([]string, 0, 1)
+			svc := &AccountUsageService{
+				openAICodexScopeProbe: func(_ context.Context, _ *Account, modelID string) (map[string]any, *time.Time, error) {
+					probedModels = append(probedModels, modelID)
+					if modelID == openAICodexScopeSpark {
+						return nil, nil, fmt.Errorf("non-pro plan should not probe spark scope")
+					}
+					resetAt := now.Add(24 * time.Hour)
+					return map[string]any{
+						"codex_usage_updated_at": now.Format(time.RFC3339),
+						"codex_5h_used_percent":  12.0,
+						"codex_5h_reset_at":      now.Add(2 * time.Hour).Format(time.RFC3339),
+						"codex_7d_used_percent":  34.0,
+						"codex_7d_reset_at":      resetAt.Format(time.RFC3339),
+					}, &resetAt, nil
+				},
+			}
+			credentials := map[string]any{
+				"access_token": "token",
+			}
+			if plan != "" {
+				credentials["plan_type"] = plan
+			}
+
+			usage, err := svc.getOpenAIUsage(context.Background(), &Account{
+				ID:          5009,
+				Platform:    PlatformOpenAI,
+				Type:        AccountTypeOAuth,
+				Schedulable: true,
+				Status:      StatusActive,
+				Credentials: credentials,
+				Extra:       map[string]any{},
+			}, true)
+			if err != nil {
+				t.Fatalf("getOpenAIUsage() error = %v", err)
+			}
+			if len(probedModels) != 1 || probedModels[0] != openaipkg.DefaultTestModel {
+				t.Fatalf("probe models = %v, want [%q]", probedModels, openaipkg.DefaultTestModel)
+			}
+			if usage.SparkFiveHour != nil || usage.SparkSevenDay != nil {
+				t.Fatalf("expected non-pro plan %q to suppress spark windows, got %+v", plan, usage)
+			}
+		})
+	}
+}
+
+func TestShouldRefreshOpenAICodexSnapshot_ProRefreshesWhenSparkWindowsMissing(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC().Truncate(time.Second)
+	account := &Account{
+		ID:       5010,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Credentials: map[string]any{
+			"plan_type": "pro",
+		},
+		Extra: map[string]any{
+			"codex_usage_updated_at": now.Format(time.RFC3339),
+		},
+	}
+	usage := &UsageInfo{
+		FiveHour: &UsageProgress{
+			Utilization: 12,
+		},
+		SevenDay: &UsageProgress{
+			Utilization: 34,
+		},
+	}
+
+	if !shouldRefreshOpenAICodexSnapshot(account, usage, now) {
+		t.Fatal("expected pro account to refresh when spark usage windows are missing")
+	}
+
+	usage.SparkFiveHour = &UsageProgress{Utilization: 56}
+	usage.SparkSevenDay = &UsageProgress{Utilization: 78}
+	if !shouldRefreshOpenAICodexSnapshot(account, usage, now) {
+		t.Fatal("expected pro account to refresh when spark snapshot timestamp is missing")
+	}
+
+	account.Extra[codexSparkUsageUpdatedAtKey] = now.Add(-openAIProbeCacheTTL).Format(time.RFC3339)
+	if !shouldRefreshOpenAICodexSnapshot(account, usage, now) {
+		t.Fatal("expected pro account to refresh when spark snapshot timestamp is stale")
+	}
+
+	account.Extra[codexSparkUsageUpdatedAtKey] = now.Format(time.RFC3339)
+	if shouldRefreshOpenAICodexSnapshot(account, usage, now) {
+		t.Fatal("did not expect refresh when normal and spark windows are present and fresh")
+	}
+}
+
 func TestBuildCodexUsageProgressFromExtra_ZerosExpiredWindow(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 3, 16, 12, 0, 0, 0, time.UTC)
@@ -426,6 +527,48 @@ func TestResolveOpenAICodexProbeModelID_UsesSparkMapping(t *testing.T) {
 	}
 	if got := resolveOpenAICodexProbeModelID(account, openaipkg.DefaultTestModel); got != openaipkg.DefaultTestModel {
 		t.Fatalf("resolveOpenAICodexProbeModelID(normal) = %q, want %q", got, openaipkg.DefaultTestModel)
+	}
+}
+
+func TestResolveOpenAICodexProbeModelID_IgnoresSparkMappingToNormalScope(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		mapping map[string]any
+	}{
+		{
+			name: "exact spark mapping to normal model",
+			mapping: map[string]any{
+				openAICodexScopeSpark: openaipkg.DefaultTestModel,
+			},
+		},
+		{
+			name: "wildcard mapping to normal model",
+			mapping: map[string]any{
+				"*": openaipkg.DefaultTestModel,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			account := &Account{
+				ID:       5020,
+				Platform: PlatformOpenAI,
+				Type:     AccountTypeOAuth,
+				Credentials: map[string]any{
+					"model_mapping": tt.mapping,
+				},
+			}
+
+			if got := resolveOpenAICodexProbeModelID(account, openAICodexScopeSpark); got != openAICodexScopeSpark {
+				t.Fatalf("resolveOpenAICodexProbeModelID(spark) = %q, want %q", got, openAICodexScopeSpark)
+			}
+		})
 	}
 }
 

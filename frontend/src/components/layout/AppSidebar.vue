@@ -34,7 +34,7 @@
             :key="item.path"
             :to="item.path"
             class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path) }"
+            :class="{ 'sidebar-link-active': isActive(item) }"
             :title="sidebarCollapsed ? item.label : undefined"
             :id="
               item.path === '/admin/channels'
@@ -67,7 +67,7 @@
             :key="item.path"
             :to="item.path"
             class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path) }"
+            :class="{ 'sidebar-link-active': isActive(item) }"
             :title="sidebarCollapsed ? item.label : undefined"
             :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
             @click="handleMenuItemClick(item.path)"
@@ -89,7 +89,7 @@
             :key="item.path"
             :to="item.path"
             class="sidebar-link mb-1"
-            :class="{ 'sidebar-link-active': isActive(item.path) }"
+            :class="{ 'sidebar-link-active': isActive(item) }"
             :title="sidebarCollapsed ? item.label : undefined"
             :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
             @click="handleMenuItemClick(item.path)"
@@ -161,6 +161,7 @@ interface NavItem {
   icon: unknown
   iconSvg?: string
   hideInSimpleMode?: boolean
+  relatedPaths?: string[]
 }
 
 const { t } = useI18n()
@@ -358,21 +359,6 @@ const GlobeIcon = {
     )
 }
 
-const ServerIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008zm-3 6h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008z'
-        })
-      ]
-    )
-}
-
 const BellIcon = {
   render: () =>
     h(
@@ -388,21 +374,6 @@ const BellIcon = {
     )
 }
 
-const TicketIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z'
-        })
-      ]
-    )
-}
-
 const DocumentTextIcon = {
   render: () =>
     h(
@@ -413,26 +384,6 @@ const DocumentTextIcon = {
           'stroke-linecap': 'round',
           'stroke-linejoin': 'round',
           d: 'M19.5 14.25v-8.25A2.25 2.25 0 0017.25 3.75H6.75A2.25 2.25 0 004.5 6v12A2.25 2.25 0 006.75 20.25h5.25M16.5 8.25h-9m9 3h-9m5.25 3h-5.25m9 6l3-3m0 0l-3-3m3 3H12'
-        })
-      ]
-    )
-}
-
-const CogIcon = {
-  render: () =>
-    h(
-      'svg',
-      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
-      [
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z'
-        }),
-        h('path', {
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          d: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'
         })
       ]
     )
@@ -630,6 +581,21 @@ const customMenuItemsForAdmin = computed(() => {
 const adminNavItems = computed((): NavItem[] => {
   const baseItems: NavItem[] = [
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
+    {
+      path: '/admin/modules',
+      label: t('nav.modules'),
+      icon: FolderIcon,
+      relatedPaths: [
+        '/admin/affiliates',
+        '/admin/channels',
+        '/admin/channel-monitors',
+        '/admin/subscriptions',
+        '/admin/proxies',
+        '/admin/redeem',
+        '/admin/promo-codes',
+        '/admin/settings'
+      ]
+    },
     { path: '/admin/billing', label: t('nav.billing', 'Billing Center'), icon: CreditCardIcon },
     { path: '/admin/models', label: t('nav.models'), icon: DatabaseIcon },
     ...(adminSettingsStore.opsMonitoringEnabled
@@ -638,17 +604,10 @@ const adminNavItems = computed((): NavItem[] => {
         ]
       : []),
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
-    { path: '/admin/affiliates', label: t('admin.affiliates.nav', 'Affiliates'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
-    { path: '/admin/channels', label: t('admin.channels.title', 'Channels'), icon: GlobeIcon, hideInSimpleMode: true },
-    { path: '/admin/channel-monitors', label: t('admin.channelMonitors.nav', 'Channel Monitors'), icon: ChartIcon, hideInSimpleMode: true },
-    { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/api-docs', label: t('nav.apiDocs'), icon: DocumentTextIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
-    { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
-    { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }
   ]
 
@@ -656,16 +615,14 @@ const adminNavItems = computed((): NavItem[] => {
   if (authStore.isSimpleMode) {
     const filtered = baseItems.filter(item => !item.hideInSimpleMode)
     filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
-    filtered.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
-    // Add admin custom menu items after settings
+    // Add admin custom menu items after fixed entries
     for (const cm of customMenuItemsForAdmin.value) {
       filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
     }
     return filtered
   }
 
-  baseItems.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
-  // Add admin custom menu items after settings
+  // Add admin custom menu items after fixed entries
   for (const cm of customMenuItemsForAdmin.value) {
     baseItems.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
   }
@@ -706,8 +663,9 @@ function handleMenuItemClick(itemPath: string) {
   }
 }
 
-function isActive(path: string): boolean {
-  return route.path === path || route.path.startsWith(path + '/')
+function isActive(item: NavItem): boolean {
+  const paths = [item.path, ...(item.relatedPaths ?? [])]
+  return paths.some((path) => route.path === path || route.path.startsWith(path + '/'))
 }
 
 // Initialize theme

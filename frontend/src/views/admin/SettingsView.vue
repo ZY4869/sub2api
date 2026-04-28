@@ -16,7 +16,7 @@
               :key="tab.key"
               type="button"
               :class="['settings-tab', activeTab === tab.key && 'settings-tab-active']"
-              @click="activeTab = tab.key"
+              @click="activateTab(tab.key)"
             >
               <span class="settings-tab-icon">
                 <Icon :name="tab.icon" size="sm" />
@@ -2053,7 +2053,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api'
 import type {
@@ -2075,6 +2076,7 @@ import GoogleBatchGCSProfilesManager from '@/components/settings/GoogleBatchGCSP
 import { useClipboard } from '@/composables/useClipboard'
 import { useAppStore } from '@/stores'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
+import { resolveSettingsTab, settingsTabs, type SettingsTab } from './settingsTabs'
 import {
   isRegistrationEmailSuffixDomainValid,
   normalizeRegistrationEmailSuffixDomain,
@@ -2083,20 +2085,26 @@ import {
 } from '@/utils/registrationEmailPolicy'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
 const adminSettingsStore = useAdminSettingsStore()
 
-type SettingsTab = 'general' | 'security' | 'users' | 'gateway' | 'notification' | 'email'
-const activeTab = ref<SettingsTab>('general')
-const settingsTabs = [
-  { key: 'general'  as SettingsTab, icon: 'home'   as const },
-  { key: 'security' as SettingsTab, icon: 'shield' as const },
-  { key: 'users'    as SettingsTab, icon: 'user'   as const },
-  { key: 'gateway'  as SettingsTab, icon: 'server' as const },
-  { key: 'notification' as SettingsTab, icon: 'bell' as const },
-  { key: 'email'    as SettingsTab, icon: 'mail'   as const },
-]
+const activeTab = ref<SettingsTab>(resolveSettingsTab(route.query.tab))
 const { copyToClipboard } = useClipboard()
+
+function activateTab(tab: SettingsTab) {
+  activeTab.value = tab
+  if (resolveSettingsTab(route.query.tab) === tab) return
+  router.replace({ query: { ...route.query, tab } }).catch(() => undefined)
+}
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    activeTab.value = resolveSettingsTab(tab)
+  }
+)
 
 const loading = ref(true)
 const saving = ref(false)
