@@ -98,6 +98,22 @@ func RegisterGatewayRoutes(
 		grokV1.POST("/videos/generations", dispatchers.GrokVideosGeneration)
 		grokV1.GET("/videos/:request_id", dispatchers.GrokVideosStatus)
 	}
+	deepseekV1 := r.Group("/deepseek/v1")
+	deepseekV1.Use(bodyLimit)
+	deepseekV1.Use(clientRequestID)
+	deepseekV1.Use(opsErrorLogger)
+	deepseekV1.Use(opsRequestTraceLogger)
+	deepseekV1.Use(endpointNorm)
+	deepseekV1.Use(middleware.ForcePlatform(service.PlatformDeepSeek))
+	deepseekV1.Use(gin.HandlerFunc(apiKeyAuth))
+	deepseekV1.Use(requireGatewayMaintenanceCompat)
+	deepseekV1.Use(requireGroupAnthropic)
+	{
+		deepseekV1.GET("/models", h.Gateway.Models)
+		deepseekV1.POST("/chat/completions", dispatchers.OpenAIChatCompletions)
+		deepseekV1.POST("/messages", dispatchers.AnthropicMessages)
+		deepseekV1.POST("/messages/count_tokens", dispatchers.AnthropicCountTokens)
+	}
 	gemini.Use(bodyLimit)
 	gemini.Use(clientRequestID)
 	gemini.Use(opsErrorLogger)

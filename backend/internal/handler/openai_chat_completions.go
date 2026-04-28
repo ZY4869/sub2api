@@ -32,6 +32,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 	if apiKey.Group != nil {
 		applyOpenAIPlatformContext(c, apiKey.Group.Platform)
 	}
+	forcePlatform, hasForcePlatform := middleware2.GetForcePlatformFromContext(c)
+	if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+		applyOpenAIPlatformContext(c, forcePlatform)
+	}
 
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -114,7 +118,12 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			apiKey,
 			subscription,
 			reqModel,
-			openAICompatiblePlatforms,
+			func() []string {
+				if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+					return []string{forcePlatform}
+				}
+				return openAITextCompatiblePlatforms
+			}(),
 			excludedGroupIDs,
 		)
 		if err != nil {
@@ -128,6 +137,9 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		}
 		if currentAPIKey.Group != nil {
 			applyOpenAIPlatformContext(c, currentAPIKey.Group.Platform)
+		}
+		if hasForcePlatform && strings.TrimSpace(forcePlatform) != "" {
+			applyOpenAIPlatformContext(c, forcePlatform)
 		}
 		runtimeSelectionModel, channelState, err := bindGatewayChannelState(c, h.gatewayService, currentAPIKey.Group, reqModel)
 		if err != nil {

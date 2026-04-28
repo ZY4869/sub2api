@@ -354,6 +354,15 @@ func ResolveOpenAITextRequestFormatForAccount(account *Account, inboundEndpoint 
 		}
 	}
 
+	if resolvedAccount != nil && RoutingPlatformForAccount(resolvedAccount) == PlatformDeepSeek {
+		switch normalizedInbound {
+		case "", EndpointChatCompletions:
+			return GatewayOpenAIRequestFormatChatCompletions
+		default:
+			return normalizedInbound
+		}
+	}
+
 	preferred := ""
 	if resolvedAccount != nil &&
 		IsProtocolGatewayAccount(resolvedAccount) &&

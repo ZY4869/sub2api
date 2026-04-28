@@ -31,6 +31,7 @@ export const DOCS_PAGE_ORDER = [
   'anthropic',
   'gemini',
   'grok',
+  'deepseek',
   'antigravity',
   'vertex-batch',
   'document-ai',
@@ -111,6 +112,11 @@ export const DOCS_PAGE_META: Record<DocsPageId, DocsPageMeta> = {
     description: '整理 Grok 的 Responses、聊天、图像与视频能力。',
     shortTitle: 'Grok',
     title: 'Grok',
+  },
+  deepseek: {
+    description: '展示 DeepSeek OpenAI/Anthropic 兼容入口、强制前缀与不支持能力。',
+    shortTitle: 'DeepSeek',
+    title: 'DeepSeek',
   },
   antigravity: {
     description: '解释 Antigravity 强制前缀下的 Anthropic 与 Gemini 风格入口。',

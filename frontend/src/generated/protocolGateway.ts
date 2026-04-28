@@ -11,7 +11,7 @@ export interface GeneratedProtocolGatewayDescriptor {
   targetGroupPlatform: GatewayAcceptedProtocol | ''
 }
 
-export const generatedProtocolGatewayBuiltAt = "2026-04-25T12:20:24Z"
+export const generatedProtocolGatewayBuiltAt = "2026-04-28T02:23:00Z"
 
 export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, GeneratedProtocolGatewayDescriptor> = {
   "anthropic": {
@@ -102,9 +102,9 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/v1/videos",
       "/v1/videos/generations",
       "/v1/videos/:request_id",
+      "/v1/models",
       "/v1/messages",
       "/v1/messages/count_tokens",
-      "/v1/models",
       "/v1beta/models/{model}:generateContent",
       "/v1/models/{model}:generateContent",
       "/v1beta/models/{model}:generateAnswer",
@@ -174,7 +174,8 @@ export const generatedProtocolGatewayDescriptors: Record<GatewayProtocol, Genera
       "/v1/images/edits",
       "/v1/videos",
       "/v1/videos/generations",
-      "/v1/videos/:request_id"
+      "/v1/videos/:request_id",
+      "/v1/models"
     ],
     "defaultBaseUrl": "https://api.openai.com",
     "apiKeyPlaceholder": "sk-proj-...",

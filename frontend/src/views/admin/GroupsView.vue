@@ -105,6 +105,8 @@
                       ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
                       : value === 'grok'
                         ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                      : value === 'deepseek'
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                       : value === 'antigravity'
                         ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                         : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -1812,6 +1814,8 @@
                           ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400'
                         : group.platform === 'grok'
                           ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                        : group.platform === 'deepseek'
+                          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                         : group.platform === 'antigravity'
                           ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -2011,6 +2015,7 @@ const platformOptions = computed<PlatformSelectOption[]>(() => [
   buildPlatformSelectOption('openai'),
   buildPlatformSelectOption('copilot'),
   buildPlatformSelectOption('grok'),
+  buildPlatformSelectOption('deepseek'),
   buildPlatformSelectOption('gemini'),
   buildPlatformSelectOption('antigravity'),
   buildPlatformSelectOption('baidu_document_ai')

@@ -26,6 +26,7 @@ const (
 	PlatformKiro            = "kiro"
 	PlatformCopilot         = "copilot"
 	PlatformGrok            = "grok"
+	PlatformDeepSeek        = "deepseek"
 	PlatformBaiduDocumentAI = "baidu_document_ai"
 )
 

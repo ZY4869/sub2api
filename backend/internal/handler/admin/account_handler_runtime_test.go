@@ -82,12 +82,23 @@ func TestAccountHandlerGetRuntimeSummaryAvailableOnlyReturnsZeroInUse(t *testing
 	require.Equal(t, int64(0), resp.Data.InUse)
 }
 
-func TestAccountMatchesRuntimeSummaryFilters_UsesDisplayRateLimitProjection(t *testing.T) {
+func TestAccountMatchesRuntimeSummaryFilters_RequiresDispatchableAccount(t *testing.T) {
 	now := time.Date(2026, 4, 22, 12, 0, 0, 0, time.UTC)
 	resetAt := now.Add(6 * time.Hour).UTC().Truncate(time.Second)
 
-	nonProLimited := &service.Account{
+	normal := &service.Account{
 		ID:          1,
+		Platform:    service.PlatformOpenAI,
+		Type:        service.AccountTypeOAuth,
+		Status:      service.StatusActive,
+		Schedulable: true,
+	}
+	require.True(t, accountMatchesRuntimeSummaryFilters(normal, service.AccountStatusSummaryFilters{}, now))
+	require.True(t, accountMatchesRuntimeSummaryFilters(normal, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewNormalOnly}, now))
+	require.False(t, accountMatchesRuntimeSummaryFilters(normal, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewLimitedOnly}, now))
+
+	nonProLimited := &service.Account{
+		ID:          2,
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeOAuth,
 		Status:      service.StatusActive,
@@ -97,11 +108,12 @@ func TestAccountMatchesRuntimeSummaryFilters_UsesDisplayRateLimitProjection(t *t
 			"codex_7d_reset_at":     resetAt.Format(time.RFC3339),
 		},
 	}
-	require.True(t, accountMatchesRuntimeSummaryFilters(nonProLimited, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewLimitedOnly}, now))
+	require.False(t, accountMatchesRuntimeSummaryFilters(nonProLimited, service.AccountStatusSummaryFilters{}, now))
+	require.False(t, accountMatchesRuntimeSummaryFilters(nonProLimited, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewLimitedOnly}, now))
 	require.False(t, accountMatchesRuntimeSummaryFilters(nonProLimited, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewNormalOnly}, now))
 
 	proPartial := &service.Account{
-		ID:          2,
+		ID:          3,
 		Platform:    service.PlatformOpenAI,
 		Type:        service.AccountTypeOAuth,
 		Status:      service.StatusActive,
@@ -116,4 +128,95 @@ func TestAccountMatchesRuntimeSummaryFilters_UsesDisplayRateLimitProjection(t *t
 	}
 	require.False(t, accountMatchesRuntimeSummaryFilters(proPartial, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewLimitedOnly}, now))
 	require.True(t, accountMatchesRuntimeSummaryFilters(proPartial, service.AccountStatusSummaryFilters{LimitedView: service.AccountLimitedViewNormalOnly}, now))
+
+	future := now.Add(10 * time.Minute)
+	expired := now.Add(-10 * time.Minute)
+	cases := []struct {
+		name    string
+		account *service.Account
+	}{
+		{
+			name: "persisted_rate_limited",
+			account: &service.Account{
+				ID:               4,
+				Platform:         service.PlatformOpenAI,
+				Type:             service.AccountTypeOAuth,
+				Status:           service.StatusActive,
+				Schedulable:      true,
+				RateLimitResetAt: &future,
+			},
+		},
+		{
+			name: "paused",
+			account: &service.Account{
+				ID:          5,
+				Platform:    service.PlatformOpenAI,
+				Type:        service.AccountTypeOAuth,
+				Status:      service.StatusActive,
+				Schedulable: false,
+			},
+		},
+		{
+			name: "error",
+			account: &service.Account{
+				ID:          6,
+				Platform:    service.PlatformOpenAI,
+				Type:        service.AccountTypeOAuth,
+				Status:      service.StatusError,
+				Schedulable: true,
+			},
+		},
+		{
+			name: "temp_unschedulable",
+			account: &service.Account{
+				ID:                      7,
+				Platform:                service.PlatformOpenAI,
+				Type:                    service.AccountTypeOAuth,
+				Status:                  service.StatusActive,
+				Schedulable:             true,
+				TempUnschedulableUntil:  &future,
+				TempUnschedulableReason: "temporary upstream error",
+			},
+		},
+		{
+			name: "overloaded",
+			account: &service.Account{
+				ID:            8,
+				Platform:      service.PlatformOpenAI,
+				Type:          service.AccountTypeOAuth,
+				Status:        service.StatusActive,
+				Schedulable:   true,
+				OverloadUntil: &future,
+			},
+		},
+		{
+			name: "auto_paused_expired",
+			account: &service.Account{
+				ID:                 9,
+				Platform:           service.PlatformOpenAI,
+				Type:               service.AccountTypeOAuth,
+				Status:             service.StatusActive,
+				Schedulable:        true,
+				AutoPauseOnExpired: true,
+				ExpiresAt:          &expired,
+			},
+		},
+		{
+			name: "blacklisted",
+			account: &service.Account{
+				ID:             10,
+				Platform:       service.PlatformOpenAI,
+				Type:           service.AccountTypeOAuth,
+				Status:         service.StatusActive,
+				Schedulable:    true,
+				LifecycleState: service.AccountLifecycleBlacklisted,
+			},
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.False(t, accountMatchesRuntimeSummaryFilters(tt.account, service.AccountStatusSummaryFilters{}, now))
+		})
+	}
 }

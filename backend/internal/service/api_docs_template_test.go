@@ -16,6 +16,7 @@ func TestBuildDefaultAPIDocsTemplateFromFS(t *testing.T) {
 		"docs/pages/anthropic.md":     {Data: []byte("## anthropic\nAnthropic body\n")},
 		"docs/pages/gemini.md":        {Data: []byte("## gemini\nGemini body\n")},
 		"docs/pages/grok.md":          {Data: []byte("## grok\nGrok body\n")},
+		"docs/pages/deepseek.md":      {Data: []byte("## deepseek\nDeepSeek body\n")},
 		"docs/pages/antigravity.md":   {Data: []byte("## antigravity\nAntigravity body\n")},
 		"docs/pages/vertex-batch.md":  {Data: []byte("## vertex-batch\nVertex body\n")},
 		"docs/pages/document-ai.md":   {Data: []byte("## document-ai\nDocument AI body\n")},
@@ -31,6 +32,7 @@ func TestBuildDefaultAPIDocsTemplateFromFS(t *testing.T) {
 		"anthropic":     "Anthropic body",
 		"gemini":        "Gemini body",
 		"grok":          "Grok body",
+		"deepseek":      "DeepSeek body",
 		"antigravity":   "Antigravity body",
 		"vertex-batch":  "Vertex body",
 		"document-ai":   "Document AI body",
@@ -64,6 +66,7 @@ func TestBuildDefaultAPIDocsTemplateFromFS_RejectsMismatchedPageHeader(t *testin
 		"docs/pages/document-ai.md":   {Data: []byte("## document-ai\nDocument AI body\n")},
 		"docs/pages/gemini.md":        {Data: []byte("## openai\nWrong header\n")},
 		"docs/pages/grok.md":          {Data: []byte("## grok\nGrok body\n")},
+		"docs/pages/deepseek.md":      {Data: []byte("## deepseek\nDeepSeek body\n")},
 		"docs/pages/antigravity.md":   {Data: []byte("## antigravity\nAntigravity body\n")},
 		"docs/pages/vertex-batch.md":  {Data: []byte("## vertex-batch\nVertex body\n")},
 	}

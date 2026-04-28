@@ -34,6 +34,9 @@ func (s *GatewayService) resolveAnthropicTargetURL(account *Account, path, defau
 		if err != nil {
 			return "", err
 		}
+		if account.Platform == PlatformDeepSeek {
+			return strings.TrimRight(validatedURL, "/") + path, nil
+		}
 		return strings.TrimRight(validatedURL, "/") + path + "?beta=true", nil
 	}
 	if !account.IsCustomBaseURLEnabled() {

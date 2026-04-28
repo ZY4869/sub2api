@@ -49,6 +49,7 @@ func applyAdminAccountListFilters(q *dbent.AccountQuery, filters adminAccountLis
 			}))
 		}
 		q = q.Where(dbaccount.IDIn(filters.CandidateAccountIDs...))
+		q = q.Where(dispatchableAccountPredicate())
 	case service.AccountRuntimeViewAvailableOnly:
 		q = q.Where(dispatchableAccountPredicate())
 		if len(filters.CandidateAccountIDs) > 0 {
@@ -144,6 +145,7 @@ func appendAdminAccountFilterWhereClauses(whereClauses []string, args []any, arg
 		whereClauses = append(whereClauses, fmt.Sprintf("%s.id = ANY($%d)", tableAlias, argIndex))
 		args = append(args, pq.Array(filters.CandidateAccountIDs))
 		argIndex++
+		whereClauses = appendDispatchableAccountWhereClauses(whereClauses, tableAlias)
 	case service.AccountRuntimeViewAvailableOnly:
 		whereClauses = appendDispatchableAccountWhereClauses(whereClauses, tableAlias)
 		if len(filters.CandidateAccountIDs) > 0 {
@@ -218,6 +220,9 @@ func dispatchableAccountPredicate() dbpredicate.Account {
 	return dbpredicate.Account(func(s *entsql.Selector) {
 		tempUnschedulableUntil := s.C("temp_unschedulable_until")
 		overloadUntil := s.C("overload_until")
+		lifecycleState := s.C("lifecycle_state")
+		expiresAt := s.C("expires_at")
+		autoPauseOnExpired := s.C("auto_pause_on_expired")
 		cols := accountLimitedSQLColumns{
 			Platform:         s.C("platform"),
 			Credentials:      s.C("credentials"),
@@ -228,6 +233,8 @@ func dispatchableAccountPredicate() dbpredicate.Account {
 		s.Where(entsql.And(
 			entsql.EQ(s.C("status"), service.StatusActive),
 			entsql.EQ(s.C("schedulable"), true),
+			entsql.ExprP(fmt.Sprintf("COALESCE(%s, '%s') <> '%s'", lifecycleState, service.AccountLifecycleNormal, service.AccountLifecycleBlacklisted)),
+			entsql.ExprP(fmt.Sprintf("(COALESCE(%s, FALSE) = FALSE OR %s IS NULL OR %s > NOW())", autoPauseOnExpired, expiresAt, expiresAt)),
 			entsql.ExprP(fmt.Sprintf("NOT (%s)", accountDisplayRateLimitSQL(cols))),
 			entsql.Or(entsql.IsNull(tempUnschedulableUntil), entsql.LTE(tempUnschedulableUntil, entsql.Expr("NOW()"))),
 			entsql.Or(entsql.IsNull(overloadUntil), entsql.LTE(overloadUntil, entsql.Expr("NOW()"))),
@@ -246,6 +253,8 @@ func appendDispatchableAccountWhereClauses(whereClauses []string, tableAlias str
 	whereClauses = append(whereClauses,
 		fmt.Sprintf("%s.status = '%s'", tableAlias, service.StatusActive),
 		fmt.Sprintf("%s.schedulable = TRUE", tableAlias),
+		fmt.Sprintf("COALESCE(%s.lifecycle_state, '%s') <> '%s'", tableAlias, service.AccountLifecycleNormal, service.AccountLifecycleBlacklisted),
+		fmt.Sprintf("(COALESCE(%s.auto_pause_on_expired, FALSE) = FALSE OR %s.expires_at IS NULL OR %s.expires_at > NOW())", tableAlias, tableAlias, tableAlias),
 		fmt.Sprintf("NOT (%s)", accountDisplayRateLimitSQL(cols)),
 		fmt.Sprintf("(%s.temp_unschedulable_until IS NULL OR %s.temp_unschedulable_until <= NOW())", tableAlias, tableAlias),
 		fmt.Sprintf("(%s.overload_until IS NULL OR %s.overload_until <= NOW())", tableAlias, tableAlias),

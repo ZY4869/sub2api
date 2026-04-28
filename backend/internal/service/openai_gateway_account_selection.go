@@ -131,7 +131,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 		_ = s.deleteStickySessionAccountID(ctx, groupID, sessionHash)
 		return nil
 	}
-	if !account.IsSchedulable() || !account.IsOpenAI() {
+	if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {
 		return nil
 	}
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, account, requestedModel) {
@@ -268,7 +268,7 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 				}
 				if !clearSticky &&
 					account.IsSchedulable() &&
-					account.IsOpenAI() &&
+					isOpenAITextRuntimeAccount(account) &&
 					(requestedModel == "" || s.isModelSupportedByAccountWithContext(ctx, account, requestedModel)) &&
 					account.IsSchedulableForModelWithContext(ctx, requestedModel) {
 					account = s.recheckSelectedOpenAIAccountFromDB(ctx, account, requestedModel)
@@ -462,7 +462,7 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	}
 	filtered := make([]Account, 0, len(accounts))
 	for _, acc := range accounts {
-		if acc.IsOpenAI() {
+		if isOpenAITextRuntimeAccount(&acc) {
 			filtered = append(filtered, acc)
 		}
 	}
@@ -487,7 +487,7 @@ func (s *OpenAIGatewayService) resolveFreshSchedulableOpenAIAccount(ctx context.
 		}
 		fresh = current
 	}
-	if !fresh.IsSchedulable() || !fresh.IsOpenAI() {
+	if !fresh.IsSchedulable() || !isOpenAITextRuntimeAccount(fresh) {
 		return nil
 	}
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, fresh, requestedModel) {
@@ -497,6 +497,10 @@ func (s *OpenAIGatewayService) resolveFreshSchedulableOpenAIAccount(ctx context.
 		return nil
 	}
 	return fresh
+}
+
+func isOpenAITextRuntimeAccount(account *Account) bool {
+	return account != nil && account.IsOpenAITextCompatible()
 }
 func (s *OpenAIGatewayService) getSchedulableAccount(ctx context.Context, accountID int64) (*Account, error) {
 	var (
@@ -572,6 +576,9 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 		return accessToken, "oauth", nil
 	case AccountTypeAPIKey:
 		apiKey := account.GetOpenAIApiKey()
+		if account.Platform == PlatformDeepSeek {
+			apiKey = strings.TrimSpace(account.GetCredential("api_key"))
+		}
 		if apiKey == "" {
 			return "", "", errors.New("api_key not found in credentials")
 		}

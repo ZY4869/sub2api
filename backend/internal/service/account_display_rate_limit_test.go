@@ -91,6 +91,40 @@ func TestAccountDisplayRateLimitState(t *testing.T) {
 			wantLimit: false,
 		},
 		{
+			name: "pro spark only ignores legacy persisted usage 7d",
+			account: &Account{
+				Platform:         PlatformOpenAI,
+				Type:             AccountTypeOAuth,
+				RateLimitResetAt: &sevenDayReset,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra: map[string]any{
+					"rate_limit_reason":        AccountRateLimitReasonUsage7d,
+					codexSpark7dUsedPercentKey: 100.0,
+					codexSpark7dResetAtKey:     sevenDayReset.Format(time.RFC3339),
+				},
+			},
+			wantLimit: false,
+		},
+		{
+			name: "pro normal only ignores legacy persisted usage 5h",
+			account: &Account{
+				Platform:         PlatformOpenAI,
+				Type:             AccountTypeOAuth,
+				RateLimitResetAt: &fiveHourReset,
+				Credentials: map[string]any{
+					"plan_type": "pro",
+				},
+				Extra: map[string]any{
+					"rate_limit_reason":     AccountRateLimitReasonUsage5h,
+					"codex_5h_used_percent": 100.0,
+					"codex_5h_reset_at":     fiveHourReset.Format(time.RFC3339),
+				},
+			},
+			wantLimit: false,
+		},
+		{
 			name: "pro both 5h uses earlier reset",
 			account: &Account{
 				Platform: PlatformOpenAI,

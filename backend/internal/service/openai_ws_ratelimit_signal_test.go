@@ -758,6 +758,53 @@ func TestAdminService_ListAccounts_ProPartialCodexLimitStaysPartiallyAvailable(t
 	}
 }
 
+func TestAdminService_GetAccount_ProSparkLegacyAccountLimitHidden(t *testing.T) {
+	resetAt := time.Now().Add(4 * 24 * time.Hour).UTC().Truncate(time.Second)
+	repo := &openAICodexSnapshotAsyncRepo{
+		stubOpenAIAccountRepo: stubOpenAIAccountRepo{accounts: []Account{{
+			ID:               704,
+			Platform:         PlatformOpenAI,
+			Type:             AccountTypeOAuth,
+			Status:           StatusActive,
+			Schedulable:      true,
+			Concurrency:      1,
+			RateLimitResetAt: &resetAt,
+			Credentials: map[string]any{
+				"plan_type": "pro",
+			},
+			Extra: map[string]any{
+				"rate_limit_reason":        AccountRateLimitReasonUsage7d,
+				codexSpark7dUsedPercentKey: 100.0,
+				codexSpark7dResetAtKey:     resetAt.Format(time.RFC3339),
+			},
+		}}},
+		clearRateLimitCh: make(chan struct{}, 1),
+		modelLimitCh: make(chan struct {
+			scope   string
+			resetAt time.Time
+		}, 1),
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	account, err := svc.GetAccount(context.Background(), 704)
+	require.NoError(t, err)
+	require.NotNil(t, account)
+	require.Nil(t, account.RateLimitResetAt)
+	require.NotContains(t, account.Extra, "rate_limit_reason")
+	select {
+	case persisted := <-repo.modelLimitCh:
+		require.Equal(t, openAICodexScopeSpark, persisted.scope)
+		require.WithinDuration(t, resetAt, persisted.resetAt, time.Second)
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待详情补写 spark 模型限流状态超时")
+	}
+	select {
+	case <-repo.clearRateLimitCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("等待详情清理旧整号限流状态超时")
+	}
+}
+
 func TestOpenAIWSErrorHTTPStatusFromRaw_UsageLimitReachedIs429(t *testing.T) {
 	require.Equal(t, http.StatusTooManyRequests, openAIWSErrorHTTPStatusFromRaw("", "usage_limit_reached"))
 	require.Equal(t, http.StatusTooManyRequests, openAIWSErrorHTTPStatusFromRaw("rate_limit_exceeded", ""))

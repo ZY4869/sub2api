@@ -360,6 +360,7 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 		}
 
 		if filters.Platform == "" || strings.EqualFold(strings.TrimSpace(account.Platform), strings.TrimSpace(filters.Platform)) {
+			displayRateLimit := service.AccountDisplayRateLimitState(&account, now)
 			summary.Total++
 			switch service.PresentAdminAccountStatus(account.Status) {
 			case "active":
@@ -369,7 +370,7 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 			case "error":
 				summary.ByStatus["error"]++
 			}
-			if account.RateLimitResetAt != nil && account.RateLimitResetAt.After(now) {
+			if displayRateLimit.Limited {
 				summary.RateLimited++
 			}
 			if account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now) {
@@ -381,11 +382,7 @@ func (s *stubAdminService) GetAccountStatusSummary(ctx context.Context, filters 
 			if !account.Schedulable {
 				summary.Paused++
 			}
-			if account.Status == service.StatusActive &&
-				account.Schedulable &&
-				(account.RateLimitResetAt == nil || !account.RateLimitResetAt.After(now)) &&
-				(account.TempUnschedulableUntil == nil || !account.TempUnschedulableUntil.After(now)) &&
-				(account.OverloadUntil == nil || !account.OverloadUntil.After(now)) {
+			if accountMatchesRuntimeDispatchableState(&account, now) {
 				summary.DispatchableCount++
 			}
 		}
@@ -414,6 +411,9 @@ func matchesRuntimeView(account service.Account, runtimeFilters service.AccountR
 		if len(runtimeFilters.CandidateAccountIDs) == 0 {
 			return false
 		}
+		if !accountMatchesRuntimeDispatchableState(&account, now) {
+			return false
+		}
 		for _, id := range runtimeFilters.CandidateAccountIDs {
 			if id == account.ID {
 				return true
@@ -421,16 +421,7 @@ func matchesRuntimeView(account service.Account, runtimeFilters service.AccountR
 		}
 		return false
 	case service.AccountRuntimeViewAvailableOnly:
-		if account.Status != service.StatusActive || !account.Schedulable {
-			return false
-		}
-		if account.RateLimitResetAt != nil && account.RateLimitResetAt.After(now) {
-			return false
-		}
-		if account.TempUnschedulableUntil != nil && account.TempUnschedulableUntil.After(now) {
-			return false
-		}
-		if account.OverloadUntil != nil && account.OverloadUntil.After(now) {
+		if !accountMatchesRuntimeDispatchableState(&account, now) {
 			return false
 		}
 		for _, id := range runtimeFilters.CandidateAccountIDs {

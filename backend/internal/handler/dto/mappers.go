@@ -242,14 +242,15 @@ func AccountFromServiceShallow(a *service.Account) *Account {
 	if enriched, changed := service.EnrichOpenAIOAuthCredentials(a.Platform, a.Type, a.Credentials); changed {
 		credentials = enriched
 	}
-	rateLimitedAt := a.RateLimitedAt
-	rateLimitResetAt := a.RateLimitResetAt
-	rateLimitReason := service.AccountRateLimitReason(a, now)
+	var rateLimitedAt *time.Time
+	var rateLimitResetAt *time.Time
+	rateLimitReason := ""
 	if displayRateLimit.Limited {
 		rateLimitResetAt = displayRateLimit.ResetAt
 		if strings.TrimSpace(displayRateLimit.Reason) != "" {
 			rateLimitReason = displayRateLimit.Reason
 		}
+		rateLimitedAt = a.RateLimitedAt
 		if rateLimitedAt == nil {
 			projected := now.UTC()
 			rateLimitedAt = &projected

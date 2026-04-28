@@ -371,7 +371,7 @@ func containsGatewayProtocol(values []string, target string) bool {
 
 func supportedProtocolsForProvider(provider string) []string {
 	switch NormalizeModelProvider(provider) {
-	case PlatformOpenAI, PlatformGrok, PlatformCopilot:
+	case PlatformOpenAI, PlatformGrok, PlatformCopilot, PlatformDeepSeek:
 		return []string{PlatformOpenAI}
 	case PlatformAnthropic, PlatformKiro:
 		return []string{PlatformAnthropic}
@@ -901,7 +901,7 @@ func (s *AccountTestService) testAccountConnectionHealthCheck(c *gin.Context, ac
 		return s.testBaiduDocumentAIAccountConnection(c, account)
 	}
 
-	if account.IsOpenAI() {
+	if account.IsOpenAI() || account.IsDeepSeek() {
 		if isOpenAIGPTImageProfileModelID(modelID) {
 			return s.testOpenAIImageAccountConnection(c, account, modelID, prompt, resolvedSourceProtocol, simulatedClient)
 		}
@@ -1002,7 +1002,10 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 		if err != nil {
 			return s.sendErrorAndEnd(c, fmt.Sprintf("Invalid base URL: %s", err.Error()))
 		}
-		apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages?beta=true"
+		apiURL = strings.TrimSuffix(normalizedBaseURL, "/") + "/v1/messages"
+		if account.Platform != PlatformDeepSeek {
+			apiURL += "?beta=true"
+		}
 	} else {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Unsupported account type: %s", account.Type))
 	}
@@ -1331,11 +1334,14 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	} else if account.Type == "apikey" {
 		// API Key - use Platform API
 		authToken = account.GetOpenAIApiKey()
+		if account.Platform == PlatformDeepSeek {
+			authToken = strings.TrimSpace(account.GetCredential("api_key"))
+		}
 		if authToken == "" {
 			return s.sendErrorAndEnd(c, "No API key available")
 		}
 
-		baseURL := account.GetOpenAIBaseURL()
+		baseURL := resolveOpenAICompatibleBaseURL(account)
 		if baseURL == "" {
 			baseURL = "https://api.openai.com"
 		}

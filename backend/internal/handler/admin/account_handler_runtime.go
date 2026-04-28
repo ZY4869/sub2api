@@ -190,6 +190,9 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 	if account == nil {
 		return false
 	}
+	if !accountMatchesRuntimeDispatchableState(account, now) {
+		return false
+	}
 	if platform := strings.TrimSpace(filters.Platform); platform != "" && !strings.EqualFold(account.Platform, platform) {
 		return false
 	}
@@ -261,6 +264,28 @@ func accountMatchesRuntimeSummaryFilters(account *service.Account, filters servi
 		}
 	}
 
+	return true
+}
+
+func accountMatchesRuntimeDispatchableState(account *service.Account, now time.Time) bool {
+	if account == nil {
+		return false
+	}
+	if account.Status != service.StatusActive || !account.Schedulable || !service.IsAccountLifecycleSchedulable(account.LifecycleState) {
+		return false
+	}
+	if account.AutoPauseOnExpired && account.ExpiresAt != nil && !now.Before(*account.ExpiresAt) {
+		return false
+	}
+	if account.TempUnschedulableUntil != nil && now.Before(*account.TempUnschedulableUntil) {
+		return false
+	}
+	if account.OverloadUntil != nil && now.Before(*account.OverloadUntil) {
+		return false
+	}
+	if service.AccountDisplayRateLimitState(account, now).Limited {
+		return false
+	}
 	return true
 }
 

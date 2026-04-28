@@ -166,6 +166,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		}
 		if currentPlatform != service.PlatformGemini &&
 			currentPlatform != service.PlatformAnthropic &&
+			currentPlatform != service.PlatformDeepSeek &&
 			currentPlatform != service.PlatformAntigravity &&
 			currentPlatform != service.PlatformKiro {
 			if excludeSelectedGroup(excludedGroupIDs, currentAPIKey) {
@@ -191,6 +192,8 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		sessionKey := selectedSessionHash
 		if currentPlatform == service.PlatformGemini && selectedSessionHash != "" {
 			sessionKey = "gemini:" + selectedSessionHash
+		} else if currentPlatform == service.PlatformDeepSeek && selectedSessionHash != "" {
+			sessionKey = "deepseek:" + selectedSessionHash
 		}
 		var sessionBoundAccountID int64
 		if sessionKey != "" {
@@ -518,6 +521,19 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 				requestCtx := c.Request.Context()
 				if fs.SwitchCount > 0 {
 					requestCtx = service.WithAccountSwitchCount(requestCtx, fs.SwitchCount, h.metadataBridgeEnabled())
+				}
+				if account.Platform == service.PlatformDeepSeek {
+					if err := service.ValidateDeepSeekAnthropicMessagesBody(body); err != nil {
+						if queueRelease != nil {
+							queueRelease()
+						}
+						parsedReq.OnUpstreamAccepted = nil
+						if accountReleaseFunc != nil {
+							accountReleaseFunc()
+						}
+						h.handleStreamingAwareError(c, http.StatusBadRequest, "invalid_request_error", err.Error(), streamStarted)
+						return
+					}
 				}
 				if account.Platform == service.PlatformAntigravity && account.Type != service.AccountTypeAPIKey {
 					result, err = h.antigravityGatewayService.Forward(requestCtx, c, account, body, hasBoundSession)

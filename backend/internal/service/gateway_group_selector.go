@@ -323,7 +323,7 @@ func (s *OpenAIGatewayService) groupBindingHasSchedulableAccounts(ctx context.Co
 	requestedModel := strings.TrimSpace(modelFromContext(ctx))
 	for i := range accounts {
 		account := &accounts[i]
-		if !account.IsSchedulable() || !account.IsOpenAI() {
+		if !account.IsSchedulable() || !isOpenAITextRuntimeAccount(account) {
 			continue
 		}
 		if requestedModel != "" && !account.IsModelSupported(requestedModel) {

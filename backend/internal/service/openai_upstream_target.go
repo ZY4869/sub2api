@@ -16,6 +16,7 @@ const (
 	copilotGitHubAPIVersion          = "2025-10-01"
 	openaiPlatformChatCompletionsURL = "https://api.openai.com/v1/chat/completions"
 	openaiPlatformImagesURL          = "https://api.openai.com/v1/images"
+	deepseekDefaultAPIBaseURL        = "https://api.deepseek.com"
 )
 
 func isChatGPTOpenAIOAuthAccount(account *Account) bool {
@@ -34,7 +35,7 @@ func resolveOpenAIResponsesTargetURL(account *Account, validateBaseURL func(stri
 		return chatgptCodexURL, nil
 	}
 
-	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+	baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
 	if baseURL == "" && account.Platform != PlatformCopilot {
 		return openaiPlatformAPIURL, nil
 	}
@@ -54,7 +55,7 @@ func resolveOpenAIChatCompletionsTargetURL(account *Account, validateBaseURL fun
 		return openaiPlatformChatCompletionsURL, nil
 	}
 
-	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+	baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
 	if baseURL == "" && account.Platform != PlatformCopilot {
 		return openaiPlatformChatCompletionsURL, nil
 	}
@@ -83,7 +84,7 @@ func resolveOpenAIImagesTargetURL(account *Account, validateBaseURL func(string)
 		return buildOpenAIImagesURLForPlatform("", PlatformOpenAI, action), nil
 	}
 
-	baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+	baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
 	if baseURL == "" && account.Platform != PlatformCopilot {
 		return buildOpenAIImagesURLForPlatform("", account.Platform, action), nil
 	}
@@ -129,6 +130,9 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 		if platform == PlatformCopilot {
 			return "https://api.githubcopilot.com/chat/completions"
 		}
+		if platform == PlatformDeepSeek {
+			return deepseekDefaultAPIBaseURL + "/chat/completions"
+		}
 		return openaiPlatformChatCompletionsURL
 	}
 	if strings.HasSuffix(normalized, "/chat/completions") {
@@ -138,6 +142,12 @@ func buildOpenAIChatCompletionsURLForPlatform(baseURL string, platform string) s
 		return normalized
 	}
 	if platform == PlatformCopilot {
+		if strings.HasSuffix(normalized, "/v1") {
+			return normalized + "/chat/completions"
+		}
+		return normalized + "/chat/completions"
+	}
+	if platform == PlatformDeepSeek {
 		if strings.HasSuffix(normalized, "/v1") {
 			return normalized + "/chat/completions"
 		}
@@ -191,6 +201,9 @@ func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {
 		if platform == PlatformCopilot {
 			return "https://api.githubcopilot.com/models"
 		}
+		if platform == PlatformDeepSeek {
+			return deepseekDefaultAPIBaseURL + "/models"
+		}
 		return openAIModelsURL
 	}
 	if strings.HasSuffix(normalized, "/models") {
@@ -205,10 +218,26 @@ func buildOpenAIModelsURLForPlatform(baseURL string, platform string) string {
 		}
 		return normalized + "/models"
 	}
+	if platform == PlatformDeepSeek {
+		if strings.HasSuffix(normalized, "/v1") {
+			return normalized + "/models"
+		}
+		return normalized + "/models"
+	}
 	if strings.HasSuffix(normalized, "/v1") {
 		return normalized + "/models"
 	}
 	return normalized + "/v1/models"
+}
+
+func resolveOpenAICompatibleBaseURL(account *Account) string {
+	if account == nil {
+		return ""
+	}
+	if account.Platform == PlatformDeepSeek {
+		return account.GetDeepSeekBaseURL()
+	}
+	return account.GetOpenAIBaseURL()
 }
 
 func resolveCopilotRequestUserAgent(account *Account) string {

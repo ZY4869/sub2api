@@ -15,6 +15,29 @@ func AccountDisplayRateLimitState(account *Account, now time.Time) AccountDispla
 	if account == nil {
 		return AccountDisplayRateLimitProjection{}
 	}
+	if account.IsOpenAI() && isOpenAIProPlan(account) {
+		return openAIProDisplayRateLimitState(account, now)
+	}
+
+	if persisted := persistedAccountDisplayRateLimitState(account, now); persisted.Limited {
+		return persisted
+	}
+
+	if !account.IsOpenAI() {
+		return AccountDisplayRateLimitProjection{}
+	}
+
+	normal := openAICodexDisplayScopeRateLimitState(account, openAICodexScopeNormal, now)
+	if normal.Limited {
+		return normal
+	}
+	return AccountDisplayRateLimitProjection{}
+}
+
+func persistedAccountDisplayRateLimitState(account *Account, now time.Time) AccountDisplayRateLimitProjection {
+	if account == nil {
+		return AccountDisplayRateLimitProjection{}
+	}
 	if account.RateLimitResetAt != nil && now.Before(*account.RateLimitResetAt) {
 		resetAt := account.RateLimitResetAt.UTC()
 		return AccountDisplayRateLimitProjection{
@@ -23,23 +46,28 @@ func AccountDisplayRateLimitState(account *Account, now time.Time) AccountDispla
 			Reason:  AccountRateLimitReason(account, now),
 		}
 	}
-	if !account.IsOpenAI() {
-		return AccountDisplayRateLimitProjection{}
-	}
+	return AccountDisplayRateLimitProjection{}
+}
 
+func openAIProDisplayRateLimitState(account *Account, now time.Time) AccountDisplayRateLimitProjection {
 	normal := openAICodexDisplayScopeRateLimitState(account, openAICodexScopeNormal, now)
 	spark := openAICodexDisplayScopeRateLimitState(account, openAICodexScopeSpark, now)
 
-	if !isOpenAIProPlan(account) {
-		if normal.Limited {
-			return normal
-		}
-		return AccountDisplayRateLimitProjection{}
-	}
-	if !normal.Limited || !spark.Limited {
-		return AccountDisplayRateLimitProjection{}
+	if normal.Limited && spark.Limited {
+		return combinedOpenAIProDisplayRateLimitState(account, normal, spark, now)
 	}
 
+	persisted := persistedAccountDisplayRateLimitState(account, now)
+	if !persisted.Limited {
+		return AccountDisplayRateLimitProjection{}
+	}
+	if shouldSuppressOpenAIProPersistedSingleScopeLimit(account, persisted, normal, spark) {
+		return AccountDisplayRateLimitProjection{}
+	}
+	return persisted
+}
+
+func combinedOpenAIProDisplayRateLimitState(account *Account, normal, spark AccountDisplayRateLimitProjection, now time.Time) AccountDisplayRateLimitProjection {
 	if resetAt, ok := codexAccountAll7dResetAtFromExtra(account, account.Extra, now); ok && resetAt != nil {
 		return AccountDisplayRateLimitProjection{
 			Limited: true,
@@ -56,6 +84,28 @@ func AccountDisplayRateLimitState(account *Account, now time.Time) AccountDispla
 		Limited: true,
 		ResetAt: earlierTimePtr(normal.ResetAt, spark.ResetAt),
 		Reason:  reason,
+	}
+}
+
+func shouldSuppressOpenAIProPersistedSingleScopeLimit(account *Account, persisted, normal, spark AccountDisplayRateLimitProjection) bool {
+	if !persisted.Limited {
+		return false
+	}
+	if normal.Limited && spark.Limited {
+		return false
+	}
+	if !normal.Limited && !spark.Limited {
+		return false
+	}
+
+	storedReason := NormalizeAccountRateLimitReasonInput(parseExtraString(account.Extra["rate_limit_reason"]))
+	switch storedReason {
+	case AccountRateLimitReasonUsage5h, AccountRateLimitReasonUsage7d:
+		return true
+	case "":
+		return true
+	default:
+		return false
 	}
 }
 

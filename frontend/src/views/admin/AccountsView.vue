@@ -435,6 +435,7 @@ const ACCOUNT_PLATFORM_DISPLAY_ORDER: AccountPlatform[] = [
   "openai",
   "copilot",
   "grok",
+  "deepseek",
   "protocol_gateway",
   "gemini",
   "antigravity",

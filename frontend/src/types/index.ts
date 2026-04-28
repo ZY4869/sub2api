@@ -389,6 +389,7 @@ export type GroupPlatform =
   | "openai"
   | "copilot"
   | "grok"
+  | "deepseek"
   | "gemini"
   | "antigravity"
   | "baidu_document_ai";
@@ -617,6 +618,7 @@ export type AccountPlatform =
   | "openai"
   | "copilot"
   | "grok"
+  | "deepseek"
   | "gemini"
   | "antigravity"
   | "protocol_gateway"

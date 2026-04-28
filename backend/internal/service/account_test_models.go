@@ -330,6 +330,8 @@ func isDirectPlatformTestModelAllowed(account *Account, entry modelregistry.Mode
 	switch RoutingPlatformForAccount(account) {
 	case PlatformOpenAI, PlatformCopilot:
 		return provider == PlatformOpenAI
+	case PlatformDeepSeek:
+		return provider == PlatformDeepSeek
 	case PlatformAnthropic, PlatformKiro:
 		return provider == PlatformAnthropic
 	case PlatformGemini:
@@ -810,6 +812,21 @@ func defaultTestModelCatalog(account *Account) []AvailableTestModel {
 			})
 		}
 		return decorateDefaultTestModels(result, PlatformGrok)
+	case PlatformDeepSeek:
+		entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), PlatformDeepSeek)
+		result := make([]AvailableTestModel, 0, len(entries))
+		for _, entry := range entries {
+			result = append(result, AvailableTestModel{
+				ID:           entry.ID,
+				Type:         "model",
+				DisplayName:  firstNonEmptyTestModelLabel(entry.DisplayName, FormatModelCatalogDisplayName(entry.ID), entry.ID),
+				Mode:         inferAvailableTestModelMode(entry.ID, &entry),
+				Status:       firstNonEmptyTestModelLabel(entry.Status, "stable"),
+				DeprecatedAt: entry.DeprecatedAt,
+				ReplacedBy:   entry.ReplacedBy,
+			})
+		}
+		return decorateDefaultTestModels(result, PlatformDeepSeek)
 	case PlatformBaiduDocumentAI:
 		entries := modelregistry.ModelsByPlatform(modelregistry.SeedModels(), PlatformBaiduDocumentAI)
 		result := make([]AvailableTestModel, 0, len(entries))

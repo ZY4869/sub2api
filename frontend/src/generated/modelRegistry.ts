@@ -34,16 +34,17 @@ export interface ModelRegistrySnapshot {
   presets: ModelRegistryPreset[]
 }
 
-export const generatedModelRegistryBuiltAt = "2026-04-25T12:20:24Z"
+export const generatedModelRegistryBuiltAt = "2026-04-28T02:23:00Z"
 
 export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
-  "etag": "W/\"c7069119f6706cd4937c8a26a88d78868ea41ba1a9c9183f0053d2b39b88ec6d\"",
-  "updated_at": "2026-04-25T12:20:24Z",
+  "etag": "W/\"84afa0ad206a49df4207a070a04d8b37758abd421f6492a27e712bc95e85110e\"",
+  "updated_at": "2026-04-28T02:23:00Z",
   "provider_labels": {
     "anthropic": "Anthropic-Claude",
     "antigravity": "Antigravity",
     "baidu": "Baidu-Document-AI",
     "copilot": "GitHub-Copilot",
+    "deepseek": "DeepSeek",
     "gemini": "Google-Gemini",
     "grok": "xAI-Grok",
     "kiro": "Kiro",
@@ -130,25 +131,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-chat",
-      "display_name": "Deepseek-chat",
+      "id": "deepseek-v4-flash",
+      "display_name": "DeepSeek V4 Flash",
       "provider": "deepseek",
       "platforms": [
         "deepseek"
       ],
       "protocol_ids": [
-        "deepseek-chat"
+        "deepseek-v4-flash"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "deepseek-chat"
+        "deepseek-v4-flash"
       ],
+      "preferred_protocol_ids": {
+        "anthropic_apikey": "deepseek-v4-flash",
+        "deepseek": "deepseek-v4-flash",
+        "openai": "deepseek-v4-flash"
+      },
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "reasoning"
+      ],
       "ui_priority": 0,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -562,25 +572,34 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-coder",
-      "display_name": "Deepseek-coder",
+      "id": "deepseek-v4-pro",
+      "display_name": "DeepSeek V4 Pro",
       "provider": "deepseek",
       "platforms": [
         "deepseek"
       ],
       "protocol_ids": [
-        "deepseek-coder"
+        "deepseek-v4-pro"
       ],
       "aliases": [],
       "pricing_lookup_ids": [
-        "deepseek-coder"
+        "deepseek-v4-pro"
       ],
+      "preferred_protocol_ids": {
+        "anthropic_apikey": "deepseek-v4-pro",
+        "deepseek": "deepseek-v4-pro",
+        "openai": "deepseek-v4-pro"
+      },
       "modalities": [
         "text"
       ],
-      "capabilities": [],
+      "capabilities": [
+        "reasoning"
+      ],
       "ui_priority": 1,
       "exposed_in": [
+        "runtime",
+        "test",
         "whitelist"
       ]
     },
@@ -994,31 +1013,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "text"
       ],
       "capabilities": [],
-      "ui_priority": 2,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-reasoner",
-      "display_name": "Deepseek-reasoner",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-reasoner"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-reasoner"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [
-        "reasoning"
-      ],
       "ui_priority": 2,
       "exposed_in": [
         "whitelist"
@@ -1441,29 +1435,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-v3",
-      "display_name": "Deepseek-v3",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-v3"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-v3"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 3,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "doubao-pro-4k",
       "display_name": "Doubao-pro-4k",
       "provider": "doubao",
@@ -1838,29 +1809,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-v3-0324",
-      "display_name": "Deepseek-v3-0324",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-v3-0324"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-v3-0324"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 4,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "doubao-lite-128k",
       "display_name": "Doubao-lite-128k",
       "provider": "doubao",
@@ -2203,29 +2151,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "c4ai-aya-23-35b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 5,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1",
-      "display_name": "Deepseek-r1",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1"
       ],
       "modalities": [
         "text"
@@ -2584,29 +2509,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "codestral-latest"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 6,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-0528",
-      "display_name": "Deepseek-r1-0528",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-0528"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-0528"
       ],
       "modalities": [
         "text"
@@ -2979,29 +2881,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-r1-distill-qwen-32b",
-      "display_name": "Deepseek-r1-distill-qwen-32b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-qwen-32b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-qwen-32b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 7,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "doubao-vision-pro-32k",
       "display_name": "Doubao-vision-pro-32k",
       "provider": "doubao",
@@ -3296,29 +3175,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-r1-distill-qwen-14b",
-      "display_name": "Deepseek-r1-distill-qwen-14b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-qwen-14b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-qwen-14b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "doubao-vision-lite-32k",
       "display_name": "Doubao-vision-lite-32k",
       "provider": "doubao",
@@ -3524,29 +3380,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ],
       "capabilities": [],
       "ui_priority": 8,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-qwen-7b",
-      "display_name": "Deepseek-r1-distill-qwen-7b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-qwen-7b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-qwen-7b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 9,
       "exposed_in": [
         "whitelist"
       ]
@@ -3807,29 +3640,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
-      "id": "deepseek-r1-distill-llama-70b",
-      "display_name": "Deepseek-r1-distill-llama-70b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-llama-70b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-llama-70b"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 10,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
       "id": "doubao-1.5-pro-32k",
       "display_name": "Doubao-1.5-pro-32k",
       "provider": "doubao",
@@ -3982,29 +3792,6 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "aliases": [],
       "pricing_lookup_ids": [
         "codellama-34b-instruct"
-      ],
-      "modalities": [
-        "text"
-      ],
-      "capabilities": [],
-      "ui_priority": 11,
-      "exposed_in": [
-        "whitelist"
-      ]
-    },
-    {
-      "id": "deepseek-r1-distill-llama-8b",
-      "display_name": "Deepseek-r1-distill-llama-8b",
-      "provider": "deepseek",
-      "platforms": [
-        "deepseek"
-      ],
-      "protocol_ids": [
-        "deepseek-r1-distill-llama-8b"
-      ],
-      "aliases": [],
-      "pricing_lookup_ids": [
-        "deepseek-r1-distill-llama-8b"
       ],
       "modalities": [
         "text"
@@ -4869,6 +4656,35 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       ]
     },
     {
+      "id": "deepseek-chat",
+      "display_name": "DeepSeek Chat",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-chat"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-chat"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 20,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "deprecated_at": "2026-07-24",
+      "replaced_by": "deepseek-v4-flash",
+      "deprecation_notice": "Official DeepSeek legacy model ID remains callable until 2026-07-24."
+    },
+    {
       "id": "o3",
       "display_name": "O3",
       "provider": "openai",
@@ -4892,6 +4708,37 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
       "exposed_in": [
         "whitelist"
       ]
+    },
+    {
+      "id": "deepseek-reasoner",
+      "display_name": "DeepSeek Reasoner",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-reasoner"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-reasoner"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [
+        "reasoning"
+      ],
+      "ui_priority": 21,
+      "exposed_in": [
+        "runtime",
+        "test",
+        "whitelist"
+      ],
+      "status": "deprecated",
+      "deprecated_at": "2026-07-24",
+      "replaced_by": "deepseek-v4-flash",
+      "deprecation_notice": "Official DeepSeek legacy model ID remains callable until 2026-07-24."
     },
     {
       "id": "o3-mini",
@@ -6211,6 +6058,216 @@ export const generatedModelRegistrySnapshot: ModelRegistrySnapshot = {
         "test",
         "whitelist"
       ]
+    },
+    {
+      "id": "deepseek-coder",
+      "display_name": "Deepseek-coder",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-coder"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-coder"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1",
+      "display_name": "Deepseek-r1",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1-0528",
+      "display_name": "Deepseek-r1-0528",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-0528"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-0528"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1-distill-llama-70b",
+      "display_name": "Deepseek-r1-distill-llama-70b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-llama-70b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-llama-70b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1-distill-llama-8b",
+      "display_name": "Deepseek-r1-distill-llama-8b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-llama-8b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-llama-8b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1-distill-qwen-14b",
+      "display_name": "Deepseek-r1-distill-qwen-14b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-qwen-14b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-qwen-14b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1-distill-qwen-32b",
+      "display_name": "Deepseek-r1-distill-qwen-32b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-qwen-32b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-qwen-32b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-r1-distill-qwen-7b",
+      "display_name": "Deepseek-r1-distill-qwen-7b",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-r1-distill-qwen-7b"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-r1-distill-qwen-7b"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-v3",
+      "display_name": "Deepseek-v3",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-v3"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-v3"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
+    },
+    {
+      "id": "deepseek-v3-0324",
+      "display_name": "Deepseek-v3-0324",
+      "provider": "deepseek",
+      "platforms": [
+        "deepseek"
+      ],
+      "protocol_ids": [
+        "deepseek-v3-0324"
+      ],
+      "aliases": [],
+      "pricing_lookup_ids": [
+        "deepseek-v3-0324"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "capabilities": [],
+      "ui_priority": 200,
+      "exposed_in": []
     },
     {
       "id": "gemini-2.5-flash-image-preview",

@@ -1352,6 +1352,7 @@
         openai: "OpenAI",
         copilot: "GitHub Copilot",
         grok: "Grok",
+        deepseek: "DeepSeek",
         gemini: "Google",
         antigravity: "Antigravity",
         baidu_document_ai: "百度文档智能",
@@ -1963,6 +1964,7 @@
         copilot: "GitHub Copilot",
         protocol_gateway: "协议网关",
         grok: "Grok",
+        deepseek: "DeepSeek",
         gemini: "Google",
         antigravity: "Antigravity",
         baidu_document_ai: "百度文档智能",
@@ -1977,6 +1979,7 @@
         antigravityOauth: "Antigravity OAuth",
         antigravityApikey: "通过 Base URL + API Key 连接",
         baiduDocumentAIApikey: "通过异步 Token 或直连 Token 连接",
+        deepseekApiKey: "通过 DeepSeek 官方 API Key 连接",
         grokSso: "SSO Token",
         grokSsoHint:
           "粘贴标准化后的 Grok SSO token，保存时会自动规范化 Bearer 前缀",
@@ -2362,6 +2365,10 @@
             compat: "兼容生图",
           },
         },
+      },
+      deepseek: {
+        baseUrlHint: "留空使用官方 DeepSeek API（https://api.deepseek.com）",
+        apiKeyHint: "您的 DeepSeek API Key",
       },
       anthropic: {
         apiKeyPassthrough: "自动透传（仅替换认证）",

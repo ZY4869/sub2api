@@ -40,7 +40,14 @@ func (s *adminServiceImpl) GetAccountStatusSummary(ctx context.Context, filters 
 	return s.accountRepo.GetStatusSummary(ctx, filters)
 }
 func (s *adminServiceImpl) GetAccount(ctx context.Context, id int64) (*Account, error) {
-	return s.accountRepo.GetByID(ctx, id)
+	account, err := s.accountRepo.GetByID(ctx, id)
+	if err != nil || account == nil {
+		return account, err
+	}
+	now := time.Now()
+	syncOpenAICodexRateLimitFromExtra(ctx, s.accountRepo, account, now)
+	ApplyAccountDisplayRateLimitProjection(account, now)
+	return account, nil
 }
 func (s *adminServiceImpl) GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error) {
 	if len(ids) == 0 {

@@ -964,6 +964,7 @@ const platformFilterOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allPlatforms') },
   { value: 'anthropic', label: t('admin.accounts.platforms.anthropic') },
   { value: 'openai', label: t('admin.accounts.platforms.openai') },
+  { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') },
   { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
   { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
   { value: 'baidu_document_ai', label: t('admin.accounts.platforms.baidu_document_ai') }

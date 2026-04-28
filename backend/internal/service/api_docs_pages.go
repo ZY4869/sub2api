@@ -18,6 +18,7 @@ var apiDocsPageOrder = []string{
 	"anthropic",
 	"gemini",
 	"grok",
+	"deepseek",
 	"antigravity",
 	"vertex-batch",
 	"document-ai",

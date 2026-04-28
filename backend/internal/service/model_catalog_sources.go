@@ -301,6 +301,8 @@ func inferModelProvider(model string) string {
 		return PlatformGemini
 	case strings.HasPrefix(model, "grok"):
 		return PlatformGrok
+	case strings.HasPrefix(model, "deepseek"):
+		return PlatformDeepSeek
 	case strings.HasPrefix(model, "ernie"), strings.HasPrefix(model, "wenxin"), strings.HasPrefix(model, "baidu"):
 		return "baidu"
 	case strings.HasPrefix(model, "gpt"), strings.HasPrefix(model, "codex"), openAIReasoningModelPattern.MatchString(model):

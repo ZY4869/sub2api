@@ -65,6 +65,33 @@ func TestGetBaseURL(t *testing.T) {
 			},
 			expected: "",
 		},
+		{
+			name: "deepseek apikey defaults to anthropic compatibility base",
+			account: Account{
+				Type:        AccountTypeAPIKey,
+				Platform:    PlatformDeepSeek,
+				Credentials: map[string]any{},
+			},
+			expected: "https://api.deepseek.com/anthropic",
+		},
+		{
+			name: "deepseek apikey derives anthropic compatibility base from root",
+			account: Account{
+				Type:        AccountTypeAPIKey,
+				Platform:    PlatformDeepSeek,
+				Credentials: map[string]any{"base_url": "https://relay.example.com/root/"},
+			},
+			expected: "https://relay.example.com/root/anthropic",
+		},
+		{
+			name: "deepseek apikey keeps a single anthropic suffix",
+			account: Account{
+				Type:        AccountTypeAPIKey,
+				Platform:    PlatformDeepSeek,
+				Credentials: map[string]any{"base_url": "https://relay.example.com/anthropic/"},
+			},
+			expected: "https://relay.example.com/anthropic",
+		},
 	}
 
 	for _, tt := range tests {
@@ -72,6 +99,50 @@ func TestGetBaseURL(t *testing.T) {
 			result := tt.account.GetBaseURL()
 			if result != tt.expected {
 				t.Errorf("GetBaseURL() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetDeepSeekBaseURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		account  Account
+		expected string
+	}{
+		{
+			name: "non deepseek returns empty",
+			account: Account{
+				Type:     AccountTypeAPIKey,
+				Platform: PlatformAnthropic,
+			},
+			expected: "",
+		},
+		{
+			name: "deepseek defaults to official root base",
+			account: Account{
+				Type:        AccountTypeAPIKey,
+				Platform:    PlatformDeepSeek,
+				Credentials: map[string]any{},
+			},
+			expected: "https://api.deepseek.com",
+		},
+		{
+			name: "deepseek strips anthropic suffix for openai compatibility",
+			account: Account{
+				Type:        AccountTypeAPIKey,
+				Platform:    PlatformDeepSeek,
+				Credentials: map[string]any{"base_url": "https://relay.example.com/anthropic/"},
+			},
+			expected: "https://relay.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.account.GetDeepSeekBaseURL()
+			if result != tt.expected {
+				t.Errorf("GetDeepSeekBaseURL() = %q, want %q", result, tt.expected)
 			}
 		})
 	}

@@ -148,6 +148,17 @@ const grokOptions = computed<TypeOption[]>(() => [
   }
 ])
 
+const deepSeekOptions = computed<TypeOption[]>(() => [
+  {
+    key: 'apikey',
+    title: 'API Key',
+    description: t('admin.accounts.types.deepseekApiKey'),
+    icon: 'key',
+    accent: 'purple',
+    active: true
+  }
+])
+
 const gatewayProtocolOptions = computed<GatewayProtocolOption[]>(() =>
   PROTOCOL_GATEWAY_PROTOCOLS.map((id) => {
     const descriptor = resolveGatewayProtocolDescriptor(id)
@@ -228,6 +239,13 @@ function handleAntigravitySelect(key: string) {
       :options="grokOptions"
       tour="account-form-type"
       @select="handleGrokSelect"
+    />
+
+    <AccountCreateTypeCardGroup
+      v-else-if="platform === 'deepseek'"
+      :label="t('admin.accounts.accountType')"
+      :options="deepSeekOptions"
+      tour="account-form-type"
     />
 
     <div v-else-if="platform === 'protocol_gateway'" class="space-y-4">

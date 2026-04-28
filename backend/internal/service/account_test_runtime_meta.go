@@ -46,7 +46,7 @@ func inferAccountTestSourceProtocol(runtimePlatform string, sourceProtocol strin
 	}
 
 	switch strings.TrimSpace(strings.ToLower(runtimePlatform)) {
-	case PlatformOpenAI, PlatformGrok, PlatformCopilot:
+	case PlatformOpenAI, PlatformGrok, PlatformCopilot, PlatformDeepSeek:
 		return PlatformOpenAI
 	case PlatformAnthropic, PlatformKiro:
 		return PlatformAnthropic

@@ -637,12 +637,44 @@ func (a *Account) GetBaseURL() string {
 		if a.Platform == PlatformGrok {
 			return "https://api.x.ai"
 		}
+		if a.Platform == PlatformDeepSeek {
+			return deepSeekAnthropicBaseURL("")
+		}
 		return "https://api.anthropic.com"
 	}
 	if a.Platform == PlatformAntigravity {
 		return strings.TrimRight(baseURL, "/") + "/antigravity"
 	}
+	if a.Platform == PlatformDeepSeek {
+		return deepSeekAnthropicBaseURL(baseURL)
+	}
 	return baseURL
+}
+
+func deepSeekRootBaseURL(baseURL string) string {
+	normalized := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if normalized == "" {
+		return "https://api.deepseek.com"
+	}
+	if strings.HasSuffix(strings.ToLower(normalized), "/anthropic") {
+		return strings.TrimRight(normalized[:len(normalized)-len("/anthropic")], "/")
+	}
+	return normalized
+}
+
+func deepSeekAnthropicBaseURL(baseURL string) string {
+	return deepSeekRootBaseURL(baseURL) + "/anthropic"
+}
+
+func (a *Account) GetDeepSeekBaseURL() string {
+	if a == nil || a.Type != AccountTypeAPIKey || a.Platform != PlatformDeepSeek {
+		return ""
+	}
+	baseURL := strings.TrimSpace(a.GetCredential("base_url"))
+	if baseURL == "" {
+		return "https://api.deepseek.com"
+	}
+	return deepSeekRootBaseURL(baseURL)
 }
 
 // GetGeminiBaseURL 返回 Gemini 兼容端点的 base URL。
@@ -910,6 +942,14 @@ func (a *Account) IsGrokSSO() bool {
 
 func (a *Account) IsGrokAPIKey() bool {
 	return a.IsGrok() && a.Type == AccountTypeAPIKey
+}
+
+func (a *Account) IsDeepSeek() bool {
+	return EffectiveProtocol(a) == PlatformDeepSeek
+}
+
+func (a *Account) IsOpenAITextCompatible() bool {
+	return a.IsOpenAI() || a.IsDeepSeek()
 }
 
 func (a *Account) IsAnthropic() bool {

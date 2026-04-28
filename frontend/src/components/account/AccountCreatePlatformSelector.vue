@@ -41,6 +41,11 @@ const platformOptions = computed<
     activeClass: 'text-slate-700 dark:text-slate-200'
   },
   {
+    value: 'deepseek',
+    label: t('admin.accounts.platforms.deepseek'),
+    activeClass: 'text-indigo-600 dark:text-indigo-400'
+  },
+  {
     value: 'protocol_gateway',
     label: t('admin.accounts.platforms.protocol_gateway'),
     activeClass: 'text-slate-600 dark:text-slate-300'

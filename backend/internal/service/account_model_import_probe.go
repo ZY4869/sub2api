@@ -30,7 +30,7 @@ func (s *AccountModelImportService) detectModels(ctx context.Context, account *A
 		return s.detectMixedProtocolGatewayModels(ctx, account)
 	}
 	switch RoutingPlatformForAccount(account) {
-	case PlatformOpenAI:
+	case PlatformOpenAI, PlatformDeepSeek:
 		models, err := s.detectOpenAIModels(ctx, account)
 		if err != nil {
 			return nil, err
@@ -135,17 +135,15 @@ func (s *AccountModelImportService) detectOpenAIModels(ctx context.Context, acco
 		token = strings.TrimSpace(account.GetCredential("api_key"))
 	}
 	if token == "" {
-		return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing OpenAI credential for model import")
+		return nil, infraerrors.BadRequest("ACCOUNT_CREDENTIAL_REQUIRED", "missing API credential for model import")
 	}
 	url := openAIModelsURL
 	if account.Type == AccountTypeAPIKey || account.Type == AccountTypeUpstream {
-		baseURL := strings.TrimSpace(account.GetOpenAIBaseURL())
+		baseURL := strings.TrimSpace(resolveOpenAICompatibleBaseURL(account))
 		if baseURL == "" {
 			baseURL = strings.TrimSpace(account.GetCredential("base_url"))
 		}
-		if baseURL != "" {
-			url = strings.TrimRight(baseURL, "/") + "/v1/models"
-		}
+		url = buildOpenAIModelsURLForPlatform(baseURL, account.Platform)
 	}
 	headers := map[string]string{
 		"Authorization": "Bearer " + token,

@@ -111,6 +111,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { useUiNow } from '@/composables/useUiNow'
 import type { Account } from '@/types'
 import { formatCountdown, formatCountdownWithSuffix, formatDateTime, formatTime } from '@/utils/format'
+import { resolveCodexUsageWindow, type CodexUsageScope } from '@/utils/codexUsage'
 
 const { t } = useI18n()
 const { nowMs, nowDate } = useUiNow()
@@ -138,6 +139,23 @@ type AccountStatusLimitBadgeItem = {
   model?: string
   modelDisplayName?: string
 }
+
+type CodexUsageWindowKind = '5h' | '7d'
+
+type CodexScopeLimitInfo = {
+  scope: CodexUsageScope
+  window: CodexUsageWindowKind
+  resetAt: string
+  label: string
+  model: string
+}
+
+const codexScopeModels: Record<CodexUsageScope, string> = {
+  normal: 'gpt-5.3-codex',
+  spark: 'gpt-5.3-codex-spark'
+}
+
+const codexWindowPriority: CodexUsageWindowKind[] = ['7d', '5h']
 
 const errorTooltipVisible = ref(false)
 const errorTooltipTriggerRef = ref<HTMLElement | null>(null)
@@ -228,6 +246,84 @@ const formatScopeName = (scope: string): string => {
   return aliases[scope] || scope
 }
 
+const codexScopeForModel = (model: string): CodexUsageScope | null => {
+  const normalized = model.trim().toLowerCase()
+  if (normalized.startsWith('gpt-5.3-codex-spark')) return 'spark'
+  if (normalized.startsWith('gpt-5.3-codex')) return 'normal'
+  return null
+}
+
+const codexScopeName = (scope: CodexUsageScope): string => {
+  return scope === 'spark' ? 'Spark' : 'Codex'
+}
+
+const codexScopeWindowLabel = (scope: CodexUsageScope, window: CodexUsageWindowKind): string => {
+  return `${codexScopeName(scope)} ${window}`
+}
+
+const resolveActiveCodexScopeLimit = (scope: CodexUsageScope): CodexScopeLimitInfo | null => {
+  const extra = props.account.extra
+  if (!extra) return null
+
+  for (const window of codexWindowPriority) {
+    const progress = resolveCodexUsageWindow(extra, window, nowDate.value, scope)
+    if (progress.usedPercent == null || progress.usedPercent < 100) continue
+    const resetAt = resolvePreferredResetAt(progress.resetAt)
+    if (!resetAt || new Date(resetAt).getTime() <= nowMs.value) continue
+
+    return {
+      scope,
+      window,
+      resetAt,
+      label: codexScopeWindowLabel(scope, window),
+      model: codexScopeModels[scope],
+    }
+  }
+
+  return null
+}
+
+const buildCodexScopeLimitBadge = (scope: CodexUsageScope): AccountStatusLimitBadgeItem | null => {
+  const info = resolveActiveCodexScopeLimit(scope)
+  if (!info) return null
+
+  return {
+    key: `account-${info.scope}-${info.window}`,
+    tone: 'amber',
+    label: info.label,
+    countdown: formatBadgeCountdown(info.resetAt),
+    tooltip: t('admin.accounts.status.modelRateLimitedUntil', {
+      model: info.label,
+      time: formatTime(info.resetAt),
+    }),
+    model: info.model,
+    modelDisplayName: info.label,
+  }
+}
+
+const resolveModelLimitBadgeDisplay = (model: string, fallbackResetAt: string) => {
+  const scope = codexScopeForModel(model)
+  if (scope) {
+    const info = resolveActiveCodexScopeLimit(scope)
+    if (info) {
+      return {
+        label: info.label,
+        resetAt: info.resetAt,
+        model: info.model,
+        modelDisplayName: info.label,
+      }
+    }
+  }
+
+  const modelDisplayName = formatScopeName(model)
+  return {
+    label: modelDisplayName,
+    resetAt: fallbackResetAt,
+    model,
+    modelDisplayName,
+  }
+}
+
 const normalizeResetAt = (value: unknown): string | null => {
   if (typeof value !== 'string' || value.trim() === '') return null
   const date = new Date(value)
@@ -271,17 +367,17 @@ const activeModelBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
       }
     }
 
-    const modelDisplayName = formatScopeName(item.model)
+    const display = resolveModelLimitBadgeDisplay(item.model, item.reset_at)
     return {
       key: `${item.kind}-${item.model}`,
       tone: item.kind === 'credits_active' ? 'amber' : 'purple',
-      label: modelDisplayName,
-      countdown: formatBadgeCountdown(item.reset_at),
+      label: display.label,
+      countdown: formatBadgeCountdown(display.resetAt),
       tooltip: item.kind === 'credits_active'
-        ? t('admin.accounts.status.modelCreditOveragesUntil', { model: modelDisplayName, time: formatTime(item.reset_at) })
-        : t('admin.accounts.status.modelRateLimitedUntil', { model: modelDisplayName, time: formatTime(item.reset_at) }),
-      model: item.model,
-      modelDisplayName,
+        ? t('admin.accounts.status.modelCreditOveragesUntil', { model: display.label, time: formatTime(display.resetAt) })
+        : t('admin.accounts.status.modelRateLimitedUntil', { model: display.label, time: formatTime(display.resetAt) }),
+      model: display.model,
+      modelDisplayName: display.modelDisplayName,
     }
   })
 })
@@ -383,6 +479,14 @@ const accountRateLimitBadges = computed<AccountStatusLimitBadgeItem[]>(() => {
         modelDisplayName: sparkLabel,
       },
     ]
+  }
+
+  const codexScopedBadges = [
+    buildCodexScopeLimitBadge('normal'),
+    buildCodexScopeLimitBadge('spark'),
+  ].filter((item): item is AccountStatusLimitBadgeItem => item !== null)
+  if (codexScopedBadges.length > 0) {
+    return codexScopedBadges
   }
 
   return [{

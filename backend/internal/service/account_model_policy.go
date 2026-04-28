@@ -220,7 +220,7 @@ func buildDefaultAccountModelScopeEntriesForSource(ctx context.Context, account 
 
 func supportsDefaultAccountModelLibrary(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformCopilot, PlatformAnthropic, PlatformKiro, PlatformGemini, PlatformGrok, PlatformAntigravity, PlatformBaiduDocumentAI:
+	case PlatformOpenAI, PlatformCopilot, PlatformAnthropic, PlatformKiro, PlatformDeepSeek, PlatformGemini, PlatformGrok, PlatformAntigravity, PlatformBaiduDocumentAI:
 		return true
 	default:
 		return false

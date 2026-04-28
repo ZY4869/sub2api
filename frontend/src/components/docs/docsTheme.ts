@@ -51,6 +51,13 @@ const DOCS_THEMES: Record<DocsPageId, DocsTheme> = {
     tabActiveClass: 'bg-rose-600 text-white shadow-sm dark:bg-rose-500',
     glowClass: 'from-rose-500/20 via-pink-500/10 to-transparent',
   },
+  deepseek: {
+    badgeClass: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200',
+    navActiveClass: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200',
+    tocActiveClass: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200',
+    tabActiveClass: 'bg-indigo-600 text-white shadow-sm dark:bg-indigo-500',
+    glowClass: 'from-indigo-500/20 via-sky-500/10 to-transparent',
+  },
   antigravity: {
     badgeClass: 'bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-200',
     navActiveClass: 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-500/30 dark:bg-teal-500/10 dark:text-teal-200',

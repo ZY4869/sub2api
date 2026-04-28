@@ -8,6 +8,7 @@ export const PUBLIC_MODEL_PROTOCOL_ORDER = [
   "anthropic",
   "gemini",
   "grok",
+  "deepseek",
   "antigravity",
   "vertex-batch",
 ] as const;

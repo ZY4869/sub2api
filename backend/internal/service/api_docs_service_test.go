@@ -134,6 +134,22 @@ func TestAPIDocsService_SupportsDocumentAIPageOverride(t *testing.T) {
 	require.Contains(t, repo.values[apiDocsPageSettingKey("document-ai")], "## document-ai")
 }
 
+func TestAPIDocsService_SupportsDeepSeekPageOverride(t *testing.T) {
+	repo := &apiDocsRepoStub{values: map[string]string{}}
+	service := NewAPIDocsService(repo)
+
+	override := "# API Docs\n\n## deepseek\n### Runtime\nDeepSeek only"
+	err := service.SavePageOverride(context.Background(), "deepseek", override)
+	require.NoError(t, err)
+
+	document, err := service.GetPageDocument(context.Background(), "deepseek")
+	require.NoError(t, err)
+	require.True(t, document.HasOverride)
+	require.Contains(t, document.EffectiveContent, "## deepseek")
+	require.Contains(t, document.EffectiveContent, "### Runtime")
+	require.Contains(t, repo.values[apiDocsPageSettingKey("deepseek")], "## deepseek")
+}
+
 func TestAPIDocsService_SavePageOverrideOnlyChangesThatPage(t *testing.T) {
 	repo := &apiDocsRepoStub{values: map[string]string{}}
 	service := NewAPIDocsService(repo)

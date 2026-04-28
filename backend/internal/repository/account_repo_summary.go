@@ -54,6 +54,9 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 				a.platform,
 				a.status,
 				a.schedulable,
+				a.lifecycle_state,
+				a.expires_at,
+				a.auto_pause_on_expired,
 				a.rate_limit_reset_at,
 				a.temp_unschedulable_until,
 				a.overload_until,
@@ -69,6 +72,9 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 				f.platform,
 				f.status,
 				f.schedulable,
+				f.lifecycle_state,
+				f.expires_at,
+				f.auto_pause_on_expired,
 				f.rate_limit_reset_at,
 				f.temp_unschedulable_until,
 				f.overload_until,
@@ -84,6 +90,8 @@ func (r *accountRepository) GetStatusSummary(ctx context.Context, filters servic
 			COUNT(*) FILTER (
 				WHERE status = $1
 					AND schedulable = TRUE
+					AND COALESCE(lifecycle_state, '` + service.AccountLifecycleNormal + `') <> '` + service.AccountLifecycleBlacklisted + `'
+					AND (COALESCE(auto_pause_on_expired, FALSE) = FALSE OR expires_at IS NULL OR expires_at > NOW())
 					AND display_rate_limited = FALSE
 					AND (temp_unschedulable_until IS NULL OR temp_unschedulable_until <= NOW())
 					AND (overload_until IS NULL OR overload_until <= NOW())

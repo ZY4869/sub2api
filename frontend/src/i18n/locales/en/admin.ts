@@ -1327,6 +1327,7 @@ export default {
         openai: "OpenAI",
         copilot: "GitHub Copilot",
         grok: "Grok",
+        deepseek: "DeepSeek",
         gemini: "Google",
         antigravity: "Antigravity",
         baidu_document_ai: "Baidu Document AI",
@@ -1797,6 +1798,7 @@ export default {
         copilot: "GitHub Copilot",
         protocol_gateway: "Protocol Gateway",
         grok: "Grok",
+        deepseek: "DeepSeek",
         gemini: "Google",
         antigravity: "Antigravity",
         baidu_document_ai: "Baidu Document AI",
@@ -1811,6 +1813,7 @@ export default {
         antigravityOauth: "Antigravity OAuth",
         antigravityApikey: "Connect via Base URL + API Key",
         baiduDocumentAIApikey: "Connect with async token or direct token",
+        deepseekApiKey: "Connect with an official DeepSeek API Key",
         grokSso: "SSO Token",
         grokSsoHint:
           "Paste a normalized Grok SSO token. The Bearer prefix will be normalized on save.",
@@ -2292,6 +2295,10 @@ export default {
             compat: "Compat Images",
           },
         },
+      },
+      deepseek: {
+        baseUrlHint: "Leave default for the official DeepSeek API (https://api.deepseek.com)",
+        apiKeyHint: "Your DeepSeek API Key",
       },
       anthropic: {
         apiKeyPassthrough: "Auto passthrough (auth only)",

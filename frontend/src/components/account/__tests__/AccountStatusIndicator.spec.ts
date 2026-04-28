@@ -217,6 +217,93 @@ describe('AccountStatusIndicator', () => {
     expect(wrapper.text()).not.toContain('7d×2')
   })
 
+  it('shows spark 7d model cooldown with the window label', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          extra: {
+            codex_spark_7d_used_percent: 100,
+            codex_spark_7d_reset_at: '2026-03-15T00:00:00Z',
+            model_rate_limits: {
+              'gpt-5.3-codex-spark': {
+                rate_limited_at: '2026-03-13T12:00:00Z',
+                rate_limit_reset_at: '2026-03-15T00:00:00Z'
+              }
+            }
+          }
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.text()).toContain('Spark 7d')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.usage7d')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
+  })
+
+  it('shows spark 5h model cooldown with the window label', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          extra: {
+            codex_spark_5h_used_percent: 100,
+            codex_spark_5h_reset_at: '2026-03-13T17:00:00Z',
+            model_rate_limits: {
+              'gpt-5.3-codex-spark': {
+                rate_limited_at: '2026-03-13T12:00:00Z',
+                rate_limit_reset_at: '2026-03-13T17:00:00Z'
+              }
+            }
+          }
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.text()).toContain('Spark 5h')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.rateLimited')
+  })
+
+  it('shows mixed pro codex and spark account limits as scoped badges', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-13T12:00:00Z'))
+
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          platform: 'openai',
+          rate_limit_reset_at: '2026-03-13T17:00:00Z',
+          rate_limit_reason: 'usage_7d',
+          extra: {
+            codex_7d_used_percent: 100,
+            codex_7d_reset_at: '2026-03-15T00:00:00Z',
+            codex_spark_5h_used_percent: 100,
+            codex_spark_5h_reset_at: '2026-03-13T17:00:00Z',
+          },
+        })
+      },
+      global: {
+        stubs: componentStubs
+      }
+    })
+
+    expect(wrapper.text()).toContain('Codex 7d')
+    expect(wrapper.text()).toContain('Spark 5h')
+    expect(wrapper.text()).not.toContain('7d×2')
+  })
+
   it('renders overage model tags without broken glyphs', () => {
     const wrapper = mount(AccountStatusIndicator, {
       props: {

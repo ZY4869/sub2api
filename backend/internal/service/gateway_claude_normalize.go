@@ -691,7 +691,7 @@ func (s *GatewayService) buildUpstreamRequest(ctx context.Context, c *gin.Contex
 			req.Header.Set("anthropic-beta", mergeAnthropicBetaDropping(requiredBetas, incomingBeta, effectiveDropWithClaudeCodeSet))
 		} else if existingBeta := req.Header.Get("anthropic-beta"); existingBeta != "" {
 			req.Header.Set("anthropic-beta", stripBetaTokensWithSet(existingBeta, effectiveDropSet))
-		} else if s.cfg != nil && s.cfg.Gateway.InjectBetaForAPIKey {
+		} else if account.Platform != PlatformDeepSeek && s.cfg != nil && s.cfg.Gateway.InjectBetaForAPIKey {
 			if requestNeedsBetaFeatures(body) {
 				if beta := defaultAPIKeyBetaHeader(body); beta != "" {
 					req.Header.Set("anthropic-beta", beta)

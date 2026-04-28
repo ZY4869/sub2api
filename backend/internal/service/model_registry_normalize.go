@@ -183,6 +183,9 @@ func normalizePreferredProtocolIDs(modelID string, protocolIDs []string, raw map
 			modelID,
 		)
 	}
+	if normalized["deepseek"] == "" {
+		normalized["deepseek"] = normalizeRegistryID(modelID)
+	}
 	if normalized["gemini"] == "" {
 		normalized["gemini"] = normalizeRegistryID(modelID)
 	}
@@ -203,7 +206,7 @@ func normalizeRegistryRouteKey(value string) string {
 		return "kiro"
 	case "anthropic_apikey", "anthropic_api_key", "claude_apikey":
 		return "anthropic_apikey"
-	case "openai", "copilot", "gemini", "antigravity":
+	case "openai", "copilot", "deepseek", "gemini", "antigravity":
 		return value
 	default:
 		return value
@@ -371,7 +374,7 @@ func providerOrPlatform(provider string, sourcePlatform string) string {
 
 func isRuntimeSupportedPlatform(platform string) bool {
 	switch normalizeRegistryPlatform(platform) {
-	case PlatformOpenAI, PlatformAnthropic, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformCopilot, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
+	case PlatformOpenAI, PlatformAnthropic, PlatformDeepSeek, PlatformGemini, PlatformAntigravity, PlatformKiro, PlatformCopilot, PlatformGrok, "baidu", PlatformBaiduDocumentAI:
 		return true
 	default:
 		return false

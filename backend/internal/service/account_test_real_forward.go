@@ -245,6 +245,11 @@ func (s *AccountTestService) testAccountConnectionRealForward(c *gin.Context, ac
 	switch RoutingPlatformForAccount(account) {
 	case PlatformAntigravity:
 		return s.testAntigravityRealForwardConnection(c, account, modelID, prompt)
+	case PlatformDeepSeek:
+		if normalizeTestSourceProtocol(sourceProtocol) == PlatformAnthropic {
+			return s.testClaudeRealForwardConnection(c, account, modelID, sourceProtocol)
+		}
+		return s.testOpenAIRealForwardConnection(c, account, modelID, prompt, simulatedClient)
 	}
 
 	if account.IsOpenAI() {

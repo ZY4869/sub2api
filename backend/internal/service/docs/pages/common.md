@@ -1,5 +1,5 @@
 ## common
-> 本页说明整个网关的统一接入规则。后续左侧协议页会分别展开 OpenAI 原生、OpenAI 兼容、Anthropic / Claude、Gemini 原生、Grok、Antigravity、Vertex / Batch，以及百度智能文档的细节。
+> 本页说明整个网关的统一接入规则。后续左侧协议页会分别展开 OpenAI 原生、OpenAI 兼容、Anthropic / Claude、Gemini 原生、Grok、DeepSeek、Antigravity、Vertex / Batch，以及百度智能文档的细节。
 
 ### 概览
 
@@ -8,9 +8,9 @@ Sub2API 是一个多协议聚合网关。你面对的是一套统一站内 API K
 建议把文档理解成两层：
 
 - 第一层是“入口协议”：你用什么客户端、发送什么格式、走哪条路径。
-- 第二层是“运行时平台”：当前 Key 所绑定的分组最终调度到哪个平台，例如 OpenAI、Anthropic、Gemini、Grok、Antigravity 或百度智能文档。
+- 第二层是“运行时平台”：当前 Key 所绑定的分组最终调度到哪个平台，例如 OpenAI、Anthropic、Gemini、Grok、DeepSeek、Antigravity 或百度智能文档。
 
-协议页固定分成以下 9 个子页：
+协议页固定分成以下 10 个子页：
 
 | 协议页 ID | 页面名称 | 推荐使用者 | 重点内容 |
 | --- | --- | --- | --- |
@@ -20,6 +20,7 @@ Sub2API 是一个多协议聚合网关。你面对的是一套统一站内 API K
 | `anthropic` | Anthropic / Claude | Claude SDK、Claude Code、Anthropic 风格客户端 | `messages`、`count_tokens`、保留头 |
 | `gemini` | Gemini 原生 | Gemini SDK、AI Studio / Vertex 风格客户端 | `models`、`files`、`batches`、`live`、`openai compat` |
 | `grok` | Grok | xAI / Grok 兼容接入 | 聊天、Responses、图像、视频 |
+| `deepseek` | DeepSeek | DeepSeek 官方 API Key 调用方 | OpenAI / Anthropic 兼容入口、专用前缀、不支持能力 |
 | `antigravity` | Antigravity | 需要显式绑定 Antigravity 平台的接入方 | Anthropic 风格入口 + Gemini 风格入口 |
 | `vertex-batch` | Vertex / Batch | 使用站内 Vertex / Batch 简化入口或严格兼容入口的调用方 | `/v1/vertex/...`、`/vertex-batch/jobs...`、严格 `/v1/projects/...`、统一 archive 回查 |
 | `document-ai` | 百度智能文档 | 百度智能文档 / OCR 调用方 | 直连解析、异步任务、模型模式差异 |
@@ -103,7 +104,7 @@ https://api.zyxai.de
 
 | 适用范围 | 推荐认证方式 | 兼容方式 | 说明 |
 | --- | --- | --- | --- |
-| OpenAI 原生 / OpenAI 兼容 / Anthropic / Grok / Antigravity | `Authorization: Bearer <API_KEY>` | `x-api-key`、`x-goog-api-key` | 适合大多数 SDK 和代理工具 |
+| OpenAI 原生 / OpenAI 兼容 / Anthropic / Grok / DeepSeek / Antigravity | `Authorization: Bearer <API_KEY>` | `x-api-key`、`x-goog-api-key` | 适合大多数 SDK 和代理工具 |
 | Gemini / Vertex / Batch 站内推荐入口 | `Authorization: Bearer <API_KEY>` | `x-goog-api-key`、`x-api-key`、部分路径支持 `?key=` | 新接入用户优先；`/v1/vertex/...` 与 `/vertex-batch/jobs...` 默认按这一套接入 |
 | 原生 Gemini / Google SDK 兼容入口 | `x-goog-api-key: <API_KEY>` | `Authorization: Bearer`、`x-api-key`、部分路径支持 `?key=` | 当你直接复用 Gemini / Google 风格客户端时更省改造 |
 
@@ -112,7 +113,7 @@ https://api.zyxai.de
 查询参数的规则必须特别注意：
 
 - `?api_key=...`：整个系统都视为废弃写法。
-- `?key=...`：只在 Google / Gemini 风格白名单路径上保留兼容，不适用于 OpenAI 原生、OpenAI 兼容、Anthropic、Grok、`/v1/vertex/...`、`/vertex-batch/jobs...`、严格 Vertex 路径或 archive 路径。
+- `?key=...`：只在 Google / Gemini 风格白名单路径上保留兼容，不适用于 OpenAI 原生、OpenAI 兼容、Anthropic、Grok、DeepSeek、`/v1/vertex/...`、`/vertex-batch/jobs...`、严格 Vertex 路径或 archive 路径。
 - 对于 `/v1/vertex/...`、`/vertex-batch/jobs...`、`/v1/projects/:project/locations/:location/...` 和 `/google/batch/archive/...`，请使用请求头，不要依赖 `?key=...`。
 
 当前程序对认证头的优先级如下：
@@ -644,6 +645,7 @@ OpenAI / Anthropic 风格常见于：
 - `/v1/chat/completions`
 - `/v1/messages`
 - `/grok/v1/...`
+- `/deepseek/v1/...`
 - `/antigravity/v1/...`
 
 Gemini / Google 风格常见于：
@@ -728,6 +730,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 | Gemini 原生生成 | `/v1beta/models/{model}:generateContent` | 原生 Google 风格 |
 | Gemini 文件 / Batch / Live | `/v1beta/files`、`/v1beta/batches`、`/v1beta/live` | 走 Gemini 原生页 |
 | Grok 图像 / 视频 | `/grok/v1/...` | 更明确，排错更容易 |
+| DeepSeek 文本 / Claude 风格消息 | `/deepseek/v1/...` | 显式只走 DeepSeek；支持 `models`、`chat/completions`、`messages` |
 | 显式只走 Antigravity | `/antigravity/...` | 禁止混合调度 |
 | Vertex / Batch / Archive | `/v1/vertex/...`、`/vertex-batch/jobs...` | 新接入优先；严格 `/v1/projects/...` 只留给 SDK 兼容，结果归档继续走 `/google/batch/archive/...` |
 | 百度智能文档解析 | `/document-ai/v1/...` | 优先区分 `async` 与 `direct` |
@@ -735,7 +738,9 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 跨协议兼容也存在，但不是无条件开放：
 
 - `/v1/messages` 在 OpenAI / Copilot 平台下可能被翻译到 Responses。
-- `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功。
+- `/v1/messages` 在 DeepSeek 平台下会走 DeepSeek 官方 Anthropic 兼容入口，但会预检并拒绝 DeepSeek 官方未支持的多模态、搜索、工具和容器类内容块。
+- `/v1/messages/count_tokens` 只应当期望在 Anthropic 原生平台成功；DeepSeek 明确不支持。
+- `/v1/responses`、Images、Videos、FIM / Beta completion 不属于 DeepSeek 稳定接入面，请改用 `/deepseek/v1/chat/completions` 或 `/deepseek/v1/messages`。
 - `/v1/responses` 在 Grok 平台可以工作，但 Responses 的 WebSocket / 长连接模式不应对 Grok 做乐观假设。
 - `/v1/responses` 额外支持一组“网关兼容扩展”的生图写法：`$imagegen ...` 简写、`image_generation` / `reference_images` / `mask` 扩展字段、`multipart/form-data` 直传 `reference_image`，以及 **JSON 下的 `model=gpt-image-2` 生图简写**；标准官方 Responses JSON 仍然原样可用。
 - `/v1/images/generations`、`/v1/images/edits` 现在是公共智能图片入口：会先按当前 Key 的本地模型策略与 provider 元数据判断要落到 OpenAI、Grok 还是 Gemini。
@@ -800,6 +805,7 @@ curl https://api.zyxai.de/v1beta/test?api_key=legacy
 - 先选协议，再选模型，再调优参数。
 - 把 `Base URL` 固定为网关根地址，路径由 SDK 或你自己的请求代码拼接。
 - 新项目优先使用 `openai-native`、`anthropic`、`gemini` 或 `vertex-batch` 页推荐的主入口，不要继续扩散历史别名路径。
+- 如果你要显式绑定 DeepSeek，请使用 `deepseek` 页的 `/deepseek/v1/...` 前缀，默认模型使用 `deepseek-v4-flash` 或 `deepseek-v4-pro`。
 - 调试 `404` 时先确认“当前平台是否支持这个动作”，再排查路径拼写。
 - 调试 `429` 时先区分是站内订阅窗口、Key 自身额度，还是上游平台限流。
 - 对 Vertex / Batch 简化入口，默认统一使用 `Authorization: Bearer`；只有确实复用 Gemini / Google 原生客户端时，才优先使用 `x-goog-api-key`。

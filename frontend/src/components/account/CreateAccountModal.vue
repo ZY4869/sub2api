@@ -1316,6 +1316,10 @@ watch(
       form.type = category === 'oauth-based' ? 'sso' : 'apikey'
       return
     }
+    if (form.platform === 'deepseek') {
+      form.type = 'apikey'
+      return
+    }
     if (form.platform === 'protocol_gateway') {
       form.type = 'apikey'
       return
@@ -1410,6 +1414,11 @@ watch(
     } else {
       grokSSOToken.value = ''
       grokTier.value = 'basic'
+    }
+    if (newPlatform === 'deepseek') {
+      accountCategory.value = 'apikey'
+      form.type = 'apikey'
+      autoImportModels.value = true
     }
     if (newPlatform === 'antigravity') {
       loadAntigravityDefaultMappings()

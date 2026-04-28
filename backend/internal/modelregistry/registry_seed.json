@@ -853,8 +853,72 @@
     ]
   },
   {
+    "id": "deepseek-v4-flash",
+    "display_name": "DeepSeek V4 Flash",
+    "provider": "deepseek",
+    "platforms": [
+      "deepseek"
+    ],
+    "protocol_ids": [
+      "deepseek-v4-flash"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "deepseek-v4-flash"
+    ],
+    "preferred_protocol_ids": {
+      "deepseek": "deepseek-v4-flash",
+      "openai": "deepseek-v4-flash",
+      "anthropic_apikey": "deepseek-v4-flash"
+    },
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 0,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
+    "id": "deepseek-v4-pro",
+    "display_name": "DeepSeek V4 Pro",
+    "provider": "deepseek",
+    "platforms": [
+      "deepseek"
+    ],
+    "protocol_ids": [
+      "deepseek-v4-pro"
+    ],
+    "aliases": [],
+    "pricing_lookup_ids": [
+      "deepseek-v4-pro"
+    ],
+    "preferred_protocol_ids": {
+      "deepseek": "deepseek-v4-pro",
+      "openai": "deepseek-v4-pro",
+      "anthropic_apikey": "deepseek-v4-pro"
+    },
+    "modalities": [
+      "text"
+    ],
+    "capabilities": [
+      "reasoning"
+    ],
+    "ui_priority": 1,
+    "exposed_in": [
+      "runtime",
+      "test",
+      "whitelist"
+    ]
+  },
+  {
     "id": "deepseek-chat",
-    "display_name": "Deepseek-chat",
+    "display_name": "DeepSeek Chat",
     "provider": "deepseek",
     "platforms": [
       "deepseek"
@@ -870,10 +934,16 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 0,
+    "ui_priority": 20,
     "exposed_in": [
+      "runtime",
+      "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "deprecated_at": "2026-07-24",
+    "replaced_by": "deepseek-v4-flash",
+    "deprecation_notice": "Official DeepSeek legacy model ID remains callable until 2026-07-24."
   },
   {
     "id": "deepseek-coder",
@@ -893,14 +963,12 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 1,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-reasoner",
-    "display_name": "Deepseek-reasoner",
+    "display_name": "DeepSeek Reasoner",
     "provider": "deepseek",
     "platforms": [
       "deepseek"
@@ -918,10 +986,16 @@
     "capabilities": [
       "reasoning"
     ],
-    "ui_priority": 2,
+    "ui_priority": 21,
     "exposed_in": [
+      "runtime",
+      "test",
       "whitelist"
-    ]
+    ],
+    "status": "deprecated",
+    "deprecated_at": "2026-07-24",
+    "replaced_by": "deepseek-v4-flash",
+    "deprecation_notice": "Official DeepSeek legacy model ID remains callable until 2026-07-24."
   },
   {
     "id": "deepseek-v3",
@@ -941,10 +1015,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 3,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-v3-0324",
@@ -964,10 +1036,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 4,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1",
@@ -987,10 +1057,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 5,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1-0528",
@@ -1010,10 +1078,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 6,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1-distill-qwen-32b",
@@ -1033,10 +1099,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 7,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1-distill-qwen-14b",
@@ -1056,10 +1120,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 8,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1-distill-qwen-7b",
@@ -1079,10 +1141,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 9,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1-distill-llama-70b",
@@ -1102,10 +1162,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 10,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "deepseek-r1-distill-llama-8b",
@@ -1125,10 +1183,8 @@
       "text"
     ],
     "capabilities": [],
-    "ui_priority": 11,
-    "exposed_in": [
-      "whitelist"
-    ]
+    "ui_priority": 200,
+    "exposed_in": []
   },
   {
     "id": "doubao-pro-256k",

@@ -69,6 +69,7 @@ func accountDisplayRateLimitSQL(cols accountLimitedSQLColumns) string {
 
 	isOpenAI := openAIFamilySQL(cols.Platform)
 	isPro := openAIProPlanSQL(cols.Credentials)
+	storedReason := fmt.Sprintf("COALESCE(NULLIF(BTRIM(%s->>'rate_limit_reason'), ''), '')", cols.Extra)
 	normalActive := fmt.Sprintf("(%s OR %s)",
 		codexScopeActiveSQL(cols.Extra, "codex_7d_used_percent", "codex_7d_reset_at", "codex_7d_reset_after_seconds", "gpt-5.3-codex"),
 		codexScopeActiveSQL(cols.Extra, "codex_5h_used_percent", "codex_5h_reset_at", "codex_5h_reset_after_seconds", "gpt-5.3-codex"),
@@ -77,15 +78,25 @@ func accountDisplayRateLimitSQL(cols accountLimitedSQLColumns) string {
 		codexScopeActiveSQL(cols.Extra, "codex_spark_7d_used_percent", "codex_spark_7d_reset_at", "codex_spark_7d_reset_after_seconds", "gpt-5.3-codex-spark"),
 		codexScopeActiveSQL(cols.Extra, "codex_spark_5h_used_percent", "codex_spark_5h_reset_at", "codex_spark_5h_reset_after_seconds", "gpt-5.3-codex-spark"),
 	)
-	return fmt.Sprintf(`(%s OR (%s AND ((%s AND %s AND %s) OR (NOT %s AND (%s OR %s)))))`,
-		persisted,
-		isOpenAI,
-		isPro,
+	proScopedActive := fmt.Sprintf("(%s AND %s AND %s AND %s)", isOpenAI, isPro, normalActive, sparkActive)
+	proPersistedSuppress := fmt.Sprintf("((%s IN ('%s', '%s') OR %s = '') AND (%s OR %s) AND NOT (%s AND %s))",
+		storedReason,
+		service.AccountRateLimitReasonUsage5h,
+		service.AccountRateLimitReasonUsage7d,
+		storedReason,
 		normalActive,
 		sparkActive,
-		isPro,
 		normalActive,
 		sparkActive,
+	)
+	proPersistedActive := fmt.Sprintf("(%s AND %s AND %s AND NOT %s)", persisted, isOpenAI, isPro, proPersistedSuppress)
+	nonProPersistedActive := fmt.Sprintf("(%s AND NOT (%s AND %s))", persisted, isOpenAI, isPro)
+	nonProProjectedActive := fmt.Sprintf("(%s AND NOT %s AND %s)", isOpenAI, isPro, normalActive)
+	return fmt.Sprintf(`(%s OR %s OR %s OR %s)`,
+		nonProPersistedActive,
+		proPersistedActive,
+		proScopedActive,
+		nonProProjectedActive,
 	)
 }
 

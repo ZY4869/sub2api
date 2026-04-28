@@ -899,15 +899,67 @@
     "checked_at": "2026-04-27T00:00:00Z",
     "source_note": "LiteLLM exact key: command-r-plus-08-2024"
   },
-  "deepseek-chat": {
-    "cache_read_input_token_cost": 5e-07,
-    "input_cost_per_token": 2e-06,
+  "deepseek-v4-flash": {
+    "cache_read_input_token_cost": 2.8e-08,
+    "input_cost_per_token": 1.4e-07,
     "litellm_provider": "deepseek",
-    "max_input_tokens": 131072,
-    "max_output_tokens": 8192,
-    "max_tokens": 8192,
+    "max_input_tokens": 1048576,
+    "max_output_tokens": 393216,
+    "max_tokens": 393216,
     "mode": "chat",
-    "output_cost_per_token": 8e-06,
+    "output_cost_per_token": 2.8e-07,
+    "source": "https://api-docs.deepseek.com/quick_start/pricing",
+    "supported_endpoints": [
+      "/v1/chat/completions"
+    ],
+    "supports_function_calling": true,
+    "supports_native_streaming": true,
+    "supports_parallel_function_calling": true,
+    "supports_prompt_caching": true,
+    "supports_reasoning": true,
+    "supports_response_schema": true,
+    "supports_system_messages": true,
+    "supports_tool_choice": true,
+    "currency": "USD",
+    "source_type": "official",
+    "source_url": "https://api-docs.deepseek.com/quick_start/pricing",
+    "checked_at": "2026-04-28T00:00:00Z"
+  },
+  "deepseek-v4-pro": {
+    "cache_read_input_token_cost": 1.45e-07,
+    "input_cost_per_token": 1.74e-06,
+    "litellm_provider": "deepseek",
+    "max_input_tokens": 1048576,
+    "max_output_tokens": 393216,
+    "max_tokens": 393216,
+    "mode": "chat",
+    "output_cost_per_token": 3.48e-06,
+    "source": "https://api-docs.deepseek.com/quick_start/pricing",
+    "supported_endpoints": [
+      "/v1/chat/completions"
+    ],
+    "supports_function_calling": true,
+    "supports_native_streaming": true,
+    "supports_parallel_function_calling": true,
+    "supports_prompt_caching": true,
+    "supports_reasoning": true,
+    "supports_response_schema": true,
+    "supports_system_messages": true,
+    "supports_tool_choice": true,
+    "currency": "USD",
+    "source_type": "official",
+    "source_url": "https://api-docs.deepseek.com/quick_start/pricing",
+    "checked_at": "2026-04-28T00:00:00Z"
+  },
+  "deepseek-chat": {
+    "cache_read_input_token_cost": 2.8e-08,
+    "input_cost_per_token": 1.4e-07,
+    "litellm_provider": "deepseek",
+    "max_input_tokens": 1048576,
+    "max_output_tokens": 393216,
+    "max_tokens": 393216,
+    "mode": "chat",
+    "output_cost_per_token": 2.8e-07,
     "source": "https://api-docs.deepseek.com/quick_start/pricing",
     "supported_endpoints": [
       "/v1/chat/completions"
@@ -919,13 +971,11 @@
     "supports_response_schema": true,
     "supports_system_messages": true,
     "supports_tool_choice": true,
-    "currency": "CNY",
-    "usd_to_cny_rate": 6.8363,
-    "fx_rate_date": "2026-04-24",
-    "fx_locked_at": "2026-04-27T00:00:00Z",
+    "currency": "USD",
     "source_type": "official",
-    "source_url": "https://api-docs.deepseek.com/quick_start/pricing-details-cny/",
-    "checked_at": "2026-04-27T00:00:00Z"
+    "source_url": "https://api-docs.deepseek.com/quick_start/pricing",
+    "checked_at": "2026-04-28T00:00:00Z",
+    "source_note": "Legacy compatibility ID for DeepSeek V4 Flash non-thinking mode; officially deprecated on 2026-07-24."
   },
   "deepseek-coder": {
     "input_cost_per_token": 1.4e-07,
@@ -1027,14 +1077,14 @@
     "source_note": "LiteLLM suffix: nscale/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
   },
   "deepseek-reasoner": {
-    "cache_read_input_token_cost": 1e-06,
-    "input_cost_per_token": 4e-06,
+    "cache_read_input_token_cost": 2.8e-08,
+    "input_cost_per_token": 1.4e-07,
     "litellm_provider": "deepseek",
-    "max_input_tokens": 131072,
-    "max_output_tokens": 65536,
-    "max_tokens": 65536,
+    "max_input_tokens": 1048576,
+    "max_output_tokens": 393216,
+    "max_tokens": 393216,
     "mode": "chat",
-    "output_cost_per_token": 1.6e-05,
+    "output_cost_per_token": 2.8e-07,
     "source": "https://api-docs.deepseek.com/quick_start/pricing",
     "supported_endpoints": [
       "/v1/chat/completions"
@@ -1047,13 +1097,11 @@
     "supports_response_schema": true,
     "supports_system_messages": true,
     "supports_tool_choice": false,
-    "currency": "CNY",
-    "usd_to_cny_rate": 6.8363,
-    "fx_rate_date": "2026-04-24",
-    "fx_locked_at": "2026-04-27T00:00:00Z",
+    "currency": "USD",
     "source_type": "official",
-    "source_url": "https://api-docs.deepseek.com/quick_start/pricing-details-cny/",
-    "checked_at": "2026-04-27T00:00:00Z"
+    "source_url": "https://api-docs.deepseek.com/quick_start/pricing",
+    "checked_at": "2026-04-28T00:00:00Z",
+    "source_note": "Legacy compatibility ID for DeepSeek V4 Flash thinking mode; officially deprecated on 2026-07-24."
   },
   "deepseek-v3": {
     "input_cost_per_token": 1.14e-06,

@@ -101,6 +101,7 @@ const platformVisuals: Partial<Record<DocsPageId, AccountPlatform>> = {
   anthropic: 'anthropic',
   gemini: 'gemini',
   grok: 'grok',
+  deepseek: 'deepseek',
   antigravity: 'antigravity',
   'vertex-batch': 'gemini',
   'document-ai': 'baidu_document_ai',

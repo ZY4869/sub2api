@@ -7,6 +7,7 @@ var providerLabelOverrides = map[string]string{
 	PlatformAnthropic:   "Anthropic-Claude",
 	PlatformGemini:      "Google-Gemini",
 	PlatformGrok:        "xAI-Grok",
+	PlatformDeepSeek:    "DeepSeek",
 	PlatformAntigravity: "Antigravity",
 	PlatformCopilot:     "GitHub-Copilot",
 	PlatformKiro:        "Kiro",

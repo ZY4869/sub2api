@@ -57,6 +57,8 @@ func DisplayPlatformName(platform string) string {
 		return "Copilot"
 	case PlatformGrok:
 		return "Grok"
+	case PlatformDeepSeek:
+		return "DeepSeek"
 	case PlatformBaiduDocumentAI:
 		return "百度文档智能"
 	default:
@@ -66,4 +68,8 @@ func DisplayPlatformName(platform string) string {
 
 func IsGrokPlatform(platform string) bool {
 	return CanonicalizePlatformValue(platform) == PlatformGrok
+}
+
+func IsDeepSeekPlatform(platform string) bool {
+	return CanonicalizePlatformValue(platform) == PlatformDeepSeek
 }

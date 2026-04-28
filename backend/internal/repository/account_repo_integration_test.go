@@ -419,6 +419,60 @@ func (s *AccountRepoSuite) TestGetStatusSummary_CountsCodexDisplayRateLimits() {
 	s.Require().Equal(int64(1), summary.LimitedBreakdown.Usage7dAll)
 }
 
+func (s *AccountRepoSuite) TestListWithRuntimeViewInUseOnlyRequiresDispatchableAccount() {
+	now := time.Now().UTC()
+	future := now.Add(30 * time.Minute)
+	past := now.Add(-30 * time.Minute)
+
+	inUseNormal := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-normal", Status: service.StatusActive, Schedulable: true})
+	inUseRateLimited := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-rate-limited", Status: service.StatusActive, Schedulable: true})
+	inUseTemp := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-temp", Status: service.StatusActive, Schedulable: true})
+	inUseOverloaded := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-overloaded", Status: service.StatusActive, Schedulable: true})
+	inUsePaused := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-paused", Status: service.StatusActive, Schedulable: true})
+	inUseError := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-error", Status: service.StatusActive, Schedulable: true})
+	inUseExpired := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-expired", Status: service.StatusActive, Schedulable: true})
+
+	s.Require().NoError(s.repo.SetRateLimited(s.ctx, inUseRateLimited.ID, future))
+	s.Require().NoError(s.repo.SetTempUnschedulable(s.ctx, inUseTemp.ID, future, "temporary upstream error"))
+	s.Require().NoError(s.repo.SetOverloaded(s.ctx, inUseOverloaded.ID, future))
+	s.Require().NoError(s.repo.SetSchedulable(s.ctx, inUsePaused.ID, false))
+	s.Require().NoError(s.repo.SetError(s.ctx, inUseError.ID, "upstream error"))
+	s.Require().NoError(s.client.Account.UpdateOneID(inUseExpired.ID).SetAutoPauseOnExpired(true).SetExpiresAt(past).Exec(s.ctx))
+
+	candidateIDs := []int64{
+		inUseNormal.ID,
+		inUseRateLimited.ID,
+		inUseTemp.ID,
+		inUseOverloaded.ID,
+		inUsePaused.ID,
+		inUseError.ID,
+		inUseExpired.ID,
+	}
+	ctx := service.WithAccountRuntimeFilters(s.ctx, service.AccountRuntimeViewInUseOnly, candidateIDs)
+
+	accounts, page, err := s.repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 20}, "", "", "", "", 0, service.AccountLifecycleAll, "")
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), page.Total)
+	s.Require().Len(accounts, 1)
+	s.Require().Equal(inUseNormal.ID, accounts[0].ID)
+}
+
+func (s *AccountRepoSuite) TestListWithRuntimeViewAvailableOnlyExcludesInUseAndLimitedAccounts() {
+	future := time.Now().UTC().Add(30 * time.Minute)
+
+	inUseNormal := mustCreateAccount(s.T(), s.client, &service.Account{Name: "in-use-normal", Status: service.StatusActive, Schedulable: true})
+	available := mustCreateAccount(s.T(), s.client, &service.Account{Name: "available", Status: service.StatusActive, Schedulable: true})
+	rateLimited := mustCreateAccount(s.T(), s.client, &service.Account{Name: "rate-limited", Status: service.StatusActive, Schedulable: true})
+	s.Require().NoError(s.repo.SetRateLimited(s.ctx, rateLimited.ID, future))
+
+	ctx := service.WithAccountRuntimeFilters(s.ctx, service.AccountRuntimeViewAvailableOnly, []int64{inUseNormal.ID})
+	accounts, page, err := s.repo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 20}, "", "", "", "", 0, service.AccountLifecycleAll, "")
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), page.Total)
+	s.Require().Len(accounts, 1)
+	s.Require().Equal(available.ID, accounts[0].ID)
+}
+
 // --- ListByGroup / ListActive / ListByPlatform ---
 
 func (s *AccountRepoSuite) TestListByGroup() {

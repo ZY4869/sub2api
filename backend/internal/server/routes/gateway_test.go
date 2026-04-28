@@ -284,6 +284,8 @@ func handlerFamilyForRegisteredRoute(handlerName string) string {
 		return "gateway_v1_models_list"
 	case strings.Contains(handlerName, ".GatewayV1ModelsGet-fm"):
 		return "gateway_v1_models_get"
+	case strings.Contains(handlerName, ".Models-fm"):
+		return "gateway_models"
 	case strings.Contains(handlerName, ".GeminiModelsGet-fm"):
 		return "gemini_models_get"
 	case strings.Contains(handlerName, ".GatewayV1ModelsAction-fm"):

@@ -20,6 +20,7 @@ export function resolveAccountApiKeyDefaultBaseUrl(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.defaultBaseUrl
   if (platform === 'grok') return 'https://api.x.ai'
+  if (platform === 'deepseek') return 'https://api.deepseek.com'
   if (platform === 'openai') return 'https://api.openai.com'
   if (platform === 'copilot') return 'https://api.githubcopilot.com'
   if (platform === 'gemini') return 'https://generativelanguage.googleapis.com'
@@ -34,6 +35,7 @@ export function resolveAccountApiKeyPlaceholder(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.apiKeyPlaceholder
   if (platform === 'grok') return 'xai-...'
+  if (platform === 'deepseek') return 'sk-...'
   if (platform === 'openai') return 'sk-proj-...'
   if (platform === 'copilot') return 'ghu_...'
   if (platform === 'gemini') return 'AIza...'
@@ -49,6 +51,7 @@ export function resolveAccountApiKeyBaseUrlHintKey(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.baseUrlHintKey
   if (platform === 'grok') return 'admin.accounts.grokDedicatedRouteHint'
+  if (platform === 'deepseek') return 'admin.accounts.deepseek.baseUrlHint'
   if (platform === 'openai' || platform === 'copilot') return 'admin.accounts.openai.baseUrlHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.baseUrlHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.baseUrlHint'
@@ -64,6 +67,7 @@ export function resolveAccountApiKeyHintKey(
   const descriptor = resolveProtocolGatewaySetting(platform, gatewayProtocol)
   if (descriptor) return descriptor.apiKeyHintKey
   if (platform === 'grok') return 'admin.accounts.openai.apiKeyHint'
+  if (platform === 'deepseek') return 'admin.accounts.deepseek.apiKeyHint'
   if (platform === 'openai' || platform === 'copilot') return 'admin.accounts.openai.apiKeyHint'
   if (platform === 'gemini') return 'admin.accounts.gemini.apiKeyHint'
   if (platform === 'antigravity') return 'admin.accounts.upstream.apiKeyHint'

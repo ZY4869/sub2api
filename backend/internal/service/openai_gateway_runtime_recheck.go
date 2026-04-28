@@ -18,7 +18,7 @@ func (s *OpenAIGatewayService) recheckSelectedOpenAIAccountFromDB(ctx context.Co
 		return nil
 	}
 	syncOpenAICodexRateLimitFromExtra(ctx, s.accountRepo, latest, time.Now())
-	if !latest.IsSchedulable() || !latest.IsOpenAI() {
+	if !latest.IsSchedulable() || !isOpenAITextRuntimeAccount(latest) {
 		return nil
 	}
 	if requestedModel != "" && !s.isModelSupportedByAccountWithContext(ctx, latest, requestedModel) {

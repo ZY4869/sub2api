@@ -174,6 +174,7 @@ const platformOptions = computed(() => [
   { value: 'openai', label: t('admin.accounts.platforms.openai') },
   { value: 'copilot', label: t('admin.accounts.platforms.copilot') },
   { value: 'grok', label: t('admin.accounts.platforms.grok') },
+  { value: 'deepseek', label: t('admin.accounts.platforms.deepseek') },
   { value: 'protocol_gateway', label: t('admin.accounts.platforms.protocol_gateway') },
   { value: 'gemini', label: t('admin.accounts.platforms.gemini') },
   { value: 'antigravity', label: t('admin.accounts.platforms.antigravity') },
