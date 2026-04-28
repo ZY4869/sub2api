@@ -674,6 +674,34 @@ func TestOpenAIGatewayService_IsModelUnavailableDueToRuntimeQuota(t *testing.T) 
 	require.False(t, mixedSvc.IsModelUnavailableDueToRuntimeQuota(ctx, nil, "gpt-5.4", nil))
 }
 
+func TestOpenAIGatewayService_IsModelUnavailableDueToRuntimeQuota_NonProSingleQuota(t *testing.T) {
+	ctx := WithOpenAIPlatform(context.Background(), PlatformOpenAI)
+	resetAt := time.Now().Add(10 * time.Minute)
+
+	blocked := Account{
+		ID:          343,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"plan_type": "plus",
+		},
+		Extra: map[string]any{
+			modelRateLimitsKey: map[string]any{
+				openAICodexScopeNormal: newModelRateLimitEntry(resetAt),
+			},
+		},
+	}
+
+	svc := &OpenAIGatewayService{
+		accountRepo: stubOpenAIAccountRepo{accounts: []Account{blocked}},
+	}
+	require.True(t, svc.IsModelUnavailableDueToRuntimeQuota(ctx, nil, "gpt-5.5", nil))
+	require.True(t, svc.IsModelUnavailableDueToRuntimeQuota(ctx, nil, "gpt-5.3-codex-spark", nil))
+}
+
 func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulableWhenNoConcurrencyService(t *testing.T) {
 	now := time.Now()
 	resetAt := now.Add(10 * time.Minute)

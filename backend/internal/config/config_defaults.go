@@ -109,7 +109,7 @@ func setDefaults() {
 	viper.SetDefault("ops.request_details.raw_access_user_ids", []int64{})
 	viper.SetDefault("ops.request_details.retention_days", 30)
 	viper.SetDefault("ops.request_details.success_sample_rate", 0.1)
-	viper.SetDefault("ops.request_details.force_capture_slow_ms", 3000)
+	viper.SetDefault("ops.request_details.force_capture_slow_ms", 60000)
 	viper.SetDefault("ops.request_details.raw_export_max_rows", 10000)
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)

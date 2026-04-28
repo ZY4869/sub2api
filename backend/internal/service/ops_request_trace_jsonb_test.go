@@ -80,7 +80,7 @@ func TestRecordRequestTraceNormalizesJSONBFieldsBeforeInsert(t *testing.T) {
 	err := svc.RecordRequestTrace(context.Background(), &OpsRecordRequestTraceInput{
 		RequestID:  "req-jsonb-normalize",
 		StatusCode: 200,
-		DurationMs: 4001,
+		DurationMs: opsRequestTraceDefaultSlowMs + 1,
 		Trace: GatewayTraceContext{
 			Normalize: ProtocolNormalizeResult{
 				Platform:       PlatformOpenAI,

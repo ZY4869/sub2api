@@ -30,6 +30,7 @@ const (
 	opsRequestTraceRawResponseLimit    = 1024 * 1024
 	opsRequestTraceSearchTextLimit     = 4096
 	opsRequestTracePayloadJSONLimit    = 64 * 1024
+	opsRequestTraceDefaultSlowMs       = int64(60000)
 )
 
 var ErrOpsRequestTracesDisabled = infraerrors.NotFound("OPS_REQUEST_TRACES_DISABLED", opsRequestTraceDisabledMessage)
@@ -577,7 +578,7 @@ func (s *OpsService) getOpsRequestTraceRuntimeConfig(ctx context.Context) opsReq
 		RawAccessUserIDs:   map[int64]struct{}{},
 		RetentionDays:      30,
 		SuccessSampleRate:  0.1,
-		ForceCaptureSlowMs: 3000,
+		ForceCaptureSlowMs: opsRequestTraceDefaultSlowMs,
 		RawExportMaxRows:   10000,
 	}
 
@@ -628,7 +629,7 @@ func (s *OpsService) getOpsRequestTraceRuntimeConfig(ctx context.Context) opsReq
 		cfg.SuccessSampleRate = 1
 	}
 	if cfg.ForceCaptureSlowMs <= 0 {
-		cfg.ForceCaptureSlowMs = 3000
+		cfg.ForceCaptureSlowMs = opsRequestTraceDefaultSlowMs
 	}
 	if cfg.RawExportMaxRows <= 0 {
 		cfg.RawExportMaxRows = 10000

@@ -59,3 +59,29 @@ func TestAccountIsSchedulableForModelWithContext_OpenAIPro_NormalRateLimitDoesNo
 	require.False(t, account.IsSchedulableForModelWithContext(context.Background(), openAICodexScopeNormal))
 	require.True(t, account.IsSchedulableForModelWithContext(context.Background(), openAICodexScopeSpark))
 }
+
+func TestAccountIsSchedulableForModelWithContext_OpenAINonProSingleQuotaBlocksAnyRequestedModel(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	resetAt := now.Add(30 * time.Minute).UTC().Format(time.RFC3339)
+
+	account := &Account{
+		ID:          3,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeOAuth,
+		Status:      StatusActive,
+		Schedulable: true,
+		Credentials: map[string]any{
+			"plan_type": "plus",
+		},
+		Extra: map[string]any{
+			"model_rate_limits": map[string]any{
+				openAICodexScopeNormal: map[string]any{
+					"rate_limit_reset_at": resetAt,
+				},
+			},
+		},
+	}
+
+	require.False(t, account.IsSchedulableForModelWithContext(context.Background(), "gpt-5.5"))
+	require.False(t, account.IsSchedulableForModelWithContext(context.Background(), openAICodexScopeSpark))
+}

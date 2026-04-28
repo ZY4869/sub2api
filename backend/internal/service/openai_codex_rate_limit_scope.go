@@ -162,14 +162,17 @@ func normalizeOpenAICodexQuotaScope(model string) string {
 }
 
 func resolveOpenAICodexQuotaScopeWithCandidates(account *Account, candidates ...string) string {
+	isPro := isOpenAIProPlan(account)
+	isOAuth := account != nil && strings.TrimSpace(account.Type) == AccountTypeOAuth
+
 	var (
-		hasCandidate bool
-		hasNormal    bool
-		hasSpark     bool
+		hasNormal       bool
+		hasSpark        bool
+		hasAnyCandidate bool
 	)
 	for _, candidate := range candidates {
 		for _, variant := range openAIRuntimeQuotaCandidateVariants(candidate) {
-			hasCandidate = true
+			hasAnyCandidate = true
 			switch normalizeOpenAICodexQuotaScope(variant) {
 			case openAICodexScopeSpark:
 				hasSpark = true
@@ -178,15 +181,28 @@ func resolveOpenAICodexQuotaScopeWithCandidates(account *Account, candidates ...
 			}
 		}
 	}
-	if isOpenAIProPlan(account) {
+
+	// Pro accounts have two quota sides: Spark vs Normal. Any non-Spark model participates in Normal.
+	if isPro {
 		if hasSpark {
 			return openAICodexScopeSpark
 		}
-		if hasCandidate {
+		if hasAnyCandidate {
 			return openAICodexScopeNormal
 		}
 		return ""
 	}
+
+	// Non-Pro OpenAI OAuth accounts (ChatGPT plans) effectively have a single quota side for runtime:
+	// any requested model should be blocked when the normal Codex quota is cooling down.
+	if isOAuth {
+		if hasAnyCandidate || hasSpark || hasNormal {
+			return openAICodexScopeNormal
+		}
+		return ""
+	}
+
+	// Non-Pro API key accounts: only Codex family model IDs map into the Codex scope.
 	if hasSpark || hasNormal {
 		return openAICodexScopeNormal
 	}

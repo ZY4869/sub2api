@@ -337,8 +337,8 @@ func TestAccountUsageService_GetOpenAIUsage_NonProPlansProbeOnlyNormalScope(t *t
 			if err != nil {
 				t.Fatalf("getOpenAIUsage() error = %v", err)
 			}
-			if len(probedModels) != 1 || probedModels[0] != openaipkg.DefaultTestModel {
-				t.Fatalf("probe models = %v, want [%q]", probedModels, openaipkg.DefaultTestModel)
+			if len(probedModels) != 1 || probedModels[0] != openAICodexScopeNormal {
+				t.Fatalf("probe models = %v, want [%q]", probedModels, openAICodexScopeNormal)
 			}
 			if usage.SparkFiveHour != nil || usage.SparkSevenDay != nil {
 				t.Fatalf("expected non-pro plan %q to suppress spark windows, got %+v", plan, usage)
@@ -452,7 +452,7 @@ func TestAccountUsageService_GetOpenAIUsage_ForceRefreshProbesNormalAndSpark(t *
 		openAICodexScopeProbe: func(_ context.Context, _ *Account, modelID string) (map[string]any, *time.Time, error) {
 			probedModels = append(probedModels, modelID)
 			switch modelID {
-			case openaipkg.DefaultTestModel:
+			case openAICodexScopeNormal:
 				resetAt := now.Add(24 * time.Hour)
 				return map[string]any{
 					"codex_usage_updated_at": now.Format(time.RFC3339),
@@ -492,8 +492,8 @@ func TestAccountUsageService_GetOpenAIUsage_ForceRefreshProbesNormalAndSpark(t *
 	if len(probedModels) != 2 {
 		t.Fatalf("expected 2 probe models, got %v", probedModels)
 	}
-	if probedModels[0] != openaipkg.DefaultTestModel || probedModels[1] != openAICodexScopeSpark {
-		t.Fatalf("probe order = %v, want [%q %q]", probedModels, openaipkg.DefaultTestModel, openAICodexScopeSpark)
+	if probedModels[0] != openAICodexScopeNormal || probedModels[1] != openAICodexScopeSpark {
+		t.Fatalf("probe order = %v, want [%q %q]", probedModels, openAICodexScopeNormal, openAICodexScopeSpark)
 	}
 	if usage.FiveHour == nil || usage.SevenDay == nil {
 		t.Fatalf("expected normal openai windows, got %+v", usage)
@@ -569,6 +569,14 @@ func TestResolveOpenAICodexProbeModelID_IgnoresSparkMappingToNormalScope(t *test
 				t.Fatalf("resolveOpenAICodexProbeModelID(spark) = %q, want %q", got, openAICodexScopeSpark)
 			}
 		})
+	}
+}
+
+func TestOpenAICodexProbeHeaders_MatchOfficialCodexClient(t *testing.T) {
+	t.Parallel()
+
+	if !openaipkg.IsCodexOfficialClientByHeaders(codexCLIUserAgent, "codex_cli_rs") {
+		t.Fatalf("expected probe UA/originator to be recognized as official codex client (ua=%q)", codexCLIUserAgent)
 	}
 }
 

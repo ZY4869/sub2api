@@ -371,7 +371,7 @@ func defaultOpsAdvancedSettings() *OpsAdvancedSettings {
 		RequestDetailsEnabled:           true,
 		RequestDetailRetentionDays:      30,
 		SuccessSampleRate:               0.1,
-		ForceCaptureSlowMs:              3000,
+		ForceCaptureSlowMs:              int(opsRequestTraceDefaultSlowMs),
 		RawExportMaxRows:                10000,
 		IgnoreCountTokensErrors:         true,  // count_tokens 404 是预期行为，默认忽略
 		IgnoreContextCanceled:           true,  // Default to true - client disconnects are not errors
@@ -411,7 +411,7 @@ func normalizeOpsAdvancedSettings(cfg *OpsAdvancedSettings) {
 		cfg.SuccessSampleRate = 1
 	}
 	if cfg.ForceCaptureSlowMs <= 0 {
-		cfg.ForceCaptureSlowMs = 3000
+		cfg.ForceCaptureSlowMs = int(opsRequestTraceDefaultSlowMs)
 	}
 	if cfg.RawExportMaxRows <= 0 {
 		cfg.RawExportMaxRows = 10000

@@ -5039,13 +5039,13 @@ export default {
           "Controls whether gateway request traces are persisted for the request details page.",
         requestDetailRetentionDays: "Request detail retention days",
         requestDetailRetentionDaysHint:
-          "Raw and sanitized trace payloads will be cleaned up after this number of days.",
+          "Scheduled cleanup deletes request details, sanitized payloads, and raw traces older than this number of days.",
         successSampleRate: "Success sampling rate",
         successSampleRateHint:
           "Applies to successful requests that are not force-captured. Use a decimal between 0 and 1.",
         forceCaptureSlowMs: "Force capture slow request threshold",
         forceCaptureSlowMsHint:
-          "Successful requests above this latency are always captured.",
+          "Successful requests above this latency are always captured; 60000 ms or higher is recommended for model/image traffic.",
         rawExportMaxRows: "Raw export max rows",
         rawExportMaxRowsHint:
           "Limits synchronous raw CSV exports to reduce database and memory pressure.",

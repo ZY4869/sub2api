@@ -16,11 +16,11 @@ import (
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	httppool "github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
-	openaipkg "github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )
@@ -106,15 +106,12 @@ type antigravityUsageCache struct {
 }
 
 const (
-	apiCacheTTL             = 3 * time.Minute
-	apiErrorCacheTTL        = 1 * time.Minute        // 负缓存 TTL：429 等错误缓存 1 分钟
-	antigravityErrorTTL     = 1 * time.Minute        // Antigravity 错误缓存 TTL（可恢复错误）
-	apiQueryMaxJitter       = 800 * time.Millisecond // 用量查询最大随机延迟
-	windowStatsCacheTTL     = 1 * time.Minute
-	openAIProbeCacheTTL     = 10 * time.Minute
-	openAICodexProbeVersion = "0.118.0"
-	openAICodexProbeAgent   = "codex-tui/0.118.0 (Mac OS 26.3.1; arm64) iTerm.app/3.6.9 (codex-tui; 0.118.0)"
-	openAICodexProbeOrigin  = "codex-tui"
+	apiCacheTTL         = 3 * time.Minute
+	apiErrorCacheTTL    = 1 * time.Minute        // 负缓存 TTL：429 等错误缓存 1 分钟
+	antigravityErrorTTL = 1 * time.Minute        // Antigravity 错误缓存 TTL（可恢复错误）
+	apiQueryMaxJitter   = 800 * time.Millisecond // 用量查询最大随机延迟
+	windowStatsCacheTTL = 1 * time.Minute
+	openAIProbeCacheTTL = 10 * time.Minute
 )
 
 // UsageCache 封装账户使用量相关的缓存
@@ -659,7 +656,9 @@ func (s *AccountUsageService) probeOpenAICodexSnapshot(ctx context.Context, acco
 	if account == nil || !isChatGPTOpenAIOAuthAccount(account) {
 		return nil, nil, nil
 	}
-	probeModels := []string{openaipkg.DefaultTestModel}
+	// Probe the Codex quota headers using Codex models.
+	// This avoids upstream fallbacks where non-Codex models may return shared/degenerate snapshots.
+	probeModels := []string{openAICodexScopeNormal}
 	if isOpenAIProPlan(account) {
 		probeModels = append(probeModels, openAICodexScopeSpark)
 	}
@@ -728,9 +727,12 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
-	req.Header.Set("Originator", openAICodexProbeOrigin)
-	req.Header.Set("Version", openAICodexProbeVersion)
-	req.Header.Set("User-Agent", openAICodexProbeAgent)
+	// Match official Codex client family headers so upstream applies the correct
+	// per-scope quota (especially for Pro Spark).
+	req.Header.Set("Originator", "codex_cli_rs")
+	req.Header.Set("Version", codexCLIVersion)
+	req.Header.Set("User-Agent", codexCLIUserAgent)
+	req.Header.Set("Session_id", uuid.NewString())
 	if chatgptAccountID := account.GetChatGPTAccountID(); chatgptAccountID != "" {
 		req.Header.Set("chatgpt-account-id", chatgptAccountID)
 	}
@@ -758,7 +760,17 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 		return nil, nil, err
 	}
 	if len(updates) > 0 || resetAt != nil {
-		slog.Info("openai_codex_snapshot_scope_resolved", "account_id", account.ID, "requested_model", probeModelID, "upstream_model", probeModelID, "resolved_scope", scope, "snapshot_source", "usage_probe")
+		util5h, util7d := extractCodexUsagePercentsFromUpdates(scope, updates)
+		slog.Info(
+			"openai_codex_snapshot_scope_resolved",
+			"account_id", account.ID,
+			"requested_model", probeModelID,
+			"upstream_model", probeModelID,
+			"resolved_scope", scope,
+			"snapshot_source", "usage_probe",
+			"utilization_5h_percent", util5h,
+			"utilization_7d_percent", util7d,
+		)
 		state := s.persistOpenAICodexProbeSnapshot(reqCtx, account, updates)
 		if state != nil {
 			if state.AccountResetAt != nil {
@@ -771,6 +783,18 @@ func (s *AccountUsageService) probeOpenAICodexSnapshotForModel(ctx context.Conte
 		return updates, resetAt, nil
 	}
 	return nil, nil, nil
+}
+
+func extractCodexUsagePercentsFromUpdates(scope string, updates map[string]any) (float64, float64) {
+	if len(updates) == 0 {
+		return 0, 0
+	}
+	switch strings.TrimSpace(scope) {
+	case openAICodexScopeSpark:
+		return parseExtraFloat64(updates[codexSpark5hUsedPercentKey]), parseExtraFloat64(updates[codexSpark7dUsedPercentKey])
+	default:
+		return parseExtraFloat64(updates["codex_5h_used_percent"]), parseExtraFloat64(updates["codex_7d_used_percent"])
+	}
 }
 
 func (s *AccountUsageService) persistOpenAICodexProbeSnapshot(ctx context.Context, account *Account, updates map[string]any) *openAICodexRateLimitState {

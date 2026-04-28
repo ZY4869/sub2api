@@ -162,7 +162,7 @@ func TestRecordRequestTraceNormalizesEmptyToolKinds(t *testing.T) {
 	err := svc.RecordRequestTrace(context.Background(), &OpsRecordRequestTraceInput{
 		RequestID:  "req-no-tools",
 		StatusCode: 200,
-		DurationMs: 3500,
+		DurationMs: opsRequestTraceDefaultSlowMs + 1,
 		Trace: GatewayTraceContext{
 			Normalize: ProtocolNormalizeResult{
 				Platform:       PlatformOpenAI,

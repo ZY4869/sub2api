@@ -5007,12 +5007,12 @@
           "控制是否为请求详细页面持久化网关 trace 数据。",
         requestDetailRetentionDays: "请求详细保留天数",
         requestDetailRetentionDaysHint:
-          "达到保留上限后会清理脱敏与原文 trace 数据。",
+          "定时清理会删除超过该天数的请求详细、脱敏 payload 与原文 trace 数据。",
         successSampleRate: "成功请求采样率",
         successSampleRateHint:
           "仅作用于未被强制保留的成功请求，填写 0 到 1 之间的小数。",
         forceCaptureSlowMs: "慢请求强制保留阈值",
-        forceCaptureSlowMsHint: "超过该耗时的成功请求会被强制保留。",
+        forceCaptureSlowMsHint: "超过该耗时的成功请求会被强制保留；模型/图片请求建议 60000 毫秒以上。",
         rawExportMaxRows: "原文导出最大行数",
         rawExportMaxRowsHint:
           "限制同步原文 CSV 导出规模，避免数据库和内存压力过高。",

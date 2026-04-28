@@ -38,6 +38,7 @@ return 0
 // - Safety: deletes in batches to avoid long transactions.
 type OpsCleanupService struct {
 	opsRepo     OpsRepository
+	settingRepo SettingRepository
 	db          *sql.DB
 	redisClient *redis.Client
 	cfg         *config.Config
@@ -54,12 +55,14 @@ type OpsCleanupService struct {
 
 func NewOpsCleanupService(
 	opsRepo OpsRepository,
+	settingRepo SettingRepository,
 	db *sql.DB,
 	redisClient *redis.Client,
 	cfg *config.Config,
 ) *OpsCleanupService {
 	return &OpsCleanupService{
 		opsRepo:     opsRepo,
+		settingRepo: settingRepo,
 		db:          db,
 		redisClient: redisClient,
 		cfg:         cfg,
@@ -84,10 +87,7 @@ func (s *OpsCleanupService) Start() {
 	}
 
 	s.startOnce.Do(func() {
-		schedule := "0 2 * * *"
-		if s.cfg != nil && strings.TrimSpace(s.cfg.Ops.Cleanup.Schedule) != "" {
-			schedule = strings.TrimSpace(s.cfg.Ops.Cleanup.Schedule)
-		}
+		schedule := s.cleanupSchedule(context.Background())
 
 		loc := time.Local
 		if s.cfg != nil && strings.TrimSpace(s.cfg.Timezone) != "" {
@@ -191,27 +191,16 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 	batchSize := 5000
 
 	now := time.Now().UTC()
+	retention := s.cleanupRetentionConfig(ctx)
 
 	// Error-like tables: error logs / retry attempts / alert events.
-	if days := s.cfg.Ops.Cleanup.ErrorLogRetentionDays; days > 0 {
+	if days := retention.ErrorLogRetentionDays; days > 0 {
 		cutoff := now.AddDate(0, 0, -days)
 		n, err := deleteOldRowsByID(ctx, s.db, "ops_error_logs", "created_at", cutoff, batchSize, false)
 		if err != nil {
 			return out, err
 		}
 		out.errorLogs = n
-
-		n, err = deleteOldRowsByID(ctx, s.db, "ops_request_traces", "created_at", cutoff, batchSize, false)
-		if err != nil {
-			return out, err
-		}
-		out.requestTraces = n
-
-		n, err = deleteOldRowsByID(ctx, s.db, "ops_request_trace_audits", "created_at", cutoff, batchSize, false)
-		if err != nil {
-			return out, err
-		}
-		out.traceAudits = n
 
 		n, err = deleteOldRowsByID(ctx, s.db, "ops_retry_attempts", "created_at", cutoff, batchSize, false)
 		if err != nil {
@@ -238,8 +227,23 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 		out.logAudits = n
 	}
 
+	if days := retention.RequestTraceRetentionDays; days > 0 {
+		cutoff := now.AddDate(0, 0, -days)
+		n, err := deleteOldRowsByID(ctx, s.db, "ops_request_traces", "created_at", cutoff, batchSize, false)
+		if err != nil {
+			return out, err
+		}
+		out.requestTraces = n
+
+		n, err = deleteOldRowsByID(ctx, s.db, "ops_request_trace_audits", "created_at", cutoff, batchSize, false)
+		if err != nil {
+			return out, err
+		}
+		out.traceAudits = n
+	}
+
 	// Minute-level metrics snapshots.
-	if days := s.cfg.Ops.Cleanup.MinuteMetricsRetentionDays; days > 0 {
+	if days := retention.MinuteMetricsRetentionDays; days > 0 {
 		cutoff := now.AddDate(0, 0, -days)
 		n, err := deleteOldRowsByID(ctx, s.db, "ops_system_metrics", "created_at", cutoff, batchSize, false)
 		if err != nil {
@@ -249,7 +253,7 @@ func (s *OpsCleanupService) runCleanupOnce(ctx context.Context) (opsCleanupDelet
 	}
 
 	// Pre-aggregation tables (hourly/daily).
-	if days := s.cfg.Ops.Cleanup.HourlyMetricsRetentionDays; days > 0 {
+	if days := retention.HourlyMetricsRetentionDays; days > 0 {
 		cutoff := now.AddDate(0, 0, -days)
 		n, err := deleteOldRowsByID(ctx, s.db, "ops_metrics_hourly", "bucket_start", cutoff, batchSize, false)
 		if err != nil {

@@ -18,7 +18,7 @@ func (s openAIRuntimeQuotaStatus) Limited() bool {
 
 func openAIRuntimeQuotaStatusForCandidates(account *Account, candidates ...string) openAIRuntimeQuotaStatus {
 	status := openAIRuntimeQuotaStatus{}
-	if account == nil || !account.IsOpenAI() || !isOpenAIProPlan(account) {
+	if account == nil || !account.IsOpenAI() {
 		return status
 	}
 

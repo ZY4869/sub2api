@@ -273,7 +273,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	opsMetricsCollector := service.ProvideOpsMetricsCollector(opsRepository, settingRepository, accountRepository, concurrencyService, db, redisClient, configConfig)
 	opsAggregationService := service.ProvideOpsAggregationService(opsRepository, settingRepository, db, redisClient, configConfig)
 	opsAlertEvaluatorService := service.ProvideOpsAlertEvaluatorService(opsService, opsRepository, emailService, redisClient, configConfig)
-	opsCleanupService := service.ProvideOpsCleanupService(opsRepository, db, redisClient, configConfig)
+	opsCleanupService := service.ProvideOpsCleanupService(opsRepository, settingRepository, db, redisClient, configConfig)
 	opsScheduledReportService := service.ProvideOpsScheduledReportService(opsService, userService, emailService, redisClient, configConfig)
 	googleBatchArchivePollerService := service.ProvideGoogleBatchArchivePollerService(googleBatchArchiveJobRepository, geminiMessagesCompatService, settingService)
 	googleBatchArchivePrefetchService := service.ProvideGoogleBatchArchivePrefetchService(googleBatchArchiveJobRepository, googleBatchArchiveObjectRepository, geminiMessagesCompatService, settingService)
