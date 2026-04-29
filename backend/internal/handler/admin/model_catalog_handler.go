@@ -14,11 +14,19 @@ import (
 
 type ModelCatalogHandler struct {
 	modelCatalogService *service.ModelCatalogService
+	modelDebugService   *service.ModelDebugService
 	userService         *service.UserService
 }
 
 func NewModelCatalogHandler(modelCatalogService *service.ModelCatalogService, userService *service.UserService) *ModelCatalogHandler {
 	return &ModelCatalogHandler{modelCatalogService: modelCatalogService, userService: userService}
+}
+
+func (h *ModelCatalogHandler) SetModelDebugService(modelDebugService *service.ModelDebugService) {
+	if h == nil {
+		return
+	}
+	h.modelDebugService = modelDebugService
 }
 
 func (h *ModelCatalogHandler) List(c *gin.Context) {

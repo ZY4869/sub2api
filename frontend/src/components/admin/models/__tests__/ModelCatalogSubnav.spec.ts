@@ -12,7 +12,8 @@ vi.mock('vue-i18n', async () => {
       t: (key: string) => {
         const labels: Record<string, string> = {
           'admin.models.pages.available.nav': 'Available Models',
-          'admin.models.pages.all.nav': 'All Models'
+          'admin.models.pages.all.nav': 'All Models',
+          'admin.models.pages.debug.nav': 'Model Debug'
         }
         return labels[key] || key
       }
@@ -33,12 +34,12 @@ vi.mock('vue-router', async () => {
 })
 
 describe('ModelCatalogSubnav', () => {
-  it('renders available and all in the expected order', () => {
+  it('renders available, all, and debug in the expected order', () => {
     const wrapper = mount(ModelCatalogSubnav)
     const labels = wrapper.findAll('a').map((link) => link.text())
     const destinations = wrapper.findAll('a').map((link) => link.attributes('href'))
 
-    expect(labels).toEqual(['Available Models', 'All Models'])
-    expect(destinations).toEqual(['/admin/models/available', '/admin/models/all'])
+    expect(labels).toEqual(['Available Models', 'All Models', 'Model Debug'])
+    expect(destinations).toEqual(['/admin/models/available', '/admin/models/all', '/admin/models/debug'])
   })
 })

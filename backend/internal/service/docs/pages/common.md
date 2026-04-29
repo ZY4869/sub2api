@@ -150,12 +150,17 @@ https://api.zyxai.de
 
 `GET /api/v1/meta/model-catalog` 当前返回体额外包含：
 
-- `etag`：本次已发布快照的版本标识
-- `etag`：当前有效目录快照的版本标识
+- `etag`：当前有效目录快照的版本标识；命中已发布版本时来自最近一次发布，回退实时目录时来自当前实时快照
 - `updated_at`：当前目录快照的更新时间；若命中已发布版本则表示最近一次发布时间，若回退实时则表示实时目录构建时间
 - `page_size`：公开模型库前台默认每页数量；命中已发布版本时使用发布快照中的固定值，回退实时时使用当前默认页大小
 - `catalog_source`：目录来源，固定为 `published` 或 `live_fallback`
-- `items`：公开模型数组，卡片标题应优先展示 `display_name`
+- `items[].status`：面向前台展示的五态摘要，固定为 `ok` / `warning` / `maintenance` / `info` / `error`
+- `items[].availability_state`：可服务性来源状态，固定为 `verified` / `unavailable` / `unknown`
+- `items[].stale_state`：状态新鲜度，固定为 `fresh` / `stale` / `unverified`
+- `items[].lifecycle_status`：生命周期标记，固定为 `stable` / `beta` / `deprecated`
+- `items[].price_display.primary`：核心售价行，可能包含 `input_price`、`output_price`、`cache_price`、`batch_cache_price`
+- `items[].price_display.secondary`：附加售价行，只保留 grounding / retrieval 等补充项
+- `items`：公开模型数组，前台可优先展示 `display_name`；当它与 `model` 只是大小写或分隔符变体时，可按本地标题规则折叠重复 subtitle
 
 典型响应示例：
 
@@ -171,13 +176,22 @@ https://api.zyxai.de
       "display_name": "GPT-5.4",
       "provider": "openai",
       "provider_icon_key": "openai",
+      "status": "ok",
+      "availability_state": "verified",
+      "stale_state": "fresh",
+      "lifecycle_status": "stable",
       "request_protocols": ["openai"],
       "mode": "chat",
       "currency": "USD",
       "price_display": {
         "primary": [
           { "id": "input_price", "unit": "input_token", "value": 0.0000012 },
-          { "id": "output_price", "unit": "output_token", "value": 0.0000024 }
+          { "id": "output_price", "unit": "output_token", "value": 0.0000024 },
+          { "id": "cache_price", "unit": "cache_create_token", "value": 0.0000003 },
+          { "id": "batch_cache_price", "unit": "cache_create_token", "value": 0.00000015 }
+        ],
+        "secondary": [
+          { "id": "file_search_retrieval", "unit": "file_search_retrieval_token", "value": 0.000001 }
         ]
       },
       "multiplier_summary": {
@@ -197,11 +211,22 @@ https://api.zyxai.de
     "model": "gpt-5.4",
     "display_name": "GPT-5.4",
     "provider": "openai",
+    "provider_icon_key": "openai",
+    "status": "ok",
+    "availability_state": "verified",
+    "stale_state": "fresh",
+    "lifecycle_status": "stable",
+    "request_protocols": ["openai"],
+    "mode": "chat",
     "currency": "USD",
     "price_display": {
       "primary": [
         { "id": "input_price", "unit": "input_token", "value": 0.0000012 },
-        { "id": "output_price", "unit": "output_token", "value": 0.0000024 }
+        { "id": "output_price", "unit": "output_token", "value": 0.0000024 },
+        { "id": "cache_price", "unit": "cache_create_token", "value": 0.0000003 }
+      ],
+      "secondary": [
+        { "id": "file_search_retrieval", "unit": "file_search_retrieval_token", "value": 0.000001 }
       ]
     },
     "multiplier_summary": {
@@ -230,7 +255,7 @@ https://api.zyxai.de
 
 - 路径：`GET /api/v1/groups/model-catalog?group_id=<GROUP_ID>`
 - 鉴权：必须登录
-- 用途：返回“当前有效公开模型目录 + 指定分组倍率换算后的 `price_display`”；结构与 `/api/v1/meta/model-catalog` 保持一致，只替换价格字段
+- 用途：返回“当前有效公开模型目录 + 指定分组倍率换算后的 `price_display`”；结构与 `/api/v1/meta/model-catalog` 保持一致，只替换价格字段，`status` / `availability_state` / `stale_state` / `lifecycle_status` 等状态字段保持原样
 - 约束：这里只用于用户自己的分组上下文页面；如果存在已发布快照则优先使用已发布基础售价，没有已发布快照时才回退实时目录
 
 下面的例子分别展示三种常用认证写法。

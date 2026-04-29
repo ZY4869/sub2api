@@ -101,6 +101,7 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		models.GET("", h.Admin.ModelCatalog.List)
 		models.GET("/detail", h.Admin.ModelCatalog.Detail)
+		models.POST("/debug/run", h.Admin.ModelCatalog.RunDebug)
 		models.GET("/exchange-rate", h.Admin.ModelCatalog.ExchangeRate)
 		models.GET("/billing", h.Admin.ModelCatalog.DeprecatedBillingCenter)
 		models.PUT("/billing/sheets", h.Admin.ModelCatalog.DeprecatedUpsertBillingSheet)

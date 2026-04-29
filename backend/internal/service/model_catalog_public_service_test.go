@@ -188,10 +188,11 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesExpectedPrimaryPrice
 
 	items := publicCatalogItemsByModel(result.Items)
 	textItem := items["gpt-5.4"]
-	require.Equal(t, []string{billingDiscountFieldInputPrice, billingDiscountFieldOutputPrice}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Primary))
-	require.Equal(t, []string{billingDiscountFieldCachePrice, billingDiscountFieldBatchOutputPrice}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Secondary))
+	require.Equal(t, []string{billingDiscountFieldInputPrice, billingDiscountFieldOutputPrice, billingDiscountFieldCachePrice}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Primary))
+	require.Equal(t, []string{billingDiscountFieldBatchOutputPrice}, publicCatalogPriceEntryIDs(textItem.PriceDisplay.Secondary))
 	require.Equal(t, BillingUnitInputToken, textItem.PriceDisplay.Primary[0].Unit)
 	require.Equal(t, BillingUnitOutputToken, textItem.PriceDisplay.Primary[1].Unit)
+	require.Equal(t, BillingUnitCacheCreateToken, textItem.PriceDisplay.Primary[2].Unit)
 
 	imageItem := items["gemini-2.5-flash-image"]
 	require.Equal(t, []string{billingDiscountFieldOutputPrice}, publicCatalogPriceEntryIDs(imageItem.PriceDisplay.Primary))
@@ -364,10 +365,13 @@ func TestModelCatalogService_PublicModelCatalogSnapshot_UsesScopedProjectionAndS
 func TestBuildPublicModelCatalogItemFromProjection_PrefersActualProviderOverProjectionProtocol(t *testing.T) {
 	item, ok := buildPublicModelCatalogItemFromProjection(
 		PublicModelProjectionEntry{
-			PublicID:    "gateway-gpt-5.4",
-			DisplayName: "Gateway GPT-5.4",
-			Platform:    PlatformGemini,
-			SourceIDs:   []string{"gpt-5.4"},
+			PublicID:          "gateway-gpt-5.4",
+			DisplayName:       "Gateway GPT-5.4",
+			Platform:          PlatformGemini,
+			AvailabilityState: AccountModelAvailabilityVerified,
+			StaleState:        AccountModelStaleStateFresh,
+			LifecycleStatus:   PublicModelLifecycleStable,
+			SourceIDs:         []string{"gpt-5.4"},
 		},
 		nil,
 		&BillingPricingCatalogSnapshot{
@@ -386,6 +390,86 @@ func TestBuildPublicModelCatalogItemFromProjection_PrefersActualProviderOverProj
 	require.True(t, ok)
 	require.Equal(t, PlatformOpenAI, item.Provider)
 	require.Equal(t, PlatformOpenAI, item.ProviderIconKey)
+	require.Equal(t, PublicModelStatusOK, item.Status)
+}
+
+func TestAppendPublicModelProjectionAggregate_PrefersBestRepresentativeStatus(t *testing.T) {
+	items := map[string]PublicModelProjectionEntry{}
+
+	appendPublicModelProjectionAggregate(items, PublicModelProjectionEntry{
+		PublicID:          "gpt-5.4",
+		DisplayName:       "GPT-5.4",
+		Platform:          PlatformOpenAI,
+		AvailabilityState: AccountModelAvailabilityUnavailable,
+		StaleState:        AccountModelStaleStateFresh,
+		LifecycleStatus:   PublicModelLifecycleDeprecated,
+		SourceIDs:         []string{"gpt-5.4-legacy"},
+	})
+	appendPublicModelProjectionAggregate(items, PublicModelProjectionEntry{
+		PublicID:          "gpt-5.4",
+		DisplayName:       "GPT-5.4",
+		Platform:          PlatformOpenAI,
+		AvailabilityState: AccountModelAvailabilityVerified,
+		StaleState:        AccountModelStaleStateFresh,
+		LifecycleStatus:   PublicModelLifecycleStable,
+		SourceIDs:         []string{"gpt-5.4"},
+	})
+
+	require.Equal(t, AccountModelAvailabilityVerified, items["gpt-5.4"].AvailabilityState)
+	require.Equal(t, AccountModelStaleStateFresh, items["gpt-5.4"].StaleState)
+	require.Equal(t, PublicModelLifecycleStable, items["gpt-5.4"].LifecycleStatus)
+	require.ElementsMatch(t, []string{"gpt-5.4", "gpt-5.4-legacy"}, items["gpt-5.4"].SourceIDs)
+}
+
+func TestBuildPublicModelCatalogItemFromProjection_MapsPublicStatuses(t *testing.T) {
+	baseSnapshot := &BillingPricingCatalogSnapshot{
+		Models: []BillingPricingPersistedModel{
+			newPublicCatalogPersistedModel("gpt-5.4", PlatformOpenAI, "chat", true, BillingChargeSlotTextOutput, BillingPricingLayerForm{
+				InputPrice:     modelCatalogFloat64Ptr(1e-6),
+				OutputPrice:    modelCatalogFloat64Ptr(2e-6),
+				Special:        BillingPricingSimpleSpecial{},
+				SpecialEnabled: false,
+			}),
+		},
+	}
+	testCases := []struct {
+		name           string
+		availability   string
+		stale          string
+		lifecycle      string
+		expectedStatus string
+		expectedLife   string
+	}{
+		{name: "ok", availability: AccountModelAvailabilityVerified, stale: AccountModelStaleStateFresh, lifecycle: PublicModelLifecycleStable, expectedStatus: PublicModelStatusOK, expectedLife: PublicModelLifecycleStable},
+		{name: "warning beta", availability: AccountModelAvailabilityVerified, stale: AccountModelStaleStateFresh, lifecycle: PublicModelLifecycleBeta, expectedStatus: PublicModelStatusWarning, expectedLife: PublicModelLifecycleBeta},
+		{name: "maintenance", availability: AccountModelAvailabilityVerified, stale: AccountModelStaleStateStale, lifecycle: PublicModelLifecycleStable, expectedStatus: PublicModelStatusMaintenance, expectedLife: PublicModelLifecycleStable},
+		{name: "info", availability: AccountModelAvailabilityUnknown, stale: AccountModelStaleStateUnverified, lifecycle: PublicModelLifecycleStable, expectedStatus: PublicModelStatusInfo, expectedLife: PublicModelLifecycleStable},
+		{name: "error", availability: AccountModelAvailabilityUnavailable, stale: AccountModelStaleStateFresh, lifecycle: PublicModelLifecycleStable, expectedStatus: PublicModelStatusError, expectedLife: PublicModelLifecycleStable},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			item, ok := buildPublicModelCatalogItemFromProjection(
+				PublicModelProjectionEntry{
+					PublicID:          "gpt-5.4",
+					DisplayName:       "GPT-5.4",
+					Platform:          PlatformOpenAI,
+					AvailabilityState: tc.availability,
+					StaleState:        tc.stale,
+					LifecycleStatus:   tc.lifecycle,
+					SourceIDs:         []string{"gpt-5.4"},
+				},
+				nil,
+				baseSnapshot,
+				nil,
+			)
+			require.True(t, ok)
+			require.Equal(t, tc.expectedStatus, item.Status)
+			require.Equal(t, tc.availability, item.AvailabilityState)
+			require.Equal(t, tc.stale, item.StaleState)
+			require.Equal(t, tc.expectedLife, item.LifecycleStatus)
+		})
+	}
 }
 
 func TestAPIKeyService_GetAvailableGroupModelOptions_MatchesPublicCatalogProjection(t *testing.T) {

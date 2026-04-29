@@ -327,7 +327,13 @@ func diagnosticsPreviewEntries(
 
 	out := make([]AccountModelDiagnosticsPreview, 0, len(entries))
 	for _, entry := range entries {
-		out = append(out, AccountModelDiagnosticsPreview(entry))
+		out = append(out, AccountModelDiagnosticsPreview{
+			PublicID:    entry.PublicID,
+			AliasID:     entry.AliasID,
+			SourceID:    entry.SourceID,
+			DisplayName: entry.DisplayName,
+			Platform:    entry.Platform,
+		})
 	}
 	return out
 }

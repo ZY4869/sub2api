@@ -72,8 +72,9 @@ describe("PublicModelCatalogContent", () => {
             display_name: "GPT-5.4",
             provider: "openai",
             provider_icon_key: "openai",
+            status: "ok",
             request_protocols: ["openai"],
-            source_ids: ["gpt-5.4-source"],
+            source_ids: ["source-alpha"],
             mode: "chat",
             currency: "USD",
             price_display: {
@@ -91,6 +92,7 @@ describe("PublicModelCatalogContent", () => {
             display_name: "Claude Sonnet 4.5",
             provider: "anthropic",
             provider_icon_key: "anthropic",
+            status: "warning",
             request_protocols: ["anthropic"],
             source_ids: ["claude-source-id"],
             mode: "chat",
@@ -108,6 +110,7 @@ describe("PublicModelCatalogContent", () => {
             display_name: "GPT 5.4 Compatible",
             provider: "openai",
             provider_icon_key: "openai",
+            status: "maintenance",
             request_protocols: ["gemini"],
             source_ids: ["compat-source-id"],
             mode: "chat",
@@ -155,14 +158,19 @@ describe("PublicModelCatalogContent", () => {
     await flushPromises();
 
     expect(wrapper.get('[data-testid="public-model-results"]').attributes("data-view-mode")).toBe("list");
-    expect(wrapper.text()).toContain("GPT-5.4");
+    expect(wrapper.text()).toContain("GPT 5.4");
     expect(wrapper.text()).toContain("Claude Sonnet 4.5");
+    expect(wrapper.find('[data-testid="public-model-primary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="public-model-secondary-price-gpt-5.4-compat-cache_price"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("ui.modelCatalog.status.maintenance");
+    expect(wrapper.findAll('[aria-label="ui.modelCatalog.status.maintenance"]').length).toBeGreaterThan(0);
     expect(wrapper.find('[data-testid="models-filter-provider-gemini"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="models-filter-provider-openai"]').trigger("click");
-    expect(wrapper.text()).toContain("GPT-5.4");
+    expect(wrapper.text()).toContain("GPT 5.4");
     expect(wrapper.text()).toContain("GPT 5.4 Compatible");
     expect(wrapper.text()).not.toContain("Claude Sonnet 4.5");
+    expect(wrapper.get('[data-testid="public-model-card-gpt-5.4"]').text()).not.toContain("gpt-5.4");
 
     await wrapper.get('[data-testid="models-filter-provider-all"]').trigger("click");
     await wrapper.get('[data-testid="models-filter-protocol-gemini"]').trigger("click");

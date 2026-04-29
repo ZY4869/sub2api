@@ -11,37 +11,66 @@
           <div class="flex items-center gap-3">
             <ModelIcon
               v-if="displayItem"
-              :model="displayItem.model"
-              :provider="displayItem.provider"
-              :display-name="displayItem.display_name"
+              :model="displayItem.raw.model"
+              :provider="displayItem.raw.provider"
+              :display-name="displayItem.raw.display_name"
               size="22px"
+            />
+            <PublicModelStatusIcon
+              v-if="displayItem"
+              :status="displayItem.status"
+              :label="statusLabel(displayItem.status)"
+              :size="26"
             />
             <div class="min-w-0">
               <p class="truncate text-lg font-semibold text-slate-950 dark:text-white">
-                {{ displayItem?.display_name || displayItem?.model || "-" }}
+                {{ displayItem?.title || "-" }}
               </p>
-              <p class="truncate text-sm text-slate-500 dark:text-slate-400">
-                {{ displayItem?.model || "-" }}
+              <p
+                v-if="displayItem?.subtitle"
+                class="truncate text-sm text-slate-500 dark:text-slate-400"
+              >
+                {{ displayItem.subtitle }}
               </p>
             </div>
           </div>
           <div
-            v-if="displayItem?.request_protocols?.length"
+            v-if="displayItem"
             class="mt-3 flex flex-wrap gap-2 text-xs"
           >
             <span
-              v-for="protocol in displayItem.request_protocols"
-              :key="protocol"
-              class="rounded-full bg-sky-100 px-2.5 py-1 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
+              class="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-2.5 py-1 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-200"
             >
-              {{ protocol }}
+              <PublicModelStatusIcon
+                :status="displayItem.status"
+                :label="statusLabel(displayItem.status)"
+                :size="14"
+              />
+              {{ statusLabel(displayItem.status) }}
+            </span>
+            <span
+              class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-dark-800 dark:text-slate-200"
+            >
+              <ModelPlatformIcon
+                :platform="displayItem.raw.provider_icon_key || displayItem.raw.provider || ''"
+                size="xs"
+              />
+              {{ providerLabel(displayItem.raw) }}
+            </span>
+            <span
+              v-for="protocol in displayItem.raw.request_protocols"
+              :key="protocol"
+              class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
+            >
+              <ModelPlatformIcon :platform="protocol" size="xs" />
+              {{ protocolLabel(protocol) }}
             </span>
           </div>
         </div>
 
         <div class="rounded-2xl bg-slate-50 px-4 py-3 text-right dark:bg-dark-800">
           <div class="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            {{ displayItem?.currency || "USD" }}
+            {{ displayItem?.raw.currency || "USD" }}
           </div>
           <div class="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
             {{ multiplierLabel }}
@@ -56,39 +85,41 @@
               {{ t("ui.modelCatalog.detail.pricingTitle") }}
             </h3>
             <span class="text-xs text-slate-500 dark:text-slate-400">
-              {{ displayItem?.currency || "USD" }}
+              {{ displayItem?.raw.currency || "USD" }}
             </span>
           </div>
 
           <div v-if="displayItem" class="mt-4 space-y-3">
             <div
-              v-for="entry in displayItem.price_display.primary"
+              v-for="entry in displayItem.primaryPrices"
               :key="entry.id"
               class="flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm dark:bg-dark-800"
+              :data-testid="`detail-primary-price-${entry.id}`"
             >
               <span class="text-slate-600 dark:text-slate-300">
                 {{ renderPriceEntryLabel(entry.id) }}
               </span>
-              <span class="font-semibold text-slate-950 dark:text-white">
-                {{ renderPrice(entry, displayItem.currency) }}
+              <span class="font-semibold text-slate-950 dark:text-white" :class="primaryPriceClass(entry.id)">
+                {{ renderPrice(entry, displayItem.raw.currency) }}
               </span>
             </div>
 
-            <div v-if="displayItem.price_display.secondary?.length" class="space-y-2">
+            <div v-if="displayItem.secondaryPrices.length" class="space-y-2">
               <p class="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                 {{ t("ui.modelCatalog.detail.secondaryPricingTitle") }}
               </p>
               <div class="space-y-2">
                 <div
-                  v-for="entry in displayItem.price_display.secondary"
+                  v-for="entry in displayItem.secondaryPrices"
                   :key="entry.id"
                   class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 px-4 py-3 text-sm dark:border-dark-700"
+                  :data-testid="`detail-secondary-price-${entry.id}`"
                 >
                   <span class="text-slate-600 dark:text-slate-300">
                     {{ renderPriceEntryLabel(entry.id) }}
                   </span>
                   <span class="font-medium text-slate-950 dark:text-white">
-                    {{ renderPrice(entry, displayItem.currency) }}
+                    {{ renderPrice(entry, displayItem.raw.currency) }}
                   </span>
                 </div>
               </div>
@@ -150,7 +181,7 @@
             >
               <div class="flex flex-wrap gap-2 text-xs">
                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700 dark:bg-dark-800 dark:text-slate-200">
-                  {{ detail?.example_protocol || displayItem?.provider || "openai" }}
+                  {{ detail?.example_protocol || displayItem?.raw.provider || "openai" }}
                 </span>
                 <span
                   v-if="detail?.example_source"
@@ -199,14 +230,20 @@ import BaseDialog from "@/components/common/BaseDialog.vue";
 import DocsCodeTabs from "@/components/docs/DocsCodeTabs.vue";
 import { getDocsTheme } from "@/components/docs/docsTheme";
 import ModelIcon from "@/components/common/ModelIcon.vue";
+import ModelPlatformIcon from "@/components/common/ModelPlatformIcon.vue";
+import PublicModelStatusIcon from "@/components/models/PublicModelStatusIcon.vue";
 import { useAppStore } from "@/stores/app";
 import { useAuthStore } from "@/stores/auth";
 import { buildPublicModelExample } from "@/utils/publicModelCatalogExamples";
 import { findSupportedKeysForModel } from "@/utils/publicModelCatalogKeys";
+import { formatProviderLabel, normalizeProviderSlug } from "@/utils/providerLabels";
 import {
+  buildPublicModelCatalogDisplayItem,
   formatCatalogPrice,
   multiplierSummaryLabel,
   priceEntryLabel,
+  publicModelStatusLabel,
+  type PublicModelCatalogDisplayItem,
 } from "@/utils/publicModelCatalog";
 import type { ApiKey, UserGroupModelOptionGroup } from "@/types";
 import type {
@@ -237,15 +274,18 @@ const userGroupOptions = ref<UserGroupModelOptionGroup[]>([]);
 const selectedKeyID = ref<number | null>(null);
 let requestToken = 0;
 
-const displayItem = computed(
+const sourceItem = computed(
   () => detail.value?.item || props.catalogItem || null,
 );
+const displayItem = computed<PublicModelCatalogDisplayItem | null>(() =>
+  sourceItem.value ? buildPublicModelCatalogDisplayItem(sourceItem.value) : null,
+);
 const dialogTitle = computed(
-  () => displayItem.value?.display_name || displayItem.value?.model || t("nav.modelsCatalog"),
+  () => displayItem.value?.title || displayItem.value?.raw.model || t("nav.modelsCatalog"),
 );
 const multiplierLabel = computed(() =>
-  displayItem.value
-    ? multiplierSummaryLabel(t, displayItem.value.multiplier_summary)
+  sourceItem.value
+    ? multiplierSummaryLabel(t, sourceItem.value.multiplier_summary)
     : "-",
 );
 const supportedKeys = computed(() =>
@@ -340,6 +380,51 @@ function renderPriceEntryLabel(fieldID: string): string {
 
 function renderPrice(entry: PublicModelCatalogPriceEntry, currency: string): string {
   return formatCatalogPrice(t, entry, currency, props.usdToCnyRate ?? null);
+}
+
+function providerLabel(item: PublicModelCatalogItem): string {
+  return formatProviderLabel(item.provider || item.provider_icon_key || "");
+}
+
+function statusLabel(status?: PublicModelCatalogItem["status"]): string {
+  return publicModelStatusLabel(t, status);
+}
+
+function protocolLabel(protocol: string): string {
+  switch (normalizeProviderSlug(protocol)) {
+    case "openai":
+      return "OpenAI";
+    case "anthropic":
+      return "Anthropic";
+    case "gemini":
+      return "Gemini";
+    case "grok":
+      return "Grok";
+    case "antigravity":
+      return "Antigravity";
+    case "vertex-batch":
+      return "Vertex Batch";
+    default:
+      return formatProviderLabel(protocol);
+  }
+}
+
+function primaryPriceClass(fieldID: string): string {
+  switch (fieldID) {
+    case "input_price":
+    case "input_price_above_threshold":
+    case "batch_input_price":
+      return "text-sky-700 dark:text-sky-300";
+    case "output_price":
+    case "output_price_above_threshold":
+    case "batch_output_price":
+      return "text-emerald-700 dark:text-emerald-300";
+    case "cache_price":
+    case "batch_cache_price":
+      return "text-amber-700 dark:text-amber-300";
+    default:
+      return "text-fuchsia-700 dark:text-fuchsia-300";
+  }
 }
 
 async function loadUserContext(currentToken: number) {

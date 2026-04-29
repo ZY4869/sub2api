@@ -348,21 +348,33 @@ const routes: RouteRecordRaw[] = [
           descriptionKey: 'admin.models.pages.available.description'
         }
       },
-      {
-        path: 'all',
-        name: 'AdminModelsAll',
-        component: () => import('@/views/admin/models/AllModelsView.vue'),
+        {
+          path: 'all',
+          name: 'AdminModelsAll',
+          component: () => import('@/views/admin/models/AllModelsView.vue'),
         meta: {
           requiresAuth: true,
           requiresAdmin: true,
           title: 'All Models',
           titleKey: 'admin.models.pages.all.title',
-          descriptionKey: 'admin.models.pages.all.description'
-        }
-      },
-      {
-        path: 'pricing',
-        name: 'AdminModelsPricing',
+            descriptionKey: 'admin.models.pages.all.description'
+          }
+        },
+        {
+          path: 'debug',
+          name: 'AdminModelsDebug',
+          component: () => import('@/views/admin/models/ModelDebugView.vue'),
+          meta: {
+            requiresAuth: true,
+            requiresAdmin: true,
+            title: 'Model Debug',
+            titleKey: 'admin.models.pages.debug.title',
+            descriptionKey: 'admin.models.pages.debug.description'
+          }
+        },
+        {
+          path: 'pricing',
+          name: 'AdminModelsPricing',
         redirect: '/admin/billing/pricing',
         meta: {
           requiresAuth: true,

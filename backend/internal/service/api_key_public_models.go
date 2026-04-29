@@ -8,11 +8,14 @@ import (
 )
 
 type APIKeyPublicModelEntry struct {
-	PublicID    string
-	AliasID     string
-	SourceID    string
-	DisplayName string
-	Platform    string
+	PublicID          string
+	AliasID           string
+	SourceID          string
+	DisplayName       string
+	Platform          string
+	AvailabilityState string
+	StaleState        string
+	LifecycleStatus   string
 }
 
 type apiKeyPublicProjectionCandidate struct {
@@ -175,11 +178,20 @@ func projectAccountModelProjectionToPublicEntries(
 			displayName = firstNonEmptyString(strings.TrimSpace(candidate.DisplayName), displayName)
 		}
 		projected[publicID] = APIKeyPublicModelEntry{
-			PublicID:    publicID,
-			AliasID:     publicID,
-			SourceID:    targetID,
-			DisplayName: displayName,
-			Platform:    platform,
+			PublicID:          publicID,
+			AliasID:           publicID,
+			SourceID:          targetID,
+			DisplayName:       displayName,
+			Platform:          platform,
+			AvailabilityState: firstNonEmptyTrimmed(candidate.AvailabilityState, AccountModelAvailabilityUnknown),
+			StaleState:        firstNonEmptyTrimmed(candidate.StaleState, AccountModelStaleStateUnverified),
+			LifecycleStatus: normalizePublicModelLifecycleStatus(
+				candidate.Status,
+				candidate.DisplayName,
+				candidate.DisplayModelID,
+				candidate.TargetModelID,
+				candidate.RouteModelID,
+			),
 		}
 	}
 
@@ -336,11 +348,14 @@ func projectProbeSummaryToPublicEntries(
 			}
 		}
 		projected[publicID] = APIKeyPublicModelEntry{
-			PublicID:    publicID,
-			AliasID:     candidate.AliasID,
-			SourceID:    projectedSourceID,
-			DisplayName: displayName,
-			Platform:    platform,
+			PublicID:          publicID,
+			AliasID:           candidate.AliasID,
+			SourceID:          projectedSourceID,
+			DisplayName:       displayName,
+			Platform:          platform,
+			AvailabilityState: AccountModelAvailabilityUnknown,
+			StaleState:        AccountModelStaleStateUnverified,
+			LifecycleStatus:   normalizePublicModelLifecycleStatus("", displayName, publicID, projectedSourceID),
 		}
 		if candidate.ExposeAlias && projectedSourceID != "" {
 			hiddenSourceIDs[projectedSourceID] = struct{}{}

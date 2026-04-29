@@ -450,15 +450,84 @@ export default {
             moveProviderFailed: "Failed to move models to {provider}",
             moveProviderNoop:
               "No models could be moved. They may already belong to the target provider or no longer be available.",
-            moveProviderRequestFailed:
-              "Failed to move selected models to another provider",
+              moveProviderRequestFailed:
+                "Failed to move selected models to another provider",
+            },
           },
-        },
-        billing: {
-          nav: "Billing Center",
-          title: "Billing Center",
-          description:
-            "Manage official pricing matrices, sale overrides, Gemini request classification, and billing simulations in one place.",
+          debug: {
+            nav: "Model Debug",
+            title: "Model Debug",
+            description:
+              "Debug supported protocols and models through the admin proxy path, with live request previews, headers, and streaming output.",
+            eyebrow: "Multi-protocol Lab",
+            summary: {
+              models: "{count} debuggable models",
+              keys: "{count} saved keys",
+            },
+            requestTitle: "Debug Request",
+            requestDescription:
+              "Build the common request body from the form first, then override or extend it with advanced JSON.",
+            outputTitle: "Debug Output",
+            outputIdle:
+              "Run a request to capture start, request preview, response headers, and final events.",
+            outputRunning:
+              "Waiting for upstream output. SSE events will keep streaming into this panel.",
+            outputEmpty: "No debug output yet. Start a run from the top-right corner.",
+            run: "Run Debug",
+            cancel: "Cancel",
+            running: "Running",
+            ready: "Ready",
+            keyModeLabel: "Key Mode",
+            keyModes: {
+              saved: "Saved Key",
+              manual: "Manual Key",
+            },
+            savedKeyLabel: "Saved Key",
+            savedKeyPlaceholder: "Choose a key owned by the current admin",
+            manualKeyLabel: "Temporary API Key",
+            manualKeyPlaceholder: "Used in-memory for this run only and never saved",
+            endpointLabel: "Endpoint",
+            modelLabel: "Model",
+            modelPlaceholder: "Select a model",
+            systemPromptLabel: "System Prompt",
+            systemPromptPlaceholder: "Optional system instruction or role setup",
+            userPromptLabel: "User Prompt",
+            userPromptPlaceholder: "Enter the user message sent to the model",
+            temperatureLabel: "Temperature",
+            temperaturePlaceholder: "For example 0.2",
+            maxTokensLabel: "Max Output Tokens",
+            maxTokensPlaceholder: "For example 256",
+            reasoningLabel: "Reasoning Effort",
+            reasoningPlaceholder: "For example low / medium / high",
+            streamLabel: "Use streaming response",
+            advancedJsonLabel: "Advanced JSON Override",
+            advancedJsonPlaceholder:
+              "Provide a JSON object to override or extend the request_body generated above.",
+            advancedJsonInvalidError: "Advanced JSON could not be parsed.",
+            advancedJsonObjectError: "Advanced JSON must be an object.",
+            requestPreviewLabel: "Final request_body preview",
+            contextLoadFailed: "Failed to load the debug key or model group context",
+            runFailed: "Model debug request failed",
+            cancelled: "Debug run cancelled",
+            protocolHints: {
+              openai: "Responses and Chat Completions",
+              anthropic: "Messages JSON endpoint",
+              gemini: "Generate Content and SSE variant",
+            },
+            events: {
+              start: "Run Started",
+              request: "Request Preview",
+              headers: "Response Headers",
+              content: "Content Chunk",
+              final: "Final Result",
+              error: "Error Event",
+            },
+          },
+          billing: {
+            nav: "Billing Center",
+            title: "Billing Center",
+            description:
+              "Manage official pricing matrices, sale overrides, Gemini request classification, and billing simulations in one place.",
           badge: "Gemini Launch",
           compatibilityBadge: "Gemini Official Compatibility Layer",
           heroTitle:

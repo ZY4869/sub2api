@@ -22,6 +22,7 @@ const { t } = useI18n()
 
 const items = computed(() => [
   { to: '/admin/models/available', label: t('admin.models.pages.available.nav') },
-  { to: '/admin/models/all', label: t('admin.models.pages.all.nav') }
+  { to: '/admin/models/all', label: t('admin.models.pages.all.nav') },
+  { to: '/admin/models/debug', label: t('admin.models.pages.debug.nav') }
 ])
 </script>

@@ -903,8 +903,9 @@ const pagination = reactive({
   pages: 0,
 });
 
-const formatDuration = (ms: number): string => {
-  if (ms < 1000) return `${ms.toFixed(0)}ms`;
+const formatDuration = (ms: number | null | undefined): string => {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "-";
+  if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 };
 

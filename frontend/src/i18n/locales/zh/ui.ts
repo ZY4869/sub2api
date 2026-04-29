@@ -84,6 +84,13 @@ export default {
         disabled: '未启用倍率',
         mixed: '混合倍率',
       },
+      status: {
+        ok: '状态正常',
+        warning: '功能预警',
+        maintenance: '状态陈旧',
+        info: '状态待确认',
+        error: '当前不可用',
+      },
       priceFields: {
         input: '输入',
         output: '输出',

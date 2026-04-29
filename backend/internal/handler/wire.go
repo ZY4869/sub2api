@@ -141,6 +141,16 @@ func ProvideOpenAIOAuthHandler(
 	return handler
 }
 
+func ProvideAdminModelCatalogHandler(
+	modelCatalogService *service.ModelCatalogService,
+	userService *service.UserService,
+	modelDebugService *service.ModelDebugService,
+) *admin.ModelCatalogHandler {
+	handler := admin.NewModelCatalogHandler(modelCatalogService, userService)
+	handler.SetModelDebugService(modelDebugService)
+	return handler
+}
+
 func ProvideMetaHandler(modelCatalogService *service.ModelCatalogService, modelRegistryService *service.ModelRegistryService, settingService *service.SettingService, authService *service.AuthService, userService *service.UserService) *MetaHandler {
 	handler := NewMetaHandler(modelCatalogService)
 	handler.SetModelRegistryService(modelRegistryService)
@@ -298,7 +308,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewUserAttributeHandler,
 	admin.NewErrorPassthroughHandler,
 	admin.NewAdminAPIKeyHandler,
-	admin.NewModelCatalogHandler,
+	ProvideAdminModelCatalogHandler,
 	admin.NewModelRegistryHandler,
 	admin.NewScheduledTestHandler,
 	admin.NewTLSFingerprintProfileHandler,

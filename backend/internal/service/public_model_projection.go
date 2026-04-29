@@ -8,11 +8,14 @@ import (
 )
 
 type PublicModelProjectionEntry struct {
-	PublicID    string   `json:"public_id"`
-	DisplayName string   `json:"display_name"`
-	Platform    string   `json:"platform"`
-	AliasIDs    []string `json:"alias_ids,omitempty"`
-	SourceIDs   []string `json:"source_ids,omitempty"`
+	PublicID          string   `json:"public_id"`
+	DisplayName       string   `json:"display_name"`
+	Platform          string   `json:"platform"`
+	AvailabilityState string   `json:"availability_state,omitempty"`
+	StaleState        string   `json:"stale_state,omitempty"`
+	LifecycleStatus   string   `json:"lifecycle_status,omitempty"`
+	AliasIDs          []string `json:"alias_ids,omitempty"`
+	SourceIDs         []string `json:"source_ids,omitempty"`
 }
 
 func (s *GatewayService) ListGroupPublicModelProjection(
@@ -109,12 +112,25 @@ func appendPublicModelProjectionEntry(target map[string]PublicModelProjectionEnt
 	}
 
 	current := target[publicID]
+	replaceRepresentative := strings.TrimSpace(current.PublicID) == "" || isBetterPublicModelRepresentative(
+		entry.AvailabilityState,
+		entry.StaleState,
+		entry.LifecycleStatus,
+		current.AvailabilityState,
+		current.StaleState,
+		current.LifecycleStatus,
+	)
 	current.PublicID = publicID
-	if strings.TrimSpace(current.DisplayName) == "" {
+	if replaceRepresentative || strings.TrimSpace(current.DisplayName) == "" {
 		current.DisplayName = strings.TrimSpace(entry.DisplayName)
 	}
-	if strings.TrimSpace(current.Platform) == "" {
+	if replaceRepresentative || strings.TrimSpace(current.Platform) == "" {
 		current.Platform = strings.TrimSpace(entry.Platform)
+	}
+	if replaceRepresentative || strings.TrimSpace(current.AvailabilityState) == "" {
+		current.AvailabilityState = firstNonEmptyTrimmed(entry.AvailabilityState, AccountModelAvailabilityUnknown)
+		current.StaleState = firstNonEmptyTrimmed(entry.StaleState, AccountModelStaleStateUnverified)
+		current.LifecycleStatus = normalizePublicModelLifecycleStatus(entry.LifecycleStatus, entry.DisplayName, entry.PublicID, entry.SourceID)
 	}
 	current.AliasIDs = mergePublicModelProjectionStrings(current.AliasIDs, entry.AliasID)
 	current.SourceIDs = mergePublicModelProjectionStrings(current.SourceIDs, entry.SourceID)
@@ -127,12 +143,25 @@ func appendPublicModelProjectionAggregate(target map[string]PublicModelProjectio
 		return
 	}
 	current := target[publicID]
+	replaceRepresentative := strings.TrimSpace(current.PublicID) == "" || isBetterPublicModelRepresentative(
+		entry.AvailabilityState,
+		entry.StaleState,
+		entry.LifecycleStatus,
+		current.AvailabilityState,
+		current.StaleState,
+		current.LifecycleStatus,
+	)
 	current.PublicID = publicID
-	if strings.TrimSpace(current.DisplayName) == "" {
+	if replaceRepresentative || strings.TrimSpace(current.DisplayName) == "" {
 		current.DisplayName = strings.TrimSpace(entry.DisplayName)
 	}
-	if strings.TrimSpace(current.Platform) == "" {
+	if replaceRepresentative || strings.TrimSpace(current.Platform) == "" {
 		current.Platform = strings.TrimSpace(entry.Platform)
+	}
+	if replaceRepresentative || strings.TrimSpace(current.AvailabilityState) == "" {
+		current.AvailabilityState = firstNonEmptyTrimmed(entry.AvailabilityState, AccountModelAvailabilityUnknown)
+		current.StaleState = firstNonEmptyTrimmed(entry.StaleState, AccountModelStaleStateUnverified)
+		current.LifecycleStatus = normalizePublicModelLifecycleStatus(entry.LifecycleStatus, entry.DisplayName, entry.PublicID)
 	}
 	current.AliasIDs = mergePublicModelProjectionStrings(current.AliasIDs, entry.AliasIDs...)
 	current.SourceIDs = mergePublicModelProjectionStrings(current.SourceIDs, entry.SourceIDs...)

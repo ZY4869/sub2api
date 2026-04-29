@@ -84,6 +84,10 @@ func TestMetaHandler_ModelCatalogHonorsETag(t *testing.T) {
 	etag := firstRec.Header().Get("ETag")
 	require.NotEmpty(t, etag)
 	require.Contains(t, firstRec.Body.String(), "gpt-5.4")
+	require.Contains(t, firstRec.Body.String(), "\"status\":\"ok\"")
+	require.Contains(t, firstRec.Body.String(), "\"availability_state\":\"verified\"")
+	require.Contains(t, firstRec.Body.String(), "\"stale_state\":\"fresh\"")
+	require.Contains(t, firstRec.Body.String(), "\"lifecycle_status\":\"stable\"")
 
 	secondReq := httptest.NewRequest(http.MethodGet, "/api/v1/meta/model-catalog", nil)
 	secondReq.Header.Set("If-None-Match", etag)
@@ -222,6 +226,10 @@ func TestMetaHandler_ModelCatalogDetailReturnsModel(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"item\"")
 	require.Contains(t, rec.Body.String(), "\"catalog_source\":\"published\"")
 	require.Contains(t, rec.Body.String(), "\"example_source\":\"docs_section\"")
+	require.Contains(t, rec.Body.String(), "\"status\":\"ok\"")
+	require.Contains(t, rec.Body.String(), "\"availability_state\":\"verified\"")
+	require.Contains(t, rec.Body.String(), "\"stale_state\":\"fresh\"")
+	require.Contains(t, rec.Body.String(), "\"lifecycle_status\":\"stable\"")
 }
 
 func TestMetaHandler_ModelCatalogFallsBackToLiveSnapshotWhenNotPublished(t *testing.T) {
@@ -337,13 +345,17 @@ func buildMetaPublishedSnapshot(etag string) service.PublicModelCatalogPublished
 			PageSize:  10,
 			Items: []service.PublicModelCatalogItem{
 				{
-					Model:            "gpt-5.4",
-					DisplayName:      "GPT-5.4",
-					Provider:         service.PlatformOpenAI,
-					ProviderIconKey:  service.PlatformOpenAI,
-					RequestProtocols: []string{service.PlatformOpenAI},
-					Mode:             "chat",
-					Currency:         "USD",
+					Model:             "gpt-5.4",
+					DisplayName:       "GPT-5.4",
+					Provider:          service.PlatformOpenAI,
+					ProviderIconKey:   service.PlatformOpenAI,
+					Status:            service.PublicModelStatusOK,
+					AvailabilityState: service.AccountModelAvailabilityVerified,
+					StaleState:        service.AccountModelStaleStateFresh,
+					LifecycleStatus:   service.PublicModelLifecycleStable,
+					RequestProtocols:  []string{service.PlatformOpenAI},
+					Mode:              "chat",
+					Currency:          "USD",
 					PriceDisplay: service.PublicModelCatalogPriceDisplay{
 						Primary: []service.PublicModelCatalogPriceEntry{
 							{ID: "input_price", Unit: service.BillingUnitInputToken, Value: 1e-6},
@@ -360,13 +372,17 @@ func buildMetaPublishedSnapshot(etag string) service.PublicModelCatalogPublished
 		Details: map[string]service.PublicModelCatalogDetail{
 			"gpt-5.4": {
 				Item: service.PublicModelCatalogItem{
-					Model:            "gpt-5.4",
-					DisplayName:      "GPT-5.4",
-					Provider:         service.PlatformOpenAI,
-					ProviderIconKey:  service.PlatformOpenAI,
-					RequestProtocols: []string{service.PlatformOpenAI},
-					Mode:             "chat",
-					Currency:         "USD",
+					Model:             "gpt-5.4",
+					DisplayName:       "GPT-5.4",
+					Provider:          service.PlatformOpenAI,
+					ProviderIconKey:   service.PlatformOpenAI,
+					Status:            service.PublicModelStatusOK,
+					AvailabilityState: service.AccountModelAvailabilityVerified,
+					StaleState:        service.AccountModelStaleStateFresh,
+					LifecycleStatus:   service.PublicModelLifecycleStable,
+					RequestProtocols:  []string{service.PlatformOpenAI},
+					Mode:              "chat",
+					Currency:          "USD",
 					PriceDisplay: service.PublicModelCatalogPriceDisplay{
 						Primary: []service.PublicModelCatalogPriceEntry{
 							{ID: "input_price", Unit: service.BillingUnitInputToken, Value: 1e-6},

@@ -295,6 +295,14 @@ func buildPublicModelCatalogItem(
 		DisplayName:       displayName,
 		Provider:          provider,
 		ProviderIconKey:   provider,
+		Status:            PublicModelStatusInfo,
+		AvailabilityState: AccountModelAvailabilityUnknown,
+		StaleState:        AccountModelStaleStateUnverified,
+		LifecycleStatus: normalizePublicModelLifecycleStatus(
+			entry.Status,
+			entry.DisplayName,
+			entry.ID,
+		),
 		RequestProtocols:  publicModelCatalogRequestProtocols(entry, provider),
 		Mode:              mode,
 		Currency:          defaultModelPricingCurrency(persisted.Currency),
@@ -346,8 +354,20 @@ func publicModelCatalogPriceDisplayFromForm(
 }
 
 func publicModelCatalogPrimaryFieldIDs(metadata billingPricingFormMetadata) []string {
-	if metadata.OutputChargeSlot == BillingChargeSlotTextOutput && metadata.InputSupported {
-		return []string{billingDiscountFieldInputPrice, billingDiscountFieldOutputPrice}
+	if metadata.OutputChargeSlot == BillingChargeSlotTextOutput {
+		if metadata.InputSupported {
+			return []string{
+				billingDiscountFieldInputPrice,
+				billingDiscountFieldOutputPrice,
+				billingDiscountFieldCachePrice,
+				billingDiscountFieldBatchCachePrice,
+			}
+		}
+		return []string{
+			billingDiscountFieldOutputPrice,
+			billingDiscountFieldCachePrice,
+			billingDiscountFieldBatchCachePrice,
+		}
 	}
 	return []string{billingDiscountFieldOutputPrice}
 }

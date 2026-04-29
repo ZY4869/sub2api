@@ -277,17 +277,17 @@
         >
           <article
             v-for="item in paginatedItems"
-            :key="item.model"
+            :key="item.raw.model"
             class="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-dark-700 dark:bg-dark-900/80"
             :class="viewMode === 'list' ? 'p-1' : ''"
-            :data-testid="`public-model-card-${item.model}`"
+            :data-testid="`public-model-card-${item.raw.model}`"
           >
             <button
               type="button"
               class="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-500 shadow-sm transition hover:border-primary-300 hover:text-primary-600 dark:border-dark-700 dark:bg-dark-800/90 dark:text-slate-300 dark:hover:border-primary-500 dark:hover:text-primary-200"
               :title="t('ui.modelCatalog.detailButton')"
-              :data-testid="`public-model-detail-${item.model}`"
-              @click.stop="openDetail(item)"
+              :data-testid="`public-model-detail-${item.raw.model}`"
+              @click.stop="openDetail(item.raw)"
             >
               <Icon name="more" size="sm" />
             </button>
@@ -296,8 +296,8 @@
               type="button"
               class="block w-full text-left"
               :class="viewMode === 'grid' ? 'p-5 pr-16' : 'p-5 pr-16'"
-              :data-testid="`public-model-copy-${item.model}`"
-              @click="copyModelID(item)"
+              :data-testid="`public-model-copy-${item.raw.model}`"
+              @click="copyModelID(item.raw)"
             >
               <div
                 class="gap-5"
@@ -306,52 +306,60 @@
                 <div class="min-w-0 space-y-4">
                   <div class="flex items-center justify-center gap-3 text-center">
                     <ModelIcon
-                      :model="item.model"
-                      :provider="item.provider"
-                      :display-name="item.display_name"
+                      :model="item.raw.model"
+                      :provider="item.raw.provider"
+                      :display-name="item.raw.display_name"
                       size="24px"
                     />
+                    <PublicModelStatusIcon :status="item.status" :label="statusLabel(item.status)" :size="28" />
                     <div class="min-w-0 text-center">
                       <div class="break-words text-lg font-semibold text-slate-950 dark:text-white">
-                        {{ item.display_name || item.model }}
+                        {{ item.title }}
                       </div>
-                      <div class="mt-1 break-all text-sm text-slate-500 dark:text-slate-400">
-                        {{ item.model }}
+                      <div
+                        v-if="item.subtitle"
+                        class="mt-1 break-all text-sm text-slate-500 dark:text-slate-400"
+                      >
+                        {{ item.subtitle }}
                       </div>
                     </div>
                   </div>
 
                   <div class="flex flex-wrap gap-2 text-xs">
                     <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700 dark:border-dark-700 dark:bg-dark-800 dark:text-slate-200">
-                      <ModelPlatformIcon :platform="item.provider_icon_key || item.provider || ''" size="sm" />
-                      {{ providerLabel(item) }}
+                      <ModelPlatformIcon :platform="item.raw.provider_icon_key || item.raw.provider || ''" size="sm" />
+                      {{ providerLabel(item.raw) }}
                     </span>
                     <span
-                      v-for="protocol in item.request_protocols || []"
+                      v-for="protocol in item.raw.request_protocols || []"
                       :key="protocol"
                       class="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200"
                     >
                       <ModelPlatformIcon :platform="protocol" size="xs" />
                       {{ protocolLabel(protocol) }}
                     </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-cyan-700 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-200">
+                      <PublicModelStatusIcon :status="item.status" :label="statusLabel(item.status)" :size="14" />
+                      {{ statusLabel(item.status) }}
+                    </span>
                     <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
                       <Icon name="calculator" size="xs" />
-                      {{ multiplierSummaryLabel(item.multiplier_summary) }}
+                      {{ multiplierSummaryLabel(item.raw.multiplier_summary) }}
                     </span>
                     <span
-                      v-if="item.mode"
+                      v-if="item.raw.mode"
                       class="inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2.5 py-1 text-fuchsia-700 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-200"
                     >
-                      {{ item.mode }}
+                      {{ item.raw.mode }}
                     </span>
                   </div>
 
                   <div
-                    v-if="item.source_ids?.length"
+                    v-if="item.raw.source_ids?.length"
                     class="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400"
                   >
                     <span
-                      v-for="sourceID in item.source_ids"
+                      v-for="sourceID in item.raw.source_ids"
                       :key="sourceID"
                       class="rounded-full border border-slate-200 px-2.5 py-1 dark:border-dark-700"
                     >
@@ -363,7 +371,7 @@
                 <div class="min-w-0 rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-4 dark:border-dark-700 dark:bg-dark-800/80 xl:w-[310px]">
                   <div class="flex items-center justify-between gap-3">
                     <span class="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                      {{ item.currency }}
+                      {{ item.raw.currency }}
                     </span>
                     <span class="text-xs text-slate-400 dark:text-slate-500">
                       ID
@@ -371,29 +379,31 @@
                   </div>
                   <div class="mt-3 space-y-2">
                     <div
-                      v-for="entry in item.price_display.primary"
+                      v-for="entry in item.primaryPrices"
                       :key="entry.id"
                       class="flex items-center justify-between gap-3 rounded-2xl bg-white/90 px-3 py-2 text-sm dark:bg-dark-900/80"
+                      :data-testid="`public-model-primary-price-${item.raw.model}-${entry.id}`"
                     >
                       <span class="text-slate-600 dark:text-slate-300">
                         {{ priceEntryLabel(entry.id) }}
                       </span>
                       <span class="font-semibold" :class="primaryPriceClass(entry.id)">
-                        {{ formatCatalogPrice(entry, item.currency) }}
+                        {{ formatCatalogPrice(entry, item.raw.currency) }}
                       </span>
                     </div>
                   </div>
 
                   <div
-                    v-if="item.price_display.secondary?.length"
+                    v-if="item.secondaryPrices.length"
                     class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400"
                   >
                     <span
-                      v-for="entry in item.price_display.secondary"
+                      v-for="entry in item.secondaryPrices"
                       :key="entry.id"
                       class="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 dark:border-dark-700 dark:bg-dark-900/80"
+                      :data-testid="`public-model-secondary-price-${item.raw.model}-${entry.id}`"
                     >
-                      {{ priceEntryLabel(entry.id) }}: {{ formatCatalogPrice(entry, item.currency) }}
+                      {{ priceEntryLabel(entry.id) }}: {{ formatCatalogPrice(entry, item.raw.currency) }}
                     </span>
                   </div>
                 </div>
@@ -463,14 +473,18 @@ import ModelIcon from "@/components/common/ModelIcon.vue";
 import ModelPlatformIcon from "@/components/common/ModelPlatformIcon.vue";
 import Icon from "@/components/icons/Icon.vue";
 import PublicModelCatalogDetailDialog from "@/components/models/PublicModelCatalogDetailDialog.vue";
+import PublicModelStatusIcon from "@/components/models/PublicModelStatusIcon.vue";
 import { useAppStore } from "@/stores/app";
 import { usePublicModelCatalogStore } from '@/stores/publicModelCatalog'
 import { formatProviderLabel, normalizeProviderSlug } from "@/utils/providerLabels";
 import {
+  buildPublicModelCatalogDisplayItem,
   formatCatalogPrice as renderCatalogPrice,
   multiplierSummaryLabel as renderMultiplierSummaryLabel,
   priceEntryLabel as renderPriceEntryLabel,
+  publicModelStatusLabel,
   PUBLIC_MODEL_PROTOCOL_ORDER,
+  type PublicModelCatalogDisplayItem,
 } from "@/utils/publicModelCatalog";
 
 type CatalogViewMode = "grid" | "list";
@@ -520,6 +534,9 @@ const selectedProtocol = ref("");
 const selectedMultiplier = ref("");
 const searchQuery = ref("");
 const viewMode = ref<CatalogViewMode>("grid");
+const displayItems = computed<PublicModelCatalogDisplayItem[]>(() =>
+  (catalog.value?.items || []).map(buildPublicModelCatalogDisplayItem),
+);
 
 const modelCountLabel = computed(() =>
   t("ui.modelCatalog.modelCount", { count: catalog.value?.items.length || 0 }),
@@ -644,32 +661,27 @@ const emptyStateMessage = computed(() => {
 })
 
 const filteredItems = computed(() =>
-  (catalog.value?.items || []).filter((item) => {
-    if (selectedProvider.value && normalizeProviderSlug(item.provider) !== selectedProvider.value) {
+  displayItems.value.filter((item) => {
+    if (
+      selectedProvider.value &&
+      normalizeProviderSlug(item.raw.provider || item.raw.provider_icon_key || "") !==
+        selectedProvider.value
+    ) {
       return false;
     }
     if (
       selectedProtocol.value &&
-      !(item.request_protocols || []).some(
+      !(item.raw.request_protocols || []).some(
         (protocol) => normalizeProviderSlug(protocol) === selectedProtocol.value,
       )
     ) {
       return false;
     }
-    if (selectedMultiplier.value && multiplierFilterID(item) !== selectedMultiplier.value) {
+    if (selectedMultiplier.value && multiplierFilterID(item.raw) !== selectedMultiplier.value) {
       return false;
     }
-    if (normalizedSearchQuery.value) {
-      const haystack = [
-        item.display_name,
-        item.model,
-        ...(item.source_ids || []),
-      ]
-        .join("\n")
-        .toLowerCase();
-      if (!haystack.includes(normalizedSearchQuery.value)) {
-        return false;
-      }
+    if (normalizedSearchQuery.value && !item.searchText.includes(normalizedSearchQuery.value)) {
+      return false;
     }
     return true;
   }),
@@ -773,7 +785,11 @@ function closeDetail() {
 }
 
 function providerLabel(item: PublicModelCatalogItem): string {
-  return formatProviderLabel(item.provider);
+  return formatProviderLabel(item.provider || item.provider_icon_key || "");
+}
+
+function statusLabel(status?: PublicModelCatalogItem["status"]): string {
+  return publicModelStatusLabel(t, status);
 }
 
 function protocolLabel(protocol: string): string {

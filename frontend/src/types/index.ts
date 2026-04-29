@@ -1328,7 +1328,7 @@ export interface UsageLog {
   status: UsageLogStatus;
   stream: boolean;
   openai_ws_mode?: boolean;
-  duration_ms: number;
+  duration_ms: number | null;
   first_token_ms: number | null;
   http_status?: number | null;
   error_code?: string | null;

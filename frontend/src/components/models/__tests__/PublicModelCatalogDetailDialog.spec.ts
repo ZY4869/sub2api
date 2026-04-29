@@ -64,10 +64,13 @@ describe("PublicModelCatalogDetailDialog", () => {
         model: "text-embedding-3-large",
         display_name: "Text Embedding 3 Large",
         provider: "openai",
+        provider_icon_key: "openai",
+        status: "warning",
         request_protocols: ["openai"],
         currency: "USD",
         price_display: {
           primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+          secondary: [{ id: "cache_price", unit: "input_token", value: 0.00000005 }],
         },
         multiplier_summary: {
           enabled: false,
@@ -91,10 +94,13 @@ describe("PublicModelCatalogDetailDialog", () => {
           model: "text-embedding-3-large",
           display_name: "Text Embedding 3 Large",
           provider: "openai",
+          provider_icon_key: "openai",
+          status: "warning",
           request_protocols: ["openai"],
           currency: "USD",
           price_display: {
             primary: [{ id: "input_price", unit: "input_token", value: 0.00000013 }],
+            secondary: [{ id: "cache_price", unit: "input_token", value: 0.00000005 }],
           },
           multiplier_summary: {
             enabled: false,
@@ -109,6 +115,7 @@ describe("PublicModelCatalogDetailDialog", () => {
             template: '<div v-if="show"><h1>{{ title }}</h1><slot /></div>',
           },
           ModelIcon: { template: '<span data-test="model-icon" />' },
+          ModelPlatformIcon: { template: '<span data-test="platform-icon" />' },
           DocsCodeTabs: {
             props: ["group"],
             template: '<pre data-test="example-code">{{ group.tabs[0]?.code }}</pre>',
@@ -125,6 +132,10 @@ describe("PublicModelCatalogDetailDialog", () => {
 
     expect(apiMocks.getModelCatalogDetail).toHaveBeenCalledWith("text-embedding-3-large");
     expect(wrapper.get("[data-test='example-code']").text()).toContain("sk-your-key");
+    expect(wrapper.text()).toContain("ui.modelCatalog.status.warning");
+    expect(wrapper.findAll('[aria-label="ui.modelCatalog.status.warning"]')).toHaveLength(2);
+    expect(wrapper.find('[data-testid="detail-primary-price-cache_price"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="detail-secondary-price-cache_price"]').exists()).toBe(false);
   });
 
   it("injects the first matching user key and shows a switcher for multiple matches", async () => {

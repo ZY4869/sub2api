@@ -3,6 +3,16 @@ package service
 const (
 	PublicModelCatalogSourcePublished    = "published"
 	PublicModelCatalogSourceLiveFallback = "live_fallback"
+
+	PublicModelStatusOK          = "ok"
+	PublicModelStatusError       = "error"
+	PublicModelStatusMaintenance = "maintenance"
+	PublicModelStatusWarning     = "warning"
+	PublicModelStatusInfo        = "info"
+
+	PublicModelLifecycleStable     = "stable"
+	PublicModelLifecycleBeta       = "beta"
+	PublicModelLifecycleDeprecated = "deprecated"
 )
 
 type PublicModelCatalogSnapshot struct {
@@ -18,6 +28,10 @@ type PublicModelCatalogItem struct {
 	DisplayName       string                              `json:"display_name,omitempty"`
 	Provider          string                              `json:"provider,omitempty"`
 	ProviderIconKey   string                              `json:"provider_icon_key,omitempty"`
+	Status            string                              `json:"status,omitempty"`
+	AvailabilityState string                              `json:"availability_state,omitempty"`
+	StaleState        string                              `json:"stale_state,omitempty"`
+	LifecycleStatus   string                              `json:"lifecycle_status,omitempty"`
 	RequestProtocols  []string                            `json:"request_protocols,omitempty"`
 	SourceIDs         []string                            `json:"source_ids,omitempty"`
 	Mode              string                              `json:"mode,omitempty"`

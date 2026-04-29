@@ -555,6 +555,81 @@ describe("user UsageView tooltip", () => {
     ).toBe("Rate limit exceeded for this account");
   });
 
+  it("renders failed rows with null duration without blanking the table", async () => {
+    query.mockResolvedValue({
+      items: [
+        {
+          id: 9,
+          request_id: "req-user-null-duration",
+          model: "gemini-3-flash-preview",
+          status: "failed",
+          simulated_client: "gemini_cli",
+          http_status: 500,
+          error_code: "upstream_failed",
+          error_message: "Upstream request failed",
+          actual_cost: 0,
+          total_cost: 0,
+          input_cost: 0,
+          output_cost: 0,
+          cache_creation_cost: 0,
+          cache_read_cost: 0,
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_creation_tokens: 0,
+          cache_read_tokens: 0,
+          cache_creation_5m_tokens: 0,
+          cache_creation_1h_tokens: 0,
+          image_count: 0,
+          image_size: null,
+          first_token_ms: null,
+          duration_ms: null,
+          created_at: "2026-04-25T09:02:29Z",
+          api_key: { name: "null-duration-key" },
+        },
+      ],
+      total: 1,
+      pages: 1,
+    });
+    getStatsByDateRange.mockResolvedValue({
+      total_requests: 1,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    });
+    listFilterApiKeys.mockResolvedValue([]);
+
+    const wrapper = mount(UsageView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          TablePageLayout: TablePageLayoutStub,
+          Pagination: true,
+          EmptyState: true,
+          Select: true,
+          DateRangePicker: true,
+          Icon: true,
+          TokenDisplayModeToggle: true,
+          Teleport: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await nextTick();
+
+    const setupState = (wrapper.vm as any).$?.setupState;
+    const row = wrapper.find('tbody tr[data-row-id="9"]');
+    const rowCells = row.findAll("td");
+
+    expect(setupState.formatDuration(null)).toBe("-");
+    expect(row.exists()).toBe(true);
+    expect(rowCells).toHaveLength(15);
+    expect(row.text()).toContain("null-duration-key");
+    expect(row.text()).toContain("gemini-3-flash-preview");
+    expect(row.text()).toContain("Failed");
+    expect(rowCells[11].text()).toBe("-");
+  });
+
   it("renders usage rows when query data is returned", async () => {
     query.mockResolvedValue({
       items: [

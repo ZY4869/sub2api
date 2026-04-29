@@ -29,6 +29,7 @@ import backupAPI from './backup'
 import apiKeysAPI from './apiKeys'
 import scheduledTestsAPI from './scheduledTests'
 import modelsAPI from './models'
+import modelDebugAPI from './modelDebug'
 import modelRegistryAPI from './modelRegistry'
 import tlsFingerprintProfilesAPI from './tlsFingerprintProfile'
 
@@ -61,6 +62,7 @@ export const adminAPI = {
   backup: backupAPI,
   apiKeys: apiKeysAPI,
   models: modelsAPI,
+  modelDebug: modelDebugAPI,
   modelRegistry: modelRegistryAPI,
   scheduledTests: scheduledTestsAPI,
   tlsFingerprintProfiles: tlsFingerprintProfilesAPI
@@ -92,6 +94,7 @@ export {
   backupAPI,
   apiKeysAPI,
   modelsAPI,
+  modelDebugAPI,
   modelRegistryAPI,
   scheduledTestsAPI,
   tlsFingerprintProfilesAPI

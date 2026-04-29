@@ -84,6 +84,13 @@ export default {
         disabled: 'Multiplier Off',
         mixed: 'Mixed Multiplier',
       },
+      status: {
+        ok: 'Healthy',
+        warning: 'Lifecycle Warning',
+        maintenance: 'Stale Snapshot',
+        info: 'Needs Verification',
+        error: 'Unavailable',
+      },
       priceFields: {
         input: 'Input',
         output: 'Output',

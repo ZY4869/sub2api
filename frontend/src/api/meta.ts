@@ -34,11 +34,20 @@ export interface PublicModelCatalogMultiplierSummary {
   value?: number
 }
 
+export type PublicModelCatalogStatus = 'ok' | 'error' | 'maintenance' | 'warning' | 'info'
+export type PublicModelAvailabilityState = 'verified' | 'unavailable' | 'unknown'
+export type PublicModelStaleState = 'fresh' | 'stale' | 'unverified'
+export type PublicModelLifecycleStatus = 'stable' | 'beta' | 'deprecated'
+
 export interface PublicModelCatalogItem {
   model: string
   display_name?: string
   provider?: string
   provider_icon_key?: string
+  status?: PublicModelCatalogStatus
+  availability_state?: PublicModelAvailabilityState
+  stale_state?: PublicModelStaleState
+  lifecycle_status?: PublicModelLifecycleStatus
   request_protocols?: string[]
   source_ids?: string[]
   mode?: string

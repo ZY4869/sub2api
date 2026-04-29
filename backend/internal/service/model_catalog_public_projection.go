@@ -130,10 +130,13 @@ func (s *ModelCatalogService) PublicModelCatalogDetail(ctx context.Context, mode
 			return nil, infraerrors.NotFound("MODEL_NOT_FOUND", "model not found")
 		}
 		projection = PublicModelProjectionEntry{
-			PublicID:    item.Model,
-			DisplayName: item.DisplayName,
-			Platform:    item.Provider,
-			SourceIDs:   []string{record.model},
+			PublicID:          item.Model,
+			DisplayName:       item.DisplayName,
+			Platform:          item.Provider,
+			AvailabilityState: item.AvailabilityState,
+			StaleState:        item.StaleState,
+			LifecycleStatus:   item.LifecycleStatus,
+			SourceIDs:         []string{record.model},
 		}
 	}
 
@@ -200,12 +203,22 @@ func buildPublicModelCatalogItemFromProjection(
 	if mode == "" {
 		mode = inferModelMode(firstNonEmptyTrimmed(firstRegistryString(projection.SourceIDs...), modelID), "")
 	}
+	lifecycleStatus := normalizePublicModelLifecycleStatus(
+		projection.LifecycleStatus,
+		projection.DisplayName,
+		projection.PublicID,
+		firstRegistryString(projection.SourceIDs...),
+	)
 
 	return PublicModelCatalogItem{
 		Model:             modelID,
 		DisplayName:       displayName,
 		Provider:          provider,
 		ProviderIconKey:   provider,
+		Status:            publicModelStatusFromProjection(projection.AvailabilityState, projection.StaleState, lifecycleStatus),
+		AvailabilityState: firstNonEmptyTrimmed(projection.AvailabilityState, AccountModelAvailabilityUnknown),
+		StaleState:        firstNonEmptyTrimmed(projection.StaleState, AccountModelStaleStateUnverified),
+		LifecycleStatus:   lifecycleStatus,
 		RequestProtocols:  publicModelCatalogRequestProtocolsForProjection(projection, records, provider),
 		SourceIDs:         append([]string(nil), projection.SourceIDs...),
 		Mode:              mode,
