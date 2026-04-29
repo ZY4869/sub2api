@@ -41,10 +41,11 @@ func (c *GeminiRequestClassifier) ClassifySimulation(input BillingSimulationInpu
 }
 
 func (c *GeminiRequestClassifier) ClassifyRequest(input GeminiBillingCalculationInput) *GeminiRequestClassification {
-	surface := detectGeminiSurface(input.InboundEndpoint)
-	operationType := detectGeminiOperationType(input.InboundEndpoint, input.RequestBody)
-	batchMode := detectGeminiBatchMode(input.InboundEndpoint)
-	cachePhase := detectGeminiCachePhase(input.InboundEndpoint)
+	requestPath := resolveGeminiOperationPath(input.InboundEndpoint, input.RawInboundPath)
+	surface := detectGeminiSurface(requestPath)
+	operationType := detectGeminiOperationType(requestPath, input.RequestBody)
+	batchMode := detectGeminiBatchMode(requestPath)
+	cachePhase := detectGeminiCachePhase(requestPath)
 	requestedServiceTier, serviceTierExplicit := parseGeminiRequestedServiceTier(input.RequestedServiceTier, input.RequestBody)
 	resolvedServiceTierInput, resolvedServiceTierExplicit := parseGeminiResolvedServiceTier(input.ResolvedServiceTier)
 	groundingKind := detectGeminiGroundingKind(input.RequestBody)

@@ -1,13 +1,22 @@
 package service
 
+import "strings"
+
 type GeminiSuccessUsageDecision struct {
 	Persist       bool
 	Reason        string
 	OperationType string
 }
 
-func DecideGeminiSuccessUsagePersistence(inboundEndpoint string, requestBody []byte) GeminiSuccessUsageDecision {
-	operationType := detectGeminiOperationType(inboundEndpoint, requestBody)
+func resolveGeminiOperationPath(inboundEndpoint string, rawInboundPath string) string {
+	if trimmed := strings.TrimSpace(rawInboundPath); trimmed != "" {
+		return trimmed
+	}
+	return strings.TrimSpace(inboundEndpoint)
+}
+
+func DecideGeminiSuccessUsagePersistence(inboundEndpoint string, rawInboundPath string, requestBody []byte) GeminiSuccessUsageDecision {
+	operationType := detectGeminiOperationType(resolveGeminiOperationPath(inboundEndpoint, rawInboundPath), requestBody)
 	switch operationType {
 	case "models":
 		return GeminiSuccessUsageDecision{Persist: false, Reason: "control_plane_models", OperationType: operationType}

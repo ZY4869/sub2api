@@ -12,6 +12,7 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 	testCases := []struct {
 		name          string
 		inbound       string
+		rawPath       string
 		body          []byte
 		wantPersist   bool
 		wantReason    string
@@ -20,6 +21,7 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 		{
 			name:          "generate content persists",
 			inbound:       "/v1beta/models/gemini-2.5-pro:generateContent",
+			rawPath:       "/v1beta/models/gemini-2.5-pro:generateContent",
 			body:          []byte(`{"contents":[{"parts":[{"text":"hi"}]}]}`),
 			wantPersist:   true,
 			wantReason:    "generate_content",
@@ -28,6 +30,7 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 		{
 			name:          "embeddings persist",
 			inbound:       "/v1beta/models/text-embedding-004:embedContent",
+			rawPath:       "/v1beta/models/text-embedding-004:embedContent",
 			body:          []byte(`{"content":{"parts":[{"text":"hi"}]}}`),
 			wantPersist:   true,
 			wantReason:    "embeddings",
@@ -36,6 +39,7 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 		{
 			name:          "live session persists",
 			inbound:       "/v1beta/live",
+			rawPath:       "/v1beta/live",
 			body:          []byte(`{"model":"models/gemini-live-2.5-flash"}`),
 			wantPersist:   true,
 			wantReason:    "live_session",
@@ -44,6 +48,7 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 		{
 			name:          "models list skipped",
 			inbound:       "/v1beta/models",
+			rawPath:       "/v1beta/models",
 			wantPersist:   false,
 			wantReason:    "control_plane_models",
 			wantOperation: "models",
@@ -51,6 +56,7 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 		{
 			name:          "auth tokens skipped",
 			inbound:       "/v1beta/live/auth-token",
+			rawPath:       "/v1beta/live/auth-token",
 			wantPersist:   false,
 			wantReason:    "control_plane_auth_tokens",
 			wantOperation: "auth_tokens",
@@ -58,15 +64,25 @@ func TestDecideGeminiSuccessUsagePersistence(t *testing.T) {
 		{
 			name:          "operation polling skipped",
 			inbound:       "/v1beta/models/gemini-2.5-pro/operations/123",
+			rawPath:       "/v1beta/models/gemini-2.5-pro/operations/123",
 			wantPersist:   false,
 			wantReason:    "control_plane_operation_status",
 			wantOperation: "operation_status",
+		},
+		{
+			name:          "canonical models endpoint uses raw generate content path",
+			inbound:       "/v1beta/models",
+			rawPath:       "/v1beta/models/gemini-2.5-pro:generateContent",
+			body:          []byte(`{"contents":[{"parts":[{"text":"hi"}]}]}`),
+			wantPersist:   true,
+			wantReason:    "generate_content",
+			wantOperation: "generate_content",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			decision := DecideGeminiSuccessUsagePersistence(tc.inbound, tc.body)
+			decision := DecideGeminiSuccessUsagePersistence(tc.inbound, tc.rawPath, tc.body)
 			require.Equal(t, tc.wantPersist, decision.Persist)
 			require.Equal(t, tc.wantReason, decision.Reason)
 			require.Equal(t, tc.wantOperation, decision.OperationType)

@@ -12,6 +12,7 @@ type BillingRuntimeInput struct {
 	Provider              string
 	Layer                 string
 	InboundEndpoint       string
+	RawInboundPath        string
 	RequestBody           []byte
 	Tokens                UsageTokens
 	ImageCount            int
@@ -89,6 +90,7 @@ func normalizeBillingRuntimeInput(input BillingRuntimeInput) BillingRuntimeInput
 	input.ServiceTier = normalizeBillingDimension(input.ServiceTier, "")
 	input.RequestedServiceTier = normalizeBillingDimension(input.RequestedServiceTier, "")
 	input.ResolvedServiceTier = normalizeBillingDimension(input.ResolvedServiceTier, "")
+	input.RawInboundPath = strings.TrimSpace(input.RawInboundPath)
 	input.BatchMode = normalizeBillingActualBatchMode(input.BatchMode)
 	input.MediaType = strings.TrimSpace(strings.ToLower(input.MediaType))
 	if input.RateMultiplier <= 0 {
@@ -126,6 +128,7 @@ func (r *BillingRuntimeResolver) resolveGeminiRuntime(ctx context.Context, input
 	result, err := r.billingCenterService.CalculateGeminiCost(ctx, GeminiBillingCalculationInput{
 		Model:                input.Model,
 		InboundEndpoint:      input.InboundEndpoint,
+		RawInboundPath:       input.RawInboundPath,
 		RequestBody:          input.RequestBody,
 		Tokens:               input.Tokens,
 		ImageCount:           input.ImageCount,

@@ -20,6 +20,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type geminiSurfaceUsageLogRepoStub struct {
+	service.UsageLogRepository
+
+	bestEffortCalls int
+	createCalls     int
+	lastLog         *service.UsageLog
+}
+
+func (s *geminiSurfaceUsageLogRepoStub) CreateBestEffort(_ context.Context, log *service.UsageLog) error {
+	s.bestEffortCalls++
+	s.lastLog = log
+	return nil
+}
+
+func (s *geminiSurfaceUsageLogRepoStub) Create(_ context.Context, log *service.UsageLog) (bool, error) {
+	s.createCalls++
+	s.lastLog = log
+	return true, nil
+}
+
 type geminiSurfaceHTTPResponse struct {
 	statusCode int
 	body       string
@@ -280,6 +300,7 @@ type geminiSurfaceFixture struct {
 	liveRecorder         *geminiSurfaceHTTPUpstreamRecorder
 	interactionsRecorder *geminiSurfaceHTTPUpstreamRecorder
 	billingCache         *service.BillingCacheService
+	usageRepo            *geminiSurfaceUsageLogRepoStub
 }
 
 func newGeminiSurfaceFixture(t *testing.T) *geminiSurfaceFixture {
@@ -338,13 +359,14 @@ func newGeminiSurfaceFixture(t *testing.T) *geminiSurfaceFixture {
 	compatRecorder := &geminiSurfaceHTTPUpstreamRecorder{name: "compat"}
 	liveRecorder := &geminiSurfaceHTTPUpstreamRecorder{name: "live"}
 	interactionsRecorder := &geminiSurfaceHTTPUpstreamRecorder{name: "interactions"}
+	usageRepo := &geminiSurfaceUsageLogRepoStub{}
 
 	billingCache := service.NewBillingCacheService(nil, nil, nil, nil, cfg)
 	concurrencyService := service.NewConcurrencyService(&geminiSurfaceConcurrencyCacheStub{})
 	gatewayService := service.NewGatewayService(
 		accountRepo,
 		groupRepo,
-		nil,
+		usageRepo,
 		nil,
 		nil,
 		nil,
@@ -410,6 +432,7 @@ func newGeminiSurfaceFixture(t *testing.T) *geminiSurfaceFixture {
 		liveRecorder:         liveRecorder,
 		interactionsRecorder: interactionsRecorder,
 		billingCache:         billingCache,
+		usageRepo:            usageRepo,
 	}
 }
 
@@ -424,6 +447,7 @@ func (f *geminiSurfaceFixture) newContext(method, path string, body string, para
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.Group, f.group))
 	c.Request = req
 	c.Params = params
+	c.Set(ctxKeyInboundEndpoint, NormalizeInboundEndpoint(path))
 	c.Set(string(servermiddleware.ContextKeyAPIKey), f.apiKey)
 	c.Set(string(servermiddleware.ContextKeyUser), servermiddleware.AuthSubject{
 		UserID:      f.apiKey.UserID,

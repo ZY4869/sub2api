@@ -553,3 +553,55 @@ func TestGatewayServiceRecordUsageWithLongContext_PersistsGeminiLiveVisibilityWi
 	require.Zero(t, usageRepo.lastLog.TotalCost)
 	require.Zero(t, usageRepo.lastLog.ActualCost)
 }
+
+func TestGatewayServiceRecordUsageWithLongContext_UsesRawGeminiPathForClassificationAndKeepsCanonicalInboundEndpoint(t *testing.T) {
+	usageRepo := &openAIRecordUsageBestEffortLogRepoStub{}
+	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+	_, billingService := newGeminiBillingCatalogService(&modelCatalogSettingRepoStub{values: map[string]string{}}, map[string]*LiteLLMModelPricing{
+		"gemini-2.5-pro": {
+			InputCostPerToken:       2e-6,
+			OutputCostPerToken:      6e-6,
+			CacheReadInputTokenCost: 0.2e-6,
+			LiteLLMProvider:         PlatformGemini,
+			Mode:                    "chat",
+			SupportsServiceTier:     true,
+		},
+	})
+	svc.billingService = billingService
+
+	groupID := int64(91)
+	err := svc.RecordUsageWithLongContext(context.Background(), &RecordUsageLongContextInput{
+		Result: &ForwardResult{
+			RequestID: "gemini-canonical-inbound",
+			Usage: ClaudeUsage{
+				InputTokens:  120,
+				OutputTokens: 80,
+			},
+			Model:    "gemini-2.5-pro",
+			Duration: 1800 * time.Millisecond,
+		},
+		APIKey: &APIKey{
+			ID:      78,
+			GroupID: &groupID,
+			Group:   &Group{ID: groupID, RateMultiplier: 1},
+		},
+		User:                  &User{ID: 67},
+		Account:               &Account{ID: 56, Platform: PlatformGemini},
+		InboundEndpoint:       EndpointGeminiModels,
+		RawInboundPath:        "/v1beta/models/gemini-2.5-pro:generateContent",
+		UpstreamEndpoint:      "/v1beta/models/gemini-2.5-pro:generateContent",
+		RequestBody:           []byte(`{"contents":[{"parts":[{"text":"hi"}]}],"service_tier":"flex"}`),
+		LongContextThreshold:  200000,
+		LongContextMultiplier: 2,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 1, usageRepo.bestEffortCalls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.InboundEndpoint)
+	require.Equal(t, EndpointGeminiModels, *usageRepo.lastLog.InboundEndpoint)
+	require.NotNil(t, usageRepo.lastLog.OperationType)
+	require.Equal(t, "generate_content", *usageRepo.lastLog.OperationType)
+	require.NotNil(t, usageRepo.lastLog.ChargeSource)
+	require.Equal(t, "billing_rule", *usageRepo.lastLog.ChargeSource)
+}

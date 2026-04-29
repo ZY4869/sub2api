@@ -604,8 +604,9 @@ groupSelectionLoop:
 
 			requestPayloadHash := service.HashUsageRequestPayload(body)
 			inboundEndpoint := GetInboundEndpoint(c)
+			rawInboundPath := strings.TrimSpace(c.Request.URL.Path)
 			upstreamEndpoint := GetUpstreamEndpointForAccount(c, account)
-			usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, body)
+			usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, rawInboundPath, body)
 			if !usageDecision.Persist {
 				reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
 			} else {
@@ -618,6 +619,7 @@ groupSelectionLoop:
 						Account:               account,
 						Subscription:          currentSubscription,
 						InboundEndpoint:       inboundEndpoint,
+						RawInboundPath:        rawInboundPath,
 						UpstreamEndpoint:      upstreamEndpoint,
 						UserAgent:             userAgent,
 						IPAddress:             clientIP,

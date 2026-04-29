@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -40,6 +41,10 @@ func TestGeminiV1BetaModels_UsesNativeSurfaceRecorder(t *testing.T) {
 	require.Equal(t, "gemini-test-key", fixture.nativeRecorder.lastReq.Header.Get("x-goog-api-key"))
 	require.JSONEq(t, `{"contents":[{"role":"user","parts":[{"text":"hello"}]}]}`, string(fixture.nativeRecorder.lastBody))
 	require.JSONEq(t, fixture.nativeRecorder.response.body, recorder.Body.String())
+	require.Equal(t, 1, fixture.usageRepo.bestEffortCalls)
+	require.NotNil(t, fixture.usageRepo.lastLog)
+	require.NotNil(t, fixture.usageRepo.lastLog.InboundEndpoint)
+	require.Equal(t, service.EndpointGeminiModels, *fixture.usageRepo.lastLog.InboundEndpoint)
 }
 
 func TestGeminiV1BetaModels_FailoverExhaustedMapsGoogleError(t *testing.T) {
@@ -68,4 +73,27 @@ func TestGeminiV1BetaModels_FailoverExhaustedMapsGoogleError(t *testing.T) {
 	require.Equal(t, "INTERNAL", payload.Error.Status)
 	require.True(t, strings.Contains(payload.Error.Message, "Upstream access forbidden"))
 	require.Empty(t, payload.Error.Details)
+}
+
+func TestGeminiV1BetaModels_CountTokensStillSkipsUsageRecording(t *testing.T) {
+	fixture := newGeminiSurfaceFixture(t)
+	fixture.nativeRecorder.response = geminiSurfaceHTTPResponse{
+		statusCode: http.StatusOK,
+		body:       `{"totalTokens":7}`,
+	}
+
+	c, recorder := fixture.newContext(
+		http.MethodPost,
+		"/v1beta/models/gemini-2.5-flash:countTokens",
+		`{"contents":[{"role":"user","parts":[{"text":"hello"}]}]}`,
+		gin.Params{{Key: "modelAction", Value: "/gemini-2.5-flash:countTokens"}},
+	)
+
+	fixture.handler.GeminiV1BetaModels(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	fixture.requireOnlyRecorderHit(fixture.nativeRecorder)
+	require.Equal(t, 0, fixture.usageRepo.bestEffortCalls)
+	require.Nil(t, fixture.usageRepo.lastLog)
+	require.JSONEq(t, `{"totalTokens":7}`, recorder.Body.String())
 }

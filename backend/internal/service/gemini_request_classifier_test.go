@@ -109,6 +109,21 @@ func TestGeminiRequestClassifier_ClassifyRequest_ServiceTierModes(t *testing.T) 
 	require.Equal(t, BillingBatchModeRealtime, answer.BatchMode)
 }
 
+func TestGeminiRequestClassifier_ClassifyRequest_UsesRawPathWhenInboundEndpointIsCanonical(t *testing.T) {
+	classifier := NewGeminiRequestClassifier()
+
+	classification := classifier.ClassifyRequest(GeminiBillingCalculationInput{
+		InboundEndpoint: "/v1beta/models",
+		RawInboundPath:  "/v1beta/models/gemini-2.5-pro:generateContent",
+		RequestBody:     []byte(`{"contents":[{"parts":[{"text":"hi"}]}],"service_tier":"flex"}`),
+	})
+
+	require.Equal(t, BillingSurfaceGeminiNative, classification.Surface)
+	require.Equal(t, "generate_content", classification.OperationType)
+	require.Equal(t, BillingBatchModeRealtime, classification.BatchMode)
+	require.Equal(t, BillingServiceTierFlex, classification.ServiceTier)
+}
+
 func TestGeminiRequestClassifier_ClassifyRequest_BatchAndCacheModesDoNotKeepRealtimeTier(t *testing.T) {
 	classifier := NewGeminiRequestClassifier()
 

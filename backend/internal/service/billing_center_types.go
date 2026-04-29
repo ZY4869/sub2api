@@ -195,6 +195,7 @@ type GeminiRequestClassification struct {
 type GeminiBillingCalculationInput struct {
 	Model                string
 	InboundEndpoint      string
+	RawInboundPath       string
 	RequestBody          []byte
 	Tokens               UsageTokens
 	ImageCount           int

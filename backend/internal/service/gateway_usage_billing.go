@@ -36,6 +36,7 @@ type RecordUsageInput struct {
 	Subscription       *UserSubscription
 	ThinkingEnabled    *bool
 	InboundEndpoint    string
+	RawInboundPath     string
 	UpstreamEndpoint   string
 	UpstreamURL        string
 	UpstreamService    string
@@ -309,6 +310,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		Provider:             RoutingPlatformForAccount(account),
 		Layer:                BillingLayerSale,
 		InboundEndpoint:      input.InboundEndpoint,
+		RawInboundPath:       input.RawInboundPath,
 		RequestBody:          input.RequestBody,
 		Tokens:               tokens,
 		ImageCount:           result.ImageCount,
@@ -403,6 +405,7 @@ type RecordUsageLongContextInput struct {
 	Subscription          *UserSubscription
 	ThinkingEnabled       *bool
 	InboundEndpoint       string
+	RawInboundPath        string
 	UpstreamEndpoint      string
 	UpstreamURL           string
 	UpstreamService       string
@@ -463,6 +466,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		Provider:              RoutingPlatformForAccount(account),
 		Layer:                 BillingLayerSale,
 		InboundEndpoint:       input.InboundEndpoint,
+		RawInboundPath:        input.RawInboundPath,
 		RequestBody:           input.RequestBody,
 		Tokens:                tokens,
 		ImageCount:            result.ImageCount,

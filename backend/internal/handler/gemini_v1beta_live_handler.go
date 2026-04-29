@@ -141,8 +141,9 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 	}
 
 	usage, mediaType, requestID, upstreamModel := usageState.snapshot()
-	inboundEndpoint := strings.TrimSpace(c.Request.URL.Path)
-	usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, firstMessage)
+	inboundEndpoint := GetInboundEndpoint(c)
+	rawInboundPath := strings.TrimSpace(c.Request.URL.Path)
+	usageDecision := service.DecideGeminiSuccessUsagePersistence(inboundEndpoint, rawInboundPath, firstMessage)
 	if !usageDecision.Persist {
 		reqLog.Info("gemini.usage_record_skipped", zap.String("reason", usageDecision.Reason), zap.String("operation_type", usageDecision.OperationType), zap.String("inbound_endpoint", inboundEndpoint))
 		return
@@ -170,6 +171,7 @@ func (h *GatewayHandler) forwardGeminiLiveWebSocket(c *gin.Context) {
 				Account:               account,
 				Subscription:          currentSubscription,
 				InboundEndpoint:       inboundEndpoint,
+				RawInboundPath:        rawInboundPath,
 				UpstreamEndpoint:      service.EndpointGeminiLive,
 				UserAgent:             userAgent,
 				IPAddress:             clientIP,
