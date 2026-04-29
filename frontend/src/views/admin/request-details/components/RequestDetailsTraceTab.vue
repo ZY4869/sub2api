@@ -30,6 +30,11 @@ const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
+const props = withDefaults(defineProps<{
+  routeTabValue?: string
+}>(), {
+  routeTabValue: 'trace'
+})
 
 const filters = ref<OpsRequestTraceFilter>(parseRequestTraceFilterFromQuery(route.query))
 const items = ref<OpsRequestTraceListItem[]>([])
@@ -82,7 +87,7 @@ function summaryFilter(): OpsRequestTraceFilter {
 function buildTraceRouteQuery(): Record<string, string> {
   return {
     ...buildRequestTraceQuery(filters.value),
-    tab: 'trace',
+    tab: props.routeTabValue,
   }
 }
 

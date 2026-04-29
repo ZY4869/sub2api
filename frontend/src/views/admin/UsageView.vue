@@ -41,7 +41,10 @@
         </button>
       </div>
 
-      <RequestDetailsTraceTab v-if="activeTab === 'request_details'" />
+      <RequestDetailsTraceTab
+        v-if="activeTab === 'request_details'"
+        route-tab-value="request_details"
+      />
 
       <template v-else>
         <UsageStatsCards :stats="usageStats" />

@@ -381,12 +381,19 @@ describe("admin UsageView distribution metric toggles", () => {
           TokenUsageTrend: true,
           ModelDistributionChart: ModelDistributionChartStub,
           GroupDistributionChart: GroupDistributionChartStub,
-          RequestDetailsTraceTab: { template: '<div data-test="request-details-trace" />' },
+          RequestDetailsTraceTab: {
+            props: ["routeTabValue"],
+            template:
+              '<div data-test="request-details-trace">{{ routeTabValue }}</div>',
+          },
         },
       },
     });
 
     expect(wrapper.find('[data-test="request-details-trace"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="request-details-trace"]').text()).toBe(
+      "request_details",
+    );
 
     await wrapper.get('[data-test="admin-usage-tab-records"]').trigger("click");
     await flushPromises();
